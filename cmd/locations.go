@@ -4,36 +4,21 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 )
 
 // locationsCmd represents the locations command
 var locationsCmd = &cobra.Command{
 	Use:   "locations",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "List all available locations",
+	Long: `The locations command provides a list of all available locations 
+where services can be provisioned. This command can be used to get 
+detailed information about each location, including its name, 
+region, and availability. For example:
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("locations called")
-	},
+megaport-cli locations`,
 }
 
 func init() {
 	rootCmd.AddCommand(locationsCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// locationsCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// locationsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
