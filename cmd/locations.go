@@ -16,7 +16,7 @@ where services can be provisioned. This command can be used to get
 detailed information about each location, including its name, 
 region, and availability. For example:
 
-megaport-cli locations`,
+mp1 locations`,
 }
 
 func init() {
