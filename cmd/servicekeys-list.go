@@ -56,7 +56,7 @@ var listServiceKeysCmd = &cobra.Command{
 			}
 			table.Render()
 		default:
-			fmt.Println("Invalid output format. Use 'json', 'table', 'csv', 'yaml', or 'xml'.")
+			fmt.Println("Invalid output format. Use 'json', 'table', or 'csv'.")
 		}
 	},
 }

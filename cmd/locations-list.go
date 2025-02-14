@@ -143,7 +143,7 @@ func ListLocations(filters map[string]string, outputFormat string) {
 			}
 			table.Render()
 		default:
-			fmt.Println("Invalid output format. Use 'json', 'table', 'csv', 'yaml', 'xml', or 'html'.")
+			fmt.Println("Invalid output format. Use 'json', 'table', or 'csv'")
 		}
 	} else {
 		fmt.Println("No locations found")
