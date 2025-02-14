@@ -1,0 +1,14 @@
+.DS_Store
+
+.idea/
+.scannerwork
+
+.mpt_test_credentials
+.envrc
+
+*.exe
+*.exe~
+*.dll
+*.so
+*.test
+*.out
