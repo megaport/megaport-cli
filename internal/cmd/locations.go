@@ -1,6 +1,3 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -9,14 +6,25 @@ import (
 	"fmt"
 	"os"
 	"strings"
-
-	"github.com/olekukonko/tablewriter"
+	"time"
 
 	megaport "github.com/megaport/megaportgo"
+	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
 
-// listCmd represents the list command
+// locationsCmd represents the locations command
+var locationsCmd = &cobra.Command{
+	Use:   "locations",
+	Short: "List all available locations",
+	Long: `The locations command provides a list of all available locations 
+where services can be provisioned. This command can be used to get 
+detailed information about each location, including its name, 
+region, and availability. For example:
+
+mp1 locations`,
+}
+
 var listLocationsCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all locations with optional filters",
@@ -36,7 +44,10 @@ var listLocationsCmd = &cobra.Command{
 			filters["name"] = name
 		}
 
-		ListLocations(filters, outputFormat)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		ListLocations(ctx, filters, outputFormat)
 	},
 }
 
@@ -73,15 +84,15 @@ func init() {
 	listLocationsCmd.PersistentFlags().String("country", "", "Country to filter by")
 	listLocationsCmd.PersistentFlags().String("name", "", "Name to filter by, does not need to be exact")
 	locationsCmd.AddCommand(listLocationsCmd)
+	rootCmd.AddCommand(locationsCmd)
 }
-func ListLocations(filters map[string]string, outputFormat string) {
-	client, err := Login()
+
+func ListLocations(ctx context.Context, filters map[string]string, outputFormat string) {
+	client, err := Login(ctx)
 	if err != nil {
 		fmt.Println("Error logging in:", err)
 		os.Exit(1)
 	}
-
-	ctx := context.Background()
 
 	locations, err := client.LocationService.ListLocations(ctx)
 	if err != nil {
