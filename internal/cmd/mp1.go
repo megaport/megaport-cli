@@ -94,8 +94,24 @@ var configureCmd = &cobra.Command{
 	},
 }
 
+var showConfigCmd = &cobra.Command{
+	Use:   "show-config",
+	Short: "Show the current access key and secret key",
+	Run: func(cmd *cobra.Command, args []string) {
+		config, err := loadConfig()
+		if err != nil {
+			fmt.Println("Error loading configuration:", err)
+			return
+		}
+
+		fmt.Printf("Access Key: %s\n", config.AccessKey)
+		fmt.Printf("Secret Key: %s\n", config.SecretKey)
+	},
+}
+
 func init() {
 	configureCmd.Flags().StringVar(&accessKey, "access-key", "", "Your Megaport access key")
 	configureCmd.Flags().StringVar(&secretKey, "secret-key", "", "Your Megaport secret key")
 	rootCmd.AddCommand(configureCmd)
+	rootCmd.AddCommand(showConfigCmd)
 }
