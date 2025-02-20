@@ -18,9 +18,72 @@ go install github.com/megaport/megaport-cli@latest
 
 # Configure the CLI with your credentials
 mp1 configure --access-key YOUR_ACCESS_KEY --secret-key YOUR_SECRET_KEY
+```
 
-# List all available locations
-mp1 locations list
+## Commands
+
+### Locations
+
+```sh
+mp1 locations List
+```
+
+### Ports 
+
+```sh
+mp1 ports list
+mp1 ports get PORT_UID
+```
+
+### MCRs
+
+```sh
+mp1 mcr get MCR_UID
+```
+
+### MVEs
+
+```sh
+mp1 mve get MVE_UID
+```
+
+### VXCs
+
+```sh
+mp1 vxc get VXC_UID
+```
+
+### Partner Ports
+
+```sh
+mp1 partners list \
+  --product-name NAME \
+  --connect-type TYPE \
+  --company-name COMPANY \
+  --location-id ID \
+  --diversity-zone ZONE
+```
+
+## Examples
+
+### JSON Output
+
+```sh
+# List ports in JSON format
+mp1 ports list --output json
+
+# Get MCR details in JSON
+mp1 mcr get MCR_UID --output json
+```
+
+### Table Output
+
+```sh
+# List locations in table format
+mp1 locations list --output table
+
+# List filtered partner ports
+mp1 partners list --connect-type "AWSHC" --output table
 ```
 
 ## Contributing

@@ -10,7 +10,17 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "mp1",
 	Short: "A CLI tool to interact with the Megaport API",
-	Long:  `A CLI tool to interact with the Megaport API, allowing you to manage locations, service keys, and more.`,
+	Long: `A CLI tool to interact with the Megaport API.
+
+This CLI supports the following features:
+  - Configure credentials: Use "mp1 configure" to set your access and secret keys.
+  - Locations: List and manage locations.
+  - Ports: List all ports and get details for a specific port.
+  - MCRs: Get details for Megaport Cloud Routers.
+  - MVEs: Get details for Megaport Virtual Edge devices.
+  - VXCs: Get details for Virtual Cross Connects.
+  - Partner Ports: List and filter partner ports based on product name, connect type, company name, location ID, and diversity zone.
+`,
 }
 
 var (
