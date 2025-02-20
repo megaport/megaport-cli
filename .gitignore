@@ -12,3 +12,6 @@
 *.so
 *.test
 *.out
+
+# Ignore the built mp1 binary
+mp1
