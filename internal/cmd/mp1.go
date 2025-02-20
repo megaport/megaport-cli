@@ -79,6 +79,12 @@ var configureCmd = &cobra.Command{
 			SecretKey: secretKey,
 		}
 
+		// If either key is empty, print an error
+		if config.AccessKey == "" || config.SecretKey == "" {
+			fmt.Println("Error saving configuration: both access key and secret key are required")
+			return
+		}
+
 		if err := saveConfig(config); err != nil {
 			fmt.Println("Error saving configuration:", err)
 			return
