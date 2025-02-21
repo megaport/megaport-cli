@@ -13,8 +13,6 @@ import (
 )
 
 var (
-	accessKey  string
-	secretKey  string
 	configFile = filepath.Join(os.Getenv("HOME"), ".megaport-cli-config.json")
 )
 
@@ -23,45 +21,44 @@ type Config struct {
 	SecretKey string `json:"secret_key"`
 }
 
-func saveConfig(config Config) error {
-	file, err := os.Create(configFile)
-	if err != nil {
-		return err
+// loadConfig obtains the config from environment variables or the config file.
+func loadConfig() (*Config, error) {
+	envAccessKey := os.Getenv("MEGAPORT_ACCESS_KEY")
+	envSecretKey := os.Getenv("MEGAPORT_SECRET_KEY")
+	if envAccessKey != "" && envSecretKey != "" {
+		return &Config{
+			AccessKey: envAccessKey,
+			SecretKey: envSecretKey,
+		}, nil
 	}
-	defer file.Close()
 
-	encoder := json.NewEncoder(file)
-	return encoder.Encode(config)
-}
-
-func loadConfig() (Config, error) {
-	var config Config
 	file, err := os.Open(configFile)
-	if err != nil {
-		return config, err
-	}
-	defer file.Close()
-
-	decoder := json.NewDecoder(file)
-	err = decoder.Decode(&config)
-	return config, err
-}
-
-func Login(ctx context.Context) (*megaport.Client, error) {
-	httpClient := &http.Client{}
-
-	config, err := loadConfig()
-	if err != nil {
-		fmt.Println("Please provide access key and secret key using the configure command")
-		return nil, fmt.Errorf("access key and secret key are required")
-	}
-
-	megaportClient, err := megaport.New(httpClient, megaport.WithCredentials(config.AccessKey, config.SecretKey))
 	if err != nil {
 		return nil, err
 	}
-	_, err = megaportClient.Authorize(ctx)
+	defer file.Close()
+
+	var cfg Config
+	if err := json.NewDecoder(file).Decode(&cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+// Login mocks client auth (actual API calls are not performed in tests).
+func Login(ctx context.Context) (*megaport.Client, error) {
+	httpClient := &http.Client{}
+	cfg, err := loadConfig()
+	if err != nil || cfg.AccessKey == "" || cfg.SecretKey == "" {
+		fmt.Println("Please provide access key and secret key using environment variables or the configure command")
+		return nil, fmt.Errorf("access key and secret key are required")
+	}
+
+	megaportClient, err := megaport.New(httpClient, megaport.WithCredentials(cfg.AccessKey, cfg.SecretKey))
 	if err != nil {
+		return nil, err
+	}
+	if _, err := megaportClient.Authorize(ctx); err != nil {
 		return nil, err
 	}
 	return megaportClient, nil
@@ -70,48 +67,78 @@ func Login(ctx context.Context) (*megaport.Client, error) {
 var configureCmd = &cobra.Command{
 	Use:   "configure",
 	Short: "Configure the CLI with your credentials",
-	Run: func(cmd *cobra.Command, args []string) {
-		accessKey, _ = cmd.Flags().GetString("access-key")
-		secretKey, _ = cmd.Flags().GetString("secret-key")
+	Long: `Configure the CLI with your Megaport API credentials.
 
+You can provide credentials either through environment variables:
+  MEGAPORT_ACCESS_KEY and MEGAPORT_SECRET_KEY
+
+Or through command line flags:
+  --access-key and --secret-key`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Try environment variables first
+		envAccessKey := os.Getenv("MEGAPORT_ACCESS_KEY")
+		envSecretKey := os.Getenv("MEGAPORT_SECRET_KEY")
+
+		// If environment variables are present, use them
+		if envAccessKey != "" && envSecretKey != "" {
+			config := Config{
+				AccessKey: envAccessKey,
+				SecretKey: envSecretKey,
+			}
+			if err := writeConfigFile(config); err != nil {
+				return fmt.Errorf("error writing config from environment: %v", err)
+			}
+			fmt.Println("Credentials from environment saved successfully.")
+			return nil
+		}
+
+		// If no environment variables, check flags
+		flagAccessKey, err := cmd.Flags().GetString("access-key")
+		if err != nil {
+			return fmt.Errorf("error getting access-key flag: %w", err)
+		}
+		flagSecretKey, err := cmd.Flags().GetString("secret-key")
+		if err != nil {
+			return fmt.Errorf("error getting secret-key flag: %w", err)
+		}
+
+		// If flags are missing, return an error
+		if flagAccessKey == "" || flagSecretKey == "" {
+			fmt.Println("Please provide credentials either through environment variables MEGAPORT_ACCESS_KEY and MEGAPORT_SECRET_KEY\nor through flags --access-key and --secret-key")
+			return fmt.Errorf("no valid credentials provided")
+		}
+
+		// If flags are present, use them
 		config := Config{
-			AccessKey: accessKey,
-			SecretKey: secretKey,
+			AccessKey: flagAccessKey,
+			SecretKey: flagSecretKey,
 		}
 
-		// If either key is empty, print an error
-		if config.AccessKey == "" || config.SecretKey == "" {
-			fmt.Println("Error saving configuration: both access key and secret key are required")
-			return
+		if err := writeConfigFile(config); err != nil {
+			return fmt.Errorf("error writing config from flags: %v", err)
 		}
 
-		if err := saveConfig(config); err != nil {
-			fmt.Println("Error saving configuration:", err)
-			return
-		}
-
-		fmt.Println("Configuration saved")
+		fmt.Println("Credentials from flags saved successfully.")
+		return nil
 	},
 }
 
-var showConfigCmd = &cobra.Command{
-	Use:   "show-config",
-	Short: "Show the current access key and secret key",
-	Run: func(cmd *cobra.Command, args []string) {
-		config, err := loadConfig()
-		if err != nil {
-			fmt.Println("Error loading configuration:", err)
-			return
-		}
+// writeConfigFile saves the config struct to disk as JSON.
+func writeConfigFile(cfg Config) error {
+	f, err := os.Create(configFile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
 
-		fmt.Printf("Access Key: %s\n", config.AccessKey)
-		fmt.Printf("Secret Key: %s\n", config.SecretKey)
-	},
+	if err := json.NewEncoder(f).Encode(&cfg); err != nil {
+		return err
+	}
+	return nil
 }
 
 func init() {
-	configureCmd.Flags().StringVar(&accessKey, "access-key", "", "Your Megaport access key")
-	configureCmd.Flags().StringVar(&secretKey, "secret-key", "", "Your Megaport secret key")
+	configureCmd.Flags().String("access-key", "", "Your Megaport access key")
+	configureCmd.Flags().String("secret-key", "", "Your Megaport secret key")
 	rootCmd.AddCommand(configureCmd)
-	rootCmd.AddCommand(showConfigCmd)
 }
