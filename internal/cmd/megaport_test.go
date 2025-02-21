@@ -1,109 +1,101 @@
 package cmd
 
 import (
-	"encoding/json"
-	"io"
+	"crypto/rand"
 	"os"
+	"path/filepath"
 	"testing"
 
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSaveAndLoadConfig(t *testing.T) {
-	// Use a temp file instead of the real config file
-	tmpFile, err := os.CreateTemp("", "megaport-cli-config-*.json")
-	assert.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
+var (
+	testConfigFile = filepath.Join(os.TempDir(), ".megaport-cli-config-test.json")
+)
 
-	testConfig := Config{
-		AccessKey: "testAccessKey",
-		SecretKey: "testSecretKey",
-	}
-
-	// Temporarily override configFile path
-	originalConfigFile := configFile
-	configFile = tmpFile.Name()
-	defer func() { configFile = originalConfigFile }()
-
-	// Test saving
-	err = saveConfig(testConfig)
-	assert.NoError(t, err)
-
-	// Test loading
-	loaded, err := loadConfig()
-	assert.NoError(t, err)
-	assert.Equal(t, testConfig.AccessKey, loaded.AccessKey)
-	assert.Equal(t, testConfig.SecretKey, loaded.SecretKey)
+func init() {
+	configFile = testConfigFile
 }
 
-func TestConfigureCmd(t *testing.T) {
-	cmd := configureCmd
-	// Create a temp file for simulating config
-	tmpFile, err := os.CreateTemp("", "megaport-cli-config-*.json")
-	assert.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
-
-	originalConfigFile := configFile
-	configFile = tmpFile.Name()
-	defer func() { configFile = originalConfigFile }()
-
-	// Capture output
-	oldOut := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	// Set flags
-	cmd.Flags().Set("access-key", "myAccessKey")
-	cmd.Flags().Set("secret-key", "mySecretKey")
-
-	// Run command
-	cmd.Run(cmd, []string{})
-
-	// Restore stdout
-	w.Close()
-	out, _ := io.ReadAll(r)
-	os.Stdout = oldOut
-
-	// Check output
-	output := string(out)
-	assert.Contains(t, output, "Configuration saved")
-
-	// Verify config was actually saved
-	data, err := os.ReadFile(tmpFile.Name())
-	assert.NoError(t, err)
-
-	var cfg Config
-	err = json.Unmarshal(data, &cfg)
-	assert.NoError(t, err)
-	assert.Equal(t, "myAccessKey", cfg.AccessKey)
-	assert.Equal(t, "mySecretKey", cfg.SecretKey)
+func cleanup(_ *testing.T) {
+	os.Remove(testConfigFile)
 }
 
-func TestConfigureCmd_NoFlags(t *testing.T) {
-	// Create temp config file
-	tmpFile, err := os.CreateTemp("", "megaport-cli-config-*.json")
+func TestEncryptDecrypt(t *testing.T) {
+	password := "test-password"
+	data := []byte("test-data")
+
+	// Generate salt
+	salt := make([]byte, saltLen)
+	_, err := rand.Read(salt)
 	assert.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
 
-	// Save original config path and restore after test
-	origConfig := configFile
-	configFile = tmpFile.Name()
-	defer func() { configFile = origConfig }()
+	// Encrypt data
+	encrypted, err := encrypt(password, salt, data)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, encrypted)
 
-	// Create clean command with empty flags
-	cmd := &cobra.Command{
-		Use: "configure",
-		Run: configureCmd.Run,
+	// Decrypt data
+	decrypted, err := decrypt(password, salt, encrypted)
+	assert.NoError(t, err)
+	assert.Equal(t, data, decrypted)
+}
+
+func TestWriteReadConfig(t *testing.T) {
+	cleanup(t)
+	defer cleanup(t)
+
+	cfg := Config{
+		Environment:     "staging",
+		EncryptedAccess: "encrypted-access",
+		EncryptedSecret: "encrypted-secret",
+		Salt:            "salt",
 	}
-	cmd.Flags().String("access-key", "", "")
-	cmd.Flags().String("secret-key", "", "")
 
-	// Capture output and run command
-	output := captureOutput(func() {
-		cmd.Run(cmd, []string{})
-	})
+	// Write config to file
+	err := writeConfigFile(cfg)
+	assert.NoError(t, err)
 
-	// Verify error message
-	assert.Contains(t, output, "Error saving configuration: both access key and secret key are required")
+	// Read config from file
+	loadedCfg, err := loadConfig()
+	assert.NoError(t, err)
+	assert.Equal(t, cfg, *loadedCfg)
+}
+
+func TestPromptPassword(t *testing.T) {
+	// Save original reader
+	original := passwordReader
+	defer func() { passwordReader = original }()
+
+	// Use test implementation
+	passwordReader = &TestPasswordReader{input: "test-password"}
+
+	password, err := promptPassword("Enter password: ")
+	assert.NoError(t, err)
+	assert.Equal(t, "test-password", password)
+}
+func TestLoadConfig_FileNotFound(t *testing.T) {
+	cleanup(t)
+	defer cleanup(t)
+
+	_, err := loadConfig()
+	assert.Error(t, err)
+	assert.True(t, os.IsNotExist(err))
+}
+
+func TestWriteConfigFile_Error(t *testing.T) {
+	// Simulate error by setting an invalid config file path
+	invalidConfigFile := string([]byte{0})
+	configFile = invalidConfigFile
+	defer func() { configFile = testConfigFile }()
+
+	cfg := Config{
+		Environment:     "staging",
+		EncryptedAccess: "encrypted-access",
+		EncryptedSecret: "encrypted-secret",
+		Salt:            "salt",
+	}
+
+	err := writeConfigFile(cfg)
+	assert.Error(t, err)
 }
