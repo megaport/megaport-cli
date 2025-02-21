@@ -80,21 +80,6 @@ func TestConfigureCmd(t *testing.T) {
 	assert.Equal(t, "mySecretKey", cfg.SecretKey)
 }
 
-// Helper function to capture stdout
-func captureOutput(f func()) string {
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	f()
-
-	w.Close()
-	out, _ := io.ReadAll(r)
-	os.Stdout = old
-
-	return string(out)
-}
-
 func TestConfigureCmd_NoFlags(t *testing.T) {
 	// Create temp config file
 	tmpFile, err := os.CreateTemp("", "megaport-cli-config-*.json")

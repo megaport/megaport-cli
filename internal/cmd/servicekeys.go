@@ -13,16 +13,44 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// servicekeysCmd represents the servicekeys command
+// servicekeysCmd is the parent command for managing service keys in the Megaport API.
+// It groups operations that allow you to create, update, list, and get details of service keys.
+//
+// Example usage:
+//
+//	megaport servicekeys list
 var servicekeysCmd = &cobra.Command{
 	Use:   "servicekeys",
-	Short: "Manage service keys in the Megaport API",
-	Long:  `Manage service keys in the Megaport API. This command allows you to create, list, update, and get service keys.`,
+	Short: "Manage service keys for the Megaport API",
+	Long: `Manage service keys for the Megaport API.
+
+This command groups all operations related to service keys. You can use its subcommands to:
+  - Create a new service key.
+  - Update an existing service key.
+  - List all service keys.
+  - Get details of a specific service key.
+
+Example:
+  megaport servicekeys list
+`,
 }
 
+// createServiceKeyCmd creates a new service key.
+//
+// Example usage:
+//
+//	megaport servicekeys create --key "my-new-key" --description "My service key"
 var createServiceKeyCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new service key",
+	Long: `Create a new service key for interacting with the Megaport API.
+
+This command generates a new service key and displays its details.
+You may need to provide additional flags or parameters based on your API requirements.
+
+Example:
+  megaport servicekeys create --key "my-new-key" --description "My service key"
+`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -33,9 +61,23 @@ var createServiceKeyCmd = &cobra.Command{
 	},
 }
 
+// updateServiceKeyCmd updates an existing service key.
+//
+// Example usage:
+//
+//	megaport servicekeys update my-key --description "Updated description"
 var updateServiceKeyCmd = &cobra.Command{
-	Use:   "update",
+	Use:   "update [key]",
 	Short: "Update an existing service key",
+	Long: `Update an existing service key for the Megaport API.
+
+This command allows you to modify the details of an existing service key.
+You need to specify the key identifier as an argument, and provide any updated values as flags.
+
+Example:
+  megaport servicekeys update my-key --description "Updated description"
+`,
+	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -46,9 +88,22 @@ var updateServiceKeyCmd = &cobra.Command{
 	},
 }
 
+// listServiceKeysCmd lists all service keys for the Megaport API.
+//
+// Example usage:
+//
+//	megaport servicekeys list
 var listServiceKeysCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all service keys",
+	Long: `List all service keys for the Megaport API.
+
+This command retrieves and displays all service keys along with their details.
+Use this command to review the keys available in your account.
+
+Example:
+  megaport servicekeys list
+`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -59,10 +114,23 @@ var listServiceKeysCmd = &cobra.Command{
 	},
 }
 
+// getServiceKeyCmd retrieves details of a specific service key.
+//
+// Example usage:
+//
+//	megaport servicekeys get my-key
 var getServiceKeyCmd = &cobra.Command{
 	Use:   "get [key]",
 	Short: "Get details of a service key",
-	Args:  cobra.ExactArgs(1),
+	Long: `Get details of a specific service key.
+
+This command fetches and displays detailed information about a given service key.
+You must provide the service key identifier as an argument.
+
+Example:
+  megaport servicekeys get my-key
+`,
+	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()

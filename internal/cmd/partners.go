@@ -20,31 +20,55 @@ var (
 	diversityZone string
 )
 
+// partnersCmd is the base command for all operations related to partner ports in the Megaport API.
+// This command serves as a container for subcommands which allow you to list and filter partner ports
+// based on various criteria such as product name, connect type, company name, location ID, and diversity zone.
+//
+// Example usage:
+//
+//	megaport partners list
 var partnersCmd = &cobra.Command{
 	Use:   "partners",
 	Short: "Manage partner ports in the Megaport API",
-	Long:  `Manage partner ports in the Megaport API.`,
+	Long: `Manage partner ports in the Megaport API.
+
+This command groups all operations related to partner ports. You can use its subcommands 
+to list and filter available partner ports based on specific criteria.
+
+Examples:
+  megaport partners list
+  megaport partners list --product-name "Enterprise" --company-name "Acme Corp" --location-id 1
+`,
 }
 
+// listPartnersCmd lists all available partner ports and applies filters based on the provided flags.
+// The filtering criteria include product name, connect type, company name, location ID, and diversity zone.
+// The results are printed in the output format specified by the global flag (either JSON or table).
+//
+// Example usage:
+//
+//	megaport partners list --product-name "Enterprise" --connect-type "Fiber" --company-name "Acme Corp" --location-id 2 --diversity-zone "ZoneA"
 var listPartnersCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all partner ports",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Create a context with a 30-second timeout.
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
+		// Login to the API.
 		client, err := Login(ctx)
 		if err != nil {
 			return fmt.Errorf("error logging in: %v", err)
 		}
 
-		// Retrieve partner ports from the API
+		// Retrieve partner ports from the API.
 		partners, err := client.PartnerService.ListPartnerMegaports(ctx)
 		if err != nil {
 			return fmt.Errorf("error listing partner ports: %v", err)
 		}
 
-		// Perform in-memory filtering
+		// Perform in-memory filtering using the provided criteria.
 		filteredPartners := filterPartners(
 			partners,
 			productName,

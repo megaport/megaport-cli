@@ -8,12 +8,12 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "mp1",
+	Use:   "megaport",
 	Short: "A CLI tool to interact with the Megaport API",
 	Long: `A CLI tool to interact with the Megaport API.
 
 This CLI supports the following features:
-  - Configure credentials: Use "mp1 configure" to set your access and secret keys.
+  - Configure credentials: Use "megaport configure" to set your access and secret keys.
   - Locations: List and manage locations.
   - Ports: List all ports and get details for a specific port.
   - MCRs: Get details for Megaport Cloud Routers.

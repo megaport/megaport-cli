@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	megaport "github.com/megaport/megaportgo"
@@ -13,23 +12,68 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// locationsCmd represents the locations command
+var (
+	metroFilter    string
+	countryFilter  string
+	nameFilter     string
+	idFilter       int
+	siteCodeFilter string
+)
+
+// locationsCmd represents the locations command.
+// It provides a list of all available locations where services can be provisioned,
+// along with detailed information including name, ID, country, metropolitan area, site code, and availability status.
 var locationsCmd = &cobra.Command{
 	Use:   "locations",
 	Short: "List all available locations",
 	Long: `The locations command provides a list of all available locations 
 where services can be provisioned. This command can be used to get 
-detailed information about each location, including its name, 
-region, and availability. For example:
+detailed information about each location, including its name, ID, country, 
+metropolitan area, site code, and availability status.
 
-mp1 locations`,
+Example usage:
+  megaport locations list
+`,
 }
 
+// listLocationsCmd retrieves and displays all available locations from the Megaport API.
+// Optionally, you can filter locations by metro area, country, or name using flags.
+//
+// Example usage with filtering:
+//
+//	megaport locations list --metro "Ashburn" --country "USA" --name "Equinix"
 var listLocationsCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all locations with optional filters",
-	Long:  `List all locations with optional filters. You can filter by metro area, country, or name.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Long: `List all locations available in the Megaport API.
+
+This command fetches and displays a list of locations with details such as
+location ID, name, country, metropolitan area, site code, and availability status. 
+You can optionally filter the results by passing additional flags such as --metro, --country, and --name.
+
+Example:
+  megaport locations list --metro "Ashburn" --country "USA" --name "Equinix"
+
+If no filtering options are provided, all locations will be listed.
+`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Create a context with a 30-second timeout.
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Log into the Megaport API.
+		client, err := Login(ctx)
+		if err != nil {
+			return fmt.Errorf("error logging in: %v", err)
+		}
+
+		// Retrieve the list of locations from the API.
+		locations, err := client.LocationService.ListLocations(ctx)
+		if err != nil {
+			return fmt.Errorf("error listing locations: %v", err)
+		}
+
+		// Apply filters if provided.
 		filters := map[string]string{}
 		if cmd.Flags().Changed("metro") {
 			metro, _ := cmd.Flags().GetString("metro")
@@ -44,11 +88,115 @@ var listLocationsCmd = &cobra.Command{
 			filters["name"] = name
 		}
 
+		// Filter locations based on the provided flags.
+		filteredLocations := filterLocations(locations, filters)
+		printLocations(filteredLocations, outputFormat)
+		return nil
+	},
+}
+
+// getLocationCmd retrieves and displays details for a single location from the Megaport API.
+// You can specify the location by ID, site code, or exact name.
+//
+// Example usage:
+//
+//	megaport locations get --id 123
+//	megaport locations get --site-code "EQX-ASH"
+//	megaport locations get --name "Equinix Ashburn"
+var getLocationCmd = &cobra.Command{
+	Use:   "get",
+	Short: "Get details for a single location",
+	Long: `Get details for a single location from the Megaport API.
+
+This command fetches and displays detailed information about a specific location.
+You can specify the location by ID, site code, or exact name.
+
+Example:
+  megaport locations get --id 67
+  megaport locations get --site-code "ash-eq2"
+  megaport locations get --name "Equinix DC4"
+`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Create a context with a 30-second timeout.
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		ListLocations(ctx, filters, outputFormat)
+		// Log into the Megaport API.
+		client, err := Login(ctx)
+		if err != nil {
+			return fmt.Errorf("error logging in: %v", err)
+		}
+
+		// Retrieve the list of locations from the API.
+		locations, err := client.LocationService.ListLocations(ctx)
+		if err != nil {
+			return fmt.Errorf("error listing locations: %v", err)
+		}
+
+		// Filter locations based on the provided flags.
+		var filteredLocations []*megaport.Location
+		if cmd.Flags().Changed("id") {
+			id, _ := cmd.Flags().GetInt("id")
+			for _, loc := range locations {
+				if loc.ID == id {
+					filteredLocations = append(filteredLocations, loc)
+					break
+				}
+			}
+		} else if cmd.Flags().Changed("site-code") {
+			siteCode, _ := cmd.Flags().GetString("site-code")
+			for _, loc := range locations {
+				if loc.SiteCode == siteCode {
+					filteredLocations = append(filteredLocations, loc)
+					break
+				}
+			}
+		} else if cmd.Flags().Changed("name") {
+			name, _ := cmd.Flags().GetString("name")
+			for _, loc := range locations {
+				if loc.Name == name {
+					filteredLocations = append(filteredLocations, loc)
+					break
+				}
+			}
+		} else {
+			return fmt.Errorf("please specify one of the following flags: --id, --site-code, --name")
+		}
+
+		// Print the filtered location.
+		printLocations(filteredLocations, outputFormat)
+		return nil
 	},
+}
+
+func init() {
+	listLocationsCmd.Flags().StringVar(&metroFilter, "metro", "", "Filter locations by metro area")
+	listLocationsCmd.Flags().StringVar(&countryFilter, "country", "", "Filter locations by country")
+	listLocationsCmd.Flags().StringVar(&nameFilter, "name", "", "Filter locations by name")
+	getLocationCmd.Flags().IntVar(&idFilter, "id", 0, "Get location by ID")
+	getLocationCmd.Flags().StringVar(&siteCodeFilter, "site-code", "", "Get location by site code")
+	getLocationCmd.Flags().StringVar(&nameFilter, "name", "", "Get location by exact name")
+	locationsCmd.AddCommand(listLocationsCmd)
+	locationsCmd.AddCommand(getLocationCmd)
+	rootCmd.AddCommand(locationsCmd)
+}
+
+// filterLocations filters the provided locations based on the given filters.
+func filterLocations(locations []*megaport.Location, filters map[string]string) []*megaport.Location {
+	var filtered []*megaport.Location
+	for _, loc := range locations {
+		if metro, ok := filters["metro"]; ok && loc.Metro != metro {
+			continue
+		}
+		if country, ok := filters["country"]; ok && loc.Country != country {
+			continue
+		}
+		if name, ok := filters["name"]; ok && loc.Name != name {
+			continue
+		}
+		filtered = append(filtered, loc)
+	}
+	return filtered
 }
 
 // LocationOutput represents the desired fields for JSON output.
@@ -79,84 +227,37 @@ func ToLocationOutput(l *megaport.Location) *LocationOutput {
 	}
 }
 
-func init() {
-	listLocationsCmd.PersistentFlags().String("metro", "", "Metro area to filter by")
-	listLocationsCmd.PersistentFlags().String("country", "", "Country to filter by")
-	listLocationsCmd.PersistentFlags().String("name", "", "Name to filter by, does not need to be exact")
-	locationsCmd.AddCommand(listLocationsCmd)
-	rootCmd.AddCommand(locationsCmd)
-}
-
-func ListLocations(ctx context.Context, filters map[string]string, outputFormat string) {
-	client, err := Login(ctx)
-	if err != nil {
-		fmt.Println("Error logging in:", err)
-		os.Exit(1)
-	}
-
-	locations, err := client.LocationService.ListLocations(ctx)
-	if err != nil {
-		fmt.Println("Error listing locations:", err)
-		os.Exit(1)
-	}
-
-	var locationList []*megaport.Location
-	filtered := []*megaport.Location{}
-
-	if len(filters) > 0 {
-		for _, location := range locations {
-			if filters["metro"] != "" && location.Metro != filters["metro"] {
-				continue
-			}
-			if filters["country"] != "" && location.Country != filters["country"] {
-				continue
-			}
-			if filters["name"] != "" && !strings.Contains(location.Name, filters["name"]) {
-				continue
-			}
-			filtered = append(filtered, location)
+// printLocations prints the provided locations in the specified output format (json or table).
+func printLocations(locations []*megaport.Location, format string) {
+	switch format {
+	case "json":
+		var outputList []*LocationOutput
+		for _, loc := range locations {
+			outputList = append(outputList, ToLocationOutput(loc))
 		}
-		locationList = filtered
-	} else {
-		locationList = locations
-	}
-
-	if len(locationList) > 0 {
-		switch outputFormat {
-		case "json":
-			var outputList []*LocationOutput
-			for _, location := range locationList {
-				outputList = append(outputList, ToLocationOutput(location))
-			}
-			printed, err := json.Marshal(outputList)
-			if err != nil {
-				fmt.Println("Error printing locations:", err)
-				os.Exit(1)
-			}
-			fmt.Println(string(printed))
-		case "table":
-			table := tablewriter.NewWriter(os.Stdout)
-			table.SetHeader([]string{"ID", "Name", "Metro", "Country", "Site Code", "Market", "Latitude", "Longitude", "VRouter Available", "Status"})
-
-			for _, location := range locationList {
-				table.Append([]string{
-					fmt.Sprintf("%d", location.ID),
-					location.Name,
-					location.Metro,
-					location.Country,
-					location.SiteCode,
-					location.Market,
-					fmt.Sprintf("%f", location.Latitude),
-					fmt.Sprintf("%f", location.Longitude),
-					fmt.Sprintf("%t", location.VRouterAvailable),
-					location.Status,
-				})
-			}
-			table.Render()
-		default:
-			fmt.Println("Invalid output format. Use 'json', 'table', or 'csv'")
+		out, err := json.Marshal(outputList)
+		if err != nil {
+			fmt.Println("Error marshalling locations:", err)
+			os.Exit(1)
 		}
-	} else {
-		fmt.Println("No locations found")
+		fmt.Println(string(out))
+	case "table":
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetAutoFormatHeaders(false)
+		table.SetHeader([]string{"ID", "Name", "Country", "Metro", "Site Code", "Status"})
+
+		for _, loc := range locations {
+			table.Append([]string{
+				fmt.Sprintf("%d", loc.ID),
+				loc.Name,
+				loc.Country,
+				loc.Metro,
+				loc.SiteCode,
+				loc.Status,
+			})
+		}
+		table.Render()
+	default:
+		fmt.Println("Invalid output format. Use 'json' or 'table'")
 	}
 }

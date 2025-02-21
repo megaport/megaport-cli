@@ -13,5 +13,5 @@
 *.test
 *.out
 
-# Ignore the built mp1 binary
-mp1
+# Ignore the built megaport binary
+megaport
