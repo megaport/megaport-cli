@@ -1,6 +1,6 @@
 module github.com/megaport/megaport-cli
 
-go 1.23.4
+go 1.21
 
 require (
 	github.com/megaport/megaportgo v1.2.9
