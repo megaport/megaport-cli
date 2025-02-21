@@ -1,0 +1,50 @@
+name: Build and Release CLI
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.17'
+
+      - name: Build binary
+        run: |
+          mkdir -p dist
+          GOOS=linux GOARCH=amd64 go build -o dist/megaport-cli-linux-amd64
+          GOOS=darwin GOARCH=amd64 go build -o dist/megaport-cli-darwin-amd64
+          GOOS=windows GOARCH=amd64 go build -o dist/megaport-cli-windows-amd64.exe
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: dist/megaport-cli-linux-amd64
+          asset_name: megaport-cli-linux-amd64
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: dist/megaport-cli-darwin-amd64
+          asset_name: megaport-cli-darwin-amd64
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: dist/megaport-cli-windows-amd64.exe
+          asset_name: megaport-cli-windows-amd64.exe
+          asset_content_type: application/octet-stream

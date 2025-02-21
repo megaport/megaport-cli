@@ -1,0 +1,19 @@
+name: go-tests
+
+on:
+  push:
+    branches:
+      - 'main'
+  pull_request:
+
+jobs:
+  unit-test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+      - name: Run Tests
+        run: go test -v ./... 
