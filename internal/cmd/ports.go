@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	megaport "github.com/megaport/megaportgo"
@@ -25,18 +26,139 @@ var (
 //
 //	megaport ports list
 //	megaport ports get [portUID]
+//	megaport ports buy
 var portsCmd = &cobra.Command{
 	Use:   "ports",
 	Short: "Manage ports in the Megaport API",
 	Long: `Manage ports in the Megaport API.
 
 This command groups all operations related to ports. You can use the subcommands 
-to list all ports or get details for a specific port.
+to list all ports, get details for a specific port, or buy a new port.
 
 Examples:
   megaport ports list
   megaport ports get [portUID]
+  megaport ports buy
 `,
+}
+
+var buyPortCmd = &cobra.Command{
+	Use:   "buy",
+	Short: "Buy a port through the Megaport API",
+	Long: `Buy a port through the Megaport API.
+
+This command allows you to purchase a port by providing the necessary details.
+You will be prompted to enter the required and optional fields.
+
+Required fields:
+  - name: The name of the port.
+  - term: The term of the port (1, 12, 24, or 36 months).
+  - port_speed: The speed of the port (1000, 10000, or 100000 Mbps).
+  - location_id: The ID of the location where the port will be provisioned.
+  - marketplace_visibility: Whether the port should be visible in the marketplace (true or false).
+
+Optional fields:
+  - diversity_zone: The diversity zone for the port.
+  - cost_center: The cost center for the port.
+  - promo_code: A promotional code for the port.
+
+Example usage:
+
+  megaport ports buy
+`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+
+		// Prompt for required fields
+		name, err := prompt("Enter port name (required): ")
+		if err != nil {
+			return err
+		}
+		if name == "" {
+			return fmt.Errorf("port name is required")
+		}
+
+		termStr, err := prompt("Enter term (1, 12, 24, 36) (required): ")
+		if err != nil {
+			return err
+		}
+		term, err := strconv.Atoi(termStr)
+		if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
+			return fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		}
+
+		portSpeedStr, err := prompt("Enter port speed (1000, 10000, 100000) (required): ")
+		if err != nil {
+			return err
+		}
+		portSpeed, err := strconv.Atoi(portSpeedStr)
+		if err != nil || (portSpeed != 1000 && portSpeed != 10000 && portSpeed != 100000) {
+			return fmt.Errorf("invalid port speed, must be one of 1000, 10000, 100000")
+		}
+
+		locationIDStr, err := prompt("Enter location ID (required): ")
+		if err != nil {
+			return err
+		}
+		locationID, err := strconv.Atoi(locationIDStr)
+		if err != nil {
+			return fmt.Errorf("invalid location ID")
+		}
+
+		marketplaceVisibilityStr, err := prompt("Enter marketplace visibility (true/false) (required): ")
+		if err != nil {
+			return err
+		}
+		marketplaceVisibility, err := strconv.ParseBool(marketplaceVisibilityStr)
+		if err != nil {
+			return fmt.Errorf("invalid marketplace visibility, must be true or false")
+		}
+
+		// Prompt for optional fields
+		diversityZone, err := prompt("Enter diversity zone (optional): ")
+		if err != nil {
+			return err
+		}
+
+		costCentre, err := prompt("Enter cost center (optional): ")
+		if err != nil {
+			return err
+		}
+
+		promoCode, err := prompt("Enter promo code (optional): ")
+		if err != nil {
+			return err
+		}
+
+		// Create the BuyPortRequest
+		req := &megaport.BuyPortRequest{
+			Name:                  name,
+			Term:                  term,
+			PortSpeed:             portSpeed,
+			LocationId:            locationID,
+			MarketPlaceVisibility: marketplaceVisibility,
+			DiversityZone:         diversityZone,
+			CostCentre:            costCentre,
+			PromoCode:             promoCode,
+			WaitForProvision:      true,
+			WaitForTime:           10 * time.Minute,
+		}
+
+		// Call the BuyPort method
+		client, err := Login(ctx)
+		if err != nil {
+			return err
+		}
+		portService := megaport.NewPortService(client)
+		fmt.Println("Buying port...")
+		resp, err := portService.BuyPort(ctx, req)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Port purchased successfully - UID: %s\n", resp.TechnicalServiceUIDs[0])
+		return nil
+	},
 }
 
 // listPortsCmd retrieves and displays all available ports from the Megaport API.
@@ -131,6 +253,7 @@ func init() {
 	listPortsCmd.Flags().IntVar(&locationID, "location-id", 0, "Filter ports by location ID")
 	listPortsCmd.Flags().IntVar(&portSpeed, "port-speed", 0, "Filter ports by port speed")
 	listPortsCmd.Flags().StringVar(&portName, "port-name", "", "Filter ports by port name")
+	portsCmd.AddCommand(buyPortCmd)
 	portsCmd.AddCommand(listPortsCmd)
 	portsCmd.AddCommand(getPortCmd)
 	rootCmd.AddCommand(portsCmd)
