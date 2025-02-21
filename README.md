@@ -20,6 +20,38 @@ go install github.com/megaport/megaport-cli@latest
 megaport configure --access-key YOUR_ACCESS_KEY --secret-key YOUR_SECRET_KEY
 ```
 
+## Configuration
+
+The `configure` command allows you to set up your Megaport CLI with your API credentials. You can provide your credentials either through environment variables or command line flags.
+
+### Using Environment Variables
+
+Set the following environment variables:
+
+```sh
+export MEGAPORT_ACCESS_KEY=<your-access-key>
+export MEGAPORT_SECRET_KEY=<your-secret-key>
+export MEGAPORT_ENVIRONMENT=<environment>
+```
+
+### Using Command Line Flags
+
+Run the following command:
+
+```sh
+megaport configure --access-key <your-access-key> --secret-key <your-secret-key> --environment <environment>
+```
+
+You will be prompted to enter a password to encrypt your credentials. This password will be required to decrypt your credentials when using the CLI.
+
+#### Example
+
+```sh
+megaport configure --access-key my-access-key --secret-key my-secret-key --environment production
+Enter password to encrypt credentials: ********
+Environment (production) saved successfully.
+```
+
 ## Commands
 
 ### Locations
