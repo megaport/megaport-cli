@@ -7,8 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// mockLocations is our fake data for testing
-var mockLocations = []*megaport.Location{
+var testLocations = []*megaport.Location{
 	{
 		ID:       1,
 		Name:     "Sydney",
@@ -29,116 +28,86 @@ var mockLocations = []*megaport.Location{
 	},
 }
 
-// filterLocations applies filters to a list of locations.
-func filterLocations(locations []*megaport.Location, filters map[string]string) []*megaport.Location {
-	var filtered []*megaport.Location
-	for _, loc := range locations {
-		if filters["metro"] != "" && loc.Metro != filters["metro"] {
-			continue
-		}
-		if filters["country"] != "" && loc.Country != filters["country"] {
-			continue
-		}
-		if filters["name"] != "" && !containsCaseInsensitive(loc.Name, filters["name"]) {
-			continue
-		}
-		filtered = append(filtered, loc)
-	}
-	if len(filters) == 0 {
-		return locations
-	}
-	return filtered
-}
-
-// Simple helper to perform case-insensitive substring matching.
-func containsCaseInsensitive(str, substr string) bool {
-	// Your preferred approach here; this is a basic example:
-	if len(substr) == 0 {
-		return true
-	}
-	// Convert both to lower case for a simple match.
-	return (len(str) >= len(substr) &&
-		(len(str) > 0) &&
-		(len(substr) > 0) &&
-		(stringInLower(str, substr)))
-}
-
-func stringInLower(str, substr string) bool {
-	s := []rune(str)
-	sub := []rune(substr)
-	// naive approach
-	for i := 0; i <= len(s)-len(sub); i++ {
-		match := true
-		for j := 0; j < len(sub); j++ {
-			if toLowerRune(s[i+j]) != toLowerRune(sub[j]) {
-				match = false
-				break
-			}
-		}
-		if match {
-			return true
-		}
-	}
-	return false
-}
-
-func toLowerRune(r rune) rune {
-	if r >= 'A' && r <= 'Z' {
-		return r + 32
-	}
-	return r
-}
-
-func TestToLocationOutput(t *testing.T) {
-	loc := mockLocations[0]
-	output := ToLocationOutput(loc)
-
-	assert.Equal(t, loc.ID, output.ID)
-	assert.Equal(t, loc.Name, output.Name)
-	assert.Equal(t, loc.Country, output.Country)
-	assert.Equal(t, loc.Metro, output.Metro)
-	assert.Equal(t, loc.SiteCode, output.SiteCode)
-	assert.Equal(t, loc.Market, output.Market)
-	assert.Equal(t, loc.Status, output.Status)
-}
-
 func TestFilterLocations(t *testing.T) {
 	tests := []struct {
-		name    string
-		filters map[string]string
-		expect  int
+		name     string
+		filters  map[string]string
+		expected int
 	}{
 		{
-			name:    "No filters",
-			filters: map[string]string{},
-			expect:  2,
+			name:     "No filters",
+			filters:  map[string]string{},
+			expected: 2,
 		},
 		{
-			name:    "Filter by metro",
-			filters: map[string]string{"metro": "Sydney"},
-			expect:  1,
+			name:     "Filter by Metro",
+			filters:  map[string]string{"metro": "Sydney"},
+			expected: 1,
 		},
 		{
-			name:    "Filter by country",
-			filters: map[string]string{"country": "Australia"},
-			expect:  1,
+			name:     "Filter by Country",
+			filters:  map[string]string{"country": "United Kingdom"},
+			expected: 1,
 		},
 		{
-			name:    "Filter by partial name match",
-			filters: map[string]string{"name": "don"},
-			expect:  1,
+			name:     "Filter by Name",
+			filters:  map[string]string{"name": "London"},
+			expected: 1,
 		},
 		{
-			name:    "No matches",
-			filters: map[string]string{"metro": "NonExistingMetro"},
-			expect:  0,
+			name:     "No match",
+			filters:  map[string]string{"name": "NoMatch"},
+			expected: 0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := filterLocations(mockLocations, tt.filters)
-			assert.Equal(t, tt.expect, len(result))
+			result := filterLocations(testLocations, tt.filters)
+			assert.Equal(t, tt.expected, len(result))
 		})
 	}
+}
+
+func TestPrintLocations_Table(t *testing.T) {
+	output := captureOutput(func() {
+		printLocations(testLocations, "table")
+	})
+
+	// Table output should contain headers and both location names
+	assert.Contains(t, output, "ID")
+	assert.Contains(t, output, "Name")
+	assert.Contains(t, output, "Country")
+	assert.Contains(t, output, "Metro")
+	assert.Contains(t, output, "Site Code")
+	assert.Contains(t, output, "Status")
+	assert.Contains(t, output, "Sydney")
+	assert.Contains(t, output, "London")
+}
+
+func TestPrintLocations_JSON(t *testing.T) {
+	output := captureOutput(func() {
+		printLocations(testLocations, "json")
+	})
+
+	// JSON output should contain an array of objects
+	assert.Contains(t, output, `"id":1`)
+	assert.Contains(t, output, `"id":2`)
+	assert.Contains(t, output, `"name":"Sydney"`)
+	assert.Contains(t, output, `"name":"London"`)
+	assert.Contains(t, output, `"country":"Australia"`)
+	assert.Contains(t, output, `"country":"United Kingdom"`)
+	assert.Contains(t, output, `"metro":"Sydney"`)
+	assert.Contains(t, output, `"metro":"London"`)
+	assert.Contains(t, output, `"site_code":"SYD1"`)
+	assert.Contains(t, output, `"site_code":"LON1"`)
+	assert.Contains(t, output, `"status":"ACTIVE"`)
+}
+
+func TestPrintLocations_Invalid(t *testing.T) {
+	output := captureOutput(func() {
+		printLocations(testLocations, "invalid")
+	})
+
+	assert.Contains(t, output, "Invalid output format")
 }

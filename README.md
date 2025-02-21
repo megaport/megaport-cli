@@ -17,7 +17,7 @@ The [Megaport API Documentation](https://dev.megaport.com/) is also available on
 go install github.com/megaport/megaport-cli@latest
 
 # Configure the CLI with your credentials
-mp1 configure --access-key YOUR_ACCESS_KEY --secret-key YOUR_SECRET_KEY
+megaport configure --access-key YOUR_ACCESS_KEY --secret-key YOUR_SECRET_KEY
 ```
 
 ## Commands
@@ -25,38 +25,38 @@ mp1 configure --access-key YOUR_ACCESS_KEY --secret-key YOUR_SECRET_KEY
 ### Locations
 
 ```sh
-mp1 locations List
+megaport locations List
 ```
 
 ### Ports 
 
 ```sh
-mp1 ports list
-mp1 ports get PORT_UID
+megaport ports list
+megaport ports get PORT_UID
 ```
 
 ### MCRs
 
 ```sh
-mp1 mcr get MCR_UID
+megaport mcr get MCR_UID
 ```
 
 ### MVEs
 
 ```sh
-mp1 mve get MVE_UID
+megaport mve get MVE_UID
 ```
 
 ### VXCs
 
 ```sh
-mp1 vxc get VXC_UID
+megaport vxc get VXC_UID
 ```
 
 ### Partner Ports
 
 ```sh
-mp1 partners list \
+megaport partners list \
   --product-name NAME \
   --connect-type TYPE \
   --company-name COMPANY \
@@ -70,20 +70,20 @@ mp1 partners list \
 
 ```sh
 # List ports in JSON format
-mp1 ports list --output json
+megaport ports list --output json
 
 # Get MCR details in JSON
-mp1 mcr get MCR_UID --output json
+megaport mcr get MCR_UID --output json
 ```
 
 ### Table Output
 
 ```sh
 # List locations in table format
-mp1 locations list --output table
+megaport locations list --output table
 
 # List filtered partner ports
-mp1 partners list --connect-type "AWSHC" --output table
+megaport partners list --connect-type "AWSHC" --output table
 ```
 
 ## Contributing

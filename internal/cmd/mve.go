@@ -12,16 +12,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	mveName string
-)
-
-var mvesCmd = &cobra.Command{
+// mveCmd is the base command for all Megaport Virtual Edge (MVE) operations.
+// It groups commands related to MVEs.
+// Use the "megaport mve get [mveUID]" command to fetch details for a specific MVE identified by its UID.
+var mveCmd = &cobra.Command{
 	Use:   "mve",
 	Short: "Manage MVEs in the Megaport API",
-	Long:  `Manage MVEs in the Megaport API.`,
+	Long: `Manage MVEs in the Megaport API.
+
+This command groups all operations related to Megaport Virtual Edge devices (MVEs).
+Use the "megaport mve get [mveUID]" command to fetch details for a specific MVE identified by its UID.
+`,
 }
 
+// getMVECmd retrieves details for a single MVE.
+// Execute the command as "megaport mve get [mveUID]" to fetch information about the desired MVE.
 var getMVECmd = &cobra.Command{
 	Use:   "get [mveUID]",
 	Short: "Get details for a single MVE",
@@ -47,9 +52,8 @@ var getMVECmd = &cobra.Command{
 }
 
 func init() {
-	getMVECmd.Flags().StringVar(&mveName, "name", "", "Filter by MVE Name")
-	mvesCmd.AddCommand(getMVECmd)
-	rootCmd.AddCommand(mvesCmd)
+	mveCmd.AddCommand(getMVECmd)
+	rootCmd.AddCommand(mveCmd)
 }
 
 // MVEOutput represents the desired fields for JSON output.
