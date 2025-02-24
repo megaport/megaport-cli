@@ -91,10 +91,11 @@ func init() {
 
 // PartnerOutput represents the desired fields for JSON output.
 type PartnerOutput struct {
+	output
 	ProductName   string `json:"product_name"`
 	ConnectType   string `json:"connect_type"`
 	CompanyName   string `json:"company_name"`
-	LocationID    int    `json:"location_id"`
+	LocationId    int    `json:"location_id"`
 	DiversityZone string `json:"diversity_zone"`
 	VXCPermitted  bool   `json:"vxc_permitted"`
 }
@@ -105,7 +106,7 @@ func ToPartnerOutput(p *megaport.PartnerMegaport) *PartnerOutput {
 		ProductName:   p.ProductName,
 		ConnectType:   p.ConnectType,
 		CompanyName:   p.CompanyName,
-		LocationID:    p.LocationId,
+		LocationId:    p.LocationId,
 		DiversityZone: p.DiversityZone,
 		VXCPermitted:  p.VXCPermitted,
 	}

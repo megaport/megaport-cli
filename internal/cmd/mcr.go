@@ -2,13 +2,10 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"time"
 
 	megaport "github.com/megaport/megaportgo"
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
 
@@ -73,49 +70,28 @@ func init() {
 	rootCmd.AddCommand(mcrCmd)
 }
 
-// MCROutput represents the desired fields for JSON output.
 type MCROutput struct {
-	UID        string `json:"uid"`
-	Name       string `json:"name"`
-	LocationID int    `json:"location_id"`
+	output
+	UID                string `json:"uid"`
+	Name               string `json:"name"`
+	LocationID         int    `json:"location_id"`
+	ProvisioningStatus string `json:"provisioning_status"`
 }
 
-// ToMCROutput converts an MCR to an MCROutput.
 func ToMCROutput(m *megaport.MCR) *MCROutput {
 	return &MCROutput{
-		UID:        m.UID,
-		Name:       m.Name,
-		LocationID: m.LocationID,
+		UID:                m.UID,
+		Name:               m.Name,
+		LocationID:         m.LocationID,
+		ProvisioningStatus: m.ProvisioningStatus,
 	}
 }
 
-// printMCRs prints the MCRs in the specified output format.
-func printMCRs(mcrs []*megaport.MCR, format string) {
-	switch format {
-	case "json":
-		var outputList []*MCROutput
-		for _, mcr := range mcrs {
-			outputList = append(outputList, ToMCROutput(mcr))
-		}
-		printed, err := json.Marshal(outputList)
-		if err != nil {
-			fmt.Println("Error printing MCRs:", err)
-			os.Exit(1)
-		}
-		fmt.Println(string(printed))
-	case "table":
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetHeader([]string{"UID", "Name", "LocationID"})
-
-		for _, mcr := range mcrs {
-			table.Append([]string{
-				mcr.UID,
-				mcr.Name,
-				fmt.Sprintf("%d", mcr.LocationID),
-			})
-		}
-		table.Render()
-	default:
-		fmt.Println("Invalid output format. Use 'json' or 'table'")
+// printMCRs prints the MCRs in the specified output format
+func printMCRs(mcrs []*megaport.MCR, format string) error {
+	outputs := make([]*MCROutput, 0, len(mcrs))
+	for _, mcr := range mcrs {
+		outputs = append(outputs, ToMCROutput(mcr))
 	}
+	return printOutput(outputs, format)
 }

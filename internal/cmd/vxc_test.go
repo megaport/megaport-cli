@@ -32,37 +32,46 @@ var testVXCs = []*megaport.VXC{
 
 func TestPrintVXCs_Table(t *testing.T) {
 	output := captureOutput(func() {
-		printVXCs(testVXCs, "table")
+		err := printVXCs(testVXCs, "table")
+		assert.NoError(t, err)
 	})
 
-	// Table output should contain headers and both VXC UIDs
-	assert.Contains(t, output, "UID")
-	assert.Contains(t, output, "MyVXCOne")
-	assert.Contains(t, output, "AnotherVXC")
-	assert.Contains(t, output, "a-end-1")
-	assert.Contains(t, output, "b-end-1")
-	assert.Contains(t, output, "a-end-2")
-	assert.Contains(t, output, "b-end-2")
+	expected := `uid     name         a_end_uid   b_end_uid
+vxc-1   MyVXCOne     a-end-1     b-end-1
+vxc-2   AnotherVXC   a-end-2     b-end-2
+`
+	assert.Equal(t, expected, output)
 }
-
 func TestPrintVXCs_JSON(t *testing.T) {
 	output := captureOutput(func() {
-		printVXCs(testVXCs, "json")
+		err := printVXCs(testVXCs, "json")
+		assert.NoError(t, err)
 	})
 
-	// JSON output should contain an array of objects
-	assert.Contains(t, output, `"uid":"vxc-1"`)
-	assert.Contains(t, output, `"uid":"vxc-2"`)
-	assert.Contains(t, output, `"a_end_uid":"a-end-1"`)
-	assert.Contains(t, output, `"b_end_uid":"b-end-1"`)
-	assert.Contains(t, output, `"a_end_uid":"a-end-2"`)
-	assert.Contains(t, output, `"b_end_uid":"b-end-2"`)
+	expected := `[
+  {
+    "uid": "vxc-1",
+    "name": "MyVXCOne",
+    "a_end_uid": "a-end-1",
+    "b_end_uid": "b-end-1"
+  },
+  {
+    "uid": "vxc-2",
+    "name": "AnotherVXC",
+    "a_end_uid": "a-end-2",
+    "b_end_uid": "b-end-2"
+  }
+]`
+	assert.JSONEq(t, expected, output)
 }
 
 func TestPrintVXCs_Invalid(t *testing.T) {
+	var err error
 	output := captureOutput(func() {
-		printVXCs(testVXCs, "invalid")
+		err = printVXCs(testVXCs, "invalid")
 	})
 
-	assert.Contains(t, output, "Invalid output format")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid output format")
+	assert.Empty(t, output)
 }
