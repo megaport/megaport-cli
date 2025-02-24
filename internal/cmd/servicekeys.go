@@ -2,14 +2,11 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	megaport "github.com/megaport/megaportgo"
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
 
@@ -112,6 +109,27 @@ Example:
 			log.Fatalf("Error listing service keys: %v", err)
 		}
 	},
+}
+
+// ServiceKeyOutput represents the desired fields for output
+type ServiceKeyOutput struct {
+	output
+	KeyUID      string `json:"key_uid"`
+	ProductName string `json:"product_name"`
+	ProductUID  string `json:"product_uid"`
+	Description string `json:"description"`
+	CreateDate  string `json:"create_date"`
+}
+
+// ToServiceKeyOutput converts a ServiceKey to ServiceKeyOutput
+func ToServiceKeyOutput(sk *megaport.ServiceKey) *ServiceKeyOutput {
+	return &ServiceKeyOutput{
+		KeyUID:      sk.Key,
+		ProductName: sk.ProductName,
+		Description: sk.Description,
+		ProductUID:  sk.ProductUID,
+		CreateDate:  sk.CreateDate.Time.Format(time.RFC3339),
+	}
 }
 
 // getServiceKeyCmd retrieves details of a specific service key.
@@ -257,33 +275,12 @@ func ListServiceKeys(ctx context.Context, cmd *cobra.Command) error {
 		return fmt.Errorf("error listing service keys: %v", err)
 	}
 
-	switch outputFormat {
-	case "json":
-		printed, err := json.MarshalIndent(resp.ServiceKeys, "", "  ")
-		if err != nil {
-			return fmt.Errorf("error printing service keys: %v", err)
-		}
-		fmt.Println(string(printed))
-	case "table":
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetHeader([]string{"Key", "Description", "Product UID", "Product ID", "Single Use", "Max Speed", "Active"})
-
-		for _, key := range resp.ServiceKeys {
-			table.Append([]string{
-				key.Key,
-				key.Description,
-				key.ProductUID,
-				fmt.Sprintf("%d", key.ProductID),
-				fmt.Sprintf("%t", key.SingleUse),
-				fmt.Sprintf("%d", key.MaxSpeed),
-				fmt.Sprintf("%t", key.Active),
-			})
-		}
-		table.Render()
-	default:
-		return fmt.Errorf("invalid output format. Use 'json', 'table', or 'csv'")
+	outputs := make([]*ServiceKeyOutput, 0, len(resp.ServiceKeys))
+	for _, sk := range resp.ServiceKeys {
+		outputs = append(outputs, ToServiceKeyOutput(sk))
 	}
-	return nil
+
+	return printOutput(outputs, outputFormat)
 }
 
 func GetServiceKey(ctx context.Context, cmd *cobra.Command, keyID string) error {
@@ -297,6 +294,6 @@ func GetServiceKey(ctx context.Context, cmd *cobra.Command, keyID string) error 
 		return fmt.Errorf("error getting service key: %v", err)
 	}
 
-	fmt.Printf("Service Key: %s, Description: %s\n", resp.Key, resp.Description)
-	return nil
+	output := ToServiceKeyOutput(resp)
+	return printOutput([]*ServiceKeyOutput{output}, outputFormat)
 }

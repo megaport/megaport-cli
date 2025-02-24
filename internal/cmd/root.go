@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -23,8 +24,17 @@ This CLI supports the following features:
 `,
 }
 
+const (
+	formatTable = "table"
+	formatJSON  = "json"
+	formatCSV   = "csv"
+	formatXML   = "xml"
+)
+
 var (
+	env          string
 	outputFormat string
+	validFormats = []string{formatTable, formatJSON, formatCSV, formatXML}
 )
 
 func Execute() {
@@ -36,7 +46,21 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "table", "Output format (json, table, or csv)")
+	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", formatTable,
+		fmt.Sprintf("Output format (%s)", strings.Join(validFormats, ", ")))
+
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		format := strings.ToLower(outputFormat)
+		for _, validFormat := range validFormats {
+			if format == validFormat {
+				outputFormat = format
+				return nil
+			}
+		}
+		return fmt.Errorf("invalid output format: %s. Must be one of: %s",
+			outputFormat, strings.Join(validFormats, ", "))
+	}
+	rootCmd.PersistentFlags().StringVarP(&env, "env", "e", "production", "Environment to use (production, staging, development)")
 }
 
 func initConfig() {

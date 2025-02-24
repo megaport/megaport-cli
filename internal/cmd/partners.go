@@ -2,14 +2,11 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
 	megaport "github.com/megaport/megaportgo"
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
 
@@ -144,46 +141,13 @@ func filterPartners(
 }
 
 // printPartners prints the partner ports in the specified output format.
-func printPartners(partners []*megaport.PartnerMegaport, format string) {
-	switch format {
-	case "json":
-		var outputList []*PartnerOutput
-		for _, partner := range partners {
-			outputList = append(outputList, ToPartnerOutput(partner))
-		}
-		printed, err := json.Marshal(outputList)
-		if err != nil {
-			fmt.Println("Error printing partner ports:", err)
-			os.Exit(1)
-		}
-		fmt.Println(string(printed))
-	case "table":
-		table := tablewriter.NewWriter(os.Stdout)
-
-		// Disable automatic header formatting so that the headers won't become uppercase.
-		table.SetAutoFormatHeaders(false)
-
-		table.SetHeader([]string{
-			"ProductName",
-			"ConnectType",
-			"CompanyName",
-			"LocationID",
-			"DiversityZone",
-			"VXCPermitted",
-		})
-
-		for _, partner := range partners {
-			table.Append([]string{
-				partner.ProductName,
-				partner.ConnectType,
-				partner.CompanyName,
-				fmt.Sprintf("%d", partner.LocationId),
-				partner.DiversityZone,
-				fmt.Sprintf("%t", partner.VXCPermitted),
-			})
-		}
-		table.Render()
-	default:
-		fmt.Println("Invalid output format. Use 'json' or 'table'")
+func printPartners(partners []*megaport.PartnerMegaport, format string) error {
+	// Convert partners to output format
+	outputs := make([]*PartnerOutput, 0, len(partners))
+	for _, partner := range partners {
+		outputs = append(outputs, ToPartnerOutput(partner))
 	}
+
+	// Use generic printOutput function
+	return printOutput(outputs, format)
 }

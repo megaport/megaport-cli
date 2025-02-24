@@ -2,13 +2,10 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"time"
 
 	megaport "github.com/megaport/megaportgo"
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
 
@@ -71,6 +68,7 @@ func init() {
 
 // VXCOutput represents the desired fields for JSON output.
 type VXCOutput struct {
+	output
 	UID     string `json:"uid"`
 	Name    string `json:"name"`
 	AEndUID string `json:"a_end_uid"`
@@ -87,34 +85,11 @@ func ToVXCOutput(v *megaport.VXC) *VXCOutput {
 	}
 }
 
-// printVXCs prints the VXCs in the specified output format.
-func printVXCs(vxcs []*megaport.VXC, format string) {
-	switch format {
-	case "json":
-		var outputList []*VXCOutput
-		for _, vxc := range vxcs {
-			outputList = append(outputList, ToVXCOutput(vxc))
-		}
-		printed, err := json.Marshal(outputList)
-		if err != nil {
-			fmt.Println("Error printing VXCs:", err)
-			os.Exit(1)
-		}
-		fmt.Println(string(printed))
-	case "table":
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetHeader([]string{"UID", "Name", "AEndUID", "BEndUID"})
-
-		for _, vxc := range vxcs {
-			table.Append([]string{
-				vxc.UID,
-				vxc.Name,
-				vxc.AEndConfiguration.UID,
-				vxc.BEndConfiguration.UID,
-			})
-		}
-		table.Render()
-	default:
-		fmt.Println("Invalid output format. Use 'json' or 'table'")
+// Update the printVXCs function to use generic printOutput
+func printVXCs(vxcs []*megaport.VXC, format string) error {
+	outputs := make([]*VXCOutput, len(vxcs))
+	for i, vxc := range vxcs {
+		outputs[i] = ToVXCOutput(vxc)
 	}
+	return printOutput(outputs, format)
 }
