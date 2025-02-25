@@ -11,7 +11,7 @@ func TestConfigureCmd(t *testing.T) {
 	// Set environment variables for testing
 	t.Setenv("MEGAPORT_ACCESS_KEY", "test-access-key")
 	t.Setenv("MEGAPORT_SECRET_KEY", "test-secret-key")
-	t.Setenv("MEGAPORT_ENVIRONMENT", "test-environment")
+	t.Setenv("MEGAPORT_ENVIRONMENT", "staging")
 
 	defer func() {
 		os.Unsetenv("MEGAPORT_ACCESS_KEY")
