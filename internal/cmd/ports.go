@@ -197,7 +197,10 @@ If no filtering options are provided, all ports will be listed.
 
 		// Apply filters if provided.
 		filteredPorts := filterPorts(ports, locationID, portSpeed, portName)
-		printPorts(filteredPorts, outputFormat)
+		err = printPorts(filteredPorts, outputFormat)
+		if err != nil {
+			return fmt.Errorf("error printing ports: %v", err)
+		}
 		return nil
 	},
 }
@@ -241,7 +244,10 @@ Example:
 		}
 
 		// Print the port details using the desired output format.
-		printPorts([]*megaport.Port{port}, outputFormat)
+		err = printPorts([]*megaport.Port{port}, outputFormat)
+		if err != nil {
+			return fmt.Errorf("error printing ports: %v", err)
+		}
 		return nil
 	},
 }

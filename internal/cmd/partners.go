@@ -74,7 +74,10 @@ var listPartnersCmd = &cobra.Command{
 			locationID,
 			diversityZone,
 		)
-		printPartners(filteredPartners, outputFormat)
+		err = printPartners(filteredPartners, outputFormat)
+		if err != nil {
+			return fmt.Errorf("error printing partner ports: %v", err)
+		}
 		return nil
 	},
 }

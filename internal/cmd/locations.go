@@ -87,7 +87,10 @@ If no filtering options are provided, all locations will be listed.
 
 		// Filter locations based on the provided flags.
 		filteredLocations := filterLocations(locations, filters)
-		printLocations(filteredLocations, outputFormat)
+		err = printLocations(filteredLocations, outputFormat)
+		if err != nil {
+			return fmt.Errorf("error printing locations: %v", err)
+		}
 		return nil
 	},
 }
@@ -161,7 +164,10 @@ Example:
 		}
 
 		// Print the filtered location.
-		printLocations(filteredLocations, outputFormat)
+		err = printLocations(filteredLocations, outputFormat)
+		if err != nil {
+			return err
+		}
 		return nil
 	},
 }
