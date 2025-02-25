@@ -22,29 +22,58 @@ var testMVEs = []*megaport.MVE{
 
 func TestPrintMVEs_Table(t *testing.T) {
 	output := captureOutput(func() {
-		printMVEs(testMVEs, "table")
+		err := printMVEs(testMVEs, "table")
+		assert.NoError(t, err)
 	})
 
-	// Table output should contain headers and both MVE UIDs
-	assert.Contains(t, output, "UID")
-	assert.Contains(t, output, "MyMVEOne")
-	assert.Contains(t, output, "AnotherMVE")
+	expected := `uid     name         location_id
+mve-1   MyMVEOne     1
+mve-2   AnotherMVE   2
+`
+	assert.Equal(t, expected, output)
 }
 
 func TestPrintMVEs_JSON(t *testing.T) {
 	output := captureOutput(func() {
-		printMVEs(testMVEs, "json")
+		err := printMVEs(testMVEs, "json")
+		assert.NoError(t, err)
 	})
 
-	// JSON output should contain an array of objects
-	assert.Contains(t, output, `"uid":"mve-1"`)
-	assert.Contains(t, output, `"uid":"mve-2"`)
+	expected := `[
+  {
+    "uid": "mve-1",
+    "name": "MyMVEOne",
+    "location_id": 1
+  },
+  {
+    "uid": "mve-2",
+    "name": "AnotherMVE",
+    "location_id": 2
+  }
+]`
+	assert.JSONEq(t, expected, output)
+}
+
+func TestPrintMVEs_CSV(t *testing.T) {
+	output := captureOutput(func() {
+		err := printMVEs(testMVEs, "csv")
+		assert.NoError(t, err)
+	})
+
+	expected := `uid,name,location_id
+mve-1,MyMVEOne,1
+mve-2,AnotherMVE,2
+`
+	assert.Equal(t, expected, output)
 }
 
 func TestPrintMVEs_Invalid(t *testing.T) {
+	var err error
 	output := captureOutput(func() {
-		printMVEs(testMVEs, "invalid")
+		err = printMVEs(testMVEs, "invalid")
 	})
 
-	assert.Contains(t, output, "Invalid output format")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid output format")
+	assert.Empty(t, output)
 }

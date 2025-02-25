@@ -2,14 +2,11 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 	"time"
 
 	megaport "github.com/megaport/megaportgo"
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
 
@@ -287,8 +284,8 @@ type PortOutput struct {
 }
 
 // ToPortOutput converts a *megaport.Port to our PortOutput struct.
-func ToPortOutput(p *megaport.Port) *PortOutput {
-	return &PortOutput{
+func ToPortOutput(p *megaport.Port) PortOutput {
+	return PortOutput{
 		UID:                p.UID,
 		Name:               p.Name,
 		LocationID:         p.LocationID,
@@ -297,36 +294,10 @@ func ToPortOutput(p *megaport.Port) *PortOutput {
 	}
 }
 
-// printPorts prints the ports in either JSON or table format.
-func printPorts(ports []*megaport.Port, format string) {
-	switch format {
-	case "json":
-		var output []*PortOutput
-		for _, p := range ports {
-			output = append(output, ToPortOutput(p))
-		}
-		data, err := json.Marshal(output)
-		if err != nil {
-			fmt.Println("Error marshalling ports:", err)
-			os.Exit(1)
-		}
-		fmt.Println(string(data))
-	case "table":
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetHeader([]string{"UID", "Name", "LocationID", "PortSpeed", "ProvisioningStatus"})
-		table.SetAutoFormatHeaders(false)
-
-		for _, p := range ports {
-			table.Append([]string{
-				p.UID,
-				p.Name,
-				fmt.Sprintf("%d", p.LocationID),
-				fmt.Sprintf("%d", p.PortSpeed),
-				p.ProvisioningStatus,
-			})
-		}
-		table.Render()
-	default:
-		fmt.Println("Invalid output format. Use 'json' or 'table'")
+func printPorts(ports []*megaport.Port, format string) error {
+	outputs := make([]PortOutput, 0, len(ports))
+	for _, port := range ports {
+		outputs = append(outputs, ToPortOutput(port))
 	}
+	return printOutput(outputs, format)
 }

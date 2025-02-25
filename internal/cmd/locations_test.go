@@ -68,46 +68,74 @@ func TestFilterLocations(t *testing.T) {
 		})
 	}
 }
-
 func TestPrintLocations_Table(t *testing.T) {
+	var err error
 	output := captureOutput(func() {
-		printLocations(testLocations, "table")
+		err = printLocations(testLocations, "table")
+		assert.NoError(t, err)
 	})
 
-	// Table output should contain headers and both location names
-	assert.Contains(t, output, "ID")
-	assert.Contains(t, output, "Name")
-	assert.Contains(t, output, "Country")
-	assert.Contains(t, output, "Metro")
-	assert.Contains(t, output, "Site Code")
-	assert.Contains(t, output, "Status")
-	assert.Contains(t, output, "Sydney")
-	assert.Contains(t, output, "London")
+	expected := `id   name     country          metro    site_code   market   latitude   longitude   status
+1    Sydney   Australia        Sydney   SYD1        APAC     0          0           ACTIVE
+2    London   United Kingdom   London   LON1        EUROPE   0          0           ACTIVE
+`
+	assert.Equal(t, expected, output)
 }
 
 func TestPrintLocations_JSON(t *testing.T) {
+	var err error
 	output := captureOutput(func() {
-		printLocations(testLocations, "json")
+		err = printLocations(testLocations, "json")
+		assert.NoError(t, err)
 	})
 
-	// JSON output should contain an array of objects
-	assert.Contains(t, output, `"id":1`)
-	assert.Contains(t, output, `"id":2`)
-	assert.Contains(t, output, `"name":"Sydney"`)
-	assert.Contains(t, output, `"name":"London"`)
-	assert.Contains(t, output, `"country":"Australia"`)
-	assert.Contains(t, output, `"country":"United Kingdom"`)
-	assert.Contains(t, output, `"metro":"Sydney"`)
-	assert.Contains(t, output, `"metro":"London"`)
-	assert.Contains(t, output, `"site_code":"SYD1"`)
-	assert.Contains(t, output, `"site_code":"LON1"`)
-	assert.Contains(t, output, `"status":"ACTIVE"`)
+	expected := `[
+  {
+    "id": 1,
+    "name": "Sydney",
+    "country": "Australia",
+    "metro": "Sydney",
+    "site_code": "SYD1",
+    "market": "APAC",
+    "latitude": 0,
+    "longitude": 0,
+    "status": "ACTIVE"
+  },
+  {
+    "id": 2,
+    "name": "London",
+    "country": "United Kingdom",
+    "metro": "London",
+    "site_code": "LON1",
+    "market": "EUROPE",
+    "latitude": 0,
+    "longitude": 0,
+    "status": "ACTIVE"
+  }
+]`
+	assert.JSONEq(t, expected, output)
+}
+
+func TestPrintLocations_CSV(t *testing.T) {
+	output := captureOutput(func() {
+		err := printLocations(testLocations, "csv")
+		assert.NoError(t, err)
+	})
+
+	expected := `id,name,country,metro,site_code,market,latitude,longitude,status
+1,Sydney,Australia,Sydney,SYD1,APAC,0,0,ACTIVE
+2,London,United Kingdom,London,LON1,EUROPE,0,0,ACTIVE
+`
+	assert.Equal(t, expected, output)
 }
 
 func TestPrintLocations_Invalid(t *testing.T) {
+	var err error
 	output := captureOutput(func() {
-		printLocations(testLocations, "invalid")
+		err = printLocations(testLocations, "invalid")
 	})
 
-	assert.Contains(t, output, "Invalid output format")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid output format")
+	assert.Empty(t, output)
 }

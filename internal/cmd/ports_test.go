@@ -79,41 +79,62 @@ func TestFilterPorts(t *testing.T) {
 
 func TestPrintPorts_Table(t *testing.T) {
 	output := captureOutput(func() {
-		printPorts(testPorts, "table")
+		err := printPorts(testPorts, "table")
+		assert.NoError(t, err)
 	})
 
-	// Table output should contain headers and both port names
-	assert.Contains(t, output, "UID")
-	assert.Contains(t, output, "Name")
-	assert.Contains(t, output, "LocationID")
-	assert.Contains(t, output, "PortSpeed")
-	assert.Contains(t, output, "ProvisioningStatus")
-	assert.Contains(t, output, "MyPortOne")
-	assert.Contains(t, output, "AnotherPort")
+	expected := `uid      name          location_id   port_speed   provisioning_status
+port-1   MyPortOne     1             1000         ACTIVE
+port-2   AnotherPort   2             2000         INACTIVE
+`
+	assert.Equal(t, expected, output)
 }
 
 func TestPrintPorts_JSON(t *testing.T) {
 	output := captureOutput(func() {
-		printPorts(testPorts, "json")
+		err := printPorts(testPorts, "json")
+		assert.NoError(t, err)
 	})
 
-	// JSON output should contain an array of objects with the correct keys
-	assert.Contains(t, output, `"uid":"port-1"`)
-	assert.Contains(t, output, `"uid":"port-2"`)
-	assert.Contains(t, output, `"name":"MyPortOne"`)
-	assert.Contains(t, output, `"name":"AnotherPort"`)
-	assert.Contains(t, output, `"location_id":1`)
-	assert.Contains(t, output, `"location_id":2`)
-	assert.Contains(t, output, `"port_speed":1000`)
-	assert.Contains(t, output, `"port_speed":2000`)
-	assert.Contains(t, output, `"provisioning_status":"ACTIVE"`)
-	assert.Contains(t, output, `"provisioning_status":"INACTIVE"`)
+	expected := `[
+  {
+    "uid": "port-1",
+    "name": "MyPortOne",
+    "location_id": 1,
+    "port_speed": 1000,
+    "provisioning_status": "ACTIVE"
+  },
+  {
+    "uid": "port-2",
+    "name": "AnotherPort",
+    "location_id": 2,
+    "port_speed": 2000,
+    "provisioning_status": "INACTIVE"
+  }
+]`
+	assert.JSONEq(t, expected, output)
+}
+
+func TestPrintPorts_CSV(t *testing.T) {
+	output := captureOutput(func() {
+		err := printPorts(testPorts, "csv")
+		assert.NoError(t, err)
+	})
+
+	expected := `uid,name,location_id,port_speed,provisioning_status
+port-1,MyPortOne,1,1000,ACTIVE
+port-2,AnotherPort,2,2000,INACTIVE
+`
+	assert.Equal(t, expected, output)
 }
 
 func TestPrintPorts_Invalid(t *testing.T) {
+	var err error
 	output := captureOutput(func() {
-		printPorts(testPorts, "invalid")
+		err = printPorts(testPorts, "invalid")
 	})
 
-	assert.Contains(t, output, "Invalid output format")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid output format")
+	assert.Empty(t, output)
 }

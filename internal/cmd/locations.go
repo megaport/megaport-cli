@@ -2,13 +2,10 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"time"
 
 	megaport "github.com/megaport/megaportgo"
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
 
@@ -201,6 +198,7 @@ func filterLocations(locations []*megaport.Location, filters map[string]string) 
 
 // LocationOutput represents the desired fields for JSON output.
 type LocationOutput struct {
+	output
 	ID        int     `json:"id"`
 	Name      string  `json:"name"`
 	Country   string  `json:"country"`
@@ -213,8 +211,8 @@ type LocationOutput struct {
 }
 
 // ToLocationOutput converts a Location to a LocationOutput.
-func ToLocationOutput(l *megaport.Location) *LocationOutput {
-	return &LocationOutput{
+func ToLocationOutput(l *megaport.Location) LocationOutput {
+	return LocationOutput{
 		ID:        l.ID,
 		Name:      l.Name,
 		Country:   l.Country,
@@ -227,37 +225,11 @@ func ToLocationOutput(l *megaport.Location) *LocationOutput {
 	}
 }
 
-// printLocations prints the provided locations in the specified output format (json or table).
-func printLocations(locations []*megaport.Location, format string) {
-	switch format {
-	case "json":
-		var outputList []*LocationOutput
-		for _, loc := range locations {
-			outputList = append(outputList, ToLocationOutput(loc))
-		}
-		out, err := json.Marshal(outputList)
-		if err != nil {
-			fmt.Println("Error marshalling locations:", err)
-			os.Exit(1)
-		}
-		fmt.Println(string(out))
-	case "table":
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetAutoFormatHeaders(false)
-		table.SetHeader([]string{"ID", "Name", "Country", "Metro", "Site Code", "Status"})
-
-		for _, loc := range locations {
-			table.Append([]string{
-				fmt.Sprintf("%d", loc.ID),
-				loc.Name,
-				loc.Country,
-				loc.Metro,
-				loc.SiteCode,
-				loc.Status,
-			})
-		}
-		table.Render()
-	default:
-		fmt.Println("Invalid output format. Use 'json' or 'table'")
+// printLocations prints the locations in the specified output format
+func printLocations(locations []*megaport.Location, format string) error {
+	outputs := make([]LocationOutput, 0, len(locations))
+	for _, loc := range locations {
+		outputs = append(outputs, ToLocationOutput(loc))
 	}
+	return printOutput(outputs, format)
 }

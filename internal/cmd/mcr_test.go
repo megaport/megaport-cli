@@ -9,42 +9,75 @@ import (
 
 var testMCRs = []*megaport.MCR{
 	{
-		UID:        "mcr-1",
-		Name:       "MyMCROne",
-		LocationID: 1,
+		UID:                "mcr-1",
+		Name:               "MyMCROne",
+		LocationID:         1,
+		ProvisioningStatus: "ACTIVE",
 	},
 	{
-		UID:        "mcr-2",
-		Name:       "AnotherMCR",
-		LocationID: 2,
+		UID:                "mcr-2",
+		Name:               "AnotherMCR",
+		LocationID:         2,
+		ProvisioningStatus: "INACTIVE",
 	},
 }
 
 func TestPrintMCRs_Table(t *testing.T) {
 	output := captureOutput(func() {
-		printMCRs(testMCRs, "table")
+		err := printMCRs(testMCRs, "table")
+		assert.NoError(t, err)
 	})
 
-	// Table output should contain headers and both MCR UIDs
-	assert.Contains(t, output, "UID")
-	assert.Contains(t, output, "MyMCROne")
-	assert.Contains(t, output, "AnotherMCR")
+	expected := `uid     name         location_id   provisioning_status
+mcr-1   MyMCROne     1             ACTIVE
+mcr-2   AnotherMCR   2             INACTIVE
+`
+	assert.Equal(t, expected, output)
 }
 
 func TestPrintMCRs_JSON(t *testing.T) {
 	output := captureOutput(func() {
-		printMCRs(testMCRs, "json")
+		err := printMCRs(testMCRs, "json")
+		assert.NoError(t, err)
 	})
 
-	// JSON output should contain an array of objects
-	assert.Contains(t, output, `"uid":"mcr-1"`)
-	assert.Contains(t, output, `"uid":"mcr-2"`)
+	expected := `[
+  {
+    "uid": "mcr-1",
+    "name": "MyMCROne",
+    "location_id": 1,
+    "provisioning_status": "ACTIVE"
+  },
+  {
+    "uid": "mcr-2",
+    "name": "AnotherMCR",
+    "location_id": 2,
+    "provisioning_status": "INACTIVE"
+  }
+]`
+	assert.JSONEq(t, expected, output)
+}
+
+func TestPrintMCRs_CSV(t *testing.T) {
+	output := captureOutput(func() {
+		err := printMCRs(testMCRs, "csv")
+		assert.NoError(t, err)
+	})
+
+	expected := `uid,name,location_id,provisioning_status
+mcr-1,MyMCROne,1,ACTIVE
+mcr-2,AnotherMCR,2,INACTIVE
+`
+	assert.Equal(t, expected, output)
 }
 
 func TestPrintMCRs_Invalid(t *testing.T) {
+	var err error
 	output := captureOutput(func() {
-		printMCRs(testMCRs, "invalid")
+		err = printMCRs(testMCRs, "invalid")
 	})
 
-	assert.Contains(t, output, "Invalid output format")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid output format")
+	assert.Empty(t, output)
 }

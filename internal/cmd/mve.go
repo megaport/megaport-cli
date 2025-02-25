@@ -2,13 +2,10 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"time"
 
 	megaport "github.com/megaport/megaportgo"
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
 
@@ -64,41 +61,19 @@ type MVEOutput struct {
 }
 
 // ToMVEOutput converts an MVE to an MVEOutput.
-func ToMVEOutput(m *megaport.MVE) *MVEOutput {
-	return &MVEOutput{
+func ToMVEOutput(m *megaport.MVE) MVEOutput {
+	return MVEOutput{
 		UID:        m.UID,
 		Name:       m.Name,
 		LocationID: m.LocationID,
 	}
 }
 
-// printMVEs prints the MVEs in the specified output format.
-func printMVEs(mves []*megaport.MVE, format string) {
-	switch format {
-	case "json":
-		var outputList []*MVEOutput
-		for _, mve := range mves {
-			outputList = append(outputList, ToMVEOutput(mve))
-		}
-		printed, err := json.Marshal(outputList)
-		if err != nil {
-			fmt.Println("Error printing MVEs:", err)
-			os.Exit(1)
-		}
-		fmt.Println(string(printed))
-	case "table":
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetHeader([]string{"UID", "Name", "LocationID"})
-
-		for _, mve := range mves {
-			table.Append([]string{
-				mve.UID,
-				mve.Name,
-				fmt.Sprintf("%d", mve.LocationID),
-			})
-		}
-		table.Render()
-	default:
-		fmt.Println("Invalid output format. Use 'json' or 'table'")
+// printMVEs prints the MVEs in the specified output format
+func printMVEs(mves []*megaport.MVE, format string) error {
+	outputs := make([]MVEOutput, 0, len(mves))
+	for _, mve := range mves {
+		outputs = append(outputs, ToMVEOutput(mve))
 	}
+	return printOutput(outputs, format)
 }

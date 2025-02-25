@@ -111,49 +111,64 @@ func TestFilterPartners(t *testing.T) {
 
 func TestPrintPartners_Table(t *testing.T) {
 	output := captureOutput(func() {
-		printPartners(testPartners, "table")
+		err := printPartners(testPartners, "table")
+		assert.NoError(t, err)
 	})
 
-	// Table output should contain headers and both partner product names
-	assert.Contains(t, output, "ProductName")
-	assert.Contains(t, output, "ProductOne")
-	assert.Contains(t, output, "ProductTwo")
-	assert.Contains(t, output, "TypeA")
-	assert.Contains(t, output, "TypeB")
-	assert.Contains(t, output, "CompanyA")
-	assert.Contains(t, output, "CompanyB")
-	assert.Contains(t, output, "1")
-	assert.Contains(t, output, "2")
-	assert.Contains(t, output, "ZoneA")
-	assert.Contains(t, output, "ZoneB")
-	assert.Contains(t, output, "true")
-	assert.Contains(t, output, "false")
+	expected := `product_name   connect_type   company_name   location_id   diversity_zone   vxc_permitted
+ProductOne     TypeA          CompanyA       1             ZoneA            true
+ProductTwo     TypeB          CompanyB       2             ZoneB            false
+`
+	assert.Equal(t, expected, output)
 }
 
 func TestPrintPartners_JSON(t *testing.T) {
 	output := captureOutput(func() {
-		printPartners(testPartners, "json")
+		err := printPartners(testPartners, "json")
+		assert.NoError(t, err)
 	})
 
-	// JSON output should contain an array of objects
-	assert.Contains(t, output, `"product_name":"ProductOne"`)
-	assert.Contains(t, output, `"product_name":"ProductTwo"`)
-	assert.Contains(t, output, `"connect_type":"TypeA"`)
-	assert.Contains(t, output, `"connect_type":"TypeB"`)
-	assert.Contains(t, output, `"company_name":"CompanyA"`)
-	assert.Contains(t, output, `"company_name":"CompanyB"`)
-	assert.Contains(t, output, `"location_id":1`)
-	assert.Contains(t, output, `"location_id":2`)
-	assert.Contains(t, output, `"diversity_zone":"ZoneA"`)
-	assert.Contains(t, output, `"diversity_zone":"ZoneB"`)
-	assert.Contains(t, output, `"vxc_permitted":true`)
-	assert.Contains(t, output, `"vxc_permitted":false`)
+	expected := `[
+  {
+    "product_name": "ProductOne",
+    "connect_type": "TypeA",
+    "company_name": "CompanyA",
+    "location_id": 1,
+    "diversity_zone": "ZoneA",
+    "vxc_permitted": true
+  },
+  {
+    "product_name": "ProductTwo",
+    "connect_type": "TypeB",
+    "company_name": "CompanyB", 
+    "location_id": 2,
+    "diversity_zone": "ZoneB",
+    "vxc_permitted": false
+  }
+]`
+	assert.JSONEq(t, expected, output)
+}
+
+func TestPrintPartners_CSV(t *testing.T) {
+	output := captureOutput(func() {
+		err := printPartners(testPartners, "csv")
+		assert.NoError(t, err)
+	})
+
+	expected := `product_name,connect_type,company_name,location_id,diversity_zone,vxc_permitted
+ProductOne,TypeA,CompanyA,1,ZoneA,true
+ProductTwo,TypeB,CompanyB,2,ZoneB,false
+`
+	assert.Equal(t, expected, output)
 }
 
 func TestPrintPartners_Invalid(t *testing.T) {
+	var err error
 	output := captureOutput(func() {
-		printPartners(testPartners, "invalid")
+		err = printPartners(testPartners, "invalid")
 	})
 
-	assert.Contains(t, output, "Invalid output format")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid output format")
+	assert.Empty(t, output)
 }
