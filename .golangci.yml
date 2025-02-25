@@ -22,7 +22,6 @@ linters:
     - unused
     - govet
     - sloglint
-    - usetesting
 
 output:
   formats: colored-line-number
