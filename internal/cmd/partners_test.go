@@ -99,11 +99,34 @@ func TestFilterPartners(t *testing.T) {
 			diversityZone: "NoMatch",
 			expected:      0,
 		},
+		{
+			name:          "Empty partners slice",
+			productName:   "ProductOne",
+			connectType:   "",
+			companyName:   "",
+			locationID:    0,
+			diversityZone: "",
+			expected:      0,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := filterPartners(testPartners, tt.productName, tt.connectType, tt.companyName, tt.locationID, tt.diversityZone)
+			var source []*megaport.PartnerMegaport
+			if tt.name == "Empty partners slice" {
+				source = []*megaport.PartnerMegaport{}
+			} else {
+				source = testPartners
+			}
+
+			result := filterPartners(
+				source,
+				tt.productName,
+				tt.connectType,
+				tt.companyName,
+				tt.locationID,
+				tt.diversityZone,
+			)
 			assert.Equal(t, tt.expected, len(result))
 		})
 	}
@@ -140,7 +163,7 @@ func TestPrintPartners_JSON(t *testing.T) {
   {
     "product_name": "ProductTwo",
     "connect_type": "TypeB",
-    "company_name": "CompanyB", 
+    "company_name": "CompanyB",
     "location_id": 2,
     "diversity_zone": "ZoneB",
     "vxc_permitted": false
@@ -171,4 +194,35 @@ func TestPrintPartners_Invalid(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid output format")
 	assert.Empty(t, output)
+}
+
+// Additional coverage test: printing an empty slice
+func TestPrintPartners_EmptySlice(t *testing.T) {
+	var emptySlice []*megaport.PartnerMegaport
+
+	// Table format with empty slice
+	tableOutput := captureOutput(func() {
+		err := printPartners(emptySlice, "table")
+		assert.NoError(t, err)
+	})
+	// Should only print the header row
+	expectedTable := `product_name   connect_type   company_name   location_id   diversity_zone   vxc_permitted
+`
+	assert.Equal(t, expectedTable, tableOutput)
+
+	// JSON format with empty slice
+	jsonOutput := captureOutput(func() {
+		err := printPartners(emptySlice, "json")
+		assert.NoError(t, err)
+	})
+	assert.Equal(t, "[]\n", jsonOutput)
+
+	// CSV format with empty slice
+	csvOutput := captureOutput(func() {
+		err := printPartners(emptySlice, "csv")
+		assert.NoError(t, err)
+	})
+	expectedCSV := `product_name,connect_type,company_name,location_id,diversity_zone,vxc_permitted
+`
+	assert.Equal(t, expectedCSV, csvOutput)
 }

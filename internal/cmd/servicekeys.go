@@ -122,14 +122,24 @@ type ServiceKeyOutput struct {
 }
 
 // ToServiceKeyOutput converts a ServiceKey to ServiceKeyOutput
-func ToServiceKeyOutput(sk *megaport.ServiceKey) ServiceKeyOutput {
-	return ServiceKeyOutput{
+func ToServiceKeyOutput(sk *megaport.ServiceKey) (ServiceKeyOutput, error) {
+	if sk == nil {
+		return ServiceKeyOutput{}, fmt.Errorf("nil service key")
+	}
+
+	output := ServiceKeyOutput{
 		KeyUID:      sk.Key,
 		ProductName: sk.ProductName,
-		Description: sk.Description,
 		ProductUID:  sk.ProductUID,
-		CreateDate:  sk.CreateDate.Time.Format(time.RFC3339),
+		Description: sk.Description,
 	}
+
+	// Handle nil CreateDate
+	if sk.CreateDate != nil {
+		output.CreateDate = sk.CreateDate.Time.Format(time.RFC3339)
+	}
+
+	return output, nil
 }
 
 // getServiceKeyCmd retrieves details of a specific service key.
@@ -277,7 +287,11 @@ func ListServiceKeys(ctx context.Context, cmd *cobra.Command) error {
 
 	outputs := make([]ServiceKeyOutput, 0, len(resp.ServiceKeys))
 	for _, sk := range resp.ServiceKeys {
-		outputs = append(outputs, ToServiceKeyOutput(sk))
+		output, err := ToServiceKeyOutput(sk)
+		if err != nil {
+			return fmt.Errorf("error converting service key: %v", err)
+		}
+		outputs = append(outputs, output)
 	}
 
 	return printOutput(outputs, outputFormat)
@@ -294,6 +308,9 @@ func GetServiceKey(ctx context.Context, cmd *cobra.Command, keyID string) error 
 		return fmt.Errorf("error getting service key: %v", err)
 	}
 
-	output := ToServiceKeyOutput(resp)
+	output, err := ToServiceKeyOutput(resp)
+	if err != nil {
+		return fmt.Errorf("error converting service key: %v", err)
+	}
 	return printOutput([]ServiceKeyOutput{output}, outputFormat)
 }

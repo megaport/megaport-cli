@@ -116,6 +116,44 @@ func TestPrintLocations_JSON(t *testing.T) {
 	assert.JSONEq(t, expected, output)
 }
 
+func TestFilterLocations_EmptySlice(t *testing.T) {
+	// Passing an empty slice with no filters should yield zero results
+	var emptyLocations []*megaport.Location
+	result := filterLocations(emptyLocations, map[string]string{})
+	assert.Equal(t, 0, len(result), "Expected no results for empty input")
+}
+
+func TestPrintLocations_EmptySlice(t *testing.T) {
+	var emptyLocations []*megaport.Location
+
+	// Table format
+	tableOutput := captureOutput(func() {
+		err := printLocations(emptyLocations, "table")
+		assert.NoError(t, err)
+	})
+	// Expect header-only
+	expectedTable := `id   name   country   metro   site_code   market   latitude   longitude   status
+`
+	assert.Equal(t, expectedTable, tableOutput)
+
+	// CSV format
+	csvOutput := captureOutput(func() {
+		err := printLocations(emptyLocations, "csv")
+		assert.NoError(t, err)
+	})
+	expectedCSV := `id,name,country,metro,site_code,market,latitude,longitude,status
+`
+	assert.Equal(t, expectedCSV, csvOutput)
+
+	// JSON format
+	jsonOutput := captureOutput(func() {
+		err := printLocations(emptyLocations, "json")
+		assert.NoError(t, err)
+	})
+	// Should simply be an empty array
+	assert.Equal(t, "[]\n", jsonOutput)
+}
+
 func TestPrintLocations_CSV(t *testing.T) {
 	output := captureOutput(func() {
 		err := printLocations(testLocations, "csv")

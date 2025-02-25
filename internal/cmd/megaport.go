@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -59,21 +60,43 @@ var configureCmd = &cobra.Command{
 You must provide credentials through environment variables:
   MEGAPORT_ACCESS_KEY, MEGAPORT_SECRET_KEY, and MEGAPORT_ENVIRONMENT`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) > 0 {
+			return fmt.Errorf("unexpected arguments: %v", args)
+		}
+
 		accessKey := os.Getenv(accessKeyEnvVar)
 		secretKey := os.Getenv(secretKeyEnvVar)
 		environment := os.Getenv(environmentEnvVar)
 
-		if accessKey == "" || secretKey == "" || environment == "" {
-			fmt.Println("Please provide credentials through environment variables MEGAPORT_ACCESS_KEY, MEGAPORT_SECRET_KEY, and MEGAPORT_ENVIRONMENT")
-			return fmt.Errorf("no valid credentials provided")
+		// Check if any env vars are not set
+		if accessKey == "" && secretKey == "" && environment == "" {
+			return fmt.Errorf("required environment variables not set")
+		}
+
+		// Check individual env vars
+		if accessKey == "" {
+			return fmt.Errorf("access key cannot be empty")
+		}
+		if secretKey == "" {
+			return fmt.Errorf("secret key cannot be empty")
+		}
+		if environment == "" {
+			return fmt.Errorf("environment cannot be empty")
+		}
+
+		// Check for whitespace-only values
+		if strings.TrimSpace(accessKey) == "" ||
+			strings.TrimSpace(secretKey) == "" ||
+			strings.TrimSpace(environment) == "" {
+			return fmt.Errorf("invalid environment variables")
 		}
 
 		// Validate environment
-		switch environment {
+		switch strings.TrimSpace(environment) {
 		case "production", "staging", "development":
 			// valid
 		default:
-			return fmt.Errorf("invalid environment: %s (must be production, staging, or development)", environment)
+			return fmt.Errorf("invalid environment: %s", environment)
 		}
 
 		fmt.Printf("Environment (%s) configured successfully.\n", environment)

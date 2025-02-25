@@ -66,8 +66,17 @@ func TestToServiceKeyOutput(t *testing.T) {
 // filterServiceKeys is an example helper for local filtering logic.
 // If your real code filters service keys by product ID, single use, etc. adapt as needed.
 func filterServiceKeys(keys []*megaport.ServiceKey, singleUse *bool, maxSpeedMin int) []*megaport.ServiceKey {
+	if keys == nil {
+		return nil
+	}
+
 	var filtered []*megaport.ServiceKey
 	for _, key := range keys {
+		// Skip nil keys
+		if key == nil {
+			continue
+		}
+
 		if singleUse != nil && key.SingleUse != *singleUse {
 			continue
 		}
@@ -130,7 +139,9 @@ func TestFilterServiceKeys(t *testing.T) {
 func TestServiceKeyOutput_Table(t *testing.T) {
 	outputs := make([]ServiceKeyOutput, 0, len(mockServiceKeys))
 	for _, sk := range mockServiceKeys {
-		outputs = append(outputs, ToServiceKeyOutput(sk))
+		sk, err := ToServiceKeyOutput(sk)
+		assert.NoError(t, err)
+		outputs = append(outputs, sk)
 	}
 
 	output := captureOutput(func() {
@@ -148,7 +159,9 @@ ijkl-9012-mnop-3456   Product Two    prd-uid-2     Test Key Two   2025-02-25T12:
 func TestServiceKeyOutput_JSON(t *testing.T) {
 	outputs := make([]ServiceKeyOutput, 0, len(mockServiceKeys))
 	for _, sk := range mockServiceKeys {
-		outputs = append(outputs, ToServiceKeyOutput(sk))
+		skOutput, err := ToServiceKeyOutput(sk)
+		assert.NoError(t, err)
+		outputs = append(outputs, skOutput)
 	}
 
 	output := captureOutput(func() {
@@ -178,7 +191,9 @@ func TestServiceKeyOutput_JSON(t *testing.T) {
 func TestServiceKeyOutput_CSV(t *testing.T) {
 	outputs := make([]ServiceKeyOutput, 0, len(mockServiceKeys))
 	for _, sk := range mockServiceKeys {
-		outputs = append(outputs, ToServiceKeyOutput(sk))
+		skOutput, err := ToServiceKeyOutput(sk)
+		assert.NoError(t, err)
+		outputs = append(outputs, skOutput)
 	}
 
 	output := captureOutput(func() {
@@ -203,5 +218,137 @@ func init() {
 	fixedTime := time.Date(2025, 2, 25, 12, 0, 0, 0, time.UTC)
 	for _, sk := range mockServiceKeys {
 		sk.CreateDate.Time = fixedTime
+	}
+}
+
+func TestFilterServiceKeys_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		keys        []*megaport.ServiceKey
+		singleUse   *bool
+		maxSpeedMin int
+		expected    int
+	}{
+		{
+			name:        "nil slice",
+			keys:        nil,
+			singleUse:   nil,
+			maxSpeedMin: 0,
+			expected:    0,
+		},
+		{
+			name:        "empty slice",
+			keys:        []*megaport.ServiceKey{},
+			singleUse:   boolPtr(true),
+			maxSpeedMin: 1000,
+			expected:    0,
+		},
+		{
+			name: "nil key in slice",
+			keys: []*megaport.ServiceKey{
+				nil,
+				mockServiceKeys[0],
+			},
+			singleUse:   nil,
+			maxSpeedMin: 0,
+			expected:    1, // Should skip nil and return valid key
+		},
+		{
+			name: "zero values",
+			keys: []*megaport.ServiceKey{
+				{
+					Key:         "",
+					Description: "",
+					ProductUID:  "",
+					MaxSpeed:    0,
+					SingleUse:   false,
+				},
+			},
+			singleUse:   nil,
+			maxSpeedMin: 0,
+			expected:    1,
+		},
+		{
+			name:        "negative max speed",
+			keys:        mockServiceKeys,
+			singleUse:   nil,
+			maxSpeedMin: -1000,
+			expected:    2, // Should ignore negative speed
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := filterServiceKeys(tt.keys, tt.singleUse, tt.maxSpeedMin)
+			assert.Equal(t, tt.expected, len(result))
+
+			// Additional validation for non-nil results
+			for _, key := range result {
+				assert.NotNil(t, key, "Filtered results should not contain nil keys")
+			}
+		})
+	}
+}
+
+func TestToServiceKeyOutput_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name          string
+		key           *megaport.ServiceKey
+		shouldError   bool
+		errorContains string
+		validateFunc  func(*testing.T, ServiceKeyOutput)
+	}{
+		{
+			name:          "nil service key",
+			key:           nil,
+			shouldError:   true,
+			errorContains: "nil service key",
+		},
+		{
+			name: "zero values",
+			key:  &megaport.ServiceKey{},
+			validateFunc: func(t *testing.T, output ServiceKeyOutput) {
+				assert.Empty(t, output.KeyUID)
+				assert.Empty(t, output.ProductName)
+				assert.Empty(t, output.ProductUID)
+				assert.Empty(t, output.Description)
+				assert.Empty(t, output.CreateDate)
+			},
+		},
+		{
+			name: "nil create date",
+			key: &megaport.ServiceKey{
+				Key:         "test-key",
+				ProductName: "Test Product",
+				ProductUID:  "prod-123",
+				Description: "Test Description",
+				CreateDate:  nil,
+			},
+			validateFunc: func(t *testing.T, output ServiceKeyOutput) {
+				assert.Equal(t, "test-key", output.KeyUID)
+				assert.Equal(t, "Test Product", output.ProductName)
+				assert.Equal(t, "prod-123", output.ProductUID)
+				assert.Equal(t, "Test Description", output.Description)
+				assert.Empty(t, output.CreateDate)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output, err := ToServiceKeyOutput(tt.key)
+
+			if tt.shouldError {
+				assert.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+			} else {
+				assert.NoError(t, err)
+				if tt.validateFunc != nil {
+					tt.validateFunc(t, output)
+				}
+			}
+		})
 	}
 }

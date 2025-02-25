@@ -264,8 +264,17 @@ func init() {
 
 // filterPorts filters the provided ports based on the given filters.
 func filterPorts(ports []*megaport.Port, locationID, portSpeed int, portName string) []*megaport.Port {
+	if ports == nil {
+		return nil
+	}
+
 	var filtered []*megaport.Port
 	for _, port := range ports {
+		// Skip nil ports
+		if port == nil {
+			continue
+		}
+
 		if locationID != 0 && port.LocationID != locationID {
 			continue
 		}
@@ -290,20 +299,28 @@ type PortOutput struct {
 }
 
 // ToPortOutput converts a *megaport.Port to our PortOutput struct.
-func ToPortOutput(p *megaport.Port) PortOutput {
-	return PortOutput{
-		UID:                p.UID,
-		Name:               p.Name,
-		LocationID:         p.LocationID,
-		PortSpeed:          p.PortSpeed,
-		ProvisioningStatus: p.ProvisioningStatus,
+func ToPortOutput(port *megaport.Port) (PortOutput, error) {
+	if port == nil {
+		return PortOutput{}, fmt.Errorf("invalid port: nil value")
 	}
+
+	return PortOutput{
+		UID:                port.UID,
+		Name:               port.Name,
+		LocationID:         port.LocationID,
+		PortSpeed:          port.PortSpeed,
+		ProvisioningStatus: port.ProvisioningStatus,
+	}, nil
 }
 
 func printPorts(ports []*megaport.Port, format string) error {
 	outputs := make([]PortOutput, 0, len(ports))
 	for _, port := range ports {
-		outputs = append(outputs, ToPortOutput(port))
+		output, err := ToPortOutput(port)
+		if err != nil {
+			return err
+		}
+		outputs = append(outputs, output)
 	}
 	return printOutput(outputs, format)
 }
