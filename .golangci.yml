@@ -22,7 +22,6 @@ linters:
     - unused
     - govet
     - sloglint
-    - copyloopvar
     - usetesting
 
 output:

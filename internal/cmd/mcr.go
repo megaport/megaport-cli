@@ -60,7 +60,10 @@ var getMCRCmd = &cobra.Command{
 		}
 
 		// Print the MCR details using the desired output format.
-		printMCRs([]*megaport.MCR{mcr}, outputFormat)
+		err = printMCRs([]*megaport.MCR{mcr}, outputFormat)
+		if err != nil {
+			return fmt.Errorf("error printing MCRs: %v", err)
+		}
 		return nil
 	},
 }

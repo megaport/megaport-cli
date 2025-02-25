@@ -43,7 +43,10 @@ var getMVECmd = &cobra.Command{
 			return fmt.Errorf("error getting MVE: %v", err)
 		}
 
-		printMVEs([]*megaport.MVE{mve}, outputFormat)
+		err = printMVEs([]*megaport.MVE{mve}, outputFormat)
+		if err != nil {
+			return fmt.Errorf("error printing MVEs: %v", err)
+		}
 		return nil
 	},
 }

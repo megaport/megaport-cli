@@ -56,7 +56,10 @@ var getVXCCmd = &cobra.Command{
 		}
 
 		// Print the VXC details using the desired output format.
-		printVXCs([]*megaport.VXC{vxc}, outputFormat)
+		err = printVXCs([]*megaport.VXC{vxc}, outputFormat)
+		if err != nil {
+			return fmt.Errorf("error printing VXCs: %v", err)
+		}
 		return nil
 	},
 }
