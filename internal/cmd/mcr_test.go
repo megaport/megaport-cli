@@ -58,6 +58,19 @@ func TestPrintMCRs_JSON(t *testing.T) {
 	assert.JSONEq(t, expected, output)
 }
 
+func TestPrintMCRs_CSV(t *testing.T) {
+	output := captureOutput(func() {
+		err := printMCRs(testMCRs, "csv")
+		assert.NoError(t, err)
+	})
+
+	expected := `uid,name,location_id,provisioning_status
+mcr-1,MyMCROne,1,ACTIVE
+mcr-2,AnotherMCR,2,INACTIVE
+`
+	assert.Equal(t, expected, output)
+}
+
 func TestPrintMCRs_Invalid(t *testing.T) {
 	var err error
 	output := captureOutput(func() {

@@ -65,6 +65,19 @@ func TestPrintVXCs_JSON(t *testing.T) {
 	assert.JSONEq(t, expected, output)
 }
 
+func TestPrintVXCs_CSV(t *testing.T) {
+	output := captureOutput(func() {
+		err := printVXCs(testVXCs, "csv")
+		assert.NoError(t, err)
+	})
+
+	expected := `uid,name,a_end_uid,b_end_uid
+vxc-1,MyVXCOne,a-end-1,b-end-1
+vxc-2,AnotherVXC,a-end-2,b-end-2
+`
+	assert.Equal(t, expected, output)
+}
+
 func TestPrintVXCs_Invalid(t *testing.T) {
 	var err error
 	output := captureOutput(func() {

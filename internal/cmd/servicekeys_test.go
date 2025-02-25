@@ -1,14 +1,15 @@
 package cmd
 
 import (
-	"encoding/json"
+	"strings"
 	"testing"
+	"time"
 
 	megaport "github.com/megaport/megaportgo"
 	"github.com/stretchr/testify/assert"
 )
 
-// mockServiceKeys is our fake data for testing
+// Update mock data to include all required fields
 var mockServiceKeys = []*megaport.ServiceKey{
 	{
 		Key:         "abcd-1234-efgh-5678",
@@ -18,6 +19,10 @@ var mockServiceKeys = []*megaport.ServiceKey{
 		SingleUse:   true,
 		MaxSpeed:    1000,
 		Active:      true,
+		ProductName: "Product One",
+		CreateDate: &megaport.Time{
+			Time: time.Now(),
+		},
 	},
 	{
 		Key:         "ijkl-9012-mnop-3456",
@@ -27,6 +32,10 @@ var mockServiceKeys = []*megaport.ServiceKey{
 		SingleUse:   false,
 		MaxSpeed:    500,
 		Active:      true,
+		ProductName: "Product Two",
+		CreateDate: &megaport.Time{
+			Time: time.Now(),
+		},
 	},
 }
 
@@ -118,22 +127,81 @@ func TestFilterServiceKeys(t *testing.T) {
 	}
 }
 
-// Example test showing how you might verify JSON output of your service keys logic
-// without making any real API calls or requiring login.
-func TestServiceKeysJSONOutput(t *testing.T) {
-	// Suppose you have a function that formats your service keys as JSON.
-	// We'll just demonstrate a mock approach here.
-	data, err := json.Marshal(mockServiceKeys)
-	assert.NoError(t, err)
+func TestServiceKeyOutput_Table(t *testing.T) {
+	outputs := make([]ServiceKeyOutput, 0, len(mockServiceKeys))
+	for _, sk := range mockServiceKeys {
+		outputs = append(outputs, ToServiceKeyOutput(sk))
+	}
 
-	var decoded []*megaport.ServiceKey
-	err = json.Unmarshal(data, &decoded)
-	assert.NoError(t, err)
-	assert.Equal(t, len(mockServiceKeys), len(decoded))
-	assert.Equal(t, mockServiceKeys[0].Key, decoded[0].Key)
-	assert.Equal(t, mockServiceKeys[1].Key, decoded[1].Key)
+	output := captureOutput(func() {
+		err := printOutput(outputs, "table")
+		assert.NoError(t, err)
+	})
+
+	expected := `key_uid               product_name   product_uid   description    create_date
+abcd-1234-efgh-5678   Product One    prd-uid-1     Test Key One   2025-02-25T12:00:00Z
+ijkl-9012-mnop-3456   Product Two    prd-uid-2     Test Key Two   2025-02-25T12:00:00Z
+`
+	assert.Equal(t, expected, output)
+}
+
+func TestServiceKeyOutput_JSON(t *testing.T) {
+	outputs := make([]ServiceKeyOutput, 0, len(mockServiceKeys))
+	for _, sk := range mockServiceKeys {
+		outputs = append(outputs, ToServiceKeyOutput(sk))
+	}
+
+	output := captureOutput(func() {
+		err := printOutput(outputs, "json")
+		assert.NoError(t, err)
+	})
+
+	expected := `[
+  {
+    "key_uid": "abcd-1234-efgh-5678",
+    "product_name": "Product One",
+    "product_uid": "prd-uid-1",
+    "description": "Test Key One",
+    "create_date": "2025-02-25T12:00:00Z"
+  },
+  {
+    "key_uid": "ijkl-9012-mnop-3456",
+    "product_name": "Product Two",
+    "product_uid": "prd-uid-2",
+    "description": "Test Key Two",
+    "create_date": "2025-02-25T12:00:00Z"
+  }
+]`
+	assert.JSONEq(t, expected, output)
+}
+
+func TestServiceKeyOutput_CSV(t *testing.T) {
+	outputs := make([]ServiceKeyOutput, 0, len(mockServiceKeys))
+	for _, sk := range mockServiceKeys {
+		outputs = append(outputs, ToServiceKeyOutput(sk))
+	}
+
+	output := captureOutput(func() {
+		err := printOutput(outputs, "csv")
+		assert.NoError(t, err)
+	})
+
+	// Note: CreateDate will be dynamic, so we'll check the structure only
+	lines := strings.Split(output, "\n")
+	assert.Equal(t, 4, len(lines)) // header + 2 data lines + empty line
+	assert.Equal(t, "key_uid,product_name,product_uid,description,create_date", lines[0])
+	assert.Contains(t, lines[1], "abcd-1234-efgh-5678,Product One,prd-uid-1,Test Key One,")
+	assert.Contains(t, lines[2], "ijkl-9012-mnop-3456,Product Two,prd-uid-2,Test Key Two,")
 }
 
 func boolPtr(b bool) *bool {
 	return &b
+}
+
+func init() {
+	// Set fixed time for tests
+	fixedTime := time.Date(2025, 2, 25, 12, 0, 0, 0, time.UTC)
+	for _, sk := range mockServiceKeys {
+		sk.CreateDate.Time = fixedTime
+	}
 }

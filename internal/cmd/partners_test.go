@@ -149,6 +149,19 @@ func TestPrintPartners_JSON(t *testing.T) {
 	assert.JSONEq(t, expected, output)
 }
 
+func TestPrintPartners_CSV(t *testing.T) {
+	output := captureOutput(func() {
+		err := printPartners(testPartners, "csv")
+		assert.NoError(t, err)
+	})
+
+	expected := `product_name,connect_type,company_name,location_id,diversity_zone,vxc_permitted
+ProductOne,TypeA,CompanyA,1,ZoneA,true
+ProductTwo,TypeB,CompanyB,2,ZoneB,false
+`
+	assert.Equal(t, expected, output)
+}
+
 func TestPrintPartners_Invalid(t *testing.T) {
 	var err error
 	output := captureOutput(func() {

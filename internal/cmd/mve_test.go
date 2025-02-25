@@ -54,6 +54,19 @@ func TestPrintMVEs_JSON(t *testing.T) {
 	assert.JSONEq(t, expected, output)
 }
 
+func TestPrintMVEs_CSV(t *testing.T) {
+	output := captureOutput(func() {
+		err := printMVEs(testMVEs, "csv")
+		assert.NoError(t, err)
+	})
+
+	expected := `uid,name,location_id
+mve-1,MyMVEOne,1
+mve-2,AnotherMVE,2
+`
+	assert.Equal(t, expected, output)
+}
+
 func TestPrintMVEs_Invalid(t *testing.T) {
 	var err error
 	output := captureOutput(func() {

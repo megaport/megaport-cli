@@ -115,6 +115,19 @@ func TestPrintPorts_JSON(t *testing.T) {
 	assert.JSONEq(t, expected, output)
 }
 
+func TestPrintPorts_CSV(t *testing.T) {
+	output := captureOutput(func() {
+		err := printPorts(testPorts, "csv")
+		assert.NoError(t, err)
+	})
+
+	expected := `uid,name,location_id,port_speed,provisioning_status
+port-1,MyPortOne,1,1000,ACTIVE
+port-2,AnotherPort,2,2000,INACTIVE
+`
+	assert.Equal(t, expected, output)
+}
+
 func TestPrintPorts_Invalid(t *testing.T) {
 	var err error
 	output := captureOutput(func() {
