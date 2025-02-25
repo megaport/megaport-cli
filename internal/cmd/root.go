@@ -52,28 +52,18 @@ Fish:
 	DisableFlagsInUseLine: true,
 	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
 	Args:                  cobra.MatchAll(cobra.ExactArgs(1)),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		switch args[0] {
 		case "bash":
-			err := cmd.Root().GenBashCompletion(os.Stdout)
-			if err != nil {
-				fmt.Println(err)
-			}
+			return cmd.Root().GenBashCompletion(os.Stdout)
 		case "zsh":
-			err := cmd.Root().GenZshCompletion(os.Stdout)
-			if err != nil {
-				fmt.Println(err)
-			}
+			return cmd.Root().GenZshCompletion(os.Stdout)
 		case "fish":
-			err := cmd.Root().GenFishCompletion(os.Stdout, true)
-			if err != nil {
-				fmt.Println(err)
-			}
+			return cmd.Root().GenFishCompletion(os.Stdout, true)
 		case "powershell":
-			err := cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout)
-			if err != nil {
-				fmt.Println(err)
-			}
+			return cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout)
+		default:
+			return fmt.Errorf("invalid shell type %q", args[0])
 		}
 	},
 }
