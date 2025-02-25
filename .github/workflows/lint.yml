@@ -21,6 +21,9 @@ jobs:
           go-version: '1.21'
           cache: false
 
+      - name: Remove Go module cache directory
+        run: rm -rf $GOPATH/pkg/mod
+
       - name: Clean Go module cache
         run: go clean -modcache
 
