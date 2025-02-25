@@ -41,16 +41,21 @@ func printJSON[T any](data []T) error {
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(data)
 }
+
+// printTable prints a header row (from struct tags) even if data is empty.
 func printTable[T any](data []T) error {
-	if len(data) == 0 {
-		return nil
+	// Use the first item if available. Otherwise, create a zero value.
+	var sample T
+	if len(data) > 0 {
+		sample = data[0]
 	}
 
 	// Configure tabwriter for left alignment and consistent spacing
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 
-	// Get the underlying type
-	itemType := reflect.TypeOf(data[0])
+	// Reflect on sample. If sample is a pointer, dereference it.
+	sampleVal := reflect.ValueOf(sample)
+	itemType := sampleVal.Type()
 	if itemType.Kind() == reflect.Ptr {
 		itemType = itemType.Elem()
 	}
@@ -58,6 +63,12 @@ func printTable[T any](data []T) error {
 	// Collect struct fields and headers
 	var headers []string
 	var fields []string
+
+	// If T is not a struct (e.g., empty interface), just return
+	if itemType.Kind() != reflect.Struct {
+		return nil
+	}
+
 	for i := 0; i < itemType.NumField(); i++ {
 		field := itemType.Field(i)
 		if tag := field.Tag.Get("json"); tag != "" && tag != "-" {
@@ -69,7 +80,7 @@ func printTable[T any](data []T) error {
 	// Print headers with tabs
 	fmt.Fprintln(w, strings.Join(headers, "\t"))
 
-	// Print data rows with tabs
+	// Print data rows (if any)
 	for _, item := range data {
 		itemVal := reflect.ValueOf(item)
 		if itemVal.Kind() == reflect.Ptr {
@@ -86,17 +97,29 @@ func printTable[T any](data []T) error {
 	return w.Flush()
 }
 
-// printCSV handles CSV output format
+// printCSV prints a header row (from struct tags) even if data is empty.
 func printCSV[T any](data []T) error {
-	if len(data) == 0 {
-		return nil
-	}
-
 	w := csv.NewWriter(os.Stdout)
 	defer w.Flush()
 
+	// Use the first item if available. Otherwise, create a zero value.
+	var sample T
+	if len(data) > 0 {
+		sample = data[0]
+	}
+
+	sampleVal := reflect.ValueOf(sample)
+	t := sampleVal.Type()
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
+	// If T is not a struct (e.g., empty interface), just return
+	if t.Kind() != reflect.Struct {
+		return nil
+	}
+
 	// Get headers from struct tags
-	t := reflect.TypeOf(data[0])
 	var headers []string
 	var fields []string
 	for i := 0; i < t.NumField(); i++ {
@@ -107,13 +130,18 @@ func printCSV[T any](data []T) error {
 		}
 	}
 
+	// Always print headers
 	if err := w.Write(headers); err != nil {
 		return err
 	}
 
-	// Write data rows
+	// Write data rows if present
 	for _, item := range data {
 		v := reflect.ValueOf(item)
+		if v.Kind() == reflect.Ptr {
+			v = v.Elem()
+		}
+
 		var row []string
 		for _, field := range fields {
 			row = append(row, fmt.Sprintf("%v", v.FieldByName(field)))

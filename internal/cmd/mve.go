@@ -38,9 +38,19 @@ var getMVECmd = &cobra.Command{
 		}
 
 		mveUID := args[0]
+		// Validate mveUID is not empty
+		if mveUID == "" {
+			return fmt.Errorf("MVE UID cannot be empty")
+		}
+
 		mve, err := client.MVEService.GetMVE(ctx, mveUID)
 		if err != nil {
 			return fmt.Errorf("error getting MVE: %v", err)
+		}
+
+		// Check if MVE is nil
+		if mve == nil {
+			return fmt.Errorf("no MVE found with UID: %s", mveUID)
 		}
 
 		err = printMVEs([]*megaport.MVE{mve}, outputFormat)
@@ -64,19 +74,32 @@ type MVEOutput struct {
 }
 
 // ToMVEOutput converts an MVE to an MVEOutput.
-func ToMVEOutput(m *megaport.MVE) MVEOutput {
+func ToMVEOutput(m *megaport.MVE) (MVEOutput, error) {
+	if m == nil {
+		return MVEOutput{}, fmt.Errorf("invalid MVE: nil value")
+	}
+
 	return MVEOutput{
 		UID:        m.UID,
 		Name:       m.Name,
 		LocationID: m.LocationID,
-	}
+	}, nil
 }
 
 // printMVEs prints the MVEs in the specified output format
 func printMVEs(mves []*megaport.MVE, format string) error {
+	// Handle nil slice
+	if mves == nil {
+		mves = []*megaport.MVE{}
+	}
+
 	outputs := make([]MVEOutput, 0, len(mves))
 	for _, mve := range mves {
-		outputs = append(outputs, ToMVEOutput(mve))
+		output, err := ToMVEOutput(mve)
+		if err != nil {
+			return err
+		}
+		outputs = append(outputs, output)
 	}
 	return printOutput(outputs, format)
 }
