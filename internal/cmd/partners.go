@@ -101,8 +101,8 @@ type PartnerOutput struct {
 }
 
 // ToPartnerOutput converts a PartnerMegaport to a PartnerOutput.
-func ToPartnerOutput(p *megaport.PartnerMegaport) *PartnerOutput {
-	return &PartnerOutput{
+func ToPartnerOutput(p *megaport.PartnerMegaport) PartnerOutput {
+	return PartnerOutput{
 		ProductName:   p.ProductName,
 		ConnectType:   p.ConnectType,
 		CompanyName:   p.CompanyName,
@@ -144,7 +144,7 @@ func filterPartners(
 // printPartners prints the partner ports in the specified output format.
 func printPartners(partners []*megaport.PartnerMegaport, format string) error {
 	// Convert partners to output format
-	outputs := make([]*PartnerOutput, 0, len(partners))
+	outputs := make([]PartnerOutput, 0, len(partners))
 	for _, partner := range partners {
 		outputs = append(outputs, ToPartnerOutput(partner))
 	}

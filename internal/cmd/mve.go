@@ -61,8 +61,8 @@ type MVEOutput struct {
 }
 
 // ToMVEOutput converts an MVE to an MVEOutput.
-func ToMVEOutput(m *megaport.MVE) *MVEOutput {
-	return &MVEOutput{
+func ToMVEOutput(m *megaport.MVE) MVEOutput {
+	return MVEOutput{
 		UID:        m.UID,
 		Name:       m.Name,
 		LocationID: m.LocationID,
@@ -71,7 +71,7 @@ func ToMVEOutput(m *megaport.MVE) *MVEOutput {
 
 // printMVEs prints the MVEs in the specified output format
 func printMVEs(mves []*megaport.MVE, format string) error {
-	outputs := make([]*MVEOutput, 0, len(mves))
+	outputs := make([]MVEOutput, 0, len(mves))
 	for _, mve := range mves {
 		outputs = append(outputs, ToMVEOutput(mve))
 	}

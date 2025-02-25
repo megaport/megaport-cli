@@ -78,8 +78,8 @@ type MCROutput struct {
 	ProvisioningStatus string `json:"provisioning_status"`
 }
 
-func ToMCROutput(m *megaport.MCR) *MCROutput {
-	return &MCROutput{
+func ToMCROutput(m *megaport.MCR) MCROutput {
+	return MCROutput{
 		UID:                m.UID,
 		Name:               m.Name,
 		LocationID:         m.LocationID,
@@ -89,7 +89,7 @@ func ToMCROutput(m *megaport.MCR) *MCROutput {
 
 // printMCRs prints the MCRs in the specified output format
 func printMCRs(mcrs []*megaport.MCR, format string) error {
-	outputs := make([]*MCROutput, 0, len(mcrs))
+	outputs := make([]MCROutput, 0, len(mcrs))
 	for _, mcr := range mcrs {
 		outputs = append(outputs, ToMCROutput(mcr))
 	}

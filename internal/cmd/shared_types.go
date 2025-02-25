@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/csv"
 	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"os"
 	"reflect"
@@ -20,7 +19,6 @@ func printOutput[T any](data []T, format string) error {
 		"table": true,
 		"json":  true,
 		"csv":   true,
-		"xml":   true,
 	}
 
 	if !validFormats[format] {
@@ -32,8 +30,6 @@ func printOutput[T any](data []T, format string) error {
 		return printJSON(data)
 	case "csv":
 		return printCSV(data)
-	case "xml":
-		return printXML(data)
 	default:
 		return printTable(data)
 	}
@@ -128,14 +124,4 @@ func printCSV[T any](data []T) error {
 	}
 
 	return nil
-}
-
-// printXML handles XML output format
-func printXML[T any](data []T) error {
-	encoder := xml.NewEncoder(os.Stdout)
-	encoder.Indent("", "  ")
-	fmt.Println(`<?xml version="1.0" encoding="UTF-8"?>`)
-	return encoder.Encode(struct {
-		Items []T `xml:"items"`
-	}{data})
 }

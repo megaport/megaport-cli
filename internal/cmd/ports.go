@@ -284,8 +284,8 @@ type PortOutput struct {
 }
 
 // ToPortOutput converts a *megaport.Port to our PortOutput struct.
-func ToPortOutput(p *megaport.Port) *PortOutput {
-	return &PortOutput{
+func ToPortOutput(p *megaport.Port) PortOutput {
+	return PortOutput{
 		UID:                p.UID,
 		Name:               p.Name,
 		LocationID:         p.LocationID,
@@ -295,7 +295,7 @@ func ToPortOutput(p *megaport.Port) *PortOutput {
 }
 
 func printPorts(ports []*megaport.Port, format string) error {
-	outputs := make([]*PortOutput, 0, len(ports))
+	outputs := make([]PortOutput, 0, len(ports))
 	for _, port := range ports {
 		outputs = append(outputs, ToPortOutput(port))
 	}

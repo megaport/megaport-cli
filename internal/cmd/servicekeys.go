@@ -122,8 +122,8 @@ type ServiceKeyOutput struct {
 }
 
 // ToServiceKeyOutput converts a ServiceKey to ServiceKeyOutput
-func ToServiceKeyOutput(sk *megaport.ServiceKey) *ServiceKeyOutput {
-	return &ServiceKeyOutput{
+func ToServiceKeyOutput(sk *megaport.ServiceKey) ServiceKeyOutput {
+	return ServiceKeyOutput{
 		KeyUID:      sk.Key,
 		ProductName: sk.ProductName,
 		Description: sk.Description,
@@ -275,7 +275,7 @@ func ListServiceKeys(ctx context.Context, cmd *cobra.Command) error {
 		return fmt.Errorf("error listing service keys: %v", err)
 	}
 
-	outputs := make([]*ServiceKeyOutput, 0, len(resp.ServiceKeys))
+	outputs := make([]ServiceKeyOutput, 0, len(resp.ServiceKeys))
 	for _, sk := range resp.ServiceKeys {
 		outputs = append(outputs, ToServiceKeyOutput(sk))
 	}
@@ -295,5 +295,5 @@ func GetServiceKey(ctx context.Context, cmd *cobra.Command, keyID string) error 
 	}
 
 	output := ToServiceKeyOutput(resp)
-	return printOutput([]*ServiceKeyOutput{output}, outputFormat)
+	return printOutput([]ServiceKeyOutput{output}, outputFormat)
 }

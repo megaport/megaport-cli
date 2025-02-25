@@ -76,8 +76,8 @@ type VXCOutput struct {
 }
 
 // ToVXCOutput converts a VXC to a VXCOutput.
-func ToVXCOutput(v *megaport.VXC) *VXCOutput {
-	return &VXCOutput{
+func ToVXCOutput(v *megaport.VXC) VXCOutput {
+	return VXCOutput{
 		UID:     v.UID,
 		Name:    v.Name,
 		AEndUID: v.AEndConfiguration.UID,
@@ -87,7 +87,7 @@ func ToVXCOutput(v *megaport.VXC) *VXCOutput {
 
 // Update the printVXCs function to use generic printOutput
 func printVXCs(vxcs []*megaport.VXC, format string) error {
-	outputs := make([]*VXCOutput, len(vxcs))
+	outputs := make([]VXCOutput, len(vxcs))
 	for i, vxc := range vxcs {
 		outputs[i] = ToVXCOutput(vxc)
 	}
