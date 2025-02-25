@@ -4,147 +4,114 @@
 
 ## Overview
 
-This is the Megaport CLI. It allows users to interact with the Megaport API from the command line.
+The Megaport CLI provides a command-line interface for managing Megaport resources and services. It allows users to interact with the Megaport API directly from their terminal.
 
-Before using this CLI, please ensure you read Megaport's [Terms and Conditions](https://www.megaport.com/legal/global-services-agreement/).
+Before using this CLI, please ensure you read and accept Megaport's [Terms and Conditions](https://www.megaport.com/legal/global-services-agreement/) and [Acceptable Use Policy](https://www.megaport.com/legal/acceptable-use-policy/).
 
-The [Megaport API Documentation](https://dev.megaport.com/) is also available online.
+For API details, consult the [Megaport API Documentation](https://dev.megaport.com/).
 
-## Getting started 
+## Installation
 
 ```sh
-# Install the Megaport CLI
+# Install using Go
 go install github.com/megaport/megaport-cli@latest
 
-# Configure the CLI with your credentials
-megaport configure --access-key YOUR_ACCESS_KEY --secret-key YOUR_SECRET_KEY
+# Verify installation
+megaport --version
+```
+
+## Shell Completion
+
+The CLI supports shell completion for bash, zsh, fish, and PowerShell:
+
+```sh
+# Bash (Linux)
+megaport completion bash > /etc/bash_completion.d/megaport
+
+# Bash (macOS with Homebrew)
+megaport completion bash > $(brew --prefix)/etc/bash_completion.d/megaport
+
+# Zsh
+megaport completion zsh > "${fpath[1]}/_megaport"
+
+# Fish
+megaport completion fish > ~/.config/fish/completions/megaport.fish
+
+# PowerShell
+megaport completion powershell > megaport.ps1
 ```
 
 ## Configuration
 
-The `configure` command allows you to set up your Megaport CLI with your API credentials. You can provide your credentials either through environment variables or command line flags.
-
-### Using Environment Variables
-
-Set the following environment variables:
+Configure your CLI credentials using either environment variables or the configure command:
 
 ```sh
+# Using configure command
+megaport configure --access-key YOUR_ACCESS_KEY --secret-key YOUR_SECRET_KEY
+
+# Using environment variables
 export MEGAPORT_ACCESS_KEY=<your-access-key>
 export MEGAPORT_SECRET_KEY=<your-secret-key>
-export MEGAPORT_ENVIRONMENT=<environment>
+export MEGAPORT_ENVIRONMENT=<environment>  # production, staging, or development
 ```
 
-### Using Command Line Flags
+## Available Commands
 
-Run the following command:
+### Resource Management
+- `locations`: List and search Megaport locations
+- `ports`: Manage Megaport ports
+- `mcr`: Manage Megaport Cloud Routers
+- `mve`: Manage Megaport Virtual Edge instances
+- `vxc`: Manage Virtual Cross Connects
+- `partners`: List and search partner ports
+- `servicekeys`: Manage service keys
 
-```sh
-megaport configure --access-key <your-access-key> --secret-key <your-secret-key> --environment <environment>
-```
+### Output Formats
+All commands support multiple output formats:
+- `--output table` (default)
+- `--output json`
+- `--output csv`
+- `--output xml`
 
-You will be prompted to enter a password to encrypt your credentials. This password will be required to decrypt your credentials when using the CLI.
-
-#### Example
-
-```sh
-megaport configure --access-key my-access-key --secret-key my-secret-key --environment production
-Enter password to encrypt credentials: ********
-Environment (production) saved successfully.
-```
-
-## Commands
-
-### Locations
+### Examples
 
 ```sh
-megaport locations List
-```
+# List all locations
+megaport locations list
 
-### Ports 
+# Get port details
+megaport ports get PORT_UID --output json
 
-```sh
-megaport ports list
-megaport ports get PORT_UID
-```
-
-### MCRs
-
-```sh
-megaport mcr get MCR_UID
-```
-
-### MVEs
-
-```sh
-megaport mve get MVE_UID
-```
-
-### VXCs
-
-```sh
-megaport vxc get VXC_UID
-```
-
-### Partner Ports
-
-```sh
+# List partner ports with filtering
 megaport partners list \
-  --product-name NAME \
-  --connect-type TYPE \
-  --company-name COMPANY \
-  --location-id ID \
-  --diversity-zone ZONE
+  --product-name "AWS Direct Connect" \
+  --connect-type "AWSHC" \
+  --output table
+
+# Create a service key
+megaport servicekeys create \
+  --product-uid PRODUCT_UID \
+  --description "My Service Key" \
+  --max-speed 1000
 ```
 
-## Examples
+## Environment Support
 
-### JSON Output
+The CLI supports different Megaport environments:
+- Production (default)
+- Staging
+- Development
 
-```sh
-# List ports in JSON format
-megaport ports list --output json
-
-# Get MCR details in JSON
-megaport mcr get MCR_UID --output json
-```
-
-### Table Output
-
-```sh
-# List locations in table format
-megaport locations list --output table
-
-# List filtered partner ports
-megaport partners list --connect-type "AWSHC" --output table
-```
+Specify the environment using the `--env` flag or `MEGAPORT_ENVIRONMENT` variable.
 
 ## Contributing
 
-Contributions via pull request are welcome. Familiarize yourself with these guidelines to increase the likelihood of your pull request being accepted.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on contributing to the project.
 
-All contributions are subject to the [Megaport Contributor Licence Agreement](CLA.md).
-The CLA clarifies the terms of the [Mozilla Public Licence 2.0](LICENSE) used to Open Source this repository and ensures that contributors are explicitly informed of the conditions. Megaport requires all contributors to accept these terms to ensure that the Megaport CLI remains available and licensed for the community.
+All contributions are subject to the [Megaport Contributor License Agreement](CLA.md) and [Mozilla Public License 2.0](LICENSE).
 
-The main themes of the [Megaport Contributor Licence Agreement](CLA.md) cover the following conditions: 
-- Clarifying the Terms of the [Mozilla Public Licence 2.0](LICENSE), used to Open Source this project.
-- As a contributor, you have permission to agree to the License terms.
-- As a contributor, you are not obligated to provide support or warranty for your contributions.
-- Copyright is assigned to Megaport to use as Megaport determines, including within commercial products.
-- Grant of Patent Licence to Megaport for any contributions containing patented or future patented works.
+## Support
 
-The [Megaport Contributor Licence Agreement](CLA.md) is the authoritative document over these conditions and any other communications unless explicitly stated otherwise.
-
-When you open a Pull Request, all authors of the contributions are required to comment on the Pull Request confirming acceptance of the CLA terms. Pull Requests cannot be merged until this is complete.
-
-The [Megaport Contributor Licence Agreement](CLA.md) applies to contributions. 
-All users are free to use the `megaport-cli` project under the [MPL-2.0 Open Source Licence](LICENSE).
-
-Megaport users are also bound by the [Acceptable Use Policy](https://www.megaport.com/legal/acceptable-use-policy).	
-
-### Getting Started
-
-Prior to working on new code, review the [Open Issues](../issues). Check whether your issue has already been raised, and consider working on an issue with votes or clear demand.
-
-If you don't see an open issue for your need, open one and let others know what you are working on. Avoid lengthy or complex changes that rewrite the repository or introduce breaking changes. Straightforward pull requests based on discussion or ideas and Megaport feedback are the most likely to be accepted. 
-
-Megaport is under no obligation to accept any pull requests or to accept them in full. You are free to fork and modify the code for your own use as long as it is published under the MPL-2.0 License.
+- [Open Issues](https://github.com/megaport/megaport-cli/issues)
+- [API Documentation](https://dev.megaport.com/)
+- [Megaport Website](https://www.megaport.com)
