@@ -55,13 +55,25 @@ Fish:
 	Run: func(cmd *cobra.Command, args []string) {
 		switch args[0] {
 		case "bash":
-			cmd.Root().GenBashCompletion(os.Stdout)
+			err := cmd.Root().GenBashCompletion(os.Stdout)
+			if err != nil {
+				fmt.Println(err)
+			}
 		case "zsh":
-			cmd.Root().GenZshCompletion(os.Stdout)
+			err := cmd.Root().GenZshCompletion(os.Stdout)
+			if err != nil {
+				fmt.Println(err)
+			}
 		case "fish":
-			cmd.Root().GenFishCompletion(os.Stdout, true)
+			err := cmd.Root().GenFishCompletion(os.Stdout, true)
+			if err != nil {
+				fmt.Println(err)
+			}
 		case "powershell":
-			cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout)
+			err := cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout)
+			if err != nil {
+				fmt.Println(err)
+			}
 		}
 	},
 }
@@ -103,7 +115,10 @@ func init() {
 			outputFormat, strings.Join(validFormats, ", "))
 	}
 	rootCmd.PersistentFlags().StringVarP(&env, "env", "e", "production", "Environment to use (production, staging, development)")
-	rootCmd.PersistentFlags().SetAnnotation("output", cobra.BashCompCustom, validFormats)
+	err := rootCmd.PersistentFlags().SetAnnotation("output", cobra.BashCompCustom, validFormats)
+	if err != nil {
+		fmt.Println(err)
+	}
 	rootCmd.AddCommand(completionCmd)
 }
 
