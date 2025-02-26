@@ -575,13 +575,19 @@ func TestListPortsCmd_WithMockClient(t *testing.T) {
 			cmd.Flags().StringVar(&portName, "port-name", "", "Filter ports by port name")
 			// Set flag values for this test
 			if tt.locationID != 0 {
-				cmd.Flags().Set("location-id", fmt.Sprintf("%d", tt.locationID))
+				if err := cmd.Flags().Set("location-id", fmt.Sprintf("%d", tt.locationID)); err != nil {
+					t.Fatalf("Failed to set location-id flag: %v", err)
+				}
 			}
 			if tt.portSpeed != 0 {
-				cmd.Flags().Set("port-speed", fmt.Sprintf("%d", tt.portSpeed))
+				if err := cmd.Flags().Set("port-speed", fmt.Sprintf("%d", tt.portSpeed)); err != nil {
+					t.Fatalf("Failed to set port-speed flag: %v", err)
+				}
 			}
 			if tt.portName != "" {
-				cmd.Flags().Set("port-name", tt.portName)
+				if err := cmd.Flags().Set("port-name", tt.portName); err != nil {
+					t.Fatalf("Failed to set port-name flag: %v", err)
+				}
 			}
 
 			// Execute command and capture output

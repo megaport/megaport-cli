@@ -575,8 +575,12 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 
 			// Set flags
 			cmd := deleteMCRCmd
-			cmd.Flags().Set("force", fmt.Sprintf("%v", tt.force))
-			cmd.Flags().Set("now", fmt.Sprintf("%v", tt.deleteNow))
+			if err := cmd.Flags().Set("force", fmt.Sprintf("%v", tt.force)); err != nil {
+				t.Fatalf("Failed to set force flag: %v", err)
+			}
+			if err := cmd.Flags().Set("now", fmt.Sprintf("%v", tt.deleteNow)); err != nil {
+				t.Fatalf("Failed to set now flag: %v", err)
+			}
 
 			// Execute command and capture output
 			var err error
