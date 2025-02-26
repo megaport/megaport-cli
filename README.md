@@ -69,7 +69,6 @@ All commands support multiple output formats:
 - `--output table` (default)
 - `--output json`
 - `--output csv`
-- `--output xml`
 
 ### Examples
 
