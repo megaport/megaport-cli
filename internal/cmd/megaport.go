@@ -18,8 +18,9 @@ var (
 	environmentEnvVar = "MEGAPORT_ENVIRONMENT"
 )
 
-// Login mocks client auth (actual API calls are not performed in tests)
-func Login(ctx context.Context) (*megaport.Client, error) {
+// loginFunc is a variable that holds the login function implementation.
+// This allows tests to replace it with a mock implementation.
+var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	httpClient := &http.Client{}
 	accessKey := os.Getenv(accessKeyEnvVar)
 	secretKey := os.Getenv(secretKeyEnvVar)
@@ -50,6 +51,12 @@ func Login(ctx context.Context) (*megaport.Client, error) {
 		return nil, err
 	}
 	return megaportClient, nil
+}
+
+// Login is a wrapper function that calls loginFunc.
+// This makes it easier to mock the login functionality in tests.
+func Login(ctx context.Context) (*megaport.Client, error) {
+	return loginFunc(ctx)
 }
 
 var configureCmd = &cobra.Command{

@@ -39,6 +39,11 @@ Examples:
 `,
 }
 
+var buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
+	// The real implementation will call portService.BuyPort
+	return client.PortService.BuyPort(ctx, req)
+}
+
 var buyPortCmd = &cobra.Command{
 	Use:   "buy",
 	Short: "Buy a port through the Megaport API",
@@ -146,9 +151,8 @@ Example usage:
 		if err != nil {
 			return err
 		}
-		portService := megaport.NewPortService(client)
 		fmt.Println("Buying port...")
-		resp, err := portService.BuyPort(ctx, req)
+		resp, err := buyPortFunc(ctx, client, req)
 		if err != nil {
 			return err
 		}
@@ -179,29 +183,32 @@ Example:
 If no filtering options are provided, all ports will be listed.
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Create a context with a 30-second timeout.
+		// Create context with timeout
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		// Log into the Megaport API.
+		// Log into Megaport API
 		client, err := Login(ctx)
 		if err != nil {
 			return fmt.Errorf("error logging in: %v", err)
 		}
 
-		// Retrieve the list of ports from the API.
+		// Get all ports
 		ports, err := client.PortService.ListPorts(ctx)
 		if err != nil {
 			return fmt.Errorf("error listing ports: %v", err)
 		}
 
-		// Apply filters if provided.
+		// Get filter values from flags
+		locationID, _ := cmd.Flags().GetInt("location-id")
+		portSpeed, _ := cmd.Flags().GetInt("port-speed")
+		portName, _ := cmd.Flags().GetString("port-name")
+
+		// Apply filters
 		filteredPorts := filterPorts(ports, locationID, portSpeed, portName)
-		err = printPorts(filteredPorts, outputFormat)
-		if err != nil {
-			return fmt.Errorf("error printing ports: %v", err)
-		}
-		return nil
+
+		// Print ports with current output format
+		return printPorts(filteredPorts, outputFormat)
 	},
 }
 
@@ -263,30 +270,38 @@ func init() {
 }
 
 // filterPorts filters the provided ports based on the given filters.
-func filterPorts(ports []*megaport.Port, locationID, portSpeed int, portName string) []*megaport.Port {
+func filterPorts(ports []*megaport.Port, locationID int, portSpeed int, portName string) []*megaport.Port {
 	if ports == nil {
-		return nil
+		return []*megaport.Port{}
 	}
 
-	var filtered []*megaport.Port
+	filteredPorts := make([]*megaport.Port, 0)
+
 	for _, port := range ports {
-		// Skip nil ports
 		if port == nil {
 			continue
 		}
 
+		// Apply location ID filter
 		if locationID != 0 && port.LocationID != locationID {
 			continue
 		}
+
+		// Apply port speed filter
 		if portSpeed != 0 && port.PortSpeed != portSpeed {
 			continue
 		}
+
+		// Apply port name filter
 		if portName != "" && port.Name != portName {
 			continue
 		}
-		filtered = append(filtered, port)
+
+		// Port passed all filters
+		filteredPorts = append(filteredPorts, port)
 	}
-	return filtered
+
+	return filteredPorts
 }
 
 // PortOutput represents the desired fields for JSON output.

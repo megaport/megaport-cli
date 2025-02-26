@@ -1,13 +1,19 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
 
+	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
+
+// Original login function that will be restored after tests
+var originalLoginFunc func(ctx context.Context) (*megaport.Client, error)
 
 func TestConfigureCmd(t *testing.T) {
 	// Set environment variables for testing
@@ -145,4 +151,32 @@ func TestConfigureCmd_ExtraArgs(t *testing.T) {
 	err := cmd.RunE(cmd, []string{"extra", "args"})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unexpected arguments")
+}
+
+// SetupLoginMocks initializes mock login functionality
+// Returns a cleanup function to be deferred
+func SetupLoginMocks() func() {
+	originalLoginFunc = loginFunc
+	return func() {
+		loginFunc = originalLoginFunc
+	}
+}
+
+// MockLoginSuccess sets up a loginFunc that returns a successful client with mock services
+func MockLoginSuccess() {
+	loginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		// Add mock services to the client
+		client.MCRService = &MockMCRService{}
+		client.PortService = &MockPortService{}
+		// Add other service mocks as needed
+		return client, nil
+	}
+}
+
+// MockLoginWithError sets up a loginFunc that returns a specific error
+func MockLoginWithError(errorMsg string) {
+	loginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		return nil, errors.New(errorMsg)
+	}
 }
