@@ -1,7 +1,5 @@
 # Megaport CLI
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/megaport/megaport-cli.svg)](https://pkg.go.dev/github.com/megaport/megaport-cli)
-
 ## Overview
 
 The Megaport CLI provides a command-line interface for managing Megaport resources and services. It allows users to interact with the Megaport API directly from their terminal.
