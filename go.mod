@@ -3,7 +3,7 @@ module github.com/megaport/megaport-cli
 go 1.21
 
 require (
-	github.com/megaport/megaportgo v1.2.9
+	github.com/megaport/megaportgo v1.3.0
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 )
