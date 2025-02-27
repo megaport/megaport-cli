@@ -158,6 +158,8 @@ func MockLoginSuccess() {
 		client := &megaport.Client{}
 		client.MCRService = &MockMCRService{}
 		client.PortService = &MockPortService{}
+		client.MVEService = &MockMVEService{}
+		client.ServiceKeyService = &MockServiceKeyService{}
 		return client, nil
 	}
 }
