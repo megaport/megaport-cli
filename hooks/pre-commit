@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# Run golangci-lint
+echo "Running golangci-lint..."
+golangci-lint run
+if [ $? -ne 0 ]; then
+  echo "golangci-lint found issues. Please fix them before committing."
+  exit 1
+fi
+
+# Run go tests
+echo "Running go tests..."
+go test -v ./...
+if [ $? -ne 0 ]; then
+  echo "Go tests failed. Please fix them before committing."
+  exit 1
+fi
+
+# If both golangci-lint and go tests pass, allow the commit
+exit 0
