@@ -717,6 +717,143 @@ func TestBuyPortCmd_WithMockClient(t *testing.T) {
 	}
 }
 
+func TestBuyLagPortCmd_WithMockClient(t *testing.T) {
+	originalPrompt := prompt
+	originalLoginFunc := loginFunc
+	originalBuyPortFunc := buyPortFunc
+	defer func() {
+		prompt = originalPrompt
+		loginFunc = originalLoginFunc
+		buyPortFunc = originalBuyPortFunc
+	}()
+
+	tests := []struct {
+		name           string
+		prompts        []string
+		setupMock      func(*MockPortService)
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name: "successful LAG Port purchase",
+			prompts: []string{
+				"Test LAG Port", // name
+				"12",            // term
+				"10000",         // port speed
+				"123",           // location ID
+				"4",             // lag count
+				"true",          // marketplace visibility
+				"red",           // diversity zone
+				"cost-123",      // cost center
+				"PROMO2025",     // promo code
+			},
+			setupMock: func(m *MockPortService) {
+				m.BuyPortResult = &megaport.BuyPortResponse{
+					TechnicalServiceUIDs: []string{"lag-port-123-abc"},
+				}
+			},
+			expectedOutput: "LAG port purchased successfully - UID: lag-port-123-abc",
+		},
+		{
+			name: "invalid term",
+			prompts: []string{
+				"Test LAG Port", // name
+				"13",            // invalid term (not 1, 12, 24, 36)
+			},
+			expectedError: "invalid term, must be one of 1, 12, 24, 36",
+		},
+		{
+			name: "invalid port speed",
+			prompts: []string{
+				"Test LAG Port", // name
+				"12",            // term
+				"2000",          // invalid port speed (not 10000, 100000)
+			},
+			expectedError: "invalid port speed, must be one of 10000 or 100000",
+		},
+		{
+			name: "invalid lag count",
+			prompts: []string{
+				"Test LAG Port", // name
+				"12",            // term
+				"10000",         // port speed
+				"123",           // location ID
+				"9",             // invalid lag count (not between 1 and 8)
+			},
+			expectedError: "invalid LAG count, must be between 1 and 8",
+		},
+		{
+			name: "API error",
+			prompts: []string{
+				"Test LAG Port", // name
+				"12",            // term
+				"10000",         // port speed
+				"123",           // location ID
+				"4",             // lag count
+				"true",          // marketplace visibility
+				"red",           // diversity zone
+				"cost-123",      // cost center
+				"PROMO2025",     // promo code
+			},
+			setupMock: func(m *MockPortService) {
+				m.BuyPortErr = fmt.Errorf("API error: service unavailable")
+			},
+			expectedError: "API error: service unavailable",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			promptIndex := 0
+			prompt = func(msg string) (string, error) {
+				if promptIndex < len(tt.prompts) {
+					response := tt.prompts[promptIndex]
+					promptIndex++
+					return response, nil
+				}
+				return "", fmt.Errorf("unexpected prompt call")
+			}
+
+			mockPortService := &MockPortService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockPortService)
+			}
+
+			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.PortService = mockPortService
+				return client, nil
+			}
+
+			cmd := buyLagCmd
+			var err error
+			output := captureOutput(func() {
+				err = cmd.RunE(cmd, []string{})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, output, tt.expectedOutput)
+
+				assert.NotNil(t, mockPortService.CapturedRequest)
+				req := mockPortService.CapturedRequest
+				assert.Equal(t, "Test LAG Port", req.Name)
+				assert.Equal(t, 12, req.Term)
+				assert.Equal(t, 10000, req.PortSpeed)
+				assert.Equal(t, 123, req.LocationId)
+				assert.Equal(t, 4, req.LagCount)
+				assert.Equal(t, true, req.MarketPlaceVisibility)
+				assert.Equal(t, "red", req.DiversityZone)
+				assert.Equal(t, "cost-123", req.CostCentre)
+				assert.Equal(t, "PROMO2025", req.PromoCode)
+			}
+		})
+	}
+}
+
 func TestUpdatePortCmd_WithMockClient(t *testing.T) {
 	originalPrompt := prompt
 	originalLoginFunc := loginFunc
