@@ -318,9 +318,13 @@ Example usage:
 		if err != nil {
 			return err
 		}
-		marketplaceVisibility, err := strconv.ParseBool(marketplaceVisibilityStr)
-		if err != nil {
-			return fmt.Errorf("invalid marketplace visibility, must be true or false")
+		var marketplaceVisibility *bool
+		if marketplaceVisibilityStr != "" {
+			visibilityValue, err := strconv.ParseBool(marketplaceVisibilityStr)
+			if err != nil {
+				return fmt.Errorf("invalid marketplace visibility, must be true or false")
+			}
+			marketplaceVisibility = &visibilityValue
 		}
 
 		costCentre, err := prompt("Enter cost center (optional): ")
@@ -332,18 +336,22 @@ Example usage:
 		if err != nil {
 			return err
 		}
-		term, err := strconv.Atoi(termStr)
-		if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
-			return fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		var term *int
+		if termStr != "" {
+			termValue, err := strconv.Atoi(termStr)
+			if err != nil || (termValue != 1 && termValue != 12 && termValue != 24 && termValue != 36) {
+				return fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+			}
+			term = &termValue
 		}
 
 		// Create the ModifyPortRequest
 		req := &megaport.ModifyPortRequest{
 			PortID:                portUID,
 			Name:                  name,
-			MarketplaceVisibility: &marketplaceVisibility,
+			MarketplaceVisibility: marketplaceVisibility,
 			CostCentre:            costCentre,
-			ContractTermMonths:    &term,
+			ContractTermMonths:    term,
 			WaitForUpdate:         true,
 			WaitForTime:           10 * time.Minute,
 		}
