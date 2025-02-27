@@ -17,25 +17,41 @@ var (
 )
 
 // portsCmd is the base command for all operations related to ports in the Megaport API.
-// This command serves as a container for subcommands which allow you to list and get details of ports.
+// This command serves as a container for subcommands which allow you to list, get details of, and manage ports.
 //
 // Example usage:
 //
 //	megaport ports list
 //	megaport ports get [portUID]
 //	megaport ports buy
+//	megaport ports buy-lag
+//	megaport ports update [portUID]
+//	megaport ports delete [portUID]
+//	megaport ports restore [portUID]
+//	megaport ports lock [portUID]
+//	megaport ports unlock [portUID]
+//	megaport ports check-vlan [portUID] [vlan]
 var portsCmd = &cobra.Command{
 	Use:   "ports",
 	Short: "Manage ports in the Megaport API",
 	Long: `Manage ports in the Megaport API.
 
 This command groups operations related to ports. You can use the subcommands 
-to list all ports, get details for a specific port, or buy a new port.
+to list all ports, get details for a specific port, buy a new port, buy a LAG port,
+update an existing port, delete a port, restore a deleted port, lock a port, unlock a port,
+and check VLAN availability on a port.
 
 Examples:
   megaport ports list
   megaport ports get [portUID]
   megaport ports buy
+  megaport ports buy-lag
+  megaport ports update [portUID]
+  megaport ports delete [portUID]
+  megaport ports restore [portUID]
+  megaport ports lock [portUID]
+  megaport ports unlock [portUID]
+  megaport ports check-vlan [portUID] [vlan]
 `,
 }
 
@@ -183,6 +199,136 @@ Example usage:
 		}
 
 		fmt.Printf("Port purchased successfully - UID: %s\n", resp.TechnicalServiceUIDs[0])
+		return nil
+	},
+}
+
+// buyLagCmd allows you to purchase a LAG port by providing the necessary details.
+var buyLagCmd = &cobra.Command{
+	Use:   "buy-lag",
+	Short: "Buy a LAG port through the Megaport API",
+	Long: `Buy a LAG port through the Megaport API.
+
+This command allows you to purchase a LAG port by providing the necessary details.
+You will be prompted to enter the required and optional fields.
+
+Required fields:
+  - name: The name of the port.
+  - term: The term of the port (1, 12, 24, or 36 months).
+  - port_speed: The speed of the port (10000 or 100000 Mbps).
+  - location_id: The ID of the location where the port will be provisioned.
+  - lag_count: The number of LAGs (between 1 and 8).
+  - marketplace_visibility: Whether the port should be visible in the marketplace (true or false).
+
+Optional fields:
+  - diversity_zone: The diversity zone for the port.
+  - cost_center: The cost center for the port.
+  - promo_code: A promotional code for the port.
+
+Example usage:
+
+  megaport ports buy-lag
+`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+
+		// Prompt for required fields
+		name, err := prompt("Enter port name (required): ")
+		if err != nil {
+			return err
+		}
+		if name == "" {
+			return fmt.Errorf("port name is required")
+		}
+
+		termStr, err := prompt("Enter term (1, 12, 24, 36) (required): ")
+		if err != nil {
+			return err
+		}
+		term, err := strconv.Atoi(termStr)
+		if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
+			return fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		}
+
+		portSpeedStr, err := prompt("Enter port speed (10000 or 100000) (required): ")
+		if err != nil {
+			return err
+		}
+		portSpeed, err := strconv.Atoi(portSpeedStr)
+		if err != nil || (portSpeed != 10000 && portSpeed != 100000) {
+			return fmt.Errorf("invalid port speed, must be one of 10000 or 100000")
+		}
+
+		locationIDStr, err := prompt("Enter location ID (required): ")
+		if err != nil {
+			return err
+		}
+		locationID, err := strconv.Atoi(locationIDStr)
+		if err != nil {
+			return fmt.Errorf("invalid location ID")
+		}
+
+		lagCountStr, err := prompt("Enter LAG count (1-8) (required): ")
+		if err != nil {
+			return err
+		}
+		lagCount, err := strconv.Atoi(lagCountStr)
+		if err != nil || lagCount < 1 || lagCount > 8 {
+			return fmt.Errorf("invalid LAG count, must be between 1 and 8")
+		}
+
+		marketplaceVisibilityStr, err := prompt("Enter marketplace visibility (true/false) (required): ")
+		if err != nil {
+			return err
+		}
+		marketplaceVisibility, err := strconv.ParseBool(marketplaceVisibilityStr)
+		if err != nil {
+			return fmt.Errorf("invalid marketplace visibility, must be true or false")
+		}
+
+		// Prompt for optional fields
+		diversityZone, err := prompt("Enter diversity zone (optional): ")
+		if err != nil {
+			return err
+		}
+
+		costCentre, err := prompt("Enter cost center (optional): ")
+		if err != nil {
+			return err
+		}
+
+		promoCode, err := prompt("Enter promo code (optional): ")
+		if err != nil {
+			return err
+		}
+
+		// Create the BuyPortRequest
+		req := &megaport.BuyPortRequest{
+			Name:                  name,
+			Term:                  term,
+			PortSpeed:             portSpeed,
+			LocationId:            locationID,
+			LagCount:              lagCount,
+			MarketPlaceVisibility: marketplaceVisibility,
+			DiversityZone:         diversityZone,
+			CostCentre:            costCentre,
+			PromoCode:             promoCode,
+			WaitForProvision:      true,
+			WaitForTime:           10 * time.Minute,
+		}
+
+		// Call the BuyPort method
+		client, err := Login(ctx)
+		if err != nil {
+			return err
+		}
+		fmt.Println("Buying LAG port...")
+		resp, err := buyPortFunc(ctx, client, req)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("LAG port purchased successfully - UID: %s\n", resp.TechnicalServiceUIDs[0])
 		return nil
 	},
 }
@@ -619,6 +765,7 @@ func init() {
 
 	// Add commands to portsCmd
 	portsCmd.AddCommand(buyPortCmd)
+	portsCmd.AddCommand(buyLagCmd)
 	portsCmd.AddCommand(listPortsCmd)
 	portsCmd.AddCommand(getPortCmd)
 	portsCmd.AddCommand(updatePortCmd)
