@@ -22,14 +22,18 @@ var (
 // along with detailed information including name, ID, country, metropolitan area, site code, and availability status.
 var locationsCmd = &cobra.Command{
 	Use:   "locations",
-	Short: "List all available locations",
-	Long: `The locations command provides a list of all available locations 
-where services can be provisioned. This command can be used to get 
-detailed information about each location, including its name, ID, country, 
-metropolitan area, site code, and availability status.
+	Short: "Manage locations in the Megaport API",
+	Long: `Manage locations in the Megaport API.
 
-Example usage:
+This command groups operations related to locations. You can use the subcommands 
+to list all locations, get details for a specific location, and filter locations 
+based on various criteria such as metro area, country, and name.
+
+Examples:
   megaport locations list
+  megaport locations get --id 123
+  megaport locations get --site-code "EQX-ASH"
+  megaport locations get --name "Equinix Ashburn"
 `,
 }
 
@@ -173,14 +177,21 @@ Example:
 }
 
 func init() {
+	// Add flags to listLocationsCmd
 	listLocationsCmd.Flags().StringVar(&metroFilter, "metro", "", "Filter locations by metro area")
 	listLocationsCmd.Flags().StringVar(&countryFilter, "country", "", "Filter locations by country")
 	listLocationsCmd.Flags().StringVar(&nameFilter, "name", "", "Filter locations by name")
+
+	// Add flags to getLocationCmd
 	getLocationCmd.Flags().IntVar(&idFilter, "id", 0, "Get location by ID")
 	getLocationCmd.Flags().StringVar(&siteCodeFilter, "site-code", "", "Get location by site code")
 	getLocationCmd.Flags().StringVar(&nameFilter, "name", "", "Get location by exact name")
+
+	// Add commands to locationsCmd
 	locationsCmd.AddCommand(listLocationsCmd)
 	locationsCmd.AddCommand(getLocationCmd)
+
+	// Add locationsCmd to rootCmd
 	rootCmd.AddCommand(locationsCmd)
 }
 
@@ -204,7 +215,6 @@ func filterLocations(locations []*megaport.Location, filters map[string]string) 
 
 // LocationOutput represents the desired fields for JSON output.
 type LocationOutput struct {
-	output
 	ID        int     `json:"id"`
 	Name      string  `json:"name"`
 	Country   string  `json:"country"`
@@ -231,7 +241,7 @@ func ToLocationOutput(l *megaport.Location) LocationOutput {
 	}
 }
 
-// printLocations prints the locations in the specified output format
+// printLocations prints the locations in the specified output format.
 func printLocations(locations []*megaport.Location, format string) error {
 	outputs := make([]LocationOutput, 0, len(locations))
 	for _, loc := range locations {

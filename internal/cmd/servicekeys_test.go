@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Update mock data to include all required fields
 var mockServiceKeys = []*megaport.ServiceKey{
 	{
 		Key:         "abcd-1234-efgh-5678",
@@ -39,8 +38,6 @@ var mockServiceKeys = []*megaport.ServiceKey{
 	},
 }
 
-// toServiceKeyOutput is an example helper that converts a ServiceKey to a minimal output struct.
-// Adjust to match your actual output formatting or logic in servicekeys.go if needed.
 func toServiceKeyOutput(k *megaport.ServiceKey) map[string]interface{} {
 	return map[string]interface{}{
 		"key":         k.Key,
@@ -51,7 +48,6 @@ func toServiceKeyOutput(k *megaport.ServiceKey) map[string]interface{} {
 	}
 }
 
-// Example test for a helper function that might convert a ServiceKey into output format (like JSON).
 func TestToServiceKeyOutput(t *testing.T) {
 	sk := mockServiceKeys[0]
 	output := toServiceKeyOutput(sk)
@@ -63,8 +59,6 @@ func TestToServiceKeyOutput(t *testing.T) {
 	assert.Equal(t, sk.Active, output["active"])
 }
 
-// filterServiceKeys is an example helper for local filtering logic.
-// If your real code filters service keys by product ID, single use, etc. adapt as needed.
 func filterServiceKeys(keys []*megaport.ServiceKey, singleUse *bool, maxSpeedMin int) []*megaport.ServiceKey {
 	if keys == nil {
 		return nil
@@ -72,7 +66,6 @@ func filterServiceKeys(keys []*megaport.ServiceKey, singleUse *bool, maxSpeedMin
 
 	var filtered []*megaport.ServiceKey
 	for _, key := range keys {
-		// Skip nil keys
 		if key == nil {
 			continue
 		}
@@ -88,7 +81,6 @@ func filterServiceKeys(keys []*megaport.ServiceKey, singleUse *bool, maxSpeedMin
 	return filtered
 }
 
-// Example test for filtering logic.
 func TestFilterServiceKeys(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -139,9 +131,9 @@ func TestFilterServiceKeys(t *testing.T) {
 func TestServiceKeyOutput_Table(t *testing.T) {
 	outputs := make([]ServiceKeyOutput, 0, len(mockServiceKeys))
 	for _, sk := range mockServiceKeys {
-		sk, err := ToServiceKeyOutput(sk)
+		skOutput, err := ToServiceKeyOutput(sk)
 		assert.NoError(t, err)
-		outputs = append(outputs, sk)
+		outputs = append(outputs, skOutput)
 	}
 
 	output := captureOutput(func() {
@@ -201,7 +193,6 @@ func TestServiceKeyOutput_CSV(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	// Note: CreateDate will be dynamic, so we'll check the structure only
 	lines := strings.Split(output, "\n")
 	assert.Equal(t, 4, len(lines)) // header + 2 data lines + empty line
 	assert.Equal(t, "key_uid,product_name,product_uid,description,create_date", lines[0])
@@ -214,7 +205,6 @@ func boolPtr(b bool) *bool {
 }
 
 func init() {
-	// Set fixed time for tests
 	fixedTime := time.Date(2025, 2, 25, 12, 0, 0, 0, time.UTC)
 	for _, sk := range mockServiceKeys {
 		sk.CreateDate.Time = fixedTime
@@ -251,7 +241,7 @@ func TestFilterServiceKeys_EdgeCases(t *testing.T) {
 			},
 			singleUse:   nil,
 			maxSpeedMin: 0,
-			expected:    1, // Should skip nil and return valid key
+			expected:    1,
 		},
 		{
 			name: "zero values",
@@ -273,7 +263,7 @@ func TestFilterServiceKeys_EdgeCases(t *testing.T) {
 			keys:        mockServiceKeys,
 			singleUse:   nil,
 			maxSpeedMin: -1000,
-			expected:    2, // Should ignore negative speed
+			expected:    2,
 		},
 	}
 
@@ -282,7 +272,6 @@ func TestFilterServiceKeys_EdgeCases(t *testing.T) {
 			result := filterServiceKeys(tt.keys, tt.singleUse, tt.maxSpeedMin)
 			assert.Equal(t, tt.expected, len(result))
 
-			// Additional validation for non-nil results
 			for _, key := range result {
 				assert.NotNil(t, key, "Filtered results should not contain nil keys")
 			}

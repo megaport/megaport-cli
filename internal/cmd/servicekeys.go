@@ -11,11 +11,6 @@ import (
 )
 
 // servicekeysCmd is the parent command for managing service keys in the Megaport API.
-// It groups operations that allow you to create, update, list, and get details of service keys.
-//
-// Example usage:
-//
-//	megaport servicekeys list
 var servicekeysCmd = &cobra.Command{
 	Use:   "servicekeys",
 	Short: "Manage service keys for the Megaport API",
@@ -33,10 +28,6 @@ Example:
 }
 
 // createServiceKeyCmd creates a new service key.
-//
-// Example usage:
-//
-//	megaport servicekeys create --key "my-new-key" --description "My service key"
 var createServiceKeyCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new service key",
@@ -59,10 +50,6 @@ Example:
 }
 
 // updateServiceKeyCmd updates an existing service key.
-//
-// Example usage:
-//
-//	megaport servicekeys update my-key --description "Updated description"
 var updateServiceKeyCmd = &cobra.Command{
 	Use:   "update [key]",
 	Short: "Update an existing service key",
@@ -86,10 +73,6 @@ Example:
 }
 
 // listServiceKeysCmd lists all service keys for the Megaport API.
-//
-// Example usage:
-//
-//	megaport servicekeys list
 var listServiceKeysCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all service keys",
@@ -111,42 +94,7 @@ Example:
 	},
 }
 
-// ServiceKeyOutput represents the desired fields for output
-type ServiceKeyOutput struct {
-	output
-	KeyUID      string `json:"key_uid"`
-	ProductName string `json:"product_name"`
-	ProductUID  string `json:"product_uid"`
-	Description string `json:"description"`
-	CreateDate  string `json:"create_date"`
-}
-
-// ToServiceKeyOutput converts a ServiceKey to ServiceKeyOutput
-func ToServiceKeyOutput(sk *megaport.ServiceKey) (ServiceKeyOutput, error) {
-	if sk == nil {
-		return ServiceKeyOutput{}, fmt.Errorf("nil service key")
-	}
-
-	output := ServiceKeyOutput{
-		KeyUID:      sk.Key,
-		ProductName: sk.ProductName,
-		ProductUID:  sk.ProductUID,
-		Description: sk.Description,
-	}
-
-	// Handle nil CreateDate
-	if sk.CreateDate != nil {
-		output.CreateDate = sk.CreateDate.Time.Format(time.RFC3339)
-	}
-
-	return output, nil
-}
-
 // getServiceKeyCmd retrieves details of a specific service key.
-//
-// Example usage:
-//
-//	megaport servicekeys get my-key
 var getServiceKeyCmd = &cobra.Command{
 	Use:   "get [key]",
 	Short: "Get details of a service key",
@@ -194,6 +142,37 @@ func init() {
 	updateServiceKeyCmd.Flags().String("description", "", "Description for the service key")
 
 	rootCmd.AddCommand(servicekeysCmd)
+}
+
+// ServiceKeyOutput represents the desired fields for output
+type ServiceKeyOutput struct {
+	output
+	KeyUID      string `json:"key_uid"`
+	ProductName string `json:"product_name"`
+	ProductUID  string `json:"product_uid"`
+	Description string `json:"description"`
+	CreateDate  string `json:"create_date"`
+}
+
+// ToServiceKeyOutput converts a ServiceKey to ServiceKeyOutput
+func ToServiceKeyOutput(sk *megaport.ServiceKey) (ServiceKeyOutput, error) {
+	if sk == nil {
+		return ServiceKeyOutput{}, fmt.Errorf("nil service key")
+	}
+
+	output := ServiceKeyOutput{
+		KeyUID:      sk.Key,
+		ProductName: sk.ProductName,
+		ProductUID:  sk.ProductUID,
+		Description: sk.Description,
+	}
+
+	// Handle nil CreateDate
+	if sk.CreateDate != nil {
+		output.CreateDate = sk.CreateDate.Time.Format(time.RFC3339)
+	}
+
+	return output, nil
 }
 
 func CreateServiceKey(ctx context.Context, cmd *cobra.Command) error {
