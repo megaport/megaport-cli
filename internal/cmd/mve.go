@@ -10,8 +10,6 @@ import (
 )
 
 // mveCmd is the base command for all Megaport Virtual Edge (MVE) operations.
-// It groups commands related to MVEs.
-// Use the "megaport mve get [mveUID]" command to fetch details for a specific MVE identified by its UID.
 var mveCmd = &cobra.Command{
 	Use:   "mve",
 	Short: "Manage MVEs in the Megaport API",
@@ -23,42 +21,41 @@ Use the "megaport mve get [mveUID]" command to fetch details for a specific MVE 
 }
 
 // getMVECmd retrieves details for a single MVE.
-// Execute the command as "megaport mve get [mveUID]" to fetch information about the desired MVE.
 var getMVECmd = &cobra.Command{
 	Use:   "get [mveUID]",
 	Short: "Get details for a single MVE",
 	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
+	RunE:  GetMVE,
+}
 
-		client, err := Login(ctx)
-		if err != nil {
-			return fmt.Errorf("error logging in: %v", err)
-		}
+func GetMVE(cmd *cobra.Command, args []string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-		mveUID := args[0]
-		// Validate mveUID is not empty
-		if mveUID == "" {
-			return fmt.Errorf("MVE UID cannot be empty")
-		}
+	client, err := Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
 
-		mve, err := client.MVEService.GetMVE(ctx, mveUID)
-		if err != nil {
-			return fmt.Errorf("error getting MVE: %v", err)
-		}
+	mveUID := args[0]
+	if mveUID == "" {
+		return fmt.Errorf("MVE UID cannot be empty")
+	}
 
-		// Check if MVE is nil
-		if mve == nil {
-			return fmt.Errorf("no MVE found with UID: %s", mveUID)
-		}
+	mve, err := client.MVEService.GetMVE(ctx, mveUID)
+	if err != nil {
+		return fmt.Errorf("error getting MVE: %v", err)
+	}
 
-		err = printMVEs([]*megaport.MVE{mve}, outputFormat)
-		if err != nil {
-			return fmt.Errorf("error printing MVEs: %v", err)
-		}
-		return nil
-	},
+	if mve == nil {
+		return fmt.Errorf("no MVE found with UID: %s", mveUID)
+	}
+
+	err = printMVEs([]*megaport.MVE{mve}, outputFormat)
+	if err != nil {
+		return fmt.Errorf("error printing MVEs: %v", err)
+	}
+	return nil
 }
 
 func init() {
@@ -86,9 +83,8 @@ func ToMVEOutput(m *megaport.MVE) (MVEOutput, error) {
 	}, nil
 }
 
-// printMVEs prints the MVEs in the specified output format
+// printMVEs prints the MVEs in the specified output format.
 func printMVEs(mves []*megaport.MVE, format string) error {
-	// Handle nil slice
 	if mves == nil {
 		mves = []*megaport.MVE{}
 	}

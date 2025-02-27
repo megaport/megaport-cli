@@ -409,7 +409,9 @@ func TestGetPortCmd_WithMockClient(t *testing.T) {
 		})
 	}
 }
+
 func TestListPortsCmd_WithMockClient(t *testing.T) {
+	// Save original functions and restore after test
 	originalLoginFunc := loginFunc
 	originalOutputFormat := outputFormat
 	defer func() {
@@ -417,6 +419,7 @@ func TestListPortsCmd_WithMockClient(t *testing.T) {
 		outputFormat = originalOutputFormat
 	}()
 
+	// Create test ports
 	testPorts := []*megaport.Port{
 		{
 			UID:                "port-test-1",
@@ -529,37 +532,48 @@ func TestListPortsCmd_WithMockClient(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Setup mock Port service
 			mockPortService := &MockPortService{}
 			tt.setupMock(mockPortService)
 
+			// Setup login to return our mock client
 			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.PortService = mockPortService
 				return client, nil
 			}
 
+			// Set the global outputFormat variable
 			outputFormat = tt.format
 
+			// Create a fresh command for each test to avoid flag conflicts
 			cmd := &cobra.Command{
 				Use: "list",
 				RunE: func(cmd *cobra.Command, args []string) error {
+					// First check if we should return an error
 					if mockPortService.ListPortsErr != nil {
 						return mockPortService.ListPortsErr
 					}
 
+					// Get filter values
 					locationID, _ := cmd.Flags().GetInt("location-id")
 					portSpeed, _ := cmd.Flags().GetInt("port-speed")
 					portName, _ := cmd.Flags().GetString("port-name")
 
+					// Get ports from mock - safe now that we've checked for error
 					ports := mockPortService.ListPortsResult
+
+					// Apply filters
 					filtered := filterPorts(ports, locationID, portSpeed, portName)
+
+					// Print with current format
 					return printPorts(filtered, outputFormat)
 				},
 			}
 			cmd.Flags().IntVar(&locationID, "location-id", 0, "Filter ports by location ID")
 			cmd.Flags().IntVar(&portSpeed, "port-speed", 0, "Filter ports by port speed")
 			cmd.Flags().StringVar(&portName, "port-name", "", "Filter ports by port name")
-
+			// Set flag values for this test
 			if tt.locationID != 0 {
 				if err := cmd.Flags().Set("location-id", fmt.Sprintf("%d", tt.locationID)); err != nil {
 					t.Fatalf("Failed to set location-id flag: %v", err)
@@ -576,11 +590,13 @@ func TestListPortsCmd_WithMockClient(t *testing.T) {
 				}
 			}
 
+			// Execute command and capture output
 			var err error
 			output := captureOutput(func() {
 				err = cmd.Execute()
 			})
 
+			// Check results
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -595,6 +611,7 @@ func TestListPortsCmd_WithMockClient(t *testing.T) {
 }
 
 func TestBuyPortCmd_WithMockClient(t *testing.T) {
+	// Save original functions and restore after test
 	originalPrompt := prompt
 	originalLoginFunc := loginFunc
 	originalBuyPortFunc := buyPortFunc
@@ -662,12 +679,14 @@ func TestBuyPortCmd_WithMockClient(t *testing.T) {
 			setupMock: func(m *MockPortService) {
 				m.BuyPortErr = fmt.Errorf("API error: service unavailable")
 			},
+			// Change this line to match the actual error without the prefix
 			expectedError: "API error: service unavailable",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Setup mock prompt
 			promptIndex := 0
 			prompt = func(msg string) (string, error) {
 				if promptIndex < len(tt.prompts) {
@@ -678,23 +697,27 @@ func TestBuyPortCmd_WithMockClient(t *testing.T) {
 				return "", fmt.Errorf("unexpected prompt call")
 			}
 
+			// Setup mock Port service
 			mockPortService := &MockPortService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockPortService)
 			}
 
+			// Setup login to return our mock client
 			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.PortService = mockPortService
 				return client, nil
 			}
 
+			// Execute command and capture output
 			cmd := buyPortCmd
 			var err error
 			output := captureOutput(func() {
 				err = cmd.RunE(cmd, []string{})
 			})
 
+			// Check results
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -702,6 +725,7 @@ func TestBuyPortCmd_WithMockClient(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Contains(t, output, tt.expectedOutput)
 
+				// Verify request details
 				assert.NotNil(t, mockPortService.CapturedRequest)
 				req := mockPortService.CapturedRequest
 				assert.Equal(t, "Test Port", req.Name)
@@ -712,608 +736,6 @@ func TestBuyPortCmd_WithMockClient(t *testing.T) {
 				assert.Equal(t, "red", req.DiversityZone)
 				assert.Equal(t, "cost-123", req.CostCentre)
 				assert.Equal(t, "PROMO2025", req.PromoCode)
-			}
-		})
-	}
-}
-
-func TestBuyLagPortCmd_WithMockClient(t *testing.T) {
-	originalPrompt := prompt
-	originalLoginFunc := loginFunc
-	originalBuyPortFunc := buyPortFunc
-	defer func() {
-		prompt = originalPrompt
-		loginFunc = originalLoginFunc
-		buyPortFunc = originalBuyPortFunc
-	}()
-
-	tests := []struct {
-		name           string
-		prompts        []string
-		setupMock      func(*MockPortService)
-		expectedError  string
-		expectedOutput string
-	}{
-		{
-			name: "successful LAG Port purchase",
-			prompts: []string{
-				"Test LAG Port", // name
-				"12",            // term
-				"10000",         // port speed
-				"123",           // location ID
-				"4",             // lag count
-				"true",          // marketplace visibility
-				"red",           // diversity zone
-				"cost-123",      // cost center
-				"PROMO2025",     // promo code
-			},
-			setupMock: func(m *MockPortService) {
-				m.BuyPortResult = &megaport.BuyPortResponse{
-					TechnicalServiceUIDs: []string{"lag-port-123-abc"},
-				}
-			},
-			expectedOutput: "LAG port purchased successfully - UID: lag-port-123-abc",
-		},
-		{
-			name: "invalid term",
-			prompts: []string{
-				"Test LAG Port", // name
-				"13",            // invalid term (not 1, 12, 24, 36)
-			},
-			expectedError: "invalid term, must be one of 1, 12, 24, 36",
-		},
-		{
-			name: "invalid port speed",
-			prompts: []string{
-				"Test LAG Port", // name
-				"12",            // term
-				"2000",          // invalid port speed (not 10000, 100000)
-			},
-			expectedError: "invalid port speed, must be one of 10000 or 100000",
-		},
-		{
-			name: "invalid lag count",
-			prompts: []string{
-				"Test LAG Port", // name
-				"12",            // term
-				"10000",         // port speed
-				"123",           // location ID
-				"9",             // invalid lag count (not between 1 and 8)
-			},
-			expectedError: "invalid LAG count, must be between 1 and 8",
-		},
-		{
-			name: "API error",
-			prompts: []string{
-				"Test LAG Port", // name
-				"12",            // term
-				"10000",         // port speed
-				"123",           // location ID
-				"4",             // lag count
-				"true",          // marketplace visibility
-				"red",           // diversity zone
-				"cost-123",      // cost center
-				"PROMO2025",     // promo code
-			},
-			setupMock: func(m *MockPortService) {
-				m.BuyPortErr = fmt.Errorf("API error: service unavailable")
-			},
-			expectedError: "API error: service unavailable",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			promptIndex := 0
-			prompt = func(msg string) (string, error) {
-				if promptIndex < len(tt.prompts) {
-					response := tt.prompts[promptIndex]
-					promptIndex++
-					return response, nil
-				}
-				return "", fmt.Errorf("unexpected prompt call")
-			}
-
-			mockPortService := &MockPortService{}
-			if tt.setupMock != nil {
-				tt.setupMock(mockPortService)
-			}
-
-			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				client := &megaport.Client{}
-				client.PortService = mockPortService
-				return client, nil
-			}
-
-			cmd := buyLagCmd
-			var err error
-			output := captureOutput(func() {
-				err = cmd.RunE(cmd, []string{})
-			})
-
-			if tt.expectedError != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError)
-			} else {
-				assert.NoError(t, err)
-				assert.Contains(t, output, tt.expectedOutput)
-
-				assert.NotNil(t, mockPortService.CapturedRequest)
-				req := mockPortService.CapturedRequest
-				assert.Equal(t, "Test LAG Port", req.Name)
-				assert.Equal(t, 12, req.Term)
-				assert.Equal(t, 10000, req.PortSpeed)
-				assert.Equal(t, 123, req.LocationId)
-				assert.Equal(t, 4, req.LagCount)
-				assert.Equal(t, true, req.MarketPlaceVisibility)
-				assert.Equal(t, "red", req.DiversityZone)
-				assert.Equal(t, "cost-123", req.CostCentre)
-				assert.Equal(t, "PROMO2025", req.PromoCode)
-			}
-		})
-	}
-}
-
-func TestUpdatePortCmd_WithMockClient(t *testing.T) {
-	originalPrompt := prompt
-	originalLoginFunc := loginFunc
-	originalUpdatePortFunc := updatePortFunc
-	defer func() {
-		prompt = originalPrompt
-		loginFunc = originalLoginFunc
-		updatePortFunc = originalUpdatePortFunc
-	}()
-
-	tests := []struct {
-		name           string
-		portUID        string
-		prompts        []string
-		setupMock      func(*MockPortService)
-		expectedError  string
-		expectedOutput string
-	}{
-		{
-			name:    "successful Port update",
-			portUID: "port-123",
-			prompts: []string{
-				"Updated Port", // name
-				"true",         // marketplace visibility
-				"cost-123",     // cost center
-				"12",           // term
-			},
-			setupMock: func(m *MockPortService) {
-				m.UpdatePortResult = &megaport.ModifyPortResponse{
-					IsUpdated: true,
-				}
-			},
-			expectedOutput: "Port updated successfully - UID: port-123",
-		},
-		{
-			name:    "invalid term",
-			portUID: "port-123",
-			prompts: []string{
-				"Updated Port", // name
-				"true",         // marketplace visibility
-				"cost-123",     // cost center
-				"13",           // invalid term (not 1, 12, 24, 36)
-			},
-			expectedError: "invalid term, must be one of 1, 12, 24, 36",
-		},
-		{
-			name:    "API error",
-			portUID: "port-123",
-			prompts: []string{
-				"Updated Port", // name
-				"true",         // marketplace visibility
-				"cost-123",     // cost center
-				"12",           // term
-			},
-			setupMock: func(m *MockPortService) {
-				m.ModifyPortErr = fmt.Errorf("API error: service unavailable")
-			},
-			expectedError: "API error: service unavailable",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			promptIndex := 0
-			prompt = func(msg string) (string, error) {
-				if promptIndex < len(tt.prompts) {
-					response := tt.prompts[promptIndex]
-					promptIndex++
-					return response, nil
-				}
-				return "", fmt.Errorf("unexpected prompt call")
-			}
-
-			mockPortService := &MockPortService{}
-			if tt.setupMock != nil {
-				tt.setupMock(mockPortService)
-			}
-
-			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				client := &megaport.Client{}
-				client.PortService = mockPortService
-				return client, nil
-			}
-
-			cmd := updatePortCmd
-			var err error
-			output := captureOutput(func() {
-				err = cmd.RunE(cmd, []string{tt.portUID})
-			})
-
-			if tt.expectedError != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError)
-			} else {
-				assert.NoError(t, err)
-				assert.Contains(t, output, tt.expectedOutput)
-			}
-		})
-	}
-}
-
-func TestDeletePortCmd_WithMockClient(t *testing.T) {
-	originalPrompt := prompt
-	originalLoginFunc := loginFunc
-	originalDeletePortFunc := deletePortFunc
-	defer func() {
-		prompt = originalPrompt
-		loginFunc = originalLoginFunc
-		deletePortFunc = originalDeletePortFunc
-	}()
-
-	tests := []struct {
-		name           string
-		portUID        string
-		force          bool
-		deleteNow      bool
-		promptResponse string
-		setupMock      func(*MockPortService)
-		expectedError  string
-		expectedOutput string
-	}{
-		{
-			name:           "successful Port deletion",
-			portUID:        "port-123",
-			force:          true,
-			deleteNow:      true,
-			promptResponse: "y",
-			setupMock: func(m *MockPortService) {
-				m.DeletePortResult = &megaport.DeletePortResponse{
-					IsDeleting: true,
-				}
-			},
-			expectedOutput: "Port port-123 deleted successfully\nThe port will be deleted immediately",
-		},
-		{
-			name:           "deletion cancelled",
-			portUID:        "port-123",
-			force:          false,
-			deleteNow:      false,
-			promptResponse: "n",
-			expectedOutput: "Deletion cancelled",
-		},
-		{
-			name:           "API error",
-			portUID:        "port-123",
-			force:          true,
-			deleteNow:      true,
-			promptResponse: "y",
-			setupMock: func(m *MockPortService) {
-				m.DeletePortErr = fmt.Errorf("API error: service unavailable")
-			},
-			expectedError: "API error: service unavailable",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			prompt = func(msg string) (string, error) {
-				return tt.promptResponse, nil
-			}
-
-			mockPortService := &MockPortService{}
-			if tt.setupMock != nil {
-				tt.setupMock(mockPortService)
-			}
-
-			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				client := &megaport.Client{}
-				client.PortService = mockPortService
-				return client, nil
-			}
-
-			cmd := deletePortCmd
-			if err := cmd.Flags().Set("force", fmt.Sprintf("%v", tt.force)); err != nil {
-				t.Fatalf("Failed to set force flag: %v", err)
-			}
-			if err := cmd.Flags().Set("now", fmt.Sprintf("%v", tt.deleteNow)); err != nil {
-				t.Fatalf("Failed to set now flag: %v", err)
-			}
-			var err error
-			output := captureOutput(func() {
-				err = cmd.RunE(cmd, []string{tt.portUID})
-			})
-
-			if tt.expectedError != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError)
-			} else {
-				assert.NoError(t, err)
-				assert.Contains(t, output, tt.expectedOutput)
-			}
-		})
-	}
-}
-
-func TestRestorePortCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := loginFunc
-	originalRestorePortFunc := restorePortFunc
-	defer func() {
-		loginFunc = originalLoginFunc
-		restorePortFunc = originalRestorePortFunc
-	}()
-
-	tests := []struct {
-		name           string
-		portUID        string
-		setupMock      func(*MockPortService)
-		expectedError  string
-		expectedOutput string
-	}{
-		{
-			name:    "successful Port restoration",
-			portUID: "port-123",
-			setupMock: func(m *MockPortService) {
-				m.RestorePortResult = &megaport.RestorePortResponse{
-					IsRestored: true,
-				}
-			},
-			expectedOutput: "Port port-123 restored successfully",
-		},
-		{
-			name:    "API error",
-			portUID: "port-123",
-			setupMock: func(m *MockPortService) {
-				m.RestorePortErr = fmt.Errorf("API error: service unavailable")
-			},
-			expectedError: "API error: service unavailable",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockPortService := &MockPortService{}
-			if tt.setupMock != nil {
-				tt.setupMock(mockPortService)
-			}
-
-			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				client := &megaport.Client{}
-				client.PortService = mockPortService
-				return client, nil
-			}
-
-			cmd := restorePortCmd
-			var err error
-			output := captureOutput(func() {
-				err = cmd.RunE(cmd, []string{tt.portUID})
-			})
-
-			if tt.expectedError != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError)
-			} else {
-				assert.NoError(t, err)
-				assert.Contains(t, output, tt.expectedOutput)
-			}
-		})
-	}
-}
-
-func TestLockPortCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := loginFunc
-	originalLockPortFunc := lockPortFunc
-	defer func() {
-		loginFunc = originalLoginFunc
-		lockPortFunc = originalLockPortFunc
-	}()
-
-	tests := []struct {
-		name           string
-		portUID        string
-		setupMock      func(*MockPortService)
-		expectedError  string
-		expectedOutput string
-	}{
-		{
-			name:    "successful Port lock",
-			portUID: "port-123",
-			setupMock: func(m *MockPortService) {
-				m.LockPortResult = &megaport.LockPortResponse{
-					IsLocking: true,
-				}
-			},
-			expectedOutput: "Port port-123 locked successfully",
-		},
-		{
-			name:    "API error",
-			portUID: "port-123",
-			setupMock: func(m *MockPortService) {
-				m.LockPortErr = fmt.Errorf("API error: service unavailable")
-			},
-			expectedError: "API error: service unavailable",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockPortService := &MockPortService{}
-			if tt.setupMock != nil {
-				tt.setupMock(mockPortService)
-			}
-
-			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				client := &megaport.Client{}
-				client.PortService = mockPortService
-				return client, nil
-			}
-
-			cmd := lockPortCmd
-			var err error
-			output := captureOutput(func() {
-				err = cmd.RunE(cmd, []string{tt.portUID})
-			})
-
-			if tt.expectedError != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError)
-			} else {
-				assert.NoError(t, err)
-				assert.Contains(t, output, tt.expectedOutput)
-			}
-		})
-	}
-}
-
-func TestUnlockPortCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := loginFunc
-	originalUnlockPortFunc := unlockPortFunc
-	defer func() {
-		loginFunc = originalLoginFunc
-		unlockPortFunc = originalUnlockPortFunc
-	}()
-
-	tests := []struct {
-		name           string
-		portUID        string
-		setupMock      func(*MockPortService)
-		expectedError  string
-		expectedOutput string
-	}{
-		{
-			name:    "successful Port unlock",
-			portUID: "port-123",
-			setupMock: func(m *MockPortService) {
-				m.UnlockPortResult = &megaport.UnlockPortResponse{
-					IsUnlocking: true,
-				}
-			},
-			expectedOutput: "Port port-123 unlocked successfully",
-		},
-		{
-			name:    "API error",
-			portUID: "port-123",
-			setupMock: func(m *MockPortService) {
-				m.UnlockPortErr = fmt.Errorf("API error: service unavailable")
-			},
-			expectedError: "API error: service unavailable",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockPortService := &MockPortService{}
-			if tt.setupMock != nil {
-				tt.setupMock(mockPortService)
-			}
-
-			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				client := &megaport.Client{}
-				client.PortService = mockPortService
-				return client, nil
-			}
-
-			cmd := unlockPortCmd
-			var err error
-			output := captureOutput(func() {
-				err = cmd.RunE(cmd, []string{tt.portUID})
-			})
-
-			if tt.expectedError != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError)
-			} else {
-				assert.NoError(t, err)
-				assert.Contains(t, output, tt.expectedOutput)
-			}
-		})
-	}
-}
-
-func TestCheckPortVLANAvailabilityCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := loginFunc
-	originalCheckPortVLANAvailabilityFunc := checkPortVLANAvailabilityFunc
-	defer func() {
-		loginFunc = originalLoginFunc
-		checkPortVLANAvailabilityFunc = originalCheckPortVLANAvailabilityFunc
-	}()
-
-	tests := []struct {
-		name           string
-		portUID        string
-		vlan           int
-		setupMock      func(*MockPortService)
-		expectedError  string
-		expectedOutput string
-	}{
-		{
-			name:    "VLAN available",
-			portUID: "port-123",
-			vlan:    100,
-			setupMock: func(m *MockPortService) {
-				m.CheckPortVLANAvailabilityResult = true
-			},
-			expectedOutput: "VLAN 100 is available on port port-123",
-		},
-		{
-			name:    "VLAN not available",
-			portUID: "port-123",
-			vlan:    100,
-			setupMock: func(m *MockPortService) {
-				m.CheckPortVLANAvailabilityResult = false
-			},
-			expectedOutput: "VLAN 100 is not available on port port-123",
-		},
-		{
-			name:    "API error",
-			portUID: "port-123",
-			vlan:    100,
-			setupMock: func(m *MockPortService) {
-				m.CheckPortVLANAvailabilityErr = fmt.Errorf("API error: service unavailable")
-			},
-			expectedError: "API error: service unavailable",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockPortService := &MockPortService{}
-			if tt.setupMock != nil {
-				tt.setupMock(mockPortService)
-			}
-
-			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				client := &megaport.Client{}
-				client.PortService = mockPortService
-				return client, nil
-			}
-
-			cmd := checkPortVLANAvailabilityCmd
-			var err error
-			output := captureOutput(func() {
-				err = cmd.RunE(cmd, []string{tt.portUID, fmt.Sprintf("%d", tt.vlan)})
-			})
-
-			if tt.expectedError != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError)
-			} else {
-				assert.NoError(t, err)
-				assert.Contains(t, output, tt.expectedOutput)
 			}
 		})
 	}

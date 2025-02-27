@@ -10,6 +10,23 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Utility functions for testing
+var getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+	return client.MCRService.GetMCR(ctx, mcrUID)
+}
+
+var buyMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
+	return client.MCRService.BuyMCR(ctx, req)
+}
+
+var deleteMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.DeleteMCRRequest) (*megaport.DeleteMCRResponse, error) {
+	return client.MCRService.DeleteMCR(ctx, req)
+}
+
+var restoreMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.RestoreMCRResponse, error) {
+	return client.MCRService.RestoreMCR(ctx, mcrUID)
+}
+
 // mcrCmd is the parent command for all operations related to Megaport Cloud Routers (MCRs).
 // It serves as a container for subcommands that manage and retrieve information about MCRs.
 //
@@ -28,52 +45,42 @@ For instance, use the "megaport mcr get [mcrUID]" command to fetch details for t
 }
 
 // getMCRCmd retrieves and displays detailed information for a single Megaport Cloud Router (MCR).
-// This command requires exactly one argument: the UID of the MCR.
-//
-// It establishes a context with a timeout, logs into the Megaport API, and then uses the API client
-// to get the MCR details. The retrieved information is printed using the configured output format (table/json).
-//
-// Example usage:
-//
-//	megaport mcr get MCR12345
 var getMCRCmd = &cobra.Command{
 	Use:   "get [mcrUID]",
 	Short: "Get details for a single MCR",
 	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// Create a context with a 30-second timeout for the API call.
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		// Log into the Megaport API using the provided credentials.
-		client, err := Login(ctx)
-		if err != nil {
-			return fmt.Errorf("error logging in: %v", err)
-		}
-
-		// Retrieve the MCR UID from the command line arguments.
-		mcrUID := args[0]
-
-		// Use the API client to get the MCR details based on the provided UID.
-		mcr, err := client.MCRService.GetMCR(ctx, mcrUID)
-		if err != nil {
-			return fmt.Errorf("error getting MCR: %v", err)
-		}
-
-		// Print the MCR details using the desired output format.
-		err = printMCRs([]*megaport.MCR{mcr}, outputFormat)
-		if err != nil {
-			return fmt.Errorf("error printing MCRs: %v", err)
-		}
-		return nil
-	},
+	RunE:  GetMCR,
 }
 
-var buyMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
-	// The real implementation will call mcrService.BuyMCR
-	return client.MCRService.BuyMCR(ctx, req)
+func GetMCR(cmd *cobra.Command, args []string) error {
+	// Create a context with a 30-second timeout for the API call.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Log into the Megaport API using the provided credentials.
+	client, err := Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	// Retrieve the MCR UID from the command line arguments.
+	mcrUID := args[0]
+
+	// Use the API client to get the MCR details based on the provided UID.
+	mcr, err := getMCRFunc(ctx, client, mcrUID)
+	if err != nil {
+		return fmt.Errorf("error getting MCR: %v", err)
+	}
+
+	// Print the MCR details using the desired output format.
+	err = printMCRs([]*megaport.MCR{mcr}, outputFormat)
+	if err != nil {
+		return fmt.Errorf("error printing MCRs: %v", err)
+	}
+	return nil
 }
 
+// buyMCRCmd allows you to purchase an MCR by providing the necessary details.
 var buyMCRCmd = &cobra.Command{
 	Use:   "buy",
 	Short: "Buy an MCR through the Megaport API",
@@ -97,210 +104,205 @@ Example usage:
 
   megaport mcr buy
 `,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+	RunE: BuyMCR,
+}
 
-		// Prompt for required fields
-		name, err := prompt("Enter MCR name (required): ")
-		if err != nil {
-			return err
-		}
-		if name == "" {
-			return fmt.Errorf("MCR name is required")
-		}
+func BuyMCR(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
 
-		termStr, err := prompt("Enter term (1, 12, 24, 36) (required): ")
-		if err != nil {
-			return err
-		}
-		term, err := strconv.Atoi(termStr)
-		if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
-			return fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
-		}
+	// Prompt for required fields
+	name, err := prompt("Enter MCR name (required): ")
+	if err != nil {
+		return err
+	}
+	if name == "" {
+		return fmt.Errorf("MCR name is required")
+	}
 
-		portSpeedStr, err := prompt("Enter port speed (1000, 2500, 5000, 10000) (required): ")
-		if err != nil {
-			return err
-		}
-		portSpeed, err := strconv.Atoi(portSpeedStr)
-		if err != nil || (portSpeed != 1000 && portSpeed != 2500 && portSpeed != 5000 && portSpeed != 10000) {
-			return fmt.Errorf("invalid port speed, must be one of 1000, 2500, 5000, 10000")
-		}
+	termStr, err := prompt("Enter term (1, 12, 24, 36) (required): ")
+	if err != nil {
+		return err
+	}
+	term, err := strconv.Atoi(termStr)
+	if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
+		return fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+	}
 
-		locationIDStr, err := prompt("Enter location ID (required): ")
-		if err != nil {
-			return err
-		}
-		locationID, err := strconv.Atoi(locationIDStr)
-		if err != nil {
-			return fmt.Errorf("invalid location ID")
-		}
+	portSpeedStr, err := prompt("Enter port speed (1000, 2500, 5000, 10000) (required): ")
+	if err != nil {
+		return err
+	}
+	portSpeed, err := strconv.Atoi(portSpeedStr)
+	if err != nil || (portSpeed != 1000 && portSpeed != 2500 && portSpeed != 5000 && portSpeed != 10000) {
+		return fmt.Errorf("invalid port speed, must be one of 1000, 2500, 5000, 10000")
+	}
 
-		// Prompt for optional fields
-		diversityZone, err := prompt("Enter diversity zone (optional): ")
-		if err != nil {
-			return err
-		}
+	locationIDStr, err := prompt("Enter location ID (required): ")
+	if err != nil {
+		return err
+	}
+	locationID, err := strconv.Atoi(locationIDStr)
+	if err != nil {
+		return fmt.Errorf("invalid location ID")
+	}
 
-		costCentre, err := prompt("Enter cost center (optional): ")
-		if err != nil {
-			return err
-		}
+	// Prompt for optional fields
+	diversityZone, err := prompt("Enter diversity zone (optional): ")
+	if err != nil {
+		return err
+	}
 
-		promoCode, err := prompt("Enter promo code (optional): ")
-		if err != nil {
-			return err
-		}
+	costCentre, err := prompt("Enter cost center (optional): ")
+	if err != nil {
+		return err
+	}
 
-		// Create the BuyMCRRequest
-		req := &megaport.BuyMCRRequest{
-			Name:             name,
-			Term:             term,
-			PortSpeed:        portSpeed,
-			LocationID:       locationID,
-			DiversityZone:    diversityZone,
-			CostCentre:       costCentre,
-			PromoCode:        promoCode,
-			WaitForProvision: true,
-			WaitForTime:      10 * time.Minute,
-		}
+	promoCode, err := prompt("Enter promo code (optional): ")
+	if err != nil {
+		return err
+	}
 
-		// Call the BuyMCR method
-		client, err := Login(ctx)
-		if err != nil {
-			return err
-		}
-		fmt.Println("Buying MCR...")
+	// Create the BuyMCRRequest
+	req := &megaport.BuyMCRRequest{
+		Name:             name,
+		Term:             term,
+		PortSpeed:        portSpeed,
+		LocationID:       locationID,
+		DiversityZone:    diversityZone,
+		CostCentre:       costCentre,
+		PromoCode:        promoCode,
+		WaitForProvision: true,
+		WaitForTime:      10 * time.Minute,
+	}
 
-		if err := client.MCRService.ValidateMCROrder(ctx, req); err != nil {
-			return fmt.Errorf("validation failed: %v", err)
-		}
+	// Call the BuyMCR method
+	client, err := Login(ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Buying MCR...")
 
-		resp, err := buyMCRFunc(ctx, client, req)
-		if err != nil {
-			return err
-		}
+	if err := client.MCRService.ValidateMCROrder(ctx, req); err != nil {
+		return fmt.Errorf("validation failed: %v", err)
+	}
 
-		fmt.Printf("MCR purchased successfully - UID: %s\n", resp.TechnicalServiceUID)
-		return nil
-	},
+	resp, err := buyMCRFunc(ctx, client, req)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("MCR purchased successfully - UID: %s\n", resp.TechnicalServiceUID)
+	return nil
 }
 
 // deleteMCRCmd deletes a Megaport Cloud Router (MCR) from the user's account.
-// This command requires the MCR UID as an argument and will prompt for confirmation
-// before proceeding with deletion unless the --force flag is used.
-//
-// Example usage:
-//
-//	megaport mcr delete MCR12345
 var deleteMCRCmd = &cobra.Command{
 	Use:   "delete [mcrUID]",
 	Short: "Delete an MCR from your account",
 	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// Create a context with a 30-second timeout for the API call
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
+	RunE:  DeleteMCR,
+}
 
-		// Log into the Megaport API using the provided credentials
-		client, err := Login(ctx)
-		if err != nil {
-			return fmt.Errorf("error logging in: %v", err)
-		}
+func DeleteMCR(cmd *cobra.Command, args []string) error {
+	// Create a context with a 30-second timeout for the API call
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-		// Retrieve the MCR UID from the command line arguments
-		mcrUID := args[0]
+	// Log into the Megaport API using the provided credentials
+	client, err := Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
 
-		// Get delete now flag
-		deleteNow, err := cmd.Flags().GetBool("now")
+	// Retrieve the MCR UID from the command line arguments
+	mcrUID := args[0]
+
+	// Get delete now flag
+	deleteNow, err := cmd.Flags().GetBool("now")
+	if err != nil {
+		return err
+	}
+
+	// Confirm deletion unless force flag is set
+	force, err := cmd.Flags().GetBool("force")
+	if err != nil {
+		return err
+	}
+
+	if !force {
+		confirmMsg := "Are you sure you want to delete MCR " + mcrUID + "? (y/n): "
+		confirmation, err := prompt(confirmMsg)
 		if err != nil {
 			return err
 		}
 
-		// Confirm deletion unless force flag is set
-		force, err := cmd.Flags().GetBool("force")
-		if err != nil {
-			return err
+		if confirmation != "y" && confirmation != "Y" {
+			fmt.Println("Deletion cancelled")
+			return nil
 		}
+	}
 
-		if !force {
-			confirmMsg := "Are you sure you want to delete MCR " + mcrUID + "? (y/n): "
-			confirmation, err := prompt(confirmMsg)
-			if err != nil {
-				return err
-			}
+	// Create delete request
+	deleteRequest := &megaport.DeleteMCRRequest{
+		MCRID:     mcrUID,
+		DeleteNow: deleteNow,
+	}
 
-			if confirmation != "y" && confirmation != "Y" {
-				fmt.Println("Deletion cancelled")
-				return nil
-			}
-		}
+	// Delete the MCR
+	resp, err := deleteMCRFunc(ctx, client, deleteRequest)
+	if err != nil {
+		return fmt.Errorf("error deleting MCR: %v", err)
+	}
 
-		// Create delete request
-		deleteRequest := &megaport.DeleteMCRRequest{
-			MCRID:     mcrUID,
-			DeleteNow: deleteNow,
-		}
-
-		// Delete the MCR
-		resp, err := client.MCRService.DeleteMCR(ctx, deleteRequest)
-		if err != nil {
-			return fmt.Errorf("error deleting MCR: %v", err)
-		}
-
-		if resp.IsDeleting {
-			fmt.Printf("MCR %s deleted successfully\n", mcrUID)
-			if deleteNow {
-				fmt.Println("The MCR will be deleted immediately")
-			} else {
-				fmt.Println("The MCR will be deleted at the end of the current billing period")
-			}
+	if resp.IsDeleting {
+		fmt.Printf("MCR %s deleted successfully\n", mcrUID)
+		if deleteNow {
+			fmt.Println("The MCR will be deleted immediately")
 		} else {
-			fmt.Println("MCR deletion request was not successful")
+			fmt.Println("The MCR will be deleted at the end of the current billing period")
 		}
+	} else {
+		fmt.Println("MCR deletion request was not successful")
+	}
 
-		return nil
-	},
+	return nil
 }
 
 // restoreMCRCmd restores a previously deleted Megaport Cloud Router (MCR).
-// This command requires the MCR UID as an argument.
-//
-// Example usage:
-//
-//	megaport mcr restore MCR12345
 var restoreMCRCmd = &cobra.Command{
 	Use:   "restore [mcrUID]",
 	Short: "Restore a deleted MCR",
 	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// Create a context with a 30-second timeout for the API call
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
+	RunE:  RestoreMCR,
+}
 
-		// Log into the Megaport API using the provided credentials
-		client, err := Login(ctx)
-		if err != nil {
-			return fmt.Errorf("error logging in: %v", err)
-		}
+func RestoreMCR(cmd *cobra.Command, args []string) error {
+	// Create a context with a 30-second timeout for the API call
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-		// Retrieve the MCR UID from the command line arguments
-		mcrUID := args[0]
+	// Log into the Megaport API using the provided credentials
+	client, err := Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
 
-		// Restore the MCR
-		resp, err := client.MCRService.RestoreMCR(ctx, mcrUID)
-		if err != nil {
-			return fmt.Errorf("error restoring MCR: %v", err)
-		}
+	// Retrieve the MCR UID from the command line arguments
+	mcrUID := args[0]
 
-		if resp.IsRestored {
-			fmt.Printf("MCR %s restored successfully\n", mcrUID)
-		} else {
-			fmt.Println("MCR restoration request was not successful")
-		}
+	// Restore the MCR
+	resp, err := restoreMCRFunc(ctx, client, mcrUID)
+	if err != nil {
+		return fmt.Errorf("error restoring MCR: %v", err)
+	}
 
-		return nil
-	},
+	if resp.IsRestored {
+		fmt.Printf("MCR %s restored successfully\n", mcrUID)
+	} else {
+		fmt.Println("MCR restoration request was not successful")
+	}
+
+	return nil
 }
 
 func init() {

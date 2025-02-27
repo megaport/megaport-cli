@@ -12,11 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Original login function that will be restored after tests
 var originalLoginFunc func(ctx context.Context) (*megaport.Client, error)
 
 func TestConfigureCmd(t *testing.T) {
-	// Set environment variables for testing
 	t.Setenv("MEGAPORT_ACCESS_KEY", "test-access-key")
 	t.Setenv("MEGAPORT_SECRET_KEY", "test-secret-key")
 	t.Setenv("MEGAPORT_ENVIRONMENT", "staging")
@@ -33,7 +31,6 @@ func TestConfigureCmd(t *testing.T) {
 }
 
 func TestConfigureCmdMissingEnvVars(t *testing.T) {
-	// Unset environment variables for testing
 	os.Unsetenv("MEGAPORT_ACCESS_KEY")
 	os.Unsetenv("MEGAPORT_SECRET_KEY")
 	os.Unsetenv("MEGAPORT_ENVIRONMENT")
@@ -109,12 +106,10 @@ func TestConfigureCmd_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Clean environment before each test
 			os.Unsetenv("MEGAPORT_ACCESS_KEY")
 			os.Unsetenv("MEGAPORT_SECRET_KEY")
 			os.Unsetenv("MEGAPORT_ENVIRONMENT")
 
-			// Set test environment variables
 			for key, value := range tt.envVars {
 				t.Setenv(key, value)
 			}
@@ -135,7 +130,6 @@ func TestConfigureCmd_EdgeCases(t *testing.T) {
 }
 
 func TestConfigureCmd_ExtraArgs(t *testing.T) {
-	// Create a new command instance for testing
 	cmd := &cobra.Command{
 		Use:   "configure",
 		Short: "Configure Megaport CLI credentials",
@@ -147,14 +141,11 @@ func TestConfigureCmd_ExtraArgs(t *testing.T) {
 		},
 	}
 
-	// Test with extra arguments
 	err := cmd.RunE(cmd, []string{"extra", "args"})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unexpected arguments")
 }
 
-// SetupLoginMocks initializes mock login functionality
-// Returns a cleanup function to be deferred
 func SetupLoginMocks() func() {
 	originalLoginFunc = loginFunc
 	return func() {
@@ -162,19 +153,15 @@ func SetupLoginMocks() func() {
 	}
 }
 
-// MockLoginSuccess sets up a loginFunc that returns a successful client with mock services
 func MockLoginSuccess() {
 	loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
-		// Add mock services to the client
 		client.MCRService = &MockMCRService{}
 		client.PortService = &MockPortService{}
-		// Add other service mocks as needed
 		return client, nil
 	}
 }
 
-// MockLoginWithError sets up a loginFunc that returns a specific error
 func MockLoginWithError(errorMsg string) {
 	loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		return nil, errors.New(errorMsg)

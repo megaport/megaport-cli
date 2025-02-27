@@ -68,6 +68,7 @@ func TestFilterLocations(t *testing.T) {
 		})
 	}
 }
+
 func TestPrintLocations_Table(t *testing.T) {
 	var err error
 	output := captureOutput(func() {
@@ -116,6 +117,30 @@ func TestPrintLocations_JSON(t *testing.T) {
 	assert.JSONEq(t, expected, output)
 }
 
+func TestPrintLocations_CSV(t *testing.T) {
+	output := captureOutput(func() {
+		err := printLocations(testLocations, "csv")
+		assert.NoError(t, err)
+	})
+
+	expected := `id,name,country,metro,site_code,market,latitude,longitude,status
+1,Sydney,Australia,Sydney,SYD1,APAC,0,0,ACTIVE
+2,London,United Kingdom,London,LON1,EUROPE,0,0,ACTIVE
+`
+	assert.Equal(t, expected, output)
+}
+
+func TestPrintLocations_Invalid(t *testing.T) {
+	var err error
+	output := captureOutput(func() {
+		err = printLocations(testLocations, "invalid")
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid output format")
+	assert.Empty(t, output)
+}
+
 func TestFilterLocations_EmptySlice(t *testing.T) {
 	// Passing an empty slice with no filters should yield zero results
 	var emptyLocations []*megaport.Location
@@ -152,28 +177,4 @@ func TestPrintLocations_EmptySlice(t *testing.T) {
 	})
 	// Should simply be an empty array
 	assert.Equal(t, "[]\n", jsonOutput)
-}
-
-func TestPrintLocations_CSV(t *testing.T) {
-	output := captureOutput(func() {
-		err := printLocations(testLocations, "csv")
-		assert.NoError(t, err)
-	})
-
-	expected := `id,name,country,metro,site_code,market,latitude,longitude,status
-1,Sydney,Australia,Sydney,SYD1,APAC,0,0,ACTIVE
-2,London,United Kingdom,London,LON1,EUROPE,0,0,ACTIVE
-`
-	assert.Equal(t, expected, output)
-}
-
-func TestPrintLocations_Invalid(t *testing.T) {
-	var err error
-	output := captureOutput(func() {
-		err = printLocations(testLocations, "invalid")
-	})
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid output format")
-	assert.Empty(t, output)
 }

@@ -196,7 +196,6 @@ func TestPrintPartners_Invalid(t *testing.T) {
 	assert.Empty(t, output)
 }
 
-// Additional coverage test: printing an empty slice
 func TestPrintPartners_EmptySlice(t *testing.T) {
 	var emptySlice []*megaport.PartnerMegaport
 
@@ -205,7 +204,6 @@ func TestPrintPartners_EmptySlice(t *testing.T) {
 		err := printPartners(emptySlice, "table")
 		assert.NoError(t, err)
 	})
-	// Should only print the header row
 	expectedTable := `product_name   connect_type   company_name   location_id   diversity_zone   vxc_permitted
 `
 	assert.Equal(t, expectedTable, tableOutput)

@@ -49,13 +49,11 @@ func TestCompletionCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup fresh command for each test
 			rootCmd := &cobra.Command{Use: "megaport"}
 			buf := new(bytes.Buffer)
 			rootCmd.SetOut(buf)
 			rootCmd.SetErr(buf)
 
-			// Add completion command
 			completionCmd := &cobra.Command{
 				Use:       "completion [bash|zsh|fish|powershell]",
 				ValidArgs: []string{"bash", "zsh", "fish", "powershell"},
@@ -77,7 +75,6 @@ func TestCompletionCmd(t *testing.T) {
 			}
 			rootCmd.AddCommand(completionCmd)
 
-			// Execute command
 			rootCmd.SetArgs([]string{"completion", tt.shell})
 			err := rootCmd.Execute()
 
@@ -96,6 +93,7 @@ func TestCompletionCmd(t *testing.T) {
 		})
 	}
 }
+
 func TestCompletionCmd_EdgeCases(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -125,16 +123,14 @@ func TestCompletionCmd_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a fresh command instance
 			cmd := &cobra.Command{Use: "megaport"}
 
-			// Add completion command
 			completion := &cobra.Command{
 				Use:          "completion [bash|zsh|fish|powershell]",
 				Short:        "Generate completion script",
 				ValidArgs:    []string{"bash", "zsh", "fish", "powershell"},
 				Args:         cobra.ExactArgs(1),
-				SilenceUsage: true, // Silence usage on error
+				SilenceUsage: true,
 				RunE: func(cmd *cobra.Command, args []string) error {
 					if len(args) != 1 {
 						return fmt.Errorf("accepts 1 arg(s), received %d", len(args))
@@ -158,21 +154,17 @@ func TestCompletionCmd_EdgeCases(t *testing.T) {
 			}
 			cmd.AddCommand(completion)
 
-			// Setup buffers
 			outBuf := new(bytes.Buffer)
 			errBuf := new(bytes.Buffer)
 			cmd.SetOut(outBuf)
 			cmd.SetErr(errBuf)
 
-			// Execute command
 			cmd.SetArgs(tt.args)
 			err := cmd.Execute()
 
 			assert.Error(t, err, "Expected error for case: %s", tt.name)
-			assert.Contains(t, err.Error(), tt.errMsg,
-				"Error message should contain expected text for case: %s", tt.name)
-			assert.Empty(t, outBuf.String(),
-				"No output expected for error case: %s", tt.name)
+			assert.Contains(t, err.Error(), tt.errMsg, "Error message should contain expected text for case: %s", tt.name)
+			assert.Empty(t, outBuf.String(), "No output expected for error case: %s", tt.name)
 		})
 	}
 }

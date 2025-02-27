@@ -11,15 +11,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Configuration file path
 var (
 	accessKeyEnvVar   = "MEGAPORT_ACCESS_KEY"
 	secretKeyEnvVar   = "MEGAPORT_SECRET_KEY"
 	environmentEnvVar = "MEGAPORT_ENVIRONMENT"
 )
 
-// loginFunc is a variable that holds the login function implementation.
-// This allows tests to replace it with a mock implementation.
 var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	httpClient := &http.Client{}
 	accessKey := os.Getenv(accessKeyEnvVar)
@@ -53,8 +50,6 @@ var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	return megaportClient, nil
 }
 
-// Login is a wrapper function that calls loginFunc.
-// This makes it easier to mock the login functionality in tests.
 func Login(ctx context.Context) (*megaport.Client, error) {
 	return loginFunc(ctx)
 }
@@ -75,12 +70,10 @@ You must provide credentials through environment variables:
 		secretKey := os.Getenv(secretKeyEnvVar)
 		environment := os.Getenv(environmentEnvVar)
 
-		// Check if any env vars are not set
 		if accessKey == "" && secretKey == "" && environment == "" {
 			return fmt.Errorf("required environment variables not set")
 		}
 
-		// Check individual env vars
 		if accessKey == "" {
 			return fmt.Errorf("access key cannot be empty")
 		}
@@ -91,17 +84,14 @@ You must provide credentials through environment variables:
 			return fmt.Errorf("environment cannot be empty")
 		}
 
-		// Check for whitespace-only values
 		if strings.TrimSpace(accessKey) == "" ||
 			strings.TrimSpace(secretKey) == "" ||
 			strings.TrimSpace(environment) == "" {
 			return fmt.Errorf("invalid environment variables")
 		}
 
-		// Validate environment
 		switch strings.TrimSpace(environment) {
 		case "production", "staging", "development":
-			// valid
 		default:
 			return fmt.Errorf("invalid environment: %s", environment)
 		}

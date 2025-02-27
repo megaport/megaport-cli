@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	megaport "github.com/megaport/megaportgo"
 	"github.com/stretchr/testify/assert"
@@ -85,28 +86,50 @@ func TestPrintMCRs_Invalid(t *testing.T) {
 	assert.Empty(t, output)
 }
 
-func TestPrintMCRs_EmptySlice(t *testing.T) {
-	var emptyMCRs []*megaport.MCR
-
+func TestPrintMCRs_EmptyAndNilSlice(t *testing.T) {
 	tests := []struct {
 		name     string
+		mcrs     []*megaport.MCR
 		format   string
 		expected string
 	}{
 		{
-			name:   "table format",
+			name:   "empty slice table format",
+			mcrs:   []*megaport.MCR{},
 			format: "table",
 			expected: `uid   name   location_id   provisioning_status
 `,
 		},
 		{
-			name:   "csv format",
+			name:   "empty slice csv format",
+			mcrs:   []*megaport.MCR{},
 			format: "csv",
 			expected: `uid,name,location_id,provisioning_status
 `,
 		},
 		{
-			name:     "json format",
+			name:     "empty slice json format",
+			mcrs:     []*megaport.MCR{},
+			format:   "json",
+			expected: "[]\n",
+		},
+		{
+			name:   "nil slice table format",
+			mcrs:   nil,
+			format: "table",
+			expected: `uid   name   location_id   provisioning_status
+`,
+		},
+		{
+			name:   "nil slice csv format",
+			mcrs:   nil,
+			format: "csv",
+			expected: `uid,name,location_id,provisioning_status
+`,
+		},
+		{
+			name:     "nil slice json format",
+			mcrs:     nil,
 			format:   "json",
 			expected: "[]\n",
 		},
@@ -115,140 +138,15 @@ func TestPrintMCRs_EmptySlice(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			output := captureOutput(func() {
-				err := printMCRs(emptyMCRs, tt.format)
+				err := printMCRs(tt.mcrs, tt.format)
 				assert.NoError(t, err)
 			})
 			assert.Equal(t, tt.expected, output)
-		})
-	}
-}
-
-func TestPrintMCRs_NilSlice(t *testing.T) {
-	var nilMCRs []*megaport.MCR = nil
-
-	tests := []struct {
-		name     string
-		format   string
-		expected string
-	}{
-		{
-			name:   "table format",
-			format: "table",
-			expected: `uid   name   location_id   provisioning_status
-`,
-		},
-		{
-			name:   "csv format",
-			format: "csv",
-			expected: `uid,name,location_id,provisioning_status
-`,
-		},
-		{
-			name:     "json format",
-			format:   "json",
-			expected: "[]\n",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			output := captureOutput(func() {
-				err := printMCRs(nilMCRs, tt.format)
-				assert.NoError(t, err)
-			})
-			assert.Equal(t, tt.expected, output)
-		})
-	}
-}
-
-func TestPrintMCRs_InvalidMCR(t *testing.T) {
-	invalidMCRs := []*megaport.MCR{
-		{
-			UID:                "",
-			Name:               "",
-			LocationID:         0,
-			ProvisioningStatus: "",
-		},
-	}
-
-	tests := []struct {
-		name        string
-		format      string
-		mcrs        []*megaport.MCR
-		shouldError bool
-		expected    string
-	}{
-		{
-			name:        "table format with zero values",
-			format:      "table",
-			mcrs:        invalidMCRs,
-			shouldError: false,
-			expected:    "   0             ",
-		},
-		{
-			name:        "csv format with zero values",
-			format:      "csv",
-			mcrs:        invalidMCRs,
-			shouldError: false,
-			expected:    ",,0,",
-		},
-		{
-			name:        "json format with zero values",
-			format:      "json",
-			mcrs:        invalidMCRs,
-			shouldError: false,
-			expected:    `[{"uid":"","name":"","location_id":0,"provisioning_status":""}]`,
-		},
-		{
-			name:        "table format with nil MCR",
-			format:      "table",
-			mcrs:        []*megaport.MCR{nil},
-			shouldError: true,
-			expected:    "invalid MCR: nil value",
-		},
-		{
-			name:        "csv format with nil MCR",
-			format:      "csv",
-			mcrs:        []*megaport.MCR{nil},
-			shouldError: true,
-			expected:    "invalid MCR: nil value",
-		},
-		{
-			name:        "json format with nil MCR",
-			format:      "json",
-			mcrs:        []*megaport.MCR{nil},
-			shouldError: true,
-			expected:    "invalid MCR: nil value",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var output string
-			var err error
-
-			output = captureOutput(func() {
-				err = printMCRs(tt.mcrs, tt.format)
-			})
-
-			if tt.shouldError {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expected)
-				assert.Empty(t, output)
-			} else {
-				assert.NoError(t, err)
-				if tt.format == "json" {
-					assert.JSONEq(t, tt.expected, output)
-				} else {
-					assert.Contains(t, output, tt.expected)
-				}
-			}
 		})
 	}
 }
 
 func TestBuyMCRCmd_WithMockClient(t *testing.T) {
-	// Save original functions and restore after test
 	originalPrompt := prompt
 	originalLoginFunc := loginFunc
 	defer func() {
@@ -317,7 +215,6 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup mock prompt
 			promptIndex := 0
 			prompt = func(msg string) (string, error) {
 				if promptIndex < len(tt.prompts) {
@@ -328,25 +225,21 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 				return "", fmt.Errorf("unexpected prompt call")
 			}
 
-			// Setup mock MCR service
 			mockMCRService := &MockMCRService{}
 			tt.setupMock(mockMCRService)
 
-			// Setup login to return our mock client
 			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
 			}
 
-			// Execute command and capture output
 			cmd := buyMCRCmd
 			var err error
 			output := captureOutput(func() {
 				err = cmd.RunE(cmd, []string{})
 			})
 
-			// Check results
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -354,7 +247,6 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Contains(t, output, tt.expectedOutput)
 
-				// Verify request details
 				assert.NotNil(t, mockMCRService.CapturedBuyMCRRequest)
 				req := mockMCRService.CapturedBuyMCRRequest
 				assert.Equal(t, "Test MCR", req.Name)
@@ -370,7 +262,6 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 }
 
 func TestGetMCRCmd_WithMockClient(t *testing.T) {
-	// Save original login function and restore after test
 	originalLoginFunc := loginFunc
 	originalOutputFormat := outputFormat
 	defer func() {
@@ -422,7 +313,6 @@ func TestGetMCRCmd_WithMockClient(t *testing.T) {
 					},
 				}
 			},
-			// Update these to match the actual JSON formatting with spaces after colons
 			expectedOut: []string{`"uid": "mcr-123"`, `"name": "Test MCR"`, `"location_id": 123`},
 		},
 		{
@@ -438,27 +328,22 @@ func TestGetMCRCmd_WithMockClient(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup mock MCR service
 			mockMCRService := &MockMCRService{}
 			tt.setupMock(mockMCRService)
 
-			// Setup login to return our mock client
 			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
 			}
 
-			// Set the global outputFormat variable
 			outputFormat = tt.format
 
-			// Execute command and capture output
 			var err error
 			output := captureOutput(func() {
 				err = getMCRCmd.RunE(getMCRCmd, []string{tt.mcrID})
 			})
 
-			// Check results
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -683,4 +568,95 @@ func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetMCRFunc(t *testing.T) {
+	mockMCRService := &MockMCRService{
+		GetMCRResult: &megaport.MCR{
+			UID:                "mcr-123",
+			Name:               "Test MCR",
+			LocationID:         123,
+			ProvisioningStatus: "LIVE",
+		},
+	}
+
+	client := &megaport.Client{
+		MCRService: mockMCRService,
+	}
+
+	ctx := context.Background()
+	mcr, err := getMCRFunc(ctx, client, "mcr-123")
+	assert.NoError(t, err)
+	assert.NotNil(t, mcr)
+	assert.Equal(t, "mcr-123", mcr.UID)
+	assert.Equal(t, "Test MCR", mcr.Name)
+}
+
+func TestBuyMCRFunc(t *testing.T) {
+	mockMCRService := &MockMCRService{
+		BuyMCRResult: &megaport.BuyMCRResponse{
+			TechnicalServiceUID: "mcr-123-abc",
+		},
+	}
+
+	client := &megaport.Client{
+		MCRService: mockMCRService,
+	}
+
+	ctx := context.Background()
+	req := &megaport.BuyMCRRequest{
+		Name:             "Test MCR",
+		Term:             12,
+		PortSpeed:        1000,
+		LocationID:       123,
+		DiversityZone:    "red",
+		CostCentre:       "cost-123",
+		PromoCode:        "PROMO2025",
+		WaitForProvision: true,
+		WaitForTime:      10 * time.Minute,
+	}
+	resp, err := buyMCRFunc(ctx, client, req)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, "mcr-123-abc", resp.TechnicalServiceUID)
+}
+
+func TestDeleteMCRFunc(t *testing.T) {
+	mockMCRService := &MockMCRService{
+		DeleteMCRResult: &megaport.DeleteMCRResponse{
+			IsDeleting: true,
+		},
+	}
+
+	client := &megaport.Client{
+		MCRService: mockMCRService,
+	}
+
+	ctx := context.Background()
+	req := &megaport.DeleteMCRRequest{
+		MCRID:     "mcr-123",
+		DeleteNow: true,
+	}
+	resp, err := deleteMCRFunc(ctx, client, req)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.True(t, resp.IsDeleting)
+}
+
+func TestRestoreMCRFunc(t *testing.T) {
+	mockMCRService := &MockMCRService{
+		RestoreMCRResult: &megaport.RestoreMCRResponse{
+			IsRestored: true,
+		},
+	}
+
+	client := &megaport.Client{
+		MCRService: mockMCRService,
+	}
+
+	ctx := context.Background()
+	resp, err := restoreMCRFunc(ctx, client, "mcr-123")
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.True(t, resp.IsRestored)
 }

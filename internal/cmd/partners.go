@@ -48,38 +48,28 @@ Examples:
 var listPartnersCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all partner ports",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// Create a context with a 30-second timeout.
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
+	RunE:  ListPartners,
+}
 
-		// Login to the API.
-		client, err := Login(ctx)
-		if err != nil {
-			return fmt.Errorf("error logging in: %v", err)
-		}
+func ListPartners(cmd *cobra.Command, args []string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-		// Retrieve partner ports from the API.
-		partners, err := client.PartnerService.ListPartnerMegaports(ctx)
-		if err != nil {
-			return fmt.Errorf("error listing partner ports: %v", err)
-		}
+	client, err := Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
 
-		// Perform in-memory filtering using the provided criteria.
-		filteredPartners := filterPartners(
-			partners,
-			productName,
-			connectType,
-			companyName,
-			locationID,
-			diversityZone,
-		)
-		err = printPartners(filteredPartners, outputFormat)
-		if err != nil {
-			return fmt.Errorf("error printing partner ports: %v", err)
-		}
-		return nil
-	},
+	partners, err := client.PartnerService.ListPartnerMegaports(ctx)
+	if err != nil {
+		return fmt.Errorf("error listing partners: %v", err)
+	}
+
+	err = printPartners(partners, outputFormat)
+	if err != nil {
+		return fmt.Errorf("error printing partners: %v", err)
+	}
+	return nil
 }
 
 func init() {

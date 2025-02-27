@@ -35,33 +35,35 @@ var getVXCCmd = &cobra.Command{
 	Use:   "get [vxcUID]",
 	Short: "Get details for a single VXC",
 	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// Create a context with a 30-second timeout for the API call.
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
+	RunE:  GetVXC,
+}
 
-		// Log into the Megaport API.
-		client, err := Login(ctx)
-		if err != nil {
-			return fmt.Errorf("error logging in: %v", err)
-		}
+func GetVXC(cmd *cobra.Command, args []string) error {
+	// Create a context with a 30-second timeout for the API call.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-		// Retrieve the VXC UID from the command line arguments.
-		vxcUID := args[0]
+	// Log into the Megaport API.
+	client, err := Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
 
-		// Retrieve VXC details using the API client.
-		vxc, err := client.VXCService.GetVXC(ctx, vxcUID)
-		if err != nil {
-			return fmt.Errorf("error getting VXC: %v", err)
-		}
+	// Retrieve the VXC UID from the command line arguments.
+	vxcUID := args[0]
 
-		// Print the VXC details using the desired output format.
-		err = printVXCs([]*megaport.VXC{vxc}, outputFormat)
-		if err != nil {
-			return fmt.Errorf("error printing VXCs: %v", err)
-		}
-		return nil
-	},
+	// Retrieve VXC details using the API client.
+	vxc, err := client.VXCService.GetVXC(ctx, vxcUID)
+	if err != nil {
+		return fmt.Errorf("error getting VXC: %v", err)
+	}
+
+	// Print the VXC details using the desired output format.
+	err = printVXCs([]*megaport.VXC{vxc}, outputFormat)
+	if err != nil {
+		return fmt.Errorf("error printing VXCs: %v", err)
+	}
+	return nil
 }
 
 func init() {
