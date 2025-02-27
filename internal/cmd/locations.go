@@ -22,14 +22,18 @@ var (
 // along with detailed information including name, ID, country, metropolitan area, site code, and availability status.
 var locationsCmd = &cobra.Command{
 	Use:   "locations",
-	Short: "List all available locations",
-	Long: `The locations command provides a list of all available locations 
-where services can be provisioned. This command can be used to get 
-detailed information about each location, including its name, ID, country, 
-metropolitan area, site code, and availability status.
+	Short: "Manage locations in the Megaport API",
+	Long: `Manage locations in the Megaport API.
 
-Example usage:
+This command groups operations related to locations. You can use the subcommands 
+to list all locations, get details for a specific location, and filter locations 
+based on various criteria such as metro area, country, and name.
+
+Examples:
   megaport locations list
+  megaport locations get --id 123
+  megaport locations get --site-code "EQX-ASH"
+  megaport locations get --name "Equinix Ashburn"
 `,
 }
 
