@@ -15,7 +15,7 @@ type MockPortService struct {
 	ListPortsResult                 []*megaport.Port
 	BuyPortErr                      error
 	BuyPortResult                   *megaport.BuyPortResponse
-	CapturedRequest                 *megaport.BuyPortRequest // To capture and verify request params
+	CapturedRequest                 *megaport.BuyPortRequest
 	CheckPortVLANAvailabilityErr    error
 	CheckPortVLANAvailabilityResult bool
 	CapturedVLANRequest             struct {
@@ -48,6 +48,8 @@ type MockPortService struct {
 		PortID string
 		Tags   map[string]string
 	}
+	UpdatePortErr    error
+	UpdatePortResult *megaport.ModifyPortResponse
 }
 
 func (m *MockPortService) GetPort(ctx context.Context, portID string) (*megaport.Port, error) {
@@ -57,7 +59,6 @@ func (m *MockPortService) GetPort(ctx context.Context, portID string) (*megaport
 	if m.GetPortResult != nil {
 		return m.GetPortResult, nil
 	}
-	// Default mock response
 	return &megaport.Port{
 		UID:                portID,
 		Name:               "Mock Port",
@@ -72,12 +73,10 @@ func (m *MockPortService) ListPorts(ctx context.Context) ([]*megaport.Port, erro
 	if m.ListPortsResult != nil {
 		return m.ListPortsResult, nil
 	}
-	// Default empty list
 	return []*megaport.Port{}, nil
 }
 
 func (m *MockPortService) BuyPort(ctx context.Context, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
-	// Store the request for later validation
 	m.CapturedRequest = req
 
 	if m.BuyPortErr != nil {
@@ -86,15 +85,12 @@ func (m *MockPortService) BuyPort(ctx context.Context, req *megaport.BuyPortRequ
 	if m.BuyPortResult != nil {
 		return m.BuyPortResult, nil
 	}
-	// Default mock response
 	return &megaport.BuyPortResponse{
 		TechnicalServiceUIDs: []string{"mock-port-uid"},
 	}, nil
 }
 
-// Add the CheckPortVLANAvailability method
 func (m *MockPortService) CheckPortVLANAvailability(ctx context.Context, portID string, vlanID int) (bool, error) {
-	// Store the request for later validation if needed
 	m.CapturedVLANRequest.PortID = portID
 	m.CapturedVLANRequest.VLANID = vlanID
 
@@ -102,17 +98,10 @@ func (m *MockPortService) CheckPortVLANAvailability(ctx context.Context, portID 
 		return false, m.CheckPortVLANAvailabilityErr
 	}
 
-	// If a specific result is set, return it
-	if m.CheckPortVLANAvailabilityResult || m.CheckPortVLANAvailabilityErr != nil {
-		return m.CheckPortVLANAvailabilityResult, m.CheckPortVLANAvailabilityErr
-	}
-
-	// Default to returning true (VLAN is available)
-	return true, nil
+	return m.CheckPortVLANAvailabilityResult, nil
 }
 
 func (m *MockPortService) DeletePort(ctx context.Context, req *megaport.DeletePortRequest) (*megaport.DeletePortResponse, error) {
-	// Store the request parameter for later validation
 	m.CapturedDeletePortUID = req.PortID
 
 	if m.DeletePortErr != nil {
@@ -123,14 +112,12 @@ func (m *MockPortService) DeletePort(ctx context.Context, req *megaport.DeletePo
 		return m.DeletePortResult, nil
 	}
 
-	// Default mock response
 	return &megaport.DeletePortResponse{
 		IsDeleting: true,
 	}, nil
 }
 
 func (m *MockPortService) ListPortResourceTags(ctx context.Context, portID string) (map[string]string, error) {
-	// Store the request parameter for later validation
 	m.CapturedResourceTagPortUID = portID
 
 	if m.ListPortResourceTagsErr != nil {
@@ -141,7 +128,6 @@ func (m *MockPortService) ListPortResourceTags(ctx context.Context, portID strin
 		return m.ListPortResourceTagsResult, nil
 	}
 
-	// Default mock response - empty tags map
 	return map[string]string{
 		"environment": "test",
 		"owner":       "automation",
@@ -156,7 +142,6 @@ func (m *MockPortService) ValidatePortOrder(ctx context.Context, req *megaport.B
 }
 
 func (m *MockPortService) LockPort(ctx context.Context, portId string) (*megaport.LockPortResponse, error) {
-	// Store the portId for later validation
 	m.CapturedLockPortUID = portId
 
 	if m.LockPortErr != nil {
@@ -167,14 +152,12 @@ func (m *MockPortService) LockPort(ctx context.Context, portId string) (*megapor
 		return m.LockPortResult, nil
 	}
 
-	// Default mock response
 	return &megaport.LockPortResponse{
 		IsLocking: true,
 	}, nil
 }
 
 func (m *MockPortService) ModifyPort(ctx context.Context, req *megaport.ModifyPortRequest) (*megaport.ModifyPortResponse, error) {
-	// Store the request for later validation
 	m.CapturedModifyPortRequest = req
 
 	if m.ModifyPortErr != nil {
@@ -185,14 +168,12 @@ func (m *MockPortService) ModifyPort(ctx context.Context, req *megaport.ModifyPo
 		return m.ModifyPortResult, nil
 	}
 
-	// Default mock response
 	return &megaport.ModifyPortResponse{
 		IsUpdated: true,
 	}, nil
 }
 
 func (m *MockPortService) RestorePort(ctx context.Context, portId string) (*megaport.RestorePortResponse, error) {
-	// Store the portId for later validation
 	m.CapturedRestorePortUID = portId
 
 	if m.RestorePortErr != nil {
@@ -203,14 +184,12 @@ func (m *MockPortService) RestorePort(ctx context.Context, portId string) (*mega
 		return m.RestorePortResult, nil
 	}
 
-	// Default mock response
 	return &megaport.RestorePortResponse{
 		IsRestored: true,
 	}, nil
 }
 
 func (m *MockPortService) UnlockPort(ctx context.Context, portId string) (*megaport.UnlockPortResponse, error) {
-	// Store the portId for later validation
 	m.CapturedUnlockPortUID = portId
 
 	if m.UnlockPortErr != nil {
@@ -221,14 +200,12 @@ func (m *MockPortService) UnlockPort(ctx context.Context, portId string) (*megap
 		return m.UnlockPortResult, nil
 	}
 
-	// Default mock response
 	return &megaport.UnlockPortResponse{
 		IsUnlocking: true,
 	}, nil
 }
 
 func (m *MockPortService) UpdatePortResourceTags(ctx context.Context, portID string, tags map[string]string) error {
-	// Store the request parameters for later validation
 	m.CapturedUpdateTagsRequest.PortID = portID
 	m.CapturedUpdateTagsRequest.Tags = tags
 
