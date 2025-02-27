@@ -29,7 +29,7 @@ var portsCmd = &cobra.Command{
 	Short: "Manage ports in the Megaport API",
 	Long: `Manage ports in the Megaport API.
 
-This command groups all operations related to ports. You can use the subcommands 
+This command groups operations related to ports. You can use the subcommands 
 to list all ports, get details for a specific port, or buy a new port.
 
 Examples:
@@ -39,11 +39,36 @@ Examples:
 `,
 }
 
+// Define the functions for easier testing
+var updatePortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyPortRequest) (*megaport.ModifyPortResponse, error) {
+	return client.PortService.ModifyPort(ctx, req)
+}
+
+var deletePortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.DeletePortRequest) (*megaport.DeletePortResponse, error) {
+	return client.PortService.DeletePort(ctx, req)
+}
+
+var restorePortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.RestorePortResponse, error) {
+	return client.PortService.RestorePort(ctx, portUID)
+}
+
+var lockPortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.LockPortResponse, error) {
+	return client.PortService.LockPort(ctx, portUID)
+}
+
+var unlockPortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.UnlockPortResponse, error) {
+	return client.PortService.UnlockPort(ctx, portUID)
+}
+
+var checkPortVLANAvailabilityFunc = func(ctx context.Context, client *megaport.Client, portUID string, vlan int) (bool, error) {
+	return client.PortService.CheckPortVLANAvailability(ctx, portUID, vlan)
+}
+
 var buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
-	// The real implementation will call portService.BuyPort
 	return client.PortService.BuyPort(ctx, req)
 }
 
+// buyPortCmd allows you to purchase a port by providing the necessary details.
 var buyPortCmd = &cobra.Command{
 	Use:   "buy",
 	Short: "Buy a port through the Megaport API",
@@ -259,13 +284,343 @@ Example:
 	},
 }
 
+// updatePortCmd updates a port's details in the Megaport API.
+var updatePortCmd = &cobra.Command{
+	Use:   "update [portUID]",
+	Short: "Update a port's details",
+	Long: `Update a port's details in the Megaport API.
+
+This command allows you to update the details of an existing port by providing the necessary fields.
+You need to provide the UID of the port as an argument.
+
+Example usage:
+
+  megaport ports update [portUID]
+`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+
+		// Retrieve the port UID from the command line arguments.
+		portUID := args[0]
+
+		// Prompt for required fields
+		name, err := prompt("Enter new port name (required): ")
+		if err != nil {
+			return err
+		}
+		if name == "" {
+			return fmt.Errorf("port name is required")
+		}
+
+		// Prompt for optional fields
+		marketplaceVisibilityStr, err := prompt("Enter marketplace visibility (true/false) (optional): ")
+		if err != nil {
+			return err
+		}
+		marketplaceVisibility, err := strconv.ParseBool(marketplaceVisibilityStr)
+		if err != nil {
+			return fmt.Errorf("invalid marketplace visibility, must be true or false")
+		}
+
+		costCentre, err := prompt("Enter cost center (optional): ")
+		if err != nil {
+			return err
+		}
+
+		termStr, err := prompt("Enter new term (1, 12, 24, 36) (optional): ")
+		if err != nil {
+			return err
+		}
+		term, err := strconv.Atoi(termStr)
+		if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
+			return fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		}
+
+		// Create the ModifyPortRequest
+		req := &megaport.ModifyPortRequest{
+			PortID:                portUID,
+			Name:                  name,
+			MarketplaceVisibility: &marketplaceVisibility,
+			CostCentre:            costCentre,
+			ContractTermMonths:    &term,
+			WaitForUpdate:         true,
+			WaitForTime:           10 * time.Minute,
+		}
+
+		// Call the ModifyPort method
+		client, err := Login(ctx)
+		if err != nil {
+			return err
+		}
+		fmt.Println("Updating port...")
+		resp, err := updatePortFunc(ctx, client, req)
+		if err != nil {
+			return err
+		}
+
+		if resp.IsUpdated {
+			fmt.Printf("Port updated successfully - UID: %s\n", portUID)
+		} else {
+			fmt.Println("Port update request was not successful")
+		}
+		return nil
+	},
+}
+
+// deletePortCmd deletes a port from the user's account.
+var deletePortCmd = &cobra.Command{
+	Use:   "delete [portUID]",
+	Short: "Delete a port from your account",
+	Long: `Delete a port from your account in the Megaport API.
+
+This command allows you to delete an existing port by providing the UID of the port as an argument.
+You can optionally specify whether to delete the port immediately or at the end of the billing period.
+
+Example usage:
+
+  megaport ports delete [portUID]
+`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+
+		// Retrieve the port UID from the command line arguments.
+		portUID := args[0]
+
+		// Get delete now flag
+		deleteNow, err := cmd.Flags().GetBool("now")
+		if err != nil {
+			return err
+		}
+
+		// Confirm deletion unless force flag is set
+		force, err := cmd.Flags().GetBool("force")
+		if err != nil {
+			return err
+		}
+
+		if !force {
+			confirmMsg := "Are you sure you want to delete port " + portUID + "? (y/n): "
+			confirmation, err := prompt(confirmMsg)
+			if err != nil {
+				return err
+			}
+
+			if confirmation != "y" && confirmation != "Y" {
+				fmt.Println("Deletion cancelled")
+				return nil
+			}
+		}
+
+		// Create delete request
+		deleteRequest := &megaport.DeletePortRequest{
+			PortID:    portUID,
+			DeleteNow: deleteNow,
+		}
+
+		// Delete the port
+		client, err := Login(ctx)
+		if err != nil {
+			return err
+		}
+		resp, err := deletePortFunc(ctx, client, deleteRequest)
+		if err != nil {
+			return err
+		}
+
+		if resp.IsDeleting {
+			fmt.Printf("Port %s deleted successfully\n", portUID)
+			if deleteNow {
+				fmt.Println("The port will be deleted immediately")
+			} else {
+				fmt.Println("The port will be deleted at the end of the current billing period")
+			}
+		} else {
+			fmt.Println("Port deletion request was not successful")
+		}
+		return nil
+	},
+}
+
+// restorePortCmd restores a previously deleted port.
+var restorePortCmd = &cobra.Command{
+	Use:   "restore [portUID]",
+	Short: "Restore a deleted port",
+	Long: `Restore a previously deleted port in the Megaport API.
+
+This command allows you to restore a previously deleted port by providing the UID of the port as an argument.
+
+Example usage:
+
+  megaport ports restore [portUID]
+`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+
+		// Retrieve the port UID from the command line arguments.
+		portUID := args[0]
+
+		// Restore the port
+		client, err := Login(ctx)
+		if err != nil {
+			return err
+		}
+		resp, err := restorePortFunc(ctx, client, portUID)
+		if err != nil {
+			return err
+		}
+
+		if resp.IsRestored {
+			fmt.Printf("Port %s restored successfully\n", portUID)
+		} else {
+			fmt.Println("Port restoration request was not successful")
+		}
+		return nil
+	},
+}
+
+// lockPortCmd locks a port in the Megaport API.
+var lockPortCmd = &cobra.Command{
+	Use:   "lock [portUID]",
+	Short: "Lock a port",
+	Long: `Lock a port in the Megaport API.
+
+This command allows you to lock an existing port by providing the UID of the port as an argument.
+
+Example usage:
+
+  megaport ports lock [portUID]
+`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+
+		// Retrieve the port UID from the command line arguments.
+		portUID := args[0]
+
+		// Lock the port
+		client, err := Login(ctx)
+		if err != nil {
+			return err
+		}
+		resp, err := lockPortFunc(ctx, client, portUID)
+		if err != nil {
+			return err
+		}
+
+		if resp.IsLocking {
+			fmt.Printf("Port %s locked successfully\n", portUID)
+		} else {
+			fmt.Println("Port lock request was not successful")
+		}
+		return nil
+	},
+}
+
+// unlockPortCmd unlocks a port in the Megaport API.
+var unlockPortCmd = &cobra.Command{
+	Use:   "unlock [portUID]",
+	Short: "Unlock a port",
+	Long: `Unlock a port in the Megaport API.
+
+This command allows you to unlock an existing port by providing the UID of the port as an argument.
+
+Example usage:
+
+  megaport ports unlock [portUID]
+`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+
+		// Retrieve the port UID from the command line arguments.
+		portUID := args[0]
+
+		// Unlock the port
+		client, err := Login(ctx)
+		if err != nil {
+			return err
+		}
+		resp, err := unlockPortFunc(ctx, client, portUID)
+		if err != nil {
+			return err
+		}
+
+		if resp.IsUnlocking {
+			fmt.Printf("Port %s unlocked successfully\n", portUID)
+		} else {
+			fmt.Println("Port unlock request was not successful")
+		}
+		return nil
+	},
+}
+
+// checkPortVLANAvailabilityCmd checks if a VLAN is available on a port.
+var checkPortVLANAvailabilityCmd = &cobra.Command{
+	Use:   "check-vlan [portUID] [vlan]",
+	Short: "Check if a VLAN is available on a port",
+	Long: `Check if a VLAN is available on a port in the Megaport API.
+
+This command allows you to check if a specific VLAN is available on an existing port by providing the UID of the port and the VLAN ID as arguments.
+
+Example usage:
+
+  megaport ports check-vlan [portUID] [vlan]
+`,
+	Args: cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
+
+		// Retrieve the port UID and VLAN ID from the command line arguments.
+		portUID := args[0]
+		vlan, err := strconv.Atoi(args[1])
+		if err != nil {
+			return fmt.Errorf("invalid VLAN ID")
+		}
+
+		// Check VLAN availability
+		client, err := Login(ctx)
+		if err != nil {
+			return err
+		}
+		available, err := checkPortVLANAvailabilityFunc(ctx, client, portUID, vlan)
+		if err != nil {
+			return err
+		}
+
+		if available {
+			fmt.Printf("VLAN %d is available on port %s\n", vlan, portUID)
+		} else {
+			fmt.Printf("VLAN %d is not available on port %s\n", vlan, portUID)
+		}
+		return nil
+	},
+}
+
 func init() {
+	// Add flags to deletePortCmd
+	deletePortCmd.Flags().Bool("now", false, "Delete immediately instead of at the end of the billing period")
+	deletePortCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
+
+	// Add flags to listPortsCmd
 	listPortsCmd.Flags().IntVar(&locationID, "location-id", 0, "Filter ports by location ID")
 	listPortsCmd.Flags().IntVar(&portSpeed, "port-speed", 0, "Filter ports by port speed")
 	listPortsCmd.Flags().StringVar(&portName, "port-name", "", "Filter ports by port name")
+
+	// Add commands to portsCmd
 	portsCmd.AddCommand(buyPortCmd)
 	portsCmd.AddCommand(listPortsCmd)
 	portsCmd.AddCommand(getPortCmd)
+	portsCmd.AddCommand(updatePortCmd)
+	portsCmd.AddCommand(deletePortCmd)
+	portsCmd.AddCommand(restorePortCmd)
+	portsCmd.AddCommand(lockPortCmd)
+	portsCmd.AddCommand(unlockPortCmd)
+	portsCmd.AddCommand(checkPortVLANAvailabilityCmd)
+
+	// Add portsCmd to rootCmd
 	rootCmd.AddCommand(portsCmd)
 }
 
