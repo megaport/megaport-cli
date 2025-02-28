@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 
 	megaport "github.com/megaport/megaportgo"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -57,63 +55,6 @@ func Login(ctx context.Context) (*megaport.Client, error) {
 	return loginFunc(ctx)
 }
 
-var configureCmd = &cobra.Command{
-	Use:   "configure",
-	Short: "Configure the CLI with your credentials",
-	Long: `Configure the CLI with your Megaport API credentials.
-
-You must provide credentials through environment variables:
-  MEGAPORT_ACCESS_KEY, MEGAPORT_SECRET_KEY, and MEGAPORT_ENVIRONMENT
-  
-Available environments:
-  - production (default)
-  - staging
-  - development
-  `,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) > 0 {
-			return fmt.Errorf("unexpected arguments: %v", args)
-		}
-
-		accessKey := os.Getenv(accessKeyEnvVar)
-		secretKey := os.Getenv(secretKeyEnvVar)
-		environment := env
-		if environment == "" {
-			environment = os.Getenv(environmentEnvVar)
-		}
-
-		if accessKey == "" && secretKey == "" && environment == "" {
-			return fmt.Errorf("required environment variables not set")
-		}
-
-		if accessKey == "" {
-			return fmt.Errorf("access key cannot be empty")
-		}
-		if secretKey == "" {
-			return fmt.Errorf("secret key cannot be empty")
-		}
-		if environment == "" {
-			return fmt.Errorf("environment cannot be empty")
-		}
-
-		if strings.TrimSpace(accessKey) == "" ||
-			strings.TrimSpace(secretKey) == "" ||
-			strings.TrimSpace(environment) == "" {
-			return fmt.Errorf("invalid environment variables")
-		}
-
-		switch strings.TrimSpace(environment) {
-		case "production", "staging", "development":
-		default:
-			return fmt.Errorf("invalid environment: %s", environment)
-		}
-
-		fmt.Printf("Environment (%s) configured successfully.\n", environment)
-		return nil
-	},
-}
-
 func init() {
-	rootCmd.AddCommand(configureCmd)
-	configureCmd.Flags().StringVarP(&env, "env", "e", "production", "Environment to use (production, staging, development)")
+	rootCmd.PersistentFlags().StringVarP(&env, "env", "e", "production", "Environment to use (production, staging, development)")
 }
