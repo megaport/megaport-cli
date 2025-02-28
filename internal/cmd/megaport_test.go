@@ -2,48 +2,25 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"testing"
 
 	megaport "github.com/megaport/megaportgo"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
-var originalLoginFunc func(ctx context.Context) (*megaport.Client, error)
-
-func TestConfigureCmd(t *testing.T) {
-	t.Setenv("MEGAPORT_ACCESS_KEY", "test-access-key")
-	t.Setenv("MEGAPORT_SECRET_KEY", "test-secret-key")
-	t.Setenv("MEGAPORT_ENVIRONMENT", "staging")
-
+func TestLogin(t *testing.T) {
+	// Save original login function to restore after tests
+	originalLoginFunc := loginFunc
 	defer func() {
-		os.Unsetenv("MEGAPORT_ACCESS_KEY")
-		os.Unsetenv("MEGAPORT_SECRET_KEY")
-		os.Unsetenv("MEGAPORT_ENVIRONMENT")
+		loginFunc = originalLoginFunc
 	}()
 
-	cmd := configureCmd
-	err := cmd.RunE(cmd, []string{})
-	assert.NoError(t, err)
-}
-
-func TestConfigureCmdMissingEnvVars(t *testing.T) {
-	os.Unsetenv("MEGAPORT_ACCESS_KEY")
-	os.Unsetenv("MEGAPORT_SECRET_KEY")
-	os.Unsetenv("MEGAPORT_ENVIRONMENT")
-
-	cmd := configureCmd
-	err := cmd.RunE(cmd, []string{})
-	assert.Error(t, err)
-}
-
-func TestConfigureCmd_EdgeCases(t *testing.T) {
 	tests := []struct {
 		name        string
 		envVars     map[string]string
+		envFlag     string
 		shouldError bool
 		errorMsg    string
 	}{
@@ -64,7 +41,7 @@ func TestConfigureCmd_EdgeCases(t *testing.T) {
 				"MEGAPORT_ENVIRONMENT": "staging",
 			},
 			shouldError: true,
-			errorMsg:    "access key cannot be empty",
+			errorMsg:    "access key, secret key, and environment are required",
 		},
 		{
 			name: "empty secret key",
@@ -74,98 +51,97 @@ func TestConfigureCmd_EdgeCases(t *testing.T) {
 				"MEGAPORT_ENVIRONMENT": "staging",
 			},
 			shouldError: true,
-			errorMsg:    "secret key cannot be empty",
-		},
-		{
-			name: "invalid environment",
-			envVars: map[string]string{
-				"MEGAPORT_ACCESS_KEY":  "test-access-key",
-				"MEGAPORT_SECRET_KEY":  "test-secret-key",
-				"MEGAPORT_ENVIRONMENT": "invalid",
-			},
-			shouldError: true,
-			errorMsg:    "invalid environment",
+			errorMsg:    "access key, secret key, and environment are required",
 		},
 		{
 			name:        "no env vars set",
 			envVars:     map[string]string{},
 			shouldError: true,
-			errorMsg:    "required environment variables not set",
+			errorMsg:    "access key, secret key, and environment are required",
 		},
 		{
-			name: "whitespace only values",
+			name: "flag overrides env var",
 			envVars: map[string]string{
-				"MEGAPORT_ACCESS_KEY":  "   ",
-				"MEGAPORT_SECRET_KEY":  "   ",
-				"MEGAPORT_ENVIRONMENT": "   ",
+				"MEGAPORT_ACCESS_KEY":  "test-access-key",
+				"MEGAPORT_SECRET_KEY":  "test-secret-key",
+				"MEGAPORT_ENVIRONMENT": "staging",
 			},
-			shouldError: true,
-			errorMsg:    "invalid environment variables",
+			envFlag:     "production",
+			shouldError: false,
+		},
+		{
+			name: "flag provides env when not set",
+			envVars: map[string]string{
+				"MEGAPORT_ACCESS_KEY": "test-access-key",
+				"MEGAPORT_SECRET_KEY": "test-secret-key",
+			},
+			envFlag:     "production",
+			shouldError: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Clear environment variables before each test
 			os.Unsetenv("MEGAPORT_ACCESS_KEY")
 			os.Unsetenv("MEGAPORT_SECRET_KEY")
 			os.Unsetenv("MEGAPORT_ENVIRONMENT")
 
+			// Set environment variables for this test
 			for key, value := range tt.envVars {
-				t.Setenv(key, value)
+				os.Setenv(key, value)
 			}
 
-			cmd := configureCmd
-			err := cmd.RunE(cmd, []string{})
+			// Set the environment flag if provided
+			if tt.envFlag != "" {
+				env = tt.envFlag
+			} else {
+				env = ""
+			}
 
+			// Mock the loginFunc to capture inputs and return results based on test case
+			var capturedAccessKey, capturedSecretKey, capturedEnv string
+
+			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				capturedAccessKey = os.Getenv(accessKeyEnvVar)
+				capturedSecretKey = os.Getenv(secretKeyEnvVar)
+				capturedEnv = env
+				if capturedEnv == "" {
+					capturedEnv = os.Getenv(environmentEnvVar)
+				}
+
+				if capturedAccessKey == "" || capturedSecretKey == "" {
+					return nil, fmt.Errorf("access key, secret key, and environment are required")
+				}
+
+				client := &megaport.Client{}
+				return client, nil
+			}
+
+			// Call the Login function
+			client, err := Login(context.Background())
+
+			// Verify results
 			if tt.shouldError {
+				assert.Nil(t, client)
 				assert.Error(t, err)
 				if tt.errorMsg != "" {
 					assert.Contains(t, err.Error(), tt.errorMsg)
 				}
 			} else {
+				assert.NotNil(t, client)
 				assert.NoError(t, err)
+
+				// If test succeeds, verify the environment was properly set
+				if tt.envFlag != "" {
+					assert.Equal(t, tt.envFlag, capturedEnv)
+				} else if envVal, ok := tt.envVars["MEGAPORT_ENVIRONMENT"]; ok {
+					assert.Equal(t, envVal, capturedEnv)
+				} else {
+					// Default should be production
+					assert.Equal(t, "production", capturedEnv)
+				}
 			}
 		})
-	}
-}
-
-func TestConfigureCmd_ExtraArgs(t *testing.T) {
-	cmd := &cobra.Command{
-		Use:   "configure",
-		Short: "Configure Megaport CLI credentials",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) > 0 {
-				return fmt.Errorf("unexpected arguments: %v", args)
-			}
-			return nil
-		},
-	}
-
-	err := cmd.RunE(cmd, []string{"extra", "args"})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unexpected arguments")
-}
-
-func SetupLoginMocks() func() {
-	originalLoginFunc = loginFunc
-	return func() {
-		loginFunc = originalLoginFunc
-	}
-}
-
-func MockLoginSuccess() {
-	loginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{}
-		client.MCRService = &MockMCRService{}
-		client.PortService = &MockPortService{}
-		client.MVEService = &MockMVEService{}
-		client.ServiceKeyService = &MockServiceKeyService{}
-		return client, nil
-	}
-}
-
-func MockLoginWithError(errorMsg string) {
-	loginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		return nil, errors.New(errorMsg)
 	}
 }

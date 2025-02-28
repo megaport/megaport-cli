@@ -39,14 +39,20 @@ megaport completion fish > ~/.config/fish/completions/megaport.fish
 megaport completion powershell > megaport.ps1
 ```
 
+## Environment Support
+
+The CLI supports different Megaport environments:
+- Production (default)
+- Staging
+- Development
+
+Specify the environment using the `--env` flag or `MEGAPORT_ENVIRONMENT` variable.
+
 ## Configuration
 
-Configure your CLI credentials using either environment variables or the configure command:
+Configure your CLI credentials using environment variables.
 
 ```sh
-# Using configure command
-megaport configure --access-key YOUR_ACCESS_KEY --secret-key YOUR_SECRET_KEY
-
 # Using environment variables
 export MEGAPORT_ACCESS_KEY=<your-access-key>
 export MEGAPORT_SECRET_KEY=<your-secret-key>
@@ -91,17 +97,6 @@ megaport servicekeys create \
   --description "My Service Key" \
   --max-speed 1000
 ```
-
-## Environment Support
-
-The CLI supports different Megaport environments:
-- Production (default)
-- Staging
-- Development
-
-Specify the environment using the `--env` flag or `MEGAPORT_ENVIRONMENT` variable.
-
-## Contributing
 
 ## Contributing
 

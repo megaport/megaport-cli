@@ -21,9 +21,12 @@ var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	httpClient := &http.Client{}
 	accessKey := os.Getenv(accessKeyEnvVar)
 	secretKey := os.Getenv(secretKeyEnvVar)
-	environment := os.Getenv(environmentEnvVar)
+	environment := env
+	if environment == "" {
+		environment = os.Getenv(environmentEnvVar)
+	}
 
-	if accessKey == "" || secretKey == "" || environment == "" {
+	if accessKey == "" || secretKey == "" {
 		fmt.Println("Please provide access key and secret key using environment variables MEGAPORT_ACCESS_KEY, MEGAPORT_SECRET_KEY, and MEGAPORT_ENVIRONMENT")
 		return nil, fmt.Errorf("access key, secret key, and environment are required")
 	}
@@ -37,7 +40,7 @@ var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	case "development":
 		envOpt = megaport.WithEnvironment(megaport.EnvironmentDevelopment)
 	default:
-		return nil, fmt.Errorf("unknown environment: %s", environment)
+		envOpt = megaport.WithEnvironment(megaport.EnvironmentProduction)
 	}
 
 	megaportClient, err := megaport.New(httpClient, megaport.WithCredentials(accessKey, secretKey), envOpt)
@@ -60,7 +63,13 @@ var configureCmd = &cobra.Command{
 	Long: `Configure the CLI with your Megaport API credentials.
 
 You must provide credentials through environment variables:
-  MEGAPORT_ACCESS_KEY, MEGAPORT_SECRET_KEY, and MEGAPORT_ENVIRONMENT`,
+  MEGAPORT_ACCESS_KEY, MEGAPORT_SECRET_KEY, and MEGAPORT_ENVIRONMENT
+  
+Available environments:
+  - production (default)
+  - staging
+  - development
+  `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
 			return fmt.Errorf("unexpected arguments: %v", args)
@@ -68,7 +77,10 @@ You must provide credentials through environment variables:
 
 		accessKey := os.Getenv(accessKeyEnvVar)
 		secretKey := os.Getenv(secretKeyEnvVar)
-		environment := os.Getenv(environmentEnvVar)
+		environment := env
+		if environment == "" {
+			environment = os.Getenv(environmentEnvVar)
+		}
 
 		if accessKey == "" && secretKey == "" && environment == "" {
 			return fmt.Errorf("required environment variables not set")
@@ -103,4 +115,5 @@ You must provide credentials through environment variables:
 
 func init() {
 	rootCmd.AddCommand(configureCmd)
+	configureCmd.Flags().StringVarP(&env, "env", "e", "production", "Environment to use (production, staging, development)")
 }
