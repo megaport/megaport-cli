@@ -1,5 +1,8 @@
 # Megaport CLI
 
+> [!CAUTION]
+> The Megaport CLI tool is currently an unsupported alpha, we're excited for feedback but please know that functionallity and features may change drastically, and there may be bugs. 
+
 ## Overview
 
 The Megaport CLI provides a command-line interface for managing Megaport resources and services. It allows users to interact with the Megaport API directly from their terminal.
