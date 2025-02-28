@@ -14,7 +14,6 @@ var rootCmd = &cobra.Command{
 	Long: `A CLI tool to interact with the Megaport API.
 
 This CLI supports the following features:
-  - Configure credentials: Use "megaport configure" to set your access and secret keys.
   - Locations: List and manage locations.
   - Ports: List all ports and get details for a specific port.
   - MCRs: Get details for Megaport Cloud Routers.
@@ -60,7 +59,12 @@ func init() {
 		return fmt.Errorf("invalid output format: %s. Must be one of: %s",
 			outputFormat, strings.Join(validFormats, ", "))
 	}
-	rootCmd.PersistentFlags().StringVarP(&env, "env", "e", "production", "Environment to use (production, staging, development)")
+
+	// Check if the env flag is already defined before adding it
+	if rootCmd.PersistentFlags().Lookup("env") == nil {
+		rootCmd.PersistentFlags().StringVarP(&env, "env", "e", "production", "Environment to use (production, staging, development)")
+	}
+
 	err := rootCmd.PersistentFlags().SetAnnotation("output", cobra.BashCompCustom, validFormats)
 	if err != nil {
 		fmt.Println(err)
