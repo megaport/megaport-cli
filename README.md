@@ -1,7 +1,7 @@
 # Megaport CLI
 
 > [!CAUTION]
-> The Megaport CLI tool is currently an unsupported alpha, we're excited for feedback but please know that functionallity and features may change drastically, and there may be bugs. 
+> The Megaport CLI tool is currently an unsupported alpha, we're excited for feedback but please know that functionality and features may change drastically, and there may be bugs.
 
 ## Overview
 
@@ -81,24 +81,139 @@ All commands support multiple output formats:
 
 ### Examples
 
+#### Locations
 ```sh
 # List all locations
 megaport locations list
 
-# Get port details
+# List locations filtered by metro area
+megaport locations list --metro "San Francisco"
+
+# Get details for a specific location
+megaport locations get LOCATION_ID --output json
+```
+
+#### Ports
+```sh
+# List all ports
+megaport ports list
+
+# List ports filtered by location ID and port speed
+megaport ports list --location-id 1 --port-speed 10000
+
+# Get details for a specific port
 megaport ports get PORT_UID --output json
 
-# List partner ports with filtering
-megaport partners list \
-  --product-name "AWS Direct Connect" \
-  --connect-type "AWSHC" \
-  --output table
+# Buy a new port
+megaport ports buy
 
-# Create a service key
-megaport servicekeys create \
-  --product-uid PRODUCT_UID \
-  --description "My Service Key" \
-  --max-speed 1000
+# Buy a LAG port
+megaport ports buy-lag
+
+# Update a port
+megaport ports update PORT_UID --name "Updated Port Name"
+
+# Delete a port
+megaport ports delete PORT_UID --now
+
+# Restore a deleted port
+megaport ports restore PORT_UID
+
+# Lock a port
+megaport ports lock PORT_UID
+
+# Unlock a port
+megaport ports unlock PORT_UID
+
+# Check VLAN availability on a port
+megaport ports check-vlan PORT_UID VLAN_ID
+```
+
+#### MCR (Megaport Cloud Routers)
+```sh
+# List all MCRs
+megaport mcr list
+
+# Get details for a specific MCR
+megaport mcr get MCR_UID --output json
+
+# Buy a new MCR
+megaport mcr buy
+
+# Delete an MCR
+megaport mcr delete MCR_UID --now
+
+# Restore a deleted MCR
+megaport mcr restore MCR_UID
+
+# Create a prefix filter list on an MCR
+megaport mcr create-prefix-filter-list MCR_UID
+
+# List all prefix filter lists for a specific MCR
+megaport mcr list-prefix-filter-lists MCR_UID
+
+# Get details for a specific prefix filter list on an MCR
+megaport mcr get-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID
+
+# Update a prefix filter list on an MCR
+megaport mcr update-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID
+
+# Delete a prefix filter list on an MCR
+megaport mcr delete-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID
+```
+
+#### MVE (Megaport Virtual Edge)
+```sh
+# List all MVEs
+megaport mve list
+
+# Get details for a specific MVE
+megaport mve get MVE_UID --output json
+
+# Buy a new MVE
+megaport mve buy
+```
+
+#### VXC (Virtual Cross Connects)
+```sh
+# List all VXCs
+megaport vxc list
+
+# Get details for a specific VXC
+megaport vxc get VXC_UID --output json
+
+# Create a new VXC
+megaport vxc create --name "New VXC" --a_end_uid A_END_UID --z_end_uid Z_END_UID --rate_limit 1000
+
+# Delete a VXC
+megaport vxc delete VXC_UID
+```
+
+#### Partners
+```sh
+# List all partner ports
+megaport partners list
+
+# List partner ports filtered by product name and company name
+megaport partners list --product-name "AWS Direct Connect" --company-name "Acme Corp"
+
+# Get details for a specific partner port
+megaport partners get PARTNER_UID --output json
+```
+
+#### Service Keys
+```sh
+# List all service keys
+megaport servicekeys list
+
+# Get details for a specific service key
+megaport servicekeys get SERVICE_KEY_UID --output json
+
+# Create a new service key
+megaport servicekeys create --product-uid PRODUCT_UID --description "My Service Key" --max-speed 1000
+
+# Update an existing service key
+megaport servicekeys update SERVICE_KEY_UID --description "Updated Description"
 ```
 
 ## Contributing
@@ -107,10 +222,9 @@ Contributions via pull request are welcome. Familiarize yourself with these guid
 
 All contributions are subject to the [Megaport Contributor Licence Agreement](CLA.md).
 
-The CLA clarifies the terms of the [Mozilla Public Licence 2.0](LICENSE) used to Open Source this respository and ensures that contributors are explictly informed of the conditions. Megaport requires all contributors to accept these terms to ensure that the Megaport Terraform Provider remains available and licensed for the community.
+The CLA clarifies the terms of the [Mozilla Public Licence 2.0](LICENSE) used to Open Source this repository and ensures that contributors are explicitly informed of the conditions. Megaport requires all contributors to accept these terms to ensure that the Megaport Terraform Provider remains available and licensed for the community.
 
-When you open a Pull Request, all authors of the contributions are required to comment on the Pull Request confirming
-acceptance of the CLA terms. Pull Requests can not be merged until this is complete.
+When you open a Pull Request, all authors of the contributions are required to comment on the Pull Request confirming acceptance of the CLA terms. Pull Requests cannot be merged until this is complete.
 
 Megaport users are also bound by the [Acceptable Use Policy](https://www.megaport.com/legal/acceptable-use-policy).
 
