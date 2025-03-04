@@ -111,7 +111,7 @@ megaport ports buy
 megaport ports buy-lag
 
 # Update a port
-megaport ports update PORT_UID --name "Updated Port Name"
+megaport ports update PORT_UID
 
 # Delete a port
 megaport ports delete PORT_UID --now
@@ -181,9 +181,6 @@ megaport vxc list
 
 # Get details for a specific VXC
 megaport vxc get VXC_UID --output json
-
-# Create a new VXC
-megaport vxc create --name "New VXC" --a_end_uid A_END_UID --z_end_uid Z_END_UID --rate_limit 1000
 
 # Delete a VXC
 megaport vxc delete VXC_UID
