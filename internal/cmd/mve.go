@@ -4,6 +4,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	vendorFilter       string
+	productCodeFilter  string
+	idFilter           int
+	versionFilter      string
+	releaseImageFilter bool
+)
+
 // mveCmd is the base command for all Megaport Virtual Edge (MVE) operations.
 var mveCmd = &cobra.Command{
 	Use:   "mve",
@@ -69,8 +77,55 @@ Example usage:
 	RunE: WrapRunE(GetMVE),
 }
 
+// listMVEImagesCmd lists all available MVE images.
+var listMVEImagesCmd = &cobra.Command{
+	Use:   "list-images",
+	Short: "List all available MVE images",
+	Long: `List all available MVE images from the Megaport API.
+
+This command fetches and displays a list of all available MVE images with details such as
+image ID, version, product, and vendor. You can filter the images based on vendor, product code, ID, version, or release image.
+
+Available filters:
+  - vendor: Filter images by vendor.
+  - product-code: Filter images by product code.
+  - id: Filter images by ID.
+  - version: Filter images by version.
+  - release-image: Filter images by release image.
+
+Example usage:
+
+  megaport mve list-images --vendor "Cisco" --product-code "CISCO123" --id 1 --version "1.0" --release-image true
+`,
+	RunE: WrapRunE(ListMVEImages),
+}
+
+// listAvailableMVESizesCmd lists all available MVE sizes.
+var listAvailableMVESizesCmd = &cobra.Command{
+	Use:   "list-sizes",
+	Short: "List all available MVE sizes",
+	Long: `List all available MVE sizes from the Megaport API.
+
+This command fetches and displays a list of all available MVE sizes with details such as
+size, label, CPU core count, and RAM.
+
+Example usage:
+
+  megaport mve list-sizes
+`,
+	RunE: WrapRunE(ListAvailableMVESizes),
+}
+
 func init() {
+	listMVEImagesCmd.Flags().StringVar(&vendorFilter, "vendor", "", "Filter images by vendor")
+	listMVEImagesCmd.Flags().StringVar(&productCodeFilter, "product-code", "", "Filter images by product code")
+	listMVEImagesCmd.Flags().IntVar(&idFilter, "id", 0, "Filter images by ID")
+	listMVEImagesCmd.Flags().StringVar(&versionFilter, "version", "", "Filter images by version")
+	listMVEImagesCmd.Flags().BoolVar(&releaseImageFilter, "release-image", false, "Filter images by release image")
+
 	mveCmd.AddCommand(buyMVECmd)
 	mveCmd.AddCommand(getMVECmd)
+	mveCmd.AddCommand(listMVEImagesCmd)
+	mveCmd.AddCommand(listAvailableMVESizesCmd)
 	rootCmd.AddCommand(mveCmd)
 }

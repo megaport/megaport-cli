@@ -204,3 +204,25 @@ func captureOutput(f func()) string {
 	os.Stdout = old
 	return string(out)
 }
+
+// captureOutputErr is a helper function to capture stdout output and return any error
+func captureOutputErr(f func() error) (string, error) {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := f()
+	if err != nil {
+		return "", err
+	}
+
+	w.Close()
+	var buf strings.Builder
+	_, err = io.Copy(&buf, r)
+	if err != nil {
+		return "", err
+	}
+	os.Stdout = old
+
+	return buf.String(), err
+}

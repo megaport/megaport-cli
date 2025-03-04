@@ -135,3 +135,63 @@ func GetMVE(cmd *cobra.Command, args []string) error {
 	}
 	return nil
 }
+
+func ListMVEImages(cmd *cobra.Command, args []string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	client, err := Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	images, err := client.MVEService.ListMVEImages(ctx)
+	if err != nil {
+		return fmt.Errorf("error listing MVE images: %v", err)
+	}
+
+	if images == nil {
+		return fmt.Errorf("no MVE images found")
+	}
+
+	// Get filter values from flags
+	vendor, _ := cmd.Flags().GetString("vendor")
+	productCode, _ := cmd.Flags().GetString("product-code")
+	id, _ := cmd.Flags().GetInt("id")
+	version, _ := cmd.Flags().GetString("version")
+	releaseImage, _ := cmd.Flags().GetBool("release-image")
+
+	// Apply filters
+	filteredImages := filterMVEImages(images, vendor, productCode, id, version, releaseImage)
+
+	err = printOutput(filteredImages, outputFormat)
+	if err != nil {
+		return fmt.Errorf("error printing MVE images: %v", err)
+	}
+	return nil
+}
+
+func ListAvailableMVESizes(cmd *cobra.Command, args []string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	client, err := Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	sizes, err := client.MVEService.ListAvailableMVESizes(ctx)
+	if err != nil {
+		return fmt.Errorf("error listing MVE sizes: %v", err)
+	}
+
+	if sizes == nil {
+		return fmt.Errorf("no MVE sizes found")
+	}
+
+	err = printOutput(sizes, outputFormat)
+	if err != nil {
+		return fmt.Errorf("error printing MVE sizes: %v", err)
+	}
+	return nil
+}

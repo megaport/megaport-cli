@@ -8,6 +8,30 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
+// filterMVEImages filters the provided MVE images based on the given filters.
+func filterMVEImages(images []*megaport.MVEImage, vendor, productCode string, id int, version string, releaseImage bool) []*megaport.MVEImage {
+	var filtered []*megaport.MVEImage
+	for _, image := range images {
+		if vendor != "" && image.Vendor != vendor {
+			continue
+		}
+		if productCode != "" && image.ProductCode != productCode {
+			continue
+		}
+		if id != 0 && image.ID != id {
+			continue
+		}
+		if version != "" && image.Version != version {
+			continue
+		}
+		if releaseImage && !image.ReleaseImage {
+			continue
+		}
+		filtered = append(filtered, image)
+	}
+	return filtered
+}
+
 // MVEOutput represents the desired fields for JSON output.
 type MVEOutput struct {
 	UID        string `json:"uid"`
