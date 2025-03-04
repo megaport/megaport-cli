@@ -3,10 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
-	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
 
@@ -48,7 +46,29 @@ Examples:
 var listPartnersCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all partner ports",
-	RunE:  ListPartners,
+	Long: `List all partner ports available in the Megaport API.
+
+This command fetches and displays a list of all available partner ports with details such as
+product name, connect type, company name, location ID, and diversity zone. You can also filter
+the partner ports based on specific criteria.
+
+Available filters:
+  - product-name: Filter partner ports by product name.
+  - connect-type: Filter partner ports by connect type.
+  - company-name: Filter partner ports by company name.
+  - location-id: Filter partner ports by location ID.
+  - diversity-zone: Filter partner ports by diversity zone.
+
+Example usage:
+
+  megaport partners list
+  megaport partners list --product-name "Enterprise"
+  megaport partners list --connect-type "Fiber"
+  megaport partners list --company-name "Acme Corp"
+  megaport partners list --location-id 2
+  megaport partners list --diversity-zone "ZoneA"
+`,
+	RunE: WrapRunE(ListPartners),
 }
 
 func ListPartners(cmd *cobra.Command, args []string) error {
@@ -65,11 +85,18 @@ func ListPartners(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("error listing partners: %v", err)
 	}
 
-	err = printPartners(partners, outputFormat)
-	if err != nil {
-		return fmt.Errorf("error printing partners: %v", err)
-	}
-	return nil
+	// Get filter values from flags
+	productName, _ := cmd.Flags().GetString("product-name")
+	connectType, _ := cmd.Flags().GetString("connect-type")
+	companyName, _ := cmd.Flags().GetString("company-name")
+	locationID, _ := cmd.Flags().GetInt("location-id")
+	diversityZone, _ := cmd.Flags().GetString("diversity-zone")
+
+	// Apply filters
+	filteredPartners := filterPartners(partners, productName, connectType, companyName, locationID, diversityZone)
+
+	// Print partners with current output format
+	return printPartners(filteredPartners, outputFormat)
 }
 
 func init() {
@@ -80,68 +107,4 @@ func init() {
 	listPartnersCmd.Flags().StringVar(&diversityZone, "diversity-zone", "", "Filter by Diversity Zone")
 	partnersCmd.AddCommand(listPartnersCmd)
 	rootCmd.AddCommand(partnersCmd)
-}
-
-// PartnerOutput represents the desired fields for JSON output.
-type PartnerOutput struct {
-	output
-	ProductName   string `json:"product_name"`
-	ConnectType   string `json:"connect_type"`
-	CompanyName   string `json:"company_name"`
-	LocationId    int    `json:"location_id"`
-	DiversityZone string `json:"diversity_zone"`
-	VXCPermitted  bool   `json:"vxc_permitted"`
-}
-
-// ToPartnerOutput converts a PartnerMegaport to a PartnerOutput.
-func ToPartnerOutput(p *megaport.PartnerMegaport) PartnerOutput {
-	return PartnerOutput{
-		ProductName:   p.ProductName,
-		ConnectType:   p.ConnectType,
-		CompanyName:   p.CompanyName,
-		LocationId:    p.LocationId,
-		DiversityZone: p.DiversityZone,
-		VXCPermitted:  p.VXCPermitted,
-	}
-}
-
-// filterPartners applies basic in-memory filters to a list of partner ports.
-func filterPartners(
-	partners []*megaport.PartnerMegaport,
-	productName, connectType, companyName string,
-	locationID int,
-	diversityZone string,
-) []*megaport.PartnerMegaport {
-	var filtered []*megaport.PartnerMegaport
-	for _, partner := range partners {
-		if productName != "" && !strings.EqualFold(partner.ProductName, productName) {
-			continue
-		}
-		if connectType != "" && !strings.EqualFold(partner.ConnectType, connectType) {
-			continue
-		}
-		if companyName != "" && !strings.EqualFold(partner.CompanyName, companyName) {
-			continue
-		}
-		if locationID != 0 && partner.LocationId != locationID {
-			continue
-		}
-		if diversityZone != "" && !strings.EqualFold(partner.DiversityZone, diversityZone) {
-			continue
-		}
-		filtered = append(filtered, partner)
-	}
-	return filtered
-}
-
-// printPartners prints the partner ports in the specified output format.
-func printPartners(partners []*megaport.PartnerMegaport, format string) error {
-	// Convert partners to output format
-	outputs := make([]PartnerOutput, 0, len(partners))
-	for _, partner := range partners {
-		outputs = append(outputs, ToPartnerOutput(partner))
-	}
-
-	// Use generic printOutput function
-	return printOutput(outputs, format)
 }

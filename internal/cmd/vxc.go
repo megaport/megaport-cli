@@ -1,11 +1,6 @@
 package cmd
 
 import (
-	"context"
-	"fmt"
-	"time"
-
-	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
 
@@ -35,78 +30,10 @@ var getVXCCmd = &cobra.Command{
 	Use:   "get [vxcUID]",
 	Short: "Get details for a single VXC",
 	Args:  cobra.ExactArgs(1),
-	RunE:  GetVXC,
-}
-
-func GetVXC(cmd *cobra.Command, args []string) error {
-	// Create a context with a 30-second timeout for the API call.
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// Log into the Megaport API.
-	client, err := Login(ctx)
-	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
-	}
-
-	// Retrieve the VXC UID from the command line arguments.
-	vxcUID := args[0]
-
-	// Retrieve VXC details using the API client.
-	vxc, err := client.VXCService.GetVXC(ctx, vxcUID)
-	if err != nil {
-		return fmt.Errorf("error getting VXC: %v", err)
-	}
-
-	// Print the VXC details using the desired output format.
-	err = printVXCs([]*megaport.VXC{vxc}, outputFormat)
-	if err != nil {
-		return fmt.Errorf("error printing VXCs: %v", err)
-	}
-	return nil
+	RunE:  WrapRunE(GetVXC),
 }
 
 func init() {
 	vxcCmd.AddCommand(getVXCCmd)
 	rootCmd.AddCommand(vxcCmd)
-}
-
-// VXCOutput represents the desired fields for JSON output.
-type VXCOutput struct {
-	output
-	UID     string `json:"uid"`
-	Name    string `json:"name"`
-	AEndUID string `json:"a_end_uid"`
-	BEndUID string `json:"b_end_uid"`
-}
-
-// ToVXCOutput converts a VXC to a VXCOutput.
-func ToVXCOutput(v *megaport.VXC) (VXCOutput, error) {
-	if v == nil {
-		return VXCOutput{}, fmt.Errorf("invalid VXC: nil value")
-	}
-
-	return VXCOutput{
-		UID:     v.UID,
-		Name:    v.Name,
-		AEndUID: v.AEndConfiguration.UID,
-		BEndUID: v.BEndConfiguration.UID,
-	}, nil
-}
-
-// printVXCs prints the VXCs in the specified output format
-func printVXCs(vxcs []*megaport.VXC, format string) error {
-	if vxcs == nil {
-		vxcs = []*megaport.VXC{}
-	}
-
-	outputs := make([]VXCOutput, 0, len(vxcs))
-	for _, vxc := range vxcs {
-		output, err := ToVXCOutput(vxc)
-		if err != nil {
-			return err
-		}
-		outputs = append(outputs, output)
-	}
-	return printOutput(outputs, format)
 }

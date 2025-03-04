@@ -19,9 +19,9 @@ var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	httpClient := &http.Client{}
 	accessKey := os.Getenv(accessKeyEnvVar)
 	secretKey := os.Getenv(secretKeyEnvVar)
-	environment := env
+	environment := os.Getenv(environmentEnvVar)
 	if environment == "" {
-		environment = os.Getenv(environmentEnvVar)
+		environment = env
 	}
 
 	if accessKey == "" || secretKey == "" {
