@@ -1,12 +1,6 @@
 package cmd
 
 import (
-	"context"
-	"fmt"
-	"log"
-	"time"
-
-	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
 
@@ -22,8 +16,11 @@ This command groups all operations related to service keys. You can use its subc
   - List all service keys.
   - Get details of a specific service key.
 
-Example:
+Examples:
   megaport servicekeys list
+  megaport servicekeys get [key]
+  megaport servicekeys create --product-uid "product-uid" --description "My service key"
+  megaport servicekeys update [key] --description "Updated description"
 `,
 }
 
@@ -37,16 +34,9 @@ This command generates a new service key and displays its details.
 You may need to provide additional flags or parameters based on your API requirements.
 
 Example:
-  megaport servicekeys create --key "my-new-key" --description "My service key"
+  megaport servicekeys create --product-uid "product-uid" --description "My service key"
 `,
-	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		if err := CreateServiceKey(ctx, cmd); err != nil {
-			log.Fatalf("Error creating service key: %v", err)
-		}
-	},
+	RunE: WrapRunE(CreateServiceKey),
 }
 
 // updateServiceKeyCmd updates an existing service key.
@@ -59,17 +49,10 @@ This command allows you to modify the details of an existing service key.
 You need to specify the key identifier as an argument, and provide any updated values as flags.
 
 Example:
-  megaport servicekeys update my-key --description "Updated description"
+  megaport servicekeys update [key] --description "Updated description"
 `,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		if err := UpdateServiceKey(ctx, cmd); err != nil {
-			log.Fatalf("Error updating service key: %v", err)
-		}
-	},
+	RunE: WrapRunE(UpdateServiceKey),
 }
 
 // listServiceKeysCmd lists all service keys for the Megaport API.
@@ -84,14 +67,7 @@ Use this command to review the keys available in your account.
 Example:
   megaport servicekeys list
 `,
-	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		if err := ListServiceKeys(ctx, cmd); err != nil {
-			log.Fatalf("Error listing service keys: %v", err)
-		}
-	},
+	RunE: WrapRunE(ListServiceKeys),
 }
 
 // getServiceKeyCmd retrieves details of a specific service key.
@@ -104,17 +80,10 @@ This command fetches and displays detailed information about a given service key
 You must provide the service key identifier as an argument.
 
 Example:
-  megaport servicekeys get my-key
+  megaport servicekeys get [key]
 `,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		if err := GetServiceKey(ctx, cmd, args[0]); err != nil {
-			log.Fatalf("Error getting service key: %v", err)
-		}
-	},
+	RunE: WrapRunE(GetServiceKey),
 }
 
 func init() {
@@ -134,7 +103,6 @@ func init() {
 	createServiceKeyCmd.Flags().String("end-date", "", "End date for the service key (YYYY-MM-DD)")
 
 	// Update command flags
-	updateServiceKeyCmd.Flags().String("key", "", "Service key to update")
 	updateServiceKeyCmd.Flags().String("product-uid", "", "Product UID for the service key")
 	updateServiceKeyCmd.Flags().Int("product-id", 0, "Product ID for the service key")
 	updateServiceKeyCmd.Flags().Bool("single-use", false, "Single-use service key")
@@ -142,154 +110,4 @@ func init() {
 	updateServiceKeyCmd.Flags().String("description", "", "Description for the service key")
 
 	rootCmd.AddCommand(servicekeysCmd)
-}
-
-// ServiceKeyOutput represents the desired fields for output
-type ServiceKeyOutput struct {
-	output
-	KeyUID      string `json:"key_uid"`
-	ProductName string `json:"product_name"`
-	ProductUID  string `json:"product_uid"`
-	Description string `json:"description"`
-	CreateDate  string `json:"create_date"`
-}
-
-// ToServiceKeyOutput converts a ServiceKey to ServiceKeyOutput
-func ToServiceKeyOutput(sk *megaport.ServiceKey) (ServiceKeyOutput, error) {
-	if sk == nil {
-		return ServiceKeyOutput{}, fmt.Errorf("nil service key")
-	}
-
-	output := ServiceKeyOutput{
-		KeyUID:      sk.Key,
-		ProductName: sk.ProductName,
-		ProductUID:  sk.ProductUID,
-		Description: sk.Description,
-	}
-
-	// Handle nil CreateDate
-	if sk.CreateDate != nil {
-		output.CreateDate = sk.CreateDate.Time.Format(time.RFC3339)
-	}
-
-	return output, nil
-}
-
-func CreateServiceKey(ctx context.Context, cmd *cobra.Command) error {
-	productUID, _ := cmd.Flags().GetString("product-uid")
-	productID, _ := cmd.Flags().GetInt("product-id")
-	singleUse, _ := cmd.Flags().GetBool("single-use")
-	maxSpeed, _ := cmd.Flags().GetInt("max-speed")
-	description, _ := cmd.Flags().GetString("description")
-	startDate, _ := cmd.Flags().GetString("start-date")
-	endDate, _ := cmd.Flags().GetString("end-date")
-
-	var validFor *megaport.ValidFor
-	if startDate != "" && endDate != "" {
-		startTime, err := time.Parse("2006-01-02", startDate)
-		if err != nil {
-			return fmt.Errorf("error parsing start date: %v", err)
-		}
-		endTime, err := time.Parse("2006-01-02", endDate)
-		if err != nil {
-			return fmt.Errorf("error parsing end date: %v", err)
-		}
-		validFor = &megaport.ValidFor{
-			StartTime: &megaport.Time{Time: startTime},
-			EndTime:   &megaport.Time{Time: endTime},
-		}
-	}
-
-	client, err := Login(ctx)
-	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
-	}
-
-	req := &megaport.CreateServiceKeyRequest{
-		ProductUID:  productUID,
-		ProductID:   productID,
-		SingleUse:   singleUse,
-		MaxSpeed:    maxSpeed,
-		Description: description,
-		ValidFor:    validFor,
-	}
-
-	resp, err := client.ServiceKeyService.CreateServiceKey(ctx, req)
-	if err != nil {
-		return fmt.Errorf("error creating service key: %v", err)
-	}
-
-	fmt.Printf("Service key created: %s\n", resp.ServiceKeyUID)
-	return nil
-}
-
-func UpdateServiceKey(ctx context.Context, cmd *cobra.Command) error {
-	key, _ := cmd.Flags().GetString("key")
-	productUID, _ := cmd.Flags().GetString("product-uid")
-	productID, _ := cmd.Flags().GetInt("product-id")
-	singleUse, _ := cmd.Flags().GetBool("single-use")
-	active, _ := cmd.Flags().GetBool("active")
-
-	client, err := Login(ctx)
-	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
-	}
-
-	req := &megaport.UpdateServiceKeyRequest{
-		Key:        key,
-		ProductUID: productUID,
-		ProductID:  productID,
-		SingleUse:  singleUse,
-		Active:     active,
-	}
-
-	resp, err := client.ServiceKeyService.UpdateServiceKey(ctx, req)
-	if err != nil {
-		return fmt.Errorf("error updating service key: %v", err)
-	}
-
-	fmt.Printf("Service key updated: %v\n", resp.IsUpdated)
-	return nil
-}
-
-func ListServiceKeys(ctx context.Context, cmd *cobra.Command) error {
-	client, err := Login(ctx)
-	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
-	}
-
-	req := &megaport.ListServiceKeysRequest{}
-	resp, err := client.ServiceKeyService.ListServiceKeys(ctx, req)
-	if err != nil {
-		return fmt.Errorf("error listing service keys: %v", err)
-	}
-
-	outputs := make([]ServiceKeyOutput, 0, len(resp.ServiceKeys))
-	for _, sk := range resp.ServiceKeys {
-		output, err := ToServiceKeyOutput(sk)
-		if err != nil {
-			return fmt.Errorf("error converting service key: %v", err)
-		}
-		outputs = append(outputs, output)
-	}
-
-	return printOutput(outputs, outputFormat)
-}
-
-func GetServiceKey(ctx context.Context, cmd *cobra.Command, keyID string) error {
-	client, err := Login(ctx)
-	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
-	}
-
-	resp, err := client.ServiceKeyService.GetServiceKey(ctx, keyID)
-	if err != nil {
-		return fmt.Errorf("error getting service key: %v", err)
-	}
-
-	output, err := ToServiceKeyOutput(resp)
-	if err != nil {
-		return fmt.Errorf("error converting service key: %v", err)
-	}
-	return printOutput([]ServiceKeyOutput{output}, outputFormat)
 }

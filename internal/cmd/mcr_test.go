@@ -660,3 +660,421 @@ func TestRestoreMCRFunc(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.True(t, resp.IsRestored)
 }
+
+func TestCreateMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
+	originalPrompt := prompt
+	originalLoginFunc := loginFunc
+	defer func() {
+		prompt = originalPrompt
+		loginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name           string
+		mcrUID         string
+		prompts        []string
+		setupMock      func(*MockMCRService)
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name:   "successful prefix filter list creation",
+			mcrUID: "mcr-123",
+			prompts: []string{
+				"Test Prefix Filter List", // description
+				"IPv4",                    // address family
+				"permit",                  // action
+				"192.168.0.0/16",          // prefix
+				"",                        // ge
+				"",                        // le
+				"",                        // end of entries
+			},
+			setupMock: func(m *MockMCRService) {
+				m.CreateMCRPrefixFilterListResult = &megaport.CreateMCRPrefixFilterListResponse{
+					PrefixFilterListID: 456,
+				}
+			},
+			expectedOutput: "Prefix filter list created successfully - ID: 456",
+		},
+		{
+			name:   "validation error",
+			mcrUID: "mcr-123",
+			prompts: []string{
+				"Test Prefix Filter List", // description
+				"IPv4",                    // address family
+				"permit",                  // action
+				"192.168.0.0/16",          // prefix
+				"",                        // ge
+				"",                        // le
+				"",                        // end of entries
+			},
+			setupMock: func(m *MockMCRService) {
+				m.CreateMCRPrefixFilterListErr = fmt.Errorf("validation failed: invalid prefix")
+			},
+			expectedError: "validation failed: invalid prefix",
+		},
+		{
+			name:   "API error",
+			mcrUID: "mcr-123",
+			prompts: []string{
+				"Test Prefix Filter List", // description
+				"IPv4",                    // address family
+				"permit",                  // action
+				"192.168.0.0/16",          // prefix
+				"",                        // ge
+				"",                        // le
+				"",                        // end of entries
+			},
+			setupMock: func(m *MockMCRService) {
+				m.CreateMCRPrefixFilterListErr = fmt.Errorf("API error: service unavailable")
+			},
+			expectedError: "API error: service unavailable",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			promptIndex := 0
+			prompt = func(msg string) (string, error) {
+				if promptIndex < len(tt.prompts) {
+					response := tt.prompts[promptIndex]
+					promptIndex++
+					return response, nil
+				}
+				return "", fmt.Errorf("unexpected prompt call")
+			}
+
+			mockMCRService := &MockMCRService{}
+			tt.setupMock(mockMCRService)
+
+			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockMCRService
+				return client, nil
+			}
+
+			cmd := createMCRPrefixFilterListCmd
+			var err error
+			output := captureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.mcrUID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, output, tt.expectedOutput)
+
+				assert.NotNil(t, mockMCRService.CapturedCreateMCRPrefixFilterListRequest)
+				req := mockMCRService.CapturedCreateMCRPrefixFilterListRequest
+				assert.Equal(t, tt.mcrUID, req.MCRID)
+				assert.Equal(t, "Test Prefix Filter List", req.PrefixFilterList.Description)
+				assert.Equal(t, "IPv4", req.PrefixFilterList.AddressFamily)
+				assert.Len(t, req.PrefixFilterList.Entries, 1)
+				assert.Equal(t, "permit", req.PrefixFilterList.Entries[0].Action)
+				assert.Equal(t, "192.168.0.0/16", req.PrefixFilterList.Entries[0].Prefix)
+			}
+		})
+	}
+}
+
+func TestListMCRPrefixFilterListsCmd_WithMockClient(t *testing.T) {
+	originalLoginFunc := loginFunc
+	defer func() {
+		loginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name           string
+		mcrUID         string
+		setupMock      func(*MockMCRService)
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name:   "successful list prefix filter lists",
+			mcrUID: "mcr-123",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRPrefixFilterListsResult = []*megaport.PrefixFilterList{
+					{
+						Id:          1,
+						Description: "Test Prefix Filter List 1",
+					},
+					{
+						Id:          2,
+						Description: "Test Prefix Filter List 2",
+					},
+				}
+			},
+			expectedOutput: "Test Prefix Filter List 1",
+		},
+		{
+			name:   "API error",
+			mcrUID: "mcr-123",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRPrefixFilterListsErr = fmt.Errorf("API error: service unavailable")
+			},
+			expectedError: "API error: service unavailable",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockMCRService := &MockMCRService{}
+			tt.setupMock(mockMCRService)
+
+			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockMCRService
+				return client, nil
+			}
+
+			cmd := listMCRPrefixFilterListsCmd
+			var err error
+			output := captureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.mcrUID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, output, tt.expectedOutput)
+			}
+		})
+	}
+}
+
+func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
+	originalLoginFunc := loginFunc
+	defer func() {
+		loginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name           string
+		mcrUID         string
+		prefixListID   int
+		setupMock      func(*MockMCRService)
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name:         "successful get prefix filter list",
+			mcrUID:       "mcr-123",
+			prefixListID: 1,
+			setupMock: func(m *MockMCRService) {
+				m.GetMCRPrefixFilterListResult = &megaport.MCRPrefixFilterList{
+					ID:          1,
+					Description: "Test Prefix Filter List",
+				}
+			},
+			expectedOutput: "Test Prefix Filter List",
+		},
+		{
+			name:         "API error",
+			mcrUID:       "mcr-123",
+			prefixListID: 1,
+			setupMock: func(m *MockMCRService) {
+				m.GetMCRPrefixFilterListErr = fmt.Errorf("API error: service unavailable")
+			},
+			expectedError: "API error: service unavailable",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockMCRService := &MockMCRService{}
+			tt.setupMock(mockMCRService)
+
+			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockMCRService
+				return client, nil
+			}
+
+			cmd := getMCRPrefixFilterListCmd
+			var err error
+			output := captureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.mcrUID, fmt.Sprintf("%d", tt.prefixListID)})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, output, tt.expectedOutput)
+			}
+		})
+	}
+}
+
+func TestUpdateMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
+	originalPrompt := prompt
+	originalLoginFunc := loginFunc
+	defer func() {
+		prompt = originalPrompt
+		loginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name           string
+		mcrUID         string
+		prefixListID   int
+		prompts        []string
+		setupMock      func(*MockMCRService)
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name:         "successful update prefix filter list",
+			mcrUID:       "mcr-123",
+			prefixListID: 1,
+			prompts: []string{
+				"Updated Prefix Filter List", // description
+				"IPv4",                       // address family
+				"permit",                     // action
+				"192.168.0.0/16",             // prefix
+				"",                           // ge
+				"",                           // le
+				"",                           // end of entries
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ModifyMCRPrefixFilterListResult = &megaport.ModifyMCRPrefixFilterListResponse{
+					IsUpdated: true,
+				}
+			},
+			expectedOutput: "Prefix filter list updated successfully - ID: 1",
+		},
+		{
+			name:         "API error",
+			mcrUID:       "mcr-123",
+			prefixListID: 1,
+			prompts: []string{
+				"Updated Prefix Filter List", // description
+				"IPv4",                       // address family
+				"permit",                     // action
+				"192.168.0.0/16",             // prefix
+				"",                           // ge
+				"",                           // le
+				"",                           // end of entries
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ModifyMCRPrefixFilterListErr = fmt.Errorf("API error: service unavailable")
+			},
+			expectedError: "API error: service unavailable",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			promptIndex := 0
+			prompt = func(msg string) (string, error) {
+				if promptIndex < len(tt.prompts) {
+					response := tt.prompts[promptIndex]
+					promptIndex++
+					return response, nil
+				}
+				return "", fmt.Errorf("unexpected prompt call")
+			}
+
+			mockMCRService := &MockMCRService{}
+			tt.setupMock(mockMCRService)
+
+			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockMCRService
+				return client, nil
+			}
+
+			cmd := updateMCRPrefixFilterListCmd
+			var err error
+			output := captureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.mcrUID, fmt.Sprintf("%d", tt.prefixListID)})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, output, tt.expectedOutput)
+
+				assert.NotNil(t, mockMCRService.CapturedModifyMCRPrefixFilterListRequest)
+				req := mockMCRService.CapturedModifyMCRPrefixFilterListRequest
+				assert.Equal(t, "Updated Prefix Filter List", req.Description)
+				assert.Equal(t, "IPv4", req.AddressFamily)
+				assert.Len(t, req.Entries, 1)
+				assert.Equal(t, "permit", req.Entries[0].Action)
+				assert.Equal(t, "192.168.0.0/16", req.Entries[0].Prefix)
+			}
+		})
+	}
+}
+
+func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
+	originalLoginFunc := loginFunc
+	defer func() {
+		loginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name           string
+		mcrUID         string
+		prefixListID   int
+		setupMock      func(*MockMCRService)
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name:         "successful delete prefix filter list",
+			mcrUID:       "mcr-123",
+			prefixListID: 1,
+			setupMock: func(m *MockMCRService) {
+				m.DeleteMCRPrefixFilterListResult = &megaport.DeleteMCRPrefixFilterListResponse{
+					IsDeleted: true,
+				}
+			},
+			expectedOutput: "Prefix filter list deleted successfully - ID: 1",
+		},
+		{
+			name:         "API error",
+			mcrUID:       "mcr-123",
+			prefixListID: 1,
+			setupMock: func(m *MockMCRService) {
+				m.DeleteMCRPrefixFilterListErr = fmt.Errorf("API error: service unavailable")
+			},
+			expectedError: "API error: service unavailable",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockMCRService := &MockMCRService{}
+			tt.setupMock(mockMCRService)
+
+			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockMCRService
+				return client, nil
+			}
+
+			cmd := deleteMCRPrefixFilterListCmd
+			var err error
+			output := captureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.mcrUID, fmt.Sprintf("%d", tt.prefixListID)})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, output, tt.expectedOutput)
+			}
+		})
+	}
+}

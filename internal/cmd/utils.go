@@ -10,7 +10,26 @@ import (
 	"reflect"
 	"strings"
 	"text/tabwriter"
+
+	"github.com/spf13/cobra"
 )
+
+// WrapRunE wraps a RunE function to set SilenceUsage to true if an error occurs and formats the error message.
+func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobra.Command, args []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		err := runE(cmd, args)
+		if err != nil {
+			// Prevent usage output if an error occurs
+			cmd.SilenceUsage = true
+			// Silence duplicate error message
+			cmd.SilenceErrors = true
+
+			// Return a formatted error message with additional context
+			return fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag", cmd.Name(), err, cmd.Name(), args)
+		}
+		return nil
+	}
+}
 
 var prompt = func(msg string) (string, error) {
 	fmt.Print(msg)
