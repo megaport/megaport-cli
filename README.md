@@ -131,9 +131,6 @@ megaport ports check-vlan PORT_UID VLAN_ID
 
 #### MCR (Megaport Cloud Routers)
 ```sh
-# List all MCRs
-megaport mcr list
-
 # Get details for a specific MCR
 megaport mcr get MCR_UID --output json
 
@@ -164,9 +161,6 @@ megaport mcr delete-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID
 
 #### MVE (Megaport Virtual Edge)
 ```sh
-# List all MVEs
-megaport mve list
-
 # Get details for a specific MVE
 megaport mve get MVE_UID --output json
 
@@ -176,9 +170,6 @@ megaport mve buy
 
 #### VXC (Virtual Cross Connects)
 ```sh
-# List all VXCs
-megaport vxc list
-
 # Get details for a specific VXC
 megaport vxc get VXC_UID --output json
 
