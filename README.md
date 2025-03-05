@@ -169,6 +169,12 @@ megaport mve get MVE_UID --output json
 # Buy a new MVE
 megaport mve buy
 
+# Update an existing MVE
+megaport mve update MVE_UID
+
+# Delete an MVE
+megaport mve delete --now
+
 # List all available MVE images
 megaport mve list-images
 

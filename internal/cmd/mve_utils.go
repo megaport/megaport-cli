@@ -190,7 +190,7 @@ func promptAviatrixConfig() (megaport.VendorConfig, error) {
 	}, nil
 }
 
-func promptCiscoConfig() (megaport.VendorConfig, error) {
+func promptCiscoConfig() (*megaport.CiscoConfig, error) {
 	imageIDStr, err := prompt("Enter image ID (required): ")
 	if err != nil {
 		return nil, err
@@ -205,9 +205,18 @@ func promptCiscoConfig() (megaport.VendorConfig, error) {
 		return nil, err
 	}
 
-	mveLabel, err := prompt("Enter MVE label (optional): ")
+	mveLabel, err := prompt("Enter MVE label (required): ")
 	if err != nil {
 		return nil, err
+	}
+
+	manageLocallyStr, err := prompt("Enter manage locally (true/false) (required): ")
+	if err != nil {
+		return nil, err
+	}
+	manageLocally, err := strconv.ParseBool(manageLocallyStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid value for manage locally")
 	}
 
 	adminSSHPublicKey, err := prompt("Enter admin SSH public key (required): ")
@@ -220,47 +229,37 @@ func promptCiscoConfig() (megaport.VendorConfig, error) {
 		return nil, err
 	}
 
-	manageLocallyStr, err := prompt("Manage locally? (true/false) (required): ")
-	if err != nil {
-		return nil, err
-	}
-	manageLocally, err := strconv.ParseBool(manageLocallyStr)
-	if err != nil {
-		return nil, fmt.Errorf("invalid value for manage locally")
-	}
-
-	cloudInit, err := prompt("Enter cloud init (optional): ")
+	cloudInit, err := prompt("Enter cloud init (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	fmcIPAddress, err := prompt("Enter FMC IP address (optional): ")
+	fmcIPAddress, err := prompt("Enter FMC IP address (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	fmcNatID, err := prompt("Enter FMC NAT ID (optional): ")
+	fmcRegistrationKey, err := prompt("Enter FMC registration key (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	fmcRegistrationKey, err := prompt("Enter FMC registration key (optional): ")
+	fmcNatID, err := prompt("Enter FMC NAT ID (required): ")
 	if err != nil {
 		return nil, err
 	}
 
 	return &megaport.CiscoConfig{
-		Vendor:             "cisco",
 		ImageID:            imageID,
 		ProductSize:        productSize,
 		MVELabel:           mveLabel,
+		ManageLocally:      manageLocally,
 		AdminSSHPublicKey:  adminSSHPublicKey,
 		SSHPublicKey:       sshPublicKey,
-		ManageLocally:      manageLocally,
 		CloudInit:          cloudInit,
 		FMCIPAddress:       fmcIPAddress,
-		FMCNatID:           fmcNatID,
 		FMCRegistrationKey: fmcRegistrationKey,
+		FMCNatID:           fmcNatID,
 	}, nil
 }
 

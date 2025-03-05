@@ -79,12 +79,39 @@ func BuyMVE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Prompt for network interfaces (vnics)
+	var vnics []megaport.MVENetworkInterface
+	for {
+		vnicDescription, err := prompt("Enter VNIC description (leave blank to finish): ")
+		if err != nil {
+			return err
+		}
+		if vnicDescription == "" {
+			break
+		}
+
+		vnicVLANStr, err := prompt("Enter VNIC VLAN (required): ")
+		if err != nil {
+			return err
+		}
+		vnicVLAN, err := strconv.Atoi(vnicVLANStr)
+		if err != nil {
+			return fmt.Errorf("invalid VNIC VLAN")
+		}
+
+		vnics = append(vnics, megaport.MVENetworkInterface{
+			Description: vnicDescription,
+			VLAN:        vnicVLAN,
+		})
+	}
+
 	// Create the BuyMVERequest
 	req := &megaport.BuyMVERequest{
 		Name:         name,
 		Term:         term,
 		LocationID:   locationID,
 		VendorConfig: vendorConfig,
+		Vnics:        vnics,
 	}
 
 	// Call the BuyMVE method
@@ -103,6 +130,63 @@ func BuyMVE(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("MVE purchased successfully - UID: %s\n", resp.TechnicalServiceUID)
+	return nil
+}
+
+func UpdateMVE(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+	mveUID := args[0]
+
+	// Prompt for fields to update
+	name, err := prompt("Enter new MVE name (leave blank to keep current): ")
+	if err != nil {
+		return err
+	}
+
+	costCentre, err := prompt("Enter new cost centre (leave blank to keep current): ")
+	if err != nil {
+		return err
+	}
+
+	contractTermMonthsStr, err := prompt("Enter new contract term in months (leave blank to keep current): ")
+	if err != nil {
+		return err
+	}
+	var contractTermMonths *int
+	if contractTermMonthsStr != "" {
+		term, err := strconv.Atoi(contractTermMonthsStr)
+		if err != nil {
+			return fmt.Errorf("invalid contract term, must be a number")
+		}
+		contractTermMonths = &term
+	}
+
+	// Create the ModifyMVERequest
+	req := &megaport.ModifyMVERequest{
+		MVEID:              mveUID,
+		Name:               name,
+		CostCentre:         costCentre,
+		ContractTermMonths: contractTermMonths,
+		WaitForUpdate:      true,
+		WaitForTime:        10 * time.Minute,
+	}
+
+	// Call the ModifyMVE method
+	client, err := Login(ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Updating MVE...")
+	resp, err := client.MVEService.ModifyMVE(ctx, req)
+	if err != nil {
+		return fmt.Errorf("error updating MVE: %v", err)
+	}
+
+	if resp.MVEUpdated {
+		fmt.Println("MVE updated successfully")
+	} else {
+		fmt.Println("MVE update failed")
+	}
 	return nil
 }
 
@@ -192,6 +276,32 @@ func ListAvailableMVESizes(cmd *cobra.Command, args []string) error {
 	err = printOutput(sizes, outputFormat)
 	if err != nil {
 		return fmt.Errorf("error printing MVE sizes: %v", err)
+	}
+	return nil
+}
+
+func DeleteMVE(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+	mveUID := args[0]
+
+	client, err := Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	fmt.Printf("Deleting MVE with UID: %s...\n", mveUID)
+	req := &megaport.DeleteMVERequest{
+		MVEID: mveUID,
+	}
+	resp, err := client.MVEService.DeleteMVE(ctx, req)
+	if err != nil {
+		return fmt.Errorf("error deleting MVE: %v", err)
+	}
+
+	if resp.IsDeleted {
+		fmt.Println("MVE deleted successfully")
+	} else {
+		fmt.Println("MVE delete failed")
 	}
 	return nil
 }
