@@ -202,6 +202,9 @@ megaport mve list-sizes
 # Get details for a specific VXC
 megaport vxc get VXC_UID --output json
 
+# Buy a new VXC
+megaport vxc buy
+
 # Delete a VXC
 megaport vxc delete VXC_UID
 ```
