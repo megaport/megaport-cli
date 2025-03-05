@@ -77,32 +77,32 @@ var buyMVEFunc = func(ctx context.Context, client *megaport.Client, req *megapor
 // Prompts for MVE Vendor Configs
 
 func promptSixwindConfig() (megaport.VendorConfig, error) {
-	imageIDStr, err := prompt("Enter Image ID (required): ")
+	imageIDStr, err := prompt("Enter image ID (required): ")
 	if err != nil {
 		return nil, err
 	}
 	imageID, err := strconv.Atoi(imageIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid Image ID")
+		return nil, fmt.Errorf("invalid image ID")
 	}
 
-	productSize, err := prompt("Enter Product Size (required): ")
+	productSize, err := prompt("Enter product size (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	mveLabel, err := prompt("Enter MVE Label (optional): ")
+	mveLabel, err := prompt("Enter MVE label (optional): ")
 	if err != nil {
 		return nil, err
 	}
 
-	sshPublicKey, err := prompt("Enter SSH Public Key (required): ")
+	sshPublicKey, err := prompt("Enter SSH public key (required): ")
 	if err != nil {
 		return nil, err
 	}
 
 	return &megaport.SixwindVSRConfig{
-		Vendor:       "6WIND",
+		Vendor:       "6wind",
 		ImageID:      imageID,
 		ProductSize:  productSize,
 		MVELabel:     mveLabel,
@@ -111,42 +111,42 @@ func promptSixwindConfig() (megaport.VendorConfig, error) {
 }
 
 func promptArubaConfig() (megaport.VendorConfig, error) {
-	imageIDStr, err := prompt("Enter Image ID (required): ")
+	imageIDStr, err := prompt("Enter image ID (required): ")
 	if err != nil {
 		return nil, err
 	}
 	imageID, err := strconv.Atoi(imageIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid Image ID")
+		return nil, fmt.Errorf("invalid image ID")
 	}
 
-	productSize, err := prompt("Enter Product Size (required): ")
+	productSize, err := prompt("Enter product size (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	mveLabel, err := prompt("Enter MVE Label (optional): ")
+	mveLabel, err := prompt("Enter MVE label (optional): ")
 	if err != nil {
 		return nil, err
 	}
 
-	accountName, err := prompt("Enter Account Name (required): ")
+	accountName, err := prompt("Enter account name (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	accountKey, err := prompt("Enter Account Key (required): ")
+	accountKey, err := prompt("Enter account key (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	systemTag, err := prompt("Enter System Tag (required): ")
+	systemTag, err := prompt("Enter system tag (optional): ")
 	if err != nil {
 		return nil, err
 	}
 
 	return &megaport.ArubaConfig{
-		Vendor:      "Aruba",
+		Vendor:      "aruba",
 		ImageID:     imageID,
 		ProductSize: productSize,
 		MVELabel:    mveLabel,
@@ -157,32 +157,32 @@ func promptArubaConfig() (megaport.VendorConfig, error) {
 }
 
 func promptAviatrixConfig() (megaport.VendorConfig, error) {
-	imageIDStr, err := prompt("Enter Image ID (required): ")
+	imageIDStr, err := prompt("Enter image ID (required): ")
 	if err != nil {
 		return nil, err
 	}
 	imageID, err := strconv.Atoi(imageIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid Image ID")
+		return nil, fmt.Errorf("invalid image ID")
 	}
 
-	productSize, err := prompt("Enter Product Size (required): ")
+	productSize, err := prompt("Enter product size (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	mveLabel, err := prompt("Enter MVE Label (required): ")
+	mveLabel, err := prompt("Enter MVE label (optional): ")
 	if err != nil {
 		return nil, err
 	}
 
-	cloudInit, err := prompt("Enter Cloud Init (required): ")
+	cloudInit, err := prompt("Enter cloud init (required): ")
 	if err != nil {
 		return nil, err
 	}
 
 	return &megaport.AviatrixConfig{
-		Vendor:      "Aviatrix",
+		Vendor:      "aviatrix",
 		ImageID:     imageID,
 		ProductSize: productSize,
 		MVELabel:    mveLabel,
@@ -191,116 +191,116 @@ func promptAviatrixConfig() (megaport.VendorConfig, error) {
 }
 
 func promptCiscoConfig() (megaport.VendorConfig, error) {
-	imageIDStr, err := prompt("Enter Image ID (required): ")
+	imageIDStr, err := prompt("Enter image ID (required): ")
 	if err != nil {
 		return nil, err
 	}
 	imageID, err := strconv.Atoi(imageIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid Image ID")
+		return nil, fmt.Errorf("invalid image ID")
 	}
 
-	productSize, err := prompt("Enter Product Size (required): ")
+	productSize, err := prompt("Enter product size (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	mveLabel, err := prompt("Enter MVE Label (optional): ")
+	mveLabel, err := prompt("Enter MVE label (optional): ")
 	if err != nil {
 		return nil, err
 	}
 
-	manageLocallyStr, err := prompt("Manage Locally (true/false) (required): ")
+	adminSSHPublicKey, err := prompt("Enter admin SSH public key (required): ")
+	if err != nil {
+		return nil, err
+	}
+
+	sshPublicKey, err := prompt("Enter SSH public key (required): ")
+	if err != nil {
+		return nil, err
+	}
+
+	manageLocallyStr, err := prompt("Manage locally? (true/false) (required): ")
 	if err != nil {
 		return nil, err
 	}
 	manageLocally, err := strconv.ParseBool(manageLocallyStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid value for Manage Locally")
+		return nil, fmt.Errorf("invalid value for manage locally")
 	}
 
-	adminSSHPublicKey, err := prompt("Enter Admin SSH Public Key (required): ")
+	cloudInit, err := prompt("Enter cloud init (optional): ")
 	if err != nil {
 		return nil, err
 	}
 
-	sshPublicKey, err := prompt("Enter SSH Public Key (required): ")
+	fmcIPAddress, err := prompt("Enter FMC IP address (optional): ")
 	if err != nil {
 		return nil, err
 	}
 
-	cloudInit, err := prompt("Enter Cloud Init (required): ")
+	fmcNatID, err := prompt("Enter FMC NAT ID (optional): ")
 	if err != nil {
 		return nil, err
 	}
 
-	fmcIPAddress, err := prompt("Enter FMC IP Address (required): ")
-	if err != nil {
-		return nil, err
-	}
-
-	fmcRegistrationKey, err := prompt("Enter FMC Registration Key (required): ")
-	if err != nil {
-		return nil, err
-	}
-
-	fmcNatID, err := prompt("Enter FMC NAT ID (required): ")
+	fmcRegistrationKey, err := prompt("Enter FMC registration key (optional): ")
 	if err != nil {
 		return nil, err
 	}
 
 	return &megaport.CiscoConfig{
-		Vendor:             "Cisco",
+		Vendor:             "cisco",
 		ImageID:            imageID,
 		ProductSize:        productSize,
 		MVELabel:           mveLabel,
-		ManageLocally:      manageLocally,
 		AdminSSHPublicKey:  adminSSHPublicKey,
 		SSHPublicKey:       sshPublicKey,
+		ManageLocally:      manageLocally,
 		CloudInit:          cloudInit,
 		FMCIPAddress:       fmcIPAddress,
-		FMCRegistrationKey: fmcRegistrationKey,
 		FMCNatID:           fmcNatID,
+		FMCRegistrationKey: fmcRegistrationKey,
 	}, nil
 }
 
 func promptFortinetConfig() (megaport.VendorConfig, error) {
-	imageIDStr, err := prompt("Enter Image ID (required): ")
+	imageIDStr, err := prompt("Enter image ID (required): ")
 	if err != nil {
 		return nil, err
 	}
 	imageID, err := strconv.Atoi(imageIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid Image ID")
+		return nil, fmt.Errorf("invalid image ID")
 	}
 
-	productSize, err := prompt("Enter Product Size (required): ")
+	productSize, err := prompt("Enter product size (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	mveLabel, err := prompt("Enter MVE Label (optional): ")
+	mveLabel, err := prompt("Enter MVE label (optional): ")
 	if err != nil {
 		return nil, err
 	}
 
-	adminSSHPublicKey, err := prompt("Enter Admin SSH Public Key (required): ")
+	adminSSHPublicKey, err := prompt("Enter admin SSH public key (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	sshPublicKey, err := prompt("Enter SSH Public Key (required): ")
+	sshPublicKey, err := prompt("Enter SSH public key (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	licenseData, err := prompt("Enter License Data (required): ")
+	licenseData, err := prompt("Enter license data (required): ")
 	if err != nil {
 		return nil, err
 	}
 
 	return &megaport.FortinetConfig{
-		Vendor:            "Fortinet",
+		Vendor:            "fortinet",
 		ImageID:           imageID,
 		ProductSize:       productSize,
 		MVELabel:          mveLabel,
@@ -311,51 +311,45 @@ func promptFortinetConfig() (megaport.VendorConfig, error) {
 }
 
 func promptPaloAltoConfig() (megaport.VendorConfig, error) {
-	imageIDStr, err := prompt("Enter Image ID (required): ")
+	imageIDStr, err := prompt("Enter image ID (required): ")
 	if err != nil {
 		return nil, err
 	}
 	imageID, err := strconv.Atoi(imageIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid Image ID")
+		return nil, fmt.Errorf("invalid image ID")
 	}
 
-	productSize, err := prompt("Enter Product Size (optional): ")
+	productSize, err := prompt("Enter product size (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	mveLabel, err := prompt("Enter MVE Label (optional): ")
+	mveLabel, err := prompt("Enter MVE label (optional): ")
 	if err != nil {
 		return nil, err
 	}
 
-	adminSSHPublicKey, err := prompt("Enter Admin SSH Public Key (optional): ")
+	sshPublicKey, err := prompt("Enter SSH public key (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	sshPublicKey, err := prompt("Enter SSH Public Key (optional): ")
+	adminPasswordHash, err := prompt("Enter admin password hash (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	adminPasswordHash, err := prompt("Enter Admin Password Hash (optional): ")
-	if err != nil {
-		return nil, err
-	}
-
-	licenseData, err := prompt("Enter License Data (optional): ")
+	licenseData, err := prompt("Enter license data (required): ")
 	if err != nil {
 		return nil, err
 	}
 
 	return &megaport.PaloAltoConfig{
-		Vendor:            "PaloAlto",
+		Vendor:            "palo_alto",
 		ImageID:           imageID,
 		ProductSize:       productSize,
 		MVELabel:          mveLabel,
-		AdminSSHPublicKey: adminSSHPublicKey,
 		SSHPublicKey:      sshPublicKey,
 		AdminPasswordHash: adminPasswordHash,
 		LicenseData:       licenseData,
@@ -363,37 +357,37 @@ func promptPaloAltoConfig() (megaport.VendorConfig, error) {
 }
 
 func promptPrismaConfig() (megaport.VendorConfig, error) {
-	imageIDStr, err := prompt("Enter Image ID (required): ")
+	imageIDStr, err := prompt("Enter image ID (required): ")
 	if err != nil {
 		return nil, err
 	}
 	imageID, err := strconv.Atoi(imageIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid Image ID")
+		return nil, fmt.Errorf("invalid image ID")
 	}
 
-	productSize, err := prompt("Enter Product Size (required): ")
+	productSize, err := prompt("Enter product size (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	mveLabel, err := prompt("Enter MVE Label (required): ")
+	mveLabel, err := prompt("Enter MVE label (optional): ")
 	if err != nil {
 		return nil, err
 	}
 
-	ionKey, err := prompt("Enter ION Key (required): ")
+	ionKey, err := prompt("Enter ION key (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	secretKey, err := prompt("Enter Secret Key (required): ")
+	secretKey, err := prompt("Enter secret key (required): ")
 	if err != nil {
 		return nil, err
 	}
 
 	return &megaport.PrismaConfig{
-		Vendor:      "Prisma",
+		Vendor:      "prisma",
 		ImageID:     imageID,
 		ProductSize: productSize,
 		MVELabel:    mveLabel,
@@ -403,52 +397,52 @@ func promptPrismaConfig() (megaport.VendorConfig, error) {
 }
 
 func promptVersaConfig() (megaport.VendorConfig, error) {
-	imageIDStr, err := prompt("Enter Image ID (required): ")
+	imageIDStr, err := prompt("Enter image ID (required): ")
 	if err != nil {
 		return nil, err
 	}
 	imageID, err := strconv.Atoi(imageIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid Image ID")
+		return nil, fmt.Errorf("invalid image ID")
 	}
 
-	productSize, err := prompt("Enter Product Size (required): ")
+	productSize, err := prompt("Enter product size (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	mveLabel, err := prompt("Enter MVE Label (optional): ")
+	mveLabel, err := prompt("Enter MVE label (optional): ")
 	if err != nil {
 		return nil, err
 	}
 
-	directorAddress, err := prompt("Enter Director Address (required): ")
+	directorAddress, err := prompt("Enter director address (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	controllerAddress, err := prompt("Enter Controller Address (required): ")
+	controllerAddress, err := prompt("Enter controller address (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	localAuth, err := prompt("Enter Local Auth (required): ")
+	localAuth, err := prompt("Enter local auth (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	remoteAuth, err := prompt("Enter Remote Auth (required): ")
+	remoteAuth, err := prompt("Enter remote auth (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	serialNumber, err := prompt("Enter Serial Number (required): ")
+	serialNumber, err := prompt("Enter serial number (required): ")
 	if err != nil {
 		return nil, err
 	}
 
 	return &megaport.VersaConfig{
-		Vendor:            "Versa",
+		Vendor:            "versa",
 		ImageID:           imageID,
 		ProductSize:       productSize,
 		MVELabel:          mveLabel,
@@ -461,47 +455,47 @@ func promptVersaConfig() (megaport.VendorConfig, error) {
 }
 
 func promptVmwareConfig() (megaport.VendorConfig, error) {
-	imageIDStr, err := prompt("Enter Image ID (required): ")
+	imageIDStr, err := prompt("Enter image ID (required): ")
 	if err != nil {
 		return nil, err
 	}
 	imageID, err := strconv.Atoi(imageIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid Image ID")
+		return nil, fmt.Errorf("invalid image ID")
 	}
 
-	productSize, err := prompt("Enter Product Size (required): ")
+	productSize, err := prompt("Enter product size (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	mveLabel, err := prompt("Enter MVE Label (optional): ")
+	mveLabel, err := prompt("Enter MVE label (optional): ")
 	if err != nil {
 		return nil, err
 	}
 
-	adminSSHPublicKey, err := prompt("Enter Admin SSH Public Key (required): ")
+	adminSSHPublicKey, err := prompt("Enter admin SSH public key (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	sshPublicKey, err := prompt("Enter SSH Public Key (required): ")
+	sshPublicKey, err := prompt("Enter SSH public key (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	vcoAddress, err := prompt("Enter VCO Address (required): ")
+	vcoAddress, err := prompt("Enter VCO address (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	vcoActivationCode, err := prompt("Enter VCO Activation Code (required): ")
+	vcoActivationCode, err := prompt("Enter VCO activation code (required): ")
 	if err != nil {
 		return nil, err
 	}
 
 	return &megaport.VmwareConfig{
-		Vendor:            "VMware",
+		Vendor:            "vmware",
 		ImageID:           imageID,
 		ProductSize:       productSize,
 		MVELabel:          mveLabel,
@@ -513,32 +507,32 @@ func promptVmwareConfig() (megaport.VendorConfig, error) {
 }
 
 func promptMerakiConfig() (megaport.VendorConfig, error) {
-	imageIDStr, err := prompt("Enter Image ID (required): ")
+	imageIDStr, err := prompt("Enter image ID (required): ")
 	if err != nil {
 		return nil, err
 	}
 	imageID, err := strconv.Atoi(imageIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid Image ID")
+		return nil, fmt.Errorf("invalid image ID")
 	}
 
-	productSize, err := prompt("Enter Product Size (required): ")
+	productSize, err := prompt("Enter product size (required): ")
 	if err != nil {
 		return nil, err
 	}
 
-	mveLabel, err := prompt("Enter MVE Label (optional): ")
+	mveLabel, err := prompt("Enter MVE label (optional): ")
 	if err != nil {
 		return nil, err
 	}
 
-	token, err := prompt("Enter Token (required): ")
+	token, err := prompt("Enter token (required): ")
 	if err != nil {
 		return nil, err
 	}
 
 	return &megaport.MerakiConfig{
-		Vendor:      "Meraki",
+		Vendor:      "meraki",
 		ImageID:     imageID,
 		ProductSize: productSize,
 		MVELabel:    mveLabel,
