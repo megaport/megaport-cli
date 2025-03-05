@@ -67,6 +67,14 @@ Example usage:
 	RunE: WrapRunE(BuyMCR),
 }
 
+// updateMCRCmd updates an existing Megaport Cloud Router (MCR).
+var updateMCRCmd = &cobra.Command{
+	Use:   "update [mcrUID]",
+	Short: "Update an existing MCR",
+	Args:  cobra.ExactArgs(1),
+	RunE:  WrapRunE(UpdateMCR),
+}
+
 // deleteMCRCmd deletes a Megaport Cloud Router (MCR) from the user's account.
 var deleteMCRCmd = &cobra.Command{
 	Use:   "delete [mcrUID]",
@@ -126,6 +134,7 @@ var deleteMCRPrefixFilterListCmd = &cobra.Command{
 func init() {
 	mcrCmd.AddCommand(getMCRCmd)
 	mcrCmd.AddCommand(buyMCRCmd)
+	mcrCmd.AddCommand(updateMCRCmd)
 	deleteMCRCmd.Flags().Bool("now", false, "Delete immediately instead of at the end of the billing period")
 	deleteMCRCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
 	mcrCmd.AddCommand(deleteMCRCmd)

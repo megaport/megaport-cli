@@ -1078,3 +1078,99 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
+	originalPrompt := prompt
+	originalLoginFunc := loginFunc
+	defer func() {
+		prompt = originalPrompt
+		loginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name           string
+		mcrUID         string
+		prompts        []string
+		setupMock      func(*MockMCRService)
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name:   "successful MCR update",
+			mcrUID: "mcr-123",
+			prompts: []string{
+				"Updated MCR", // name
+				"new-cost",    // cost centre
+				"true",        // marketplace visibility
+				"24",          // contract term months
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ModifyMCRResult = &megaport.ModifyMCRResponse{
+					IsUpdated: true,
+				}
+			},
+			expectedOutput: "MCR updated successfully",
+		},
+		{
+			name:   "API error",
+			mcrUID: "mcr-123",
+			prompts: []string{
+				"Updated MCR", // name
+				"new-cost",    // cost centre
+				"true",        // marketplace visibility
+				"24",          // contract term months
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ModifyMCRErr = fmt.Errorf("API error: service unavailable")
+			},
+			expectedError: "API error: service unavailable",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			promptIndex := 0
+			prompt = func(msg string) (string, error) {
+				if promptIndex < len(tt.prompts) {
+					response := tt.prompts[promptIndex]
+					promptIndex++
+					return response, nil
+				}
+				return "", fmt.Errorf("unexpected prompt call")
+			}
+
+			mockMCRService := &MockMCRService{}
+			tt.setupMock(mockMCRService)
+
+			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockMCRService
+				return client, nil
+			}
+
+			cmd := updateMCRCmd
+			var err error
+			output := captureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.mcrUID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, output, tt.expectedOutput)
+
+				assert.NotNil(t, mockMCRService.CapturedModifyMCRRequest)
+				req := mockMCRService.CapturedModifyMCRRequest
+				assert.Equal(t, tt.mcrUID, req.MCRID)
+				assert.Equal(t, "Updated MCR", req.Name)
+				assert.Equal(t, "new-cost", req.CostCentre)
+				assert.NotNil(t, req.MarketplaceVisibility)
+				assert.True(t, *req.MarketplaceVisibility)
+				assert.NotNil(t, req.ContractTermMonths)
+				assert.Equal(t, 24, *req.ContractTermMonths)
+			}
+		})
+	}
+}
