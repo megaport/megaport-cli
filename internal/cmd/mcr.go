@@ -22,6 +22,7 @@ For instance, use the "megaport mcr get [mcrUID]" command to fetch details for t
 Available subcommands:
   - get: Retrieve details for a single MCR.
   - buy: Purchase an MCR by providing the necessary details.
+  - update: Update an existing MCR.
   - delete: Delete an MCR from your account.
   - restore: Restore a previously deleted MCR.
   - create-prefix-filter-list: Create a prefix filter list on an MCR.
@@ -67,6 +68,29 @@ Example usage:
 	RunE: WrapRunE(BuyMCR),
 }
 
+// updateMCRCmd updates an existing Megaport Cloud Router (MCR).
+var updateMCRCmd = &cobra.Command{
+	Use:   "update [mcrUID]",
+	Short: "Update an existing MCR",
+	Long: `Update an existing Megaport Cloud Router (MCR).
+
+This command allows you to update the details of an existing MCR.
+You will be prompted to enter the new values for the fields you want to update.
+
+Fields that can be updated:
+  - name: The new name of the MCR.
+  - cost_center: The new cost center for the MCR.
+  - marketplace_visibility: The new marketplace visibility (true/false).
+  - contract_term_months: The new contract term in months.
+
+Example usage:
+
+  megaport mcr update MCR_UID
+`,
+	Args: cobra.ExactArgs(1),
+	RunE: WrapRunE(UpdateMCR),
+}
+
 // deleteMCRCmd deletes a Megaport Cloud Router (MCR) from the user's account.
 var deleteMCRCmd = &cobra.Command{
 	Use:   "delete [mcrUID]",
@@ -87,8 +111,22 @@ var restoreMCRCmd = &cobra.Command{
 var createMCRPrefixFilterListCmd = &cobra.Command{
 	Use:   "create-prefix-filter-list [mcrUID]",
 	Short: "Create a prefix filter list on an MCR",
-	Args:  cobra.ExactArgs(1),
-	RunE:  WrapRunE(CreateMCRPrefixFilterList),
+	Long: `Create a prefix filter list on an MCR.
+
+This command allows you to create a new prefix filter list on an MCR.
+You will be prompted to enter the required values for the fields.
+
+Fields that need to be provided:
+  - description: The description of the prefix filter list.
+  - address_family: The address family (IPv4/IPv6).
+  - entries: The entries for the prefix filter list.
+
+Example usage:
+
+  megaport mcr create-prefix-filter-list MCR_UID
+`,
+	Args: cobra.ExactArgs(1),
+	RunE: WrapRunE(CreateMCRPrefixFilterList),
 }
 
 // listMCRPrefixFilterListsCmd lists all prefix filter lists for a specific MCR.
@@ -111,8 +149,22 @@ var getMCRPrefixFilterListCmd = &cobra.Command{
 var updateMCRPrefixFilterListCmd = &cobra.Command{
 	Use:   "update-prefix-filter-list [mcrUID] [prefixFilterListID]",
 	Short: "Update a prefix filter list on an MCR",
-	Args:  cobra.ExactArgs(2),
-	RunE:  WrapRunE(UpdateMCRPrefixFilterList),
+	Long: `Update a prefix filter list on an MCR.
+
+This command allows you to update the details of an existing prefix filter list on an MCR.
+You will be prompted to enter the new values for the fields you want to update.
+
+Fields that can be updated:
+  - description: The new description of the prefix filter list.
+  - address_family: The new address family (IPv4/IPv6).
+  - entries: The new entries for the prefix filter list.
+
+Example usage:
+
+  megaport mcr update-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID
+`,
+	Args: cobra.ExactArgs(2),
+	RunE: WrapRunE(UpdateMCRPrefixFilterList),
 }
 
 // deleteMCRPrefixFilterListCmd deletes a prefix filter list on an MCR.
@@ -126,6 +178,7 @@ var deleteMCRPrefixFilterListCmd = &cobra.Command{
 func init() {
 	mcrCmd.AddCommand(getMCRCmd)
 	mcrCmd.AddCommand(buyMCRCmd)
+	mcrCmd.AddCommand(updateMCRCmd)
 	deleteMCRCmd.Flags().Bool("now", false, "Delete immediately instead of at the end of the billing period")
 	deleteMCRCmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
 	mcrCmd.AddCommand(deleteMCRCmd)

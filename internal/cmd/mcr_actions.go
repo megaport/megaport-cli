@@ -126,6 +126,78 @@ func BuyMCR(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func UpdateMCR(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	mcrUID := args[0]
+
+	// Prompt for fields to update
+	name, err := prompt("Enter new MCR name (leave blank to keep current): ")
+	if err != nil {
+		return err
+	}
+
+	costCentre, err := prompt("Enter new cost centre (leave blank to keep current): ")
+	if err != nil {
+		return err
+	}
+
+	marketplaceVisibilityStr, err := prompt("Enter new marketplace visibility (true/false, leave blank to keep current): ")
+	if err != nil {
+		return err
+	}
+	var marketplaceVisibility *bool
+	if marketplaceVisibilityStr != "" {
+		visibility, err := strconv.ParseBool(marketplaceVisibilityStr)
+		if err != nil {
+			return fmt.Errorf("invalid marketplace visibility, must be true or false")
+		}
+		marketplaceVisibility = &visibility
+	}
+
+	contractTermMonthsStr, err := prompt("Enter new contract term in months (leave blank to keep current): ")
+	if err != nil {
+		return err
+	}
+	var contractTermMonths *int
+	if contractTermMonthsStr != "" {
+		term, err := strconv.Atoi(contractTermMonthsStr)
+		if err != nil {
+			return fmt.Errorf("invalid contract term, must be a number")
+		}
+		contractTermMonths = &term
+	}
+
+	// Create the ModifyMCRRequest
+	req := &megaport.ModifyMCRRequest{
+		MCRID:                 mcrUID,
+		Name:                  name,
+		CostCentre:            costCentre,
+		MarketplaceVisibility: marketplaceVisibility,
+		ContractTermMonths:    contractTermMonths,
+		WaitForUpdate:         true,
+		WaitForTime:           10 * time.Minute,
+	}
+
+	// Call the ModifyMCR method
+	client, err := Login(ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Updating MCR...")
+	resp, err := client.MCRService.ModifyMCR(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	if resp.IsUpdated {
+		fmt.Println("MCR updated successfully")
+	} else {
+		fmt.Println("MCR update failed")
+	}
+	return nil
+}
+
 func DeleteMCR(cmd *cobra.Command, args []string) error {
 	// Create a context with a 30-second timeout for the API call
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

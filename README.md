@@ -137,6 +137,8 @@ megaport mcr get MCR_UID --output json
 # Buy a new MCR
 megaport mcr buy
 
+megaport mcr update
+
 # Delete an MCR
 megaport mcr delete MCR_UID --now
 
