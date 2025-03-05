@@ -33,7 +33,36 @@ var getVXCCmd = &cobra.Command{
 	RunE:  WrapRunE(GetVXC),
 }
 
+var buyVXCCmd = &cobra.Command{
+	Use:   "buy",
+	Short: "Purchase a new Virtual Cross Connect (VXC)",
+	Long: `Purchase a new Virtual Cross Connect (VXC) through the Megaport API.
+
+This command guides you through an interactive process to purchase a VXC by prompting for required and optional details.
+
+Key settings include:
+
+  - A-End Product UID: Source endpoint for your VXC.
+  - B-End Product UID: Destination endpoint for your VXC.
+  - VXC Name: Descriptive name for your VXC.
+  - Rate Limit: Bandwidth in Mbps.
+  - Term: Contract length in months.
+
+You'll also be prompted for network settings (VLANs) and optional settings like promo codes.
+
+For connections to AWS, Azure, Google Cloud, or VRouters, the tool will guide you through partner-specific configuration.
+
+Example:
+
+  To purchase a new VXC, simply run:
+
+  megaport vxc buy
+`,
+	RunE: WrapRunE(BuyVXC),
+}
+
 func init() {
 	vxcCmd.AddCommand(getVXCCmd)
+	vxcCmd.AddCommand(buyVXCCmd)
 	rootCmd.AddCommand(vxcCmd)
 }
