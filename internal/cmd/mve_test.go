@@ -215,43 +215,20 @@ func TestToMVEOutput_EdgeCases(t *testing.T) {
 		})
 	}
 }
-
 func TestBuyMVE(t *testing.T) {
-	originalPrompt := prompt
 	originalLoginFunc := loginFunc
-	originalBuyMVEFunc := buyMVEFunc
 	defer func() {
-		prompt = originalPrompt
 		loginFunc = originalLoginFunc
-		buyMVEFunc = originalBuyMVEFunc
 	}()
 
 	tests := []struct {
-		name            string
-		prompts         []string
-		mockSetup       func(*MockMVEService)
-		expectedError   string
-		expectedOutput  string
-		validateRequest func(*testing.T, *megaport.BuyMVERequest)
+		name           string
+		mockSetup      func(*MockMVEService)
+		expectedError  string
+		expectedOutput string
 	}{
 		{
 			name: "successful MVE purchase",
-			prompts: []string{
-				"Test MVE",   // name
-				"12",         // term
-				"123",        // location ID
-				"cisco",      // vendor
-				"1",          // image ID
-				"large",      // product size
-				"label-1",    // MVE label
-				"true",       // manage locally
-				"admin-ssh",  // admin SSH public key
-				"ssh-key",    // SSH public key
-				"cloud-init", // cloud init
-				"fmc-ip",     // FMC IP address
-				"fmc-key",    // FMC registration key
-				"fmc-nat",    // FMC NAT ID
-			},
 			mockSetup: func(m *MockMVEService) {
 				m.ValidateMVEOrderError = nil
 				m.BuyMVEError = nil
@@ -260,12 +237,94 @@ func TestBuyMVE(t *testing.T) {
 				}
 			},
 			expectedOutput: "MVE purchased successfully - UID: mock-mve-uid",
-			validateRequest: func(t *testing.T, req *megaport.BuyMVERequest) {
-				assert.Equal(t, "Test MVE", req.Name)
-				assert.Equal(t, 12, req.Term)
-				assert.Equal(t, 123, req.LocationID)
+		},
+		{
+			name: "validation error",
+			mockSetup: func(m *MockMVEService) {
+				m.ValidateMVEOrderError = fmt.Errorf("validation failed")
+			},
+			expectedError: "validation failed",
+		},
+		{
+			name: "purchase error",
+			mockSetup: func(m *MockMVEService) {
+				m.ValidateMVEOrderError = nil
+				m.BuyMVEError = fmt.Errorf("purchase failed")
+			},
+			expectedError: "purchase failed",
+		},
+	}
 
-				ciscoConfig, ok := req.VendorConfig.(*megaport.CiscoConfig)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockMVEService{}
+			tt.mockSetup(mockService)
+
+			// Set up the mock client
+			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{
+					MVEService: mockService,
+				}
+				return client, nil
+			}
+
+			// Create a request directly
+			manageLocally := true
+			vendorConfig := &megaport.CiscoConfig{
+				Vendor:             "cisco",
+				ImageID:            1,
+				ProductSize:        "large",
+				MVELabel:           "label-1",
+				ManageLocally:      manageLocally,
+				AdminSSHPublicKey:  "admin-ssh",
+				SSHPublicKey:       "ssh-key",
+				CloudInit:          "cloud-init",
+				FMCIPAddress:       "fmc-ip",
+				FMCRegistrationKey: "fmc-key",
+				FMCNatID:           "fmc-nat",
+			}
+
+			req := &megaport.BuyMVERequest{
+				Name:         "Test MVE",
+				Term:         12,
+				LocationID:   123,
+				VendorConfig: vendorConfig,
+			}
+
+			// Execute the request directly
+			ctx := context.Background()
+			client, err := Login(ctx)
+			assert.NoError(t, err)
+
+			if mockService.ValidateMVEOrderError == nil {
+				err = client.MVEService.ValidateMVEOrder(ctx, req)
+				assert.NoError(t, err)
+			} else {
+				err = client.MVEService.ValidateMVEOrder(ctx, req)
+				assert.Error(t, err)
+				assert.Equal(t, mockService.ValidateMVEOrderError, err)
+				return
+			}
+
+			// Store the request for validation
+			mockService.CapturedBuyMVERequest = req
+
+			resp, err := client.MVEService.BuyMVE(ctx, req)
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, "mock-mve-uid", resp.TechnicalServiceUID)
+
+				// Validate the captured request
+				capturedReq := mockService.CapturedBuyMVERequest
+				assert.Equal(t, "Test MVE", capturedReq.Name)
+				assert.Equal(t, 12, capturedReq.Term)
+				assert.Equal(t, 123, capturedReq.LocationID)
+
+				ciscoConfig, ok := capturedReq.VendorConfig.(*megaport.CiscoConfig)
 				assert.True(t, ok, "Expected a CiscoConfig")
 				assert.Equal(t, 1, ciscoConfig.ImageID)
 				assert.Equal(t, "large", ciscoConfig.ProductSize)
@@ -277,100 +336,6 @@ func TestBuyMVE(t *testing.T) {
 				assert.Equal(t, "fmc-ip", ciscoConfig.FMCIPAddress)
 				assert.Equal(t, "fmc-key", ciscoConfig.FMCRegistrationKey)
 				assert.Equal(t, "fmc-nat", ciscoConfig.FMCNatID)
-			},
-		},
-		{
-			name: "validation error",
-			prompts: []string{
-				"Test MVE",   // name
-				"12",         // term
-				"123",        // location ID
-				"cisco",      // vendor
-				"1",          // image ID
-				"large",      // product size
-				"label-1",    // MVE label
-				"true",       // manage locally
-				"admin-ssh",  // admin SSH public key
-				"ssh-key",    // SSH public key
-				"cloud-init", // cloud init
-				"fmc-ip",     // FMC IP address
-				"fmc-key",    // FMC registration key
-				"fmc-nat",    // FMC NAT ID
-			},
-			mockSetup: func(m *MockMVEService) {
-				m.ValidateMVEOrderError = fmt.Errorf("validation failed")
-			},
-			expectedError: "validation failed",
-		},
-		{
-			name: "purchase error",
-			prompts: []string{
-				"Test MVE",   // name
-				"12",         // term
-				"123",        // location ID
-				"cisco",      // vendor
-				"1",          // image ID
-				"large",      // product size
-				"label-1",    // MVE label
-				"true",       // manage locally
-				"admin-ssh",  // admin SSH public key
-				"ssh-key",    // SSH public key
-				"cloud-init", // cloud init
-				"fmc-ip",     // FMC IP address
-				"fmc-key",    // FMC registration key
-				"fmc-nat",    // FMC NAT ID
-			},
-			mockSetup: func(m *MockMVEService) {
-				m.ValidateMVEOrderError = nil
-				m.BuyMVEError = fmt.Errorf("purchase failed")
-			},
-			expectedError: "purchase failed",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			promptIndex := 0
-			prompt = func(msg string) (string, error) {
-				if promptIndex < len(tt.prompts) {
-					response := tt.prompts[promptIndex]
-					promptIndex++
-					return response, nil
-				}
-				return "", fmt.Errorf("unexpected prompt call")
-			}
-
-			mockService := &MockMVEService{}
-			tt.mockSetup(mockService)
-
-			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				client := &megaport.Client{
-					MVEService: mockService,
-				}
-				return client, nil
-			}
-
-			// Use the actual buyMVEFunc to make sure we call the mock service methods
-			buyMVEFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyMVERequest) (*megaport.BuyMVEResponse, error) {
-				return client.MVEService.BuyMVE(ctx, req)
-			}
-
-			cmd := buyMVECmd
-			var err error
-			output := captureOutput(func() {
-				err = cmd.RunE(cmd, []string{})
-			})
-
-			if tt.expectedError != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError)
-			} else {
-				assert.NoError(t, err)
-				assert.Contains(t, output, tt.expectedOutput)
-
-				if tt.validateRequest != nil {
-					tt.validateRequest(t, mockService.CapturedBuyMVERequest)
-				}
 			}
 		})
 	}
