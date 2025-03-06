@@ -3,128 +3,67 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
 
+// BuyMVE handles the purchase of a new Megaport Virtual Edge device
 func BuyMVE(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
-	// Prompt for required fields
-	name, err := prompt("Enter MVE name (required): ")
-	if err != nil {
-		return err
-	}
-	if name == "" {
-		return fmt.Errorf("MVE name is required")
-	}
+	// Determine which mode to use
+	interactive, _ := cmd.Flags().GetBool("interactive")
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
 
-	termStr, err := prompt("Enter term (1, 12, 24, 36) (required): ")
-	if err != nil {
-		return err
-	}
-	term, err := strconv.Atoi(termStr)
-	if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
-		return fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
-	}
+	// Check if any flag-based parameters are provided
+	flagsProvided := cmd.Flags().Changed("name") ||
+		cmd.Flags().Changed("term") ||
+		cmd.Flags().Changed("location-id") ||
+		cmd.Flags().Changed("vendor-config") ||
+		cmd.Flags().Changed("vnics")
 
-	locationIDStr, err := prompt("Enter location ID (required): ")
-	if err != nil {
-		return err
-	}
-	locationID, err := strconv.Atoi(locationIDStr)
-	if err != nil {
-		return fmt.Errorf("invalid location ID")
-	}
+	var req *megaport.BuyMVERequest
+	var err error
 
-	vendor, err := prompt("Enter vendor (required): ")
-	if err != nil {
-		return err
-	}
-	if vendor == "" {
-		return fmt.Errorf("vendor is required")
-	}
-
-	// Prompt for vendor-specific configuration
-	var vendorConfig megaport.VendorConfig
-	switch strings.ToLower(vendor) {
-	case "6wind":
-		vendorConfig, err = promptSixwindConfig()
-	case "aruba":
-		vendorConfig, err = promptArubaConfig()
-	case "aviatrix":
-		vendorConfig, err = promptAviatrixConfig()
-	case "cisco":
-		vendorConfig, err = promptCiscoConfig()
-	case "fortinet":
-		vendorConfig, err = promptFortinetConfig()
-	case "paloalto":
-		vendorConfig, err = promptPaloAltoConfig()
-	case "prisma":
-		vendorConfig, err = promptPrismaConfig()
-	case "versa":
-		vendorConfig, err = promptVersaConfig()
-	case "vmware":
-		vendorConfig, err = promptVmwareConfig()
-	case "meraki":
-		vendorConfig, err = promptMerakiConfig()
-	default:
-		return fmt.Errorf("unsupported vendor: %s", vendor)
-	}
-	if err != nil {
-		return err
-	}
-
-	// Prompt for network interfaces (vnics)
-	var vnics []megaport.MVENetworkInterface
-	for {
-		vnicDescription, err := prompt("Enter VNIC description (leave blank to finish): ")
+	// Process input based on mode priority: JSON > Flags > Interactive
+	if jsonStr != "" || jsonFile != "" {
+		// JSON mode
+		req, err = processJSONBuyMVEInput(jsonStr, jsonFile)
 		if err != nil {
 			return err
 		}
-		if vnicDescription == "" {
-			break
-		}
-
-		vnicVLANStr, err := prompt("Enter VNIC VLAN (required): ")
+	} else if flagsProvided {
+		// Flag mode
+		req, err = processFlagBuyMVEInput(cmd)
 		if err != nil {
 			return err
 		}
-		vnicVLAN, err := strconv.Atoi(vnicVLANStr)
+	} else if interactive {
+		// Interactive mode
+		req, err = promptForBuyMVEDetails()
 		if err != nil {
-			return fmt.Errorf("invalid VNIC VLAN")
+			return err
 		}
-
-		vnics = append(vnics, megaport.MVENetworkInterface{
-			Description: vnicDescription,
-			VLAN:        vnicVLAN,
-		})
+	} else {
+		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify MVE details")
 	}
 
-	// Create the BuyMVERequest
-	req := &megaport.BuyMVERequest{
-		Name:         name,
-		Term:         term,
-		LocationID:   locationID,
-		VendorConfig: vendorConfig,
-		Vnics:        vnics,
-	}
-
-	// Call the BuyMVE method
+	// Call the API to buy the MVE
 	client, err := Login(ctx)
 	if err != nil {
 		return err
 	}
-	fmt.Println("Buying MVE...")
+
+	fmt.Println("Validating MVE order...")
 	if err := client.MVEService.ValidateMVEOrder(ctx, req); err != nil {
 		return fmt.Errorf("validation failed: %v", err)
 	}
 
-	resp, err := buyMVEFunc(ctx, client, req)
+	fmt.Println("Buying MVE...")
+	resp, err := client.MVEService.BuyMVE(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -132,50 +71,58 @@ func BuyMVE(cmd *cobra.Command, args []string) error {
 	fmt.Printf("MVE purchased successfully - UID: %s\n", resp.TechnicalServiceUID)
 	return nil
 }
-
 func UpdateMVE(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
+
+	// Retrieve the MVE UID from command line arguments
 	mveUID := args[0]
 
-	// Prompt for fields to update
-	name, err := prompt("Enter new MVE name (leave blank to keep current): ")
-	if err != nil {
-		return err
-	}
+	// Determine which mode to use
+	interactive, _ := cmd.Flags().GetBool("interactive")
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
 
-	costCentre, err := prompt("Enter new cost centre (leave blank to keep current): ")
-	if err != nil {
-		return err
-	}
+	// Check if any flag-based parameters are provided
+	flagsProvided := cmd.Flags().Changed("name") ||
+		cmd.Flags().Changed("cost-centre") ||
+		cmd.Flags().Changed("contract-term")
 
-	contractTermMonthsStr, err := prompt("Enter new contract term in months (leave blank to keep current): ")
-	if err != nil {
-		return err
-	}
-	var contractTermMonths *int
-	if contractTermMonthsStr != "" {
-		term, err := strconv.Atoi(contractTermMonthsStr)
+	var req *megaport.ModifyMVERequest
+	var err error
+
+	// Process input based on mode priority: JSON > Flags > Interactive
+	if jsonStr != "" || jsonFile != "" {
+		// JSON mode
+		req, err = processJSONUpdateMVEInput(jsonStr, jsonFile, mveUID)
 		if err != nil {
-			return fmt.Errorf("invalid contract term, must be a number")
+			return err
 		}
-		contractTermMonths = &term
+	} else if flagsProvided {
+		// Flag mode
+		req, err = processFlagUpdateMVEInput(cmd, mveUID)
+		if err != nil {
+			return err
+		}
+	} else if interactive {
+		// Interactive mode
+		req, err = promptForUpdateMVEDetails(mveUID)
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify MVE update details")
 	}
 
-	// Create the ModifyMVERequest
-	req := &megaport.ModifyMVERequest{
-		MVEID:              mveUID,
-		Name:               name,
-		CostCentre:         costCentre,
-		ContractTermMonths: contractTermMonths,
-		WaitForUpdate:      true,
-		WaitForTime:        10 * time.Minute,
-	}
+	// Set common defaults
+	req.WaitForUpdate = true
+	req.WaitForTime = 10 * time.Minute
 
 	// Call the ModifyMVE method
 	client, err := Login(ctx)
 	if err != nil {
 		return err
 	}
+
 	fmt.Println("Updating MVE...")
 	resp, err := client.MVEService.ModifyMVE(ctx, req)
 	if err != nil {
@@ -183,10 +130,11 @@ func UpdateMVE(cmd *cobra.Command, args []string) error {
 	}
 
 	if resp.MVEUpdated {
-		fmt.Println("MVE updated successfully")
+		fmt.Printf("MVE updated successfully - UID: %s\n", mveUID)
 	} else {
-		fmt.Println("MVE update failed")
+		fmt.Println("MVE update request was not successful")
 	}
+
 	return nil
 }
 
