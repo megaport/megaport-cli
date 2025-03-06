@@ -99,7 +99,7 @@ megaport locations get LOCATION_ID --output json
 megaport ports list
 
 # List ports filtered by location ID and port speed
-megaport ports list --location-id 1 --port-speed 10000
+megaport ports list --location-id 1 --port-speed 1000
 
 # Get details for a specific port
 megaport ports get PORT_UID --output json
