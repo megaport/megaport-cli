@@ -87,7 +87,7 @@ All commands support multiple output formats:
 megaport locations list
 
 # List locations filtered by metro area
-megaport locations list --metro "San Francisco"
+megaport locations list --metro "Ashburn"
 
 # Get details for a specific location
 megaport locations get LOCATION_ID --output json
