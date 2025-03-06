@@ -140,13 +140,24 @@ megaport ports check-vlan PORT_UID VLAN_ID
 
 #### MCR (Megaport Cloud Routers)
 ```sh
+# List all MCRs
+megaport mcr list
+
 # Get details for a specific MCR
 megaport mcr get MCR_UID --output json
 
 # Buy a new MCR
-megaport mcr buy
+megaport mcr buy --interactive
+megaport mcr buy --name "My MCR" --term 12 --port-speed 10000 --location-id 123
+megaport mcr buy --name "My MCR" --term 12 --port-speed 10000 --location-id 123 --mcr-asn 65000 --diversity-zone "zone1"
+megaport mcr buy --json '{"name":"My MCR","term":12,"portSpeed":10000,"locationId":123}'
+megaport mcr buy --json-file ./mcr-config.json
 
-megaport mcr update
+# Update an MCR
+megaport mcr update MCR_UID --interactive
+megaport mcr update MCR_UID --name "Updated MCR" --cost-centre "IT-123"
+megaport mcr update MCR_UID --json '{"name":"Updated MCR","costCentre":"IT-123"}'
+megaport mcr update MCR_UID --json-file ./update-mcr-config.json
 
 # Delete an MCR
 megaport mcr delete MCR_UID --now
@@ -155,16 +166,22 @@ megaport mcr delete MCR_UID --now
 megaport mcr restore MCR_UID
 
 # Create a prefix filter list on an MCR
-megaport mcr create-prefix-filter-list MCR_UID
+megaport mcr create-prefix-filter-list MCR_UID --interactive
+megaport mcr create-prefix-filter-list MCR_UID --description "Block List" --address-family "IPv4" --entries '[{"action":"DENY","prefix":"10.0.0.0/8","ge":16,"le":24}]'
+megaport mcr create-prefix-filter-list MCR_UID --json '{"description":"Block List","addressFamily":"IPv4","entries":[{"action":"DENY","prefix":"10.0.0.0/8","ge":16,"le":24}]}'
+megaport mcr create-prefix-filter-list MCR_UID --json-file ./prefix-filter-config.json
 
 # List all prefix filter lists for a specific MCR
 megaport mcr list-prefix-filter-lists MCR_UID
 
 # Get details for a specific prefix filter list on an MCR
-megaport mcr get-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID
+megaport mcr get-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID --output json
 
 # Update a prefix filter list on an MCR
-megaport mcr update-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID
+megaport mcr update-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID --interactive
+megaport mcr update-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID --description "Updated Block List" --address-family "IPv4" --entries '[{"action":"DENY","prefix":"10.0.0.0/8"},{"action":"PERMIT","prefix":"192.168.0.0/16"}]'
+megaport mcr update-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID --json '{"description":"Updated Block List","addressFamily":"IPv4","entries":[{"action":"DENY","prefix":"10.0.0.0/8"},{"action":"PERMIT","prefix":"192.168.0.0/16"}]}'
+megaport mcr update-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID --json-file ./update-prefix-filter-config.json
 
 # Delete a prefix filter list on an MCR
 megaport mcr delete-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID
