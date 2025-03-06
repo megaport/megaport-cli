@@ -349,7 +349,7 @@ func init() {
 
 	buyPortCmd.Flags().BoolP("interactive", "i", false, "Use interactive mode with prompts")
 	buyPortCmd.Flags().String("name", "", "Port name")
-	buyPortCmd.Flags().Int("term", 0, "Contract term in months (1, 12, or 24)")
+	buyPortCmd.Flags().Int("term", 0, "Contract term in months (1, 12, 24, or 36)")
 	buyPortCmd.Flags().Int("port-speed", 0, "Port speed in Mbps (1000, 10000, or 100000)")
 	buyPortCmd.Flags().Int("location-id", 0, "Location ID where the port will be provisioned")
 	buyPortCmd.Flags().Bool("marketplace-visibility", false, "Whether the port is visible in marketplace")
@@ -361,7 +361,7 @@ func init() {
 
 	buyLagCmd.Flags().BoolP("interactive", "i", false, "Use interactive mode with prompts")
 	buyLagCmd.Flags().String("name", "", "Port name")
-	buyLagCmd.Flags().Int("term", 0, "Contract term in months (1, 12, or 24)")
+	buyLagCmd.Flags().Int("term", 0, "Contract term in months (1, 12, 24, or 36)")
 	buyLagCmd.Flags().Int("port-speed", 0, "Port speed in Mbps (10000 or 100000)")
 	buyLagCmd.Flags().Int("location-id", 0, "Location ID where the port will be provisioned")
 	buyLagCmd.Flags().Int("lag-count", 0, "Number of LAGs (1-8)")
@@ -376,7 +376,7 @@ func init() {
 	updatePortCmd.Flags().String("name", "", "New port name")
 	updatePortCmd.Flags().Bool("marketplace-visibility", false, "Whether the port is visible in marketplace")
 	updatePortCmd.Flags().String("cost-centre", "", "Cost centre for billing")
-	updatePortCmd.Flags().Int("term", 0, "New contract term in months (1, 12, 24)")
+	updatePortCmd.Flags().Int("term", 0, "New contract term in months (1, 12, 24, or 36)")
 	updatePortCmd.Flags().String("json", "", "JSON string containing port configuration")
 	updatePortCmd.Flags().String("json-file", "", "Path to JSON file containing port configuration")
 

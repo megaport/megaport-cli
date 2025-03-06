@@ -22,6 +22,12 @@ type MockMCRService struct {
 	CreateMCRPrefixFilterListResult          *megaport.CreateMCRPrefixFilterListResponse
 	CreateMCRPrefixFilterListErr             error
 	CapturedCreateMCRPrefixFilterListRequest *megaport.CreateMCRPrefixFilterListRequest
+	CapturedCreatePrefixFilterListRequest    *megaport.CreateMCRPrefixFilterListRequest
+
+	CreateMCRPrefixFilterListResponse *megaport.CreateMCRPrefixFilterListResponse
+	CreateMCRPrefixFilterListError    error
+	CapturedCreatePrefixFilterList    *megaport.CreateMCRPrefixFilterListRequest
+
 	ListMCRPrefixFilterListsResult           []*megaport.PrefixFilterList
 	ListMCRPrefixFilterListsErr              error
 	GetMCRPrefixFilterListResult             *megaport.MCRPrefixFilterList
@@ -40,6 +46,9 @@ type MockMCRService struct {
 	CapturedUpdateMCRResourceTagsRequest     map[string]string
 	GetMCRPrefixFilterListsResult            []*megaport.PrefixFilterList
 	GetMCRPrefixFilterListsErr               error
+	CapturedModifyPrefixFilterListMCRID      string
+	CapturedModifyPrefixFilterListID         int
+	CapturedModifyPrefixFilterList           *megaport.MCRPrefixFilterList
 }
 
 func (m *MockMCRService) BuyMCR(ctx context.Context, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
@@ -77,8 +86,9 @@ func (m *MockMCRService) RestoreMCR(ctx context.Context, mcrUID string) (*megapo
 	return m.RestoreMCRResult, nil
 }
 
+// CreatePrefixFilterList mocks the CreatePrefixFilterList method
 func (m *MockMCRService) CreatePrefixFilterList(ctx context.Context, req *megaport.CreateMCRPrefixFilterListRequest) (*megaport.CreateMCRPrefixFilterListResponse, error) {
-	m.CapturedCreateMCRPrefixFilterListRequest = req
+	m.CapturedCreatePrefixFilterListRequest = req
 	if m.CreateMCRPrefixFilterListErr != nil {
 		return nil, m.CreateMCRPrefixFilterListErr
 	}
@@ -99,8 +109,11 @@ func (m *MockMCRService) GetMCRPrefixFilterList(ctx context.Context, mcrID strin
 	return m.GetMCRPrefixFilterListResult, nil
 }
 
+// ModifyMCRPrefixFilterList mocks the ModifyMCRPrefixFilterList method
 func (m *MockMCRService) ModifyMCRPrefixFilterList(ctx context.Context, mcrID string, prefixFilterListID int, prefixFilterList *megaport.MCRPrefixFilterList) (*megaport.ModifyMCRPrefixFilterListResponse, error) {
-	m.CapturedModifyMCRPrefixFilterListRequest = prefixFilterList
+	m.CapturedModifyPrefixFilterListMCRID = mcrID
+	m.CapturedModifyPrefixFilterListID = prefixFilterListID
+	m.CapturedModifyPrefixFilterList = prefixFilterList
 	if m.ModifyMCRPrefixFilterListErr != nil {
 		return nil, m.ModifyMCRPrefixFilterListErr
 	}
@@ -114,6 +127,7 @@ func (m *MockMCRService) DeleteMCRPrefixFilterList(ctx context.Context, mcrID st
 	return m.DeleteMCRPrefixFilterListResult, nil
 }
 
+// ModifyMCR mocks the ModifyMCR method of the MCR service
 func (m *MockMCRService) ModifyMCR(ctx context.Context, req *megaport.ModifyMCRRequest) (*megaport.ModifyMCRResponse, error) {
 	m.CapturedModifyMCRRequest = req
 	if m.ModifyMCRErr != nil {

@@ -10,6 +10,262 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func BuyMCR(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	// Determine which mode to use
+	interactive, _ := cmd.Flags().GetBool("interactive")
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
+
+	// Check if any flag-based parameters are provided
+	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("term") ||
+		cmd.Flags().Changed("port-speed") || cmd.Flags().Changed("location-id") ||
+		cmd.Flags().Changed("mcr-asn")
+
+	var req *megaport.BuyMCRRequest
+	var err error
+
+	// Process input based on mode priority: JSON > Flags > Interactive
+	if jsonStr != "" || jsonFile != "" {
+		// JSON mode
+		req, err = processJSONMCRInput(jsonStr, jsonFile)
+		if err != nil {
+			return err
+		}
+	} else if flagsProvided {
+		// Flag mode
+		req, err = processFlagMCRInput(cmd)
+		if err != nil {
+			return err
+		}
+	} else if interactive {
+		// Interactive mode
+		req, err = promptForMCRDetails()
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify MCR details")
+	}
+
+	// Set common defaults
+	req.WaitForProvision = true
+	req.WaitForTime = 10 * time.Minute
+
+	// Call the BuyMCR method
+	client, err := Login(ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Buying MCR...")
+	resp, err := buyMCRFunc(ctx, client, req)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("MCR purchased successfully - UID: %s\n", resp.TechnicalServiceUID)
+	return nil
+}
+
+func UpdateMCR(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	if len(args) == 0 {
+		return fmt.Errorf("mcr UID is required")
+	}
+
+	// Get MCR UID from args
+	mcrUID := args[0]
+
+	// Determine which mode to use
+	interactive, _ := cmd.Flags().GetBool("interactive")
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
+
+	// Check if any flag-based parameters are provided
+	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("cost-centre") ||
+		cmd.Flags().Changed("marketplace-visibility") || cmd.Flags().Changed("term")
+
+	var req *megaport.ModifyMCRRequest
+	var err error
+
+	// Process input based on mode priority: JSON > Flags > Interactive
+	if jsonStr != "" || jsonFile != "" {
+		// JSON mode
+		req, err = processJSONUpdateMCRInput(jsonStr, jsonFile)
+		if err != nil {
+			return err
+		}
+		// Make sure the MCR ID from the command line arguments is set
+		req.MCRID = mcrUID
+	} else if flagsProvided {
+		// Flag mode
+		req, err = processFlagUpdateMCRInput(cmd, mcrUID)
+		if err != nil {
+			return err
+		}
+	} else if interactive {
+		// Interactive mode
+		req, err = promptForUpdateMCRDetails(mcrUID)
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify MCR update details")
+	}
+
+	// Set common defaults
+	req.WaitForUpdate = true
+	req.WaitForTime = 10 * time.Minute
+
+	// Call the ModifyMCR method
+	client, err := Login(ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Updating MCR...")
+	resp, err := updateMCRFunc(ctx, client, req)
+	if err != nil {
+		return err
+	}
+
+	if resp.IsUpdated {
+		fmt.Printf("MCR updated successfully - UID: %s\n", mcrUID)
+	} else {
+		fmt.Println("MCR update request was not successful")
+	}
+	return nil
+}
+
+func CreateMCRPrefixFilterList(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	if len(args) == 0 {
+		return fmt.Errorf("mcr UID is required")
+	}
+
+	// Get MCR UID from args
+	mcrUID := args[0]
+
+	// Determine which mode to use
+	interactive, _ := cmd.Flags().GetBool("interactive")
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
+
+	// Check if any flag-based parameters are provided
+	flagsProvided := cmd.Flags().Changed("description") || cmd.Flags().Changed("address-family") ||
+		cmd.Flags().Changed("entries")
+
+	var req *megaport.CreateMCRPrefixFilterListRequest
+	var err error
+
+	// Process input based on mode priority: JSON > Flags > Interactive
+	if jsonStr != "" || jsonFile != "" {
+		// JSON mode
+		req, err = processJSONPrefixFilterListInput(jsonStr, jsonFile, mcrUID)
+		if err != nil {
+			return err
+		}
+	} else if flagsProvided {
+		// Flag mode
+		req, err = processFlagPrefixFilterListInput(cmd, mcrUID)
+		if err != nil {
+			return err
+		}
+	} else if interactive {
+		// Interactive mode
+		req, err = promptForPrefixFilterListDetails(mcrUID)
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify prefix filter list details")
+	}
+
+	// Call the CreatePrefixFilterList method
+	client, err := Login(ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Creating prefix filter list...")
+	resp, err := createMCRPrefixFilterListFunc(ctx, client, req)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Prefix filter list created successfully - ID: %d\n", resp.PrefixFilterListID)
+	return nil
+}
+
+func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	if len(args) < 2 {
+		return fmt.Errorf("mcr UID and prefix filter list ID are required")
+	}
+
+	// Get MCR UID and prefix filter list ID from args
+	mcrUID := args[0]
+	prefixFilterListID, err := strconv.Atoi(args[1])
+	if err != nil {
+		return fmt.Errorf("invalid prefix filter list ID: %v", err)
+	}
+
+	// Determine which mode to use
+	interactive, _ := cmd.Flags().GetBool("interactive")
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
+
+	// Check if any flag-based parameters are provided
+	flagsProvided := cmd.Flags().Changed("description") || cmd.Flags().Changed("address-family") ||
+		cmd.Flags().Changed("entries")
+
+	var prefixFilterList *megaport.MCRPrefixFilterList
+	var getErr error
+
+	// Process input based on mode priority: JSON > Flags > Interactive
+	if jsonStr != "" || jsonFile != "" {
+		// JSON mode
+		prefixFilterList, getErr = processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile, prefixFilterListID)
+		if getErr != nil {
+			return getErr
+		}
+	} else if flagsProvided {
+		// Flag mode
+		prefixFilterList, getErr = processFlagUpdatePrefixFilterListInput(cmd, prefixFilterListID)
+		if getErr != nil {
+			return getErr
+		}
+	} else if interactive {
+		// Interactive mode
+		prefixFilterList, getErr = promptForUpdatePrefixFilterListDetails(mcrUID, prefixFilterListID)
+		if getErr != nil {
+			return getErr
+		}
+	} else {
+		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify prefix filter list update details")
+	}
+
+	// Call the ModifyMCRPrefixFilterList method
+	client, err := Login(ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Updating prefix filter list...")
+	resp, err := modifyMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID, prefixFilterList)
+	if err != nil {
+		return err
+	}
+
+	if resp.IsUpdated {
+		fmt.Printf("Prefix filter list updated successfully - ID: %d\n", prefixFilterListID)
+	} else {
+		fmt.Println("Prefix filter list update request was not successful")
+	}
+	return nil
+}
+
 func GetMCR(cmd *cobra.Command, args []string) error {
 	// Create a context with a 30-second timeout for the API call.
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -34,166 +290,6 @@ func GetMCR(cmd *cobra.Command, args []string) error {
 	err = printMCRs([]*megaport.MCR{mcr}, outputFormat)
 	if err != nil {
 		return fmt.Errorf("error printing MCRs: %v", err)
-	}
-	return nil
-}
-
-func BuyMCR(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-
-	// Prompt for required fields
-	name, err := prompt("Enter MCR name (required): ")
-	if err != nil {
-		return err
-	}
-	if name == "" {
-		return fmt.Errorf("MCR name is required")
-	}
-
-	termStr, err := prompt("Enter term (1, 12, 24, 36) (required): ")
-	if err != nil {
-		return err
-	}
-	term, err := strconv.Atoi(termStr)
-	if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
-		return fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
-	}
-
-	portSpeedStr, err := prompt("Enter port speed (1000, 2500, 5000, 10000) (required): ")
-	if err != nil {
-		return err
-	}
-	portSpeed, err := strconv.Atoi(portSpeedStr)
-	if err != nil || (portSpeed != 1000 && portSpeed != 2500 && portSpeed != 5000 && portSpeed != 10000) {
-		return fmt.Errorf("invalid port speed, must be one of 1000, 2500, 5000, 10000")
-	}
-
-	locationIDStr, err := prompt("Enter location ID (required): ")
-	if err != nil {
-		return err
-	}
-	locationID, err := strconv.Atoi(locationIDStr)
-	if err != nil {
-		return fmt.Errorf("invalid location ID")
-	}
-
-	// Prompt for optional fields
-	diversityZone, err := prompt("Enter diversity zone (optional): ")
-	if err != nil {
-		return err
-	}
-
-	costCentre, err := prompt("Enter cost center (optional): ")
-	if err != nil {
-		return err
-	}
-
-	promoCode, err := prompt("Enter promo code (optional): ")
-	if err != nil {
-		return err
-	}
-
-	// Create the BuyMCRRequest
-	req := &megaport.BuyMCRRequest{
-		Name:             name,
-		Term:             term,
-		PortSpeed:        portSpeed,
-		LocationID:       locationID,
-		DiversityZone:    diversityZone,
-		CostCentre:       costCentre,
-		PromoCode:        promoCode,
-		WaitForProvision: true,
-		WaitForTime:      10 * time.Minute,
-	}
-
-	// Call the BuyMCR method
-	client, err := Login(ctx)
-	if err != nil {
-		return err
-	}
-	fmt.Println("Buying MCR...")
-
-	if err := client.MCRService.ValidateMCROrder(ctx, req); err != nil {
-		return fmt.Errorf("validation failed: %v", err)
-	}
-
-	resp, err := buyMCRFunc(ctx, client, req)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("MCR purchased successfully - UID: %s\n", resp.TechnicalServiceUID)
-	return nil
-}
-
-func UpdateMCR(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-
-	mcrUID := args[0]
-
-	// Prompt for fields to update
-	name, err := prompt("Enter new MCR name (leave blank to keep current): ")
-	if err != nil {
-		return err
-	}
-
-	costCentre, err := prompt("Enter new cost centre (leave blank to keep current): ")
-	if err != nil {
-		return err
-	}
-
-	marketplaceVisibilityStr, err := prompt("Enter new marketplace visibility (true/false, leave blank to keep current): ")
-	if err != nil {
-		return err
-	}
-	var marketplaceVisibility *bool
-	if marketplaceVisibilityStr != "" {
-		visibility, err := strconv.ParseBool(marketplaceVisibilityStr)
-		if err != nil {
-			return fmt.Errorf("invalid marketplace visibility, must be true or false")
-		}
-		marketplaceVisibility = &visibility
-	}
-
-	contractTermMonthsStr, err := prompt("Enter new contract term in months (leave blank to keep current): ")
-	if err != nil {
-		return err
-	}
-	var contractTermMonths *int
-	if contractTermMonthsStr != "" {
-		term, err := strconv.Atoi(contractTermMonthsStr)
-		if err != nil {
-			return fmt.Errorf("invalid contract term, must be a number")
-		}
-		contractTermMonths = &term
-	}
-
-	// Create the ModifyMCRRequest
-	req := &megaport.ModifyMCRRequest{
-		MCRID:                 mcrUID,
-		Name:                  name,
-		CostCentre:            costCentre,
-		MarketplaceVisibility: marketplaceVisibility,
-		ContractTermMonths:    contractTermMonths,
-		WaitForUpdate:         true,
-		WaitForTime:           10 * time.Minute,
-	}
-
-	// Call the ModifyMCR method
-	client, err := Login(ctx)
-	if err != nil {
-		return err
-	}
-	fmt.Println("Updating MCR...")
-	resp, err := client.MCRService.ModifyMCR(ctx, req)
-	if err != nil {
-		return err
-	}
-
-	if resp.IsUpdated {
-		fmt.Println("MCR updated successfully")
-	} else {
-		fmt.Println("MCR update failed")
 	}
 	return nil
 }
@@ -292,110 +388,6 @@ func RestoreMCR(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func CreateMCRPrefixFilterList(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-
-	// Log into the Megaport API using the provided credentials
-	client, err := Login(ctx)
-	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
-	}
-
-	// Retrieve the MCR UID from the command line arguments
-	mcrUID := args[0]
-
-	// Prompt for required fields
-	description, err := prompt("Enter prefix filter list description (required): ")
-	if err != nil {
-		return err
-	}
-	if description == "" {
-		return fmt.Errorf("description is required")
-	}
-
-	addressFamily, err := prompt("Enter address family (IPv4 or IPv6) (required): ")
-	if err != nil {
-		return err
-	}
-	if addressFamily != "IPv4" && addressFamily != "IPv6" {
-		return fmt.Errorf("invalid address family, must be IPv4 or IPv6")
-	}
-
-	// Prompt for prefix filter list entries
-	var entries []*megaport.MCRPrefixListEntry
-	for {
-		action, err := prompt("Enter action (permit or deny) (required, leave empty to finish): ")
-		if err != nil {
-			return err
-		}
-		if action == "" {
-			break
-		}
-		if action != "permit" && action != "deny" {
-			return fmt.Errorf("invalid action, must be permit or deny")
-		}
-
-		prefix, err := prompt("Enter prefix (required): ")
-		if err != nil {
-			return err
-		}
-		if prefix == "" {
-			return fmt.Errorf("prefix is required")
-		}
-
-		geStr, err := prompt("Enter greater than or equal to (optional): ")
-		if err != nil {
-			return err
-		}
-		var ge int
-		if geStr != "" {
-			ge, err = strconv.Atoi(geStr)
-			if err != nil {
-				return fmt.Errorf("invalid greater than or equal to value")
-			}
-		}
-
-		leStr, err := prompt("Enter less than or equal to (optional): ")
-		if err != nil {
-			return err
-		}
-		var le int
-		if leStr != "" {
-			le, err = strconv.Atoi(leStr)
-			if err != nil {
-				return fmt.Errorf("invalid less than or equal to value")
-			}
-		}
-
-		entry := &megaport.MCRPrefixListEntry{
-			Action: action,
-			Prefix: prefix,
-			Ge:     ge,
-			Le:     le,
-		}
-		entries = append(entries, entry)
-	}
-
-	// Create the CreateMCRPrefixFilterListRequest
-	req := &megaport.CreateMCRPrefixFilterListRequest{
-		MCRID: mcrUID,
-		PrefixFilterList: megaport.MCRPrefixFilterList{
-			Description:   description,
-			AddressFamily: addressFamily,
-			Entries:       entries,
-		},
-	}
-
-	// Call the CreatePrefixFilterList method
-	resp, err := createMCRPrefixFilterListFunc(ctx, client, req)
-	if err != nil {
-		return fmt.Errorf("error creating prefix filter list: %v", err)
-	}
-
-	fmt.Printf("Prefix filter list created successfully - ID: %d\n", resp.PrefixFilterListID)
-	return nil
-}
-
 func ListMCRPrefixFilterLists(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
@@ -455,115 +447,6 @@ func GetMCRPrefixFilterList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("error printing prefix filter list: %v", err)
 	}
-	return nil
-}
-
-func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-
-	// Log into the Megaport API using the provided credentials
-	client, err := Login(ctx)
-	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
-	}
-
-	// Retrieve the MCR UID and prefix filter list ID from the command line arguments
-	mcrUID := args[0]
-	prefixFilterListID, err := strconv.Atoi(args[1])
-	if err != nil {
-		return fmt.Errorf("invalid prefix filter list ID: %v", err)
-	}
-
-	// Prompt for required fields
-	description, err := prompt("Enter new prefix filter list description (required): ")
-	if err != nil {
-		return err
-	}
-	if description == "" {
-		return fmt.Errorf("description is required")
-	}
-
-	addressFamily, err := prompt("Enter new address family (IPv4 or IPv6) (required): ")
-	if err != nil {
-		return err
-	}
-	if addressFamily != "IPv4" && addressFamily != "IPv6" {
-		return fmt.Errorf("invalid address family, must be IPv4 or IPv6")
-	}
-
-	// Prompt for prefix filter list entries
-	var entries []*megaport.MCRPrefixListEntry
-	for {
-		action, err := prompt("Enter action (permit or deny) (required, leave empty to finish): ")
-		if err != nil {
-			return err
-		}
-		if action == "" {
-			break
-		}
-		if action != "permit" && action != "deny" {
-			return fmt.Errorf("invalid action, must be permit or deny")
-		}
-
-		prefix, err := prompt("Enter prefix (required): ")
-		if err != nil {
-			return err
-		}
-		if prefix == "" {
-			return fmt.Errorf("prefix is required")
-		}
-
-		geStr, err := prompt("Enter greater than or equal to (optional): ")
-		if err != nil {
-			return err
-		}
-		var ge int
-		if geStr != "" {
-			ge, err = strconv.Atoi(geStr)
-			if err != nil {
-				return fmt.Errorf("invalid greater than or equal to value")
-			}
-		}
-
-		leStr, err := prompt("Enter less than or equal to (optional): ")
-		if err != nil {
-			return err
-		}
-		var le int
-		if leStr != "" {
-			le, err = strconv.Atoi(leStr)
-			if err != nil {
-				return fmt.Errorf("invalid less than or equal to value")
-			}
-		}
-
-		entry := &megaport.MCRPrefixListEntry{
-			Action: action,
-			Prefix: prefix,
-			Ge:     ge,
-			Le:     le,
-		}
-		entries = append(entries, entry)
-	}
-
-	// Create the ModifyMCRPrefixFilterListRequest
-	req := &megaport.MCRPrefixFilterList{
-		Description:   description,
-		AddressFamily: addressFamily,
-		Entries:       entries,
-	}
-	// Call the ModifyMCRPrefixFilterList method
-	resp, err := modifyMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID, req)
-	if err != nil {
-		return fmt.Errorf("error updating prefix filter list: %v", err)
-	}
-
-	if resp.IsUpdated {
-		fmt.Printf("Prefix filter list updated successfully - ID: %d\n", prefixFilterListID)
-	} else {
-		fmt.Println("Prefix filter list update request was not successful")
-	}
-
 	return nil
 }
 
