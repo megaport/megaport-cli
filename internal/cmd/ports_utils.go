@@ -2,9 +2,13 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"strconv"
 
 	megaport "github.com/megaport/megaportgo"
+	"github.com/spf13/cobra"
 )
 
 var updatePortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyPortRequest) (*megaport.ModifyPortResponse, error) {
@@ -33,6 +37,424 @@ var checkPortVLANAvailabilityFunc = func(ctx context.Context, client *megaport.C
 
 var buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
 	return client.PortService.BuyPort(ctx, req)
+}
+
+// Process JSON input (either from string or file)
+func processJSONPortInput(jsonStr, jsonFile string) (*megaport.BuyPortRequest, error) {
+	var jsonData []byte
+	var err error
+
+	if jsonFile != "" {
+		// Read from file
+		jsonData, err = os.ReadFile(jsonFile)
+		if err != nil {
+			return nil, fmt.Errorf("error reading JSON file: %v", err)
+		}
+	} else {
+		// Use the provided string
+		jsonData = []byte(jsonStr)
+	}
+
+	// Parse JSON into request
+	req := &megaport.BuyPortRequest{}
+	if err := json.Unmarshal(jsonData, req); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %v", err)
+	}
+
+	// Validate required fields
+	if err := validatePortRequest(req); err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// Process flag-based input
+func processFlagPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, error) {
+	// Get required fields
+	name, _ := cmd.Flags().GetString("name")
+	term, _ := cmd.Flags().GetInt("term")
+	portSpeed, _ := cmd.Flags().GetInt("port-speed")
+	locationID, _ := cmd.Flags().GetInt("location-id")
+	marketplaceVisibility, _ := cmd.Flags().GetBool("marketplace-visibility")
+
+	// Get optional fields
+	diversityZone, _ := cmd.Flags().GetString("diversity-zone")
+	costCentre, _ := cmd.Flags().GetString("cost-centre")
+	promoCode, _ := cmd.Flags().GetString("promo-code")
+
+	req := &megaport.BuyPortRequest{
+		Name:                  name,
+		Term:                  term,
+		PortSpeed:             portSpeed,
+		LocationId:            locationID,
+		MarketPlaceVisibility: marketplaceVisibility,
+		DiversityZone:         diversityZone,
+		CostCentre:            costCentre,
+		PromoCode:             promoCode,
+	}
+
+	// Validate required fields
+	if err := validatePortRequest(req); err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// Validate port request
+func validatePortRequest(req *megaport.BuyPortRequest) error {
+	if req.Name == "" {
+		return fmt.Errorf("port name is required")
+	}
+	if req.Term != 1 && req.Term != 12 && req.Term != 24 && req.Term != 36 {
+		return fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+	}
+	if req.PortSpeed != 1000 && req.PortSpeed != 10000 && req.PortSpeed != 100000 {
+		return fmt.Errorf("invalid port speed, must be one of 1000, 10000, 100000")
+	}
+	if req.LocationId == 0 {
+		return fmt.Errorf("location ID is required")
+	}
+	return nil
+}
+
+// Extract the existing interactive prompting into a separate function
+func promptForPortDetails() (*megaport.BuyPortRequest, error) {
+	req := &megaport.BuyPortRequest{}
+
+	// Prompt for required fields
+	name, err := prompt("Enter port name (required): ")
+	if err != nil {
+		return nil, err
+	}
+	if name == "" {
+		return nil, fmt.Errorf("port name is required")
+	}
+	req.Name = name
+
+	termStr, err := prompt("Enter term (1, 12, 24, 36) (required): ")
+	if err != nil {
+		return nil, err
+	}
+	term, err := strconv.Atoi(termStr)
+	if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
+		return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+	}
+	req.Term = term
+
+	portSpeedStr, err := prompt("Enter port speed (1000, 10000, 100000) (required): ")
+	if err != nil {
+		return nil, err
+	}
+	portSpeed, err := strconv.Atoi(portSpeedStr)
+	if err != nil || (portSpeed != 1000 && portSpeed != 10000 && portSpeed != 100000) {
+		return nil, fmt.Errorf("invalid port speed, must be one of 1000, 10000, 100000")
+	}
+	req.PortSpeed = portSpeed
+
+	locationIDStr, err := prompt("Enter location ID (required): ")
+	if err != nil {
+		return nil, err
+	}
+	locationID, err := strconv.Atoi(locationIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid location ID")
+	}
+	req.LocationId = locationID
+
+	marketplaceVisibilityStr, err := prompt("Enter marketplace visibility (true/false) (required): ")
+	if err != nil {
+		return nil, err
+	}
+	marketplaceVisibility, err := strconv.ParseBool(marketplaceVisibilityStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid marketplace visibility, must be true or false")
+	}
+	req.MarketPlaceVisibility = marketplaceVisibility
+
+	// Prompt for optional fields
+	diversityZone, err := prompt("Enter diversity zone (optional): ")
+	if err != nil {
+		return nil, err
+	}
+	req.DiversityZone = diversityZone
+
+	costCentre, err := prompt("Enter cost center (optional): ")
+	if err != nil {
+		return nil, err
+	}
+	req.CostCentre = costCentre
+
+	promoCode, err := prompt("Enter promo code (optional): ")
+	if err != nil {
+		return nil, err
+	}
+	req.PromoCode = promoCode
+
+	return req, nil
+}
+
+// Process flag-based input for LAG port
+func processFlagLAGPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, error) {
+	// Get required fields
+	name, _ := cmd.Flags().GetString("name")
+	term, _ := cmd.Flags().GetInt("term")
+	portSpeed, _ := cmd.Flags().GetInt("port-speed")
+	locationID, _ := cmd.Flags().GetInt("location-id")
+	lagCount, _ := cmd.Flags().GetInt("lag-count")
+	marketplaceVisibility, _ := cmd.Flags().GetBool("marketplace-visibility")
+
+	// Get optional fields
+	diversityZone, _ := cmd.Flags().GetString("diversity-zone")
+	costCentre, _ := cmd.Flags().GetString("cost-centre")
+	promoCode, _ := cmd.Flags().GetString("promo-code")
+
+	req := &megaport.BuyPortRequest{
+		Name:                  name,
+		Term:                  term,
+		PortSpeed:             portSpeed,
+		LocationId:            locationID,
+		LagCount:              lagCount,
+		MarketPlaceVisibility: marketplaceVisibility,
+		DiversityZone:         diversityZone,
+		CostCentre:            costCentre,
+		PromoCode:             promoCode,
+	}
+
+	// Validate required fields
+	if err := validateLAGPortRequest(req); err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// Validate LAG port request
+func validateLAGPortRequest(req *megaport.BuyPortRequest) error {
+	if req.Name == "" {
+		return fmt.Errorf("port name is required")
+	}
+	if req.Term != 1 && req.Term != 12 && req.Term != 24 && req.Term != 36 {
+		return fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+	}
+	if req.PortSpeed != 10000 && req.PortSpeed != 100000 {
+		return fmt.Errorf("invalid port speed, must be one of 10000 or 100000")
+	}
+	if req.LocationId == 0 {
+		return fmt.Errorf("location ID is required")
+	}
+	if req.LagCount < 1 || req.LagCount > 8 {
+		return fmt.Errorf("invalid LAG count, must be between 1 and 8")
+	}
+	return nil
+}
+
+// Extract the existing interactive prompting into a separate function for LAG port
+func promptForLAGPortDetails() (*megaport.BuyPortRequest, error) {
+	req := &megaport.BuyPortRequest{}
+
+	// Prompt for required fields
+	name, err := prompt("Enter port name (required): ")
+	if err != nil {
+		return nil, err
+	}
+	if name == "" {
+		return nil, fmt.Errorf("port name is required")
+	}
+	req.Name = name
+
+	termStr, err := prompt("Enter term (1, 12, 24, 36) (required): ")
+	if err != nil {
+		return nil, err
+	}
+	term, err := strconv.Atoi(termStr)
+	if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
+		return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+	}
+	req.Term = term
+
+	portSpeedStr, err := prompt("Enter port speed (10000 or 100000) (required): ")
+	if err != nil {
+		return nil, err
+	}
+	portSpeed, err := strconv.Atoi(portSpeedStr)
+	if err != nil || (portSpeed != 10000 && portSpeed != 100000) {
+		return nil, fmt.Errorf("invalid port speed, must be one of 10000 or 100000")
+	}
+	req.PortSpeed = portSpeed
+
+	locationIDStr, err := prompt("Enter location ID (required): ")
+	if err != nil {
+		return nil, err
+	}
+	locationID, err := strconv.Atoi(locationIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid location ID")
+	}
+	req.LocationId = locationID
+
+	lagCountStr, err := prompt("Enter LAG count (1-8) (required): ")
+	if err != nil {
+		return nil, err
+	}
+	lagCount, err := strconv.Atoi(lagCountStr)
+	if err != nil || lagCount < 1 || lagCount > 8 {
+		return nil, fmt.Errorf("invalid LAG count, must be between 1 and 8")
+	}
+	req.LagCount = lagCount
+
+	marketplaceVisibilityStr, err := prompt("Enter marketplace visibility (true/false) (required): ")
+	if err != nil {
+		return nil, err
+	}
+	marketplaceVisibility, err := strconv.ParseBool(marketplaceVisibilityStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid marketplace visibility, must be true or false")
+	}
+	req.MarketPlaceVisibility = marketplaceVisibility
+
+	// Prompt for optional fields
+	diversityZone, err := prompt("Enter diversity zone (optional): ")
+	if err != nil {
+		return nil, err
+	}
+	req.DiversityZone = diversityZone
+
+	costCentre, err := prompt("Enter cost center (optional): ")
+	if err != nil {
+		return nil, err
+	}
+	req.CostCentre = costCentre
+
+	promoCode, err := prompt("Enter promo code (optional): ")
+	if err != nil {
+		return nil, err
+	}
+	req.PromoCode = promoCode
+
+	return req, nil
+}
+
+// Process JSON input (either from string or file) for updating port
+func processJSONUpdatePortInput(jsonStr, jsonFile string) (*megaport.ModifyPortRequest, error) {
+	var jsonData []byte
+	var err error
+
+	if jsonFile != "" {
+		// Read from file
+		jsonData, err = os.ReadFile(jsonFile)
+		if err != nil {
+			return nil, fmt.Errorf("error reading JSON file: %v", err)
+		}
+	} else {
+		// Use the provided string
+		jsonData = []byte(jsonStr)
+	}
+
+	// Parse JSON into request
+	req := &megaport.ModifyPortRequest{}
+	if err := json.Unmarshal(jsonData, req); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %v", err)
+	}
+
+	// Validate required fields
+	if err := validateUpdatePortRequest(req); err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// Process flag-based input for updating port
+func processFlagUpdatePortInput(cmd *cobra.Command, portUID string) (*megaport.ModifyPortRequest, error) {
+	// Get required fields
+	name, _ := cmd.Flags().GetString("name")
+	marketplaceVisibility, _ := cmd.Flags().GetBool("marketplace-visibility")
+
+	// Get optional fields
+	costCentre, _ := cmd.Flags().GetString("cost-centre")
+	term, _ := cmd.Flags().GetInt("term")
+
+	req := &megaport.ModifyPortRequest{
+		PortID:                portUID,
+		Name:                  name,
+		MarketplaceVisibility: &marketplaceVisibility,
+		CostCentre:            costCentre,
+	}
+
+	if term != 0 {
+		req.ContractTermMonths = &term
+	}
+
+	// Validate required fields
+	if err := validateUpdatePortRequest(req); err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// Validate update port request
+func validateUpdatePortRequest(req *megaport.ModifyPortRequest) error {
+	if req.Name == "" {
+		return fmt.Errorf("port name is required")
+	}
+	if req.MarketplaceVisibility == nil {
+		return fmt.Errorf("marketplace visibility is required")
+	}
+	if req.ContractTermMonths != nil && *req.ContractTermMonths != 1 && *req.ContractTermMonths != 12 && *req.ContractTermMonths != 24 && *req.ContractTermMonths != 36 {
+		return fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+	}
+	return nil
+}
+
+// Extract the existing interactive prompting into a separate function for updating port
+func promptForUpdatePortDetails(portUID string) (*megaport.ModifyPortRequest, error) {
+	req := &megaport.ModifyPortRequest{
+		PortID: portUID,
+	}
+
+	// Prompt for required fields
+	name, err := prompt("Enter new port name (required): ")
+	if err != nil {
+		return nil, err
+	}
+	if name == "" {
+		return nil, fmt.Errorf("port name is required")
+	}
+	req.Name = name
+
+	marketplaceVisibilityStr, err := prompt("Enter marketplace visibility (true/false) (required): ")
+	if err != nil {
+		return nil, err
+	}
+	marketplaceVisibility, err := strconv.ParseBool(marketplaceVisibilityStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid marketplace visibility, must be true or false")
+	}
+	req.MarketplaceVisibility = &marketplaceVisibility
+
+	// Prompt for optional fields
+	costCentre, err := prompt("Enter cost center (optional): ")
+	if err != nil {
+		return nil, err
+	}
+	req.CostCentre = costCentre
+
+	termStr, err := prompt("Enter new term (1, 12, 24, 36) (optional): ")
+	if err != nil {
+		return nil, err
+	}
+	if termStr != "" {
+		term, err := strconv.Atoi(termStr)
+		if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
+			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		}
+		req.ContractTermMonths = &term
+	}
+
+	return req, nil
 }
 
 // filterPorts filters the provided ports based on the given filters.
