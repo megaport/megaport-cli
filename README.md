@@ -105,13 +105,22 @@ megaport ports list --location-id 1 --port-speed 10000
 megaport ports get PORT_UID --output json
 
 # Buy a new port
-megaport ports buy
+megaport ports buy --interactive
+megaport ports buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true
+megaport ports buy --json '{"name":"My Port","term":12,"portSpeed":10000,"locationId":123,"marketPlaceVisibility":true}'
+megaport ports buy --json-file ./port-config.json
 
 # Buy a LAG port
-megaport ports buy-lag
+megaport ports buy-lag --interactive
+megaport ports buy-lag --name "My LAG Port" --term 12 --port-speed 10000 --location-id 123 --lag-count 2 --marketplace-visibility true
+megaport ports buy-lag --json '{"name":"My LAG Port","term":12,"portSpeed":10000,"locationId":123,"lagCount":2,"marketPlaceVisibility":true}'
+megaport ports buy-lag --json-file ./lag-port-config.json
 
 # Update a port
-megaport ports update PORT_UID
+megaport ports update PORT_UID --interactive
+megaport ports update PORT_UID --name "Updated Port" --marketplace-visibility true
+megaport ports update PORT_UID --json '{"name":"Updated Port","marketplaceVisibility":true}'
+megaport ports update PORT_UID --json-file ./update-port-config.json
 
 # Delete a port
 megaport ports delete PORT_UID --now
