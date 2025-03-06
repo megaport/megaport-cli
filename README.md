@@ -149,7 +149,7 @@ megaport mcr get MCR_UID --output json
 # Buy a new MCR
 megaport mcr buy --interactive
 megaport mcr buy --name "My MCR" --term 12 --port-speed 10000 --location-id 123
-megaport mcr buy --name "My MCR" --term 12 --port-speed 10000 --location-id 123 --mcr-asn 65000 --diversity-zone "zone1"
+megaport mcr buy --name "My MCR" --term 12 --port-speed 10000 --location-id 123 --mcr-asn 65000 --diversity-zone "blue"
 megaport mcr buy --json '{"name":"My MCR","term":12,"portSpeed":10000,"locationId":123}'
 megaport mcr buy --json-file ./mcr-config.json
 
