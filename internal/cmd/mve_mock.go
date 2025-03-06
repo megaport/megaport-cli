@@ -33,6 +33,16 @@ type MockMVEService struct {
 	CapturedUpdateMVEResourceTagsTags map[string]string
 }
 
+func (m *MockMVEService) Reset() {
+	m.ValidateMVEOrderError = nil
+	m.BuyMVEResult = nil
+	m.BuyMVEError = nil
+	m.ModifyMVEResult = nil
+	m.ModifyMVEError = nil
+	m.CapturedBuyMVERequest = nil
+	m.CapturedModifyMVERequest = nil
+}
+
 func (m *MockMVEService) BuyMVE(ctx context.Context, req *megaport.BuyMVERequest) (*megaport.BuyMVEResponse, error) {
 	m.CapturedBuyMVERequest = req
 	if m.BuyMVEError != nil {

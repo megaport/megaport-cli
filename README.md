@@ -193,13 +193,27 @@ megaport mcr delete-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID
 megaport mve get MVE_UID --output json
 
 # Buy a new MVE
-megaport mve buy
+megaport mve buy --interactive
+
+# Buy a new MVE - Cisco example
+megaport mve buy --name "My Cisco MVE" --term 12 --location-id 67 --vendor-config '{"vendor":"cisco","imageId":1,"productSize":"large","mveLabel":"cisco-mve","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA...","sshPublicKey":"ssh-rsa AAAA...","cloudInit":"#cloud-config\npackages:\n - nginx\n","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"key123","fmcNatId":"natid123"}' --vnics '[{"description":"Data Plane","vlan":100}]'
+megaport mve buy --json '{"name":"My Cisco MVE","term":12,"locationId":67,"vendorConfig":{"vendor":"cisco","imageId":1,"productSize":"large","mveLabel":"cisco-mve","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA...","sshPublicKey":"ssh-rsa AAAA...","cloudInit":"#cloud-config\npackages:\n - nginx\n","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"key123","fmcNatId":"natid123"},"vnics":[{"description":"Data Plane","vlan":100}]}'
+
+# Buy a new MVE - Aruba example
+megaport mve buy --name "My Aruba MVE" --term 1 --location-id 67 --vendor-config '{"vendor":"aruba","imageId":23,"productSize":"MEDIUM","accountName":"Aruba Test Account","accountKey":"12345678","systemTag":"Preconfiguration-aruba-test-1"}' --vnics '[{"description":"Data Plane"},{"description":"Control Plane"},{"description":"Management Plane"}]'
+megaport mve buy --json '{"name":"My Aruba MVE","term":1,"locationId":67,"vendorConfig":{"vendor":"aruba","imageId":23,"productSize":"MEDIUM","accountName":"Aruba Test Account","accountKey":"12345678","systemTag":"Preconfiguration-aruba-test-1"},"vnics":[{"description":"Data Plane"},{"description":"Control Plane"},{"description":"Management Plane"}]}'
+
+# Buy a new MVE - Versa example
+megaport mve buy --name "My Versa MVE" --term 1 --location-id 67 --vendor-config '{"vendor":"versa","imageId":20,"productSize":"MEDIUM","directorAddress":"director1.versa.com","controllerAddress":"controller1.versa.com","localAuth":"SDWAN-Branch@Versa.com","remoteAuth":"Controller-1-staging@Versa.com","serialNumber":"Megaport-Hub1"}' --vnics '[{"description":"Data Plane"}]'
+megaport mve buy --json '{"name":"My Versa MVE","term":1,"locationId":67,"vendorConfig":{"vendor":"versa","imageId":20,"productSize":"MEDIUM","directorAddress":"director1.versa.com","controllerAddress":"controller1.versa.com","localAuth":"SDWAN-Branch@Versa.com","remoteAuth":"Controller-1-staging@Versa.com","serialNumber":"Megaport-Hub1"},"vnics":[{"description":"Data Plane"}]}'
 
 # Update an existing MVE
-megaport mve update MVE_UID
+megaport mve update MVE_UID --interactive
+megaport mve update MVE_UID --name "Updated MVE Name" --cost-centre "New Cost Centre" --contract-term 24
+megaport mve update MVE_UID --json '{"name": "New MVE Name", "costCentre": "New Cost Centre", "contractTermMonths": 24}'
 
 # Delete an MVE
-megaport mve delete --now
+megaport mve delete MVE_UID --now
 
 # List all available MVE images
 megaport mve list-images
