@@ -7,6 +7,7 @@ import (
 	"os"
 
 	megaport "github.com/megaport/megaportgo"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -55,6 +56,20 @@ func Login(ctx context.Context) (*megaport.Client, error) {
 	return loginFunc(ctx)
 }
 
+var (
+	version = "dev" // This will be overridden by the build process
+)
+
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Print the version number of Megaport CLI",
+	Long:  `All software has versions. This is Megaport CLI's.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Megaport CLI Version:", version)
+	},
+}
+
 func init() {
+	rootCmd.AddCommand(versionCmd)
 	rootCmd.PersistentFlags().StringVarP(&env, "env", "e", "production", "Environment to use (production, staging, development)")
 }

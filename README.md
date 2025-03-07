@@ -18,7 +18,7 @@ For API details, consult the [Megaport API Documentation](https://dev.megaport.c
 go install github.com/megaport/megaport-cli@latest
 
 # Verify installation
-megaport --version
+megaport version
 ```
 
 ## Shell Completion
