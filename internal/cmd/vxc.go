@@ -76,7 +76,7 @@ Optional fields:
 Example usage:
 
 # Interactive mode
-megaport vxc buy
+megaport vxc buy --interactive
 
 # Flag mode - Basic VXC between two ports
 megaport vxc buy \
