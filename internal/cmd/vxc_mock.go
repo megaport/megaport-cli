@@ -6,7 +6,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// Mock VXC service for testing
+// // Mock VXC service for testing
 type mockVXCService struct {
 	buyVXCResponse              *megaport.BuyVXCResponse
 	buyVXCError                 error
@@ -14,7 +14,6 @@ type mockVXCService struct {
 	getVXCResponse              *megaport.VXC
 	getVXCError                 error
 	deleteVXCError              error
-	updateVXCResponse           *megaport.VXC
 	updateVXCError              error
 	lookupPartnerPortsResponse  *megaport.LookupPartnerPortsResponse
 	lookupPartnerPortsError     error
@@ -23,10 +22,11 @@ type mockVXCService struct {
 	listVXCResourceTagsResponse map[string]string
 	listVXCResourceTagsError    error
 	updateVXCResourceTagsError  error
-
-	// New fields for validation and callbacks
-	onBuyVXC           func(context.Context, *megaport.BuyVXCRequest)
-	postExecutionCheck func()
+	updateVXCResponse           *megaport.VXC
+	buyVXCErr                   error
+	updateVXCErr                error
+	onBuyVXC                    func(context.Context, *megaport.BuyVXCRequest)
+	deleteVXCErr                error
 }
 
 func (m *mockVXCService) BuyVXC(ctx context.Context, req *megaport.BuyVXCRequest) (*megaport.BuyVXCResponse, error) {
