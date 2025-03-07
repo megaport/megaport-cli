@@ -145,3 +145,12 @@ func TestLogin(t *testing.T) {
 		})
 	}
 }
+
+func TestVersionCommand(t *testing.T) {
+	output := captureOutput(func() {
+		versionCmd.Run(nil, nil)
+	})
+
+	expected := fmt.Sprintf("Megaport CLI Version: %s\n", version)
+	assert.Equal(t, expected, output)
+}

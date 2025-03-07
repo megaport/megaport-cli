@@ -10,6 +10,7 @@ import (
 type PartnerOutput struct {
 	output
 	ProductName   string `json:"product_name"`
+	UID           string `json:"uid"`
 	ConnectType   string `json:"connect_type"`
 	CompanyName   string `json:"company_name"`
 	LocationId    int    `json:"location_id"`
@@ -21,6 +22,7 @@ type PartnerOutput struct {
 func ToPartnerOutput(p *megaport.PartnerMegaport) PartnerOutput {
 	return PartnerOutput{
 		ProductName:   p.ProductName,
+		UID:           p.ProductUID,
 		ConnectType:   p.ConnectType,
 		CompanyName:   p.CompanyName,
 		LocationId:    p.LocationId,

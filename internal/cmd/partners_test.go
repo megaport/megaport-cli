@@ -9,6 +9,7 @@ import (
 
 var testPartners = []*megaport.PartnerMegaport{
 	{
+		ProductUID:    "uid1",
 		ProductName:   "ProductOne",
 		ConnectType:   "TypeA",
 		CompanyName:   "CompanyA",
@@ -17,6 +18,7 @@ var testPartners = []*megaport.PartnerMegaport{
 		VXCPermitted:  true,
 	},
 	{
+		ProductUID:    "uid2",
 		ProductName:   "ProductTwo",
 		ConnectType:   "TypeB",
 		CompanyName:   "CompanyB",
@@ -138,9 +140,9 @@ func TestPrintPartners_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `product_name   connect_type   company_name   location_id   diversity_zone   vxc_permitted
-ProductOne     TypeA          CompanyA       1             ZoneA            true
-ProductTwo     TypeB          CompanyB       2             ZoneB            false
+	expected := `product_name   uid    connect_type   company_name   location_id   diversity_zone   vxc_permitted
+ProductOne     uid1   TypeA          CompanyA       1             ZoneA            true
+ProductTwo     uid2   TypeB          CompanyB       2             ZoneB            false
 `
 	assert.Equal(t, expected, output)
 }
@@ -153,6 +155,7 @@ func TestPrintPartners_JSON(t *testing.T) {
 
 	expected := `[
   {
+    "uid": "uid1",
     "product_name": "ProductOne",
     "connect_type": "TypeA",
     "company_name": "CompanyA",
@@ -161,6 +164,7 @@ func TestPrintPartners_JSON(t *testing.T) {
     "vxc_permitted": true
   },
   {
+    "uid": "uid2",
     "product_name": "ProductTwo",
     "connect_type": "TypeB",
     "company_name": "CompanyB",
@@ -178,9 +182,9 @@ func TestPrintPartners_CSV(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `product_name,connect_type,company_name,location_id,diversity_zone,vxc_permitted
-ProductOne,TypeA,CompanyA,1,ZoneA,true
-ProductTwo,TypeB,CompanyB,2,ZoneB,false
+	expected := `product_name,uid,connect_type,company_name,location_id,diversity_zone,vxc_permitted
+ProductOne,uid1,TypeA,CompanyA,1,ZoneA,true
+ProductTwo,uid2,TypeB,CompanyB,2,ZoneB,false
 `
 	assert.Equal(t, expected, output)
 }
@@ -204,7 +208,7 @@ func TestPrintPartners_EmptySlice(t *testing.T) {
 		err := printPartners(emptySlice, "table")
 		assert.NoError(t, err)
 	})
-	expectedTable := `product_name   connect_type   company_name   location_id   diversity_zone   vxc_permitted
+	expectedTable := `product_name   uid   connect_type   company_name   location_id   diversity_zone   vxc_permitted
 `
 	assert.Equal(t, expectedTable, tableOutput)
 
@@ -220,7 +224,7 @@ func TestPrintPartners_EmptySlice(t *testing.T) {
 		err := printPartners(emptySlice, "csv")
 		assert.NoError(t, err)
 	})
-	expectedCSV := `product_name,connect_type,company_name,location_id,diversity_zone,vxc_permitted
+	expectedCSV := `product_name,uid,connect_type,company_name,location_id,diversity_zone,vxc_permitted
 `
 	assert.Equal(t, expectedCSV, csvOutput)
 }
