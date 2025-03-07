@@ -242,8 +242,51 @@ megaport mve list-sizes
 # Get details for a specific VXC
 megaport vxc get VXC_UID --output json
 
-# Buy a new VXC
-megaport vxc buy
+# Buy a new VXC - Interactive mode. 
+megaport vxc buy --interactive
+
+# Flag mode - Basic VXC between two ports
+megaport vxc buy \
+  --a-end-uid "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
+  --b-end-uid "dcc-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy" \
+  --name "My VXC" \
+  --rate-limit 1000 \
+  --term 12 \
+  --a-end-vlan 100 \
+  --b-end-vlan 200
+
+# Flag mode - VXC to AWS Direct Connect
+megaport vxc buy \
+  --a-end-uid "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
+  --b-end-uid "dcc-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy" \
+  --name "My AWS VXC" \
+  --rate-limit 1000 \
+  --term 12 \
+  --a-end-vlan 100 \
+  --b-end-partner-config '{"connectType":"AWS","ownerAccount":"123456789012","asn":65000,"amazonAsn":64512}'
+
+# Flag mode - VXC to Azure ExpressRoute
+megaport vxc buy \
+  --a-end-uid "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
+  --name "My Azure VXC" \
+  --rate-limit 1000 \
+  --term 12 \
+  --a-end-vlan 100 \
+  --b-end-partner-config '{"connectType":"AZURE","serviceKey":"s-abcd1234"}'
+
+# Interactive mode
+megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive
+
+# Flag mode - Basic updates
+megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
+  --name "New VXC Name" \
+  --rate-limit 2000 \
+  --cost-centre "New Cost Centre"
+
+# Flag mode - Update VLANs
+megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
+  --a-end-vlan 200 \
+  --b-end-vlan 300
 
 # Delete a VXC
 megaport vxc delete VXC_UID
