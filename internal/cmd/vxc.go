@@ -38,25 +38,113 @@ var buyVXCCmd = &cobra.Command{
 	Short: "Purchase a new Virtual Cross Connect (VXC)",
 	Long: `Purchase a new Virtual Cross Connect (VXC) through the Megaport API.
 
-This command guides you through an interactive process to purchase a VXC by prompting for required and optional details.
+This command allows you to purchase a VXC by providing the necessary details.
+You can provide details in one of three ways:
 
-Key settings include:
+1. Interactive Mode (default):
+   The command will prompt you for each required and optional field.
 
-  - A-End Product UID: Source endpoint for your VXC.
-  - B-End Product UID: Destination endpoint for your VXC.
-  - VXC Name: Descriptive name for your VXC.
-  - Rate Limit: Bandwidth in Mbps.
-  - Term: Contract length in months.
+2. Flag Mode:
+   Provide all required fields as flags:
+   --a-end-uid, --b-end-uid, --name, --rate-limit, --term,
+   --a-end-vlan, --b-end-vlan, --a-end-partner-config, --b-end-partner-config
 
-You'll also be prompted for network settings (VLANs) and optional settings like promo codes.
+3. JSON Mode:
+   Provide a JSON string or file with all required fields:
+   --json <json-string> or --json-file <path>
 
-For connections to AWS, Azure, Google Cloud, or VRouters, the tool will guide you through partner-specific configuration.
+Required fields:
+- a-end-uid: UID of the A-End product
+- name: Name of the VXC
+- rate-limit: Bandwidth in Mbps
+- term: Contract term in months (1, 12, 24, or 36)
 
-Example:
+Optional fields:
+- b-end-uid: UID of the B-End product (if connecting to non-partner)
+- a-end-vlan: VLAN for A-End (0-4093, except 1)
+- b-end-vlan: VLAN for B-End (0-4093, except 1)
+- a-end-inner-vlan: Inner VLAN for A-End (-1 or higher)
+- b-end-inner-vlan: Inner VLAN for B-End (-1 or higher)
+- a-end-vnic-index: vNIC index for A-End MVE
+- b-end-vnic-index: vNIC index for B-End MVE
+- promo-code: Promotional code
+- service-key: Service key
+- cost-centre: Cost centre
+- a-end-partner-config: JSON string with A-End partner configuration
+- b-end-partner-config: JSON string with B-End partner configuration
 
-  To purchase a new VXC, simply run:
+Example usage:
 
-  megaport vxc buy
+# Interactive mode
+megaport vxc buy
+
+# Flag mode - Basic VXC between two ports
+megaport vxc buy \
+  --a-end-uid "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
+  --b-end-uid "dcc-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy" \
+  --name "My VXC" \
+  --rate-limit 1000 \
+  --term 12 \
+  --a-end-vlan 100 \
+  --b-end-vlan 200
+
+# Flag mode - VXC to AWS Direct Connect
+megaport vxc buy \
+  --a-end-uid "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
+  --b-end-uid "dcc-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy" \
+  --name "My AWS VXC" \
+  --rate-limit 1000 \
+  --term 12 \
+  --a-end-vlan 100 \
+  --b-end-partner-config '{"connectType":"AWS","ownerAccount":"123456789012","asn":65000,"amazonAsn":64512}'
+
+# Flag mode - VXC to Azure ExpressRoute
+megaport vxc buy \
+  --a-end-uid "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
+  --name "My Azure VXC" \
+  --rate-limit 1000 \
+  --term 12 \
+  --a-end-vlan 100 \
+  --b-end-partner-config '{"connectType":"AZURE","serviceKey":"s-abcd1234"}'
+
+# JSON mode
+megaport vxc buy --json '{
+  "portUID": "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "vxcName": "My VXC",
+  "rateLimit": 1000,
+  "term": 12,
+  "aEndConfiguration": {
+    "vlan": 100
+  },
+  "bEndConfiguration": {
+    "productUid": "dcc-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy",
+    "vlan": 200
+  }
+}'
+
+# JSON mode with partner config
+megaport vxc buy --json '{
+  "portUID": "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "vxcName": "My AWS VXC",
+  "rateLimit": 1000,
+  "term": 12,
+  "aEndConfiguration": {
+    "vlan": 100
+  },
+  "bEndConfiguration": {
+    "productUid": "dcc-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy",
+    "partnerConfig": {
+      "connectType": "AWS",
+      "ownerAccount": "123456789012",
+      "asn": 65000,
+      "amazonAsn": 64512,
+	  "type": "private"
+    }
+  }
+}'
+
+# JSON file
+megaport vxc buy --json-file ./vxc-config.json
 `,
 	RunE: WrapRunE(BuyVXC),
 }
@@ -65,4 +153,25 @@ func init() {
 	vxcCmd.AddCommand(getVXCCmd)
 	vxcCmd.AddCommand(buyVXCCmd)
 	rootCmd.AddCommand(vxcCmd)
+
+	// Add flags for non-interactive mode
+	buyVXCCmd.Flags().String("a-end-uid", "", "UID of the A-End product")
+	buyVXCCmd.Flags().String("b-end-uid", "", "UID of the B-End product")
+	buyVXCCmd.Flags().String("name", "", "Name of the VXC")
+	buyVXCCmd.Flags().Int("rate-limit", 0, "Bandwidth in Mbps")
+	buyVXCCmd.Flags().Int("term", 0, "Contract term in months (1, 12, 24, or 36)")
+	buyVXCCmd.Flags().Int("a-end-vlan", 0, "VLAN for A-End (0-4093, except 1)")
+	buyVXCCmd.Flags().Int("b-end-vlan", 0, "VLAN for B-End (0-4093, except 1)")
+	buyVXCCmd.Flags().Int("a-end-inner-vlan", 0, "Inner VLAN for A-End (-1 or higher)")
+	buyVXCCmd.Flags().Int("b-end-inner-vlan", 0, "Inner VLAN for B-End (-1 or higher)")
+	buyVXCCmd.Flags().Int("a-end-vnic-index", 0, "vNIC index for A-End MVE")
+	buyVXCCmd.Flags().Int("b-end-vnic-index", 0, "vNIC index for B-End MVE")
+	buyVXCCmd.Flags().String("promo-code", "", "Promotional code")
+	buyVXCCmd.Flags().String("service-key", "", "Service key")
+	buyVXCCmd.Flags().String("cost-centre", "", "Cost centre")
+	buyVXCCmd.Flags().String("a-end-partner-config", "", "JSON string with A-End partner configuration")
+	buyVXCCmd.Flags().String("b-end-partner-config", "", "JSON string with B-End partner configuration")
+	buyVXCCmd.Flags().String("json", "", "JSON string with all VXC configuration")
+	buyVXCCmd.Flags().String("json-file", "", "Path to JSON file with VXC configuration")
+	buyVXCCmd.Flags().Bool("interactive", false, "Use interactive mode")
 }

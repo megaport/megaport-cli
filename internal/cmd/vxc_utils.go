@@ -2,12 +2,734 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
 	megaport "github.com/megaport/megaportgo"
+	"github.com/spf13/cobra"
 )
+
+// buildVXCRequestFromFlags creates a BuyVXCRequest from command flags
+func buildVXCRequestFromFlags(cmd *cobra.Command) (*megaport.BuyVXCRequest, error) {
+	aEndUID, _ := cmd.Flags().GetString("a-end-uid")
+	if aEndUID == "" {
+		return nil, fmt.Errorf("a-end-uid is required")
+	}
+
+	name, _ := cmd.Flags().GetString("name")
+	if name == "" {
+		return nil, fmt.Errorf("name is required")
+	}
+
+	rateLimit, _ := cmd.Flags().GetInt("rate-limit")
+	if rateLimit <= 0 {
+		return nil, fmt.Errorf("rate-limit must be greater than 0")
+	}
+
+	term, _ := cmd.Flags().GetInt("term")
+	if term != 1 && term != 12 && term != 24 && term != 36 {
+		return nil, fmt.Errorf("term must be 1, 12, 24, or 36")
+	}
+
+	// Get optional fields
+	bEndUID, _ := cmd.Flags().GetString("b-end-uid")
+	aEndVLAN, _ := cmd.Flags().GetInt("a-end-vlan")
+	bEndVLAN, _ := cmd.Flags().GetInt("b-end-vlan")
+	aEndInnerVLAN, _ := cmd.Flags().GetInt("a-end-inner-vlan")
+	bEndInnerVLAN, _ := cmd.Flags().GetInt("b-end-inner-vlan")
+	aEndVNICIndex, _ := cmd.Flags().GetInt("a-end-vnic-index")
+	bEndVNICIndex, _ := cmd.Flags().GetInt("b-end-vnic-index")
+	promoCode, _ := cmd.Flags().GetString("promo-code")
+	serviceKey, _ := cmd.Flags().GetString("service-key")
+	costCentre, _ := cmd.Flags().GetString("cost-centre")
+
+	// Create the base request
+	req := &megaport.BuyVXCRequest{
+		PortUID:    aEndUID,
+		VXCName:    name,
+		RateLimit:  rateLimit,
+		Term:       term,
+		PromoCode:  promoCode,
+		ServiceKey: serviceKey,
+		CostCentre: costCentre,
+	}
+
+	// A-End configuration
+	aEndConfig := megaport.VXCOrderEndpointConfiguration{
+		VLAN: aEndVLAN,
+	}
+
+	// Set MVE config if needed
+	if aEndInnerVLAN != 0 || aEndVNICIndex > 0 {
+		aEndConfig.VXCOrderMVEConfig = &megaport.VXCOrderMVEConfig{
+			InnerVLAN:             aEndInnerVLAN,
+			NetworkInterfaceIndex: aEndVNICIndex,
+		}
+	}
+
+	// Parse A-End partner config if provided
+	aEndPartnerConfigStr, _ := cmd.Flags().GetString("a-end-partner-config")
+	if aEndPartnerConfigStr != "" {
+		aEndPartnerConfig, err := parsePartnerConfigFromJSON(aEndPartnerConfigStr)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing a-end-partner-config: %v", err)
+		}
+		aEndConfig.PartnerConfig = aEndPartnerConfig
+	}
+
+	req.AEndConfiguration = aEndConfig
+
+	// B-End configuration
+	bEndConfig := megaport.VXCOrderEndpointConfiguration{}
+
+	if bEndUID != "" {
+		bEndConfig.ProductUID = bEndUID
+		bEndConfig.VLAN = bEndVLAN
+
+		// Set MVE config if needed
+		if bEndInnerVLAN != 0 || bEndVNICIndex > 0 {
+			bEndConfig.VXCOrderMVEConfig = &megaport.VXCOrderMVEConfig{
+				InnerVLAN:             bEndInnerVLAN,
+				NetworkInterfaceIndex: bEndVNICIndex,
+			}
+		}
+	}
+
+	// Parse B-End partner config if provided
+	bEndPartnerConfigStr, _ := cmd.Flags().GetString("b-end-partner-config")
+	if bEndPartnerConfigStr != "" {
+		bEndPartnerConfig, err := parsePartnerConfigFromJSON(bEndPartnerConfigStr)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing b-end-partner-config: %v", err)
+		}
+		bEndConfig.PartnerConfig = bEndPartnerConfig
+	}
+
+	req.BEndConfiguration = bEndConfig
+
+	return req, nil
+}
+
+// parsePartnerConfigFromJSON parses a JSON string into a VXCPartnerConfiguration
+func parsePartnerConfigFromJSON(jsonStr string) (megaport.VXCPartnerConfiguration, error) {
+	var rawConfig map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &rawConfig); err != nil {
+		return nil, err
+	}
+
+	connectType, ok := rawConfig["connectType"].(string)
+	if !ok {
+		return nil, fmt.Errorf("connectType is required and must be a string")
+	}
+
+	switch strings.ToUpper(connectType) {
+	case "AWS", "AWSHC":
+		return parseAWSConfig(rawConfig)
+	case "AZURE":
+		return parseAzureConfig(rawConfig)
+	case "GOOGLE":
+		return parseGoogleConfig(rawConfig)
+	case "ORACLE":
+		return parseOracleConfig(rawConfig)
+	case "IBM":
+		return parseIBMConfig(rawConfig)
+	case "TRANSIT":
+		return &megaport.VXCPartnerConfigTransit{
+			ConnectType: "TRANSIT",
+		}, nil
+	case "VROUTER":
+		return parseVRouterConfig(rawConfig)
+	default:
+		return nil, fmt.Errorf("unsupported connect type: %s", connectType)
+	}
+}
+
+// Parse AWS specific configuration
+func parseAWSConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigAWS, error) {
+	ownerAccount, _ := config["ownerAccount"].(string)
+	if ownerAccount == "" {
+		return nil, fmt.Errorf("ownerAccount is required for AWS configuration")
+	}
+
+	connectType, ok := config["connectType"].(string)
+	if !ok {
+		return nil, fmt.Errorf("connectType is required for AWS configuration")
+	}
+
+	awsConfig := &megaport.VXCPartnerConfigAWS{
+		ConnectType:  connectType,
+		OwnerAccount: ownerAccount,
+	}
+
+	// Handle optional fields
+	if asn, ok := config["asn"].(float64); ok {
+		awsConfig.ASN = int(asn)
+	}
+
+	if amazonAsn, ok := config["amazonAsn"].(float64); ok {
+		awsConfig.AmazonASN = int(amazonAsn)
+	}
+
+	if authKey, ok := config["authKey"].(string); ok {
+		awsConfig.AuthKey = authKey
+	}
+
+	if prefixes, ok := config["prefixes"].(string); ok {
+		awsConfig.Prefixes = prefixes
+	}
+
+	if customerIP, ok := config["customerIPAddress"].(string); ok {
+		awsConfig.CustomerIPAddress = customerIP
+	}
+
+	if amazonIP, ok := config["amazonIPAddress"].(string); ok {
+		awsConfig.AmazonIPAddress = amazonIP
+	}
+
+	if connName, ok := config["connectionName"].(string); ok {
+		awsConfig.ConnectionName = connName
+	}
+
+	if vpcType, ok := config["type"].(string); ok {
+		awsConfig.Type = vpcType
+	}
+
+	return awsConfig, nil
+}
+
+// Parse Azure specific configuration
+func parseAzureConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigAzure, error) {
+	serviceKey, _ := config["serviceKey"].(string)
+	if serviceKey == "" {
+		return nil, fmt.Errorf("serviceKey is required for Azure configuration")
+	}
+
+	azureConfig := &megaport.VXCPartnerConfigAzure{
+		ConnectType: "AZURE",
+		ServiceKey:  serviceKey,
+	}
+
+	// Parse peers if available
+	if peersRaw, ok := config["peers"].([]interface{}); ok {
+		for _, peerRaw := range peersRaw {
+			if peerMap, ok := peerRaw.(map[string]interface{}); ok {
+				peer := megaport.PartnerOrderAzurePeeringConfig{}
+
+				if pType, ok := peerMap["type"].(string); ok {
+					peer.Type = pType
+				}
+
+				if peerASN, ok := peerMap["peerASN"].(string); ok {
+					peer.PeerASN = peerASN
+				}
+
+				if primarySubnet, ok := peerMap["primarySubnet"].(string); ok {
+					peer.PrimarySubnet = primarySubnet
+				}
+
+				if secondarySubnet, ok := peerMap["secondarySubnet"].(string); ok {
+					peer.SecondarySubnet = secondarySubnet
+				}
+
+				if prefixes, ok := peerMap["prefixes"].(string); ok {
+					peer.Prefixes = prefixes
+				}
+
+				if sharedKey, ok := peerMap["sharedKey"].(string); ok {
+					peer.SharedKey = sharedKey
+				}
+
+				if vlan, ok := peerMap["vlan"].(float64); ok {
+					peer.VLAN = int(vlan)
+				}
+
+				azureConfig.Peers = append(azureConfig.Peers, peer)
+			}
+		}
+	}
+
+	return azureConfig, nil
+}
+
+// Parse Google specific configuration
+func parseGoogleConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigGoogle, error) {
+	pairingKey, _ := config["pairingKey"].(string)
+	if pairingKey == "" {
+		return nil, fmt.Errorf("pairingKey is required for Google configuration")
+	}
+
+	return &megaport.VXCPartnerConfigGoogle{
+		ConnectType: "GOOGLE",
+		PairingKey:  pairingKey,
+	}, nil
+}
+
+// Parse Oracle specific configuration
+func parseOracleConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigOracle, error) {
+	vcID, _ := config["virtualCircuitId"].(string)
+	if vcID == "" {
+		return nil, fmt.Errorf("virtualCircuitId is required for Oracle configuration")
+	}
+
+	return &megaport.VXCPartnerConfigOracle{
+		ConnectType:      "ORACLE",
+		VirtualCircuitId: vcID,
+	}, nil
+}
+
+// Parse IBM specific configuration
+func parseIBMConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigIBM, error) {
+	accountID, _ := config["accountID"].(string)
+	if accountID == "" {
+		return nil, fmt.Errorf("accountID is required for IBM configuration")
+	}
+
+	ibmConfig := &megaport.VXCPartnerConfigIBM{
+		ConnectType: "IBM",
+		AccountID:   accountID,
+	}
+
+	// Handle optional fields
+	if customerASN, ok := config["customerASN"].(float64); ok {
+		ibmConfig.CustomerASN = int(customerASN)
+	}
+
+	if customerIP, ok := config["customerIPAddress"].(string); ok {
+		ibmConfig.CustomerIPAddress = customerIP
+	}
+
+	if providerIP, ok := config["providerIPAddress"].(string); ok {
+		ibmConfig.ProviderIPAddress = providerIP
+	}
+
+	if name, ok := config["name"].(string); ok {
+		ibmConfig.Name = name
+	}
+
+	return ibmConfig, nil
+}
+
+// Parse VRouter specific configuration
+func parseVRouterConfig(config map[string]interface{}) (*megaport.VXCOrderVrouterPartnerConfig, error) {
+	// Extract interfaces
+	var interfaces []megaport.PartnerConfigInterface
+
+	if interfacesRaw, ok := config["interfaces"].([]interface{}); ok {
+		for _, ifaceRaw := range interfacesRaw {
+			if ifaceMap, ok := ifaceRaw.(map[string]interface{}); ok {
+				iface := megaport.PartnerConfigInterface{}
+
+				// Parse VLAN
+				if vlan, ok := ifaceMap["vlan"].(float64); ok {
+					iface.VLAN = int(vlan)
+				} else {
+					return nil, fmt.Errorf("vlan is required for vRouter interface")
+				}
+
+				// Parse IP addresses
+				if ipAddressesRaw, ok := ifaceMap["ipAddresses"].([]interface{}); ok {
+					for _, ipRaw := range ipAddressesRaw {
+						if ip, ok := ipRaw.(string); ok {
+							iface.IpAddresses = append(iface.IpAddresses, ip)
+						}
+					}
+				}
+
+				// Parse IP routes
+				if ipRoutesRaw, ok := ifaceMap["ipRoutes"].([]interface{}); ok {
+					for _, routeRaw := range ipRoutesRaw {
+						if routeMap, ok := routeRaw.(map[string]interface{}); ok {
+							route := megaport.IpRoute{}
+
+							if prefix, ok := routeMap["prefix"].(string); ok {
+								route.Prefix = prefix
+							}
+
+							if description, ok := routeMap["description"].(string); ok {
+								route.Description = description
+							}
+
+							if nextHop, ok := routeMap["nextHop"].(string); ok {
+								route.NextHop = nextHop
+							}
+
+							iface.IpRoutes = append(iface.IpRoutes, route)
+						}
+					}
+				}
+
+				// Parse NAT IP addresses
+				if natIPsRaw, ok := ifaceMap["natIpAddresses"].([]interface{}); ok {
+					for _, ipRaw := range natIPsRaw {
+						if ip, ok := ipRaw.(string); ok {
+							iface.NatIpAddresses = append(iface.NatIpAddresses, ip)
+						}
+					}
+				}
+
+				// Parse BFD config
+				if bfdRaw, ok := ifaceMap["bfd"].(map[string]interface{}); ok {
+					bfd := megaport.BfdConfig{}
+
+					if txInterval, ok := bfdRaw["txInterval"].(float64); ok {
+						bfd.TxInterval = int(txInterval)
+					}
+
+					if rxInterval, ok := bfdRaw["rxInterval"].(float64); ok {
+						bfd.RxInterval = int(rxInterval)
+					}
+
+					if multiplier, ok := bfdRaw["multiplier"].(float64); ok {
+						bfd.Multiplier = int(multiplier)
+					}
+
+					iface.Bfd = bfd
+				}
+
+				// Parse BGP connections
+				if bgpConnsRaw, ok := ifaceMap["bgpConnections"].([]interface{}); ok {
+					for _, bgpRaw := range bgpConnsRaw {
+						if bgpMap, ok := bgpRaw.(map[string]interface{}); ok {
+							bgp := megaport.BgpConnectionConfig{}
+
+							if peerAsn, ok := bgpMap["peerAsn"].(float64); ok {
+								bgp.PeerAsn = int(peerAsn)
+							}
+
+							if localAsn, ok := bgpMap["localAsn"].(float64); ok {
+								localAsnVal := int(localAsn)
+								bgp.LocalAsn = &localAsnVal
+							}
+
+							if localIP, ok := bgpMap["localIpAddress"].(string); ok {
+								bgp.LocalIpAddress = localIP
+							}
+
+							if peerIP, ok := bgpMap["peerIpAddress"].(string); ok {
+								bgp.PeerIpAddress = peerIP
+							}
+
+							if password, ok := bgpMap["password"].(string); ok {
+								bgp.Password = password
+							}
+
+							if shutdown, ok := bgpMap["shutdown"].(bool); ok {
+								bgp.Shutdown = shutdown
+							}
+
+							if description, ok := bgpMap["description"].(string); ok {
+								bgp.Description = description
+							}
+
+							if medIn, ok := bgpMap["medIn"].(float64); ok {
+								bgp.MedIn = int(medIn)
+							}
+
+							if medOut, ok := bgpMap["medOut"].(float64); ok {
+								bgp.MedOut = int(medOut)
+							}
+
+							if bfdEnabled, ok := bgpMap["bfdEnabled"].(bool); ok {
+								bgp.BfdEnabled = bfdEnabled
+							}
+
+							if exportPolicy, ok := bgpMap["exportPolicy"].(string); ok {
+								bgp.ExportPolicy = exportPolicy
+							}
+
+							if permitExportToRaw, ok := bgpMap["permitExportTo"].([]interface{}); ok {
+								for _, permitRaw := range permitExportToRaw {
+									if permit, ok := permitRaw.(string); ok {
+										bgp.PermitExportTo = append(bgp.PermitExportTo, permit)
+									}
+								}
+							}
+
+							if denyExportToRaw, ok := bgpMap["denyExportTo"].([]interface{}); ok {
+								for _, denyRaw := range denyExportToRaw {
+									if deny, ok := denyRaw.(string); ok {
+										bgp.DenyExportTo = append(bgp.DenyExportTo, deny)
+									}
+								}
+							}
+
+							if importWhitelist, ok := bgpMap["importWhitelist"].(float64); ok {
+								bgp.ImportWhitelist = int(importWhitelist)
+							}
+
+							if importBlacklist, ok := bgpMap["importBlacklist"].(float64); ok {
+								bgp.ImportBlacklist = int(importBlacklist)
+							}
+
+							if exportWhitelist, ok := bgpMap["exportWhitelist"].(float64); ok {
+								bgp.ExportWhitelist = int(exportWhitelist)
+							}
+
+							if exportBlacklist, ok := bgpMap["exportBlacklist"].(float64); ok {
+								bgp.ExportBlacklist = int(exportBlacklist)
+							}
+
+							if asPathPrependCount, ok := bgpMap["asPathPrependCount"].(float64); ok {
+								bgp.AsPathPrependCount = int(asPathPrependCount)
+							}
+
+							if peerType, ok := bgpMap["peerType"].(string); ok {
+								bgp.PeerType = peerType
+							}
+
+							iface.BgpConnections = append(iface.BgpConnections, bgp)
+						}
+					}
+				}
+
+				interfaces = append(interfaces, iface)
+			}
+		}
+	}
+
+	return &megaport.VXCOrderVrouterPartnerConfig{
+		Interfaces: interfaces,
+	}, nil
+}
+
+// buildVXCRequestFromJSON creates a BuyVXCRequest from a JSON string or file
+func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.BuyVXCRequest, error) {
+	var jsonData string
+
+	if jsonStr != "" {
+		jsonData = jsonStr
+	} else if jsonFilePath != "" {
+		// Read JSON from file
+		data, err := os.ReadFile(jsonFilePath)
+		if err != nil {
+			return nil, fmt.Errorf("error reading JSON file: %v", err)
+		}
+		jsonData = string(data)
+	} else {
+		return nil, fmt.Errorf("either json or json-file must be provided")
+	}
+
+	// Unmarshal JSON into request
+	var req megaport.BuyVXCRequest
+	if err := json.Unmarshal([]byte(jsonData), &req); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %v", err)
+	}
+
+	return &req, nil
+}
+
+// buildVXCRequestFromPrompt creates a BuyVXCRequest from interactive prompts
+func buildVXCRequestFromPrompt() (*megaport.BuyVXCRequest, error) {
+	// Prompt for the required fields
+	aEndUID, err := prompt("Enter A-End product UID (required): ")
+	if err != nil {
+		return nil, err
+	}
+	if aEndUID == "" {
+		return nil, fmt.Errorf("a-end product UID is required")
+	}
+
+	name, err := prompt("Enter VXC name (required): ")
+	if err != nil {
+		return nil, err
+	}
+	if name == "" {
+		return nil, fmt.Errorf("name is required")
+	}
+
+	rateLimitStr, err := prompt("Enter rate limit in Mbps (required): ")
+	if err != nil {
+		return nil, err
+	}
+	rateLimit, err := strconv.Atoi(rateLimitStr)
+	if err != nil || rateLimit <= 0 {
+		return nil, fmt.Errorf("rate limit must be a positive integer")
+	}
+
+	termStr, err := prompt("Enter term in months (1, 12, 24, or 36, required): ")
+	if err != nil {
+		return nil, err
+	}
+	term, err := strconv.Atoi(termStr)
+	if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
+		return nil, fmt.Errorf("term must be 1, 12, 24, or 36")
+	}
+
+	// Create the base request
+	req := &megaport.BuyVXCRequest{
+		PortUID:   aEndUID,
+		VXCName:   name,
+		RateLimit: rateLimit,
+		Term:      term,
+	}
+
+	// A-End configuration
+	aEndVLANStr, err := prompt("Enter A-End VLAN (0-4093, except 1, optional): ")
+	if err != nil {
+		return nil, err
+	}
+	aEndVLAN := 0
+	if aEndVLANStr != "" {
+		aEndVLAN, err = strconv.Atoi(aEndVLANStr)
+		if err != nil || aEndVLAN < 0 || aEndVLAN > 4093 || aEndVLAN == 1 {
+			return nil, fmt.Errorf("A-End VLAN must be 0-4093, except 1")
+		}
+	}
+
+	aEndInnerVLANStr, err := prompt("Enter A-End Inner VLAN (optional): ")
+	if err != nil {
+		return nil, err
+	}
+	aEndInnerVLAN := 0
+	if aEndInnerVLANStr != "" {
+		aEndInnerVLAN, err = strconv.Atoi(aEndInnerVLANStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid A-End Inner VLAN")
+		}
+	}
+
+	aEndVNICIndexStr, err := prompt("Enter A-End vNIC Index (optional): ")
+	if err != nil {
+		return nil, err
+	}
+	aEndVNICIndex := 0
+	if aEndVNICIndexStr != "" {
+		aEndVNICIndex, err = strconv.Atoi(aEndVNICIndexStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid A-End vNIC Index")
+		}
+	}
+
+	// Ask if A-End has partner config
+	hasAEndPartnerConfig, err := prompt("Do you want to configure A-End partner? (yes/no): ")
+	if err != nil {
+		return nil, err
+	}
+
+	aEndConfig := megaport.VXCOrderEndpointConfiguration{
+		VLAN: aEndVLAN,
+	}
+
+	if aEndInnerVLAN != 0 || aEndVNICIndex > 0 {
+		aEndConfig.VXCOrderMVEConfig = &megaport.VXCOrderMVEConfig{
+			InnerVLAN:             aEndInnerVLAN,
+			NetworkInterfaceIndex: aEndVNICIndex,
+		}
+	}
+
+	if strings.ToLower(hasAEndPartnerConfig) == "yes" {
+		aEndPartnerConfig, err := promptPartnerConfig("A-End")
+		if err != nil {
+			return nil, err
+		}
+		aEndConfig.PartnerConfig = aEndPartnerConfig
+	}
+
+	req.AEndConfiguration = aEndConfig
+
+	// B-End configuration - ask if connecting to another port first
+	connectToPort, err := prompt("Do you want to connect to another port? (yes/no): ")
+	if err != nil {
+		return nil, err
+	}
+
+	bEndConfig := megaport.VXCOrderEndpointConfiguration{}
+
+	if strings.ToLower(connectToPort) == "yes" {
+		bEndUID, err := prompt("Enter B-End product UID (required): ")
+		if err != nil {
+			return nil, err
+		}
+		if bEndUID == "" {
+			return nil, fmt.Errorf("B-End product UID is required")
+		}
+		bEndConfig.ProductUID = bEndUID
+
+		bEndVLANStr, err := prompt("Enter B-End VLAN (0-4093, except 1, optional): ")
+		if err != nil {
+			return nil, err
+		}
+		bEndVLAN := 0
+		if bEndVLANStr != "" {
+			bEndVLAN, err = strconv.Atoi(bEndVLANStr)
+			if err != nil || bEndVLAN < 0 || bEndVLAN > 4093 || bEndVLAN == 1 {
+				return nil, fmt.Errorf("B-End VLAN must be 0-4093, except 1")
+			}
+		}
+		bEndConfig.VLAN = bEndVLAN
+
+		bEndInnerVLANStr, err := prompt("Enter B-End Inner VLAN (optional): ")
+		if err != nil {
+			return nil, err
+		}
+		bEndInnerVLAN := 0
+		if bEndInnerVLANStr != "" {
+			bEndInnerVLAN, err = strconv.Atoi(bEndInnerVLANStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid B-End Inner VLAN")
+			}
+		}
+		bEndVNICIndexStr, err := prompt("Enter B-End vNIC Index (optional): ")
+		if err != nil {
+			return nil, err
+		}
+		bEndVNICIndex := 0
+		if bEndVNICIndexStr != "" {
+			bEndVNICIndex, err = strconv.Atoi(bEndVNICIndexStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid B-End vNIC Index")
+			}
+		}
+
+		if bEndInnerVLAN != 0 || bEndVNICIndex > 0 {
+			bEndConfig.VXCOrderMVEConfig = &megaport.VXCOrderMVEConfig{
+				InnerVLAN:             bEndInnerVLAN,
+				NetworkInterfaceIndex: bEndVNICIndex,
+			}
+		}
+
+	}
+
+	// Always ask if B-End has partner config - this is how cloud providers are connected
+	hasBEndPartnerConfig, err := prompt("Do you want to configure B-End partner? (yes/no): ")
+	if err != nil {
+		return nil, err
+	}
+
+	if strings.ToLower(hasBEndPartnerConfig) == "yes" {
+		bEndPartnerConfig, err := promptPartnerConfig("B-End")
+		if err != nil {
+			return nil, err
+		}
+		bEndConfig.PartnerConfig = bEndPartnerConfig
+	}
+
+	req.BEndConfiguration = bEndConfig
+
+	// Optional fields
+	promoCode, err := prompt("Enter promo code (optional): ")
+	if err != nil {
+		return nil, err
+	}
+	req.PromoCode = promoCode
+
+	serviceKey, err := prompt("Enter service key (optional): ")
+	if err != nil {
+		return nil, err
+	}
+	req.ServiceKey = serviceKey
+
+	costCentre, err := prompt("Enter cost centre (optional): ")
+	if err != nil {
+		return nil, err
+	}
+	req.CostCentre = costCentre
+
+	return req, nil
+}
 
 var buyVXCFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyVXCRequest) (*megaport.BuyVXCResponse, error) {
 	return client.VXCService.BuyVXC(ctx, req)
