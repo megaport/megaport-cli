@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
 
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -57,8 +59,24 @@ func Login(ctx context.Context) (*megaport.Client, error) {
 }
 
 var (
-	version = "dev" // This will be overridden by the build process
+	version = "dev" // Fallback version
 )
+
+// getGitVersion retrieves the current git tag
+func getGitVersion() string {
+	cmd := exec.Command("git", "describe", "--tags", "--abbrev=0")
+	out, err := cmd.Output()
+	if err != nil {
+		// Fall back to commit hash if no tag
+		commitCmd := exec.Command("git", "rev-parse", "--short", "HEAD")
+		commitOut, commitErr := commitCmd.Output()
+		if commitErr != nil {
+			return ""
+		}
+		return "dev-" + strings.TrimSpace(string(commitOut))
+	}
+	return strings.TrimSpace(string(out))
+}
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
@@ -70,6 +88,10 @@ var versionCmd = &cobra.Command{
 }
 
 func init() {
+	if v := getGitVersion(); v != "" {
+		version = v
+	}
+
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.PersistentFlags().StringVarP(&env, "env", "e", "production", "Environment to use (production, staging, development)")
 }
