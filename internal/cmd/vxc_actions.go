@@ -107,3 +107,105 @@ func hasNonInteractiveFlags(cmd *cobra.Command) bool {
 
 	return false
 }
+
+// UpdateVXC updates an existing VXC with the provided configuration
+func UpdateVXC(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	// Get the VXC UID from args
+	vxcUID := args[0]
+
+	// Determine input mode and build request
+	var req *megaport.UpdateVXCRequest
+	var err error
+
+	interactive, _ := cmd.Flags().GetBool("interactive")
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFilePath, _ := cmd.Flags().GetString("json-file")
+
+	if jsonStr != "" || jsonFilePath != "" {
+		// JSON mode
+		req, err = buildUpdateVXCRequestFromJSON(jsonStr, jsonFilePath)
+	} else if interactive || !hasUpdateVXCNonInteractiveFlags(cmd) {
+		// Interactive mode
+		req, err = buildUpdateVXCRequestFromPrompt(vxcUID)
+	} else {
+		// Flag mode
+		req, err = buildUpdateVXCRequestFromFlags(cmd)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if req == nil {
+		return fmt.Errorf("no update parameters provided")
+	}
+
+	// Set wait for update options if not already set
+	if !req.WaitForUpdate {
+		req.WaitForUpdate = true
+		req.WaitForTime = 5 * time.Minute
+	}
+
+	// Login to API
+	client, err := Login(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Call update API
+	fmt.Println("Updating VXC...")
+	err = updateVXCFunc(ctx, client, vxcUID, req)
+	if err != nil {
+		return fmt.Errorf("failed to update VXC: %v", err)
+	}
+
+	fmt.Println("VXC updated successfully.")
+	return nil
+}
+
+// hasUpdateVXCNonInteractiveFlags checks if any of the non-interactive flags for VXC update were set
+func hasUpdateVXCNonInteractiveFlags(cmd *cobra.Command) bool {
+	// List of flags that indicate non-interactive mode for VXC update
+	nonInteractiveFlags := []string{
+		"name", "rate-limit", "term", "cost-centre", "shutdown",
+		"a-end-vlan", "b-end-vlan", "a-end-inner-vlan", "b-end-inner-vlan",
+		"a-end-uid", "b-end-uid", "a-end-partner-config", "b-end-partner-config",
+	}
+
+	// Check if any of these flags were explicitly set
+	for _, flag := range nonInteractiveFlags {
+		if cmd.Flags().Changed(flag) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func DeleteVXC(cmd *cobra.Command, args []string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	client, err := loginFunc(ctx)
+	if err != nil {
+		return err
+	}
+
+	vxcUID := args[0]
+	req := &megaport.DeleteVXCRequest{
+		DeleteNow: true,
+	}
+
+	// The key fix - check error BEFORE printing success message
+	if err := deleteVXCFunc(ctx, client, vxcUID, req); err != nil {
+		return err // Return error without printing success message
+	}
+
+	_, err = consolePrintf("VXC %s deleted successfully\n", vxcUID)
+	if err != nil {
+		return err
+	}
+	return nil
+}

@@ -138,7 +138,7 @@ megaport vxc buy --json '{
       "ownerAccount": "123456789012",
       "asn": 65000,
       "amazonAsn": 64512,
-	  "type": "private"
+      "type": "private"
     }
   }
 }'
@@ -149,12 +149,123 @@ megaport vxc buy --json-file ./vxc-config.json
 	RunE: WrapRunE(BuyVXC),
 }
 
+var updateVXCCmd = &cobra.Command{
+	Use:   "update [vxcUID]",
+	Short: "Update an existing Virtual Cross Connect (VXC)",
+	Args:  cobra.ExactArgs(1),
+	Long: `Update an existing Virtual Cross Connect (VXC) through the Megaport API.
+
+This command allows you to update an existing VXC by providing the necessary details.
+You can provide details in one of three ways:
+
+1. Interactive Mode:
+   The command will prompt you for each field that can be updated.
+
+2. Flag Mode:
+   Provide fields to update using flags:
+   --name, --rate-limit, --term, --cost-centre, --shutdown, 
+   --a-end-vlan, --b-end-vlan, --a-end-inner-vlan, --b-end-inner-vlan,
+   --a-end-uid, --b-end-uid, --a-end-partner-config, --b-end-partner-config
+
+3. JSON Mode:
+   Provide a JSON string or file with update fields:
+   --json <json-string> or --json-file <path>
+
+Updateable fields:
+- name: New name for the VXC
+- rate-limit: New bandwidth in Mbps
+- term: New contract term in months (1, 12, 24, or 36)
+- cost-centre: New cost centre for billing
+- shutdown: Whether to shut down the VXC (true/false)
+- a-end-vlan: New VLAN for A-End (0-4093, except 1)
+- b-end-vlan: New VLAN for B-End (0-4093, except 1)
+- a-end-inner-vlan: New inner VLAN for A-End (-1 or higher)
+- b-end-inner-vlan: New inner VLAN for B-End (-1 or higher)
+- a-end-uid: New A-End product UID
+- b-end-uid: New B-End product UID
+
+NOTE: For partner configurations, only VRouter partner configurations can be updated.
+Other CSP partner configurations (AWS, Azure, etc.) cannot be changed after creation.
+
+Example usage:
+
+# Interactive mode
+megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive
+
+# Flag mode - Basic updates
+megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
+  --name "New VXC Name" \
+  --rate-limit 2000 \
+  --cost-centre "New Cost Centre"
+
+# Flag mode - Update VLANs
+megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
+  --a-end-vlan 200 \
+  --b-end-vlan 300
+
+# Flag mode - Update with VRouter partner config
+megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
+  --b-end-partner-config '{
+    "interfaces": [
+      {
+        "vlan": 100,
+        "ipAddresses": ["192.168.1.1/30"],
+        "bgpConnections": [
+          {
+            "peerAsn": 65000,
+            "localAsn": 64512,
+            "localIpAddress": "192.168.1.1",
+            "peerIpAddress": "192.168.1.2",
+            "password": "bgppassword",
+            "shutdown": false,
+            "bfdEnabled": true
+          }
+        ]
+      }
+    ]
+  }'
+
+# JSON mode
+megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{
+  "name": "Updated VXC Name",
+  "rateLimit": 2000,
+  "costCentre": "New Cost Centre",
+  "aEndVlan": 200,
+  "bEndVlan": 300,
+  "term": 24,
+  "shutdown": false
+}'
+
+# JSON file
+megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json-file ./vxc-update.json
+`,
+	RunE: WrapRunE(UpdateVXC),
+}
+
+// deleteVXCCmd deletes an existing Virtual Cross Connect (VXC) in the Megaport API.
+var deleteVXCCmd = &cobra.Command{
+	Use:   "delete [vxcUID]",
+	Short: "Delete an existing Virtual Cross Connect (VXC)",
+	Args:  cobra.ExactArgs(1),
+	Long: `Delete an existing Virtual Cross Connect (VXC) through the Megaport API.
+
+This command allows you to delete an existing VXC by providing its UID.
+
+Example usage:
+
+# Delete a VXC
+megaport vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+`,
+	RunE: WrapRunE(DeleteVXC),
+}
+
 func init() {
 	vxcCmd.AddCommand(getVXCCmd)
 	vxcCmd.AddCommand(buyVXCCmd)
+	vxcCmd.AddCommand(updateVXCCmd)
+	vxcCmd.AddCommand(deleteVXCCmd)
 	rootCmd.AddCommand(vxcCmd)
 
-	// Add flags for non-interactive mode
 	buyVXCCmd.Flags().String("a-end-uid", "", "UID of the A-End product")
 	buyVXCCmd.Flags().String("b-end-uid", "", "UID of the B-End product")
 	buyVXCCmd.Flags().String("name", "", "Name of the VXC")
@@ -174,4 +285,21 @@ func init() {
 	buyVXCCmd.Flags().String("json", "", "JSON string with all VXC configuration")
 	buyVXCCmd.Flags().String("json-file", "", "Path to JSON file with VXC configuration")
 	buyVXCCmd.Flags().Bool("interactive", false, "Use interactive mode")
+
+	updateVXCCmd.Flags().String("name", "", "New name for the VXC")
+	updateVXCCmd.Flags().Int("rate-limit", 0, "New bandwidth in Mbps")
+	updateVXCCmd.Flags().Int("term", 0, "New contract term in months (1, 12, 24, or 36)")
+	updateVXCCmd.Flags().String("cost-centre", "", "New cost centre for billing")
+	updateVXCCmd.Flags().Bool("shutdown", false, "Whether to shut down the VXC")
+	updateVXCCmd.Flags().Int("a-end-vlan", 0, "New VLAN for A-End (0-4093, except 1)")
+	updateVXCCmd.Flags().Int("b-end-vlan", 0, "New VLAN for B-End (0-4093, except 1)")
+	updateVXCCmd.Flags().Int("a-end-inner-vlan", 0, "New inner VLAN for A-End")
+	updateVXCCmd.Flags().Int("b-end-inner-vlan", 0, "New inner VLAN for B-End")
+	updateVXCCmd.Flags().String("a-end-uid", "", "New A-End product UID")
+	updateVXCCmd.Flags().String("b-end-uid", "", "New B-End product UID")
+	updateVXCCmd.Flags().String("a-end-partner-config", "", "JSON string with A-End VRouter partner configuration")
+	updateVXCCmd.Flags().String("b-end-partner-config", "", "JSON string with B-End VRouter partner configuration")
+	updateVXCCmd.Flags().String("json", "", "JSON string with update fields")
+	updateVXCCmd.Flags().String("json-file", "", "Path to JSON file with update fields")
+	updateVXCCmd.Flags().Bool("interactive", false, "Use interactive mode")
 }
