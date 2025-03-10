@@ -70,7 +70,7 @@ func TestBuyVXC(t *testing.T) {
 
 				// Skip the buildVXCRequestFromPrompt function entirely
 				buildVXCRequestFromPromptOrig := buildVXCRequestFromPrompt
-				buildVXCRequestFromPrompt = func() (*megaport.BuyVXCRequest, error) {
+				buildVXCRequestFromPrompt = func(m megaport.VXCService) (*megaport.BuyVXCRequest, error) {
 					return &megaport.BuyVXCRequest{
 						PortUID:   "a-end-uid",
 						VXCName:   "Test VXC",

@@ -48,13 +48,19 @@ func BuyVXC(cmd *cobra.Command, args []string) error {
 	jsonStr, _ := cmd.Flags().GetString("json")
 	jsonFilePath, _ := cmd.Flags().GetString("json-file")
 
+	// Call the BuyVXC method
+	client, err := Login(ctx)
+	if err != nil {
+		return err
+	}
+
 	// Check if we have JSON input first
 	if jsonStr != "" || jsonFilePath != "" {
 		// JSON mode
 		req, err = buildVXCRequestFromJSON(jsonStr, jsonFilePath)
 	} else if interactive || !hasNonInteractiveFlags(cmd) {
 		// Interactive mode if explicitly requested or if no other input mode is provided
-		req, err = buildVXCRequestFromPrompt()
+		req, err = buildVXCRequestFromPrompt(client.VXCService)
 	} else {
 		// Flag mode - use when interactive is false and flags are provided
 		req, err = buildVXCRequestFromFlags(cmd)
@@ -66,12 +72,6 @@ func BuyVXC(cmd *cobra.Command, args []string) error {
 
 	if req == nil {
 		return fmt.Errorf("no input provided")
-	}
-
-	// Call the BuyVXC method
-	client, err := Login(ctx)
-	if err != nil {
-		return err
 	}
 
 	fmt.Println("Buying VXC...")

@@ -530,15 +530,7 @@ var deleteVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID st
 var consolePrintf = fmt.Printf
 
 // buildVXCRequestFromPrompt creates a BuyVXCRequest from interactive prompts
-var buildVXCRequestFromPrompt = func() (*megaport.BuyVXCRequest, error) {
-	// Prompt for the required fields
-	aEndUID, err := prompt("Enter A-End product UID (required): ")
-	if err != nil {
-		return nil, err
-	}
-	if aEndUID == "" {
-		return nil, fmt.Errorf("a-end product UID is required")
-	}
+var buildVXCRequestFromPrompt = func(svc megaport.VXCService) (*megaport.BuyVXCRequest, error) {
 
 	name, err := prompt("Enter VXC name (required): ")
 	if err != nil {
@@ -564,14 +556,6 @@ var buildVXCRequestFromPrompt = func() (*megaport.BuyVXCRequest, error) {
 	term, err := strconv.Atoi(termStr)
 	if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
 		return nil, fmt.Errorf("term must be 1, 12, 24, or 36")
-	}
-
-	// Create the base request
-	req := &megaport.BuyVXCRequest{
-		PortUID:   aEndUID,
-		VXCName:   name,
-		RateLimit: rateLimit,
-		Term:      term,
 	}
 
 	// A-End configuration
@@ -628,26 +612,38 @@ var buildVXCRequestFromPrompt = func() (*megaport.BuyVXCRequest, error) {
 		}
 	}
 
+	// Create the base request
+	req := &megaport.BuyVXCRequest{
+		VXCName:   name,
+		RateLimit: rateLimit,
+		Term:      term,
+	}
+
 	if strings.ToLower(hasAEndPartnerConfig) == "yes" {
-		aEndPartnerConfig, err := promptPartnerConfig("A-End")
+		aEndPartnerConfig, uid, err := promptPartnerConfig("A-End", svc)
 		if err != nil {
 			return nil, err
 		}
 		aEndConfig.PartnerConfig = aEndPartnerConfig
+		if uid != "" {
+			req.PortUID = uid
+		}
 	}
 
+	if req.PortUID == "" {
+		// Prompt for the required fields
+		aEndUID, err := prompt("Enter A-End product UID (required): ")
+		if err != nil {
+			return nil, err
+		}
+		if aEndUID == "" {
+			return nil, fmt.Errorf("a-end product UID is required")
+		}
+		req.PortUID = aEndUID
+	}
 	req.AEndConfiguration = aEndConfig
 
 	bEndConfig := megaport.VXCOrderEndpointConfiguration{}
-
-	bEndUID, err := prompt("Enter B-End product UID (required): ")
-	if err != nil {
-		return nil, err
-	}
-	if bEndUID == "" {
-		return nil, fmt.Errorf("B-End product UID is required")
-	}
-	bEndConfig.ProductUID = bEndUID
 
 	bEndVLANStr, err := prompt("Enter B-End VLAN (0-4093, except 1, optional): ")
 	if err != nil {
@@ -698,11 +694,25 @@ var buildVXCRequestFromPrompt = func() (*megaport.BuyVXCRequest, error) {
 	}
 
 	if strings.ToLower(hasBEndPartnerConfig) == "yes" {
-		bEndPartnerConfig, err := promptPartnerConfig("B-End")
+		bEndPartnerConfig, uid, err := promptPartnerConfig("B-End", svc)
 		if err != nil {
 			return nil, err
 		}
+		if uid != "" {
+			bEndConfig.ProductUID = uid
+		}
 		bEndConfig.PartnerConfig = bEndPartnerConfig
+	}
+
+	if bEndConfig.ProductUID == "" {
+		bEndUID, err := prompt("Enter B-End product UID (required): ")
+		if err != nil {
+			return nil, err
+		}
+		if bEndUID == "" {
+			return nil, fmt.Errorf("B-End product UID is required")
+		}
+		bEndConfig.ProductUID = bEndUID
 	}
 
 	req.BEndConfiguration = bEndConfig
@@ -1608,32 +1618,63 @@ func printVXCs(vxcs []*megaport.VXC, format string) error {
 	return printOutput(outputs, format)
 }
 
-func promptPartnerConfig(end string) (megaport.VXCPartnerConfiguration, error) {
+func promptPartnerConfig(end string, svc megaport.VXCService) (megaport.VXCPartnerConfiguration, string, error) {
 	partner, err := prompt(fmt.Sprintf("Enter %s partner (AWS, Azure, Google, Oracle, IBM, VRouter, Transit) (optional): ", end))
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if partner == "" {
-		return nil, nil
+		return nil, "", nil
 	}
 
 	switch strings.ToLower(partner) {
 	case "aws":
-		return promptAWSConfig()
+		awsPartner, err := promptAWSConfig()
+		if err != nil {
+			return nil, "", err
+		}
+		partnerPortUID, err := prompt("Enter AWS Partner Port product UID (required): ")
+		if err != nil {
+			return nil, "", err
+		}
+		if partnerPortUID == "" {
+			return nil, "", fmt.Errorf("AWS Partner Port product UID is required")
+		}
+		return awsPartner, partnerPortUID, nil
 	case "azure":
-		return promptAzureConfig()
+		azurePartner, uid, err := promptAzureConfig(svc)
+		if err != nil {
+			return nil, "", err
+		}
+		return azurePartner, uid, nil
 	case "google":
-		return promptGoogleConfig()
+		googlePartner, uid, err := promptGoogleConfig(svc)
+		if err != nil {
+			return nil, "", err
+		}
+		return googlePartner, uid, nil
 	case "oracle":
-		return promptOracleConfig()
+		oraclePartner, uid, err := promptOracleConfig(svc)
+		if err != nil {
+			return nil, "", err
+		}
+		return oraclePartner, uid, nil
 	case "ibm":
-		return promptIBMConfig()
+		ibmPartner, uid, err := promptIBMConfig(svc)
+		if err != nil {
+			return nil, "", err
+		}
+		return ibmPartner, uid, nil
 	case "vrouter":
-		return promptVRouterConfig(end)
+		vrouterPartner, err := promptVRouterConfig(end)
+		if err != nil {
+			return nil, "", err
+		}
+		return vrouterPartner, "", nil
 	case "transit":
-		return promptTransitConfig(), nil
+		return promptTransitConfig(), "", nil
 	default:
-		return nil, fmt.Errorf("unsupported partner: %s", partner)
+		return nil, "", fmt.Errorf("unsupported partner: %s", partner)
 	}
 }
 
@@ -1726,17 +1767,17 @@ func promptAWSConfig() (*megaport.VXCPartnerConfigAWS, error) {
 }
 
 // promptAzureConfig prompts the user for Azure-specific configuration details.
-func promptAzureConfig() (*megaport.VXCPartnerConfigAzure, error) {
+func promptAzureConfig(svc megaport.VXCService) (*megaport.VXCPartnerConfigAzure, string, error) {
 	serviceKey, err := prompt("Enter service key (required): ")
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	var peers []megaport.PartnerOrderAzurePeeringConfig
 	for {
 		addPeer, err := prompt("Add a peering config? (yes/no): ")
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if addPeer != "yes" {
 			break
@@ -1744,16 +1785,27 @@ func promptAzureConfig() (*megaport.VXCPartnerConfigAzure, error) {
 
 		peerConfig, err := promptAzurePeeringConfig()
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		peers = append(peers, peerConfig)
 	}
+
+	fmt.Println("Finding partner port...")
+
+	partnerPortRes, err := svc.LookupPartnerPorts(context.Background(), &megaport.LookupPartnerPortsRequest{
+		Key:     serviceKey,
+		Partner: "AZURE",
+	})
+	if err != nil {
+		return nil, "", fmt.Errorf("error looking up partner ports: %v", err)
+	}
+	uid := partnerPortRes.ProductUID
 
 	return &megaport.VXCPartnerConfigAzure{
 		ConnectType: "AZURE",
 		ServiceKey:  serviceKey,
 		Peers:       peers,
-	}, nil
+	}, uid, nil
 }
 
 // Helper to prompt for Azure Peering Config
@@ -1808,39 +1860,61 @@ func promptAzurePeeringConfig() (megaport.PartnerOrderAzurePeeringConfig, error)
 	}, nil
 }
 
-func promptGoogleConfig() (*megaport.VXCPartnerConfigGoogle, error) {
+func promptGoogleConfig(svc megaport.VXCService) (*megaport.VXCPartnerConfigGoogle, string, error) {
 	pairingKey, err := prompt("Enter pairing key (required): ")
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
+
+	fmt.Println("Finding partner port...")
+
+	partnerPortRes, err := svc.LookupPartnerPorts(context.Background(), &megaport.LookupPartnerPortsRequest{
+		Key:     pairingKey,
+		Partner: "GOOGLE",
+	})
+	if err != nil {
+		return nil, "", fmt.Errorf("error looking up partner ports: %v", err)
+	}
+	uid := partnerPortRes.ProductUID
 
 	return &megaport.VXCPartnerConfigGoogle{
 		ConnectType: "GOOGLE",
 		PairingKey:  pairingKey,
-	}, nil
+	}, uid, nil
 }
 
-func promptOracleConfig() (*megaport.VXCPartnerConfigOracle, error) {
+func promptOracleConfig(svc megaport.VXCService) (*megaport.VXCPartnerConfigOracle, string, error) {
 	virtualCircuitId, err := prompt("Enter virtual circuit ID (required): ")
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
+
+	fmt.Println("Finding partner port...")
+
+	partnerPortRes, err := svc.LookupPartnerPorts(context.Background(), &megaport.LookupPartnerPortsRequest{
+		Key:     virtualCircuitId,
+		Partner: "ORACLE",
+	})
+	if err != nil {
+		return nil, "", fmt.Errorf("error looking up partner ports: %v", err)
+	}
+	uid := partnerPortRes.ProductUID
 
 	return &megaport.VXCPartnerConfigOracle{
 		ConnectType:      "ORACLE",
 		VirtualCircuitId: virtualCircuitId,
-	}, nil
+	}, uid, nil
 }
 
-func promptIBMConfig() (*megaport.VXCPartnerConfigIBM, error) {
+func promptIBMConfig(svc megaport.VXCService) (*megaport.VXCPartnerConfigIBM, string, error) {
 	accountID, err := prompt("Enter account ID (required): ")
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	customerASNStr, err := prompt("Enter customer ASN (optional): ")
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	customerASN, err := strconv.Atoi(customerASNStr)
 	if err != nil {
@@ -1849,18 +1923,29 @@ func promptIBMConfig() (*megaport.VXCPartnerConfigIBM, error) {
 
 	customerIPAddress, err := prompt("Enter customer IP address (optional): ")
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	providerIPAddress, err := prompt("Enter provider IP address (optional): ")
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	name, err := prompt("Enter name (optional): ")
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
+
+	fmt.Println("Finding partner port...")
+
+	partnerPortRes, err := svc.LookupPartnerPorts(context.Background(), &megaport.LookupPartnerPortsRequest{
+		Key:     accountID,
+		Partner: "IBM",
+	})
+	if err != nil {
+		return nil, "", fmt.Errorf("error looking up partner ports: %v", err)
+	}
+	uid := partnerPortRes.ProductUID
 
 	return &megaport.VXCPartnerConfigIBM{
 		ConnectType:       "IBM",
@@ -1869,5 +1954,5 @@ func promptIBMConfig() (*megaport.VXCPartnerConfigIBM, error) {
 		CustomerIPAddress: customerIPAddress,
 		ProviderIPAddress: providerIPAddress,
 		Name:              name,
-	}, nil
+	}, uid, nil
 }
