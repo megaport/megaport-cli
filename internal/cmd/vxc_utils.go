@@ -638,67 +638,58 @@ var buildVXCRequestFromPrompt = func() (*megaport.BuyVXCRequest, error) {
 
 	req.AEndConfiguration = aEndConfig
 
-	// B-End configuration - ask if connecting to another port first
-	connectToPort, err := prompt("Do you want to connect to another port? (yes/no): ")
+	bEndConfig := megaport.VXCOrderEndpointConfiguration{}
+
+	bEndUID, err := prompt("Enter B-End product UID (required): ")
 	if err != nil {
 		return nil, err
 	}
+	if bEndUID == "" {
+		return nil, fmt.Errorf("B-End product UID is required")
+	}
+	bEndConfig.ProductUID = bEndUID
 
-	bEndConfig := megaport.VXCOrderEndpointConfiguration{}
+	bEndVLANStr, err := prompt("Enter B-End VLAN (0-4093, except 1, optional): ")
+	if err != nil {
+		return nil, err
+	}
+	bEndVLAN := 0
+	if bEndVLANStr != "" {
+		bEndVLAN, err = strconv.Atoi(bEndVLANStr)
+		if err != nil || bEndVLAN < 0 || bEndVLAN > 4093 || bEndVLAN == 1 {
+			return nil, fmt.Errorf("B-End VLAN must be 0-4093, except 1")
+		}
+	}
+	bEndConfig.VLAN = bEndVLAN
 
-	if strings.ToLower(connectToPort) == "yes" {
-		bEndUID, err := prompt("Enter B-End product UID (required): ")
+	bEndInnerVLANStr, err := prompt("Enter B-End Inner VLAN (optional): ")
+	if err != nil {
+		return nil, err
+	}
+	bEndInnerVLAN := 0
+	if bEndInnerVLANStr != "" {
+		bEndInnerVLAN, err = strconv.Atoi(bEndInnerVLANStr)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid B-End Inner VLAN")
 		}
-		if bEndUID == "" {
-			return nil, fmt.Errorf("B-End product UID is required")
-		}
-		bEndConfig.ProductUID = bEndUID
-
-		bEndVLANStr, err := prompt("Enter B-End VLAN (0-4093, except 1, optional): ")
+	}
+	bEndVNICIndexStr, err := prompt("Enter B-End vNIC Index (optional): ")
+	if err != nil {
+		return nil, err
+	}
+	bEndVNICIndex := 0
+	if bEndVNICIndexStr != "" {
+		bEndVNICIndex, err = strconv.Atoi(bEndVNICIndexStr)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid B-End vNIC Index")
 		}
-		bEndVLAN := 0
-		if bEndVLANStr != "" {
-			bEndVLAN, err = strconv.Atoi(bEndVLANStr)
-			if err != nil || bEndVLAN < 0 || bEndVLAN > 4093 || bEndVLAN == 1 {
-				return nil, fmt.Errorf("B-End VLAN must be 0-4093, except 1")
-			}
-		}
-		bEndConfig.VLAN = bEndVLAN
+	}
 
-		bEndInnerVLANStr, err := prompt("Enter B-End Inner VLAN (optional): ")
-		if err != nil {
-			return nil, err
+	if bEndInnerVLAN != 0 || bEndVNICIndex > 0 {
+		bEndConfig.VXCOrderMVEConfig = &megaport.VXCOrderMVEConfig{
+			InnerVLAN:             bEndInnerVLAN,
+			NetworkInterfaceIndex: bEndVNICIndex,
 		}
-		bEndInnerVLAN := 0
-		if bEndInnerVLANStr != "" {
-			bEndInnerVLAN, err = strconv.Atoi(bEndInnerVLANStr)
-			if err != nil {
-				return nil, fmt.Errorf("invalid B-End Inner VLAN")
-			}
-		}
-		bEndVNICIndexStr, err := prompt("Enter B-End vNIC Index (optional): ")
-		if err != nil {
-			return nil, err
-		}
-		bEndVNICIndex := 0
-		if bEndVNICIndexStr != "" {
-			bEndVNICIndex, err = strconv.Atoi(bEndVNICIndexStr)
-			if err != nil {
-				return nil, fmt.Errorf("invalid B-End vNIC Index")
-			}
-		}
-
-		if bEndInnerVLAN != 0 || bEndVNICIndex > 0 {
-			bEndConfig.VXCOrderMVEConfig = &megaport.VXCOrderMVEConfig{
-				InnerVLAN:             bEndInnerVLAN,
-				NetworkInterfaceIndex: bEndVNICIndex,
-			}
-		}
-
 	}
 
 	hasBEndPartnerConfig, err := prompt("Do you want to configure B-End partner? (yes/no): ")
@@ -1658,7 +1649,16 @@ func promptAWSConfig() (*megaport.VXCPartnerConfigAWS, error) {
 		return nil, err
 	}
 
+	if connectType != "AWS" && connectType != "AWSHC" {
+		return nil, fmt.Errorf("connect type must be AWS or AWSHC")
+	}
+
 	ownerAccount, err := prompt("Enter owner account ID (required): ")
+	if err != nil {
+		return nil, err
+	}
+
+	connectionName, err := prompt("Enter connection name (required): ")
 	if err != nil {
 		return nil, err
 	}
@@ -1701,12 +1701,7 @@ func promptAWSConfig() (*megaport.VXCPartnerConfigAWS, error) {
 		return nil, err
 	}
 
-	connectionName, err := prompt("Enter connection name (optional): ")
-	if err != nil {
-		return nil, err
-	}
-
-	return &megaport.VXCPartnerConfigAWS{
+	partnerConfigAWS := &megaport.VXCPartnerConfigAWS{
 		ConnectType:       connectType,
 		OwnerAccount:      ownerAccount,
 		ASN:               asn,
@@ -1716,7 +1711,18 @@ func promptAWSConfig() (*megaport.VXCPartnerConfigAWS, error) {
 		CustomerIPAddress: customerIPAddress,
 		AmazonIPAddress:   amazonIPAddress,
 		ConnectionName:    connectionName,
-	}, nil
+	}
+	if connectType == "AWS" {
+		vifType, err := prompt("Enter VIF type (required - either private or public): ")
+		if err != nil {
+			return nil, err
+		}
+		if vifType != "private" && vifType != "public" {
+			return nil, fmt.Errorf("VIF type must be private or public")
+		}
+		partnerConfigAWS.Type = vifType
+	}
+	return partnerConfigAWS, nil
 }
 
 // promptAzureConfig prompts the user for Azure-specific configuration details.
