@@ -18,7 +18,7 @@ For API details, consult the [Megaport API Documentation](https://dev.megaport.c
 go install github.com/megaport/megaport-cli@latest
 
 # Verify installation
-megaport version
+megaport-cli version
 ```
 
 ## Shell Completion
@@ -27,19 +27,19 @@ The CLI supports shell completion for bash, zsh, fish, and PowerShell:
 
 ```sh
 # Bash (Linux)
-megaport completion bash > /etc/bash_completion.d/megaport
+megaport-cli completion bash > /etc/bash_completion.d/megaport
 
 # Bash (macOS with Homebrew)
-megaport completion bash > $(brew --prefix)/etc/bash_completion.d/megaport
+megaport-cli completion bash > $(brew --prefix)/etc/bash_completion.d/megaport
 
 # Zsh
-megaport completion zsh > "${fpath[1]}/_megaport"
+megaport-cli completion zsh > "${fpath[1]}/_megaport"
 
 # Fish
-megaport completion fish > ~/.config/fish/completions/megaport.fish
+megaport-cli completion fish > ~/.config/fish/completions/megaport.fish
 
 # PowerShell
-megaport completion powershell > megaport.ps1
+megaport-cli completion powershell > megaport.ps1
 ```
 
 ## Environment Support
@@ -84,169 +84,169 @@ All commands support multiple output formats:
 #### Locations
 ```sh
 # List all locations
-megaport locations list
+megaport-cli locations list
 
 # List locations filtered by metro area
-megaport locations list --metro "San Francisco"
+megaport-cli locations list --metro "San Francisco"
 
 # Get details for a specific location
-megaport locations get LOCATION_ID --output json
+megaport-cli locations get LOCATION_ID --output json
 ```
 
 #### Ports
 ```sh
 # List all ports
-megaport ports list
+megaport-cli ports list
 
 # List ports filtered by location ID and port speed
-megaport ports list --location-id 1 --port-speed 1000
+megaport-cli ports list --location-id 1 --port-speed 1000
 
 # Get details for a specific port
-megaport ports get PORT_UID --output json
+megaport-cli ports get PORT_UID --output json
 
 # Buy a new port
-megaport ports buy --interactive
-megaport ports buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true
-megaport ports buy --json '{"name":"My Port","term":12,"portSpeed":10000,"locationId":123,"marketPlaceVisibility":true}'
-megaport ports buy --json-file ./port-config.json
+megaport-cli ports buy --interactive
+megaport-cli ports buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true
+megaport-cli ports buy --json '{"name":"My Port","term":12,"portSpeed":10000,"locationId":123,"marketPlaceVisibility":true}'
+megaport-cli ports buy --json-file ./port-config.json
 
 # Buy a LAG port
-megaport ports buy-lag --interactive
-megaport ports buy-lag --name "My LAG Port" --term 12 --port-speed 10000 --location-id 123 --lag-count 2 --marketplace-visibility true
-megaport ports buy-lag --json '{"name":"My LAG Port","term":12,"portSpeed":10000,"locationId":123,"lagCount":2,"marketPlaceVisibility":true}'
-megaport ports buy-lag --json-file ./lag-port-config.json
+megaport-cli ports buy-lag --interactive
+megaport-cli ports buy-lag --name "My LAG Port" --term 12 --port-speed 10000 --location-id 123 --lag-count 2 --marketplace-visibility true
+megaport-cli ports buy-lag --json '{"name":"My LAG Port","term":12,"portSpeed":10000,"locationId":123,"lagCount":2,"marketPlaceVisibility":true}'
+megaport-cli ports buy-lag --json-file ./lag-port-config.json
 
 # Update a port
-megaport ports update PORT_UID --interactive
-megaport ports update PORT_UID --name "Updated Port" --marketplace-visibility true
-megaport ports update PORT_UID --json '{"name":"Updated Port","marketplaceVisibility":true}'
-megaport ports update PORT_UID --json-file ./update-port-config.json
+megaport-cli ports update PORT_UID --interactive
+megaport-cli ports update PORT_UID --name "Updated Port" --marketplace-visibility true
+megaport-cli ports update PORT_UID --json '{"name":"Updated Port","marketplaceVisibility":true}'
+megaport-cli ports update PORT_UID --json-file ./update-port-config.json
 
 # Delete a port
-megaport ports delete PORT_UID --now
+megaport-cli ports delete PORT_UID --now
 
 # Restore a deleted port
-megaport ports restore PORT_UID
+megaport-cli ports restore PORT_UID
 
 # Lock a port
-megaport ports lock PORT_UID
+megaport-cli ports lock PORT_UID
 
 # Unlock a port
-megaport ports unlock PORT_UID
+megaport-cli ports unlock PORT_UID
 
 # Check VLAN availability on a port
-megaport ports check-vlan PORT_UID VLAN_ID
+megaport-cli ports check-vlan PORT_UID VLAN_ID
 ```
 
 #### MCR (Megaport Cloud Routers)
 ```sh
 # List all MCRs
-megaport mcr list
+megaport-cli mcr list
 
 # Get details for a specific MCR
-megaport mcr get MCR_UID --output json
+megaport-cli mcr get MCR_UID --output json
 
 # Buy a new MCR
-megaport mcr buy --interactive
-megaport mcr buy --name "My MCR" --term 12 --port-speed 10000 --location-id 123
-megaport mcr buy --name "My MCR" --term 12 --port-speed 10000 --location-id 123 --mcr-asn 65000 --diversity-zone "blue"
-megaport mcr buy --json '{"name":"My MCR","term":12,"portSpeed":10000,"locationId":123}'
-megaport mcr buy --json-file ./mcr-config.json
+megaport-cli mcr buy --interactive
+megaport-cli mcr buy --name "My MCR" --term 12 --port-speed 10000 --location-id 123
+megaport-cli mcr buy --name "My MCR" --term 12 --port-speed 10000 --location-id 123 --mcr-asn 65000 --diversity-zone "blue"
+megaport-cli mcr buy --json '{"name":"My MCR","term":12,"portSpeed":10000,"locationId":123}'
+megaport-cli mcr buy --json-file ./mcr-config.json
 
 # Update an MCR
-megaport mcr update MCR_UID --interactive
-megaport mcr update MCR_UID --name "Updated MCR" --cost-centre "IT-123"
-megaport mcr update MCR_UID --json '{"name":"Updated MCR","costCentre":"IT-123"}'
-megaport mcr update MCR_UID --json-file ./update-mcr-config.json
+megaport-cli mcr update MCR_UID --interactive
+megaport-cli mcr update MCR_UID --name "Updated MCR" --cost-centre "IT-123"
+megaport-cli mcr update MCR_UID --json '{"name":"Updated MCR","costCentre":"IT-123"}'
+megaport-cli mcr update MCR_UID --json-file ./update-mcr-config.json
 
 # Delete an MCR
-megaport mcr delete MCR_UID --now
+megaport-cli mcr delete MCR_UID --now
 
 # Restore a deleted MCR
-megaport mcr restore MCR_UID
+megaport-cli mcr restore MCR_UID
 
 # Create a prefix filter list on an MCR
-megaport mcr create-prefix-filter-list MCR_UID --interactive
-megaport mcr create-prefix-filter-list MCR_UID --description "Block List" --address-family "IPv4" --entries '[{"action":"DENY","prefix":"10.0.0.0/8","ge":16,"le":24}]'
-megaport mcr create-prefix-filter-list MCR_UID --json '{"description":"Block List","addressFamily":"IPv4","entries":[{"action":"DENY","prefix":"10.0.0.0/8","ge":16,"le":24}]}'
-megaport mcr create-prefix-filter-list MCR_UID --json-file ./prefix-filter-config.json
+megaport-cli mcr create-prefix-filter-list MCR_UID --interactive
+megaport-cli mcr create-prefix-filter-list MCR_UID --description "Block List" --address-family "IPv4" --entries '[{"action":"DENY","prefix":"10.0.0.0/8","ge":16,"le":24}]'
+megaport-cli mcr create-prefix-filter-list MCR_UID --json '{"description":"Block List","addressFamily":"IPv4","entries":[{"action":"DENY","prefix":"10.0.0.0/8","ge":16,"le":24}]}'
+megaport-cli mcr create-prefix-filter-list MCR_UID --json-file ./prefix-filter-config.json
 
 # List all prefix filter lists for a specific MCR
-megaport mcr list-prefix-filter-lists MCR_UID
+megaport-cli mcr list-prefix-filter-lists MCR_UID
 
 # Get details for a specific prefix filter list on an MCR
-megaport mcr get-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID --output json
+megaport-cli mcr get-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID --output json
 
 # Update a prefix filter list on an MCR
-megaport mcr update-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID --interactive
-megaport mcr update-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID --description "Updated Block List" --address-family "IPv4" --entries '[{"action":"DENY","prefix":"10.0.0.0/8"},{"action":"PERMIT","prefix":"192.168.0.0/16"}]'
-megaport mcr update-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID --json '{"description":"Updated Block List","addressFamily":"IPv4","entries":[{"action":"DENY","prefix":"10.0.0.0/8"},{"action":"PERMIT","prefix":"192.168.0.0/16"}]}'
-megaport mcr update-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID --json-file ./update-prefix-filter-config.json
+megaport-cli mcr update-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID --interactive
+megaport-cli mcr update-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID --description "Updated Block List" --address-family "IPv4" --entries '[{"action":"DENY","prefix":"10.0.0.0/8"},{"action":"PERMIT","prefix":"192.168.0.0/16"}]'
+megaport-cli mcr update-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID --json '{"description":"Updated Block List","addressFamily":"IPv4","entries":[{"action":"DENY","prefix":"10.0.0.0/8"},{"action":"PERMIT","prefix":"192.168.0.0/16"}]}'
+megaport-cli mcr update-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID --json-file ./update-prefix-filter-config.json
 
 # Delete a prefix filter list on an MCR
-megaport mcr delete-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID
+megaport-cli mcr delete-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID
 ```
 
 #### MVE (Megaport Virtual Edge)
 ```sh
 # Get details for a specific MVE
-megaport mve get MVE_UID --output json
+megaport-cli mve get MVE_UID --output json
 
 # Buy a new MVE
-megaport mve buy --interactive
+megaport-cli mve buy --interactive
 
 # Buy a new MVE - Cisco example
-megaport mve buy --name "My Cisco MVE" --term 12 --location-id 67 --vendor-config '{"vendor":"cisco","imageId":1,"productSize":"large","mveLabel":"cisco-mve","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA...","sshPublicKey":"ssh-rsa AAAA...","cloudInit":"#cloud-config\npackages:\n - nginx\n","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"key123","fmcNatId":"natid123"}' --vnics '[{"description":"Data Plane","vlan":100}]'
-megaport mve buy --json '{"name":"My Cisco MVE","term":12,"locationId":67,"vendorConfig":{"vendor":"cisco","imageId":1,"productSize":"large","mveLabel":"cisco-mve","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA...","sshPublicKey":"ssh-rsa AAAA...","cloudInit":"#cloud-config\npackages:\n - nginx\n","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"key123","fmcNatId":"natid123"},"vnics":[{"description":"Data Plane","vlan":100}]}'
+megaport-cli mve buy --name "My Cisco MVE" --term 12 --location-id 67 --vendor-config '{"vendor":"cisco","imageId":1,"productSize":"large","mveLabel":"cisco-mve","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA...","sshPublicKey":"ssh-rsa AAAA...","cloudInit":"#cloud-config\npackages:\n - nginx\n","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"key123","fmcNatId":"natid123"}' --vnics '[{"description":"Data Plane","vlan":100}]'
+megaport-cli mve buy --json '{"name":"My Cisco MVE","term":12,"locationId":67,"vendorConfig":{"vendor":"cisco","imageId":1,"productSize":"large","mveLabel":"cisco-mve","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA...","sshPublicKey":"ssh-rsa AAAA...","cloudInit":"#cloud-config\npackages:\n - nginx\n","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"key123","fmcNatId":"natid123"},"vnics":[{"description":"Data Plane","vlan":100}]}'
 
 # Buy a new MVE - Aruba example
-megaport mve buy --name "My Aruba MVE" --term 1 --location-id 67 --vendor-config '{"vendor":"aruba","imageId":23,"productSize":"MEDIUM","accountName":"Aruba Test Account","accountKey":"12345678","systemTag":"Preconfiguration-aruba-test-1"}' --vnics '[{"description":"Data Plane"},{"description":"Control Plane"},{"description":"Management Plane"}]'
-megaport mve buy --json '{"name":"My Aruba MVE","term":1,"locationId":67,"vendorConfig":{"vendor":"aruba","imageId":23,"productSize":"MEDIUM","accountName":"Aruba Test Account","accountKey":"12345678","systemTag":"Preconfiguration-aruba-test-1"},"vnics":[{"description":"Data Plane"},{"description":"Control Plane"},{"description":"Management Plane"}]}'
+megaport-cli mve buy --name "My Aruba MVE" --term 1 --location-id 67 --vendor-config '{"vendor":"aruba","imageId":23,"productSize":"MEDIUM","accountName":"Aruba Test Account","accountKey":"12345678","systemTag":"Preconfiguration-aruba-test-1"}' --vnics '[{"description":"Data Plane"},{"description":"Control Plane"},{"description":"Management Plane"}]'
+megaport-cli mve buy --json '{"name":"My Aruba MVE","term":1,"locationId":67,"vendorConfig":{"vendor":"aruba","imageId":23,"productSize":"MEDIUM","accountName":"Aruba Test Account","accountKey":"12345678","systemTag":"Preconfiguration-aruba-test-1"},"vnics":[{"description":"Data Plane"},{"description":"Control Plane"},{"description":"Management Plane"}]}'
 
 # Buy a new MVE - Versa example
-megaport mve buy --name "My Versa MVE" --term 1 --location-id 67 --vendor-config '{"vendor":"versa","imageId":20,"productSize":"MEDIUM","directorAddress":"director1.versa.com","controllerAddress":"controller1.versa.com","localAuth":"SDWAN-Branch@Versa.com","remoteAuth":"Controller-1-staging@Versa.com","serialNumber":"Megaport-Hub1"}' --vnics '[{"description":"Data Plane"}]'
-megaport mve buy --json '{"name":"My Versa MVE","term":1,"locationId":67,"vendorConfig":{"vendor":"versa","imageId":20,"productSize":"MEDIUM","directorAddress":"director1.versa.com","controllerAddress":"controller1.versa.com","localAuth":"SDWAN-Branch@Versa.com","remoteAuth":"Controller-1-staging@Versa.com","serialNumber":"Megaport-Hub1"},"vnics":[{"description":"Data Plane"}]}'
+megaport-cli mve buy --name "My Versa MVE" --term 1 --location-id 67 --vendor-config '{"vendor":"versa","imageId":20,"productSize":"MEDIUM","directorAddress":"director1.versa.com","controllerAddress":"controller1.versa.com","localAuth":"SDWAN-Branch@Versa.com","remoteAuth":"Controller-1-staging@Versa.com","serialNumber":"Megaport-Hub1"}' --vnics '[{"description":"Data Plane"}]'
+megaport-cli mve buy --json '{"name":"My Versa MVE","term":1,"locationId":67,"vendorConfig":{"vendor":"versa","imageId":20,"productSize":"MEDIUM","directorAddress":"director1.versa.com","controllerAddress":"controller1.versa.com","localAuth":"SDWAN-Branch@Versa.com","remoteAuth":"Controller-1-staging@Versa.com","serialNumber":"Megaport-Hub1"},"vnics":[{"description":"Data Plane"}]}'
 
 # Update an existing MVE
-megaport mve update MVE_UID --interactive
-megaport mve update MVE_UID --name "Updated MVE Name" --cost-centre "New Cost Centre" --contract-term 24
-megaport mve update MVE_UID --json '{"name": "New MVE Name", "costCentre": "New Cost Centre", "contractTermMonths": 24}'
+megaport-cli mve update MVE_UID --interactive
+megaport-cli mve update MVE_UID --name "Updated MVE Name" --cost-centre "New Cost Centre" --contract-term 24
+megaport-cli mve update MVE_UID --json '{"name": "New MVE Name", "costCentre": "New Cost Centre", "contractTermMonths": 24}'
 
 # Delete an MVE
-megaport mve delete MVE_UID --now
+megaport-cli mve delete MVE_UID --now
 
 # List all available MVE images
-megaport mve list-images
+megaport-cli mve list-images
 
 # List MVE images filtered by vendor
-megaport mve list-images --vendor "Cisco"
+megaport-cli mve list-images --vendor "Cisco"
 
 # List MVE images filtered by product code
-megaport mve list-images --product-code "FORTINET456"
+megaport-cli mve list-images --product-code "FORTINET456"
 
 # List MVE images filtered by ID
-megaport mve list-images --id 1
+megaport-cli mve list-images --id 1
 
 # List MVE images filtered by version
-megaport mve list-images --version "2.0"
+megaport-cli mve list-images --version "2.0"
 
 # List MVE images filtered by release image
-megaport mve list-images --release-image
+megaport-cli mve list-images --release-image
 
 # List all available MVE sizes
-megaport mve list-sizes
+megaport-cli mve list-sizes
 ```
 
 #### VXC (Virtual Cross Connects)
 ```sh
 # Get details for a specific VXC
-megaport vxc get VXC_UID --output json
+megaport-cli vxc get VXC_UID --output json
 
 # Buy a new VXC - Interactive mode. 
-megaport vxc buy --interactive
+megaport-cli vxc buy --interactive
 
 # Flag mode - Basic VXC between two ports
-megaport vxc buy \
+megaport-cli vxc buy \
   --a-end-uid "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
   --b-end-uid "dcc-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy" \
   --name "My VXC" \
@@ -256,7 +256,7 @@ megaport vxc buy \
   --b-end-vlan 200
 
 # Flag mode - VXC to AWS Direct Connect
-megaport vxc buy \
+megaport-cli vxc buy \
   --a-end-uid "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
   --b-end-uid "dcc-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy" \
   --name "My AWS VXC" \
@@ -266,7 +266,7 @@ megaport vxc buy \
   --b-end-partner-config '{"connectType":"AWS","ownerAccount":"123456789012","asn":65000,"amazonAsn":64512}'
 
 # Flag mode - VXC to Azure ExpressRoute
-megaport vxc buy \
+megaport-cli vxc buy \
   --a-end-uid "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
   --name "My Azure VXC" \
   --rate-limit 1000 \
@@ -275,48 +275,48 @@ megaport vxc buy \
   --b-end-partner-config '{"connectType":"AZURE","serviceKey":"s-abcd1234"}'
 
 # Interactive mode
-megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive
+megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive
 
 # Flag mode - Basic updates
-megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
+megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   --name "New VXC Name" \
   --rate-limit 2000 \
   --cost-centre "New Cost Centre"
 
 # Flag mode - Update VLANs
-megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
+megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   --a-end-vlan 200 \
   --b-end-vlan 300
 
 # Delete a VXC
-megaport vxc delete VXC_UID
+megaport-cli vxc delete VXC_UID
 ```
 
 #### Partners
 ```sh
 # List all partner ports
-megaport partners list
+megaport-cli partners list
 
 # List partner ports filtered by product name and company name
-megaport partners list --product-name "AWS Direct Connect" --company-name "AWS"
+megaport-cli partners list --product-name "AWS Direct Connect" --company-name "AWS"
 
 # Interactive search for partner ports with prompts
-megaport partners find
+megaport-cli partners find
 ```
 
 #### Service Keys
 ```sh
 # List all service keys
-megaport servicekeys list
+megaport-cli servicekeys list
 
 # Get details for a specific service key
-megaport servicekeys get SERVICE_KEY_UID --output json
+megaport-cli servicekeys get SERVICE_KEY_UID --output json
 
 # Create a new service key
-megaport servicekeys create --product-uid PRODUCT_UID --description "My Service Key" --max-speed 1000
+megaport-cli servicekeys create --product-uid PRODUCT_UID --description "My Service Key" --max-speed 1000
 
 # Update an existing service key
-megaport servicekeys update SERVICE_KEY_UID --description "Updated Description"
+megaport-cli servicekeys update SERVICE_KEY_UID --description "Updated Description"
 ```
 
 ## Contributing

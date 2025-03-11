@@ -6,7 +6,7 @@ import (
 
 // vxcCmd is the base command for all operations related to Virtual Cross Connects (VXCs).
 // It groups subcommands for managing VXCs in the Megaport API.
-// Use the "megaport vxc get [vxcUID]" command to retrieve detailed information about a specific VXC.
+// Use the "megaport-cli vxc get [vxcUID]" command to retrieve detailed information about a specific VXC.
 var vxcCmd = &cobra.Command{
 	Use:   "vxc",
 	Short: "Manage VXCs in the Megaport API",
@@ -14,7 +14,7 @@ var vxcCmd = &cobra.Command{
 
 This command groups all operations related to Virtual Cross Connects (VXCs).
 You can use the subcommands to perform actions such as retrieving details for a specific VXC.
-For example, use the "megaport vxc get [vxcUID]" command to fetch details for the VXC identified by its UID.
+For example, use the "megaport-cli vxc get [vxcUID]" command to fetch details for the VXC identified by its UID.
 `,
 }
 
@@ -25,7 +25,7 @@ For example, use the "megaport vxc get [vxcUID]" command to fetch details for th
 //
 // Example usage:
 //
-//	megaport vxc get VXC12345
+//	megaport-cli vxc get VXC12345
 var getVXCCmd = &cobra.Command{
 	Use:   "get [vxcUID]",
 	Short: "Get details for a single VXC",
@@ -76,10 +76,10 @@ Optional fields:
 Example usage:
 
 # Interactive mode
-megaport vxc buy --interactive
+megaport-cli vxc buy --interactive
 
 # Flag mode - Basic VXC between two ports
-megaport vxc buy \
+megaport-cli vxc buy \
   --a-end-uid "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
   --b-end-uid "dcc-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy" \
   --name "My VXC" \
@@ -89,7 +89,7 @@ megaport vxc buy \
   --b-end-vlan 200
 
 # Flag mode - VXC to AWS Direct Connect
-megaport vxc buy \
+megaport-cli vxc buy \
   --a-end-uid "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
   --b-end-uid "dcc-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy" \
   --name "My AWS VXC" \
@@ -99,7 +99,7 @@ megaport vxc buy \
   --b-end-partner-config '{"connectType":"AWS","ownerAccount":"123456789012","asn":65000,"amazonAsn":64512}'
 
 # Flag mode - VXC to Azure ExpressRoute
-megaport vxc buy \
+megaport-cli vxc buy \
   --a-end-uid "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
   --name "My Azure VXC" \
   --rate-limit 1000 \
@@ -108,7 +108,7 @@ megaport vxc buy \
   --b-end-partner-config '{"connectType":"AZURE","serviceKey":"s-abcd1234"}'
 
 # JSON mode
-megaport vxc buy --json '{
+megaport-cli vxc buy --json '{
   "portUID": "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
   "vxcName": "My VXC",
   "rateLimit": 1000,
@@ -123,7 +123,7 @@ megaport vxc buy --json '{
 }'
 
 # JSON mode with partner config
-megaport vxc buy --json '{
+megaport-cli vxc buy --json '{
   "portUID": "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
   "vxcName": "My AWS VXC",
   "rateLimit": 1000,
@@ -144,7 +144,7 @@ megaport vxc buy --json '{
 }'
 
 # JSON file
-megaport vxc buy --json-file ./vxc-config.json
+megaport-cli vxc buy --json-file ./vxc-config.json
 `,
 	RunE: WrapRunE(BuyVXC),
 }
@@ -190,21 +190,21 @@ Other CSP partner configurations (AWS, Azure, etc.) cannot be changed after crea
 Example usage:
 
 # Interactive mode
-megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive
+megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive
 
 # Flag mode - Basic updates
-megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
+megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   --name "New VXC Name" \
   --rate-limit 2000 \
   --cost-centre "New Cost Centre"
 
 # Flag mode - Update VLANs
-megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
+megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   --a-end-vlan 200 \
   --b-end-vlan 300
 
 # Flag mode - Update with VRouter partner config
-megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
+megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   --b-end-partner-config '{
     "interfaces": [
       {
@@ -226,7 +226,7 @@ megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   }'
 
 # JSON mode
-megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{
+megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{
   "name": "Updated VXC Name",
   "rateLimit": 2000,
   "costCentre": "New Cost Centre",
@@ -237,7 +237,7 @@ megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{
 }'
 
 # JSON file
-megaport vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json-file ./vxc-update.json
+megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json-file ./vxc-update.json
 `,
 	RunE: WrapRunE(UpdateVXC),
 }
@@ -254,7 +254,7 @@ This command allows you to delete an existing VXC by providing its UID.
 Example usage:
 
 # Delete a VXC
-megaport vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 `,
 	RunE: WrapRunE(DeleteVXC),
 }

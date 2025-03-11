@@ -14,13 +14,13 @@ var completionCmd = &cobra.Command{
 
 Bash:
 
-  $ source <(megaport completion bash)
+  $ source <(megaport-cli completion bash)
 
   # To load completions for each session, execute once:
   # Linux:
-  $ megaport completion bash > /etc/bash_completion.d/megaport
+  $ megaport-cli completion bash > /etc/bash_completion.d/megaport
   # macOS:
-  $ megaport completion bash > /usr/local/etc/bash_completion.d/megaport
+  $ megaport-cli completion bash > /usr/local/etc/bash_completion.d/megaport
 
 Zsh:
 
@@ -30,23 +30,23 @@ Zsh:
   $ echo "autoload -U compinit; compinit" >> ~/.zshrc
 
   # To load completions for each session, execute once:
-  $ megaport completion zsh > "${fpath[1]}/_megaport"
+  $ megaport-cli completion zsh > "${fpath[1]}/_megaport"
 
   # You will need to start a new shell for this setup to take effect.
 
 fish:
 
-  $ megaport completion fish | source
+  $ megaport-cli completion fish | source
 
   # To load completions for each session, execute once:
-  $ megaport completion fish > ~/.config/fish/completions/megaport.fish
+  $ megaport-cli completion fish > ~/.config/fish/completions/megaport.fish
 
 PowerShell:
 
-  PS> megaport completion powershell | Out-String | Invoke-Expression
+  PS> megaport-cli completion powershell | Out-String | Invoke-Expression
 
   # To load completions for every new session, run:
-  PS> megaport completion powershell > megaport.ps1
+  PS> megaport-cli completion powershell > megaport.ps1
   # and source this file from your PowerShell profile.
 `,
 	Args: cobra.ExactArgs(1),

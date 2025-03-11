@@ -17,10 +17,10 @@ This command groups all operations related to service keys. You can use its subc
   - Get details of a specific service key.
 
 Examples:
-  megaport servicekeys list
-  megaport servicekeys get [key]
-  megaport servicekeys create --product-uid "product-uid" --description "My service key"
-  megaport servicekeys update [key] --description "Updated description"
+  megaport-cli servicekeys list
+  megaport-cli servicekeys get [key]
+  megaport-cli servicekeys create --product-uid "product-uid" --description "My service key"
+  megaport-cli servicekeys update [key] --description "Updated description"
 `,
 }
 
@@ -34,7 +34,7 @@ This command generates a new service key and displays its details.
 You may need to provide additional flags or parameters based on your API requirements.
 
 Example:
-  megaport servicekeys create --product-uid "product-uid" --description "My service key"
+  megaport-cli servicekeys create --product-uid "product-uid" --description "My service key"
 `,
 	RunE: WrapRunE(CreateServiceKey),
 }
@@ -49,7 +49,7 @@ This command allows you to modify the details of an existing service key.
 You need to specify the key identifier as an argument, and provide any updated values as flags.
 
 Example:
-  megaport servicekeys update [key] --description "Updated description"
+  megaport-cli servicekeys update [key] --description "Updated description"
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(UpdateServiceKey),
@@ -65,7 +65,7 @@ This command retrieves and displays all service keys along with their details.
 Use this command to review the keys available in your account.
 
 Example:
-  megaport servicekeys list
+  megaport-cli servicekeys list
 `,
 	RunE: WrapRunE(ListServiceKeys),
 }
@@ -80,7 +80,7 @@ This command fetches and displays detailed information about a given service key
 You must provide the service key identifier as an argument.
 
 Example:
-  megaport servicekeys get [key]
+  megaport-cli servicekeys get [key]
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(GetServiceKey),
