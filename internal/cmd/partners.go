@@ -27,6 +27,7 @@ This command groups all operations related to partner ports. You can use its sub
 to list and filter available partner ports based on specific criteria.
 
 Examples:
+  megaport partners find # interactive mode
   megaport partners list
   megaport partners list --product-name "AWS Partner Port" --company-name "AWS" --location-id 1
 `,
