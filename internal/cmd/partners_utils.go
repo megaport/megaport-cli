@@ -61,7 +61,7 @@ func filterPartners(
 }
 
 // printPartners prints the partner ports in the specified output format.
-func printPartners(partners []*megaport.PartnerMegaport, format string) error {
+var printPartnersFunc = func(partners []*megaport.PartnerMegaport, format string) error {
 	// Convert partners to output format
 	outputs := make([]PartnerOutput, 0, len(partners))
 	for _, partner := range partners {

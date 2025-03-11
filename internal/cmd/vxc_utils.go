@@ -1927,13 +1927,15 @@ func promptIBMConfig() (*megaport.VXCPartnerConfigIBM, error) {
 		return nil, fmt.Errorf("name is required")
 	}
 
-	customerASNStr, err := prompt("Enter customer ASN (optional): ")
+	var customerASN int
+
+	customerASNStr, err := prompt("Enter customer ASN (required if opposite end is not an MCR): ")
 	if err != nil {
 		return nil, err
 	}
-	customerASN, err := strconv.Atoi(customerASNStr)
+	customerASN, err = strconv.Atoi(customerASNStr)
 	if err != nil {
-		customerASN = 0
+		return nil, err
 	}
 
 	customerIPAddress, err := prompt("Enter customer IP address (optional): ")
@@ -1946,12 +1948,17 @@ func promptIBMConfig() (*megaport.VXCPartnerConfigIBM, error) {
 		return nil, err
 	}
 
-	return &megaport.VXCPartnerConfigIBM{
+	partnerConfig := &megaport.VXCPartnerConfigIBM{
 		ConnectType:       "IBM",
 		AccountID:         accountID,
-		CustomerASN:       customerASN,
 		CustomerIPAddress: customerIPAddress,
 		ProviderIPAddress: providerIPAddress,
 		Name:              name,
-	}, nil
+	}
+
+	if customerASN != 0 {
+		partnerConfig.CustomerASN = customerASN
+	}
+
+	return partnerConfig, nil
 }

@@ -136,7 +136,7 @@ func TestFilterPartners(t *testing.T) {
 
 func TestPrintPartners_Table(t *testing.T) {
 	output := captureOutput(func() {
-		err := printPartners(testPartners, "table")
+		err := printPartnersFunc(testPartners, "table")
 		assert.NoError(t, err)
 	})
 
@@ -149,7 +149,7 @@ ProductTwo     uid2   TypeB          CompanyB       2             ZoneB         
 
 func TestPrintPartners_JSON(t *testing.T) {
 	output := captureOutput(func() {
-		err := printPartners(testPartners, "json")
+		err := printPartnersFunc(testPartners, "json")
 		assert.NoError(t, err)
 	})
 
@@ -178,7 +178,7 @@ func TestPrintPartners_JSON(t *testing.T) {
 
 func TestPrintPartners_CSV(t *testing.T) {
 	output := captureOutput(func() {
-		err := printPartners(testPartners, "csv")
+		err := printPartnersFunc(testPartners, "csv")
 		assert.NoError(t, err)
 	})
 
@@ -192,7 +192,7 @@ ProductTwo,uid2,TypeB,CompanyB,2,ZoneB,false
 func TestPrintPartners_Invalid(t *testing.T) {
 	var err error
 	output := captureOutput(func() {
-		err = printPartners(testPartners, "invalid")
+		err = printPartnersFunc(testPartners, "invalid")
 	})
 
 	assert.Error(t, err)
@@ -205,7 +205,7 @@ func TestPrintPartners_EmptySlice(t *testing.T) {
 
 	// Table format with empty slice
 	tableOutput := captureOutput(func() {
-		err := printPartners(emptySlice, "table")
+		err := printPartnersFunc(emptySlice, "table")
 		assert.NoError(t, err)
 	})
 	expectedTable := `product_name   uid   connect_type   company_name   location_id   diversity_zone   vxc_permitted
@@ -214,14 +214,14 @@ func TestPrintPartners_EmptySlice(t *testing.T) {
 
 	// JSON format with empty slice
 	jsonOutput := captureOutput(func() {
-		err := printPartners(emptySlice, "json")
+		err := printPartnersFunc(emptySlice, "json")
 		assert.NoError(t, err)
 	})
 	assert.Equal(t, "[]\n", jsonOutput)
 
 	// CSV format with empty slice
 	csvOutput := captureOutput(func() {
-		err := printPartners(emptySlice, "csv")
+		err := printPartnersFunc(emptySlice, "csv")
 		assert.NoError(t, err)
 	})
 	expectedCSV := `product_name,uid,connect_type,company_name,location_id,diversity_zone,vxc_permitted
