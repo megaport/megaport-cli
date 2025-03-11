@@ -1,10 +1,6 @@
 package cmd
 
 import (
-	"context"
-	"fmt"
-	"time"
-
 	"github.com/spf13/cobra"
 )
 
@@ -32,7 +28,7 @@ to list and filter available partner ports based on specific criteria.
 
 Examples:
   megaport partners list
-  megaport partners list --product-name "Enterprise" --company-name "Acme Corp" --location-id 1
+  megaport partners list --product-name "AWS Partner Port" --company-name "AWS" --location-id 1
 `,
 }
 
@@ -62,41 +58,36 @@ Available filters:
 Example usage:
 
   megaport partners list
-  megaport partners list --product-name "Enterprise"
-  megaport partners list --connect-type "Fiber"
-  megaport partners list --company-name "Acme Corp"
-  megaport partners list --location-id 2
-  megaport partners list --diversity-zone "ZoneA"
+  megaport partners list --product-name "AWS Partner Port"
+  megaport partners list --connect-type "AWS"
+  megaport partners list --company-name "AWS"
+  megaport partners list --location-id 67
+  megaport partners list --diversity-zone "blue"
 `,
 	RunE: WrapRunE(ListPartners),
 }
 
-func ListPartners(cmd *cobra.Command, args []string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+// Add this new command definition after listPartnersCmd
+var findPartnersCmd = &cobra.Command{
+	Use:   "find",
+	Short: "Find partner ports interactively",
+	Long: `Find partner ports using an interactive search with optional filters.
 
-	client, err := Login(ctx)
-	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
-	}
+This command launches an interactive session to help you find partner ports.
+You'll be prompted for various search criteria, but all prompts are optional.
+Simply press Enter to skip any filter you don't want to apply.
 
-	partners, err := client.PartnerService.ListPartnerMegaports(ctx)
-	if err != nil {
-		return fmt.Errorf("error listing partners: %v", err)
-	}
+Available filters:
+  - Product name
+  - Connect type
+  - Company name
+  - Location ID
+  - Diversity zone
 
-	// Get filter values from flags
-	productName, _ := cmd.Flags().GetString("product-name")
-	connectType, _ := cmd.Flags().GetString("connect-type")
-	companyName, _ := cmd.Flags().GetString("company-name")
-	locationID, _ := cmd.Flags().GetInt("location-id")
-	diversityZone, _ := cmd.Flags().GetString("diversity-zone")
-
-	// Apply filters
-	filteredPartners := filterPartners(partners, productName, connectType, companyName, locationID, diversityZone)
-
-	// Print partners with current output format
-	return printPartners(filteredPartners, outputFormat)
+Example usage:
+  megaport partners find
+`,
+	RunE: WrapRunE(FindPartners),
 }
 
 func init() {
@@ -105,6 +96,7 @@ func init() {
 	listPartnersCmd.Flags().StringVar(&companyName, "company-name", "", "Filter by Company Name")
 	listPartnersCmd.Flags().IntVar(&locationID, "location-id", 0, "Filter by Location ID")
 	listPartnersCmd.Flags().StringVar(&diversityZone, "diversity-zone", "", "Filter by Diversity Zone")
+	partnersCmd.AddCommand(findPartnersCmd)
 	partnersCmd.AddCommand(listPartnersCmd)
 	rootCmd.AddCommand(partnersCmd)
 }

@@ -298,10 +298,10 @@ megaport vxc delete VXC_UID
 megaport partners list
 
 # List partner ports filtered by product name and company name
-megaport partners list --product-name "AWS Direct Connect" --company-name "Acme Corp"
+megaport partners list --product-name "AWS Direct Connect" --company-name "AWS"
 
-# Get details for a specific partner port
-megaport partners get PARTNER_UID --output json
+# Interactive search for partner ports with prompts
+megaport partners find
 ```
 
 #### Service Keys
