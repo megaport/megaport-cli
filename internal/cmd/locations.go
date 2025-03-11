@@ -14,8 +14,8 @@ This command groups all operations related to locations. You can use its subcomm
 to list and get details for specific locations.
 
 Examples:
-  megaport locations list
-  megaport locations get [locationID]
+  megaport-cli locations list
+  megaport-cli locations get [locationID]
 `,
 }
 
@@ -35,10 +35,10 @@ Available filters:
 
 Example usage:
 
-  megaport locations list
-  megaport locations list --metro "San Francisco"
-  megaport locations list --country "US"
-  megaport locations list --name "Equinix"
+  megaport-cli locations list
+  megaport-cli locations list --metro "San Francisco"
+  megaport-cli locations list --country "US"
+  megaport-cli locations list --name "Equinix"
 `,
 	RunE: WrapRunE(ListLocations),
 }
@@ -54,7 +54,7 @@ You need to provide the ID of the location as an argument.
 
 Example usage:
 
-  megaport locations get [locationID]
+  megaport-cli locations get [locationID]
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(GetLocation),

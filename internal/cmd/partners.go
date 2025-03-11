@@ -17,7 +17,7 @@ var (
 //
 // Example usage:
 //
-//	megaport partners list
+//	megaport-cli partners list
 var partnersCmd = &cobra.Command{
 	Use:   "partners",
 	Short: "Manage partner ports in the Megaport API",
@@ -27,9 +27,9 @@ This command groups all operations related to partner ports. You can use its sub
 to list and filter available partner ports based on specific criteria.
 
 Examples:
-  megaport partners find # interactive mode
-  megaport partners list
-  megaport partners list --product-name "AWS Partner Port" --company-name "AWS" --location-id 1
+  megaport-cli partners find # interactive mode
+  megaport-cli partners list
+  megaport-cli partners list --product-name "AWS Partner Port" --company-name "AWS" --location-id 1
 `,
 }
 
@@ -39,7 +39,7 @@ Examples:
 //
 // Example usage:
 //
-//	megaport partners list --product-name "Enterprise" --connect-type "Fiber" --company-name "Acme Corp" --location-id 2 --diversity-zone "ZoneA"
+//	megaport-cli partners list --product-name "Enterprise" --connect-type "Fiber" --company-name "Acme Corp" --location-id 2 --diversity-zone "ZoneA"
 var listPartnersCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all partner ports",
@@ -58,12 +58,12 @@ Available filters:
 
 Example usage:
 
-  megaport partners list
-  megaport partners list --product-name "AWS Partner Port"
-  megaport partners list --connect-type "AWS"
-  megaport partners list --company-name "AWS"
-  megaport partners list --location-id 67
-  megaport partners list --diversity-zone "blue"
+  megaport-cli partners list
+  megaport-cli partners list --product-name "AWS Partner Port"
+  megaport-cli partners list --connect-type "AWS"
+  megaport-cli partners list --company-name "AWS"
+  megaport-cli partners list --location-id 67
+  megaport-cli partners list --diversity-zone "blue"
 `,
 	RunE: WrapRunE(ListPartners),
 }
@@ -86,7 +86,7 @@ Available filters:
   - Diversity zone
 
 Example usage:
-  megaport partners find
+  megaport-cli partners find
 `,
 	RunE: WrapRunE(FindPartners),
 }

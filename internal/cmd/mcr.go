@@ -9,7 +9,7 @@ import (
 //
 // Example usage:
 //
-//	megaport mcr get [mcrUID]
+//	megaport-cli mcr get [mcrUID]
 var mcrCmd = &cobra.Command{
 	Use:   "mcr",
 	Short: "Manage MCRs in the Megaport API",
@@ -17,7 +17,7 @@ var mcrCmd = &cobra.Command{
 
 This command groups all operations related to Megaport Cloud Routers (MCRs).
 You can use the subcommands to perform actions such as retrieving details for a specific MCR.
-For instance, use the "megaport mcr get [mcrUID]" command to fetch details for the MCR with the given UID.
+For instance, use the "megaport-cli mcr get [mcrUID]" command to fetch details for the MCR with the given UID.
 
 Available subcommands:
   - get: Retrieve details for a single MCR.
@@ -77,14 +77,14 @@ Optional fields:
 Example usage:
 
   # Interactive mode
-  megaport mcr buy --interactive
+  megaport-cli mcr buy --interactive
 
   # Flag mode
-  megaport mcr buy --name "My MCR" --term 12 --port-speed 5000 --location-id 123
+  megaport-cli mcr buy --name "My MCR" --term 12 --port-speed 5000 --location-id 123
 
   # JSON mode
-  megaport mcr buy --json '{"name":"My MCR","term":12,"portSpeed":5000,"locationId":123}'
-  megaport mcr buy --json-file ./mcr-config.json
+  megaport-cli mcr buy --json '{"name":"My MCR","term":12,"portSpeed":5000,"locationId":123}'
+  megaport-cli mcr buy --json-file ./mcr-config.json
 `,
 	RunE: WrapRunE(BuyMCR),
 }
@@ -118,14 +118,14 @@ Fields that can be updated:
 Example usage:
 
   # Interactive mode
-  megaport mcr update [mcrUID] --interactive
+  megaport-cli mcr update [mcrUID] --interactive
 
   # Flag mode
-  megaport mcr update [mcrUID] --name "Updated MCR" --marketplace-visibility true
+  megaport-cli mcr update [mcrUID] --name "Updated MCR" --marketplace-visibility true
 
   # JSON mode
-  megaport mcr update [mcrUID] --json '{"name":"Updated MCR","marketplaceVisibility":true}'
-  megaport mcr update [mcrUID] --json-file ./update-mcr-config.json
+  megaport-cli mcr update [mcrUID] --json '{"name":"Updated MCR","marketplaceVisibility":true}'
+  megaport-cli mcr update [mcrUID] --json-file ./update-mcr-config.json
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(UpdateMCR),
@@ -179,14 +179,14 @@ Required fields:
 Example usage:
 
   # Interactive mode
-  megaport mcr create-prefix-filter-list [mcrUID] --interactive
+  megaport-cli mcr create-prefix-filter-list [mcrUID] --interactive
 
   # Flag mode
-  megaport mcr create-prefix-filter-list [mcrUID] --description "My prefix list" --address-family "IPv4" --entries '[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]'
+  megaport-cli mcr create-prefix-filter-list [mcrUID] --description "My prefix list" --address-family "IPv4" --entries '[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]'
 
   # JSON mode
-  megaport mcr create-prefix-filter-list [mcrUID] --json '{"description":"My prefix list","addressFamily":"IPv4","entries":[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]}'
-  megaport mcr create-prefix-filter-list [mcrUID] --json-file ./prefix-list-config.json
+  megaport-cli mcr create-prefix-filter-list [mcrUID] --json '{"description":"My prefix list","addressFamily":"IPv4","entries":[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]}'
+  megaport-cli mcr create-prefix-filter-list [mcrUID] --json-file ./prefix-list-config.json
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(CreateMCRPrefixFilterList),
@@ -240,14 +240,14 @@ Fields that can be updated:
 Example usage:
 
   # Interactive mode
-  megaport mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --interactive
+  megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --interactive
 
   # Flag mode
-  megaport mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --description "Updated prefix list" --entries '[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]'
+  megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --description "Updated prefix list" --entries '[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]'
 
   # JSON mode
-  megaport mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --json '{"description":"Updated prefix list","entries":[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]}'
-  megaport mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --json-file ./update-prefix-list.json
+  megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --json '{"description":"Updated prefix list","entries":[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]}'
+  megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --json-file ./update-prefix-list.json
 `,
 	Args: cobra.ExactArgs(2),
 	RunE: WrapRunE(UpdateMCRPrefixFilterList),

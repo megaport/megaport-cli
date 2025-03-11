@@ -15,16 +15,16 @@ var (
 //
 // Example usage:
 //
-//	megaport ports list
-//	megaport ports get [portUID]
-//	megaport ports buy
-//	megaport ports buy-lag
-//	megaport ports update [portUID]
-//	megaport ports delete [portUID]
-//	megaport ports restore [portUID]
-//	megaport ports lock [portUID]
-//	megaport ports unlock [portUID]
-//	megaport ports check-vlan [portUID] [vlan]
+//	megaport-cli ports list
+//	megaport-cli ports get [portUID]
+//	megaport-cli ports buy
+//	megaport-cli ports buy-lag
+//	megaport-cli ports update [portUID]
+//	megaport-cli ports delete [portUID]
+//	megaport-cli ports restore [portUID]
+//	megaport-cli ports lock [portUID]
+//	megaport-cli ports unlock [portUID]
+//	megaport-cli ports check-vlan [portUID] [vlan]
 var portsCmd = &cobra.Command{
 	Use:   "ports",
 	Short: "Manage ports in the Megaport API",
@@ -37,43 +37,43 @@ and check VLAN availability on a port.
 
 Examples:
   # List all ports
-  megaport ports list
+  megaport-cli ports list
 
   # Get details for a specific port
-  megaport ports get [portUID]
+  megaport-cli ports get [portUID]
 
   # Buy a new port
-  megaport ports buy --interactive
-  megaport ports buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true
-  megaport ports buy --json '{"name":"My Port","term":12,"portSpeed":10000,"locationId":123,"marketPlaceVisibility":true}'
-  megaport ports buy --json-file ./port-config.json
+  megaport-cli ports buy --interactive
+  megaport-cli ports buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true
+  megaport-cli ports buy --json '{"name":"My Port","term":12,"portSpeed":10000,"locationId":123,"marketPlaceVisibility":true}'
+  megaport-cli ports buy --json-file ./port-config.json
 
   # Buy a LAG port
-  megaport ports buy-lag --interactive
-  megaport ports buy-lag --name "My LAG Port" --term 12 --port-speed 10000 --location-id 123 --lag-count 2 --marketplace-visibility true
-  megaport ports buy-lag --json '{"name":"My LAG Port","term":12,"portSpeed":10000,"locationId":123,"lagCount":2,"marketPlaceVisibility":true}'
-  megaport ports buy-lag --json-file ./lag-port-config.json
+  megaport-cli ports buy-lag --interactive
+  megaport-cli ports buy-lag --name "My LAG Port" --term 12 --port-speed 10000 --location-id 123 --lag-count 2 --marketplace-visibility true
+  megaport-cli ports buy-lag --json '{"name":"My LAG Port","term":12,"portSpeed":10000,"locationId":123,"lagCount":2,"marketPlaceVisibility":true}'
+  megaport-cli ports buy-lag --json-file ./lag-port-config.json
 
   # Update a port
-  megaport ports update [portUID] --interactive
-  megaport ports update [portUID] --name "Updated Port" --marketplace-visibility true
-  megaport ports update [portUID] --json '{"name":"Updated Port","marketplaceVisibility":true}'
-  megaport ports update [portUID] --json-file ./update-port-config.json
+  megaport-cli ports update [portUID] --interactive
+  megaport-cli ports update [portUID] --name "Updated Port" --marketplace-visibility true
+  megaport-cli ports update [portUID] --json '{"name":"Updated Port","marketplaceVisibility":true}'
+  megaport-cli ports update [portUID] --json-file ./update-port-config.json
 
   # Delete a port
-  megaport ports delete [portUID] --now
+  megaport-cli ports delete [portUID] --now
 
   # Restore a deleted port
-  megaport ports restore [portUID]
+  megaport-cli ports restore [portUID]
 
   # Lock a port
-  megaport ports lock [portUID]
+  megaport-cli ports lock [portUID]
 
   # Unlock a port
-  megaport ports unlock [portUID]
+  megaport-cli ports unlock [portUID]
 
   # Check VLAN availability on a port
-  megaport ports check-vlan [portUID] [vlan]
+  megaport-cli ports check-vlan [portUID] [vlan]
 `,
 }
 
@@ -112,14 +112,14 @@ Optional fields:
 Example usage:
 
   # Interactive mode
-  megaport ports buy --interactive
+  megaport-cli ports buy --interactive
 
   # Flag mode
-  megaport ports buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true
+  megaport-cli ports buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true
 
   # JSON mode
-  megaport ports buy --json '{"name":"My Port","term":12,"portSpeed":10000,"locationId":123,"marketPlaceVisibility":true}'
-  megaport ports buy --json-file ./port-config.json
+  megaport-cli ports buy --json '{"name":"My Port","term":12,"portSpeed":10000,"locationId":123,"marketPlaceVisibility":true}'
+  megaport-cli ports buy --json-file ./port-config.json
 `,
 	RunE: WrapRunE(BuyPort),
 }
@@ -159,14 +159,14 @@ Optional fields:
 Example usage:
 
   # Interactive mode
-  megaport ports buy-lag --interactive
+  megaport-cli ports buy-lag --interactive
 
   # Flag mode
-  megaport ports buy-lag --name "My LAG Port" --term 12 --port-speed 10000 --location-id 123 --lag-count 2 --marketplace-visibility true
+  megaport-cli ports buy-lag --name "My LAG Port" --term 12 --port-speed 10000 --location-id 123 --lag-count 2 --marketplace-visibility true
 
   # JSON mode
-  megaport ports buy-lag --json '{"name":"My LAG Port","term":12,"portSpeed":10000,"locationId":123,"lagCount":2,"marketPlaceVisibility":true}'
-  megaport ports buy-lag --json-file ./lag-port-config.json
+  megaport-cli ports buy-lag --json '{"name":"My LAG Port","term":12,"portSpeed":10000,"locationId":123,"lagCount":2,"marketPlaceVisibility":true}'
+  megaport-cli ports buy-lag --json-file ./lag-port-config.json
 `,
 	RunE: WrapRunE(BuyLAGPort),
 }
@@ -176,7 +176,7 @@ Example usage:
 //
 // Example usage with filtering:
 //
-//	megaport ports list --location-id 1 --port-speed 10000 --port-name "PortName"
+//	megaport-cli ports list --location-id 1 --port-speed 10000 --port-name "PortName"
 var listPortsCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all ports with optional filters",
@@ -187,7 +187,7 @@ port ID, name, location, speed, and status. You can optionally filter the result
 by passing additional flags such as --location-id, --port-speed, and --port-name.
 
 Example:
-  megaport ports list --location-id 1 --port-speed 10000 --port-name "PortName"
+  megaport-cli ports list --location-id 1 --port-speed 10000 --port-name "PortName"
 
 If no filtering options are provided, all ports will be listed.
 `,
@@ -199,7 +199,7 @@ If no filtering options are provided, all ports will be listed.
 //
 // Example usage:
 //
-//	megaport ports get [portUID]
+//	megaport-cli ports get [portUID]
 var getPortCmd = &cobra.Command{
 	Use:   "get [portUID]",
 	Short: "Get details for a single port",
@@ -209,7 +209,7 @@ This command fetches and displays detailed information about a specific port.
 You need to provide the UID of the port as an argument.
 
 Example:
-  megaport ports get [portUID]
+  megaport-cli ports get [portUID]
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(GetPort),
@@ -245,14 +245,14 @@ Optional fields:
 Example usage:
 
   # Interactive mode
-  megaport ports update [portUID] --interactive
+  megaport-cli ports update [portUID] --interactive
 
   # Flag mode
-  megaport ports update [portUID] --name "Updated Port" --marketplace-visibility true
+  megaport-cli ports update [portUID] --name "Updated Port" --marketplace-visibility true
 
   # JSON mode
-  megaport ports update [portUID] --json '{"name":"Updated Port","marketplaceVisibility":true}'
-  megaport ports update [portUID] --json-file ./update-port-config.json
+  megaport-cli ports update [portUID] --json '{"name":"Updated Port","marketplaceVisibility":true}'
+  megaport-cli ports update [portUID] --json-file ./update-port-config.json
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(UpdatePort),
@@ -269,7 +269,7 @@ You can optionally specify whether to delete the port immediately or at the end 
 
 Example usage:
 
-  megaport ports delete [portUID]
+  megaport-cli ports delete [portUID]
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(DeletePort),
@@ -285,7 +285,7 @@ This command allows you to restore a previously deleted port by providing the UI
 
 Example usage:
 
-  megaport ports restore [portUID]
+  megaport-cli ports restore [portUID]
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(RestorePort),
@@ -301,7 +301,7 @@ This command allows you to lock an existing port by providing the UID of the por
 
 Example usage:
 
-  megaport ports lock [portUID]
+  megaport-cli ports lock [portUID]
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(LockPort),
@@ -317,7 +317,7 @@ This command allows you to unlock an existing port by providing the UID of the p
 
 Example usage:
 
-  megaport ports unlock [portUID]
+  megaport-cli ports unlock [portUID]
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(UnlockPort),
@@ -333,7 +333,7 @@ This command allows you to check if a specific VLAN is available on an existing 
 
 Example usage:
 
-  megaport ports check-vlan [portUID] [vlan]
+  megaport-cli ports check-vlan [portUID] [vlan]
 `,
 	Args: cobra.ExactArgs(2),
 	RunE: WrapRunE(CheckPortVLANAvailability),

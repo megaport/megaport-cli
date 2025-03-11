@@ -23,19 +23,19 @@ You can use this command to list, get details, buy, update, and delete MVEs.
 
 Examples:
   # List all MVEs
-  megaport mve list
+  megaport-cli mve list
 
   # Get details for a specific MVE
-  megaport mve get [mveUID]
+  megaport-cli mve get [mveUID]
 
   # Buy a new MVE
-  megaport mve buy
+  megaport-cli mve buy
 
   # Update an existing MVE
-  megaport mve update [mveUID]
+  megaport-cli mve update [mveUID]
 
   # Delete an existing MVE
-  megaport mve delete [mveUID]
+  megaport-cli mve delete [mveUID]
 `,
 }
 
@@ -142,10 +142,10 @@ Vendor-specific fields:
 Example usage:
 
 # Interactive mode
-megaport mve buy --interactive
+megaport-cli mve buy --interactive
 
 # Flag mode - Cisco example
-megaport mve buy --name "My Cisco MVE" --term 12 --location-id 123 \
+megaport-cli mve buy --name "My Cisco MVE" --term 12 --location-id 123 \
   --vendor-config '{"vendor":"cisco","imageId":1,"productSize":"large","mveLabel":"cisco-mve",
                    "manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA...","sshPublicKey":"ssh-rsa AAAA...",
                    "cloudInit":"#cloud-config\npackages:\n - nginx\n","fmcIpAddress":"10.0.0.1",
@@ -153,14 +153,14 @@ megaport mve buy --name "My Cisco MVE" --term 12 --location-id 123 \
   --vnics '[{"description":"Data Plane","vlan":100}]'
 
 # Flag mode - Aruba example
-megaport mve buy --name "Megaport MVE Example" --term 1 --location-id 123 \
+megaport-cli mve buy --name "Megaport MVE Example" --term 1 --location-id 123 \
   --vendor-config '{"vendor":"aruba","imageId":23,"productSize":"MEDIUM",
                    "accountName":"Aruba Test Account","accountKey":"12345678",
                    "systemTag":"Preconfiguration-aruba-test-1"}' \
   --vnics '[{"description":"Data Plane"},{"description":"Control Plane"},{"description":"Management Plane"}]'
 
 # Flag mode - Versa example
-megaport mve buy --name "Megaport Versa MVE Example" --term 1 --location-id 123 \
+megaport-cli mve buy --name "Megaport Versa MVE Example" --term 1 --location-id 123 \
   --vendor-config '{"vendor":"versa","imageId":20,"productSize":"MEDIUM",
                    "directorAddress":"director1.versa.com","controllerAddress":"controller1.versa.com",
                    "localAuth":"SDWAN-Branch@Versa.com","remoteAuth":"Controller-1-staging@Versa.com",
@@ -169,7 +169,7 @@ megaport mve buy --name "Megaport Versa MVE Example" --term 1 --location-id 123 
 
 
 # JSON mode - Cisco example
-megaport mve buy --json '{
+megaport-cli mve buy --json '{
 "name": "My Cisco MVE",
 "term": 12,
 "locationId": 67,
@@ -192,7 +192,7 @@ megaport mve buy --json '{
 }'
 
 # JSON mode - Aruba example
-megaport mve buy --json '{
+megaport-cli mve buy --json '{
 "name": "Megaport MVE Example",
 "term": 1,
 "locationId": 67,
@@ -212,7 +212,7 @@ megaport mve buy --json '{
 }'
 
 # JSON mode - Versa example
-megaport mve buy --json '{
+megaport-cli mve buy --json '{
 "name": "Megaport Versa MVE Example",
 "term": 1,
 "locationId": 67,
@@ -232,7 +232,7 @@ megaport mve buy --json '{
 }'
 
 # JSON from file
-megaport mve buy --json-file ./mve-config.json
+megaport-cli mve buy --json-file ./mve-config.json
 `,
 	RunE: WrapRunE(BuyMVE),
 }
@@ -248,7 +248,7 @@ You need to provide the UID of the MVE as an argument.
 
 Example usage:
 
-  megaport mve get [mveUID]
+  megaport-cli mve get [mveUID]
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(GetMVE),
@@ -282,14 +282,14 @@ Fields that can be updated:
 Example usage:
 
 # Interactive mode (default)
-megaport mve update [mveUID]
+megaport-cli mve update [mveUID]
 
 # Flag mode
-megaport mve update [mveUID] --name "New MVE Name" --cost-centre "New Cost Centre" --contract-term 24
+megaport-cli mve update [mveUID] --name "New MVE Name" --cost-centre "New Cost Centre" --contract-term 24
 
 # JSON mode
-megaport mve update [mveUID] --json '{"name": "New MVE Name", "costCentre": "New Cost Centre", "contractTermMonths": 24}'
-megaport mve update [mveUID] --json-file ./mve-update.json
+megaport-cli mve update [mveUID] --json '{"name": "New MVE Name", "costCentre": "New Cost Centre", "contractTermMonths": 24}'
+megaport-cli mve update [mveUID] --json-file ./mve-update.json
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(UpdateMVE),
@@ -305,7 +305,7 @@ This command allows you to delete an existing MVE by providing its UID.
 
 Example usage:
 
-  megaport mve delete [mveUID]
+  megaport-cli mve delete [mveUID]
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(DeleteMVE),
@@ -329,7 +329,7 @@ Available filters:
 
 Example usage:
 
-  megaport mve list-images --vendor "Cisco" --product-code "CISCO123" --id 1 --version "1.0" --release-image true
+  megaport-cli mve list-images --vendor "Cisco" --product-code "CISCO123" --id 1 --version "1.0" --release-image true
 `,
 	RunE: WrapRunE(ListMVEImages),
 }
@@ -345,7 +345,7 @@ size, label, CPU core count, and RAM.
 
 Example usage:
 
-  megaport mve list-sizes
+  megaport-cli mve list-sizes
 `,
 	RunE: WrapRunE(ListAvailableMVESizes),
 }

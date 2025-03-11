@@ -9,7 +9,7 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "megaport",
+	Use:   "megaport-cli",
 	Short: "A CLI tool to interact with the Megaport API",
 	Long: `A CLI tool to interact with the Megaport API.
 
