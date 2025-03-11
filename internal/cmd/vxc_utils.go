@@ -1660,11 +1660,18 @@ func promptPartnerConfig(end string, svc megaport.VXCService) (megaport.VXCPartn
 		}
 		return oraclePartner, uid, nil
 	case "ibm":
-		ibmPartner, uid, err := promptIBMConfig(svc)
+		ibmPartner, err := promptIBMConfig()
 		if err != nil {
 			return nil, "", err
 		}
-		return ibmPartner, uid, nil
+		partnerPortUID, err := prompt("Enter IBM Partner Port product UID (required): ")
+		if err != nil {
+			return nil, "", err
+		}
+		if partnerPortUID == "" {
+			return nil, "", fmt.Errorf("IBM Partner Port product UID is required")
+		}
+		return ibmPartner, partnerPortUID, nil
 	case "vrouter":
 		vrouterPartner, err := promptVRouterConfig(end)
 		if err != nil {
@@ -1906,15 +1913,23 @@ func promptOracleConfig(svc megaport.VXCService) (*megaport.VXCPartnerConfigOrac
 	}, uid, nil
 }
 
-func promptIBMConfig(svc megaport.VXCService) (*megaport.VXCPartnerConfigIBM, string, error) {
+func promptIBMConfig() (*megaport.VXCPartnerConfigIBM, error) {
 	accountID, err := prompt("Enter account ID (required): ")
 	if err != nil {
-		return nil, "", err
+		return nil, err
+	}
+
+	name, err := prompt("Enter name (required): ")
+	if err != nil {
+		return nil, err
+	}
+	if name == "" {
+		return nil, fmt.Errorf("name is required")
 	}
 
 	customerASNStr, err := prompt("Enter customer ASN (optional): ")
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	customerASN, err := strconv.Atoi(customerASNStr)
 	if err != nil {
@@ -1923,29 +1938,13 @@ func promptIBMConfig(svc megaport.VXCService) (*megaport.VXCPartnerConfigIBM, st
 
 	customerIPAddress, err := prompt("Enter customer IP address (optional): ")
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	providerIPAddress, err := prompt("Enter provider IP address (optional): ")
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
-
-	name, err := prompt("Enter name (optional): ")
-	if err != nil {
-		return nil, "", err
-	}
-
-	fmt.Println("Finding partner port...")
-
-	partnerPortRes, err := svc.LookupPartnerPorts(context.Background(), &megaport.LookupPartnerPortsRequest{
-		Key:     accountID,
-		Partner: "IBM",
-	})
-	if err != nil {
-		return nil, "", fmt.Errorf("error looking up partner ports: %v", err)
-	}
-	uid := partnerPortRes.ProductUID
 
 	return &megaport.VXCPartnerConfigIBM{
 		ConnectType:       "IBM",
@@ -1954,5 +1953,5 @@ func promptIBMConfig(svc megaport.VXCService) (*megaport.VXCPartnerConfigIBM, st
 		CustomerIPAddress: customerIPAddress,
 		ProviderIPAddress: providerIPAddress,
 		Name:              name,
-	}, uid, nil
+	}, nil
 }
