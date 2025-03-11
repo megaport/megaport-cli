@@ -69,7 +69,6 @@ func init() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	rootCmd.AddCommand(completionCmd)
 }
 
 func initConfig() {
