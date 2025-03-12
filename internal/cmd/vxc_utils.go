@@ -35,8 +35,12 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.BuyVXCRequest
 		return nil, fmt.Errorf("term must be 1, 12, 24, or 36")
 	}
 
-	// Get optional fields
 	bEndUID, _ := cmd.Flags().GetString("b-end-uid")
+	if bEndUID == "" {
+		return nil, fmt.Errorf("b-end-uid is required")
+	}
+
+	// Get optional fields
 	aEndVLAN, _ := cmd.Flags().GetInt("a-end-vlan")
 	bEndVLAN, _ := cmd.Flags().GetInt("b-end-vlan")
 	aEndInnerVLAN, _ := cmd.Flags().GetInt("a-end-inner-vlan")
@@ -559,15 +563,15 @@ var buildVXCRequestFromPrompt = func(svc megaport.VXCService) (*megaport.BuyVXCR
 	}
 
 	// A-End configuration
-	aEndVLANStr, err := prompt("Enter A-End VLAN (0-4093, except 1, optional): ")
+	aEndVLANStr, err := prompt("A-End VLAN (-1=untagged, 0=auto-assigned, 2-4093 for specific VLAN): ")
 	if err != nil {
 		return nil, err
 	}
-	aEndVLAN := 0
+	var aEndVLAN int
 	if aEndVLANStr != "" {
-		aEndVLAN, err = strconv.Atoi(aEndVLANStr)
-		if err != nil || aEndVLAN < 0 || aEndVLAN > 4093 || aEndVLAN == 1 {
-			return nil, fmt.Errorf("A-End VLAN must be 0-4093, except 1")
+		aEndVLAN, err := strconv.Atoi(aEndVLANStr)
+		if err != nil || (aEndVLAN != -1 && aEndVLAN != 0 && (aEndVLAN < 2 || aEndVLAN > 4093)) {
+			return nil, fmt.Errorf("A-End VLAN must be -1 (untagged), 0 (auto-assigned), or between 2-4093")
 		}
 	}
 
@@ -645,18 +649,18 @@ var buildVXCRequestFromPrompt = func(svc megaport.VXCService) (*megaport.BuyVXCR
 
 	bEndConfig := megaport.VXCOrderEndpointConfiguration{}
 
-	bEndVLANStr, err := prompt("Enter B-End VLAN (0-4093, except 1, optional): ")
+	bEndVLANStr, err := prompt("B-End VLAN (-1=untagged, 0=auto-assigned, 2-4093 for specific VLAN): ")
 	if err != nil {
 		return nil, err
 	}
-	bEndVLAN := 0
+	var bEndVLAN int
 	if bEndVLANStr != "" {
 		bEndVLAN, err = strconv.Atoi(bEndVLANStr)
-		if err != nil || bEndVLAN < 0 || bEndVLAN > 4093 || bEndVLAN == 1 {
-			return nil, fmt.Errorf("B-End VLAN must be 0-4093, except 1")
+		if err != nil || (bEndVLAN != -1 && bEndVLAN != 0 && (bEndVLAN < 2 || bEndVLAN > 4093)) {
+			return nil, fmt.Errorf("B-End VLAN must be -1 (untagged), 0 (auto-assigned), or between 2-4093")
 		}
+		req.BEndConfiguration.VLAN = bEndVLAN
 	}
-	bEndConfig.VLAN = bEndVLAN
 
 	bEndInnerVLANStr, err := prompt("Enter B-End Inner VLAN (optional): ")
 	if err != nil {
@@ -1109,13 +1113,13 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string) (*megaport.UpdateVXCRe
 		return nil, err
 	}
 	if strings.ToLower(updateAEndVLAN) == "yes" {
-		aEndVLANStr, err := prompt("Enter new A-End VLAN (0 or 2-4093): ")
+		aEndVLANStr, err := prompt("A-End VLAN (-1=untagged, 0=auto-assigned, 2-4093 for specific VLAN): ")
 		if err != nil {
 			return nil, err
 		}
 		aEndVLAN, err := strconv.Atoi(aEndVLANStr)
-		if err != nil || aEndVLAN < 0 || aEndVLAN > 4093 || aEndVLAN == 1 {
-			return nil, fmt.Errorf("A-End VLAN must be 0 or between 2-4093")
+		if err != nil || (aEndVLAN != -1 && aEndVLAN != 0 && (aEndVLAN < 2 || aEndVLAN > 4093)) {
+			return nil, fmt.Errorf("A-End VLAN must be -1 (untagged), 0 (auto-assigned), or between 2-4093")
 		}
 		req.AEndVLAN = &aEndVLAN
 	}
@@ -1127,13 +1131,13 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string) (*megaport.UpdateVXCRe
 		return nil, err
 	}
 	if strings.ToLower(updateBEndVLAN) == "yes" {
-		bEndVLANStr, err := prompt("Enter new B-End VLAN (0 or 2-4093): ")
+		bEndVLANStr, err := prompt("B-End VLAN (-1=untagged, 0=auto-assigned, 2-4093 for specific VLAN): ")
 		if err != nil {
 			return nil, err
 		}
 		bEndVLAN, err := strconv.Atoi(bEndVLANStr)
-		if err != nil || bEndVLAN < 0 || bEndVLAN > 4093 || bEndVLAN == 1 {
-			return nil, fmt.Errorf("B-End VLAN must be 0 or between 2-4093")
+		if err != nil || (bEndVLAN != -1 && bEndVLAN != 0 && (bEndVLAN < 2 || bEndVLAN > 4093)) {
+			return nil, fmt.Errorf("B-End VLAN must be -1 (untagged), 0 (auto-assigned), or between 2-4093")
 		}
 		req.BEndVLAN = &bEndVLAN
 	}
