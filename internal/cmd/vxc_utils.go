@@ -1264,15 +1264,20 @@ func promptVRouterConfig(endpoint string) (*megaport.VXCOrderVrouterPartnerConfi
 		iface := megaport.PartnerConfigInterface{}
 
 		// VLAN
-		vlanStr, err := prompt("VLAN (0-4093, except 1): ")
+		vlanStr, err := prompt("VLAN (0-4093, except 1, optional - press Enter for no VLAN): ")
 		if err != nil {
 			return nil, err
 		}
-		vlan, err := strconv.Atoi(vlanStr)
-		if err != nil || vlan < 0 || vlan > 4093 || vlan == 1 {
-			return nil, fmt.Errorf("VLAN must be 0 or between 2-4093")
+
+		if vlanStr != "" {
+			vlan, err := strconv.Atoi(vlanStr)
+			if err != nil || vlan < 0 || vlan > 4093 || vlan == 1 {
+				return nil, fmt.Errorf("VLAN must be 0 or between 2-4093")
+			}
+			iface.VLAN = vlan
+		} else {
+			iface.VLAN = -1
 		}
-		iface.VLAN = vlan
 
 		// IP Addresses
 		ipAddrs, err := promptIPAddresses("IP Addresses (CIDR notation, e.g., 192.168.1.1/30)")
@@ -1483,16 +1488,6 @@ func promptBGPConnections() ([]megaport.BgpConnectionConfig, error) {
 		}
 		bgp.PeerAsn = peerAsn
 
-		localAsnStr, err := prompt("Enter local ASN (required): ")
-		if err != nil {
-			return nil, err
-		}
-		localAsn, err := strconv.Atoi(localAsnStr)
-		if err != nil || localAsn <= 0 {
-			return nil, fmt.Errorf("local ASN must be a positive integer")
-		}
-		bgp.LocalAsn = &localAsn
-
 		localIP, err := prompt("Enter local IP address (required): ")
 		if err != nil {
 			return nil, err
@@ -1512,6 +1507,18 @@ func promptBGPConnections() ([]megaport.BgpConnectionConfig, error) {
 		bgp.PeerIpAddress = peerIP
 
 		// Optional fields
+		localAsnStr, err := prompt("Enter local ASN (optional): ")
+		if err != nil {
+			return nil, err
+		}
+		if localAsnStr != "" {
+			localAsn, err := strconv.Atoi(localAsnStr)
+			if err != nil || localAsn <= 0 {
+				return nil, fmt.Errorf("local ASN must be a positive integer")
+			}
+			bgp.LocalAsn = &localAsn
+		}
+
 		password, err := prompt("Enter password (optional): ")
 		if err != nil {
 			return nil, err
@@ -1536,6 +1543,27 @@ func promptBGPConnections() ([]megaport.BgpConnectionConfig, error) {
 		}
 		bgp.BfdEnabled = strings.ToLower(bfdEnabledStr) == "yes"
 
+		// Added: Export Policy
+		exportPolicy, err := prompt("Enter export policy (permit/deny, optional): ")
+		if err != nil {
+			return nil, err
+		}
+		if exportPolicy != "" && exportPolicy != "permit" && exportPolicy != "deny" {
+			return nil, fmt.Errorf("export policy must be 'permit' or 'deny'")
+		}
+		bgp.ExportPolicy = exportPolicy
+
+		// Added: Peer Type
+		peerType, err := prompt("Enter peer type (NON_CLOUD/PRIV_CLOUD/PUB_CLOUD, optional): ")
+		if err != nil {
+			return nil, err
+		}
+		if peerType != "" && peerType != "NON_CLOUD" && peerType != "PRIV_CLOUD" && peerType != "PUB_CLOUD" {
+			return nil, fmt.Errorf("peer type must be NON_CLOUD, PRIV_CLOUD, or PUB_CLOUD")
+		}
+		bgp.PeerType = peerType
+
+		// Added: MED values
 		medInStr, err := prompt("Enter MED in (optional): ")
 		if err != nil {
 			return nil, err
@@ -1560,11 +1588,103 @@ func promptBGPConnections() ([]megaport.BgpConnectionConfig, error) {
 			bgp.MedOut = medOut
 		}
 
-		exportPolicy, err := prompt("Enter export policy (all, import, none, optional): ")
+		// Added: AS Path Prepend Count
+		asPathPrependStr, err := prompt("Enter AS path prepend count (0-10, optional): ")
 		if err != nil {
 			return nil, err
 		}
-		bgp.ExportPolicy = exportPolicy
+		if asPathPrependStr != "" {
+			asPathPrepend, err := strconv.Atoi(asPathPrependStr)
+			if err != nil || asPathPrepend < 0 || asPathPrepend > 10 {
+				return nil, fmt.Errorf("AS path prepend count must be between 0 and 10")
+			}
+			bgp.AsPathPrependCount = asPathPrepend
+		}
+
+		// Added: Permit Export To
+		hasPermitExportTo, err := prompt("Add permit export to addresses? (yes/no): ")
+		if err != nil {
+			return nil, err
+		}
+		if strings.ToLower(hasPermitExportTo) == "yes" {
+			for i := 0; i < 17; i++ { // Maximum 17 items
+				ipAddress, err := prompt(fmt.Sprintf("Enter IP address to permit export to (or empty to finish) [%d/17]: ", i+1))
+				if err != nil {
+					return nil, err
+				}
+				if ipAddress == "" {
+					break
+				}
+				bgp.PermitExportTo = append(bgp.PermitExportTo, ipAddress)
+			}
+		}
+
+		// Added: Deny Export To
+		hasDenyExportTo, err := prompt("Add deny export to addresses? (yes/no): ")
+		if err != nil {
+			return nil, err
+		}
+		if strings.ToLower(hasDenyExportTo) == "yes" {
+			for i := 0; i < 17; i++ { // Maximum 17 items
+				ipAddress, err := prompt(fmt.Sprintf("Enter IP address to deny export to (or empty to finish) [%d/17]: ", i+1))
+				if err != nil {
+					return nil, err
+				}
+				if ipAddress == "" {
+					break
+				}
+				bgp.DenyExportTo = append(bgp.DenyExportTo, ipAddress)
+			}
+		}
+
+		// Added: Import/Export Whitelist/Blacklist
+		importWhitelistStr, err := prompt("Enter import whitelist prefix list ID (optional): ")
+		if err != nil {
+			return nil, err
+		}
+		if importWhitelistStr != "" {
+			importWhitelist, err := strconv.Atoi(importWhitelistStr)
+			if err != nil {
+				return nil, fmt.Errorf("import whitelist must be an integer")
+			}
+			bgp.ImportWhitelist = importWhitelist
+		}
+
+		importBlacklistStr, err := prompt("Enter import blacklist prefix list ID (optional): ")
+		if err != nil {
+			return nil, err
+		}
+		if importBlacklistStr != "" {
+			importBlacklist, err := strconv.Atoi(importBlacklistStr)
+			if err != nil {
+				return nil, fmt.Errorf("import blacklist must be an integer")
+			}
+			bgp.ImportBlacklist = importBlacklist
+		}
+
+		exportWhitelistStr, err := prompt("Enter export whitelist prefix list ID (optional): ")
+		if err != nil {
+			return nil, err
+		}
+		if exportWhitelistStr != "" {
+			exportWhitelist, err := strconv.Atoi(exportWhitelistStr)
+			if err != nil {
+				return nil, fmt.Errorf("export whitelist must be an integer")
+			}
+			bgp.ExportWhitelist = exportWhitelist
+		}
+
+		exportBlacklistStr, err := prompt("Enter export blacklist prefix list ID (optional): ")
+		if err != nil {
+			return nil, err
+		}
+		if exportBlacklistStr != "" {
+			exportBlacklist, err := strconv.Atoi(exportBlacklistStr)
+			if err != nil {
+				return nil, fmt.Errorf("export blacklist must be an integer")
+			}
+			bgp.ExportBlacklist = exportBlacklist
+		}
 
 		bgpConnections = append(bgpConnections, bgp)
 	}
