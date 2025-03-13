@@ -1899,9 +1899,22 @@ func promptAWSConfig() (*megaport.VXCPartnerConfigAWS, error) {
 
 // promptAzureConfig prompts the user for Azure-specific configuration details.
 func promptAzureConfig(svc megaport.VXCService) (*megaport.VXCPartnerConfigAzure, string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	serviceKey, err := prompt("Enter service key (required): ")
 	if err != nil {
 		return nil, "", err
+	}
+
+	portChoice, err := prompt("Enter port choice (primary/secondary, optional, default value is primary): ")
+	if err != nil {
+		return nil, "", err
+	}
+	if portChoice != "" && portChoice != "primary" && portChoice != "secondary" {
+		return nil, "", fmt.Errorf("port preference must be primary or secondary")
+	}
+	if portChoice == "" {
+		portChoice = "primary"
 	}
 
 	var peers []megaport.PartnerOrderAzurePeeringConfig
@@ -1923,14 +1936,24 @@ func promptAzureConfig(svc megaport.VXCService) (*megaport.VXCPartnerConfigAzure
 
 	fmt.Println("Finding partner port...")
 
-	partnerPortRes, err := svc.LookupPartnerPorts(context.Background(), &megaport.LookupPartnerPortsRequest{
+	partnerPortRes, err := svc.ListPartnerPorts(ctx, &megaport.ListPartnerPortsRequest{
 		Key:     serviceKey,
 		Partner: "AZURE",
 	})
 	if err != nil {
 		return nil, "", fmt.Errorf("error looking up partner ports: %v", err)
 	}
-	uid := partnerPortRes.ProductUID
+	var uid string
+	// find primary or secondary port
+	for _, port := range partnerPortRes.Data.Megaports {
+		p := &port
+		if p.Type == portChoice {
+			uid = p.ProductUID
+		}
+	}
+	if uid == "" {
+		return nil, "", fmt.Errorf("could not find azure port with type: %s", portChoice)
+	}
 
 	return &megaport.VXCPartnerConfigAzure{
 		ConnectType: "AZURE",
