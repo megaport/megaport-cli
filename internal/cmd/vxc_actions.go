@@ -60,10 +60,10 @@ func BuyVXC(cmd *cobra.Command, args []string) error {
 		req, err = buildVXCRequestFromJSON(jsonStr, jsonFilePath)
 	} else if interactive || !hasNonInteractiveFlags(cmd) {
 		// Interactive mode if explicitly requested or if no other input mode is provided
-		req, err = buildVXCRequestFromPrompt(client.VXCService)
+		req, err = buildVXCRequestFromPrompt(ctx, client.VXCService)
 	} else {
 		// Flag mode - use when interactive is false and flags are provided
-		req, err = buildVXCRequestFromFlags(cmd)
+		req, err = buildVXCRequestFromFlags(cmd, ctx, client.VXCService)
 	}
 
 	if err != nil {
