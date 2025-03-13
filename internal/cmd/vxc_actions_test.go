@@ -70,7 +70,7 @@ func TestBuyVXC(t *testing.T) {
 
 				// Skip the buildVXCRequestFromPrompt function entirely
 				buildVXCRequestFromPromptOrig := buildVXCRequestFromPrompt
-				buildVXCRequestFromPrompt = func(m megaport.VXCService) (*megaport.BuyVXCRequest, error) {
+				buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCService) (*megaport.BuyVXCRequest, error) {
 					return &megaport.BuyVXCRequest{
 						PortUID:   "a-end-uid",
 						VXCName:   "Test VXC",
@@ -108,7 +108,7 @@ func TestBuyVXC(t *testing.T) {
 
 				// Skip the buildVXCRequestFromFlags function entirely
 				buildVXCRequestFromFlagsOrig := buildVXCRequestFromFlags
-				buildVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.BuyVXCRequest, error) {
+				buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc megaport.VXCService) (*megaport.BuyVXCRequest, error) {
 					return &megaport.BuyVXCRequest{
 						PortUID:   "dcc-12345",
 						VXCName:   "Flag VXC",
@@ -157,7 +157,7 @@ func TestBuyVXC(t *testing.T) {
 			setupMock: func(t *testing.T, m *mockVXCService) {
 				// Skip the build function and return an error directly
 				buildVXCRequestFromFlagsOrig := buildVXCRequestFromFlags
-				buildVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.BuyVXCRequest, error) {
+				buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc megaport.VXCService) (*megaport.BuyVXCRequest, error) {
 					return nil, fmt.Errorf("a-end-uid is required")
 				}
 				t.Cleanup(func() {
@@ -184,7 +184,7 @@ func TestBuyVXC(t *testing.T) {
 
 				// Skip the buildVXCRequestFromFlags function completely
 				buildVXCRequestFromFlagsOrig := buildVXCRequestFromFlags
-				buildVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.BuyVXCRequest, error) {
+				buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc megaport.VXCService) (*megaport.BuyVXCRequest, error) {
 					return &megaport.BuyVXCRequest{
 						PortUID:   "dcc-12345",
 						VXCName:   "Error VXC",
