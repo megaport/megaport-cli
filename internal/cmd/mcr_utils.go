@@ -42,6 +42,10 @@ var modifyMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.C
 	return client.MCRService.ModifyMCRPrefixFilterList(ctx, mcrID, prefixFilterListID, prefixFilterList)
 }
 
+var listMCRsFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ListMCRsRequest) ([]*megaport.MCR, error) {
+	return client.MCRService.ListMCRs(ctx, req)
+}
+
 var deleteMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrID string, prefixFilterListID int) (*megaport.DeleteMCRPrefixFilterListResponse, error) {
 	return client.MCRService.DeleteMCRPrefixFilterList(ctx, mcrID, prefixFilterListID)
 }
