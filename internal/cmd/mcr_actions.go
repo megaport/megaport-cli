@@ -84,7 +84,7 @@ func ListMCRs(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("error getting inactive flag: %v", err)
 	}
 	mcrReq := &megaport.ListMCRsRequest{
-		ListDecomissioned: includeInactive,
+		IncludeInactive: includeInactive,
 	}
 
 	// Call the ListMCRs method

@@ -181,6 +181,41 @@ func UpdateMVE(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// ListMVEs lists all MVEs
+func ListMVEs(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	// Log into the Megaport API
+	client, err := Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	// Get the value of the "inactive" flag
+	includeInactive, err := cmd.Flags().GetBool("inactive")
+	if err != nil {
+		return fmt.Errorf("error getting inactive flag: %v", err)
+	}
+
+	// Set up the request with filters
+	req := &megaport.ListMVEsRequest{
+		IncludeInactive: includeInactive,
+	}
+
+	// Call the ListMVEs method
+	mves, err := client.MVEService.ListMVEs(ctx, req)
+	if err != nil {
+		return fmt.Errorf("error listing MVEs: %v", err)
+	}
+
+	// Print the MVEs using the desired output format
+	err = printMVEs(mves, outputFormat)
+	if err != nil {
+		return fmt.Errorf("error printing MVEs: %v", err)
+	}
+	return nil
+}
+
 func GetMVE(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

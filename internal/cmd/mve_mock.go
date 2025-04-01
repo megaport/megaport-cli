@@ -31,6 +31,8 @@ type MockMVEService struct {
 	UpdateMVEResourceTagsError        error
 	CapturedUpdateMVEResourceTagsUID  string
 	CapturedUpdateMVEResourceTagsTags map[string]string
+	ListMVEsResult                    []*megaport.MVE
+	ListMVEsError                     error
 }
 
 func (m *MockMVEService) Reset() {
@@ -72,6 +74,21 @@ func (m *MockMVEService) GetMVE(ctx context.Context, mveId string) (*megaport.MV
 		UID:                mveId,
 		Name:               "Mock MVE",
 		ProvisioningStatus: "LIVE",
+	}, nil
+}
+func (m *MockMVEService) ListMVEs(ctx context.Context, req *megaport.ListMVEsRequest) ([]*megaport.MVE, error) {
+	if m.ListMVEsError != nil {
+		return nil, m.ListMVEsError
+	}
+	if m.ListMVEsResult != nil {
+		return m.ListMVEsResult, nil
+	}
+	return []*megaport.MVE{
+		{
+			UID:                "mve-1",
+			Name:               "TestMVE",
+			ProvisioningStatus: "LIVE",
+		},
 	}, nil
 }
 

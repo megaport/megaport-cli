@@ -217,6 +217,29 @@ Notes:
 	RunE: WrapRunE(BuyMVE),
 }
 
+// listMVEsCmd lists all Megaport Virtual Edge (MVE) devices.
+var listMVEsCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all MVEs",
+	Long: `List all Megaport Virtual Edge (MVE) devices associated with your Megaport account.
+
+This command retrieves all MVEs from the Megaport API and displays them in the specified format.
+By default, inactive MVEs are excluded. Use the --inactive flag to include them.
+
+Example usage:
+
+# List all active MVEs
+megaport-cli mve list
+
+# List all MVEs including inactive ones
+megaport-cli mve list --inactive
+
+# List all MVEs in JSON format
+megaport-cli mve list --output json
+`,
+	RunE: WrapRunE(ListMVEs),
+}
+
 // getMVECmd retrieves details for a single MVE.
 var getMVECmd = &cobra.Command{
 	Use:   "get [mveUID]",
@@ -444,6 +467,9 @@ func init() {
 	listMVEImagesCmd.Flags().StringVar(&versionFilter, "version", "", "Filter images by version")
 	listMVEImagesCmd.Flags().BoolVar(&releaseImageFilter, "release-image", false, "Filter images by release image")
 
+	listMVEsCmd.Flags().Bool("inactive", false, "Include inactive MVEs in the list")
+
+	mveCmd.AddCommand(listMVEsCmd)
 	mveCmd.AddCommand(buyMVECmd)
 	mveCmd.AddCommand(getMVECmd)
 	mveCmd.AddCommand(updateMVECmd)
