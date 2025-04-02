@@ -466,6 +466,9 @@ func init() {
 	updateMCRPrefixFilterListCmd.Flags().String("json-file", "", "Path to JSON file containing prefix filter list configuration")
 
 	listMCRsCmd.Flags().Bool("inactive", false, "Include inactive MCRs in the list")
+	listMCRsCmd.Flags().String("name", "", "Filter MCRs by name (case-insensitive substring match)")
+	listMCRsCmd.Flags().Int("location-id", 0, "Filter MCRs by location ID")
+	listMCRsCmd.Flags().Int("port-speed", 0, "Filter MCRs by port speed in Mbps")
 
 	mcrCmd.AddCommand(getMCRCmd)
 	mcrCmd.AddCommand(listMCRsCmd)

@@ -1689,3 +1689,200 @@ func TestUpdateMCRPrefixFilterListCmd(t *testing.T) {
 		})
 	}
 }
+
+// TestListMCRsCmd_WithMockClient tests the ListMCRs command with various filter combinations
+func TestListMCRsCmd_WithMockClient(t *testing.T) {
+	originalLoginFunc := loginFunc
+	originalListMCRsFunc := listMCRsFunc
+	originalOutputFormat := outputFormat
+	defer func() {
+		loginFunc = originalLoginFunc
+		listMCRsFunc = originalListMCRsFunc
+		outputFormat = originalOutputFormat
+	}()
+
+	// Set up test MCRs
+	mcrs := []*megaport.MCR{
+		{
+			UID:                "mcr-123",
+			Name:               "Production MCR",
+			LocationID:         123,
+			PortSpeed:          1000,
+			ProvisioningStatus: "LIVE",
+			ContractTermMonths: 12,
+			LocationDetails: &megaport.ProductLocationDetails{
+				Name: "Sydney Data Center",
+			},
+			CreateDate: &megaport.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
+		},
+		{
+			UID:                "mcr-456",
+			Name:               "Dev MCR",
+			LocationID:         456,
+			PortSpeed:          5000,
+			ProvisioningStatus: "LIVE",
+			ContractTermMonths: 24,
+			LocationDetails: &megaport.ProductLocationDetails{
+				Name: "Melbourne Data Center",
+			},
+			CreateDate: &megaport.Time{Time: time.Date(2023, 2, 1, 0, 0, 0, 0, time.UTC)},
+		},
+		{
+			UID:                "mcr-789",
+			Name:               "Test MCR",
+			LocationID:         123,
+			PortSpeed:          1000,
+			ProvisioningStatus: "DECOMMISSIONED",
+			ContractTermMonths: 12,
+			LocationDetails: &megaport.ProductLocationDetails{
+				Name: "Sydney Data Center",
+			},
+			CreateDate: &megaport.Time{Time: time.Date(2023, 3, 1, 0, 0, 0, 0, time.UTC)},
+		},
+	}
+
+	tests := []struct {
+		name           string
+		flags          map[string]string
+		format         string
+		expectedOutput []string
+		expectedMCRs   int
+		excludedMCRs   []string
+	}{
+		{
+			name:           "list active MCRs only",
+			flags:          map[string]string{},
+			format:         "table",
+			expectedOutput: []string{"Production MCR", "Dev MCR"},
+			expectedMCRs:   2,
+			excludedMCRs:   []string{"Test MCR"},
+		},
+		{
+			name:           "list all MCRs including inactive",
+			flags:          map[string]string{"inactive": "true"},
+			format:         "table",
+			expectedOutput: []string{"Production MCR", "Dev MCR", "Test MCR"},
+			expectedMCRs:   3,
+		},
+		{
+			name:           "filter by name",
+			flags:          map[string]string{"name": "Production"},
+			format:         "table",
+			expectedOutput: []string{"Production MCR"},
+			expectedMCRs:   1,
+			excludedMCRs:   []string{"Dev MCR", "Test MCR"},
+		},
+		{
+			name:           "filter by location ID",
+			flags:          map[string]string{"location-id": "123"},
+			format:         "table",
+			expectedOutput: []string{"Production MCR"},
+			expectedMCRs:   1,
+			excludedMCRs:   []string{"Dev MCR", "Test MCR"},
+		},
+		{
+			name:           "filter by port speed",
+			flags:          map[string]string{"port-speed": "5000"},
+			format:         "table",
+			expectedOutput: []string{"Dev MCR"},
+			expectedMCRs:   1,
+			excludedMCRs:   []string{"Production MCR", "Test MCR"},
+		},
+		{
+			name: "combine filters - name and port speed",
+			flags: map[string]string{
+				"name":       "Production",
+				"port-speed": "1000",
+			},
+			format:         "table",
+			expectedOutput: []string{"Production MCR"},
+			expectedMCRs:   1,
+			excludedMCRs:   []string{"Dev MCR", "Test MCR"},
+		},
+		{
+			name: "combine filters - inactive and location ID",
+			flags: map[string]string{
+				"inactive":    "true",
+				"location-id": "123",
+			},
+			format:         "table",
+			expectedOutput: []string{"Production MCR", "Test MCR"},
+			expectedMCRs:   2,
+			excludedMCRs:   []string{"Dev MCR"},
+		},
+		{
+			name:           "no match with filters",
+			flags:          map[string]string{"name": "NonExistent"},
+			format:         "table",
+			expectedOutput: []string{},
+			expectedMCRs:   0,
+			excludedMCRs:   []string{"Production MCR", "Dev MCR", "Test MCR"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set up mock function to return our test MCRs
+			listMCRsFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ListMCRsRequest) ([]*megaport.MCR, error) {
+				if req.IncludeInactive {
+					return mcrs, nil
+				}
+				// Filter out decommissioned MCRs
+				activeMcrs := make([]*megaport.MCR, 0)
+				for _, mcr := range mcrs {
+					if mcr.ProvisioningStatus != "DECOMMISSIONED" {
+						activeMcrs = append(activeMcrs, mcr)
+					}
+				}
+				return activeMcrs, nil
+			}
+
+			// Set up mock login
+			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				return &megaport.Client{}, nil
+			}
+
+			// Set output format
+			outputFormat = tt.format
+
+			// Create a fresh command for each test to avoid flag conflicts
+			cmd := &cobra.Command{
+				Use:  "list",
+				RunE: ListMCRs,
+			}
+
+			// Add all the necessary flags
+			cmd.Flags().Bool("inactive", false, "Include inactive MCRs")
+			cmd.Flags().String("name", "", "Filter by name")
+			cmd.Flags().Int("location-id", 0, "Filter by location ID")
+			cmd.Flags().Int("port-speed", 0, "Filter by port speed")
+
+			// Set flag values for this test
+			for flagName, flagValue := range tt.flags {
+				err := cmd.Flags().Set(flagName, flagValue)
+				if err != nil {
+					t.Fatalf("Failed to set %s flag: %v", flagName, err)
+				}
+			}
+
+			// Execute command and capture output
+			var err error
+			output := captureOutput(func() {
+				err = cmd.RunE(cmd, []string{})
+			})
+
+			// Check for errors
+			assert.NoError(t, err)
+
+			// Verify expected content in output
+			for _, expected := range tt.expectedOutput {
+				assert.Contains(t, output, expected)
+			}
+
+			// Verify excluded content not in output
+			for _, excluded := range tt.excludedMCRs {
+				assert.NotContains(t, output, excluded)
+			}
+		})
+	}
+}

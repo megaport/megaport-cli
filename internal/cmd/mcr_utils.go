@@ -1012,26 +1012,45 @@ func ToPrefixFilterListOutput(prefixFilterList *megaport.MCRPrefixFilterList) (P
 	}, nil
 }
 
-// MCROutput represents the desired fields for JSON output of MCR details.
 type MCROutput struct {
 	output
 	UID                string `json:"uid"`
 	Name               string `json:"name"`
 	LocationID         int    `json:"location_id"`
+	LocationName       string `json:"location_name"` // Add human-readable location name
+	PortSpeed          int    `json:"port_speed"`    // Add port speed since users can filter on this
 	ProvisioningStatus string `json:"provisioning_status"`
+	CreateDate         string `json:"create_date"`          // When the MCR was created
+	ContractTermMonths int    `json:"contract_term_months"` // Contract duration
 }
 
-// ToMCROutput converts a *megaport.MCR to our MCROutput struct.
+// Update the conversion function to include the new fields
 func ToMCROutput(mcr *megaport.MCR) (MCROutput, error) {
 	if mcr == nil {
 		return MCROutput{}, fmt.Errorf("invalid MCR: nil value")
+	}
+
+	// Format create date to string if it exists
+	createDateStr := ""
+	if mcr.CreateDate != nil {
+		createDateStr = mcr.CreateDate.Time.Format("2006-01-02")
+	}
+
+	// Get location name if available
+	locationName := ""
+	if mcr.LocationDetails != nil {
+		locationName = mcr.LocationDetails.Name
 	}
 
 	return MCROutput{
 		UID:                mcr.UID,
 		Name:               mcr.Name,
 		LocationID:         mcr.LocationID,
+		LocationName:       locationName,
+		PortSpeed:          mcr.PortSpeed,
 		ProvisioningStatus: mcr.ProvisioningStatus,
+		CreateDate:         createDateStr,
+		ContractTermMonths: mcr.ContractTermMonths,
 	}, nil
 }
 
@@ -1046,4 +1065,36 @@ func printMCRs(mcrs []*megaport.MCR, format string) error {
 		outputs = append(outputs, output)
 	}
 	return printOutput(outputs, format)
+}
+
+// filterMCRs applies the specified filters to a list of MCRs
+func filterMCRs(mcrs []*megaport.MCR, nameFilter string, locationID, portSpeed int) []*megaport.MCR {
+	// If no filters are set, return the original list
+	if nameFilter == "" && locationID == 0 && portSpeed == 0 {
+		return mcrs
+	}
+
+	filtered := []*megaport.MCR{}
+
+	for _, mcr := range mcrs {
+		// Apply name filter (case-insensitive substring match)
+		if nameFilter != "" && !strings.Contains(strings.ToLower(mcr.Name), strings.ToLower(nameFilter)) {
+			continue
+		}
+
+		// Apply location ID filter
+		if locationID > 0 && mcr.LocationID != locationID {
+			continue
+		}
+
+		// Apply port speed filter
+		if portSpeed > 0 && mcr.PortSpeed != portSpeed {
+			continue
+		}
+
+		// If we get here, the MCR passed all active filters
+		filtered = append(filtered, mcr)
+	}
+
+	return filtered
 }

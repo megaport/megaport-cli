@@ -68,39 +68,6 @@ func BuyMCR(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ListMCRs lists all MCRs
-func ListMCRs(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-
-	// Log into the Megaport API using the provided credentials
-	client, err := Login(ctx)
-	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
-	}
-
-	// Get the value of the "inactive" flag
-	includeInactive, err := cmd.Flags().GetBool("inactive")
-	if err != nil {
-		return fmt.Errorf("error getting inactive flag: %v", err)
-	}
-	mcrReq := &megaport.ListMCRsRequest{
-		IncludeInactive: includeInactive,
-	}
-
-	// Call the ListMCRs method
-	mcrs, err := listMCRsFunc(ctx, client, mcrReq)
-	if err != nil {
-		return fmt.Errorf("error listing mcrs: %v", err)
-	}
-
-	// Print the mcrs using the desired output format
-	err = printMCRs(mcrs, outputFormat)
-	if err != nil {
-		return fmt.Errorf("error printing mcrs: %v", err)
-	}
-	return nil
-}
-
 func UpdateMCR(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
@@ -418,6 +385,43 @@ func RestoreMCR(cmd *cobra.Command, args []string) error {
 		fmt.Println("MCR restoration request was not successful")
 	}
 
+	return nil
+}
+
+// ListMCRs lists all MCRs and applies filters
+func ListMCRs(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	// Log into the Megaport API
+	client, err := Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	// Get filter values from flags
+	includeInactive, _ := cmd.Flags().GetBool("inactive")
+	nameFilter, _ := cmd.Flags().GetString("name")
+	locationID, _ := cmd.Flags().GetInt("location-id")
+	portSpeed, _ := cmd.Flags().GetInt("port-speed")
+
+	// Get all MCRs from the API
+	req := &megaport.ListMCRsRequest{
+		IncludeInactive: includeInactive,
+	}
+
+	mcrs, err := listMCRsFunc(ctx, client, req)
+	if err != nil {
+		return fmt.Errorf("error listing MCRs: %v", err)
+	}
+
+	// Apply filters in the CLI application
+	filteredMCRs := filterMCRs(mcrs, nameFilter, locationID, portSpeed)
+
+	// Print the filtered results
+	err = printMCRs(filteredMCRs, outputFormat)
+	if err != nil {
+		return fmt.Errorf("error printing MCRs: %v", err)
+	}
 	return nil
 }
 
