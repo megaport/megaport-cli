@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"testing"
+	"time"
 
 	megaport "github.com/megaport/megaportgo"
 	"github.com/stretchr/testify/assert"
@@ -9,8 +10,11 @@ import (
 
 var testVXCs = []*megaport.VXC{
 	{
-		UID:  "vxc-1",
-		Name: "MyVXCOne",
+		UID:                "vxc-1",
+		Name:               "MyVXCOne",
+		RateLimit:          1000,
+		ProvisioningStatus: "ACTIVE",
+		CreateDate:         &megaport.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
 		AEndConfiguration: megaport.VXCEndConfiguration{
 			UID: "a-end-1",
 		},
@@ -19,8 +23,11 @@ var testVXCs = []*megaport.VXC{
 		},
 	},
 	{
-		UID:  "vxc-2",
-		Name: "AnotherVXC",
+		UID:                "vxc-2",
+		Name:               "AnotherVXC",
+		RateLimit:          2000,
+		ProvisioningStatus: "CONFIGURING",
+		CreateDate:         &megaport.Time{Time: time.Date(2023, 2, 1, 0, 0, 0, 0, time.UTC)},
 		AEndConfiguration: megaport.VXCEndConfiguration{
 			UID: "a-end-2",
 		},
@@ -36,12 +43,13 @@ func TestPrintVXCs_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `uid     name         a_end_uid   b_end_uid
-vxc-1   MyVXCOne     a-end-1     b-end-1
-vxc-2   AnotherVXC   a-end-2     b-end-2
+	expected := `uid     name         a_end_uid   b_end_uid   rate_limit   provisioning_status   create_date
+vxc-1   MyVXCOne     a-end-1     b-end-1     1000         ACTIVE                2023-01-01
+vxc-2   AnotherVXC   a-end-2     b-end-2     2000         CONFIGURING           2023-02-01
 `
 	assert.Equal(t, expected, output)
 }
+
 func TestPrintVXCs_JSON(t *testing.T) {
 	output := captureOutput(func() {
 		err := printVXCs(testVXCs, "json")
@@ -53,13 +61,19 @@ func TestPrintVXCs_JSON(t *testing.T) {
     "uid": "vxc-1",
     "name": "MyVXCOne",
     "a_end_uid": "a-end-1",
-    "b_end_uid": "b-end-1"
+    "b_end_uid": "b-end-1",
+    "rate_limit": 1000,
+    "provisioning_status": "ACTIVE",
+    "create_date": "2023-01-01"
   },
   {
     "uid": "vxc-2",
     "name": "AnotherVXC",
     "a_end_uid": "a-end-2",
-    "b_end_uid": "b-end-2"
+    "b_end_uid": "b-end-2",
+    "rate_limit": 2000,
+    "provisioning_status": "CONFIGURING",
+    "create_date": "2023-02-01"
   }
 ]`
 	assert.JSONEq(t, expected, output)
@@ -71,9 +85,9 @@ func TestPrintVXCs_CSV(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `uid,name,a_end_uid,b_end_uid
-vxc-1,MyVXCOne,a-end-1,b-end-1
-vxc-2,AnotherVXC,a-end-2,b-end-2
+	expected := `uid,name,a_end_uid,b_end_uid,rate_limit,provisioning_status,create_date
+vxc-1,MyVXCOne,a-end-1,b-end-1,1000,ACTIVE,2023-01-01
+vxc-2,AnotherVXC,a-end-2,b-end-2,2000,CONFIGURING,2023-02-01
 `
 	assert.Equal(t, expected, output)
 }
@@ -101,7 +115,7 @@ func TestPrintVXCs_EdgeCases(t *testing.T) {
 			vxcs:        nil,
 			format:      "table",
 			shouldError: false,
-			expected:    "uid   name   a_end_uid   b_end_uid\n",
+			expected:    "uid   name   a_end_uid   b_end_uid   rate_limit   provisioning_status   create_date\n",
 		},
 		{
 			name:        "empty slice",
@@ -129,11 +143,12 @@ func TestPrintVXCs_EdgeCases(t *testing.T) {
 				{
 					UID:  "vxc-1",
 					Name: "TestVXC",
+					// AEndConfiguration and BEndConfiguration are nil
 				},
 			},
 			format:      "csv",
 			shouldError: false,
-			expected:    "uid,name,a_end_uid,b_end_uid\nvxc-1,TestVXC,,\n",
+			expected:    "uid,name,a_end_uid,b_end_uid,rate_limit,provisioning_status,create_date\nvxc-1,TestVXC,,,0,,\n",
 		},
 	}
 
