@@ -34,18 +34,18 @@ Optional fields:
 
 Example usage:
 
-```
   # Interactive mode
+```
   megaport-cli ports buy --interactive
 ```
 
-```
   # Flag mode
+```
   megaport-cli ports buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true
 ```
 
-```
   # JSON mode
+```
   megaport-cli ports buy --json '{"name":"My Port","term":12,"portSpeed":10000,"locationId":123,"marketPlaceVisibility":true}'
   megaport-cli ports buy --json-file ./port-config.json
 ```

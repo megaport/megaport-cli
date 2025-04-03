@@ -237,9 +237,9 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 	baseFileName := filepath.Base(outputPath)
 	filePrefix := strings.TrimSuffix(baseFileName, ".md")
 
+	// Process the long description to format examples as code blocks
 	processedLongDesc := cmd.Long
 	if processedLongDesc != "" {
-		// Identify examples in the description - they typically start with "megaport-cli"
 		lines := strings.Split(processedLongDesc, "\n")
 		var formattedLines []string
 		inExampleBlock := false
@@ -247,10 +247,26 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		for i, line := range lines {
 			trimLine := strings.TrimSpace(line)
 
+			// Detect if this is a header line (starts with # and has text after it)
+			isHeaderLine := strings.HasPrefix(trimLine, "#") && len(trimLine) > 1 && trimLine[1] == ' '
+
+			// If we hit a header and we're in a code block, close the code block first
+			if isHeaderLine && inExampleBlock {
+				formattedLines = append(formattedLines, "```")
+				inExampleBlock = false
+			}
+
+			// If it's a header, add it and continue to next line
+			if isHeaderLine {
+				formattedLines = append(formattedLines, line)
+				continue
+			}
+
 			// Detect example command lines by common patterns
 			isExampleLine := strings.HasPrefix(trimLine, "megaport-cli") ||
-				strings.HasPrefix(trimLine, "# ") ||
-				(trimLine == "#" && i+1 < len(lines) && strings.HasPrefix(strings.TrimSpace(lines[i+1]), "megaport-cli"))
+				(i > 0 && strings.HasPrefix(lines[i-1], "#") &&
+					strings.Contains(lines[i-1], "example") &&
+					!strings.HasPrefix(trimLine, "#"))
 
 			// Start a code block before an example if not already in one
 			if isExampleLine && !inExampleBlock {

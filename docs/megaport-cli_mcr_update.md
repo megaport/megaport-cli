@@ -28,18 +28,18 @@ Fields that can be updated:
 
 Example usage:
 
-```
   # Interactive mode
+```
   megaport-cli mcr update [mcrUID] --interactive
 ```
 
-```
   # Flag mode
+```
   megaport-cli mcr update [mcrUID] --name "Updated MCR" --marketplace-visibility true
 ```
 
-```
   # JSON mode
+```
   megaport-cli mcr update [mcrUID] --json '{"name":"Updated MCR","marketplaceVisibility":true}'
   megaport-cli mcr update [mcrUID] --json-file ./update-mcr-config.json
 ```

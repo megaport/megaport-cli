@@ -35,18 +35,18 @@ Optional fields:
 
 Example usage:
 
-```
   # Interactive mode
+```
   megaport-cli mcr buy --interactive
 ```
 
-```
   # Flag mode
+```
   megaport-cli mcr buy --name "My MCR" --term 12 --port-speed 5000 --location-id 123
 ```
 
-```
   # JSON mode
+```
   megaport-cli mcr buy --json '{"name":"My MCR","term":12,"portSpeed":5000,"locationId":123}'
   megaport-cli mcr buy --json-file ./mcr-config.json
 ```

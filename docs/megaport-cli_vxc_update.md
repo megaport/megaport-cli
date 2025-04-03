@@ -40,28 +40,28 @@ Other CSP partner configurations (AWS, Azure, etc.) cannot be changed after crea
 
 Example usage:
 
-```
 # Interactive mode
+```
 megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive
 ```
 
-```
 # Flag mode - Basic updates
+```
 megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   --name "New VXC Name" \
   --rate-limit 2000 \
   --cost-centre "New Cost Centre"
 ```
 
-```
 # Flag mode - Update VLANs
+```
 megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   --a-end-vlan 200 \
   --b-end-vlan 300
 ```
 
-```
 # Flag mode - Update with VRouter partner config
+```
 megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   --b-end-partner-config '{
     "interfaces": [
@@ -84,8 +84,8 @@ megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   }'
 ```
 
-```
 # JSON mode
+```
 megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{
   "name": "Updated VXC Name",
   "rateLimit": 2000,
@@ -97,8 +97,8 @@ megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{
 }'
 ```
 
-```
 # JSON file
+```
 megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json-file ./vxc-update.json
 ```
 

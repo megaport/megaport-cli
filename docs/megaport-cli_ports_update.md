@@ -30,18 +30,18 @@ Optional fields:
 
 Example usage:
 
-```
   # Interactive mode
+```
   megaport-cli ports update [portUID] --interactive
 ```
 
-```
   # Flag mode
+```
   megaport-cli ports update [portUID] --name "Updated Port" --marketplace-visibility true
 ```
 
-```
   # JSON mode
+```
   megaport-cli ports update [portUID] --json '{"name":"Updated Port","marketplaceVisibility":true}'
   megaport-cli ports update [portUID] --json-file ./update-port-config.json
 ```

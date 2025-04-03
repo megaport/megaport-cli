@@ -102,13 +102,13 @@ Vendor-specific fields:
 
 Example usage:
 
-```
 # Interactive mode
+```
 megaport-cli mve buy --interactive
 ```
 
-```
 # Flag mode - Cisco example
+```
 megaport-cli mve buy --name "My Cisco MVE" --term 12 --location-id 123 \
   --vendor-config '{"vendor":"cisco","imageId":1,"productSize":"large","mveLabel":"cisco-mve",
                    "manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA...","sshPublicKey":"ssh-rsa AAAA...",
@@ -117,8 +117,8 @@ megaport-cli mve buy --name "My Cisco MVE" --term 12 --location-id 123 \
   --vnics '[{"description":"Data Plane","vlan":100}]'
 ```
 
-```
 # Flag mode - Aruba example
+```
 megaport-cli mve buy --name "Megaport MVE Example" --term 1 --location-id 123 \
   --vendor-config '{"vendor":"aruba","imageId":23,"productSize":"MEDIUM",
                    "accountName":"Aruba Test Account","accountKey":"12345678",
@@ -126,8 +126,8 @@ megaport-cli mve buy --name "Megaport MVE Example" --term 1 --location-id 123 \
   --vnics '[{"description":"Data Plane"},{"description":"Control Plane"},{"description":"Management Plane"}]'
 ```
 
-```
 # Flag mode - Versa example
+```
 megaport-cli mve buy --name "Megaport Versa MVE Example" --term 1 --location-id 123 \
   --vendor-config '{"vendor":"versa","imageId":20,"productSize":"MEDIUM",
                    "directorAddress":"director1.versa.com","controllerAddress":"controller1.versa.com",
@@ -137,8 +137,8 @@ megaport-cli mve buy --name "Megaport Versa MVE Example" --term 1 --location-id 
 ```
 
 
-```
 # JSON mode - Cisco example
+```
 megaport-cli mve buy --json '{
 "name": "My Cisco MVE",
 "term": 12,
@@ -162,8 +162,8 @@ megaport-cli mve buy --json '{
 }'
 ```
 
-```
 # JSON mode - Aruba example
+```
 megaport-cli mve buy --json '{
 "name": "Megaport MVE Example",
 "term": 1,
@@ -184,8 +184,8 @@ megaport-cli mve buy --json '{
 }'
 ```
 
-```
 # JSON mode - Versa example
+```
 megaport-cli mve buy --json '{
 "name": "Megaport Versa MVE Example",
 "term": 1,
@@ -206,8 +206,8 @@ megaport-cli mve buy --json '{
 }'
 ```
 
-```
 # JSON from file
+```
 megaport-cli mve buy --json-file ./mve-config.json
 ```
 
