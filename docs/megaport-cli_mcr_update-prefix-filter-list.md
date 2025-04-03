@@ -31,15 +31,21 @@ Fields that can be updated:
 
 Example usage:
 
+```
   # Interactive mode
   megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --interactive
+```
 
+```
   # Flag mode
   megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --description "Updated prefix list" --entries '[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]'
+```
 
+```
   # JSON mode
   megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --json '{"description":"Updated prefix list","entries":[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]}'
   megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --json-file ./update-prefix-list.json
+```
 
 
 

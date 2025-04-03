@@ -10,7 +10,9 @@ This command allows you to unlock an existing port by providing the UID of the p
 
 Example usage:
 
+```
   megaport-cli ports unlock [portUID]
+```
 
 
 

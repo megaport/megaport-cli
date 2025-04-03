@@ -10,7 +10,9 @@ This command allows you to modify the details of an existing service key.
 You need to specify the key identifier as an argument, and provide any updated values as flags.
 
 Example:
+```
   megaport-cli servicekeys update [key] --description "Updated description"
+```
 
 
 
@@ -23,6 +25,7 @@ megaport-cli servicekeys update [key] [flags]
 ## Examples
 
 ```
+Example:
 megaport-cli servicekeys update [key] --description "Updated description"
 ```
 

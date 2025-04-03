@@ -43,9 +43,12 @@ Optional fields:
 
 Example usage:
 
+```
 # Interactive mode
 megaport-cli vxc buy --interactive
+```
 
+```
 # Flag mode - Basic VXC between two ports
 megaport-cli vxc buy \
   --a-end-uid "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
@@ -55,7 +58,9 @@ megaport-cli vxc buy \
   --term 12 \
   --a-end-vlan 100 \
   --b-end-vlan 200
+```
 
+```
 # Flag mode - VXC to AWS Direct Connect
 megaport-cli vxc buy \
   --a-end-uid "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
@@ -65,7 +70,9 @@ megaport-cli vxc buy \
   --term 12 \
   --a-end-vlan 100 \
   --b-end-partner-config '{"connectType":"AWS","ownerAccount":"123456789012","asn":65000,"amazonAsn":64512}'
+```
 
+```
 # Flag mode - VXC to Azure ExpressRoute
 megaport-cli vxc buy \
   --a-end-uid "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
@@ -74,7 +81,9 @@ megaport-cli vxc buy \
   --term 12 \
   --a-end-vlan 100 \
   --b-end-partner-config '{"connectType":"AZURE","serviceKey":"s-abcd1234"}'
+```
 
+```
 # JSON mode
 megaport-cli vxc buy --json '{
   "portUID": "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
@@ -89,7 +98,9 @@ megaport-cli vxc buy --json '{
     "vlan": 200
   }
 }'
+```
 
+```
 # JSON mode with partner config
 megaport-cli vxc buy --json '{
   "portUID": "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
@@ -110,9 +121,12 @@ megaport-cli vxc buy --json '{
     }
   }
 }'
+```
 
+```
 # JSON file
 megaport-cli vxc buy --json-file ./vxc-config.json
+```
 
 
 

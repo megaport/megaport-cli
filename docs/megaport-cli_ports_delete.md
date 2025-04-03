@@ -11,7 +11,9 @@ You can optionally specify whether to delete the port immediately or at the end 
 
 Example usage:
 
+```
   megaport-cli ports delete [portUID]
+```
 
 
 

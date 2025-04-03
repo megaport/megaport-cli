@@ -18,7 +18,9 @@ generating its own markdown file containing:
 - Input/output formats (where applicable)
 
 Example usage:
+```
   megaport-cli generate-docs ./docs
+```
 
 
 

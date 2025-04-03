@@ -11,7 +11,9 @@ You need to provide the UID of the MVE as an argument.
 
 Example usage:
 
+```
   megaport-cli mve get [mveUID]
+```
 
 
 

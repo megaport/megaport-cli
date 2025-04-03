@@ -191,26 +191,9 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 	}
 	defer f.Close()
 
-	// Extract examples from long description
-	longDesc := cmd.Long
-	example := cmd.Example
-	if example == "" && strings.Contains(longDesc, "Example:") {
-		parts := strings.Split(longDesc, "Example:")
-		if len(parts) > 1 {
-			// Find the first line that looks like an example command
-			exampleLines := strings.Split(parts[1], "\n")
-			for _, line := range exampleLines {
-				if strings.TrimSpace(line) != "" && strings.Contains(line, "megaport-cli") {
-					example = strings.TrimSpace(line)
-					break
-				}
-			}
-		}
-	}
-
 	// Collect flags
 	var localFlags []FlagInfo
-	cmd.LocalFlags().VisitAll(func(flag *pflag.Flag) { // Change to *pflag.Flag
+	cmd.LocalFlags().VisitAll(func(flag *pflag.Flag) {
 		localFlags = append(localFlags, FlagInfo{
 			Name:        flag.Name,
 			Shorthand:   flag.Shorthand,
@@ -255,15 +238,62 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 	filePrefix := strings.TrimSuffix(baseFileName, ".md")
 
 	processedLongDesc := cmd.Long
-	if processedLongDesc != "" && strings.Contains(processedLongDesc, "Examples:") {
-		// Split by "Examples:" and handle the formatting
-		parts := strings.Split(processedLongDesc, "Examples:")
-		if len(parts) > 1 {
-			// The first part is the regular description
-			processedLongDesc = parts[0]
+	if processedLongDesc != "" {
+		// Identify examples in the description - they typically start with "megaport-cli"
+		lines := strings.Split(processedLongDesc, "\n")
+		var formattedLines []string
+		inExampleBlock := false
 
-			// The second part contains examples - extract them for special formatting
-			example = "Examples:\n" + strings.TrimSpace(parts[1])
+		for i, line := range lines {
+			trimLine := strings.TrimSpace(line)
+
+			// Detect example command lines by common patterns
+			isExampleLine := strings.HasPrefix(trimLine, "megaport-cli") ||
+				strings.HasPrefix(trimLine, "# ") ||
+				(trimLine == "#" && i+1 < len(lines) && strings.HasPrefix(strings.TrimSpace(lines[i+1]), "megaport-cli"))
+
+			// Start a code block before an example if not already in one
+			if isExampleLine && !inExampleBlock {
+				formattedLines = append(formattedLines, "```")
+				inExampleBlock = true
+			}
+
+			// End a code block after an example if there's a blank line or end of content
+			if inExampleBlock && trimLine == "" {
+				formattedLines = append(formattedLines, "```")
+				formattedLines = append(formattedLines, "") // Keep the blank line
+				inExampleBlock = false
+				continue
+			}
+
+			// Preserve special case for sections like "Examples:"
+			if strings.HasPrefix(trimLine, "Example") && strings.HasSuffix(trimLine, ":") {
+				if inExampleBlock {
+					formattedLines = append(formattedLines, "```")
+					inExampleBlock = false
+				}
+				formattedLines = append(formattedLines, line)
+				continue
+			}
+
+			// Add the line
+			formattedLines = append(formattedLines, line)
+		}
+
+		// Close any open code block at the end
+		if inExampleBlock {
+			formattedLines = append(formattedLines, "```")
+		}
+
+		processedLongDesc = strings.Join(formattedLines, "\n")
+	}
+
+	// Also handle the specific Example section if present
+	example := cmd.Example
+	if example == "" && strings.Contains(cmd.Long, "Example:") {
+		parts := strings.Split(cmd.Long, "Example:")
+		if len(parts) > 1 {
+			example = "Example:\n" + strings.TrimSpace(parts[1])
 		}
 	}
 

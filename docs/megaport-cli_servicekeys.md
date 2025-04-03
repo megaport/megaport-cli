@@ -12,6 +12,13 @@ This command groups all operations related to service keys. You can use its subc
   - List all service keys.
   - Get details of a specific service key.
 
+Examples:
+```
+  megaport-cli servicekeys list
+  megaport-cli servicekeys get [key]
+  megaport-cli servicekeys create --product-uid "product-uid" --description "My service key"
+  megaport-cli servicekeys update [key] --description "Updated description"
+```
 
 
 
@@ -21,15 +28,7 @@ This command groups all operations related to service keys. You can use its subc
 megaport-cli servicekeys [flags]
 ```
 
-## Examples
 
-```
-Examples:
-megaport-cli servicekeys list
-  megaport-cli servicekeys get [key]
-  megaport-cli servicekeys create --product-uid "product-uid" --description "My service key"
-  megaport-cli servicekeys update [key] --description "Updated description"
-```
 
 
 

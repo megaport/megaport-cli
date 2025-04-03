@@ -18,7 +18,9 @@ Available filters:
   - Diversity zone
 
 Example usage:
+```
   megaport-cli partners find
+```
 
 
 

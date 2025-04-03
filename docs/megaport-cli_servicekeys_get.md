@@ -10,7 +10,9 @@ This command fetches and displays detailed information about a given service key
 You must provide the service key identifier as an argument.
 
 Example:
+```
   megaport-cli servicekeys get [key]
+```
 
 
 
@@ -23,6 +25,7 @@ megaport-cli servicekeys get [key] [flags]
 ## Examples
 
 ```
+Example:
 megaport-cli servicekeys get [key]
 ```
 

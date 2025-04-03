@@ -10,7 +10,9 @@ This command allows you to restore a previously deleted port by providing the UI
 
 Example usage:
 
+```
   megaport-cli ports restore [portUID]
+```
 
 
 

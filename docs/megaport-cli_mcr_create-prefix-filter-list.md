@@ -31,15 +31,21 @@ Required fields:
 
 Example usage:
 
+```
   # Interactive mode
   megaport-cli mcr create-prefix-filter-list [mcrUID] --interactive
+```
 
+```
   # Flag mode
   megaport-cli mcr create-prefix-filter-list [mcrUID] --description "My prefix list" --address-family "IPv4" --entries '[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]'
+```
 
+```
   # JSON mode
   megaport-cli mcr create-prefix-filter-list [mcrUID] --json '{"description":"My prefix list","addressFamily":"IPv4","entries":[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]}'
   megaport-cli mcr create-prefix-filter-list [mcrUID] --json-file ./prefix-list-config.json
+```
 
 
 

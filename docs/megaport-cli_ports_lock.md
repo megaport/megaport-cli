@@ -10,7 +10,9 @@ This command allows you to lock an existing port by providing the UID of the por
 
 Example usage:
 
+```
   megaport-cli ports lock [portUID]
+```
 
 
 

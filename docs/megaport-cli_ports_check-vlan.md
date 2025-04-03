@@ -10,7 +10,9 @@ This command allows you to check if a specific VLAN is available on an existing 
 
 Example usage:
 
+```
   megaport-cli ports check-vlan [portUID] [vlan]
+```
 
 
 

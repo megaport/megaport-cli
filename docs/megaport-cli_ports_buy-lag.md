@@ -35,15 +35,21 @@ Optional fields:
 
 Example usage:
 
+```
   # Interactive mode
   megaport-cli ports buy-lag --interactive
+```
 
+```
   # Flag mode
   megaport-cli ports buy-lag --name "My LAG Port" --term 12 --port-speed 10000 --location-id 123 --lag-count 2 --marketplace-visibility true
+```
 
+```
   # JSON mode
   megaport-cli ports buy-lag --json '{"name":"My LAG Port","term":12,"portSpeed":10000,"locationId":123,"lagCount":2,"marketPlaceVisibility":true}'
   megaport-cli ports buy-lag --json-file ./lag-port-config.json
+```
 
 
 

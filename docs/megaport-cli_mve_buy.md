@@ -102,9 +102,12 @@ Vendor-specific fields:
 
 Example usage:
 
+```
 # Interactive mode
 megaport-cli mve buy --interactive
+```
 
+```
 # Flag mode - Cisco example
 megaport-cli mve buy --name "My Cisco MVE" --term 12 --location-id 123 \
   --vendor-config '{"vendor":"cisco","imageId":1,"productSize":"large","mveLabel":"cisco-mve",
@@ -112,14 +115,18 @@ megaport-cli mve buy --name "My Cisco MVE" --term 12 --location-id 123 \
                    "cloudInit":"#cloud-config\npackages:\n - nginx\n","fmcIpAddress":"10.0.0.1",
                    "fmcRegistrationKey":"key123","fmcNatId":"natid123"}' \
   --vnics '[{"description":"Data Plane","vlan":100}]'
+```
 
+```
 # Flag mode - Aruba example
 megaport-cli mve buy --name "Megaport MVE Example" --term 1 --location-id 123 \
   --vendor-config '{"vendor":"aruba","imageId":23,"productSize":"MEDIUM",
                    "accountName":"Aruba Test Account","accountKey":"12345678",
                    "systemTag":"Preconfiguration-aruba-test-1"}' \
   --vnics '[{"description":"Data Plane"},{"description":"Control Plane"},{"description":"Management Plane"}]'
+```
 
+```
 # Flag mode - Versa example
 megaport-cli mve buy --name "Megaport Versa MVE Example" --term 1 --location-id 123 \
   --vendor-config '{"vendor":"versa","imageId":20,"productSize":"MEDIUM",
@@ -127,8 +134,10 @@ megaport-cli mve buy --name "Megaport Versa MVE Example" --term 1 --location-id 
                    "localAuth":"SDWAN-Branch@Versa.com","remoteAuth":"Controller-1-staging@Versa.com",
                    "serialNumber":"Megaport-Hub1"}' \
   --vnics '[{"description":"Data Plane"}]'
+```
 
 
+```
 # JSON mode - Cisco example
 megaport-cli mve buy --json '{
 "name": "My Cisco MVE",
@@ -151,7 +160,9 @@ megaport-cli mve buy --json '{
   {"description": "Data Plane", "vlan": 100}
 ]
 }'
+```
 
+```
 # JSON mode - Aruba example
 megaport-cli mve buy --json '{
 "name": "Megaport MVE Example",
@@ -171,7 +182,9 @@ megaport-cli mve buy --json '{
   {"description": "Management Plane"}
 ]
 }'
+```
 
+```
 # JSON mode - Versa example
 megaport-cli mve buy --json '{
 "name": "Megaport Versa MVE Example",
@@ -191,9 +204,12 @@ megaport-cli mve buy --json '{
   {"description": "Data Plane"}
 ]
 }'
+```
 
+```
 # JSON from file
 megaport-cli mve buy --json-file ./mve-config.json
+```
 
 
 

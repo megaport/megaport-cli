@@ -10,7 +10,9 @@ This command generates a new service key and displays its details.
 You may need to provide additional flags or parameters based on your API requirements.
 
 Example:
+```
   megaport-cli servicekeys create --product-uid "product-uid" --description "My service key"
+```
 
 
 
@@ -23,6 +25,7 @@ megaport-cli servicekeys create [flags]
 ## Examples
 
 ```
+Example:
 megaport-cli servicekeys create --product-uid "product-uid" --description "My service key"
 ```
 

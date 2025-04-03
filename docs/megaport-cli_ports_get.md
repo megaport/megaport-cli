@@ -10,7 +10,9 @@ This command fetches and displays detailed information about a specific port.
 You need to provide the UID of the port as an argument.
 
 Example:
+```
   megaport-cli ports get [portUID]
+```
 
 
 
@@ -23,6 +25,7 @@ megaport-cli ports get [portUID] [flags]
 ## Examples
 
 ```
+Example:
 megaport-cli ports get [portUID]
 ```
 

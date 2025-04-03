@@ -10,7 +10,9 @@ This command retrieves and displays all service keys along with their details.
 Use this command to review the keys available in your account.
 
 Example:
+```
   megaport-cli servicekeys list
+```
 
 
 
@@ -23,6 +25,7 @@ megaport-cli servicekeys list [flags]
 ## Examples
 
 ```
+Example:
 megaport-cli servicekeys list
 ```
 

@@ -11,7 +11,9 @@ size, label, CPU core count, and RAM.
 
 Example usage:
 
+```
   megaport-cli mve list-sizes
+```
 
 
 

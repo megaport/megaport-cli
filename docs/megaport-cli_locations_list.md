@@ -16,10 +16,12 @@ Available filters:
 
 Example usage:
 
+```
   megaport-cli locations list
   megaport-cli locations list --metro "San Francisco"
   megaport-cli locations list --country "US"
   megaport-cli locations list --name "Equinix"
+```
 
 
 

@@ -19,12 +19,14 @@ Available filters:
 
 Example usage:
 
+```
   megaport-cli partners list
   megaport-cli partners list --product-name "AWS Partner Port"
   megaport-cli partners list --connect-type "AWS"
   megaport-cli partners list --company-name "AWS"
   megaport-cli partners list --location-id 67
   megaport-cli partners list --diversity-zone "blue"
+```
 
 
 
