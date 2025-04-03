@@ -20,7 +20,7 @@ Example:
 megaport-cli servicekeys create [flags]
 ```
 
-## Example
+## Examples
 
 ```
 megaport-cli servicekeys create --product-uid "product-uid" --description "My service key"

@@ -23,7 +23,7 @@ If no filtering options are provided, all ports will be listed.
 megaport-cli ports list [flags]
 ```
 
-## Example
+## Examples
 
 ```
 megaport-cli ports list --location-id 1 --port-speed 10000 --port-name "PortName"

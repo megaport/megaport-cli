@@ -20,7 +20,7 @@ Example:
 megaport-cli servicekeys update [key] [flags]
 ```
 
-## Example
+## Examples
 
 ```
 megaport-cli servicekeys update [key] --description "Updated description"

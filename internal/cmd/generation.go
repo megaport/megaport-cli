@@ -254,10 +254,23 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 	baseFileName := filepath.Base(outputPath)
 	filePrefix := strings.TrimSuffix(baseFileName, ".md")
 
+	processedLongDesc := cmd.Long
+	if processedLongDesc != "" && strings.Contains(processedLongDesc, "Examples:") {
+		// Split by "Examples:" and handle the formatting
+		parts := strings.Split(processedLongDesc, "Examples:")
+		if len(parts) > 1 {
+			// The first part is the regular description
+			processedLongDesc = parts[0]
+
+			// The second part contains examples - extract them for special formatting
+			example = "Examples:\n" + strings.TrimSpace(parts[1])
+		}
+	}
+
 	data := CommandData{
 		Name:               cmd.Name(),
 		Description:        cmd.Short,
-		LongDescription:    cmd.Long,
+		LongDescription:    processedLongDesc,
 		Usage:              cmd.UseLine(),
 		Example:            example,
 		HasParent:          hasParent,
@@ -289,7 +302,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 {{ .Usage }}
 ` + "```" + `
 
-{{ if .Example }}## Example
+{{ if .Example }}## Examples
 
 ` + "```" + `
 {{ .Example }}

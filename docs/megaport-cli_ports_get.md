@@ -20,7 +20,7 @@ Example:
 megaport-cli ports get [portUID] [flags]
 ```
 
-## Example
+## Examples
 
 ```
 megaport-cli ports get [portUID]

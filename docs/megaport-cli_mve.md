@@ -9,8 +9,20 @@ Manage Megaport Virtual Edge (MVE) devices.
 This command groups all operations related to Megaport Virtual Edge devices (MVEs).
 You can use this command to list, get details, buy, update, and delete MVEs.
 
+
+
+
+## Usage
+
+```
+megaport-cli mve [flags]
+```
+
+## Examples
+
+```
 Examples:
-  # List all MVEs
+# List all MVEs
   megaport-cli mve list
 
   # Get details for a specific MVE
@@ -24,16 +36,7 @@ Examples:
 
   # Delete an existing MVE
   megaport-cli mve delete [mveUID]
-
-
-
-## Usage
-
 ```
-megaport-cli mve [flags]
-```
-
-
 
 
 

@@ -20,7 +20,7 @@ Example:
 megaport-cli servicekeys list [flags]
 ```
 
-## Example
+## Examples
 
 ```
 megaport-cli servicekeys list

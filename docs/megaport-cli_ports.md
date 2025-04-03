@@ -11,8 +11,20 @@ to list all ports, get details for a specific port, buy a new port, buy a LAG po
 update an existing port, delete a port, restore a deleted port, lock a port, unlock a port,
 and check VLAN availability on a port.
 
+
+
+
+## Usage
+
+```
+megaport-cli ports [flags]
+```
+
+## Examples
+
+```
 Examples:
-  # List all ports
+# List all ports
   megaport-cli ports list
 
   # Get details for a specific port
@@ -50,16 +62,7 @@ Examples:
 
   # Check VLAN availability on a port
   megaport-cli ports check-vlan [portUID] [vlan]
-
-
-
-## Usage
-
 ```
-megaport-cli ports [flags]
-```
-
-
 
 
 
