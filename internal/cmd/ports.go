@@ -214,7 +214,6 @@ Example:
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(GetPort),
 }
-
 var updatePortCmd = &cobra.Command{
 	Use:   "update [portUID]",
 	Short: "Update a port's details",
@@ -224,35 +223,57 @@ This command allows you to update the details of an existing port by providing t
 You can provide details in one of three ways:
 
 1. Interactive Mode (with --interactive):
-   The command will prompt you for each required and optional field.
+   The command will prompt you for each updatable field, showing current values
+   and allowing you to make changes. Press ENTER to keep the current value.
 
 2. Flag Mode:
-   Provide all required fields as flags:
-   --name, --marketplace-visibility
+   Provide only the fields you want to update as flags:
+   --name, --marketplace-visibility, --cost-centre, --term
 
 3. JSON Mode:
-   Provide a JSON string or file with all required fields:
+   Provide a JSON string or file with the fields you want to update:
    --json <json-string> or --json-file <path>
 
-Required fields:
-  - name: The new name of the port.
-  - marketplace_visibility: Whether the port should be visible in the marketplace (true or false).
+Fields that can be updated:
+- name: The new name of the port (1-64 characters)
+- marketplace_visibility: Whether the port should be visible in the marketplace (true or false)
+- cost_centre: The cost center for billing purposes (optional)
+- term: The new contract term in months (1, 12, 24, or 36)
 
-Optional fields:
-  - cost_centre: The cost center for the port.
-  - term: The new term of the port (1, 12, or 24 months).
+Important notes:
+- The port UID cannot be changed
+- Technical specifications (speed, location) cannot be modified
+- Connectivity (VXCs) will not be affected by these changes
+- Changing the contract term may affect billing immediately
 
 Example usage:
 
   # Interactive mode
-  megaport-cli ports update [portUID] --interactive
+  megaport-cli ports update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --interactive
 
   # Flag mode
-  megaport-cli ports update [portUID] --name "Updated Port" --marketplace-visibility true
+  megaport-cli ports update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --name "Main Data Center Port" --marketplace-visibility false
 
   # JSON mode
-  megaport-cli ports update [portUID] --json '{"name":"Updated Port","marketplaceVisibility":true}'
-  megaport-cli ports update [portUID] --json-file ./update-port-config.json
+  megaport-cli ports update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json '{"name":"Main Data Center Port","marketplaceVisibility":false}'
+  megaport-cli ports update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json-file ./update-port-config.json
+
+JSON format example (update-port-config.json):
+{
+  "name": "Main Data Center Port",
+  "marketplaceVisibility": false,
+  "costCentre": "IT-Network-2023",
+  "term": 24
+}
+
+Note the JSON property names differ from flag names:
+- Flag: --name                      → JSON: "name"
+- Flag: --marketplace-visibility    → JSON: "marketplaceVisibility"
+- Flag: --cost-centre               → JSON: "costCentre"
+- Flag: --term                      → JSON: "term"
+
+Example successful output:
+  Port updated successfully - UID: 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(UpdatePort),
@@ -265,11 +286,35 @@ var deletePortCmd = &cobra.Command{
 	Long: `Delete a port from your account in the Megaport API.
 
 This command allows you to delete an existing port by providing the UID of the port as an argument.
-You can optionally specify whether to delete the port immediately or at the end of the billing period.
+By default, the port will be scheduled for deletion at the end of the current billing period.
+
+Available flags:
+  --now    Delete the port immediately instead of waiting until the end of the billing period.
+           Note that immediate deletion may affect billing and cannot be undone.
+           
+  --force, -f  Skip the confirmation prompt and proceed with deletion.
+               Use with caution, as this will immediately execute the delete operation.
+
+Important notes:
+- All VXCs associated with the port must be deleted before the port can be deleted
+- You can restore a deleted port before it's fully decommissioned using the 'restore' command
+- Once a port is fully decommissioned, restoration is not possible
 
 Example usage:
 
-  megaport-cli ports delete [portUID]
+  # Delete at the end of the billing period (with confirmation prompt)
+  megaport-cli ports delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
+
+  # Delete immediately (with confirmation prompt)
+  megaport-cli ports delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now
+
+  # Delete immediately without confirmation
+  megaport-cli ports delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now --force
+
+Example output:
+  Are you sure you want to delete port 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p? (y/n): y
+  Port 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p deleted successfully
+  The port will be deleted at the end of the current billing period
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(DeletePort),
@@ -281,11 +326,22 @@ var restorePortCmd = &cobra.Command{
 	Short: "Restore a deleted port",
 	Long: `Restore a previously deleted port in the Megaport API.
 
-This command allows you to restore a previously deleted port by providing the UID of the port as an argument.
+This command allows you to restore a port that has been marked for deletion but not yet
+fully decommissioned. The port will be reinstated with its original configuration.
+
+Important notes:
+- You can only restore ports that are in a "DECOMMISSIONING" state
+- Once a port is fully decommissioned, it cannot be restored
+- The restoration process is immediate but may take a few minutes to complete
+- All port attributes will be restored to their pre-deletion state
+- You will resume being billed for the port according to your original terms
 
 Example usage:
 
-  megaport-cli ports restore [portUID]
+  megaport-cli ports restore 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
+
+Example output:
+  Port 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p restored successfully
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(RestorePort),
@@ -297,11 +353,24 @@ var lockPortCmd = &cobra.Command{
 	Short: "Lock a port",
 	Long: `Lock a port in the Megaport API.
 
-This command allows you to lock an existing port by providing the UID of the port as an argument.
+This command allows you to lock an existing port, preventing any changes or
+modifications to the port or its associated VXCs. Locking a port is useful for
+ensuring critical infrastructure remains stable and preventing accidental changes.
+
+When a port is locked:
+- The port's configuration cannot be modified
+- New VXCs cannot be created on this port
+- Existing VXCs cannot be modified or deleted
+- The port itself cannot be deleted
+
+To reverse this action, use the 'unlock' command.
 
 Example usage:
 
-  megaport-cli ports lock [portUID]
+  megaport-cli ports lock 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
+
+Example output:
+  Port 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p locked successfully
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(LockPort),
@@ -313,11 +382,21 @@ var unlockPortCmd = &cobra.Command{
 	Short: "Unlock a port",
 	Long: `Unlock a port in the Megaport API.
 
-This command allows you to unlock an existing port by providing the UID of the port as an argument.
+This command allows you to unlock a previously locked port, re-enabling the ability
+to make changes to the port and its associated VXCs.
+
+When a port is unlocked:
+- The port's configuration can be modified
+- New VXCs can be created on this port
+- Existing VXCs can be modified or deleted
+- The port itself can be deleted if needed
 
 Example usage:
 
-  megaport-cli ports unlock [portUID]
+  megaport-cli ports unlock 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
+
+Example output:
+  Port 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p unlocked successfully
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(UnlockPort),
@@ -329,11 +408,20 @@ var checkPortVLANAvailabilityCmd = &cobra.Command{
 	Short: "Check if a VLAN is available on a port",
 	Long: `Check if a VLAN is available on a port in the Megaport API.
 
-This command allows you to check if a specific VLAN is available on an existing port by providing the UID of the port and the VLAN ID as arguments.
+This command verifies whether a specific VLAN ID is available for use on a port.
+This is useful when planning new VXCs to ensure the VLAN ID you want to use is not
+already in use by another connection.
+
+VLAN ID must be between 2 and 4094 (inclusive).
 
 Example usage:
 
-  megaport-cli ports check-vlan [portUID] [vlan]
+  megaport-cli ports check-vlan 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p 100
+
+Example outputs:
+  VLAN 100 is available on port 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
+  
+  VLAN 100 is not available on port 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
 `,
 	Args: cobra.ExactArgs(2),
 	RunE: WrapRunE(CheckPortVLANAvailability),

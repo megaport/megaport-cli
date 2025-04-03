@@ -2,6 +2,18 @@
 
 Delete a prefix filter list on an MCR
 
+## Description
+
+Delete a prefix filter list on an MCR.
+
+This command allows you to delete a prefix filter list from the specified MCR.
+
+Example usage:
+```
+  megaport-cli mcr delete-prefix-filter-list [mcrUID] [prefixFilterListID]
+
+```
+
 
 
 ## Usage

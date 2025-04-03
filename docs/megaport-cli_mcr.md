@@ -7,20 +7,51 @@ Manage MCRs in the Megaport API
 Manage MCRs in the Megaport API.
 
 This command groups all operations related to Megaport Cloud Routers (MCRs).
-You can use the subcommands to perform actions such as retrieving details for a specific MCR.
-For instance, use the "megaport-cli mcr get [mcrUID]" command to fetch details for the MCR with the given UID.
+MCRs are virtual routing appliances that run in the Megaport network, providing
+interconnection between your cloud environments and the Megaport fabric.
 
-Available subcommands:
+With MCRs you can:
+- Establish virtual cross-connects (VXCs) to cloud service providers
+- Create private network connections between different cloud regions
+- Implement hybrid cloud architectures with seamless connectivity
+- Peer with other networks using BGP routing
+
+Available operations:
 - `get`: Retrieve details for a single MCR.
-- `buy`: Purchase an MCR by providing the necessary details.
-- `update`: Update an existing MCR.
-- `delete`: Delete an MCR from your account.
+- `buy`: Purchase a new MCR with specified configuration.
+- `update`: Modify an existing MCR's properties.
+- `delete`: Remove an MCR from your account.
 - `restore`: Restore a previously deleted MCR.
 - `create-prefix-filter-list`: Create a prefix filter list on an MCR.
 - `list-prefix-filter-lists`: List all prefix filter lists for a specific MCR.
 - `get-prefix-filter-list`: Retrieve details for a single prefix filter list on an MCR.
 - `update-prefix-filter-list`: Update a prefix filter list on an MCR.
 - `delete-prefix-filter-list`: Delete a prefix filter list on an MCR.
+
+Examples:
+### Get details for a specific MCR
+```
+  megaport-cli mcr get [mcrUID]
+
+```
+
+### Buy a new MCR
+```
+  megaport-cli mcr buy
+
+```
+
+### Update an existing MCR
+```
+  megaport-cli mcr update [mcrUID]
+
+```
+
+### Delete an existing MCR
+```
+  megaport-cli mcr delete [mcrUID]
+
+```
 
 
 
