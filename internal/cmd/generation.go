@@ -158,8 +158,8 @@ func collectCommands(cmd *cobra.Command, parentPath string, commands *[]CommandI
 }
 
 func generateCommandDocs(cmd *cobra.Command, outputDir, parentPath string) error {
-	if cmd.Hidden || cmd.Name() == "help" || cmd.Name() == "completion" {
-		return nil // Skip hidden and utility commands
+	if cmd.Hidden || cmd.Name() == "help" { // Removed "|| cmd.Name() == "completion"
+		return nil // Skip only hidden commands and help
 	}
 
 	cmdPath := cmd.Name()
