@@ -32,6 +32,6 @@ megaport-cli partners [flags]
 
 ## Subcommands
 
-* [find](partners_find.md)
-* [list](partners_list.md)
+* [find](megaport-cli_partners_find.md)
+* [list](megaport-cli_partners_list.md)
 

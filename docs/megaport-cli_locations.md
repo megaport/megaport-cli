@@ -31,6 +31,6 @@ megaport-cli locations [flags]
 
 ## Subcommands
 
-* [get](locations_get.md)
-* [list](locations_list.md)
+* [get](megaport-cli_locations_get.md)
+* [list](megaport-cli_locations_list.md)
 

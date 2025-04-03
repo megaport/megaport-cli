@@ -36,8 +36,8 @@ megaport-cli servicekeys [flags]
 
 ## Subcommands
 
-* [create](servicekeys_create.md)
-* [get](servicekeys_get.md)
-* [list](servicekeys_list.md)
-* [update](servicekeys_update.md)
+* [create](megaport-cli_servicekeys_create.md)
+* [get](megaport-cli_servicekeys_get.md)
+* [list](megaport-cli_servicekeys_list.md)
+* [update](megaport-cli_servicekeys_update.md)
 

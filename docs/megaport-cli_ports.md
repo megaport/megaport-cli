@@ -69,14 +69,14 @@ megaport-cli ports [flags]
 
 ## Subcommands
 
-* [buy](ports_buy.md)
-* [buy-lag](ports_buy-lag.md)
-* [check-vlan](ports_check-vlan.md)
-* [delete](ports_delete.md)
-* [get](ports_get.md)
-* [list](ports_list.md)
-* [lock](ports_lock.md)
-* [restore](ports_restore.md)
-* [unlock](ports_unlock.md)
-* [update](ports_update.md)
+* [buy](megaport-cli_ports_buy.md)
+* [buy-lag](megaport-cli_ports_buy-lag.md)
+* [check-vlan](megaport-cli_ports_check-vlan.md)
+* [delete](megaport-cli_ports_delete.md)
+* [get](megaport-cli_ports_get.md)
+* [list](megaport-cli_ports_list.md)
+* [lock](megaport-cli_ports_lock.md)
+* [restore](megaport-cli_ports_restore.md)
+* [unlock](megaport-cli_ports_unlock.md)
+* [update](megaport-cli_ports_update.md)
 

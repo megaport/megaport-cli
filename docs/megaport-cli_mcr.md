@@ -40,14 +40,14 @@ megaport-cli mcr [flags]
 
 ## Subcommands
 
-* [buy](mcr_buy.md)
-* [create-prefix-filter-list](mcr_create-prefix-filter-list.md)
-* [delete](mcr_delete.md)
-* [delete-prefix-filter-list](mcr_delete-prefix-filter-list.md)
-* [get](mcr_get.md)
-* [get-prefix-filter-list](mcr_get-prefix-filter-list.md)
-* [list-prefix-filter-lists](mcr_list-prefix-filter-lists.md)
-* [restore](mcr_restore.md)
-* [update](mcr_update.md)
-* [update-prefix-filter-list](mcr_update-prefix-filter-list.md)
+* [buy](megaport-cli_mcr_buy.md)
+* [create-prefix-filter-list](megaport-cli_mcr_create-prefix-filter-list.md)
+* [delete](megaport-cli_mcr_delete.md)
+* [delete-prefix-filter-list](megaport-cli_mcr_delete-prefix-filter-list.md)
+* [get](megaport-cli_mcr_get.md)
+* [get-prefix-filter-list](megaport-cli_mcr_get-prefix-filter-list.md)
+* [list-prefix-filter-lists](megaport-cli_mcr_list-prefix-filter-lists.md)
+* [restore](megaport-cli_mcr_restore.md)
+* [update](megaport-cli_mcr_update.md)
+* [update-prefix-filter-list](megaport-cli_mcr_update-prefix-filter-list.md)
 

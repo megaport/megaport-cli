@@ -28,8 +28,8 @@ megaport-cli vxc [flags]
 
 ## Subcommands
 
-* [buy](vxc_buy.md)
-* [delete](vxc_delete.md)
-* [get](vxc_get.md)
-* [update](vxc_update.md)
+* [buy](megaport-cli_vxc_buy.md)
+* [delete](megaport-cli_vxc_delete.md)
+* [get](megaport-cli_vxc_get.md)
+* [update](megaport-cli_vxc_update.md)
 

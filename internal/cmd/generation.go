@@ -251,6 +251,9 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		parentCommandName = cmd.Parent().Name()
 	}
 
+	baseFileName := filepath.Base(outputPath)
+	filePrefix := strings.TrimSuffix(baseFileName, ".md")
+
 	data := CommandData{
 		Name:               cmd.Name(),
 		Description:        cmd.Short,
@@ -267,7 +270,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		HasSubCommands:     len(subCommands) > 0,
 		SubCommands:        subCommands,
 		IsAvailableCommand: cmd.IsAvailableCommand(),
-		FilepathPrefix:     parentCommandPath,
+		FilepathPrefix:     filePrefix,
 	}
 
 	// Define the template
@@ -311,7 +314,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 
 {{ if .HasSubCommands }}## Subcommands
 
-{{ range .SubCommands }}* [{{ . }}]({{ if $.FilepathPrefix }}{{ $.FilepathPrefix }}_{{ end }}{{ $.Name }}_{{ . }}.md)
+{{ range .SubCommands }}* [{{ . }}]({{ $.FilepathPrefix }}_{{ . }}.md)
 {{ end }}{{ end }}
 `
 
