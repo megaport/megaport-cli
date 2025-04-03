@@ -75,18 +75,18 @@ megaport-cli mcr buy [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| --cost-centre |  |  | Cost centre for billing | false |
-| --diversity-zone |  |  | Diversity zone for the MCR | false |
-| --interactive | -i | false | Use interactive mode with prompts | false |
-| --json |  |  | JSON string containing MCR configuration | false |
-| --json-file |  |  | Path to JSON file containing MCR configuration | false |
-| --location-id |  | 0 | Location ID where the MCR will be provisioned | false |
-| --mcr-asn |  | 0 | ASN for the MCR (optional) | false |
-| --name |  |  | MCR name | false |
-| --port-speed |  | 0 | Port speed in Mbps (1000, 2500, 5000, or 10000) | false |
-| --promo-code |  |  | Promotional code for discounts | false |
-| --resource-tags |  |  | JSON string of key-value resource tags | false |
-| --term |  | 0 | Contract term in months (1, 12, 24, or 36) | false |
+| `--cost-centre` |  |  | Cost centre for billing | false |
+| `--diversity-zone` |  |  | Diversity zone for the MCR | false |
+| `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
+| `--json` |  |  | JSON string containing MCR configuration | false |
+| `--json-file` |  |  | Path to JSON file containing MCR configuration | false |
+| `--location-id` |  | `0` | Location ID where the MCR will be provisioned | false |
+| `--mcr-asn` |  | `0` | ASN for the MCR (optional) | false |
+| `--name` |  |  | MCR name | false |
+| `--port-speed` |  | `0` | Port speed in Mbps (1000, 2500, 5000, or 10000) | false |
+| `--promo-code` |  |  | Promotional code for discounts | false |
+| `--resource-tags` |  |  | JSON string of key-value resource tags | false |
+| `--term` |  | `0` | Contract term in months (1, 12, 24, or 36) | false |
 
 
 

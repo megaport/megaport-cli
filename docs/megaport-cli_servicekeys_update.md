@@ -41,11 +41,11 @@ megaport-cli servicekeys update [key] --description "Updated description"
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| --active |  | false | Activate the service key | false |
-| --description |  |  | Description for the service key | false |
-| --product-id |  | 0 | Product ID for the service key | false |
-| --product-uid |  |  | Product UID for the service key | false |
-| --single-use |  | false | Single-use service key | false |
+| `--active` |  | `false` | Activate the service key | false |
+| `--description` |  |  | Description for the service key | false |
+| `--product-id` |  | `0` | Product ID for the service key | false |
+| `--product-uid` |  |  | Product UID for the service key | false |
+| `--single-use` |  | `false` | Single-use service key | false |
 
 
 

@@ -45,9 +45,9 @@ megaport-cli locations list [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| --country |  |  | Filter locations by country | false |
-| --metro |  |  | Filter locations by metro area | false |
-| --name |  |  | Filter locations by name | false |
+| `--country` |  |  | Filter locations by country | false |
+| `--metro` |  |  | Filter locations by metro area | false |
+| `--name` |  |  | Filter locations by name | false |
 
 
 

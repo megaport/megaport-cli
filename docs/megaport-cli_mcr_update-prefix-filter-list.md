@@ -71,12 +71,12 @@ megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| --address-family |  |  | New address family (IPv4 or IPv6) | false |
-| --description |  |  | New description of the prefix filter list | false |
-| --entries |  |  | JSON array of prefix filter entries | false |
-| --interactive | -i | false | Use interactive mode with prompts | false |
-| --json |  |  | JSON string containing prefix filter list configuration | false |
-| --json-file |  |  | Path to JSON file containing prefix filter list configuration | false |
+| `--address-family` |  |  | New address family (IPv4 or IPv6) | false |
+| `--description` |  |  | New description of the prefix filter list | false |
+| `--entries` |  |  | JSON array of prefix filter entries | false |
+| `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
+| `--json` |  |  | JSON string containing prefix filter list configuration | false |
+| `--json-file` |  |  | Path to JSON file containing prefix filter list configuration | false |
 
 
 

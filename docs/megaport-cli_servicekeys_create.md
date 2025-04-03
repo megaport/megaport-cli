@@ -41,13 +41,13 @@ megaport-cli servicekeys create --product-uid "product-uid" --description "My se
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| --description |  |  | Description for the service key | false |
-| --end-date |  |  | End date for the service key (YYYY-MM-DD) | false |
-| --max-speed |  | 0 | Maximum speed for the service key | false |
-| --product-id |  | 0 | Product ID for the service key | false |
-| --product-uid |  |  | Product UID for the service key | false |
-| --single-use |  | false | Single-use service key | false |
-| --start-date |  |  | Start date for the service key (YYYY-MM-DD) | false |
+| `--description` |  |  | Description for the service key | false |
+| `--end-date` |  |  | End date for the service key (YYYY-MM-DD) | false |
+| `--max-speed` |  | `0` | Maximum speed for the service key | false |
+| `--product-id` |  | `0` | Product ID for the service key | false |
+| `--product-uid` |  |  | Product UID for the service key | false |
+| `--single-use` |  | `false` | Single-use service key | false |
+| `--start-date` |  |  | Start date for the service key (YYYY-MM-DD) | false |
 
 
 

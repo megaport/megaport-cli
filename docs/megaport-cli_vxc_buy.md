@@ -156,25 +156,25 @@ megaport-cli vxc buy [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| --a-end-inner-vlan |  | 0 | Inner VLAN for A-End (-1 or higher) | false |
-| --a-end-partner-config |  |  | JSON string with A-End partner configuration | false |
-| --a-end-uid |  |  | UID of the A-End product | false |
-| --a-end-vlan |  | 0 | VLAN for A-End (0-4093, except 1) | false |
-| --a-end-vnic-index |  | 0 | vNIC index for A-End MVE | false |
-| --b-end-inner-vlan |  | 0 | Inner VLAN for B-End (-1 or higher) | false |
-| --b-end-partner-config |  |  | JSON string with B-End partner configuration | false |
-| --b-end-uid |  |  | UID of the B-End product | false |
-| --b-end-vlan |  | 0 | VLAN for B-End (0-4093, except 1) | false |
-| --b-end-vnic-index |  | 0 | vNIC index for B-End MVE | false |
-| --cost-centre |  |  | Cost centre | false |
-| --interactive |  | false | Use interactive mode | false |
-| --json |  |  | JSON string with all VXC configuration | false |
-| --json-file |  |  | Path to JSON file with VXC configuration | false |
-| --name |  |  | Name of the VXC | false |
-| --promo-code |  |  | Promotional code | false |
-| --rate-limit |  | 0 | Bandwidth in Mbps | false |
-| --service-key |  |  | Service key | false |
-| --term |  | 0 | Contract term in months (1, 12, 24, or 36) | false |
+| `--a-end-inner-vlan` |  | `0` | Inner VLAN for A-End (-1 or higher) | false |
+| `--a-end-partner-config` |  |  | JSON string with A-End partner configuration | false |
+| `--a-end-uid` |  |  | UID of the A-End product | false |
+| `--a-end-vlan` |  | `0` | VLAN for A-End (0-4093, except 1) | false |
+| `--a-end-vnic-index` |  | `0` | vNIC index for A-End MVE | false |
+| `--b-end-inner-vlan` |  | `0` | Inner VLAN for B-End (-1 or higher) | false |
+| `--b-end-partner-config` |  |  | JSON string with B-End partner configuration | false |
+| `--b-end-uid` |  |  | UID of the B-End product | false |
+| `--b-end-vlan` |  | `0` | VLAN for B-End (0-4093, except 1) | false |
+| `--b-end-vnic-index` |  | `0` | vNIC index for B-End MVE | false |
+| `--cost-centre` |  |  | Cost centre | false |
+| `--interactive` |  | `false` | Use interactive mode | false |
+| `--json` |  |  | JSON string with all VXC configuration | false |
+| `--json-file` |  |  | Path to JSON file with VXC configuration | false |
+| `--name` |  |  | Name of the VXC | false |
+| `--promo-code` |  |  | Promotional code | false |
+| `--rate-limit` |  | `0` | Bandwidth in Mbps | false |
+| `--service-key` |  |  | Service key | false |
+| `--term` |  | `0` | Contract term in months (1, 12, 24, or 36) | false |
 
 
 

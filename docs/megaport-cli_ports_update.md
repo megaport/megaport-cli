@@ -70,13 +70,13 @@ megaport-cli ports update [portUID] [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| --cost-centre |  |  | Cost centre for billing | false |
-| --interactive | -i | false | Use interactive mode with prompts | false |
-| --json |  |  | JSON string containing port configuration | false |
-| --json-file |  |  | Path to JSON file containing port configuration | false |
-| --marketplace-visibility |  | false | Whether the port is visible in marketplace | false |
-| --name |  |  | New port name | false |
-| --term |  | 0 | New contract term in months (1, 12, 24, or 36) | false |
+| `--cost-centre` |  |  | Cost centre for billing | false |
+| `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
+| `--json` |  |  | JSON string containing port configuration | false |
+| `--json-file` |  |  | Path to JSON file containing port configuration | false |
+| `--marketplace-visibility` |  | `false` | Whether the port is visible in marketplace | false |
+| `--name` |  |  | New port name | false |
+| `--term` |  | `0` | New contract term in months (1, 12, 24, or 36) | false |
 
 
 

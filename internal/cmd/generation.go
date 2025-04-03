@@ -407,8 +407,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		IsAvailableCommand: cmd.IsAvailableCommand(),
 		FilepathPrefix:     filePrefix,
 	}
-
-	// Define the template
+	// Create the command doc file
 	cmdTemplate := `# {{ .Name }}
 
 {{ .Description }}
@@ -444,7 +443,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-{{ range .Flags }}| --{{ .Name }} | {{ if .Shorthand }}-{{ .Shorthand }}{{ end }} | {{ .Default }} | {{ .Description }} | {{ .Required }} |
+{{ range .Flags }}| ` + "`" + `--{{ .Name }}` + "`" + ` | {{ if .Shorthand }}` + "`" + `-{{ .Shorthand }}` + "`" + `{{ end }} | {{ if .Default }}` + "`" + `{{ .Default }}` + "`" + `{{ end }} | {{ .Description }} | {{ .Required }} |
 {{ end }}{{ end }}
 
 {{ if .HasSubCommands }}## Subcommands

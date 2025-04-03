@@ -47,7 +47,7 @@ megaport-cli generate-docs [directory] [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| --help | -h | false | help for generate-docs | false |
+| `--help` | `-h` | `false` | help for generate-docs | false |
 
 
 

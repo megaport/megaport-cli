@@ -46,9 +46,9 @@ If no filtering options are provided, all ports will be listed.
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| --location-id |  | 0 | Filter ports by location ID | false |
-| --port-name |  |  | Filter ports by port name | false |
-| --port-speed |  | 0 | Filter ports by port speed | false |
+| `--location-id` |  | `0` | Filter ports by location ID | false |
+| `--port-name` |  |  | Filter ports by port name | false |
+| `--port-speed` |  | `0` | Filter ports by port speed | false |
 
 
 

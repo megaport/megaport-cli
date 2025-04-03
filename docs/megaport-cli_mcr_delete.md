@@ -23,8 +23,8 @@ megaport-cli mcr delete [mcrUID] [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| --force | -f | false | Skip confirmation prompt | false |
-| --now |  | false | Delete immediately instead of at the end of the billing period | false |
+| `--force` | `-f` | `false` | Skip confirmation prompt | false |
+| `--now` |  | `false` | Delete immediately instead of at the end of the billing period | false |
 
 
 
