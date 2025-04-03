@@ -48,6 +48,7 @@ type CommandData struct {
 	HasSubCommands     bool
 	SubCommands        []string
 	IsAvailableCommand bool
+	FilepathPrefix     string // Add this new field
 }
 
 // genDocsCmd generates markdown documentation for all commands
@@ -266,6 +267,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		HasSubCommands:     len(subCommands) > 0,
 		SubCommands:        subCommands,
 		IsAvailableCommand: cmd.IsAvailableCommand(),
+		FilepathPrefix:     parentCommandPath,
 	}
 
 	// Define the template
@@ -309,7 +311,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 
 {{ if .HasSubCommands }}## Subcommands
 
-{{ range .SubCommands }}* [{{ . }}]({{ $.Name }}_{{ . }}.md)
+{{ range .SubCommands }}* [{{ . }}]({{ if $.FilepathPrefix }}{{ $.FilepathPrefix }}_{{ end }}{{ $.Name }}_{{ . }}.md)
 {{ end }}{{ end }}
 `
 
