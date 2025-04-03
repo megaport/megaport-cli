@@ -15,6 +15,12 @@ Example:
 
 ```
 
+Example output:
+```
+  Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Product UID: product-uid  Description: My service key
+
+```
+
 
 
 ## Usage
@@ -28,6 +34,9 @@ megaport-cli servicekeys create [flags]
 ```
 Example:
 megaport-cli servicekeys create --product-uid "product-uid" --description "My service key"
+
+Example output:
+  Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Product UID: product-uid  Description: My service key
 ```
 
 ## Parent Command

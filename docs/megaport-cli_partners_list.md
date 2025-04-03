@@ -6,8 +6,7 @@ List all partner ports
 
 List all partner ports available in the Megaport API.
 
-This command fetches and displays a list of all available partner ports with details such as
-product name, connect type, company name, location ID, and diversity zone. You can also filter
+This command fetches and displays a list of all available partner ports. You can filter
 the partner ports based on specific criteria.
 
 Available filters:
@@ -22,10 +21,18 @@ Example usage:
 ```
   megaport-cli partners list
   megaport-cli partners list --product-name "AWS Partner Port"
-  megaport-cli partners list --connect-type "AWS"
-  megaport-cli partners list --company-name "AWS"
-  megaport-cli partners list --location-id 67
-  megaport-cli partners list --diversity-zone "blue"
+  megaport-cli partners list --connect-type "Dedicated Cloud Connection"
+  megaport-cli partners list --company-name "Amazon Web Services"
+  megaport-cli partners list --location-id 1
+  megaport-cli partners list --diversity-zone "Zone A"
+
+```
+
+Example output:
+```
+  Product Name        Connect Type              Company Name          Location ID  Diversity Zone
+  ------------------  ------------------------  --------------------  -----------  --------------
+  AWS Partner Port    Dedicated Cloud Connect   Amazon Web Services             1  Zone A
 
 ```
 

@@ -7,7 +7,7 @@ List all locations
 List all locations available in the Megaport API.
 
 This command fetches and displays a list of all available locations with details such as
-location ID, name, country, and region. You can also filter the locations based on specific criteria.
+location ID, name, country, and metro. You can also filter the locations based on specific criteria.
 
 Available filters:
 - `metro`: Filter locations by metro area.
@@ -20,7 +20,16 @@ Example usage:
   megaport-cli locations list
   megaport-cli locations list --metro "San Francisco"
   megaport-cli locations list --country "US"
-  megaport-cli locations list --name "Equinix"
+  megaport-cli locations list --name "Equinix SY1"
+
+```
+
+Example output:
+```
+  ID   Name        Metro       Country
+  ---  ----------  ----------  -------
+  1    Sydney 1    Sydney      Australia
+  2    Melbourne 1 Melbourne   Australia
 
 ```
 

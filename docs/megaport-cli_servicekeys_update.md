@@ -11,7 +11,13 @@ You need to specify the key identifier as an argument, and provide any updated v
 
 Example:
 ```
-  megaport-cli servicekeys update [key] --description "Updated description"
+  megaport-cli servicekeys update a1b2c3d4-e5f6-7890-1234-567890abcdef --description "Updated description"
+
+```
+
+Example output:
+```
+  Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Description: Updated description
 
 ```
 
@@ -27,7 +33,10 @@ megaport-cli servicekeys update [key] [flags]
 
 ```
 Example:
-megaport-cli servicekeys update [key] --description "Updated description"
+megaport-cli servicekeys update a1b2c3d4-e5f6-7890-1234-567890abcdef --description "Updated description"
+
+Example output:
+  Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Description: Updated description
 ```
 
 ## Parent Command
