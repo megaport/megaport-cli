@@ -11,11 +11,11 @@ product name, connect type, company name, location ID, and diversity zone. You c
 the partner ports based on specific criteria.
 
 Available filters:
-- `product-name`: Filter partner ports by product name.
-- `connect-type`: Filter partner ports by connect type.
-- `company-name`: Filter partner ports by company name.
-- `location-id`: Filter partner ports by location ID.
-- `diversity-zone`: Filter partner ports by diversity zone.
+  - product-name: Filter partner ports by product name.
+  - connect-type: Filter partner ports by connect type.
+  - company-name: Filter partner ports by company name.
+  - location-id: Filter partner ports by location ID.
+  - diversity-zone: Filter partner ports by diversity zone.
 
 Example usage:
 

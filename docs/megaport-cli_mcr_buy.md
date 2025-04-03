@@ -21,31 +21,31 @@ You can provide details in one of three ways:
    --json <json-string> or --json-file <path>
 
 Required fields:
-- `name`: The name of the MCR.
-- `term`: The term of the MCR (1, 12, 24, or 36 months).
-- `port_speed`: The speed of the MCR (1000, 2500, 5000, or 10000 Mbps).
-- `location_id`: The ID of the location where the MCR will be provisioned.
+  - name: The name of the MCR.
+  - term: The term of the MCR (1, 12, 24, or 36 months).
+  - port_speed: The speed of the MCR (1000, 2500, 5000, or 10000 Mbps).
+  - location_id: The ID of the location where the MCR will be provisioned.
 
 Optional fields:
-- `mcr_asn`: The ASN for the MCR.
-- `diversity_zone`: The diversity zone for the MCR.
-- `cost_centre`: The cost center for the MCR.
-- `promo_code`: A promotional code for the MCR.
-- `resource_tags`: Key-value tags to associate with the MCR (JSON format).
+  - mcr_asn: The ASN for the MCR.
+  - diversity_zone: The diversity zone for the MCR.
+  - cost_centre: The cost center for the MCR.
+  - promo_code: A promotional code for the MCR.
+  - resource_tags: Key-value tags to associate with the MCR (JSON format).
 
 Example usage:
 
-  # Interactive mode
+### Interactive mode
 ```
   megaport-cli mcr buy --interactive
 ```
 
-  # Flag mode
+### Flag mode
 ```
   megaport-cli mcr buy --name "My MCR" --term 12 --port-speed 5000 --location-id 123
 ```
 
-  # JSON mode
+### JSON mode
 ```
   megaport-cli mcr buy --json '{"name":"My MCR","term":12,"portSpeed":5000,"locationId":123}'
   megaport-cli mcr buy --json-file ./mcr-config.json

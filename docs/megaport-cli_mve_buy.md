@@ -21,31 +21,31 @@ You can provide details in one of three ways:
  --json <json-string> or --json-file <path>
 
 Required fields:
-- `name`: The name of the MVE.
-- `term`: The term of the MVE (1, 12, 24, or 36 months).
-- `location_id`: The ID of the location where the MVE will be provisioned.
-- `vendor-config`: JSON string with vendor-specific configuration (for flag mode)
-- `vnics`: JSON array of network interfaces (for flag mode)
+- name: The name of the MVE.
+- term: The term of the MVE (1, 12, 24, or 36 months).
+- location_id: The ID of the location where the MVE will be provisioned.
+- vendor-config: JSON string with vendor-specific configuration (for flag mode)
+- vnics: JSON array of network interfaces (for flag mode)
 
 Vendor-specific fields:
-- `6WIND`: 
+- 6WIND:
 - image_id (required)
 - product_size (required)
 - mve_label (optional)
 - ssh_public_key (required)
-- `Aruba`: 
+- Aruba:
 - image_id (required)
 - product_size (required)
 - mve_label (optional)
 - account_name (required)
 - account_key (required)
 - system_tag (optional)
-- `Aviatrix`: 
+- Aviatrix:
 - image_id (required)
 - product_size (required)
 - mve_label (optional)
 - cloud_init (required)
-- `Cisco`: 
+- Cisco:
 - image_id (required)
 - product_size (required)
 - mve_label (required)
@@ -56,7 +56,7 @@ Vendor-specific fields:
 - fmc_ip_address (required)
 - fmc_registration_key (required)
 - fmc_nat_id (required)
-- `Fortinet`: 
+- Fortinet:
 - image_id (required)
 - product_size (required)
 - mve_label (optional)
@@ -64,20 +64,20 @@ Vendor-specific fields:
 - ssh_public_key (required)
 - ha_license (required for HA deployments)
 - license_data (required for non-HA deployments)
-- `PaloAlto`: 
+- PaloAlto:
 - image_id (required)
 - product_size (required)
 - mve_label (optional)
 - ssh_public_key (required)
 - admin_password_hash (required)
 - license_data (required)
-- `Prisma`: 
+- Prisma:
 - image_id (required)
 - product_size (required)
 - mve_label (optional)
 - ion_key (required)
 - secret_key (required)
-- `Versa`: 
+- Versa:
 - image_id (required)
 - product_size (required)
 - mve_label (optional)
@@ -86,7 +86,7 @@ Vendor-specific fields:
 - local_auth (required)
 - remote_auth (required)
 - serial_number (required)
-- `VMware`: 
+- VMware:
 - image_id (required)
 - product_size (required)
 - mve_label (optional)
@@ -94,7 +94,7 @@ Vendor-specific fields:
 - ssh_public_key (required)
 - vco_address (required)
 - vco_activation_code (required)
-- `Meraki`: 
+- Meraki:
 - image_id (required)
 - product_size (required)
 - mve_label (optional)
@@ -102,7 +102,7 @@ Vendor-specific fields:
 
 Example usage:
 
-# Interactive mode
+### Interactive mode
 ```
 megaport-cli mve buy --interactive
 ```
@@ -110,30 +110,30 @@ megaport-cli mve buy --interactive
 ### Flag mode - Cisco example
 ```
 megaport-cli mve buy --name "My Cisco MVE" --term 12 --location-id 123 \
-- `-vendor-config '{"vendor"`: "cisco","imageId":1,"productSize":"large","mveLabel":"cisco-mve",
+  --vendor-config '{"vendor":"cisco","imageId":1,"productSize":"large","mveLabel":"cisco-mve",
                    "manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA...","sshPublicKey":"ssh-rsa AAAA...",
                    "cloudInit":"#cloud-config\npackages:\n - nginx\n","fmcIpAddress":"10.0.0.1",
                    "fmcRegistrationKey":"key123","fmcNatId":"natid123"}' \
-- `-vnics '[{"description"`: "Data Plane","vlan":100}]'
+  --vnics '[{"description":"Data Plane","vlan":100}]'
 ```
 
 ### Flag mode - Aruba example
 ```
 megaport-cli mve buy --name "Megaport MVE Example" --term 1 --location-id 123 \
-- `-vendor-config '{"vendor"`: "aruba","imageId":23,"productSize":"MEDIUM",
+  --vendor-config '{"vendor":"aruba","imageId":23,"productSize":"MEDIUM",
                    "accountName":"Aruba Test Account","accountKey":"12345678",
                    "systemTag":"Preconfiguration-aruba-test-1"}' \
-- `-vnics '[{"description"`: "Data Plane"},{"description":"Control Plane"},{"description":"Management Plane"}]'
+  --vnics '[{"description":"Data Plane"},{"description":"Control Plane"},{"description":"Management Plane"}]'
 ```
 
 ### Flag mode - Versa example
 ```
 megaport-cli mve buy --name "Megaport Versa MVE Example" --term 1 --location-id 123 \
-- `-vendor-config '{"vendor"`: "versa","imageId":20,"productSize":"MEDIUM",
+  --vendor-config '{"vendor":"versa","imageId":20,"productSize":"MEDIUM",
                    "directorAddress":"director1.versa.com","controllerAddress":"controller1.versa.com",
                    "localAuth":"SDWAN-Branch@Versa.com","remoteAuth":"Controller-1-staging@Versa.com",
                    "serialNumber":"Megaport-Hub1"}' \
-- `-vnics '[{"description"`: "Data Plane"}]'
+  --vnics '[{"description":"Data Plane"}]'
 ```
 
 
@@ -206,7 +206,7 @@ megaport-cli mve buy --json '{
 }'
 ```
 
-# JSON from file
+### JSON from file
 ```
 megaport-cli mve buy --json-file ./mve-config.json
 ```

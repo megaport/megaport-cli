@@ -21,27 +21,27 @@ You can provide details in one of three ways:
    --json <json-string> or --json-file <path>
 
 Fields that can be updated:
-- `description`: The new description of the prefix filter list.
-- `address_family`: The new address family (IPv4/IPv6).
-- `entries`: JSON array of prefix filter entries. Each entry has:
-- `action`: "permit" or "deny"
-- `prefix`: CIDR notation (e.g., "192.168.0.0/16")
-- `ge` (optional): Greater than or equal to value
-- `le` (optional): Less than or equal to value
+  - description: The new description of the prefix filter list.
+  - address_family: The new address family (IPv4/IPv6).
+  - entries: JSON array of prefix filter entries. Each entry has:
+      - action: "permit" or "deny"
+      - prefix: CIDR notation (e.g., "192.168.0.0/16")
+      - ge (optional): Greater than or equal to value
+      - le (optional): Less than or equal to value
 
 Example usage:
 
-  # Interactive mode
+### Interactive mode
 ```
   megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --interactive
 ```
 
-  # Flag mode
+### Flag mode
 ```
   megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --description "Updated prefix list" --entries '[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]'
 ```
 
-  # JSON mode
+### JSON mode
 ```
   megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --json '{"description":"Updated prefix list","entries":[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]}'
   megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --json-file ./update-prefix-list.json

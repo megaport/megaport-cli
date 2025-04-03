@@ -11,16 +11,16 @@ You can use the subcommands to perform actions such as retrieving details for a 
 For instance, use the "megaport-cli mcr get [mcrUID]" command to fetch details for the MCR with the given UID.
 
 Available subcommands:
-- `get`: Retrieve details for a single MCR.
-- `buy`: Purchase an MCR by providing the necessary details.
-- `update`: Update an existing MCR.
-- `delete`: Delete an MCR from your account.
-- `restore`: Restore a previously deleted MCR.
-- `create-prefix-filter-list`: Create a prefix filter list on an MCR.
-- `list-prefix-filter-lists`: List all prefix filter lists for a specific MCR.
-- `get-prefix-filter-list`: Retrieve details for a single prefix filter list on an MCR.
-- `update-prefix-filter-list`: Update a prefix filter list on an MCR.
-- `delete-prefix-filter-list`: Delete a prefix filter list on an MCR.
+  - get: Retrieve details for a single MCR.
+  - buy: Purchase an MCR by providing the necessary details.
+  - update: Update an existing MCR.
+  - delete: Delete an MCR from your account.
+  - restore: Restore a previously deleted MCR.
+  - create-prefix-filter-list: Create a prefix filter list on an MCR.
+  - list-prefix-filter-lists: List all prefix filter lists for a specific MCR.
+  - get-prefix-filter-list: Retrieve details for a single prefix filter list on an MCR.
+  - update-prefix-filter-list: Update a prefix filter list on an MCR.
+  - delete-prefix-filter-list: Delete a prefix filter list on an MCR.
 
 
 

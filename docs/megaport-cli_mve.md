@@ -10,27 +10,27 @@ This command groups all operations related to Megaport Virtual Edge devices (MVE
 You can use this command to list, get details, buy, update, and delete MVEs.
 
 Examples:
-  # List all MVEs
+### List all MVEs
 ```
   megaport-cli mve list
 ```
 
-  # Get details for a specific MVE
+### Get details for a specific MVE
 ```
   megaport-cli mve get [mveUID]
 ```
 
-  # Buy a new MVE
+### Buy a new MVE
 ```
   megaport-cli mve buy
 ```
 
-  # Update an existing MVE
+### Update an existing MVE
 ```
   megaport-cli mve update [mveUID]
 ```
 
-  # Delete an existing MVE
+### Delete an existing MVE
 ```
   megaport-cli mve delete [mveUID]
 ```

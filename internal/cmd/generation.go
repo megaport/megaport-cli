@@ -262,9 +262,17 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		lines := strings.Split(processedLongDesc, "\n")
 		var formattedLines []string
 		inExampleBlock := false
+		inExampleSection := false // Track if we're in an examples section
 
 		for i, line := range lines {
 			trimLine := strings.TrimSpace(line)
+
+			// Detect if we've entered an examples section
+			if strings.Contains(strings.ToLower(trimLine), "example") &&
+				(strings.HasSuffix(trimLine, ":") || strings.HasSuffix(trimLine, "usage") ||
+					strings.HasPrefix(trimLine, "#")) {
+				inExampleSection = true
+			}
 
 			// Detect if this is a header line (starts with # and has text after it)
 			isHeaderLine := strings.HasPrefix(trimLine, "#") && len(trimLine) > 1 && trimLine[1] == ' '
@@ -275,40 +283,10 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 				inExampleBlock = false
 			}
 
-			// Add this to the processing section before adding the line
-			// Look for field descriptions (e.g., "- name: The name of the MVE.")
-			if strings.HasPrefix(trimLine, "-") && strings.Contains(line, ":") {
-				// Extract the field name and description
-				dashParts := strings.SplitN(trimLine, ":", 2)
-				if len(dashParts) == 2 {
-					// Get the field name (after the dash, before the colon)
-					fieldPart := strings.TrimSpace(dashParts[0])
-					fieldName := strings.TrimSpace(strings.TrimPrefix(fieldPart, "-"))
-
-					// Get the description (after the colon)
-					description := strings.TrimSpace(dashParts[1])
-
-					// Check if the field includes a requirement note in parentheses
-					requiredNote := ""
-					if strings.Contains(fieldName, "(") && strings.Contains(fieldName, ")") {
-						// Extract the requirement note
-						nameAndReq := strings.SplitN(fieldName, "(", 2)
-						if len(nameAndReq) == 2 {
-							fieldName = strings.TrimSpace(nameAndReq[0])
-							requiredNote = " (" + strings.TrimSuffix(nameAndReq[1], ")") + ")"
-						}
-					}
-
-					// Format with backticks around the field name
-					formattedLine := "- `" + fieldName + "`" + requiredNote + ": " + description
-					formattedLines = append(formattedLines, formattedLine)
-					continue
-				}
-			}
-
-			// If it's a header, check if it's an example header (contains "example" case insensitive)
+			// Handle headers based on whether they are in an example section
 			if isHeaderLine {
-				if strings.Contains(strings.ToLower(trimLine), "example") {
+				// If we're in an example section OR the header contains "example", make it level 3
+				if inExampleSection || strings.Contains(strings.ToLower(trimLine), "example") {
 					// Convert to level 3 header (###) regardless of original level
 					headerText := strings.TrimSpace(strings.TrimPrefix(trimLine, "#"))
 					formattedLines = append(formattedLines, "### "+headerText)
@@ -319,10 +297,16 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 				continue
 			}
 
+			// Reset example section status if we hit a major heading that's not an example
+			if isHeaderLine && !strings.Contains(strings.ToLower(trimLine), "example") &&
+				strings.Count(trimLine, "#") <= 2 { // Level 1 or 2 heading
+				inExampleSection = false
+			}
+
+			// Rest of the code remains the same...
 			// Detect example command lines by common patterns
 			isExampleLine := strings.HasPrefix(trimLine, "megaport-cli") ||
 				(i > 0 && strings.HasPrefix(lines[i-1], "#") &&
-					strings.Contains(lines[i-1], "example") &&
 					!strings.HasPrefix(trimLine, "#"))
 
 			// Start a code block before an example if not already in one

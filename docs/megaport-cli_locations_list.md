@@ -10,9 +10,9 @@ This command fetches and displays a list of all available locations with details
 location ID, name, country, and region. You can also filter the locations based on specific criteria.
 
 Available filters:
-- `metro`: Filter locations by metro area.
-- `country`: Filter locations by country.
-- `name`: Filter locations by name.
+  - metro: Filter locations by metro area.
+  - country: Filter locations by country.
+  - name: Filter locations by name.
 
 Example usage:
 
