@@ -137,8 +137,8 @@ func generateIndex(root *cobra.Command, outputDir string) error {
 }
 
 func collectCommands(cmd *cobra.Command, parentPath string, commands *[]CommandInfo) {
-	if cmd.Hidden || cmd.Name() == "help" || cmd.Name() == "completion" {
-		return // Skip hidden and utility commands
+	if cmd.Hidden || cmd.Name() == "help" {
+		return // Skip only hidden commands and help
 	}
 
 	cmdPath := cmd.Name()

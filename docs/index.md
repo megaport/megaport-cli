@@ -7,6 +7,7 @@
 | Command | Description |
 |---------|-------------|
 | [megaport-cli](megaport-cli.md) | A CLI tool to interact with the Megaport API |
+| [megaport-cli completion](megaport-cli_completion.md) | Generate completion script |
 | [megaport-cli generate-docs](megaport-cli_generate-docs.md) | Generate markdown documentation for the CLI |
 | [megaport-cli locations](megaport-cli_locations.md) | Manage locations in the Megaport API |
 | [megaport-cli locations get](megaport-cli_locations_get.md) | Get details for a single location |
