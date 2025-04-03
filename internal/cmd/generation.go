@@ -256,6 +256,37 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 				inExampleBlock = false
 			}
 
+			// Add this to the processing section before adding the line
+			// Look for field descriptions (e.g., "- name: The name of the MVE.")
+			if strings.HasPrefix(trimLine, "-") && strings.Contains(line, ":") {
+				// Extract the field name and description
+				dashParts := strings.SplitN(trimLine, ":", 2)
+				if len(dashParts) == 2 {
+					// Get the field name (after the dash, before the colon)
+					fieldPart := strings.TrimSpace(dashParts[0])
+					fieldName := strings.TrimSpace(strings.TrimPrefix(fieldPart, "-"))
+
+					// Get the description (after the colon)
+					description := strings.TrimSpace(dashParts[1])
+
+					// Check if the field includes a requirement note in parentheses
+					requiredNote := ""
+					if strings.Contains(fieldName, "(") && strings.Contains(fieldName, ")") {
+						// Extract the requirement note
+						nameAndReq := strings.SplitN(fieldName, "(", 2)
+						if len(nameAndReq) == 2 {
+							fieldName = strings.TrimSpace(nameAndReq[0])
+							requiredNote = " (" + strings.TrimSuffix(nameAndReq[1], ")") + ")"
+						}
+					}
+
+					// Format with backticks around the field name
+					formattedLine := "- `" + fieldName + "`" + requiredNote + ": " + description
+					formattedLines = append(formattedLines, formattedLine)
+					continue
+				}
+			}
+
 			// If it's a header, check if it's an example header (contains "example" case insensitive)
 			if isHeaderLine {
 				if strings.Contains(strings.ToLower(trimLine), "example") {

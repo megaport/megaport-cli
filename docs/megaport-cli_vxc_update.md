@@ -23,17 +23,17 @@ You can provide details in one of three ways:
    --json <json-string> or --json-file <path>
 
 Updateable fields:
-- name: New name for the VXC
-- rate-limit: New bandwidth in Mbps
-- term: New contract term in months (1, 12, 24, or 36)
-- cost-centre: New cost centre for billing
-- shutdown: Whether to shut down the VXC (true/false)
-- a-end-vlan: New VLAN for A-End (0-4093, except 1)
-- b-end-vlan: New VLAN for B-End (0-4093, except 1)
-- a-end-inner-vlan: New inner VLAN for A-End (-1 or higher)
-- b-end-inner-vlan: New inner VLAN for B-End (-1 or higher)
-- a-end-uid: New A-End product UID
-- b-end-uid: New B-End product UID
+- `name`: New name for the VXC
+- `rate-limit`: New bandwidth in Mbps
+- `term`: New contract term in months (1, 12, 24, or 36)
+- `cost-centre`: New cost centre for billing
+- `shutdown`: Whether to shut down the VXC (true/false)
+- `a-end-vlan`: New VLAN for A-End (0-4093, except 1)
+- `b-end-vlan`: New VLAN for B-End (0-4093, except 1)
+- `a-end-inner-vlan`: New inner VLAN for A-End (-1 or higher)
+- `b-end-inner-vlan`: New inner VLAN for B-End (-1 or higher)
+- `a-end-uid`: New A-End product UID
+- `b-end-uid`: New B-End product UID
 
 NOTE: For partner configurations, only VRouter partner configurations can be updated.
 Other CSP partner configurations (AWS, Azure, etc.) cannot be changed after creation.

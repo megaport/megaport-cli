@@ -21,16 +21,16 @@ You can provide details in one of three ways:
    --json <json-string> or --json-file <path>
 
 Required fields:
-  - name: The name of the port.
-  - term: The term of the port (1, 12, or 24 months).
-  - port_speed: The speed of the port (1000, 10000, or 100000 Mbps).
-  - location_id: The ID of the location where the port will be provisioned.
-  - marketplace_visibility: Whether the port should be visible in the marketplace (true or false).
+- `name`: The name of the port.
+- `term`: The term of the port (1, 12, or 24 months).
+- `port_speed`: The speed of the port (1000, 10000, or 100000 Mbps).
+- `location_id`: The ID of the location where the port will be provisioned.
+- `marketplace_visibility`: Whether the port should be visible in the marketplace (true or false).
 
 Optional fields:
-  - diversity_zone: The diversity zone for the port.
-  - cost_centre: The cost center for the port.
-  - promo_code: A promotional code for the port.
+- `diversity_zone`: The diversity zone for the port.
+- `cost_centre`: The cost center for the port.
+- `promo_code`: A promotional code for the port.
 
 Example usage:
 

@@ -21,9 +21,9 @@ You can provide details in one of three ways:
    --json <json-string> or --json-file <path>
 
 Fields that can be updated:
-- name: The new name of the MVE.
-- cost_centre: The new cost center for the MVE.
-- contract_term_months: The new contract term in months (1, 12, 24, or 36).
+- `name`: The new name of the MVE.
+- `cost_centre`: The new cost center for the MVE.
+- `contract_term_months`: The new contract term in months (1, 12, 24, or 36).
 
 Example usage:
 

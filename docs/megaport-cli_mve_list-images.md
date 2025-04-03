@@ -10,11 +10,11 @@ This command fetches and displays a list of all available MVE images with detail
 image ID, version, product, and vendor. You can filter the images based on vendor, product code, ID, version, or release image.
 
 Available filters:
-  - vendor: Filter images by vendor.
-  - product-code: Filter images by product code.
-  - id: Filter images by ID.
-  - version: Filter images by version.
-  - release-image: Filter images by release image.
+- `vendor`: Filter images by vendor.
+- `product-code`: Filter images by product code.
+- `id`: Filter images by ID.
+- `version`: Filter images by version.
+- `release-image`: Filter images by release image.
 
 Example usage:
 

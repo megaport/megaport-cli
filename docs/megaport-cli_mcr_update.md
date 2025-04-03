@@ -21,10 +21,10 @@ You can provide details in one of three ways:
    --json <json-string> or --json-file <path>
 
 Fields that can be updated:
-  - name: The new name of the MCR.
-  - cost_centre: The new cost center for the MCR.
-  - marketplace_visibility: The new marketplace visibility (true/false).
-  - term: The new contract term in months (1, 12, 24, or 36).
+- `name`: The new name of the MCR.
+- `cost_centre`: The new cost center for the MCR.
+- `marketplace_visibility`: The new marketplace visibility (true/false).
+- `term`: The new contract term in months (1, 12, 24, or 36).
 
 Example usage:
 
