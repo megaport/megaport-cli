@@ -257,7 +257,6 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 	}
 
 	// Process the long description to format examples as code blocks
-	// Process the long description to format examples as code blocks
 	processedLongDesc := cmd.Long
 	if processedLongDesc != "" {
 		lines := strings.Split(processedLongDesc, "\n")
