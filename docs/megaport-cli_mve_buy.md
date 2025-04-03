@@ -107,7 +107,7 @@ Example usage:
 megaport-cli mve buy --interactive
 ```
 
-# Flag mode - Cisco example
+### Flag mode - Cisco example
 ```
 megaport-cli mve buy --name "My Cisco MVE" --term 12 --location-id 123 \
   --vendor-config '{"vendor":"cisco","imageId":1,"productSize":"large","mveLabel":"cisco-mve",
@@ -117,7 +117,7 @@ megaport-cli mve buy --name "My Cisco MVE" --term 12 --location-id 123 \
   --vnics '[{"description":"Data Plane","vlan":100}]'
 ```
 
-# Flag mode - Aruba example
+### Flag mode - Aruba example
 ```
 megaport-cli mve buy --name "Megaport MVE Example" --term 1 --location-id 123 \
   --vendor-config '{"vendor":"aruba","imageId":23,"productSize":"MEDIUM",
@@ -126,7 +126,7 @@ megaport-cli mve buy --name "Megaport MVE Example" --term 1 --location-id 123 \
   --vnics '[{"description":"Data Plane"},{"description":"Control Plane"},{"description":"Management Plane"}]'
 ```
 
-# Flag mode - Versa example
+### Flag mode - Versa example
 ```
 megaport-cli mve buy --name "Megaport Versa MVE Example" --term 1 --location-id 123 \
   --vendor-config '{"vendor":"versa","imageId":20,"productSize":"MEDIUM",
@@ -137,7 +137,7 @@ megaport-cli mve buy --name "Megaport Versa MVE Example" --term 1 --location-id 
 ```
 
 
-# JSON mode - Cisco example
+### JSON mode - Cisco example
 ```
 megaport-cli mve buy --json '{
 "name": "My Cisco MVE",
@@ -162,7 +162,7 @@ megaport-cli mve buy --json '{
 }'
 ```
 
-# JSON mode - Aruba example
+### JSON mode - Aruba example
 ```
 megaport-cli mve buy --json '{
 "name": "Megaport MVE Example",
@@ -184,7 +184,7 @@ megaport-cli mve buy --json '{
 }'
 ```
 
-# JSON mode - Versa example
+### JSON mode - Versa example
 ```
 megaport-cli mve buy --json '{
 "name": "Megaport Versa MVE Example",

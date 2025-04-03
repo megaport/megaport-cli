@@ -256,9 +256,16 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 				inExampleBlock = false
 			}
 
-			// If it's a header, add it and continue to next line
+			// If it's a header, check if it's an example header (contains "example" case insensitive)
 			if isHeaderLine {
-				formattedLines = append(formattedLines, line)
+				if strings.Contains(strings.ToLower(trimLine), "example") {
+					// Convert to level 3 header (###) regardless of original level
+					headerText := strings.TrimSpace(strings.TrimPrefix(trimLine, "#"))
+					formattedLines = append(formattedLines, "### "+headerText)
+				} else {
+					// Keep other headers as they are
+					formattedLines = append(formattedLines, line)
+				}
 				continue
 			}
 
