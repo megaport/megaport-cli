@@ -7,7 +7,23 @@ Manage Megaport Virtual Edge (MVE) devices
 Manage Megaport Virtual Edge (MVE) devices.
 
 This command groups all operations related to Megaport Virtual Edge devices (MVEs).
-You can use this command to list, get details, buy, update, and delete MVEs.
+MVEs are virtual networking appliances that run in the Megaport network, providing 
+software-defined networking capabilities from various vendors.
+
+With MVEs you can:
+- Deploy virtual networking appliances without physical hardware
+- Create secure connections between cloud services
+- Implement SD-WAN solutions across multiple regions
+- Run vendor-specific networking software in Megaport's infrastructure
+
+Available operations:
+- `list`: List all MVEs in your account
+- `get`: Retrieve details for a specific MVE
+- `buy`: Purchase a new MVE with vendor-specific configuration
+- `update`: Modify an existing MVE's properties
+- `delete`: Remove an MVE from your account
+- `list-images`: View available MVE software images
+- `list-sizes`: View available MVE hardware configurations
 
 Examples:
 ### List all MVEs
