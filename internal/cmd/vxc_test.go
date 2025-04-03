@@ -43,11 +43,86 @@ func TestPrintVXCs_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `uid     name         a_end_uid   b_end_uid   rate_limit   provisioning_status   create_date
-vxc-1   MyVXCOne     a-end-1     b-end-1     1000         ACTIVE                2023-01-01
-vxc-2   AnotherVXC   a-end-2     b-end-2     2000         CONFIGURING           2023-02-01
+	expected := `UID     Name         A End UID   B End UID   Rate (Mbps)   Status        Created
+vxc-1   MyVXCOne     a-end-1     b-end-1     1000          ACTIVE        2023-01-01
+vxc-2   AnotherVXC   a-end-2     b-end-2     2000          CONFIGURING   2023-02-01
 `
 	assert.Equal(t, expected, output)
+}
+
+func TestPrintVXCs_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		vxcs        []*megaport.VXC
+		format      string
+		shouldError bool
+		expected    string
+	}{
+		{
+			name:        "nil slice",
+			vxcs:        nil,
+			format:      "table",
+			shouldError: false,
+			expected:    "UID   Name   A End UID   B End UID   Rate (Mbps)   Status   Created\n",
+		},
+		{
+			name:        "empty slice",
+			vxcs:        []*megaport.VXC{},
+			format:      "json",
+			shouldError: false,
+			expected:    "[]",
+		},
+		{
+			name: "nil vxc in slice",
+			vxcs: []*megaport.VXC{
+				nil,
+				{
+					UID:  "vxc-1",
+					Name: "TestVXC",
+				},
+			},
+			format:      "table",
+			shouldError: true,
+			expected:    "invalid VXC: nil value",
+		},
+		{
+			name: "nil end configurations",
+			vxcs: []*megaport.VXC{
+				{
+					UID:  "vxc-1",
+					Name: "TestVXC",
+				},
+			},
+			format:      "csv",
+			shouldError: false,
+			expected:    "UID,Name,A End UID,B End UID,Rate (Mbps),Status,Created\nvxc-1,TestVXC,,,0,,\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var output string
+			var err error
+
+			output = captureOutput(func() {
+				err = printVXCs(tt.vxcs, tt.format)
+			})
+
+			if tt.shouldError {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expected)
+				assert.Empty(t, output)
+			} else {
+				assert.NoError(t, err)
+				switch tt.format {
+				case "json":
+					assert.JSONEq(t, tt.expected, output)
+				case "table", "csv":
+					assert.Equal(t, tt.expected, output)
+				}
+			}
+		})
+	}
 }
 
 func TestPrintVXCs_JSON(t *testing.T) {
@@ -85,7 +160,8 @@ func TestPrintVXCs_CSV(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `uid,name,a_end_uid,b_end_uid,rate_limit,provisioning_status,create_date
+	// Changed the expected headers & row values to match human-readable CSV
+	expected := `UID,Name,A End UID,B End UID,Rate (Mbps),Status,Created
 vxc-1,MyVXCOne,a-end-1,b-end-1,1000,ACTIVE,2023-01-01
 vxc-2,AnotherVXC,a-end-2,b-end-2,2000,CONFIGURING,2023-02-01
 `
@@ -101,81 +177,6 @@ func TestPrintVXCs_Invalid(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid output format")
 	assert.Empty(t, output)
-}
-func TestPrintVXCs_EdgeCases(t *testing.T) {
-	tests := []struct {
-		name        string
-		vxcs        []*megaport.VXC
-		format      string
-		shouldError bool
-		expected    string
-	}{
-		{
-			name:        "nil slice",
-			vxcs:        nil,
-			format:      "table",
-			shouldError: false,
-			expected:    "uid   name   a_end_uid   b_end_uid   rate_limit   provisioning_status   create_date\n",
-		},
-		{
-			name:        "empty slice",
-			vxcs:        []*megaport.VXC{},
-			format:      "json",
-			shouldError: false,
-			expected:    "[]",
-		},
-		{
-			name: "nil vxc in slice",
-			vxcs: []*megaport.VXC{
-				nil,
-				{
-					UID:  "vxc-1",
-					Name: "TestVXC",
-				},
-			},
-			format:      "table",
-			shouldError: true,
-			expected:    "invalid VXC: nil value",
-		},
-		{
-			name: "nil end configurations",
-			vxcs: []*megaport.VXC{
-				{
-					UID:  "vxc-1",
-					Name: "TestVXC",
-					// AEndConfiguration and BEndConfiguration are nil
-				},
-			},
-			format:      "csv",
-			shouldError: false,
-			expected:    "uid,name,a_end_uid,b_end_uid,rate_limit,provisioning_status,create_date\nvxc-1,TestVXC,,,0,,\n",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var output string
-			var err error
-
-			output = captureOutput(func() {
-				err = printVXCs(tt.vxcs, tt.format)
-			})
-
-			if tt.shouldError {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expected)
-				assert.Empty(t, output)
-			} else {
-				assert.NoError(t, err)
-				switch tt.format {
-				case "json":
-					assert.JSONEq(t, tt.expected, output)
-				case "table", "csv":
-					assert.Equal(t, tt.expected, output)
-				}
-			}
-		})
-	}
 }
 
 func TestToVXCOutput_EdgeCases(t *testing.T) {

@@ -1,6 +1,6 @@
 # Megaport CLI Documentation
 
-> Generated on April 3, 2025 for version v0.2.8
+> Generated on April 3, 2025 for version v0.2.9
 
 ## Available Commands
 
@@ -19,6 +19,7 @@
 | [megaport-cli mcr delete-prefix-filter-list](megaport-cli_mcr_delete-prefix-filter-list.md) | Delete a prefix filter list on an MCR |
 | [megaport-cli mcr get](megaport-cli_mcr_get.md) | Get details for a single MCR |
 | [megaport-cli mcr get-prefix-filter-list](megaport-cli_mcr_get-prefix-filter-list.md) | Get details for a single prefix filter list on an MCR |
+| [megaport-cli mcr list](megaport-cli_mcr_list.md) | List all MCRs |
 | [megaport-cli mcr list-prefix-filter-lists](megaport-cli_mcr_list-prefix-filter-lists.md) | List all prefix filter lists for a specific MCR |
 | [megaport-cli mcr restore](megaport-cli_mcr_restore.md) | Restore a deleted MCR |
 | [megaport-cli mcr update](megaport-cli_mcr_update.md) | Update an existing MCR |
@@ -27,6 +28,7 @@
 | [megaport-cli mve buy](megaport-cli_mve_buy.md) | Purchase a new Megaport Virtual Edge (MVE) device |
 | [megaport-cli mve delete](megaport-cli_mve_delete.md) | Delete an existing MVE |
 | [megaport-cli mve get](megaport-cli_mve_get.md) | Get details for a single MVE |
+| [megaport-cli mve list](megaport-cli_mve_list.md) | List all MVEs |
 | [megaport-cli mve list-images](megaport-cli_mve_list-images.md) | List all available MVE images |
 | [megaport-cli mve list-sizes](megaport-cli_mve_list-sizes.md) | List all available MVE sizes |
 | [megaport-cli mve update](megaport-cli_mve_update.md) | Update an existing MVE |
