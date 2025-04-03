@@ -11,10 +11,9 @@ This command allows you to delete an existing MVE by providing its UID.
 Example usage:
 
 ```
-  megaport-cli mve delete [mveUID]
+megaport-cli mve delete [mveUID]
 
 ```
-
 
 
 ## Usage
@@ -32,6 +31,10 @@ megaport-cli mve delete [mveUID] [flags]
 
 
 
+## Flags
+
+| Name | Shorthand | Default | Description | Required |
+|------|-----------|---------|-------------|----------|
 
 
 

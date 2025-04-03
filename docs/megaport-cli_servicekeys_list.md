@@ -11,18 +11,14 @@ Use this command to review the keys available in your account.
 
 Example:
 ```
-  megaport-cli servicekeys list
-
-```
+megaport-cli servicekeys list
 
 Example output:
-```
-  Key                                     Product UID          Description
-  --------------------------------------  -------------------  --------------------
-  a1b2c3d4-e5f6-7890-1234-567890abcdef    product-uid          My service key
+Key                                     Product UID          Description
+--------------------------------------  -------------------  --------------------
+a1b2c3d4-e5f6-7890-1234-567890abcdef    product-uid          My service key
 
 ```
-
 
 
 ## Usage
@@ -50,6 +46,10 @@ Example output:
 
 
 
+## Flags
+
+| Name | Shorthand | Default | Description | Required |
+|------|-----------|---------|-------------|----------|
 
 
 

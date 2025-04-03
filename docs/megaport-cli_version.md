@@ -19,6 +19,10 @@ megaport-cli version [flags]
 
 
 
+## Flags
+
+| Name | Shorthand | Default | Description | Required |
+|------|-----------|---------|-------------|----------|
 
 
 

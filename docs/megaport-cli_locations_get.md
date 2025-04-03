@@ -12,18 +12,14 @@ You need to provide the ID of the location as an argument.
 Example usage:
 
 ```
-  megaport-cli locations get 1
-
-```
+megaport-cli locations get 1
 
 Example output:
-```
-  ID   Name        Metro       Country
-  ---  ----------  ----------  -------
-  1    Sydney 1    Sydney      Australia
+ID   Name        Metro       Country
+---  ----------  ----------  -------
+1    Sydney 1    Sydney      Australia
 
 ```
-
 
 
 ## Usage
@@ -41,6 +37,10 @@ megaport-cli locations get [locationID] [flags]
 
 
 
+## Flags
+
+| Name | Shorthand | Default | Description | Required |
+|------|-----------|---------|-------------|----------|
 
 
 

@@ -11,10 +11,9 @@ on the specified MCR.
 
 Example usage:
 ```
-  megaport-cli mcr list-prefix-filter-lists [mcrUID]
+megaport-cli mcr list-prefix-filter-lists [mcrUID]
 
 ```
-
 
 
 ## Usage
@@ -32,6 +31,10 @@ megaport-cli mcr list-prefix-filter-lists [mcrUID] [flags]
 
 
 
+## Flags
+
+| Name | Shorthand | Default | Description | Required |
+|------|-----------|---------|-------------|----------|
 
 
 

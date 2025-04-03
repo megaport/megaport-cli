@@ -10,10 +10,9 @@ This command allows you to delete an existing VXC by providing its UID.
 
 Example usage:
 ```
-  megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 ```
-
 
 
 ## Usage
@@ -31,6 +30,10 @@ megaport-cli vxc delete [vxcUID] [flags]
 
 
 
+## Flags
+
+| Name | Shorthand | Default | Description | Required |
+|------|-----------|---------|-------------|----------|
 
 
 

@@ -192,7 +192,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 	}
 	defer f.Close()
 
-	// Collect flags
+	// Collect local flags
 	var localFlags []FlagInfo
 	cmd.LocalFlags().VisitAll(func(flag *pflag.Flag) {
 		localFlags = append(localFlags, FlagInfo{
@@ -204,8 +204,9 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		})
 	})
 
+	// Collect persistent flags
 	var persistentFlags []FlagInfo
-	cmd.PersistentFlags().VisitAll(func(flag *pflag.Flag) { // Change to *pflag.Flag
+	cmd.PersistentFlags().VisitAll(func(flag *pflag.Flag) {
 		persistentFlags = append(persistentFlags, FlagInfo{
 			Name:        flag.Name,
 			Shorthand:   flag.Shorthand,
@@ -220,7 +221,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 	allFlags = append(allFlags, localFlags...)
 	allFlags = append(allFlags, persistentFlags...)
 
-	// Get subcommands
+	// Gather subcommands
 	var subCommands []string
 	for _, subCmd := range cmd.Commands() {
 		if !subCmd.Hidden && subCmd.Name() != "help" {
@@ -231,143 +232,87 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 	baseFileName := filepath.Base(outputPath)
 	filePrefix := strings.TrimSuffix(baseFileName, ".md")
 
-	// Now we can use filePrefix to determine parent file path
+	// Determine parent command info
 	var parentCommandPath, parentCommandName, parentFilePath string
 	hasParent := cmd.Parent() != nil && cmd.Parent().Name() != "megaport-cli"
 	if hasParent && cmd.Parent() != nil {
 		parentCommandPath = cmd.Parent().CommandPath()
 		parentCommandName = cmd.Parent().Name()
 
-		// Build the parent file path using the same pattern as we use for commands
-		// Extract the current file prefix up to the last underscore
 		currentPrefix := filePrefix
 		lastUnderscoreIndex := strings.LastIndex(currentPrefix, "_")
 		if lastUnderscoreIndex >= 0 {
-			// For nested commands, remove the last segment
 			parentFilePath = currentPrefix[:lastUnderscoreIndex]
 		} else {
-			// For top level commands, the parent is megaport-cli
 			parentFilePath = "megaport-cli"
 		}
 
-		// If the parent is the root command (megaport-cli), handle it specially
 		if parentCommandName == "megaport-cli" {
 			parentFilePath = "megaport-cli"
 		}
 	}
 
-	// Process the long description to format examples as code blocks
+	// Process the long description
 	processedLongDesc := cmd.Long
 	if processedLongDesc != "" {
 		lines := strings.Split(processedLongDesc, "\n")
 		var formattedLines []string
 		inExampleBlock := false
-		inExampleSection := false // Track if we're in an examples section
+		inExampleSection := false
 
-		for i, line := range lines {
+		for _, line := range lines {
 			trimLine := strings.TrimSpace(line)
 
-			// Format field descriptions with backticks
-			if strings.HasPrefix(trimLine, "-") && strings.Contains(trimLine, ":") {
-				// Extract the field name and description
-				dashParts := strings.SplitN(trimLine, ":", 2)
-				if len(dashParts) == 2 {
-					// Get the field name (after the dash, before the colon)
-					fieldPart := strings.TrimSpace(dashParts[0])
-					fieldName := strings.TrimSpace(strings.TrimPrefix(fieldPart, "-"))
-
-					// Get the description (after the colon)
-					description := strings.TrimSpace(dashParts[1])
-
-					// Check if the field includes a requirement note in parentheses
-					requiredNote := ""
-					if strings.Contains(fieldName, "(") && strings.Contains(fieldName, ")") {
-						// Extract the requirement note
-						nameAndReq := strings.SplitN(fieldName, "(", 2)
-						if len(nameAndReq) == 2 {
-							fieldName = strings.TrimSpace(nameAndReq[0])
-							requiredNote = " (" + strings.TrimSuffix(nameAndReq[1], ")") + ")"
-						}
-					}
-
-					// Format with backticks around the field name
-					formattedLine := "- `" + fieldName + "`" + requiredNote + ": " + description
-					formattedLines = append(formattedLines, formattedLine)
-					continue
-				}
-			}
-
-			// Detect if we've entered an examples section
+			// Detect start of an examples section
 			if strings.Contains(strings.ToLower(trimLine), "example") &&
-				(strings.HasSuffix(trimLine, ":") || strings.HasSuffix(trimLine, "usage") ||
-					strings.HasPrefix(trimLine, "#")) {
+				(strings.HasSuffix(trimLine, ":") || strings.HasSuffix(trimLine, "usage") || strings.HasPrefix(trimLine, "#")) {
 				inExampleSection = true
 			}
 
-			// Detect if this is a header line (starts with # and has text after it)
+			// Detect if it's a header line
 			isHeaderLine := strings.HasPrefix(trimLine, "#") && len(trimLine) > 1 && trimLine[1] == ' '
 
-			// If we hit a header and we're in a code block, close the code block first
+			// Close code block if a header is encountered while in example block
 			if isHeaderLine && inExampleBlock {
 				formattedLines = append(formattedLines, "```")
 				inExampleBlock = false
 			}
 
-			// Handle headers based on whether they are in an example section
+			// Downgrade headers to level 3 if in an example section or if it contains 'example'
 			if isHeaderLine {
-				// If we're in an example section OR the header contains "example", make it level 3
 				if inExampleSection || strings.Contains(strings.ToLower(trimLine), "example") {
-					// Convert to level 3 header (###) regardless of original level
 					headerText := strings.TrimSpace(strings.TrimPrefix(strings.TrimLeft(trimLine, "#"), " "))
 					formattedLines = append(formattedLines, "### "+headerText)
 				} else {
-					// Keep other headers as they are
 					formattedLines = append(formattedLines, line)
 				}
 				continue
 			}
 
-			// Reset example section status if we hit a major heading that's not an example
+			// Reset example section if a major heading (level 1 or 2) not containing "example" is detected
 			if isHeaderLine && !strings.Contains(strings.ToLower(trimLine), "example") &&
-				strings.Count(trimLine, "#") <= 2 { // Level 1 or 2 heading
+				strings.Count(trimLine, "#") <= 2 {
 				inExampleSection = false
 			}
 
-			// Detect example command lines by common patterns
-			isExampleLine := strings.HasPrefix(trimLine, "megaport-cli") ||
-				(i > 0 && strings.Contains(strings.ToLower(lines[i-1]), "example") &&
-					!strings.HasPrefix(trimLine, "#") && trimLine != "")
+			// Detect typical example command lines
+			isExampleLine := strings.HasPrefix(trimLine, "megaport-cli")
 
-			// Start a code block before an example if not already in one
+			// Start code block if an example line is detected and not already in one
 			if isExampleLine && !inExampleBlock {
 				formattedLines = append(formattedLines, "```")
 				inExampleBlock = true
 			}
 
-			// End a code block after an example if there's a blank line or end of section
-			if inExampleBlock && (trimLine == "" ||
-				(i < len(lines)-1 && strings.HasPrefix(strings.TrimSpace(lines[i+1]), "#"))) {
-				formattedLines = append(formattedLines, line)
-				formattedLines = append(formattedLines, "```")
-				if trimLine == "" {
-					formattedLines = append(formattedLines, "") // Keep the blank line
-				}
-				inExampleBlock = false
-				continue
+			// Cleanup lines if we're inside an example block
+			if inExampleBlock {
+				// Remove any leading "- `" if present
+				trimLine = strings.TrimPrefix(trimLine, "- `")
+				// Remove any remaining backticks
+				trimLine = strings.ReplaceAll(trimLine, "`", "")
 			}
 
-			// Preserve special case for sections like "Examples:"
-			if strings.HasPrefix(trimLine, "Example") && strings.HasSuffix(trimLine, ":") {
-				if inExampleBlock {
-					formattedLines = append(formattedLines, "```")
-					inExampleBlock = false
-				}
-				formattedLines = append(formattedLines, line)
-				continue
-			}
-
-			// Add the line if not already handled above
-			formattedLines = append(formattedLines, line)
+			formattedLines = append(formattedLines, trimLine)
 		}
 
 		// Close any open code block at the end
@@ -378,7 +323,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		processedLongDesc = strings.Join(formattedLines, "\n")
 	}
 
-	// Also handle the specific Example section if present
+	// Detect an Example section in cmd.Long if present separately
 	example := cmd.Example
 	if example == "" && strings.Contains(cmd.Long, "Example:") {
 		parts := strings.Split(cmd.Long, "Example:")
@@ -406,7 +351,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		IsAvailableCommand: cmd.IsAvailableCommand(),
 		FilepathPrefix:     filePrefix,
 	}
-	// Create the command doc file
+
 	cmdTemplate := `# {{ .Name }}
 
 {{ .Description }}
@@ -438,12 +383,12 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 {{ range .Aliases }}* {{ . }}
 {{ end }}{{ end }}
 
-{{ if .Flags }}## Flags
+## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 {{ range .Flags }}| ` + "`" + `--{{ .Name }}` + "`" + ` | {{ if .Shorthand }}` + "`" + `-{{ .Shorthand }}` + "`" + `{{ end }} | {{ if .Default }}` + "`" + `{{ .Default }}` + "`" + `{{ end }} | {{ .Description }} | {{ .Required }} |
-{{ end }}{{ end }}
+{{ end }}
 
 {{ if .HasSubCommands }}## Subcommands
 

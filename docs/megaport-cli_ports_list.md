@@ -7,17 +7,16 @@ List all ports with optional filters
 List all ports available in the Megaport API.
 
 This command fetches and displays a list of ports with details such as
-port ID, name, location, speed, and status. You can optionally filter the results 
+port ID, name, location, speed, and status. You can optionally filter the results
 by passing additional flags such as --location-id, --port-speed, and --port-name.
 
 Example:
 ```
-  megaport-cli ports list --location-id 1 --port-speed 10000 --port-name "PortName"
-
-```
+megaport-cli ports list --location-id 1 --port-speed 10000 --port-name "PortName"
 
 If no filtering options are provided, all ports will be listed.
 
+```
 
 
 ## Usage

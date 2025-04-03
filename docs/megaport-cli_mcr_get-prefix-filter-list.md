@@ -11,10 +11,9 @@ filter list on the specified MCR.
 
 Example usage:
 ```
-  megaport-cli mcr get-prefix-filter-list [mcrUID] [prefixFilterListID]
+megaport-cli mcr get-prefix-filter-list [mcrUID] [prefixFilterListID]
 
 ```
-
 
 
 ## Usage
@@ -32,6 +31,10 @@ megaport-cli mcr get-prefix-filter-list [mcrUID] [prefixFilterListID] [flags]
 
 
 
+## Flags
+
+| Name | Shorthand | Default | Description | Required |
+|------|-----------|---------|-------------|----------|
 
 
 

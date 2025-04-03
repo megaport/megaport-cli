@@ -11,10 +11,9 @@ You need to provide the UID of the port as an argument.
 
 Example:
 ```
-  megaport-cli ports get [portUID]
+megaport-cli ports get [portUID]
 
 ```
-
 
 
 ## Usage
@@ -37,6 +36,10 @@ megaport-cli ports get [portUID]
 
 
 
+## Flags
+
+| Name | Shorthand | Default | Description | Required |
+|------|-----------|---------|-------------|----------|
 
 
 

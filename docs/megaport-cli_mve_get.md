@@ -12,10 +12,9 @@ You need to provide the UID of the MVE as an argument.
 Example usage:
 
 ```
-  megaport-cli mve get [mveUID]
+megaport-cli mve get [mveUID]
 
 ```
-
 
 
 ## Usage
@@ -33,6 +32,10 @@ megaport-cli mve get [mveUID] [flags]
 
 
 
+## Flags
+
+| Name | Shorthand | Default | Description | Required |
+|------|-----------|---------|-------------|----------|
 
 
 

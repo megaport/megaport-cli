@@ -11,16 +11,12 @@ You must provide the service key identifier as an argument.
 
 Example:
 ```
-  megaport-cli servicekeys get a1b2c3d4-e5f6-7890-1234-567890abcdef
-
-```
+megaport-cli servicekeys get a1b2c3d4-e5f6-7890-1234-567890abcdef
 
 Example output:
-```
-  Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Product UID: product-uid  Description: My service key
+Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Product UID: product-uid  Description: My service key
 
 ```
-
 
 
 ## Usage
@@ -46,6 +42,10 @@ Example output:
 
 
 
+## Flags
+
+| Name | Shorthand | Default | Description | Required |
+|------|-----------|---------|-------------|----------|
 
 
 

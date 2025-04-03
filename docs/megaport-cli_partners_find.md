@@ -11,18 +11,17 @@ You'll be prompted for various search criteria, but all prompts are optional.
 Simply press Enter to skip any filter you don't want to apply.
 
 Available filters:
-  - Product name
-  - Connect type
-  - Company name
-  - Location ID
-  - Diversity zone
+- Product name
+- Connect type
+- Company name
+- Location ID
+- Diversity zone
 
 Example usage:
 ```
-  megaport-cli partners find
+megaport-cli partners find
 
 ```
-
 
 
 ## Usage
@@ -40,6 +39,10 @@ megaport-cli partners find [flags]
 
 
 
+## Flags
+
+| Name | Shorthand | Default | Description | Required |
+|------|-----------|---------|-------------|----------|
 
 
 

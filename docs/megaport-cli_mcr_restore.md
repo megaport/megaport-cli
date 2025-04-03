@@ -11,10 +11,9 @@ yet been fully decommissioned.
 
 Example usage:
 ```
-  megaport-cli mcr restore [mcrUID]
+megaport-cli mcr restore [mcrUID]
 
 ```
-
 
 
 ## Usage
@@ -32,6 +31,10 @@ megaport-cli mcr restore [mcrUID] [flags]
 
 
 
+## Flags
+
+| Name | Shorthand | Default | Description | Required |
+|------|-----------|---------|-------------|----------|
 
 
 

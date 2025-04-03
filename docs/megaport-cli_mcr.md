@@ -17,42 +17,38 @@ With MCRs you can:
 - Peer with other networks using BGP routing
 
 Available operations:
-- `get`: Retrieve details for a single MCR.
-- `buy`: Purchase a new MCR with specified configuration.
-- `update`: Modify an existing MCR's properties.
-- `delete`: Remove an MCR from your account.
-- `restore`: Restore a previously deleted MCR.
-- `create-prefix-filter-list`: Create a prefix filter list on an MCR.
-- `list-prefix-filter-lists`: List all prefix filter lists for a specific MCR.
-- `get-prefix-filter-list`: Retrieve details for a single prefix filter list on an MCR.
-- `update-prefix-filter-list`: Update a prefix filter list on an MCR.
-- `delete-prefix-filter-list`: Delete a prefix filter list on an MCR.
+- get: Retrieve details for a single MCR.
+- buy: Purchase a new MCR with specified configuration.
+- update: Modify an existing MCR's properties.
+- delete: Remove an MCR from your account.
+- restore: Restore a previously deleted MCR.
+- create-prefix-filter-list: Create a prefix filter list on an MCR.
+- list-prefix-filter-lists: List all prefix filter lists for a specific MCR.
+- get-prefix-filter-list: Retrieve details for a single prefix filter list on an MCR.
+- update-prefix-filter-list: Update a prefix filter list on an MCR.
+- delete-prefix-filter-list: Delete a prefix filter list on an MCR.
 
 Examples:
 ### Get details for a specific MCR
 ```
-  megaport-cli mcr get [mcrUID]
+megaport-cli mcr get [mcrUID]
 
 ```
-
 ### Buy a new MCR
 ```
-  megaport-cli mcr buy
+megaport-cli mcr buy
 
 ```
-
 ### Update an existing MCR
 ```
-  megaport-cli mcr update [mcrUID]
+megaport-cli mcr update [mcrUID]
 
 ```
-
 ### Delete an existing MCR
 ```
-  megaport-cli mcr delete [mcrUID]
+megaport-cli mcr delete [mcrUID]
 
 ```
-
 
 
 ## Usage
@@ -67,6 +63,10 @@ megaport-cli mcr [flags]
 
 
 
+## Flags
+
+| Name | Shorthand | Default | Description | Required |
+|------|-----------|---------|-------------|----------|
 
 
 ## Subcommands

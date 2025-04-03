@@ -12,13 +12,12 @@ You can use the subcommands to perform actions such as retrieving details, purch
 
 Example usage:
 ```
-  megaport-cli vxc get [vxcUID]
-  megaport-cli vxc buy
-  megaport-cli vxc update [vxcUID]
-  megaport-cli vxc delete [vxcUID]
+megaport-cli vxc get [vxcUID]
+megaport-cli vxc buy
+megaport-cli vxc update [vxcUID]
+megaport-cli vxc delete [vxcUID]
 
 ```
-
 
 
 ## Usage
@@ -33,6 +32,10 @@ megaport-cli vxc [flags]
 
 
 
+## Flags
+
+| Name | Shorthand | Default | Description | Required |
+|------|-----------|---------|-------------|----------|
 
 
 ## Subcommands

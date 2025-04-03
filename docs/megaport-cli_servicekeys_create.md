@@ -11,16 +11,12 @@ You may need to provide additional flags or parameters based on your API require
 
 Example:
 ```
-  megaport-cli servicekeys create --product-uid "product-uid" --description "My service key"
-
-```
+megaport-cli servicekeys create --product-uid "product-uid" --description "My service key"
 
 Example output:
-```
-  Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Product UID: product-uid  Description: My service key
+Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Product UID: product-uid  Description: My service key
 
 ```
-
 
 
 ## Usage
