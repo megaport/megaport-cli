@@ -10,7 +10,7 @@ This command allows you to update an existing VXC by providing the necessary det
 You can provide details in one of three ways:
 
 1. Interactive Mode:
-   The command will prompt you for each field that can be updated.
+   The command will prompt you for each field that can be updated, guiding you through the process.
 
 2. Flag Mode:
    Provide fields to update using flags:
@@ -22,18 +22,20 @@ You can provide details in one of three ways:
    Provide a JSON string or file with update fields:
    --json <json-string> or --json-file <path>
 
-Updateable fields:
-- `name`: New name for the VXC
-- `rate-limit`: New bandwidth in Mbps
+Updatable fields:
+- `name`: New name for the VXC (1-64 characters)
+- `rate-limit`: New bandwidth in Mbps (50 - 10000)
 - `term`: New contract term in months (1, 12, 24, or 36)
 - `cost-centre`: New cost centre for billing
 - `shutdown`: Whether to shut down the VXC (true/false)
-- `a-end-vlan`: New VLAN for A-End (0-4093, except 1)
-- `b-end-vlan`: New VLAN for B-End (0-4093, except 1)
-- `a-end-inner-vlan`: New inner VLAN for A-End (-1 or higher)
-- `b-end-inner-vlan`: New inner VLAN for B-End (-1 or higher)
+- `a-end-vlan`: New VLAN for A-End (2-4093, except 4090)
+- `b-end-vlan`: New VLAN for B-End (2-4093, except 4090)
+- `a-end-inner-vlan`: New inner VLAN for A-End (-1 or higher, only for QinQ)
+- `b-end-inner-vlan`: New inner VLAN for B-End (-1 or higher, only for QinQ)
 - `a-end-uid`: New A-End product UID
 - `b-end-uid`: New B-End product UID
+- `a-end-partner-config`: JSON string with A-End VRouter partner configuration
+- `b-end-partner-config`: JSON string with B-End VRouter partner configuration
 
 NOTE: For partner configurations, only VRouter partner configurations can be updated.
 Other CSP partner configurations (AWS, Azure, etc.) cannot be changed after creation.
@@ -42,69 +44,69 @@ Example usage:
 
 ### Interactive mode
 ```
-megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive
+  megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive
 
 ```
 
 ### Flag mode - Basic updates
 ```
-megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
-  --name "New VXC Name" \
-  --rate-limit 2000 \
-  --cost-centre "New Cost Centre"
+  megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
+    --name "New VXC Name" \
+    --rate-limit 2000 \
+    --cost-centre "New Cost Centre"
 
 ```
 
 ### Flag mode - Update VLANs
 ```
-megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
-  --a-end-vlan 200 \
-  --b-end-vlan 300
+  megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
+    --a-end-vlan 200 \
+    --b-end-vlan 300
 
 ```
 
 ### Flag mode - Update with VRouter partner config
 ```
-megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
-  --b-end-partner-config '{
-    "interfaces": [
-      {
-        "vlan": 100,
-        "ipAddresses": ["192.168.1.1/30"],
-        "bgpConnections": [
-          {
-            "peerAsn": 65000,
-            "localAsn": 64512,
-            "localIpAddress": "192.168.1.1",
-            "peerIpAddress": "192.168.1.2",
-            "password": "bgppassword",
-            "shutdown": false,
-            "bfdEnabled": true
-          }
-        ]
-      }
-    ]
-  }'
+  megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
+    --b-end-partner-config '{
+      "interfaces": [
+        {
+          "vlan": 100,
+          "ipAddresses": ["192.168.1.1/30"],
+          "bgpConnections": [
+            {
+              "peerAsn": 65000,
+              "localAsn": 64512,
+              "localIpAddress": "192.168.1.1",
+              "peerIpAddress": "192.168.1.2",
+              "password": "bgppassword",
+              "shutdown": false,
+              "bfdEnabled": true
+            }
+          ]
+        }
+      ]
+    }'
 
 ```
 
 ### JSON mode
 ```
-megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{
-  "name": "Updated VXC Name",
-  "rateLimit": 2000,
-  "costCentre": "New Cost Centre",
-  "aEndVlan": 200,
-  "bEndVlan": 300,
-  "term": 24,
-  "shutdown": false
-}'
+  megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{
+    "name": "Updated VXC Name",
+    "rateLimit": 2000,
+    "costCentre": "New Cost Centre",
+    "aEndVlan": 200,
+    "bEndVlan": 300,
+    "term": 24,
+    "shutdown": false
+  }'
 
 ```
 
 ### JSON file
 ```
-megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json-file ./vxc-update.json
+  megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json-file ./vxc-update.json
 
 ```
 

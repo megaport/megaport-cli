@@ -9,10 +9,8 @@ Delete an existing Virtual Cross Connect (VXC) through the Megaport API.
 This command allows you to delete an existing VXC by providing its UID.
 
 Example usage:
-
-### Delete a VXC
 ```
-megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 ```
 
