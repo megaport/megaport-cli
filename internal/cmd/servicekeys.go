@@ -35,6 +35,9 @@ You may need to provide additional flags or parameters based on your API require
 
 Example:
   megaport-cli servicekeys create --product-uid "product-uid" --description "My service key"
+
+Example output:
+  Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Product UID: product-uid  Description: My service key
 `,
 	RunE: WrapRunE(CreateServiceKey),
 }
@@ -49,7 +52,10 @@ This command allows you to modify the details of an existing service key.
 You need to specify the key identifier as an argument, and provide any updated values as flags.
 
 Example:
-  megaport-cli servicekeys update [key] --description "Updated description"
+  megaport-cli servicekeys update a1b2c3d4-e5f6-7890-1234-567890abcdef --description "Updated description"
+
+Example output:
+  Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Description: Updated description
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(UpdateServiceKey),
@@ -66,6 +72,11 @@ Use this command to review the keys available in your account.
 
 Example:
   megaport-cli servicekeys list
+
+Example output:
+  Key                                     Product UID          Description
+  --------------------------------------  -------------------  --------------------
+  a1b2c3d4-e5f6-7890-1234-567890abcdef    product-uid          My service key
 `,
 	RunE: WrapRunE(ListServiceKeys),
 }
@@ -80,7 +91,10 @@ This command fetches and displays detailed information about a given service key
 You must provide the service key identifier as an argument.
 
 Example:
-  megaport-cli servicekeys get [key]
+  megaport-cli servicekeys get a1b2c3d4-e5f6-7890-1234-567890abcdef
+
+Example output:
+  Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Product UID: product-uid  Description: My service key
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(GetServiceKey),

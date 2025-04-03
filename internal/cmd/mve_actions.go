@@ -71,11 +71,24 @@ func BuyMVE(cmd *cobra.Command, args []string) error {
 	fmt.Printf("MVE purchased successfully - UID: %s\n", resp.TechnicalServiceUID)
 	return nil
 }
+
 func UpdateMVE(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
 	// Retrieve the MVE UID from command line arguments
 	mveUID := args[0]
+
+	// Get the original MVE to compare values later
+	client, err := Login(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Fetch original MVE details before update
+	originalMVE, err := client.MVEService.GetMVE(ctx, mveUID)
+	if err != nil {
+		return fmt.Errorf("error retrieving MVE details: %v", err)
+	}
 
 	// Determine which mode to use
 	interactive, _ := cmd.Flags().GetBool("interactive")
@@ -88,7 +101,6 @@ func UpdateMVE(cmd *cobra.Command, args []string) error {
 		cmd.Flags().Changed("contract-term")
 
 	var req *megaport.ModifyMVERequest
-	var err error
 
 	// Process input based on mode priority: JSON > Flags > Interactive
 	if jsonStr != "" || jsonFile != "" {
@@ -118,21 +130,52 @@ func UpdateMVE(cmd *cobra.Command, args []string) error {
 	req.WaitForTime = 10 * time.Minute
 
 	// Call the ModifyMVE method
-	client, err := Login(ctx)
-	if err != nil {
-		return err
-	}
-
 	fmt.Println("Updating MVE...")
 	resp, err := client.MVEService.ModifyMVE(ctx, req)
 	if err != nil {
 		return fmt.Errorf("error updating MVE: %v", err)
 	}
 
-	if resp.MVEUpdated {
-		fmt.Printf("MVE updated successfully - UID: %s\n", mveUID)
-	} else {
+	if !resp.MVEUpdated {
 		fmt.Println("MVE update request was not successful")
+		return nil
+	}
+
+	// Fetch the updated MVE to get the new values
+	updatedMVE, err := client.MVEService.GetMVE(ctx, mveUID)
+	if err != nil {
+		return fmt.Errorf("error retrieving updated MVE details: %v", err)
+	}
+
+	// Print detailed success message
+	fmt.Println("MVE updated successfully:")
+	fmt.Printf("UID:          %s\n", mveUID)
+
+	// Compare and show name changes
+	if originalMVE.Name != updatedMVE.Name {
+		fmt.Printf("Name:         %s (previously \"%s\")\n", updatedMVE.Name, originalMVE.Name)
+	} else {
+		fmt.Printf("Name:         %s (unchanged)\n", updatedMVE.Name)
+	}
+
+	// Compare and show cost centre changes
+	if originalMVE.CostCentre != updatedMVE.CostCentre {
+		// Handle empty cost centre specially
+		origCC := originalMVE.CostCentre
+		if origCC == "" {
+			origCC = "none"
+		}
+		fmt.Printf("Cost Centre:  %s (previously \"%s\")\n", updatedMVE.CostCentre, origCC)
+	} else if updatedMVE.CostCentre != "" {
+		fmt.Printf("Cost Centre:  %s (unchanged)\n", updatedMVE.CostCentre)
+	}
+
+	// Compare and show contract term changes
+	if originalMVE.ContractTermMonths != updatedMVE.ContractTermMonths {
+		fmt.Printf("Term:         %d months (previously %d months)\n",
+			updatedMVE.ContractTermMonths, originalMVE.ContractTermMonths)
+	} else {
+		fmt.Printf("Term:         %d months (unchanged)\n", updatedMVE.ContractTermMonths)
 	}
 
 	return nil

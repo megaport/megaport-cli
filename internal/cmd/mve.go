@@ -19,7 +19,23 @@ var mveCmd = &cobra.Command{
 	Long: `Manage Megaport Virtual Edge (MVE) devices.
 
 This command groups all operations related to Megaport Virtual Edge devices (MVEs).
-You can use this command to list, get details, buy, update, and delete MVEs.
+MVEs are virtual networking appliances that run in the Megaport network, providing 
+software-defined networking capabilities from various vendors.
+
+With MVEs you can:
+- Deploy virtual networking appliances without physical hardware
+- Create secure connections between cloud services
+- Implement SD-WAN solutions across multiple regions
+- Run vendor-specific networking software in Megaport's infrastructure
+
+Available operations:
+- list: List all MVEs in your account
+- get: Retrieve details for a specific MVE
+- buy: Purchase a new MVE with vendor-specific configuration
+- update: Modify an existing MVE's properties
+- delete: Remove an MVE from your account
+- list-images: View available MVE software images
+- list-sizes: View available MVE hardware configurations
 
 Examples:
   # List all MVEs
@@ -66,173 +82,137 @@ Required fields:
 - vendor-config: JSON string with vendor-specific configuration (for flag mode)
 - vnics: JSON array of network interfaces (for flag mode)
 
-Vendor-specific fields:
-- 6WIND:
-- image_id (required)
-- product_size (required)
-- mve_label (optional)
-- ssh_public_key (required)
-- Aruba:
-- image_id (required)
-- product_size (required)
-- mve_label (optional)
-- account_name (required)
-- account_key (required)
-- system_tag (optional)
-- Aviatrix:
-- image_id (required)
-- product_size (required)
-- mve_label (optional)
-- cloud_init (required)
-- Cisco:
-- image_id (required)
-- product_size (required)
-- mve_label (required)
-- manage_locally (required, true/false)
-- admin_ssh_public_key (required)
-- ssh_public_key (required)
-- cloud_init (required)
-- fmc_ip_address (required)
-- fmc_registration_key (required)
-- fmc_nat_id (required)
-- Fortinet:
-- image_id (required)
-- product_size (required)
-- mve_label (optional)
-- admin_ssh_public_key (required)
-- ssh_public_key (required)
-- ha_license (required for HA deployments)
-- license_data (required for non-HA deployments)
-- PaloAlto:
-- image_id (required)
-- product_size (required)
-- mve_label (optional)
-- ssh_public_key (required)
-- admin_password_hash (required)
-- license_data (required)
-- Prisma:
-- image_id (required)
-- product_size (required)
-- mve_label (optional)
-- ion_key (required)
-- secret_key (required)
-- Versa:
-- image_id (required)
-- product_size (required)
-- mve_label (optional)
-- director_address (required)
-- controller_address (required)
-- local_auth (required)
-- remote_auth (required)
-- serial_number (required)
-- VMware:
-- image_id (required)
-- product_size (required)
-- mve_label (optional)
-- admin_ssh_public_key (required)
-- ssh_public_key (required)
-- vco_address (required)
-- vco_activation_code (required)
-- Meraki:
-- image_id (required)
-- product_size (required)
-- mve_label (optional)
-- token (required)
+Vendor-specific configuration details:
+--------------------------------------
+
+6WIND (SixwindVSRConfig):
+- vendor: Must be "6wind"
+- imageId: The ID of the 6WIND image to use
+- productSize: Size of the virtual machine (SMALL, MEDIUM, LARGE)
+- mveLabel: Custom label for the MVE
+- sshPublicKey: SSH public key for access
+
+Aruba (ArubaConfig):
+- vendor: Must be "aruba"
+- imageId: The ID of the Aruba image to use
+- productSize: Size of the virtual machine (SMALL, MEDIUM, LARGE)
+- mveLabel: (Optional) Custom label for the MVE
+- accountName: Aruba account name
+- accountKey: Aruba authentication key
+- systemTag: System tag for pre-configuration
+
+Aviatrix (AviatrixConfig):
+- vendor: Must be "aviatrix"
+- imageId: The ID of the Aviatrix image to use
+- productSize: Size of the virtual machine (SMALL, MEDIUM, LARGE)
+- mveLabel: Custom label for the MVE
+- cloudInit: Cloud-init configuration script
+
+Cisco (CiscoConfig):
+- vendor: Must be "cisco"
+- imageId: The ID of the Cisco image to use
+- productSize: Size of the virtual machine (SMALL, MEDIUM, LARGE)
+- mveLabel: (Optional) Custom label for the MVE
+- manageLocally: Boolean flag to manage locally (true/false)
+- adminSshPublicKey: Admin SSH public key
+- sshPublicKey: User SSH public key
+- cloudInit: Cloud-init configuration script
+- fmcIpAddress: Firewall Management Center IP address
+- fmcRegistrationKey: Registration key for FMC
+- fmcNatId: NAT ID for FMC
+
+Fortinet (FortinetConfig):
+- vendor: Must be "fortinet"
+- imageId: The ID of the Fortinet image to use
+- productSize: Size of the virtual machine (SMALL, MEDIUM, LARGE)
+- mveLabel: (Optional) Custom label for the MVE
+- adminSshPublicKey: Admin SSH public key
+- sshPublicKey: User SSH public key
+- licenseData: License data for the Fortinet instance
+
+PaloAlto (PaloAltoConfig):
+- vendor: Must be "paloalto"
+- imageId: The ID of the PaloAlto image to use
+- productSize: (Optional) Size of the virtual machine (SMALL, MEDIUM, LARGE)
+- mveLabel: (Optional) Custom label for the MVE
+- adminSshPublicKey: (Optional) Admin SSH public key
+- sshPublicKey: (Optional) SSH public key for access
+- adminPasswordHash: (Optional) Hashed admin password
+- licenseData: (Optional) License data for the PaloAlto instance
+
+Prisma (PrismaConfig):
+- vendor: Must be "prisma"
+- imageId: The ID of the Prisma image to use
+- productSize: Size of the virtual machine (SMALL, MEDIUM, LARGE)
+- mveLabel: Custom label for the MVE
+- ionKey: ION key for authentication
+- secretKey: Secret key for authentication
+
+Versa (VersaConfig):
+- vendor: Must be "versa"
+- imageId: The ID of the Versa image to use
+- productSize: Size of the virtual machine (SMALL, MEDIUM, LARGE)
+- mveLabel: (Optional) Custom label for the MVE
+- directorAddress: Versa director address
+- controllerAddress: Versa controller address
+- localAuth: Local authentication string
+- remoteAuth: Remote authentication string
+- serialNumber: Serial number for the device
+
+VMware (VmwareConfig):
+- vendor: Must be "vmware"
+- imageId: The ID of the VMware image to use
+- productSize: Size of the virtual machine (SMALL, MEDIUM, LARGE)
+- mveLabel: (Optional) Custom label for the MVE
+- adminSshPublicKey: Admin SSH public key
+- sshPublicKey: User SSH public key
+- vcoAddress: VCO address for configuration
+- vcoActivationCode: Activation code for VCO
+
+Meraki (MerakiConfig):
+- vendor: Must be "meraki"
+- imageId: The ID of the Meraki image to use
+- productSize: Size of the virtual machine (SMALL, MEDIUM, LARGE)
+- mveLabel: (Optional) Custom label for the MVE
+- token: Authentication token
 
 Example usage:
 
 # Interactive mode
 megaport-cli mve buy --interactive
 
-# Flag mode - Cisco example
-megaport-cli mve buy --name "My Cisco MVE" --term 12 --location-id 123 \
-  --vendor-config '{"vendor":"cisco","imageId":1,"productSize":"large","mveLabel":"cisco-mve",
-                   "manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA...","sshPublicKey":"ssh-rsa AAAA...",
-                   "cloudInit":"#cloud-config\npackages:\n - nginx\n","fmcIpAddress":"10.0.0.1",
-                   "fmcRegistrationKey":"key123","fmcNatId":"natid123"}' \
-  --vnics '[{"description":"Data Plane","vlan":100}]'
-
-# Flag mode - Aruba example
-megaport-cli mve buy --name "Megaport MVE Example" --term 1 --location-id 123 \
-  --vendor-config '{"vendor":"aruba","imageId":23,"productSize":"MEDIUM",
-                   "accountName":"Aruba Test Account","accountKey":"12345678",
-                   "systemTag":"Preconfiguration-aruba-test-1"}' \
-  --vnics '[{"description":"Data Plane"},{"description":"Control Plane"},{"description":"Management Plane"}]'
-
-# Flag mode - Versa example
-megaport-cli mve buy --name "Megaport Versa MVE Example" --term 1 --location-id 123 \
-  --vendor-config '{"vendor":"versa","imageId":20,"productSize":"MEDIUM",
-                   "directorAddress":"director1.versa.com","controllerAddress":"controller1.versa.com",
-                   "localAuth":"SDWAN-Branch@Versa.com","remoteAuth":"Controller-1-staging@Versa.com",
-                   "serialNumber":"Megaport-Hub1"}' \
-  --vnics '[{"description":"Data Plane"}]'
-
-
-# JSON mode - Cisco example
+# JSON mode - Complete example with full schema
 megaport-cli mve buy --json '{
-"name": "My Cisco MVE",
-"term": 12,
-"locationId": 67,
-"vendorConfig": {
-  "vendor": "cisco",
-  "imageId": 1,
-  "productSize": "large",
-  "mveLabel": "cisco-mve",
-  "manageLocally": true,
-  "adminSshPublicKey": "ssh-rsa AAAA...",
-  "sshPublicKey": "ssh-rsa AAAA...",
-  "cloudInit": "#cloud-config\npackages:\n - nginx\n",
-  "fmcIpAddress": "10.0.0.1",
-  "fmcRegistrationKey": "key123",
-  "fmcNatId": "natid123"
-},
-"vnics": [
-  {"description": "Data Plane", "vlan": 100}
-]
+  "name": "My MVE Display Name",
+  "term": 12,
+  "locationId": 123,
+  "diversityZone": "zone-1",
+  "promoCode": "PROMO2023",
+  "costCentre": "Marketing Dept",
+  "vendorConfig": {
+    "vendor": "cisco",
+    "imageId": 123,
+    "productSize": "MEDIUM",
+    "mveLabel": "custom-label",
+    "manageLocally": true,
+    "adminSshPublicKey": "ssh-rsa AAAA...",
+    "sshPublicKey": "ssh-rsa AAAA...",
+    "cloudInit": "#cloud-config\npackages:\n - nginx\n",
+    "fmcIpAddress": "10.0.0.1",
+    "fmcRegistrationKey": "key123",
+    "fmcNatId": "natid123"
+  },
+  "vnics": [
+    {"description": "Data Plane", "vlan": 100},
+    {"description": "Management", "vlan": 200}
+  ]
 }'
 
-# JSON mode - Aruba example
-megaport-cli mve buy --json '{
-"name": "Megaport MVE Example",
-"term": 1,
-"locationId": 67,
-"vendorConfig": {
-  "vendor": "aruba",
-  "imageId": 23,
-  "productSize": "MEDIUM",
-  "accountName": "Aruba Test Account",
-  "accountKey": "12345678",
-  "systemTag": "Preconfiguration-aruba-test-1"
-},
-"vnics": [
-  {"description": "Data Plane"},
-  {"description": "Control Plane"},
-  {"description": "Management Plane"}
-]
-}'
-
-# JSON mode - Versa example
-megaport-cli mve buy --json '{
-"name": "Megaport Versa MVE Example",
-"term": 1,
-"locationId": 67,
-"vendorConfig": {
-  "vendor": "versa",
-  "imageId": 20,
-  "productSize": "MEDIUM",
-  "directorAddress": "director1.versa.com",
-  "controllerAddress": "controller1.versa.com",
-  "localAuth": "SDWAN-Branch@Versa.com",
-  "remoteAuth": "Controller-1-staging@Versa.com",
-  "serialNumber": "Megaport-Hub1"
-},
-"vnics": [
-  {"description": "Data Plane"}
-]
-}'
-
-# JSON from file
-megaport-cli mve buy --json-file ./mve-config.json
+Notes:
+- For production deployments, you may want to use a JSON file to manage complex configurations
+- To list available images and their IDs, use: megaport-cli mve list-images
+- To list available sizes, use: megaport-cli mve list-sizes
+- Location IDs can be retrieved with: megaport-cli locations list
 `,
 	RunE: WrapRunE(BuyMVE),
 }
@@ -260,36 +240,69 @@ var updateMVECmd = &cobra.Command{
 	Short: "Update an existing MVE",
 	Long: `Update an existing Megaport Virtual Edge (MVE).
 
-This command allows you to update the details of an existing MVE.
-You can provide details in one of three ways:
+This command allows you to update specific properties of an existing MVE without
+disrupting its service or connectivity. Updates apply immediately but may take
+a few minutes to fully propagate in the Megaport system.
+
+You can provide update details in one of three ways:
 
 1. Interactive Mode (default):
- The command will prompt you for each field you can update.
+   The command will prompt you for each updatable field, showing current values
+   and allowing you to make changes. Press ENTER to keep the current value.
 
 2. Flag Mode:
- Provide the fields you want to update as flags:
+   Provide only the fields you want to update as flags. Fields not specified
+   will remain unchanged:
    --name, --cost-centre, --contract-term
 
 3. JSON Mode:
- Provide a JSON string or file with the fields you want to update:
+   Provide a JSON string or file with the fields you want to update:
    --json <json-string> or --json-file <path>
 
 Fields that can be updated:
-- name: The new name of the MVE.
-- cost_centre: The new cost center for the MVE.
-- contract_term_months: The new contract term in months (1, 12, 24, or 36).
+- name: The new name of the MVE (1-64 characters)
+- cost_centre: The new cost center for billing purposes (optional)
+- contract_term_months: The new contract term in months (1, 12, 24, or 36)
+
+Important notes:
+- The MVE UID cannot be changed
+- Vendor configuration cannot be changed after provisioning
+- Technical specifications (size, location) cannot be modified
+- Connectivity (VXCs) will not be affected by these changes
+- Changing the contract term may affect billing immediately
 
 Example usage:
 
 # Interactive mode (default)
-megaport-cli mve update [mveUID]
+megaport-cli mve update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
 
 # Flag mode
-megaport-cli mve update [mveUID] --name "New MVE Name" --cost-centre "New Cost Centre" --contract-term 24
+megaport-cli mve update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --name "Edge Router West" --cost-centre "IT-Network-2023" --contract-term 24
 
-# JSON mode
-megaport-cli mve update [mveUID] --json '{"name": "New MVE Name", "costCentre": "New Cost Centre", "contractTermMonths": 24}'
-megaport-cli mve update [mveUID] --json-file ./mve-update.json
+# JSON mode with string
+megaport-cli mve update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json '{"name": "Edge Router West", "costCentre": "IT-Network-2023", "contractTermMonths": 24}'
+
+# JSON mode with file
+megaport-cli mve update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json-file ./mve-update.json
+
+JSON format example (mve-update.json):
+{
+  "name": "Edge Router West",
+  "costCentre": "IT-Network-2023",
+  "contractTermMonths": 24
+}
+
+Note the JSON property names differ from flag names:
+- Flag: --name             → JSON: "name"
+- Flag: --cost-centre      → JSON: "costCentre"
+- Flag: --contract-term    → JSON: "contractTermMonths"
+
+Example successful output:
+  MVE updated successfully:
+  UID:          1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
+  Name:         Edge Router West (previously "Edge Router")  
+  Cost Centre:  IT-Network-2023 (previously "IT-Network")
+  Term:         24 months (previously 12 months)
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: WrapRunE(UpdateMVE),
@@ -317,19 +330,47 @@ var listMVEImagesCmd = &cobra.Command{
 	Short: "List all available MVE images",
 	Long: `List all available MVE images from the Megaport API.
 
-This command fetches and displays a list of all available MVE images with details such as
-image ID, version, product, and vendor. You can filter the images based on vendor, product code, ID, version, or release image.
+This command fetches and displays a list of all available MVE images with details
+about each one. These images are used when creating new MVEs with the 'buy' command.
+
+The output includes:
+- ID: Unique identifier required for the 'buy' command
+- Vendor: The network function vendor (e.g., Cisco, Fortinet, Palo Alto)
+- Product: Specific product name (e.g., C8000, FortiGate-VM, VM-Series)
+- Version: Software version of the image
+- Release: Whether this is a production release image (true) or development/beta (false)
+- Sizes: Available instance sizes (SMALL, MEDIUM, LARGE, X_LARGE_12)
+- Description: Additional vendor-specific information when available
 
 Available filters:
-  - vendor: Filter images by vendor.
-  - product-code: Filter images by product code.
-  - id: Filter images by ID.
-  - version: Filter images by version.
-  - release-image: Filter images by release image.
+  --vendor string        Filter images by vendor name (e.g., "Cisco", "Fortinet")
+  --product-code string  Filter images by product code
+  --id int               Filter images by exact image ID
+  --version string       Filter images by version string
+  --release-image        Only show official release images (excludes beta/development)
 
 Example usage:
 
-  megaport-cli mve list-images --vendor "Cisco" --product-code "CISCO123" --id 1 --version "1.0" --release-image true
+  # List all available images
+  megaport-cli mve list-images
+
+  # List only Cisco images
+  megaport-cli mve list-images --vendor "Cisco"
+
+  # List only release (production) images for Fortinet
+  megaport-cli mve list-images --vendor "Fortinet" --release-image
+
+Example output:
+  +-----+----------+----------------------------------+--------------+-------+----------------------+-------------------------+
+  | ID  |  VENDOR  |            PRODUCT               |   VERSION    | RELEAS |        SIZES         |      DESCRIPTION        |
+  +-----+----------+----------------------------------+--------------+-------+----------------------+-------------------------+
+  | 83  | Cisco    | C8000                            | 17.15.01a    | true  | SMALL,MEDIUM,LARGE   |                         |
+  | 78  | Cisco    | Secure Firewall Threat Defense   | 7.4.2-172    | true  | MEDIUM,LARGE         |                         |
+  | 57  | Fortinet | FortiGate-VM                     | 7.0.14       | true  | SMALL,MEDIUM,LARGE   |                         |
+  | 65  | Palo Alto| VM-Series                        | 10.2.9-h1    | true  | SMALL,MEDIUM,LARGE   |                         |
+  | 88  | Palo Alto| Prisma SD-WAN 310xv              | vION 3102v-  | true  | SMALL                | Requires MVE Size 2/8   |
+  | 62  | Meraki   | vMX                              | 20231214     | false | SMALL,MEDIUM,LARGE   | Engineering Build - Not |
+  +-----+----------+----------------------------------+--------------+-------+----------------------+-------------------------+
 `,
 	RunE: WrapRunE(ListMVEImages),
 }
@@ -340,12 +381,39 @@ var listAvailableMVESizesCmd = &cobra.Command{
 	Short: "List all available MVE sizes",
 	Long: `List all available MVE sizes from the Megaport API.
 
-This command fetches and displays a list of all available MVE sizes with details such as
-size, label, CPU core count, and RAM.
+This command fetches and displays details about all available MVE instance sizes.
+The size you select determines the MVE's capabilities and compute resources.
+
+Each size includes the following specifications:
+- Size: Size identifier used when creating an MVE (e.g., SMALL, MEDIUM, LARGE)
+- Label: Human-readable name (e.g., "MVE 2/8", "MVE 4/16")
+- CPU: Number of virtual CPU cores
+- RAM: Amount of memory in GB
+- Max CPU Count: Maximum CPU cores available for the size
+
+Standard MVE sizes available across most vendors:
+- SMALL: 2 vCPU, 8GB RAM
+- MEDIUM: 4 vCPU, 16GB RAM
+- LARGE: 8 vCPU, 32GB RAM
+- X_LARGE_12: 12 vCPU, 48GB RAM
+
+Note: Not all sizes are available for all vendor images. Some vendors or specific
+products may have restrictions on which sizes can be used. Check the image details
+using 'megaport-cli mve list-images' for size compatibility.
 
 Example usage:
 
   megaport-cli mve list-sizes
+  
+Example output:
+  +------------+------------+----------+---------+
+  |    SIZE    |   LABEL    |   CPU    |   RAM   |
+  +------------+------------+----------+---------+
+  | SMALL      | MVE 2/8    | 2 vCPU   | 8 GB    |
+  | MEDIUM     | MVE 4/16   | 4 vCPU   | 16 GB   |
+  | LARGE      | MVE 8/32   | 8 vCPU   | 32 GB   |
+  | X_LARGE_12 | MVE 12/48  | 12 vCPU  | 48 GB   |
+  +------------+------------+----------+---------+
 `,
 	RunE: WrapRunE(ListAvailableMVESizes),
 }
@@ -362,7 +430,6 @@ func init() {
 	buyMVECmd.Flags().String("vnics", "", "JSON array of network interfaces")
 	buyMVECmd.Flags().String("json", "", "JSON string containing MVE configuration")
 	buyMVECmd.Flags().String("json-file", "", "Path to JSON file containing MVE configuration")
-	buyMVECmd.Flags().String("resource-tags", "", "JSON string of key-value resource tags")
 
 	updateMVECmd.Flags().BoolP("interactive", "i", true, "Use interactive mode with prompts")
 	updateMVECmd.Flags().String("name", "", "New MVE name")

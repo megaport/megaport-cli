@@ -5,32 +5,55 @@ import (
 )
 
 // vxcCmd is the base command for all operations related to Virtual Cross Connects (VXCs).
-// It groups subcommands for managing VXCs in the Megaport API.
-// Use the "megaport-cli vxc get [vxcUID]" command to retrieve detailed information about a specific VXC.
 var vxcCmd = &cobra.Command{
 	Use:   "vxc",
 	Short: "Manage VXCs in the Megaport API",
 	Long: `Manage VXCs in the Megaport API.
 
 This command groups all operations related to Virtual Cross Connects (VXCs).
-You can use the subcommands to perform actions such as retrieving details for a specific VXC.
-For example, use the "megaport-cli vxc get [vxcUID]" command to fetch details for the VXC identified by its UID.
+VXCs are virtual point-to-point connections between two ports or devices on the Megaport network.
+You can use the subcommands to perform actions such as retrieving details, purchasing, updating, and deleting VXCs.
+
+Example usage:
+  megaport-cli vxc get [vxcUID]
+  megaport-cli vxc buy
+  megaport-cli vxc update [vxcUID]
+  megaport-cli vxc delete [vxcUID]
 `,
 }
 
 // getVXCCmd retrieves detailed information for a single Virtual Cross Connect (VXC).
-// This command requires exactly one argument: the UID of the VXC.
-// It establishes a context with a timeout, logs into the Megaport API, and uses the API client
-// to obtain and then display the VXC details using the configured output format (JSON or table).
-//
-// Example usage:
-//
-//	megaport-cli vxc get VXC12345
 var getVXCCmd = &cobra.Command{
 	Use:   "get [vxcUID]",
 	Short: "Get details for a single VXC",
-	Args:  cobra.ExactArgs(1),
-	RunE:  WrapRunE(GetVXC),
+	Long: `Get details for a single VXC through the Megaport API.
+
+This command retrieves detailed information for a single Virtual Cross Connect (VXC).
+You must provide the unique identifier (UID) of the VXC you wish to retrieve.
+
+The output includes:
+  - UID: Unique identifier of the VXC
+  - Name: User-defined name of the VXC
+  - Rate Limit: Bandwidth of the VXC in Mbps
+  - A-End: Details of the A-End connection point
+  - B-End: Details of the B-End connection point
+  - Status: Current status of the VXC (e.g., Active, Inactive, Deleting)
+  - Cost Centre: Cost center associated with the VXC
+
+Example usage:
+  megaport-cli vxc get vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+Example output:
+  UID:          vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  Name:         My VXC
+  Rate Limit:   1000 Mbps
+  A-End:        Port: port-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy, VLAN: 100
+  B-End:        Port: port-zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz, VLAN: 200
+  Status:       Active
+  Cost Centre:  IT-Networking
+`,
+	Args: cobra.ExactArgs(1),
+	RunE: WrapRunE(GetVXC),
 }
 
 var buyVXCCmd = &cobra.Command{
@@ -42,109 +65,95 @@ This command allows you to purchase a VXC by providing the necessary details.
 You can provide details in one of three ways:
 
 1. Interactive Mode (default):
-   The command will prompt you for each required and optional field.
+   The command will prompt you for each required and optional field, guiding you through the configuration process.
 
 2. Flag Mode:
    Provide all required fields as flags:
-   --a-end-uid, --b-end-uid, --name, --rate-limit, --term,
-   --a-end-vlan, --b-end-vlan, --a-end-partner-config, --b-end-partner-config
+   --a-end-uid, --name, --rate-limit, --term, --a-end-vlan
+   Optional fields can also be specified using flags.
 
 3. JSON Mode:
-   Provide a JSON string or file with all required fields:
+   Provide a JSON string or file with all required and optional fields:
    --json <json-string> or --json-file <path>
 
 Required fields:
-- a-end-uid: UID of the A-End product
-- name: Name of the VXC
-- rate-limit: Bandwidth in Mbps
-- term: Contract term in months (1, 12, 24, or 36)
+  - a-end-uid: UID of the A-End product (Port, MCR, MVE)
+  - name: Name of the VXC (1-64 characters)
+  - rate-limit: Bandwidth in Mbps (50 - 10000)
+  - term: Contract term in months (1, 12, 24, or 36)
+  - a-end-vlan: VLAN for A-End (2-4093, except 4090)
 
 Optional fields:
-- b-end-uid: UID of the B-End product (if connecting to non-partner)
-- a-end-vlan: VLAN for A-End (0-4093, except 1)
-- b-end-vlan: VLAN for B-End (0-4093, except 1)
-- a-end-inner-vlan: Inner VLAN for A-End (-1 or higher)
-- b-end-inner-vlan: Inner VLAN for B-End (-1 or higher)
-- a-end-vnic-index: vNIC index for A-End MVE
-- b-end-vnic-index: vNIC index for B-End MVE
-- promo-code: Promotional code
-- service-key: Service key
-- cost-centre: Cost centre
-- a-end-partner-config: JSON string with A-End partner configuration
-- b-end-partner-config: JSON string with B-End partner configuration
+  - b-end-uid: UID of the B-End product (if connecting to non-partner)
+  - b-end-vlan: VLAN for B-End (2-4093, except 4090)
+  - a-end-inner-vlan: Inner VLAN for A-End (-1 or higher, only for QinQ)
+  - b-end-inner-vlan: Inner VLAN for B-End (-1 or higher, only for QinQ)
+  - a-end-vnic-index: vNIC index for A-End MVE (required for MVE A-End)
+  - b-end-vnic-index: vNIC index for B-End MVE (required for MVE B-End)
+  - promo-code: Promotional code
+  - service-key: Service key
+  - cost-centre: Cost centre
+  - a-end-partner-config: JSON string with A-End partner configuration (for VRouter)
+  - b-end-partner-config: JSON string with B-End partner configuration (for CSPs like AWS, Azure)
 
 Example usage:
 
-# Interactive mode
-megaport-cli vxc buy --interactive
+  # Interactive mode
+  megaport-cli vxc buy --interactive
 
-# Flag mode - Basic VXC between two ports
-megaport-cli vxc buy \
-  --a-end-uid "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
-  --b-end-uid "dcc-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy" \
-  --name "My VXC" \
-  --rate-limit 1000 \
-  --term 12 \
-  --a-end-vlan 100 \
-  --b-end-vlan 200
+  # Flag mode - Basic VXC between two ports
+  megaport-cli vxc buy \
+    --a-end-uid "port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
+    --b-end-uid "port-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy" \
+    --name "My VXC" \
+    --rate-limit 1000 \
+    --term 12 \
+    --a-end-vlan 100 \
+    --b-end-vlan 200
 
-# Flag mode - VXC to AWS Direct Connect
-megaport-cli vxc buy \
-  --a-end-uid "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
-  --b-end-uid "dcc-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy" \
-  --name "My AWS VXC" \
-  --rate-limit 1000 \
-  --term 12 \
-  --a-end-vlan 100 \
-  --b-end-partner-config '{"connectType":"AWS","ownerAccount":"123456789012","asn":65000,"amazonAsn":64512}'
+  # Flag mode - VXC to AWS Direct Connect
+  megaport-cli vxc buy \
+    --a-end-uid "port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
+    --name "My AWS VXC" \
+    --rate-limit 1000 \
+    --term 12 \
+    --a-end-vlan 100 \
+    --b-end-partner-config '{"connectType":"AWS","ownerAccount":"123456789012","asn":65000,"amazonAsn":64512}'
 
-# Flag mode - VXC to Azure ExpressRoute
-megaport-cli vxc buy \
-  --a-end-uid "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
-  --name "My Azure VXC" \
-  --rate-limit 1000 \
-  --term 12 \
-  --a-end-vlan 100 \
-  --b-end-partner-config '{"connectType":"AZURE","serviceKey":"s-abcd1234"}'
+  # Flag mode - VXC to Azure ExpressRoute
+  megaport-cli vxc buy \
+    --a-end-uid "port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
+    --name "My Azure VXC" \
+    --rate-limit 1000 \
+    --term 12 \
+    --a-end-vlan 100 \
+    --b-end-partner-config '{"connectType":"AZURE","serviceKey":"s-abcd1234"}'
 
-# JSON mode
-megaport-cli vxc buy --json '{
-  "portUID": "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-  "vxcName": "My VXC",
-  "rateLimit": 1000,
-  "term": 12,
-  "aEndConfiguration": {
-    "vlan": 100
-  },
-  "bEndConfiguration": {
-    "productUid": "dcc-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy",
-    "vlan": 200
-  }
-}'
+  # JSON mode
+  megaport-cli vxc buy --json '{
+    "aEndUid": "port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "name": "My VXC",
+    "rateLimit": 1000,
+    "term": 12,
+    "aEndConfiguration": {"vlan": 100},
+    "bEndConfiguration": {"productUid": "port-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy", "vlan": 200}
+  }'
 
-# JSON mode with partner config
-megaport-cli vxc buy --json '{
-  "portUID": "dcc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-  "vxcName": "My AWS VXC",
-  "rateLimit": 1000,
-  "term": 12,
-  "aEndConfiguration": {
-    "vlan": 100
-  },
-  "bEndConfiguration": {
-    "productUid": "dcc-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy",
-    "partnerConfig": {
-      "connectType": "AWS",
-      "ownerAccount": "123456789012",
-      "asn": 65000,
-      "amazonAsn": 64512,
-      "type": "private"
+  # JSON mode with partner config
+  megaport-cli vxc buy --json '{
+    "aEndUid": "port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "name": "My AWS VXC",
+    "rateLimit": 1000,
+    "term": 12,
+    "aEndConfiguration": {"vlan": 100},
+    "bEndConfiguration": {
+      "productUid": "port-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy",
+      "partnerConfig": {"connectType": "AWS", "ownerAccount": "123456789012", "asn": 65000, "amazonAsn": 64512, "type": "private"}
     }
-  }
-}'
+  }'
 
-# JSON file
-megaport-cli vxc buy --json-file ./vxc-config.json
+  # JSON file
+  megaport-cli vxc buy --json-file ./vxc-config.json
 `,
 	RunE: WrapRunE(BuyVXC),
 }
@@ -152,14 +161,13 @@ megaport-cli vxc buy --json-file ./vxc-config.json
 var updateVXCCmd = &cobra.Command{
 	Use:   "update [vxcUID]",
 	Short: "Update an existing Virtual Cross Connect (VXC)",
-	Args:  cobra.ExactArgs(1),
 	Long: `Update an existing Virtual Cross Connect (VXC) through the Megaport API.
 
 This command allows you to update an existing VXC by providing the necessary details.
 You can provide details in one of three ways:
 
 1. Interactive Mode:
-   The command will prompt you for each field that can be updated.
+   The command will prompt you for each field that can be updated, guiding you through the process.
 
 2. Flag Mode:
    Provide fields to update using flags:
@@ -171,73 +179,75 @@ You can provide details in one of three ways:
    Provide a JSON string or file with update fields:
    --json <json-string> or --json-file <path>
 
-Updateable fields:
-- name: New name for the VXC
-- rate-limit: New bandwidth in Mbps
-- term: New contract term in months (1, 12, 24, or 36)
-- cost-centre: New cost centre for billing
-- shutdown: Whether to shut down the VXC (true/false)
-- a-end-vlan: New VLAN for A-End (0-4093, except 1)
-- b-end-vlan: New VLAN for B-End (0-4093, except 1)
-- a-end-inner-vlan: New inner VLAN for A-End (-1 or higher)
-- b-end-inner-vlan: New inner VLAN for B-End (-1 or higher)
-- a-end-uid: New A-End product UID
-- b-end-uid: New B-End product UID
+Updatable fields:
+  - name: New name for the VXC (1-64 characters)
+  - rate-limit: New bandwidth in Mbps (50 - 10000)
+  - term: New contract term in months (1, 12, 24, or 36)
+  - cost-centre: New cost centre for billing
+  - shutdown: Whether to shut down the VXC (true/false)
+  - a-end-vlan: New VLAN for A-End (2-4093, except 4090)
+  - b-end-vlan: New VLAN for B-End (2-4093, except 4090)
+  - a-end-inner-vlan: New inner VLAN for A-End (-1 or higher, only for QinQ)
+  - b-end-inner-vlan: New inner VLAN for B-End (-1 or higher, only for QinQ)
+  - a-end-uid: New A-End product UID
+  - b-end-uid: New B-End product UID
+  - a-end-partner-config: JSON string with A-End VRouter partner configuration
+  - b-end-partner-config: JSON string with B-End VRouter partner configuration
 
 NOTE: For partner configurations, only VRouter partner configurations can be updated.
 Other CSP partner configurations (AWS, Azure, etc.) cannot be changed after creation.
 
 Example usage:
 
-# Interactive mode
-megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive
+  # Interactive mode
+  megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive
 
-# Flag mode - Basic updates
-megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
-  --name "New VXC Name" \
-  --rate-limit 2000 \
-  --cost-centre "New Cost Centre"
+  # Flag mode - Basic updates
+  megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
+    --name "New VXC Name" \
+    --rate-limit 2000 \
+    --cost-centre "New Cost Centre"
 
-# Flag mode - Update VLANs
-megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
-  --a-end-vlan 200 \
-  --b-end-vlan 300
+  # Flag mode - Update VLANs
+  megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
+    --a-end-vlan 200 \
+    --b-end-vlan 300
 
-# Flag mode - Update with VRouter partner config
-megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
-  --b-end-partner-config '{
-    "interfaces": [
-      {
-        "vlan": 100,
-        "ipAddresses": ["192.168.1.1/30"],
-        "bgpConnections": [
-          {
-            "peerAsn": 65000,
-            "localAsn": 64512,
-            "localIpAddress": "192.168.1.1",
-            "peerIpAddress": "192.168.1.2",
-            "password": "bgppassword",
-            "shutdown": false,
-            "bfdEnabled": true
-          }
-        ]
-      }
-    ]
+  # Flag mode - Update with VRouter partner config
+  megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
+    --b-end-partner-config '{
+      "interfaces": [
+        {
+          "vlan": 100,
+          "ipAddresses": ["192.168.1.1/30"],
+          "bgpConnections": [
+            {
+              "peerAsn": 65000,
+              "localAsn": 64512,
+              "localIpAddress": "192.168.1.1",
+              "peerIpAddress": "192.168.1.2",
+              "password": "bgppassword",
+              "shutdown": false,
+              "bfdEnabled": true
+            }
+          ]
+        }
+      ]
+    }'
+
+  # JSON mode
+  megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{
+    "name": "Updated VXC Name",
+    "rateLimit": 2000,
+    "costCentre": "New Cost Centre",
+    "aEndVlan": 200,
+    "bEndVlan": 300,
+    "term": 24,
+    "shutdown": false
   }'
 
-# JSON mode
-megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{
-  "name": "Updated VXC Name",
-  "rateLimit": 2000,
-  "costCentre": "New Cost Centre",
-  "aEndVlan": 200,
-  "bEndVlan": 300,
-  "term": 24,
-  "shutdown": false
-}'
-
-# JSON file
-megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json-file ./vxc-update.json
+  # JSON file
+  megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json-file ./vxc-update.json
 `,
 	RunE: WrapRunE(UpdateVXC),
 }
@@ -246,15 +256,12 @@ megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json-file ./v
 var deleteVXCCmd = &cobra.Command{
 	Use:   "delete [vxcUID]",
 	Short: "Delete an existing Virtual Cross Connect (VXC)",
-	Args:  cobra.ExactArgs(1),
 	Long: `Delete an existing Virtual Cross Connect (VXC) through the Megaport API.
 
 This command allows you to delete an existing VXC by providing its UID.
 
 Example usage:
-
-# Delete a VXC
-megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 `,
 	RunE: WrapRunE(DeleteVXC),
 }
