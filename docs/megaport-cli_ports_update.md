@@ -21,29 +21,32 @@ You can provide details in one of three ways:
    --json <json-string> or --json-file <path>
 
 Required fields:
-  - name: The new name of the port.
-  - marketplace_visibility: Whether the port should be visible in the marketplace (true or false).
+- `name`: The new name of the port.
+- `marketplace_visibility`: Whether the port should be visible in the marketplace (true or false).
 
 Optional fields:
-  - cost_centre: The cost center for the port.
-  - term: The new term of the port (1, 12, or 24 months).
+- `cost_centre`: The cost center for the port.
+- `term`: The new term of the port (1, 12, or 24 months).
 
 Example usage:
 
 ### Interactive mode
 ```
   megaport-cli ports update [portUID] --interactive
+
 ```
 
 ### Flag mode
 ```
   megaport-cli ports update [portUID] --name "Updated Port" --marketplace-visibility true
+
 ```
 
 ### JSON mode
 ```
   megaport-cli ports update [portUID] --json '{"name":"Updated Port","marketplaceVisibility":true}'
   megaport-cli ports update [portUID] --json-file ./update-port-config.json
+
 ```
 
 

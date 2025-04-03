@@ -12,6 +12,7 @@ Example usage:
 
 ```
   megaport-cli ports check-vlan [portUID] [vlan]
+
 ```
 
 

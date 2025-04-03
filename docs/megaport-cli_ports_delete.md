@@ -13,6 +13,7 @@ Example usage:
 
 ```
   megaport-cli ports delete [portUID]
+
 ```
 
 

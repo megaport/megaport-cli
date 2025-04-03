@@ -12,6 +12,7 @@ You need to provide the UID of the port as an argument.
 Example:
 ```
   megaport-cli ports get [portUID]
+
 ```
 
 

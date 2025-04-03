@@ -257,6 +257,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 	}
 
 	// Process the long description to format examples as code blocks
+	// Process the long description to format examples as code blocks
 	processedLongDesc := cmd.Long
 	if processedLongDesc != "" {
 		lines := strings.Split(processedLongDesc, "\n")
@@ -266,6 +267,36 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 
 		for i, line := range lines {
 			trimLine := strings.TrimSpace(line)
+
+			// Format field descriptions with backticks
+			if strings.HasPrefix(trimLine, "-") && strings.Contains(trimLine, ":") {
+				// Extract the field name and description
+				dashParts := strings.SplitN(trimLine, ":", 2)
+				if len(dashParts) == 2 {
+					// Get the field name (after the dash, before the colon)
+					fieldPart := strings.TrimSpace(dashParts[0])
+					fieldName := strings.TrimSpace(strings.TrimPrefix(fieldPart, "-"))
+
+					// Get the description (after the colon)
+					description := strings.TrimSpace(dashParts[1])
+
+					// Check if the field includes a requirement note in parentheses
+					requiredNote := ""
+					if strings.Contains(fieldName, "(") && strings.Contains(fieldName, ")") {
+						// Extract the requirement note
+						nameAndReq := strings.SplitN(fieldName, "(", 2)
+						if len(nameAndReq) == 2 {
+							fieldName = strings.TrimSpace(nameAndReq[0])
+							requiredNote = " (" + strings.TrimSuffix(nameAndReq[1], ")") + ")"
+						}
+					}
+
+					// Format with backticks around the field name
+					formattedLine := "- `" + fieldName + "`" + requiredNote + ": " + description
+					formattedLines = append(formattedLines, formattedLine)
+					continue
+				}
+			}
 
 			// Detect if we've entered an examples section
 			if strings.Contains(strings.ToLower(trimLine), "example") &&
@@ -288,7 +319,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 				// If we're in an example section OR the header contains "example", make it level 3
 				if inExampleSection || strings.Contains(strings.ToLower(trimLine), "example") {
 					// Convert to level 3 header (###) regardless of original level
-					headerText := strings.TrimSpace(strings.TrimPrefix(trimLine, "#"))
+					headerText := strings.TrimSpace(strings.TrimPrefix(strings.TrimLeft(trimLine, "#"), " "))
 					formattedLines = append(formattedLines, "### "+headerText)
 				} else {
 					// Keep other headers as they are
@@ -303,11 +334,10 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 				inExampleSection = false
 			}
 
-			// Rest of the code remains the same...
 			// Detect example command lines by common patterns
 			isExampleLine := strings.HasPrefix(trimLine, "megaport-cli") ||
-				(i > 0 && strings.HasPrefix(lines[i-1], "#") &&
-					!strings.HasPrefix(trimLine, "#"))
+				(i > 0 && strings.Contains(strings.ToLower(lines[i-1]), "example") &&
+					!strings.HasPrefix(trimLine, "#") && trimLine != "")
 
 			// Start a code block before an example if not already in one
 			if isExampleLine && !inExampleBlock {
@@ -315,10 +345,14 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 				inExampleBlock = true
 			}
 
-			// End a code block after an example if there's a blank line or end of content
-			if inExampleBlock && trimLine == "" {
+			// End a code block after an example if there's a blank line or end of section
+			if inExampleBlock && (trimLine == "" ||
+				(i < len(lines)-1 && strings.HasPrefix(strings.TrimSpace(lines[i+1]), "#"))) {
+				formattedLines = append(formattedLines, line)
 				formattedLines = append(formattedLines, "```")
-				formattedLines = append(formattedLines, "") // Keep the blank line
+				if trimLine == "" {
+					formattedLines = append(formattedLines, "") // Keep the blank line
+				}
 				inExampleBlock = false
 				continue
 			}
@@ -333,7 +367,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 				continue
 			}
 
-			// Add the line
+			// Add the line if not already handled above
 			formattedLines = append(formattedLines, line)
 		}
 

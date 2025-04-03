@@ -13,6 +13,7 @@ Examples:
 ```
   megaport-cli locations list
   megaport-cli locations get [locationID]
+
 ```
 
 

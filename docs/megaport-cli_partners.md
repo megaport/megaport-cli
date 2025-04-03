@@ -14,6 +14,7 @@ Examples:
   megaport-cli partners find # interactive mode
   megaport-cli partners list
   megaport-cli partners list --product-name "AWS Partner Port" --company-name "AWS" --location-id 1
+
 ```
 
 

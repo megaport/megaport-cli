@@ -22,30 +22,31 @@ You can provide details in one of three ways:
    --json <json-string> or --json-file <path>
 
 Required fields:
-- a-end-uid: UID of the A-End product
-- name: Name of the VXC
-- rate-limit: Bandwidth in Mbps
-- term: Contract term in months (1, 12, 24, or 36)
+- `a-end-uid`: UID of the A-End product
+- `name`: Name of the VXC
+- `rate-limit`: Bandwidth in Mbps
+- `term`: Contract term in months (1, 12, 24, or 36)
 
 Optional fields:
-- b-end-uid: UID of the B-End product (if connecting to non-partner)
-- a-end-vlan: VLAN for A-End (0-4093, except 1)
-- b-end-vlan: VLAN for B-End (0-4093, except 1)
-- a-end-inner-vlan: Inner VLAN for A-End (-1 or higher)
-- b-end-inner-vlan: Inner VLAN for B-End (-1 or higher)
-- a-end-vnic-index: vNIC index for A-End MVE
-- b-end-vnic-index: vNIC index for B-End MVE
-- promo-code: Promotional code
-- service-key: Service key
-- cost-centre: Cost centre
-- a-end-partner-config: JSON string with A-End partner configuration
-- b-end-partner-config: JSON string with B-End partner configuration
+- `b-end-uid`: UID of the B-End product (if connecting to non-partner)
+- `a-end-vlan`: VLAN for A-End (0-4093, except 1)
+- `b-end-vlan`: VLAN for B-End (0-4093, except 1)
+- `a-end-inner-vlan`: Inner VLAN for A-End (-1 or higher)
+- `b-end-inner-vlan`: Inner VLAN for B-End (-1 or higher)
+- `a-end-vnic-index`: vNIC index for A-End MVE
+- `b-end-vnic-index`: vNIC index for B-End MVE
+- `promo-code`: Promotional code
+- `service-key`: Service key
+- `cost-centre`: Cost centre
+- `a-end-partner-config`: JSON string with A-End partner configuration
+- `b-end-partner-config`: JSON string with B-End partner configuration
 
 Example usage:
 
 ### Interactive mode
 ```
 megaport-cli vxc buy --interactive
+
 ```
 
 ### Flag mode - Basic VXC between two ports
@@ -58,6 +59,7 @@ megaport-cli vxc buy \
   --term 12 \
   --a-end-vlan 100 \
   --b-end-vlan 200
+
 ```
 
 ### Flag mode - VXC to AWS Direct Connect
@@ -69,7 +71,8 @@ megaport-cli vxc buy \
   --rate-limit 1000 \
   --term 12 \
   --a-end-vlan 100 \
-  --b-end-partner-config '{"connectType":"AWS","ownerAccount":"123456789012","asn":65000,"amazonAsn":64512}'
+- `-b-end-partner-config '{"connectType"`: "AWS","ownerAccount":"123456789012","asn":65000,"amazonAsn":64512}'
+
 ```
 
 ### Flag mode - VXC to Azure ExpressRoute
@@ -80,7 +83,8 @@ megaport-cli vxc buy \
   --rate-limit 1000 \
   --term 12 \
   --a-end-vlan 100 \
-  --b-end-partner-config '{"connectType":"AZURE","serviceKey":"s-abcd1234"}'
+- `-b-end-partner-config '{"connectType"`: "AZURE","serviceKey":"s-abcd1234"}'
+
 ```
 
 ### JSON mode
@@ -98,6 +102,7 @@ megaport-cli vxc buy --json '{
     "vlan": 200
   }
 }'
+
 ```
 
 ### JSON mode with partner config
@@ -121,11 +126,13 @@ megaport-cli vxc buy --json '{
     }
   }
 }'
+
 ```
 
 ### JSON file
 ```
 megaport-cli vxc buy --json-file ./vxc-config.json
+
 ```
 
 

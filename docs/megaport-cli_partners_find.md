@@ -20,6 +20,7 @@ Available filters:
 Example usage:
 ```
   megaport-cli partners find
+
 ```
 
 

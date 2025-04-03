@@ -12,6 +12,7 @@ Example usage:
 
 ```
   megaport-cli ports unlock [portUID]
+
 ```
 
 
