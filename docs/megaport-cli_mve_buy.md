@@ -223,7 +223,7 @@ megaport-cli mve buy [flags]
 
 ## Parent Command
 
-* [megaport-cli mve](mve.md)
+* [megaport-cli mve](megaport-cli_mve.md)
 
 
 

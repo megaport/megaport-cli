@@ -34,7 +34,7 @@ megaport-cli partners find [flags]
 
 ## Parent Command
 
-* [megaport-cli partners](partners.md)
+* [megaport-cli partners](megaport-cli_partners.md)
 
 
 

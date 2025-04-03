@@ -36,7 +36,7 @@ If no filtering options are provided, all ports will be listed.
 
 ## Parent Command
 
-* [megaport-cli ports](ports.md)
+* [megaport-cli ports](megaport-cli_ports.md)
 
 
 

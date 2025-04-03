@@ -14,7 +14,7 @@ megaport-cli mcr restore [mcrUID] [flags]
 
 ## Parent Command
 
-* [megaport-cli mcr](mcr.md)
+* [megaport-cli mcr](megaport-cli_mcr.md)
 
 
 

@@ -26,7 +26,7 @@ megaport-cli ports lock [portUID] [flags]
 
 ## Parent Command
 
-* [megaport-cli ports](ports.md)
+* [megaport-cli ports](megaport-cli_ports.md)
 
 
 

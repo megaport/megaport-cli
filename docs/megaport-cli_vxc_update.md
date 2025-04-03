@@ -114,7 +114,7 @@ megaport-cli vxc update [vxcUID] [flags]
 
 ## Parent Command
 
-* [megaport-cli vxc](vxc.md)
+* [megaport-cli vxc](megaport-cli_vxc.md)
 
 
 

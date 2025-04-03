@@ -140,7 +140,7 @@ megaport-cli vxc buy [flags]
 
 ## Parent Command
 
-* [megaport-cli vxc](vxc.md)
+* [megaport-cli vxc](megaport-cli_vxc.md)
 
 
 

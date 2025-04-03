@@ -35,7 +35,7 @@ megaport-cli locations list [flags]
 
 ## Parent Command
 
-* [megaport-cli locations](locations.md)
+* [megaport-cli locations](megaport-cli_locations.md)
 
 
 

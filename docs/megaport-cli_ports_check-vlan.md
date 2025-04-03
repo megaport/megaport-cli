@@ -26,7 +26,7 @@ megaport-cli ports check-vlan [portUID] [vlan] [flags]
 
 ## Parent Command
 
-* [megaport-cli ports](ports.md)
+* [megaport-cli ports](megaport-cli_ports.md)
 
 
 

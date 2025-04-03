@@ -31,7 +31,7 @@ megaport-cli servicekeys list
 
 ## Parent Command
 
-* [megaport-cli servicekeys](servicekeys.md)
+* [megaport-cli servicekeys](megaport-cli_servicekeys.md)
 
 
 

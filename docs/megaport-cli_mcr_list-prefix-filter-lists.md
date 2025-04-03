@@ -14,7 +14,7 @@ megaport-cli mcr list-prefix-filter-lists [mcrUID] [flags]
 
 ## Parent Command
 
-* [megaport-cli mcr](mcr.md)
+* [megaport-cli mcr](megaport-cli_mcr.md)
 
 
 

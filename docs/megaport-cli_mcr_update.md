@@ -56,7 +56,7 @@ megaport-cli mcr update [mcrUID] [flags]
 
 ## Parent Command
 
-* [megaport-cli mcr](mcr.md)
+* [megaport-cli mcr](megaport-cli_mcr.md)
 
 
 

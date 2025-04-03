@@ -26,7 +26,7 @@ megaport-cli ports restore [portUID] [flags]
 
 ## Parent Command
 
-* [megaport-cli ports](ports.md)
+* [megaport-cli ports](megaport-cli_ports.md)
 
 
 

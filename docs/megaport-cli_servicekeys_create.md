@@ -31,7 +31,7 @@ megaport-cli servicekeys create --product-uid "product-uid" --description "My se
 
 ## Parent Command
 
-* [megaport-cli servicekeys](servicekeys.md)
+* [megaport-cli servicekeys](megaport-cli_servicekeys.md)
 
 
 

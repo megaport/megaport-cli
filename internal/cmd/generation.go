@@ -41,6 +41,7 @@ type CommandData struct {
 	HasParent          bool
 	ParentCommandPath  string
 	ParentCommandName  string
+	ParentFilePath     string
 	Aliases            []string
 	Flags              []FlagInfo
 	LocalFlags         []FlagInfo
@@ -227,15 +228,33 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		}
 	}
 
-	var parentCommandPath, parentCommandName string
+	baseFileName := filepath.Base(outputPath)
+	filePrefix := strings.TrimSuffix(baseFileName, ".md")
+
+	// Now we can use filePrefix to determine parent file path
+	var parentCommandPath, parentCommandName, parentFilePath string
 	hasParent := cmd.Parent() != nil && cmd.Parent().Name() != "megaport-cli"
 	if hasParent && cmd.Parent() != nil {
 		parentCommandPath = cmd.Parent().CommandPath()
 		parentCommandName = cmd.Parent().Name()
-	}
 
-	baseFileName := filepath.Base(outputPath)
-	filePrefix := strings.TrimSuffix(baseFileName, ".md")
+		// Build the parent file path using the same pattern as we use for commands
+		// Extract the current file prefix up to the last underscore
+		currentPrefix := filePrefix
+		lastUnderscoreIndex := strings.LastIndex(currentPrefix, "_")
+		if lastUnderscoreIndex >= 0 {
+			// For nested commands, remove the last segment
+			parentFilePath = currentPrefix[:lastUnderscoreIndex]
+		} else {
+			// For top level commands, the parent is megaport-cli
+			parentFilePath = "megaport-cli"
+		}
+
+		// If the parent is the root command (megaport-cli), handle it specially
+		if parentCommandName == "megaport-cli" {
+			parentFilePath = "megaport-cli"
+		}
+	}
 
 	// Process the long description to format examples as code blocks
 	processedLongDesc := cmd.Long
@@ -360,6 +379,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		HasParent:          hasParent,
 		ParentCommandPath:  parentCommandPath,
 		ParentCommandName:  parentCommandName,
+		ParentFilePath:     parentFilePath,
 		Aliases:            cmd.Aliases,
 		Flags:              allFlags,
 		LocalFlags:         localFlags,
@@ -394,7 +414,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 
 {{ if .HasParent }}## Parent Command
 
-* [{{ .ParentCommandPath }}]({{ .ParentCommandName }}.md)
+* [{{ .ParentCommandPath }}]({{ .ParentFilePath }}.md)
 {{ end }}
 
 {{ if .Aliases }}## Aliases

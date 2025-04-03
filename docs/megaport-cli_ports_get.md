@@ -31,7 +31,7 @@ megaport-cli ports get [portUID]
 
 ## Parent Command
 
-* [megaport-cli ports](ports.md)
+* [megaport-cli ports](megaport-cli_ports.md)
 
 
 

@@ -55,7 +55,7 @@ megaport-cli mve update [mveUID] [flags]
 
 ## Parent Command
 
-* [megaport-cli mve](mve.md)
+* [megaport-cli mve](megaport-cli_mve.md)
 
 
 
