@@ -33,8 +33,10 @@ megaport-cli [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 | `--env` | `-e` | `production` | Environment to use (production, staging, development) | false |
+| `--no-color` |  | `false` | Disable color output | false |
 | `--output` | `-o` | `table` | Output format (table, json, csv, xml) | false |
 | `--env` | `-e` | `production` | Environment to use (production, staging, development) | false |
+| `--no-color` |  | `false` | Disable color output | false |
 | `--output` | `-o` | `table` | Output format (table, json, csv, xml) | false |
 
 

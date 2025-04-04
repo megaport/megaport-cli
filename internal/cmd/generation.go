@@ -253,7 +253,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 	}
 
 	// Process the long description
-	processedLongDesc := cmd.Long
+	processedLongDesc := stripANSIColors(cmd.Long)
 	if processedLongDesc != "" {
 		lines := strings.Split(processedLongDesc, "\n")
 		var formattedLines []string
@@ -334,10 +334,10 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 
 	data := CommandData{
 		Name:               cmd.Name(),
-		Description:        cmd.Short,
+		Description:        stripANSIColors(cmd.Short),
 		LongDescription:    processedLongDesc,
 		Usage:              cmd.UseLine(),
-		Example:            example,
+		Example:            stripANSIColors(example),
 		HasParent:          hasParent,
 		ParentCommandPath:  parentCommandPath,
 		ParentCommandName:  parentCommandName,

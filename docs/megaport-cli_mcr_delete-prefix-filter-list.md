@@ -34,6 +34,7 @@ megaport-cli mcr delete-prefix-filter-list [mcrUID] [prefixFilterListID] [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
+| `--force` |  | `false` | Force deletion without confirmation | false |
 
 
 
