@@ -31,44 +31,54 @@ func BuyMVE(cmd *cobra.Command, args []string) error {
 	// Process input based on mode priority: JSON > Flags > Interactive
 	if jsonStr != "" || jsonFile != "" {
 		// JSON mode
+		PrintInfo("Using JSON input")
 		req, err = processJSONBuyMVEInput(jsonStr, jsonFile)
 		if err != nil {
+			PrintError("Failed to process JSON input: %v", err)
 			return err
 		}
 	} else if flagsProvided {
 		// Flag mode
+		PrintInfo("Using flag input")
 		req, err = processFlagBuyMVEInput(cmd)
 		if err != nil {
+			PrintError("Failed to process flag input: %v", err)
 			return err
 		}
 	} else if interactive {
 		// Interactive mode
+		PrintInfo("Starting interactive mode")
 		req, err = promptForBuyMVEDetails()
 		if err != nil {
+			PrintError("Interactive input failed: %v", err)
 			return err
 		}
 	} else {
+		PrintError("No input provided")
 		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify MVE details")
 	}
 
 	// Call the API to buy the MVE
 	client, err := Login(ctx)
 	if err != nil {
+		PrintError("Failed to log in: %v", err)
 		return err
 	}
 
-	fmt.Println("Validating MVE order...")
+	PrintInfo("Validating MVE order...")
 	if err := client.MVEService.ValidateMVEOrder(ctx, req); err != nil {
+		PrintError("Validation failed: %v", err)
 		return fmt.Errorf("validation failed: %v", err)
 	}
 
-	fmt.Println("Buying MVE...")
+	PrintInfo("Buying MVE...")
 	resp, err := client.MVEService.BuyMVE(ctx, req)
 	if err != nil {
+		PrintError("Failed to buy MVE: %v", err)
 		return err
 	}
 
-	fmt.Printf("MVE purchased successfully - UID: %s\n", resp.TechnicalServiceUID)
+	PrintResourceCreated("MVE", resp.TechnicalServiceUID)
 	return nil
 }
 
@@ -77,16 +87,19 @@ func UpdateMVE(cmd *cobra.Command, args []string) error {
 
 	// Retrieve the MVE UID from command line arguments
 	mveUID := args[0]
+	formattedUID := formatUID(mveUID)
 
 	// Get the original MVE to compare values later
 	client, err := Login(ctx)
 	if err != nil {
+		PrintError("Failed to log in: %v", err)
 		return err
 	}
 
 	// Fetch original MVE details before update
 	originalMVE, err := client.MVEService.GetMVE(ctx, mveUID)
 	if err != nil {
+		PrintError("Error retrieving MVE details: %v", err)
 		return fmt.Errorf("error retrieving MVE details: %v", err)
 	}
 
@@ -105,23 +118,30 @@ func UpdateMVE(cmd *cobra.Command, args []string) error {
 	// Process input based on mode priority: JSON > Flags > Interactive
 	if jsonStr != "" || jsonFile != "" {
 		// JSON mode
+		PrintInfo("Using JSON input for MVE %s", formattedUID)
 		req, err = processJSONUpdateMVEInput(jsonStr, jsonFile, mveUID)
 		if err != nil {
+			PrintError("Failed to process JSON input: %v", err)
 			return err
 		}
 	} else if flagsProvided {
 		// Flag mode
+		PrintInfo("Using flag input for MVE %s", formattedUID)
 		req, err = processFlagUpdateMVEInput(cmd, mveUID)
 		if err != nil {
+			PrintError("Failed to process flag input: %v", err)
 			return err
 		}
 	} else if interactive {
 		// Interactive mode
+		PrintInfo("Starting interactive mode for MVE %s", formattedUID)
 		req, err = promptForUpdateMVEDetails(mveUID)
 		if err != nil {
+			PrintError("Interactive input failed: %v", err)
 			return err
 		}
 	} else {
+		PrintError("No input provided")
 		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify MVE update details")
 	}
 
@@ -130,32 +150,33 @@ func UpdateMVE(cmd *cobra.Command, args []string) error {
 	req.WaitForTime = 10 * time.Minute
 
 	// Call the ModifyMVE method
-	fmt.Println("Updating MVE...")
+	PrintInfo("Updating MVE %s...", formattedUID)
 	resp, err := client.MVEService.ModifyMVE(ctx, req)
 	if err != nil {
+		PrintError("Failed to update MVE: %v", err)
 		return fmt.Errorf("error updating MVE: %v", err)
 	}
 
 	if !resp.MVEUpdated {
-		fmt.Println("MVE update request was not successful")
+		PrintWarning("MVE update request was not successful")
 		return nil
 	}
 
 	// Fetch the updated MVE to get the new values
 	updatedMVE, err := client.MVEService.GetMVE(ctx, mveUID)
 	if err != nil {
+		PrintError("Error retrieving updated MVE details: %v", err)
 		return fmt.Errorf("error retrieving updated MVE details: %v", err)
 	}
 
 	// Print detailed success message
-	fmt.Println("MVE updated successfully:")
-	fmt.Printf("UID:          %s\n", mveUID)
+	PrintResourceUpdated("MVE", mveUID)
 
 	// Compare and show name changes
 	if originalMVE.Name != updatedMVE.Name {
-		fmt.Printf("Name:         %s (previously \"%s\")\n", updatedMVE.Name, originalMVE.Name)
+		PrintInfo("Name:         %s (previously \"%s\")", updatedMVE.Name, originalMVE.Name)
 	} else {
-		fmt.Printf("Name:         %s (unchanged)\n", updatedMVE.Name)
+		PrintInfo("Name:         %s (unchanged)", updatedMVE.Name)
 	}
 
 	// Compare and show cost centre changes
@@ -165,17 +186,17 @@ func UpdateMVE(cmd *cobra.Command, args []string) error {
 		if origCC == "" {
 			origCC = "none"
 		}
-		fmt.Printf("Cost Centre:  %s (previously \"%s\")\n", updatedMVE.CostCentre, origCC)
+		PrintInfo("Cost Centre:  %s (previously \"%s\")", updatedMVE.CostCentre, origCC)
 	} else if updatedMVE.CostCentre != "" {
-		fmt.Printf("Cost Centre:  %s (unchanged)\n", updatedMVE.CostCentre)
+		PrintInfo("Cost Centre:  %s (unchanged)", updatedMVE.CostCentre)
 	}
 
 	// Compare and show contract term changes
 	if originalMVE.ContractTermMonths != updatedMVE.ContractTermMonths {
-		fmt.Printf("Term:         %d months (previously %d months)\n",
+		PrintInfo("Term:         %d months (previously %d months)",
 			updatedMVE.ContractTermMonths, originalMVE.ContractTermMonths)
 	} else {
-		fmt.Printf("Term:         %d months (unchanged)\n", updatedMVE.ContractTermMonths)
+		PrintInfo("Term:         %d months (unchanged)", updatedMVE.ContractTermMonths)
 	}
 
 	return nil
@@ -187,25 +208,32 @@ func GetMVE(cmd *cobra.Command, args []string) error {
 
 	client, err := Login(ctx)
 	if err != nil {
+		PrintError("Failed to log in: %v", err)
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
 	mveUID := args[0]
+	formattedUID := formatUID(mveUID)
 	if mveUID == "" {
-		return fmt.Errorf("MVE UID cannot be empty")
+		PrintError("MVE UID cannot be empty")
+		return fmt.Errorf("mVE UID cannot be empty")
 	}
 
+	PrintInfo("Retrieving MVE %s...", formattedUID)
 	mve, err := client.MVEService.GetMVE(ctx, mveUID)
 	if err != nil {
+		PrintError("Failed to get MVE: %v", err)
 		return fmt.Errorf("error getting MVE: %v", err)
 	}
 
 	if mve == nil {
+		PrintError("No MVE found with UID: %s", mveUID)
 		return fmt.Errorf("no MVE found with UID: %s", mveUID)
 	}
 
 	err = printMVEs([]*megaport.MVE{mve}, outputFormat)
 	if err != nil {
+		PrintError("Failed to print MVEs: %v", err)
 		return fmt.Errorf("error printing MVEs: %v", err)
 	}
 	return nil
@@ -217,15 +245,19 @@ func ListMVEImages(cmd *cobra.Command, args []string) error {
 
 	client, err := Login(ctx)
 	if err != nil {
+		PrintError("Failed to log in: %v", err)
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
+	PrintInfo("Retrieving MVE images...")
 	images, err := client.MVEService.ListMVEImages(ctx)
 	if err != nil {
+		PrintError("Failed to list MVE images: %v", err)
 		return fmt.Errorf("error listing MVE images: %v", err)
 	}
 
 	if images == nil {
+		PrintWarning("No MVE images found")
 		return fmt.Errorf("no MVE images found")
 	}
 
@@ -241,6 +273,7 @@ func ListMVEImages(cmd *cobra.Command, args []string) error {
 
 	err = printOutput(filteredImages, outputFormat)
 	if err != nil {
+		PrintError("Failed to print MVE images: %v", err)
 		return fmt.Errorf("error printing MVE images: %v", err)
 	}
 	return nil
@@ -252,20 +285,25 @@ func ListAvailableMVESizes(cmd *cobra.Command, args []string) error {
 
 	client, err := Login(ctx)
 	if err != nil {
+		PrintError("Failed to log in: %v", err)
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
+	PrintInfo("Retrieving available MVE sizes...")
 	sizes, err := client.MVEService.ListAvailableMVESizes(ctx)
 	if err != nil {
+		PrintError("Failed to list MVE sizes: %v", err)
 		return fmt.Errorf("error listing MVE sizes: %v", err)
 	}
 
 	if sizes == nil {
+		PrintWarning("No MVE sizes found")
 		return fmt.Errorf("no MVE sizes found")
 	}
 
 	err = printOutput(sizes, outputFormat)
 	if err != nil {
+		PrintError("Failed to print MVE sizes: %v", err)
 		return fmt.Errorf("error printing MVE sizes: %v", err)
 	}
 	return nil
@@ -274,25 +312,43 @@ func ListAvailableMVESizes(cmd *cobra.Command, args []string) error {
 func DeleteMVE(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	mveUID := args[0]
+	formattedUID := formatUID(mveUID)
+
+	// Confirm deletion unless force flag is set
+	force, err := cmd.Flags().GetBool("force")
+	if err != nil {
+		PrintError("Failed to get force flag: %v", err)
+		return err
+	}
+
+	if !force {
+		confirmMsg := "Are you sure you want to delete MVE " + mveUID + "? "
+		if !confirmPrompt(confirmMsg) {
+			PrintInfo("Deletion cancelled")
+			return nil
+		}
+	}
 
 	client, err := Login(ctx)
 	if err != nil {
+		PrintError("Failed to log in: %v", err)
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
-	fmt.Printf("Deleting MVE with UID: %s...\n", mveUID)
+	PrintInfo("Deleting MVE %s...", formattedUID)
 	req := &megaport.DeleteMVERequest{
 		MVEID: mveUID,
 	}
 	resp, err := client.MVEService.DeleteMVE(ctx, req)
 	if err != nil {
+		PrintError("Failed to delete MVE: %v", err)
 		return fmt.Errorf("error deleting MVE: %v", err)
 	}
 
 	if resp.IsDeleted {
-		fmt.Println("MVE deleted successfully")
+		PrintResourceDeleted("MVE", mveUID, false)
 	} else {
-		fmt.Println("MVE delete failed")
+		PrintWarning("MVE delete failed")
 	}
 	return nil
 }

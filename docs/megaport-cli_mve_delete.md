@@ -10,10 +10,8 @@ This command allows you to delete an existing MVE by providing its UID.
 
 Example usage:
 
-```
-megaport-cli mve delete [mveUID]
+delete [mveUID]
 
-```
 
 
 ## Usage

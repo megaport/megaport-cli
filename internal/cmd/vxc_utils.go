@@ -597,8 +597,6 @@ var deleteVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID st
 	return err
 }
 
-var consolePrintf = fmt.Printf
-
 // buildVXCRequestFromPrompt creates a BuyVXCRequest from interactive prompts
 var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCService) (*megaport.BuyVXCRequest, error) {
 

@@ -37,6 +37,18 @@ func GetVXC(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// hasUpdateVXCNonInteractiveFlags checks if any non-interactive flags are set for updating a VXC.
+func hasUpdateVXCNonInteractiveFlags(cmd *cobra.Command) bool {
+	flagNames := []string{"name", "rate-limit", "a-end-vlan", "b-end-vlan", "a-end-location", "b-end-location", "locked"}
+	for _, name := range flagNames {
+		if cmd.Flags().Changed(name) {
+			return true
+		}
+	}
+	return false
+}
+
+// BuyVXC purchases a new Virtual Cross Connect
 func BuyVXC(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
@@ -56,13 +68,13 @@ func BuyVXC(cmd *cobra.Command, args []string) error {
 
 	// Check if we have JSON input first
 	if jsonStr != "" || jsonFilePath != "" {
-		// JSON mode
+		PrintInfo("Using JSON input")
 		req, err = buildVXCRequestFromJSON(jsonStr, jsonFilePath)
-	} else if interactive || !hasNonInteractiveFlags(cmd) {
-		// Interactive mode if explicitly requested or if no other input mode is provided
+	} else if interactive {
+		PrintInfo("Starting interactive mode")
 		req, err = buildVXCRequestFromPrompt(ctx, client.VXCService)
 	} else {
-		// Flag mode - use when interactive is false and flags are provided
+		PrintInfo("Using flag input")
 		req, err = buildVXCRequestFromFlags(cmd, ctx, client.VXCService)
 	}
 
@@ -74,38 +86,19 @@ func BuyVXC(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no input provided")
 	}
 
-	fmt.Println("Buying VXC...")
+	PrintInfo("Buying VXC...")
 	if buyVXCFunc == nil {
 		return fmt.Errorf("internal error: buyVXCFunc is nil")
 	}
 
 	resp, err := buyVXCFunc(ctx, client, req)
 	if err != nil {
+		PrintError("Failed to purchase VXC: %v", err)
 		return err
 	}
 
-	fmt.Printf("VXC purchased successfully - UID: %s\n", resp.TechnicalServiceUID)
+	PrintResourceCreated("VXC", resp.TechnicalServiceUID)
 	return nil
-}
-
-// hasNonInteractiveFlags checks if any of the non-interactive flags were set
-func hasNonInteractiveFlags(cmd *cobra.Command) bool {
-	// List of flags that indicate non-interactive mode
-	nonInteractiveFlags := []string{
-		"a-end-uid", "b-end-uid", "name", "rate-limit", "term",
-		"a-end-vlan", "b-end-vlan", "a-end-inner-vlan", "b-end-inner-vlan",
-		"a-end-vnic-index", "b-end-vnic-index", "promo-code",
-		"service-key", "cost-centre", "a-end-partner-config", "b-end-partner-config",
-	}
-
-	// Check if any of these flags were explicitly set
-	for _, flag := range nonInteractiveFlags {
-		if cmd.Flags().Changed(flag) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // UpdateVXC updates an existing VXC with the provided configuration
@@ -114,6 +107,7 @@ func UpdateVXC(cmd *cobra.Command, args []string) error {
 
 	// Get the VXC UID from args
 	vxcUID := args[0]
+	formattedUID := formatUID(vxcUID)
 
 	// Determine input mode and build request
 	var req *megaport.UpdateVXCRequest
@@ -124,13 +118,13 @@ func UpdateVXC(cmd *cobra.Command, args []string) error {
 	jsonFilePath, _ := cmd.Flags().GetString("json-file")
 
 	if jsonStr != "" || jsonFilePath != "" {
-		// JSON mode
+		PrintInfo("Using JSON input for VXC %s", formattedUID)
 		req, err = buildUpdateVXCRequestFromJSON(jsonStr, jsonFilePath)
 	} else if interactive || !hasUpdateVXCNonInteractiveFlags(cmd) {
-		// Interactive mode
+		PrintInfo("Starting interactive mode for VXC %s", formattedUID)
 		req, err = buildUpdateVXCRequestFromPrompt(vxcUID)
 	} else {
-		// Flag mode
+		PrintInfo("Using flag input for VXC %s", formattedUID)
 		req, err = buildUpdateVXCRequestFromFlags(cmd)
 	}
 
@@ -155,57 +149,54 @@ func UpdateVXC(cmd *cobra.Command, args []string) error {
 	}
 
 	// Call update API
-	fmt.Println("Updating VXC...")
+	PrintInfo("Updating VXC %s...", formattedUID)
 	err = updateVXCFunc(ctx, client, vxcUID, req)
 	if err != nil {
+		PrintError("Failed to update VXC: %v", err)
 		return fmt.Errorf("failed to update VXC: %v", err)
 	}
 
-	fmt.Println("VXC updated successfully.")
+	PrintResourceUpdated("VXC", vxcUID)
 	return nil
 }
 
-// hasUpdateVXCNonInteractiveFlags checks if any of the non-interactive flags for VXC update were set
-func hasUpdateVXCNonInteractiveFlags(cmd *cobra.Command) bool {
-	// List of flags that indicate non-interactive mode for VXC update
-	nonInteractiveFlags := []string{
-		"name", "rate-limit", "term", "cost-centre", "shutdown",
-		"a-end-vlan", "b-end-vlan", "a-end-inner-vlan", "b-end-inner-vlan",
-		"a-end-uid", "b-end-uid", "a-end-partner-config", "b-end-partner-config",
-	}
-
-	// Check if any of these flags were explicitly set
-	for _, flag := range nonInteractiveFlags {
-		if cmd.Flags().Changed(flag) {
-			return true
-		}
-	}
-
-	return false
-}
-
+// DeleteVXC deletes a VXC with the provided UID
 func DeleteVXC(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
+	vxcUID := args[0]
+	formattedUID := formatUID(vxcUID)
+
+	// Parse command flags
+	force, _ := cmd.Flags().GetBool("force")
+	deleteNow, _ := cmd.Flags().GetBool("now")
+
+	// If not forced, ask for confirmation
+	if !force {
+		message := fmt.Sprintf("Are you sure you want to delete VXC %s?", formattedUID)
+		if !confirmPrompt(message) {
+			PrintInfo("Deletion cancelled")
+			return nil
+		}
+	}
+
 	client, err := loginFunc(ctx)
 	if err != nil {
+		PrintError("Failed to log in: %v", err)
 		return err
 	}
 
-	vxcUID := args[0]
 	req := &megaport.DeleteVXCRequest{
-		DeleteNow: true,
+		DeleteNow: deleteNow,
 	}
 
-	// The key fix - check error BEFORE printing success message
+	PrintInfo("Deleting VXC %s...", formattedUID)
 	if err := deleteVXCFunc(ctx, client, vxcUID, req); err != nil {
-		return err // Return error without printing success message
-	}
-
-	_, err = consolePrintf("VXC %s deleted successfully\n", vxcUID)
-	if err != nil {
+		PrintError("Failed to delete VXC: %v", err)
 		return err
 	}
+
+	PrintResourceDeleted("VXC", vxcUID, deleteNow)
 	return nil
 }

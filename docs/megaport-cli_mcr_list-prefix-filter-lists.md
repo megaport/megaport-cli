@@ -6,14 +6,12 @@ List all prefix filter lists for a specific MCR
 
 List all prefix filter lists for a specific MCR.
 
-This command retrieves and displays a list of all prefix filter lists configured
-on the specified MCR.
+This command retrieves and displays a list of all prefix filter lists configured on the specified MCR.
 
 Example usage:
-```
-megaport-cli mcr list-prefix-filter-lists [mcrUID]
 
-```
+list-prefix-filter-lists [mcrUID]
+
 
 
 ## Usage

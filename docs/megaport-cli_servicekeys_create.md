@@ -7,16 +7,24 @@ Create a new service key
 Create a new service key for interacting with the Megaport API.
 
 This command generates a new service key and displays its details.
-You may need to provide additional flags or parameters based on your API requirements.
 
-Example:
-```
-megaport-cli servicekeys create --product-uid "product-uid" --description "My service key"
+Required fields:
+product-uid: Product UID for the service key
 
-Example output:
-Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Product UID: product-uid  Description: My service key
+Optional fields:
+start-date: Start date for the service key (YYYY-MM-DD)
+end-date: End date for the service key (YYYY-MM-DD)
+product-id: Product ID for the service key
+single-use: Single-use service key
+max-speed: Maximum speed for the service key
+description: Description for the service key
 
-```
+Example usage:
+
+create --product-uid "product-uid" --description "My service key"
+create --product-uid "product-uid" --single-use --max-speed 1000 --description "Single-use key"
+create --product-uid "product-uid" --start-date "2023-01-01" --end-date "2023-12-31"
+
 
 
 ## Usage
@@ -25,15 +33,7 @@ Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Product UID: product-uid  Description
 megaport-cli servicekeys create [flags]
 ```
 
-## Examples
 
-```
-Example:
-megaport-cli servicekeys create --product-uid "product-uid" --description "My service key"
-
-Example output:
-  Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Product UID: product-uid  Description: My service key
-```
 
 ## Parent Command
 

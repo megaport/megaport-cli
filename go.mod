@@ -3,7 +3,9 @@ module github.com/megaport/megaport-cli
 go 1.21
 
 require (
+	github.com/fatih/color v1.18.0
 	github.com/megaport/megaportgo v1.3.2
+	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
 	github.com/stretchr/testify v1.10.0
@@ -21,6 +23,9 @@ require (
 require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/lithammer/fuzzysearch v1.1.5 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
+	golang.org/x/sys v0.25.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 )

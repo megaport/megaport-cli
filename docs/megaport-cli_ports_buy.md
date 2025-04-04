@@ -7,49 +7,37 @@ Buy a port through the Megaport API
 Buy a port through the Megaport API.
 
 This command allows you to purchase a port by providing the necessary details.
-You can provide details in one of three ways:
-
-1. Interactive Mode (with --interactive):
-The command will prompt you for each required and optional field.
-
-2. Flag Mode:
-Provide all required fields as flags:
---name, --term, --port-speed, --location-id, --marketplace-visibility
-
-3. JSON Mode:
-Provide a JSON string or file with all required fields:
---json <json-string> or --json-file <path>
 
 Required fields:
-- name: The name of the port.
-- term: The term of the port (1, 12, or 24 months).
-- port_speed: The speed of the port (1000, 10000, or 100000 Mbps).
-- location_id: The ID of the location where the port will be provisioned.
-- marketplace_visibility: Whether the port should be visible in the marketplace (true or false).
+name: The name of the port (1-64 characters)
+term: The term of the port (1, 12, 24, or 36 months)
+port-speed: The speed of the port (1000, 10000, or 100000 Mbps)
+location-id: The ID of the location where the port will be provisioned
+marketplace-visibility: Whether the port should be visible in the marketplace (true or false)
 
 Optional fields:
-- diversity_zone: The diversity zone for the port.
-- cost_centre: The cost center for the port.
-- promo_code: A promotional code for the port.
+cost-centre: The cost center for the port
+promo-code: A promotional code for the port
+diversity-zone: The diversity zone for the port
 
 Example usage:
 
-### Interactive mode
-```
-megaport-cli ports buy --interactive
+buy --interactive
+buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true
+buy --json '{"name":"My Port","term":12,"portSpeed":10000,"locationId":123,"marketPlaceVisibility":true}'
+buy --json-file ./port-config.json
 
-```
-### Flag mode
-```
-megaport-cli ports buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true
+JSON format example:
+{
+"name": "My Port",
+"term": 12,
+"portSpeed": 10000,
+"locationId": 123,
+"marketPlaceVisibility": true,
+"diversityZone": "A",
+"costCentre": "IT-2023"
+}
 
-```
-### JSON mode
-```
-megaport-cli ports buy --json '{"name":"My Port","term":12,"portSpeed":10000,"locationId":123,"marketPlaceVisibility":true}'
-megaport-cli ports buy --json-file ./port-config.json
-
-```
 
 
 ## Usage

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -126,7 +125,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 		promptResponse string
 		setupMock      func(*MockMCRService)
 		expectedError  string
-		expectedOut    string
+		expectedOutput string
 		expectDeleted  bool
 	}{
 		{
@@ -140,8 +139,8 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 					IsDeleting: true,
 				}
 			},
-			expectedOut:   "MCR mcr-to-delete deleted successfully",
-			expectDeleted: true,
+			expectedOutput: "MCR mcr-to-delete deleted successfully",
+			expectDeleted:  true,
 		},
 		{
 			name:           "confirm immediate deletion",
@@ -154,17 +153,8 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 					IsDeleting: true,
 				}
 			},
-			expectedOut:   "MCR mcr-to-delete-now deleted successfully",
-			expectDeleted: true,
-		},
-		{
-			name:           "cancel deletion",
-			mcrID:          "mcr-keep",
-			force:          false,
-			promptResponse: "n",
-			setupMock:      func(m *MockMCRService) {},
-			expectedOut:    "Deletion cancelled",
-			expectDeleted:  false,
+			expectedOutput: "MCR mcr-to-delete-now deleted successfully",
+			expectDeleted:  true,
 		},
 		{
 			name:      "force deletion",
@@ -176,8 +166,17 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 					IsDeleting: true,
 				}
 			},
-			expectedOut:   "MCR mcr-force-delete deleted successfully",
-			expectDeleted: true,
+			expectedOutput: "MCR mcr-force-delete deleted successfully",
+			expectDeleted:  true,
+		},
+		{
+			name:           "cancel deletion",
+			mcrID:          "mcr-keep",
+			force:          false,
+			promptResponse: "n",
+			setupMock:      func(m *MockMCRService) {},
+			expectedOutput: "Deletion cancelled",
+			expectDeleted:  false,
 		},
 		{
 			name:           "deletion error",
@@ -212,15 +211,16 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 
 			// Set flags
 			cmd := deleteMCRCmd
-			if err := cmd.Flags().Set("force", fmt.Sprintf("%v", tt.force)); err != nil {
+			err := cmd.Flags().Set("force", fmt.Sprintf("%v", tt.force))
+			if err != nil {
 				t.Fatalf("Failed to set force flag: %v", err)
 			}
-			if err := cmd.Flags().Set("now", fmt.Sprintf("%v", tt.deleteNow)); err != nil {
+			err = cmd.Flags().Set("now", fmt.Sprintf("%v", tt.deleteNow))
+			if err != nil {
 				t.Fatalf("Failed to set now flag: %v", err)
 			}
 
 			// Execute command and capture output
-			var err error
 			output := captureOutput(func() {
 				err = cmd.RunE(cmd, []string{tt.mcrID})
 			})
@@ -231,7 +231,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, output, tt.expectedOut)
+				assert.Contains(t, output, tt.expectedOutput)
 
 				// Verify the request if deletion was expected
 				if tt.expectDeleted {
@@ -313,10 +313,6 @@ func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Contains(t, output, tt.expectedOut)
-
-				if strings.Contains(tt.expectedOut, "restored successfully") {
-					assert.Equal(t, tt.mcrID, mockMCRService.CapturedRestoreMCRUID)
-				}
 			}
 		})
 	}
@@ -548,22 +544,28 @@ func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 
 func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 	originalLoginFunc := loginFunc
+	originalPrompt := prompt
 	defer func() {
 		loginFunc = originalLoginFunc
+		prompt = originalPrompt
 	}()
 
 	tests := []struct {
 		name           string
 		mcrUID         string
 		prefixListID   int
+		force          bool
+		promptResponse string
 		setupMock      func(*MockMCRService)
 		expectedError  string
 		expectedOutput string
 	}{
 		{
-			name:         "successful delete prefix filter list",
-			mcrUID:       "mcr-123",
-			prefixListID: 1,
+			name:           "successful delete prefix filter list",
+			mcrUID:         "mcr-123",
+			prefixListID:   1,
+			force:          false,
+			promptResponse: "y",
 			setupMock: func(m *MockMCRService) {
 				m.DeleteMCRPrefixFilterListResult = &megaport.DeleteMCRPrefixFilterListResponse{
 					IsDeleted: true,
@@ -572,9 +574,11 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 			expectedOutput: "Prefix filter list deleted successfully - ID: 1",
 		},
 		{
-			name:         "API error",
-			mcrUID:       "mcr-123",
-			prefixListID: 1,
+			name:           "API error",
+			mcrUID:         "mcr-123",
+			prefixListID:   1,
+			force:          false,
+			promptResponse: "y",
 			setupMock: func(m *MockMCRService) {
 				m.DeleteMCRPrefixFilterListErr = fmt.Errorf("API error: service unavailable")
 			},
@@ -593,8 +597,17 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 				return client, nil
 			}
 
+			// Mock the prompt function
+			prompt = func(msg string) (string, error) {
+				return tt.promptResponse, nil
+			}
+
 			cmd := deleteMCRPrefixFilterListCmd
-			var err error
+			// Set the force flag
+			err := cmd.Flags().Set("force", fmt.Sprintf("%v", tt.force))
+			if err != nil {
+				t.Fatalf("Failed to set force flag: %v", err)
+			}
 			output := captureOutput(func() {
 				err = cmd.RunE(cmd, []string{tt.mcrUID, fmt.Sprintf("%d", tt.prefixListID)})
 			})

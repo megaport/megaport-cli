@@ -25,10 +25,12 @@ func CreateServiceKey(cmd *cobra.Command, args []string) error {
 	if startDate != "" && endDate != "" {
 		startTime, err := time.Parse("2006-01-02", startDate)
 		if err != nil {
+			PrintError("Error parsing start date: %v", err)
 			return fmt.Errorf("error parsing start date: %v", err)
 		}
 		endTime, err := time.Parse("2006-01-02", endDate)
 		if err != nil {
+			PrintError("Error parsing end date: %v", err)
 			return fmt.Errorf("error parsing end date: %v", err)
 		}
 		validFor = &megaport.ValidFor{
@@ -39,9 +41,11 @@ func CreateServiceKey(cmd *cobra.Command, args []string) error {
 
 	client, err := Login(ctx)
 	if err != nil {
+		PrintError("Failed to log in: %v", err)
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
+	PrintInfo("Creating service key...")
 	req := &megaport.CreateServiceKeyRequest{
 		ProductUID:  productUID,
 		ProductID:   productID,
@@ -53,10 +57,11 @@ func CreateServiceKey(cmd *cobra.Command, args []string) error {
 
 	resp, err := client.ServiceKeyService.CreateServiceKey(ctx, req)
 	if err != nil {
+		PrintError("Failed to create service key: %v", err)
 		return fmt.Errorf("error creating service key: %v", err)
 	}
 
-	fmt.Printf("Service key created: %s\n", resp.ServiceKeyUID)
+	PrintResourceCreated("Service Key", resp.ServiceKeyUID)
 	return nil
 }
 
@@ -71,9 +76,11 @@ func UpdateServiceKey(cmd *cobra.Command, args []string) error {
 
 	client, err := Login(ctx)
 	if err != nil {
+		PrintError("Failed to log in: %v", err)
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
+	PrintInfo("Updating service key...")
 	req := &megaport.UpdateServiceKeyRequest{
 		Key:        key,
 		ProductUID: productUID,
@@ -84,10 +91,15 @@ func UpdateServiceKey(cmd *cobra.Command, args []string) error {
 
 	resp, err := client.ServiceKeyService.UpdateServiceKey(ctx, req)
 	if err != nil {
+		PrintError("Failed to update service key: %v", err)
 		return fmt.Errorf("error updating service key: %v", err)
 	}
 
-	fmt.Printf("Service key updated: %v\n", resp.IsUpdated)
+	if resp.IsUpdated {
+		PrintInfo("Service key updated successfully")
+	} else {
+		PrintWarning("Service key update request was not successful")
+	}
 	return nil
 }
 
@@ -96,19 +108,27 @@ func ListServiceKeys(cmd *cobra.Command, args []string) error {
 	defer cancel()
 	client, err := Login(ctx)
 	if err != nil {
+		PrintError("Failed to log in: %v", err)
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
+	PrintInfo("Retrieving service keys...")
 	req := &megaport.ListServiceKeysRequest{}
 	resp, err := client.ServiceKeyService.ListServiceKeys(ctx, req)
 	if err != nil {
+		PrintError("Failed to list service keys: %v", err)
 		return fmt.Errorf("error listing service keys: %v", err)
+	}
+
+	if len(resp.ServiceKeys) == 0 {
+		PrintWarning("No service keys found")
 	}
 
 	outputs := make([]ServiceKeyOutput, 0, len(resp.ServiceKeys))
 	for _, sk := range resp.ServiceKeys {
 		output, err := ToServiceKeyOutput(sk)
 		if err != nil {
+			PrintError("Failed to convert service key: %v", err)
 			return fmt.Errorf("error converting service key: %v", err)
 		}
 		outputs = append(outputs, output)
@@ -122,18 +142,23 @@ func GetServiceKey(cmd *cobra.Command, args []string) error {
 	defer cancel()
 	client, err := Login(ctx)
 	if err != nil {
+		PrintError("Failed to log in: %v", err)
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
 	keyID := args[0]
+	formattedUID := formatUID(keyID)
 
+	PrintInfo("Retrieving service key %s...", formattedUID)
 	resp, err := client.ServiceKeyService.GetServiceKey(ctx, keyID)
 	if err != nil {
+		PrintError("Failed to get service key: %v", err)
 		return fmt.Errorf("error getting service key: %v", err)
 	}
 
 	output, err := ToServiceKeyOutput(resp)
 	if err != nil {
+		PrintError("Failed to convert service key: %v", err)
 		return fmt.Errorf("error converting service key: %v", err)
 	}
 	return printOutput([]ServiceKeyOutput{output}, outputFormat)

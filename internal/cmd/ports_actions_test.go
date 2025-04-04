@@ -304,7 +304,6 @@ func TestListPortsCmd_WithMockClient(t *testing.T) {
 	}
 }
 
-// TestBuyPortCmd tests the buyPortCmd with all three input modes
 func TestBuyPortCmd(t *testing.T) {
 	// Save original functions and restore after test
 	originalPrompt := prompt
@@ -346,7 +345,7 @@ func TestBuyPortCmd(t *testing.T) {
 					TechnicalServiceUIDs: []string{"port-123-abc"},
 				}
 			},
-			expectedOutput: "Port purchased successfully - UID: port-123-abc",
+			expectedOutput: "Port created port-123-abc",
 		},
 		{
 			name: "flag mode success",
@@ -366,7 +365,7 @@ func TestBuyPortCmd(t *testing.T) {
 					TechnicalServiceUIDs: []string{"port-123-abc"},
 				}
 			},
-			expectedOutput: "Port purchased successfully - UID: port-123-abc",
+			expectedOutput: "Port created port-123-abc",
 		},
 		{
 			name: "JSON string mode success",
@@ -379,7 +378,7 @@ func TestBuyPortCmd(t *testing.T) {
 					TechnicalServiceUIDs: []string{"port-123-abc"},
 				}
 			},
-			expectedOutput: "Port purchased successfully - UID: port-123-abc",
+			expectedOutput: "Port created port-123-abc",
 		},
 		{
 			name: "missing required fields in flag mode",
@@ -593,7 +592,7 @@ func TestBuyLAGPortCmd(t *testing.T) {
 					TechnicalServiceUIDs: []string{"lag-456-xyz"},
 				}
 			},
-			expectedOutput: "LAG port purchased successfully - UID: lag-456-xyz",
+			expectedOutput: "LAG Port created lag-456-xyz",
 		},
 		{
 			name: "flag mode success",
@@ -614,7 +613,7 @@ func TestBuyLAGPortCmd(t *testing.T) {
 					TechnicalServiceUIDs: []string{"lag-456-xyz"},
 				}
 			},
-			expectedOutput: "LAG port purchased successfully - UID: lag-456-xyz",
+			expectedOutput: "LAG Port created lag-456-xyz",
 		},
 		{
 			name: "JSON string mode success",
@@ -627,7 +626,7 @@ func TestBuyLAGPortCmd(t *testing.T) {
 					TechnicalServiceUIDs: []string{"lag-456-xyz"},
 				}
 			},
-			expectedOutput: "LAG port purchased successfully - UID: lag-456-xyz",
+			expectedOutput: "LAG Port created lag-456-xyz",
 		},
 		{
 			name: "missing required fields in flag mode",
@@ -857,7 +856,7 @@ func TestUpdatePortCmd(t *testing.T) {
 					IsUpdated: true,
 				}
 			},
-			expectedOutput: "Port updated successfully - UID: port-123",
+			expectedOutput: "Port updated port-123",
 		},
 		{
 			name: "flag mode success",
@@ -873,7 +872,7 @@ func TestUpdatePortCmd(t *testing.T) {
 					IsUpdated: true,
 				}
 			},
-			expectedOutput: "Port updated successfully - UID: port-456",
+			expectedOutput: "Port updated port-456",
 		},
 		{
 			name: "JSON string mode success",
@@ -886,7 +885,7 @@ func TestUpdatePortCmd(t *testing.T) {
 					IsUpdated: true,
 				}
 			},
-			expectedOutput: "Port updated successfully - UID: port-789",
+			expectedOutput: "Port updated port-789",
 		},
 		{
 			name: "missing port UID",

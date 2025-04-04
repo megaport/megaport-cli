@@ -7,50 +7,39 @@ Buy a LAG port through the Megaport API
 Buy a LAG port through the Megaport API.
 
 This command allows you to purchase a LAG port by providing the necessary details.
-You can provide details in one of three ways:
-
-1. Interactive Mode (with --interactive):
-The command will prompt you for each required and optional field.
-
-2. Flag Mode:
-Provide all required fields as flags:
---name, --term, --port-speed, --location-id, --lag-count, --marketplace-visibility
-
-3. JSON Mode:
-Provide a JSON string or file with all required fields:
---json <json-string> or --json-file <path>
 
 Required fields:
-- name: The name of the port.
-- term: The term of the port (1, 12, or 24 months).
-- port_speed: The speed of the port (10000 or 100000 Mbps).
-- location_id: The ID of the location where the port will be provisioned.
-- lag_count: The number of LAGs (between 1 and 8).
-- marketplace_visibility: Whether the port should be visible in the marketplace (true or false).
+port-speed: The speed of each LAG member port (10000 or 100000 Mbps)
+location-id: The ID of the location where the port will be provisioned
+lag-count: The number of LAG members (between 1 and 8)
+marketplace-visibility: Whether the port should be visible in the marketplace (true or false)
+name: The name of the port (1-64 characters)
+term: The term of the port (1, 12, or 24 months)
 
 Optional fields:
-- diversity_zone: The diversity zone for the port.
-- cost_centre: The cost center for the port.
-- promo_code: A promotional code for the port.
+diversity-zone: The diversity zone for the LAG port
+cost-centre: The cost center for the LAG port
+promo-code: A promotional code for the LAG port
 
 Example usage:
 
-### Interactive mode
-```
-megaport-cli ports buy-lag --interactive
+buy-lag --interactive
+buy-lag --name "My LAG Port" --term 12 --port-speed 10000 --location-id 123 --lag-count 2 --marketplace-visibility true
+buy-lag --json '{"name":"My LAG Port","term":12,"portSpeed":10000,"locationId":123,"lagCount":2,"marketPlaceVisibility":true}'
+buy-lag --json-file ./lag-port-config.json
 
-```
-### Flag mode
-```
-megaport-cli ports buy-lag --name "My LAG Port" --term 12 --port-speed 10000 --location-id 123 --lag-count 2 --marketplace-visibility true
+JSON format example:
+{
+"name": "My LAG Port",
+"term": 12,
+"portSpeed": 10000,
+"locationId": 123,
+"lagCount": 2,
+"marketPlaceVisibility": true,
+"diversityZone": "A",
+"costCentre": "IT-2023"
+}
 
-```
-### JSON mode
-```
-megaport-cli ports buy-lag --json '{"name":"My LAG Port","term":12,"portSpeed":10000,"locationId":123,"lagCount":2,"marketPlaceVisibility":true}'
-megaport-cli ports buy-lag --json-file ./lag-port-config.json
-
-```
 
 
 ## Usage
