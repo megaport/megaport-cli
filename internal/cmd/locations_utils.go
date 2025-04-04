@@ -35,17 +35,6 @@ type LocationOutput struct {
 	Status    string  `json:"status" header:"Status"`
 }
 
-// LocationTableOutput is a compact version for table display
-type LocationTableOutput struct {
-	ID       int    `header:"ID"`
-	Name     string `header:"Name"`
-	Country  string `header:"Country"`
-	Metro    string `header:"Metro"`
-	SiteCode string `header:"Site Code"`
-	Market   string `header:"Market"`
-	Status   string `header:"Status"`
-}
-
 // ToLocationOutput converts a Location to a LocationOutput.
 func ToLocationOutput(l *megaport.Location) LocationOutput {
 	return LocationOutput{
@@ -61,6 +50,16 @@ func ToLocationOutput(l *megaport.Location) LocationOutput {
 	}
 }
 
+// LocationTableOutput is a compact version for table display
+type LocationTableOutput struct {
+	ID       int    `header:"ID"`
+	Name     string `header:"Name"`
+	Country  string `header:"Country"`
+	Metro    string `header:"Metro"`
+	SiteCode string `header:"Site Code"`
+	Status   string `header:"Status"`
+}
+
 // ToLocationTableOutput converts a Location to a LocationTableOutput.
 func ToLocationTableOutput(l *megaport.Location) LocationTableOutput {
 	return LocationTableOutput{
@@ -69,7 +68,6 @@ func ToLocationTableOutput(l *megaport.Location) LocationTableOutput {
 		Country:  l.Country,
 		Metro:    l.Metro,
 		SiteCode: l.SiteCode,
-		Market:   l.Market,
 		Status:   l.Status,
 	}
 }

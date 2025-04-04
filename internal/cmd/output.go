@@ -7,8 +7,8 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/fatih/color"
 )
@@ -52,37 +52,55 @@ func printJSON[T OutputFields](data []T) error {
 }
 
 // printTable formats data as a columnar table
-// Uses struct tags for column headers: header > csv > json
 func printTable[T OutputFields](data []T) error {
+	// Get field information
+	headers, fieldIndices, err := getStructTypeInfo(data)
+	if err != nil {
+		return err
+	}
+
+	// Nothing to show
+	if len(headers) == 0 {
+		return nil
+	}
+
+	// Gather all data values in a 2D grid
+	rows := collectTableData(data, headers, fieldIndices)
+
+	// Calculate column widths
+	colWidths := calculateColumnWidths(rows)
+
+	// Print headers
+	printTableHeaders(headers, colWidths)
+
+	// Print data rows
+	printTableRows(rows, headers, colWidths)
+
+	return nil
+}
+
+// getStructTypeInfo extracts type information from the data
+func getStructTypeInfo[T OutputFields](data []T) ([]string, []int, error) {
 	// Get a sample item to determine fields
 	var sample T
 	if len(data) > 0 {
 		sample = data[0]
 	}
 
-	// Set up tabwriter with improved settings for better alignment
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', tabwriter.TabIndent)
-	defer w.Flush()
-
 	// Get type information via reflection
 	sampleVal := reflect.ValueOf(sample)
 	if !sampleVal.IsValid() {
-		// Instead of error, just return empty table for zero values
-		fmt.Fprintln(w, "")
-		return nil
+		fmt.Println("")
+		return nil, nil, nil
 	}
 
 	itemType := sampleVal.Type()
 	if itemType.Kind() == reflect.Ptr {
 		if sampleVal.IsNil() {
-			// Handle nil pointer by examining the underlying type
-			// Check if we can safely get element type
 			if itemType.Elem().Kind() != reflect.Struct {
-				return nil
+				return nil, nil, nil
 			}
 			itemType = itemType.Elem()
-			// Create a new instance to inspect fields
-			_ = reflect.New(itemType).Elem()
 		} else {
 			sampleVal = sampleVal.Elem()
 			itemType = sampleVal.Type()
@@ -91,13 +109,18 @@ func printTable[T OutputFields](data []T) error {
 
 	// Only works with struct types
 	if itemType.Kind() != reflect.Struct {
-		return nil
+		return nil, nil, nil
 	}
 
-	// Extract column headers and field names
+	// Extract column headers and field indices
+	headers, fieldIndices := extractFieldInfo(itemType)
+	return headers, fieldIndices, nil
+}
+
+// extractFieldInfo extracts field information from a struct type
+func extractFieldInfo(itemType reflect.Type) ([]string, []int) {
 	var headers []string
-	var fields []string
-	var fieldIndices []int // Store field indices for safer access
+	var fieldIndices []int
 
 	for i := 0; i < itemType.NumField(); i++ {
 		field := itemType.Field(i)
@@ -115,7 +138,7 @@ func printTable[T OutputFields](data []T) error {
 		// Look for header tag first
 		headerTag := field.Tag.Get("header")
 		if headerTag == "-" {
-			continue // Skip this field
+			continue
 		}
 
 		// Fall back to csv tag
@@ -140,111 +163,177 @@ func printTable[T OutputFields](data []T) error {
 		}
 
 		headers = append(headers, headerTag)
-		fields = append(fields, field.Name)
-		fieldIndices = append(fieldIndices, i) // Store actual index for direct access
+		fieldIndices = append(fieldIndices, i)
 	}
 
-	// Nothing to show
-	if len(headers) == 0 {
+	return headers, fieldIndices
+}
+
+// collectTableData gathers all data values in a 2D grid (rows x columns)
+func collectTableData[T OutputFields](data []T, headers []string, fieldIndices []int) [][]string {
+	rows := make([][]string, 0, len(data)+1)
+
+	// First row is headers
+	rows = append(rows, headers)
+
+	// Gather all data values
+	for _, item := range data {
+		row := extractRowData(item, fieldIndices)
+		if row != nil {
+			rows = append(rows, row)
+		}
+	}
+
+	return rows
+}
+
+// extractRowData extracts a single row of data
+func extractRowData[T OutputFields](item T, fieldIndices []int) []string {
+	itemVal := reflect.ValueOf(item)
+	if !itemVal.IsValid() {
 		return nil
 	}
 
-	// Print header row with formatting - write directly to tabwriter
-	for i, header := range headers {
-		if !noColor {
-			fmt.Fprint(w, color.New(color.Bold).Sprint(header))
+	if itemVal.Kind() == reflect.Ptr {
+		if itemVal.IsNil() {
+			return nil
+		}
+		itemVal = itemVal.Elem()
+	}
+
+	// Skip if not a struct
+	if itemVal.Kind() != reflect.Struct {
+		return nil
+	}
+
+	row := make([]string, len(fieldIndices))
+	for i, idx := range fieldIndices {
+		fieldVal := itemVal.Field(idx)
+
+		if !fieldVal.IsValid() || (fieldVal.Kind() == reflect.Ptr && fieldVal.IsNil()) {
+			row[i] = ""
+			continue
+		}
+
+		if fieldVal.CanInterface() {
+			row[i] = formatFieldValue(fieldVal)
 		} else {
-			fmt.Fprint(w, header)
-		}
-
-		if i < len(headers)-1 {
-			fmt.Fprint(w, "\t")
+			row[i] = ""
 		}
 	}
-	fmt.Fprintln(w)
 
-	// Print data rows - write directly to tabwriter
-	for _, item := range data {
-		itemVal := reflect.ValueOf(item)
-		if !itemVal.IsValid() {
-			continue
-		}
+	return row
+}
 
-		if itemVal.Kind() == reflect.Ptr {
-			if itemVal.IsNil() {
-				continue
-			}
-			itemVal = itemVal.Elem()
-		}
+// calculateColumnWidths determines the maximum width of each column
+func calculateColumnWidths(rows [][]string) []int {
+	if len(rows) == 0 {
+		return nil
+	}
 
-		// Skip if not a struct
-		if itemVal.Kind() != reflect.Struct {
-			continue
-		}
+	colCount := len(rows[0])
+	colWidths := make([]int, colCount)
 
-		for i, fieldIdx := range fieldIndices {
-			// Use direct field access by index (faster and safer)
-			fieldVal := itemVal.Field(fieldIdx)
-
-			if !fieldVal.IsValid() {
-				if i < len(fields)-1 {
-					fmt.Fprint(w, "", "\t")
-				} else {
-					fmt.Fprintln(w, "")
-				}
-				continue
-			}
-
-			// Handle the case where we can't interface (unexported)
-			valueStr := ""
-			if fieldVal.CanInterface() {
-				// Handle nil interface values
-				if fieldVal.Kind() == reflect.Ptr && fieldVal.IsNil() {
-					if i < len(fields)-1 {
-						fmt.Fprint(w, "", "\t")
-					} else {
-						fmt.Fprintln(w, "")
-					}
-					continue
-				}
-
-				// Format value based on kind
-				valueStr = formatFieldValue(fieldVal)
-
-				// Apply colorization based on field type
-				header := strings.ToLower(headers[i])
-
-				// Status fields (green/yellow/red)
-				if header == "status" || header == "provisioning_status" ||
-					strings.Contains(header, "state") {
-					valueStr = colorizeStatus(valueStr)
-				} else if strings.HasSuffix(header, "uid") || strings.HasSuffix(header, "id") {
-					// UID fields (cyan)
-					valueStr = formatUID(valueStr)
-				} else if strings.Contains(header, "price") || strings.Contains(header, "cost") ||
-					strings.Contains(header, "rate") {
-					// Price fields (magenta)
-					if !noColor {
-						valueStr = color.New(color.FgHiMagenta).Sprint(valueStr)
-					}
-				} else if header == "name" || header == "product_name" || header == "title" {
-					// Name fields (white/bright)
-					if !noColor {
-						valueStr = color.New(color.FgHiWhite).Sprint(valueStr)
-					}
-				}
-
-				// Write the value followed by a tab for all except last column
-				if i < len(fields)-1 {
-					fmt.Fprint(w, valueStr, "\t")
-				} else {
-					fmt.Fprintln(w, valueStr)
-				}
+	for _, row := range rows {
+		for i, val := range row {
+			if i < colCount && len(val) > colWidths[i] {
+				colWidths[i] = len(val)
 			}
 		}
 	}
 
-	return nil
+	return colWidths
+}
+
+// printTableHeaders prints the header row with formatting
+func printTableHeaders(headers []string, colWidths []int) {
+	var headerStrings []string
+	for _, header := range headers {
+		if !noColor {
+			headerStrings = append(headerStrings, color.New(color.Bold).Sprint(header))
+		} else {
+			headerStrings = append(headerStrings, header)
+		}
+	}
+
+	fmt.Println(formatRow(headerStrings, colWidths))
+}
+
+// printTableRows prints the data rows with colors based on content type
+func printTableRows(rows [][]string, headers []string, colWidths []int) {
+	// Skip header row (index 0)
+	for i := 1; i < len(rows); i++ {
+		row := rows[i]
+		coloredRow := colorizeRow(row, headers)
+		fmt.Println(formatRow(coloredRow, colWidths))
+	}
+}
+
+// colorizeRow applies appropriate colors to each cell in a row
+func colorizeRow(row []string, headers []string) []string {
+	coloredRow := make([]string, len(row))
+
+	for j, val := range row {
+		coloredVal := val
+
+		// Apply colorization based on field type
+		if j < len(headers) {
+			header := strings.ToLower(headers[j])
+			coloredVal = colorizeValue(val, header)
+		}
+
+		coloredRow[j] = coloredVal
+	}
+
+	return coloredRow
+}
+
+// colorizeValue applies appropriate color to a value based on its type
+func colorizeValue(val string, header string) string {
+	// Status fields (green/yellow/red)
+	if header == "status" || header == "provisioning_status" ||
+		strings.Contains(header, "state") {
+		return colorizeStatus(val)
+	} else if strings.HasSuffix(header, "uid") || strings.HasSuffix(header, "id") {
+		// UID fields (cyan)
+		return formatUID(val)
+	} else if strings.Contains(header, "price") || strings.Contains(header, "cost") ||
+		strings.Contains(header, "rate") {
+		// Price fields (magenta)
+		if !noColor {
+			return color.New(color.FgHiMagenta).Sprint(val)
+		}
+	} else if header == "name" || header == "product_name" || header == "title" {
+		// Name fields (white/bright)
+		if !noColor {
+			return color.New(color.FgHiWhite).Sprint(val)
+		}
+	}
+
+	return val
+}
+
+// formatRow formats a row of values with proper spacing based on column widths
+func formatRow(values []string, colWidths []int) string {
+	var parts []string
+
+	for i, val := range values {
+		if i == len(values)-1 {
+			// Don't pad the last column
+			parts = append(parts, val)
+		} else {
+			// Calculate visual width (strip ANSI color codes for width calculation)
+			// Regular expression to remove ANSI color codes
+			re := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+			visibleVal := re.ReplaceAllString(val, "")
+
+			// Pad with spaces to match column width + spacing
+			padding := colWidths[i] - len(visibleVal) + 3 // Add 3 spaces between columns
+			parts = append(parts, val+strings.Repeat(" ", padding))
+		}
+	}
+
+	return strings.Join(parts, "")
 }
 
 // printCSV outputs data in comma-separated value format

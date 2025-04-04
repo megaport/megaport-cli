@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"reflect"
+	"regexp"
 	"testing"
 	"time"
 
@@ -468,4 +469,93 @@ func TestPrintOutput_InvalidFormat(t *testing.T) {
 	err := printOutput(data, "invalid")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid output format")
+}
+
+func TestCalculateColumnWidths(t *testing.T) {
+	// Empty input case
+	emptyWidths := calculateColumnWidths([][]string{})
+	assert.Nil(t, emptyWidths)
+
+	// Regular case with varied column widths
+	rows := [][]string{
+		{"Header1", "Header2", "LongHeader3"},
+		{"Value1", "LongerValue2", "Val3"},
+		{"X", "Y", "VeryLongValue3"},
+	}
+
+	widths := calculateColumnWidths(rows)
+	assert.Equal(t, 3, len(widths))
+	assert.Equal(t, 7, widths[0])  // "Value1" length
+	assert.Equal(t, 12, widths[1]) // "LongerValue2" length
+	assert.Equal(t, 14, widths[2]) // "VeryLongValue3" length
+}
+
+func TestColorizeValue(t *testing.T) {
+	// Save original noColor setting
+	originalNoColor := noColor
+	defer func() { noColor = originalNoColor }()
+
+	// Test with noColor = true
+	noColor = true
+
+	// Test various field types
+	assert.Equal(t, "ACTIVE", colorizeValue("ACTIVE", "status"))
+	assert.Equal(t, "123", colorizeValue("123", "id"))
+	assert.Equal(t, "Important", colorizeValue("Important", "name"))
+	assert.Equal(t, "12.50", colorizeValue("12.50", "price"))
+
+	// Test with noColor = false
+	noColor = false
+	// Just verify it doesn't panic (exact output depends on color codes)
+	assert.NotPanics(t, func() {
+		_ = colorizeValue("ACTIVE", "status")
+		_ = colorizeValue("123", "id")
+		_ = colorizeValue("Important", "name")
+		_ = colorizeValue("12.50", "price")
+	})
+}
+
+func TestExtractFieldInfo(t *testing.T) {
+	type TestStruct struct {
+		ID       int    `json:"id" header:"Custom ID"`
+		Name     string `json:"name" csv:"custom_name"`
+		Internal string `json:"-" csv:"-" header:"-"`
+	}
+
+	headers, indices := extractFieldInfo(reflect.TypeOf(TestStruct{}))
+
+	// Check headers are extracted correctly with priority
+	assert.Equal(t, 2, len(headers))
+	assert.Contains(t, headers, "Custom ID")   // From header tag
+	assert.Contains(t, headers, "custom_name") // From csv tag
+
+	// Check indices
+	assert.Equal(t, []int{0, 1}, indices) // Should have indices for first two fields only
+}
+
+func TestFormatRow(t *testing.T) {
+	values := []string{"Col1", "Column2", "LongColumn3"}
+	widths := []int{4, 7, 11}
+
+	formatted := formatRow(values, widths)
+
+	// Check that each value is included with proper spacing
+	assert.Contains(t, formatted, "Col1")
+	assert.Contains(t, formatted, "Column2")
+	assert.Contains(t, formatted, "LongColumn3")
+
+	// Check that the total result has the expected format (with padding)
+	expected := "Col1   Column2   LongColumn3"
+	assert.Equal(t, expected, formatted)
+
+	// Test with ANSI color codes
+	coloredValues := []string{"\x1b[1mCol1\x1b[0m", "\x1b[32mColumn2\x1b[0m", "\x1b[31mLongColumn3\x1b[0m"}
+	coloredFormatted := formatRow(coloredValues, widths)
+
+	// Verify length is correct (color codes shouldn't affect spacing)
+	plainFormatted := formatRow(values, widths)
+	// Strip color codes for comparison using regex
+	re := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	stripped := re.ReplaceAllString(coloredFormatted, "")
+	assert.Equal(t, plainFormatted, stripped)
 }
