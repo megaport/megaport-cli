@@ -458,6 +458,8 @@ func init() {
 	updateMCRPrefixFilterListCmd.Flags().String("json", "", "JSON string containing prefix filter list configuration")
 	updateMCRPrefixFilterListCmd.Flags().String("json-file", "", "Path to JSON file containing prefix filter list configuration")
 
+	deleteMCRPrefixFilterListCmd.Flags().Bool("force", false, "Force deletion without confirmation")
+
 	mcrCmd.AddCommand(getMCRCmd)
 	mcrCmd.AddCommand(buyMCRCmd)
 	mcrCmd.AddCommand(updateMCRCmd)

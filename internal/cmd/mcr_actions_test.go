@@ -140,7 +140,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 					IsDeleting: true,
 				}
 			},
-			expectedOut:   "MCR mcr-to-delete deleted successfully",
+			expectedOut:   "MCR deleted mcr-to-delete",
 			expectDeleted: true,
 		},
 		{
@@ -154,17 +154,8 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 					IsDeleting: true,
 				}
 			},
-			expectedOut:   "MCR mcr-to-delete-now deleted successfully",
+			expectedOut:   "MCR deleted mcr-to-delete-now",
 			expectDeleted: true,
-		},
-		{
-			name:           "cancel deletion",
-			mcrID:          "mcr-keep",
-			force:          false,
-			promptResponse: "n",
-			setupMock:      func(m *MockMCRService) {},
-			expectedOut:    "Deletion cancelled",
-			expectDeleted:  false,
 		},
 		{
 			name:      "force deletion",
@@ -176,8 +167,17 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 					IsDeleting: true,
 				}
 			},
-			expectedOut:   "MCR mcr-force-delete deleted successfully",
+			expectedOut:   "MCR deleted mcr-force-delete",
 			expectDeleted: true,
+		},
+		{
+			name:           "cancel deletion",
+			mcrID:          "mcr-keep",
+			force:          false,
+			promptResponse: "n",
+			setupMock:      func(m *MockMCRService) {},
+			expectedOut:    "Deletion cancelled",
+			expectDeleted:  false,
 		},
 		{
 			name:           "deletion error",
@@ -265,7 +265,7 @@ func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
 					IsRestored: true,
 				}
 			},
-			expectedOut: "MCR mcr-to-restore restored successfully",
+			expectedOut: "MCR restored mcr-to-restore",
 		},
 		{
 			name:  "restore MCR error",
@@ -548,33 +548,41 @@ func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 
 func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 	originalLoginFunc := loginFunc
+	originalPrompt := prompt
 	defer func() {
 		loginFunc = originalLoginFunc
+		prompt = originalPrompt
 	}()
 
 	tests := []struct {
 		name           string
 		mcrUID         string
 		prefixListID   int
+		force          bool
+		promptResponse string
 		setupMock      func(*MockMCRService)
 		expectedError  string
 		expectedOutput string
 	}{
 		{
-			name:         "successful delete prefix filter list",
-			mcrUID:       "mcr-123",
-			prefixListID: 1,
+			name:           "successful delete prefix filter list",
+			mcrUID:         "mcr-123",
+			prefixListID:   1,
+			force:          false,
+			promptResponse: "y",
 			setupMock: func(m *MockMCRService) {
 				m.DeleteMCRPrefixFilterListResult = &megaport.DeleteMCRPrefixFilterListResponse{
 					IsDeleted: true,
 				}
 			},
-			expectedOutput: "Prefix filter list deleted successfully - ID: 1",
+			expectedOutput: "Prefix filter list 1 deleted successfully",
 		},
 		{
-			name:         "API error",
-			mcrUID:       "mcr-123",
-			prefixListID: 1,
+			name:           "API error",
+			mcrUID:         "mcr-123",
+			prefixListID:   1,
+			force:          false,
+			promptResponse: "y",
 			setupMock: func(m *MockMCRService) {
 				m.DeleteMCRPrefixFilterListErr = fmt.Errorf("API error: service unavailable")
 			},
@@ -593,8 +601,17 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 				return client, nil
 			}
 
+			// Mock the prompt function
+			prompt = func(msg string) (string, error) {
+				return tt.promptResponse, nil
+			}
+
 			cmd := deleteMCRPrefixFilterListCmd
-			var err error
+			// Set the force flag
+			err := cmd.Flags().Set("force", fmt.Sprintf("%v", tt.force))
+			if err != nil {
+				t.Fatalf("Failed to set force flag: %v", err)
+			}
 			output := captureOutput(func() {
 				err = cmd.RunE(cmd, []string{tt.mcrUID, fmt.Sprintf("%d", tt.prefixListID)})
 			})
@@ -651,7 +668,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 					TechnicalServiceUID: "mcr-123-abc",
 				}
 			},
-			expectedOutput: "MCR purchased successfully - UID: mcr-123-abc",
+			expectedOutput: "MCR created mcr-123-abc",
 		},
 		{
 			name: "flag mode success",
@@ -670,7 +687,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 					TechnicalServiceUID: "mcr-456-def",
 				}
 			},
-			expectedOutput: "MCR purchased successfully - UID: mcr-456-def",
+			expectedOutput: "MCR created mcr-456-def",
 		},
 		{
 			name: "JSON string mode success",
@@ -682,7 +699,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 					TechnicalServiceUID: "mcr-789-ghi",
 				}
 			},
-			expectedOutput: "MCR purchased successfully - UID: mcr-789-ghi",
+			expectedOutput: "MCR created mcr-789-ghi",
 		},
 		{
 			name: "missing required fields in flag mode",
@@ -884,7 +901,7 @@ func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 					IsUpdated: true,
 				}
 			},
-			expectedOutput: "MCR updated successfully - UID: mcr-123",
+			expectedOutput: "MCR updated mcr-123",
 		},
 		{
 			name:   "flag mode success",
@@ -900,7 +917,7 @@ func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 					IsUpdated: true,
 				}
 			},
-			expectedOutput: "MCR updated successfully - UID: mcr-456",
+			expectedOutput: "MCR updated mcr-456",
 		},
 		{
 			name:   "JSON string mode success",
@@ -913,7 +930,7 @@ func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 					IsUpdated: true,
 				}
 			},
-			expectedOutput: "MCR updated successfully - UID: mcr-789",
+			expectedOutput: "MCR updated mcr-789",
 		},
 		{
 			name: "missing mcrUID",

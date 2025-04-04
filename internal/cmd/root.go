@@ -33,6 +33,7 @@ const (
 var (
 	env          string
 	outputFormat string
+	noColor      bool
 	validFormats = []string{formatTable, formatJSON, formatCSV, formatXML}
 )
 
@@ -59,6 +60,8 @@ func init() {
 		return fmt.Errorf("invalid output format: %s. Must be one of: %s",
 			outputFormat, strings.Join(validFormats, ", "))
 	}
+
+	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable color output")
 
 	// Check if the env flag is already defined before adding it
 	if rootCmd.PersistentFlags().Lookup("env") == nil {

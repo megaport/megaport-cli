@@ -11,6 +11,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
@@ -32,20 +33,38 @@ func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobr
 }
 
 var prompt = func(msg string) (string, error) {
-	fmt.Print(msg)
+	if !noColor {
+		fmt.Print(color.BlueString(msg))
+	} else {
+		fmt.Print(msg)
+	}
 
-	// Create a new reader for each prompt
 	reader := bufio.NewReader(os.Stdin)
-
-	// Read until newline and handle trimming properly
 	input, err := reader.ReadString('\n')
 	if err != nil {
 		return "", err
 	}
-
-	// Trim both spaces and newline characters from both ends
 	return strings.TrimSpace(input), nil
 }
+
+// func confirmPrompt(question string) bool {
+// 	var response string
+
+// 	if !noColor {
+// 		fmt.Print(color.YellowString("%s [y/N]: ", question))
+// 	} else {
+// 		fmt.Printf("%s [y/N]: ", question)
+// 	}
+
+// 	_, err := fmt.Scanln(&response)
+// 	if err != nil {
+// 		fmt.Println("Error reading input:", err)
+// 		return false // Or handle the error as appropriate for your use case
+// 	}
+
+// 	response = strings.ToLower(strings.TrimSpace(response))
+// 	return response == "y" || response == "yes"
+// }
 
 type output interface {
 	isOuput()
@@ -232,6 +251,12 @@ func printTable[T OutputFields](data []T) error {
 
 				// Format value based on kind
 				valueStr = formatFieldValue(fieldVal)
+
+				// Apply colorization to status fields
+				if headers[i] == "Status" || strings.ToLower(headers[i]) == "status" ||
+					headers[i] == "provisioning_status" || strings.Contains(strings.ToLower(headers[i]), "state") {
+					valueStr = colorizeStatus(valueStr)
+				}
 			}
 			row = append(row, valueStr)
 		}
