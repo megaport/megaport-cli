@@ -26,7 +26,6 @@ type mockVXCService struct {
 	buyVXCErr                   error
 	updateVXCErr                error
 	onBuyVXC                    func(context.Context, *megaport.BuyVXCRequest)
-	deleteVXCErr                error
 }
 
 func (m *mockVXCService) BuyVXC(ctx context.Context, req *megaport.BuyVXCRequest) (*megaport.BuyVXCResponse, error) {

@@ -42,21 +42,21 @@ var prompt = func(msg string) (string, error) {
 	return strings.TrimSpace(input), nil
 }
 
-// func confirmPrompt(question string) bool {
-// 	var response string
+var confirmPrompt = func(question string) bool {
+	var response string
 
-// 	if !noColor {
-// 		fmt.Print(color.YellowString("%s [y/N]: ", question))
-// 	} else {
-// 		fmt.Printf("%s [y/N]: ", question)
-// 	}
+	if !noColor {
+		fmt.Print(color.YellowString("%s [y/N]: ", question))
+	} else {
+		fmt.Printf("%s [y/N]: ", question)
+	}
 
-// 	_, err := fmt.Scanln(&response)
-// 	if err != nil {
-// 		fmt.Println("Error reading input:", err)
-// 		return false // Or handle the error as appropriate for your use case
-// 	}
+	_, err := fmt.Scanln(&response)
+	if err != nil {
+		fmt.Println("Error reading input:", err)
+		return false // Or handle the error as appropriate for your use case
+	}
 
-// 	response = strings.ToLower(strings.TrimSpace(response))
-// 	return response == "y" || response == "yes"
-// }
+	response = strings.ToLower(strings.TrimSpace(response))
+	return response == "y" || response == "yes"
+}

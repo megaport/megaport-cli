@@ -299,7 +299,11 @@ func TestUpdateMVE(t *testing.T) {
 		loginFunc = originalLoginFunc
 	}()
 
-	mockService := &MockMVEService{}
+	mockService := &MockMVEService{
+		GetMVEResult: &megaport.MVE{
+			Name: "Mock MVE",
+		},
+	}
 	loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{
 			MVEService: mockService,
@@ -333,7 +337,7 @@ func TestUpdateMVE(t *testing.T) {
 					MVEUpdated: true,
 				}
 			},
-			expectedOutput: "MVE updated successfully",
+			expectedOutput: "MVE updated mve-123",
 			validateRequest: func(t *testing.T, req *megaport.ModifyMVERequest) {
 				assert.Equal(t, "mve-123", req.MVEID)
 				assert.Equal(t, "Updated MVE", req.Name)
@@ -356,7 +360,7 @@ func TestUpdateMVE(t *testing.T) {
 					MVEUpdated: true,
 				}
 			},
-			expectedOutput: "MVE updated successfully",
+			expectedOutput: "MVE updated mve-123",
 			validateRequest: func(t *testing.T, req *megaport.ModifyMVERequest) {
 				assert.Equal(t, "mve-123", req.MVEID)
 				assert.Equal(t, "Flag Updated MVE", req.Name)
@@ -381,7 +385,7 @@ func TestUpdateMVE(t *testing.T) {
 					MVEUpdated: true,
 				}
 			},
-			expectedOutput: "MVE updated successfully",
+			expectedOutput: "MVE updated mve-123",
 			validateRequest: func(t *testing.T, req *megaport.ModifyMVERequest) {
 				assert.Equal(t, "mve-123", req.MVEID)
 				assert.Equal(t, "JSON Updated MVE", req.Name)
@@ -487,13 +491,18 @@ func TestUpdateMVE(t *testing.T) {
 
 func TestDeleteMVE(t *testing.T) {
 	originalLoginFunc := loginFunc
+	originalConfirmPrompt := confirmPrompt
 	defer func() {
 		loginFunc = originalLoginFunc
+		confirmPrompt = originalConfirmPrompt
 	}()
 
 	tests := []struct {
 		name           string
 		mockSetup      func(*MockMVEService)
+		confirmDelete  bool
+		forceFlag      bool
+		nowFlag        bool
 		expectedError  string
 		expectedOutput string
 	}{
@@ -502,14 +511,41 @@ func TestDeleteMVE(t *testing.T) {
 			mockSetup: func(m *MockMVEService) {
 				m.DeleteMVEError = nil
 			},
-			expectedOutput: "MVE deleted successfully",
+			confirmDelete:  true,
+			expectedOutput: "MVE deleted mve-uid",
 		},
 		{
 			name: "deletion error",
 			mockSetup: func(m *MockMVEService) {
 				m.DeleteMVEError = fmt.Errorf("deletion failed")
 			},
+			confirmDelete: true,
 			expectedError: "deletion failed",
+		},
+		{
+			name: "deletion cancelled",
+			mockSetup: func(m *MockMVEService) {
+				// No setup needed as deletion won't be called
+			},
+			confirmDelete:  false,
+			expectedOutput: "Deletion cancelled",
+		},
+		{
+			name: "force deletion",
+			mockSetup: func(m *MockMVEService) {
+				m.DeleteMVEError = nil
+			},
+			forceFlag:      true,
+			expectedOutput: "MVE deleted mve-uid",
+		},
+		{
+			name: "immediate deletion",
+			mockSetup: func(m *MockMVEService) {
+				m.DeleteMVEError = nil
+			},
+			confirmDelete:  true,
+			nowFlag:        true,
+			expectedOutput: "MVE deleted mve-uid",
 		},
 	}
 
@@ -525,11 +561,25 @@ func TestDeleteMVE(t *testing.T) {
 				return client, nil
 			}
 
-			cmd := deleteMVECmd
-			cmd.SetArgs([]string{"mve-uid"})
+			// Mock the confirmation prompt
+			confirmPrompt = func(question string) bool {
+				return tt.confirmDelete
+			}
+
+			// Create a new command for testing
+			cmd := &cobra.Command{
+				Use: "delete",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return DeleteMVE(cmd, []string{"mve-uid"})
+				},
+			}
+
+			cmd.Flags().Bool("force", tt.forceFlag, "")
+			cmd.Flags().Bool("now", tt.nowFlag, "")
+
 			var err error
 			output := captureOutput(func() {
-				err = cmd.RunE(cmd, []string{"mve-uid"})
+				err = cmd.Execute()
 			})
 
 			if tt.expectedError != "" {
@@ -605,7 +655,7 @@ func TestBuyMVE(t *testing.T) {
 					TechnicalServiceUID: "mock-mve-uid",
 				}
 			},
-			expectedOutput: "MVE purchased successfully - UID: mock-mve-uid",
+			expectedOutput: "MVE created mock-mve-uid",
 			validateRequest: func(t *testing.T, req *megaport.BuyMVERequest) {
 				assert.Equal(t, "Test MVE", req.Name)
 				assert.Equal(t, 12, req.Term)
@@ -646,7 +696,7 @@ func TestBuyMVE(t *testing.T) {
 					TechnicalServiceUID: "mock-mve-uid",
 				}
 			},
-			expectedOutput: "MVE purchased successfully - UID: mock-mve-uid",
+			expectedOutput: "MVE created mock-mve-uid",
 			validateRequest: func(t *testing.T, req *megaport.BuyMVERequest) {
 				assert.Equal(t, "Test MVE", req.Name)
 				assert.Equal(t, 12, req.Term)
@@ -702,7 +752,7 @@ func TestBuyMVE(t *testing.T) {
 					TechnicalServiceUID: "mock-mve-uid",
 				}
 			},
-			expectedOutput: "MVE purchased successfully - UID: mock-mve-uid",
+			expectedOutput: "MVE created mock-mve-uid",
 			validateRequest: func(t *testing.T, req *megaport.BuyMVERequest) {
 				assert.Equal(t, "JSON MVE", req.Name)
 				assert.Equal(t, 12, req.Term)

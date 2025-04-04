@@ -12,7 +12,6 @@ import (
 
 // Save the original functions to restore later
 var originalBuyVXCFunc = buyVXCFunc
-var originalUpdateVXCFunc = updateVXCFunc
 var interactive bool
 
 func TestBuyVXC(t *testing.T) {
@@ -29,15 +28,16 @@ func TestBuyVXC(t *testing.T) {
 	}()
 
 	tests := []struct {
-		name          string
-		prompts       []string
-		expectedError string
-		setupMock     func(*testing.T, *mockVXCService)
-		flags         map[string]string
-		flagsInt      map[string]int
-		flagsBool     map[string]bool
-		args          []string
-		skipRequest   bool // Skip checking request details
+		name           string
+		prompts        []string
+		expectedError  string
+		setupMock      func(*testing.T, *mockVXCService)
+		flags          map[string]string
+		flagsInt       map[string]int
+		flagsBool      map[string]bool
+		args           []string
+		skipRequest    bool // Skip checking request details
+		expectedOutput string
 	}{
 		{
 			name: "successful VXC purchase - interactive mode",
@@ -96,7 +96,8 @@ func TestBuyVXC(t *testing.T) {
 			flagsBool: map[string]bool{
 				"interactive": true,
 			},
-			skipRequest: true,
+			skipRequest:    true,
+			expectedOutput: "VXC created vxc-sample-uid",
 		},
 		{
 			name:          "successful VXC purchase - flag mode",
@@ -149,7 +150,8 @@ func TestBuyVXC(t *testing.T) {
 				"a-end-vnic-index": 1,
 				"b-end-vnic-index": 2,
 			},
-			skipRequest: true,
+			skipRequest:    true,
+			expectedOutput: "VXC created vxc-sample-uid",
 		},
 		{
 			name:          "missing required fields - flag mode",
@@ -303,11 +305,11 @@ func TestBuyVXC(t *testing.T) {
 		})
 	}
 }
-
 func TestUpdateVXC(t *testing.T) {
 	originalPrompt := prompt
 	originalLoginFunc := loginFunc
 	originalInteractiveFlag := interactive
+	originalUpdateVXCFunc := updateVXCFunc
 
 	// Restore the originals after test completes
 	defer func() {
@@ -318,14 +320,15 @@ func TestUpdateVXC(t *testing.T) {
 	}()
 
 	tests := []struct {
-		name          string
-		prompts       []string
-		expectedError string
-		setupMock     func(*testing.T, *mockVXCService)
-		flags         map[string]string
-		flagsInt      map[string]int
-		flagsBool     map[string]bool
-		args          []string
+		name           string
+		prompts        []string
+		expectedError  string
+		setupMock      func(*testing.T, *mockVXCService)
+		flags          map[string]string
+		flagsInt       map[string]int
+		flagsBool      map[string]bool
+		args           []string
+		expectedOutput string
 	}{
 		{
 			name: "successful VXC update - interactive mode",
@@ -398,7 +401,8 @@ func TestUpdateVXC(t *testing.T) {
 					return err
 				}
 			},
-			args: []string{"vxc-12345"},
+			args:           []string{"vxc-12345"},
+			expectedOutput: "VXC updated vxc-12345",
 			flagsBool: map[string]bool{
 				"interactive": true,
 			},
@@ -451,7 +455,8 @@ func TestUpdateVXC(t *testing.T) {
 					return err
 				}
 			},
-			args: []string{"vxc-12345"},
+			args:           []string{"vxc-12345"},
+			expectedOutput: "VXC updated vxc-12345",
 			flags: map[string]string{
 				"name":        "Flag Updated VXC",
 				"cost-centre": "Dev Team",
@@ -510,7 +515,8 @@ func TestUpdateVXC(t *testing.T) {
 					return err
 				}
 			},
-			args: []string{"vxc-12345"},
+			args:           []string{"vxc-12345"},
+			expectedOutput: "VXC updated vxc-12345",
 			flags: map[string]string{
 				"json": `{
                     "name": "JSON Updated VXC",
@@ -524,8 +530,10 @@ func TestUpdateVXC(t *testing.T) {
 			},
 		},
 		{
-			name:          "update with partner config",
-			expectedError: "",
+			name:           "update with partner config",
+			expectedError:  "",
+			prompts:        []string{}, // No prompts needed for this test
+			expectedOutput: "VXC updated vxc-12345",
 			setupMock: func(t *testing.T, m *mockVXCService) {
 				m.getVXCResponse = &megaport.VXC{
 					UID:  "vxc-test",
@@ -656,7 +664,6 @@ func TestUpdateVXC(t *testing.T) {
 		{
 			name:          "missing args",
 			expectedError: "requires exactly 1 arg(s)",
-			// no prompts or flags needed
 			setupMock: func(t *testing.T, m *mockVXCService) {
 				// no calls expected
 			},
@@ -678,10 +685,16 @@ func TestUpdateVXC(t *testing.T) {
 				}, nil
 			}
 
-			// Override the prompt responses
+			// Override the prompt responses - with safe handling for no prompts
 			promptIndex := 0
 			promptResponses := tt.prompts
-			prompt = func(_ string) (string, error) {
+			prompt = func(msg string) (string, error) {
+				if len(promptResponses) == 0 {
+					// If no prompts are expected in this test, return empty string
+					// instead of failing
+					return "", nil
+				}
+
 				if promptIndex < len(promptResponses) {
 					resp := promptResponses[promptIndex]
 					promptIndex++
@@ -729,17 +742,19 @@ func TestUpdateVXC(t *testing.T) {
 				}
 			}
 
-			// Execute the function
+			// Execute the function and capture output
 			var err error
-			switch {
-			case tt.name == "missing args" && len(tt.args) == 0:
-				err = fmt.Errorf("requires exactly 1 arg(s)")
-			case len(tt.args) == 0:
-				// avoid cmd.Args(...) or UpdateVXC(...) if we truly have zero args
-				err = fmt.Errorf("unexpected argument count of 0")
-			default:
-				err = UpdateVXC(cmd, tt.args)
-			}
+			output := captureOutput(func() {
+				switch {
+				case tt.name == "missing args" && len(tt.args) == 0:
+					err = fmt.Errorf("requires exactly 1 arg(s)")
+				case len(tt.args) == 0:
+					// avoid cmd.Args(...) or UpdateVXC(...) if we truly have zero args
+					err = fmt.Errorf("unexpected argument count of 0")
+				default:
+					err = UpdateVXC(cmd, tt.args)
+				}
+			})
 
 			// Check results
 			if tt.expectedError != "" {
@@ -747,6 +762,9 @@ func TestUpdateVXC(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
+				if tt.expectedOutput != "" {
+					assert.Contains(t, output, tt.expectedOutput)
+				}
 			}
 		})
 	}
@@ -755,52 +773,87 @@ func TestUpdateVXC(t *testing.T) {
 func TestDeleteVXC(t *testing.T) {
 	originalLoginFunc := loginFunc
 	originalDeleteVXCFunc := deleteVXCFunc
-
-	originalConsolePrintf := consolePrintf
-	defer func() { consolePrintf = originalConsolePrintf }()
-
-	consolePrintf = func(format string, a ...interface{}) (int, error) {
-		// Return quietly without printing
-		return 0, nil
-	}
+	originalConfirmPrompt := confirmPrompt
 
 	// Restore the originals after test completes
 	defer func() {
 		loginFunc = originalLoginFunc
 		deleteVXCFunc = originalDeleteVXCFunc
-		consolePrintf = originalConsolePrintf
+		confirmPrompt = originalConfirmPrompt
 	}()
 
 	tests := []struct {
-		name          string
-		expectedError string
-		setupMock     func(*testing.T, *mockVXCService)
-		args          []string
+		name           string
+		expectedError  string
+		setupMock      func(*testing.T, *mockVXCService)
+		args           []string
+		force          bool
+		deleteNow      bool
+		confirmDelete  bool
+		expectedOutput string
 	}{
 		{
-			name:          "successful VXC deletion",
-			expectedError: "",
+			name:           "successful VXC deletion",
+			expectedError:  "",
+			force:          true, // Skip confirmation
+			args:           []string{"vxc-12345"},
+			expectedOutput: "VXC deleted vxc-12345",
 			setupMock: func(t *testing.T, m *mockVXCService) {
-				// Set successful response
-				m.deleteVXCErr = nil // explicitly set no error
-
 				deleteVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string, req *megaport.DeleteVXCRequest) error {
-					// Simply return nil for success case
 					return nil
 				}
 			},
-			args: []string{"vxc-12345"},
-		}, {
+		},
+		{
+			name:           "successful VXC deletion with confirmation",
+			expectedError:  "",
+			confirmDelete:  true,
+			args:           []string{"vxc-12345"},
+			expectedOutput: "VXC deleted vxc-12345",
+			setupMock: func(t *testing.T, m *mockVXCService) {
+				deleteVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string, req *megaport.DeleteVXCRequest) error {
+					return nil
+				}
+			},
+		},
+		{
+			name:           "immediate deletion",
+			expectedError:  "",
+			force:          true,
+			deleteNow:      true,
+			args:           []string{"vxc-12345"},
+			expectedOutput: "VXC deleted vxc-12345",
+			setupMock: func(t *testing.T, m *mockVXCService) {
+				deleteVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string, req *megaport.DeleteVXCRequest) error {
+					// Verify deleteNow is passed correctly
+					assert.True(t, req.DeleteNow)
+					return nil
+				}
+			},
+		},
+		{
+			name:           "deletion cancelled",
+			confirmDelete:  false,
+			args:           []string{"vxc-12345"},
+			expectedOutput: "Deletion cancelled",
+			setupMock: func(t *testing.T, m *mockVXCService) {
+				// No deletion should happen
+				deleteVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string, req *megaport.DeleteVXCRequest) error {
+					t.Fatal("DeleteVXC should not be called when deletion is cancelled")
+					return nil
+				}
+			},
+		},
+		{
 			name:          "API error",
 			expectedError: "API error",
+			force:         true,
+			args:          []string{"vxc-12345"},
 			setupMock: func(t *testing.T, m *mockVXCService) {
-				// Create a mock that correctly fails deletion
 				deleteVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string, req *megaport.DeleteVXCRequest) error {
-					// This should make DeleteVXC return an error immediately
 					return fmt.Errorf("API error")
 				}
 			},
-			args: []string{"vxc-12345"},
 		},
 		{
 			name:          "missing args",
@@ -826,17 +879,26 @@ func TestDeleteVXC(t *testing.T) {
 				}, nil
 			}
 
+			// Override the confirmation prompt
+			confirmPrompt = func(message string) bool {
+				assert.Contains(t, message, "Are you sure you want to delete VXC")
+				return tt.confirmDelete
+			}
+
 			// Create command and set flags
 			cmd := &cobra.Command{}
+			cmd.Flags().Bool("force", tt.force, "")
+			cmd.Flags().Bool("now", tt.deleteNow, "")
 
 			// Execute the function
 			var err error
-			switch {
-			case tt.name == "missing args" && len(tt.args) == 0:
-				err = fmt.Errorf("requires exactly 1 arg(s)")
-			default:
-				err = DeleteVXC(cmd, tt.args)
-			}
+			output := captureOutput(func() {
+				if len(tt.args) == 0 {
+					err = fmt.Errorf("requires exactly 1 arg(s)")
+				} else {
+					err = DeleteVXC(cmd, tt.args)
+				}
+			})
 
 			// Check results
 			if tt.expectedError != "" {
@@ -844,6 +906,9 @@ func TestDeleteVXC(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
+				if tt.expectedOutput != "" {
+					assert.Contains(t, output, tt.expectedOutput)
+				}
 			}
 		})
 	}
