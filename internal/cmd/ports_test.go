@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"encoding/json"
 	"testing"
+	"time"
 
 	megaport "github.com/megaport/megaportgo"
 	"github.com/stretchr/testify/assert"
@@ -12,15 +14,21 @@ var testPorts = []*megaport.Port{
 		UID:                "port-1",
 		Name:               "MyPortOne",
 		LocationID:         1,
+		LocationDetails:    &megaport.ProductLocationDetails{Name: "Sydney"},
 		PortSpeed:          1000,
 		ProvisioningStatus: "ACTIVE",
+		CreateDate:         &megaport.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
+		ContractTermMonths: 12,
 	},
 	{
 		UID:                "port-2",
 		Name:               "AnotherPort",
 		LocationID:         2,
+		LocationDetails:    &megaport.ProductLocationDetails{Name: "Melbourne"},
 		PortSpeed:          2000,
 		ProvisioningStatus: "INACTIVE",
+		CreateDate:         &megaport.Time{Time: time.Date(2023, 2, 1, 0, 0, 0, 0, time.UTC)},
+		ContractTermMonths: 24,
 	},
 }
 
@@ -83,9 +91,9 @@ func TestPrintPorts_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `uid      name          location_id   port_speed   provisioning_status
-port-1   MyPortOne     1             1000         ACTIVE
-port-2   AnotherPort   2             2000         INACTIVE
+	expected := `uid      name          location_id   location_name   port_speed   provisioning_status   create_date   contract_term_months
+port-1   MyPortOne     1             Sydney          1000         ACTIVE                2023-01-01    12
+port-2   AnotherPort   2             Melbourne       2000         INACTIVE              2023-02-01    24
 `
 	assert.Equal(t, expected, output)
 }
@@ -96,23 +104,33 @@ func TestPrintPorts_JSON(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `[
-  {
-    "uid": "port-1",
-    "name": "MyPortOne",
-    "location_id": 1,
-    "port_speed": 1000,
-    "provisioning_status": "ACTIVE"
-  },
-  {
-    "uid": "port-2",
-    "name": "AnotherPort",
-    "location_id": 2,
-    "port_speed": 2000,
-    "provisioning_status": "INACTIVE"
-  }
-]`
-	assert.JSONEq(t, expected, output)
+	var jsonOutput []map[string]interface{}
+	err := json.Unmarshal([]byte(output), &jsonOutput)
+	assert.NoError(t, err)
+
+	expected := []map[string]interface{}{
+		{
+			"uid":                  "port-1",
+			"name":                 "MyPortOne",
+			"location_id":          float64(1),
+			"location_name":        "Sydney",
+			"port_speed":           float64(1000),
+			"provisioning_status":  "ACTIVE",
+			"create_date":          "2023-01-01",
+			"contract_term_months": float64(12),
+		},
+		{
+			"uid":                  "port-2",
+			"name":                 "AnotherPort",
+			"location_id":          float64(2),
+			"location_name":        "Melbourne",
+			"port_speed":           float64(2000),
+			"provisioning_status":  "INACTIVE",
+			"create_date":          "2023-02-01",
+			"contract_term_months": float64(24),
+		},
+	}
+	assert.Equal(t, expected, jsonOutput)
 }
 
 func TestPrintPorts_CSV(t *testing.T) {
@@ -121,9 +139,9 @@ func TestPrintPorts_CSV(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `uid,name,location_id,port_speed,provisioning_status
-port-1,MyPortOne,1,1000,ACTIVE
-port-2,AnotherPort,2,2000,INACTIVE
+	expected := `uid,name,location_id,location_name,port_speed,provisioning_status,create_date,contract_term_months
+port-1,MyPortOne,1,Sydney,1000,ACTIVE,2023-01-01,12
+port-2,AnotherPort,2,Melbourne,2000,INACTIVE,2023-02-01,24
 `
 	assert.Equal(t, expected, output)
 }
@@ -153,29 +171,23 @@ func TestPrintPorts_EdgeCases(t *testing.T) {
 			ports:       nil,
 			format:      "table",
 			shouldError: false,
-			expected:    "uid   name   location_id   port_speed   provisioning_status\n",
+			expected:    "uid   name   location_id   location_name   port_speed   provisioning_status   create_date   contract_term_months\n",
 		},
 		{
 			name:        "empty slice",
 			ports:       []*megaport.Port{},
 			format:      "csv",
 			shouldError: false,
-			expected:    "uid,name,location_id,port_speed,provisioning_status\n",
+			expected:    "uid,name,location_id,location_name,port_speed,provisioning_status,create_date,contract_term_months\n",
 		},
 		{
 			name: "port with zero values",
 			ports: []*megaport.Port{
-				{
-					UID:                "",
-					Name:               "",
-					LocationID:         0,
-					PortSpeed:          0,
-					ProvisioningStatus: "",
-				},
+				{},
 			},
 			format:      "json",
 			shouldError: false,
-			expected:    `[{"uid":"","name":"","location_id":0,"port_speed":0,"provisioning_status":""}]`,
+			expected:    `[{"uid":"","name":"","location_id":0,"location_name":"","port_speed":0,"provisioning_status":"","create_date":"","contract_term_months":0}]`,
 		},
 		{
 			name:        "nil port in slice",

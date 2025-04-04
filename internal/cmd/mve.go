@@ -217,6 +217,46 @@ Notes:
 	RunE: WrapRunE(BuyMVE),
 }
 
+// listMVEsCmd lists all Megaport Virtual Edge (MVE) devices.
+var listMVEsCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all MVEs",
+	Long: `List all Megaport Virtual Edge (MVE) devices associated with your Megaport account.
+
+This command retrieves all MVEs from the Megaport API and displays them in the specified format.
+By default, inactive MVEs are excluded. Use the --inactive flag to include them.
+
+You can filter the results using these options:
+  --name         Filter by name (case-insensitive substring match)
+  --location-id  Filter by location ID
+  --vendor       Filter by vendor name
+
+Example usage:
+
+# List all active MVEs
+megaport-cli mve list
+
+# List all MVEs including inactive ones
+megaport-cli mve list --inactive
+
+# Filter MVEs by name
+megaport-cli mve list --name "production"
+
+# Filter MVEs by location ID
+megaport-cli mve list --location-id 67
+
+# Filter MVEs by vendor
+megaport-cli mve list --vendor "cisco"
+
+# Combine multiple filters
+megaport-cli mve list --vendor "cisco" --location-id 67 --inactive
+
+# List all MVEs in JSON format
+megaport-cli mve list --output json
+`,
+	RunE: WrapRunE(ListMVEs),
+}
+
 // getMVECmd retrieves details for a single MVE.
 var getMVECmd = &cobra.Command{
 	Use:   "get [mveUID]",
@@ -444,6 +484,12 @@ func init() {
 	listMVEImagesCmd.Flags().StringVar(&versionFilter, "version", "", "Filter images by version")
 	listMVEImagesCmd.Flags().BoolVar(&releaseImageFilter, "release-image", false, "Filter images by release image")
 
+	listMVEsCmd.Flags().Bool("inactive", false, "Include inactive MVEs in the list")
+	listMVEsCmd.Flags().String("name", "", "Filter MVEs by name (case-insensitive substring match)")
+	listMVEsCmd.Flags().Int("location-id", 0, "Filter MVEs by location ID")
+	listMVEsCmd.Flags().String("vendor", "", "Filter MVEs by vendor")
+
+	mveCmd.AddCommand(listMVEsCmd)
 	mveCmd.AddCommand(buyMVECmd)
 	mveCmd.AddCommand(getMVECmd)
 	mveCmd.AddCommand(updateMVECmd)

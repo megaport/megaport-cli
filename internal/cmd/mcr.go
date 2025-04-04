@@ -70,6 +70,13 @@ Example usage:
 	RunE: WrapRunE(GetMCR),
 }
 
+// listMCRsCmd lists all MCRs.
+var listMCRsCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all MCRs",
+	RunE:  WrapRunE(ListMCRs),
+}
+
 // buyMCRCmd allows you to purchase an MCR by providing the necessary details.
 var buyMCRCmd = &cobra.Command{
 	Use:   "buy",
@@ -458,7 +465,13 @@ func init() {
 	updateMCRPrefixFilterListCmd.Flags().String("json", "", "JSON string containing prefix filter list configuration")
 	updateMCRPrefixFilterListCmd.Flags().String("json-file", "", "Path to JSON file containing prefix filter list configuration")
 
+	listMCRsCmd.Flags().Bool("inactive", false, "Include inactive MCRs in the list")
+	listMCRsCmd.Flags().String("name", "", "Filter MCRs by name (case-insensitive substring match)")
+	listMCRsCmd.Flags().Int("location-id", 0, "Filter MCRs by location ID")
+	listMCRsCmd.Flags().Int("port-speed", 0, "Filter MCRs by port speed in Mbps")
+
 	mcrCmd.AddCommand(getMCRCmd)
+	mcrCmd.AddCommand(listMCRsCmd)
 	mcrCmd.AddCommand(buyMCRCmd)
 	mcrCmd.AddCommand(updateMCRCmd)
 	deleteMCRCmd.Flags().Bool("now", false, "Delete immediately instead of at the end of the billing period")

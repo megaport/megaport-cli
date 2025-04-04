@@ -497,8 +497,11 @@ type PortOutput struct {
 	UID                string `json:"uid"`
 	Name               string `json:"name"`
 	LocationID         int    `json:"location_id"`
+	LocationName       string `json:"location_name"`
 	PortSpeed          int    `json:"port_speed"`
 	ProvisioningStatus string `json:"provisioning_status"`
+	CreateDate         string `json:"create_date"`
+	ContractTermMonths int    `json:"contract_term_months"`
 }
 
 // ToPortOutput converts a *megaport.Port to our PortOutput struct.
@@ -507,10 +510,25 @@ func ToPortOutput(port *megaport.Port) (PortOutput, error) {
 		return PortOutput{}, fmt.Errorf("invalid port: nil value")
 	}
 
+	// Format create date to string if it exists
+	createDateStr := ""
+	if port.CreateDate != nil {
+		createDateStr = port.CreateDate.Time.Format("2006-01-02")
+	}
+
+	// Get location name if available
+	locationName := ""
+	if port.LocationDetails != nil {
+		locationName = port.LocationDetails.Name
+	}
+
 	return PortOutput{
 		UID:                port.UID,
 		Name:               port.Name,
 		LocationID:         port.LocationID,
+		LocationName:       locationName,
+		CreateDate:         createDateStr,
+		ContractTermMonths: port.ContractTermMonths,
 		PortSpeed:          port.PortSpeed,
 		ProvisioningStatus: port.ProvisioningStatus,
 	}, nil

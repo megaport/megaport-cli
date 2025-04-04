@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	megaport "github.com/megaport/megaportgo"
@@ -179,6 +180,75 @@ func UpdateMVE(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// ListMVEs lists all MVEs
+func ListMVEs(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	// Log into the Megaport API
+	client, err := Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	// Get filter values from flags
+	includeInactive, _ := cmd.Flags().GetBool("inactive")
+	nameFilter, _ := cmd.Flags().GetString("name")
+	locationID, _ := cmd.Flags().GetInt("location-id")
+	vendorFilter, _ := cmd.Flags().GetString("vendor")
+
+	// Get all MVEs from the API
+	req := &megaport.ListMVEsRequest{
+		IncludeInactive: includeInactive,
+	}
+
+	mves, err := listMVEsFunc(ctx, client, req)
+	if err != nil {
+		return fmt.Errorf("error listing MVEs: %v", err)
+	}
+
+	// Apply filters in the CLI application
+	filteredMVEs := filterMVEs(mves, nameFilter, locationID, vendorFilter)
+
+	// Print the filtered results
+	err = printMVEs(filteredMVEs, outputFormat)
+	if err != nil {
+		return fmt.Errorf("error printing MVEs: %v", err)
+	}
+	return nil
+}
+
+// filterMVEs applies the specified filters to a list of MVEs
+func filterMVEs(mves []*megaport.MVE, nameFilter string, locationID int, vendorFilter string) []*megaport.MVE {
+	// If no filters are set, return the original list
+	if nameFilter == "" && locationID == 0 && vendorFilter == "" {
+		return mves
+	}
+
+	filtered := []*megaport.MVE{}
+
+	for _, mve := range mves {
+		// Apply name filter (case-insensitive substring match)
+		if nameFilter != "" && !strings.Contains(strings.ToLower(mve.Name), strings.ToLower(nameFilter)) {
+			continue
+		}
+
+		// Apply location ID filter
+		if locationID > 0 && mve.LocationID != locationID {
+			continue
+		}
+
+		// Apply vendor filter (case-insensitive match)
+		if vendorFilter != "" && !strings.EqualFold(mve.Vendor, vendorFilter) {
+			continue
+		}
+
+		// If we get here, the MVE passed all active filters
+		filtered = append(filtered, mve)
+	}
+
+	return filtered
 }
 
 func GetMVE(cmd *cobra.Command, args []string) error {

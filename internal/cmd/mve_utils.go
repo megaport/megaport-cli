@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,6 +11,10 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
+
+var listMVEsFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ListMVEsRequest) ([]*megaport.MVE, error) {
+	return client.MVEService.ListMVEs(ctx, req)
+}
 
 // Process JSON input (either from string or file) for buying MVE
 func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVERequest, error) {
@@ -1239,9 +1244,15 @@ func filterMVEImages(images []*megaport.MVEImage, vendor, productCode string, id
 
 // MVEOutput represents the desired fields for JSON output.
 type MVEOutput struct {
-	UID        string `json:"uid"`
-	Name       string `json:"name"`
-	LocationID int    `json:"location_id"`
+	UID                string `json:"uid"`
+	Name               string `json:"name"`
+	LocationID         int    `json:"location_id"`
+	LocationName       string `json:"location_name"` // Add human-readable location
+	Vendor             string `json:"vendor"`        // Add vendor since users filter on this
+	Size               string `json:"size"`          // Add MVE size (small/medium/large)
+	ProvisioningStatus string `json:"provisioning_status"`
+	CreateDate         string `json:"create_date"` // When the MVE was created
+	ContractTermMonths int    `json:"contract_term_months"`
 }
 
 // ToMVEOutput converts an MVE to an MVEOutput.
@@ -1250,10 +1261,28 @@ func ToMVEOutput(m *megaport.MVE) (MVEOutput, error) {
 		return MVEOutput{}, fmt.Errorf("invalid MVE: nil value")
 	}
 
+	// Format create date to string if it exists
+	createDateStr := ""
+	if m.CreateDate != nil {
+		createDateStr = m.CreateDate.Time.Format("2006-01-02")
+	}
+
+	// Get location name if available
+	locationName := ""
+	if m.LocationDetails != nil {
+		locationName = m.LocationDetails.Name
+	}
+
 	return MVEOutput{
-		UID:        m.UID,
-		Name:       m.Name,
-		LocationID: m.LocationID,
+		UID:                m.UID,
+		Name:               m.Name,
+		LocationID:         m.LocationID,
+		LocationName:       locationName,
+		Vendor:             m.Vendor,
+		Size:               m.Size,
+		ProvisioningStatus: m.ProvisioningStatus,
+		CreateDate:         createDateStr,
+		ContractTermMonths: m.ContractTermMonths,
 	}, nil
 }
 

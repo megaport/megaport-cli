@@ -1771,10 +1771,13 @@ var updateVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID st
 // VXCOutput represents the desired fields for JSON output.
 type VXCOutput struct {
 	output
-	UID     string `json:"uid"`
-	Name    string `json:"name"`
-	AEndUID string `json:"a_end_uid"`
-	BEndUID string `json:"b_end_uid"`
+	UID                string `json:"uid" csv:"uid" header:"UID"`
+	Name               string `json:"name" csv:"name" header:"Name"`
+	AEndUID            string `json:"a_end_uid" csv:"a_end_uid" header:"A End UID"`
+	BEndUID            string `json:"b_end_uid" csv:"b_end_uid" header:"B End UID"`
+	RateLimit          int    `json:"rate_limit" csv:"rate_limit" header:"Rate (Mbps)"`
+	ProvisioningStatus string `json:"provisioning_status" csv:"provisioning_status" header:"Status"`
+	CreateDate         string `json:"create_date" csv:"create_date" header:"Created"`
 }
 
 // ToVXCOutput converts a VXC to a VXCOutput.
@@ -1783,11 +1786,20 @@ func ToVXCOutput(v *megaport.VXC) (VXCOutput, error) {
 		return VXCOutput{}, fmt.Errorf("invalid VXC: nil value")
 	}
 
+	// Format create date to string if it exists
+	createDateStr := ""
+	if v.CreateDate != nil {
+		createDateStr = v.CreateDate.Time.Format("2006-01-02")
+	}
+
 	return VXCOutput{
-		UID:     v.UID,
-		Name:    v.Name,
-		AEndUID: v.AEndConfiguration.UID,
-		BEndUID: v.BEndConfiguration.UID,
+		UID:                v.UID,
+		Name:               v.Name,
+		AEndUID:            v.AEndConfiguration.UID,
+		BEndUID:            v.BEndConfiguration.UID,
+		RateLimit:          v.RateLimit,
+		ProvisioningStatus: v.ProvisioningStatus,
+		CreateDate:         createDateStr,
 	}, nil
 }
 

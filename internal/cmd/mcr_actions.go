@@ -388,6 +388,43 @@ func RestoreMCR(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// ListMCRs lists all MCRs and applies filters
+func ListMCRs(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	// Log into the Megaport API
+	client, err := Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	// Get filter values from flags
+	includeInactive, _ := cmd.Flags().GetBool("inactive")
+	nameFilter, _ := cmd.Flags().GetString("name")
+	locationID, _ := cmd.Flags().GetInt("location-id")
+	portSpeed, _ := cmd.Flags().GetInt("port-speed")
+
+	// Get all MCRs from the API
+	req := &megaport.ListMCRsRequest{
+		IncludeInactive: includeInactive,
+	}
+
+	mcrs, err := listMCRsFunc(ctx, client, req)
+	if err != nil {
+		return fmt.Errorf("error listing MCRs: %v", err)
+	}
+
+	// Apply filters in the CLI application
+	filteredMCRs := filterMCRs(mcrs, nameFilter, locationID, portSpeed)
+
+	// Print the filtered results
+	err = printMCRs(filteredMCRs, outputFormat)
+	if err != nil {
+		return fmt.Errorf("error printing MCRs: %v", err)
+	}
+	return nil
+}
+
 func ListMCRPrefixFilterLists(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 

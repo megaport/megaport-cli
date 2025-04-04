@@ -300,21 +300,34 @@ func printCSV[T OutputFields](data []T) error {
 			continue
 		}
 
-		// Look for csv tag first
-		csvTag := field.Tag.Get("csv")
-		if csvTag == "-" {
+		// Look for header tag first
+		headerTag := field.Tag.Get("header")
+		if headerTag == "-" {
 			continue // Skip this field
 		}
 
-		// Fall back to json tag
-		if csvTag == "" {
-			csvTag = field.Tag.Get("json")
-			if csvTag == "" || csvTag == "-" {
+		// Fall back to csv tag
+		if headerTag == "" {
+			headerTag = field.Tag.Get("csv")
+			if headerTag == "-" {
 				continue
 			}
 		}
 
-		headers = append(headers, csvTag)
+		// Fall back to json tag
+		if headerTag == "" {
+			headerTag = field.Tag.Get("json")
+			if headerTag == "-" {
+				continue
+			}
+		}
+
+		// If no tags found, use the field name itself
+		if headerTag == "" {
+			headerTag = field.Name
+		}
+
+		headers = append(headers, headerTag)
 		fields = append(fields, field.Name)
 		fieldIndices = append(fieldIndices, i) // Store actual index
 	}

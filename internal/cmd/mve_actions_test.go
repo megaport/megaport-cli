@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -814,6 +815,206 @@ func TestBuyMVE(t *testing.T) {
 				if tt.validateRequest != nil {
 					tt.validateRequest(t, mockService.CapturedBuyMVERequest)
 				}
+			}
+		})
+	}
+}
+
+// TestListMVEsCmd_WithMockClient tests the ListMVEs command with various filter combinations
+func TestListMVEsCmd_WithMockClient(t *testing.T) {
+	originalLoginFunc := loginFunc
+	originalListMVEsFunc := listMVEsFunc
+	originalOutputFormat := outputFormat
+	defer func() {
+		loginFunc = originalLoginFunc
+		listMVEsFunc = originalListMVEsFunc
+		outputFormat = originalOutputFormat
+	}()
+
+	// Set up test MVEs
+	mves := []*megaport.MVE{
+		{
+			UID:                "mve-123",
+			Name:               "Production MVE",
+			LocationID:         123,
+			Vendor:             "Cisco",
+			Size:               "MEDIUM",
+			ProvisioningStatus: "LIVE",
+			CreateDate:         &megaport.Time{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
+			ContractTermMonths: 12,
+			LocationDetails: &megaport.ProductLocationDetails{
+				Name: "Sydney Data Center",
+			},
+		},
+		{
+			UID:                "mve-456",
+			Name:               "Dev MVE",
+			LocationID:         456,
+			Vendor:             "Palo Alto",
+			Size:               "LARGE",
+			ProvisioningStatus: "LIVE",
+			CreateDate:         &megaport.Time{Time: time.Date(2023, 2, 1, 0, 0, 0, 0, time.UTC)},
+			ContractTermMonths: 24,
+			LocationDetails: &megaport.ProductLocationDetails{
+				Name: "Melbourne Data Center",
+			},
+		},
+		{
+			UID:                "mve-789",
+			Name:               "Test MVE",
+			LocationID:         123,
+			Vendor:             "Cisco",
+			Size:               "SMALL",
+			ProvisioningStatus: "DECOMMISSIONED",
+			CreateDate:         &megaport.Time{Time: time.Date(2023, 3, 1, 0, 0, 0, 0, time.UTC)},
+			ContractTermMonths: 12,
+			LocationDetails: &megaport.ProductLocationDetails{
+				Name: "Sydney Data Center",
+			},
+		},
+	}
+
+	tests := []struct {
+		name           string
+		flags          map[string]string
+		format         string
+		expectedOutput []string
+		expectedMVEs   int
+		excludedMVEs   []string
+	}{
+		{
+			name:           "list active MVEs only",
+			flags:          map[string]string{},
+			format:         "table",
+			expectedOutput: []string{"Production MVE", "Dev MVE"},
+			expectedMVEs:   2,
+			excludedMVEs:   []string{"Test MVE"},
+		},
+		{
+			name:           "list all MVEs including inactive",
+			flags:          map[string]string{"inactive": "true"},
+			format:         "table",
+			expectedOutput: []string{"Production MVE", "Dev MVE", "Test MVE"},
+			expectedMVEs:   3,
+		},
+		{
+			name:           "filter by name",
+			flags:          map[string]string{"name": "Production"},
+			format:         "table",
+			expectedOutput: []string{"Production MVE"},
+			expectedMVEs:   1,
+			excludedMVEs:   []string{"Dev MVE", "Test MVE"},
+		},
+		{
+			name:           "filter by location ID",
+			flags:          map[string]string{"location-id": "123"},
+			format:         "table",
+			expectedOutput: []string{"Production MVE"},
+			expectedMVEs:   1,
+			excludedMVEs:   []string{"Dev MVE", "Test MVE"},
+		},
+		{
+			name:           "filter by vendor",
+			flags:          map[string]string{"vendor": "Palo Alto"},
+			format:         "table",
+			expectedOutput: []string{"Dev MVE"},
+			expectedMVEs:   1,
+			excludedMVEs:   []string{"Production MVE", "Test MVE"},
+		},
+		{
+			name: "combine filters - name and vendor",
+			flags: map[string]string{
+				"name":   "Production",
+				"vendor": "Cisco",
+			},
+			format:         "table",
+			expectedOutput: []string{"Production MVE"},
+			expectedMVEs:   1,
+			excludedMVEs:   []string{"Dev MVE", "Test MVE"},
+		},
+		{
+			name: "combine filters - inactive and location ID",
+			flags: map[string]string{
+				"inactive":    "true",
+				"location-id": "123",
+			},
+			format:         "table",
+			expectedOutput: []string{"Production MVE", "Test MVE"},
+			expectedMVEs:   2,
+			excludedMVEs:   []string{"Dev MVE"},
+		},
+		{
+			name:           "no match with filters",
+			flags:          map[string]string{"name": "NonExistent"},
+			format:         "table",
+			expectedOutput: []string{},
+			expectedMVEs:   0,
+			excludedMVEs:   []string{"Production MVE", "Dev MVE", "Test MVE"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set up mock function to return our test MVEs
+			listMVEsFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ListMVEsRequest) ([]*megaport.MVE, error) {
+				if req.IncludeInactive {
+					return mves, nil
+				}
+				// Filter out decommissioned MVEs
+				activeMVEs := make([]*megaport.MVE, 0)
+				for _, mve := range mves {
+					if mve.ProvisioningStatus != "DECOMMISSIONED" {
+						activeMVEs = append(activeMVEs, mve)
+					}
+				}
+				return activeMVEs, nil
+			}
+
+			// Set up mock login
+			loginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				return &megaport.Client{}, nil
+			}
+
+			// Set output format
+			outputFormat = tt.format
+
+			// Create a fresh command for each test to avoid flag conflicts
+			cmd := &cobra.Command{
+				Use:  "list",
+				RunE: ListMVEs,
+			}
+
+			// Add all the necessary flags
+			cmd.Flags().Bool("inactive", false, "Include inactive MVEs")
+			cmd.Flags().String("name", "", "Filter by name")
+			cmd.Flags().Int("location-id", 0, "Filter by location ID")
+			cmd.Flags().String("vendor", "", "Filter by vendor")
+
+			// Set flag values for this test
+			for flagName, flagValue := range tt.flags {
+				err := cmd.Flags().Set(flagName, flagValue)
+				if err != nil {
+					t.Fatalf("Failed to set %s flag: %v", flagName, err)
+				}
+			}
+
+			// Execute command and capture output
+			var err error
+			output := captureOutput(func() {
+				err = cmd.RunE(cmd, []string{})
+			})
+
+			// Check for errors
+			assert.NoError(t, err)
+
+			// Verify expected content in output
+			for _, expected := range tt.expectedOutput {
+				assert.Contains(t, output, expected)
+			}
+
+			// Verify excluded content not in output
+			for _, excluded := range tt.excludedMVEs {
+				assert.NotContains(t, output, excluded)
 			}
 		})
 	}
