@@ -51,13 +51,6 @@ func formatUID(uid string) string {
 	return color.CyanString(uid)
 }
 
-// func formatSectionHeader(title string) string {
-// 	if noColor {
-// 		return strings.ToUpper(title) + ":"
-// 	}
-// 	return color.New(color.Bold, color.FgHiBlue).Sprint(strings.ToUpper(title) + ":")
-// }
-
 // func formatDiff(oldVal, newVal string) string {
 // 	if noColor {
 // 		return fmt.Sprintf("%s → %s", oldVal, newVal)

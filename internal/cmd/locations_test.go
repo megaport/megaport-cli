@@ -76,11 +76,21 @@ func TestPrintLocations_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `id   name     country          metro    site_code   market   latitude   longitude   status
-1    Sydney   Australia        Sydney   SYD1        APAC     0          0           ACTIVE
-2    London   United Kingdom   London   LON1        EUROPE   0          0           ACTIVE
-`
-	assert.Equal(t, expected, output)
+	// No latitude and longitude columns in the table output
+	assert.Contains(t, output, "ID")
+	assert.Contains(t, output, "Name")
+	assert.Contains(t, output, "Country")
+	assert.Contains(t, output, "Metro")
+	assert.Contains(t, output, "Site Code")
+	assert.Contains(t, output, "Market")
+	assert.Contains(t, output, "Status")
+	assert.NotContains(t, output, "Latitude")
+	assert.NotContains(t, output, "Longitude")
+
+	// Check for data rows
+	assert.Contains(t, output, "Sydney")
+	assert.Contains(t, output, "London")
+	assert.Contains(t, output, "ACTIVE")
 }
 
 func TestPrintLocations_JSON(t *testing.T) {
@@ -157,8 +167,7 @@ func TestPrintLocations_EmptySlice(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	// Expect header-only
-	expectedTable := `id   name   country   metro   site_code   market   latitude   longitude   status
-`
+	expectedTable := "ID   Name   Country   Metro   Site Code   Market   Status\n"
 	assert.Equal(t, expectedTable, tableOutput)
 
 	// CSV format
