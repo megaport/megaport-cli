@@ -6,17 +6,12 @@ Get details of a service key
 
 Get details of a specific service key.
 
-This command fetches and displays detailed information about a given service key.
-You must provide the service key identifier as an argument.
+This command fetches and displays detailed information about a given service key. You must provide the service key identifier as an argument.
 
-Example:
-```
-megaport-cli servicekeys get a1b2c3d4-e5f6-7890-1234-567890abcdef
+Example usage:
 
-Example output:
-Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Product UID: product-uid  Description: My service key
+get a1b2c3d4-e5f6-7890-1234-567890abcdef
 
-```
 
 
 ## Usage
@@ -25,15 +20,7 @@ Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Product UID: product-uid  Description
 megaport-cli servicekeys get [key] [flags]
 ```
 
-## Examples
 
-```
-Example:
-megaport-cli servicekeys get a1b2c3d4-e5f6-7890-1234-567890abcdef
-
-Example output:
-  Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Product UID: product-uid  Description: My service key
-```
 
 ## Parent Command
 

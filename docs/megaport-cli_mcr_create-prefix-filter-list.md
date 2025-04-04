@@ -6,50 +6,26 @@ Create a prefix filter list on an MCR
 
 Create a prefix filter list on an MCR.
 
-This command allows you to create a new prefix filter list on an MCR.
-Prefix filter lists are used to control which routes are accepted or advertised
-by the MCR.
-
-You can provide details in one of three ways:
-
-1. Interactive Mode (with --interactive):
-The command will prompt you for each required field.
-
-2. Flag Mode:
-Provide all required fields as flags:
---description, --address-family, --entries
-
-3. JSON Mode:
-Provide a JSON string or file with all required fields:
---json <json-string> or --json-file <path>
+This command allows you to create a new prefix filter list on an MCR. Prefix filter lists are used to control which routes are accepted or advertised by the MCR.
 
 Required fields:
-- description: The description of the prefix filter list (1-255 characters).
-- address_family: The address family (IPv4 or IPv6).
-- entries: JSON array of prefix filter entries. Each entry has:
-- action: "permit" or "deny"
-- prefix: CIDR notation (e.g., "192.168.0.0/16")
-- ge (optional): Greater than or equal to value (must be less than or equal to the prefix length)
-- le (optional): Less than or equal to value (must be greater than or equal to the prefix length)
+description: The description of the prefix filter list (1-255 characters)
+address-family: The address family (IPv4 or IPv6)
+entries: JSON array of prefix filter entries
+
+Important notes:
+- The address_family must be either "IPv4" or "IPv6"
+- The entries must be a valid JSON array of prefix filter entries
+- The ge and le values are optional but must be within the range of the prefix length
 
 Example usage:
 
-### Interactive mode
-```
-megaport-cli mcr create-prefix-filter-list [mcrUID] --interactive
+create-prefix-filter-list [mcrUID] --interactive
+create-prefix-filter-list [mcrUID] --description "My prefix list" --address-family "IPv4" --entries '[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]'
+create-prefix-filter-list [mcrUID] --json '{"description":"My prefix list","addressFamily":"IPv4","entries":[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]}'
+create-prefix-filter-list [mcrUID] --json-file ./prefix-list-config.json
 
-```
-### Flag mode
-```
-megaport-cli mcr create-prefix-filter-list [mcrUID] --description "My prefix list" --address-family "IPv4" --entries '[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]'
-
-```
-### JSON mode
-```
-megaport-cli mcr create-prefix-filter-list [mcrUID] --json '{"description":"My prefix list","addressFamily":"IPv4","entries":[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]}'
-megaport-cli mcr create-prefix-filter-list [mcrUID] --json-file ./prefix-list-config.json
-
-JSON format example (prefix-list-config.json):
+JSON format example:
 {
 "description": "My prefix list",
 "addressFamily": "IPv4",
@@ -67,12 +43,6 @@ JSON format example (prefix-list-config.json):
 ]
 }
 
-Notes:
-- The address_family must be either "IPv4" or "IPv6".
-- The entries must be a valid JSON array of prefix filter entries.
-- The ge and le values are optional but must be within the range of the prefix length.
-
-```
 
 
 ## Usage

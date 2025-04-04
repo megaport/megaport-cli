@@ -6,15 +6,13 @@ Manage locations in the Megaport API
 
 Manage locations in the Megaport API.
 
-This command groups all operations related to locations. You can use its subcommands
-to list and get details for specific locations.
+This command groups all operations related to locations. You can use its subcommands to list and get details for specific locations.
 
-Examples:
-```
-megaport-cli locations list
-megaport-cli locations get [locationID]
+Example usage:
 
-```
+locations list
+locations get [locationID]
+
 
 
 ## Usage

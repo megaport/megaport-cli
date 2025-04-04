@@ -6,20 +6,12 @@ Get details for a single location
 
 Get details for a single location from the Megaport API.
 
-This command fetches and displays detailed information about a specific location.
-You need to provide the ID of the location as an argument.
+This command fetches and displays detailed information about a specific location. You need to provide the ID of the location as an argument.
 
 Example usage:
 
-```
-megaport-cli locations get 1
+get 1
 
-Example output:
-ID   Name        Metro       Country
----  ----------  ----------  -------
-1    Sydney 1    Sydney      Australia
-
-```
 
 
 ## Usage

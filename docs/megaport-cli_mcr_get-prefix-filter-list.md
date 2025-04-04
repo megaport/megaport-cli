@@ -6,14 +6,12 @@ Get details for a single prefix filter list on an MCR
 
 Get details for a single prefix filter list on an MCR.
 
-This command retrieves and displays detailed information about a specific prefix
-filter list on the specified MCR.
+This command retrieves and displays detailed information about a specific prefix filter list on the specified MCR.
 
 Example usage:
-```
-megaport-cli mcr get-prefix-filter-list [mcrUID] [prefixFilterListID]
 
-```
+get-prefix-filter-list [mcrUID] [prefixFilterListID]
+
 
 
 ## Usage

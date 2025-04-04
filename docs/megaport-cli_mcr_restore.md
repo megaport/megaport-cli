@@ -6,14 +6,12 @@ Restore a deleted MCR
 
 Restore a previously deleted MCR.
 
-This command allows you to restore a previously deleted MCR, provided it has not
-yet been fully decommissioned.
+This command allows you to restore a previously deleted MCR, provided it has not yet been fully decommissioned.
 
 Example usage:
-```
-megaport-cli mcr restore [mcrUID]
 
-```
+restore [mcrUID]
+
 
 
 ## Usage

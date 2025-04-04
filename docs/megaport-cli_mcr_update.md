@@ -7,45 +7,26 @@ Update an existing MCR
 Update an existing Megaport Cloud Router (MCR).
 
 This command allows you to update the details of an existing MCR.
-You can provide details in one of three ways:
 
-1. Interactive Mode (with --interactive):
-The command will prompt you for each field you want to update, showing the current value and allowing you to modify it.
+Optional fields:
+name: The new name of the MCR (1-64 characters)
+cost-centre: The new cost center for the MCR
+marketplace-visibility: Whether the MCR is visible in the marketplace (true/false)
+term: The new contract term in months (1, 12, 24, or 36)
 
-2. Flag Mode:
-Provide fields as flags:
---name, --cost-centre, --marketplace-visibility, --term
-Only specified flags will be updated; unspecified fields will remain unchanged.
-
-3. JSON Mode:
-Provide a JSON string or file with fields to update:
---json <json-string> or --json-file <path>
-Only fields present in the JSON will be updated; unspecified fields will remain unchanged.
-
-Fields that can be updated:
-- name: The new name of the MCR (1-64 characters).
-- cost_centre: The new cost center for the MCR.
-- marketplace_visibility: Whether the MCR is visible in the marketplace (true/false).
-- term: The new contract term in months (1, 12, 24, or 36).
+Important notes:
+- The MCR UID cannot be changed
+- Only specified fields will be updated; unspecified fields will remain unchanged
+- Ensure the JSON file is correctly formatted
 
 Example usage:
 
-### Interactive mode
-```
-megaport-cli mcr update [mcrUID] --interactive
+update [mcrUID] --interactive
+update [mcrUID] --name "Updated MCR" --marketplace-visibility true --cost-centre "Finance"
+update [mcrUID] --json '{"name":"Updated MCR","marketplaceVisibility":true,"costCentre":"Finance"}'
+update [mcrUID] --json-file ./update-mcr-config.json
 
-```
-### Flag mode
-```
-megaport-cli mcr update [mcrUID] --name "Updated MCR" --marketplace-visibility true --cost-centre "Finance"
-
-```
-### JSON mode
-```
-megaport-cli mcr update [mcrUID] --json '{"name":"Updated MCR","marketplaceVisibility":true,"costCentre":"Finance"}'
-megaport-cli mcr update [mcrUID] --json-file ./update-mcr-config.json
-
-JSON format example (update-mcr-config.json):
+JSON format example:
 {
 "name": "Updated MCR",
 "marketplaceVisibility": true,
@@ -53,12 +34,6 @@ JSON format example (update-mcr-config.json):
 "term": 24
 }
 
-Notes:
-- The MCR UID cannot be changed.
-- Only specified fields will be updated; unspecified fields will remain unchanged.
-- Ensure the JSON file is correctly formatted.
-
-```
 
 
 ## Usage

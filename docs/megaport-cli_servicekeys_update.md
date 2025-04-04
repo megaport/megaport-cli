@@ -6,17 +6,21 @@ Update an existing service key
 
 Update an existing service key for the Megaport API.
 
-This command allows you to modify the details of an existing service key.
-You need to specify the key identifier as an argument, and provide any updated values as flags.
+This command allows you to modify the details of an existing service key. You need to specify the key identifier as an argument, and provide any updated values as flags.
 
-Example:
-```
-megaport-cli servicekeys update a1b2c3d4-e5f6-7890-1234-567890abcdef --description "Updated description"
+Optional fields:
+product-id: Product ID for the service key
+single-use: Single-use service key
+active: Activate the service key
+description: Description for the service key
+product-uid: Product UID for the service key
 
-Example output:
-Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Description: Updated description
+Example usage:
 
-```
+update a1b2c3d4-e5f6-7890-1234-567890abcdef --description "Updated description"
+update a1b2c3d4-e5f6-7890-1234-567890abcdef --active
+update a1b2c3d4-e5f6-7890-1234-567890abcdef --product-uid "new-product-uid"
+
 
 
 ## Usage
@@ -25,15 +29,7 @@ Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Description: Updated description
 megaport-cli servicekeys update [key] [flags]
 ```
 
-## Examples
 
-```
-Example:
-megaport-cli servicekeys update a1b2c3d4-e5f6-7890-1234-567890abcdef --description "Updated description"
-
-Example output:
-  Key: a1b2c3d4-e5f6-7890-1234-567890abcdef  Description: Updated description
-```
 
 ## Parent Command
 

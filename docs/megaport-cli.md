@@ -4,16 +4,31 @@ A CLI tool to interact with the Megaport API
 
 ## Description
 
-A CLI tool to interact with the Megaport API.
+Megaport CLI provides a command line interface to interact with the Megaport API.
 
-This CLI supports the following features:
-- Locations: List and manage locations.
-- Ports: List all ports and get details for a specific port.
-- MCRs: Get details for Megaport Cloud Routers.
-- MVEs: Get details for Megaport Virtual Edge devices.
-- VXCs: Get details for Virtual Cross Connects.
-- Partner Ports: List and filter partner ports based on product name, connect type, company name, location ID, and diversity zone.
+The CLI allows you to manage Megaport resources such as ports, VXCs, MCRs, MVEs, service keys, and more.
 
+Optional fields:
+--help: Show help for any command
+--env: Environment to use (production, staging, development)
+--no-color: Disable colored output
+--output: Output format (json, yaml, table, csv, xml)
+
+Important notes:
+- Use the --help flag with any command to see specific usage information
+- Authentication is handled via the MEGAPORT_ACCESS_KEY and MEGAPORT_SECRET_KEY environment variables
+- By default, the CLI connects to the Megaport production environment
+- Set the MEGAPORT_ENDPOINT environment variable to connect to a different environment
+
+Example usage:
+
+```
+megaport-cli ports list
+megaport-cli vxc buy --interactive
+megaport-cli mcr get [mcrUID]
+megaport-cli locations list
+
+```
 
 
 ## Usage
@@ -33,10 +48,10 @@ megaport-cli [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 | `--env` | `-e` | `production` | Environment to use (production, staging, development) | false |
-| `--no-color` |  | `false` | Disable color output | false |
+| `--no-color` |  | `false` | Disable colorful output | false |
 | `--output` | `-o` | `table` | Output format (table, json, csv, xml) | false |
 | `--env` | `-e` | `production` | Environment to use (production, staging, development) | false |
-| `--no-color` |  | `false` | Disable color output | false |
+| `--no-color` |  | `false` | Disable colorful output | false |
 | `--output` | `-o` | `table` | Output format (table, json, csv, xml) | false |
 
 

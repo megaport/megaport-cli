@@ -6,29 +6,18 @@ Delete an MCR from your account
 
 Delete an MCR from your account.
 
-This command allows you to delete an MCR from your account. By default, the MCR
-will be scheduled for deletion at the end of the current billing period.
+This command allows you to delete an MCR from your account. By default, the MCR will be scheduled for deletion at the end of the current billing period.
 
-Flags:
---now: Delete the MCR immediately instead of at the end of the billing period.
---force, -f: Skip the confirmation prompt and proceed with deletion.
+Optional fields:
+now: Delete the MCR immediately instead of at the end of the billing period
+force: Skip the confirmation prompt and proceed with deletion
 
 Example usage:
-### Delete MCR at the end of the billing period with confirmation
-```
-megaport-cli mcr delete [mcrUID]
 
-```
-### Delete MCR immediately with confirmation
-```
-megaport-cli mcr delete [mcrUID] --now
+delete [mcrUID]
+delete [mcrUID] --now
+delete [mcrUID] --now --force
 
-```
-### Delete MCR immediately without confirmation
-```
-megaport-cli mcr delete [mcrUID] --now --force
-
-```
 
 
 ## Usage

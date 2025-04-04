@@ -6,23 +6,15 @@ Check if a VLAN is available on a port
 
 Check if a VLAN is available on a port in the Megaport API.
 
-This command verifies whether a specific VLAN ID is available for use on a port.
-This is useful when planning new VXCs to ensure the VLAN ID you want to use is not
-already in use by another connection.
+This command verifies whether a specific VLAN ID is available for use on a port. This is useful when planning new VXCs to ensure the VLAN ID you want to use is not already in use by another connection.
 
 VLAN ID must be between 2 and 4094 (inclusive).
 
 Example usage:
 
-```
-megaport-cli ports check-vlan 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p 100
+check-vlan 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p 100
+check-vlan port-abc123 500
 
-Example outputs:
-VLAN 100 is available on port 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
-
-VLAN 100 is not available on port 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
-
-```
 
 
 ## Usage
