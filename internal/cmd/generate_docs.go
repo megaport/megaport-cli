@@ -56,24 +56,8 @@ type CommandData struct {
 var genDocsCmd = &cobra.Command{
 	Use:   "generate-docs [directory]",
 	Short: "Generate markdown documentation for the CLI",
-	Long: `Generate comprehensive markdown documentation for the Megaport CLI.
-
-This command will extract all command metadata, examples, and annotations
-to create a set of markdown files that document the entire CLI interface.
-
-The documentation is organized by command hierarchy, with each command
-generating its own markdown file containing:
-- Command description
-- Usage examples
-- Available flags
-- Subcommands list
-- Input/output formats (where applicable)
-
-Example usage:
-  megaport-cli generate-docs ./docs
-`,
-	Args: cobra.ExactArgs(1),
-	RunE: WrapRunE(generateDocs),
+	Args:  cobra.ExactArgs(1),
+	RunE:  WrapRunE(generateDocs),
 }
 
 func generateDocs(cmd *cobra.Command, args []string) error {
@@ -405,5 +389,21 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 }
 
 func init() {
+	// Set up help builder for the generate-docs command
+	genDocsHelp := &CommandHelpBuilder{
+		CommandName: "megaport-cli generate-docs",
+		ShortDesc:   "Generate markdown documentation for the CLI",
+		LongDesc:    "Generate comprehensive markdown documentation for the Megaport CLI.\n\nThis command will extract all command metadata, examples, and annotations to create a set of markdown files that document the entire CLI interface.\n\nThe documentation is organized by command hierarchy, with each command generating its own markdown file containing:\n- Command description\n- Usage examples\n- Available flags\n- Subcommands list\n- Input/output formats (where applicable)",
+		Examples: []string{
+			"generate-docs ./docs",
+		},
+		ImportantNotes: []string{
+			"The output directory will be created if it doesn't exist",
+			"Existing files in the output directory may be overwritten",
+			"Hidden commands and 'help' commands are excluded from the documentation",
+		},
+	}
+	genDocsCmd.Long = genDocsHelp.Build()
+
 	rootCmd.AddCommand(genDocsCmd)
 }

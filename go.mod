@@ -5,6 +5,7 @@ go 1.21
 require (
 	github.com/fatih/color v1.18.0
 	github.com/megaport/megaportgo v1.3.2
+	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
 	github.com/stretchr/testify v1.10.0

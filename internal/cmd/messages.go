@@ -11,20 +11,20 @@ import (
 // PrintSuccess prints a success message with green color and a checkmark
 func PrintSuccess(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	if !noColor {
+	if noColor {
+		fmt.Printf("✓ %s\n", msg)
+	} else {
 		fmt.Print(color.GreenString("✓ "))
 		fmt.Println(msg)
-	} else {
-		fmt.Printf("✓ %s\n", msg)
 	}
 }
 
 // FormatSuccess returns a formatted success string
 func FormatSuccess(msg string) string {
-	if !noColor {
-		return color.GreenString("successfully")
+	if noColor {
+		return "successfully"
 	}
-	return "successfully"
+	return color.GreenString("successfully")
 }
 
 // PrintResourceSuccess prints a success message for a resource operation
@@ -61,50 +61,50 @@ func PrintResourceDeleted(resourceType, uid string, immediate bool) {
 // PrintError prints an error message with red color
 func PrintError(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	if !noColor {
+	if noColor {
+		fmt.Printf("✗ %s\n", msg)
+	} else {
 		fmt.Print(color.RedString("✗ "))
 		fmt.Println(msg)
-	} else {
-		fmt.Printf("✗ %s\n", msg)
 	}
 }
 
 // PrintWarning prints a warning message with yellow color
 func PrintWarning(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	if !noColor {
+	if noColor {
+		fmt.Printf("⚠ %s\n", msg)
+	} else {
 		fmt.Print(color.YellowString("⚠ "))
 		fmt.Println(msg)
-	} else {
-		fmt.Printf("⚠ %s\n", msg)
 	}
 }
 
 // PrintInfo prints an info message with blue color
 func PrintInfo(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	if !noColor {
+	if noColor {
+		fmt.Printf("ℹ %s\n", msg)
+	} else {
 		fmt.Print(color.BlueString("ℹ "))
 		fmt.Println(msg)
-	} else {
-		fmt.Printf("ℹ %s\n", msg)
 	}
 }
 
 // FormatConfirmation returns a formatted confirmation prompt
 func FormatConfirmation(msg string) string {
-	if !noColor {
-		return fmt.Sprintf("%s %s", msg, color.YellowString("[y/N]"))
+	if noColor {
+		return fmt.Sprintf("%s [y/N]", msg)
 	}
-	return fmt.Sprintf("%s [y/N]", msg)
+	return fmt.Sprintf("%s %s", msg, color.YellowString("[y/N]"))
 }
 
 // FormatPrompt returns a formatted input prompt
 func FormatPrompt(msg string) string {
-	if !noColor {
-		return color.BlueString(msg)
+	if noColor {
+		return msg
 	}
-	return msg
+	return color.BlueString(msg)
 }
 
 // FormatExample colorizes command examples in help text
@@ -148,7 +148,6 @@ func FormatJSONExample(json string) string {
 }
 
 func colorizeStatus(status string) string {
-	// Use no-color flag to disable colors if requested
 	if noColor {
 		return status
 	}
@@ -158,7 +157,6 @@ func colorizeStatus(status string) string {
 	// Green for ready/active states
 	switch upperStatus {
 	case "CONFIGURED", "LIVE", "ACTIVE", "SUCCESS", "NEW":
-		// Aligned with SERVICE_CONFIGURED, SERVICE_LIVE, and SERVICE_STATE_READY
 		return color.GreenString(status)
 
 	// Yellow for in-progress states
@@ -167,7 +165,6 @@ func colorizeStatus(status string) string {
 
 	// Red for error/terminated states
 	case "DECOMMISSIONED", "CANCELLED", "ERROR", "FAILED", "INACTIVE", "REJECTED", "RESTRICTED":
-		// Aligned with STATUS_DECOMMISSIONED, STATUS_CANCELLED
 		return color.RedString(status)
 
 	// Blue for informational states
@@ -187,8 +184,8 @@ func formatUID(uid string) string {
 	return color.CyanString(uid)
 }
 
+// stripANSIColors removes ANSI color codes from a string
 func stripANSIColors(s string) string {
-	// This regex matches ANSI color codes
-	re := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	re := regexp.MustCompile("\x1b\\[[0-9;]*m")
 	return re.ReplaceAllString(s, "")
 }
