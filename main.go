@@ -1,7 +1,7 @@
 package main
 
-import "github.com/megaport/megaport-cli/internal/cmd"
+import "github.com/megaport/megaport-cli/cmd/megaport"
 
 func main() {
-	cmd.Execute()
+	megaport.Execute()
 }
