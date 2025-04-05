@@ -12,12 +12,12 @@ Required fields:
 product-uid: Product UID for the service key
 
 Optional fields:
-start-date: Start date for the service key (YYYY-MM-DD)
-end-date: End date for the service key (YYYY-MM-DD)
 product-id: Product ID for the service key
 single-use: Single-use service key
 max-speed: Maximum speed for the service key
 description: Description for the service key
+start-date: Start date for the service key (YYYY-MM-DD)
+end-date: End date for the service key (YYYY-MM-DD)
 
 Example usage:
 

@@ -15,10 +15,10 @@ port-speed: The speed of the MCR (1000, 2500, 5000, or 10000 Mbps)
 location-id: The ID of the location where the MCR will be provisioned
 
 Optional fields:
-diversity-zone: The diversity zone for the MCR
 cost-centre: The cost center for billing purposes
 promo-code: A promotional code for discounts
 mcr-asn: The ASN for the MCR (64512-65534 for private ASN, or a public ASN)
+diversity-zone: The diversity zone for the MCR
 
 Important notes:
 - The location_id must correspond to a valid location in the Megaport API

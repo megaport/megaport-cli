@@ -9,11 +9,11 @@ Purchase a new Megaport Virtual Edge (MVE) device through the Megaport API.
 This command allows you to purchase an MVE by providing the necessary details.
 
 Required fields:
-name: The name of the MVE
-term: The term of the MVE (1, 12, 24, or 36 months)
 location-id: The ID of the location where the MVE will be provisioned
 vendor-config: JSON string with vendor-specific configuration (for flag mode)
 vnics: JSON array of network interfaces (for flag mode)
+name: The name of the MVE
+term: The term of the MVE (1, 12, 24, or 36 months)
 
 Optional fields:
 diversity-zone: The diversity zone for the MVE

@@ -9,19 +9,19 @@ Update an existing Virtual Cross Connect (VXC) through the Megaport API.
 This command allows you to update an existing VXC by providing the necessary details.
 
 Optional fields:
-term: New contract term in months (1, 12, 24, or 36)
-cost-centre: New cost centre for billing
-a-end-inner-vlan: New inner VLAN for A-End (-1 or higher, only for QinQ)
-b-end-inner-vlan: New inner VLAN for B-End (-1 or higher, only for QinQ)
-b-end-partner-config: JSON string with B-End VRouter partner configuration
-a-end-uid: New A-End product UID
 b-end-uid: New B-End product UID
-a-end-partner-config: JSON string with A-End VRouter partner configuration
 name: New name for the VXC (1-64 characters)
-rate-limit: New bandwidth in Mbps (50 - 10000)
+cost-centre: New cost centre for billing
 shutdown: Whether to shut down the VXC (true/false)
 a-end-vlan: New VLAN for A-End (2-4093, except 4090)
 b-end-vlan: New VLAN for B-End (2-4093, except 4090)
+a-end-inner-vlan: New inner VLAN for A-End (-1 or higher, only for QinQ)
+a-end-uid: New A-End product UID
+a-end-partner-config: JSON string with A-End VRouter partner configuration
+b-end-partner-config: JSON string with B-End VRouter partner configuration
+rate-limit: New bandwidth in Mbps (50 - 10000)
+term: New contract term in months (1, 12, 24, or 36)
+b-end-inner-vlan: New inner VLAN for B-End (-1 or higher, only for QinQ)
 
 Important notes:
 - Only VRouter partner configurations can be updated after creation

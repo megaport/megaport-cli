@@ -9,10 +9,10 @@ Update a port's details in the Megaport API.
 This command allows you to update the details of an existing port by providing the necessary fields.
 
 Optional fields:
+term: The new contract term in months (1, 12, 24, or 36)
 name: The new name of the port (1-64 characters)
 marketplace-visibility: Whether the port should be visible in the marketplace (true or false)
 cost-centre: The cost center for billing purposes
-term: The new contract term in months (1, 12, 24, or 36)
 
 Important notes:
 - The port UID cannot be changed
