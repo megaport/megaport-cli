@@ -9,9 +9,9 @@ Update a prefix filter list on an MCR.
 This command allows you to update the details of an existing prefix filter list on an MCR. You can use this command to modify the description, address family, or entries in the list.
 
 Optional fields:
+entries: JSON array of prefix filter entries
 description: The new description of the prefix filter list (1-255 characters)
 address-family: The new address family (IPv4 or IPv6)
-entries: JSON array of prefix filter entries
 
 Example usage:
 

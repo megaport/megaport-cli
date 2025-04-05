@@ -9,16 +9,16 @@ Buy a port through the Megaport API.
 This command allows you to purchase a port by providing the necessary details.
 
 Required fields:
+marketplace-visibility: Whether the port should be visible in the marketplace (true or false)
 name: The name of the port (1-64 characters)
 term: The term of the port (1, 12, 24, or 36 months)
 port-speed: The speed of the port (1000, 10000, or 100000 Mbps)
 location-id: The ID of the location where the port will be provisioned
-marketplace-visibility: Whether the port should be visible in the marketplace (true or false)
 
 Optional fields:
+diversity-zone: The diversity zone for the port
 cost-centre: The cost center for the port
 promo-code: A promotional code for the port
-diversity-zone: The diversity zone for the port
 
 Example usage:
 

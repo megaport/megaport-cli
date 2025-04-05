@@ -9,11 +9,11 @@ List all partner ports available in the Megaport API.
 This command fetches and displays a list of all available partner ports. You can filter the partner ports based on specific criteria.
 
 Optional fields:
+connect-type: Filter partner ports by connect type
+company-name: Filter partner ports by company name
 location-id: Filter partner ports by location ID
 diversity-zone: Filter partner ports by diversity zone
 product-name: Filter partner ports by product name
-connect-type: Filter partner ports by connect type
-company-name: Filter partner ports by company name
 
 Important notes:
 - The list can be filtered by multiple criteria at once

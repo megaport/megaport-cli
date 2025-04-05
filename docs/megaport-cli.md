@@ -9,10 +9,10 @@ Megaport CLI provides a command line interface to interact with the Megaport API
 The CLI allows you to manage Megaport resources such as ports, VXCs, MCRs, MVEs, service keys, and more.
 
 Optional fields:
---help: Show help for any command
---env: Environment to use (production, staging, development)
 --no-color: Disable colored output
 --output: Output format (json, yaml, table, csv, xml)
+--help: Show help for any command
+--env: Environment to use (production, staging, development)
 
 Important notes:
 - Use the --help flag with any command to see specific usage information
@@ -47,10 +47,10 @@ megaport-cli [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| `--env` | `-e` | `production` | Environment to use (production, staging, development) | false |
+| `--env` |  |  | Environment to use (prod, dev, or staging) | false |
 | `--no-color` |  | `false` | Disable colorful output | false |
 | `--output` | `-o` | `table` | Output format (table, json, csv, xml) | false |
-| `--env` | `-e` | `production` | Environment to use (production, staging, development) | false |
+| `--env` |  |  | Environment to use (prod, dev, or staging) | false |
 | `--no-color` |  | `false` | Disable colorful output | false |
 | `--output` | `-o` | `table` | Output format (table, json, csv, xml) | false |
 

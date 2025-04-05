@@ -10,6 +10,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/help"
 	"github.com/megaport/megaport-cli/internal/base/output"
+	"github.com/megaport/megaport-cli/internal/commands/megaport"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -83,6 +84,7 @@ func generateIndex(root *cobra.Command, outputDir string) error {
 	var commands []CommandInfo
 	collectCommands(root, "", &commands)
 
+	version = megaport.GetGitVersion()
 	data := IndexData{
 		Commands:    commands,
 		GeneratedAt: time.Now().Format("January 2, 2006"),

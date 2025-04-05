@@ -9,24 +9,24 @@ Purchase a new Virtual Cross Connect (VXC) through the Megaport API.
 This command allows you to purchase a VXC by providing the necessary details.
 
 Required fields:
+a-end-vlan: VLAN for A-End (2-4093, except 4090)
 a-end-uid: UID of the A-End product (Port, MCR, MVE)
 name: Name of the VXC (1-64 characters)
 rate-limit: Bandwidth in Mbps (50 - 10000)
 term: Contract term in months (1, 12, 24, or 36)
-a-end-vlan: VLAN for A-End (2-4093, except 4090)
 
 Optional fields:
+a-end-vnic-index: vNIC index for A-End MVE (required for MVE A-End)
+b-end-partner-config: JSON string with B-End partner configuration (for CSPs like AWS, Azure)
 b-end-uid: UID of the B-End product (if connecting to non-partner)
 b-end-vlan: VLAN for B-End (2-4093, except 4090)
 a-end-inner-vlan: Inner VLAN for A-End (-1 or higher, only for QinQ)
 b-end-inner-vlan: Inner VLAN for B-End (-1 or higher, only for QinQ)
-b-end-vnic-index: vNIC index for B-End MVE (required for MVE B-End)
 a-end-partner-config: JSON string with A-End partner configuration (for VRouter)
-a-end-vnic-index: vNIC index for A-End MVE (required for MVE A-End)
+b-end-vnic-index: vNIC index for B-End MVE (required for MVE B-End)
 promo-code: Promotional code
 service-key: Service key
 cost-centre: Cost centre
-b-end-partner-config: JSON string with B-End partner configuration (for CSPs like AWS, Azure)
 
 Important notes:
 - For AWS connections, you must provide owner account, ASN, and Amazon ASN in b-end-partner-config
