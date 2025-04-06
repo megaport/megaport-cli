@@ -12,6 +12,3 @@
 *.so
 *.test
 *.out
-
-# Ignore the built megaport binary
-megaport
