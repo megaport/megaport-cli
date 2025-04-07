@@ -8,11 +8,11 @@ Delete an MCR from your account.
 
 This command allows you to delete an MCR from your account. By default, the MCR will be scheduled for deletion at the end of the current billing period.
 
-Optional fields:
-  force: Skip the confirmation prompt and proceed with deletion
-  now: Delete the MCR immediately instead of at the end of the billing period
+### Optional Fields
+  - `force`: Skip the confirmation prompt and proceed with deletion
+  - `now`: Delete the MCR immediately instead of at the end of the billing period
 
-Example usage:
+### Example Usage
 
 ```
   delete [mcrUID]

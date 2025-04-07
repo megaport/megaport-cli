@@ -8,13 +8,13 @@ Manage Megaport Virtual Edge (MVE) devices.
 
 This command groups all operations related to Megaport Virtual Edge devices (MVEs). MVEs are virtual networking appliances that run in the Megaport network, providing software-defined networking capabilities from various vendors.
 
-Important notes:
+### Important Notes
   - With MVEs you can deploy virtual networking appliances without physical hardware
   - Create secure connections between cloud services
   - Implement SD-WAN solutions across multiple regions
   - Run vendor-specific networking software in Megaport's infrastructure
 
-Example usage:
+### Example Usage
 
 ```
   mve list

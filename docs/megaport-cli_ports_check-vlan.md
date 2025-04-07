@@ -10,7 +10,7 @@ This command verifies whether a specific VLAN ID is available for use on a port.
 
 VLAN ID must be between 2 and 4094 (inclusive).
 
-Example usage:
+### Example Usage
 
 ```
   check-vlan 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p 100

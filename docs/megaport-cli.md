@@ -8,19 +8,19 @@ Megaport CLI provides a command line interface to interact with the Megaport API
 
 The CLI allows you to manage Megaport resources such as ports, VXCs, MCRs, MVEs, service keys, and more.
 
-Optional fields:
-  --env: Environment to use (production, staging, development)
-  --help: Show help for any command
-  --no-color: Disable colored output
-  --output: Output format (json, yaml, table, csv, xml)
+### Optional Fields
+  - `--env`: Environment to use (production, staging, development)
+  - `--help`: Show help for any command
+  - `--no-color`: Disable colored output
+  - `--output`: Output format (json, yaml, table, csv, xml)
 
-Important notes:
+### Important Notes
   - Use the --help flag with any command to see specific usage information
   - Authentication is handled via the MEGAPORT_ACCESS_KEY and MEGAPORT_SECRET_KEY environment variables
   - By default, the CLI connects to the Megaport production environment
   - Set the MEGAPORT_ENDPOINT environment variable to connect to a different environment
 
-Example usage:
+### Example Usage
 
 ```
   megaport-cli ports list

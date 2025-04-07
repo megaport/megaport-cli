@@ -8,7 +8,7 @@ Manage locations in the Megaport API.
 
 This command groups all operations related to locations. You can use its subcommands to list and get details for specific locations.
 
-Example usage:
+### Example Usage
 
 ```
   locations list

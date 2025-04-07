@@ -8,7 +8,7 @@ Get details for a single port from the Megaport API.
 
 This command fetches and displays detailed information about a specific port. You need to provide the UID of the port as an argument.
 
-Example usage:
+### Example Usage
 
 ```
   get port-abc123

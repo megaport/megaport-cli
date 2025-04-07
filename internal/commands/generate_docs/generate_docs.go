@@ -167,6 +167,7 @@ func generateCommandDocs(cmd *cobra.Command, outputDir, parentPath string) error
 
 	return nil
 }
+
 func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 	f, err := os.Create(outputPath)
 	if err != nil {
@@ -273,18 +274,95 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		inExampleSection := false
 		inJsonSection := false
 		lineAfterExampleHeader := false
+		inRequiredFields := false
+		inOptionalFields := false
+		inImportantNotes := false
 
-		for _, line := range lines {
+		for i, line := range lines {
 			trimLine := strings.TrimSpace(line)
 
-			// Detect start of examples section
-			if strings.Contains(strings.ToLower(trimLine), "example") &&
-				(strings.HasSuffix(trimLine, ":") ||
-					strings.HasSuffix(trimLine, "usage:") ||
-					strings.HasPrefix(trimLine, "example")) {
+			// Convert section headers to level 3 headers
+			if trimLine == "Required fields:" {
+				inRequiredFields = true
+				inOptionalFields = false
+				inImportantNotes = false
+				// Replace with level 3 header
+				formattedLines = append(formattedLines, "### Required Fields")
+				continue
+			} else if trimLine == "Optional fields:" {
+				inRequiredFields = false
+				inOptionalFields = true
+				inImportantNotes = false
+				// Replace with level 3 header
+				formattedLines = append(formattedLines, "### Optional Fields")
+				continue
+			} else if trimLine == "Important notes:" {
+				inRequiredFields = false
+				inOptionalFields = false
+				inImportantNotes = true
+				// Replace with level 3 header
+				formattedLines = append(formattedLines, "### Important Notes")
+				continue
+			} else if trimLine == "Example usage:" || trimLine == "Examples:" {
+				inRequiredFields = false
+				inOptionalFields = false
+				inImportantNotes = false
 				inExampleSection = true
 				lineAfterExampleHeader = true
-				formattedLines = append(formattedLines, line) // Add the header line
+				// Replace with level 3 header
+				formattedLines = append(formattedLines, "### Example Usage")
+				continue
+			} else if trimLine == "JSON format example:" {
+				inRequiredFields = false
+				inOptionalFields = false
+				inImportantNotes = false
+				// Replace with level 3 header
+				formattedLines = append(formattedLines, "### JSON Format Example")
+
+				if inExampleBlock {
+					formattedLines = append(formattedLines, "```") // Close previous code block
+				}
+
+				formattedLines = append(formattedLines, "```json") // Start JSON code block
+				inExampleBlock = true
+				inJsonSection = true
+				inExampleSection = true
+				continue
+			}
+
+			// Process field entries with bullets and backticks
+			if (inRequiredFields || inOptionalFields) && strings.TrimSpace(line) != "" &&
+				!strings.HasPrefix(trimLine, "Required fields:") &&
+				!strings.HasPrefix(trimLine, "Optional fields:") {
+
+				// Check if this line defines a field
+				if strings.Contains(trimLine, ":") {
+					parts := strings.SplitN(trimLine, ":", 2)
+					if len(parts) == 2 {
+						fieldName := strings.TrimSpace(parts[0])
+						fieldDesc := strings.TrimSpace(parts[1])
+
+						// Format with bullets, backticks and preserve indentation
+						leadingSpaces := len(line) - len(strings.TrimLeft(line, " "))
+						spacePadding := strings.Repeat(" ", leadingSpaces)
+						formattedLines = append(formattedLines,
+							fmt.Sprintf("%s- `%s`: %s", spacePadding, fieldName, fieldDesc))
+						continue
+					}
+				}
+			}
+
+			// Process important notes with bullets
+			if inImportantNotes && strings.TrimSpace(line) != "" &&
+				!strings.HasPrefix(trimLine, "Important notes:") {
+				// Format with bullets
+				leadingSpaces := len(line) - len(strings.TrimLeft(line, " "))
+				spacePadding := strings.Repeat(" ", leadingSpaces)
+				if !strings.HasPrefix(trimLine, "-") {
+					formattedLines = append(formattedLines, fmt.Sprintf("%s- %s", spacePadding, trimLine))
+				} else {
+					formattedLines = append(formattedLines, line)
+				}
 				continue
 			}
 
@@ -322,19 +400,6 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 				inExampleSection = false
 			}
 
-			// Handle JSON format example section
-			if trimLine == "JSON format example:" || strings.HasPrefix(trimLine, "JSON format example") {
-				if inExampleBlock {
-					formattedLines = append(formattedLines, "```") // Close previous code block
-				}
-				formattedLines = append(formattedLines, line)      // Add the header line
-				formattedLines = append(formattedLines, "```json") // Start JSON code block
-				inExampleBlock = true
-				inJsonSection = true
-				inExampleSection = true
-				continue
-			}
-
 			// Detect command examples - cover more patterns
 			isExampleLine := strings.HasPrefix(trimLine, "megaport-cli") ||
 				(cmd.Name() == "buy" && strings.HasPrefix(trimLine, "buy")) ||
@@ -354,8 +419,8 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 			if inExampleBlock && trimLine == "" && inExampleSection {
 				// Check if this is followed by a non-example line
 				hasMoreExamples := false
-				for i := len(formattedLines); i < len(lines); i++ {
-					nextLine := strings.TrimSpace(lines[i])
+				for j := i + 1; j < len(lines); j++ {
+					nextLine := strings.TrimSpace(lines[j])
 					if strings.HasPrefix(nextLine, "megaport-cli") ||
 						(cmd.Name() == "buy" && strings.HasPrefix(nextLine, "buy")) ||
 						strings.Contains(nextLine, "--") {
@@ -371,7 +436,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 				}
 			}
 
-			// Add the line to the output
+			// Add the line to the output (if we didn't already handle it)
 			formattedLines = append(formattedLines, line)
 		}
 

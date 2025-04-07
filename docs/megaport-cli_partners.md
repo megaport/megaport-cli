@@ -8,7 +8,7 @@ Manage partner ports in the Megaport API.
 
 This command groups all operations related to partner ports. You can use its subcommands to list and filter available partner ports based on specific criteria.
 
-Example usage:
+### Example Usage
 
 ```
   partners find

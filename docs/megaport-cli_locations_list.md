@@ -8,12 +8,12 @@ List all locations available in the Megaport API.
 
 This command fetches and displays a list of all available locations with details such as location ID, name, country, and metro. You can also filter the locations based on specific criteria.
 
-Optional fields:
-  country: Filter locations by country
-  metro: Filter locations by metro area
-  name: Filter locations by name
+### Optional Fields
+  - `country`: Filter locations by country
+  - `metro`: Filter locations by metro area
+  - `name`: Filter locations by name
 
-Example usage:
+### Example Usage
 
 ```
   list

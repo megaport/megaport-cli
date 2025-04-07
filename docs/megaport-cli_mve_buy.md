@@ -8,33 +8,33 @@ Purchase a new Megaport Virtual Edge (MVE) device through the Megaport API.
 
 This command allows you to purchase an MVE by providing the necessary details.
 
-Required fields:
-  location-id: The ID of the location where the MVE will be provisioned
-  name: The name of the MVE
-  term: The term of the MVE (1, 12, 24, or 36 months)
-  vendor-config: JSON string with vendor-specific configuration (for flag mode)
-  vnics: JSON array of network interfaces (for flag mode)
+### Required Fields
+  - `location-id`: The ID of the location where the MVE will be provisioned
+  - `name`: The name of the MVE
+  - `term`: The term of the MVE (1, 12, 24, or 36 months)
+  - `vendor-config`: JSON string with vendor-specific configuration (for flag mode)
+  - `vnics`: JSON array of network interfaces (for flag mode)
 
-Optional fields:
-  cost-centre: Cost centre for billing
-  diversity-zone: The diversity zone for the MVE
-  promo-code: Promotional code for discounts
+### Optional Fields
+  - `cost-centre`: Cost centre for billing
+  - `diversity-zone`: The diversity zone for the MVE
+  - `promo-code`: Promotional code for discounts
 
-Important notes:
+### Important Notes
   - For production deployments, you may want to use a JSON file to manage complex configurations
   - To list available images and their IDs, use: megaport-cli mve list-images
   - To list available sizes, use: megaport-cli mve list-sizes
   - Location IDs can be retrieved with: megaport-cli locations list
 
-Example usage:
+### Example Usage
 
 ```
   buy --interactive
   buy --json '{"name":"My MVE","term":12,"locationId":123,"vendorConfig":{"vendor":"cisco","imageId":123,"productSize":"MEDIUM"},"vnics":[{"description":"Data Plane","vlan":100}]}'
   buy --json-file ./mve-config.json
 ```
-JSON format example:
-```
+### JSON Format Example
+```json
 {
   "name": "My MVE Display Name",
   "term": 12,
@@ -57,6 +57,7 @@ JSON format example:
     {"description": "Management", "vlan": 200}
   ]
 }
+
 ```
 
 

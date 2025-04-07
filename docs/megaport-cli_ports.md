@@ -8,7 +8,7 @@ Manage ports in the Megaport API.
 
 This command groups operations related to ports. You can use the subcommands to list all ports, get details for a specific port, buy a new port, buy a LAG port, update an existing port, delete a port, restore a deleted port, lock a port, unlock a port, and check VLAN availability on a port.
 
-Example usage:
+### Example Usage
 
 ```
   ports list

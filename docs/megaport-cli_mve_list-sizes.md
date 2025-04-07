@@ -8,11 +8,11 @@ List all available MVE sizes from the Megaport API.
 
 This command fetches and displays details about all available MVE instance sizes. The size you select determines the MVE's capabilities and compute resources.
 
-Important notes:
+### Important Notes
   - Standard MVE sizes available across most vendors: SMALL (2 vCPU, 8GB RAM), MEDIUM (4 vCPU, 16GB RAM), LARGE (8 vCPU, 32GB RAM), X_LARGE_12 (12 vCPU, 48GB RAM)
   - Not all sizes are available for all vendor images. Check the image details using 'megaport-cli mve list-images' for size compatibility
 
-Example usage:
+### Example Usage
 
 ```
   list-sizes

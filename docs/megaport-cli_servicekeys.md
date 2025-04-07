@@ -8,7 +8,7 @@ Manage service keys for the Megaport API.
 
 This command groups all operations related to service keys. You can use its subcommands to create, update, list, and get details of service keys.
 
-Example usage:
+### Example Usage
 
 ```
   servicekeys list

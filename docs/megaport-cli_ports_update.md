@@ -8,19 +8,19 @@ Update a port's details in the Megaport API.
 
 This command allows you to update the details of an existing port by providing the necessary fields.
 
-Optional fields:
-  cost-centre: The cost center for billing purposes
-  marketplace-visibility: Whether the port should be visible in the marketplace (true or false)
-  name: The new name of the port (1-64 characters)
-  term: The new contract term in months (1, 12, 24, or 36)
+### Optional Fields
+  - `cost-centre`: The cost center for billing purposes
+  - `marketplace-visibility`: Whether the port should be visible in the marketplace (true or false)
+  - `name`: The new name of the port (1-64 characters)
+  - `term`: The new contract term in months (1, 12, 24, or 36)
 
-Important notes:
+### Important Notes
   - The port UID cannot be changed
   - Technical specifications (speed, location) cannot be modified
   - Connectivity (VXCs) will not be affected by these changes
   - Changing the contract term may affect billing immediately
 
-Example usage:
+### Example Usage
 
 ```
   update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --interactive
@@ -28,14 +28,15 @@ Example usage:
   update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json '{"name":"Main Data Center Port","marketplaceVisibility":false}'
   update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json-file ./update-port-config.json
 ```
-JSON format example:
-```
+### JSON Format Example
+```json
 {
   "name": "Main Data Center Port",
   "marketplaceVisibility": false,
   "costCentre": "IT-Network-2023",
   "term": 24
 }
+
 ```
 
 

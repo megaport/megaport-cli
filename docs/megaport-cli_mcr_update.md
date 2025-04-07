@@ -8,18 +8,18 @@ Update an existing Megaport Cloud Router (MCR).
 
 This command allows you to update the details of an existing MCR.
 
-Optional fields:
-  cost-centre: The new cost center for the MCR
-  marketplace-visibility: Whether the MCR is visible in the marketplace (true/false)
-  name: The new name of the MCR (1-64 characters)
-  term: The new contract term in months (1, 12, 24, or 36)
+### Optional Fields
+  - `cost-centre`: The new cost center for the MCR
+  - `marketplace-visibility`: Whether the MCR is visible in the marketplace (true/false)
+  - `name`: The new name of the MCR (1-64 characters)
+  - `term`: The new contract term in months (1, 12, 24, or 36)
 
-Important notes:
+### Important Notes
   - The MCR UID cannot be changed
   - Only specified fields will be updated; unspecified fields will remain unchanged
   - Ensure the JSON file is correctly formatted
 
-Example usage:
+### Example Usage
 
 ```
   update [mcrUID] --interactive
@@ -27,14 +27,15 @@ Example usage:
   update [mcrUID] --json '{"name":"Updated MCR","marketplaceVisibility":true,"costCentre":"Finance"}'
   update [mcrUID] --json-file ./update-mcr-config.json
 ```
-JSON format example:
-```
+### JSON Format Example
+```json
 {
   "name": "Updated MCR",
   "marketplaceVisibility": true,
   "costCentre": "Finance",
   "term": 24
 }
+
 ```
 
 
