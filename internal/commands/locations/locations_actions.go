@@ -126,7 +126,7 @@ func GetLocation(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 
 	// output.Print the filtered location.
 	if len(filteredLocations) == 0 {
-		output.PrintWarning("No location found with %s", noColor, searchCriteria, noColor)
+		output.PrintWarning("No location found with %s", noColor, searchCriteria)
 		return fmt.Errorf("no location found with %s", searchCriteria)
 	}
 

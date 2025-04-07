@@ -24,6 +24,21 @@ var (
 	ValidFormats = []string{FormatTable, FormatJSON, FormatCSV, FormatXML}
 )
 
+func ShouldDisableColors() bool {
+	// Check if NO_COLOR environment variable is set (standard for disabling color)
+	_, noColorEnv := os.LookupEnv("NO_COLOR")
+
+	// Check raw command line args - more reliable with --help
+	for _, arg := range os.Args {
+		if arg == "--no-color" || arg == "-no-color" {
+			return true
+		}
+	}
+
+	// Finally check the global variable
+	return NoColor || noColorEnv
+}
+
 func GetCurrentEnv() string {
 	if Env == "" {
 		return "prod" // Default to production if not specified

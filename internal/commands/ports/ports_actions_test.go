@@ -13,8 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var noColor = true
-
 // Function to adapt our old tests to work with new wrapCommandFunc signature
 func testCommandAdapter(fn func(cmd *cobra.Command, args []string, noColor bool) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
@@ -289,6 +287,7 @@ func TestListPortsCmd_WithMockClient(t *testing.T) {
 					// Apply filters
 					filtered := filterPorts(ports, locationID, portSpeed, portName)
 
+					noColor := true
 					// Print with current format
 					return printPorts(filtered, tt.format, noColor)
 				},
