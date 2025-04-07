@@ -21,7 +21,7 @@ VLAN ID must be between 2 and 4094 (inclusive).
 ## Usage
 
 ```
-megaport-cli ports check-vlan [portUID] [vlan] [flags]
+megaport-cli ports check-vlan [flags]
 ```
 
 

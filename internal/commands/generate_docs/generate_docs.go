@@ -9,14 +9,12 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/megaport/megaport-cli/internal/base/help"
+	"github.com/megaport/megaport-cli/internal/base/cmdbuilder"
 	"github.com/megaport/megaport-cli/internal/base/output"
-	"github.com/megaport/megaport-cli/internal/commands/megaport"
+	"github.com/megaport/megaport-cli/internal/commands/version"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
-
-var version string
 
 type CommandInfo struct {
 	Name        string
@@ -85,11 +83,11 @@ func generateIndex(root *cobra.Command, outputDir string) error {
 	var commands []CommandInfo
 	collectCommands(root, "", &commands)
 
-	version = megaport.GetGitVersion()
+	v := version.GetGitVersion()
 	data := IndexData{
 		Commands:    commands,
 		GeneratedAt: time.Now().Format("January 2, 2006"),
-		Version:     version,
+		Version:     v,
 	}
 
 	// Create index file
@@ -178,14 +176,27 @@ func collectFlags(cmd *cobra.Command) ([]FlagInfo, []FlagInfo, []FlagInfo) {
 		// Get the flag directly from the command to check required status
 		cmdFlag := cmd.Flags().Lookup(flag.Name)
 		required := false
+
+		// Check cobra annotation
 		if cmdFlag != nil && cmdFlag.Annotations != nil {
 			_, required = cmdFlag.Annotations["cobra_annotation_bash_completion_one_required_flag"]
 		}
+
+		// If not found in annotations, check if the flag description indicates it's required
+		if !required && strings.Contains(flag.Usage, "[required]") {
+			required = true
+		}
+
+		// Also check description for terms like "required flag"
+		if !required && strings.Contains(strings.ToLower(flag.Usage), "required flag") {
+			required = true
+		}
+
 		flagMap[flag.Name] = FlagInfo{
 			Name:        flag.Name,
 			Shorthand:   flag.Shorthand,
 			Default:     flag.DefValue,
-			Description: flag.Usage,
+			Description: strings.TrimSpace(strings.ReplaceAll(flag.Usage, "[required]", "")),
 			Required:    required,
 		}
 	})
@@ -199,16 +210,26 @@ func collectFlags(cmd *cobra.Command) ([]FlagInfo, []FlagInfo, []FlagInfo) {
 			_, required = cmdFlag.Annotations["cobra_annotation_bash_completion_one_required_flag"]
 		}
 
+		// Check description for required indicator
+		if !required && strings.Contains(flag.Usage, "[required]") {
+			required = true
+		}
+
+		// Also check description for terms like "required flag"
+		if !required && strings.Contains(strings.ToLower(flag.Usage), "required flag") {
+			required = true
+		}
+
 		localFlags = append(localFlags, FlagInfo{
 			Name:        flag.Name,
 			Shorthand:   flag.Shorthand,
 			Default:     flag.DefValue,
-			Description: flag.Usage,
+			Description: strings.TrimSpace(strings.ReplaceAll(flag.Usage, "[required]", "")),
 			Required:    required,
 		})
 	})
 
-	// For persistent flags (separate collection)
+	// Same treatment for persistent flags
 	var persistentFlags []FlagInfo
 	cmd.PersistentFlags().VisitAll(func(flag *pflag.Flag) {
 		cmdFlag := cmd.PersistentFlags().Lookup(flag.Name)
@@ -217,13 +238,23 @@ func collectFlags(cmd *cobra.Command) ([]FlagInfo, []FlagInfo, []FlagInfo) {
 			_, required = cmdFlag.Annotations["cobra_annotation_bash_completion_one_required_flag"]
 		}
 
+		// Check description for required indicator
+		if !required && strings.Contains(flag.Usage, "[required]") {
+			required = true
+		}
+
+		// Also check description for terms like "required flag"
+		if !required && strings.Contains(strings.ToLower(flag.Usage), "required flag") {
+			required = true
+		}
+
 		// Only add to the persistent collection if not already in the flagMap
 		if _, exists := flagMap[flag.Name]; !exists {
 			flagMap[flag.Name] = FlagInfo{
 				Name:        flag.Name,
 				Shorthand:   flag.Shorthand,
 				Default:     flag.DefValue,
-				Description: flag.Usage,
+				Description: strings.TrimSpace(strings.ReplaceAll(flag.Usage, "[required]", "")),
 				Required:    required,
 			}
 		}
@@ -231,7 +262,7 @@ func collectFlags(cmd *cobra.Command) ([]FlagInfo, []FlagInfo, []FlagInfo) {
 			Name:        flag.Name,
 			Shorthand:   flag.Shorthand,
 			Default:     flag.DefValue,
-			Description: flag.Usage,
+			Description: strings.TrimSpace(strings.ReplaceAll(flag.Usage, "[required]", "")),
 			Required:    required,
 		})
 	})
@@ -605,33 +636,33 @@ func getCommandTemplate() string {
 `
 }
 
-func AddCommandsTo(rootCmd *cobra.Command) {
-	// Set up help builder for the generate-docs command
-	genDocsHelp := &help.CommandHelpBuilder{
-		CommandName: "megaport-cli generate-docs",
-		ShortDesc:   "Generate markdown documentation for the CLI",
-		LongDesc:    "Generate comprehensive markdown documentation for the Megaport CLI.\n\nThis command will extract all command metadata, examples, and annotations to create a set of markdown files that document the entire CLI interface.\n\nThe documentation is organized by command hierarchy, with each command generating its own markdown file containing:\n- Command description\n- Usage examples\n- Available flags\n- Subcommands list\n- Input/output formats (where applicable)",
-		Examples: []string{
-			"generate-docs ./docs",
-		},
-		ImportantNotes: []string{
-			"The output directory will be created if it doesn't exist",
-			"Existing files in the output directory may be overwritten",
-			"Hidden commands and 'help' commands are excluded from the documentation",
-		},
-	}
+// Replace the existing AddCommandsTo function with this implementation
 
-	// Define genDocsCmd here
-	var genDocsCmd = &cobra.Command{
-		Use:   "generate-docs [directory]",
-		Short: "Generate markdown documentation for the CLI",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
+func AddCommandsTo(rootCmd *cobra.Command) {
+	// Create generate-docs command using the command builder pattern
+	genDocsCmd := cmdbuilder.NewCommand("generate-docs", "Generate markdown documentation for the CLI").
+		WithArgs(cobra.ExactArgs(1)).
+		WithRunFunc(func(cmd *cobra.Command, args []string) error {
 			// Pass the root command to generateDocs explicitly
 			return generateDocs(rootCmd, args)
-		},
-	}
+		}).
+		WithExample("generate-docs ./docs").
+		WithImportantNote("The output directory will be created if it doesn't exist").
+		WithImportantNote("Existing files in the output directory may be overwritten").
+		WithImportantNote("Hidden commands and 'help' commands are excluded from the documentation").
+		WithLongDesc(
+			"Generate comprehensive markdown documentation for the Megaport CLI.\n\n" +
+				"This command will extract all command metadata, examples, and annotations to " +
+				"create a set of markdown files that document the entire CLI interface.\n\n" +
+				"The documentation is organized by command hierarchy, with each command generating " +
+				"its own markdown file containing:\n" +
+				"- Command description\n" +
+				"- Usage examples\n" +
+				"- Available flags\n" +
+				"- Subcommands list\n" +
+				"- Input/output formats (where applicable)").
+		WithRootCmd(rootCmd).
+		Build()
 
-	genDocsCmd.Long = genDocsHelp.Build(rootCmd)
 	rootCmd.AddCommand(genDocsCmd)
 }

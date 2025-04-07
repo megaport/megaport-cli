@@ -65,14 +65,14 @@ megaport-cli ports buy [flags]
 | `--cost-centre` |  |  | Cost centre for billing | false |
 | `--diversity-zone` |  |  | Diversity zone for the port | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
-| `--json` |  |  | JSON string containing port configuration | false |
-| `--json-file` |  |  | Path to JSON file containing port configuration | false |
-| `--location-id` |  | `0` | Location ID where the port will be provisioned | false |
-| `--marketplace-visibility` |  | `false` | Whether the port is visible in marketplace | false |
-| `--name` |  |  | Port name | false |
-| `--port-speed` |  | `0` | Port speed in Mbps (1000, 10000, or 100000) | false |
+| `--json` |  |  | JSON string containing configuration | false |
+| `--json-file` |  |  | Path to JSON file containing configuration | false |
+| `--location-id` |  | `0` | The ID of the location where the port will be provisioned | true |
+| `--marketplace-visibility` |  | `false` | Whether the port should be visible in the marketplace (true or false) | true |
+| `--name` |  |  | The name of the port (1-64 characters) | true |
+| `--port-speed` |  | `0` | The speed of the port (1000, 10000, or 100000 Mbps) | true |
 | `--promo-code` |  |  | Promotional code for discounts | false |
-| `--term` |  | `0` | Contract term in months (1, 12, 24, or 36) | false |
+| `--term` |  | `0` | The term of the port (1, 12, 24, or 36 months) | true |
 
 
 

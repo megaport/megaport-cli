@@ -6,15 +6,16 @@ import (
 	"strings"
 
 	"github.com/megaport/megaport-cli/internal/base/help"
+	"github.com/megaport/megaport-cli/internal/base/registry"
 	"github.com/megaport/megaport-cli/internal/commands/completion"
 	"github.com/megaport/megaport-cli/internal/commands/generate_docs"
 	"github.com/megaport/megaport-cli/internal/commands/locations"
 	"github.com/megaport/megaport-cli/internal/commands/mcr"
-	"github.com/megaport/megaport-cli/internal/commands/megaport"
 	"github.com/megaport/megaport-cli/internal/commands/mve"
 	"github.com/megaport/megaport-cli/internal/commands/partners"
 	"github.com/megaport/megaport-cli/internal/commands/ports"
 	"github.com/megaport/megaport-cli/internal/commands/servicekeys"
+	"github.com/megaport/megaport-cli/internal/commands/version"
 	"github.com/megaport/megaport-cli/internal/commands/vxc"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/spf13/cobra"
@@ -30,6 +31,9 @@ var rootCmd = &cobra.Command{
 
 var outputFormat string
 
+// moduleRegistry holds all command modules
+var moduleRegistry *registry.Registry
+
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
@@ -39,6 +43,12 @@ func Execute() {
 }
 
 func init() {
+	// Initialize module registry
+	moduleRegistry = registry.NewRegistry()
+
+	// Register all modules
+	registerModules()
+
 	// Setup persistent flags
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", utils.FormatTable,
 		fmt.Sprintf("Output format (%s)", strings.Join(utils.ValidFormats, ", ")))
@@ -128,15 +138,20 @@ func init() {
 	// Set the initial root command help text
 	rootCmd.Long = getRootHelpBuilder(false).Build(rootCmd)
 
-	// Add subcommands
-	generate_docs.AddCommandsTo(rootCmd)
-	completion.AddCommandsTo(rootCmd)
-	locations.AddCommandsTo(rootCmd)
-	megaport.AddCommandsTo(rootCmd)
-	ports.AddCommandsTo(rootCmd)
-	vxc.AddCommandsTo(rootCmd)
-	mcr.AddCommandsTo(rootCmd)
-	mve.AddCommandsTo(rootCmd)
-	partners.AddCommandsTo(rootCmd)
-	servicekeys.AddCommandsTo(rootCmd)
+	// Register all commands from the modules
+	moduleRegistry.RegisterAll(rootCmd)
+}
+
+func registerModules() {
+	// Register all modules
+	moduleRegistry.Register(version.NewModule())
+	moduleRegistry.Register(ports.NewModule())
+	moduleRegistry.Register(vxc.NewModule())
+	moduleRegistry.Register(mcr.NewModule())
+	moduleRegistry.Register(mve.NewModule())
+	moduleRegistry.Register(locations.NewModule())
+	moduleRegistry.Register(partners.NewModule())
+	moduleRegistry.Register(servicekeys.NewModule())
+	moduleRegistry.Register(generate_docs.NewModule())
+	moduleRegistry.Register(completion.NewModule())
 }

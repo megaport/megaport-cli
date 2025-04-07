@@ -8,11 +8,6 @@ Update a prefix filter list on an MCR.
 
 This command allows you to update the details of an existing prefix filter list on an MCR. You can use this command to modify the description, address family, or entries in the list.
 
-### Optional Fields
-  - `address-family`: The new address family (IPv4 or IPv6)
-  - `description`: The new description of the prefix filter list (1-255 characters)
-  - `entries`: JSON array of prefix filter entries
-
 ### Example Usage
 
 ```
@@ -46,7 +41,7 @@ This command allows you to update the details of an existing prefix filter list 
 ## Usage
 
 ```
-megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] [flags]
+megaport-cli mcr update-prefix-filter-list [flags]
 ```
 
 
@@ -62,12 +57,12 @@ megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| `--address-family` |  |  | New address family (IPv4 or IPv6) | false |
-| `--description` |  |  | New description of the prefix filter list | false |
+| `--address-family` |  |  | Address family (IPv4 or IPv6) | false |
+| `--description` |  |  | Description of the prefix filter list | false |
 | `--entries` |  |  | JSON array of prefix filter entries | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
-| `--json` |  |  | JSON string containing prefix filter list configuration | false |
-| `--json-file` |  |  | Path to JSON file containing prefix filter list configuration | false |
+| `--json` |  |  | JSON string containing configuration | false |
+| `--json-file` |  |  | Path to JSON file containing configuration | false |
 
 
 

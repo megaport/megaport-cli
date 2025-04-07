@@ -25,7 +25,7 @@ This command allows you to lock an existing port, preventing any changes or modi
 ## Usage
 
 ```
-megaport-cli ports lock [portUID] [flags]
+megaport-cli ports lock [flags]
 ```
 
 

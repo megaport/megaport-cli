@@ -50,11 +50,6 @@ megaport-cli partners list [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| `--company-name` |  |  | Filter by Company Name | false |
-| `--connect-type` |  |  | Filter by Connect Type | false |
-| `--diversity-zone` |  |  | Filter by Diversity Zone | false |
-| `--location-id` |  | `0` | Filter by Location ID | false |
-| `--product-name` |  |  | Filter by Product Name | false |
 
 
 

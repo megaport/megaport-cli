@@ -19,7 +19,7 @@ This command fetches and displays detailed information about a specific port. Yo
 ## Usage
 
 ```
-megaport-cli ports get [portUID] [flags]
+megaport-cli ports get [flags]
 ```
 
 

@@ -25,7 +25,7 @@ This command allows you to restore a port that has been marked for deletion but 
 ## Usage
 
 ```
-megaport-cli ports restore [portUID] [flags]
+megaport-cli ports restore [flags]
 ```
 
 

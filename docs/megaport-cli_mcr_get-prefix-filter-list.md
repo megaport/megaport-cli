@@ -18,7 +18,7 @@ This command retrieves and displays detailed information about a specific prefix
 ## Usage
 
 ```
-megaport-cli mcr get-prefix-filter-list [mcrUID] [prefixFilterListID] [flags]
+megaport-cli mcr get-prefix-filter-list [flags]
 ```
 
 

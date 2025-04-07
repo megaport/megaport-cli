@@ -18,7 +18,7 @@ This command fetches and displays detailed information about a given service key
 ## Usage
 
 ```
-megaport-cli servicekeys get [key] [flags]
+megaport-cli servicekeys get [flags]
 ```
 
 

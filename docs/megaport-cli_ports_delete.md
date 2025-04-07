@@ -29,7 +29,7 @@ This command allows you to delete an existing port by providing the UID of the p
 ## Usage
 
 ```
-megaport-cli ports delete [portUID] [flags]
+megaport-cli ports delete [flags]
 ```
 
 
@@ -46,7 +46,7 @@ megaport-cli ports delete [portUID] [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 | `--force` | `-f` | `false` | Skip confirmation prompt | false |
-| `--now` |  | `false` | Delete immediately instead of at the end of the billing period | false |
+| `--now` |  | `false` | Delete resource immediately instead of at end of billing cycle | false |
 
 
 

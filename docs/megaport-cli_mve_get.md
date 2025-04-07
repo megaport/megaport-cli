@@ -18,7 +18,7 @@ This command fetches and displays detailed information about a specific MVE. You
 ## Usage
 
 ```
-megaport-cli mve get [mveUID] [flags]
+megaport-cli mve get [flags]
 ```
 
 

@@ -30,7 +30,7 @@ The documentation is organized by command hierarchy, with each command generatin
 ## Usage
 
 ```
-megaport-cli generate-docs [directory] [flags]
+megaport-cli generate-docs [flags]
 ```
 
 

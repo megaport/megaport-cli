@@ -11,7 +11,6 @@ This command groups all operations related to Megaport Virtual Edge devices (MVE
 ### Important Notes
   - With MVEs you can deploy virtual networking appliances without physical hardware
   - Create secure connections between cloud services
-  - Implement SD-WAN solutions across multiple regions
   - Run vendor-specific networking software in Megaport's infrastructure
 
 ### Example Usage

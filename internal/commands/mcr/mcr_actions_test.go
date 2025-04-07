@@ -327,6 +327,14 @@ func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
 				return client, nil
 			}
 
+			// Setup command
+			restoreMCRCmd := &cobra.Command{
+				Use: "restore-mcr [mcrID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return RestoreMCR(cmd, args, false)
+				},
+			}
+
 			// Execute command and capture output
 			var err error
 			output := output.CaptureOutput(func() {
@@ -487,6 +495,14 @@ func TestListMCRPrefixFilterListsCmd_WithMockClient(t *testing.T) {
 				return client, nil
 			}
 
+			// Setup command
+			listMCRPrefixFilterListsCmd := &cobra.Command{
+				Use: "list-mcr-prefix-filter-lists [mcrUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return ListMCRPrefixFilterLists(cmd, args, false, "table")
+				},
+			}
+
 			cmd := listMCRPrefixFilterListsCmd
 			var err error
 			output := output.CaptureOutput(func() {
@@ -552,7 +568,13 @@ func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 				return client, nil
 			}
 
-			cmd := getMCRPrefixFilterListCmd
+			cmd := &cobra.Command{
+				Use:  "get-mcr-prefix-filter-list [mcrUID] [prefixListID]",
+				Args: cobra.ExactArgs(2),
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return GetMCRPrefixFilterList(cmd, args, false, "table")
+				},
+			}
 			var err error
 			output := output.CaptureOutput(func() {
 				err = cmd.RunE(cmd, []string{tt.mcrUID, fmt.Sprintf("%d", tt.prefixListID)})

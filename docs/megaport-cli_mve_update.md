@@ -42,7 +42,7 @@ This command allows you to update specific properties of an existing MVE without
 ## Usage
 
 ```
-megaport-cli mve update [mveUID] [flags]
+megaport-cli mve update [flags]
 ```
 
 
@@ -59,11 +59,11 @@ megaport-cli mve update [mveUID] [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 | `--contract-term` |  | `0` | New contract term in months (1, 12, 24, or 36) | false |
-| `--cost-centre` |  |  | New cost centre | false |
+| `--cost-centre` |  |  | Cost centre for billing | false |
 | `--interactive` | `-i` | `true` | Use interactive mode with prompts | false |
-| `--json` |  |  | JSON string containing MVE update configuration | false |
-| `--json-file` |  |  | Path to JSON file containing MVE update configuration | false |
-| `--name` |  |  | New MVE name | false |
+| `--json` |  |  | JSON string containing configuration | false |
+| `--json-file` |  |  | Path to JSON file containing configuration | false |
+| `--name` |  |  | MVE name | false |
 
 
 

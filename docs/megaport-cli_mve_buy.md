@@ -80,17 +80,9 @@ megaport-cli mve buy [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| `--cost-centre` |  |  | Cost centre for billing | false |
-| `--diversity-zone` |  |  | Diversity zone for the MVE | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
-| `--json` |  |  | JSON string containing MVE configuration | false |
-| `--json-file` |  |  | Path to JSON file containing MVE configuration | false |
-| `--location-id` |  | `0` | Location ID where the MVE will be provisioned | false |
-| `--name` |  |  | MVE name | false |
-| `--promo-code` |  |  | Promotional code for discounts | false |
-| `--term` |  | `0` | Contract term in months (1, 12, 24, or 36) | false |
-| `--vendor-config` |  |  | JSON string containing vendor-specific configuration | false |
-| `--vnics` |  |  | JSON array of network interfaces | false |
+| `--json` |  |  | JSON string containing configuration | false |
+| `--json-file` |  |  | Path to JSON file containing configuration | false |
 
 
 
