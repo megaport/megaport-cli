@@ -201,7 +201,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		},
 		OptionalFlags: map[string]string{
 			"diversity-zone": "The diversity zone for the port",
-			"cost-centre":    "The cost center for the port",
+			"cost-centre":    "The cost centre for the port",
 			"promo-code":     "A promotional code for the port",
 		},
 		Examples: []string{
@@ -239,7 +239,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		},
 		OptionalFlags: map[string]string{
 			"diversity-zone": "The diversity zone for the LAG port",
-			"cost-centre":    "The cost center for the LAG port",
+			"cost-centre":    "The cost centre for the LAG port",
 			"promo-code":     "A promotional code for the LAG port",
 		},
 		Examples: []string{
@@ -303,7 +303,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		OptionalFlags: map[string]string{
 			"name":                   "The new name of the port (1-64 characters)",
 			"marketplace-visibility": "Whether the port should be visible in the marketplace (true or false)",
-			"cost-centre":            "The cost center for billing purposes",
+			"cost-centre":            "The cost centre for billing purposes",
 			"term":                   "The new contract term in months (1, 12, 24, or 36)",
 		},
 		ImportantNotes: []string{

@@ -9,7 +9,7 @@ Update a port's details in the Megaport API.
 This command allows you to update the details of an existing port by providing the necessary fields.
 
 ### Optional Fields
-  - `cost-centre`: The cost center for billing purposes
+  - `cost-centre`: The cost centre for billing purposes
   - `marketplace-visibility`: Whether the port should be visible in the marketplace (true or false)
   - `name`: The new name of the port (1-64 characters)
   - `term`: The new contract term in months (1, 12, 24, or 36)

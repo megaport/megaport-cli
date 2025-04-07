@@ -16,7 +16,7 @@ This command allows you to purchase a port by providing the necessary details.
   - `term`: The term of the port (1, 12, 24, or 36 months)
 
 ### Optional Fields
-  - `cost-centre`: The cost center for the port
+  - `cost-centre`: The cost centre for the port
   - `diversity-zone`: The diversity zone for the port
   - `promo-code`: A promotional code for the port
 

@@ -17,7 +17,7 @@ This command allows you to purchase a LAG port by providing the necessary detail
   - `term`: The term of the port (1, 12, or 24 months)
 
 ### Optional Fields
-  - `cost-centre`: The cost center for the LAG port
+  - `cost-centre`: The cost centre for the LAG port
   - `diversity-zone`: The diversity zone for the LAG port
   - `promo-code`: A promotional code for the LAG port
 

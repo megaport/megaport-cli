@@ -191,7 +191,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		LongDesc:    "Update an existing Megaport Virtual Edge (MVE).\n\nThis command allows you to update specific properties of an existing MVE without disrupting its service or connectivity. Updates apply immediately but may take a few minutes to fully propagate in the Megaport system.",
 		OptionalFlags: map[string]string{
 			"name":          "The new name of the MVE (1-64 characters)",
-			"cost-centre":   "The new cost center for billing purposes (optional)",
+			"cost-centre":   "The new cost centre for billing purposes (optional)",
 			"contract-term": "The new contract term in months (1, 12, 24, or 36)",
 		},
 		Examples: []string{

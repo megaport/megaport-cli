@@ -369,7 +369,7 @@ func TestBuyPortCmd(t *testing.T) {
 				"123",       // location ID
 				"true",      // marketplace visibility
 				"red",       // diversity zone
-				"cost-123",  // cost center
+				"cost-123",  // cost centre
 				"PROMO2025", // promo code
 			},
 			setupMock: func(m *MockPortService) {
@@ -616,7 +616,7 @@ func TestBuyLAGPortCmd(t *testing.T) {
 				"2",             // LAG count
 				"true",          // marketplace visibility
 				"blue",          // diversity zone
-				"cost-456",      // cost center
+				"cost-456",      // cost centre
 				"LAGPROMO2025",  // promo code
 			},
 			setupMock: func(m *MockPortService) {
@@ -880,7 +880,7 @@ func TestUpdatePortCmd(t *testing.T) {
 			prompts: []string{
 				"Updated Port Name", // name
 				"true",              // marketplace visibility
-				"cost-centre-123",   // cost center
+				"cost-centre-123",   // cost centre
 				"12",                // term
 			},
 			setupMock: func(m *MockPortService) {
@@ -985,7 +985,7 @@ func TestUpdatePortCmd(t *testing.T) {
 			prompts: []string{
 				"Updated Port Name", // name
 				"true",              // marketplace visibility
-				"",                  // cost center (empty)
+				"",                  // cost centre (empty)
 				"",                  // term (empty)
 			},
 			setupMock: func(m *MockPortService) {
@@ -1106,7 +1106,7 @@ func TestUpdatePortCmd(t *testing.T) {
 						assert.NotNil(t, req.MarketplaceVisibility)
 						assert.True(t, *req.MarketplaceVisibility)
 
-						// For the failed update test case, we don't provide cost center or term
+						// For the failed update test case, we don't provide cost centre or term
 						if tt.expectedOutput == "Port updated successfully - UID: port-123" {
 							assert.Equal(t, "cost-centre-123", req.CostCentre)
 							assert.NotNil(t, req.ContractTermMonths)

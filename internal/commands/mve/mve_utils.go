@@ -1185,7 +1185,7 @@ func promptForUpdateMVEDetails(mveUID string, noColor bool) (*megaport.ModifyMVE
 		req.Name = name
 	}
 
-	// Prompt for new cost center (optional)
+	// Prompt for new cost centre (optional)
 	costCentre, err := utils.Prompt("Enter new cost centre (leave empty to keep current): ", noColor)
 	if err != nil {
 		return nil, err

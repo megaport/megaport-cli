@@ -296,7 +296,7 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 		return nil, err
 	}
 
-	costCentre, err := utils.Prompt("Enter cost center (optional): ", noColor)
+	costCentre, err := utils.Prompt("Enter cost centre (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +335,7 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 		return nil, fmt.Errorf("name is required")
 	}
 
-	costCentre, err := utils.Prompt("Enter new cost center (optional): ", noColor)
+	costCentre, err := utils.Prompt("Enter new cost centre (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}

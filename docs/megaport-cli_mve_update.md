@@ -10,7 +10,7 @@ This command allows you to update specific properties of an existing MVE without
 
 ### Optional Fields
   - `contract-term`: The new contract term in months (1, 12, 24, or 36)
-  - `cost-centre`: The new cost center for billing purposes (optional)
+  - `cost-centre`: The new cost centre for billing purposes (optional)
   - `name`: The new name of the MVE (1-64 characters)
 
 ### Important Notes

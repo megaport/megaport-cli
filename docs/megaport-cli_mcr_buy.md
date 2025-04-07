@@ -15,7 +15,7 @@ This command allows you to purchase an MCR by providing the necessary details.
   - `term`: The contract term for the MCR (1, 12, 24, or 36 months)
 
 ### Optional Fields
-  - `cost-centre`: The cost center for billing purposes
+  - `cost-centre`: The cost centre for billing purposes
   - `diversity-zone`: The diversity zone for the MCR
   - `mcr-asn`: The ASN for the MCR (64512-65534 for private ASN, or a public ASN)
   - `promo-code`: A promotional code for discounts

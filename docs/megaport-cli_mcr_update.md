@@ -9,7 +9,7 @@ Update an existing Megaport Cloud Router (MCR).
 This command allows you to update the details of an existing MCR.
 
 ### Optional Fields
-  - `cost-centre`: The new cost center for the MCR
+  - `cost-centre`: The new cost centre for the MCR
   - `marketplace-visibility`: Whether the MCR is visible in the marketplace (true/false)
   - `name`: The new name of the MCR (1-64 characters)
   - `term`: The new contract term in months (1, 12, 24, or 36)
