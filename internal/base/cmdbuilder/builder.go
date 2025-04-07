@@ -1,6 +1,9 @@
 package cmdbuilder
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/megaport/megaport-cli/internal/base/help"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/spf13/cobra"
@@ -121,6 +124,18 @@ func (b *CommandBuilder) WithRequiredFlag(name, description string) *CommandBuil
 
 	// Store for our documentation as well
 	b.requiredFlags[name] = description
+	return b
+}
+
+// ReflagCmd explicitly marks flags as required after they have been added
+func (b *CommandBuilder) ReflagCmd(requiredFlags ...string) *CommandBuilder {
+	for _, flag := range requiredFlags {
+		if err := b.cmd.MarkFlagRequired(flag); err != nil {
+			// Log the error but continue - this is a development-time error
+			// that indicates a flag was referenced but not defined
+			fmt.Fprintf(os.Stderr, "Warning: Failed to mark flag '%s' as required: %v\n", flag, err)
+		}
+	}
 	return b
 }
 

@@ -24,11 +24,22 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	// Create buy MVE command
 	buyMVECmd := cmdbuilder.NewCommand("buy", "Purchase a new Megaport Virtual Edge (MVE) device").
 		WithColorAwareRunFunc(BuyMVE).
-		WithBoolFlagP("interactive", "i", false, "Use interactive mode with prompts").
+		WithInteractiveFlag().
 		WithMVECreateFlags().
 		WithJSONConfigFlags().
 		WithLongDesc("Purchase a new Megaport Virtual Edge (MVE) device through the Megaport API.\n\nThis command allows you to purchase an MVE by providing the necessary details.").
+		// Explicitly mark required flags for clarity and documentation
+		WithRequiredFlag("name", "The name of the MVE").
+		WithRequiredFlag("term", "The term of the MVE (1, 12, 24, or 36 months)").
+		WithRequiredFlag("location-id", "The ID of the location where the MVE will be provisioned").
+		WithRequiredFlag("vendor-config", "JSON string with vendor-specific configuration (for flag mode)").
+		WithRequiredFlag("vnics", "JSON array of network interfaces (for flag mode)").
+		// For consistency in documentation, mark optional flags too
+		WithOptionalFlag("diversity-zone", "The diversity zone for the MVE").
+		WithOptionalFlag("promo-code", "Promotional code for discounts").
+		WithOptionalFlag("cost-centre", "Cost centre for billing").
 		WithExample("buy --interactive").
+		WithExample("buy --name \"My MVE\" --term 12 --location-id 123 --vendor-config '{\"vendor\":\"cisco\",\"imageId\":123,\"productSize\":\"MEDIUM\"}' --vnics '[{\"description\":\"Data Plane\",\"vlan\":100}]'").
 		WithExample("buy --json '{\"name\":\"My MVE\",\"term\":12,\"locationId\":123,\"vendorConfig\":{\"vendor\":\"cisco\",\"imageId\":123,\"productSize\":\"MEDIUM\"},\"vnics\":[{\"description\":\"Data Plane\",\"vlan\":100}]}'").
 		WithExample("buy --json-file ./mve-config.json").
 		WithJSONExample(`{
@@ -58,14 +69,17 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("To list available sizes, use: megaport-cli mve list-sizes").
 		WithImportantNote("Location IDs can be retrieved with: megaport-cli locations list").
 		WithRootCmd(rootCmd).
+		// Use ReflagCmd to explicitly call MarkFlagRequired on each flag
+		ReflagCmd("name", "term", "location-id", "vendor-config", "vnics").
 		Build()
 
 	// Create get MVE command
 	getMVECmd := cmdbuilder.NewCommand("get", "Get details for a single MVE").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetMVE).
-		WithLongDesc("Get details for a single MVE from the Megaport API.\n\nThis command fetches and displays detailed information about a specific MVE. You need to provide the UID of the MVE as an argument.").
-		WithExample("get [mveUID]").
+		WithLongDesc("Get details for a single MVE from the Megaport API.\n\nThis command retrieves and displays detailed information for a single Megaport Virtual Edge (MVE). You must provide the unique identifier (UID) of the MVE you wish to retrieve.").
+		WithExample("get a1b2c3d4-e5f6-7890-1234-567890abcdef").
+		WithImportantNote("The output includes the MVE's UID, name, vendor, version, status, and connectivity details").
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -73,12 +87,12 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	updateMVECmd := cmdbuilder.NewCommand("update", "Update an existing MVE").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(UpdateMVE).
-		WithBoolFlagP("interactive", "i", true, "Use interactive mode with prompts").
+		WithInteractiveFlag().
 		WithMVEUpdateFlags().
 		WithJSONConfigFlags().
 		WithLongDesc("Update an existing Megaport Virtual Edge (MVE).\n\nThis command allows you to update specific properties of an existing MVE without disrupting its service or connectivity. Updates apply immediately but may take a few minutes to fully propagate in the Megaport system.").
 		WithOptionalFlag("name", "The new name of the MVE (1-64 characters)").
-		WithOptionalFlag("cost-centre", "The new cost centre for billing purposes (optional)").
+		WithOptionalFlag("cost-centre", "The new cost centre for billing purposes").
 		WithOptionalFlag("contract-term", "The new contract term in months (1, 12, 24, or 36)").
 		WithExample("update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
 		WithExample("update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --name \"Edge Router West\" --cost-centre \"IT-Network-2023\" --contract-term 24").
@@ -103,9 +117,12 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithColorAwareRunFunc(DeleteMVE).
 		WithDeleteFlags().
 		WithLongDesc("Delete an existing Megaport Virtual Edge (MVE).\n\nThis command allows you to delete an existing MVE by providing its UID.").
-		WithExample("delete [mveUID]").
-		WithExample("delete [mveUID] --force").
-		WithExample("delete [mveUID] --now").
+		WithExample("delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
+		WithExample("delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --force").
+		WithExample("delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now").
+		WithImportantNote("Deletion is final and cannot be undone").
+		WithImportantNote("Billing for the MVE stops at the end of the current billing period unless --now is specified").
+		WithImportantNote("All associated VXCs will be automatically terminated").
 		WithRootCmd(rootCmd).
 		Build()
 

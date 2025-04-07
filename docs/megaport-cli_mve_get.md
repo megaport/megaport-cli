@@ -6,12 +6,15 @@ Get details for a single MVE
 
 Get details for a single MVE from the Megaport API.
 
-This command fetches and displays detailed information about a specific MVE. You need to provide the UID of the MVE as an argument.
+This command retrieves and displays detailed information for a single Megaport Virtual Edge (MVE). You must provide the unique identifier (UID) of the MVE you wish to retrieve.
+
+### Important Notes
+  - The output includes the MVE's UID, name, vendor, version, status, and connectivity details
 
 ### Example Usage
 
 ```
-  get [mveUID]
+  get a1b2c3d4-e5f6-7890-1234-567890abcdef
 ```
 
 
