@@ -168,17 +168,12 @@ func generateCommandDocs(cmd *cobra.Command, outputDir, parentPath string) error
 	return nil
 }
 
-func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
-	f, err := os.Create(outputPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
+// collectFlags gathers and deduplicates flags from the command
+func collectFlags(cmd *cobra.Command) ([]FlagInfo, []FlagInfo, []FlagInfo) {
 	// Use a map to track unique flags by name
 	flagMap := make(map[string]FlagInfo)
 
-	// Collect local flags
+	// Collect all flags
 	cmd.LocalFlags().VisitAll(func(flag *pflag.Flag) {
 		flagMap[flag.Name] = FlagInfo{
 			Name:        flag.Name,
@@ -234,20 +229,25 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		return allFlags[i].Name < allFlags[j].Name
 	})
 
-	// Gather subcommands
+	return allFlags, localFlags, persistentFlags
+}
+
+// gatherSubcommands collects visible subcommands
+func gatherSubcommands(cmd *cobra.Command) []string {
 	var subCommands []string
 	for _, subCmd := range cmd.Commands() {
 		if !subCmd.Hidden && subCmd.Name() != "help" {
 			subCommands = append(subCommands, subCmd.Name())
 		}
 	}
+	return subCommands
+}
 
-	baseFileName := filepath.Base(outputPath)
-	filePrefix := strings.TrimSuffix(baseFileName, ".md")
-
-	// Determine parent command info
+// determineParentInfo calculates parent command relationships
+func determineParentInfo(cmd *cobra.Command, filePrefix string) (bool, string, string, string) {
 	var parentCommandPath, parentCommandName, parentFilePath string
 	hasParent := cmd.Parent() != nil && cmd.Parent().Name() != "megaport-cli"
+
 	if hasParent && cmd.Parent() != nil {
 		parentCommandPath = cmd.Parent().CommandPath()
 		parentCommandName = cmd.Parent().Name()
@@ -265,190 +265,241 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		}
 	}
 
-	// Process the long description
-	processedLongDesc := output.StripANSIColors(cmd.Long)
-	if processedLongDesc != "" {
-		lines := strings.Split(processedLongDesc, "\n")
-		var formattedLines []string
-		inExampleBlock := false
-		inExampleSection := false
-		inJsonSection := false
-		lineAfterExampleHeader := false
-		inRequiredFields := false
-		inOptionalFields := false
-		inImportantNotes := false
+	return hasParent, parentCommandPath, parentCommandName, parentFilePath
+}
 
-		for i, line := range lines {
-			trimLine := strings.TrimSpace(line)
+// formatSection handles section formatting based on section type
+func formatSection(section string) string {
+	switch section {
+	case "Required fields:":
+		return "### Required Fields"
+	case "Optional fields:":
+		return "### Optional Fields"
+	case "Important notes:":
+		return "### Important Notes"
+	case "Example usage:", "Examples:":
+		return "### Example Usage"
+	case "JSON format example:":
+		return "### JSON Format Example"
+	default:
+		return section
+	}
+}
 
-			// Convert section headers to level 3 headers
-			if trimLine == "Required fields:" {
-				inRequiredFields = true
-				inOptionalFields = false
-				inImportantNotes = false
-				// Replace with level 3 header
-				formattedLines = append(formattedLines, "### Required Fields")
-				continue
-			} else if trimLine == "Optional fields:" {
-				inRequiredFields = false
-				inOptionalFields = true
-				inImportantNotes = false
-				// Replace with level 3 header
-				formattedLines = append(formattedLines, "### Optional Fields")
-				continue
-			} else if trimLine == "Important notes:" {
-				inRequiredFields = false
-				inOptionalFields = false
-				inImportantNotes = true
-				// Replace with level 3 header
-				formattedLines = append(formattedLines, "### Important Notes")
-				continue
-			} else if trimLine == "Example usage:" || trimLine == "Examples:" {
-				inRequiredFields = false
-				inOptionalFields = false
-				inImportantNotes = false
-				inExampleSection = true
-				lineAfterExampleHeader = true
-				// Replace with level 3 header
-				formattedLines = append(formattedLines, "### Example Usage")
-				continue
-			} else if trimLine == "JSON format example:" {
-				inRequiredFields = false
-				inOptionalFields = false
-				inImportantNotes = false
-				// Replace with level 3 header
-				formattedLines = append(formattedLines, "### JSON Format Example")
+// formatFieldLine formats field definitions with bullets and backticks
+func formatFieldLine(line string) string {
+	trimLine := strings.TrimSpace(line)
 
-				if inExampleBlock {
-					formattedLines = append(formattedLines, "```") // Close previous code block
-				}
+	if strings.Contains(trimLine, ":") {
+		parts := strings.SplitN(trimLine, ":", 2)
+		if len(parts) == 2 {
+			fieldName := strings.TrimSpace(parts[0])
+			fieldDesc := strings.TrimSpace(parts[1])
 
-				formattedLines = append(formattedLines, "```json") // Start JSON code block
-				inExampleBlock = true
-				inJsonSection = true
-				inExampleSection = true
-				continue
-			}
-
-			// Process field entries with bullets and backticks
-			if (inRequiredFields || inOptionalFields) && strings.TrimSpace(line) != "" &&
-				!strings.HasPrefix(trimLine, "Required fields:") &&
-				!strings.HasPrefix(trimLine, "Optional fields:") {
-
-				// Check if this line defines a field
-				if strings.Contains(trimLine, ":") {
-					parts := strings.SplitN(trimLine, ":", 2)
-					if len(parts) == 2 {
-						fieldName := strings.TrimSpace(parts[0])
-						fieldDesc := strings.TrimSpace(parts[1])
-
-						// Format with bullets, backticks and preserve indentation
-						leadingSpaces := len(line) - len(strings.TrimLeft(line, " "))
-						spacePadding := strings.Repeat(" ", leadingSpaces)
-						formattedLines = append(formattedLines,
-							fmt.Sprintf("%s- `%s`: %s", spacePadding, fieldName, fieldDesc))
-						continue
-					}
-				}
-			}
-
-			// Process important notes with bullets
-			if inImportantNotes && strings.TrimSpace(line) != "" &&
-				!strings.HasPrefix(trimLine, "Important notes:") {
-				// Format with bullets
-				leadingSpaces := len(line) - len(strings.TrimLeft(line, " "))
-				spacePadding := strings.Repeat(" ", leadingSpaces)
-				if !strings.HasPrefix(trimLine, "-") {
-					formattedLines = append(formattedLines, fmt.Sprintf("%s- %s", spacePadding, trimLine))
-				} else {
-					formattedLines = append(formattedLines, line)
-				}
-				continue
-			}
-
-			// Start code block after example header
-			if lineAfterExampleHeader && trimLine != "" && !strings.HasPrefix(trimLine, "```") {
-				formattedLines = append(formattedLines, "```")
-				inExampleBlock = true
-				lineAfterExampleHeader = false
-			}
-
-			// Detect if it's a header line
-			isHeaderLine := strings.HasPrefix(trimLine, "#") && len(trimLine) > 1 && trimLine[1] == ' '
-
-			// Close code block if a header is encountered while in example block
-			if isHeaderLine && inExampleBlock {
-				formattedLines = append(formattedLines, "```")
-				inExampleBlock = false
-				inExampleSection = false
-			}
-
-			// Downgrade headers to level 3 if in an example section or if it contains 'example'
-			if isHeaderLine {
-				if inExampleSection || strings.Contains(strings.ToLower(trimLine), "example") {
-					headerText := strings.TrimSpace(strings.TrimPrefix(strings.TrimLeft(trimLine, "#"), " "))
-					formattedLines = append(formattedLines, "### "+headerText)
-				} else {
-					formattedLines = append(formattedLines, line)
-				}
-				continue
-			}
-
-			// Reset example section if a major heading (level 1 or 2) not containing "example" is detected
-			if isHeaderLine && !strings.Contains(strings.ToLower(trimLine), "example") &&
-				strings.Count(trimLine, "#") <= 2 {
-				inExampleSection = false
-			}
-
-			// Detect command examples - cover more patterns
-			isExampleLine := strings.HasPrefix(trimLine, "megaport-cli") ||
-				(cmd.Name() == "buy" && strings.HasPrefix(trimLine, "buy")) ||
-				(inExampleSection &&
-					trimLine != "" &&
-					!isHeaderLine &&
-					(strings.Contains(trimLine, "--") ||
-						strings.HasPrefix(trimLine, cmd.Name())))
-
-			// Start code block if an example line is detected and not already in one
-			if isExampleLine && !inExampleBlock {
-				formattedLines = append(formattedLines, "```")
-				inExampleBlock = true
-			}
-
-			// If we're in an empty line after examples section and code block is open, consider closing it
-			if inExampleBlock && trimLine == "" && inExampleSection {
-				// Check if this is followed by a non-example line
-				hasMoreExamples := false
-				for j := i + 1; j < len(lines); j++ {
-					nextLine := strings.TrimSpace(lines[j])
-					if strings.HasPrefix(nextLine, "megaport-cli") ||
-						(cmd.Name() == "buy" && strings.HasPrefix(nextLine, "buy")) ||
-						strings.Contains(nextLine, "--") {
-						hasMoreExamples = true
-						break
-					}
-				}
-
-				if !hasMoreExamples && !inJsonSection {
-					formattedLines = append(formattedLines, "```")
-					inExampleBlock = false
-					continue
-				}
-			}
-
-			// Add the line to the output (if we didn't already handle it)
-			formattedLines = append(formattedLines, line)
+			// Format with bullets and backticks
+			leadingSpaces := len(line) - len(strings.TrimLeft(line, " "))
+			spacePadding := strings.Repeat(" ", leadingSpaces)
+			return fmt.Sprintf("%s- `%s`: %s", spacePadding, fieldName, fieldDesc)
 		}
+	}
+	return line
+}
 
-		// Close any open code block at the end
-		if inExampleBlock {
-			formattedLines = append(formattedLines, "```")
-		}
+// formatNoteLine formats important notes with bullets
+func formatNoteLine(line string) string {
+	trimLine := strings.TrimSpace(line)
 
-		processedLongDesc = strings.Join(formattedLines, "\n")
+	if trimLine != "" && !strings.HasPrefix(trimLine, "-") {
+		leadingSpaces := len(line) - len(strings.TrimLeft(line, " "))
+		spacePadding := strings.Repeat(" ", leadingSpaces)
+		return fmt.Sprintf("%s- %s", spacePadding, trimLine)
+	}
+	return line
+}
+
+// processDescription handles the main formatting of command descriptions
+func processDescription(description string, cmdName string) string {
+	if description == "" {
+		return ""
 	}
 
-	// Detect an Example section in cmd.Long if present separately
+	lines := strings.Split(description, "\n")
+	var formattedLines []string
+	inExampleBlock := false
+	inExampleSection := false
+	inJsonSection := false
+	lineAfterExampleHeader := false
+	inRequiredFields := false
+	inOptionalFields := false
+	inImportantNotes := false
+
+	for i, line := range lines {
+		trimLine := strings.TrimSpace(line)
+
+		// Check for section headers
+		switch trimLine {
+		case "Required fields:":
+			inRequiredFields = true
+			inOptionalFields = false
+			inImportantNotes = false
+			formattedLines = append(formattedLines, formatSection(trimLine))
+			continue
+		case "Optional fields:":
+			inRequiredFields = false
+			inOptionalFields = true
+			inImportantNotes = false
+			formattedLines = append(formattedLines, formatSection(trimLine))
+			continue
+		case "Important notes:":
+			inRequiredFields = false
+			inOptionalFields = false
+			inImportantNotes = true
+			formattedLines = append(formattedLines, formatSection(trimLine))
+			continue
+		case "Example usage:", "Examples:":
+			inRequiredFields = false
+			inOptionalFields = false
+			inImportantNotes = false
+			inExampleSection = true
+			lineAfterExampleHeader = true
+			formattedLines = append(formattedLines, formatSection(trimLine))
+			continue
+		case "JSON format example:":
+			inRequiredFields = false
+			inOptionalFields = false
+			inImportantNotes = false
+			formattedLines = append(formattedLines, formatSection(trimLine))
+
+			if inExampleBlock {
+				formattedLines = append(formattedLines, "```")
+			}
+
+			formattedLines = append(formattedLines, "```json")
+			inExampleBlock = true
+			inJsonSection = true
+			inExampleSection = true
+			continue
+		}
+
+		// Process field entries
+		if (inRequiredFields || inOptionalFields) && trimLine != "" &&
+			!strings.HasPrefix(trimLine, "Required fields:") &&
+			!strings.HasPrefix(trimLine, "Optional fields:") {
+			formattedLines = append(formattedLines, formatFieldLine(line))
+			continue
+		}
+
+		// Process important notes
+		if inImportantNotes && trimLine != "" &&
+			!strings.HasPrefix(trimLine, "Important notes:") {
+			formattedLines = append(formattedLines, formatNoteLine(line))
+			continue
+		}
+
+		// Start code block after example header
+		if lineAfterExampleHeader && trimLine != "" && !strings.HasPrefix(trimLine, "```") {
+			formattedLines = append(formattedLines, "```")
+			inExampleBlock = true
+			lineAfterExampleHeader = false
+		}
+
+		// Handle header lines
+		isHeaderLine := strings.HasPrefix(trimLine, "#") && len(trimLine) > 1 && trimLine[1] == ' '
+
+		if isHeaderLine && inExampleBlock {
+			formattedLines = append(formattedLines, "```")
+			inExampleBlock = false
+			inExampleSection = false
+		}
+
+		if isHeaderLine {
+			if inExampleSection || strings.Contains(strings.ToLower(trimLine), "example") {
+				headerText := strings.TrimSpace(strings.TrimPrefix(strings.TrimLeft(trimLine, "#"), " "))
+				formattedLines = append(formattedLines, "### "+headerText)
+			} else {
+				formattedLines = append(formattedLines, line)
+			}
+			continue
+		}
+
+		// Reset example section
+		if isHeaderLine && !strings.Contains(strings.ToLower(trimLine), "example") &&
+			strings.Count(trimLine, "#") <= 2 {
+			inExampleSection = false
+		}
+
+		// Detect command examples
+		isExampleLine := strings.HasPrefix(trimLine, "megaport-cli") ||
+			(cmdName == "buy" && strings.HasPrefix(trimLine, "buy")) ||
+			(inExampleSection &&
+				trimLine != "" &&
+				!isHeaderLine &&
+				(strings.Contains(trimLine, "--") ||
+					strings.HasPrefix(trimLine, cmdName)))
+
+		if isExampleLine && !inExampleBlock {
+			formattedLines = append(formattedLines, "```")
+			inExampleBlock = true
+		}
+
+		// Handle end of examples
+		if inExampleBlock && trimLine == "" && inExampleSection {
+			hasMoreExamples := false
+			for j := i + 1; j < len(lines) && j < i+5; j++ {
+				nextLine := strings.TrimSpace(lines[j])
+				if strings.HasPrefix(nextLine, "megaport-cli") ||
+					(cmdName == "buy" && strings.HasPrefix(nextLine, "buy")) ||
+					strings.Contains(nextLine, "--") {
+					hasMoreExamples = true
+					break
+				}
+			}
+
+			if !hasMoreExamples && !inJsonSection {
+				formattedLines = append(formattedLines, "```")
+				inExampleBlock = false
+				continue
+			}
+		}
+
+		formattedLines = append(formattedLines, line)
+	}
+
+	// Close any open code block
+	if inExampleBlock {
+		formattedLines = append(formattedLines, "```")
+	}
+
+	return strings.Join(formattedLines, "\n")
+}
+
+// generateCommandDoc creates documentation for a single command
+func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
+	f, err := os.Create(outputPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	// Collect flags
+	allFlags, localFlags, persistentFlags := collectFlags(cmd)
+
+	// Gather subcommands
+	subCommands := gatherSubcommands(cmd)
+
+	// Calculate file paths
+	baseFileName := filepath.Base(outputPath)
+	filePrefix := strings.TrimSuffix(baseFileName, ".md")
+
+	// Determine parent command info
+	hasParent, parentCommandPath, parentCommandName, parentFilePath :=
+		determineParentInfo(cmd, filePrefix)
+
+	// Process the long description
+	processedLongDesc := output.StripANSIColors(cmd.Long)
+	processedLongDesc = processDescription(processedLongDesc, cmd.Name())
+
+	// Process examples
 	example := cmd.Example
 	if example == "" && strings.Contains(cmd.Long, "Example:") {
 		parts := strings.Split(cmd.Long, "Example:")
@@ -456,19 +507,21 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 			example = "Example:\n" + strings.TrimSpace(parts[1])
 		}
 	}
+	example = output.StripANSIColors(example)
 
+	// Prepare template data
 	data := CommandData{
 		Name:               cmd.Name(),
 		Description:        output.StripANSIColors(cmd.Short),
 		LongDescription:    processedLongDesc,
 		Usage:              cmd.UseLine(),
-		Example:            output.StripANSIColors(example),
+		Example:            example,
 		HasParent:          hasParent,
 		ParentCommandPath:  parentCommandPath,
 		ParentCommandName:  parentCommandName,
 		ParentFilePath:     parentFilePath,
 		Aliases:            cmd.Aliases,
-		Flags:              allFlags, // Use our deduplicated flags
+		Flags:              allFlags,
 		LocalFlags:         localFlags,
 		PersistentFlags:    persistentFlags,
 		HasSubCommands:     len(subCommands) > 0,
@@ -477,7 +530,19 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		FilepathPrefix:     filePrefix,
 	}
 
-	cmdTemplate := `# {{ .Name }}
+	// Apply template
+	cmdTemplate := getCommandTemplate()
+	tmpl, err := template.New("command").Parse(cmdTemplate)
+	if err != nil {
+		return err
+	}
+
+	return tmpl.Execute(f, data)
+}
+
+// getCommandTemplate returns the markdown template for command docs
+func getCommandTemplate() string {
+	return `# {{ .Name }}
 
 {{ .Description }}
 
@@ -520,13 +585,6 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 {{ range .SubCommands }}* [{{ . }}]({{ $.FilepathPrefix }}_{{ . }}.md)
 {{ end }}{{ end }}
 `
-
-	tmpl, err := template.New("command").Parse(cmdTemplate)
-	if err != nil {
-		return err
-	}
-
-	return tmpl.Execute(f, data)
 }
 
 func AddCommandsTo(rootCmd *cobra.Command) {
