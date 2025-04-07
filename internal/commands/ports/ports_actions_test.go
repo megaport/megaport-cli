@@ -880,7 +880,7 @@ func TestUpdatePortCmd(t *testing.T) {
 			prompts: []string{
 				"Updated Port Name", // name
 				"true",              // marketplace visibility
-				"cost-center-123",   // cost center
+				"cost-centre-123",   // cost center
 				"12",                // term
 			},
 			setupMock: func(m *MockPortService) {
@@ -896,7 +896,7 @@ func TestUpdatePortCmd(t *testing.T) {
 			flags: map[string]string{
 				"name":                   "Updated Flag Port",
 				"marketplace-visibility": "true",
-				"cost-centre":            "cost-center-456",
+				"cost-centre":            "cost-centre-456",
 				"term":                   "24",
 			},
 			setupMock: func(m *MockPortService) {
@@ -910,7 +910,7 @@ func TestUpdatePortCmd(t *testing.T) {
 			name: "JSON string mode success",
 			args: []string{"port-789"},
 			flags: map[string]string{
-				"json": `{"name":"Updated JSON Port","marketplaceVisibility":true,"costCentre":"cost-center-789","contractTermMonths":36}`,
+				"json": `{"name":"Updated JSON Port","marketplaceVisibility":true,"costCentre":"cost-centre-789","contractTermMonths":36}`,
 			},
 			setupMock: func(m *MockPortService) {
 				m.ModifyPortResult = &megaport.ModifyPortResponse{
@@ -1089,7 +1089,7 @@ func TestUpdatePortCmd(t *testing.T) {
 						assert.Equal(t, "Updated JSON Port", req.Name)
 						assert.NotNil(t, req.MarketplaceVisibility)
 						assert.True(t, *req.MarketplaceVisibility)
-						assert.Equal(t, "cost-center-789", req.CostCentre)
+						assert.Equal(t, "cost-centre-789", req.CostCentre)
 						assert.NotNil(t, req.ContractTermMonths)
 						assert.Equal(t, 36, *req.ContractTermMonths)
 					} else if tt.flags != nil && !tt.interactive {
@@ -1097,7 +1097,7 @@ func TestUpdatePortCmd(t *testing.T) {
 						assert.Equal(t, "Updated Flag Port", req.Name)
 						assert.NotNil(t, req.MarketplaceVisibility)
 						assert.True(t, *req.MarketplaceVisibility)
-						assert.Equal(t, "cost-center-456", req.CostCentre)
+						assert.Equal(t, "cost-centre-456", req.CostCentre)
 						assert.NotNil(t, req.ContractTermMonths)
 						assert.Equal(t, 24, *req.ContractTermMonths)
 					} else if len(tt.prompts) > 0 {
@@ -1108,7 +1108,7 @@ func TestUpdatePortCmd(t *testing.T) {
 
 						// For the failed update test case, we don't provide cost center or term
 						if tt.expectedOutput == "Port updated successfully - UID: port-123" {
-							assert.Equal(t, "cost-center-123", req.CostCentre)
+							assert.Equal(t, "cost-centre-123", req.CostCentre)
 							assert.NotNil(t, req.ContractTermMonths)
 							assert.Equal(t, 12, *req.ContractTermMonths)
 						}
