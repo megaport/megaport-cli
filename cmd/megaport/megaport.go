@@ -38,14 +38,6 @@ func Execute() {
 	}
 }
 
-// getIsColorDisabled checks whether color output should be disabled
-func getIsColorDisabled() bool {
-	// Check if NO_COLOR environment variable is set (standard for disabling color)
-	_, noColorEnv := os.LookupEnv("NO_COLOR")
-
-	return noColor || noColorEnv
-}
-
 func init() {
 	// Setup persistent flags
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", utils.FormatTable,
@@ -99,11 +91,20 @@ func init() {
 
 	// Create a help function that runs the help.CommandHelpBuilder with the current noColor setting
 	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
-		// This function runs after flags are parsed, so noColor will have the correct value
-		isColorDisabled := getIsColorDisabled()
+		isColorDisabled := false
 
-		// Create a copy of the original Long description
-		originalLong := cmd.Long
+		// Check raw command line args directly
+		for _, arg := range os.Args {
+			if arg == "--no-color" || arg == "-no-color" {
+				isColorDisabled = true
+				break
+			}
+		}
+
+		// Also check environment
+		if _, exists := os.LookupEnv("NO_COLOR"); exists {
+			isColorDisabled = true
+		}
 
 		// For the root command, regenerate the help text completely
 		if cmd == rootCmd {
@@ -114,17 +115,14 @@ func init() {
 			helpBuilder := &help.CommandHelpBuilder{
 				CommandName:  cmd.UseLine(),
 				ShortDesc:    cmd.Short,
-				LongDesc:     originalLong,
+				LongDesc:     cmd.Long,
 				DisableColor: isColorDisabled,
 			}
 			cmd.Long = helpBuilder.Build(rootCmd)
 		}
 
-		// Call the original help function directly
+		// Call the original help function
 		originalHelpFunc(cmd, args)
-
-		// Restore the original Long description
-		cmd.Long = originalLong
 	})
 
 	// Set the initial root command help text

@@ -2,6 +2,7 @@ package help
 
 import (
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/mgutz/ansi"
@@ -26,29 +27,36 @@ func (b *CommandHelpBuilder) Build(rootCmd *cobra.Command) string {
 	var sb strings.Builder
 	hasSections := false
 
-	// Check for no-color flag in multiple ways if DisableColor isn't explicitly set
-	noColor := b.DisableColor
+	// Better flag detection - check both parsed flags and raw args
+	noColor := false
 
-	// If DisableColor wasn't set explicitly, check environment and flags
+	// First check the explicit DisableColor property
+	if b.DisableColor {
+		noColor = true
+	}
+
+	// Then check environment variables
 	if !noColor {
-		// Method 1: Check environment variable
 		if _, exists := os.LookupEnv("NO_COLOR"); exists {
 			noColor = true
 		}
+	}
 
-		// Method 2: Check command line args for --no-color
+	// Check command line args directly - more reliable with --help
+	if !noColor && os.Args != nil {
 		for _, arg := range os.Args {
-			if arg == "--no-color" {
+			if arg == "--no-color" || arg == "-no-color" {
 				noColor = true
 				break
 			}
 		}
+	}
 
-		// Method 3: Try to get from cobra rootCmd if available
-		if rootCmd != nil {
-			if flagVal, err := rootCmd.PersistentFlags().GetBool("no-color"); err == nil {
-				noColor = flagVal
-			}
+	// Finally try the flag if available
+	if !noColor && rootCmd != nil {
+		flagVal, err := rootCmd.PersistentFlags().GetBool("no-color")
+		if err == nil {
+			noColor = flagVal
 		}
 	}
 
@@ -70,7 +78,17 @@ func (b *CommandHelpBuilder) Build(rootCmd *cobra.Command) string {
 		} else {
 			sb.WriteString(ansi.Color("Required fields:\n", "yellow+b"))
 		}
-		for flag, desc := range b.RequiredFlags {
+
+		// Sort the flag names for consistent output
+		var flagNames []string
+		for flag := range b.RequiredFlags {
+			flagNames = append(flagNames, flag)
+		}
+		sort.Strings(flagNames)
+
+		// Display flags in sorted order
+		for _, flag := range flagNames {
+			desc := b.RequiredFlags[flag]
 			sb.WriteString("  ")
 			sb.WriteString(flag)
 			sb.WriteString(": ")
@@ -88,7 +106,17 @@ func (b *CommandHelpBuilder) Build(rootCmd *cobra.Command) string {
 		} else {
 			sb.WriteString(ansi.Color("Optional fields:\n", "yellow+b"))
 		}
-		for flag, desc := range b.OptionalFlags {
+
+		// Sort the flag names for consistent output
+		var flagNames []string
+		for flag := range b.OptionalFlags {
+			flagNames = append(flagNames, flag)
+		}
+		sort.Strings(flagNames)
+
+		// Display flags in sorted order
+		for _, flag := range flagNames {
+			desc := b.OptionalFlags[flag]
 			sb.WriteString("  ")
 			sb.WriteString(flag)
 			sb.WriteString(": ")
