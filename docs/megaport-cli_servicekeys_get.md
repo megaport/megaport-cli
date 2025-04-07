@@ -10,8 +10,9 @@ This command fetches and displays detailed information about a given service key
 
 Example usage:
 
-get a1b2c3d4-e5f6-7890-1234-567890abcdef
-
+```
+  get a1b2c3d4-e5f6-7890-1234-567890abcdef
+```
 
 
 ## Usage

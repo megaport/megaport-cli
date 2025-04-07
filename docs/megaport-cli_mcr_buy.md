@@ -9,41 +9,43 @@ Buy an MCR through the Megaport API.
 This command allows you to purchase an MCR by providing the necessary details.
 
 Required fields:
-name: The name of the MCR (1-64 characters)
-term: The contract term for the MCR (1, 12, 24, or 36 months)
-port-speed: The speed of the MCR (1000, 2500, 5000, or 10000 Mbps)
-location-id: The ID of the location where the MCR will be provisioned
+  location-id: The ID of the location where the MCR will be provisioned
+  name: The name of the MCR (1-64 characters)
+  port-speed: The speed of the MCR (1000, 2500, 5000, or 10000 Mbps)
+  term: The contract term for the MCR (1, 12, 24, or 36 months)
 
 Optional fields:
-cost-centre: The cost center for billing purposes
-promo-code: A promotional code for discounts
-mcr-asn: The ASN for the MCR (64512-65534 for private ASN, or a public ASN)
-diversity-zone: The diversity zone for the MCR
+  cost-centre: The cost center for billing purposes
+  diversity-zone: The diversity zone for the MCR
+  mcr-asn: The ASN for the MCR (64512-65534 for private ASN, or a public ASN)
+  promo-code: A promotional code for discounts
 
 Important notes:
-- The location_id must correspond to a valid location in the Megaport API
-- The port_speed must be one of the supported speeds (1000, 2500, 5000, or 10000 Mbps)
-- If mcr_asn is not provided, a private ASN will be automatically assigned
+  - The location_id must correspond to a valid location in the Megaport API
+  - The port_speed must be one of the supported speeds (1000, 2500, 5000, or 10000 Mbps)
+  - If mcr_asn is not provided, a private ASN will be automatically assigned
 
 Example usage:
 
-buy --interactive
-buy --name "My MCR" --term 12 --port-speed 5000 --location-id 123 --mcr-asn 65000
-buy --json '{"name":"My MCR","term":12,"portSpeed":5000,"locationId":123,"mcrAsn":65000}'
-buy --json-file ./mcr-config.json
-
+```
+  buy --interactive
+  buy --name "My MCR" --term 12 --port-speed 5000 --location-id 123 --mcr-asn 65000
+  buy --json '{"name":"My MCR","term":12,"portSpeed":5000,"locationId":123,"mcrAsn":65000}'
+  buy --json-file ./mcr-config.json
+```
 JSON format example:
+```
 {
-"name": "My MCR",
-"term": 12,
-"portSpeed": 5000,
-"locationId": 123,
-"mcrAsn": 65000,
-"diversityZone": "zone-a",
-"costCentre": "IT-Networking",
-"promoCode": "SUMMER2024"
+  "name": "My MCR",
+  "term": 12,
+  "portSpeed": 5000,
+  "locationId": 123,
+  "mcrAsn": 65000,
+  "diversityZone": "zone-a",
+  "costCentre": "IT-Networking",
+  "promoCode": "SUMMER2024"
 }
-
+```
 
 
 ## Usage

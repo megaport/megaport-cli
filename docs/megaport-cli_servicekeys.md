@@ -10,11 +10,12 @@ This command groups all operations related to service keys. You can use its subc
 
 Example usage:
 
-servicekeys list
-servicekeys get [key]
-servicekeys create --product-uid "product-uid" --description "My service key"
-servicekeys update [key] --description "Updated description"
-
+```
+  servicekeys list
+  servicekeys get [key]
+  servicekeys create --product-uid "product-uid" --description "My service key"
+  servicekeys update [key] --description "Updated description"
+```
 
 
 ## Usage

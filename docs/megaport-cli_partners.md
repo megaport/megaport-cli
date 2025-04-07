@@ -10,10 +10,11 @@ This command groups all operations related to partner ports. You can use its sub
 
 Example usage:
 
-partners find
-partners list
-partners list --product-name "AWS Partner Port" --company-name "AWS" --location-id 1
-
+```
+  partners find
+  partners list
+  partners list --product-name "AWS Partner Port" --company-name "AWS" --location-id 1
+```
 
 
 ## Usage

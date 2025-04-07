@@ -10,8 +10,9 @@ This command fetches and displays detailed information about a specific location
 
 Example usage:
 
-get 1
-
+```
+  get 1
+```
 
 
 ## Usage

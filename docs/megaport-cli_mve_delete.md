@@ -10,8 +10,9 @@ This command allows you to delete an existing MVE by providing its UID.
 
 Example usage:
 
-delete [mveUID]
-
+```
+  delete [mveUID]
+```
 
 
 ## Usage

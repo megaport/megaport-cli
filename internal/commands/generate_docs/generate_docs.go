@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -166,7 +167,6 @@ func generateCommandDocs(cmd *cobra.Command, outputDir, parentPath string) error
 
 	return nil
 }
-
 func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 	f, err := os.Create(outputPath)
 	if err != nil {
@@ -174,9 +174,23 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 	}
 	defer f.Close()
 
+	// Use a map to track unique flags by name
+	flagMap := make(map[string]FlagInfo)
+
 	// Collect local flags
-	var localFlags []FlagInfo
 	cmd.LocalFlags().VisitAll(func(flag *pflag.Flag) {
+		flagMap[flag.Name] = FlagInfo{
+			Name:        flag.Name,
+			Shorthand:   flag.Shorthand,
+			Default:     flag.DefValue,
+			Description: flag.Usage,
+			Required:    flag.Annotations != nil && flag.Annotations["cobra_annotation_required"] != nil,
+		}
+	})
+
+	// For local flags (separate collection)
+	var localFlags []FlagInfo
+	cmd.NonInheritedFlags().VisitAll(func(flag *pflag.Flag) {
 		localFlags = append(localFlags, FlagInfo{
 			Name:        flag.Name,
 			Shorthand:   flag.Shorthand,
@@ -186,9 +200,19 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		})
 	})
 
-	// Collect persistent flags
+	// For persistent flags (separate collection)
 	var persistentFlags []FlagInfo
 	cmd.PersistentFlags().VisitAll(func(flag *pflag.Flag) {
+		// Only add to the persistent collection if not already in the flagMap
+		if _, exists := flagMap[flag.Name]; !exists {
+			flagMap[flag.Name] = FlagInfo{
+				Name:        flag.Name,
+				Shorthand:   flag.Shorthand,
+				Default:     flag.DefValue,
+				Description: flag.Usage,
+				Required:    flag.Annotations != nil && flag.Annotations["cobra_annotation_required"] != nil,
+			}
+		}
 		persistentFlags = append(persistentFlags, FlagInfo{
 			Name:        flag.Name,
 			Shorthand:   flag.Shorthand,
@@ -198,10 +222,16 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		})
 	})
 
-	// Combine all flags
+	// Convert the map to a slice for the template
 	var allFlags []FlagInfo
-	allFlags = append(allFlags, localFlags...)
-	allFlags = append(allFlags, persistentFlags...)
+	for _, flagInfo := range flagMap {
+		allFlags = append(allFlags, flagInfo)
+	}
+
+	// Sort flags alphabetically for consistent output
+	sort.Slice(allFlags, func(i, j int) bool {
+		return allFlags[i].Name < allFlags[j].Name
+	})
 
 	// Gather subcommands
 	var subCommands []string
@@ -241,14 +271,28 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		var formattedLines []string
 		inExampleBlock := false
 		inExampleSection := false
+		inJsonSection := false
+		lineAfterExampleHeader := false
 
 		for _, line := range lines {
 			trimLine := strings.TrimSpace(line)
 
-			// Detect start of an examples section
+			// Detect start of examples section
 			if strings.Contains(strings.ToLower(trimLine), "example") &&
-				(strings.HasSuffix(trimLine, ":") || strings.HasSuffix(trimLine, "usage") || strings.HasPrefix(trimLine, "#")) {
+				(strings.HasSuffix(trimLine, ":") ||
+					strings.HasSuffix(trimLine, "usage:") ||
+					strings.HasPrefix(trimLine, "example")) {
 				inExampleSection = true
+				lineAfterExampleHeader = true
+				formattedLines = append(formattedLines, line) // Add the header line
+				continue
+			}
+
+			// Start code block after example header
+			if lineAfterExampleHeader && trimLine != "" && !strings.HasPrefix(trimLine, "```") {
+				formattedLines = append(formattedLines, "```")
+				inExampleBlock = true
+				lineAfterExampleHeader = false
 			}
 
 			// Detect if it's a header line
@@ -258,6 +302,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 			if isHeaderLine && inExampleBlock {
 				formattedLines = append(formattedLines, "```")
 				inExampleBlock = false
+				inExampleSection = false
 			}
 
 			// Downgrade headers to level 3 if in an example section or if it contains 'example'
@@ -277,8 +322,27 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 				inExampleSection = false
 			}
 
-			// Detect typical example command lines
-			isExampleLine := strings.HasPrefix(trimLine, "megaport-cli")
+			// Handle JSON format example section
+			if trimLine == "JSON format example:" || strings.HasPrefix(trimLine, "JSON format example") {
+				if inExampleBlock {
+					formattedLines = append(formattedLines, "```") // Close previous code block
+				}
+				formattedLines = append(formattedLines, line)      // Add the header line
+				formattedLines = append(formattedLines, "```json") // Start JSON code block
+				inExampleBlock = true
+				inJsonSection = true
+				inExampleSection = true
+				continue
+			}
+
+			// Detect command examples - cover more patterns
+			isExampleLine := strings.HasPrefix(trimLine, "megaport-cli") ||
+				(cmd.Name() == "buy" && strings.HasPrefix(trimLine, "buy")) ||
+				(inExampleSection &&
+					trimLine != "" &&
+					!isHeaderLine &&
+					(strings.Contains(trimLine, "--") ||
+						strings.HasPrefix(trimLine, cmd.Name())))
 
 			// Start code block if an example line is detected and not already in one
 			if isExampleLine && !inExampleBlock {
@@ -286,15 +350,29 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 				inExampleBlock = true
 			}
 
-			// Cleanup lines if we're inside an example block
-			if inExampleBlock {
-				// Remove any leading "- `" if present
-				trimLine = strings.TrimPrefix(trimLine, "- `")
-				// Remove any remaining backticks
-				trimLine = strings.ReplaceAll(trimLine, "`", "")
+			// If we're in an empty line after examples section and code block is open, consider closing it
+			if inExampleBlock && trimLine == "" && inExampleSection {
+				// Check if this is followed by a non-example line
+				hasMoreExamples := false
+				for i := len(formattedLines); i < len(lines); i++ {
+					nextLine := strings.TrimSpace(lines[i])
+					if strings.HasPrefix(nextLine, "megaport-cli") ||
+						(cmd.Name() == "buy" && strings.HasPrefix(nextLine, "buy")) ||
+						strings.Contains(nextLine, "--") {
+						hasMoreExamples = true
+						break
+					}
+				}
+
+				if !hasMoreExamples && !inJsonSection {
+					formattedLines = append(formattedLines, "```")
+					inExampleBlock = false
+					continue
+				}
 			}
 
-			formattedLines = append(formattedLines, trimLine)
+			// Add the line to the output
+			formattedLines = append(formattedLines, line)
 		}
 
 		// Close any open code block at the end
@@ -325,7 +403,7 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		ParentCommandName:  parentCommandName,
 		ParentFilePath:     parentFilePath,
 		Aliases:            cmd.Aliases,
-		Flags:              allFlags,
+		Flags:              allFlags, // Use our deduplicated flags
 		LocalFlags:         localFlags,
 		PersistentFlags:    persistentFlags,
 		HasSubCommands:     len(subCommands) > 0,

@@ -10,8 +10,9 @@ This command retrieves and displays detailed information about a specific prefix
 
 Example usage:
 
-get-prefix-filter-list [mcrUID] [prefixFilterListID]
-
+```
+  get-prefix-filter-list [mcrUID] [prefixFilterListID]
+```
 
 
 ## Usage

@@ -9,35 +9,37 @@ Buy a port through the Megaport API.
 This command allows you to purchase a port by providing the necessary details.
 
 Required fields:
-marketplace-visibility: Whether the port should be visible in the marketplace (true or false)
-name: The name of the port (1-64 characters)
-term: The term of the port (1, 12, 24, or 36 months)
-port-speed: The speed of the port (1000, 10000, or 100000 Mbps)
-location-id: The ID of the location where the port will be provisioned
+  location-id: The ID of the location where the port will be provisioned
+  marketplace-visibility: Whether the port should be visible in the marketplace (true or false)
+  name: The name of the port (1-64 characters)
+  port-speed: The speed of the port (1000, 10000, or 100000 Mbps)
+  term: The term of the port (1, 12, 24, or 36 months)
 
 Optional fields:
-diversity-zone: The diversity zone for the port
-cost-centre: The cost center for the port
-promo-code: A promotional code for the port
+  cost-centre: The cost center for the port
+  diversity-zone: The diversity zone for the port
+  promo-code: A promotional code for the port
 
 Example usage:
 
-buy --interactive
-buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true
-buy --json '{"name":"My Port","term":12,"portSpeed":10000,"locationId":123,"marketPlaceVisibility":true}'
-buy --json-file ./port-config.json
-
+```
+  buy --interactive
+  buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true
+  buy --json '{"name":"My Port","term":12,"portSpeed":10000,"locationId":123,"marketPlaceVisibility":true}'
+  buy --json-file ./port-config.json
+```
 JSON format example:
+```
 {
-"name": "My Port",
-"term": 12,
-"portSpeed": 10000,
-"locationId": 123,
-"marketPlaceVisibility": true,
-"diversityZone": "A",
-"costCentre": "IT-2023"
+  "name": "My Port",
+  "term": 12,
+  "portSpeed": 10000,
+  "locationId": 123,
+  "marketPlaceVisibility": true,
+  "diversityZone": "A",
+  "costCentre": "IT-2023"
 }
-
+```
 
 
 ## Usage

@@ -9,53 +9,55 @@ Purchase a new Megaport Virtual Edge (MVE) device through the Megaport API.
 This command allows you to purchase an MVE by providing the necessary details.
 
 Required fields:
-location-id: The ID of the location where the MVE will be provisioned
-vendor-config: JSON string with vendor-specific configuration (for flag mode)
-vnics: JSON array of network interfaces (for flag mode)
-name: The name of the MVE
-term: The term of the MVE (1, 12, 24, or 36 months)
+  location-id: The ID of the location where the MVE will be provisioned
+  name: The name of the MVE
+  term: The term of the MVE (1, 12, 24, or 36 months)
+  vendor-config: JSON string with vendor-specific configuration (for flag mode)
+  vnics: JSON array of network interfaces (for flag mode)
 
 Optional fields:
-diversity-zone: The diversity zone for the MVE
-promo-code: Promotional code for discounts
-cost-centre: Cost centre for billing
+  cost-centre: Cost centre for billing
+  diversity-zone: The diversity zone for the MVE
+  promo-code: Promotional code for discounts
 
 Important notes:
-- For production deployments, you may want to use a JSON file to manage complex configurations
-- To list available images and their IDs, use: megaport-cli mve list-images
-- To list available sizes, use: megaport-cli mve list-sizes
-- Location IDs can be retrieved with: megaport-cli locations list
+  - For production deployments, you may want to use a JSON file to manage complex configurations
+  - To list available images and their IDs, use: megaport-cli mve list-images
+  - To list available sizes, use: megaport-cli mve list-sizes
+  - Location IDs can be retrieved with: megaport-cli locations list
 
 Example usage:
 
-buy --interactive
-buy --json '{"name":"My MVE","term":12,"locationId":123,"vendorConfig":{"vendor":"cisco","imageId":123,"productSize":"MEDIUM"},"vnics":[{"description":"Data Plane","vlan":100}]}'
-buy --json-file ./mve-config.json
-
+```
+  buy --interactive
+  buy --json '{"name":"My MVE","term":12,"locationId":123,"vendorConfig":{"vendor":"cisco","imageId":123,"productSize":"MEDIUM"},"vnics":[{"description":"Data Plane","vlan":100}]}'
+  buy --json-file ./mve-config.json
+```
 JSON format example:
+```
 {
-"name": "My MVE Display Name",
-"term": 12,
-"locationId": 123,
-"diversityZone": "zone-1",
-"promoCode": "PROMO2023",
-"costCentre": "Marketing Dept",
-"vendorConfig": {
-"vendor": "cisco",
-"imageId": 123,
-"productSize": "MEDIUM",
-"mveLabel": "custom-label",
-"manageLocally": true,
-"adminSshPublicKey": "ssh-rsa AAAA...",
-"sshPublicKey": "ssh-rsa AAAA...",
-"cloudInit": "#cloud-config\npackages:\n - nginx\n"
-},
-"vnics": [
-{"description": "Data Plane", "vlan": 100},
-{"description": "Management", "vlan": 200}
-]
+  "name": "My MVE Display Name",
+  "term": 12,
+  "locationId": 123,
+  "diversityZone": "zone-1",
+  "promoCode": "PROMO2023",
+  "costCentre": "Marketing Dept",
+  "vendorConfig": {
+    "vendor": "cisco",
+    "imageId": 123,
+    "productSize": "MEDIUM",
+    "mveLabel": "custom-label",
+    "manageLocally": true,
+    "adminSshPublicKey": "ssh-rsa AAAA...",
+    "sshPublicKey": "ssh-rsa AAAA...",
+    "cloudInit": "#cloud-config\npackages:\n - nginx\n"
+  },
+  "vnics": [
+    {"description": "Data Plane", "vlan": 100},
+    {"description": "Management", "vlan": 200}
+  ]
 }
-
+```
 
 
 ## Usage

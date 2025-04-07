@@ -10,8 +10,9 @@ This command retrieves and displays a list of all prefix filter lists configured
 
 Example usage:
 
-list-prefix-filter-lists [mcrUID]
-
+```
+  list-prefix-filter-lists [mcrUID]
+```
 
 
 ## Usage

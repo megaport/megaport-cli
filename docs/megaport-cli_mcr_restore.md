@@ -10,8 +10,9 @@ This command allows you to restore a previously deleted MCR, provided it has not
 
 Example usage:
 
-restore [mcrUID]
-
+```
+  restore [mcrUID]
+```
 
 
 ## Usage

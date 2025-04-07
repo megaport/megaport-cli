@@ -10,9 +10,10 @@ This command groups all operations related to locations. You can use its subcomm
 
 Example usage:
 
-locations list
-locations get [locationID]
-
+```
+  locations list
+  locations get [locationID]
+```
 
 
 ## Usage

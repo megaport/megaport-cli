@@ -10,8 +10,9 @@ This command fetches and displays detailed information about a specific MVE. You
 
 Example usage:
 
-get [mveUID]
-
+```
+  get [mveUID]
+```
 
 
 ## Usage

@@ -10,17 +10,18 @@ This command groups operations related to ports. You can use the subcommands to 
 
 Example usage:
 
-ports list
-ports get [portUID]
-ports buy --interactive
-ports buy-lag --interactive
-ports update [portUID] --name "Updated Port Name"
-ports delete [portUID]
-ports restore [portUID]
-ports lock [portUID]
-ports unlock [portUID]
-ports check-vlan [portUID] [vlan]
-
+```
+  ports list
+  ports get [portUID]
+  ports buy --interactive
+  ports buy-lag --interactive
+  ports update [portUID] --name "Updated Port Name"
+  ports delete [portUID]
+  ports restore [portUID]
+  ports lock [portUID]
+  ports unlock [portUID]
+  ports check-vlan [portUID] [vlan]
+```
 
 
 ## Usage

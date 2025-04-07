@@ -10,8 +10,9 @@ This command retrieves and displays all service keys along with their details. U
 
 Example usage:
 
-list
-
+```
+  list
+```
 
 
 ## Usage

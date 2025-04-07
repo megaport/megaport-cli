@@ -9,13 +9,14 @@ Delete a prefix filter list on an MCR.
 This command allows you to delete a prefix filter list from the specified MCR.
 
 Optional fields:
-force: Force deletion without confirmation
+  force: Force deletion without confirmation
 
 Example usage:
 
-delete-prefix-filter-list [mcrUID] [prefixFilterListID]
-delete-prefix-filter-list [mcrUID] [prefixFilterListID] --force
-
+```
+  delete-prefix-filter-list [mcrUID] [prefixFilterListID]
+  delete-prefix-filter-list [mcrUID] [prefixFilterListID] --force
+```
 
 
 ## Usage
