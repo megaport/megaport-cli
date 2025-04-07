@@ -175,30 +175,48 @@ func collectFlags(cmd *cobra.Command) ([]FlagInfo, []FlagInfo, []FlagInfo) {
 
 	// Collect all flags
 	cmd.LocalFlags().VisitAll(func(flag *pflag.Flag) {
+		// Get the flag directly from the command to check required status
+		cmdFlag := cmd.Flags().Lookup(flag.Name)
+		required := false
+		if cmdFlag != nil && cmdFlag.Annotations != nil {
+			_, required = cmdFlag.Annotations["cobra_annotation_bash_completion_one_required_flag"]
+		}
 		flagMap[flag.Name] = FlagInfo{
 			Name:        flag.Name,
 			Shorthand:   flag.Shorthand,
 			Default:     flag.DefValue,
 			Description: flag.Usage,
-			Required:    flag.Annotations != nil && flag.Annotations["cobra_annotation_required"] != nil,
+			Required:    required,
 		}
 	})
 
 	// For local flags (separate collection)
 	var localFlags []FlagInfo
 	cmd.NonInheritedFlags().VisitAll(func(flag *pflag.Flag) {
+		cmdFlag := cmd.Flags().Lookup(flag.Name)
+		required := false
+		if cmdFlag != nil && cmdFlag.Annotations != nil {
+			_, required = cmdFlag.Annotations["cobra_annotation_bash_completion_one_required_flag"]
+		}
+
 		localFlags = append(localFlags, FlagInfo{
 			Name:        flag.Name,
 			Shorthand:   flag.Shorthand,
 			Default:     flag.DefValue,
 			Description: flag.Usage,
-			Required:    flag.Annotations != nil && flag.Annotations["cobra_annotation_required"] != nil,
+			Required:    required,
 		})
 	})
 
 	// For persistent flags (separate collection)
 	var persistentFlags []FlagInfo
 	cmd.PersistentFlags().VisitAll(func(flag *pflag.Flag) {
+		cmdFlag := cmd.PersistentFlags().Lookup(flag.Name)
+		required := false
+		if cmdFlag != nil && cmdFlag.Annotations != nil {
+			_, required = cmdFlag.Annotations["cobra_annotation_bash_completion_one_required_flag"]
+		}
+
 		// Only add to the persistent collection if not already in the flagMap
 		if _, exists := flagMap[flag.Name]; !exists {
 			flagMap[flag.Name] = FlagInfo{
@@ -206,7 +224,7 @@ func collectFlags(cmd *cobra.Command) ([]FlagInfo, []FlagInfo, []FlagInfo) {
 				Shorthand:   flag.Shorthand,
 				Default:     flag.DefValue,
 				Description: flag.Usage,
-				Required:    flag.Annotations != nil && flag.Annotations["cobra_annotation_required"] != nil,
+				Required:    required,
 			}
 		}
 		persistentFlags = append(persistentFlags, FlagInfo{
@@ -214,7 +232,7 @@ func collectFlags(cmd *cobra.Command) ([]FlagInfo, []FlagInfo, []FlagInfo) {
 			Shorthand:   flag.Shorthand,
 			Default:     flag.DefValue,
 			Description: flag.Usage,
-			Required:    flag.Annotations != nil && flag.Annotations["cobra_annotation_required"] != nil,
+			Required:    required,
 		})
 	})
 
