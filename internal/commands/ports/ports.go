@@ -12,18 +12,6 @@ var (
 	portName   string
 )
 
-// wrapCommandFunc adapts our functions with noColor parameter to standard cobra RunE functions
-func wrapCommandFunc(fn func(cmd *cobra.Command, args []string, noColor bool) error) func(cmd *cobra.Command, args []string) error {
-	return func(cmd *cobra.Command, args []string) error {
-		// Get noColor value from root command
-		noColor, err := cmd.Root().PersistentFlags().GetBool("no-color")
-		if err != nil {
-			noColor = false // Default to color if flag not found
-		}
-		return fn(cmd, args, noColor)
-	}
-}
-
 // portsCmd is the base command for all operations related to ports in the Megaport API.
 var portsCmd = &cobra.Command{
 	Use:   "ports",
@@ -87,7 +75,7 @@ var lockPortCmd = &cobra.Command{
 	Use:   "lock [portUID]",
 	Short: "Lock a port",
 	Args:  cobra.ExactArgs(1),
-	RunE:  utils.WrapRunE(wrapCommandFunc(LockPort)),
+	RunE:  utils.WrapColorAwareRunE(LockPort),
 }
 
 // unlockPortCmd unlocks a port in the Megaport API.
@@ -95,7 +83,7 @@ var unlockPortCmd = &cobra.Command{
 	Use:   "unlock [portUID]",
 	Short: "Unlock a port",
 	Args:  cobra.ExactArgs(1),
-	RunE:  utils.WrapRunE(wrapCommandFunc(UnlockPort)),
+	RunE:  utils.WrapColorAwareRunE(UnlockPort),
 }
 
 // checkPortVLANAvailabilityCmd checks if a VLAN is available on a port.
@@ -103,7 +91,7 @@ var checkPortVLANAvailabilityCmd = &cobra.Command{
 	Use:   "check-vlan [portUID] [vlan]",
 	Short: "Check if a VLAN is available on a port",
 	Args:  cobra.ExactArgs(2),
-	RunE:  utils.WrapRunE(wrapCommandFunc(CheckPortVLANAvailability)),
+	RunE:  utils.WrapColorAwareRunE(CheckPortVLANAvailability),
 }
 
 // GetPortHelp is a placeholder function for the ports help command
@@ -201,7 +189,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		},
 		OptionalFlags: map[string]string{
 			"diversity-zone": "The diversity zone for the port",
-			"cost-centre":    "The cost center for the port",
+			"cost-centre":    "The cost centre for the port",
 			"promo-code":     "A promotional code for the port",
 		},
 		Examples: []string{
@@ -239,7 +227,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		},
 		OptionalFlags: map[string]string{
 			"diversity-zone": "The diversity zone for the LAG port",
-			"cost-centre":    "The cost center for the LAG port",
+			"cost-centre":    "The cost centre for the LAG port",
 			"promo-code":     "A promotional code for the LAG port",
 		},
 		Examples: []string{
@@ -303,7 +291,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		OptionalFlags: map[string]string{
 			"name":                   "The new name of the port (1-64 characters)",
 			"marketplace-visibility": "Whether the port should be visible in the marketplace (true or false)",
-			"cost-centre":            "The cost center for billing purposes",
+			"cost-centre":            "The cost centre for billing purposes",
 			"term":                   "The new contract term in months (1, 12, 24, or 36)",
 		},
 		ImportantNotes: []string{

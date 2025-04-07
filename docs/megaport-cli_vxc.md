@@ -8,13 +8,14 @@ Manage VXCs in the Megaport API.
 
 This command groups all operations related to Virtual Cross Connects (VXCs). VXCs are virtual point-to-point connections between two ports or devices on the Megaport network. You can use the subcommands to perform actions such as retrieving details, purchasing, updating, and deleting VXCs.
 
-Example usage:
+### Example Usage
 
-vxc get [vxcUID]
-vxc buy
-vxc update [vxcUID]
-vxc delete [vxcUID]
-
+```
+  vxc get [vxcUID]
+  vxc buy
+  vxc update [vxcUID]
+  vxc delete [vxcUID]
+```
 
 
 ## Usage

@@ -8,19 +8,20 @@ Manage MCRs in the Megaport API.
 
 This command groups all operations related to Megaport Cloud Routers (MCRs). MCRs are virtual routing appliances that run in the Megaport network, providing interconnection between your cloud environments and the Megaport fabric.
 
-Important notes:
-- With MCRs you can establish virtual cross-connects (VXCs) to cloud service providers
-- Create private network connections between different cloud regions
-- Implement hybrid cloud architectures with seamless connectivity
-- Peer with other networks using BGP routing
+### Important Notes
+  - With MCRs you can establish virtual cross-connects (VXCs) to cloud service providers
+  - Create private network connections between different cloud regions
+  - Implement hybrid cloud architectures with seamless connectivity
+  - Peer with other networks using BGP routing
 
-Example usage:
+### Example Usage
 
-mcr get [mcrUID]
-mcr buy
-mcr update [mcrUID]
-mcr delete [mcrUID]
-
+```
+  mcr get [mcrUID]
+  mcr buy
+  mcr update [mcrUID]
+  mcr delete [mcrUID]
+```
 
 
 ## Usage

@@ -8,10 +8,11 @@ List all service keys for the Megaport API.
 
 This command retrieves and displays all service keys along with their details. Use this command to review the keys available in your account.
 
-Example usage:
+### Example Usage
 
-list
-
+```
+  list
+```
 
 
 ## Usage

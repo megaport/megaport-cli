@@ -182,7 +182,7 @@ func promptForPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.DiversityZone = diversityZone
 
-	costCentre, err := utils.Prompt("Enter cost center (optional): ", noColor)
+	costCentre, err := utils.Prompt("Enter cost centre (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -323,7 +323,7 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.DiversityZone = diversityZone
 
-	costCentre, err := utils.Prompt("Enter cost center (optional): ", noColor)
+	costCentre, err := utils.Prompt("Enter cost centre (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -438,7 +438,7 @@ func promptForUpdatePortDetails(portUID string, noColor bool) (*megaport.ModifyP
 	req.MarketplaceVisibility = &marketplaceVisibility
 
 	// Prompt for optional fields
-	costCentre, err := utils.Prompt("Enter cost center (optional): ", noColor)
+	costCentre, err := utils.Prompt("Enter cost centre (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}

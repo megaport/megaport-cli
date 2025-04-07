@@ -8,10 +8,11 @@ List all prefix filter lists for a specific MCR.
 
 This command retrieves and displays a list of all prefix filter lists configured on the specified MCR.
 
-Example usage:
+### Example Usage
 
-list-prefix-filter-lists [mcrUID]
-
+```
+  list-prefix-filter-lists [mcrUID]
+```
 
 
 ## Usage

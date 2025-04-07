@@ -8,13 +8,14 @@ Manage service keys for the Megaport API.
 
 This command groups all operations related to service keys. You can use its subcommands to create, update, list, and get details of service keys.
 
-Example usage:
+### Example Usage
 
-servicekeys list
-servicekeys get [key]
-servicekeys create --product-uid "product-uid" --description "My service key"
-servicekeys update [key] --description "Updated description"
-
+```
+  servicekeys list
+  servicekeys get [key]
+  servicekeys create --product-uid "product-uid" --description "My service key"
+  servicekeys update [key] --description "Updated description"
+```
 
 
 ## Usage

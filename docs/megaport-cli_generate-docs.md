@@ -15,15 +15,16 @@ The documentation is organized by command hierarchy, with each command generatin
 - Subcommands list
 - Input/output formats (where applicable)
 
-Important notes:
-- The output directory will be created if it doesn't exist
-- Existing files in the output directory may be overwritten
-- Hidden commands and 'help' commands are excluded from the documentation
+### Important Notes
+  - The output directory will be created if it doesn't exist
+  - Existing files in the output directory may be overwritten
+  - Hidden commands and 'help' commands are excluded from the documentation
 
-Example usage:
+### Example Usage
 
-generate-docs ./docs
-
+```
+  generate-docs ./docs
+```
 
 
 ## Usage

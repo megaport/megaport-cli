@@ -8,41 +8,44 @@ Create a prefix filter list on an MCR.
 
 This command allows you to create a new prefix filter list on an MCR. Prefix filter lists are used to control which routes are accepted or advertised by the MCR.
 
-Required fields:
-description: The description of the prefix filter list (1-255 characters)
-address-family: The address family (IPv4 or IPv6)
-entries: JSON array of prefix filter entries
+### Required Fields
+  - `address-family`: The address family (IPv4 or IPv6)
+  - `description`: The description of the prefix filter list (1-255 characters)
+  - `entries`: JSON array of prefix filter entries
 
-Important notes:
-- The address_family must be either "IPv4" or "IPv6"
-- The entries must be a valid JSON array of prefix filter entries
-- The ge and le values are optional but must be within the range of the prefix length
+### Important Notes
+  - The address_family must be either "IPv4" or "IPv6"
+  - The entries must be a valid JSON array of prefix filter entries
+  - The ge and le values are optional but must be within the range of the prefix length
 
-Example usage:
+### Example Usage
 
-create-prefix-filter-list [mcrUID] --interactive
-create-prefix-filter-list [mcrUID] --description "My prefix list" --address-family "IPv4" --entries '[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]'
-create-prefix-filter-list [mcrUID] --json '{"description":"My prefix list","addressFamily":"IPv4","entries":[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]}'
-create-prefix-filter-list [mcrUID] --json-file ./prefix-list-config.json
-
-JSON format example:
+```
+  create-prefix-filter-list [mcrUID] --interactive
+  create-prefix-filter-list [mcrUID] --description "My prefix list" --address-family "IPv4" --entries '[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]'
+  create-prefix-filter-list [mcrUID] --json '{"description":"My prefix list","addressFamily":"IPv4","entries":[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]}'
+  create-prefix-filter-list [mcrUID] --json-file ./prefix-list-config.json
+```
+### JSON Format Example
+```json
 {
-"description": "My prefix list",
-"addressFamily": "IPv4",
-"entries": [
-{
-"action": "permit",
-"prefix": "10.0.0.0/8",
-"ge": 24,
-"le": 32
-},
-{
-"action": "deny",
-"prefix": "0.0.0.0/0"
+  "description": "My prefix list",
+  "addressFamily": "IPv4",
+  "entries": [
+    {
+      "action": "permit",
+      "prefix": "10.0.0.0/8",
+      "ge": 24,
+      "le": 32
+    },
+    {
+      "action": "deny",
+      "prefix": "0.0.0.0/0"
+    }
+  ]
 }
-]
-}
 
+```
 
 
 ## Usage

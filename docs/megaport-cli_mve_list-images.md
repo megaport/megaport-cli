@@ -8,23 +8,24 @@ List all available MVE images from the Megaport API.
 
 This command fetches and displays a list of all available MVE images with details about each one. These images are used when creating new MVEs with the 'buy' command.
 
-Optional fields:
-vendor: Filter images by vendor name (e.g., "Cisco", "Fortinet")
-product-code: Filter images by product code
-id: Filter images by exact image ID
-version: Filter images by version string
-release-image: Only show official release images (excludes beta/development)
+### Optional Fields
+  - `id`: Filter images by exact image ID
+  - `product-code`: Filter images by product code
+  - `release-image`: Only show official release images (excludes beta/development)
+  - `vendor`: Filter images by vendor name (e.g., "Cisco", "Fortinet")
+  - `version`: Filter images by version string
 
-Important notes:
-- The output includes the image ID, vendor, product, version, release status, available sizes, and description
-- The ID field is required when specifying an image in the 'buy' command
+### Important Notes
+  - The output includes the image ID, vendor, product, version, release status, available sizes, and description
+  - The ID field is required when specifying an image in the 'buy' command
 
-Example usage:
+### Example Usage
 
-list-images
-list-images --vendor "Cisco"
-list-images --vendor "Fortinet" --release-image
-
+```
+  list-images
+  list-images --vendor "Cisco"
+  list-images --vendor "Fortinet" --release-image
+```
 
 
 ## Usage

@@ -8,46 +8,49 @@ Update an existing Virtual Cross Connect (VXC) through the Megaport API.
 
 This command allows you to update an existing VXC by providing the necessary details.
 
-Optional fields:
-b-end-uid: New B-End product UID
-name: New name for the VXC (1-64 characters)
-cost-centre: New cost centre for billing
-shutdown: Whether to shut down the VXC (true/false)
-a-end-vlan: New VLAN for A-End (2-4093, except 4090)
-b-end-vlan: New VLAN for B-End (2-4093, except 4090)
-a-end-inner-vlan: New inner VLAN for A-End (-1 or higher, only for QinQ)
-a-end-uid: New A-End product UID
-a-end-partner-config: JSON string with A-End VRouter partner configuration
-b-end-partner-config: JSON string with B-End VRouter partner configuration
-rate-limit: New bandwidth in Mbps (50 - 10000)
-term: New contract term in months (1, 12, 24, or 36)
-b-end-inner-vlan: New inner VLAN for B-End (-1 or higher, only for QinQ)
+### Optional Fields
+  - `a-end-inner-vlan`: New inner VLAN for A-End (-1 or higher, only for QinQ)
+  - `a-end-partner-config`: JSON string with A-End VRouter partner configuration
+  - `a-end-uid`: New A-End product UID
+  - `a-end-vlan`: New VLAN for A-End (2-4093, except 4090)
+  - `b-end-inner-vlan`: New inner VLAN for B-End (-1 or higher, only for QinQ)
+  - `b-end-partner-config`: JSON string with B-End VRouter partner configuration
+  - `b-end-uid`: New B-End product UID
+  - `b-end-vlan`: New VLAN for B-End (2-4093, except 4090)
+  - `cost-centre`: New cost centre for billing
+  - `name`: New name for the VXC (1-64 characters)
+  - `rate-limit`: New bandwidth in Mbps (50 - 10000)
+  - `shutdown`: Whether to shut down the VXC (true/false)
+  - `term`: New contract term in months (1, 12, 24, or 36)
 
-Important notes:
-- Only VRouter partner configurations can be updated after creation
-- CSP partner configurations (AWS, Azure, etc.) cannot be changed after creation
-- Changing the rate limit may result in additional charges
-- Updating VLANs will cause temporary disruption to the VXC connectivity
+### Important Notes
+  - Only VRouter partner configurations can be updated after creation
+  - CSP partner configurations (AWS, Azure, etc.) cannot be changed after creation
+  - Changing the rate limit may result in additional charges
+  - Updating VLANs will cause temporary disruption to the VXC connectivity
 
-Example usage:
+### Example Usage
 
-update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive
-update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --name "New VXC Name" --rate-limit 2000 --cost-centre "New Cost Centre"
-update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --a-end-vlan 200 --b-end-vlan 300
-update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --b-end-partner-config '{"interfaces":[{"vlan":100,"ipAddresses":["192.168.1.1/30"],"bgpConnections":[{"peerAsn":65000,"localAsn":64512,"localIpAddress":"192.168.1.1","peerIpAddress":"192.168.1.2","password":"bgppassword","shutdown":false,"bfdEnabled":true}]}]}'
-update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{"name":"Updated VXC Name","rateLimit":2000,"costCentre":"New Cost Centre","aEndVlan":200,"bEndVlan":300,"term":24,"shutdown":false}'
-
-JSON format example:
+```
+  update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive
+  update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --name "New VXC Name" --rate-limit 2000 --cost-centre "New Cost Centre"
+  update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --a-end-vlan 200 --b-end-vlan 300
+  update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --b-end-partner-config '{"interfaces":[{"vlan":100,"ipAddresses":["192.168.1.1/30"],"bgpConnections":[{"peerAsn":65000,"localAsn":64512,"localIpAddress":"192.168.1.1","peerIpAddress":"192.168.1.2","password":"bgppassword","shutdown":false,"bfdEnabled":true}]}]}'
+  update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{"name":"Updated VXC Name","rateLimit":2000,"costCentre":"New Cost Centre","aEndVlan":200,"bEndVlan":300,"term":24,"shutdown":false}'
+```
+### JSON Format Example
+```json
 {
-"name": "Updated VXC Name",
-"rateLimit": 2000,
-"costCentre": "New Cost Centre",
-"aEndVlan": 200,
-"bEndVlan": 300,
-"term": 24,
-"shutdown": false
+  "name": "Updated VXC Name",
+  "rateLimit": 2000,
+  "costCentre": "New Cost Centre",
+  "aEndVlan": 200,
+  "bEndVlan": 300,
+  "term": 24,
+  "shutdown": false
 }
 
+```
 
 
 ## Usage

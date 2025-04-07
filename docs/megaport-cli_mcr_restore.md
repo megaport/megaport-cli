@@ -8,10 +8,11 @@ Restore a previously deleted MCR.
 
 This command allows you to restore a previously deleted MCR, provided it has not yet been fully decommissioned.
 
-Example usage:
+### Example Usage
 
-restore [mcrUID]
-
+```
+  restore [mcrUID]
+```
 
 
 ## Usage

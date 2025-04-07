@@ -8,10 +8,11 @@ Get details for a single location from the Megaport API.
 
 This command fetches and displays detailed information about a specific location. You need to provide the ID of the location as an argument.
 
-Example usage:
+### Example Usage
 
-get 1
-
+```
+  get 1
+```
 
 
 ## Usage

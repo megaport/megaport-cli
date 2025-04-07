@@ -181,7 +181,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		OptionalFlags: map[string]string{
 			"mcr-asn":        "The ASN for the MCR (64512-65534 for private ASN, or a public ASN)",
 			"diversity-zone": "The diversity zone for the MCR",
-			"cost-centre":    "The cost center for billing purposes",
+			"cost-centre":    "The cost centre for billing purposes",
 			"promo-code":     "A promotional code for discounts",
 		},
 		Examples: []string{
@@ -217,7 +217,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		LongDesc:    "Update an existing Megaport Cloud Router (MCR).\n\nThis command allows you to update the details of an existing MCR.",
 		OptionalFlags: map[string]string{
 			"name":                   "The new name of the MCR (1-64 characters)",
-			"cost-centre":            "The new cost center for the MCR",
+			"cost-centre":            "The new cost centre for the MCR",
 			"marketplace-visibility": "Whether the MCR is visible in the marketplace (true/false)",
 			"term":                   "The new contract term in months (1, 12, 24, or 36)",
 		},

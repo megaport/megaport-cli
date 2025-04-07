@@ -8,19 +8,20 @@ List all ports available in the Megaport API.
 
 This command fetches and displays a list of ports with details such as port ID, name, location, speed, and status.
 
-Optional fields:
-location-id: Filter ports by location ID
-port-speed: Filter ports by port speed
-port-name: Filter ports by port name
+### Optional Fields
+  - `location-id`: Filter ports by location ID
+  - `port-name`: Filter ports by port name
+  - `port-speed`: Filter ports by port speed
 
-Example usage:
+### Example Usage
 
-list
-list --location-id 1
-list --port-speed 10000
-list --port-name "Data Center Primary"
-list --location-id 1 --port-speed 10000 --port-name "Data Center Primary"
-
+```
+  list
+  list --location-id 1
+  list --port-speed 10000
+  list --port-name "Data Center Primary"
+  list --location-id 1 --port-speed 10000 --port-name "Data Center Primary"
+```
 
 
 ## Usage

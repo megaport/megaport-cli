@@ -8,12 +8,13 @@ Manage partner ports in the Megaport API.
 
 This command groups all operations related to partner ports. You can use its subcommands to list and filter available partner ports based on specific criteria.
 
-Example usage:
+### Example Usage
 
-partners find
-partners list
-partners list --product-name "AWS Partner Port" --company-name "AWS" --location-id 1
-
+```
+  partners find
+  partners list
+  partners list --product-name "AWS Partner Port" --company-name "AWS" --location-id 1
+```
 
 
 ## Usage

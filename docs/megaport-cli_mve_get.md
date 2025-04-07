@@ -8,10 +8,11 @@ Get details for a single MVE from the Megaport API.
 
 This command fetches and displays detailed information about a specific MVE. You need to provide the UID of the MVE as an argument.
 
-Example usage:
+### Example Usage
 
-get [mveUID]
-
+```
+  get [mveUID]
+```
 
 
 ## Usage

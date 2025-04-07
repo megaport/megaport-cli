@@ -8,38 +8,41 @@ Buy a LAG port through the Megaport API.
 
 This command allows you to purchase a LAG port by providing the necessary details.
 
-Required fields:
-location-id: The ID of the location where the port will be provisioned
-lag-count: The number of LAG members (between 1 and 8)
-marketplace-visibility: Whether the port should be visible in the marketplace (true or false)
-name: The name of the port (1-64 characters)
-term: The term of the port (1, 12, or 24 months)
-port-speed: The speed of each LAG member port (10000 or 100000 Mbps)
+### Required Fields
+  - `lag-count`: The number of LAG members (between 1 and 8)
+  - `location-id`: The ID of the location where the port will be provisioned
+  - `marketplace-visibility`: Whether the port should be visible in the marketplace (true or false)
+  - `name`: The name of the port (1-64 characters)
+  - `port-speed`: The speed of each LAG member port (10000 or 100000 Mbps)
+  - `term`: The term of the port (1, 12, or 24 months)
 
-Optional fields:
-diversity-zone: The diversity zone for the LAG port
-cost-centre: The cost center for the LAG port
-promo-code: A promotional code for the LAG port
+### Optional Fields
+  - `cost-centre`: The cost centre for the LAG port
+  - `diversity-zone`: The diversity zone for the LAG port
+  - `promo-code`: A promotional code for the LAG port
 
-Example usage:
+### Example Usage
 
-buy-lag --interactive
-buy-lag --name "My LAG Port" --term 12 --port-speed 10000 --location-id 123 --lag-count 2 --marketplace-visibility true
-buy-lag --json '{"name":"My LAG Port","term":12,"portSpeed":10000,"locationId":123,"lagCount":2,"marketPlaceVisibility":true}'
-buy-lag --json-file ./lag-port-config.json
-
-JSON format example:
+```
+  buy-lag --interactive
+  buy-lag --name "My LAG Port" --term 12 --port-speed 10000 --location-id 123 --lag-count 2 --marketplace-visibility true
+  buy-lag --json '{"name":"My LAG Port","term":12,"portSpeed":10000,"locationId":123,"lagCount":2,"marketPlaceVisibility":true}'
+  buy-lag --json-file ./lag-port-config.json
+```
+### JSON Format Example
+```json
 {
-"name": "My LAG Port",
-"term": 12,
-"portSpeed": 10000,
-"locationId": 123,
-"lagCount": 2,
-"marketPlaceVisibility": true,
-"diversityZone": "A",
-"costCentre": "IT-2023"
+  "name": "My LAG Port",
+  "term": 12,
+  "portSpeed": 10000,
+  "locationId": 123,
+  "lagCount": 2,
+  "marketPlaceVisibility": true,
+  "diversityZone": "A",
+  "costCentre": "IT-2023"
 }
 
+```
 
 
 ## Usage

@@ -694,7 +694,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 				"123",          // location ID
 				"65000",        // ASN
 				"red",          // diversity zone
-				"cost-123",     // cost center
+				"cost-123",     // cost centre
 				"MCRPROMO2025", // promo code
 			},
 			setupMock: func(m *MockMCRService) {

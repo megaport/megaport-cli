@@ -8,10 +8,11 @@ Delete an existing Megaport Virtual Edge (MVE).
 
 This command allows you to delete an existing MVE by providing its UID.
 
-Example usage:
+### Example Usage
 
-delete [mveUID]
-
+```
+  delete [mveUID]
+```
 
 
 ## Usage
