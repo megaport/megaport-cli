@@ -193,13 +193,17 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 		return nil, fmt.Errorf("name cannot be empty if provided")
 	}
 
-	// Validate term if provided
 	if term, provided := jsonMap["contractTermMonths"]; provided {
 		if req.ContractTermMonths == nil {
 			return nil, fmt.Errorf("invalid contract term: null value")
 		}
 
-		termValue := int64(term.(float64))
+		termFloat, ok := term.(float64)
+		if !ok {
+			return nil, fmt.Errorf("invalid contract term type: must be a number")
+		}
+
+		termValue := int64(termFloat)
 		if termValue != 1 && termValue != 12 && termValue != 24 && termValue != 36 {
 			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
 		}

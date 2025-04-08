@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -941,6 +940,7 @@ func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 	originalUpdateMCRFunc := updateMCRFunc
 	defer func() { updateMCRFunc = originalUpdateMCRFunc }()
 	updateMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyMCRRequest) (*megaport.ModifyMCRResponse, error) {
+		mockMCRService.CapturedModifyMCRRequest = req
 		return mockMCRService.ModifyMCRResult, mockMCRService.ModifyMCRErr
 	}
 
@@ -1080,25 +1080,29 @@ func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 			cmd.Flags().Bool("marketplace-visibility", false, "")
 			cmd.Flags().Int("term", 0, "")
 
-			// Set flag values
+			// Set flag values with proper error checking
 			for k, v := range tt.flags {
-				if strings.HasPrefix(k, "marketplace-visibility") {
-					cmd.Flags().Set(k, v)
-				} else {
-					cmd.Flags().Set(k, v)
+				if err := cmd.Flags().Set(k, v); err != nil {
+					t.Fatalf("Failed to set flag %s: %v", k, err)
 				}
 			}
 
 			if tt.interactive {
-				cmd.Flags().Set("interactive", "true")
+				if err := cmd.Flags().Set("interactive", "true"); err != nil {
+					t.Fatalf("Failed to set interactive flag: %v", err)
+				}
 			}
 
 			if tt.jsonInput != "" {
-				cmd.Flags().Set("json", tt.jsonInput)
+				if err := cmd.Flags().Set("json", tt.jsonInput); err != nil {
+					t.Fatalf("Failed to set json flag: %v", err)
+				}
 			}
 
 			if tt.jsonFilePath != "" {
-				cmd.Flags().Set("json-file", tt.jsonFilePath)
+				if err := cmd.Flags().Set("json-file", tt.jsonFilePath); err != nil {
+					t.Fatalf("Failed to set json-file flag: %v", err)
+				}
 			}
 
 			// Capture output
@@ -1118,7 +1122,33 @@ func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 
 			// Validate request if needed
 			if !tt.skipRequestValidation && mockMCRService.CapturedModifyMCRRequest != nil {
-				// Add specific validations for each test case as needed
+				req := mockMCRService.CapturedModifyMCRRequest
+
+				// Validate the specific request fields for each test case
+				if tt.flags != nil && tt.flags["json"] != "" {
+					// JSON mode validation
+					assert.Equal(t, "Updated JSON MCR", req.Name)
+					assert.Equal(t, "cost-789", req.CostCentre)
+					assert.True(t, *req.MarketplaceVisibility)
+					assert.Equal(t, 36, *req.ContractTermMonths)
+				} else if len(tt.flags) > 0 {
+					// Flag mode validation
+					if name, ok := tt.flags["name"]; ok && name != "" {
+						assert.Equal(t, name, req.Name)
+					}
+					if costCentre, ok := tt.flags["cost-centre"]; ok {
+						assert.Equal(t, costCentre, req.CostCentre)
+					}
+				} else if tt.interactive && len(tt.prompts) > 0 {
+					// Interactive mode validation
+					assert.Equal(t, "Updated MCR", req.Name)
+					assert.Equal(t, "cost-123", req.CostCentre)
+					assert.True(t, *req.MarketplaceVisibility)
+					assert.Equal(t, 24, *req.ContractTermMonths)
+				}
+
+				// Always verify MCR ID is set correctly
+				assert.Equal(t, tt.mcrUID, req.MCRID)
 			}
 		})
 	}
