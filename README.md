@@ -3,6 +3,22 @@
 > [!CAUTION]
 > The Megaport CLI tool is currently an unsupported alpha, we're excited for feedback but please know that functionality and features may change drastically, and there may be bugs.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Installation](#installation)
+- [Getting Started](#getting-started)
+- [Documentation](#documentation)
+- [Shell Completion](#shell-completion)
+- [Environment Support](#environment-support)
+- [Configuration](#configuration)
+- [Architecture](#architecture)
+- [Available Commands](#available-commands)
+- [Troubleshooting](#troubleshooting)
+- [Additional Documentation](#additional-documentation)
+- [Contributing](#contributing)
+- [Support](#support)
+
 ## Overview
 
 The Megaport CLI provides a command-line interface for managing Megaport resources and services. It allows users to interact with the Megaport API directly from their terminal.
@@ -19,6 +35,31 @@ go install github.com/megaport/megaport-cli@latest
 
 # Verify installation
 megaport-cli version
+```
+
+## Getting Started
+
+To quickly begin using the Megaport CLI:
+
+```sh
+# Set up your environment variables
+export MEGAPORT_ACCESS_KEY=your_access_key
+export MEGAPORT_SECRET_KEY=your_secret_key
+
+# Test your configuration
+megaport-cli locations list
+
+# Get help for any command
+megaport-cli vxc --help
+```
+
+## Documentation
+
+Generate comprehensive documentation for all CLI commands:
+
+```sh
+# Generate documentation in the docs directory
+megaport-cli generate-docs ./docs
 ```
 
 ## Shell Completion
@@ -45,6 +86,7 @@ megaport-cli completion powershell > megaport.ps1
 ## Environment Support
 
 The CLI supports different Megaport environments:
+
 - Production (default)
 - Staging
 - Development
@@ -62,9 +104,20 @@ export MEGAPORT_SECRET_KEY=<your-secret-key>
 export MEGAPORT_ENVIRONMENT=<environment>  # production, staging, or development
 ```
 
+## Architecture
+
+The Megaport CLI is built using a Command Builder pattern that ensures consistent behavior across all commands. This modular approach makes the CLI easy to extend and maintain while providing a consistent user experience.
+
+Key architectural components:
+
+- **Command Builder**: Declarative command definitions for consistent behavior
+- **Flag Sets**: Reusable sets of flags organized by resource type
+- **Output Formatters**: Consistent data presentation across all commands
+
 ## Available Commands
 
 ### Resource Management
+
 - `locations`: List and search Megaport locations
 - `ports`: Manage Megaport ports
 - `mcr`: Manage Megaport Cloud Routers
@@ -74,7 +127,9 @@ export MEGAPORT_ENVIRONMENT=<environment>  # production, staging, or development
 - `servicekeys`: Manage service keys
 
 ### Output Formats
+
 All commands support multiple output formats:
+
 - `--output table` (default)
 - `--output json`
 - `--output csv`
@@ -82,6 +137,7 @@ All commands support multiple output formats:
 ### Examples
 
 #### Locations
+
 ```sh
 # List all locations
 megaport-cli locations list
@@ -94,6 +150,7 @@ megaport-cli locations get LOCATION_ID --output json
 ```
 
 #### Ports
+
 ```sh
 # List all ports
 megaport-cli ports list
@@ -139,6 +196,7 @@ megaport-cli ports check-vlan PORT_UID VLAN_ID
 ```
 
 #### MCR (Megaport Cloud Routers)
+
 ```sh
 # List all MCRs
 megaport-cli mcr list
@@ -188,6 +246,7 @@ megaport-cli mcr delete-prefix-filter-list MCR_UID PREFIX_FILTER_LIST_ID
 ```
 
 #### MVE (Megaport Virtual Edge)
+
 ```sh
 # Get details for a specific MVE
 megaport-cli mve get MVE_UID --output json
@@ -238,11 +297,12 @@ megaport-cli mve list-sizes
 ```
 
 #### VXC (Virtual Cross Connects)
+
 ```sh
 # Get details for a specific VXC
 megaport-cli vxc get VXC_UID --output json
 
-# Buy a new VXC - Interactive mode. 
+# Buy a new VXC - Interactive mode.
 megaport-cli vxc buy --interactive
 
 # Flag mode - Basic VXC between two ports
@@ -293,6 +353,7 @@ megaport-cli vxc delete VXC_UID
 ```
 
 #### Partners
+
 ```sh
 # List all partner ports
 megaport-cli partners list
@@ -305,6 +366,7 @@ megaport-cli partners find
 ```
 
 #### Service Keys
+
 ```sh
 # List all service keys
 megaport-cli servicekeys list
@@ -317,6 +379,64 @@ megaport-cli servicekeys create --product-uid PRODUCT_UID --description "My Serv
 
 # Update an existing service key
 megaport-cli servicekeys update SERVICE_KEY_UID --description "Updated Description"
+```
+
+## Troubleshooting
+
+Common issues and their solutions:
+
+- **Authentication errors**: Ensure your access key and secret key are correctly set and have the necessary permissions
+- **Rate limiting**: The Megaport API has rate limits; if you encounter 429 errors, add delays between requests
+- **Output formatting issues**: Use the `--no-color` flag if terminal colors are causing display problems
+- **Missing resources**: Resources may take time to provision; use appropriate wait times in automation scripts
+
+### Workflow Example: Set up a Cloud Connection
+
+This example shows setting up a complete cloud connection workflow:
+
+```sh
+# 1. Find available locations
+megaport-cli locations list --metro "Sydney" --output json # Find the location ID from this output.
+
+# 2. Create a port at your chosen location
+megaport-cli ports buy --name "SYD-Port-1" --location-id 15 --port-speed 1000 --term 12
+
+# 3. Find your cloud provider's connection point
+megaport-cli partners list --company-name "AWS" --connect-type "AWS" --location-id 15
+
+# 4. Create a VXC to connect your port to AWS
+megaport-cli vxc buy --a-end-uid "port-xxxxxxxx" \
+  --name "AWS-Connection" \
+  --rate-limit 500 \
+  --a-end-vlan 100 \
+  --b-end-partner-config '{"connectType":"AWS","ownerAccount":"123456789012", "type":"private"}'
+```
+
+## Additional Documentation
+
+The CLI includes comprehensive generated documentation in the `docs` folder:
+
+- **[Index of all commands](docs/index.md)** - Complete listing of all available commands
+- **Command References:**
+  - [Locations](docs/megaport-cli_locations.md) - Find and explore Megaport locations
+  - [Ports](docs/megaport-cli_ports.md) - Manage physical ports
+  - [VXC](docs/megaport-cli_vxc.md) - Virtual cross connects between endpoints
+  - [MCR](docs/megaport-cli_mcr.md) - Megaport Cloud Router management
+  - [MVE](docs/megaport-cli_mve.md) - Megaport Virtual Edge devices
+  - [Partners](docs/megaport-cli_partners.md) - Cloud service provider connections
+  - [Service Keys](docs/megaport-cli_servicekeys.md) - Manage service keys for connections
+
+Each command page includes:
+
+- Detailed descriptions
+- All available flags and options
+- Usage examples
+- Links to related subcommands
+
+You can regenerate this documentation at any time with:
+
+```sh
+megaport-cli generate-docs ./docs
 ```
 
 ## Contributing
