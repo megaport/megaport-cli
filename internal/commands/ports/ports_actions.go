@@ -68,6 +68,13 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
+	// Validate the Port Request
+	output.PrintInfo("Validating port order...", noColor)
+	err = client.PortService.ValidatePortOrder(ctx, req)
+	if err != nil {
+		output.PrintError("Failed to validate port request: %v", noColor, err)
+		return err
+	}
 	output.PrintInfo("Buying port...", noColor)
 	resp, err := buyPortFunc(ctx, client, req)
 	if err != nil {
@@ -271,17 +278,57 @@ func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
 
 	output.PrintInfo("Updating port %s...", noColor, portUID)
 
+	originalPort, err := getPortFunc(ctx, client, portUID)
+	if err != nil {
+		output.PrintError("Error getting original Port: %v", noColor, err)
+		return err
+	}
+
 	// Call the API
 	resp, err := updatePortFunc(ctx, client, req)
 	if err != nil {
+		output.PrintError("Failed to update port: %v", noColor, err)
 		return err
 	}
 
 	// Check the response
 	if resp.IsUpdated {
-		output.PrintSuccess(fmt.Sprintf("Port updated %s", portUID), noColor)
+		output.PrintResourceUpdated("Port", portUID, noColor)
 	} else {
 		output.PrintWarning("Port update request was not successful", noColor)
+	}
+
+	updatedPort, err := getPortFunc(ctx, client, portUID)
+	if err != nil {
+		output.PrintError("Error getting updated MCR: %v", noColor, err)
+		return err
+	}
+
+	// Compare and show name changes
+	if originalPort.Name != updatedPort.Name {
+		output.PrintInfo("Name:         %s (previously \"%s\")", noColor, updatedPort.Name, originalPort.Name)
+	} else {
+		output.PrintInfo("Name:         %s (unchanged)", noColor, updatedPort.Name)
+	}
+
+	// Compare and show cost centre changes
+	if originalPort.CostCentre != updatedPort.CostCentre {
+		// Handle empty cost centre specially
+		origCC := originalPort.CostCentre
+		if origCC == "" {
+			origCC = "none"
+		}
+		output.PrintInfo("Cost Centre:  %s (previously \"%s\")", noColor, updatedPort.CostCentre, origCC)
+	} else if updatedPort.CostCentre != "" {
+		output.PrintInfo("Cost Centre:  %s (unchanged)", noColor, updatedPort.CostCentre)
+	}
+
+	// Compare and show contract term changes
+	if originalPort.ContractTermMonths != updatedPort.ContractTermMonths {
+		output.PrintInfo("Term:         %d months (previously %d months)", noColor,
+			updatedPort.ContractTermMonths, originalPort.ContractTermMonths)
+	} else {
+		output.PrintInfo("Term:         %d months (unchanged)", noColor, updatedPort.ContractTermMonths)
 	}
 
 	return nil

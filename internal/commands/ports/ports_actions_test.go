@@ -857,10 +857,12 @@ func TestUpdatePortCmd(t *testing.T) {
 	originalPrompt := utils.Prompt
 	originalLoginFunc := config.LoginFunc
 	originalUpdatePortFunc := updatePortFunc
+	originalGetPortFunc := getPortFunc
 	defer func() {
 		utils.Prompt = originalPrompt
 		config.LoginFunc = originalLoginFunc
 		updatePortFunc = originalUpdatePortFunc
+		getPortFunc = originalGetPortFunc
 	}()
 
 	tests := []struct {
@@ -1026,6 +1028,15 @@ func TestUpdatePortCmd(t *testing.T) {
 					}
 					return "", fmt.Errorf("unexpected prompt call")
 				}
+			}
+
+			getPortFunc = func(ctx context.Context, client *megaport.Client, portID string) (*megaport.Port, error) {
+				// Mock the response for getPort
+				return &megaport.Port{
+					UID:  portID,
+					Name: tt.name,
+					// Add other fields as needed
+				}, nil
 			}
 
 			// Setup mock Port service

@@ -1,10 +1,5 @@
 package cmdbuilder
 
-import (
-	"fmt"
-	"os"
-)
-
 // WithMVECommonFlags adds common flags for MVE operations
 func (b *CommandBuilder) WithMVECommonFlags() *CommandBuilder {
 	b.WithFlag("name", "", "MVE name")
@@ -14,23 +9,12 @@ func (b *CommandBuilder) WithMVECommonFlags() *CommandBuilder {
 
 // WithMVECreateFlags adds flags needed for MVE creation
 func (b *CommandBuilder) WithMVECreateFlags() *CommandBuilder {
-	// Required flags
 	b.WithFlag("name", "", "The name of the MVE")
-	b.WithFlag("term", "0", "The term of the MVE (1, 12, 24, or 36 months)")
-	b.WithFlag("location-id", "0", "The ID of the location where the MVE will be provisioned")
+	b.WithIntFlag("term", 0, "The term of the MVE (1, 12, 24, or 36 months)")
+	b.WithIntFlag("location-id", 0, "The ID of the location where the MVE will be provisioned")
 	b.WithFlag("vendor-config", "", "JSON string with vendor-specific configuration (for flag mode)")
 	b.WithFlag("vnics", "", "JSON array of network interfaces (for flag mode)")
 
-	// Mark these flags as required and handle potential errors
-	requiredFlags := []string{"name", "term", "location-id", "vendor-config", "vnics"}
-	for _, flag := range requiredFlags {
-		if err := b.cmd.MarkFlagRequired(flag); err != nil {
-			// Log the error but continue - this is a development-time error
-			fmt.Fprintf(os.Stderr, "Warning: Failed to mark flag '%s' as required: %v\n", flag, err)
-		}
-	}
-
-	// Optional flags
 	b.WithFlag("diversity-zone", "", "The diversity zone for the MVE")
 	b.WithFlag("promo-code", "", "Promotional code for discounts")
 	b.WithFlag("cost-centre", "", "Cost centre for billing")
@@ -42,7 +26,7 @@ func (b *CommandBuilder) WithMVEUpdateFlags() *CommandBuilder {
 	// All update flags are optional
 	b.WithFlag("name", "", "The new name of the MVE (1-64 characters)")
 	b.WithFlag("cost-centre", "", "The new cost centre for billing purposes")
-	b.WithFlag("contract-term", "0", "New contract term in months (1, 12, 24, or 36)")
+	b.WithIntFlag("term", 0, "New contract term in months (1, 12, 24, or 36)")
 	return b
 }
 

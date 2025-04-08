@@ -74,6 +74,9 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("validation failed: %v", err)
 	}
 
+	req.WaitForProvision = true
+	req.WaitForTime = 10 * time.Minute
+
 	output.PrintInfo("Buying MVE...", noColor)
 	resp, err := client.MVEService.BuyMVE(ctx, req)
 	if err != nil {

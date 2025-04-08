@@ -68,6 +68,14 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("Error logging in: %v", noColor, err)
 		return err
 	}
+	// Validate MCR Order
+	output.PrintInfo("Validating MCR order...", noColor)
+	err = client.MCRService.ValidateMCROrder(ctx, req)
+	if err != nil {
+		output.PrintError("Error validating MCR order: %v", noColor, err)
+		return err
+	}
+	// Buy MCR
 	output.PrintInfo("Buying MCR...", noColor)
 	resp, err := buyMCRFunc(ctx, client, req)
 	if err != nil {
@@ -140,17 +148,53 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("Error logging in: %v", noColor, err)
 		return err
 	}
+
+	originalMCR, err := getMCRFunc(ctx, client, mcrUID)
+	if err != nil {
+		output.PrintError("Error getting original MCR: %v", noColor, err)
+		return err
+	}
 	output.PrintInfo("Updating MCR...", noColor)
-	resp, err := updateMCRFunc(ctx, client, req)
+	_, err = updateMCRFunc(ctx, client, req)
 	if err != nil {
 		output.PrintError("Error updating MCR: %v", noColor, err)
 		return err
 	}
 
-	if resp.IsUpdated {
-		output.PrintResourceUpdated("MCR", mcrUID, noColor)
+	updatedMCR, err := getMCRFunc(ctx, client, mcrUID)
+	if err != nil {
+		output.PrintError("Error getting updated MCR: %v", noColor, err)
+		return err
+	}
+
+	// Output detailed success message
+	output.PrintResourceUpdated("MCR", mcrUID, noColor)
+
+	// Compare and show name changes
+	if originalMCR.Name != updatedMCR.Name {
+		output.PrintInfo("Name:         %s (previously \"%s\")", noColor, updatedMCR.Name, originalMCR.Name)
 	} else {
-		output.PrintError("MCR update request was not successful", noColor)
+		output.PrintInfo("Name:         %s (unchanged)", noColor, updatedMCR.Name)
+	}
+
+	// Compare and show cost centre changes
+	if originalMCR.CostCentre != updatedMCR.CostCentre {
+		// Handle empty cost centre specially
+		origCC := originalMCR.CostCentre
+		if origCC == "" {
+			origCC = "none"
+		}
+		output.PrintInfo("Cost Centre:  %s (previously \"%s\")", noColor, updatedMCR.CostCentre, origCC)
+	} else if updatedMCR.CostCentre != "" {
+		output.PrintInfo("Cost Centre:  %s (unchanged)", noColor, updatedMCR.CostCentre)
+	}
+
+	// Compare and show contract term changes
+	if originalMCR.ContractTermMonths != updatedMCR.ContractTermMonths {
+		output.PrintInfo("Term:         %d months (previously %d months)", noColor,
+			updatedMCR.ContractTermMonths, originalMCR.ContractTermMonths)
+	} else {
+		output.PrintInfo("Term:         %d months (unchanged)", noColor, updatedMCR.ContractTermMonths)
 	}
 	return nil
 }

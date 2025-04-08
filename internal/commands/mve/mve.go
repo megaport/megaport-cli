@@ -21,20 +21,18 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create buy MVE command
+		// Create buy MVE command
 	buyMVECmd := cmdbuilder.NewCommand("buy", "Purchase a new Megaport Virtual Edge (MVE) device").
 		WithColorAwareRunFunc(BuyMVE).
 		WithInteractiveFlag().
 		WithMVECreateFlags().
 		WithJSONConfigFlags().
 		WithLongDesc("Purchase a new Megaport Virtual Edge (MVE) device through the Megaport API.\n\nThis command allows you to purchase an MVE by providing the necessary details.").
-		// Explicitly mark required flags for clarity and documentation
-		WithRequiredFlag("name", "The name of the MVE").
-		WithRequiredFlag("term", "The term of the MVE (1, 12, 24, or 36 months)").
-		WithRequiredFlag("location-id", "The ID of the location where the MVE will be provisioned").
-		WithRequiredFlag("vendor-config", "JSON string with vendor-specific configuration (for flag mode)").
-		WithRequiredFlag("vnics", "JSON array of network interfaces (for flag mode)").
-		// For consistency in documentation, mark optional flags too
+		WithDocumentedRequiredFlag("name", "The name of the MVE").
+		WithDocumentedRequiredFlag("term", "The term of the MVE (1, 12, 24, or 36 months)").
+		WithDocumentedRequiredFlag("location-id", "The ID of the location where the MVE will be provisioned").
+		WithDocumentedRequiredFlag("vendor-config", "JSON string with vendor-specific configuration (for flag mode)").
+		WithDocumentedRequiredFlag("vnics", "JSON array of network interfaces (for flag mode)").
 		WithOptionalFlag("diversity-zone", "The diversity zone for the MVE").
 		WithOptionalFlag("promo-code", "Promotional code for discounts").
 		WithOptionalFlag("cost-centre", "Cost centre for billing").
@@ -69,8 +67,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("To list available sizes, use: megaport-cli mve list-sizes").
 		WithImportantNote("Location IDs can be retrieved with: megaport-cli locations list").
 		WithRootCmd(rootCmd).
-		// Use ReflagCmd to explicitly call MarkFlagRequired on each flag
-		ReflagCmd("name", "term", "location-id", "vendor-config", "vnics").
+		WithConditionalRequirements("name", "term", "location-id", "vendor-config", "vnics").
 		Build()
 
 	// Create get MVE command

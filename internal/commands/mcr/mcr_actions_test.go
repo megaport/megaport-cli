@@ -939,7 +939,11 @@ func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 
 	mockMCRService := new(MockMCRService)
 	originalUpdateMCRFunc := updateMCRFunc
-	defer func() { updateMCRFunc = originalUpdateMCRFunc }()
+	originalGetMCRFunc := getMCRFunc
+	defer func() {
+		updateMCRFunc = originalUpdateMCRFunc
+		getMCRFunc = originalGetMCRFunc
+	}()
 	updateMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyMCRRequest) (*megaport.ModifyMCRResponse, error) {
 		mockMCRService.CapturedModifyMCRRequest = req
 		return mockMCRService.ModifyMCRResult, mockMCRService.ModifyMCRErr
@@ -1060,6 +1064,14 @@ func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset mock service and prompt for this test case
 			mockMCRService = new(MockMCRService)
+			getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+				return &megaport.MCR{
+					UID:                mcrUID,
+					Name:               tt.name,
+					LocationID:         123,
+					ProvisioningStatus: "LIVE",
+				}, nil
+			}
 			mockPromptResponses = tt.prompts
 			mockPromptCalls = 0
 

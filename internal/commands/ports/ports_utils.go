@@ -13,6 +13,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var getPortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.Port, error) {
+	return client.PortService.GetPort(ctx, portUID)
+}
+
 var updatePortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyPortRequest) (*megaport.ModifyPortResponse, error) {
 	return client.PortService.ModifyPort(ctx, req)
 }

@@ -64,16 +64,6 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 		req.CostCentre = costCentre
 	}
 
-	// Process resource tags if present
-	if resourceTags, ok := jsonData["resourceTags"].(map[string]interface{}); ok {
-		req.ResourceTags = make(map[string]string)
-		for k, v := range resourceTags {
-			if strValue, ok := v.(string); ok {
-				req.ResourceTags[k] = strValue
-			}
-		}
-	}
-
 	// Process vendor config
 	if vendorConfigMap, ok := jsonData["vendorConfig"].(map[string]interface{}); ok {
 		vendorConfig, err := parseVendorConfig(vendorConfigMap)
@@ -123,7 +113,6 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 	costCentre, _ := cmd.Flags().GetString("cost-centre")
 	vendorConfigStr, _ := cmd.Flags().GetString("vendor-config")
 	vnicsStr, _ := cmd.Flags().GetString("vnics")
-	resourceTagsStr, _ := cmd.Flags().GetString("resource-tags")
 
 	// Parse vendor config JSON string
 	var vendorConfig megaport.VendorConfig
@@ -166,23 +155,6 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 		}
 	}
 
-	// Parse resource tags JSON string
-	var resourceTags map[string]string
-	if resourceTagsStr != "" {
-		var tagsMap map[string]interface{}
-		err := json.Unmarshal([]byte(resourceTagsStr), &tagsMap)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing resource-tags JSON string: %v", err)
-		}
-
-		resourceTags = make(map[string]string)
-		for k, v := range tagsMap {
-			if strValue, ok := v.(string); ok {
-				resourceTags[k] = strValue
-			}
-		}
-	}
-
 	// Build the request
 	req := &megaport.BuyMVERequest{
 		Name:          name,
@@ -193,7 +165,6 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 		CostCentre:    costCentre,
 		VendorConfig:  vendorConfig,
 		Vnics:         vnics,
-		ResourceTags:  resourceTags,
 	}
 
 	// Validate the request
@@ -1036,30 +1007,6 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 	}
 
 	req.Vnics = vnics
-
-	// Prompt for resource tags
-	resourceTags := make(map[string]string)
-	fmt.Println("\nEnter resource tags (leave key empty to finish):")
-	for {
-		key, err := utils.Prompt("Enter tag key: ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		// If key is empty, we're done with tags
-		if key == "" {
-			break
-		}
-
-		value, err := utils.Prompt(fmt.Sprintf("Enter value for tag '%s': ", key), noColor)
-		if err != nil {
-			return nil, err
-		}
-		resourceTags[key] = value
-	}
-
-	if len(resourceTags) > 0 {
-		req.ResourceTags = resourceTags
-	}
 
 	// Validate the request
 	if err := validateBuyMVERequest(req); err != nil {
