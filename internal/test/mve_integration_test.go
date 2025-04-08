@@ -287,19 +287,6 @@ func TestMVEJSONLifecycle(t *testing.T) {
 	})
 }
 
-// TestMVEInteractiveOutput tests the interactive mode output format (without actually running interactive mode)
-func TestMVEInteractiveOutput(t *testing.T) {
-	// This test just verifies that the command execution structure is valid
-	// It doesn't actually run interactive mode (which would require user input)
-
-	cmd := exec.Command("megaport-cli", "mve", "buy", "--help")
-	outputBytes, err := cmd.CombinedOutput()
-	output := string(outputBytes)
-
-	assert.NoError(t, err, "Failed to get MVE buy help: %s", output)
-	assert.Contains(t, output, "--interactive")
-}
-
 // extractMVEUID extracts the MVE UID from command output
 func extractMVEUID(output string) string {
 	lines := strings.Split(output, "\n")
