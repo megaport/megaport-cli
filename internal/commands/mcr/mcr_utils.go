@@ -162,15 +162,47 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 		jsonData = []byte(jsonStr)
 	}
 
-	// Parse JSON into request
+	// Use a map to track which fields were actually provided in the JSON
+	var jsonMap map[string]interface{}
+	if err := json.Unmarshal(jsonData, &jsonMap); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %v", err)
+	}
+
+	// Check that at least one field is being updated
+	updateFields := []string{"name", "costCentre", "marketplaceVisibility", "contractTermMonths"}
+	anyFieldUpdated := false
+	for _, field := range updateFields {
+		if _, ok := jsonMap[field]; ok {
+			anyFieldUpdated = true
+			break
+		}
+	}
+
+	if !anyFieldUpdated {
+		return nil, fmt.Errorf("at least one field must be updated")
+	}
+
+	// Now parse into the actual request
 	req := &megaport.ModifyMCRRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
 		return nil, fmt.Errorf("error parsing JSON: %v", err)
 	}
 
-	// Validate required fields
-	if err := validateUpdateMCRRequest(req); err != nil {
-		return nil, err
+	// Validate name if it was provided
+	if _, nameProvided := jsonMap["name"]; nameProvided && req.Name == "" {
+		return nil, fmt.Errorf("name cannot be empty if provided")
+	}
+
+	// Validate term if provided
+	if term, provided := jsonMap["contractTermMonths"]; provided {
+		if req.ContractTermMonths == nil {
+			return nil, fmt.Errorf("invalid contract term: null value")
+		}
+
+		termValue := int64(term.(float64))
+		if termValue != 1 && termValue != 12 && termValue != 24 && termValue != 36 {
+			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		}
 	}
 
 	return req, nil
@@ -178,65 +210,134 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 
 // Process flag-based input for updating MCR
 func processFlagUpdateMCRInput(cmd *cobra.Command, mcrUID string) (*megaport.ModifyMCRRequest, error) {
-	// Get required fields
-	name, _ := cmd.Flags().GetString("name")
-
-	// Get optional fields
-	costCentre, _ := cmd.Flags().GetString("cost-centre")
-	termValue, _ := cmd.Flags().GetInt("term")
-	marketplaceVisibilitySet := cmd.Flags().Changed("marketplace-visibility")
-	marketplaceVisibility, _ := cmd.Flags().GetBool("marketplace-visibility")
-
-	// Build the request with required fields
+	// Initialize request with MCR ID
 	req := &megaport.ModifyMCRRequest{
 		MCRID: mcrUID,
-		Name:  name,
 	}
 
-	// Set optional fields if provided
-	if costCentre != "" {
+	// Check if any field is being updated
+	nameSet := cmd.Flags().Changed("name")
+	costCentreSet := cmd.Flags().Changed("cost-centre")
+	marketplaceVisibilitySet := cmd.Flags().Changed("marketplace-visibility")
+	termSet := cmd.Flags().Changed("term")
+
+	// Make sure at least one field is being updated
+	if !nameSet && !costCentreSet && !marketplaceVisibilitySet && !termSet {
+		return nil, fmt.Errorf("at least one field must be updated")
+	}
+
+	// Only add fields that were explicitly set
+	if nameSet {
+		name, _ := cmd.Flags().GetString("name")
+		if name == "" {
+			return nil, fmt.Errorf("name cannot be empty if provided")
+		}
+		req.Name = name
+	}
+
+	if costCentreSet {
+		costCentre, _ := cmd.Flags().GetString("cost-centre")
 		req.CostCentre = costCentre
 	}
 
-	if termValue > 0 {
-		contractTermMonths := termValue
-		req.ContractTermMonths = &contractTermMonths
-	}
-
 	if marketplaceVisibilitySet {
+		marketplaceVisibility, _ := cmd.Flags().GetBool("marketplace-visibility")
 		req.MarketplaceVisibility = &marketplaceVisibility
 	}
 
-	// Validate required fields
-	if err := validateUpdateMCRRequest(req); err != nil {
-		return nil, err
+	if termSet {
+		term, _ := cmd.Flags().GetInt("term")
+		// Validate term value before setting it
+		if term != 1 && term != 12 && term != 24 && term != 36 {
+			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		}
+		req.ContractTermMonths = &term
 	}
 
 	return req, nil
 }
 
-// Validate MCR update request
-func validateUpdateMCRRequest(req *megaport.ModifyMCRRequest) error {
-	if req.Name == "" {
-		return fmt.Errorf("name is required")
+// Extract the existing interactive prompting into a separate function for updating MCR
+func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCRRequest, error) {
+	// Initialize request with MCR ID
+	req := &megaport.ModifyMCRRequest{
+		MCRID: mcrUID,
 	}
 
-	// Validate term if provided
-	if req.ContractTermMonths != nil {
-		validTerms := []int{1, 12, 24, 36}
-		validTerm := false
-		for _, t := range validTerms {
-			if *req.ContractTermMonths == t {
-				validTerm = true
-				break
-			}
-		}
-		if !validTerm {
-			return fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
-		}
+	// Track if any field is updated
+	fieldsUpdated := false
+
+	// Prompt for name (can be skipped with empty input)
+	namePrompt := "Enter new MCR name (leave empty to skip): "
+	name, err := utils.Prompt(namePrompt, noColor)
+	if err != nil {
+		return nil, err
+	}
+	if name != "" {
+		req.Name = name
+		fieldsUpdated = true
 	}
 
-	return nil
+	// Prompt for cost centre (optional)
+	costCentrePrompt := "Enter new cost centre (leave empty to skip): "
+	costCentre, err := utils.Prompt(costCentrePrompt, noColor)
+	if err != nil {
+		return nil, err
+	}
+	if costCentre != "" {
+		req.CostCentre = costCentre
+		fieldsUpdated = true
+	}
+
+	// Prompt for marketplace visibility
+	marketplaceVisibilityPrompt := "Update marketplace visibility? (yes/no, leave empty to skip): "
+	marketplaceVisibilityStr, err := utils.Prompt(marketplaceVisibilityPrompt, noColor)
+	if err != nil {
+		return nil, err
+	}
+	if strings.ToLower(marketplaceVisibilityStr) == "yes" {
+		visibilityValuePrompt := "Enter marketplace visibility (true or false): "
+		visibilityValue, err := utils.Prompt(visibilityValuePrompt, noColor)
+		if err != nil {
+			return nil, err
+		}
+
+		marketplaceVisibility := strings.ToLower(visibilityValue) == "true"
+		req.MarketplaceVisibility = &marketplaceVisibility
+		fieldsUpdated = true
+	}
+
+	// Prompt for term (optional)
+	termPrompt := "Enter new term (1, 12, 24, or 36 months, leave empty to skip): "
+	termStr, err := utils.Prompt(termPrompt, noColor)
+	if err != nil {
+		return nil, err
+	}
+	if termStr != "" {
+		term, err := strconv.Atoi(termStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid term: %v", err)
+		}
+
+		// Validate term value
+		if term != 1 && term != 12 && term != 24 && term != 36 {
+			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		}
+
+		req.ContractTermMonths = &term
+		fieldsUpdated = true
+	}
+
+	// Make sure at least one field is being updated
+	if !fieldsUpdated {
+		return nil, fmt.Errorf("at least one field must be updated")
+	}
+
+	// Set common defaults
+	req.WaitForUpdate = true
+	req.WaitForTime = 10 * time.Minute
+
+	return req, nil
 }
 
 // Extract the existing interactive prompting into a separate function for MCR
@@ -319,57 +420,6 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 
 	// Validate the request
 	if err := validateMCRRequest(req); err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// Extract the existing interactive prompting into a separate function for updating MCR
-func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCRRequest, error) {
-	name, err := utils.Prompt("Enter new MCR name (required): ", noColor)
-	if err != nil {
-		return nil, err
-	}
-	if name == "" {
-		return nil, fmt.Errorf("name is required")
-	}
-
-	costCentre, err := utils.Prompt("Enter new cost centre (optional): ", noColor)
-	if err != nil {
-		return nil, err
-	}
-
-	termStr, err := utils.Prompt("Enter new term (1, 12, 24, or 36 months) (optional): ", noColor)
-	if err != nil {
-		return nil, err
-	}
-
-	// Build the request
-	req := &megaport.ModifyMCRRequest{
-		MCRID: mcrUID,
-		Name:  name,
-	}
-
-	// Set optional fields if provided
-	if costCentre != "" {
-		req.CostCentre = costCentre
-	}
-
-	if termStr != "" {
-		term, err := strconv.Atoi(termStr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid term: %v", err)
-		}
-		req.ContractTermMonths = &term
-	}
-
-	// Set common defaults
-	req.WaitForUpdate = true
-	req.WaitForTime = 10 * time.Minute
-
-	// Validate the request
-	if err := validateUpdateMCRRequest(req); err != nil {
 		return nil, err
 	}
 

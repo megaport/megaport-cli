@@ -65,11 +65,13 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	// Call the BuyMCR method
 	client, err := config.Login(ctx)
 	if err != nil {
+		output.PrintError("Error logging in: %v", noColor, err)
 		return err
 	}
 	output.PrintInfo("Buying MCR...", noColor)
 	resp, err := buyMCRFunc(ctx, client, req)
 	if err != nil {
+		output.PrintError("Error buying MCR: %v", noColor, err)
 		return err
 	}
 
@@ -125,7 +127,7 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify MCR update details")
+		return fmt.Errorf("at least one field must be updated")
 	}
 
 	// Set common defaults
@@ -135,11 +137,13 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	// Call the ModifyMCR method
 	client, err := config.Login(ctx)
 	if err != nil {
+		output.PrintError("Error logging in: %v", noColor, err)
 		return err
 	}
 	output.PrintInfo("Updating MCR...", noColor)
 	resp, err := updateMCRFunc(ctx, client, req)
 	if err != nil {
+		output.PrintError("Error updating MCR: %v", noColor, err)
 		return err
 	}
 
@@ -203,11 +207,13 @@ func CreateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	// Call the CreatePrefixFilterList method
 	client, err := config.Login(ctx)
 	if err != nil {
+		output.PrintError("Error logging in: %v", noColor, err)
 		return err
 	}
 	output.PrintInfo("Creating prefix filter list...", noColor)
 	resp, err := createMCRPrefixFilterListFunc(ctx, client, req)
 	if err != nil {
+		output.PrintError("Error creating prefix filter list: %v", noColor, err)
 		return err
 	}
 
@@ -271,11 +277,13 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	// Call the ModifyMCRPrefixFilterList method
 	client, err := config.Login(ctx)
 	if err != nil {
+		output.PrintError("Error logging in: %v", noColor, err)
 		return err
 	}
 	output.PrintInfo("Updating prefix filter list...", noColor)
 	resp, err := modifyMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID, prefixFilterList)
 	if err != nil {
+		output.PrintError("Error updating prefix filter list: %v", noColor, err)
 		return err
 	}
 
