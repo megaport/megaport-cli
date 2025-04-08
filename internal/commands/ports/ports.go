@@ -23,18 +23,17 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create buy port command
 	buyPortCmd := cmdbuilder.NewCommand("buy", "Buy a port through the Megaport API").
 		WithColorAwareRunFunc(BuyPort).
 		WithInteractiveFlag().
 		WithPortCreationFlags().
 		WithJSONConfigFlags().
 		WithLongDesc("Buy a port through the Megaport API.\n\nThis command allows you to purchase a port by providing the necessary details.").
-		WithRequiredFlag("name", "The name of the port (1-64 characters)").
-		WithRequiredFlag("term", "The term of the port (1, 12, 24, or 36 months)").
-		WithRequiredFlag("port-speed", "The speed of the port (1000, 10000, or 100000 Mbps)").
-		WithRequiredFlag("location-id", "The ID of the location where the port will be provisioned").
-		WithRequiredFlag("marketplace-visibility", "Whether the port should be visible in the marketplace (true or false)").
+		WithDocumentedRequiredFlag("name", "The name of the port (1-64 characters)").
+		WithDocumentedRequiredFlag("term", "The term of the port (1, 12, 24, or 36 months)").
+		WithDocumentedRequiredFlag("port-speed", "The speed of the port (1000, 10000, or 100000 Mbps)").
+		WithDocumentedRequiredFlag("location-id", "The ID of the location where the port will be provisioned").
+		WithDocumentedRequiredFlag("marketplace-visibility", "Whether the port should be visible in the marketplace (true or false)").
 		WithOptionalFlag("diversity-zone", "The diversity zone for the port").
 		WithOptionalFlag("cost-centre", "The cost centre for the port").
 		WithOptionalFlag("promo-code", "A promotional code for the port").
@@ -51,7 +50,9 @@ func AddCommandsTo(rootCmd *cobra.Command) {
   "diversityZone": "A",
   "costCentre": "IT-2023"
 }`).
+		WithImportantNote("Required flags (name, term, port-speed, location-id, marketplace-visibility) can be skipped when using --interactive, --json, or --json-file").
 		WithRootCmd(rootCmd).
+		WithConditionalRequirements("name", "term", "port-speed", "location-id", "marketplace-visibility").
 		Build()
 
 	// Create buy LAG port command
@@ -61,30 +62,38 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithPortLAGFlags().
 		WithJSONConfigFlags().
 		WithLongDesc("Buy a LAG port through the Megaport API.\n\nThis command allows you to purchase a LAG port by providing the necessary details.").
-		WithRequiredFlag("name", "The name of the port (1-64 characters)").
-		WithRequiredFlag("term", "The term of the port (1, 12, or 24 months)").
-		WithRequiredFlag("port-speed", "The speed of each LAG member port (10000 or 100000 Mbps)").
-		WithRequiredFlag("location-id", "The ID of the location where the port will be provisioned").
-		WithRequiredFlag("lag-count", "The number of LAG members (between 1 and 8)").
-		WithRequiredFlag("marketplace-visibility", "Whether the port should be visible in the marketplace (true or false)").
+		WithDocumentedRequiredFlag("name", "The name of the port (1-64 characters)").
+		WithDocumentedRequiredFlag("term", "The term of the port (1, 12, or 24 months)").
+		WithDocumentedRequiredFlag("port-speed", "The speed of each LAG member port (10000 or 100000 Mbps)").
+		WithDocumentedRequiredFlag("location-id", "The ID of the location where the port will be provisioned").
+		WithDocumentedRequiredFlag("lag-count", "The number of LAG members (between 1 and 8)").
+		WithDocumentedRequiredFlag("marketplace-visibility", "Whether the port should be visible in the marketplace (true or false)").
 		WithOptionalFlag("diversity-zone", "The diversity zone for the LAG port").
 		WithOptionalFlag("cost-centre", "The cost centre for the LAG port").
 		WithOptionalFlag("promo-code", "A promotional code for the LAG port").
-		WithExample("buy-lag --interactive").
-		WithExample("buy-lag --name \"My LAG Port\" --term 12 --port-speed 10000 --location-id 123 --lag-count 2 --marketplace-visibility true").
-		WithExample("buy-lag --json '{\"name\":\"My LAG Port\",\"term\":12,\"portSpeed\":10000,\"locationId\":123,\"lagCount\":2,\"marketPlaceVisibility\":true}'").
-		WithExample("buy-lag --json-file ./lag-port-config.json").
-		WithJSONExample(`{
-  "name": "My LAG Port",
-  "term": 12,
-  "portSpeed": 10000,
-  "locationId": 123,
-  "lagCount": 2,
-  "marketPlaceVisibility": true,
-  "diversityZone": "A",
-  "costCentre": "IT-2023"
-}`).
+		// Add examples and other documentation...
+		WithImportantNote("Required flags can be skipped when using --interactive, --json, or --json-file").
 		WithRootCmd(rootCmd).
+		WithConditionalRequirements("name", "term", "port-speed", "location-id", "lag-count", "marketplace-visibility").
+		Build()
+
+	// Update port command
+	updatePortCmd := cmdbuilder.NewCommand("update", "Update a port's details").
+		WithArgs(cobra.ExactArgs(1)).
+		WithColorAwareRunFunc(UpdatePort).
+		WithInteractiveFlag().
+		WithPortUpdateFlags().
+		WithJSONConfigFlags().
+		WithLongDesc("Update a port's details in the Megaport API.\n\nThis command allows you to update the details of an existing port by providing the necessary fields.").
+		WithOptionalFlag("name", "The new name of the port (1-64 characters)").
+		WithOptionalFlag("marketplace-visibility", "Whether the port should be visible in the marketplace (true or false)").
+		WithOptionalFlag("cost-centre", "The cost centre for billing purposes").
+		WithOptionalFlag("term", "The new contract term in months (1, 12, 24, or 36)").
+		// At least one flag must be provided when not using interactive or JSON
+		WithImportantNote("At least one update flag must be provided when not using --interactive, --json, or --json-file").
+		WithRootCmd(rootCmd).
+		// Ensure at least one flag is set, but only when not using interactive/JSON
+		WithConditionalRequirements("at_least_one:name,marketplace-visibility,cost-centre,term").
 		Build()
 
 	// Create list ports command
@@ -112,35 +121,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithLongDesc("Get details for a single port from the Megaport API.\n\nThis command fetches and displays detailed information about a specific port. You need to provide the UID of the port as an argument.").
 		WithExample("get port-abc123").
 		WithExample("get 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
-		WithRootCmd(rootCmd).
-		Build()
-
-	// Create update port command
-	updatePortCmd := cmdbuilder.NewCommand("update", "Update a port's details").
-		WithArgs(cobra.ExactArgs(1)).
-		WithColorAwareRunFunc(UpdatePort).
-		WithInteractiveFlag().
-		WithPortUpdateFlags().
-		WithJSONConfigFlags().
-		WithLongDesc("Update a port's details in the Megaport API.\n\nThis command allows you to update the details of an existing port by providing the necessary fields.").
-		WithOptionalFlag("name", "The new name of the port (1-64 characters)").
-		WithOptionalFlag("marketplace-visibility", "Whether the port should be visible in the marketplace (true or false)").
-		WithOptionalFlag("cost-centre", "The cost centre for billing purposes").
-		WithOptionalFlag("term", "The new contract term in months (1, 12, 24, or 36)").
-		WithImportantNote("The port UID cannot be changed").
-		WithImportantNote("Technical specifications (speed, location) cannot be modified").
-		WithImportantNote("Connectivity (VXCs) will not be affected by these changes").
-		WithImportantNote("Changing the contract term may affect billing immediately").
-		WithExample("update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --interactive").
-		WithExample("update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --name \"Main Data Center Port\" --marketplace-visibility false").
-		WithExample("update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json '{\"name\":\"Main Data Center Port\",\"marketplaceVisibility\":false}'").
-		WithExample("update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json-file ./update-port-config.json").
-		WithJSONExample(`{
-  "name": "Main Data Center Port",
-  "marketplaceVisibility": false,
-  "costCentre": "IT-Network-2023",
-  "term": 24
-}`).
 		WithRootCmd(rootCmd).
 		Build()
 

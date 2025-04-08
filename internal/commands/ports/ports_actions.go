@@ -223,78 +223,67 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 	return nil
 }
 
+// UpdatePort handles updating an existing port
 func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
+	// Initialize context and get client
 	ctx := context.Background()
+	client, err := config.Login(ctx)
+	if err != nil {
+		return err
+	}
 
-	// Retrieve the port UID from the command line arguments.
 	portUID := args[0]
-	formattedUID := output.FormatUID(portUID, noColor)
 
-	// Determine which mode to use
+	// Check which input mode to use
 	interactive, _ := cmd.Flags().GetBool("interactive")
 	jsonStr, _ := cmd.Flags().GetString("json")
 	jsonFile, _ := cmd.Flags().GetString("json-file")
 
-	// Check if any flag-based parameters are provided
-	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("marketplace-visibility") ||
-		cmd.Flags().Changed("cost-centre") || cmd.Flags().Changed("term")
-
 	var req *megaport.ModifyPortRequest
-	var err error
 
-	// Process input based on mode priority: JSON > Flags > Interactive
-	if jsonStr != "" || jsonFile != "" {
-		// JSON mode
-		output.PrintInfo("Using JSON input for port %s", noColor, formattedUID)
+	if interactive {
+		output.PrintInfo("Starting interactive mode", noColor)
+		req, err = promptForUpdatePortDetails(portUID, noColor)
+	} else if jsonStr != "" || jsonFile != "" {
+		output.PrintInfo("Using JSON input", noColor)
 		req, err = processJSONUpdatePortInput(jsonStr, jsonFile)
-		if err != nil {
-			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return err
+		if err == nil { // Only set portID if there was no error
+			req.PortID = portUID // Set the port ID from the args
 		}
-		// Make sure the PortID from the command line arguments is set
-		req.PortID = portUID
-	} else if flagsProvided {
-		// Flag mode
-		output.PrintInfo("Using flag input for port %s", noColor, formattedUID)
+	} else if cmd.Flags().Changed("name") || cmd.Flags().Changed("marketplace-visibility") ||
+		cmd.Flags().Changed("cost-centre") || cmd.Flags().Changed("term") {
+		output.PrintInfo("Using flag input", noColor)
 		req, err = processFlagUpdatePortInput(cmd, portUID)
 		if err != nil {
-			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return err
-		}
-	} else if interactive {
-		// Interactive mode
-		output.PrintInfo("Starting interactive mode for port %s", noColor, formattedUID)
-		req, err = promptForUpdatePortDetails(portUID, noColor)
-		if err != nil {
-			output.PrintError("Interactive input failed: %v", noColor, err)
 			return err
 		}
 	} else {
-		output.PrintError("No input provided", noColor)
-		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify port details")
+		return fmt.Errorf("at least one field must be updated")
 	}
-	// Set common defaults
+
+	if err != nil {
+		return fmt.Errorf("failed to process input: %v", err)
+	}
+
+	// Set commmon defaults
 	req.WaitForUpdate = true
 	req.WaitForTime = 10 * time.Minute
 
-	// Call the ModifyPort method
-	client, err := config.Login(ctx)
-	if err != nil {
-		output.PrintError("Failed to log in: %v", noColor, err)
-		return err
-	}
-	output.PrintInfo("Updating port %s...", noColor, formattedUID)
+	output.PrintInfo("Updating port %s...", noColor, portUID)
+
+	// Call the API
 	resp, err := updatePortFunc(ctx, client, req)
 	if err != nil {
-		output.PrintError("Failed to update port: %v", noColor, err)
 		return err
 	}
 
+	// Check the response
 	if resp.IsUpdated {
-		output.PrintResourceUpdated("Port", portUID, noColor)
+		output.PrintSuccess(fmt.Sprintf("Port updated %s", portUID), noColor)
 	} else {
 		output.PrintWarning("Port update request was not successful", noColor)
 	}
+
 	return nil
 }
 

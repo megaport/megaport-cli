@@ -3,6 +3,7 @@ package cmdbuilder
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/megaport/megaport-cli/internal/base/help"
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -124,6 +125,84 @@ func (b *CommandBuilder) WithRequiredFlag(name, description string) *CommandBuil
 
 	// Store for our documentation as well
 	b.requiredFlags[name] = description
+	return b
+}
+
+// WithDocumentedRequiredFlag documents a flag as required without marking it required in Cobra
+func (b *CommandBuilder) WithDocumentedRequiredFlag(name, description string) *CommandBuilder {
+	// Find the flag
+	if flag := b.cmd.Flags().Lookup(name); flag != nil {
+		// Update the description to indicate it's required
+		flag.Usage = description + " [required]"
+	}
+
+	// Store for our documentation as well
+	b.requiredFlags[name] = description
+	return b
+}
+func (b *CommandBuilder) WithConditionalRequirements(conditionallyRequiredFlags ...string) *CommandBuilder {
+	original := b.cmd.PreRunE
+
+	b.cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		// If the original PreRunE exists, run it first
+		if original != nil {
+			if err := original(cmd, args); err != nil {
+				return err
+			}
+		}
+
+		// Check if any of the skip-validation flags are set
+		interactive, _ := cmd.Flags().GetBool("interactive")
+		jsonStr, _ := cmd.Flags().GetString("json")
+		jsonFile, _ := cmd.Flags().GetString("json-file")
+
+		// Skip validation if interactive mode or JSON input is used
+		if interactive || jsonStr != "" || jsonFile != "" {
+			return nil
+		}
+
+		// Process each flag or flag group
+		for _, flagSpec := range conditionallyRequiredFlags {
+			// Check for "at_least_one:" prefix
+			if strings.HasPrefix(flagSpec, "at_least_one:") {
+				// Extract the flag list
+				flagList := strings.Split(strings.TrimPrefix(flagSpec, "at_least_one:"), ",")
+				atLeastOneSet := false
+
+				// Check if at least one flag is set
+				for _, flagName := range flagList {
+					flag := cmd.Flags().Lookup(flagName)
+					if flag == nil {
+						continue // Skip if flag doesn't exist
+					}
+
+					// Check if flag has been explicitly set
+					if cmd.Flags().Changed(flagName) {
+						atLeastOneSet = true
+						break
+					}
+				}
+
+				if !atLeastOneSet {
+					return fmt.Errorf("at least one of these flags must be set: %s", strings.Join(flagList, ", "))
+				}
+			} else {
+				// Handle normal required flag
+				flag := cmd.Flags().Lookup(flagSpec)
+				if flag == nil {
+					continue // Skip if flag doesn't exist
+				}
+
+				// Check if flag has been explicitly set
+				if !cmd.Flags().Changed(flagSpec) {
+					return fmt.Errorf("required flag \"%s\" not set when not using interactive or JSON input", flagSpec)
+				}
+			}
+		}
+
+		return nil
+	}
+
 	return b
 }
 
