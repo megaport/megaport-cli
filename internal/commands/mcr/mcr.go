@@ -68,13 +68,12 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithConditionalRequirements("name", "term", "port-speed", "location-id", "marketplace-visibility").
 		Build()
 
-	// Create update MCR command
 	updateMCRCmd := cmdbuilder.NewCommand("update", "Update an existing MCR").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(UpdateMCR).
 		WithStandardInputFlags().
+		WithMCRUpdateFlags().
 		WithLongDesc("Update an existing Megaport Cloud Router (MCR).\n\nThis command allows you to update the details of an existing MCR.").
-		WithOptionalFlag("term", "The new contract term in months (1, 12, 24, or 36)").
 		WithExample("update [mcrUID] --interactive").
 		WithExample("update [mcrUID] --name \"Updated MCR\" --marketplace-visibility true --cost-centre \"Finance\"").
 		WithExample("update [mcrUID] --json '{\"name\":\"Updated MCR\",\"marketplaceVisibility\":true,\"costCentre\":\"Finance\"}'").
@@ -83,7 +82,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
   "name": "Updated MCR",
   "marketplaceVisibility": true,
   "costCentre": "Finance",
-  "term": 24
+  "contractTermMonths": 24
 }`).
 		WithImportantNote("The MCR UID cannot be changed").
 		WithImportantNote("Only specified fields will be updated; unspecified fields will remain unchanged").
@@ -112,13 +111,13 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create prefix filter list command
+		// Create prefix filter list command
 	createMCRPrefixFilterListCmd := cmdbuilder.NewCommand("create-prefix-filter-list", "Create a prefix filter list on an MCR").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(CreateMCRPrefixFilterList).
 		WithStandardInputFlags().
 		WithLongDesc("Create a prefix filter list on an MCR.\n\nThis command allows you to create a new prefix filter list on an MCR. Prefix filter lists are used to control which routes are accepted or advertised by the MCR.").
-		WithCreateMCRPrefixFilterListFlags().
+		WithMCRPrefixFilterListFlags().
 		WithExample("create-prefix-filter-list [mcrUID] --interactive").
 		WithExample("create-prefix-filter-list [mcrUID] --description \"My prefix list\" --address-family \"IPv4\" --entries '[{\"action\":\"permit\",\"prefix\":\"10.0.0.0/8\",\"ge\":24,\"le\":32}]'").
 		WithExample("create-prefix-filter-list [mcrUID] --json '{\"description\":\"My prefix list\",\"addressFamily\":\"IPv4\",\"entries\":[{\"action\":\"permit\",\"prefix\":\"10.0.0.0/8\",\"ge\":24,\"le\":32}]}'").
@@ -142,7 +141,9 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("The address_family must be either \"IPv4\" or \"IPv6\"").
 		WithImportantNote("The entries must be a valid JSON array of prefix filter entries").
 		WithImportantNote("The ge and le values are optional but must be within the range of the prefix length").
+		WithImportantNote("Required flags (description, address-family, entries) can be skipped when using --interactive, --json, or --json-file").
 		WithRootCmd(rootCmd).
+		WithConditionalRequirements("description", "address-family", "entries").
 		Build()
 
 	// List prefix filter lists command
@@ -168,7 +169,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithArgs(cobra.ExactArgs(2)).
 		WithColorAwareRunFunc(UpdateMCRPrefixFilterList).
 		WithStandardInputFlags().
-		WithPrefixFilterFlags().
+		WithMCRPrefixFilterListFlags().
 		WithLongDesc("Update a prefix filter list on an MCR.\n\nThis command allows you to update the details of an existing prefix filter list on an MCR. You can use this command to modify the description, address family, or entries in the list.").
 		WithExample("update-prefix-filter-list [mcrUID] [prefixFilterListID] --interactive").
 		WithExample("update-prefix-filter-list [mcrUID] [prefixFilterListID] --description \"Updated prefix list\" --entries '[{\"action\":\"permit\",\"prefix\":\"10.0.0.0/8\",\"ge\":24,\"le\":32}]'").

@@ -30,16 +30,8 @@ func (b *CommandBuilder) WithMCRUpdateFlags() *CommandBuilder {
 	return b
 }
 
-// WithCreateMCRPrefixFilterListFlags adds flags for creating MCR prefix filter lists
-func (b *CommandBuilder) WithCreateMCRPrefixFilterListFlags() *CommandBuilder {
-	b.WithRequiredFlag("description", "The description of the prefix filter list (1-255 characters)").
-		WithRequiredFlag("address-family", "The address family (IPv4 or IPv6)").
-		WithRequiredFlag("entries", "JSON array of prefix filter entries")
-	return b
-}
-
-// WithPrefixFilterFlags adds flags for prefix filter operations
-func (b *CommandBuilder) WithPrefixFilterFlags() *CommandBuilder {
+// WithMCRPrefixFilterListFlags adds flags for managing MCR prefix filter lists
+func (b *CommandBuilder) WithMCRPrefixFilterListFlags() *CommandBuilder {
 	b.WithFlag("description", "", "Description of the prefix filter list")
 	b.WithFlag("address-family", "", "Address family (IPv4 or IPv6)")
 	b.WithFlag("entries", "", "JSON array of prefix filter entries")
