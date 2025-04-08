@@ -182,11 +182,8 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("no update parameters provided")
 	}
 
-	// Set wait for update options if not already set
-	if !req.WaitForUpdate {
-		req.WaitForUpdate = true
-		req.WaitForTime = 5 * time.Minute
-	}
+	req.WaitForUpdate = true
+	req.WaitForTime = 10 * time.Minute
 
 	// Call update API
 	output.PrintInfo("Updating VXC %s...", noColor, formattedUID)

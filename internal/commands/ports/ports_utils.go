@@ -523,11 +523,11 @@ func filterPorts(ports []*megaport.Port, locationID int, portSpeed int, portName
 // PortOutput represents the desired fields for JSON output.
 type PortOutput struct {
 	output.Output      `json:"-" header:"-"`
-	UID                string `json:"uid"`
-	Name               string `json:"name"`
-	LocationID         int    `json:"location_id"`
-	PortSpeed          int    `json:"port_speed"`
-	ProvisioningStatus string `json:"provisioning_status"`
+	UID                string `json:"uid" header:"UID"`
+	Name               string `json:"name" header:"Name"`
+	LocationID         int    `json:"location_id" header:"LocationID"`
+	PortSpeed          int    `json:"port_speed" header:"Speed"`
+	ProvisioningStatus string `json:"provisioning_status" header:"Status"`
 }
 
 // ToPortOutput converts a *megaport.Port to our PortOutput struct.
@@ -535,7 +535,6 @@ func ToPortOutput(port *megaport.Port) (PortOutput, error) {
 	if port == nil {
 		return PortOutput{}, fmt.Errorf("invalid port: nil value")
 	}
-
 	return PortOutput{
 		UID:                port.UID,
 		Name:               port.Name,

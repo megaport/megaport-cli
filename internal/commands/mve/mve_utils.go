@@ -1189,9 +1189,12 @@ func filterMVEImages(images []*megaport.MVEImage, vendor, productCode string, id
 // MVEOutput represents the desired fields for JSON output.
 type MVEOutput struct {
 	output.Output `json:"-" header:"-"`
-	UID           string `json:"uid"`
-	Name          string `json:"name"`
-	LocationID    int    `json:"location_id"`
+	UID           string `json:"uid" header:"UID"`
+	Name          string `json:"name" header:"Name"`
+	LocationID    int    `json:"location_id" header:"Location ID"`
+	Status        string `json:"status" header:"Status"`
+	Vendor        string `json:"vendor" header:"Vendor"`
+	Size          string `json:"size" header:"Size"`
 }
 
 // ToMVEOutput converts an MVE to an MVEOutput.
@@ -1200,11 +1203,25 @@ func ToMVEOutput(m *megaport.MVE) (MVEOutput, error) {
 		return MVEOutput{}, fmt.Errorf("invalid MVE: nil value")
 	}
 
-	return MVEOutput{
+	output := MVEOutput{
 		UID:        m.UID,
 		Name:       m.Name,
 		LocationID: m.LocationID,
-	}, nil
+	}
+
+	if m.ProvisioningStatus != "" {
+		output.Status = m.ProvisioningStatus
+	}
+
+	if m.Vendor != "" {
+		output.Vendor = m.Vendor
+	}
+
+	if m.Size != "" {
+		output.Size = m.Size
+	}
+
+	return output, nil
 }
 
 // printMVEs prints the MVEs in the specified output format.

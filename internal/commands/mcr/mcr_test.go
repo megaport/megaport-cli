@@ -8,37 +8,49 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var noColor = false
+
 var testMCRs = []*megaport.MCR{
 	{
 		UID:                "mcr-1",
 		Name:               "MyMCROne",
 		LocationID:         1,
 		ProvisioningStatus: "ACTIVE",
+		PortSpeed:          1000,
+		Resources: megaport.MCRResources{
+			VirtualRouter: megaport.MCRVirtualRouter{
+				ASN: 64512,
+			},
+		},
 	},
 	{
 		UID:                "mcr-2",
 		Name:               "AnotherMCR",
 		LocationID:         2,
 		ProvisioningStatus: "INACTIVE",
+		PortSpeed:          5000,
+		Resources: megaport.MCRResources{
+			VirtualRouter: megaport.MCRVirtualRouter{
+				ASN: 64513,
+			},
+		},
 	},
 }
 
 func TestPrintMCRs_Table(t *testing.T) {
-	noColor := true
 	output := output.CaptureOutput(func() {
 		err := printMCRs(testMCRs, "table", noColor)
 		assert.NoError(t, err)
 	})
 
-	expected := `uid     name         location_id   provisioning_status
-mcr-1   MyMCROne     1             ACTIVE
-mcr-2   AnotherMCR   2             INACTIVE
+	expected := `UID     Name         LocationID   Status     ASN     Speed
+mcr-1   MyMCROne     1            ACTIVE     64512   1000
+mcr-2   AnotherMCR   2            INACTIVE   64513   5000
 `
 	assert.Equal(t, expected, output)
 }
 
 func TestPrintMCRs_JSON(t *testing.T) {
-	noColor := true
 	output := output.CaptureOutput(func() {
 		err := printMCRs(testMCRs, "json", noColor)
 		assert.NoError(t, err)
@@ -49,34 +61,36 @@ func TestPrintMCRs_JSON(t *testing.T) {
     "uid": "mcr-1",
     "name": "MyMCROne",
     "location_id": 1,
-    "provisioning_status": "ACTIVE"
+    "provisioning_status": "ACTIVE",
+    "asn": 64512,
+    "speed": 1000
   },
   {
     "uid": "mcr-2",
     "name": "AnotherMCR",
     "location_id": 2,
-    "provisioning_status": "INACTIVE"
+    "provisioning_status": "INACTIVE",
+    "asn": 64513,
+    "speed": 5000
   }
 ]`
 	assert.JSONEq(t, expected, output)
 }
 
 func TestPrintMCRs_CSV(t *testing.T) {
-	noColor := true
 	output := output.CaptureOutput(func() {
 		err := printMCRs(testMCRs, "csv", noColor)
 		assert.NoError(t, err)
 	})
 
-	expected := `uid,name,location_id,provisioning_status
-mcr-1,MyMCROne,1,ACTIVE
-mcr-2,AnotherMCR,2,INACTIVE
+	expected := `uid,name,location_id,provisioning_status,asn,speed
+mcr-1,MyMCROne,1,ACTIVE,64512,1000
+mcr-2,AnotherMCR,2,INACTIVE,64513,5000
 `
 	assert.Equal(t, expected, output)
 }
 
 func TestPrintMCRs_Invalid(t *testing.T) {
-	noColor := true
 	var err error
 	output := output.CaptureOutput(func() {
 		err = printMCRs(testMCRs, "invalid", noColor)
@@ -88,7 +102,6 @@ func TestPrintMCRs_Invalid(t *testing.T) {
 }
 
 func TestPrintMCRs_EmptyAndNilSlice(t *testing.T) {
-	noColor := true
 	tests := []struct {
 		name     string
 		mcrs     []*megaport.MCR
@@ -99,14 +112,14 @@ func TestPrintMCRs_EmptyAndNilSlice(t *testing.T) {
 			name:   "empty slice table format",
 			mcrs:   []*megaport.MCR{},
 			format: "table",
-			expected: `uid   name   location_id   provisioning_status
+			expected: `UID   Name   LocationID   Status   ASN   Speed
 `,
 		},
 		{
 			name:   "empty slice csv format",
 			mcrs:   []*megaport.MCR{},
 			format: "csv",
-			expected: `uid,name,location_id,provisioning_status
+			expected: `uid,name,location_id,provisioning_status,asn,speed
 `,
 		},
 		{
@@ -119,14 +132,14 @@ func TestPrintMCRs_EmptyAndNilSlice(t *testing.T) {
 			name:   "nil slice table format",
 			mcrs:   nil,
 			format: "table",
-			expected: `uid   name   location_id   provisioning_status
+			expected: `UID   Name   LocationID   Status   ASN   Speed
 `,
 		},
 		{
 			name:   "nil slice csv format",
 			mcrs:   nil,
 			format: "csv",
-			expected: `uid,name,location_id,provisioning_status
+			expected: `uid,name,location_id,provisioning_status,asn,speed
 `,
 		},
 		{

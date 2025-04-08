@@ -955,11 +955,6 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 
 	req := &megaport.UpdateVXCRequest{}
 
-	// Handle simple fields
-	if name, ok := rawData["name"].(string); ok {
-		req.Name = &name
-	}
-
 	if rateLimit, ok := rawData["rateLimit"].(float64); ok {
 		rateLimitInt := int(rateLimit)
 		if rateLimitInt < 0 {
@@ -984,21 +979,48 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 		req.Shutdown = &shutdown
 	}
 
-	// Handle VLAN fields
-	if aEndVLAN, ok := rawData["aEndVlan"].(float64); ok {
-		aEndVLANInt := int(aEndVLAN)
-		if aEndVLANInt < 0 || aEndVLANInt > 4093 || aEndVLANInt == 1 {
-			return nil, fmt.Errorf("aEndVlan must be 0 or between 2-4093")
+	// Handle nested configurations in addition to flat fields
+	if aEndConfig, ok := rawData["aEndConfiguration"].(map[string]interface{}); ok {
+		if vlan, ok := aEndConfig["vlan"].(float64); ok {
+			vlanInt := int(vlan)
+			if vlanInt != -1 && (vlanInt < 0 || vlanInt > 4093 || vlanInt == 1) {
+				return nil, fmt.Errorf("aEndConfiguration.vlan must be -1, 0, or between 2-4093")
+			}
+			req.AEndVLAN = &vlanInt
 		}
-		req.AEndVLAN = &aEndVLANInt
+	} else {
+		if aEndVLAN, ok := rawData["aEndVlan"].(float64); ok {
+			aEndVLANInt := int(aEndVLAN)
+			if aEndVLANInt != -1 && (aEndVLANInt < 0 || aEndVLANInt > 4093 || aEndVLANInt == 1) {
+				return nil, fmt.Errorf("aEndVlan must be -1, 0, or between 2-4093")
+			}
+			req.AEndVLAN = &aEndVLANInt
+		}
 	}
 
-	if bEndVLAN, ok := rawData["bEndVlan"].(float64); ok {
-		bEndVLANInt := int(bEndVLAN)
-		if bEndVLANInt < 0 || bEndVLANInt > 4093 || bEndVLANInt == 1 {
-			return nil, fmt.Errorf("bEndVlan must be 0 or between 2-4093")
+	if bEndConfig, ok := rawData["bEndConfiguration"].(map[string]interface{}); ok {
+		if vlan, ok := bEndConfig["vlan"].(float64); ok {
+			vlanInt := int(vlan)
+			if vlanInt != -1 && (vlanInt < 0 || vlanInt > 4093 || vlanInt == 1) {
+				return nil, fmt.Errorf("bEndConfiguration.vlan must be -1, 0, or between 2-4093")
+			}
+			req.BEndVLAN = &vlanInt
 		}
-		req.BEndVLAN = &bEndVLANInt
+	} else {
+		if bEndVLAN, ok := rawData["bEndVlan"].(float64); ok {
+			bEndVLANInt := int(bEndVLAN)
+			if bEndVLANInt != -1 && (bEndVLANInt < 0 || bEndVLANInt > 4093 || bEndVLANInt == 1) {
+				return nil, fmt.Errorf("bEndVlan must be -1, 0, or between 2-4093")
+			}
+			req.BEndVLAN = &bEndVLANInt
+		}
+	}
+
+	// Handle VXC name field variants
+	if name, ok := rawData["name"].(string); ok {
+		req.Name = &name
+	} else if vxcName, ok := rawData["vxcName"].(string); ok {
+		req.Name = &vxcName
 	}
 
 	if aEndInnerVLAN, ok := rawData["aEndInnerVlan"].(float64); ok {
@@ -1858,13 +1880,17 @@ var updateVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID st
 	return err
 }
 
-// VXCOutput represents the desired fields for JSON output.
+// VXCOutput represents the desired fields for output.
 type VXCOutput struct {
 	output.Output `json:"-" header:"-"`
-	UID           string `json:"uid"`
-	Name          string `json:"name"`
-	AEndUID       string `json:"a_end_uid"`
-	BEndUID       string `json:"b_end_uid"`
+	UID           string `json:"uid" header:"UID"`
+	Name          string `json:"name" header:"Name"`
+	AEndUID       string `json:"a_end_uid" header:"A End UID"`
+	BEndUID       string `json:"b_end_uid" header:"B End UID"`
+	AEndVLAN      int    `json:"a_end_vlan" header:"A End VLAN"`
+	BEndVLAN      int    `json:"b_end_vlan" header:"B End VLAN"`
+	RateLimit     int    `json:"rate_limit" header:"Rate Limit"`
+	Status        string `json:"status" header:"Status"`
 }
 
 // ToVXCOutput converts a VXC to a VXCOutput.
@@ -1873,11 +1899,22 @@ func ToVXCOutput(v *megaport.VXC) (VXCOutput, error) {
 		return VXCOutput{}, fmt.Errorf("invalid VXC: nil value")
 	}
 
+	aEndVLAN := v.AEndConfiguration.VLAN
+	bEndVLAN := v.BEndConfiguration.VLAN
+	aEndUID := v.AEndConfiguration.UID
+	bEndUID := v.BEndConfiguration.UID
+
+	status := v.ProvisioningStatus
+
 	return VXCOutput{
-		UID:     v.UID,
-		Name:    v.Name,
-		AEndUID: v.AEndConfiguration.UID,
-		BEndUID: v.BEndConfiguration.UID,
+		UID:       v.UID,
+		Name:      v.Name,
+		AEndUID:   aEndUID,
+		BEndUID:   bEndUID,
+		AEndVLAN:  aEndVLAN,
+		BEndVLAN:  bEndVLAN,
+		RateLimit: v.RateLimit,
+		Status:    status,
 	}, nil
 }
 

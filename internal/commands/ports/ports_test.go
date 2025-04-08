@@ -85,9 +85,9 @@ func TestPrintPorts_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `uid      name          location_id   port_speed   provisioning_status
-port-1   MyPortOne     1             1000         ACTIVE
-port-2   AnotherPort   2             2000         INACTIVE
+	expected := `UID      Name          LocationID   Speed   Status
+port-1   MyPortOne     1            1000    ACTIVE
+port-2   AnotherPort   2            2000    INACTIVE
 `
 	assert.Equal(t, expected, output)
 }
@@ -158,7 +158,7 @@ func TestPrintPorts_EdgeCases(t *testing.T) {
 			ports:       nil,
 			format:      "table",
 			shouldError: false,
-			expected:    "uid   name   location_id   port_speed   provisioning_status\n",
+			expected:    "UID   Name   LocationID   Speed   Status\n",
 		},
 		{
 			name:        "empty slice",

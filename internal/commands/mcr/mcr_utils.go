@@ -1149,10 +1149,12 @@ func ToPrefixFilterListOutput(prefixFilterList *megaport.MCRPrefixFilterList) (P
 // MCROutput represents the desired fields for JSON output of MCR details.
 type MCROutput struct {
 	output.Output      `json:"-" header:"-"`
-	UID                string `json:"uid"`
-	Name               string `json:"name"`
-	LocationID         int    `json:"location_id"`
-	ProvisioningStatus string `json:"provisioning_status"`
+	UID                string `json:"uid" header:"UID"`
+	Name               string `json:"name" header:"Name"`
+	LocationID         int    `json:"location_id" header:"LocationID"`
+	ProvisioningStatus string `json:"provisioning_status" header:"Status"`
+	ASN                int    `json:"asn" header:"ASN"`
+	Speed              int    `json:"speed" header:"Speed"`
 }
 
 // ToMCROutput converts a *megaport.MCR to our MCROutput struct.
@@ -1161,12 +1163,17 @@ func ToMCROutput(mcr *megaport.MCR) (MCROutput, error) {
 		return MCROutput{}, fmt.Errorf("invalid MCR: nil value")
 	}
 
-	return MCROutput{
+	output := MCROutput{
 		UID:                mcr.UID,
 		Name:               mcr.Name,
 		LocationID:         mcr.LocationID,
 		ProvisioningStatus: mcr.ProvisioningStatus,
-	}, nil
+		Speed:              mcr.PortSpeed,
+	}
+
+	output.ASN = mcr.Resources.VirtualRouter.ASN
+
+	return output, nil
 }
 
 // printMCRs prints a list of MCRs in the specified format.
