@@ -63,13 +63,13 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Buying MCR...")
+	output.PrintInfo("Buying MCR...", noColor)
 	resp, err := buyMCRFunc(ctx, client, req)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("MCR purchased successfully - UID: %s\n", resp.TechnicalServiceUID)
+	output.PrintInfo("MCR purchased successfully - UID: %s\n", noColor, resp.TechnicalServiceUID)
 	return nil
 }
 

@@ -31,12 +31,21 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create buy MCR command
+		// Create buy MCR command
 	buyMCRCmd := cmdbuilder.NewCommand("buy", "Buy an MCR through the Megaport API").
 		WithColorAwareRunFunc(BuyMCR).
 		WithMCRCreateFlags().
 		WithStandardInputFlags().
 		WithLongDesc("Buy an MCR through the Megaport API.\n\nThis command allows you to purchase an MCR by providing the necessary details.").
+		WithDocumentedRequiredFlag("name", "The name of the MCR (1-64 characters)").
+		WithDocumentedRequiredFlag("term", "The term of the MCR (1, 12, 24, or 36 months)").
+		WithDocumentedRequiredFlag("port-speed", "The speed of the MCR (1000, 2500, 5000, or 10000 Mbps)").
+		WithDocumentedRequiredFlag("location-id", "The ID of the location where the MCR will be provisioned").
+		WithDocumentedRequiredFlag("marketplace-visibility", "Whether the MCR should be visible in the marketplace (true or false)").
+		WithOptionalFlag("mcr-asn", "The ASN for the MCR (if not provided, a private ASN will be assigned)").
+		WithOptionalFlag("diversity-zone", "The diversity zone for the MCR").
+		WithOptionalFlag("cost-centre", "The cost centre for the MCR").
+		WithOptionalFlag("promo-code", "A promotional code for the MCR").
 		WithExample("buy --interactive").
 		WithExample("buy --name \"My MCR\" --term 12 --port-speed 5000 --location-id 123 --mcr-asn 65000").
 		WithExample("buy --json '{\"name\":\"My MCR\",\"term\":12,\"portSpeed\":5000,\"locationId\":123,\"mcrAsn\":65000}'").
@@ -54,7 +63,9 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("The location_id must correspond to a valid location in the Megaport API").
 		WithImportantNote("The port_speed must be one of the supported speeds (1000, 2500, 5000, or 10000 Mbps)").
 		WithImportantNote("If mcr_asn is not provided, a private ASN will be automatically assigned").
+		WithImportantNote("Required flags (name, term, port-speed, location-id, marketplace-visibility) can be skipped when using --interactive, --json, or --json-file").
 		WithRootCmd(rootCmd).
+		WithConditionalRequirements("name", "term", "port-speed", "location-id", "marketplace-visibility").
 		Build()
 
 	// Create update MCR command
