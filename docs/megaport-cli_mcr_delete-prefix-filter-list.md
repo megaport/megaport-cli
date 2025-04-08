@@ -8,9 +8,6 @@ Delete a prefix filter list on an MCR.
 
 This command allows you to delete a prefix filter list from the specified MCR.
 
-### Optional Fields
-  - `force`: Force deletion without confirmation
-
 ### Example Usage
 
 ```
@@ -22,7 +19,7 @@ This command allows you to delete a prefix filter list from the specified MCR.
 ## Usage
 
 ```
-megaport-cli mcr delete-prefix-filter-list [mcrUID] [prefixFilterListID] [flags]
+megaport-cli mcr delete-prefix-filter-list [flags]
 ```
 
 
@@ -38,7 +35,8 @@ megaport-cli mcr delete-prefix-filter-list [mcrUID] [prefixFilterListID] [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| `--force` |  | `false` | Force deletion without confirmation | false |
+| `--force` | `-f` | `false` | Skip confirmation prompt | false |
+| `--now` |  | `false` | Delete resource immediately instead of at end of billing cycle | false |
 
 
 

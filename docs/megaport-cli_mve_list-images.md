@@ -49,7 +49,7 @@ megaport-cli mve list-images [flags]
 |------|-----------|---------|-------------|----------|
 | `--id` |  | `0` | Filter images by ID | false |
 | `--product-code` |  |  | Filter images by product code | false |
-| `--release-image` |  | `false` | Filter images by release image | false |
+| `--release-image` |  | `false` | Filter images by release image (only show release images) | false |
 | `--vendor` |  |  | Filter images by vendor | false |
 | `--version` |  |  | Filter images by version | false |
 

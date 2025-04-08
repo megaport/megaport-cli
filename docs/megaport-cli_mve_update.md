@@ -10,7 +10,7 @@ This command allows you to update specific properties of an existing MVE without
 
 ### Optional Fields
   - `contract-term`: The new contract term in months (1, 12, 24, or 36)
-  - `cost-centre`: The new cost centre for billing purposes (optional)
+  - `cost-centre`: The new cost centre for billing purposes
   - `name`: The new name of the MVE (1-64 characters)
 
 ### Important Notes
@@ -42,7 +42,7 @@ This command allows you to update specific properties of an existing MVE without
 ## Usage
 
 ```
-megaport-cli mve update [mveUID] [flags]
+megaport-cli mve update [flags]
 ```
 
 
@@ -58,12 +58,12 @@ megaport-cli mve update [mveUID] [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| `--contract-term` |  | `0` | New contract term in months (1, 12, 24, or 36) | false |
-| `--cost-centre` |  |  | New cost centre | false |
-| `--interactive` | `-i` | `true` | Use interactive mode with prompts | false |
-| `--json` |  |  | JSON string containing MVE update configuration | false |
-| `--json-file` |  |  | Path to JSON file containing MVE update configuration | false |
-| `--name` |  |  | New MVE name | false |
+| `--cost-centre` |  |  | The new cost centre for billing purposes | false |
+| `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
+| `--json` |  |  | JSON string containing configuration | false |
+| `--json-file` |  |  | Path to JSON file containing configuration | false |
+| `--name` |  |  | The new name of the MVE (1-64 characters) | false |
+| `--term` |  | `0` | New contract term in months (1, 12, 24, or 36) | false |
 
 
 

@@ -18,6 +18,8 @@ var testVXCs = []*megaport.VXC{
 		BEndConfiguration: megaport.VXCEndConfiguration{
 			UID: "b-end-1",
 		},
+		RateLimit:          100,
+		ProvisioningStatus: "CONFIGURED",
 	},
 	{
 		UID:  "vxc-2",
@@ -28,6 +30,8 @@ var testVXCs = []*megaport.VXC{
 		BEndConfiguration: megaport.VXCEndConfiguration{
 			UID: "b-end-2",
 		},
+		RateLimit:          200,
+		ProvisioningStatus: "LIVE",
 	},
 }
 
@@ -37,12 +41,13 @@ func TestPrintVXCs_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `uid     name         a_end_uid   b_end_uid
-vxc-1   MyVXCOne     a-end-1     b-end-1
-vxc-2   AnotherVXC   a-end-2     b-end-2
+	expected := `UID     Name         A End UID   B End UID   A End VLAN   B End VLAN   Rate Limit   Status
+vxc-1   MyVXCOne     a-end-1     b-end-1     0            0            100          CONFIGURED
+vxc-2   AnotherVXC   a-end-2     b-end-2     0            0            200          LIVE
 `
 	assert.Equal(t, expected, output)
 }
+
 func TestPrintVXCs_JSON(t *testing.T) {
 	output := output.CaptureOutput(func() {
 		err := printVXCs(testVXCs, "json", true)
@@ -54,13 +59,21 @@ func TestPrintVXCs_JSON(t *testing.T) {
     "uid": "vxc-1",
     "name": "MyVXCOne",
     "a_end_uid": "a-end-1",
-    "b_end_uid": "b-end-1"
+    "b_end_uid": "b-end-1",
+    "a_end_vlan": 0,
+    "b_end_vlan": 0,
+    "rate_limit": 100,
+    "status": "CONFIGURED"
   },
   {
     "uid": "vxc-2",
     "name": "AnotherVXC",
     "a_end_uid": "a-end-2",
-    "b_end_uid": "b-end-2"
+    "b_end_uid": "b-end-2",
+    "a_end_vlan": 0,
+    "b_end_vlan": 0,
+    "rate_limit": 200,
+    "status": "LIVE"
   }
 ]`
 	assert.JSONEq(t, expected, output)
@@ -72,9 +85,9 @@ func TestPrintVXCs_CSV(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `uid,name,a_end_uid,b_end_uid
-vxc-1,MyVXCOne,a-end-1,b-end-1
-vxc-2,AnotherVXC,a-end-2,b-end-2
+	expected := `uid,name,a_end_uid,b_end_uid,a_end_vlan,b_end_vlan,rate_limit,status
+vxc-1,MyVXCOne,a-end-1,b-end-1,0,0,100,CONFIGURED
+vxc-2,AnotherVXC,a-end-2,b-end-2,0,0,200,LIVE
 `
 	assert.Equal(t, expected, output)
 }
@@ -89,6 +102,7 @@ func TestPrintVXCs_Invalid(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid output format")
 	assert.Empty(t, output)
 }
+
 func TestPrintVXCs_EdgeCases(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -102,7 +116,7 @@ func TestPrintVXCs_EdgeCases(t *testing.T) {
 			vxcs:        nil,
 			format:      "table",
 			shouldError: false,
-			expected:    "uid   name   a_end_uid   b_end_uid\n",
+			expected:    "UID   Name   A End UID   B End UID   A End VLAN   B End VLAN   Rate Limit   Status\n",
 		},
 		{
 			name:        "empty slice",
@@ -128,13 +142,15 @@ func TestPrintVXCs_EdgeCases(t *testing.T) {
 			name: "nil end configurations",
 			vxcs: []*megaport.VXC{
 				{
-					UID:  "vxc-1",
-					Name: "TestVXC",
+					UID:                "vxc-1",
+					Name:               "TestVXC",
+					RateLimit:          50,
+					ProvisioningStatus: "PENDING",
 				},
 			},
 			format:      "csv",
 			shouldError: false,
-			expected:    "uid,name,a_end_uid,b_end_uid\nvxc-1,TestVXC,,\n",
+			expected:    "uid,name,a_end_uid,b_end_uid,a_end_vlan,b_end_vlan,rate_limit,status\nvxc-1,TestVXC,,,0,0,50,PENDING\n",
 		},
 	}
 
@@ -185,19 +201,29 @@ func TestToVXCOutput_EdgeCases(t *testing.T) {
 				assert.Empty(t, output.Name)
 				assert.Empty(t, output.AEndUID)
 				assert.Empty(t, output.BEndUID)
+				assert.Equal(t, 0, output.AEndVLAN)
+				assert.Equal(t, 0, output.BEndVLAN)
+				assert.Equal(t, 0, output.RateLimit)
+				assert.Empty(t, output.Status)
 			},
 		},
 		{
 			name: "nil end configurations",
 			vxc: &megaport.VXC{
-				UID:  "vxc-1",
-				Name: "TestVXC",
+				UID:                "vxc-1",
+				Name:               "TestVXC",
+				RateLimit:          75,
+				ProvisioningStatus: "CONFIGURED",
 			},
 			validateFunc: func(t *testing.T, output VXCOutput) {
 				assert.Equal(t, "vxc-1", output.UID)
 				assert.Equal(t, "TestVXC", output.Name)
 				assert.Empty(t, output.AEndUID)
 				assert.Empty(t, output.BEndUID)
+				assert.Equal(t, 0, output.AEndVLAN)
+				assert.Equal(t, 0, output.BEndVLAN)
+				assert.Equal(t, 75, output.RateLimit)
+				assert.Equal(t, "CONFIGURED", output.Status)
 			},
 		},
 	}

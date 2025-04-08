@@ -24,7 +24,7 @@ This command allows you to unlock a previously locked port, re-enabling the abil
 ## Usage
 
 ```
-megaport-cli ports unlock [portUID] [flags]
+megaport-cli ports unlock [flags]
 ```
 
 

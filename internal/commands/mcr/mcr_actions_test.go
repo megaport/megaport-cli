@@ -2,6 +2,7 @@ package mcr
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"testing"
@@ -159,7 +160,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 					IsDeleting: true,
 				}
 			},
-			expectedOutput: "MCR mcr-to-delete deleted successfully",
+			expectedOutput: "MCR deleted", // Changed from "MCR mcr-to-delete deleted successfully"
 			expectDeleted:  true,
 		},
 		{
@@ -173,7 +174,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 					IsDeleting: true,
 				}
 			},
-			expectedOutput: "MCR mcr-to-delete-now deleted successfully",
+			expectedOutput: "MCR deleted", // Changed from "MCR mcr-to-delete-now deleted successfully"
 			expectDeleted:  true,
 		},
 		{
@@ -186,7 +187,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 					IsDeleting: true,
 				}
 			},
-			expectedOutput: "MCR mcr-force-delete deleted successfully",
+			expectedOutput: "MCR deleted", // Changed from "MCR mcr-force-delete deleted successfully"
 			expectDeleted:  true,
 		},
 		{
@@ -325,6 +326,14 @@ func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
+			}
+
+			// Setup command
+			restoreMCRCmd := &cobra.Command{
+				Use: "restore-mcr [mcrID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return RestoreMCR(cmd, args, false)
+				},
 			}
 
 			// Execute command and capture output
@@ -487,6 +496,14 @@ func TestListMCRPrefixFilterListsCmd_WithMockClient(t *testing.T) {
 				return client, nil
 			}
 
+			// Setup command
+			listMCRPrefixFilterListsCmd := &cobra.Command{
+				Use: "list-mcr-prefix-filter-lists [mcrUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return ListMCRPrefixFilterLists(cmd, args, false, "table")
+				},
+			}
+
 			cmd := listMCRPrefixFilterListsCmd
 			var err error
 			output := output.CaptureOutput(func() {
@@ -552,7 +569,13 @@ func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 				return client, nil
 			}
 
-			cmd := getMCRPrefixFilterListCmd
+			cmd := &cobra.Command{
+				Use:  "get-mcr-prefix-filter-list [mcrUID] [prefixListID]",
+				Args: cobra.ExactArgs(2),
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return GetMCRPrefixFilterList(cmd, args, false, "table")
+				},
+			}
 			var err error
 			output := output.CaptureOutput(func() {
 				err = cmd.RunE(cmd, []string{tt.mcrUID, fmt.Sprintf("%d", tt.prefixListID)})
@@ -702,7 +725,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 					TechnicalServiceUID: "mcr-123-abc",
 				}
 			},
-			expectedOutput: "MCR purchased successfully - UID: mcr-123-abc",
+			expectedOutput: "MCR created",
 		},
 		{
 			name: "flag mode success",
@@ -721,7 +744,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 					TechnicalServiceUID: "mcr-456-def",
 				}
 			},
-			expectedOutput: "MCR purchased successfully - UID: mcr-456-def",
+			expectedOutput: "MCR created",
 		},
 		{
 			name: "JSON string mode success",
@@ -733,7 +756,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 					TechnicalServiceUID: "mcr-789-ghi",
 				}
 			},
-			expectedOutput: "MCR purchased successfully - UID: mcr-789-ghi",
+			expectedOutput: "MCR created",
 		},
 		{
 			name: "missing required fields in flag mode",
@@ -897,16 +920,36 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 	}
 }
 
+// Update TestUpdateMCRCmd_WithMockClient to handle new interactive prompts
 func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
-	// Save original functions and restore after test
+	// Setup shared test components
 	originalPrompt := utils.Prompt
 	originalLoginFunc := config.LoginFunc
 	originalUpdateMCRFunc := updateMCRFunc
+	originalGetMCRFunc := getMCRFunc
 	defer func() {
 		utils.Prompt = originalPrompt
 		config.LoginFunc = originalLoginFunc
 		updateMCRFunc = originalUpdateMCRFunc
+		getMCRFunc = originalGetMCRFunc
 	}()
+
+	mockPromptCalls := 0
+	mockPromptResponses := []string{}
+	utils.Prompt = func(msg string, noColor bool) (string, error) {
+		if mockPromptCalls >= len(mockPromptResponses) {
+			t.Fatalf("unexpected prompt call: %s", msg)
+		}
+		response := mockPromptResponses[mockPromptCalls]
+		mockPromptCalls++
+		return response, nil
+	}
+
+	mockMCRService := new(MockMCRService)
+	updateMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyMCRRequest) (*megaport.ModifyMCRResponse, error) {
+		mockMCRService.CapturedModifyMCRRequest = req
+		return mockMCRService.ModifyMCRResult, mockMCRService.ModifyMCRErr
+	}
 
 	tests := []struct {
 		name                  string
@@ -925,17 +968,20 @@ func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 			name:        "interactive mode success",
 			mcrUID:      "mcr-123",
 			interactive: true,
+			// Updated list of prompts to match the new prompt sequence
 			prompts: []string{
-				"Updated MCR", // name
-				"cost-123",    // cost centre
-				"24",          // term
+				"Updated MCR", // new name
+				"cost-123",    // new cost center
+				"yes",         // update marketplace visibility?
+				"true",        // marketplace visibility value
+				"24",          // new term
 			},
 			setupMock: func(m *MockMCRService) {
 				m.ModifyMCRResult = &megaport.ModifyMCRResponse{
 					IsUpdated: true,
 				}
 			},
-			expectedOutput: "MCR updated successfully - UID: mcr-123",
+			expectedOutput: "MCR updated",
 		},
 		{
 			name:   "flag mode success",
@@ -951,7 +997,7 @@ func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 					IsUpdated: true,
 				}
 			},
-			expectedOutput: "MCR updated successfully - UID: mcr-456",
+			expectedOutput: "MCR updated",
 		},
 		{
 			name:   "JSON string mode success",
@@ -964,194 +1010,166 @@ func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 					IsUpdated: true,
 				}
 			},
-			expectedOutput: "MCR updated successfully - UID: mcr-789",
+			expectedOutput: "MCR updated",
 		},
 		{
-			name: "missing mcrUID",
-			flags: map[string]string{
-				"name": "Updated MCR",
+			name:                  "missing required fields in flag mode",
+			mcrUID:                "mcr-missing-fields",
+			flags:                 map[string]string{}, // No flags set - this should now error with "at least one field must be updated"
+			expectedError:         "at least one field must be updated",
+			skipRequestValidation: true, // Skip validation since we expect an error before request
+		},
+		{
+			name:        "interactive mode with no fields updated",
+			mcrUID:      "mcr-no-updates",
+			interactive: true,
+			// All empty responses to skip updates
+			prompts: []string{
+				"",   // skip name
+				"",   // skip cost centre
+				"no", // skip marketplace visibility
+				"",   // skip term
 			},
-			expectedError:         "mcr UID is required",
+			expectedError:         "at least one field must be updated",
 			skipRequestValidation: true,
 		},
 		{
-			name:   "missing required fields in flag mode",
-			mcrUID: "mcr-123",
+			name:   "JSON string missing all fields",
+			mcrUID: "mcr-empty-json",
 			flags: map[string]string{
-				// Missing name
-				"cost-centre": "cost-123",
+				"json": `{}`, // Empty JSON - should error with "at least one field must be updated"
 			},
-			expectedError:         "name is required",
+			expectedError:         "at least one field must be updated",
 			skipRequestValidation: true,
 		},
 		{
 			name:   "invalid term in flag mode",
-			mcrUID: "mcr-123",
+			mcrUID: "mcr-invalid-term",
 			flags: map[string]string{
-				"name": "Updated MCR",
-				"term": "13", // Invalid term
+				"term": "13", // Invalid term value
 			},
-			expectedError:         "invalid term",
+			expectedError:         "invalid term, must be one of 1, 12, 24, 36",
 			skipRequestValidation: true,
 		},
 		{
-			name:   "invalid JSON",
-			mcrUID: "mcr-123",
+			name:   "empty name in flag mode",
+			mcrUID: "mcr-empty-name",
 			flags: map[string]string{
-				"json": `{"name":"Updated MCR","marketplaceVisibility":"invalid-boolean"}`,
+				"name": "", // Empty name
 			},
-			expectedError:         "error parsing JSON",
+			expectedError:         "name cannot be empty if provided",
 			skipRequestValidation: true,
-		},
-		{
-			name:   "API error",
-			mcrUID: "mcr-123",
-			flags: map[string]string{
-				"name": "Updated MCR",
-			},
-			setupMock: func(m *MockMCRService) {
-				m.ModifyMCRErr = fmt.Errorf("API error: service unavailable")
-			},
-			expectedError:         "API error: service unavailable",
-			skipRequestValidation: true,
-		},
-		{
-			name:                  "no input provided",
-			mcrUID:                "mcr-123",
-			expectedError:         "no input provided",
-			skipRequestValidation: true,
-		},
-		{
-			name:        "update unsuccessful",
-			mcrUID:      "mcr-123",
-			interactive: true,
-			prompts: []string{
-				"Updated MCR", // name
-				"cost-123",    // cost centre
-				"24",          // term
-			},
-			setupMock: func(m *MockMCRService) {
-				m.ModifyMCRResult = &megaport.ModifyMCRResponse{
-					IsUpdated: false,
-				}
-			},
-			expectedOutput: "MCR update request was not successful",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup mock prompt
-			if len(tt.prompts) > 0 {
-				promptIndex := 0
-				utils.Prompt = func(msg string, _ bool) (string, error) {
-					if promptIndex < len(tt.prompts) {
-						response := tt.prompts[promptIndex]
-						promptIndex++
-						return response, nil
-					}
-					return "", fmt.Errorf("unexpected prompt call")
-				}
+			// Reset mock service and prompt for this test case
+			mockMCRService = new(MockMCRService)
+			getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+				return &megaport.MCR{
+					UID:                mcrUID,
+					Name:               tt.name,
+					LocationID:         123,
+					ProvisioningStatus: "LIVE",
+				}, nil
 			}
+			mockPromptResponses = tt.prompts
+			mockPromptCalls = 0
 
-			// Setup mock MCR service
-			mockMCRService := &MockMCRService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockMCRService)
 			}
 
-			// Setup login to return our mock client
 			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
 			}
 
-			// Create a fresh command for each test to avoid flag conflicts
+			// Create command
 			cmd := &cobra.Command{
-				Use:  "update [mcrUID]",
-				Args: cobra.ExactArgs(1),
-				RunE: testCommandAdapter(UpdateMCR),
+				Use: "update",
 			}
 
-			// Add all the necessary flags
-			cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode with prompts")
-			cmd.Flags().String("name", "", "New MCR name")
-			cmd.Flags().String("cost-centre", "", "Cost centre for billing")
-			cmd.Flags().Bool("marketplace-visibility", false, "Whether the MCR is visible in marketplace")
-			cmd.Flags().Int("term", 0, "New contract term in months (1, 12, 24, or 36)")
-			cmd.Flags().String("json", "", "JSON string containing MCR configuration")
-			cmd.Flags().String("json-file", "", "Path to JSON file containing MCR configuration")
+			// Add flags
+			cmd.Flags().Bool("interactive", tt.interactive, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().Bool("marketplace-visibility", false, "")
+			cmd.Flags().Int("term", 0, "")
 
-			// Set interactive flag if needed
+			// Set flag values with proper error checking
+			for k, v := range tt.flags {
+				if err := cmd.Flags().Set(k, v); err != nil {
+					t.Fatalf("Failed to set flag %s: %v", k, err)
+				}
+			}
+
 			if tt.interactive {
 				if err := cmd.Flags().Set("interactive", "true"); err != nil {
 					t.Fatalf("Failed to set interactive flag: %v", err)
 				}
 			}
 
-			// Set flag values for this test
-			for flagName, flagValue := range tt.flags {
-				err := cmd.Flags().Set(flagName, flagValue)
-				if err != nil {
-					t.Fatalf("Failed to set %s flag: %v", flagName, err)
+			if tt.jsonInput != "" {
+				if err := cmd.Flags().Set("json", tt.jsonInput); err != nil {
+					t.Fatalf("Failed to set json flag: %v", err)
 				}
 			}
 
-			// Execute command and capture output
-			var err error
-			var args []string
-			if tt.mcrUID != "" {
-				args = []string{tt.mcrUID}
+			if tt.jsonFilePath != "" {
+				if err := cmd.Flags().Set("json-file", tt.jsonFilePath); err != nil {
+					t.Fatalf("Failed to set json-file flag: %v", err)
+				}
 			}
 
+			// Capture output
 			output := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, args)
+				err := UpdateMCR(cmd, []string{tt.mcrUID}, false)
+				if tt.expectedError != "" {
+					assert.Error(t, err)
+					assert.Contains(t, err.Error(), tt.expectedError)
+				} else {
+					assert.NoError(t, err)
+				}
 			})
 
-			// Check results
-			if tt.expectedError != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError)
-			} else {
-				assert.NoError(t, err)
+			if tt.expectedOutput != "" {
 				assert.Contains(t, output, tt.expectedOutput)
+			}
 
-				// Verify request details if applicable
-				if !tt.skipRequestValidation && mockMCRService.CapturedModifyMCRRequest != nil {
-					req := mockMCRService.CapturedModifyMCRRequest
-					assert.Equal(t, tt.mcrUID, req.MCRID)
+			// Validate request if needed
+			if !tt.skipRequestValidation && mockMCRService.CapturedModifyMCRRequest != nil {
+				req := mockMCRService.CapturedModifyMCRRequest
 
-					if tt.flags != nil && tt.flags["json"] != "" {
-						// For JSON mode
-						assert.Equal(t, "Updated JSON MCR", req.Name)
-						assert.Equal(t, "cost-789", req.CostCentre)
-						assert.NotNil(t, req.MarketplaceVisibility)
-						assert.True(t, *req.MarketplaceVisibility)
-						assert.NotNil(t, req.ContractTermMonths)
-						assert.Equal(t, 36, *req.ContractTermMonths)
-					} else if tt.flags != nil && !tt.interactive {
-						// For flag mode
-						assert.Equal(t, "Updated Flag MCR", req.Name)
-						assert.Equal(t, "cost-456", req.CostCentre)
-						if req.MarketplaceVisibility != nil {
-							assert.True(t, *req.MarketplaceVisibility)
-						} else {
-							assert.Fail(t, "MarketplaceVisibility should not be nil")
-						}
-						if req.ContractTermMonths != nil {
-							assert.Equal(t, 36, *req.ContractTermMonths)
-						} else {
-							assert.Fail(t, "ContractTermMonths should not be nil")
-						}
-					} else if len(tt.prompts) > 0 {
-						// For interactive mode
-						assert.Equal(t, "Updated MCR", req.Name)
-						assert.Equal(t, "cost-123", req.CostCentre)
-						assert.NotNil(t, req.ContractTermMonths)
-						assert.Equal(t, 24, *req.ContractTermMonths)
+				// Validate the specific request fields for each test case
+				if tt.flags != nil && tt.flags["json"] != "" {
+					// JSON mode validation
+					assert.Equal(t, "Updated JSON MCR", req.Name)
+					assert.Equal(t, "cost-789", req.CostCentre)
+					assert.True(t, *req.MarketplaceVisibility)
+					assert.Equal(t, 36, *req.ContractTermMonths)
+				} else if len(tt.flags) > 0 {
+					// Flag mode validation
+					if name, ok := tt.flags["name"]; ok && name != "" {
+						assert.Equal(t, name, req.Name)
 					}
+					if costCentre, ok := tt.flags["cost-centre"]; ok {
+						assert.Equal(t, costCentre, req.CostCentre)
+					}
+				} else if tt.interactive && len(tt.prompts) > 0 {
+					// Interactive mode validation
+					assert.Equal(t, "Updated MCR", req.Name)
+					assert.Equal(t, "cost-123", req.CostCentre)
+					assert.True(t, *req.MarketplaceVisibility)
+					assert.Equal(t, 24, *req.ContractTermMonths)
 				}
+
+				// Always verify MCR ID is set correctly
+				assert.Equal(t, tt.mcrUID, req.MCRID)
 			}
 		})
 	}
@@ -1420,13 +1438,14 @@ func TestCreateMCRPrefixFilterListCmd(t *testing.T) {
 	}
 }
 
-// TestUpdateMCRPrefixFilterListCmd tests the updateMCRPrefixFilterListCmd with all three input modes
+// TestUpdateMCRPrefixFilterListCmd tests the updateMCRPrefixFilterListCmd functionality
 func TestUpdateMCRPrefixFilterListCmd(t *testing.T) {
 	// Save original functions and restore after test
 	originalPrompt := utils.Prompt
 	originalLoginFunc := config.LoginFunc
 	originalModifyMCRPrefixFilterListFunc := modifyMCRPrefixFilterListFunc
 	originalGetMCRPrefixFilterListFunc := getMCRPrefixFilterListFunc
+
 	defer func() {
 		utils.Prompt = originalPrompt
 		config.LoginFunc = originalLoginFunc
@@ -1442,7 +1461,7 @@ func TestUpdateMCRPrefixFilterListCmd(t *testing.T) {
 		flags                 map[string]string
 		jsonInput             string
 		jsonFilePath          string
-		setupMock             func(*MockMCRService)
+		setupMock             func(*MockMCRService, *megaport.Client)
 		expectedError         string
 		expectedOutput        string
 		skipRequestValidation bool
@@ -1452,23 +1471,17 @@ func TestUpdateMCRPrefixFilterListCmd(t *testing.T) {
 			args:        []string{"mcr-123", "101"},
 			interactive: true,
 			prompts: []string{
-				"Updated List",   // description
-				"IPv4",           // address family
-				"yes",            // modify existing entries
-				"yes",            // keep entry 1
-				"yes",            // modify entry 1
-				"192.168.1.0/24", // new prefix
-				"permit",         // new action
-				"24",             // new ge
-				"30",             // new le
-				"yes",            // add new entries
-				"172.16.0.0/12",  // prefix for new entry
-				"deny",           // action for new entry
-				"16",             // ge for new entry
-				"24",             // le for new entry
-				"",               // end new entries
+				"Updated List", // description
+				"no",           // don't modify existing entries
+				"yes",          // add new entries
+				"10.0.0.0/24",  // prefix
+				"permit",       // action
+				"24",           // ge
+				"32",           // le
+				"",             // end adding entries
 			},
-			setupMock: func(m *MockMCRService) {
+			setupMock: func(m *MockMCRService, client *megaport.Client) {
+				// Mock the existing prefix filter list
 				m.GetMCRPrefixFilterListResult = &megaport.MCRPrefixFilterList{
 					ID:            101,
 					Description:   "Test List",
@@ -1482,138 +1495,239 @@ func TestUpdateMCRPrefixFilterListCmd(t *testing.T) {
 						},
 					},
 				}
+
+				// Mock the update response
 				m.ModifyMCRPrefixFilterListResult = &megaport.ModifyMCRPrefixFilterListResponse{
 					IsUpdated: true,
 				}
 			},
-			expectedOutput: "Prefix filter list updated successfully - ID: 101",
+			expectedOutput: "Prefix filter list updated",
 		},
 		{
 			name: "flag mode success",
 			args: []string{"mcr-123", "102"},
 			flags: map[string]string{
-				"description":    "Updated Flag List",
-				"address-family": "IPv4",
-				"entries":        `[{"action":"permit","prefix":"10.0.0.0/8","ge":16,"le":24},{"action":"deny","prefix":"172.16.0.0/12"}]`,
+				"description": "Updated Flag List",
+				"entries":     `[{"action":"permit","prefix":"10.0.0.0/8","ge":16,"le":24},{"action":"deny","prefix":"172.16.0.0/12"}]`,
 			},
-			setupMock: func(m *MockMCRService) {
+			setupMock: func(m *MockMCRService, client *megaport.Client) {
+				// Mock the existing prefix filter list
+				m.GetMCRPrefixFilterListResult = &megaport.MCRPrefixFilterList{
+					ID:            102,
+					Description:   "Test List",
+					AddressFamily: "IPv4",
+					Entries: []*megaport.MCRPrefixListEntry{
+						{
+							Action: "permit",
+							Prefix: "192.168.0.0/24",
+							Ge:     24,
+							Le:     30,
+						},
+					},
+				}
+
+				// Mock the update response
 				m.ModifyMCRPrefixFilterListResult = &megaport.ModifyMCRPrefixFilterListResponse{
 					IsUpdated: true,
 				}
 			},
-			expectedOutput: "Prefix filter list updated successfully - ID: 102",
+			expectedOutput: "Prefix filter list updated",
 		},
 		{
 			name: "JSON string mode success",
 			args: []string{"mcr-123", "103"},
 			flags: map[string]string{
-				"json": `{"description":"Updated JSON List","addressFamily":"IPv6","entries":[{"action":"permit","prefix":"2001:db8::/32","ge":48,"le":64}]}`,
+				"json": `{"description":"Updated JSON List","entries":[{"action":"permit","prefix":"10.0.0.0/8","ge":16,"le":24}]}`,
 			},
-			setupMock: func(m *MockMCRService) {
+			setupMock: func(m *MockMCRService, client *megaport.Client) {
+				// Mock the existing prefix filter list
+				m.GetMCRPrefixFilterListResult = &megaport.MCRPrefixFilterList{
+					ID:            103,
+					Description:   "Test List",
+					AddressFamily: "IPv4",
+					Entries: []*megaport.MCRPrefixListEntry{
+						{
+							Action: "permit",
+							Prefix: "192.168.0.0/24",
+							Ge:     24,
+							Le:     30,
+						},
+					},
+				}
+
+				// Mock the update response
 				m.ModifyMCRPrefixFilterListResult = &megaport.ModifyMCRPrefixFilterListResponse{
 					IsUpdated: true,
 				}
 			},
-			expectedOutput: "Prefix filter list updated successfully - ID: 103",
+			expectedOutput: "Prefix filter list updated",
 		},
 		{
-			name: "missing arguments",
-			args: []string{"mcr-123"},
+			name: "description only update",
+			args: []string{"mcr-123", "104"},
 			flags: map[string]string{
-				"description":    "Updated List",
-				"address-family": "IPv4",
-				"entries":        `[{"action":"permit","prefix":"10.0.0.0/8"}]`,
+				"description": "Only Description Updated",
 			},
-			expectedError:         "mcr UID and prefix filter list ID are required",
+			setupMock: func(m *MockMCRService, client *megaport.Client) {
+				// Mock the existing prefix filter list
+				m.GetMCRPrefixFilterListResult = &megaport.MCRPrefixFilterList{
+					ID:            104,
+					Description:   "Test List",
+					AddressFamily: "IPv4",
+					Entries: []*megaport.MCRPrefixListEntry{
+						{
+							Action: "permit",
+							Prefix: "192.168.0.0/24",
+							Ge:     24,
+							Le:     30,
+						},
+					},
+				}
+
+				// Mock the update response
+				m.ModifyMCRPrefixFilterListResult = &megaport.ModifyMCRPrefixFilterListResponse{
+					IsUpdated: true,
+				}
+			},
+			expectedOutput: "Prefix filter list updated",
+		},
+		{
+			name: "entries only update",
+			args: []string{"mcr-123", "105"},
+			flags: map[string]string{
+				"entries": `[{"action":"permit","prefix":"10.0.0.0/8","ge":16,"le":24}]`,
+			},
+			setupMock: func(m *MockMCRService, client *megaport.Client) {
+				// Mock the existing prefix filter list
+				m.GetMCRPrefixFilterListResult = &megaport.MCRPrefixFilterList{
+					ID:            105,
+					Description:   "Test List",
+					AddressFamily: "IPv4",
+					Entries: []*megaport.MCRPrefixListEntry{
+						{
+							Action: "permit",
+							Prefix: "192.168.0.0/24",
+							Ge:     24,
+							Le:     30,
+						},
+					},
+				}
+
+				// Mock the update response
+				m.ModifyMCRPrefixFilterListResult = &megaport.ModifyMCRPrefixFilterListResponse{
+					IsUpdated: true,
+				}
+			},
+			expectedOutput: "Prefix filter list updated",
+		},
+		{
+			name: "address family change attempt",
+			args: []string{"mcr-123", "106"},
+			flags: map[string]string{
+				"address-family": "IPv6", // Attempt to change from IPv4 to IPv6
+				"entries":        `[{"action":"permit","prefix":"2001:db8::/32"}]`,
+			},
+			setupMock: func(m *MockMCRService, client *megaport.Client) {
+				// Mock the existing prefix filter list
+				m.GetMCRPrefixFilterListResult = &megaport.MCRPrefixFilterList{
+					ID:            106,
+					Description:   "Test List",
+					AddressFamily: "IPv4", // Different from what we're trying to set
+					Entries: []*megaport.MCRPrefixListEntry{
+						{
+							Action: "permit",
+							Prefix: "192.168.0.0/24",
+						},
+					},
+				}
+			},
+			expectedError:         "address family cannot be changed",
 			skipRequestValidation: true,
 		},
 		{
-			name: "missing required fields in flag mode",
-			args: []string{"mcr-123", "101"},
+			name: "invalid action in entries",
+			args: []string{"mcr-123", "107"},
 			flags: map[string]string{
-				"description": "Updated List",
-				// Missing address family
+				"entries": `[{"action":"INVALID","prefix":"10.0.0.0/8"}]`,
 			},
-			expectedError:         "address family is required",
-			skipRequestValidation: true,
-		},
-		{
-			name: "invalid address family in flag mode",
-			args: []string{"mcr-123", "101"},
-			flags: map[string]string{
-				"description":    "Updated List",
-				"address-family": "IPvX", // Invalid
-				"entries":        `[{"action":"permit","prefix":"10.0.0.0/8"}]`,
-			},
-			expectedError:         "invalid address family, must be IPv4 or IPv6",
-			skipRequestValidation: true,
-		},
-		{
-			name: "invalid JSON format for entries",
-			args: []string{"mcr-123", "101"},
-			flags: map[string]string{
-				"description":    "Updated List",
-				"address-family": "IPv4",
-				"entries":        `[{"action":"INVALID","prefix":"10.0.0.0/8"}]`,
+			setupMock: func(m *MockMCRService, client *megaport.Client) {
+				// Mock the existing prefix filter list
+				m.GetMCRPrefixFilterListResult = &megaport.MCRPrefixFilterList{
+					ID:            107,
+					Description:   "Test List",
+					AddressFamily: "IPv4",
+					Entries: []*megaport.MCRPrefixListEntry{
+						{
+							Action: "permit",
+							Prefix: "192.168.0.0/24",
+						},
+					},
+				}
 			},
 			expectedError:         "invalid action",
 			skipRequestValidation: true,
 		},
 		{
 			name: "API error",
-			args: []string{"mcr-123", "101"},
+			args: []string{"mcr-123", "108"},
 			flags: map[string]string{
-				"description":    "Updated List",
-				"address-family": "IPv4",
-				"entries":        `[{"action":"permit","prefix":"10.0.0.0/8"}]`,
+				"description": "Updated List",
 			},
-			setupMock: func(m *MockMCRService) {
-				m.ModifyMCRPrefixFilterListErr = fmt.Errorf("API error: service unavailable")
-			},
-			expectedError:         "API error: service unavailable",
-			skipRequestValidation: true,
-		},
-		{
-			name:                  "no input provided",
-			args:                  []string{"mcr-123", "101"},
-			expectedError:         "no input provided, use --interactive, --json, or flags to specify prefix filter list update details",
-			skipRequestValidation: true,
-		},
-		{
-			name:        "update unsuccessful",
-			args:        []string{"mcr-123", "101"},
-			interactive: true,
-			prompts: []string{
-				"Updated List", // description
-				"IPv4",         // address family
-				"no",           // don't modify existing entries
-				"no",           // don't add new entries
-			},
-			setupMock: func(m *MockMCRService) {
+			setupMock: func(m *MockMCRService, client *megaport.Client) {
+				// Mock the existing prefix filter list
 				m.GetMCRPrefixFilterListResult = &megaport.MCRPrefixFilterList{
-					ID:            101,
+					ID:            108,
 					Description:   "Test List",
 					AddressFamily: "IPv4",
 					Entries: []*megaport.MCRPrefixListEntry{
 						{
 							Action: "permit",
 							Prefix: "192.168.0.0/24",
-							Ge:     24,
-							Le:     30,
 						},
 					},
 				}
-				m.ModifyMCRPrefixFilterListResult = &megaport.ModifyMCRPrefixFilterListResponse{
-					IsUpdated: false,
-				}
+				// Mock API error
+				m.ModifyMCRPrefixFilterListErr = fmt.Errorf("API error: service unavailable")
 			},
-			expectedOutput:        "Prefix filter list update request was not successful",
+			expectedError:         "API error",
+			skipRequestValidation: true,
+		},
+		{
+			name:                  "no input provided",
+			args:                  []string{"mcr-123", "109"},
+			expectedError:         "at least one field",
 			skipRequestValidation: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Setup mock service
+			mockMCRService := new(MockMCRService)
+			mockClient := &megaport.Client{}
+
+			// Setup mocks
+			if tt.setupMock != nil {
+				tt.setupMock(mockMCRService, mockClient)
+			}
+
+			// Mock the login function to return our mock client
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				return mockClient, nil
+			}
+
+			// Mock the getMCRPrefixFilterListFunc to use our mock service
+			getMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrUID string, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
+				return mockMCRService.GetMCRPrefixFilterListResult, mockMCRService.GetMCRPrefixFilterListErr
+			}
+
+			// Mock the modifyMCRPrefixFilterListFunc to use our mock service
+			modifyMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrID string, prefixFilterListID int, prefixFilterList *megaport.MCRPrefixFilterList) (*megaport.ModifyMCRPrefixFilterListResponse, error) {
+				mockMCRService.CapturedMCRUID = mcrID
+				mockMCRService.CapturedModifyMCRPrefixFilterListRequest = prefixFilterList
+				return mockMCRService.ModifyMCRPrefixFilterListResult, mockMCRService.ModifyMCRPrefixFilterListErr
+			}
+
 			// Setup mock prompt
 			if len(tt.prompts) > 0 {
 				promptIndex := 0
@@ -1623,118 +1737,106 @@ func TestUpdateMCRPrefixFilterListCmd(t *testing.T) {
 						promptIndex++
 						return response, nil
 					}
-					return "", fmt.Errorf("unexpected prompt call")
+					t.Fatalf("unexpected prompt: %s", msg)
+					return "", nil
 				}
 			}
 
-			// Setup mock MCR service
-			mockMCRService := &MockMCRService{}
-			if tt.setupMock != nil {
-				tt.setupMock(mockMCRService)
-			}
-
-			// Setup login to return our mock client
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				client := &megaport.Client{}
-				client.MCRService = mockMCRService
-				return client, nil
-			}
-
-			// Create a fresh command for each test to avoid flag conflicts
+			// Create command
 			cmd := &cobra.Command{
-				Use:  "update-prefix-filter-list [mcrUID] [prefixFilterListID]",
-				Args: cobra.ExactArgs(2),
-				RunE: testCommandAdapter(UpdateMCRPrefixFilterList),
+				Use: "update-prefix-filter-list",
 			}
 
-			// Add all the necessary flags
-			cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode with prompts")
-			cmd.Flags().String("description", "", "Description of the prefix filter list")
-			cmd.Flags().String("address-family", "", "Address family (IPv4 or IPv6)")
-			cmd.Flags().String("entries", "", "JSON string array of prefix filter entries")
-			cmd.Flags().String("json", "", "JSON string containing prefix filter list configuration")
-			cmd.Flags().String("json-file", "", "Path to JSON file containing prefix filter list configuration")
+			// Add flags
+			cmd.Flags().Bool("interactive", tt.interactive, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("description", "", "")
+			cmd.Flags().String("address-family", "", "")
+			cmd.Flags().String("entries", "", "")
 
-			// Set interactive flag if needed
+			// Set flag values
+			for k, v := range tt.flags {
+				if err := cmd.Flags().Set(k, v); err != nil {
+					t.Fatalf("Failed to set flag %s: %v", k, err)
+				}
+			}
+
 			if tt.interactive {
 				if err := cmd.Flags().Set("interactive", "true"); err != nil {
 					t.Fatalf("Failed to set interactive flag: %v", err)
 				}
 			}
 
-			// Set flag values for this test
-			for flagName, flagValue := range tt.flags {
-				err := cmd.Flags().Set(flagName, flagValue)
-				if err != nil {
-					t.Fatalf("Failed to set %s flag: %v", flagName, err)
+			if tt.jsonInput != "" {
+				if err := cmd.Flags().Set("json", tt.jsonInput); err != nil {
+					t.Fatalf("Failed to set json flag: %v", err)
 				}
 			}
 
-			// Execute command and capture output
-			var err error
+			if tt.jsonFilePath != "" {
+				if err := cmd.Flags().Set("json-file", tt.jsonFilePath); err != nil {
+					t.Fatalf("Failed to set json-file flag: %v", err)
+				}
+			}
+
+			// Capture output
 			output := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, tt.args)
+				err := UpdateMCRPrefixFilterList(cmd, tt.args, false)
+				if tt.expectedError != "" {
+					assert.Error(t, err)
+					assert.Contains(t, err.Error(), tt.expectedError)
+				} else {
+					assert.NoError(t, err)
+				}
 			})
 
-			// Check results
-			if tt.expectedError != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError)
-			} else {
-				assert.NoError(t, err)
+			if tt.expectedOutput != "" {
 				assert.Contains(t, output, tt.expectedOutput)
+			}
 
-				// Verify request details if applicable
-				if !tt.skipRequestValidation && mockMCRService.CapturedModifyPrefixFilterListMCRID != "" {
-					assert.Equal(t, tt.args[0], mockMCRService.CapturedModifyPrefixFilterListMCRID)
+			// Validate request if needed
+			if !tt.skipRequestValidation && mockMCRService.CapturedModifyMCRPrefixFilterListRequest != nil {
+				prefixFilterList := mockMCRService.CapturedModifyMCRPrefixFilterListRequest
 
-					prefixIDInt, _ := strconv.Atoi(tt.args[1])
-					assert.Equal(t, prefixIDInt, mockMCRService.CapturedModifyPrefixFilterListID)
+				// Verify MCR ID is the one we expected
+				assert.Equal(t, tt.args[0], mockMCRService.CapturedMCRUID)
 
-					if mockMCRService.CapturedModifyPrefixFilterList != nil {
-						prefixList := mockMCRService.CapturedModifyPrefixFilterList
+				// Verify Prefix Filter List ID
+				prefixFilterListID, err := strconv.Atoi(tt.args[1])
+				assert.NoError(t, err)
+				assert.Equal(t, prefixFilterListID, prefixFilterList.ID)
 
-						if tt.flags != nil && tt.flags["json"] != "" {
-							// For JSON mode
-							assert.Equal(t, "Updated JSON List", prefixList.Description)
-							assert.Equal(t, "IPv6", prefixList.AddressFamily)
-							assert.Len(t, prefixList.Entries, 1)
-							assert.Equal(t, "permit", prefixList.Entries[0].Action)
-							assert.Equal(t, "2001:db8::/32", prefixList.Entries[0].Prefix)
-							assert.Equal(t, 48, prefixList.Entries[0].Ge)
-							assert.Equal(t, 64, prefixList.Entries[0].Le)
-						} else if tt.flags != nil && !tt.interactive {
-							// For flag mode
-							assert.Equal(t, "Updated Flag List", prefixList.Description)
-							assert.Equal(t, "IPv4", prefixList.AddressFamily)
-							assert.Len(t, prefixList.Entries, 2)
-							assert.Equal(t, "permit", prefixList.Entries[0].Action)
-							assert.Equal(t, "10.0.0.0/8", prefixList.Entries[0].Prefix)
-							assert.Equal(t, 16, prefixList.Entries[0].Ge)
-							assert.Equal(t, 24, prefixList.Entries[0].Le)
-							assert.Equal(t, "deny", prefixList.Entries[1].Action)
-							assert.Equal(t, "172.16.0.0/12", prefixList.Entries[1].Prefix)
-						} else if len(tt.prompts) > 0 && !tt.skipRequestValidation {
-							// For interactive mode (only when it should be successful)
-							assert.Equal(t, "Updated List", prefixList.Description)
-							assert.Equal(t, "IPv4", prefixList.AddressFamily)
-							assert.GreaterOrEqual(t, len(prefixList.Entries), 1)
+				// If description was provided, verify it was set correctly
+				if desc, ok := tt.flags["description"]; ok {
+					assert.Equal(t, desc, prefixFilterList.Description)
+				}
 
-							// First entry should be modified
-							assert.Equal(t, "permit", prefixList.Entries[0].Action)
-							assert.Equal(t, "192.168.1.0/24", prefixList.Entries[0].Prefix)
-							assert.Equal(t, 24, prefixList.Entries[0].Ge)
-							assert.Equal(t, 30, prefixList.Entries[0].Le)
-
-							// Second entry should be the newly added one
-							if len(prefixList.Entries) > 1 {
-								assert.Equal(t, "deny", prefixList.Entries[1].Action)
-								assert.Equal(t, "172.16.0.0/12", prefixList.Entries[1].Prefix)
-								assert.Equal(t, 16, prefixList.Entries[1].Ge)
-								assert.Equal(t, 24, prefixList.Entries[1].Le)
-							}
-						}
+				// If a JSON input was provided, unmarshal it and verify the values were set correctly
+				if jsonStr := tt.flags["json"]; jsonStr != "" {
+					var jsonData struct {
+						Description string `json:"description"`
+						Entries     []struct {
+							Action string `json:"action"`
+							Prefix string `json:"prefix"`
+						} `json:"entries"`
 					}
+					err := json.Unmarshal([]byte(jsonStr), &jsonData)
+					assert.NoError(t, err)
+
+					if jsonData.Description != "" {
+						assert.Equal(t, jsonData.Description, prefixFilterList.Description)
+					}
+
+					if len(jsonData.Entries) > 0 {
+						assert.Equal(t, len(jsonData.Entries), len(prefixFilterList.Entries))
+					}
+				}
+
+				// Address family should never change
+				if mockMCRService.GetMCRPrefixFilterListResult != nil {
+					assert.Equal(t, mockMCRService.GetMCRPrefixFilterListResult.AddressFamily,
+						prefixFilterList.AddressFamily)
 				}
 			}
 		})

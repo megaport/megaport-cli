@@ -162,15 +162,51 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 		jsonData = []byte(jsonStr)
 	}
 
-	// Parse JSON into request
+	// Use a map to track which fields were actually provided in the JSON
+	var jsonMap map[string]interface{}
+	if err := json.Unmarshal(jsonData, &jsonMap); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %v", err)
+	}
+
+	// Check that at least one field is being updated
+	updateFields := []string{"name", "costCentre", "marketplaceVisibility", "contractTermMonths"}
+	anyFieldUpdated := false
+	for _, field := range updateFields {
+		if _, ok := jsonMap[field]; ok {
+			anyFieldUpdated = true
+			break
+		}
+	}
+
+	if !anyFieldUpdated {
+		return nil, fmt.Errorf("at least one field must be updated")
+	}
+
+	// Now parse into the actual request
 	req := &megaport.ModifyMCRRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
 		return nil, fmt.Errorf("error parsing JSON: %v", err)
 	}
 
-	// Validate required fields
-	if err := validateUpdateMCRRequest(req); err != nil {
-		return nil, err
+	// Validate name if it was provided
+	if _, nameProvided := jsonMap["name"]; nameProvided && req.Name == "" {
+		return nil, fmt.Errorf("name cannot be empty if provided")
+	}
+
+	if term, provided := jsonMap["contractTermMonths"]; provided {
+		if req.ContractTermMonths == nil {
+			return nil, fmt.Errorf("invalid contract term: null value")
+		}
+
+		termFloat, ok := term.(float64)
+		if !ok {
+			return nil, fmt.Errorf("invalid contract term type: must be a number")
+		}
+
+		termValue := int64(termFloat)
+		if termValue != 1 && termValue != 12 && termValue != 24 && termValue != 36 {
+			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		}
 	}
 
 	return req, nil
@@ -178,65 +214,134 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 
 // Process flag-based input for updating MCR
 func processFlagUpdateMCRInput(cmd *cobra.Command, mcrUID string) (*megaport.ModifyMCRRequest, error) {
-	// Get required fields
-	name, _ := cmd.Flags().GetString("name")
-
-	// Get optional fields
-	costCentre, _ := cmd.Flags().GetString("cost-centre")
-	termValue, _ := cmd.Flags().GetInt("term")
-	marketplaceVisibilitySet := cmd.Flags().Changed("marketplace-visibility")
-	marketplaceVisibility, _ := cmd.Flags().GetBool("marketplace-visibility")
-
-	// Build the request with required fields
+	// Initialize request with MCR ID
 	req := &megaport.ModifyMCRRequest{
 		MCRID: mcrUID,
-		Name:  name,
 	}
 
-	// Set optional fields if provided
-	if costCentre != "" {
+	// Check if any field is being updated
+	nameSet := cmd.Flags().Changed("name")
+	costCentreSet := cmd.Flags().Changed("cost-centre")
+	marketplaceVisibilitySet := cmd.Flags().Changed("marketplace-visibility")
+	termSet := cmd.Flags().Changed("term")
+
+	// Make sure at least one field is being updated
+	if !nameSet && !costCentreSet && !marketplaceVisibilitySet && !termSet {
+		return nil, fmt.Errorf("at least one field must be updated")
+	}
+
+	// Only add fields that were explicitly set
+	if nameSet {
+		name, _ := cmd.Flags().GetString("name")
+		if name == "" {
+			return nil, fmt.Errorf("name cannot be empty if provided")
+		}
+		req.Name = name
+	}
+
+	if costCentreSet {
+		costCentre, _ := cmd.Flags().GetString("cost-centre")
 		req.CostCentre = costCentre
 	}
 
-	if termValue > 0 {
-		contractTermMonths := termValue
-		req.ContractTermMonths = &contractTermMonths
-	}
-
 	if marketplaceVisibilitySet {
+		marketplaceVisibility, _ := cmd.Flags().GetBool("marketplace-visibility")
 		req.MarketplaceVisibility = &marketplaceVisibility
 	}
 
-	// Validate required fields
-	if err := validateUpdateMCRRequest(req); err != nil {
-		return nil, err
+	if termSet {
+		term, _ := cmd.Flags().GetInt("term")
+		// Validate term value before setting it
+		if term != 1 && term != 12 && term != 24 && term != 36 {
+			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		}
+		req.ContractTermMonths = &term
 	}
 
 	return req, nil
 }
 
-// Validate MCR update request
-func validateUpdateMCRRequest(req *megaport.ModifyMCRRequest) error {
-	if req.Name == "" {
-		return fmt.Errorf("name is required")
+// Extract the existing interactive prompting into a separate function for updating MCR
+func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCRRequest, error) {
+	// Initialize request with MCR ID
+	req := &megaport.ModifyMCRRequest{
+		MCRID: mcrUID,
 	}
 
-	// Validate term if provided
-	if req.ContractTermMonths != nil {
-		validTerms := []int{1, 12, 24, 36}
-		validTerm := false
-		for _, t := range validTerms {
-			if *req.ContractTermMonths == t {
-				validTerm = true
-				break
-			}
-		}
-		if !validTerm {
-			return fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
-		}
+	// Track if any field is updated
+	fieldsUpdated := false
+
+	// Prompt for name (can be skipped with empty input)
+	namePrompt := "Enter new MCR name (leave empty to skip): "
+	name, err := utils.Prompt(namePrompt, noColor)
+	if err != nil {
+		return nil, err
+	}
+	if name != "" {
+		req.Name = name
+		fieldsUpdated = true
 	}
 
-	return nil
+	// Prompt for cost centre (optional)
+	costCentrePrompt := "Enter new cost centre (leave empty to skip): "
+	costCentre, err := utils.Prompt(costCentrePrompt, noColor)
+	if err != nil {
+		return nil, err
+	}
+	if costCentre != "" {
+		req.CostCentre = costCentre
+		fieldsUpdated = true
+	}
+
+	// Prompt for marketplace visibility
+	marketplaceVisibilityPrompt := "Update marketplace visibility? (yes/no, leave empty to skip): "
+	marketplaceVisibilityStr, err := utils.Prompt(marketplaceVisibilityPrompt, noColor)
+	if err != nil {
+		return nil, err
+	}
+	if strings.ToLower(marketplaceVisibilityStr) == "yes" {
+		visibilityValuePrompt := "Enter marketplace visibility (true or false): "
+		visibilityValue, err := utils.Prompt(visibilityValuePrompt, noColor)
+		if err != nil {
+			return nil, err
+		}
+
+		marketplaceVisibility := strings.ToLower(visibilityValue) == "true"
+		req.MarketplaceVisibility = &marketplaceVisibility
+		fieldsUpdated = true
+	}
+
+	// Prompt for term (optional)
+	termPrompt := "Enter new term (1, 12, 24, or 36 months, leave empty to skip): "
+	termStr, err := utils.Prompt(termPrompt, noColor)
+	if err != nil {
+		return nil, err
+	}
+	if termStr != "" {
+		term, err := strconv.Atoi(termStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid term: %v", err)
+		}
+
+		// Validate term value
+		if term != 1 && term != 12 && term != 24 && term != 36 {
+			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		}
+
+		req.ContractTermMonths = &term
+		fieldsUpdated = true
+	}
+
+	// Make sure at least one field is being updated
+	if !fieldsUpdated {
+		return nil, fmt.Errorf("at least one field must be updated")
+	}
+
+	// Set common defaults
+	req.WaitForUpdate = true
+	req.WaitForTime = 10 * time.Minute
+
+	return req, nil
 }
 
 // Extract the existing interactive prompting into a separate function for MCR
@@ -319,57 +424,6 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 
 	// Validate the request
 	if err := validateMCRRequest(req); err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// Extract the existing interactive prompting into a separate function for updating MCR
-func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCRRequest, error) {
-	name, err := utils.Prompt("Enter new MCR name (required): ", noColor)
-	if err != nil {
-		return nil, err
-	}
-	if name == "" {
-		return nil, fmt.Errorf("name is required")
-	}
-
-	costCentre, err := utils.Prompt("Enter new cost centre (optional): ", noColor)
-	if err != nil {
-		return nil, err
-	}
-
-	termStr, err := utils.Prompt("Enter new term (1, 12, 24, or 36 months) (optional): ", noColor)
-	if err != nil {
-		return nil, err
-	}
-
-	// Build the request
-	req := &megaport.ModifyMCRRequest{
-		MCRID: mcrUID,
-		Name:  name,
-	}
-
-	// Set optional fields if provided
-	if costCentre != "" {
-		req.CostCentre = costCentre
-	}
-
-	if termStr != "" {
-		term, err := strconv.Atoi(termStr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid term: %v", err)
-		}
-		req.ContractTermMonths = &term
-	}
-
-	// Set common defaults
-	req.WaitForUpdate = true
-	req.WaitForTime = 10 * time.Minute
-
-	// Validate the request
-	if err := validateUpdateMCRRequest(req); err != nil {
 		return nil, err
 	}
 
@@ -534,160 +588,6 @@ func validatePrefixFilterListRequest(req *megaport.CreateMCRPrefixFilterListRequ
 	return nil
 }
 
-// Process JSON input for updating prefix filter list
-func processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile string, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
-	var jsonData []byte
-	var err error
-
-	if jsonFile != "" {
-		// Read from file
-		jsonData, err = os.ReadFile(jsonFile)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-	} else {
-		// Use the provided string
-		jsonData = []byte(jsonStr)
-	}
-
-	// Parse JSON into a temporary struct
-	var tempData struct {
-		Description   string `json:"description"`
-		AddressFamily string `json:"addressFamily"`
-		Entries       []struct {
-			Action string `json:"action"`
-			Prefix string `json:"prefix"`
-			Ge     *int   `json:"ge,omitempty"`
-			Le     *int   `json:"le,omitempty"`
-		} `json:"entries"`
-	}
-
-	if err := json.Unmarshal(jsonData, &tempData); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
-	}
-
-	// Convert to the SDK structure
-	entries := make([]*megaport.MCRPrefixListEntry, len(tempData.Entries))
-	for i, entry := range tempData.Entries {
-		var geValue int
-		if entry.Ge != nil {
-			geValue = *entry.Ge
-		}
-
-		var leValue int
-		if entry.Le != nil {
-			leValue = *entry.Le
-		}
-
-		entries[i] = &megaport.MCRPrefixListEntry{
-			Action: entry.Action,
-			Prefix: entry.Prefix,
-			Ge:     geValue,
-			Le:     leValue,
-		}
-	}
-
-	prefixFilterList := &megaport.MCRPrefixFilterList{
-		ID:            prefixFilterListID,
-		Description:   tempData.Description,
-		AddressFamily: tempData.AddressFamily,
-		Entries:       entries,
-	}
-
-	// Validate the request
-	if err := validateUpdatePrefixFilterList(prefixFilterList); err != nil {
-		return nil, err
-	}
-
-	return prefixFilterList, nil
-}
-
-// Fix for updating prefix filter list - ensure correct types are used
-func processFlagUpdatePrefixFilterListInput(cmd *cobra.Command, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
-	// Get fields
-	description, _ := cmd.Flags().GetString("description")
-	addressFamily, _ := cmd.Flags().GetString("address-family")
-	entriesJSON, _ := cmd.Flags().GetString("entries")
-
-	// Parse entries from JSON string
-	var entriesData []struct {
-		Action string `json:"action"`
-		Prefix string `json:"prefix"`
-		Ge     *int   `json:"ge,omitempty"`
-		Le     *int   `json:"le,omitempty"`
-	}
-
-	if entriesJSON != "" {
-		if err := json.Unmarshal([]byte(entriesJSON), &entriesData); err != nil {
-			return nil, fmt.Errorf("error parsing entries JSON: %v", err)
-		}
-	}
-
-	// Convert to the correct type
-	entries := make([]*megaport.MCRPrefixListEntry, len(entriesData))
-	for i, entry := range entriesData {
-		var geValue int
-		if entry.Ge != nil {
-			geValue = *entry.Ge
-		}
-
-		// Similarly for Le
-		var leValue int
-		if entry.Le != nil {
-			leValue = *entry.Le
-		}
-
-		entries[i] = &megaport.MCRPrefixListEntry{
-			Action: entry.Action,
-			Prefix: entry.Prefix,
-			Ge:     geValue,
-			Le:     leValue,
-		}
-	}
-
-	prefixFilterList := &megaport.MCRPrefixFilterList{
-		ID:            prefixFilterListID,
-		Description:   description,
-		AddressFamily: addressFamily,
-		Entries:       entries,
-	}
-
-	// Validate required fields
-	if err := validateUpdatePrefixFilterList(prefixFilterList); err != nil {
-		return nil, err
-	}
-
-	return prefixFilterList, nil
-}
-
-// Validate update prefix filter list
-func validateUpdatePrefixFilterList(prefixFilterList *megaport.MCRPrefixFilterList) error {
-	if prefixFilterList.Description == "" {
-		return fmt.Errorf("description is required")
-	}
-	if prefixFilterList.AddressFamily == "" {
-		return fmt.Errorf("address family is required")
-	}
-	if prefixFilterList.AddressFamily != "IPv4" && prefixFilterList.AddressFamily != "IPv6" {
-		return fmt.Errorf("invalid address family, must be IPv4 or IPv6")
-	}
-	if len(prefixFilterList.Entries) == 0 {
-		return fmt.Errorf("at least one entry is required")
-	}
-
-	// Validate each entry
-	for i, entry := range prefixFilterList.Entries {
-		if entry.Prefix == "" {
-			return fmt.Errorf("entry %d: prefix is required", i+1)
-		}
-		if entry.Action != "permit" && entry.Action != "deny" {
-			return fmt.Errorf("entry %d: invalid action, must be permit or deny", i+1)
-		}
-	}
-
-	return nil
-}
-
 // Also fix promptForPrefixFilterListDetails to return the correct structure
 func promptForPrefixFilterListDetails(mcrUID string, noColor bool) (*megaport.CreateMCRPrefixFilterListRequest, error) {
 	description, err := utils.Prompt("Enter description (required): ", noColor)
@@ -777,6 +677,246 @@ func promptForPrefixFilterListDetails(mcrUID string, noColor bool) (*megaport.Cr
 	return req, nil
 }
 
+// Process JSON input for updating prefix filter list
+func processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile string, mcrUID string, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
+	var jsonData []byte
+	var err error
+
+	if jsonFile != "" {
+		// Read from file
+		jsonData, err = os.ReadFile(jsonFile)
+		if err != nil {
+			return nil, fmt.Errorf("error reading JSON file: %v", err)
+		}
+	} else {
+		// Use the provided string
+		jsonData = []byte(jsonStr)
+	}
+
+	// Parse JSON into a temporary struct
+	var tempData struct {
+		Description   string `json:"description"`
+		AddressFamily string `json:"addressFamily"`
+		Entries       []struct {
+			Action string `json:"action"`
+			Prefix string `json:"prefix"`
+			Ge     *int   `json:"ge,omitempty"`
+			Le     *int   `json:"le,omitempty"`
+		} `json:"entries"`
+	}
+
+	if err := json.Unmarshal(jsonData, &tempData); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %v", err)
+	}
+
+	// Check if at least one field is being updated
+	descriptionProvided := tempData.Description != ""
+	entriesProvided := len(tempData.Entries) > 0
+
+	if !descriptionProvided && !entriesProvided {
+		return nil, fmt.Errorf("at least one field (description or entries) must be updated")
+	}
+
+	// Check if address family was provided in JSON - if so, warn that it can't be changed
+	if tempData.AddressFamily != "" {
+		// We need to get the current address family to validate it hasn't changed
+		ctx := context.Background()
+		client, err := config.Login(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
+		if err != nil {
+			return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
+		}
+
+		if tempData.AddressFamily != currentPrefixFilterList.AddressFamily {
+			return nil, fmt.Errorf("address family cannot be changed after creation (current: %s, requested: %s)",
+				currentPrefixFilterList.AddressFamily, tempData.AddressFamily)
+		}
+	}
+
+	entries := make([]*megaport.MCRPrefixListEntry, len(tempData.Entries))
+	for i, entry := range tempData.Entries {
+		var geValue int
+		if entry.Ge != nil {
+			geValue = *entry.Ge
+		}
+
+		var leValue int
+		if entry.Le != nil {
+			leValue = *entry.Le
+		}
+
+		entries[i] = &megaport.MCRPrefixListEntry{
+			Action: entry.Action,
+			Prefix: entry.Prefix,
+			Ge:     geValue,
+			Le:     leValue,
+		}
+	}
+
+	// Use the current address family instead of the one from JSON
+	ctx := context.Background()
+	client, err := config.Login(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
+	}
+
+	// If description is not provided, keep the current one
+	description := tempData.Description
+	if !descriptionProvided {
+		description = currentPrefixFilterList.Description
+	}
+
+	// If entries are not provided, keep the current ones
+	if !entriesProvided {
+		entries = currentPrefixFilterList.Entries
+	}
+
+	prefixFilterList := &megaport.MCRPrefixFilterList{
+		ID:            prefixFilterListID,
+		Description:   description,
+		AddressFamily: currentPrefixFilterList.AddressFamily, // Always use current address family
+		Entries:       entries,
+	}
+
+	// Validate the request
+	if err := validateUpdatePrefixFilterList(prefixFilterList); err != nil {
+		return nil, err
+	}
+
+	return prefixFilterList, nil
+}
+func processFlagUpdatePrefixFilterListInput(cmd *cobra.Command, mcrUID string, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
+	// Check if required update fields are provided
+	descriptionProvided := cmd.Flags().Changed("description")
+	entriesProvided := cmd.Flags().Changed("entries")
+
+	// Ensure at least one update field is provided
+	if !descriptionProvided && !entriesProvided {
+		return nil, fmt.Errorf("at least one field (description or entries) must be updated")
+	}
+
+	// Get fields
+	description, _ := cmd.Flags().GetString("description")
+	addressFamily, _ := cmd.Flags().GetString("address-family")
+	entriesJSON, _ := cmd.Flags().GetString("entries")
+
+	// Check if address family flag was set - if so, verify it hasn't changed
+	if cmd.Flags().Changed("address-family") {
+		ctx := context.Background()
+		client, err := config.Login(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
+		if err != nil {
+			return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
+		}
+
+		if addressFamily != currentPrefixFilterList.AddressFamily {
+			return nil, fmt.Errorf("address family cannot be changed after creation (current: %s, requested: %s)",
+				currentPrefixFilterList.AddressFamily, addressFamily)
+		}
+	}
+
+	// Get current prefix filter list to use existing values for fields that aren't being updated
+	ctx := context.Background()
+	client, err := config.Login(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
+	}
+
+	// Use existing description if not provided
+	if !descriptionProvided {
+		description = currentPrefixFilterList.Description
+	}
+
+	// Use existing entries if not provided
+	entries := currentPrefixFilterList.Entries
+
+	// Parse entries from JSON string if provided
+	if entriesProvided {
+		var entriesData []struct {
+			Action string `json:"action"`
+			Prefix string `json:"prefix"`
+			Ge     *int   `json:"ge,omitempty"`
+			Le     *int   `json:"le,omitempty"`
+		}
+
+		if err := json.Unmarshal([]byte(entriesJSON), &entriesData); err != nil {
+			return nil, fmt.Errorf("error parsing entries JSON: %v", err)
+		}
+
+		// Convert to the correct type
+		entries = make([]*megaport.MCRPrefixListEntry, len(entriesData))
+		for i, entry := range entriesData {
+			var geValue int
+			if entry.Ge != nil {
+				geValue = *entry.Ge
+			}
+
+			// Similarly for Le
+			var leValue int
+			if entry.Le != nil {
+				leValue = *entry.Le
+			}
+
+			entries[i] = &megaport.MCRPrefixListEntry{
+				Action: entry.Action,
+				Prefix: entry.Prefix,
+				Ge:     geValue,
+				Le:     leValue,
+			}
+		}
+	}
+
+	prefixFilterList := &megaport.MCRPrefixFilterList{
+		ID:            prefixFilterListID,
+		Description:   description,
+		AddressFamily: currentPrefixFilterList.AddressFamily, // Always use current address family
+		Entries:       entries,
+	}
+
+	// Validate required fields
+	if err := validateUpdatePrefixFilterList(prefixFilterList); err != nil {
+		return nil, err
+	}
+
+	return prefixFilterList, nil
+}
+
+func validateUpdatePrefixFilterList(prefixFilterList *megaport.MCRPrefixFilterList) error {
+	// If entries are provided, validate them
+	if len(prefixFilterList.Entries) > 0 {
+		// Validate each entry
+		for i, entry := range prefixFilterList.Entries {
+			if entry.Prefix == "" {
+				return fmt.Errorf("entry %d: prefix is required", i+1)
+			}
+			if entry.Action != "permit" && entry.Action != "deny" {
+				return fmt.Errorf("entry %d: invalid action, must be permit or deny", i+1)
+			}
+		}
+	}
+
+	return nil
+}
+
+// Update the interactive prompting function to not allow changing address family
 func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID int, noColor bool) (*megaport.MCRPrefixFilterList, error) {
 	ctx := context.Background()
 	client, err := config.Login(ctx)
@@ -798,16 +938,9 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 		description = currentPrefixFilterList.Description
 	}
 
-	fmt.Printf("Current address family: %s\n", currentPrefixFilterList.AddressFamily)
-	addressFamily, err := utils.Prompt("Enter new address family (IPv4 or IPv6, leave empty to keep current): ", noColor)
-	if err != nil {
-		return nil, err
-	}
-	if addressFamily == "" {
-		addressFamily = currentPrefixFilterList.AddressFamily
-	} else if addressFamily != "IPv4" && addressFamily != "IPv6" {
-		return nil, fmt.Errorf("invalid address family, must be IPv4 or IPv6")
-	}
+	// Just display the address family but don't allow changing it
+	fmt.Printf("Address family: %s (cannot be changed after creation)\n", currentPrefixFilterList.AddressFamily)
+	addressFamily := currentPrefixFilterList.AddressFamily
 
 	// Initialize a zero-length slice with capacity to hold existing entries
 	entries := make([]*megaport.MCRPrefixListEntry, 0, len(currentPrefixFilterList.Entries))
@@ -961,7 +1094,7 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 	prefixFilterList := &megaport.MCRPrefixFilterList{
 		ID:            prefixFilterListID,
 		Description:   description,
-		AddressFamily: addressFamily,
+		AddressFamily: addressFamily, // Always use current address family
 		Entries:       entries,
 	}
 
@@ -1016,10 +1149,12 @@ func ToPrefixFilterListOutput(prefixFilterList *megaport.MCRPrefixFilterList) (P
 // MCROutput represents the desired fields for JSON output of MCR details.
 type MCROutput struct {
 	output.Output      `json:"-" header:"-"`
-	UID                string `json:"uid"`
-	Name               string `json:"name"`
-	LocationID         int    `json:"location_id"`
-	ProvisioningStatus string `json:"provisioning_status"`
+	UID                string `json:"uid" header:"UID"`
+	Name               string `json:"name" header:"Name"`
+	LocationID         int    `json:"location_id" header:"LocationID"`
+	ProvisioningStatus string `json:"provisioning_status" header:"Status"`
+	ASN                int    `json:"asn" header:"ASN"`
+	Speed              int    `json:"speed" header:"Speed"`
 }
 
 // ToMCROutput converts a *megaport.MCR to our MCROutput struct.
@@ -1028,12 +1163,17 @@ func ToMCROutput(mcr *megaport.MCR) (MCROutput, error) {
 		return MCROutput{}, fmt.Errorf("invalid MCR: nil value")
 	}
 
-	return MCROutput{
+	output := MCROutput{
 		UID:                mcr.UID,
 		Name:               mcr.Name,
 		LocationID:         mcr.LocationID,
 		ProvisioningStatus: mcr.ProvisioningStatus,
-	}, nil
+		Speed:              mcr.PortSpeed,
+	}
+
+	output.ASN = mcr.Resources.VirtualRouter.ASN
+
+	return output, nil
 }
 
 // printMCRs prints a list of MCRs in the specified format.
@@ -1047,4 +1187,80 @@ func printMCRs(mcrs []*megaport.MCR, format string, noColor bool) error {
 		outputs = append(outputs, output)
 	}
 	return output.PrintOutput(outputs, format, noColor)
+}
+
+// displayMCRChanges compares the original and updated MCR and displays the differences
+func displayMCRChanges(original, updated *megaport.MCR, noColor bool) {
+	if original == nil || updated == nil {
+		return
+	}
+
+	fmt.Println() // Empty line before changes
+	output.PrintInfo("Changes applied:", noColor)
+
+	// Track if any changes were found
+	changesFound := false
+
+	// Compare name
+	if original.Name != updated.Name {
+		changesFound = true
+		oldName := output.FormatOldValue(original.Name, noColor)
+		newName := output.FormatNewValue(updated.Name, noColor)
+		fmt.Printf("  • Name: %s → %s\n", oldName, newName)
+	}
+
+	// Compare cost centre
+	if original.CostCentre != updated.CostCentre {
+		changesFound = true
+		oldCostCentre := original.CostCentre
+		if oldCostCentre == "" {
+			oldCostCentre = "(none)"
+		}
+		newCostCentre := updated.CostCentre
+		if newCostCentre == "" {
+			newCostCentre = "(none)"
+		}
+		fmt.Printf("  • Cost Centre: %s → %s\n",
+			output.FormatOldValue(oldCostCentre, noColor),
+			output.FormatNewValue(newCostCentre, noColor))
+	}
+
+	// Compare contract term
+	if original.ContractTermMonths != updated.ContractTermMonths {
+		changesFound = true
+		oldTerm := output.FormatOldValue(fmt.Sprintf("%d months", original.ContractTermMonths), noColor)
+		newTerm := output.FormatNewValue(fmt.Sprintf("%d months", updated.ContractTermMonths), noColor)
+		fmt.Printf("  • Contract Term: %s → %s\n", oldTerm, newTerm)
+	}
+
+	// Compare marketplace visibility
+	if original.MarketplaceVisibility != updated.MarketplaceVisibility {
+		changesFound = true
+		oldVisibility := "No"
+		if original.MarketplaceVisibility {
+			oldVisibility = "Yes"
+		}
+		newVisibility := "No"
+		if updated.MarketplaceVisibility {
+			newVisibility = "Yes"
+		}
+		fmt.Printf("  • Marketplace Visibility: %s → %s\n",
+			output.FormatOldValue(oldVisibility, noColor),
+			output.FormatNewValue(newVisibility, noColor))
+	}
+
+	originalASN := original.Resources.VirtualRouter.ASN
+	updatedASN := updated.Resources.VirtualRouter.ASN
+
+	// Compare ASN if it changed
+	if originalASN != updatedASN && (originalASN != 0 || updatedASN != 0) {
+		changesFound = true
+		oldASN := output.FormatOldValue(fmt.Sprintf("%d", originalASN), noColor)
+		newASN := output.FormatNewValue(fmt.Sprintf("%d", updatedASN), noColor)
+		fmt.Printf("  • ASN: %s → %s\n", oldASN, newASN)
+	}
+
+	if !changesFound {
+		fmt.Println("  No changes detected")
+	}
 }

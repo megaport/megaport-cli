@@ -414,7 +414,7 @@ func TestUpdateMVE(t *testing.T) {
 			mockSetup: func(m *MockMVEService) {
 				m.ModifyMVEError = fmt.Errorf("update failed")
 			},
-			expectedError: "error updating MVE: update failed",
+			expectedError: "update failed",
 		},
 		{
 			name: "invalid contract term",
@@ -434,8 +434,11 @@ func TestUpdateMVE(t *testing.T) {
 				m.ModifyMVEResult = &megaport.ModifyMVEResponse{
 					MVEUpdated: false,
 				}
+				m.GetMVEResult = &megaport.MVE{
+					Name: "Mock MVE",
+				}
 			},
-			expectedOutput: "MVE update request was not successful",
+			expectedError: "MVE update request was not successful",
 		},
 	}
 
@@ -523,6 +526,9 @@ func TestDeleteMVE(t *testing.T) {
 			name: "deletion error",
 			mockSetup: func(m *MockMVEService) {
 				m.DeleteMVEError = fmt.Errorf("deletion failed")
+				m.DeleteMVEResult = &megaport.DeleteMVEResponse{
+					IsDeleted: false,
+				}
 			},
 			confirmDelete: true,
 			expectedError: "deletion failed",

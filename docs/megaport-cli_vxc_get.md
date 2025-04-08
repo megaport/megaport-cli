@@ -21,7 +21,7 @@ This command retrieves detailed information for a single Virtual Cross Connect (
 ## Usage
 
 ```
-megaport-cli vxc get [vxcUID] [flags]
+megaport-cli vxc get [flags]
 ```
 
 

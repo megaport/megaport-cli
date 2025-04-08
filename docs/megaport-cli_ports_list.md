@@ -9,6 +9,8 @@ List all ports available in the Megaport API.
 This command fetches and displays a list of ports with details such as port ID, name, location, speed, and status.
 
 ### Optional Fields
+  - `available`: Show only available ports
+  - `lag-only`: Show only LAG ports
   - `location-id`: Filter ports by location ID
   - `port-name`: Filter ports by port name
   - `port-speed`: Filter ports by port speed

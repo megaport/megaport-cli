@@ -21,7 +21,7 @@ This command retrieves and displays detailed information for a single Megaport C
 ## Usage
 
 ```
-megaport-cli mcr get [mcrUID] [flags]
+megaport-cli mcr get [flags]
 ```
 
 

@@ -1,6 +1,6 @@
 # Megaport CLI Documentation
 
-> Generated on April 7, 2025 for version v0.3.2
+> Generated on April 8, 2025 for version v0.3.3
 
 ## Available Commands
 
@@ -51,7 +51,7 @@
 | [megaport-cli servicekeys update](megaport-cli_servicekeys_update.md) | Update an existing service key |
 | [megaport-cli version](megaport-cli_version.md) | Print the version number of Megaport CLI |
 | [megaport-cli vxc](megaport-cli_vxc.md) | Manage VXCs in the Megaport API |
-| [megaport-cli vxc buy](megaport-cli_vxc_buy.md) | Purchase a new Virtual Cross Connect (VXC) |
+| [megaport-cli vxc buy](megaport-cli_vxc_buy.md) | Purchase a new VXC |
 | [megaport-cli vxc delete](megaport-cli_vxc_delete.md) | Delete an existing Virtual Cross Connect (VXC) |
 | [megaport-cli vxc get](megaport-cli_vxc_get.md) | Get details for a single VXC |
 | [megaport-cli vxc update](megaport-cli_vxc_update.md) | Update an existing Virtual Cross Connect (VXC) |

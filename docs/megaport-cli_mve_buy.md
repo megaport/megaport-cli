@@ -30,6 +30,7 @@ This command allows you to purchase an MVE by providing the necessary details.
 
 ```
   buy --interactive
+  buy --name "My MVE" --term 12 --location-id 123 --vendor-config '{"vendor":"cisco","imageId":123,"productSize":"MEDIUM"}' --vnics '[{"description":"Data Plane","vlan":100}]'
   buy --json '{"name":"My MVE","term":12,"locationId":123,"vendorConfig":{"vendor":"cisco","imageId":123,"productSize":"MEDIUM"},"vnics":[{"description":"Data Plane","vlan":100}]}'
   buy --json-file ./mve-config.json
 ```
@@ -81,16 +82,16 @@ megaport-cli mve buy [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 | `--cost-centre` |  |  | Cost centre for billing | false |
-| `--diversity-zone` |  |  | Diversity zone for the MVE | false |
+| `--diversity-zone` |  |  | The diversity zone for the MVE | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
-| `--json` |  |  | JSON string containing MVE configuration | false |
-| `--json-file` |  |  | Path to JSON file containing MVE configuration | false |
-| `--location-id` |  | `0` | Location ID where the MVE will be provisioned | false |
-| `--name` |  |  | MVE name | false |
+| `--json` |  |  | JSON string containing configuration | false |
+| `--json-file` |  |  | Path to JSON file containing configuration | false |
+| `--location-id` |  | `0` | The ID of the location where the MVE will be provisioned | true |
+| `--name` |  |  | The name of the MVE | true |
 | `--promo-code` |  |  | Promotional code for discounts | false |
-| `--term` |  | `0` | Contract term in months (1, 12, 24, or 36) | false |
-| `--vendor-config` |  |  | JSON string containing vendor-specific configuration | false |
-| `--vnics` |  |  | JSON array of network interfaces | false |
+| `--term` |  | `0` | The term of the MVE (1, 12, 24, or 36 months) | true |
+| `--vendor-config` |  |  | JSON string with vendor-specific configuration (for flag mode) | true |
+| `--vnics` |  |  | JSON array of network interfaces (for flag mode) | true |
 
 
 

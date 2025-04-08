@@ -18,7 +18,7 @@ This command retrieves and displays a list of all prefix filter lists configured
 ## Usage
 
 ```
-megaport-cli mcr list-prefix-filter-lists [mcrUID] [flags]
+megaport-cli mcr list-prefix-filter-lists [flags]
 ```
 
 

@@ -16,6 +16,7 @@ type MockMCRService struct {
 	DeleteMCRResult                          *megaport.DeleteMCRResponse
 	DeleteMCRErr                             error
 	CapturedDeleteMCRUID                     string
+	CapturedMCRUID                           string
 	RestoreMCRResult                         *megaport.RestoreMCRResponse
 	RestoreMCRErr                            error
 	CapturedRestoreMCRUID                    string

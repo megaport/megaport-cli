@@ -10,13 +10,13 @@ import (
 // PartnerOutput represents the desired fields for JSON output.
 type PartnerOutput struct {
 	output.Output `json:"-" header:"-"`
-	ProductName   string `json:"product_name"`
-	UID           string `json:"uid"`
-	ConnectType   string `json:"connect_type"`
-	CompanyName   string `json:"company_name"`
-	LocationId    int    `json:"location_id"`
-	DiversityZone string `json:"diversity_zone"`
-	VXCPermitted  bool   `json:"vxc_permitted"`
+	ProductName   string `json:"product_name" header:"Name"`
+	UID           string `json:"uid" header:"UID"`
+	ConnectType   string `json:"connect_type" header:"Connect Type"`
+	CompanyName   string `json:"company_name" header:"Company Name"`
+	LocationId    int    `json:"location_id" header:"LocationID"`
+	DiversityZone string `json:"diversity_zone" header:"Diversity Zone"`
+	VXCPermitted  bool   `json:"vxc_permitted" header:"VXC Permitted"`
 }
 
 // ToPartnerOutput converts a PartnerMegaport to a PartnerOutput.

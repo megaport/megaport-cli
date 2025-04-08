@@ -13,6 +13,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var getPortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.Port, error) {
+	return client.PortService.GetPort(ctx, portUID)
+}
+
 var updatePortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyPortRequest) (*megaport.ModifyPortResponse, error) {
 	return client.PortService.ModifyPort(ctx, req)
 }
@@ -360,9 +364,22 @@ func processJSONUpdatePortInput(jsonStr, jsonFile string) (*megaport.ModifyPortR
 		return nil, fmt.Errorf("error parsing JSON: %v", err)
 	}
 
-	// Validate required fields
-	if err := validateUpdatePortRequest(req); err != nil {
-		return nil, err
+	// Only validate what's provided - only term needs validation if present
+	if req.ContractTermMonths != nil {
+		if *req.ContractTermMonths != 1 && *req.ContractTermMonths != 12 &&
+			*req.ContractTermMonths != 24 && *req.ContractTermMonths != 36 {
+			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		}
+	}
+
+	// Check if at least one field is being updated
+	isUpdating := req.Name != "" ||
+		req.MarketplaceVisibility != nil ||
+		req.CostCentre != "" ||
+		req.ContractTermMonths != nil
+
+	if !isUpdating {
+		return nil, fmt.Errorf("at least one field must be updated")
 	}
 
 	return req, nil
@@ -370,45 +387,49 @@ func processJSONUpdatePortInput(jsonStr, jsonFile string) (*megaport.ModifyPortR
 
 // Process flag-based input for updating port
 func processFlagUpdatePortInput(cmd *cobra.Command, portUID string) (*megaport.ModifyPortRequest, error) {
-	// Get required fields
-	name, _ := cmd.Flags().GetString("name")
-	marketplaceVisibility, _ := cmd.Flags().GetBool("marketplace-visibility")
-
-	// Get optional fields
-	costCentre, _ := cmd.Flags().GetString("cost-centre")
-	term, _ := cmd.Flags().GetInt("term")
-
 	req := &megaport.ModifyPortRequest{
-		PortID:                portUID,
-		Name:                  name,
-		MarketplaceVisibility: &marketplaceVisibility,
-		CostCentre:            costCentre,
+		PortID: portUID,
 	}
 
-	if term != 0 {
-		req.ContractTermMonths = &term
+	// Check if any field is being updated
+	nameSet := cmd.Flags().Changed("name")
+	mvSet := cmd.Flags().Changed("marketplace-visibility")
+	ccSet := cmd.Flags().Changed("cost-centre")
+	termSet := cmd.Flags().Changed("term")
+
+	// Make sure at least one field is being updated
+	if !nameSet && !mvSet && !ccSet && !termSet {
+		return nil, fmt.Errorf("at least one field must be updated")
 	}
 
-	// Validate required fields
-	if err := validateUpdatePortRequest(req); err != nil {
-		return nil, err
+	// Only add fields that were explicitly set
+	if nameSet {
+		name, _ := cmd.Flags().GetString("name")
+		req.Name = name
+	}
+
+	if mvSet {
+		marketplaceVisibility, _ := cmd.Flags().GetBool("marketplace-visibility")
+		req.MarketplaceVisibility = &marketplaceVisibility
+	}
+
+	if ccSet {
+		costCentre, _ := cmd.Flags().GetString("cost-centre")
+		req.CostCentre = costCentre
+	}
+
+	if termSet {
+		term, _ := cmd.Flags().GetInt("term")
+		if term != 0 {
+			// Validate term value before setting it
+			if term != 1 && term != 12 && term != 24 && term != 36 {
+				return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+			}
+			req.ContractTermMonths = &term
+		}
 	}
 
 	return req, nil
-}
-
-// Validate update port request
-func validateUpdatePortRequest(req *megaport.ModifyPortRequest) error {
-	if req.Name == "" {
-		return fmt.Errorf("port name is required")
-	}
-	if req.MarketplaceVisibility == nil {
-		return fmt.Errorf("marketplace visibility is required")
-	}
-	if req.ContractTermMonths != nil && *req.ContractTermMonths != 1 && *req.ContractTermMonths != 12 && *req.ContractTermMonths != 24 && *req.ContractTermMonths != 36 {
-		return fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
-	}
-	return nil
 }
 
 // Extract the existing interactive prompting into a separate function for updating port
@@ -417,32 +438,32 @@ func promptForUpdatePortDetails(portUID string, noColor bool) (*megaport.ModifyP
 		PortID: portUID,
 	}
 
-	// Prompt for required fields
-	name, err := utils.Prompt("Enter new port name (required): ", noColor)
+	name, err := utils.Prompt("Enter new port name (optional, press Enter to keep current name): ", noColor)
 	if err != nil {
 		return nil, err
 	}
-	if name == "" {
-		return nil, fmt.Errorf("port name is required")
+	if name != "" {
+		req.Name = name
 	}
-	req.Name = name
 
-	marketplaceVisibilityStr, err := utils.Prompt("Enter marketplace visibility (true/false) (required): ", noColor)
+	marketplaceVisibilityStr, err := utils.Prompt("Enter marketplace visibility (true/false) (optional, press Enter to keep current setting): ", noColor)
 	if err != nil {
 		return nil, err
 	}
-	marketplaceVisibility, err := strconv.ParseBool(marketplaceVisibilityStr)
-	if err != nil {
-		return nil, fmt.Errorf("invalid marketplace visibility, must be true or false")
+	if marketplaceVisibilityStr != "" {
+		marketplaceVisibility, err := strconv.ParseBool(marketplaceVisibilityStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid marketplace visibility, must be true or false")
+		}
+		req.MarketplaceVisibility = &marketplaceVisibility
 	}
-	req.MarketplaceVisibility = &marketplaceVisibility
-
-	// Prompt for optional fields
 	costCentre, err := utils.Prompt("Enter cost centre (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
-	req.CostCentre = costCentre
+	if costCentre != "" {
+		req.CostCentre = costCentre
+	}
 
 	termStr, err := utils.Prompt("Enter new term (1, 12, 24, 36) (optional): ", noColor)
 	if err != nil {
@@ -454,6 +475,11 @@ func promptForUpdatePortDetails(portUID string, noColor bool) (*megaport.ModifyP
 			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
 		}
 		req.ContractTermMonths = &term
+	}
+
+	// Ensure at least one field is being updated
+	if req.Name == "" && req.MarketplaceVisibility == nil && req.CostCentre == "" && req.ContractTermMonths == nil {
+		return nil, fmt.Errorf("at least one field must be updated")
 	}
 
 	return req, nil
@@ -497,11 +523,11 @@ func filterPorts(ports []*megaport.Port, locationID int, portSpeed int, portName
 // PortOutput represents the desired fields for JSON output.
 type PortOutput struct {
 	output.Output      `json:"-" header:"-"`
-	UID                string `json:"uid"`
-	Name               string `json:"name"`
-	LocationID         int    `json:"location_id"`
-	PortSpeed          int    `json:"port_speed"`
-	ProvisioningStatus string `json:"provisioning_status"`
+	UID                string `json:"uid" header:"UID"`
+	Name               string `json:"name" header:"Name"`
+	LocationID         int    `json:"location_id" header:"LocationID"`
+	PortSpeed          int    `json:"port_speed" header:"Speed"`
+	ProvisioningStatus string `json:"provisioning_status" header:"Status"`
 }
 
 // ToPortOutput converts a *megaport.Port to our PortOutput struct.
@@ -509,7 +535,6 @@ func ToPortOutput(port *megaport.Port) (PortOutput, error) {
 	if port == nil {
 		return PortOutput{}, fmt.Errorf("invalid port: nil value")
 	}
-
 	return PortOutput{
 		UID:                port.UID,
 		Name:               port.Name,
@@ -529,4 +554,85 @@ func printPorts(ports []*megaport.Port, format string, noColor bool) error {
 		outputs = append(outputs, output)
 	}
 	return output.PrintOutput(outputs, format, noColor)
+}
+
+// displayPortChanges compares the original and updated Port and displays the differences
+func displayPortChanges(original, updated *megaport.Port, noColor bool) {
+	if original == nil || updated == nil {
+		return
+	}
+
+	fmt.Println() // Empty line before changes
+	output.PrintInfo("Changes applied:", noColor)
+
+	// Track if any changes were found
+	changesFound := false
+
+	// Compare name
+	if original.Name != updated.Name {
+		changesFound = true
+		oldName := output.FormatOldValue(original.Name, noColor)
+		newName := output.FormatNewValue(updated.Name, noColor)
+		fmt.Printf("  • Name: %s → %s\n", oldName, newName)
+	}
+
+	// Compare cost centre
+	if original.CostCentre != updated.CostCentre {
+		changesFound = true
+		oldCostCentre := original.CostCentre
+		if oldCostCentre == "" {
+			oldCostCentre = "(none)"
+		}
+		newCostCentre := updated.CostCentre
+		if newCostCentre == "" {
+			newCostCentre = "(none)"
+		}
+		fmt.Printf("  • Cost Centre: %s → %s\n",
+			output.FormatOldValue(oldCostCentre, noColor),
+			output.FormatNewValue(newCostCentre, noColor))
+	}
+
+	// Compare contract term
+	if original.ContractTermMonths != updated.ContractTermMonths {
+		changesFound = true
+		oldTerm := output.FormatOldValue(fmt.Sprintf("%d months", original.ContractTermMonths), noColor)
+		newTerm := output.FormatNewValue(fmt.Sprintf("%d months", updated.ContractTermMonths), noColor)
+		fmt.Printf("  • Contract Term: %s → %s\n", oldTerm, newTerm)
+	}
+
+	// Compare marketplace visibility
+	if original.MarketplaceVisibility != updated.MarketplaceVisibility {
+		changesFound = true
+		oldVisibility := "No"
+		if original.MarketplaceVisibility {
+			oldVisibility = "Yes"
+		}
+		newVisibility := "No"
+		if updated.MarketplaceVisibility {
+			newVisibility = "Yes"
+		}
+		fmt.Printf("  • Marketplace Visibility: %s → %s\n",
+			output.FormatOldValue(oldVisibility, noColor),
+			output.FormatNewValue(newVisibility, noColor))
+	}
+
+	// Compare locked status
+	if original.AdminLocked != updated.AdminLocked {
+		changesFound = true
+		oldLocked := "No"
+		if original.AdminLocked {
+			oldLocked = "Yes"
+		}
+		newLocked := "No"
+		if updated.AdminLocked {
+			newLocked = "Yes"
+		}
+		fmt.Printf("  • Locked: %s → %s\n",
+			output.FormatOldValue(oldLocked, noColor),
+			output.FormatNewValue(newLocked, noColor))
+	}
+
+	if !changesFound {
+		fmt.Println("  No changes detected")
+	}
 }

@@ -56,7 +56,7 @@ This command allows you to update an existing VXC by providing the necessary det
 ## Usage
 
 ```
-megaport-cli vxc update [vxcUID] [flags]
+megaport-cli vxc update [flags]
 ```
 
 
@@ -72,22 +72,22 @@ megaport-cli vxc update [vxcUID] [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| `--a-end-inner-vlan` |  | `0` | New inner VLAN for A-End | false |
-| `--a-end-partner-config` |  |  | JSON string with A-End VRouter partner configuration | false |
-| `--a-end-uid` |  |  | New A-End product UID | false |
-| `--a-end-vlan` |  | `0` | New VLAN for A-End (0-4093, except 1) | false |
-| `--b-end-inner-vlan` |  | `0` | New inner VLAN for B-End | false |
-| `--b-end-partner-config` |  |  | JSON string with B-End VRouter partner configuration | false |
-| `--b-end-uid` |  |  | New B-End product UID | false |
-| `--b-end-vlan` |  | `0` | New VLAN for B-End (0-4093, except 1) | false |
-| `--cost-centre` |  |  | New cost centre for billing | false |
+| `--a-end-inner-vlan` |  | `0` | Inner VLAN for A-End (-1 or higher) | false |
+| `--a-end-partner-config` |  |  | JSON string with A-End partner configuration | false |
+| `--a-end-uid` |  |  | UID of the A-End product | false |
+| `--a-end-vlan` |  | `0` | VLAN for A-End (0-4093, except 1) | false |
+| `--b-end-inner-vlan` |  | `0` | Inner VLAN for B-End (-1 or higher) | false |
+| `--b-end-partner-config` |  |  | JSON string with B-End partner configuration | false |
+| `--b-end-uid` |  |  | UID of the B-End product | false |
+| `--b-end-vlan` |  | `0` | VLAN for B-End (0-4093, except 1) | false |
+| `--cost-centre` |  |  | Cost centre for billing | false |
 | `--interactive` |  | `false` | Use interactive mode | false |
-| `--json` |  |  | JSON string with update fields | false |
-| `--json-file` |  |  | Path to JSON file with update fields | false |
-| `--name` |  |  | New name for the VXC | false |
-| `--rate-limit` |  | `0` | New bandwidth in Mbps | false |
+| `--json` |  |  | JSON string containing configuration | false |
+| `--json-file` |  |  | Path to JSON file containing configuration | false |
+| `--name` |  |  | Name of the VXC | false |
+| `--rate-limit` |  | `0` | Bandwidth in Mbps | false |
 | `--shutdown` |  | `false` | Whether to shut down the VXC | false |
-| `--term` |  | `0` | New contract term in months (1, 12, 24, or 36) | false |
+| `--term` |  | `0` | Contract term in months (1, 12, 24, or 36) | false |
 
 
 

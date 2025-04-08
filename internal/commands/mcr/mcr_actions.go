@@ -32,14 +32,18 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	// Process input based on mode priority: JSON > Flags > Interactive
 	if jsonStr != "" || jsonFile != "" {
 		// JSON mode
+		output.PrintInfo("Using JSON input", noColor)
 		req, err = processJSONMCRInput(jsonStr, jsonFile)
 		if err != nil {
+			output.PrintError("Failed to process JSON input: %v", noColor, err)
 			return err
 		}
 	} else if flagsProvided {
 		// Flag mode
+		output.PrintInfo("Using flag input", noColor)
 		req, err = processFlagMCRInput(cmd)
 		if err != nil {
+			output.PrintError("Failed to process flag input: %v", noColor, err)
 			return err
 		}
 	} else if interactive {
@@ -61,15 +65,25 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	// Call the BuyMCR method
 	client, err := config.Login(ctx)
 	if err != nil {
+		output.PrintError("Error logging in: %v", noColor, err)
 		return err
 	}
-	fmt.Println("Buying MCR...")
+	// Validate MCR Order
+	output.PrintInfo("Validating MCR order...", noColor)
+	err = client.MCRService.ValidateMCROrder(ctx, req)
+	if err != nil {
+		output.PrintError("Error validating MCR order: %v", noColor, err)
+		return err
+	}
+	// Buy MCR
+	output.PrintInfo("Buying MCR...", noColor)
 	resp, err := buyMCRFunc(ctx, client, req)
 	if err != nil {
+		output.PrintError("Error buying MCR: %v", noColor, err)
 		return err
 	}
 
-	fmt.Printf("MCR purchased successfully - UID: %s\n", resp.TechnicalServiceUID)
+	output.PrintSuccess("MCR created %s", noColor, resp.TechnicalServiceUID)
 	return nil
 }
 
@@ -98,16 +112,20 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	// Process input based on mode priority: JSON > Flags > Interactive
 	if jsonStr != "" || jsonFile != "" {
 		// JSON mode
+		output.PrintInfo("Using JSON input", noColor)
 		req, err = processJSONUpdateMCRInput(jsonStr, jsonFile)
 		if err != nil {
+			output.PrintError("Failed to process JSON input: %v", noColor, err)
 			return err
 		}
 		// Make sure the MCR ID from the command line arguments is set
 		req.MCRID = mcrUID
 	} else if flagsProvided {
 		// Flag mode
+		output.PrintInfo("Using flag input", noColor)
 		req, err = processFlagUpdateMCRInput(cmd, mcrUID)
 		if err != nil {
+			output.PrintError("Failed to process flag input: %v", noColor, err)
 			return err
 		}
 	} else if interactive {
@@ -117,7 +135,7 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify MCR update details")
+		return fmt.Errorf("at least one field must be updated")
 	}
 
 	// Set common defaults
@@ -127,19 +145,49 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	// Call the ModifyMCR method
 	client, err := config.Login(ctx)
 	if err != nil {
-		return err
-	}
-	fmt.Println("Updating MCR...")
-	resp, err := updateMCRFunc(ctx, client, req)
-	if err != nil {
+		output.PrintError("Error logging in: %v", noColor, err)
 		return err
 	}
 
-	if resp.IsUpdated {
-		fmt.Printf("MCR updated successfully - UID: %s\n", mcrUID)
-	} else {
-		fmt.Println("MCR update request was not successful")
+	originalMCR, err := getMCRFunc(ctx, client, mcrUID)
+	if err != nil {
+		output.PrintError("Error getting original MCR: %v", noColor, err)
+		return err
 	}
+	output.PrintInfo("Updating MCR...", noColor)
+	_, err = updateMCRFunc(ctx, client, req)
+	if err != nil {
+		output.PrintError("Error updating MCR: %v", noColor, err)
+		return err
+	}
+
+	// Call the ModifyMCR method
+	output.PrintInfo("Updating MCR %s...", noColor, mcrUID)
+	resp, err := updateMCRFunc(ctx, client, req)
+	if err != nil {
+		output.PrintError("Failed to update MCR: %v", noColor, err)
+		return err
+	}
+
+	if !resp.IsUpdated {
+		output.PrintError("MCR update request was not successful", noColor)
+		return fmt.Errorf("MCR update request was not successful")
+	}
+
+	// Retrieve the updated MCR for comparison
+	updatedMCR, err := getMCRFunc(ctx, client, mcrUID)
+	if err != nil {
+		output.PrintError("MCR was updated but failed to retrieve updated details: %v", noColor, err)
+		output.PrintResourceUpdated("MCR", mcrUID, noColor)
+		return nil
+	}
+
+	// Print success message
+	output.PrintResourceUpdated("MCR", mcrUID, noColor)
+
+	// Display changes between original and updated MCR
+	displayMCRChanges(originalMCR, updatedMCR, noColor)
+
 	return nil
 }
 
@@ -168,14 +216,18 @@ func CreateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	// Process input based on mode priority: JSON > Flags > Interactive
 	if jsonStr != "" || jsonFile != "" {
 		// JSON mode
+		output.PrintInfo("Using JSON input", noColor)
 		req, err = processJSONPrefixFilterListInput(jsonStr, jsonFile, mcrUID)
 		if err != nil {
+			output.PrintError("Failed to process JSON input: %v", noColor, err)
 			return err
 		}
 	} else if flagsProvided {
 		// Flag mode
+		output.PrintInfo("Using flag input", noColor)
 		req, err = processFlagPrefixFilterListInput(cmd, mcrUID)
 		if err != nil {
+			output.PrintError("Failed to process flag input: %v", noColor, err)
 			return err
 		}
 	} else if interactive {
@@ -191,15 +243,17 @@ func CreateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	// Call the CreatePrefixFilterList method
 	client, err := config.Login(ctx)
 	if err != nil {
+		output.PrintError("Error logging in: %v", noColor, err)
 		return err
 	}
-	fmt.Println("Creating prefix filter list...")
+	output.PrintInfo("Creating prefix filter list...", noColor)
 	resp, err := createMCRPrefixFilterListFunc(ctx, client, req)
 	if err != nil {
+		output.PrintError("Error creating prefix filter list: %v", noColor, err)
 		return err
 	}
 
-	fmt.Printf("Prefix filter list created successfully - ID: %d\n", resp.PrefixFilterListID)
+	output.PrintSuccess("Prefix filter list created successfully - ID: %d", noColor, resp.PrefixFilterListID)
 	return nil
 }
 
@@ -232,14 +286,18 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	// Process input based on mode priority: JSON > Flags > Interactive
 	if jsonStr != "" || jsonFile != "" {
 		// JSON mode
-		prefixFilterList, getErr = processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile, prefixFilterListID)
+		output.PrintInfo("Using JSON input", noColor)
+		prefixFilterList, getErr = processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile, mcrUID, prefixFilterListID)
 		if getErr != nil {
+			output.PrintError("Failed to process JSON input: %v", noColor, getErr)
 			return getErr
 		}
 	} else if flagsProvided {
 		// Flag mode
-		prefixFilterList, getErr = processFlagUpdatePrefixFilterListInput(cmd, prefixFilterListID)
+		output.PrintInfo("Using flag input", noColor)
+		prefixFilterList, getErr = processFlagUpdatePrefixFilterListInput(cmd, mcrUID, prefixFilterListID)
 		if getErr != nil {
+			output.PrintError("Failed to process flag input: %v", noColor, getErr)
 			return getErr
 		}
 	} else if interactive {
@@ -249,24 +307,26 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 			return getErr
 		}
 	} else {
-		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify prefix filter list update details")
+		return fmt.Errorf("at least one field must be updated")
 	}
 
 	// Call the ModifyMCRPrefixFilterList method
 	client, err := config.Login(ctx)
 	if err != nil {
+		output.PrintError("Error logging in: %v", noColor, err)
 		return err
 	}
-	fmt.Println("Updating prefix filter list...")
+	output.PrintInfo("Updating prefix filter list...", noColor)
 	resp, err := modifyMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID, prefixFilterList)
 	if err != nil {
+		output.PrintError("Error updating prefix filter list: %v", noColor, err)
 		return err
 	}
 
 	if resp.IsUpdated {
-		fmt.Printf("Prefix filter list updated successfully - ID: %d\n", prefixFilterListID)
+		output.PrintSuccess("Prefix filter list updated successfully - ID: %d", noColor, prefixFilterListID)
 	} else {
-		fmt.Println("Prefix filter list update request was not successful")
+		output.PrintError("Prefix filter list update request was not successful", noColor)
 	}
 	return nil
 }
@@ -333,7 +393,7 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 
 		if confirmation != "y" && confirmation != "Y" {
-			fmt.Println("Deletion cancelled")
+			output.PrintInfo("Deletion cancelled", noColor)
 			return nil
 		}
 	}
@@ -344,6 +404,8 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		DeleteNow: deleteNow,
 	}
 
+	output.PrintInfo("Deleting MCR %s...", noColor, mcrUID)
+
 	// Delete the MCR
 	resp, err := deleteMCRFunc(ctx, client, deleteRequest)
 	if err != nil {
@@ -351,14 +413,9 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	if resp.IsDeleting {
-		fmt.Printf("MCR %s deleted successfully\n", mcrUID)
-		if deleteNow {
-			fmt.Println("The MCR will be deleted immediately")
-		} else {
-			fmt.Println("The MCR will be deleted at the end of the current billing period")
-		}
+		output.PrintResourceDeleted("MCR", mcrUID, deleteNow, noColor)
 	} else {
-		fmt.Println("MCR deletion request was not successful")
+		output.PrintError("MCR deletion request was not successful", noColor)
 	}
 
 	return nil
@@ -378,6 +435,8 @@ func RestoreMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	// Retrieve the MCR UID from the command line arguments
 	mcrUID := args[0]
 
+	output.PrintInfo("Restoring MCR %s...", noColor, mcrUID)
+
 	// Restore the MCR
 	resp, err := restoreMCRFunc(ctx, client, mcrUID)
 	if err != nil {
@@ -385,9 +444,9 @@ func RestoreMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	if resp.IsRestored {
-		fmt.Printf("MCR %s restored successfully\n", mcrUID)
+		output.PrintSuccess("MCR %s restored successfully", noColor, mcrUID)
 	} else {
-		fmt.Println("MCR restoration request was not successful")
+		output.PrintError("MCR restoration request was not successful", noColor)
 	}
 
 	return nil
@@ -471,6 +530,8 @@ func DeleteMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 		return fmt.Errorf("invalid prefix filter list ID: %v", err)
 	}
 
+	output.PrintInfo("Deleting prefix filter list %d...", noColor, prefixFilterListID)
+
 	// Call the DeleteMCRPrefixFilterList method
 	resp, err := deleteMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
 	if err != nil {
@@ -478,9 +539,9 @@ func DeleteMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	}
 
 	if resp.IsDeleted {
-		fmt.Printf("Prefix filter list deleted successfully - ID: %d\n", prefixFilterListID)
+		output.PrintSuccess("Prefix filter list deleted successfully - ID: %d", noColor, prefixFilterListID)
 	} else {
-		fmt.Println("Prefix filter list deletion request was not successful")
+		output.PrintError("Prefix filter list deletion request was not successful", noColor)
 	}
 
 	return nil

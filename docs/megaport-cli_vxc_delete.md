@@ -17,13 +17,15 @@ This command allows you to delete an existing VXC by providing its UID.
 
 ```
   delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --force
+  delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --now
 ```
 
 
 ## Usage
 
 ```
-megaport-cli vxc delete [vxcUID] [flags]
+megaport-cli vxc delete [flags]
 ```
 
 
@@ -39,6 +41,8 @@ megaport-cli vxc delete [vxcUID] [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
+| `--force` | `-f` | `false` | Skip confirmation prompt | false |
+| `--now` |  | `false` | Delete resource immediately instead of at end of billing cycle | false |
 
 
 

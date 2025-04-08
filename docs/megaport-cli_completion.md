@@ -4,10 +4,6 @@ Generate completion script
 
 ## Description
 
-Generate shell completion scripts for Megaport CLI.
-
-This command outputs shell completion code for various shell environments that can be used to enable tab-completion of Megaport CLI commands.
-
 ### Important Notes
   - Bash: source <(megaport-cli completion bash)
   - Zsh: You need to enable shell completion with 'autoload -U compinit; compinit'
@@ -27,7 +23,7 @@ This command outputs shell completion code for various shell environments that c
 ## Usage
 
 ```
-megaport-cli completion [bash|zsh|fish|powershell] [flags]
+megaport-cli completion [flags]
 ```
 
 

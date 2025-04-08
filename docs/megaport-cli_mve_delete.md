@@ -8,17 +8,24 @@ Delete an existing Megaport Virtual Edge (MVE).
 
 This command allows you to delete an existing MVE by providing its UID.
 
+### Important Notes
+  - Deletion is final and cannot be undone
+  - Billing for the MVE stops at the end of the current billing period unless --now is specified
+  - All associated VXCs will be automatically terminated
+
 ### Example Usage
 
 ```
-  delete [mveUID]
+  delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
+  delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --force
+  delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now
 ```
 
 
 ## Usage
 
 ```
-megaport-cli mve delete [mveUID] [flags]
+megaport-cli mve delete [flags]
 ```
 
 
@@ -34,6 +41,8 @@ megaport-cli mve delete [mveUID] [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
+| `--force` | `-f` | `false` | Skip confirmation prompt | false |
+| `--now` |  | `false` | Delete resource immediately instead of at end of billing cycle | false |
 
 
 

@@ -18,7 +18,7 @@ This command fetches and displays detailed information about a specific location
 ## Usage
 
 ```
-megaport-cli locations get [locationID] [flags]
+megaport-cli locations get [flags]
 ```
 
 

@@ -955,11 +955,6 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 
 	req := &megaport.UpdateVXCRequest{}
 
-	// Handle simple fields
-	if name, ok := rawData["name"].(string); ok {
-		req.Name = &name
-	}
-
 	if rateLimit, ok := rawData["rateLimit"].(float64); ok {
 		rateLimitInt := int(rateLimit)
 		if rateLimitInt < 0 {
@@ -984,21 +979,48 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 		req.Shutdown = &shutdown
 	}
 
-	// Handle VLAN fields
-	if aEndVLAN, ok := rawData["aEndVlan"].(float64); ok {
-		aEndVLANInt := int(aEndVLAN)
-		if aEndVLANInt < 0 || aEndVLANInt > 4093 || aEndVLANInt == 1 {
-			return nil, fmt.Errorf("aEndVlan must be 0 or between 2-4093")
+	// Handle nested configurations in addition to flat fields
+	if aEndConfig, ok := rawData["aEndConfiguration"].(map[string]interface{}); ok {
+		if vlan, ok := aEndConfig["vlan"].(float64); ok {
+			vlanInt := int(vlan)
+			if vlanInt != -1 && (vlanInt < 0 || vlanInt > 4093 || vlanInt == 1) {
+				return nil, fmt.Errorf("aEndConfiguration.vlan must be -1, 0, or between 2-4093")
+			}
+			req.AEndVLAN = &vlanInt
 		}
-		req.AEndVLAN = &aEndVLANInt
+	} else {
+		if aEndVLAN, ok := rawData["aEndVlan"].(float64); ok {
+			aEndVLANInt := int(aEndVLAN)
+			if aEndVLANInt != -1 && (aEndVLANInt < 0 || aEndVLANInt > 4093 || aEndVLANInt == 1) {
+				return nil, fmt.Errorf("aEndVlan must be -1, 0, or between 2-4093")
+			}
+			req.AEndVLAN = &aEndVLANInt
+		}
 	}
 
-	if bEndVLAN, ok := rawData["bEndVlan"].(float64); ok {
-		bEndVLANInt := int(bEndVLAN)
-		if bEndVLANInt < 0 || bEndVLANInt > 4093 || bEndVLANInt == 1 {
-			return nil, fmt.Errorf("bEndVlan must be 0 or between 2-4093")
+	if bEndConfig, ok := rawData["bEndConfiguration"].(map[string]interface{}); ok {
+		if vlan, ok := bEndConfig["vlan"].(float64); ok {
+			vlanInt := int(vlan)
+			if vlanInt != -1 && (vlanInt < 0 || vlanInt > 4093 || vlanInt == 1) {
+				return nil, fmt.Errorf("bEndConfiguration.vlan must be -1, 0, or between 2-4093")
+			}
+			req.BEndVLAN = &vlanInt
 		}
-		req.BEndVLAN = &bEndVLANInt
+	} else {
+		if bEndVLAN, ok := rawData["bEndVlan"].(float64); ok {
+			bEndVLANInt := int(bEndVLAN)
+			if bEndVLANInt != -1 && (bEndVLANInt < 0 || bEndVLANInt > 4093 || bEndVLANInt == 1) {
+				return nil, fmt.Errorf("bEndVlan must be -1, 0, or between 2-4093")
+			}
+			req.BEndVLAN = &bEndVLANInt
+		}
+	}
+
+	// Handle VXC name field variants
+	if name, ok := rawData["name"].(string); ok {
+		req.Name = &name
+	} else if vxcName, ok := rawData["vxcName"].(string); ok {
+		req.Name = &vxcName
 	}
 
 	if aEndInnerVLAN, ok := rawData["aEndInnerVlan"].(float64); ok {
@@ -1455,6 +1477,95 @@ func promptIPRoutes(noColor bool) ([]megaport.IpRoute, error) {
 	return routes, nil
 }
 
+// displayVXCChanges compares the original and updated VXC and displays the differences
+func displayVXCChanges(original, updated *megaport.VXC, noColor bool) {
+	if original == nil || updated == nil {
+		return
+	}
+
+	fmt.Println() // Empty line before changes
+	output.PrintInfo("Changes applied:", noColor)
+
+	// Track if any changes were found
+	changesFound := false
+
+	// Compare name
+	if original.Name != updated.Name {
+		changesFound = true
+		oldName := output.FormatOldValue(original.Name, noColor)
+		newName := output.FormatNewValue(updated.Name, noColor)
+		fmt.Printf("  • Name: %s → %s\n", oldName, newName)
+	}
+
+	// Compare rate limit
+	if original.RateLimit != updated.RateLimit {
+		changesFound = true
+		oldRate := output.FormatOldValue(fmt.Sprintf("%d Mbps", original.RateLimit), noColor)
+		newRate := output.FormatNewValue(fmt.Sprintf("%d Mbps", updated.RateLimit), noColor)
+		fmt.Printf("  • Rate Limit: %s → %s\n", oldRate, newRate)
+	}
+
+	// Compare cost centre
+	if original.CostCentre != updated.CostCentre {
+		changesFound = true
+		oldCostCentre := original.CostCentre
+		if oldCostCentre == "" {
+			oldCostCentre = "(none)"
+		}
+		newCostCentre := updated.CostCentre
+		if newCostCentre == "" {
+			newCostCentre = "(none)"
+		}
+		fmt.Printf("  • Cost Centre: %s → %s\n",
+			output.FormatOldValue(oldCostCentre, noColor),
+			output.FormatNewValue(newCostCentre, noColor))
+	}
+
+	// Compare contract term
+	if original.ContractTermMonths != updated.ContractTermMonths {
+		changesFound = true
+		oldTerm := output.FormatOldValue(fmt.Sprintf("%d months", original.ContractTermMonths), noColor)
+		newTerm := output.FormatNewValue(fmt.Sprintf("%d months", updated.ContractTermMonths), noColor)
+		fmt.Printf("  • Contract Term: %s → %s\n", oldTerm, newTerm)
+	}
+
+	// Compare A-End VLAN - directly compare the VLAN values
+	if original.AEndConfiguration.VLAN != updated.AEndConfiguration.VLAN {
+		changesFound = true
+		oldVlan := output.FormatOldValue(fmt.Sprintf("%d", original.AEndConfiguration.VLAN), noColor)
+		newVlan := output.FormatNewValue(fmt.Sprintf("%d", updated.AEndConfiguration.VLAN), noColor)
+		fmt.Printf("  • A-End VLAN: %s → %s\n", oldVlan, newVlan)
+	}
+
+	// Compare B-End VLAN - directly compare the VLAN values
+	if original.BEndConfiguration.VLAN != updated.BEndConfiguration.VLAN {
+		changesFound = true
+		oldVlan := output.FormatOldValue(fmt.Sprintf("%d", original.BEndConfiguration.VLAN), noColor)
+		newVlan := output.FormatNewValue(fmt.Sprintf("%d", updated.BEndConfiguration.VLAN), noColor)
+		fmt.Printf("  • B-End VLAN: %s → %s\n", oldVlan, newVlan)
+	}
+
+	// Compare locked status
+	if original.Locked != updated.Locked {
+		changesFound = true
+		oldLocked := "No"
+		if original.Locked {
+			oldLocked = "Yes"
+		}
+		newLocked := "No"
+		if updated.Locked {
+			newLocked = "Yes"
+		}
+		fmt.Printf("  • Locked: %s → %s\n",
+			output.FormatOldValue(oldLocked, noColor),
+			output.FormatNewValue(newLocked, noColor))
+	}
+
+	if !changesFound {
+		fmt.Println("  No changes detected")
+	}
+}
+
 // promptIPAddresses prompts the user for IP addresses
 func promptIPAddresses(message string, noColor bool) ([]string, error) {
 	var addresses []string
@@ -1769,13 +1880,17 @@ var updateVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID st
 	return err
 }
 
-// VXCOutput represents the desired fields for JSON output.
+// VXCOutput represents the desired fields for output.
 type VXCOutput struct {
 	output.Output `json:"-" header:"-"`
-	UID           string `json:"uid"`
-	Name          string `json:"name"`
-	AEndUID       string `json:"a_end_uid"`
-	BEndUID       string `json:"b_end_uid"`
+	UID           string `json:"uid" header:"UID"`
+	Name          string `json:"name" header:"Name"`
+	AEndUID       string `json:"a_end_uid" header:"A End UID"`
+	BEndUID       string `json:"b_end_uid" header:"B End UID"`
+	AEndVLAN      int    `json:"a_end_vlan" header:"A End VLAN"`
+	BEndVLAN      int    `json:"b_end_vlan" header:"B End VLAN"`
+	RateLimit     int    `json:"rate_limit" header:"Rate Limit"`
+	Status        string `json:"status" header:"Status"`
 }
 
 // ToVXCOutput converts a VXC to a VXCOutput.
@@ -1784,11 +1899,22 @@ func ToVXCOutput(v *megaport.VXC) (VXCOutput, error) {
 		return VXCOutput{}, fmt.Errorf("invalid VXC: nil value")
 	}
 
+	aEndVLAN := v.AEndConfiguration.VLAN
+	bEndVLAN := v.BEndConfiguration.VLAN
+	aEndUID := v.AEndConfiguration.UID
+	bEndUID := v.BEndConfiguration.UID
+
+	status := v.ProvisioningStatus
+
 	return VXCOutput{
-		UID:     v.UID,
-		Name:    v.Name,
-		AEndUID: v.AEndConfiguration.UID,
-		BEndUID: v.BEndConfiguration.UID,
+		UID:       v.UID,
+		Name:      v.Name,
+		AEndUID:   aEndUID,
+		BEndUID:   bEndUID,
+		AEndVLAN:  aEndVLAN,
+		BEndVLAN:  bEndVLAN,
+		RateLimit: v.RateLimit,
+		Status:    status,
 	}, nil
 }
 

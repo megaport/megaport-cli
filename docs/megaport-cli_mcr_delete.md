@@ -8,10 +8,6 @@ Delete an MCR from your account.
 
 This command allows you to delete an MCR from your account. By default, the MCR will be scheduled for deletion at the end of the current billing period.
 
-### Optional Fields
-  - `force`: Skip the confirmation prompt and proceed with deletion
-  - `now`: Delete the MCR immediately instead of at the end of the billing period
-
 ### Example Usage
 
 ```
@@ -24,7 +20,7 @@ This command allows you to delete an MCR from your account. By default, the MCR 
 ## Usage
 
 ```
-megaport-cli mcr delete [mcrUID] [flags]
+megaport-cli mcr delete [flags]
 ```
 
 
@@ -40,8 +36,8 @@ megaport-cli mcr delete [mcrUID] [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| `--force` | `-f` | `false` | Force deletion without confirmation | false |
-| `--now` |  | `false` | Delete MCR immediately instead of at end of billing cycle | false |
+| `--force` | `-f` | `false` | Skip confirmation prompt | false |
+| `--now` |  | `false` | Delete resource immediately instead of at end of billing cycle | false |
 
 
 

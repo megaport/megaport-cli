@@ -10,14 +10,20 @@ import (
 
 var testMVEs = []*megaport.MVE{
 	{
-		UID:        "mve-1",
-		Name:       "MyMVEOne",
-		LocationID: 1,
+		UID:                "mve-1",
+		Name:               "MyMVEOne",
+		LocationID:         1,
+		ProvisioningStatus: "LIVE",
+		Vendor:             "cisco",
+		Size:               "small",
 	},
 	{
-		UID:        "mve-2",
-		Name:       "AnotherMVE",
-		LocationID: 2,
+		UID:                "mve-2",
+		Name:               "AnotherMVE",
+		LocationID:         2,
+		ProvisioningStatus: "CONFIGURED",
+		Vendor:             "palo_alto",
+		Size:               "medium",
 	},
 }
 
@@ -27,9 +33,9 @@ func TestPrintMVEs_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `uid     name         location_id
-mve-1   MyMVEOne     1
-mve-2   AnotherMVE   2
+	expected := `UID     Name         Location ID   Status       Vendor      Size
+mve-1   MyMVEOne     1             LIVE         cisco       small
+mve-2   AnotherMVE   2             CONFIGURED   palo_alto   medium
 `
 	assert.Equal(t, expected, output)
 }
@@ -44,12 +50,18 @@ func TestPrintMVEs_JSON(t *testing.T) {
   {
     "uid": "mve-1",
     "name": "MyMVEOne",
-    "location_id": 1
+    "location_id": 1,
+    "status": "LIVE",
+    "vendor": "cisco",
+    "size": "small"
   },
   {
     "uid": "mve-2",
     "name": "AnotherMVE",
-    "location_id": 2
+    "location_id": 2,
+    "status": "CONFIGURED",
+    "vendor": "palo_alto",
+    "size": "medium"
   }
 ]`
 	assert.JSONEq(t, expected, output)
@@ -61,9 +73,9 @@ func TestPrintMVEs_CSV(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `uid,name,location_id
-mve-1,MyMVEOne,1
-mve-2,AnotherMVE,2
+	expected := `uid,name,location_id,status,vendor,size
+mve-1,MyMVEOne,1,LIVE,cisco,small
+mve-2,AnotherMVE,2,CONFIGURED,palo_alto,medium
 `
 	assert.Equal(t, expected, output)
 }
@@ -92,7 +104,7 @@ func TestPrintMVEs_EdgeCases(t *testing.T) {
 			mves:        nil,
 			format:      "table",
 			shouldError: false,
-			expected:    "uid   name   location_id\n",
+			expected:    "UID   Name   Location ID   Status   Vendor   Size\n",
 		},
 		{
 			name:        "empty slice",
@@ -126,7 +138,7 @@ func TestPrintMVEs_EdgeCases(t *testing.T) {
 			},
 			format:      "csv",
 			shouldError: false,
-			expected:    "uid,name,location_id\n,,0\n",
+			expected:    "uid,name,location_id,status,vendor,size\n,,0,,,\n",
 		},
 	}
 
@@ -177,19 +189,47 @@ func TestToMVEOutput_EdgeCases(t *testing.T) {
 				assert.Empty(t, output.UID)
 				assert.Empty(t, output.Name)
 				assert.Zero(t, output.LocationID)
+				assert.Empty(t, output.Status)
+				assert.Empty(t, output.Vendor)
+				assert.Empty(t, output.Size)
 			},
 		},
 		{
 			name: "whitespace values",
 			mve: &megaport.MVE{
-				UID:        "   ",
-				Name:       "   ",
-				LocationID: 0,
+				UID:                "   ",
+				Name:               "   ",
+				LocationID:         0,
+				ProvisioningStatus: "   ",
+				Vendor:             "   ",
+				Size:               "   ",
 			},
 			validateFunc: func(t *testing.T, output MVEOutput) {
 				assert.Equal(t, "   ", output.UID)
 				assert.Equal(t, "   ", output.Name)
 				assert.Zero(t, output.LocationID)
+				assert.Equal(t, "   ", output.Status)
+				assert.Equal(t, "   ", output.Vendor)
+				assert.Equal(t, "   ", output.Size)
+			},
+		},
+		{
+			name: "complete values",
+			mve: &megaport.MVE{
+				UID:                "mve-test",
+				Name:               "Test MVE",
+				LocationID:         10,
+				ProvisioningStatus: "LIVE",
+				Vendor:             "fortinet",
+				Size:               "large",
+			},
+			validateFunc: func(t *testing.T, output MVEOutput) {
+				assert.Equal(t, "mve-test", output.UID)
+				assert.Equal(t, "Test MVE", output.Name)
+				assert.Equal(t, 10, output.LocationID)
+				assert.Equal(t, "LIVE", output.Status)
+				assert.Equal(t, "fortinet", output.Vendor)
+				assert.Equal(t, "large", output.Size)
 			},
 		},
 	}

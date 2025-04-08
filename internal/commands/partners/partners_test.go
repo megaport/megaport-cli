@@ -143,11 +143,41 @@ func TestPrintPartners_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `product_name   uid    connect_type   company_name   location_id   diversity_zone   vxc_permitted
-ProductOne     uid1   TypeA          CompanyA       1             ZoneA            true
-ProductTwo     uid2   TypeB          CompanyB       2             ZoneB            false
+	expected := `Name         UID    Connect Type   Company Name   LocationID   Diversity Zone   VXC Permitted
+ProductOne   uid1   TypeA          CompanyA       1            ZoneA            true
+ProductTwo   uid2   TypeB          CompanyB       2            ZoneB            false
 `
 	assert.Equal(t, expected, output)
+}
+
+func TestPrintPartners_EmptySlice(t *testing.T) {
+	var emptySlice []*megaport.PartnerMegaport
+
+	// Table format with empty slice
+	tableOutput := output.CaptureOutput(func() {
+		err := printPartnersFunc(emptySlice, "table", noColor)
+		assert.NoError(t, err)
+	})
+	expectedTable := `Name   UID   Connect Type   Company Name   LocationID   Diversity Zone   VXC Permitted
+`
+	assert.Equal(t, expectedTable, tableOutput)
+
+	// The rest of this function can remain unchanged
+	// JSON format with empty slice
+	jsonOutput := output.CaptureOutput(func() {
+		err := printPartnersFunc(emptySlice, "json", noColor)
+		assert.NoError(t, err)
+	})
+	assert.Equal(t, "[]\n", jsonOutput)
+
+	// CSV format with empty slice
+	csvOutput := output.CaptureOutput(func() {
+		err := printPartnersFunc(emptySlice, "csv", noColor)
+		assert.NoError(t, err)
+	})
+	expectedCSV := `product_name,uid,connect_type,company_name,location_id,diversity_zone,vxc_permitted
+`
+	assert.Equal(t, expectedCSV, csvOutput)
 }
 
 func TestPrintPartners_JSON(t *testing.T) {
@@ -158,8 +188,8 @@ func TestPrintPartners_JSON(t *testing.T) {
 
 	expected := `[
   {
-    "uid": "uid1",
     "product_name": "ProductOne",
+    "uid": "uid1",
     "connect_type": "TypeA",
     "company_name": "CompanyA",
     "location_id": 1,
@@ -167,8 +197,8 @@ func TestPrintPartners_JSON(t *testing.T) {
     "vxc_permitted": true
   },
   {
-    "uid": "uid2",
     "product_name": "ProductTwo",
+    "uid": "uid2",
     "connect_type": "TypeB",
     "company_name": "CompanyB",
     "location_id": 2,
@@ -201,33 +231,4 @@ func TestPrintPartners_Invalid(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid output format")
 	assert.Empty(t, output)
-}
-
-func TestPrintPartners_EmptySlice(t *testing.T) {
-	var emptySlice []*megaport.PartnerMegaport
-
-	// Table format with empty slice
-	tableOutput := output.CaptureOutput(func() {
-		err := printPartnersFunc(emptySlice, "table", noColor)
-		assert.NoError(t, err)
-	})
-	expectedTable := `product_name   uid   connect_type   company_name   location_id   diversity_zone   vxc_permitted
-`
-	assert.Equal(t, expectedTable, tableOutput)
-
-	// JSON format with empty slice
-	jsonOutput := output.CaptureOutput(func() {
-		err := printPartnersFunc(emptySlice, "json", noColor)
-		assert.NoError(t, err)
-	})
-	assert.Equal(t, "[]\n", jsonOutput)
-
-	// CSV format with empty slice
-	csvOutput := output.CaptureOutput(func() {
-		err := printPartnersFunc(emptySlice, "csv", noColor)
-		assert.NoError(t, err)
-	})
-	expectedCSV := `product_name,uid,connect_type,company_name,location_id,diversity_zone,vxc_permitted
-`
-	assert.Equal(t, expectedCSV, csvOutput)
 }
