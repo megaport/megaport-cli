@@ -51,55 +51,79 @@ func hasUpdateVXCNonInteractiveFlags(cmd *cobra.Command) bool {
 	return false
 }
 
-// BuyVXC purchases a new Virtual Cross Connect
+// BuyVXC handles purchasing a new VXC
 func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx := context.Background()
 
-	// Determine input mode and build request
+	// Determine which mode to use
+	interactive, _ := cmd.Flags().GetBool("interactive")
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
+
+	// Check if any flag-based parameters are provided
+	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("rate-limit") ||
+		cmd.Flags().Changed("term") || cmd.Flags().Changed("a-end-uid") ||
+		cmd.Flags().Changed("a-end-vlan") || cmd.Flags().Changed("b-end-uid") ||
+		cmd.Flags().Changed("b-end-vlan")
+
 	var req *megaport.BuyVXCRequest
 	var err error
 
-	interactive, _ := cmd.Flags().GetBool("interactive")
-	jsonStr, _ := cmd.Flags().GetString("json")
-	jsonFilePath, _ := cmd.Flags().GetString("json-file")
+	// Process input based on mode priority: JSON > Flags > Interactive
+	if jsonStr != "" || jsonFile != "" {
+		// JSON mode
+		output.PrintInfo("Using JSON input", noColor)
+		req, err = buildVXCRequestFromJSON(jsonStr, jsonFile)
+		if err != nil {
+			output.PrintError("Failed to process JSON input: %v", noColor, err)
+			return err
+		}
+	} else if flagsProvided {
+		// Flag mode
+		output.PrintInfo("Using flag input", noColor)
+		client, err := config.Login(ctx)
+		if err != nil {
+			output.PrintError("Failed to log in: %v", noColor, err)
+			return err
+		}
+		req, err = buildVXCRequestFromFlags(cmd, ctx, client.VXCService)
+		if err != nil {
+			output.PrintError("Failed to process flag input: %v", noColor, err)
+			return err
+		}
+	} else if interactive {
+		// Interactive mode
+		output.PrintInfo("Starting interactive mode", noColor)
+		client, err := config.Login(ctx)
+		if err != nil {
+			output.PrintError("Failed to log in: %v", noColor, err)
+			return err
+		}
+		req, err = buildVXCRequestFromPrompt(ctx, client.VXCService, noColor)
+		if err != nil {
+			output.PrintError("Interactive input failed: %v", noColor, err)
+			return err
+		}
+	} else {
+		output.PrintError("No input provided", noColor)
+		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify VXC details")
+	}
+
+	// Set common defaults
+	req.WaitForProvision = true
+	req.WaitForTime = 10 * time.Minute
 
 	// Call the BuyVXC method
 	client, err := config.Login(ctx)
 	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 
-	// Check if we have JSON input first
-	if jsonStr != "" || jsonFilePath != "" {
-		output.PrintInfo("Using JSON input", noColor)
-		req, err = buildVXCRequestFromJSON(jsonStr, jsonFilePath)
-	} else if interactive {
-		output.PrintInfo("Starting interactive mode", noColor)
-		req, err = buildVXCRequestFromPrompt(ctx, client.VXCService, noColor)
-	} else {
-		output.PrintInfo("Using flag input", noColor)
-		req, err = buildVXCRequestFromFlags(cmd, ctx, client.VXCService)
-	}
-
-	if err != nil {
-		return err
-	}
-
-	if req == nil {
-		return fmt.Errorf("no input provided")
-	}
-
-	req.WaitForProvision = true
-	req.WaitForTime = 10 * time.Minute
-
-	output.PrintInfo("Buying VXC...", noColor)
-	if buyVXCFunc == nil {
-		return fmt.Errorf("internal error: buyVXCFunc is nil")
-	}
-
+	output.PrintInfo("Creating VXC...", noColor)
 	resp, err := buyVXCFunc(ctx, client, req)
 	if err != nil {
-		output.PrintError("Failed to purchase VXC: %v", noColor, err)
+		output.PrintError("Failed to buy VXC: %v", noColor, err)
 		return err
 	}
 

@@ -3,8 +3,8 @@ package cmdbuilder
 // WithVXCCommonFlags adds common flags for VXC operations
 func (b *CommandBuilder) WithVXCCommonFlags() *CommandBuilder {
 	b.WithFlag("name", "", "Name of the VXC")
-	b.WithFlag("rate-limit", "0", "Bandwidth in Mbps")
-	b.WithFlag("term", "0", "Contract term in months (1, 12, 24, or 36)")
+	b.WithIntFlag("rate-limit", 0, "Bandwidth in Mbps")
+	b.WithIntFlag("term", 0, "Contract term in months (1, 12, 24, or 36)")
 	b.WithFlag("cost-centre", "", "Cost centre for billing")
 	return b
 }
@@ -13,10 +13,10 @@ func (b *CommandBuilder) WithVXCCommonFlags() *CommandBuilder {
 func (b *CommandBuilder) WithVXCEndpointFlags() *CommandBuilder {
 	b.WithFlag("a-end-uid", "", "UID of the A-End product")
 	b.WithFlag("b-end-uid", "", "UID of the B-End product")
-	b.WithFlag("a-end-vlan", "0", "VLAN for A-End (0-4093, except 1)")
-	b.WithFlag("b-end-vlan", "0", "VLAN for B-End (0-4093, except 1)")
-	b.WithFlag("a-end-inner-vlan", "0", "Inner VLAN for A-End (-1 or higher)")
-	b.WithFlag("b-end-inner-vlan", "0", "Inner VLAN for B-End (-1 or higher)")
+	b.WithIntFlag("a-end-vlan", 0, "VLAN for A-End (0-4093, except 1)")
+	b.WithIntFlag("b-end-vlan", 0, "VLAN for B-End (0-4093, except 1)")
+	b.WithIntFlag("a-end-inner-vlan", 0, "Inner VLAN for A-End (-1 or higher)")
+	b.WithIntFlag("b-end-inner-vlan", 0, "Inner VLAN for B-End (-1 or higher)")
 	return b
 }
 
@@ -32,8 +32,8 @@ func (b *CommandBuilder) WithVXCCreateFlags() *CommandBuilder {
 	b.WithVXCCommonFlags()
 	b.WithVXCEndpointFlags()
 	b.WithVXCPartnerConfigFlags()
-	b.WithFlag("a-end-vnic-index", "0", "vNIC index for A-End MVE")
-	b.WithFlag("b-end-vnic-index", "0", "vNIC index for B-End MVE")
+	b.WithIntFlag("a-end-vnic-index", 0, "vNIC index for A-End MVE")
+	b.WithIntFlag("b-end-vnic-index", 0, "vNIC index for B-End MVE")
 	b.WithFlag("promo-code", "", "Promotional code")
 	b.WithFlag("service-key", "", "Service key")
 	return b

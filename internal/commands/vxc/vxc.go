@@ -27,50 +27,26 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create buy VXC command
-	buyVXCCmd := cmdbuilder.NewCommand("buy", "Purchase a new Virtual Cross Connect (VXC)").
+		// Create buy VXC command
+	buyVXCCmd := cmdbuilder.NewCommand("buy", "Purchase a new VXC").
 		WithColorAwareRunFunc(BuyVXC).
-		WithBoolFlag("interactive", false, "Use interactive mode").
+		WithInteractiveFlag().
 		WithVXCCreateFlags().
 		WithJSONConfigFlags().
-		WithLongDesc("Purchase a new Virtual Cross Connect (VXC) through the Megaport API.\n\nThis command allows you to purchase a VXC by providing the necessary details.").
-		WithRequiredFlag("a-end-uid", "UID of the A-End product (Port, MCR, MVE)").
-		WithRequiredFlag("name", "Name of the VXC (1-64 characters)").
-		WithRequiredFlag("rate-limit", "Bandwidth in Mbps (50 - 10000)").
-		WithRequiredFlag("term", "Contract term in months (1, 12, 24, or 36)").
-		WithRequiredFlag("a-end-vlan", "VLAN for A-End (2-4093, except 4090)").
-		WithOptionalFlag("b-end-uid", "UID of the B-End product (if connecting to non-partner)").
-		WithOptionalFlag("b-end-vlan", "VLAN for B-End (2-4093, except 4090)").
-		WithOptionalFlag("a-end-inner-vlan", "Inner VLAN for A-End (-1 or higher, only for QinQ)").
-		WithOptionalFlag("b-end-inner-vlan", "Inner VLAN for B-End (-1 or higher, only for QinQ)").
-		WithOptionalFlag("a-end-vnic-index", "vNIC index for A-End MVE (required for MVE A-End)").
-		WithOptionalFlag("b-end-vnic-index", "vNIC index for B-End MVE (required for MVE B-End)").
-		WithOptionalFlag("promo-code", "Promotional code").
-		WithOptionalFlag("service-key", "Service key").
-		WithOptionalFlag("cost-centre", "Cost centre").
-		WithOptionalFlag("a-end-partner-config", "JSON string with A-End partner configuration (for VRouter)").
-		WithOptionalFlag("b-end-partner-config", "JSON string with B-End partner configuration (for CSPs like AWS, Azure)").
+		WithLongDesc("Purchase a new Megaport Virtual Cross Connect (VXC) through the Megaport API.\n\nThis command allows you to create a VXC by providing the necessary details.").
+		WithDocumentedRequiredFlag("name", "Name of the VXC").
+		WithDocumentedRequiredFlag("rate-limit", "Bandwidth in Mbps").
+		WithDocumentedRequiredFlag("term", "Contract term in months (1, 12, 24, or 36)").
+		WithDocumentedRequiredFlag("a-end-uid", "UID of the A-End product").
+		WithDocumentedRequiredFlag("b-end-uid", "UID of the B-End product (if not using partner configuration)").
+		WithDocumentedRequiredFlag("a-end-vlan", "VLAN for A-End (0-4093, except 1)").
+		WithDocumentedRequiredFlag("b-end-vlan", "VLAN for B-End (0-4093, except 1)").
 		WithExample("buy --interactive").
-		WithExample("buy --a-end-uid \"port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx\" --b-end-uid \"port-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy\" --name \"My VXC\" --rate-limit 1000 --term 12 --a-end-vlan 100 --b-end-vlan 200").
-		WithExample("buy --a-end-uid \"port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx\" --name \"My AWS VXC\" --rate-limit 1000 --term 12 --a-end-vlan 100 --b-end-partner-config '{\"connectType\":\"AWS\",\"ownerAccount\":\"123456789012\",\"asn\":65000,\"amazonAsn\":64512}'").
-		WithExample("buy --a-end-uid \"port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx\" --name \"My Azure VXC\" --rate-limit 1000 --term 12 --a-end-vlan 100 --b-end-partner-config '{\"connectType\":\"AZURE\",\"serviceKey\":\"s-abcd1234\"}'").
-		WithExample("buy --json '{\"aEndUid\":\"port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx\",\"name\":\"My VXC\",\"rateLimit\":1000,\"term\":12,\"aEndConfiguration\":{\"vlan\":100},\"bEndConfiguration\":{\"productUid\":\"port-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy\",\"vlan\":200}}'").
-		WithJSONExample(`{
-  "aEndUid": "port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-  "name": "My VXC",
-  "rateLimit": 1000,
-  "term": 12,
-  "aEndConfiguration": {"vlan": 100},
-  "bEndConfiguration": {
-    "productUid": "port-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy",
-    "vlan": 200
-  }
-}`).
-		WithImportantNote("For AWS connections, you must provide owner account, ASN, and Amazon ASN in b-end-partner-config").
-		WithImportantNote("For Azure connections, you must provide a service key in b-end-partner-config").
-		WithImportantNote("QinQ VLANs require both outer and inner VLANs").
-		WithImportantNote("MVE connections require specifying vNIC indexes").
+		WithExample("buy --name \"My VXC\" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200").
+		WithExample("buy --json '{\"vxcName\":\"My VXC\",\"rateLimit\":1000,\"term\":12,\"portUid\":\"port-123\",\"aEndConfiguration\":{\"vlan\":100},\"bEndConfiguration\":{\"productUID\":\"port-456\",\"vlan\":200}}'").
+		WithExample("buy --json-file ./vxc-config.json").
 		WithRootCmd(rootCmd).
+		WithConditionalRequirements("name", "rate-limit", "term", "a-end-uid", "a-end-vlan").
 		Build()
 
 	// Create update VXC command
