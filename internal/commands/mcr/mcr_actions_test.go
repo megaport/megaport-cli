@@ -924,7 +924,15 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 	// Setup shared test components
 	originalPrompt := utils.Prompt
-	defer func() { utils.Prompt = originalPrompt }()
+	originalLoginFunc := config.LoginFunc
+	originalUpdateMCRFunc := updateMCRFunc
+	originalGetMCRFunc := getMCRFunc
+	defer func() {
+		utils.Prompt = originalPrompt
+		config.LoginFunc = originalLoginFunc
+		updateMCRFunc = originalUpdateMCRFunc
+		getMCRFunc = originalGetMCRFunc
+	}()
 
 	mockPromptCalls := 0
 	mockPromptResponses := []string{}
@@ -938,12 +946,6 @@ func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 	}
 
 	mockMCRService := new(MockMCRService)
-	originalUpdateMCRFunc := updateMCRFunc
-	originalGetMCRFunc := getMCRFunc
-	defer func() {
-		updateMCRFunc = originalUpdateMCRFunc
-		getMCRFunc = originalGetMCRFunc
-	}()
 	updateMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyMCRRequest) (*megaport.ModifyMCRResponse, error) {
 		mockMCRService.CapturedModifyMCRRequest = req
 		return mockMCRService.ModifyMCRResult, mockMCRService.ModifyMCRErr
@@ -1077,6 +1079,12 @@ func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 
 			if tt.setupMock != nil {
 				tt.setupMock(mockMCRService)
+			}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockMCRService
+				return client, nil
 			}
 
 			// Create command
