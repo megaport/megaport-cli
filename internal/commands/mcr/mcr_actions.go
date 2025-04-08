@@ -161,41 +161,33 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	updatedMCR, err := getMCRFunc(ctx, client, mcrUID)
+	// Call the ModifyMCR method
+	output.PrintInfo("Updating MCR %s...", noColor, mcrUID)
+	resp, err := updateMCRFunc(ctx, client, req)
 	if err != nil {
-		output.PrintError("Error getting updated MCR: %v", noColor, err)
+		output.PrintError("Failed to update MCR: %v", noColor, err)
 		return err
 	}
 
-	// Output detailed success message
+	if !resp.IsUpdated {
+		output.PrintError("MCR update request was not successful", noColor)
+		return fmt.Errorf("MCR update request was not successful")
+	}
+
+	// Retrieve the updated MCR for comparison
+	updatedMCR, err := getMCRFunc(ctx, client, mcrUID)
+	if err != nil {
+		output.PrintError("MCR was updated but failed to retrieve updated details: %v", noColor, err)
+		output.PrintResourceUpdated("MCR", mcrUID, noColor)
+		return nil
+	}
+
+	// Print success message
 	output.PrintResourceUpdated("MCR", mcrUID, noColor)
 
-	// Compare and show name changes
-	if originalMCR.Name != updatedMCR.Name {
-		output.PrintInfo("Name:         %s (previously \"%s\")", noColor, updatedMCR.Name, originalMCR.Name)
-	} else {
-		output.PrintInfo("Name:         %s (unchanged)", noColor, updatedMCR.Name)
-	}
+	// Display changes between original and updated MCR
+	displayMCRChanges(originalMCR, updatedMCR, noColor)
 
-	// Compare and show cost centre changes
-	if originalMCR.CostCentre != updatedMCR.CostCentre {
-		// Handle empty cost centre specially
-		origCC := originalMCR.CostCentre
-		if origCC == "" {
-			origCC = "none"
-		}
-		output.PrintInfo("Cost Centre:  %s (previously \"%s\")", noColor, updatedMCR.CostCentre, origCC)
-	} else if updatedMCR.CostCentre != "" {
-		output.PrintInfo("Cost Centre:  %s (unchanged)", noColor, updatedMCR.CostCentre)
-	}
-
-	// Compare and show contract term changes
-	if originalMCR.ContractTermMonths != updatedMCR.ContractTermMonths {
-		output.PrintInfo("Term:         %d months (previously %d months)", noColor,
-			updatedMCR.ContractTermMonths, originalMCR.ContractTermMonths)
-	} else {
-		output.PrintInfo("Term:         %d months (unchanged)", noColor, updatedMCR.ContractTermMonths)
-	}
 	return nil
 }
 

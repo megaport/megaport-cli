@@ -189,3 +189,18 @@ func StripANSIColors(s string) string {
 	re := regexp.MustCompile("\x1b\\[[0-9;]*m")
 	return re.ReplaceAllString(s, "")
 }
+
+// Helper functions to format old and new values
+func FormatOldValue(value string, noColor bool) string {
+	if noColor {
+		return value
+	}
+	return color.New(color.FgYellow).Sprint(value)
+}
+
+func FormatNewValue(value string, noColor bool) string {
+	if noColor {
+		return value
+	}
+	return color.New(color.FgGreen).Sprint(value)
+}

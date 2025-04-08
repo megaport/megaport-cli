@@ -139,9 +139,23 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	vxcUID := args[0]
 	formattedUID := output.FormatUID(vxcUID, noColor)
 
+	// Log into the API first so we can retrieve the original VXC
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return err
+	}
+
+	// Retrieve the original VXC for later comparison
+	originalVXC, err := client.VXCService.GetVXC(ctx, vxcUID)
+	if err != nil {
+		output.PrintError("Failed to retrieve original VXC details: %v", noColor, err)
+		return fmt.Errorf("failed to retrieve original VXC details: %v", err)
+	}
+
 	// Determine input mode and build request
 	var req *megaport.UpdateVXCRequest
-	var err error
+	var buildErr error
 
 	interactive, _ := cmd.Flags().GetBool("interactive")
 	jsonStr, _ := cmd.Flags().GetString("json")
@@ -149,20 +163,22 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if jsonStr != "" || jsonFilePath != "" {
 		output.PrintInfo("Using JSON input for VXC %s", noColor, formattedUID)
-		req, err = buildUpdateVXCRequestFromJSON(jsonStr, jsonFilePath)
+		req, buildErr = buildUpdateVXCRequestFromJSON(jsonStr, jsonFilePath)
 	} else if interactive || !hasUpdateVXCNonInteractiveFlags(cmd) {
 		output.PrintInfo("Starting interactive mode for VXC %s", noColor, formattedUID)
-		req, err = buildUpdateVXCRequestFromPrompt(vxcUID, noColor)
+		req, buildErr = buildUpdateVXCRequestFromPrompt(vxcUID, noColor)
 	} else {
 		output.PrintInfo("Using flag input for VXC %s", noColor, formattedUID)
-		req, err = buildUpdateVXCRequestFromFlags(cmd)
+		req, buildErr = buildUpdateVXCRequestFromFlags(cmd)
 	}
 
-	if err != nil {
-		return err
+	if buildErr != nil {
+		output.PrintError("Failed to build update request: %v", noColor, buildErr)
+		return buildErr
 	}
 
 	if req == nil {
+		output.PrintError("No update parameters provided", noColor)
 		return fmt.Errorf("no update parameters provided")
 	}
 
@@ -170,12 +186,6 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	if !req.WaitForUpdate {
 		req.WaitForUpdate = true
 		req.WaitForTime = 5 * time.Minute
-	}
-
-	// config.Login to API
-	client, err := config.Login(ctx)
-	if err != nil {
-		return err
 	}
 
 	// Call update API
@@ -186,7 +196,20 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("failed to update VXC: %v", err)
 	}
 
+	// Retrieve the updated VXC for comparison
+	updatedVXC, err := client.VXCService.GetVXC(ctx, vxcUID)
+	if err != nil {
+		output.PrintError("VXC was updated but failed to retrieve updated details: %v", noColor, err)
+		output.PrintResourceUpdated("VXC", vxcUID, noColor)
+		return nil
+	}
+
+	// Print success message
 	output.PrintResourceUpdated("VXC", vxcUID, noColor)
+
+	// Show comparison of changes
+	displayVXCChanges(originalVXC, updatedVXC, noColor)
+
 	return nil
 }
 

@@ -155,50 +155,27 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	resp, err := client.MVEService.ModifyMVE(ctx, req)
 	if err != nil {
 		output.PrintError("Failed to update MVE: %v", noColor, err)
-		return fmt.Errorf("error updating MVE: %v", err)
+		return err
 	}
 
 	if !resp.MVEUpdated {
 		output.PrintWarning("MVE update request was not successful", noColor)
-		return nil
+		return fmt.Errorf("MVE update request was not successful")
 	}
 
 	// Fetch the updated MVE to get the new values
 	updatedMVE, err := client.MVEService.GetMVE(ctx, mveUID)
 	if err != nil {
-		output.PrintError("Error retrieving updated MVE details: %v", noColor, err)
-		return fmt.Errorf("error retrieving updated MVE details: %v", err)
+		output.PrintError("MVE was updated but failed to retrieve updated details: %v", noColor, err)
+		output.PrintResourceUpdated("MVE", mveUID, noColor)
+		return nil
 	}
 
-	// Output detailed success message
+	// Output success message
 	output.PrintResourceUpdated("MVE", mveUID, noColor)
 
-	// Compare and show name changes
-	if originalMVE.Name != updatedMVE.Name {
-		output.PrintInfo("Name:         %s (previously \"%s\")", noColor, updatedMVE.Name, originalMVE.Name)
-	} else {
-		output.PrintInfo("Name:         %s (unchanged)", noColor, updatedMVE.Name)
-	}
-
-	// Compare and show cost centre changes
-	if originalMVE.CostCentre != updatedMVE.CostCentre {
-		// Handle empty cost centre specially
-		origCC := originalMVE.CostCentre
-		if origCC == "" {
-			origCC = "none"
-		}
-		output.PrintInfo("Cost Centre:  %s (previously \"%s\")", noColor, updatedMVE.CostCentre, origCC)
-	} else if updatedMVE.CostCentre != "" {
-		output.PrintInfo("Cost Centre:  %s (unchanged)", noColor, updatedMVE.CostCentre)
-	}
-
-	// Compare and show contract term changes
-	if originalMVE.ContractTermMonths != updatedMVE.ContractTermMonths {
-		output.PrintInfo("Term:         %d months (previously %d months)", noColor,
-			updatedMVE.ContractTermMonths, originalMVE.ContractTermMonths)
-	} else {
-		output.PrintInfo("Term:         %d months (unchanged)", noColor, updatedMVE.ContractTermMonths)
-	}
+	// Display changes between original and updated MVE
+	displayMVEChanges(originalMVE, updatedMVE, noColor)
 
 	return nil
 }

@@ -1011,7 +1011,8 @@ func TestUpdatePortCmd(t *testing.T) {
 					IsUpdated: false,
 				}
 			},
-			expectedOutput: "Port update request was not successful",
+			expectedError:         "port update request was not successful",
+			skipRequestValidation: true, // Skip validation since we're testing error handling
 		},
 	}
 
