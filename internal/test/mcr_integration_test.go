@@ -78,7 +78,7 @@ func TestMCRLifecycle(t *testing.T) {
 			}
 
 			if attempt == maxAttempts {
-				t.Fatalf("MCR did not reach CONFIGURED state within the expected time: %s", output)
+				t.Fatalf("MCR did not reach CONFIGURED or LIVE state within the expected time: %s", output)
 			}
 
 			time.Sleep(30 * time.Second)

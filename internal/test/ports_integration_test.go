@@ -64,7 +64,7 @@ func TestPortLifecycle(t *testing.T) {
 			t.Skip("Skipping because port creation failed")
 		}
 
-		maxAttempts := 20
+		maxAttempts := 10
 		for attempt := 1; attempt <= maxAttempts; attempt++ {
 			t.Logf("Checking port status, attempt %d of %d", attempt, maxAttempts)
 
@@ -78,7 +78,7 @@ func TestPortLifecycle(t *testing.T) {
 			}
 
 			if attempt == maxAttempts {
-				t.Fatalf("Port did not reach CONFIGURED state within the expected time: %s", output)
+				t.Fatalf("Port did not reach CONFIGURED or LIVE state within the expected time: %s", output)
 			}
 
 			time.Sleep(30 * time.Second)
@@ -193,7 +193,7 @@ func TestLAGPortLifecycle(t *testing.T) {
 			t.Skip("Skipping because LAG port creation failed")
 		}
 
-		maxAttempts := 20
+		maxAttempts := 10
 		for attempt := 1; attempt <= maxAttempts; attempt++ {
 			t.Logf("Checking LAG port status, attempt %d of %d", attempt, maxAttempts)
 
@@ -207,7 +207,7 @@ func TestLAGPortLifecycle(t *testing.T) {
 			}
 
 			if attempt == maxAttempts {
-				t.Fatalf("LAG Port did not reach CONFIGURED state within the expected time: %s", output)
+				t.Fatalf("LAG Port did not reach CONFIGURED or LIVE state within the expected time: %s", output)
 			}
 
 			time.Sleep(30 * time.Second)
@@ -404,7 +404,7 @@ func TestTempJSONFileLifecycle(t *testing.T) {
 			t.Skip("Skipping because port creation failed")
 		}
 
-		maxAttempts := 20
+		maxAttempts := 10
 		for attempt := 1; attempt <= maxAttempts; attempt++ {
 			t.Logf("Checking port status, attempt %d of %d", attempt, maxAttempts)
 
@@ -418,7 +418,7 @@ func TestTempJSONFileLifecycle(t *testing.T) {
 			}
 
 			if attempt == maxAttempts {
-				t.Fatalf("Port did not reach CONFIGURED state within the expected time: %s", output)
+				t.Fatalf("Port did not reach CONFIGURED or LIVE state within the expected time: %s", output)
 			}
 
 			time.Sleep(30 * time.Second)
