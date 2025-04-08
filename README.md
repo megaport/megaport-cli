@@ -1,8 +1,5 @@
 # Megaport CLI
 
-![Version](https://img.shields.io/github/v/release/megaport/megaport-cli)
-![License](https://img.shields.io/github/license/megaport/megaport-cli)
-
 > [!CAUTION]
 > The Megaport CLI tool is currently an unsupported alpha, we're excited for feedback but please know that functionality and features may change drastically, and there may be bugs.
 
