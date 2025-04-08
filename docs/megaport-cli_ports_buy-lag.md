@@ -21,28 +21,9 @@ This command allows you to purchase a LAG port by providing the necessary detail
   - `diversity-zone`: The diversity zone for the LAG port
   - `promo-code`: A promotional code for the LAG port
 
-### Example Usage
+### Important Notes
+  - Required flags can be skipped when using --interactive, --json, or --json-file
 
-```
-  buy-lag --interactive
-  buy-lag --name "My LAG Port" --term 12 --port-speed 10000 --location-id 123 --lag-count 2 --marketplace-visibility true
-  buy-lag --json '{"name":"My LAG Port","term":12,"portSpeed":10000,"locationId":123,"lagCount":2,"marketPlaceVisibility":true}'
-  buy-lag --json-file ./lag-port-config.json
-```
-### JSON Format Example
-```json
-{
-  "name": "My LAG Port",
-  "term": 12,
-  "portSpeed": 10000,
-  "locationId": 123,
-  "lagCount": 2,
-  "marketPlaceVisibility": true,
-  "diversityZone": "A",
-  "costCentre": "IT-2023"
-}
-
-```
 
 
 ## Usage

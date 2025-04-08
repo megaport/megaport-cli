@@ -20,6 +20,9 @@ This command allows you to purchase a port by providing the necessary details.
   - `diversity-zone`: The diversity zone for the port
   - `promo-code`: A promotional code for the port
 
+### Important Notes
+  - Required flags (name, term, port-speed, location-id, marketplace-visibility) can be skipped when using --interactive, --json, or --json-file
+
 ### Example Usage
 
 ```

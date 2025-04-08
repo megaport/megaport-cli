@@ -15,29 +15,8 @@ This command allows you to update the details of an existing port by providing t
   - `term`: The new contract term in months (1, 12, 24, or 36)
 
 ### Important Notes
-  - The port UID cannot be changed
-  - Technical specifications (speed, location) cannot be modified
-  - Connectivity (VXCs) will not be affected by these changes
-  - Changing the contract term may affect billing immediately
+  - At least one update flag must be provided when not using --interactive, --json, or --json-file
 
-### Example Usage
-
-```
-  update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --interactive
-  update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --name "Main Data Center Port" --marketplace-visibility false
-  update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json '{"name":"Main Data Center Port","marketplaceVisibility":false}'
-  update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json-file ./update-port-config.json
-```
-### JSON Format Example
-```json
-{
-  "name": "Main Data Center Port",
-  "marketplaceVisibility": false,
-  "costCentre": "IT-Network-2023",
-  "term": 24
-}
-
-```
 
 
 ## Usage
