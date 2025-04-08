@@ -38,8 +38,8 @@ func (b *CommandBuilder) WithPortUpdateFlags() *CommandBuilder {
 
 // WithPortFilterFlags adds flags for filtering port lists
 func (b *CommandBuilder) WithPortFilterFlags() *CommandBuilder {
-	b.WithFlag("location-id", "0", "Filter ports by location ID")
-	b.WithFlag("port-speed", "0", "Filter ports by port speed")
+	b.WithIntFlag("location-id", 0, "Filter ports by location ID")
+	b.WithIntFlag("port-speed", 0, "Filter ports by port speed")
 	b.WithFlag("port-name", "", "Filter ports by port name")
 	return b
 }

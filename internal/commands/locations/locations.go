@@ -17,6 +17,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	listLocationsCmd := cmdbuilder.NewCommand("list", "List all locations").
 		WithLongDesc("List all locations available in the Megaport API.\n\nThis command fetches and displays a list of all available locations with details such as location ID, name, country, and metro. You can also filter the locations based on specific criteria.").
 		WithLocationsFilterFlags().
+		WithOutputFormatRunFunc(ListLocations).
 		WithExample("list").
 		WithExample("list --metro \"San Francisco\"").
 		WithExample("list --country \"US\"").
