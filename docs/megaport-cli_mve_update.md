@@ -58,12 +58,12 @@ megaport-cli mve update [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| `--contract-term` |  | `0` | New contract term in months (1, 12, 24, or 36) | false |
 | `--cost-centre` |  |  | The new cost centre for billing purposes | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 | `--name` |  |  | The new name of the MVE (1-64 characters) | false |
+| `--term` |  | `0` | New contract term in months (1, 12, 24, or 36) | false |
 
 
 
