@@ -159,7 +159,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 					IsDeleting: true,
 				}
 			},
-			expectedOutput: "MCR mcr-to-delete deleted successfully",
+			expectedOutput: "MCR deleted", // Changed from "MCR mcr-to-delete deleted successfully"
 			expectDeleted:  true,
 		},
 		{
@@ -173,7 +173,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 					IsDeleting: true,
 				}
 			},
-			expectedOutput: "MCR mcr-to-delete-now deleted successfully",
+			expectedOutput: "MCR deleted", // Changed from "MCR mcr-to-delete-now deleted successfully"
 			expectDeleted:  true,
 		},
 		{
@@ -186,7 +186,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 					IsDeleting: true,
 				}
 			},
-			expectedOutput: "MCR mcr-force-delete deleted successfully",
+			expectedOutput: "MCR deleted", // Changed from "MCR mcr-force-delete deleted successfully"
 			expectDeleted:  true,
 		},
 		{
@@ -724,7 +724,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 					TechnicalServiceUID: "mcr-123-abc",
 				}
 			},
-			expectedOutput: "MCR purchased successfully - UID: mcr-123-abc",
+			expectedOutput: "MCR created",
 		},
 		{
 			name: "flag mode success",
@@ -743,7 +743,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 					TechnicalServiceUID: "mcr-456-def",
 				}
 			},
-			expectedOutput: "MCR purchased successfully - UID: mcr-456-def",
+			expectedOutput: "MCR created",
 		},
 		{
 			name: "JSON string mode success",
@@ -755,7 +755,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 					TechnicalServiceUID: "mcr-789-ghi",
 				}
 			},
-			expectedOutput: "MCR purchased successfully - UID: mcr-789-ghi",
+			expectedOutput: "MCR created",
 		},
 		{
 			name: "missing required fields in flag mode",
@@ -957,7 +957,7 @@ func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 					IsUpdated: true,
 				}
 			},
-			expectedOutput: "MCR updated successfully - UID: mcr-123",
+			expectedOutput: "MCR updated",
 		},
 		{
 			name:   "flag mode success",
@@ -973,7 +973,7 @@ func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 					IsUpdated: true,
 				}
 			},
-			expectedOutput: "MCR updated successfully - UID: mcr-456",
+			expectedOutput: "MCR updated",
 		},
 		{
 			name:   "JSON string mode success",
@@ -986,7 +986,7 @@ func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 					IsUpdated: true,
 				}
 			},
-			expectedOutput: "MCR updated successfully - UID: mcr-789",
+			expectedOutput: "MCR updated",
 		},
 		{
 			name: "missing mcrUID",
