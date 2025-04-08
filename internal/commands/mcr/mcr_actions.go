@@ -251,7 +251,7 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	if jsonStr != "" || jsonFile != "" {
 		// JSON mode
 		output.PrintInfo("Using JSON input", noColor)
-		prefixFilterList, getErr = processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile, prefixFilterListID)
+		prefixFilterList, getErr = processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile, mcrUID, prefixFilterListID)
 		if getErr != nil {
 			output.PrintError("Failed to process JSON input: %v", noColor, getErr)
 			return getErr
@@ -259,7 +259,7 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	} else if flagsProvided {
 		// Flag mode
 		output.PrintInfo("Using flag input", noColor)
-		prefixFilterList, getErr = processFlagUpdatePrefixFilterListInput(cmd, prefixFilterListID)
+		prefixFilterList, getErr = processFlagUpdatePrefixFilterListInput(cmd, mcrUID, prefixFilterListID)
 		if getErr != nil {
 			output.PrintError("Failed to process flag input: %v", noColor, getErr)
 			return getErr
@@ -271,7 +271,7 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 			return getErr
 		}
 	} else {
-		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify prefix filter list update details")
+		return fmt.Errorf("at least one field must be updated")
 	}
 
 	// Call the ModifyMCRPrefixFilterList method

@@ -8,15 +8,11 @@ Create a prefix filter list on an MCR.
 
 This command allows you to create a new prefix filter list on an MCR. Prefix filter lists are used to control which routes are accepted or advertised by the MCR.
 
-### Required Fields
-  - `address-family`: The address family (IPv4 or IPv6)
-  - `description`: The description of the prefix filter list (1-255 characters)
-  - `entries`: JSON array of prefix filter entries
-
 ### Important Notes
   - The address_family must be either "IPv4" or "IPv6"
   - The entries must be a valid JSON array of prefix filter entries
   - The ge and le values are optional but must be within the range of the prefix length
+  - Required flags (description, address-family, entries) can be skipped when using --interactive, --json, or --json-file
 
 ### Example Usage
 
@@ -67,6 +63,9 @@ megaport-cli mcr create-prefix-filter-list [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
+| `--address-family` |  |  | Address family (IPv4 or IPv6) | false |
+| `--description` |  |  | Description of the prefix filter list | false |
+| `--entries` |  |  | JSON array of prefix filter entries | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |

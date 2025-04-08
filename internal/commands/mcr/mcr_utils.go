@@ -588,160 +588,6 @@ func validatePrefixFilterListRequest(req *megaport.CreateMCRPrefixFilterListRequ
 	return nil
 }
 
-// Process JSON input for updating prefix filter list
-func processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile string, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
-	var jsonData []byte
-	var err error
-
-	if jsonFile != "" {
-		// Read from file
-		jsonData, err = os.ReadFile(jsonFile)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-	} else {
-		// Use the provided string
-		jsonData = []byte(jsonStr)
-	}
-
-	// Parse JSON into a temporary struct
-	var tempData struct {
-		Description   string `json:"description"`
-		AddressFamily string `json:"addressFamily"`
-		Entries       []struct {
-			Action string `json:"action"`
-			Prefix string `json:"prefix"`
-			Ge     *int   `json:"ge,omitempty"`
-			Le     *int   `json:"le,omitempty"`
-		} `json:"entries"`
-	}
-
-	if err := json.Unmarshal(jsonData, &tempData); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
-	}
-
-	// Convert to the SDK structure
-	entries := make([]*megaport.MCRPrefixListEntry, len(tempData.Entries))
-	for i, entry := range tempData.Entries {
-		var geValue int
-		if entry.Ge != nil {
-			geValue = *entry.Ge
-		}
-
-		var leValue int
-		if entry.Le != nil {
-			leValue = *entry.Le
-		}
-
-		entries[i] = &megaport.MCRPrefixListEntry{
-			Action: entry.Action,
-			Prefix: entry.Prefix,
-			Ge:     geValue,
-			Le:     leValue,
-		}
-	}
-
-	prefixFilterList := &megaport.MCRPrefixFilterList{
-		ID:            prefixFilterListID,
-		Description:   tempData.Description,
-		AddressFamily: tempData.AddressFamily,
-		Entries:       entries,
-	}
-
-	// Validate the request
-	if err := validateUpdatePrefixFilterList(prefixFilterList); err != nil {
-		return nil, err
-	}
-
-	return prefixFilterList, nil
-}
-
-// Fix for updating prefix filter list - ensure correct types are used
-func processFlagUpdatePrefixFilterListInput(cmd *cobra.Command, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
-	// Get fields
-	description, _ := cmd.Flags().GetString("description")
-	addressFamily, _ := cmd.Flags().GetString("address-family")
-	entriesJSON, _ := cmd.Flags().GetString("entries")
-
-	// Parse entries from JSON string
-	var entriesData []struct {
-		Action string `json:"action"`
-		Prefix string `json:"prefix"`
-		Ge     *int   `json:"ge,omitempty"`
-		Le     *int   `json:"le,omitempty"`
-	}
-
-	if entriesJSON != "" {
-		if err := json.Unmarshal([]byte(entriesJSON), &entriesData); err != nil {
-			return nil, fmt.Errorf("error parsing entries JSON: %v", err)
-		}
-	}
-
-	// Convert to the correct type
-	entries := make([]*megaport.MCRPrefixListEntry, len(entriesData))
-	for i, entry := range entriesData {
-		var geValue int
-		if entry.Ge != nil {
-			geValue = *entry.Ge
-		}
-
-		// Similarly for Le
-		var leValue int
-		if entry.Le != nil {
-			leValue = *entry.Le
-		}
-
-		entries[i] = &megaport.MCRPrefixListEntry{
-			Action: entry.Action,
-			Prefix: entry.Prefix,
-			Ge:     geValue,
-			Le:     leValue,
-		}
-	}
-
-	prefixFilterList := &megaport.MCRPrefixFilterList{
-		ID:            prefixFilterListID,
-		Description:   description,
-		AddressFamily: addressFamily,
-		Entries:       entries,
-	}
-
-	// Validate required fields
-	if err := validateUpdatePrefixFilterList(prefixFilterList); err != nil {
-		return nil, err
-	}
-
-	return prefixFilterList, nil
-}
-
-// Validate update prefix filter list
-func validateUpdatePrefixFilterList(prefixFilterList *megaport.MCRPrefixFilterList) error {
-	if prefixFilterList.Description == "" {
-		return fmt.Errorf("description is required")
-	}
-	if prefixFilterList.AddressFamily == "" {
-		return fmt.Errorf("address family is required")
-	}
-	if prefixFilterList.AddressFamily != "IPv4" && prefixFilterList.AddressFamily != "IPv6" {
-		return fmt.Errorf("invalid address family, must be IPv4 or IPv6")
-	}
-	if len(prefixFilterList.Entries) == 0 {
-		return fmt.Errorf("at least one entry is required")
-	}
-
-	// Validate each entry
-	for i, entry := range prefixFilterList.Entries {
-		if entry.Prefix == "" {
-			return fmt.Errorf("entry %d: prefix is required", i+1)
-		}
-		if entry.Action != "permit" && entry.Action != "deny" {
-			return fmt.Errorf("entry %d: invalid action, must be permit or deny", i+1)
-		}
-	}
-
-	return nil
-}
-
 // Also fix promptForPrefixFilterListDetails to return the correct structure
 func promptForPrefixFilterListDetails(mcrUID string, noColor bool) (*megaport.CreateMCRPrefixFilterListRequest, error) {
 	description, err := utils.Prompt("Enter description (required): ", noColor)
@@ -831,6 +677,246 @@ func promptForPrefixFilterListDetails(mcrUID string, noColor bool) (*megaport.Cr
 	return req, nil
 }
 
+// Process JSON input for updating prefix filter list
+func processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile string, mcrUID string, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
+	var jsonData []byte
+	var err error
+
+	if jsonFile != "" {
+		// Read from file
+		jsonData, err = os.ReadFile(jsonFile)
+		if err != nil {
+			return nil, fmt.Errorf("error reading JSON file: %v", err)
+		}
+	} else {
+		// Use the provided string
+		jsonData = []byte(jsonStr)
+	}
+
+	// Parse JSON into a temporary struct
+	var tempData struct {
+		Description   string `json:"description"`
+		AddressFamily string `json:"addressFamily"`
+		Entries       []struct {
+			Action string `json:"action"`
+			Prefix string `json:"prefix"`
+			Ge     *int   `json:"ge,omitempty"`
+			Le     *int   `json:"le,omitempty"`
+		} `json:"entries"`
+	}
+
+	if err := json.Unmarshal(jsonData, &tempData); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %v", err)
+	}
+
+	// Check if at least one field is being updated
+	descriptionProvided := tempData.Description != ""
+	entriesProvided := len(tempData.Entries) > 0
+
+	if !descriptionProvided && !entriesProvided {
+		return nil, fmt.Errorf("at least one field (description or entries) must be updated")
+	}
+
+	// Check if address family was provided in JSON - if so, warn that it can't be changed
+	if tempData.AddressFamily != "" {
+		// We need to get the current address family to validate it hasn't changed
+		ctx := context.Background()
+		client, err := config.Login(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
+		if err != nil {
+			return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
+		}
+
+		if tempData.AddressFamily != currentPrefixFilterList.AddressFamily {
+			return nil, fmt.Errorf("address family cannot be changed after creation (current: %s, requested: %s)",
+				currentPrefixFilterList.AddressFamily, tempData.AddressFamily)
+		}
+	}
+
+	entries := make([]*megaport.MCRPrefixListEntry, len(tempData.Entries))
+	for i, entry := range tempData.Entries {
+		var geValue int
+		if entry.Ge != nil {
+			geValue = *entry.Ge
+		}
+
+		var leValue int
+		if entry.Le != nil {
+			leValue = *entry.Le
+		}
+
+		entries[i] = &megaport.MCRPrefixListEntry{
+			Action: entry.Action,
+			Prefix: entry.Prefix,
+			Ge:     geValue,
+			Le:     leValue,
+		}
+	}
+
+	// Use the current address family instead of the one from JSON
+	ctx := context.Background()
+	client, err := config.Login(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
+	}
+
+	// If description is not provided, keep the current one
+	description := tempData.Description
+	if !descriptionProvided {
+		description = currentPrefixFilterList.Description
+	}
+
+	// If entries are not provided, keep the current ones
+	if !entriesProvided {
+		entries = currentPrefixFilterList.Entries
+	}
+
+	prefixFilterList := &megaport.MCRPrefixFilterList{
+		ID:            prefixFilterListID,
+		Description:   description,
+		AddressFamily: currentPrefixFilterList.AddressFamily, // Always use current address family
+		Entries:       entries,
+	}
+
+	// Validate the request
+	if err := validateUpdatePrefixFilterList(prefixFilterList); err != nil {
+		return nil, err
+	}
+
+	return prefixFilterList, nil
+}
+func processFlagUpdatePrefixFilterListInput(cmd *cobra.Command, mcrUID string, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
+	// Check if required update fields are provided
+	descriptionProvided := cmd.Flags().Changed("description")
+	entriesProvided := cmd.Flags().Changed("entries")
+
+	// Ensure at least one update field is provided
+	if !descriptionProvided && !entriesProvided {
+		return nil, fmt.Errorf("at least one field (description or entries) must be updated")
+	}
+
+	// Get fields
+	description, _ := cmd.Flags().GetString("description")
+	addressFamily, _ := cmd.Flags().GetString("address-family")
+	entriesJSON, _ := cmd.Flags().GetString("entries")
+
+	// Check if address family flag was set - if so, verify it hasn't changed
+	if cmd.Flags().Changed("address-family") {
+		ctx := context.Background()
+		client, err := config.Login(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
+		if err != nil {
+			return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
+		}
+
+		if addressFamily != currentPrefixFilterList.AddressFamily {
+			return nil, fmt.Errorf("address family cannot be changed after creation (current: %s, requested: %s)",
+				currentPrefixFilterList.AddressFamily, addressFamily)
+		}
+	}
+
+	// Get current prefix filter list to use existing values for fields that aren't being updated
+	ctx := context.Background()
+	client, err := config.Login(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
+	}
+
+	// Use existing description if not provided
+	if !descriptionProvided {
+		description = currentPrefixFilterList.Description
+	}
+
+	// Use existing entries if not provided
+	entries := currentPrefixFilterList.Entries
+
+	// Parse entries from JSON string if provided
+	if entriesProvided {
+		var entriesData []struct {
+			Action string `json:"action"`
+			Prefix string `json:"prefix"`
+			Ge     *int   `json:"ge,omitempty"`
+			Le     *int   `json:"le,omitempty"`
+		}
+
+		if err := json.Unmarshal([]byte(entriesJSON), &entriesData); err != nil {
+			return nil, fmt.Errorf("error parsing entries JSON: %v", err)
+		}
+
+		// Convert to the correct type
+		entries = make([]*megaport.MCRPrefixListEntry, len(entriesData))
+		for i, entry := range entriesData {
+			var geValue int
+			if entry.Ge != nil {
+				geValue = *entry.Ge
+			}
+
+			// Similarly for Le
+			var leValue int
+			if entry.Le != nil {
+				leValue = *entry.Le
+			}
+
+			entries[i] = &megaport.MCRPrefixListEntry{
+				Action: entry.Action,
+				Prefix: entry.Prefix,
+				Ge:     geValue,
+				Le:     leValue,
+			}
+		}
+	}
+
+	prefixFilterList := &megaport.MCRPrefixFilterList{
+		ID:            prefixFilterListID,
+		Description:   description,
+		AddressFamily: currentPrefixFilterList.AddressFamily, // Always use current address family
+		Entries:       entries,
+	}
+
+	// Validate required fields
+	if err := validateUpdatePrefixFilterList(prefixFilterList); err != nil {
+		return nil, err
+	}
+
+	return prefixFilterList, nil
+}
+
+func validateUpdatePrefixFilterList(prefixFilterList *megaport.MCRPrefixFilterList) error {
+	// If entries are provided, validate them
+	if len(prefixFilterList.Entries) > 0 {
+		// Validate each entry
+		for i, entry := range prefixFilterList.Entries {
+			if entry.Prefix == "" {
+				return fmt.Errorf("entry %d: prefix is required", i+1)
+			}
+			if entry.Action != "permit" && entry.Action != "deny" {
+				return fmt.Errorf("entry %d: invalid action, must be permit or deny", i+1)
+			}
+		}
+	}
+
+	return nil
+}
+
+// Update the interactive prompting function to not allow changing address family
 func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID int, noColor bool) (*megaport.MCRPrefixFilterList, error) {
 	ctx := context.Background()
 	client, err := config.Login(ctx)
@@ -852,16 +938,9 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 		description = currentPrefixFilterList.Description
 	}
 
-	fmt.Printf("Current address family: %s\n", currentPrefixFilterList.AddressFamily)
-	addressFamily, err := utils.Prompt("Enter new address family (IPv4 or IPv6, leave empty to keep current): ", noColor)
-	if err != nil {
-		return nil, err
-	}
-	if addressFamily == "" {
-		addressFamily = currentPrefixFilterList.AddressFamily
-	} else if addressFamily != "IPv4" && addressFamily != "IPv6" {
-		return nil, fmt.Errorf("invalid address family, must be IPv4 or IPv6")
-	}
+	// Just display the address family but don't allow changing it
+	fmt.Printf("Address family: %s (cannot be changed after creation)\n", currentPrefixFilterList.AddressFamily)
+	addressFamily := currentPrefixFilterList.AddressFamily
 
 	// Initialize a zero-length slice with capacity to hold existing entries
 	entries := make([]*megaport.MCRPrefixListEntry, 0, len(currentPrefixFilterList.Entries))
@@ -1015,7 +1094,7 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 	prefixFilterList := &megaport.MCRPrefixFilterList{
 		ID:            prefixFilterListID,
 		Description:   description,
-		AddressFamily: addressFamily,
+		AddressFamily: addressFamily, // Always use current address family
 		Entries:       entries,
 	}
 

@@ -9,7 +9,9 @@ Update an existing Megaport Cloud Router (MCR).
 This command allows you to update the details of an existing MCR.
 
 ### Optional Fields
-  - `term`: The new contract term in months (1, 12, 24, or 36)
+  - `cost-centre`: The new cost centre for the MCR
+  - `marketplace-visibility`: Whether the MCR is visible in the marketplace (true/false)
+  - `name`: The new name of the MCR (1-64 characters)
 
 ### Important Notes
   - The MCR UID cannot be changed
@@ -30,7 +32,7 @@ This command allows you to update the details of an existing MCR.
   "name": "Updated MCR",
   "marketplaceVisibility": true,
   "costCentre": "Finance",
-  "term": 24
+  "contractTermMonths": 24
 }
 
 ```
@@ -55,9 +57,12 @@ megaport-cli mcr update [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
+| `--cost-centre` |  |  | The new cost centre for the MCR | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
+| `--marketplace-visibility` |  | `false` | Whether the MCR is visible in the marketplace (true/false) | false |
+| `--name` |  |  | The new name of the MCR (1-64 characters) | false |
 
 
 
