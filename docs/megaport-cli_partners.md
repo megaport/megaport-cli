@@ -11,9 +11,9 @@ This command groups all operations related to partner ports. You can use its sub
 ### Example Usage
 
 ```sh
-  partners find
-  partners list
-  partners list --product-name "AWS Partner Port" --company-name "AWS" --location-id 1
+  megaport-cli partners find
+  megaport-cli partners list
+  megaport-cli partners list --product-name "AWS Partner Port" --company-name "AWS" --location-id 1
 ```
 
 ## Usage
@@ -23,16 +23,12 @@ megaport-cli partners [flags]
 ```
 
 
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-
 ## Subcommands
-
 * [find](megaport-cli_partners_find.md)
 * [list](megaport-cli_partners_list.md)
 

@@ -23,10 +23,10 @@ This command allows you to update specific properties of an existing MVE without
 ### Example Usage
 
 ```sh
-  update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
-  update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --name "Edge Router West" --cost-centre "IT-Network-2023" --contract-term 24
-  update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json '{"name": "Edge Router West", "costCentre": "IT-Network-2023", "contractTermMonths": 24}'
-  update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json-file ./mve-update.json
+  megaport-cli mve update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
+  megaport-cli mve update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --name "Edge Router West" --cost-centre "IT-Network-2023" --contract-term 24
+  megaport-cli mve update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json '{"name": "Edge Router West", "costCentre": "IT-Network-2023", "contractTermMonths": 24}'
+  megaport-cli mve update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json-file ./mve-update.json
 ```
 ### JSON Format Example
 ```json
@@ -48,8 +48,6 @@ megaport-cli mve update [flags]
 ## Parent Command
 
 * [megaport-cli mve](megaport-cli_mve.md)
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
@@ -60,5 +58,4 @@ megaport-cli mve update [flags]
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 | `--name` |  |  | The new name of the MVE (1-64 characters) | false |
 | `--term` |  | `0` | New contract term in months (1, 12, 24, or 36) | false |
-
 

@@ -21,10 +21,10 @@ This command allows you to update the details of an existing MCR.
 ### Example Usage
 
 ```sh
-  update [mcrUID] --interactive
-  update [mcrUID] --name "Updated MCR" --marketplace-visibility true --cost-centre "Finance"
-  update [mcrUID] --json '{"name":"Updated MCR","marketplaceVisibility":true,"costCentre":"Finance"}'
-  update [mcrUID] --json-file ./update-mcr-config.json
+  megaport-cli mcr update [mcrUID] --interactive
+  megaport-cli mcr update [mcrUID] --name "Updated MCR" --marketplace-visibility true --cost-centre "Finance"
+  megaport-cli mcr update [mcrUID] --json '{"name":"Updated MCR","marketplaceVisibility":true,"costCentre":"Finance"}'
+  megaport-cli mcr update [mcrUID] --json-file ./update-mcr-config.json
 ```
 ### JSON Format Example
 ```json
@@ -47,8 +47,6 @@ megaport-cli mcr update [flags]
 ## Parent Command
 
 * [megaport-cli mcr](megaport-cli_mcr.md)
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
@@ -59,5 +57,4 @@ megaport-cli mcr update [flags]
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 | `--marketplace-visibility` |  | `false` | Whether the MCR is visible in the marketplace (true/false) | false |
 | `--name` |  |  | The new name of the MCR (1-64 characters) | false |
-
 

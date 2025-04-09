@@ -11,7 +11,7 @@ This command retrieves and displays detailed information about a specific prefix
 ### Example Usage
 
 ```sh
-  get-prefix-filter-list [mcrUID] [prefixFilterListID]
+  megaport-cli mcr get-prefix-filter-list [mcrUID] [prefixFilterListID]
 ```
 
 ## Usage
@@ -24,11 +24,8 @@ megaport-cli mcr get-prefix-filter-list [flags]
 ## Parent Command
 
 * [megaport-cli mcr](megaport-cli_mcr.md)
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 

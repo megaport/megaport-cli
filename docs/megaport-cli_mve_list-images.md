@@ -22,9 +22,9 @@ This command fetches and displays a list of all available MVE images with detail
 ### Example Usage
 
 ```sh
-  list-images
-  list-images --vendor "Cisco"
-  list-images --vendor "Fortinet" --release-image
+  megaport-cli mve list-images
+  megaport-cli mve list-images --vendor "Cisco"
+  megaport-cli mve list-images --vendor "Fortinet" --release-image
 ```
 
 ## Usage
@@ -37,8 +37,6 @@ megaport-cli mve list-images [flags]
 ## Parent Command
 
 * [megaport-cli mve](megaport-cli_mve.md)
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
@@ -48,5 +46,4 @@ megaport-cli mve list-images [flags]
 | `--release-image` |  | `false` | Filter images by release image (only show release images) | false |
 | `--vendor` |  |  | Filter images by vendor | false |
 | `--version` |  |  | Filter images by version | false |
-
 

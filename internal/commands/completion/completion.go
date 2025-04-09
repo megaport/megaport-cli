@@ -14,10 +14,10 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithArgs(cobra.ExactArgs(1)).
 		WithRunFunc(RunCompletion).
 		WithValidArgs([]string{"bash", "zsh", "fish", "powershell"}).
-		WithExample("completion bash > ~/.bash_completion.d/megaport-cli").
-		WithExample("completion zsh > \"${fpath[1]}/_megaport-cli\"").
-		WithExample("completion fish > ~/.config/fish/completions/megaport-cli.fish").
-		WithExample("completion powershell > megaport-cli.ps1").
+		WithExample("megaport-cli completion bash > ~/.bash_completion.d/megaport-cli").
+		WithExample("megaport-cli completion zsh > \"${fpath[1]}/_megaport-cli\"").
+		WithExample("megaport-cli completion fish > ~/.config/fish/completions/megaport-cli.fish").
+		WithExample("megaport-cli completion powershell > megaport-cli.ps1").
 		WithImportantNote("Bash: source <(megaport-cli completion bash)").
 		WithImportantNote("Zsh: You need to enable shell completion with 'autoload -U compinit; compinit'").
 		WithImportantNote("Fish: megaport-cli completion fish | source").

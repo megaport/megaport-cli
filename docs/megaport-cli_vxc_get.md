@@ -14,7 +14,7 @@ This command retrieves detailed information for a single Virtual Cross Connect (
 ### Example Usage
 
 ```sh
-  get vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  megaport-cli vxc get vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
 ## Usage
@@ -27,11 +27,8 @@ megaport-cli vxc get [flags]
 ## Parent Command
 
 * [megaport-cli vxc](megaport-cli_vxc.md)
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 

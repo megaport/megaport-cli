@@ -11,16 +11,16 @@ This command groups operations related to ports. You can use the subcommands to 
 ### Example Usage
 
 ```sh
-  ports list
-  ports get [portUID]
-  ports buy --interactive
-  ports buy-lag --interactive
-  ports update [portUID] --name "Updated Port Name"
-  ports delete [portUID]
-  ports restore [portUID]
-  ports lock [portUID]
-  ports unlock [portUID]
-  ports check-vlan [portUID] [vlan]
+  megaport-cli ports list
+  megaport-cli ports get [portUID]
+  megaport-cli ports buy --interactive
+  megaport-cli ports buy-lag --interactive
+  megaport-cli ports update [portUID] --name "Updated Port Name"
+  megaport-cli ports delete [portUID]
+  megaport-cli ports restore [portUID]
+  megaport-cli ports lock [portUID]
+  megaport-cli ports unlock [portUID]
+  megaport-cli ports check-vlan [portUID] [vlan]
 ```
 
 ## Usage
@@ -30,16 +30,12 @@ megaport-cli ports [flags]
 ```
 
 
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-
 ## Subcommands
-
 * [buy](megaport-cli_ports_buy.md)
 * [buy-lag](megaport-cli_ports_buy-lag.md)
 * [check-vlan](megaport-cli_ports_check-vlan.md)

@@ -30,10 +30,10 @@ This command allows you to purchase an MCR by providing the necessary details.
 ### Example Usage
 
 ```sh
-  buy --interactive
-  buy --name "My MCR" --term 12 --port-speed 5000 --location-id 123 --mcr-asn 65000
-  buy --json '{"name":"My MCR","term":12,"portSpeed":5000,"locationId":123,"mcrAsn":65000}'
-  buy --json-file ./mcr-config.json
+  megaport-cli mcr buy --interactive
+  megaport-cli mcr buy --name "My MCR" --term 12 --port-speed 5000 --location-id 123 --mcr-asn 65000
+  megaport-cli mcr buy --json '{"name":"My MCR","term":12,"portSpeed":5000,"locationId":123,"mcrAsn":65000}'
+  megaport-cli mcr buy --json-file ./mcr-config.json
 ```
 ### JSON Format Example
 ```json
@@ -60,8 +60,6 @@ megaport-cli mcr buy [flags]
 ## Parent Command
 
 * [megaport-cli mcr](megaport-cli_mcr.md)
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
@@ -78,5 +76,4 @@ megaport-cli mcr buy [flags]
 | `--port-speed` |  | `0` | The speed of the MCR (1000, 2500, 5000, or 10000 Mbps) | true |
 | `--promo-code` |  |  | A promotional code for discounts | false |
 | `--term` |  | `0` | The term of the MCR (1, 12, 24, or 36 months) | true |
-
 

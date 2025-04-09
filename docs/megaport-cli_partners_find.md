@@ -16,7 +16,7 @@ This command launches an interactive session to help you find partner ports. You
 ### Example Usage
 
 ```sh
-  find
+  megaport-cli find
 ```
 
 ## Usage
@@ -29,11 +29,8 @@ megaport-cli partners find [flags]
 ## Parent Command
 
 * [megaport-cli partners](megaport-cli_partners.md)
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 

@@ -46,6 +46,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 			fmt.Fprintf(cmd.OutOrStdout(), "Megaport CLI Version: %s\n", version)
 			return nil
 		}).
+		WithExample("megaport-cli version").
 		WithRootCmd(rootCmd).
 		Build()
 

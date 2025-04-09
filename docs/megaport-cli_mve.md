@@ -16,11 +16,11 @@ This command groups all operations related to Megaport Virtual Edge devices (MVE
 ### Example Usage
 
 ```sh
-  mve list
-  mve get [mveUID]
-  mve buy
-  mve update [mveUID]
-  mve delete [mveUID]
+  megaport-cli mve list
+  megaport-cli mve get [mveUID]
+  megaport-cli mve buy
+  megaport-cli mve update [mveUID]
+  megaport-cli mve delete [mveUID]
 ```
 
 ## Usage
@@ -30,16 +30,12 @@ megaport-cli mve [flags]
 ```
 
 
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-
 ## Subcommands
-
 * [buy](megaport-cli_mve_buy.md)
 * [delete](megaport-cli_mve_delete.md)
 * [get](megaport-cli_mve_get.md)

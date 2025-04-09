@@ -20,10 +20,10 @@ This command allows you to create a VXC by providing the necessary details.
 ### Example Usage
 
 ```sh
-  buy --interactive
-  buy --name "My VXC" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200
-  buy --json '{"vxcName":"My VXC","rateLimit":1000,"term":12,"portUid":"port-123","aEndConfiguration":{"vlan":100},"bEndConfiguration":{"productUID":"port-456","vlan":200}}'
-  buy --json-file ./vxc-config.json
+  megaport-cli vxc buy --interactive
+  megaport-cli vxc buy --name "My VXC" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200
+  megaport-cli vxc buy --json '{"vxcName":"My VXC","rateLimit":1000,"term":12,"portUid":"port-123","aEndConfiguration":{"vlan":100},"bEndConfiguration":{"productUID":"port-456","vlan":200}}'
+  megaport-cli vxc buy --json-file ./vxc-config.json
 ```
 
 ## Usage
@@ -36,8 +36,6 @@ megaport-cli vxc buy [flags]
 ## Parent Command
 
 * [megaport-cli vxc](megaport-cli_vxc.md)
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
@@ -61,5 +59,4 @@ megaport-cli vxc buy [flags]
 | `--rate-limit` |  | `0` | Bandwidth in Mbps | true |
 | `--service-key` |  |  | Service key | false |
 | `--term` |  | `0` | Contract term in months (1, 12, 24, or 36) | true |
-
 

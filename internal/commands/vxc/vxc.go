@@ -10,10 +10,10 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	// Create vxc parent command
 	vxcCmd := cmdbuilder.NewCommand("vxc", "Manage VXCs in the Megaport API").
 		WithLongDesc("Manage VXCs in the Megaport API.\n\nThis command groups all operations related to Virtual Cross Connects (VXCs). VXCs are virtual point-to-point connections between two ports or devices on the Megaport network. You can use the subcommands to perform actions such as retrieving details, purchasing, updating, and deleting VXCs.").
-		WithExample("vxc get [vxcUID]").
-		WithExample("vxc buy").
-		WithExample("vxc update [vxcUID]").
-		WithExample("vxc delete [vxcUID]").
+		WithExample("megaport-cli vxc get [vxcUID]").
+		WithExample("megaport-cli vxc buy").
+		WithExample("megaport-cli vxc update [vxcUID]").
+		WithExample("megaport-cli vxc delete [vxcUID]").
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -22,7 +22,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetVXC).
 		WithLongDesc("Get details for a single VXC through the Megaport API.\n\nThis command retrieves detailed information for a single Virtual Cross Connect (VXC). You must provide the unique identifier (UID) of the VXC you wish to retrieve.").
-		WithExample("get vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
+		WithExample("megaport-cli vxc get vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
 		WithImportantNote("The output includes the VXC's UID, name, rate limit, A-End and B-End details, status, and cost centre.").
 		WithRootCmd(rootCmd).
 		Build()
@@ -41,10 +41,10 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithDocumentedRequiredFlag("b-end-uid", "UID of the B-End product (if not using partner configuration)").
 		WithDocumentedRequiredFlag("a-end-vlan", "VLAN for A-End (0-4093, except 1)").
 		WithDocumentedRequiredFlag("b-end-vlan", "VLAN for B-End (0-4093, except 1)").
-		WithExample("buy --interactive").
-		WithExample("buy --name \"My VXC\" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200").
-		WithExample("buy --json '{\"vxcName\":\"My VXC\",\"rateLimit\":1000,\"term\":12,\"portUid\":\"port-123\",\"aEndConfiguration\":{\"vlan\":100},\"bEndConfiguration\":{\"productUID\":\"port-456\",\"vlan\":200}}'").
-		WithExample("buy --json-file ./vxc-config.json").
+		WithExample("megaport-cli vxc buy --interactive").
+		WithExample("megaport-cli vxc buy --name \"My VXC\" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200").
+		WithExample("megaport-cli vxc buy --json '{\"vxcName\":\"My VXC\",\"rateLimit\":1000,\"term\":12,\"portUid\":\"port-123\",\"aEndConfiguration\":{\"vlan\":100},\"bEndConfiguration\":{\"productUID\":\"port-456\",\"vlan\":200}}'").
+		WithExample("megaport-cli vxc buy --json-file ./vxc-config.json").
 		WithRootCmd(rootCmd).
 		WithConditionalRequirements("name", "rate-limit", "term", "a-end-uid", "a-end-vlan").
 		Build()
@@ -70,11 +70,11 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("b-end-uid", "New B-End product UID").
 		WithOptionalFlag("a-end-partner-config", "JSON string with A-End VRouter partner configuration").
 		WithOptionalFlag("b-end-partner-config", "JSON string with B-End VRouter partner configuration").
-		WithExample("update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive").
-		WithExample("update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --name \"New VXC Name\" --rate-limit 2000 --cost-centre \"New Cost Centre\"").
-		WithExample("update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --a-end-vlan 200 --b-end-vlan 300").
-		WithExample("update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --b-end-partner-config '{\"interfaces\":[{\"vlan\":100,\"ipAddresses\":[\"192.168.1.1/30\"],\"bgpConnections\":[{\"peerAsn\":65000,\"localAsn\":64512,\"localIpAddress\":\"192.168.1.1\",\"peerIpAddress\":\"192.168.1.2\",\"password\":\"bgppassword\",\"shutdown\":false,\"bfdEnabled\":true}]}]}'").
-		WithExample("update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{\"name\":\"Updated VXC Name\",\"rateLimit\":2000,\"costCentre\":\"New Cost Centre\",\"aEndVlan\":200,\"bEndVlan\":300,\"term\":24,\"shutdown\":false}'").
+		WithExample("megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive").
+		WithExample("megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --name \"New VXC Name\" --rate-limit 2000 --cost-centre \"New Cost Centre\"").
+		WithExample("megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --a-end-vlan 200 --b-end-vlan 300").
+		WithExample("megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --b-end-partner-config '{\"interfaces\":[{\"vlan\":100,\"ipAddresses\":[\"192.168.1.1/30\"],\"bgpConnections\":[{\"peerAsn\":65000,\"localAsn\":64512,\"localIpAddress\":\"192.168.1.1\",\"peerIpAddress\":\"192.168.1.2\",\"password\":\"bgppassword\",\"shutdown\":false,\"bfdEnabled\":true}]}]}'").
+		WithExample("megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{\"name\":\"Updated VXC Name\",\"rateLimit\":2000,\"costCentre\":\"New Cost Centre\",\"aEndVlan\":200,\"bEndVlan\":300,\"term\":24,\"shutdown\":false}'").
 		WithJSONExample(`{
   "name": "Updated VXC Name",
   "rateLimit": 2000,
@@ -97,9 +97,9 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithColorAwareRunFunc(DeleteVXC).
 		WithDeleteFlags().
 		WithLongDesc("Delete an existing Virtual Cross Connect (VXC) through the Megaport API.\n\nThis command allows you to delete an existing VXC by providing its UID.").
-		WithExample("delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
-		WithExample("delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --force").
-		WithExample("delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --now").
+		WithExample("megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
+		WithExample("megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --force").
+		WithExample("megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --now").
 		WithImportantNote("Deletion is final and cannot be undone").
 		WithImportantNote("Billing for the VXC stops at the end of the current billing period").
 		WithImportantNote("The VXC is immediately disconnected upon deletion").
