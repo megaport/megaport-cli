@@ -56,7 +56,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
   "portSpeed": 5000,
   "locationId": 123,
   "mcrAsn": 65000,
-  "diversityZone": "zone-a",
+  "diversityZone": "blue",
   "costCentre": "IT-Networking",
   "promoCode": "SUMMER2024"
 }`).

@@ -40,7 +40,7 @@ This command allows you to purchase an MVE by providing the necessary details.
   "name": "My MVE Display Name",
   "term": 12,
   "locationId": 123,
-  "diversityZone": "zone-1",
+  "diversityZone": "blue",
   "promoCode": "PROMO2023",
   "costCentre": "Marketing Dept",
   "vendorConfig": {

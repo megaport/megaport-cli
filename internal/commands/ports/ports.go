@@ -47,7 +47,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
   "portSpeed": 10000,
   "locationId": 123,
   "marketPlaceVisibility": true,
-  "diversityZone": "A",
+  "diversityZone": "blue",
   "costCentre": "IT-2023"
 }`).
 		WithImportantNote("Required flags (name, term, port-speed, location-id, marketplace-visibility) can be skipped when using --interactive, --json, or --json-file").
