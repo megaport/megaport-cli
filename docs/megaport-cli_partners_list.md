@@ -30,7 +30,6 @@ This command fetches and displays a list of all available partner ports. You can
   list --diversity-zone "Zone A"
 ```
 
-
 ## Usage
 
 ```sh
@@ -38,18 +37,14 @@ megaport-cli partners list [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli partners](megaport-cli_partners.md)
-
-
 
 
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 
 

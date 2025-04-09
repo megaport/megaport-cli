@@ -43,7 +43,6 @@ This command allows you to create a new prefix filter list on an MCR. Prefix fil
 
 ```
 
-
 ## Usage
 
 ```sh
@@ -51,12 +50,9 @@ megaport-cli mcr create-prefix-filter-list [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli mcr](megaport-cli_mcr.md)
-
-
 
 
 ## Flags
@@ -69,6 +65,5 @@ megaport-cli mcr create-prefix-filter-list [flags]
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
-
 
 

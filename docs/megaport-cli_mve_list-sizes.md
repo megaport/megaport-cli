@@ -18,7 +18,6 @@ This command fetches and displays details about all available MVE instance sizes
   list-sizes
 ```
 
-
 ## Usage
 
 ```sh
@@ -26,18 +25,14 @@ megaport-cli mve list-sizes [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli mve](megaport-cli_mve.md)
-
-
 
 
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 
 

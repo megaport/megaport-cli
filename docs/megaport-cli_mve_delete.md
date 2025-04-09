@@ -21,7 +21,6 @@ This command allows you to delete an existing MVE by providing its UID.
   delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now
 ```
 
-
 ## Usage
 
 ```sh
@@ -29,12 +28,9 @@ megaport-cli mve delete [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli mve](megaport-cli_mve.md)
-
-
 
 
 ## Flags
@@ -43,6 +39,5 @@ megaport-cli mve delete [flags]
 |------|-----------|---------|-------------|----------|
 | `--force` | `-f` | `false` | Skip confirmation prompt | false |
 | `--now` |  | `false` | Delete resource immediately instead of at end of billing cycle | false |
-
 
 

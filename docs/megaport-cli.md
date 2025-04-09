@@ -29,15 +29,11 @@ The CLI allows you to manage Megaport resources such as ports, VXCs, MCRs, MVEs,
   megaport-cli locations list
 ```
 
-
 ## Usage
 
 ```sh
 megaport-cli [flags]
 ```
-
-
-
 
 
 

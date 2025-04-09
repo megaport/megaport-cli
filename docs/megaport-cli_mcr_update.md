@@ -37,7 +37,6 @@ This command allows you to update the details of an existing MCR.
 
 ```
 
-
 ## Usage
 
 ```sh
@@ -45,12 +44,9 @@ megaport-cli mcr update [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli mcr](megaport-cli_mcr.md)
-
-
 
 
 ## Flags
@@ -63,6 +59,5 @@ megaport-cli mcr update [flags]
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 | `--marketplace-visibility` |  | `false` | Whether the MCR is visible in the marketplace (true/false) | false |
 | `--name` |  |  | The new name of the MCR (1-64 characters) | false |
-
 
 

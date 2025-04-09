@@ -18,7 +18,6 @@ This command allows you to update the details of an existing port by providing t
   - At least one update flag must be provided when not using --interactive, --json, or --json-file
 
 
-
 ## Usage
 
 ```sh
@@ -26,12 +25,9 @@ megaport-cli ports update [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli ports](megaport-cli_ports.md)
-
-
 
 
 ## Flags
@@ -45,6 +41,5 @@ megaport-cli ports update [flags]
 | `--marketplace-visibility` |  | `false` | Whether the port is visible in marketplace | false |
 | `--name` |  |  | New port name | false |
 | `--term` |  | `0` | New contract term in months (1, 12, 24, or 36) | false |
-
 
 

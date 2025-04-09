@@ -45,7 +45,6 @@ This command allows you to purchase a port by providing the necessary details.
 
 ```
 
-
 ## Usage
 
 ```sh
@@ -53,12 +52,9 @@ megaport-cli ports buy [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli ports](megaport-cli_ports.md)
-
-
 
 
 ## Flags
@@ -76,6 +72,5 @@ megaport-cli ports buy [flags]
 | `--port-speed` |  | `0` | The speed of the port (1000, 10000, or 100000 Mbps) | true |
 | `--promo-code` |  |  | Promotional code for discounts | false |
 | `--term` |  | `0` | The term of the port (1, 12, 24, or 36 months) | true |
-
 
 

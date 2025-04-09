@@ -61,7 +61,6 @@ This command allows you to purchase an MVE by providing the necessary details.
 
 ```
 
-
 ## Usage
 
 ```sh
@@ -69,12 +68,9 @@ megaport-cli mve buy [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli mve](megaport-cli_mve.md)
-
-
 
 
 ## Flags
@@ -92,6 +88,5 @@ megaport-cli mve buy [flags]
 | `--term` |  | `0` | The term of the MVE (1, 12, 24, or 36 months) | true |
 | `--vendor-config` |  |  | JSON string with vendor-specific configuration (for flag mode) | true |
 | `--vnics` |  |  | JSON array of network interfaces (for flag mode) | true |
-
 
 

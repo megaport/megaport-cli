@@ -25,7 +25,6 @@ This command fetches and displays a list of ports with details such as port ID, 
   list --location-id 1 --port-speed 10000 --port-name "Data Center Primary"
 ```
 
-
 ## Usage
 
 ```sh
@@ -33,12 +32,9 @@ megaport-cli ports list [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli ports](megaport-cli_ports.md)
-
-
 
 
 ## Flags
@@ -48,6 +44,5 @@ megaport-cli ports list [flags]
 | `--location-id` |  | `0` | Filter ports by location ID | false |
 | `--port-name` |  |  | Filter ports by port name | false |
 | `--port-speed` |  | `0` | Filter ports by port speed | false |
-
 
 

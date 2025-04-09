@@ -14,7 +14,6 @@ This command fetches and displays detailed information about a specific location
   get 1
 ```
 
-
 ## Usage
 
 ```sh
@@ -22,18 +21,14 @@ megaport-cli locations get [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli locations](megaport-cli_locations.md)
-
-
 
 
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 
 

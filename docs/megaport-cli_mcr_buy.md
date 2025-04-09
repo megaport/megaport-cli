@@ -50,7 +50,6 @@ This command allows you to purchase an MCR by providing the necessary details.
 
 ```
 
-
 ## Usage
 
 ```sh
@@ -58,12 +57,9 @@ megaport-cli mcr buy [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli mcr](megaport-cli_mcr.md)
-
-
 
 
 ## Flags
@@ -82,6 +78,5 @@ megaport-cli mcr buy [flags]
 | `--port-speed` |  | `0` | The speed of the MCR (1000, 2500, 5000, or 10000 Mbps) | true |
 | `--promo-code` |  |  | A promotional code for discounts | false |
 | `--term` |  | `0` | The term of the MCR (1, 12, 24, or 36 months) | true |
-
 
 

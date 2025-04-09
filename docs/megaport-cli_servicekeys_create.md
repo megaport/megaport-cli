@@ -16,7 +16,6 @@ This command generates a new service key and displays its details.
   create --product-uid "product-uid" --start-date "2023-01-01" --end-date "2023-12-31"
 ```
 
-
 ## Usage
 
 ```sh
@@ -24,12 +23,9 @@ megaport-cli servicekeys create [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli servicekeys](megaport-cli_servicekeys.md)
-
-
 
 
 ## Flags
@@ -43,6 +39,5 @@ megaport-cli servicekeys create [flags]
 | `--product-uid` |  |  | Product UID for the service key | false |
 | `--single-use` |  | `false` | Single-use service key | false |
 | `--start-date` |  |  | Start date (YYYY-MM-DD) | false |
-
 
 

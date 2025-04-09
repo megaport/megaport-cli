@@ -21,7 +21,6 @@ This command allows you to lock an existing port, preventing any changes or modi
   lock 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
 ```
 
-
 ## Usage
 
 ```sh
@@ -29,18 +28,14 @@ megaport-cli ports lock [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli ports](megaport-cli_ports.md)
-
-
 
 
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 
 

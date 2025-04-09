@@ -17,15 +17,11 @@ This command groups all operations related to Virtual Cross Connects (VXCs). VXC
   vxc delete [vxcUID]
 ```
 
-
 ## Usage
 
 ```sh
 megaport-cli vxc [flags]
 ```
-
-
-
 
 
 

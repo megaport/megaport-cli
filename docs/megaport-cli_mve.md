@@ -23,15 +23,11 @@ This command groups all operations related to Megaport Virtual Edge devices (MVE
   mve delete [mveUID]
 ```
 
-
 ## Usage
 
 ```sh
 megaport-cli mve [flags]
 ```
-
-
-
 
 
 

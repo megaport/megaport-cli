@@ -23,15 +23,11 @@ This command groups all operations related to Megaport Cloud Routers (MCRs). MCR
   mcr delete [mcrUID]
 ```
 
-
 ## Usage
 
 ```sh
 megaport-cli mcr [flags]
 ```
-
-
-
 
 
 

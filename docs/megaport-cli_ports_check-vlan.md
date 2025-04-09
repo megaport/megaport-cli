@@ -17,7 +17,6 @@ VLAN ID must be between 2 and 4094 (inclusive).
   check-vlan port-abc123 500
 ```
 
-
 ## Usage
 
 ```sh
@@ -25,18 +24,14 @@ megaport-cli ports check-vlan [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli ports](megaport-cli_ports.md)
-
-
 
 
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 
 

@@ -20,7 +20,6 @@ This command allows you to unlock a previously locked port, re-enabling the abil
   unlock 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
 ```
 
-
 ## Usage
 
 ```sh
@@ -28,18 +27,14 @@ megaport-cli ports unlock [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli ports](megaport-cli_ports.md)
-
-
 
 
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 
 

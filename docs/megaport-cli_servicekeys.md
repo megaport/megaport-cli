@@ -17,15 +17,11 @@ This command groups all operations related to service keys. You can use its subc
   servicekeys update [key] --description "Updated description"
 ```
 
-
 ## Usage
 
 ```sh
 megaport-cli servicekeys [flags]
 ```
-
-
-
 
 
 

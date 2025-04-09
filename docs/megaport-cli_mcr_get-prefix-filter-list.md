@@ -14,7 +14,6 @@ This command retrieves and displays detailed information about a specific prefix
   get-prefix-filter-list [mcrUID] [prefixFilterListID]
 ```
 
-
 ## Usage
 
 ```sh
@@ -22,18 +21,14 @@ megaport-cli mcr get-prefix-filter-list [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli mcr](megaport-cli_mcr.md)
-
-
 
 
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 
 

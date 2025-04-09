@@ -37,7 +37,6 @@ This command allows you to update the details of an existing prefix filter list 
 
 ```
 
-
 ## Usage
 
 ```sh
@@ -45,12 +44,9 @@ megaport-cli mcr update-prefix-filter-list [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli mcr](megaport-cli_mcr.md)
-
-
 
 
 ## Flags
@@ -63,6 +59,5 @@ megaport-cli mcr update-prefix-filter-list [flags]
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
-
 
 

@@ -38,7 +38,6 @@ This command allows you to update specific properties of an existing MVE without
 
 ```
 
-
 ## Usage
 
 ```sh
@@ -46,12 +45,9 @@ megaport-cli mve update [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli mve](megaport-cli_mve.md)
-
-
 
 
 ## Flags
@@ -64,6 +60,5 @@ megaport-cli mve update [flags]
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 | `--name` |  |  | The new name of the MVE (1-64 characters) | false |
 | `--term` |  | `0` | New contract term in months (1, 12, 24, or 36) | false |
-
 
 

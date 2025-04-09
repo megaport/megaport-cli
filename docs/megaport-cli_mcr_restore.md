@@ -14,7 +14,6 @@ This command allows you to restore a previously deleted MCR, provided it has not
   restore [mcrUID]
 ```
 
-
 ## Usage
 
 ```sh
@@ -22,18 +21,14 @@ megaport-cli mcr restore [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli mcr](megaport-cli_mcr.md)
-
-
 
 
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 
 

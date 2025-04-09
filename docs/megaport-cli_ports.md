@@ -23,15 +23,11 @@ This command groups operations related to ports. You can use the subcommands to 
   ports check-vlan [portUID] [vlan]
 ```
 
-
 ## Usage
 
 ```sh
 megaport-cli ports [flags]
 ```
-
-
-
 
 
 

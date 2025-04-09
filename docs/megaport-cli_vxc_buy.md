@@ -26,7 +26,6 @@ This command allows you to create a VXC by providing the necessary details.
   buy --json-file ./vxc-config.json
 ```
 
-
 ## Usage
 
 ```sh
@@ -34,12 +33,9 @@ megaport-cli vxc buy [flags]
 ```
 
 
-
 ## Parent Command
 
 * [megaport-cli vxc](megaport-cli_vxc.md)
-
-
 
 
 ## Flags
@@ -65,6 +61,5 @@ megaport-cli vxc buy [flags]
 | `--rate-limit` |  | `0` | Bandwidth in Mbps | true |
 | `--service-key` |  |  | Service key | false |
 | `--term` |  | `0` | Contract term in months (1, 12, 24, or 36) | true |
-
 
 

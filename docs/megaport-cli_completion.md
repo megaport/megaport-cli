@@ -19,7 +19,6 @@ Generate completion script
   completion powershell > megaport-cli.ps1
 ```
 
-
 ## Usage
 
 ```sh
@@ -29,13 +28,9 @@ megaport-cli completion [flags]
 
 
 
-
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 
 

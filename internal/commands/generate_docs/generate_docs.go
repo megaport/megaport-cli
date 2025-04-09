@@ -596,8 +596,7 @@ func getCommandTemplate() string {
 
 {{ if .LongDescription }}## Description
 
-{{ .LongDescription }}
-{{ end }}
+{{ .LongDescription }}{{ end }}
 
 ## Usage
 
@@ -609,14 +608,12 @@ func getCommandTemplate() string {
 
 ` + "```sh" + `
 {{ .Example }}
-` + "```" + `{{ end }}
+` + "```" + `{{ end }}{{ if .HasParent }}
+## Parent Command
 
-{{ if .HasParent }}## Parent Command
-
-* [{{ .ParentCommandPath }}]({{ .ParentFilePath }}.md)
-{{ end }}
-
-{{ if .Aliases }}## Aliases
+* [{{ .ParentCommandPath }}]({{ .ParentFilePath }}.md){{ end }}
+{{ if .Aliases }}
+## Aliases
 
 {{ range .Aliases }}* {{ . }}
 {{ end }}{{ end }}
@@ -627,8 +624,8 @@ func getCommandTemplate() string {
 |------|-----------|---------|-------------|----------|
 {{ range .Flags }}| ` + "`" + `--{{ .Name }}` + "`" + ` | {{ if .Shorthand }}` + "`" + `-{{ .Shorthand }}` + "`" + `{{ end }} | {{ if .Default }}` + "`" + `{{ .Default }}` + "`" + `{{ end }} | {{ .Description }} | {{ .Required }} |
 {{ end }}
-
-{{ if .HasSubCommands }}## Subcommands
+{{ if .HasSubCommands }}
+## Subcommands
 
 {{ range .SubCommands }}* [{{ . }}]({{ $.FilepathPrefix }}_{{ . }}.md)
 {{ end }}{{ end }}
