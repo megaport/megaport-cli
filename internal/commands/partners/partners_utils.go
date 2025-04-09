@@ -14,7 +14,7 @@ type PartnerOutput struct {
 	UID           string `json:"uid" header:"UID"`
 	ConnectType   string `json:"connect_type" header:"Connect Type"`
 	CompanyName   string `json:"company_name" header:"Company Name"`
-	LocationId    int    `json:"location_id" header:"LocationID"`
+	LocationId    int    `json:"location_id" header:"Location ID"`
 	DiversityZone string `json:"diversity_zone" header:"Diversity Zone"`
 	VXCPermitted  bool   `json:"vxc_permitted" header:"VXC Permitted"`
 }

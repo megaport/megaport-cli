@@ -1151,7 +1151,7 @@ type MCROutput struct {
 	output.Output      `json:"-" header:"-"`
 	UID                string `json:"uid" header:"UID"`
 	Name               string `json:"name" header:"Name"`
-	LocationID         int    `json:"location_id" header:"LocationID"`
+	LocationID         int    `json:"location_id" header:"Location ID"`
 	ProvisioningStatus string `json:"provisioning_status" header:"Status"`
 	ASN                int    `json:"asn" header:"ASN"`
 	Speed              int    `json:"speed" header:"Speed"`

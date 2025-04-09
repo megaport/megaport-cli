@@ -43,9 +43,9 @@ func TestPrintMCRs_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `UID     Name         LocationID   Status     ASN     Speed
-mcr-1   MyMCROne     1            ACTIVE     64512   1000
-mcr-2   AnotherMCR   2            INACTIVE   64513   5000
+	expected := `UID     Name         Location ID   Status     ASN     Speed
+mcr-1   MyMCROne     1             ACTIVE     64512   1000
+mcr-2   AnotherMCR   2             INACTIVE   64513   5000
 `
 	assert.Equal(t, expected, output)
 }
@@ -112,7 +112,7 @@ func TestPrintMCRs_EmptyAndNilSlice(t *testing.T) {
 			name:   "empty slice table format",
 			mcrs:   []*megaport.MCR{},
 			format: "table",
-			expected: `UID   Name   LocationID   Status   ASN   Speed
+			expected: `UID   Name   Location ID   Status   ASN   Speed
 `,
 		},
 		{
@@ -132,7 +132,7 @@ func TestPrintMCRs_EmptyAndNilSlice(t *testing.T) {
 			name:   "nil slice table format",
 			mcrs:   nil,
 			format: "table",
-			expected: `UID   Name   LocationID   Status   ASN   Speed
+			expected: `UID   Name   Location ID   Status   ASN   Speed
 `,
 		},
 		{
