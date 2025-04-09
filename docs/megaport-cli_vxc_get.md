@@ -32,3 +32,6 @@ megaport-cli vxc get [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
+## Subcommands
+* [docs](megaport-cli_vxc_get_docs.md)
+

@@ -59,3 +59,6 @@ megaport-cli mve update [flags]
 | `--name` |  |  | The new name of the MVE (1-64 characters) | false |
 | `--term` |  | `0` | New contract term in months (1, 12, 24, or 36) | false |
 
+## Subcommands
+* [docs](megaport-cli_mve_update_docs.md)
+

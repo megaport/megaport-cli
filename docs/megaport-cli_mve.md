@@ -38,6 +38,7 @@ megaport-cli mve [flags]
 ## Subcommands
 * [buy](megaport-cli_mve_buy.md)
 * [delete](megaport-cli_mve_delete.md)
+* [docs](megaport-cli_mve_docs.md)
 * [get](megaport-cli_mve_get.md)
 * [list-images](megaport-cli_mve_list-images.md)
 * [list-sizes](megaport-cli_mve_list-sizes.md)

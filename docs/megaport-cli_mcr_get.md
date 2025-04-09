@@ -32,3 +32,6 @@ megaport-cli mcr get [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
+## Subcommands
+* [docs](megaport-cli_mcr_get_docs.md)
+

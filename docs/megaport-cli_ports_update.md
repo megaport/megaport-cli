@@ -40,3 +40,6 @@ megaport-cli ports update [flags]
 | `--name` |  |  | New port name | false |
 | `--term` |  | `0` | New contract term in months (1, 12, 24, or 36) | false |
 
+## Subcommands
+* [docs](megaport-cli_ports_update_docs.md)
+

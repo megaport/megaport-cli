@@ -45,3 +45,6 @@ megaport-cli partners list [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
+## Subcommands
+* [docs](megaport-cli_partners_list_docs.md)
+

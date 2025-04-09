@@ -29,3 +29,6 @@ megaport-cli servicekeys list [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
+## Subcommands
+* [docs](megaport-cli_servicekeys_list_docs.md)
+

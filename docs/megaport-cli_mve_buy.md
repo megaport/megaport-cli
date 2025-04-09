@@ -87,3 +87,6 @@ megaport-cli mve buy [flags]
 | `--vendor-config` |  |  | JSON string with vendor-specific configuration (for flag mode) | true |
 | `--vnics` |  |  | JSON array of network interfaces (for flag mode) | true |
 
+## Subcommands
+* [docs](megaport-cli_mve_buy_docs.md)
+

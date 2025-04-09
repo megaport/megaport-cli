@@ -58,3 +58,6 @@ megaport-cli mcr update [flags]
 | `--marketplace-visibility` |  | `false` | Whether the MCR is visible in the marketplace (true/false) | false |
 | `--name` |  |  | The new name of the MCR (1-64 characters) | false |
 
+## Subcommands
+* [docs](megaport-cli_mcr_update_docs.md)
+

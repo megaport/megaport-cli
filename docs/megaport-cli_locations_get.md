@@ -29,3 +29,6 @@ megaport-cli locations get [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
+## Subcommands
+* [docs](megaport-cli_locations_get_docs.md)
+

@@ -58,3 +58,6 @@ megaport-cli mcr update-prefix-filter-list [flags]
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 
+## Subcommands
+* [docs](megaport-cli_mcr_update-prefix-filter-list_docs.md)
+

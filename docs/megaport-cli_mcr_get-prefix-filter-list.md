@@ -29,3 +29,6 @@ megaport-cli mcr get-prefix-filter-list [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
+## Subcommands
+* [docs](megaport-cli_mcr_get-prefix-filter-list_docs.md)
+

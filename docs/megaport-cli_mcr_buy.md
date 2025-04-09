@@ -77,3 +77,6 @@ megaport-cli mcr buy [flags]
 | `--promo-code` |  |  | A promotional code for discounts | false |
 | `--term` |  | `0` | The term of the MCR (1, 12, 24, or 36 months) | true |
 
+## Subcommands
+* [docs](megaport-cli_mcr_buy_docs.md)
+

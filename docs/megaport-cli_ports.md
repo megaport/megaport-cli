@@ -40,6 +40,7 @@ megaport-cli ports [flags]
 * [buy-lag](megaport-cli_ports_buy-lag.md)
 * [check-vlan](megaport-cli_ports_check-vlan.md)
 * [delete](megaport-cli_ports_delete.md)
+* [docs](megaport-cli_ports_docs.md)
 * [get](megaport-cli_ports_get.md)
 * [list](megaport-cli_ports_list.md)
 * [lock](megaport-cli_ports_lock.md)

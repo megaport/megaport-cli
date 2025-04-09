@@ -32,3 +32,6 @@ megaport-cli mve get [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
+## Subcommands
+* [docs](megaport-cli_mve_get_docs.md)
+

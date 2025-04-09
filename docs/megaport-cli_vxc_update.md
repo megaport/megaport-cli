@@ -83,3 +83,6 @@ megaport-cli vxc update [flags]
 | `--shutdown` |  | `false` | Whether to shut down the VXC | false |
 | `--term` |  | `0` | Contract term in months (1, 12, 24, or 36) | false |
 
+## Subcommands
+* [docs](megaport-cli_vxc_update_docs.md)
+

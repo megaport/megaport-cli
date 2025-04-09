@@ -43,3 +43,6 @@ megaport-cli ports list [flags]
 | `--port-name` |  |  | Filter ports by port name | false |
 | `--port-speed` |  | `0` | Filter ports by port speed | false |
 
+## Subcommands
+* [docs](megaport-cli_ports_list_docs.md)
+
