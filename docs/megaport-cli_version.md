@@ -7,15 +7,11 @@ Print the version number of Megaport CLI
 All software has versions. This is Megaport CLI's.
 
 
-
 ## Usage
 
-```
+```sh
 megaport-cli version [flags]
 ```
-
-
-
 
 
 
@@ -24,6 +20,5 @@ megaport-cli version [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 
 

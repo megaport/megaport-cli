@@ -25,20 +25,16 @@ This command allows you to purchase a LAG port by providing the necessary detail
   - Required flags can be skipped when using --interactive, --json, or --json-file
 
 
-
 ## Usage
 
-```
+```sh
 megaport-cli ports buy-lag [flags]
 ```
-
 
 
 ## Parent Command
 
 * [megaport-cli ports](megaport-cli_ports.md)
-
-
 
 
 ## Flags
@@ -57,6 +53,5 @@ megaport-cli ports buy-lag [flags]
 | `--port-speed` |  | `0` | The speed of each LAG member port (10000 or 100000 Mbps) | true |
 | `--promo-code` |  |  | Promotional code for discounts | false |
 | `--term` |  | `0` | The term of the port (1, 12, or 24 months) | true |
-
 
 

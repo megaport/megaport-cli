@@ -10,22 +10,18 @@ This command groups all operations related to service keys. You can use its subc
 
 ### Example Usage
 
-```
+```sh
   servicekeys list
   servicekeys get [key]
   servicekeys create --product-uid "product-uid" --description "My service key"
   servicekeys update [key] --description "Updated description"
 ```
 
-
 ## Usage
 
-```
+```sh
 megaport-cli servicekeys [flags]
 ```
-
-
-
 
 
 

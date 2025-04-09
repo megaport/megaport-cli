@@ -10,21 +10,17 @@ This command groups all operations related to partner ports. You can use its sub
 
 ### Example Usage
 
-```
+```sh
   partners find
   partners list
   partners list --product-name "AWS Partner Port" --company-name "AWS" --location-id 1
 ```
 
-
 ## Usage
 
-```
+```sh
 megaport-cli partners [flags]
 ```
-
-
-
 
 
 

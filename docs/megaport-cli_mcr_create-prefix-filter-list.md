@@ -16,7 +16,7 @@ This command allows you to create a new prefix filter list on an MCR. Prefix fil
 
 ### Example Usage
 
-```
+```sh
   create-prefix-filter-list [mcrUID] --interactive
   create-prefix-filter-list [mcrUID] --description "My prefix list" --address-family "IPv4" --entries '[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]'
   create-prefix-filter-list [mcrUID] --json '{"description":"My prefix list","addressFamily":"IPv4","entries":[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]}'
@@ -43,20 +43,16 @@ This command allows you to create a new prefix filter list on an MCR. Prefix fil
 
 ```
 
-
 ## Usage
 
-```
+```sh
 megaport-cli mcr create-prefix-filter-list [flags]
 ```
-
 
 
 ## Parent Command
 
 * [megaport-cli mcr](megaport-cli_mcr.md)
-
-
 
 
 ## Flags
@@ -69,6 +65,5 @@ megaport-cli mcr create-prefix-filter-list [flags]
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
-
 
 

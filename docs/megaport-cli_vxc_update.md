@@ -31,7 +31,7 @@ This command allows you to update an existing VXC by providing the necessary det
 
 ### Example Usage
 
-```
+```sh
   update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive
   update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --name "New VXC Name" --rate-limit 2000 --cost-centre "New Cost Centre"
   update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --a-end-vlan 200 --b-end-vlan 300
@@ -52,20 +52,16 @@ This command allows you to update an existing VXC by providing the necessary det
 
 ```
 
-
 ## Usage
 
-```
+```sh
 megaport-cli vxc update [flags]
 ```
-
 
 
 ## Parent Command
 
 * [megaport-cli vxc](megaport-cli_vxc.md)
-
-
 
 
 ## Flags
@@ -88,6 +84,5 @@ megaport-cli vxc update [flags]
 | `--rate-limit` |  | `0` | Bandwidth in Mbps | false |
 | `--shutdown` |  | `false` | Whether to shut down the VXC | false |
 | `--term` |  | `0` | Contract term in months (1, 12, 24, or 36) | false |
-
 
 

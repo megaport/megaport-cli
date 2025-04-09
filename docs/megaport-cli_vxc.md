@@ -10,22 +10,18 @@ This command groups all operations related to Virtual Cross Connects (VXCs). VXC
 
 ### Example Usage
 
-```
+```sh
   vxc get [vxcUID]
   vxc buy
   vxc update [vxcUID]
   vxc delete [vxcUID]
 ```
 
-
 ## Usage
 
-```
+```sh
 megaport-cli vxc [flags]
 ```
-
-
-
 
 
 

@@ -28,7 +28,7 @@ This command allows you to purchase an MVE by providing the necessary details.
 
 ### Example Usage
 
-```
+```sh
   buy --interactive
   buy --name "My MVE" --term 12 --location-id 123 --vendor-config '{"vendor":"cisco","imageId":123,"productSize":"MEDIUM"}' --vnics '[{"description":"Data Plane","vlan":100}]'
   buy --json '{"name":"My MVE","term":12,"locationId":123,"vendorConfig":{"vendor":"cisco","imageId":123,"productSize":"MEDIUM"},"vnics":[{"description":"Data Plane","vlan":100}]}'
@@ -61,20 +61,16 @@ This command allows you to purchase an MVE by providing the necessary details.
 
 ```
 
-
 ## Usage
 
-```
+```sh
 megaport-cli mve buy [flags]
 ```
-
 
 
 ## Parent Command
 
 * [megaport-cli mve](megaport-cli_mve.md)
-
-
 
 
 ## Flags
@@ -92,6 +88,5 @@ megaport-cli mve buy [flags]
 | `--term` |  | `0` | The term of the MVE (1, 12, 24, or 36 months) | true |
 | `--vendor-config` |  |  | JSON string with vendor-specific configuration (for flag mode) | true |
 | `--vnics` |  |  | JSON array of network interfaces (for flag mode) | true |
-
 
 

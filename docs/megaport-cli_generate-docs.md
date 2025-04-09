@@ -22,19 +22,15 @@ The documentation is organized by command hierarchy, with each command generatin
 
 ### Example Usage
 
-```
+```sh
   generate-docs ./docs
 ```
 
-
 ## Usage
 
-```
+```sh
 megaport-cli generate-docs [flags]
 ```
-
-
-
 
 
 
@@ -44,6 +40,5 @@ megaport-cli generate-docs [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 | `--help` | `-h` | `false` | help for generate-docs | false |
-
 
 

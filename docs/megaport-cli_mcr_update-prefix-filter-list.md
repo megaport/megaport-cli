@@ -10,7 +10,7 @@ This command allows you to update the details of an existing prefix filter list 
 
 ### Example Usage
 
-```
+```sh
   update-prefix-filter-list [mcrUID] [prefixFilterListID] --interactive
   update-prefix-filter-list [mcrUID] [prefixFilterListID] --description "Updated prefix list" --entries '[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]'
   update-prefix-filter-list [mcrUID] [prefixFilterListID] --json '{"description":"Updated prefix list","entries":[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]}'
@@ -37,20 +37,16 @@ This command allows you to update the details of an existing prefix filter list 
 
 ```
 
-
 ## Usage
 
-```
+```sh
 megaport-cli mcr update-prefix-filter-list [flags]
 ```
-
 
 
 ## Parent Command
 
 * [megaport-cli mcr](megaport-cli_mcr.md)
-
-
 
 
 ## Flags
@@ -63,6 +59,5 @@ megaport-cli mcr update-prefix-filter-list [flags]
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
-
 
 

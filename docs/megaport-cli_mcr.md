@@ -16,22 +16,18 @@ This command groups all operations related to Megaport Cloud Routers (MCRs). MCR
 
 ### Example Usage
 
-```
+```sh
   mcr get [mcrUID]
   mcr buy
   mcr update [mcrUID]
   mcr delete [mcrUID]
 ```
 
-
 ## Usage
 
-```
+```sh
 megaport-cli mcr [flags]
 ```
-
-
-
 
 
 

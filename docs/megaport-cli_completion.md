@@ -12,22 +12,18 @@ Generate completion script
 
 ### Example Usage
 
-```
+```sh
   completion bash > ~/.bash_completion.d/megaport-cli
   completion zsh > "${fpath[1]}/_megaport-cli"
   completion fish > ~/.config/fish/completions/megaport-cli.fish
   completion powershell > megaport-cli.ps1
 ```
 
-
 ## Usage
 
-```
+```sh
 megaport-cli completion [flags]
 ```
-
-
-
 
 
 
@@ -36,6 +32,5 @@ megaport-cli completion [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 
 

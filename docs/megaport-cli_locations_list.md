@@ -15,27 +15,23 @@ This command fetches and displays a list of all available locations with details
 
 ### Example Usage
 
-```
+```sh
   list
   list --metro "San Francisco"
   list --country "US"
   list --name "Equinix SY1"
 ```
 
-
 ## Usage
 
-```
+```sh
 megaport-cli locations list [flags]
 ```
-
 
 
 ## Parent Command
 
 * [megaport-cli locations](megaport-cli_locations.md)
-
-
 
 
 ## Flags
@@ -45,6 +41,5 @@ megaport-cli locations list [flags]
 | `--country` |  |  | Filter locations by country | false |
 | `--metro` |  |  | Filter locations by metro area | false |
 | `--name` |  |  | Filter locations by name | false |
-
 
 

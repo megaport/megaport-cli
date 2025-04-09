@@ -21,7 +21,7 @@ This command fetches and displays a list of all available partner ports. You can
 
 ### Example Usage
 
-```
+```sh
   list
   list --product-name "AWS Partner Port"
   list --connect-type "Dedicated Cloud Connection"
@@ -30,13 +30,11 @@ This command fetches and displays a list of all available partner ports. You can
   list --diversity-zone "Zone A"
 ```
 
-
 ## Usage
 
-```
+```sh
 megaport-cli partners list [flags]
 ```
-
 
 
 ## Parent Command
@@ -44,12 +42,9 @@ megaport-cli partners list [flags]
 * [megaport-cli partners](megaport-cli_partners.md)
 
 
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 
 
