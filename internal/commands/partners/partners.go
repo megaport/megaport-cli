@@ -20,6 +20,11 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	listPartnersCmd := cmdbuilder.NewCommand("list", "List all partner ports").
 		WithLongDesc("List all partner ports available in the Megaport API.\n\nThis command fetches and displays a list of all available partner ports. You can filter the partner ports based on specific criteria.").
 		WithOutputFormatRunFunc(ListPartners).
+		WithFlag("product-name", "", "Filter partner ports by product name").
+		WithFlag("connect-type", "", "Filter partner ports by connect type").
+		WithFlag("company-name", "", "Filter partner ports by company name").
+		WithIntFlag("location-id", 0, "Filter partner ports by location ID").
+		WithFlag("diversity-zone", "", "Filter partner ports by diversity zone").
 		WithOptionalFlag("product-name", "Filter partner ports by product name").
 		WithOptionalFlag("connect-type", "Filter partner ports by connect type").
 		WithOptionalFlag("company-name", "Filter partner ports by company name").
