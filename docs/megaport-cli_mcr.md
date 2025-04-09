@@ -17,10 +17,10 @@ This command groups all operations related to Megaport Cloud Routers (MCRs). MCR
 ### Example Usage
 
 ```sh
-  mcr get [mcrUID]
-  mcr buy
-  mcr update [mcrUID]
-  mcr delete [mcrUID]
+  megaport-cli mcr get [mcrUID]
+  megaport-cli mcr buy
+  megaport-cli mcr update [mcrUID]
+  megaport-cli mcr delete [mcrUID]
 ```
 
 ## Usage
@@ -30,16 +30,12 @@ megaport-cli mcr [flags]
 ```
 
 
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-
 ## Subcommands
-
 * [buy](megaport-cli_mcr_buy.md)
 * [create-prefix-filter-list](megaport-cli_mcr_create-prefix-filter-list.md)
 * [delete](megaport-cli_mcr_delete.md)

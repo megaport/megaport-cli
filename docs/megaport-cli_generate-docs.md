@@ -23,7 +23,7 @@ The documentation is organized by command hierarchy, with each command generatin
 ### Example Usage
 
 ```sh
-  generate-docs ./docs
+  megaport-cli generate-docs ./docs
 ```
 
 ## Usage
@@ -33,12 +33,9 @@ megaport-cli generate-docs [flags]
 ```
 
 
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 | `--help` | `-h` | `false` | help for generate-docs | false |
-
 

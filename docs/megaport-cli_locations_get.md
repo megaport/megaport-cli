@@ -11,7 +11,7 @@ This command fetches and displays detailed information about a specific location
 ### Example Usage
 
 ```sh
-  get 1
+  megaport-cli locations get 67
 ```
 
 ## Usage
@@ -24,11 +24,8 @@ megaport-cli locations get [flags]
 ## Parent Command
 
 * [megaport-cli locations](megaport-cli_locations.md)
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 

@@ -14,7 +14,7 @@ This command retrieves and displays detailed information for a single Megaport V
 ### Example Usage
 
 ```sh
-  get a1b2c3d4-e5f6-7890-1234-567890abcdef
+  megaport-cli mve get a1b2c3d4-e5f6-7890-1234-567890abcdef
 ```
 
 ## Usage
@@ -27,11 +27,8 @@ megaport-cli mve get [flags]
 ## Parent Command
 
 * [megaport-cli mve](megaport-cli_mve.md)
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 

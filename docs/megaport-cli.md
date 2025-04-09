@@ -36,8 +36,6 @@ megaport-cli [flags]
 ```
 
 
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
@@ -46,9 +44,7 @@ megaport-cli [flags]
 | `--no-color` |  | `false` | Disable colorful output | false |
 | `--output` | `-o` | `table` | Output format (table, json, csv, xml) | false |
 
-
 ## Subcommands
-
 * [completion](megaport-cli_completion.md)
 * [generate-docs](megaport-cli_generate-docs.md)
 * [locations](megaport-cli_locations.md)

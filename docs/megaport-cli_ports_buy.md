@@ -26,10 +26,10 @@ This command allows you to purchase a port by providing the necessary details.
 ### Example Usage
 
 ```sh
-  buy --interactive
-  buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true
-  buy --json '{"name":"My Port","term":12,"portSpeed":10000,"locationId":123,"marketPlaceVisibility":true}'
-  buy --json-file ./port-config.json
+  megaport-cli ports buy --interactive
+  megaport-cli ports buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true
+  megaport-cli ports buy --json '{"name":"My Port","term":12,"portSpeed":10000,"locationId":123,"marketPlaceVisibility":true}'
+  megaport-cli ports buy --json-file ./port-config.json
 ```
 ### JSON Format Example
 ```json
@@ -55,8 +55,6 @@ megaport-cli ports buy [flags]
 ## Parent Command
 
 * [megaport-cli ports](megaport-cli_ports.md)
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
@@ -72,5 +70,4 @@ megaport-cli ports buy [flags]
 | `--port-speed` |  | `0` | The speed of the port (1000, 10000, or 100000 Mbps) | true |
 | `--promo-code` |  |  | Promotional code for discounts | false |
 | `--term` |  | `0` | The term of the port (1, 12, 24, or 36 months) | true |
-
 

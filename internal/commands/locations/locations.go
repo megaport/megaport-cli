@@ -18,17 +18,17 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithLongDesc("List all locations available in the Megaport API.\n\nThis command fetches and displays a list of all available locations with details such as location ID, name, country, and metro. You can also filter the locations based on specific criteria.").
 		WithLocationsFilterFlags().
 		WithOutputFormatRunFunc(ListLocations).
-		WithExample("list").
-		WithExample("list --metro \"San Francisco\"").
-		WithExample("list --country \"US\"").
-		WithExample("list --name \"Equinix SY1\"").WithRootCmd(rootCmd).Build()
+		WithExample("megaport-cli locations list").
+		WithExample("megaport-cli locations list --metro \"San Francisco\"").
+		WithExample("megaport-cli locations list --country \"US\"").
+		WithExample("megaport-cli locations list --name \"Equinix SY1\"").WithRootCmd(rootCmd).Build()
 
 	// Create get location command
 	getLocationCmd := cmdbuilder.NewCommand("get", "Get details for a single location").
 		WithArgs(cobra.ExactArgs(1)).
 		WithLongDesc("Get details for a single location from the Megaport API.\n\nThis command fetches and displays detailed information about a specific location. You need to provide the ID of the location as an argument.").
 		WithOutputFormatRunFunc(GetLocation).
-		WithExample("get 1").
+		WithExample("megaport-cli locations get 67").
 		WithRootCmd(rootCmd).
 		Build()
 

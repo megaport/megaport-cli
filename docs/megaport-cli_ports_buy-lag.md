@@ -35,8 +35,6 @@ megaport-cli ports buy-lag [flags]
 ## Parent Command
 
 * [megaport-cli ports](megaport-cli_ports.md)
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
@@ -53,5 +51,4 @@ megaport-cli ports buy-lag [flags]
 | `--port-speed` |  | `0` | The speed of each LAG member port (10000 or 100000 Mbps) | true |
 | `--promo-code` |  |  | Promotional code for discounts | false |
 | `--term` |  | `0` | The term of the port (1, 12, or 24 months) | true |
-
 

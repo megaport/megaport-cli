@@ -11,7 +11,7 @@ This command retrieves and displays all service keys along with their details. U
 ### Example Usage
 
 ```sh
-  list
+  megaport-cli servicekeys list
 ```
 
 ## Usage
@@ -24,11 +24,8 @@ megaport-cli servicekeys list [flags]
 ## Parent Command
 
 * [megaport-cli servicekeys](megaport-cli_servicekeys.md)
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 

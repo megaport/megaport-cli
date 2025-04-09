@@ -10,11 +10,11 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	// Create mve parent command
 	mveCmd := cmdbuilder.NewCommand("mve", "Manage Megaport Virtual Edge (MVE) devices").
 		WithLongDesc("Manage Megaport Virtual Edge (MVE) devices.\n\nThis command groups all operations related to Megaport Virtual Edge devices (MVEs). MVEs are virtual networking appliances that run in the Megaport network, providing software-defined networking capabilities from various vendors.").
-		WithExample("mve list").
-		WithExample("mve get [mveUID]").
-		WithExample("mve buy").
-		WithExample("mve update [mveUID]").
-		WithExample("mve delete [mveUID]").
+		WithExample("megaport-cli mve list").
+		WithExample("megaport-cli mve get [mveUID]").
+		WithExample("megaport-cli mve buy").
+		WithExample("megaport-cli mve update [mveUID]").
+		WithExample("megaport-cli mve delete [mveUID]").
 		WithImportantNote("With MVEs you can deploy virtual networking appliances without physical hardware").
 		WithImportantNote("Create secure connections between cloud services").
 		WithImportantNote("Run vendor-specific networking software in Megaport's infrastructure").
@@ -36,10 +36,10 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("diversity-zone", "The diversity zone for the MVE").
 		WithOptionalFlag("promo-code", "Promotional code for discounts").
 		WithOptionalFlag("cost-centre", "Cost centre for billing").
-		WithExample("buy --interactive").
-		WithExample("buy --name \"My MVE\" --term 12 --location-id 123 --vendor-config '{\"vendor\":\"cisco\",\"imageId\":123,\"productSize\":\"MEDIUM\"}' --vnics '[{\"description\":\"Data Plane\",\"vlan\":100}]'").
-		WithExample("buy --json '{\"name\":\"My MVE\",\"term\":12,\"locationId\":123,\"vendorConfig\":{\"vendor\":\"cisco\",\"imageId\":123,\"productSize\":\"MEDIUM\"},\"vnics\":[{\"description\":\"Data Plane\",\"vlan\":100}]}'").
-		WithExample("buy --json-file ./mve-config.json").
+		WithExample("megaport-cli mve buy --interactive").
+		WithExample("megaport-cli mve buy --name \"My MVE\" --term 12 --location-id 123 --vendor-config '{\"vendor\":\"cisco\",\"imageId\":123,\"productSize\":\"MEDIUM\"}' --vnics '[{\"description\":\"Data Plane\",\"vlan\":100}]'").
+		WithExample("megaport-cli mve buy --json '{\"name\":\"My MVE\",\"term\":12,\"locationId\":123,\"vendorConfig\":{\"vendor\":\"cisco\",\"imageId\":123,\"productSize\":\"MEDIUM\"},\"vnics\":[{\"description\":\"Data Plane\",\"vlan\":100}]}'").
+		WithExample("megaport-cli mve buy --json-file ./mve-config.json").
 		WithJSONExample(`{
   "name": "My MVE Display Name",
   "term": 12,
@@ -75,7 +75,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetMVE).
 		WithLongDesc("Get details for a single MVE from the Megaport API.\n\nThis command retrieves and displays detailed information for a single Megaport Virtual Edge (MVE). You must provide the unique identifier (UID) of the MVE you wish to retrieve.").
-		WithExample("get a1b2c3d4-e5f6-7890-1234-567890abcdef").
+		WithExample("megaport-cli mve get a1b2c3d4-e5f6-7890-1234-567890abcdef").
 		WithImportantNote("The output includes the MVE's UID, name, vendor, version, status, and connectivity details").
 		WithRootCmd(rootCmd).
 		Build()
@@ -91,10 +91,10 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("name", "The new name of the MVE (1-64 characters)").
 		WithOptionalFlag("cost-centre", "The new cost centre for billing purposes").
 		WithOptionalFlag("contract-term", "The new contract term in months (1, 12, 24, or 36)").
-		WithExample("update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
-		WithExample("update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --name \"Edge Router West\" --cost-centre \"IT-Network-2023\" --contract-term 24").
-		WithExample("update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json '{\"name\": \"Edge Router West\", \"costCentre\": \"IT-Network-2023\", \"contractTermMonths\": 24}'").
-		WithExample("update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json-file ./mve-update.json").
+		WithExample("megaport-cli mve update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
+		WithExample("megaport-cli mve update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --name \"Edge Router West\" --cost-centre \"IT-Network-2023\" --contract-term 24").
+		WithExample("megaport-cli mve update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json '{\"name\": \"Edge Router West\", \"costCentre\": \"IT-Network-2023\", \"contractTermMonths\": 24}'").
+		WithExample("megaport-cli mve update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json-file ./mve-update.json").
 		WithJSONExample(`{
   "name": "Edge Router West",
   "costCentre": "IT-Network-2023",
@@ -114,9 +114,9 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithColorAwareRunFunc(DeleteMVE).
 		WithDeleteFlags().
 		WithLongDesc("Delete an existing Megaport Virtual Edge (MVE).\n\nThis command allows you to delete an existing MVE by providing its UID.").
-		WithExample("delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
-		WithExample("delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --force").
-		WithExample("delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now").
+		WithExample("megaport-cli mve delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
+		WithExample("megaport-cli mve delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --force").
+		WithExample("megaport-cli mve delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now").
 		WithImportantNote("Deletion is final and cannot be undone").
 		WithImportantNote("Billing for the MVE stops at the end of the current billing period unless --now is specified").
 		WithImportantNote("All associated VXCs will be automatically terminated").
@@ -133,9 +133,9 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("id", "Filter images by exact image ID").
 		WithOptionalFlag("version", "Filter images by version string").
 		WithOptionalFlag("release-image", "Only show official release images (excludes beta/development)").
-		WithExample("list-images").
-		WithExample("list-images --vendor \"Cisco\"").
-		WithExample("list-images --vendor \"Fortinet\" --release-image").
+		WithExample("megaport-cli mve list-images").
+		WithExample("megaport-cli mve list-images --vendor \"Cisco\"").
+		WithExample("megaport-cli mve list-images --vendor \"Fortinet\" --release-image").
 		WithImportantNote("The output includes the image ID, vendor, product, version, release status, available sizes, and description").
 		WithImportantNote("The ID field is required when specifying an image in the 'buy' command").
 		WithRootCmd(rootCmd).
@@ -145,7 +145,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	listAvailableMVESizesCmd := cmdbuilder.NewCommand("list-sizes", "List all available MVE sizes").
 		WithOutputFormatRunFunc(ListAvailableMVESizes).
 		WithLongDesc("List all available MVE sizes from the Megaport API.\n\nThis command fetches and displays details about all available MVE instance sizes. The size you select determines the MVE's capabilities and compute resources.").
-		WithExample("list-sizes").
+		WithExample("megaport-cli mve list-sizes").
 		WithImportantNote("Standard MVE sizes available across most vendors: SMALL (2 vCPU, 8GB RAM), MEDIUM (4 vCPU, 16GB RAM), LARGE (8 vCPU, 32GB RAM), X_LARGE_12 (12 vCPU, 48GB RAM)").
 		WithImportantNote("Not all sizes are available for all vendor images. Check the image details using 'megaport-cli mve list-images' for size compatibility").
 		WithRootCmd(rootCmd).

@@ -11,7 +11,7 @@ This command retrieves and displays a list of all prefix filter lists configured
 ### Example Usage
 
 ```sh
-  list-prefix-filter-lists [mcrUID]
+  megaport-cli mcr list-prefix-filter-lists [mcrUID]
 ```
 
 ## Usage
@@ -24,11 +24,8 @@ megaport-cli mcr list-prefix-filter-lists [flags]
 ## Parent Command
 
 * [megaport-cli mcr](megaport-cli_mcr.md)
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 

@@ -10,10 +10,10 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	// Create mcr parent command
 	mcrCmd := cmdbuilder.NewCommand("mcr", "Manage MCRs in the Megaport API").
 		WithLongDesc("Manage MCRs in the Megaport API.\n\nThis command groups all operations related to Megaport Cloud Routers (MCRs). MCRs are virtual routing appliances that run in the Megaport network, providing interconnection between your cloud environments and the Megaport fabric.").
-		WithExample("mcr get [mcrUID]").
-		WithExample("mcr buy").
-		WithExample("mcr update [mcrUID]").
-		WithExample("mcr delete [mcrUID]").
+		WithExample("megaport-cli mcr get [mcrUID]").
+		WithExample("megaport-cli mcr buy").
+		WithExample("megaport-cli mcr update [mcrUID]").
+		WithExample("megaport-cli mcr delete [mcrUID]").
 		WithImportantNote("With MCRs you can establish virtual cross-connects (VXCs) to cloud service providers").
 		WithImportantNote("Create private network connections between different cloud regions").
 		WithImportantNote("Implement hybrid cloud architectures with seamless connectivity").
@@ -26,7 +26,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetMCR).
 		WithLongDesc("Get details for a single MCR.\n\nThis command retrieves and displays detailed information for a single Megaport Cloud Router (MCR). You must provide the unique identifier (UID) of the MCR you wish to retrieve.").
-		WithExample("get a1b2c3d4-e5f6-7890-1234-567890abcdef").
+		WithExample("megaport-cli mcr get a1b2c3d4-e5f6-7890-1234-567890abcdef").
 		WithImportantNote("The output includes the MCR's UID, name, location ID, port speed, and provisioning status").
 		WithRootCmd(rootCmd).
 		Build()
@@ -46,10 +46,10 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("diversity-zone", "The diversity zone for the MCR").
 		WithOptionalFlag("cost-centre", "The cost centre for the MCR").
 		WithOptionalFlag("promo-code", "A promotional code for the MCR").
-		WithExample("buy --interactive").
-		WithExample("buy --name \"My MCR\" --term 12 --port-speed 5000 --location-id 123 --mcr-asn 65000").
-		WithExample("buy --json '{\"name\":\"My MCR\",\"term\":12,\"portSpeed\":5000,\"locationId\":123,\"mcrAsn\":65000}'").
-		WithExample("buy --json-file ./mcr-config.json").
+		WithExample("megaport-cli mcr buy --interactive").
+		WithExample("megaport-cli mcr buy --name \"My MCR\" --term 12 --port-speed 5000 --location-id 123 --mcr-asn 65000").
+		WithExample("megaport-cli mcr buy --json '{\"name\":\"My MCR\",\"term\":12,\"portSpeed\":5000,\"locationId\":123,\"mcrAsn\":65000}'").
+		WithExample("megaport-cli mcr buy --json-file ./mcr-config.json").
 		WithJSONExample(`{
   "name": "My MCR",
   "term": 12,
@@ -74,10 +74,10 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithStandardInputFlags().
 		WithMCRUpdateFlags().
 		WithLongDesc("Update an existing Megaport Cloud Router (MCR).\n\nThis command allows you to update the details of an existing MCR.").
-		WithExample("update [mcrUID] --interactive").
-		WithExample("update [mcrUID] --name \"Updated MCR\" --marketplace-visibility true --cost-centre \"Finance\"").
-		WithExample("update [mcrUID] --json '{\"name\":\"Updated MCR\",\"marketplaceVisibility\":true,\"costCentre\":\"Finance\"}'").
-		WithExample("update [mcrUID] --json-file ./update-mcr-config.json").
+		WithExample("megaport-cli mcr update [mcrUID] --interactive").
+		WithExample("megaport-cli mcr update [mcrUID] --name \"Updated MCR\" --marketplace-visibility true --cost-centre \"Finance\"").
+		WithExample("megaport-cli mcr update [mcrUID] --json '{\"name\":\"Updated MCR\",\"marketplaceVisibility\":true,\"costCentre\":\"Finance\"}'").
+		WithExample("megaport-cli mcr update [mcrUID] --json-file ./update-mcr-config.json").
 		WithJSONExample(`{
   "name": "Updated MCR",
   "marketplaceVisibility": true,
@@ -96,9 +96,9 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithColorAwareRunFunc(DeleteMCR).
 		WithDeleteFlags().
 		WithLongDesc("Delete an MCR from your account.\n\nThis command allows you to delete an MCR from your account. By default, the MCR will be scheduled for deletion at the end of the current billing period.").
-		WithExample("delete [mcrUID]").
-		WithExample("delete [mcrUID] --now").
-		WithExample("delete [mcrUID] --now --force").
+		WithExample("megaport-cli mcr delete [mcrUID]").
+		WithExample("megaport-cli mcr delete [mcrUID] --now").
+		WithExample("megaport-cli mcr delete [mcrUID] --now --force").
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -107,7 +107,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(RestoreMCR).
 		WithLongDesc("Restore a previously deleted MCR.\n\nThis command allows you to restore a previously deleted MCR, provided it has not yet been fully decommissioned.").
-		WithExample("restore [mcrUID]").
+		WithExample("megaport-cli mcr restore [mcrUID]").
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -118,10 +118,10 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithStandardInputFlags().
 		WithLongDesc("Create a prefix filter list on an MCR.\n\nThis command allows you to create a new prefix filter list on an MCR. Prefix filter lists are used to control which routes are accepted or advertised by the MCR.").
 		WithMCRPrefixFilterListFlags().
-		WithExample("create-prefix-filter-list [mcrUID] --interactive").
-		WithExample("create-prefix-filter-list [mcrUID] --description \"My prefix list\" --address-family \"IPv4\" --entries '[{\"action\":\"permit\",\"prefix\":\"10.0.0.0/8\",\"ge\":24,\"le\":32}]'").
-		WithExample("create-prefix-filter-list [mcrUID] --json '{\"description\":\"My prefix list\",\"addressFamily\":\"IPv4\",\"entries\":[{\"action\":\"permit\",\"prefix\":\"10.0.0.0/8\",\"ge\":24,\"le\":32}]}'").
-		WithExample("create-prefix-filter-list [mcrUID] --json-file ./prefix-list-config.json").
+		WithExample("megaport-cli mcr create-prefix-filter-list [mcrUID] --interactive").
+		WithExample("megaport-cli mcr create-prefix-filter-list [mcrUID] --description \"My prefix list\" --address-family \"IPv4\" --entries '[{\"action\":\"permit\",\"prefix\":\"10.0.0.0/8\",\"ge\":24,\"le\":32}]'").
+		WithExample("megaport-cli mcr create-prefix-filter-list [mcrUID] --json '{\"description\":\"My prefix list\",\"addressFamily\":\"IPv4\",\"entries\":[{\"action\":\"permit\",\"prefix\":\"10.0.0.0/8\",\"ge\":24,\"le\":32}]}'").
+		WithExample("megaport-cli mcr create-prefix-filter-list [mcrUID] --json-file ./prefix-list-config.json").
 		WithJSONExample(`{
   "description": "My prefix list",
   "addressFamily": "IPv4",
@@ -151,7 +151,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(ListMCRPrefixFilterLists).
 		WithLongDesc("List all prefix filter lists for a specific MCR.\n\nThis command retrieves and displays a list of all prefix filter lists configured on the specified MCR.").
-		WithExample("list-prefix-filter-lists [mcrUID]").
+		WithExample("megaport-cli mcr list-prefix-filter-lists [mcrUID]").
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -160,7 +160,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithArgs(cobra.ExactArgs(2)).
 		WithOutputFormatRunFunc(GetMCRPrefixFilterList).
 		WithLongDesc("Get details for a single prefix filter list on an MCR.\n\nThis command retrieves and displays detailed information about a specific prefix filter list on the specified MCR.").
-		WithExample("get-prefix-filter-list [mcrUID] [prefixFilterListID]").
+		WithExample("megaport-cli mcr get-prefix-filter-list [mcrUID] [prefixFilterListID]").
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -171,10 +171,10 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithStandardInputFlags().
 		WithMCRPrefixFilterListFlags().
 		WithLongDesc("Update a prefix filter list on an MCR.\n\nThis command allows you to update the details of an existing prefix filter list on an MCR. You can use this command to modify the description, address family, or entries in the list.").
-		WithExample("update-prefix-filter-list [mcrUID] [prefixFilterListID] --interactive").
-		WithExample("update-prefix-filter-list [mcrUID] [prefixFilterListID] --description \"Updated prefix list\" --entries '[{\"action\":\"permit\",\"prefix\":\"10.0.0.0/8\",\"ge\":24,\"le\":32}]'").
-		WithExample("update-prefix-filter-list [mcrUID] [prefixFilterListID] --json '{\"description\":\"Updated prefix list\",\"entries\":[{\"action\":\"permit\",\"prefix\":\"10.0.0.0/8\",\"ge\":24,\"le\":32}]}'").
-		WithExample("update-prefix-filter-list [mcrUID] [prefixFilterListID] --json-file ./update-prefix-list.json").
+		WithExample("megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --interactive").
+		WithExample("megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --description \"Updated prefix list\" --entries '[{\"action\":\"permit\",\"prefix\":\"10.0.0.0/8\",\"ge\":24,\"le\":32}]'").
+		WithExample("megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --json '{\"description\":\"Updated prefix list\",\"entries\":[{\"action\":\"permit\",\"prefix\":\"10.0.0.0/8\",\"ge\":24,\"le\":32}]}'").
+		WithExample("megaport-cli mcr update-prefix-filter-list [mcrUID] [prefixFilterListID] --json-file ./update-prefix-list.json").
 		WithJSONExample(`{
   "description": "Updated prefix list",
   "addressFamily": "IPv4",
@@ -200,8 +200,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithColorAwareRunFunc(DeleteMCRPrefixFilterList).
 		WithDeleteFlags().
 		WithLongDesc("Delete a prefix filter list on an MCR.\n\nThis command allows you to delete a prefix filter list from the specified MCR.").
-		WithExample("delete-prefix-filter-list [mcrUID] [prefixFilterListID]").
-		WithExample("delete-prefix-filter-list [mcrUID] [prefixFilterListID] --force").
+		WithExample("megaport-cli mcr delete-prefix-filter-list [mcrUID] [prefixFilterListID]").
+		WithExample("megaport-cli mcr delete-prefix-filter-list [mcrUID] [prefixFilterListID] --force").
 		WithRootCmd(rootCmd).
 		Build()
 

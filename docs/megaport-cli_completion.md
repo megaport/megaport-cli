@@ -13,10 +13,10 @@ Generate completion script
 ### Example Usage
 
 ```sh
-  completion bash > ~/.bash_completion.d/megaport-cli
-  completion zsh > "${fpath[1]}/_megaport-cli"
-  completion fish > ~/.config/fish/completions/megaport-cli.fish
-  completion powershell > megaport-cli.ps1
+  megaport-cli completion bash > ~/.bash_completion.d/megaport-cli
+  megaport-cli completion zsh > "${fpath[1]}/_megaport-cli"
+  megaport-cli completion fish > ~/.config/fish/completions/megaport-cli.fish
+  megaport-cli completion powershell > megaport-cli.ps1
 ```
 
 ## Usage
@@ -26,11 +26,8 @@ megaport-cli completion [flags]
 ```
 
 
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-
 

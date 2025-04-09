@@ -22,16 +22,12 @@ megaport-cli locations [flags]
 ```
 
 
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-
 ## Subcommands
-
 * [get](megaport-cli_locations_get.md)
 * [list](megaport-cli_locations_list.md)
 

@@ -11,9 +11,9 @@ This command allows you to modify the details of an existing service key. You ne
 ### Example Usage
 
 ```sh
-  update a1b2c3d4-e5f6-7890-1234-567890abcdef --description "Updated description"
-  update a1b2c3d4-e5f6-7890-1234-567890abcdef --active
-  update a1b2c3d4-e5f6-7890-1234-567890abcdef --product-uid "new-product-uid"
+  megaport-cli servicekeys update a1b2c3d4-e5f6-7890-1234-567890abcdef --description "Updated description"
+  megaport-cli servicekeys update a1b2c3d4-e5f6-7890-1234-567890abcdef --active
+  megaport-cli servicekeys update a1b2c3d4-e5f6-7890-1234-567890abcdef --product-uid "new-product-uid"
 ```
 
 ## Usage
@@ -26,8 +26,6 @@ megaport-cli servicekeys update [flags]
 ## Parent Command
 
 * [megaport-cli servicekeys](megaport-cli_servicekeys.md)
-
-
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
@@ -37,5 +35,4 @@ megaport-cli servicekeys update [flags]
 | `--product-id` |  | `0` | Product ID for the service key | false |
 | `--product-uid` |  |  | Product UID for the service key | false |
 | `--single-use` |  | `false` | Single-use service key | false |
-
 

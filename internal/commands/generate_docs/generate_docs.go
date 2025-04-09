@@ -616,17 +616,13 @@ func getCommandTemplate() string {
 ## Aliases
 
 {{ range .Aliases }}* {{ . }}
-{{ end }}{{ end }}
-
-## Flags
+{{ end }}{{ end }}## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 {{ range .Flags }}| ` + "`" + `--{{ .Name }}` + "`" + ` | {{ if .Shorthand }}` + "`" + `-{{ .Shorthand }}` + "`" + `{{ end }} | {{ if .Default }}` + "`" + `{{ .Default }}` + "`" + `{{ end }} | {{ .Description }} | {{ .Required }} |
-{{ end }}
-{{ if .HasSubCommands }}
+{{ end }}{{ if .HasSubCommands }}
 ## Subcommands
-
 {{ range .SubCommands }}* [{{ . }}]({{ $.FilepathPrefix }}_{{ . }}.md)
 {{ end }}{{ end }}
 `
@@ -640,7 +636,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 			// Pass the root command to generateDocs explicitly
 			return generateDocs(rootCmd, args)
 		}).
-		WithExample("generate-docs ./docs").
+		WithExample("megaport-cli generate-docs ./docs").
 		WithImportantNote("The output directory will be created if it doesn't exist").
 		WithImportantNote("Existing files in the output directory may be overwritten").
 		WithImportantNote("Hidden commands and 'help' commands are excluded from the documentation").

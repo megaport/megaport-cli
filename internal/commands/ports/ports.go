@@ -10,16 +10,16 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	// Create ports parent command
 	portsCmd := cmdbuilder.NewCommand("ports", "Manage ports in the Megaport API").
 		WithLongDesc("Manage ports in the Megaport API.\n\nThis command groups operations related to ports. You can use the subcommands to list all ports, get details for a specific port, buy a new port, buy a LAG port, update an existing port, delete a port, restore a deleted port, lock a port, unlock a port, and check VLAN availability on a port.").
-		WithExample("ports list").
-		WithExample("ports get [portUID]").
-		WithExample("ports buy --interactive").
-		WithExample("ports buy-lag --interactive").
-		WithExample("ports update [portUID] --name \"Updated Port Name\"").
-		WithExample("ports delete [portUID]").
-		WithExample("ports restore [portUID]").
-		WithExample("ports lock [portUID]").
-		WithExample("ports unlock [portUID]").
-		WithExample("ports check-vlan [portUID] [vlan]").
+		WithExample("megaport-cli ports list").
+		WithExample("megaport-cli ports get [portUID]").
+		WithExample("megaport-cli ports buy --interactive").
+		WithExample("megaport-cli ports buy-lag --interactive").
+		WithExample("megaport-cli ports update [portUID] --name \"Updated Port Name\"").
+		WithExample("megaport-cli ports delete [portUID]").
+		WithExample("megaport-cli ports restore [portUID]").
+		WithExample("megaport-cli ports lock [portUID]").
+		WithExample("megaport-cli ports unlock [portUID]").
+		WithExample("megaport-cli ports check-vlan [portUID] [vlan]").
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -37,10 +37,10 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("diversity-zone", "The diversity zone for the port").
 		WithOptionalFlag("cost-centre", "The cost centre for the port").
 		WithOptionalFlag("promo-code", "A promotional code for the port").
-		WithExample("buy --interactive").
-		WithExample("buy --name \"My Port\" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true").
-		WithExample("buy --json '{\"name\":\"My Port\",\"term\":12,\"portSpeed\":10000,\"locationId\":123,\"marketPlaceVisibility\":true}'").
-		WithExample("buy --json-file ./port-config.json").
+		WithExample("megaport-cli ports buy --interactive").
+		WithExample("megaport-cli ports buy --name \"My Port\" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true").
+		WithExample("megaport-cli ports buy --json '{\"name\":\"My Port\",\"term\":12,\"portSpeed\":10000,\"locationId\":123,\"marketPlaceVisibility\":true}'").
+		WithExample("megaport-cli ports buy --json-file ./port-config.json").
 		WithJSONExample(`{
   "name": "My Port",
   "term": 12,
@@ -106,11 +106,11 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("port-name", "Filter ports by port name").
 		WithOptionalFlag("lag-only", "Show only LAG ports").
 		WithOptionalFlag("available", "Show only available ports").
-		WithExample("list").
-		WithExample("list --location-id 1").
-		WithExample("list --port-speed 10000").
-		WithExample("list --port-name \"Data Center Primary\"").
-		WithExample("list --location-id 1 --port-speed 10000 --port-name \"Data Center Primary\"").
+		WithExample("megaport-cli ports list").
+		WithExample("megaport-cli ports list --location-id 1").
+		WithExample("megaport-cli ports list --port-speed 10000").
+		WithExample("megaport-cli ports list --port-name \"Data Center Primary\"").
+		WithExample("megaport-cli ports list --location-id 1 --port-speed 10000 --port-name \"Data Center Primary\"").
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -119,8 +119,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetPort).
 		WithLongDesc("Get details for a single port from the Megaport API.\n\nThis command fetches and displays detailed information about a specific port. You need to provide the UID of the port as an argument.").
-		WithExample("get port-abc123").
-		WithExample("get 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
+		WithExample("megaport-cli ports get port-abc123").
+		WithExample("megaport-cli ports get 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -135,9 +135,9 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("All VXCs associated with the port must be deleted before the port can be deleted").
 		WithImportantNote("You can restore a deleted port before it's fully decommissioned using the 'restore' command").
 		WithImportantNote("Once a port is fully decommissioned, restoration is not possible").
-		WithExample("delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
-		WithExample("delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now").
-		WithExample("delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now --force").
+		WithExample("megaport-cli ports delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
+		WithExample("megaport-cli ports delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now").
+		WithExample("megaport-cli ports delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now --force").
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -151,7 +151,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("The restoration process is immediate but may take a few minutes to complete").
 		WithImportantNote("All port attributes will be restored to their pre-deletion state").
 		WithImportantNote("You will resume being billed for the port according to your original terms").
-		WithExample("restore 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
+		WithExample("megaport-cli ports restore 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -165,7 +165,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("Existing VXCs cannot be modified or deleted").
 		WithImportantNote("The port itself cannot be deleted").
 		WithImportantNote("To reverse this action, use the 'unlock' command").
-		WithExample("lock 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
+		WithExample("megaport-cli ports lock 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -178,7 +178,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("New VXCs can be created on this port").
 		WithImportantNote("Existing VXCs can be modified or deleted").
 		WithImportantNote("The port itself can be deleted if needed").
-		WithExample("unlock 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
+		WithExample("megaport-cli ports unlock 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -187,8 +187,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithArgs(cobra.ExactArgs(2)).
 		WithColorAwareRunFunc(CheckPortVLANAvailability).
 		WithLongDesc("Check if a VLAN is available on a port in the Megaport API.\n\nThis command verifies whether a specific VLAN ID is available for use on a port. This is useful when planning new VXCs to ensure the VLAN ID you want to use is not already in use by another connection.\n\nVLAN ID must be between 2 and 4094 (inclusive).").
-		WithExample("check-vlan 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p 100").
-		WithExample("check-vlan port-abc123 500").
+		WithExample("megaport-cli ports check-vlan 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p 100").
+		WithExample("megaport-cli ports check-vlan port-abc123 500").
 		WithRootCmd(rootCmd).
 		Build()
 
