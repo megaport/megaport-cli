@@ -7,6 +7,7 @@ toolchain go1.23.5
 require (
 	github.com/charmbracelet/glamour v0.9.1
 	github.com/fatih/color v1.18.0
+	github.com/jedib0t/go-pretty/v6 v6.6.7
 	github.com/megaport/megaportgo v1.3.2
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d
 	github.com/spf13/cobra v1.9.1

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/megaport/megaport-cli/internal/base/help"
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/base/registry"
 	"github.com/megaport/megaport-cli/internal/commands/completion"
 	"github.com/megaport/megaport-cli/internal/commands/generate_docs"
@@ -43,6 +44,16 @@ func Execute() {
 }
 
 func init() {
+	// Enable pretty tables by default but disable for tests
+	output.UsePrettyTables = true
+
+	// Detect test environment
+	for _, arg := range os.Args {
+		if strings.Contains(arg, "test.run") {
+			output.UsePrettyTables = false
+			break
+		}
+	}
 	// Initialize module registry
 	moduleRegistry = registry.NewRegistry()
 
@@ -114,6 +125,10 @@ func init() {
 		// Also check environment
 		if _, exists := os.LookupEnv("NO_COLOR"); exists {
 			isColorDisabled = true
+		}
+
+		if isColorDisabled {
+			output.UsePrettyTables = false
 		}
 
 		// For the root command, regenerate the help text completely

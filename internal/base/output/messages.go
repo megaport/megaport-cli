@@ -147,36 +147,6 @@ func FormatJSONExample(json string, noColor bool) string {
 	return color.GreenString(json)
 }
 
-func colorizeStatus(status string, noColor bool) string {
-	if noColor {
-		return status
-	}
-
-	upperStatus := strings.ToUpper(status)
-
-	// Green for ready/active states
-	switch upperStatus {
-	case "CONFIGURED", "LIVE", "ACTIVE", "SUCCESS", "NEW":
-		return color.GreenString(status)
-
-	// Yellow for in-progress states
-	case "CONFIGURING", "PROVISIONING", "PENDING", "REQUESTED", "DEPLOYING", "DEPLOYMENT":
-		return color.YellowString(status)
-
-	// Red for error/terminated states
-	case "DECOMMISSIONED", "CANCELLED", "ERROR", "FAILED", "INACTIVE", "REJECTED", "RESTRICTED":
-		return color.RedString(status)
-
-	// Blue for informational states
-	case "LOCKED", "MAINTENANCE", "SUSPENDED":
-		return color.BlueString(status)
-
-	// Default with no coloring
-	default:
-		return status
-	}
-}
-
 func FormatUID(uid string, noColor bool) string {
 	if noColor {
 		return uid

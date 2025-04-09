@@ -136,16 +136,15 @@ func TestFilterPartners(t *testing.T) {
 		})
 	}
 }
-
 func TestPrintPartners_Table(t *testing.T) {
 	output := output.CaptureOutput(func() {
 		err := printPartnersFunc(testPartners, "table", noColor)
 		assert.NoError(t, err)
 	})
 
-	expected := `Name         UID    Connect Type   Company Name   LocationID   Diversity Zone   VXC Permitted
-ProductOne   uid1   TypeA          CompanyA       1            ZoneA            true
-ProductTwo   uid2   TypeB          CompanyB       2            ZoneB            false
+	expected := `Name         UID    Connect Type   Company Name   Location ID   Diversity Zone   VXC Permitted
+ProductOne   uid1   TypeA          CompanyA       1             ZoneA            true
+ProductTwo   uid2   TypeB          CompanyB       2             ZoneB            false
 `
 	assert.Equal(t, expected, output)
 }
@@ -158,7 +157,7 @@ func TestPrintPartners_EmptySlice(t *testing.T) {
 		err := printPartnersFunc(emptySlice, "table", noColor)
 		assert.NoError(t, err)
 	})
-	expectedTable := `Name   UID   Connect Type   Company Name   LocationID   Diversity Zone   VXC Permitted
+	expectedTable := `Name   UID   Connect Type   Company Name   Location ID   Diversity Zone   VXC Permitted
 `
 	assert.Equal(t, expectedTable, tableOutput)
 
