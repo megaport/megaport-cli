@@ -36,3 +36,6 @@ megaport-cli servicekeys update [flags]
 | `--product-uid` |  |  | Product UID for the service key | false |
 | `--single-use` |  | `false` | Single-use service key | false |
 
+## Subcommands
+* [docs](megaport-cli_servicekeys_update_docs.md)
+

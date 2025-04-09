@@ -38,3 +38,6 @@ megaport-cli servicekeys create [flags]
 | `--single-use` |  | `false` | Single-use service key | false |
 | `--start-date` |  |  | Start date (YYYY-MM-DD) | false |
 
+## Subcommands
+* [docs](megaport-cli_servicekeys_create_docs.md)
+

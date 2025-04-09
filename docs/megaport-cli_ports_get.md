@@ -30,3 +30,6 @@ megaport-cli ports get [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
+## Subcommands
+* [docs](megaport-cli_ports_get_docs.md)
+

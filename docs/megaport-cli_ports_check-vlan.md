@@ -32,3 +32,6 @@ megaport-cli ports check-vlan [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
+## Subcommands
+* [docs](megaport-cli_ports_check-vlan_docs.md)
+

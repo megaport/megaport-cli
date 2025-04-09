@@ -39,3 +39,6 @@ megaport-cli generate-docs [flags]
 |------|-----------|---------|-------------|----------|
 | `--help` | `-h` | `false` | help for generate-docs | false |
 
+## Subcommands
+* [docs](megaport-cli_generate-docs_docs.md)
+

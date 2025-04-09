@@ -52,3 +52,6 @@ megaport-cli ports buy-lag [flags]
 | `--promo-code` |  |  | Promotional code for discounts | false |
 | `--term` |  | `0` | The term of the port (1, 12, or 24 months) | true |
 
+## Subcommands
+* [docs](megaport-cli_ports_buy-lag_docs.md)
+

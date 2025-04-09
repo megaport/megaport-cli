@@ -32,3 +32,6 @@ megaport-cli mcr delete-prefix-filter-list [flags]
 | `--force` | `-f` | `false` | Skip confirmation prompt | false |
 | `--now` |  | `false` | Delete resource immediately instead of at end of billing cycle | false |
 
+## Subcommands
+* [docs](megaport-cli_mcr_delete-prefix-filter-list_docs.md)
+

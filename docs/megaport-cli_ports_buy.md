@@ -71,3 +71,6 @@ megaport-cli ports buy [flags]
 | `--promo-code` |  |  | Promotional code for discounts | false |
 | `--term` |  | `0` | The term of the port (1, 12, 24, or 36 months) | true |
 
+## Subcommands
+* [docs](megaport-cli_ports_buy_docs.md)
+

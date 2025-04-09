@@ -29,3 +29,6 @@ megaport-cli mcr restore [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
+## Subcommands
+* [docs](megaport-cli_mcr_restore_docs.md)
+

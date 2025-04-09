@@ -36,3 +36,6 @@ megaport-cli ports lock [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
+## Subcommands
+* [docs](megaport-cli_ports_lock_docs.md)
+

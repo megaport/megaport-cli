@@ -35,3 +35,6 @@ megaport-cli ports unlock [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
+## Subcommands
+* [docs](megaport-cli_ports_unlock_docs.md)
+

@@ -38,3 +38,6 @@ megaport-cli mve delete [flags]
 | `--force` | `-f` | `false` | Skip confirmation prompt | false |
 | `--now` |  | `false` | Delete resource immediately instead of at end of billing cycle | false |
 
+## Subcommands
+* [docs](megaport-cli_mve_delete_docs.md)
+

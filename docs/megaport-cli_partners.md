@@ -29,6 +29,7 @@ megaport-cli partners [flags]
 |------|-----------|---------|-------------|----------|
 
 ## Subcommands
+* [docs](megaport-cli_partners_docs.md)
 * [find](megaport-cli_partners_find.md)
 * [list](megaport-cli_partners_list.md)
 
