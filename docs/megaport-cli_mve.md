@@ -15,7 +15,7 @@ This command groups all operations related to Megaport Virtual Edge devices (MVE
 
 ### Example Usage
 
-```
+```sh
   mve list
   mve get [mveUID]
   mve buy
@@ -26,7 +26,7 @@ This command groups all operations related to Megaport Virtual Edge devices (MVE
 
 ## Usage
 
-```
+```sh
 megaport-cli mve [flags]
 ```
 

@@ -15,7 +15,7 @@ This command fetches and displays a list of all available locations with details
 
 ### Example Usage
 
-```
+```sh
   list
   list --metro "San Francisco"
   list --country "US"
@@ -25,7 +25,7 @@ This command fetches and displays a list of all available locations with details
 
 ## Usage
 
-```
+```sh
 megaport-cli locations list [flags]
 ```
 

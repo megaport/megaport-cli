@@ -10,7 +10,7 @@ This command generates a new service key and displays its details.
 
 ### Example Usage
 
-```
+```sh
   create --product-uid "product-uid" --description "My service key"
   create --product-uid "product-uid" --single-use --max-speed 1000 --description "Single-use key"
   create --product-uid "product-uid" --start-date "2023-01-01" --end-date "2023-12-31"
@@ -19,7 +19,7 @@ This command generates a new service key and displays its details.
 
 ## Usage
 
-```
+```sh
 megaport-cli servicekeys create [flags]
 ```
 

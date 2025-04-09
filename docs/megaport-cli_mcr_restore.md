@@ -10,14 +10,14 @@ This command allows you to restore a previously deleted MCR, provided it has not
 
 ### Example Usage
 
-```
+```sh
   restore [mcrUID]
 ```
 
 
 ## Usage
 
-```
+```sh
 megaport-cli mcr restore [flags]
 ```
 

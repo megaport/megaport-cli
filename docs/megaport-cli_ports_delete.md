@@ -19,7 +19,7 @@ This command allows you to delete an existing port by providing the UID of the p
 
 ### Example Usage
 
-```
+```sh
   delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
   delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now
   delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now --force
@@ -28,7 +28,7 @@ This command allows you to delete an existing port by providing the UID of the p
 
 ## Usage
 
-```
+```sh
 megaport-cli ports delete [flags]
 ```
 

@@ -10,7 +10,7 @@ All software has versions. This is Megaport CLI's.
 
 ## Usage
 
-```
+```sh
 megaport-cli version [flags]
 ```
 

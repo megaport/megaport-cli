@@ -10,7 +10,7 @@ This command groups all operations related to locations. You can use its subcomm
 
 ### Example Usage
 
-```
+```sh
   locations list
   locations get [locationID]
 ```
@@ -18,7 +18,7 @@ This command groups all operations related to locations. You can use its subcomm
 
 ## Usage
 
-```
+```sh
 megaport-cli locations [flags]
 ```
 

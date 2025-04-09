@@ -19,7 +19,7 @@ This command allows you to create a VXC by providing the necessary details.
 
 ### Example Usage
 
-```
+```sh
   buy --interactive
   buy --name "My VXC" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200
   buy --json '{"vxcName":"My VXC","rateLimit":1000,"term":12,"portUid":"port-123","aEndConfiguration":{"vlan":100},"bEndConfiguration":{"productUID":"port-456","vlan":200}}'
@@ -29,7 +29,7 @@ This command allows you to create a VXC by providing the necessary details.
 
 ## Usage
 
-```
+```sh
 megaport-cli vxc buy [flags]
 ```
 

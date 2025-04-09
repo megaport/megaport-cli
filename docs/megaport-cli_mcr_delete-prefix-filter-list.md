@@ -10,7 +10,7 @@ This command allows you to delete a prefix filter list from the specified MCR.
 
 ### Example Usage
 
-```
+```sh
   delete-prefix-filter-list [mcrUID] [prefixFilterListID]
   delete-prefix-filter-list [mcrUID] [prefixFilterListID] --force
 ```
@@ -18,7 +18,7 @@ This command allows you to delete a prefix filter list from the specified MCR.
 
 ## Usage
 
-```
+```sh
 megaport-cli mcr delete-prefix-filter-list [flags]
 ```
 

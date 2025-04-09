@@ -10,14 +10,14 @@ This command retrieves and displays a list of all prefix filter lists configured
 
 ### Example Usage
 
-```
+```sh
   list-prefix-filter-lists [mcrUID]
 ```
 
 
 ## Usage
 
-```
+```sh
 megaport-cli mcr list-prefix-filter-lists [flags]
 ```
 

@@ -21,7 +21,7 @@ This command fetches and displays a list of all available MVE images with detail
 
 ### Example Usage
 
-```
+```sh
   list-images
   list-images --vendor "Cisco"
   list-images --vendor "Fortinet" --release-image
@@ -30,7 +30,7 @@ This command fetches and displays a list of all available MVE images with detail
 
 ## Usage
 
-```
+```sh
 megaport-cli mve list-images [flags]
 ```
 

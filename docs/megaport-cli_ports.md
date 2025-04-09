@@ -10,7 +10,7 @@ This command groups operations related to ports. You can use the subcommands to 
 
 ### Example Usage
 
-```
+```sh
   ports list
   ports get [portUID]
   ports buy --interactive
@@ -26,7 +26,7 @@ This command groups operations related to ports. You can use the subcommands to 
 
 ## Usage
 
-```
+```sh
 megaport-cli ports [flags]
 ```
 

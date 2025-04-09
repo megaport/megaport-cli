@@ -31,7 +31,7 @@ This command allows you to update an existing VXC by providing the necessary det
 
 ### Example Usage
 
-```
+```sh
   update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive
   update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --name "New VXC Name" --rate-limit 2000 --cost-centre "New Cost Centre"
   update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --a-end-vlan 200 --b-end-vlan 300
@@ -55,7 +55,7 @@ This command allows you to update an existing VXC by providing the necessary det
 
 ## Usage
 
-```
+```sh
 megaport-cli vxc update [flags]
 ```
 

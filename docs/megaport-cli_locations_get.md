@@ -10,14 +10,14 @@ This command fetches and displays detailed information about a specific location
 
 ### Example Usage
 
-```
+```sh
   get 1
 ```
 
 
 ## Usage
 
-```
+```sh
 megaport-cli locations get [flags]
 ```
 

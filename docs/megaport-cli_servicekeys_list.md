@@ -10,14 +10,14 @@ This command retrieves and displays all service keys along with their details. U
 
 ### Example Usage
 
-```
+```sh
   list
 ```
 
 
 ## Usage
 
-```
+```sh
 megaport-cli servicekeys list [flags]
 ```
 

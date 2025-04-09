@@ -28,7 +28,7 @@ This command allows you to purchase a LAG port by providing the necessary detail
 
 ## Usage
 
-```
+```sh
 megaport-cli ports buy-lag [flags]
 ```
 

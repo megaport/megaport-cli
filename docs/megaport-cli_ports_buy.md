@@ -25,7 +25,7 @@ This command allows you to purchase a port by providing the necessary details.
 
 ### Example Usage
 
-```
+```sh
   buy --interactive
   buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true
   buy --json '{"name":"My Port","term":12,"portSpeed":10000,"locationId":123,"marketPlaceVisibility":true}'
@@ -48,7 +48,7 @@ This command allows you to purchase a port by providing the necessary details.
 
 ## Usage
 
-```
+```sh
 megaport-cli ports buy [flags]
 ```
 

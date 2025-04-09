@@ -22,7 +22,7 @@ This command allows you to update specific properties of an existing MVE without
 
 ### Example Usage
 
-```
+```sh
   update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
   update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --name "Edge Router West" --cost-centre "IT-Network-2023" --contract-term 24
   update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --json '{"name": "Edge Router West", "costCentre": "IT-Network-2023", "contractTermMonths": 24}'
@@ -41,7 +41,7 @@ This command allows you to update specific properties of an existing MVE without
 
 ## Usage
 
-```
+```sh
 megaport-cli mve update [flags]
 ```
 

@@ -29,7 +29,7 @@ This command allows you to purchase an MCR by providing the necessary details.
 
 ### Example Usage
 
-```
+```sh
   buy --interactive
   buy --name "My MCR" --term 12 --port-speed 5000 --location-id 123 --mcr-asn 65000
   buy --json '{"name":"My MCR","term":12,"portSpeed":5000,"locationId":123,"mcrAsn":65000}'
@@ -53,7 +53,7 @@ This command allows you to purchase an MCR by providing the necessary details.
 
 ## Usage
 
-```
+```sh
 megaport-cli mcr buy [flags]
 ```
 

@@ -20,7 +20,7 @@ This command allows you to update the details of an existing MCR.
 
 ### Example Usage
 
-```
+```sh
   update [mcrUID] --interactive
   update [mcrUID] --name "Updated MCR" --marketplace-visibility true --cost-centre "Finance"
   update [mcrUID] --json '{"name":"Updated MCR","marketplaceVisibility":true,"costCentre":"Finance"}'
@@ -40,7 +40,7 @@ This command allows you to update the details of an existing MCR.
 
 ## Usage
 
-```
+```sh
 megaport-cli mcr update [flags]
 ```
 

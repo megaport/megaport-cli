@@ -12,7 +12,7 @@ Generate completion script
 
 ### Example Usage
 
-```
+```sh
   completion bash > ~/.bash_completion.d/megaport-cli
   completion zsh > "${fpath[1]}/_megaport-cli"
   completion fish > ~/.config/fish/completions/megaport-cli.fish
@@ -22,7 +22,7 @@ Generate completion script
 
 ## Usage
 
-```
+```sh
 megaport-cli completion [flags]
 ```
 

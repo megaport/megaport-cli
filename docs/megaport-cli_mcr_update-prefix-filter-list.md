@@ -10,7 +10,7 @@ This command allows you to update the details of an existing prefix filter list 
 
 ### Example Usage
 
-```
+```sh
   update-prefix-filter-list [mcrUID] [prefixFilterListID] --interactive
   update-prefix-filter-list [mcrUID] [prefixFilterListID] --description "Updated prefix list" --entries '[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]'
   update-prefix-filter-list [mcrUID] [prefixFilterListID] --json '{"description":"Updated prefix list","entries":[{"action":"permit","prefix":"10.0.0.0/8","ge":24,"le":32}]}'
@@ -40,7 +40,7 @@ This command allows you to update the details of an existing prefix filter list 
 
 ## Usage
 
-```
+```sh
 megaport-cli mcr update-prefix-filter-list [flags]
 ```
 

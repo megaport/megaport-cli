@@ -10,7 +10,7 @@ This command allows you to delete an MCR from your account. By default, the MCR 
 
 ### Example Usage
 
-```
+```sh
   delete [mcrUID]
   delete [mcrUID] --now
   delete [mcrUID] --now --force
@@ -19,7 +19,7 @@ This command allows you to delete an MCR from your account. By default, the MCR 
 
 ## Usage
 
-```
+```sh
 megaport-cli mcr delete [flags]
 ```
 

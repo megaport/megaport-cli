@@ -15,7 +15,7 @@ This command allows you to delete an existing VXC by providing its UID.
 
 ### Example Usage
 
-```
+```sh
   delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
   delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --force
   delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --now
@@ -24,7 +24,7 @@ This command allows you to delete an existing VXC by providing its UID.
 
 ## Usage
 
-```
+```sh
 megaport-cli vxc delete [flags]
 ```
 

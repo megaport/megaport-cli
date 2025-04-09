@@ -17,7 +17,7 @@ This command fetches and displays a list of ports with details such as port ID, 
 
 ### Example Usage
 
-```
+```sh
   list
   list --location-id 1
   list --port-speed 10000
@@ -28,7 +28,7 @@ This command fetches and displays a list of ports with details such as port ID, 
 
 ## Usage
 
-```
+```sh
 megaport-cli ports list [flags]
 ```
 

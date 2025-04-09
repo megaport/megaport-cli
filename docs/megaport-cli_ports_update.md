@@ -21,7 +21,7 @@ This command allows you to update the details of an existing port by providing t
 
 ## Usage
 
-```
+```sh
 megaport-cli ports update [flags]
 ```
 

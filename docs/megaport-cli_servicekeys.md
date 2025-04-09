@@ -10,7 +10,7 @@ This command groups all operations related to service keys. You can use its subc
 
 ### Example Usage
 
-```
+```sh
   servicekeys list
   servicekeys get [key]
   servicekeys create --product-uid "product-uid" --description "My service key"
@@ -20,7 +20,7 @@ This command groups all operations related to service keys. You can use its subc
 
 ## Usage
 
-```
+```sh
 megaport-cli servicekeys [flags]
 ```
 

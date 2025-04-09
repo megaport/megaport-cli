@@ -15,14 +15,14 @@ This command launches an interactive session to help you find partner ports. You
 
 ### Example Usage
 
-```
+```sh
   find
 ```
 
 
 ## Usage
 
-```
+```sh
 megaport-cli partners find [flags]
 ```
 

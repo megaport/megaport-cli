@@ -22,7 +22,7 @@ The CLI allows you to manage Megaport resources such as ports, VXCs, MCRs, MVEs,
 
 ### Example Usage
 
-```
+```sh
   megaport-cli ports list
   megaport-cli vxc buy --interactive
   megaport-cli mcr get [mcrUID]
@@ -32,7 +32,7 @@ The CLI allows you to manage Megaport resources such as ports, VXCs, MCRs, MVEs,
 
 ## Usage
 
-```
+```sh
 megaport-cli [flags]
 ```
 

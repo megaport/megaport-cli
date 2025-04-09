@@ -13,14 +13,14 @@ This command retrieves and displays detailed information for a single Megaport C
 
 ### Example Usage
 
-```
+```sh
   get a1b2c3d4-e5f6-7890-1234-567890abcdef
 ```
 
 
 ## Usage
 
-```
+```sh
 megaport-cli mcr get [flags]
 ```
 

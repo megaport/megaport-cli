@@ -10,14 +10,14 @@ This command fetches and displays detailed information about a given service key
 
 ### Example Usage
 
-```
+```sh
   get a1b2c3d4-e5f6-7890-1234-567890abcdef
 ```
 
 
 ## Usage
 
-```
+```sh
 megaport-cli servicekeys get [flags]
 ```
 

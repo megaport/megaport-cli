@@ -10,7 +10,7 @@ This command fetches and displays detailed information about a specific port. Yo
 
 ### Example Usage
 
-```
+```sh
   get port-abc123
   get 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
 ```
@@ -18,7 +18,7 @@ This command fetches and displays detailed information about a specific port. Yo
 
 ## Usage
 
-```
+```sh
 megaport-cli ports get [flags]
 ```
 

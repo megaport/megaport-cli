@@ -447,7 +447,7 @@ func processDescription(description string, cmdName string) string {
 
 		// Start code block after example header
 		if lineAfterExampleHeader && trimLine != "" && !strings.HasPrefix(trimLine, "```") {
-			formattedLines = append(formattedLines, "```")
+			formattedLines = append(formattedLines, "```sh")
 			inExampleBlock = true
 			lineAfterExampleHeader = false
 		}
@@ -589,7 +589,6 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 	return tmpl.Execute(f, data)
 }
 
-// getCommandTemplate returns the markdown template for command docs
 func getCommandTemplate() string {
 	return `# {{ .Name }}
 
@@ -602,13 +601,13 @@ func getCommandTemplate() string {
 
 ## Usage
 
-` + "```" + `
+` + "```sh" + `
 {{ .Usage }}
 ` + "```" + `
 
 {{ if .Example }}## Examples
 
-` + "```" + `
+` + "```sh" + `
 {{ .Example }}
 ` + "```" + `{{ end }}
 
@@ -635,8 +634,6 @@ func getCommandTemplate() string {
 {{ end }}{{ end }}
 `
 }
-
-// Replace the existing AddCommandsTo function with this implementation
 
 func AddCommandsTo(rootCmd *cobra.Command) {
 	// Create generate-docs command using the command builder pattern

@@ -14,14 +14,14 @@ This command fetches and displays details about all available MVE instance sizes
 
 ### Example Usage
 
-```
+```sh
   list-sizes
 ```
 
 
 ## Usage
 
-```
+```sh
 megaport-cli mve list-sizes [flags]
 ```
 
