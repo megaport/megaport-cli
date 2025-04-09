@@ -39,7 +39,7 @@ This command allows you to purchase a port by providing the necessary details.
   "portSpeed": 10000,
   "locationId": 123,
   "marketPlaceVisibility": true,
-  "diversityZone": "A",
+  "diversityZone": "blue",
   "costCentre": "IT-2023"
 }
 

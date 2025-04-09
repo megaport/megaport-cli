@@ -10,9 +10,9 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	// Create partners parent command
 	partnersCmd := cmdbuilder.NewCommand("partners", "Manage partner ports in the Megaport API").
 		WithLongDesc("Manage partner ports in the Megaport API.\n\nThis command groups all operations related to partner ports. You can use its subcommands to list and filter available partner ports based on specific criteria.").
-		WithExample("megaport-cli partners find").
-		WithExample("megaport-cli partners list").
-		WithExample("megaport-cli partners list --product-name \"AWS Partner Port\" --company-name \"AWS\" --location-id 1").
+		WithExample("partners find").
+		WithExample("partners list").
+		WithExample("partners list --product-name \"AWS Partner Port\" --company-name \"AWS\" --location-id 1").
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -25,12 +25,12 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("company-name", "Filter partner ports by company name").
 		WithOptionalFlag("location-id", "Filter partner ports by location ID").
 		WithOptionalFlag("diversity-zone", "Filter partner ports by diversity zone").
-		WithExample("megaport-cli list").
-		WithExample("megaport-cli list --product-name \"AWS Partner Port\"").
-		WithExample("megaport-cli list --connect-type \"Dedicated Cloud Connection\"").
-		WithExample("megaport-cli list --company-name \"Amazon Web Services\"").
-		WithExample("megaport-cli list --location-id 1").
-		WithExample("megaport-cli list --diversity-zone \"Zone A\"").
+		WithExample("list").
+		WithExample("list --product-name \"AWS Partner Port\"").
+		WithExample("list --connect-type \"Dedicated Cloud Connection\"").
+		WithExample("list --company-name \"Amazon Web Services\"").
+		WithExample("list --location-id 1").
+		WithExample("list --diversity-zone \"blue\"").
 		WithImportantNote("The list can be filtered by multiple criteria at once").
 		WithImportantNote("Filtering is case-insensitive and partial matches are supported").
 		WithRootCmd(rootCmd).
@@ -40,7 +40,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	findPartnersCmd := cmdbuilder.NewCommand("find", "Find partner ports interactively").
 		WithLongDesc("Find partner ports using an interactive search with optional filters.\n\nThis command launches an interactive session to help you find partner ports. You'll be prompted for various search criteria, but all prompts are optional. Simply press Enter to skip any filter you don't want to apply.").
 		WithColorAwareRunFunc(FindPartners).
-		WithExample("megaport-cli find").
+		WithExample("find").
 		WithImportantNote("You can skip any prompt by pressing Enter without typing anything").
 		WithImportantNote("The search is performed after all filters are collected").
 		WithImportantNote("Results are displayed in a tabular format").

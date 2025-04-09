@@ -43,7 +43,7 @@ This command allows you to purchase an MCR by providing the necessary details.
   "portSpeed": 5000,
   "locationId": 123,
   "mcrAsn": 65000,
-  "diversityZone": "zone-a",
+  "diversityZone": "blue",
   "costCentre": "IT-Networking",
   "promoCode": "SUMMER2024"
 }

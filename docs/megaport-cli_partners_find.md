@@ -16,7 +16,7 @@ This command launches an interactive session to help you find partner ports. You
 ### Example Usage
 
 ```sh
-  megaport-cli find
+  find
 ```
 
 ## Usage

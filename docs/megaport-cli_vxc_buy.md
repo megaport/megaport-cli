@@ -25,6 +25,24 @@ This command allows you to create a VXC by providing the necessary details.
   megaport-cli vxc buy --json '{"vxcName":"My VXC","rateLimit":1000,"term":12,"portUid":"port-123","aEndConfiguration":{"vlan":100},"bEndConfiguration":{"productUID":"port-456","vlan":200}}'
   megaport-cli vxc buy --json-file ./vxc-config.json
 ```
+### JSON Format Example
+```json
+{
+  "vxcName": "My VXC",
+  "rateLimit": 1000, 
+  "term": 12,
+  "portUid": "port-123",
+  "aEndConfiguration": {
+    "vlan": 100
+  },
+  "bEndConfiguration": {
+    "productUID": "port-456",
+    "vlan": 200
+  },
+  "costCentre": "IT Department"
+}
+
+```
 
 ## Usage
 
