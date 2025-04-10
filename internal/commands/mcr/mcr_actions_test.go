@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/megaport/megaport-cli/internal/base/config"
 	"github.com/megaport/megaport-cli/internal/base/output"
+	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"

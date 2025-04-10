@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/megaport/megaport-cli/internal/base/config"
 	"github.com/megaport/megaport-cli/internal/base/output"
+	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/spf13/cobra"
 )

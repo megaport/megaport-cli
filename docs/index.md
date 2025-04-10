@@ -1,6 +1,6 @@
 # Megaport CLI Documentation
 
-> Generated on April 9, 2025 for version v0.3.5
+> Generated on April 10, 2025 for version v0.3.7
 
 ## Available Commands
 
@@ -9,6 +9,32 @@
 | [megaport-cli](megaport-cli.md) | A CLI tool to interact with the Megaport API |
 | [megaport-cli completion](megaport-cli_completion.md) | Generate completion script |
 | [megaport-cli completion docs](megaport-cli_completion_docs.md) | Show documentation for this command |
+| [megaport-cli config](megaport-cli_config.md) | Manage configuration settings |
+| [megaport-cli config clear-defaults](megaport-cli_config_clear-defaults.md) | Clear all default settings |
+| [megaport-cli config clear-defaults docs](megaport-cli_config_clear-defaults_docs.md) | Show documentation for this command |
+| [megaport-cli config create-profile](megaport-cli_config_create-profile.md) | Create a new credential profile |
+| [megaport-cli config create-profile docs](megaport-cli_config_create-profile_docs.md) | Show documentation for this command |
+| [megaport-cli config delete-profile](megaport-cli_config_delete-profile.md) | Delete a profile |
+| [megaport-cli config delete-profile docs](megaport-cli_config_delete-profile_docs.md) | Show documentation for this command |
+| [megaport-cli config docs](megaport-cli_config_docs.md) | Show documentation for this command |
+| [megaport-cli config export](megaport-cli_config_export.md) | Export configuration |
+| [megaport-cli config export docs](megaport-cli_config_export_docs.md) | Show documentation for this command |
+| [megaport-cli config get-default](megaport-cli_config_get-default.md) | Get a default value |
+| [megaport-cli config get-default docs](megaport-cli_config_get-default_docs.md) | Show documentation for this command |
+| [megaport-cli config import](megaport-cli_config_import.md) | Import configuration |
+| [megaport-cli config import docs](megaport-cli_config_import_docs.md) | Show documentation for this command |
+| [megaport-cli config list-profiles](megaport-cli_config_list-profiles.md) | List all profiles |
+| [megaport-cli config list-profiles docs](megaport-cli_config_list-profiles_docs.md) | Show documentation for this command |
+| [megaport-cli config remove-default](megaport-cli_config_remove-default.md) | Remove a default value |
+| [megaport-cli config remove-default docs](megaport-cli_config_remove-default_docs.md) | Show documentation for this command |
+| [megaport-cli config set-default](megaport-cli_config_set-default.md) | Set a default value |
+| [megaport-cli config set-default docs](megaport-cli_config_set-default_docs.md) | Show documentation for this command |
+| [megaport-cli config update-profile](megaport-cli_config_update-profile.md) | Update an existing profile |
+| [megaport-cli config update-profile docs](megaport-cli_config_update-profile_docs.md) | Show documentation for this command |
+| [megaport-cli config use-profile](megaport-cli_config_use-profile.md) | Switch to a profile |
+| [megaport-cli config use-profile docs](megaport-cli_config_use-profile_docs.md) | Show documentation for this command |
+| [megaport-cli config view](megaport-cli_config_view.md) | Display current configuration |
+| [megaport-cli config view docs](megaport-cli_config_view_docs.md) | Show documentation for this command |
 | [megaport-cli generate-docs](megaport-cli_generate-docs.md) | Generate markdown documentation for the CLI |
 | [megaport-cli generate-docs docs](megaport-cli_generate-docs_docs.md) | Show documentation for this command |
 | [megaport-cli locations](megaport-cli_locations.md) | Manage locations in the Megaport API |

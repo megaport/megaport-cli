@@ -2,12 +2,14 @@ package megaport
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
 	"github.com/megaport/megaport-cli/internal/base/help"
 	"github.com/megaport/megaport-cli/internal/base/registry"
 	"github.com/megaport/megaport-cli/internal/commands/completion"
+	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/commands/generate_docs"
 	"github.com/megaport/megaport-cli/internal/commands/locations"
 	"github.com/megaport/megaport-cli/internal/commands/mcr"
@@ -55,8 +57,8 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable colorful output")
 	rootCmd.PersistentFlags().StringVar(&utils.Env, "env", "", "Environment to use (prod, dev, or staging)")
 
-	// Set up validation for the output format
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		applyDefaultSettings(cmd)
 		format := strings.ToLower(outputFormat)
 		for _, validFormat := range utils.ValidFormats {
 			if format == validFormat {
@@ -64,6 +66,7 @@ func init() {
 				return nil
 			}
 		}
+
 		return fmt.Errorf("invalid output format: %s. Must be one of: %s",
 			outputFormat, strings.Join(utils.ValidFormats, ", "))
 	}
@@ -101,7 +104,11 @@ func init() {
 
 	// Create a help function that runs the help.CommandHelpBuilder with the current noColor setting
 	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
-		isColorDisabled := false
+		var isColorDisabled bool
+
+		if noColor {
+			isColorDisabled = true
+		}
 
 		// Check raw command line args directly
 		for _, arg := range os.Args {
@@ -154,4 +161,41 @@ func registerModules() {
 	moduleRegistry.Register(servicekeys.NewModule())
 	moduleRegistry.Register(generate_docs.NewModule())
 	moduleRegistry.Register(completion.NewModule())
+	moduleRegistry.Register(config.NewModule())
+}
+
+// Apply defaults from config to command flags
+func applyDefaultSettings(cmd *cobra.Command) {
+	manager, err := config.NewConfigManager()
+	if err != nil {
+		return // Silently continue if config can't be loaded
+	}
+
+	// Apply "no-color" default
+	if !cmd.Flags().Changed("no-color") {
+		if val, exists := manager.GetDefault("no-color"); exists {
+			if boolVal, ok := val.(bool); ok {
+				err := cmd.Flags().Set("no-color", fmt.Sprintf("%t", boolVal))
+				if err != nil {
+					log.Printf("Error setting no-color flag: %v\n", err)
+					return
+				}
+				noColor = boolVal
+			}
+		}
+
+	}
+
+	// Apply "output" default
+	if !cmd.Flags().Changed("output") {
+		if val, exists := manager.GetDefault("output"); exists {
+			if strVal, ok := val.(string); ok {
+				err := cmd.Flags().Set("output", strVal)
+				if err != nil {
+					log.Printf("Error setting output flag: %v\n", err)
+					return
+				}
+			}
+		}
+	}
 }
