@@ -285,7 +285,7 @@ func TestListPortsCmd_WithMockClient(t *testing.T) {
 					ports := mockPortService.ListPortsResult
 
 					// Apply filters
-					filtered := filterPorts(ports, locationID, portSpeed, portName)
+					filtered := filterPorts(ports, locationID, portSpeed, portName, false)
 
 					noColor := true
 					// Print with current format

@@ -72,7 +72,7 @@ func TestFilterPorts(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := filterPorts(testPorts, tt.locationID, tt.portSpeed, tt.portName)
+			result := filterPorts(testPorts, tt.locationID, tt.portSpeed, tt.portName, false)
 			assert.Equal(t, tt.expected, len(result))
 		})
 	}
@@ -314,8 +314,42 @@ func TestFilterPorts_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := filterPorts(tt.ports, tt.locationID, tt.portSpeed, tt.portName)
+			result := filterPorts(tt.ports, tt.locationID, tt.portSpeed, tt.portName, false)
 			assert.Equal(t, tt.expected, len(result))
 		})
 	}
+}
+
+func TestFilterPortsWithInactiveFlag(t *testing.T) {
+	// Create test ports with different status values
+	activePorts := []*megaport.Port{
+		{UID: "port-123", Name: "Active Port 1", LocationID: 1, PortSpeed: 1000, ProvisioningStatus: "LIVE"},
+		{UID: "port-456", Name: "Active Port 2", LocationID: 2, PortSpeed: 10000, ProvisioningStatus: "CONFIGURED"},
+	}
+
+	inactivePorts := []*megaport.Port{
+		{UID: "port-789", Name: "Inactive Port 1", LocationID: 1, PortSpeed: 1000, ProvisioningStatus: megaport.STATUS_CANCELLED},
+		{UID: "port-abc", Name: "Inactive Port 2", LocationID: 2, PortSpeed: 10000, ProvisioningStatus: megaport.STATUS_DECOMMISSIONED},
+		{UID: "port-def", Name: "Inactive Port 3", LocationID: 3, PortSpeed: 1000, ProvisioningStatus: "DECOMMISSIONING"},
+	}
+
+	allPorts := append(activePorts, inactivePorts...)
+
+	// Test with includeInactive = false (default behavior)
+	filtered := filterPorts(allPorts, 0, 0, "", false)
+	assert.Len(t, filtered, 2, "Should only include active ports")
+	assert.Equal(t, "port-123", filtered[0].UID)
+	assert.Equal(t, "port-456", filtered[1].UID)
+
+	// Test with includeInactive = true
+	filtered = filterPorts(allPorts, 0, 0, "", true)
+	assert.Len(t, filtered, 5, "Should include both active and inactive ports")
+
+	// Test with multiple filters including inactive flag
+	filtered = filterPorts(allPorts, 1, 1000, "", false)
+	assert.Len(t, filtered, 1, "Should only include active ports matching all filters")
+	assert.Equal(t, "port-123", filtered[0].UID)
+
+	filtered = filterPorts(allPorts, 1, 1000, "", true)
+	assert.Len(t, filtered, 2, "Should include both active and inactive ports matching all filters")
 }
