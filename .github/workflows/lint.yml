@@ -10,17 +10,16 @@ jobs:
   golangci:
     name: Lint
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Repository info
+      - name: Clean potential cache directories
         run: |
-          echo "Checking out the code from the repository..."
-          echo "Repository: ${{ github.repository }}"
-          echo "Commit SHA: ${{ github.sha }}"
-          echo "Branch: ${{ github.ref }}"
+          rm -rf ~/go/pkg/mod || true
+          rm -rf ~/.cache/go-build || true
+          rm -rf ~/.cache/golangci-lint || true
+          echo "Cleaned potential cache directories"
 
       - name: Set up Go
         uses: actions/setup-go@v5
