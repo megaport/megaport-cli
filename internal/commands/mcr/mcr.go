@@ -11,6 +11,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	mcrCmd := cmdbuilder.NewCommand("mcr", "Manage MCRs in the Megaport API").
 		WithLongDesc("Manage MCRs in the Megaport API.\n\nThis command groups all operations related to Megaport Cloud Routers (MCRs). MCRs are virtual routing appliances that run in the Megaport network, providing interconnection between your cloud environments and the Megaport fabric.").
 		WithExample("megaport-cli mcr get [mcrUID]").
+		WithExample("megaport-cli mcr list --location-id 67").
 		WithExample("megaport-cli mcr buy").
 		WithExample("megaport-cli mcr update [mcrUID]").
 		WithExample("megaport-cli mcr delete [mcrUID]").
@@ -205,6 +206,24 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
+		// Create list MCRs command
+	listMCRsCmd := cmdbuilder.NewCommand("list", "List all MCRs with optional filters").
+		WithOutputFormatRunFunc(ListMCRs).
+		WithLongDesc("List all MCRs available in the Megaport API.\n\nThis command fetches and displays a list of MCRs with details such as MCR ID, name, location, speed, and status. By default, only active MCRs are shown.").
+		WithMCRFilterFlags().
+		WithOptionalFlag("location-id", "Filter MCRs by location ID").
+		WithOptionalFlag("mcr-name", "Filter MCRs by MCR name").
+		WithOptionalFlag("port-speed", "Filter MCRs by port speed").
+		WithOptionalFlag("include-inactive", "Include MCRs in CANCELLED, DECOMMISSIONED, or DECOMMISSIONING states").
+		WithExample("megaport-cli mcr list").
+		WithExample("megaport-cli mcr list --location-id 1").
+		WithExample("megaport-cli mcr list --port-speed 10000").
+		WithExample("megaport-cli mcr list --mcr-name \"My MCR\"").
+		WithExample("megaport-cli mcr list --include-inactive").
+		WithExample("megaport-cli mcr list --location-id 1 --port-speed 10000 --mcr-name \"My MCR\"").
+		WithRootCmd(rootCmd).
+		Build()
+
 	// Add commands to their parents
 	mcrCmd.AddCommand(
 		getMCRCmd,
@@ -217,6 +236,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		getMCRPrefixFilterListCmd,
 		updateMCRPrefixFilterListCmd,
 		deleteMCRPrefixFilterListCmd,
+		listMCRsCmd,
 	)
 	rootCmd.AddCommand(mcrCmd)
 }

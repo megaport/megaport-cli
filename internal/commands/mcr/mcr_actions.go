@@ -546,3 +546,65 @@ func DeleteMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 
 	return nil
 }
+
+// ListMCRs retrieves and prints a list of MCRs based on the provided filters.
+func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Log into Megaport API
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	// Get filter values from flags
+	locationID, _ := cmd.Flags().GetInt("location-id")
+	portSpeed, _ := cmd.Flags().GetInt("port-speed")
+	mcrName, _ := cmd.Flags().GetString("mcr-name")
+	includeInactive, _ := cmd.Flags().GetBool("include-inactive")
+
+	// Create a ListMCRsRequest
+	req := &megaport.ListMCRsRequest{
+		IncludeInactive: includeInactive,
+	}
+
+	// Get all MCRs
+	output.PrintInfo("Retrieving MCRs...", noColor)
+	mcrs, err := client.MCRService.ListMCRs(ctx, req)
+	if err != nil {
+		output.PrintError("Failed to list MCRs: %v", noColor, err)
+		return fmt.Errorf("error listing MCRs: %v", err)
+	}
+
+	// Apply manual filtering for inactive MCRs since our mock doesn't implement this behavior
+	var activeMCRs []*megaport.MCR
+	if !includeInactive {
+		for _, mcr := range mcrs {
+			if mcr != nil &&
+				mcr.ProvisioningStatus != "DECOMMISSIONED" &&
+				mcr.ProvisioningStatus != "CANCELLED" &&
+				mcr.ProvisioningStatus != "DECOMMISSIONING" {
+				activeMCRs = append(activeMCRs, mcr)
+			}
+		}
+		mcrs = activeMCRs
+	}
+
+	// Apply additional filters
+	filteredMCRs := filterMCRs(mcrs, locationID, portSpeed, mcrName)
+
+	if len(filteredMCRs) == 0 {
+		output.PrintWarning("No MCRs found matching the specified filters", noColor)
+	}
+
+	// Print MCRs with current output format
+	err = printMCRs(filteredMCRs, outputFormat, noColor)
+	if err != nil {
+		output.PrintError("Failed to print MCRs: %v", noColor, err)
+		return fmt.Errorf("error printing MCRs: %v", err)
+	}
+	return nil
+}

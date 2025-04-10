@@ -57,6 +57,8 @@
 | [megaport-cli mcr get docs](megaport-cli_mcr_get_docs.md) | Show documentation for this command |
 | [megaport-cli mcr get-prefix-filter-list](megaport-cli_mcr_get-prefix-filter-list.md) | Get details for a single prefix filter list on an MCR |
 | [megaport-cli mcr get-prefix-filter-list docs](megaport-cli_mcr_get-prefix-filter-list_docs.md) | Show documentation for this command |
+| [megaport-cli mcr list](megaport-cli_mcr_list.md) | List all MCRs with optional filters |
+| [megaport-cli mcr list docs](megaport-cli_mcr_list_docs.md) | Show documentation for this command |
 | [megaport-cli mcr list-prefix-filter-lists](megaport-cli_mcr_list-prefix-filter-lists.md) | List all prefix filter lists for a specific MCR |
 | [megaport-cli mcr list-prefix-filter-lists docs](megaport-cli_mcr_list-prefix-filter-lists_docs.md) | Show documentation for this command |
 | [megaport-cli mcr restore](megaport-cli_mcr_restore.md) | Restore a deleted MCR |

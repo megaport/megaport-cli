@@ -18,6 +18,7 @@ This command groups all operations related to Megaport Cloud Routers (MCRs). MCR
 
 ```sh
   megaport-cli mcr get [mcrUID]
+  megaport-cli mcr list --location-id 67
   megaport-cli mcr buy
   megaport-cli mcr update [mcrUID]
   megaport-cli mcr delete [mcrUID]
@@ -43,6 +44,7 @@ megaport-cli mcr [flags]
 * [docs](megaport-cli_mcr_docs.md)
 * [get](megaport-cli_mcr_get.md)
 * [get-prefix-filter-list](megaport-cli_mcr_get-prefix-filter-list.md)
+* [list](megaport-cli_mcr_list.md)
 * [list-prefix-filter-lists](megaport-cli_mcr_list-prefix-filter-lists.md)
 * [restore](megaport-cli_mcr_restore.md)
 * [update](megaport-cli_mcr_update.md)

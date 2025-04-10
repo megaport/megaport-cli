@@ -37,3 +37,12 @@ func (b *CommandBuilder) WithMCRPrefixFilterListFlags() *CommandBuilder {
 	b.WithFlag("entries", "", "JSON array of prefix filter entries")
 	return b
 }
+
+// WithMCRFilterFlags adds flags for filtering MCR lists
+func (b *CommandBuilder) WithMCRFilterFlags() *CommandBuilder {
+	b.WithIntFlag("location-id", 0, "Filter MCRs by location ID")
+	b.WithIntFlag("port-speed", 0, "Filter MCRs by port speed")
+	b.WithFlag("name", "", "Filter MCRs by name")
+	b.WithBoolFlag("include-inactive", false, "Include inactive MCRs in the list")
+	return b
+}

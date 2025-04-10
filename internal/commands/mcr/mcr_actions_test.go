@@ -1842,3 +1842,235 @@ func TestUpdateMCRPrefixFilterListCmd(t *testing.T) {
 		})
 	}
 }
+
+func TestListMCRsCmd_WithMockClient(t *testing.T) {
+	// Save original login function and restore after test
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	// Test MCRs for our mock response
+	mcrs := []*megaport.MCR{
+		{
+			UID:                "mcr-1",
+			Name:               "TestMCR-1",
+			LocationID:         123,
+			PortSpeed:          1000,
+			ProvisioningStatus: "LIVE",
+			Resources: megaport.MCRResources{
+				VirtualRouter: megaport.MCRVirtualRouter{
+					ASN: 64512,
+				},
+			},
+		},
+		{
+			UID:                "mcr-2",
+			Name:               "TestMCR-2",
+			LocationID:         456,
+			PortSpeed:          10000,
+			ProvisioningStatus: "CONFIGURED",
+			Resources: megaport.MCRResources{
+				VirtualRouter: megaport.MCRVirtualRouter{
+					ASN: 64513,
+				},
+			},
+		},
+		{
+			UID:                "mcr-3",
+			Name:               "MCR-Decommissioned",
+			LocationID:         789,
+			PortSpeed:          5000,
+			ProvisioningStatus: "DECOMMISSIONED", // Inactive status
+			Resources: megaport.MCRResources{
+				VirtualRouter: megaport.MCRVirtualRouter{
+					ASN: 64514,
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name             string
+		flags            map[string]string
+		outputFormat     string
+		setupMock        func(*MockMCRService)
+		expectedError    string
+		expectedOutput   []string
+		unexpectedOutput []string
+	}{
+		{
+			name:         "list all active mcrs",
+			outputFormat: "table",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = mcrs
+			},
+			expectedOutput:   []string{"mcr-1", "TestMCR-1", "mcr-2", "TestMCR-2"},
+			unexpectedOutput: []string{"mcr-3", "MCR-Decommissioned", "DECOMMISSIONED"}, // Shouldn't include inactive MCRs
+		},
+		{
+			name:         "list all mcrs including inactive",
+			flags:        map[string]string{"include-inactive": "true"},
+			outputFormat: "table",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = mcrs
+			},
+			expectedOutput: []string{"mcr-1", "TestMCR-1", "mcr-2", "TestMCR-2", "mcr-3", "MCR-Decommissioned", "DECOMMISSIONED"},
+		},
+		{
+			name:         "filter by location ID",
+			flags:        map[string]string{"location-id": "123"},
+			outputFormat: "table",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = mcrs
+			},
+			expectedOutput:   []string{"mcr-1", "TestMCR-1"},
+			unexpectedOutput: []string{"mcr-2", "TestMCR-2", "mcr-3"},
+		},
+		{
+			name:         "filter by port speed",
+			flags:        map[string]string{"port-speed": "10000"},
+			outputFormat: "table",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = mcrs
+			},
+			expectedOutput:   []string{"mcr-2", "TestMCR-2"},
+			unexpectedOutput: []string{"mcr-1", "TestMCR-1", "mcr-3"},
+		},
+		{
+			name:         "filter by name",
+			flags:        map[string]string{"mcr-name": "TestMCR"},
+			outputFormat: "table",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = mcrs
+			},
+			expectedOutput:   []string{"mcr-1", "TestMCR-1", "mcr-2", "TestMCR-2"},
+			unexpectedOutput: []string{"mcr-3", "MCR-Decommissioned"},
+		},
+		{
+			name: "combined filters",
+			flags: map[string]string{
+				"location-id": "123",
+				"mcr-name":    "Test",
+			},
+			outputFormat: "table",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = mcrs
+			},
+			expectedOutput:   []string{"mcr-1", "TestMCR-1"},
+			unexpectedOutput: []string{"mcr-2", "TestMCR-2", "mcr-3"},
+		},
+		{
+			name:         "json format",
+			outputFormat: "json",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = mcrs
+			},
+			expectedOutput:   []string{`"uid": "mcr-1"`, `"name": "TestMCR-1"`, `"uid": "mcr-2"`, `"name": "TestMCR-2"`},
+			unexpectedOutput: []string{`"uid": "mcr-3"`},
+		},
+		{
+			name:         "no matching mcrs",
+			flags:        map[string]string{"location-id": "999"},
+			outputFormat: "table",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = mcrs
+			},
+			expectedOutput:   []string{"No MCRs found matching the specified filters"},
+			unexpectedOutput: []string{"mcr-1", "mcr-2", "mcr-3"},
+		},
+		{
+			name:         "API error",
+			outputFormat: "table",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsErr = fmt.Errorf("API error: service unavailable")
+			},
+			expectedError: "error listing MCRs",
+		},
+		{
+			name:         "empty result",
+			outputFormat: "table",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = []*megaport.MCR{}
+			},
+			expectedOutput: []string{"No MCRs found matching the specified filters"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a new mock mcr service for each test
+			mockMCRService := &MockMCRService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockMCRService)
+			}
+
+			// Mock the login function to return a client with our mock service
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				return &megaport.Client{
+					MCRService: mockMCRService,
+				}, nil
+			}
+
+			// Create command with flags
+			cmd := &cobra.Command{}
+			cmd.Flags().Bool("include-inactive", false, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().String("mcr-name", "", "")
+			cmd.Flags().String("output", tt.outputFormat, "")
+
+			// Set flag values from test case
+			for flag, value := range tt.flags {
+				if flag == "include-inactive" {
+					boolVal, _ := strconv.ParseBool(value)
+					err := cmd.Flags().Set(flag, strconv.FormatBool(boolVal))
+					if err != nil {
+						t.Fatalf("Failed to set %s flag: %v", flag, err)
+					}
+				} else if flag == "location-id" || flag == "port-speed" {
+					err := cmd.Flags().Set(flag, value)
+					if err != nil {
+						t.Fatalf("Failed to set %s flag: %v", flag, err)
+					}
+				} else {
+					err := cmd.Flags().Set(flag, value)
+					if err != nil {
+						t.Fatalf("Failed to set %s flag: %v", flag, err)
+					}
+				}
+			}
+			err := cmd.Flags().Set("output", tt.outputFormat)
+			if err != nil {
+				t.Fatalf("Failed to set output flag: %v", err)
+			}
+
+			// Capture output and run the command
+			output, err := output.CaptureOutputErr(func() error {
+				return ListMCRs(cmd, []string{}, true, tt.outputFormat)
+			})
+
+			// Check error if expected
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+
+				// Verify expected output
+				for _, expected := range tt.expectedOutput {
+					assert.Contains(t, output, expected)
+				}
+
+				// Verify unexpected output is not present
+				for _, unexpected := range tt.unexpectedOutput {
+					assert.NotContains(t, output, unexpected)
+				}
+
+				// Verify that the right request was made with include-inactive
+				includeInactive, _ := cmd.Flags().GetBool("include-inactive")
+				assert.Equal(t, includeInactive, mockMCRService.CapturedListMCRsRequest.IncludeInactive)
+			}
+		})
+	}
+}
