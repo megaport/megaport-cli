@@ -14,49 +14,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Clean potential cache directories
-        run: |
-          rm -rf ~/go/pkg/mod || true
-          rm -rf ~/.cache/go-build || true
-          rm -rf ~/.cache/golangci-lint || true
-          echo "Cleaned potential cache directories"
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.23'
           cache: false
-
-      - name: Go environment info
-        run: |
-          echo "Setting up Go environment..."
-          echo "Using Go version: $(go version)"
 
       - name: Install dependencies
         run: |
-          echo "Starting dependency installation..."
           go mod download
-          echo "Dependencies installed successfully."
-          echo "Listing all Go modules:"
-          go list -m all
 
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v4
-        with:
-          version: v1.56
-          args: --timeout 10m
-          skip-cache: true
-          skip-pkg-cache: true
-          skip-build-cache: true
-
-      - name: Debug golangci-lint logs
-        if: failure()
+      - name: Debug Go Environment
         run: |
-          echo "Linting failed. Printing debug information..."
-          echo "Listing all Go modules:"
-          go list -m all
-          echo "Checking Go environment:"
-          go env
-          echo "Checking Go version:"
           go version
-          echo "Linting failure analysis complete."
+          go env
+
+      - name: Run golangci-lint directly
+        run: |
+          # Install golangci-lint
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.56.2
+
+          # Run with verbose output
+          $(go env GOPATH)/bin/golangci-lint run --verbose --timeout 10m
