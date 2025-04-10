@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -485,39 +486,45 @@ func promptForUpdatePortDetails(portUID string, noColor bool) (*megaport.ModifyP
 	return req, nil
 }
 
-// filterPorts filters the provided ports based on the given filters.
-func filterPorts(ports []*megaport.Port, locationID int, portSpeed int, portName string) []*megaport.Port {
+// filterPorts applies filters to a list of ports
+func filterPorts(ports []*megaport.Port, locationID, portSpeed int, portName string, includeInactive bool) []*megaport.Port {
+	var filtered []*megaport.Port
+
+	// Handle nil slice
 	if ports == nil {
-		return []*megaport.Port{}
+		return filtered
 	}
 
-	filteredPorts := make([]*megaport.Port, 0)
-
 	for _, port := range ports {
+		// Skip nil ports
 		if port == nil {
 			continue
 		}
 
-		// Apply location ID filter
-		if locationID != 0 && port.LocationID != locationID {
+		// Skip inactive ports if not explicitly requested
+		if !includeInactive {
+			if port.ProvisioningStatus == megaport.STATUS_CANCELLED ||
+				port.ProvisioningStatus == megaport.STATUS_DECOMMISSIONED ||
+				port.ProvisioningStatus == "DECOMMISSIONING" {
+				continue
+			}
+		}
+
+		// Apply other filters
+		if locationID > 0 && port.LocationID != locationID {
+			continue
+		}
+		if portSpeed > 0 && port.PortSpeed != portSpeed {
+			continue
+		}
+		if portName != "" && !strings.Contains(strings.ToLower(port.Name), strings.ToLower(portName)) {
 			continue
 		}
 
-		// Apply port speed filter
-		if portSpeed != 0 && port.PortSpeed != portSpeed {
-			continue
-		}
-
-		// Apply port name filter
-		if portName != "" && port.Name != portName {
-			continue
-		}
-
-		// Port passed all filters
-		filteredPorts = append(filteredPorts, port)
+		filtered = append(filtered, port)
 	}
 
-	return filteredPorts
+	return filtered
 }
 
 // PortOutput represents the desired fields for JSON output.

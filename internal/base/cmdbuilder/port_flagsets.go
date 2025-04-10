@@ -41,5 +41,6 @@ func (b *CommandBuilder) WithPortFilterFlags() *CommandBuilder {
 	b.WithIntFlag("location-id", 0, "Filter ports by location ID")
 	b.WithIntFlag("port-speed", 0, "Filter ports by port speed")
 	b.WithFlag("port-name", "", "Filter ports by port name")
+	b.WithBoolFlag("include-inactive", false, "Include inactive ports in the list")
 	return b
 }

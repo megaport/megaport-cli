@@ -175,9 +175,10 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 	locationID, _ := cmd.Flags().GetInt("location-id")
 	portSpeed, _ := cmd.Flags().GetInt("port-speed")
 	portName, _ := cmd.Flags().GetString("port-name")
+	includeInactive, _ := cmd.Flags().GetBool("include-inactive")
 
 	// Apply filters
-	filteredPorts := filterPorts(ports, locationID, portSpeed, portName)
+	filteredPorts := filterPorts(ports, locationID, portSpeed, portName, includeInactive)
 
 	if len(filteredPorts) == 0 {
 		output.PrintWarning("No ports found matching the specified filters", noColor)
