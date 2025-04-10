@@ -238,7 +238,7 @@ func TestListPortsCmd_WithMockClient(t *testing.T) {
 			setupMock: func(m *MockPortService) {
 				m.ListPortsResult = []*megaport.Port{}
 			},
-			expectedOut:   []string{"UID", "Name", "LocationID", "Speed", "Status"},
+			expectedOut:   []string{"UID", "NAME", "LOCATIONID", "SPEED", "STATUS"},
 			expectedError: "",
 		},
 		{

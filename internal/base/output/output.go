@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"reflect"
-	"regexp"
 	"strings"
 
 	"github.com/fatih/color"
@@ -42,10 +41,7 @@ func PrintOutput[T OutputFields](data []T, format string, noColor bool) error {
 	case "csv":
 		return printCSV(data)
 	default:
-		if UsePrettyTables {
-			return printPrettyTable(data, noColor)
-		}
-		return printTable(data, noColor) // Original implementation for tests
+		return printTable(data, noColor)
 	}
 }
 
@@ -54,34 +50,6 @@ func printJSON[T OutputFields](data []T) error {
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(data)
-}
-
-// printTable formats data as a columnar table
-func printTable[T OutputFields](data []T, noColor bool) error {
-	// Get field information
-	headers, fieldIndices, err := getStructTypeInfo(data)
-	if err != nil {
-		return err
-	}
-
-	// Nothing to show
-	if len(headers) == 0 {
-		return nil
-	}
-
-	// Gather all data values in a 2D grid
-	rows := collectTableData(data, headers, fieldIndices)
-
-	// Calculate column widths
-	colWidths := calculateColumnWidths(rows)
-
-	// Print headers
-	printTableHeaders(headers, colWidths, noColor)
-
-	// Print data rows
-	printTableRows(rows, headers, colWidths, noColor)
-
-	return nil
 }
 
 // getStructTypeInfo extracts type information from the data
@@ -174,24 +142,6 @@ func extractFieldInfo(itemType reflect.Type) ([]string, []int) {
 	return headers, fieldIndices
 }
 
-// collectTableData gathers all data values in a 2D grid (rows x columns)
-func collectTableData[T OutputFields](data []T, headers []string, fieldIndices []int) [][]string {
-	rows := make([][]string, 0, len(data)+1)
-
-	// First row is headers
-	rows = append(rows, headers)
-
-	// Gather all data values
-	for _, item := range data {
-		row := extractRowData(item, fieldIndices)
-		if row != nil {
-			rows = append(rows, row)
-		}
-	}
-
-	return rows
-}
-
 // extractRowData extracts a single row of data
 func extractRowData[T OutputFields](item T, fieldIndices []int) []string {
 	itemVal := reflect.ValueOf(item)
@@ -248,49 +198,6 @@ func calculateColumnWidths(rows [][]string) []int {
 	}
 
 	return colWidths
-}
-
-// printTableHeaders prints the header row with formatting
-func printTableHeaders(headers []string, colWidths []int, noColor bool) {
-	var headerStrings []string
-	for _, header := range headers {
-		if !noColor {
-			headerStrings = append(headerStrings, color.New(color.Bold).Sprint(header))
-		} else {
-			headerStrings = append(headerStrings, header)
-		}
-	}
-
-	fmt.Println(formatRow(headerStrings, colWidths))
-}
-
-// printTableRows prints the data rows with colors based on content type
-func printTableRows(rows [][]string, headers []string, colWidths []int, noColor bool) {
-	// Skip header row (index 0)
-	for i := 1; i < len(rows); i++ {
-		row := rows[i]
-		coloredRow := colorizeRow(row, headers, noColor)
-		fmt.Println(formatRow(coloredRow, colWidths))
-	}
-}
-
-// colorizeRow applies appropriate colors to each cell in a row
-func colorizeRow(row []string, headers []string, noColor bool) []string {
-	coloredRow := make([]string, len(row))
-
-	for j, val := range row {
-		coloredVal := val
-
-		// Apply colorization based on field type
-		if j < len(headers) {
-			header := strings.ToLower(headers[j])
-			coloredVal = colorizeValue(val, header, noColor)
-		}
-
-		coloredRow[j] = coloredVal
-	}
-
-	return coloredRow
 }
 
 // colorizeValue applies appropriate color to a value based on its type
@@ -361,29 +268,6 @@ func colorizeStatus(status string, noColor bool) string {
 
 	// Default for unknown statuses
 	return color.New(color.FgHiWhite).Sprint(status)
-}
-
-// formatRow formats a row of values with proper spacing based on column widths
-func formatRow(values []string, colWidths []int) string {
-	var parts []string
-
-	for i, val := range values {
-		if i == len(values)-1 {
-			// Don't pad the last column
-			parts = append(parts, val)
-		} else {
-			// Calculate visual width (strip ANSI color codes for width calculation)
-			// Regular expression to remove ANSI color codes
-			re := regexp.MustCompile(`\x1b\[[0-9;]*m`)
-			visibleVal := re.ReplaceAllString(val, "")
-
-			// Pad with spaces to match column width + spacing
-			padding := colWidths[i] - len(visibleVal) + 3 // Add 3 spaces between columns
-			parts = append(parts, val+strings.Repeat(" ", padding))
-		}
-	}
-
-	return strings.Join(parts, "")
 }
 
 // printCSV outputs data in comma-separated value format
@@ -630,12 +514,8 @@ func CaptureOutputErr(f func() error) (string, error) {
 	return buf.String(), err
 }
 
-// UsePrettyTables controls whether to use the enhanced table rendering
-// Default is false for backward compatibility with tests
-var UsePrettyTables = false
-
-// printPrettyTable formats data as a columnar table using go-pretty
-func printPrettyTable[T OutputFields](data []T, noColor bool) error {
+// printPrettyTable outputs data in a pretty table format using go-pretty library
+func printTable[T OutputFields](data []T, noColor bool) error {
 	// Get field information using existing extraction logic
 	headers, fieldIndices, err := getStructTypeInfo(data)
 	if err != nil {
@@ -714,7 +594,8 @@ func printPrettyTable[T OutputFields](data []T, noColor bool) error {
 	// Add header row
 	headerRow := prettytable.Row{}
 	for _, header := range headers {
-		headerRow = append(headerRow, header)
+		// Convert header to uppercase here
+		headerRow = append(headerRow, strings.ToUpper(header))
 	}
 	t.AppendHeader(headerRow)
 

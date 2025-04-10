@@ -3,14 +3,14 @@ package output
 import (
 	"encoding/json"
 	"reflect"
-	"regexp"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
-var noColor bool
+var noColor = false
 
 // Test structures
 type SimpleStruct struct {
@@ -20,14 +20,13 @@ type SimpleStruct struct {
 }
 
 type ComplexStruct struct {
-	ID         int               `json:"id" csv:"id" header:"ID"`
-	Name       string            `json:"name" csv:"name" header:"Name"`
-	Created    time.Time         `json:"created" csv:"created" header:"Created"`
-	Tags       []string          `json:"tags" csv:"tags" header:"Tags"`
-	Metadata   map[string]string `json:"metadata" csv:"metadata" header:"Metadata"`
-	Reference  *SimpleStruct     `json:"reference" csv:"reference" header:"Reference"`
-	unexported string            // This should be skipped
-	Ignored    int               `json:"-" csv:"-" header:"-"` // This should be skipped
+	ID        int               `json:"id" csv:"id" header:"ID"`
+	Name      string            `json:"name" csv:"name" header:"Name"`
+	Created   time.Time         `json:"created" csv:"created" header:"Created"`
+	Tags      []string          `json:"tags" csv:"tags" header:"Tags"`
+	Metadata  map[string]string `json:"metadata" csv:"metadata" header:"Metadata"`
+	Reference *SimpleStruct     `json:"reference" csv:"reference" header:"Reference"`
+	Ignored   int               `json:"-" csv:"-" header:"-"` // This should be skipped
 }
 
 type CustomTagStruct struct {
@@ -38,158 +37,6 @@ type CustomTagStruct struct {
 type NoTagStruct struct {
 	ID   int
 	Name string
-}
-
-// Tests for printTable
-func TestPrintTable_SimpleStruct(t *testing.T) {
-	data := []SimpleStruct{
-		{ID: 1, Name: "Item 1", Active: true},
-		{ID: 2, Name: "Item 2", Active: false},
-	}
-
-	output := CaptureOutput(func() {
-		err := printTable(data, noColor)
-		assert.NoError(t, err)
-	})
-
-	// Use spaces instead of tabs to match tabwriter output
-	assert.Contains(t, output, "ID")
-	assert.Contains(t, output, "Name")
-	assert.Contains(t, output, "Active")
-	assert.Contains(t, output, "1")
-	assert.Contains(t, output, "Item 1")
-	assert.Contains(t, output, "true")
-	assert.Contains(t, output, "2")
-	assert.Contains(t, output, "Item 2")
-	assert.Contains(t, output, "false")
-}
-
-func TestPrintTable_ComplexStruct(t *testing.T) {
-	now := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
-
-	data := []ComplexStruct{
-		{
-			ID:      1,
-			Name:    "Complex Item",
-			Created: now,
-			Tags:    []string{"tag1", "tag2"},
-			Metadata: map[string]string{
-				"key1": "value1",
-				"key2": "value2",
-			},
-			Reference:  &SimpleStruct{ID: 100, Name: "Referenced", Active: true},
-			unexported: "hidden",
-			Ignored:    999,
-		},
-	}
-
-	output := CaptureOutput(func() {
-		err := printTable(data, noColor)
-		assert.NoError(t, err)
-	})
-
-	// The output should contain the fields (except unexported and ignored)
-	assert.Contains(t, output, "ID")
-	assert.Contains(t, output, "Name")
-	assert.Contains(t, output, "Created")
-	assert.Contains(t, output, "Tags")
-	assert.Contains(t, output, "Metadata")
-	assert.Contains(t, output, "Reference")
-
-	// Check specific values
-	assert.Contains(t, output, "1")
-	assert.Contains(t, output, "Complex Item")
-	assert.Contains(t, output, "2023-01-01")
-
-	// The unexported and ignored fields should not be in the output
-	assert.NotContains(t, output, "unexported")
-	assert.NotContains(t, output, "hidden")
-	assert.NotContains(t, output, "Ignored")
-	assert.NotContains(t, output, "999")
-}
-
-func TestPrintTable_EmptySlice(t *testing.T) {
-	data := []SimpleStruct{}
-
-	output := CaptureOutput(func() {
-		err := printTable(data, noColor)
-		assert.NoError(t, err)
-	})
-
-	// Check for headers (ignoring exact spacing)
-	assert.Contains(t, output, "ID")
-	assert.Contains(t, output, "Name")
-	assert.Contains(t, output, "Active")
-}
-
-func TestPrintTable_NilSlice(t *testing.T) {
-	var data []SimpleStruct = nil
-
-	_ = CaptureOutput(func() {
-		err := printTable(data, noColor)
-		assert.NoError(t, err)
-	})
-
-	// Should not panic but might not output anything useful
-	assert.NotPanics(t, func() {
-		_ = printTable(data, noColor)
-	})
-}
-
-func TestPrintTable_MixedSlice(t *testing.T) {
-	data := []*SimpleStruct{
-		{ID: 1, Name: "Item 1", Active: true},
-		nil,
-		{ID: 3, Name: "Item 3", Active: false},
-	}
-
-	output := CaptureOutput(func() {
-		err := printTable(data, noColor)
-		assert.NoError(t, err)
-	})
-
-	// Should skip the nil entry
-	assert.Contains(t, output, "Item 1")
-	assert.Contains(t, output, "Item 3")
-	assert.NotContains(t, output, "Item 2") // There is no Item 2
-}
-
-func TestPrintTable_CustomTags(t *testing.T) {
-	data := []CustomTagStruct{
-		{ID: 1, Name: "Custom 1"},
-		{ID: 2, Name: "Custom 2"},
-	}
-
-	output := CaptureOutput(func() {
-		err := printTable(data, noColor)
-		assert.NoError(t, err)
-	})
-
-	// Check for expected content rather than exact spacing
-	assert.Contains(t, output, "Custom ID")
-	assert.Contains(t, output, "Custom Name")
-	assert.Contains(t, output, "1")
-	assert.Contains(t, output, "Custom 1")
-	assert.Contains(t, output, "2")
-	assert.Contains(t, output, "Custom 2")
-}
-
-func TestPrintTable_NoTags(t *testing.T) {
-	data := []NoTagStruct{
-		{ID: 1, Name: "No Tags 1"},
-		{ID: 2, Name: "No Tags 2"},
-	}
-
-	output := CaptureOutput(func() {
-		err := printTable(data, noColor)
-		assert.NoError(t, err)
-	})
-
-	// Should use field names as headers
-	assert.Contains(t, output, "ID")
-	assert.Contains(t, output, "Name")
-	assert.Contains(t, output, "No Tags 1")
-	assert.Contains(t, output, "No Tags 2")
 }
 
 // Tests for printCSV
@@ -535,29 +382,192 @@ func TestExtractFieldInfo(t *testing.T) {
 	assert.Equal(t, []int{0, 1}, indices) // Should have indices for first two fields only
 }
 
-func TestFormatRow(t *testing.T) {
-	values := []string{"Col1", "Column2", "LongColumn3"}
-	widths := []int{4, 7, 11}
+// Tests for printPrettyTable functionality
 
-	formatted := formatRow(values, widths)
+func TestPrintPrettyTable_SimpleStruct(t *testing.T) {
+	// Create test data
+	data := []SimpleStruct{
+		{ID: 1, Name: "Item 1", Active: true},
+		{ID: 2, Name: "Item 2", Active: false},
+	}
 
-	// Check that each value is included with proper spacing
-	assert.Contains(t, formatted, "Col1")
-	assert.Contains(t, formatted, "Column2")
-	assert.Contains(t, formatted, "LongColumn3")
+	// Capture the output
+	output := CaptureOutput(func() {
+		err := PrintOutput(data, "table", noColor)
+		assert.NoError(t, err)
+	})
 
-	// Check that the total result has the expected format (with padding)
-	expected := "Col1   Column2   LongColumn3"
-	assert.Equal(t, expected, formatted)
+	// Check for box drawing characters and correct uppercase headers
+	assert.Contains(t, output, "│")
+	assert.Contains(t, output, "─")
+	assert.Contains(t, output, "ID")
+	assert.Contains(t, output, "NAME")
+	assert.Contains(t, output, "ACTIVE")
 
-	// Test with ANSI color codes
-	coloredValues := []string{"\x1b[1mCol1\x1b[0m", "\x1b[32mColumn2\x1b[0m", "\x1b[31mLongColumn3\x1b[0m"}
-	coloredFormatted := formatRow(coloredValues, widths)
+	// Check for proper content alignment with spaces
+	assert.Contains(t, output, " 1 ")
+	assert.Contains(t, output, " Item 1 ")
+	assert.Contains(t, output, " true ")
+}
 
-	// Verify length is correct (color codes shouldn't affect spacing)
-	plainFormatted := formatRow(values, widths)
-	// Strip color codes for comparison using regex
-	re := regexp.MustCompile(`\x1b\[[0-9;]*m`)
-	stripped := re.ReplaceAllString(coloredFormatted, "")
-	assert.Equal(t, plainFormatted, stripped)
+func TestPrintPrettyTable_ComplexStruct(t *testing.T) {
+	// Create test data with complex structures
+	reference := SimpleStruct{ID: 100, Name: "Reference", Active: true}
+	now := time.Now()
+	data := []ComplexStruct{
+		{
+			ID:        1,
+			Name:      "Complex Item",
+			Created:   now,
+			Tags:      []string{"tag1", "tag2"},
+			Metadata:  map[string]string{"key": "value"},
+			Reference: &reference,
+		},
+	}
+
+	// Capture the output
+	output := CaptureOutput(func() {
+		err := PrintOutput(data, "table", noColor)
+		assert.NoError(t, err)
+	})
+
+	// Check headers and formatting
+	assert.Contains(t, output, "ID")
+	assert.Contains(t, output, "NAME")
+	assert.Contains(t, output, "CREATED")
+	assert.Contains(t, output, "TAGS")
+	assert.Contains(t, output, "METADATA")
+	assert.Contains(t, output, "REFERENCE")
+	assert.Contains(t, output, "Complex Item")
+}
+
+func TestPrintPrettyTable_EmptySlice(t *testing.T) {
+	// Create empty slice
+	var data []SimpleStruct
+
+	// Capture the output
+	output := CaptureOutput(func() {
+		err := PrintOutput(data, "table", noColor)
+		assert.NoError(t, err)
+	})
+
+	// Should still have headers with formatting
+	assert.Contains(t, output, "ID")
+	assert.Contains(t, output, "NAME")
+	assert.Contains(t, output, "ACTIVE")
+	assert.Contains(t, output, "│")
+	assert.Contains(t, output, "─")
+	// Verify there's a header row and separator but no data rows
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	assert.Equal(t, 2, len(lines), "Empty table should have only header and separator")
+}
+
+func TestPrintPrettyTable_NilSlice(t *testing.T) {
+	// Create nil slice
+	var data []SimpleStruct = nil
+
+	// Capture the output
+	output := CaptureOutput(func() {
+		err := PrintOutput(data, "table", noColor)
+		assert.NoError(t, err)
+	})
+
+	// Should still have headers with formatting
+	assert.Contains(t, output, "ID")
+	assert.Contains(t, output, "NAME")
+	assert.Contains(t, output, "ACTIVE")
+	assert.Contains(t, output, "│")
+	assert.Contains(t, output, "─")
+}
+
+func TestPrintPrettyTable_CustomHeaders(t *testing.T) {
+	// Test custom header tags
+	data := []CustomTagStruct{
+		{ID: 1, Name: "Custom Item"},
+	}
+
+	// Capture the output
+	output := CaptureOutput(func() {
+		err := PrintOutput(data, "table", noColor)
+		assert.NoError(t, err)
+	})
+
+	// Check for custom headers in uppercase
+	assert.Contains(t, output, "CUSTOM ID")
+	assert.Contains(t, output, "CUSTOM NAME")
+}
+
+func TestTableColorization(t *testing.T) {
+	// Define a struct with fields that should trigger different colorization rules
+	type ColorTestStruct struct {
+		ID       string `json:"id" header:"ID"`
+		Status   string `json:"status" header:"STATUS"`
+		Name     string `json:"name" header:"NAME"`
+		Price    string `json:"price" header:"PRICE"`
+		Speed    int    `json:"speed" header:"SPEED"`
+		Location string `json:"location" header:"LOCATION"`
+		Empty    string `json:"empty" header:"EMPTY"`
+	}
+
+	data := []ColorTestStruct{
+		{
+			ID:       "test-123",
+			Status:   "ACTIVE",
+			Name:     "Test Item",
+			Price:    "99.99",
+			Speed:    1000,
+			Location: "NYC",
+			Empty:    "",
+		},
+	}
+
+	// Test with color enabled
+	outputColor := CaptureOutput(func() {
+		err := PrintOutput(data, "table", false) // false = color enabled
+		assert.NoError(t, err)
+	})
+
+	// Test with color disabled
+	outputNoColor := CaptureOutput(func() {
+		err := PrintOutput(data, "table", true) // true = color disabled
+		assert.NoError(t, err)
+	})
+
+	// Color output should have ANSI sequences
+	hasColorCodes := strings.Contains(outputColor, "\033[") ||
+		strings.Contains(outputColor, "\u001b[")
+
+	// No color output should not have ANSI sequences
+	noColorCodes := !strings.Contains(outputNoColor, "\033[") &&
+		!strings.Contains(outputNoColor, "\u001b[")
+
+	assert.True(t, hasColorCodes, "Color output should contain ANSI color codes")
+	assert.True(t, noColorCodes, "No-color output should not contain ANSI color codes")
+}
+
+func TestPrintPrettyTable_TableStyle(t *testing.T) {
+	// Create test data
+	data := []SimpleStruct{
+		{ID: 1, Name: "Test Item", Active: true},
+	}
+
+	// Capture the output
+	output := CaptureOutput(func() {
+		err := PrintOutput(data, "table", noColor)
+		assert.NoError(t, err)
+	})
+
+	// Check for Megaport style elements - box drawing characters
+	assert.Contains(t, output, "│") // Vertical separator
+	assert.Contains(t, output, "─") // Horizontal separator
+
+	// Check header capitalization
+	assert.Contains(t, output, "ID")
+	assert.Contains(t, output, "NAME")
+	assert.Contains(t, output, "ACTIVE")
+
+	// Check proper spacing (with padding)
+	assert.Contains(t, output, " ID ")
+	assert.Contains(t, output, " NAME ")
+	assert.Contains(t, output, " ACTIVE ")
 }

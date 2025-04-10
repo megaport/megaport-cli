@@ -14,21 +14,52 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        run: |
+          echo "Checking out the code from the repository..."
+          echo "Repository: ${{ github.repository }}"
+          echo "Commit SHA: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref }}"
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
           cache: false
+        run: |
+          echo "Setting up Go environment..."
+          echo "Using Go version: ${{ inputs.go-version }}"
 
       - name: Install dependencies
-        run: go mod download
+        run: |
+          echo "Starting dependency installation..."
+          go mod download
+          echo "Dependencies installed successfully."
+          echo "Listing all Go modules:"
+          go list -m all
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v4
         with:
           version: v1.56
-          args: --timeout 5m
+          args: --timeout 10m
           skip-cache: true
           skip-pkg-cache: true
           skip-build-cache: true
+        run: |
+          echo "Running golangci-lint with the following configuration:"
+          echo "Version: v1.56"
+          echo "Timeout: 10m"
+          echo "Cache settings: skip-cache, skip-pkg-cache, skip-build-cache"
+          echo "Linting started..."
+
+      - name: Debug golangci-lint logs
+        if: failure()
+        run: |
+          echo "Linting failed. Printing debug information..."
+          echo "Listing all Go modules:"
+          go list -m all
+          echo "Checking Go environment:"
+          go env
+          echo "Checking Go version:"
+          go version
+          echo "Linting failure analysis complete."

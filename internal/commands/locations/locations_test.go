@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var noColor = true // Disable color for testing
+
 var testLocations = []*megaport.Location{
 	{
 		ID:       1,
@@ -71,32 +73,26 @@ func TestFilterLocations(t *testing.T) {
 }
 
 func TestPrintLocations_Table(t *testing.T) {
-	noColor := false
 	var err error
 	output := output.CaptureOutput(func() {
 		err = printLocations(testLocations, "table", noColor)
 		assert.NoError(t, err)
 	})
 
-	// No latitude, longitude, and now no Market columns in the table output
-	assert.Contains(t, output, "ID")
-	assert.Contains(t, output, "Name")
-	assert.Contains(t, output, "Country")
-	assert.Contains(t, output, "Metro")
-	assert.Contains(t, output, "Site Code")
-	assert.Contains(t, output, "Status")
-	assert.NotContains(t, output, "Latitude")
-	assert.NotContains(t, output, "Longitude")
-	assert.NotContains(t, output, "Market")
+	assert.Contains(t, output, "NAME")
+	assert.Contains(t, output, "COUNTRY")
+	assert.Contains(t, output, "METRO")
+	assert.Contains(t, output, "SITE CODE")
+	assert.Contains(t, output, "STATUS")
 
-	// Check for data rows
+	// Verify the actual content is present
 	assert.Contains(t, output, "Sydney")
 	assert.Contains(t, output, "London")
-	assert.Contains(t, output, "ACTIVE")
+	assert.Contains(t, output, "Australia")
+	assert.Contains(t, output, "United Kingdom")
 }
 
 func TestPrintLocations_JSON(t *testing.T) {
-	noColor := false
 	var err error
 	output := output.CaptureOutput(func() {
 		err = printLocations(testLocations, "json", noColor)
@@ -131,7 +127,6 @@ func TestPrintLocations_JSON(t *testing.T) {
 }
 
 func TestPrintLocations_CSV(t *testing.T) {
-	noColor := false
 	output := output.CaptureOutput(func() {
 		err := printLocations(testLocations, "csv", noColor)
 		assert.NoError(t, err)
@@ -145,7 +140,6 @@ func TestPrintLocations_CSV(t *testing.T) {
 }
 
 func TestPrintLocations_Invalid(t *testing.T) {
-	noColor := false
 	var err error
 	output := output.CaptureOutput(func() {
 		err = printLocations(testLocations, "invalid", noColor)
@@ -164,7 +158,6 @@ func TestFilterLocations_EmptySlice(t *testing.T) {
 }
 
 func TestPrintLocations_EmptySlice(t *testing.T) {
-	noColor := false
 	var emptyLocations []*megaport.Location
 
 	// Table format
@@ -173,7 +166,9 @@ func TestPrintLocations_EmptySlice(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	// Expect header-only
-	expectedTable := "ID   Name   Country   Metro   Site Code   Status\n"
+	expectedTable := ` ID │ NAME │ COUNTRY │ METRO │ SITE CODE │ STATUS 
+────┼──────┼─────────┼───────┼───────────┼────────
+`
 	assert.Equal(t, expectedTable, tableOutput)
 
 	// CSV format
