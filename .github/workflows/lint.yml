@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Repository info
         run: |
           echo "Checking out the code from the repository..."
           echo "Repository: ${{ github.repository }}"
@@ -25,9 +27,11 @@ jobs:
         with:
           go-version: '1.21'
           cache: false
+
+      - name: Go environment info
         run: |
           echo "Setting up Go environment..."
-          echo "Using Go version: ${{ inputs.go-version }}"
+          echo "Using Go version: $(go version)"
 
       - name: Install dependencies
         run: |
@@ -45,12 +49,6 @@ jobs:
           skip-cache: true
           skip-pkg-cache: true
           skip-build-cache: true
-        run: |
-          echo "Running golangci-lint with the following configuration:"
-          echo "Version: v1.56"
-          echo "Timeout: 10m"
-          echo "Cache settings: skip-cache, skip-pkg-cache, skip-build-cache"
-          echo "Linting started..."
 
       - name: Debug golangci-lint logs
         if: failure()
