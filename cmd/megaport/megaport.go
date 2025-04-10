@@ -2,6 +2,7 @@ package megaport
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -176,7 +177,7 @@ func applyDefaultSettings(cmd *cobra.Command) {
 			if boolVal, ok := val.(bool); ok {
 				err := cmd.Flags().Set("no-color", fmt.Sprintf("%t", boolVal))
 				if err != nil {
-					fmt.Printf("Error setting no-color flag: %v\n", err)
+					log.Printf("Error setting no-color flag: %v\n", err)
 					return
 				}
 				noColor = boolVal
@@ -191,7 +192,7 @@ func applyDefaultSettings(cmd *cobra.Command) {
 			if strVal, ok := val.(string); ok {
 				err := cmd.Flags().Set("output", strVal)
 				if err != nil {
-					fmt.Printf("Error setting output flag: %v\n", err)
+					log.Printf("Error setting output flag: %v\n", err)
 					return
 				}
 			}
