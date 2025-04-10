@@ -46,6 +46,7 @@ megaport-cli [flags]
 
 ## Subcommands
 * [completion](megaport-cli_completion.md)
+* [config](megaport-cli_config.md)
 * [generate-docs](megaport-cli_generate-docs.md)
 * [locations](megaport-cli_locations.md)
 * [mcr](megaport-cli_mcr.md)

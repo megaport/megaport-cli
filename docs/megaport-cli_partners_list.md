@@ -44,6 +44,11 @@ megaport-cli partners list [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
+| `--company-name` |  |  | Filter partner ports by company name | false |
+| `--connect-type` |  |  | Filter partner ports by connect type | false |
+| `--diversity-zone` |  |  | Filter partner ports by diversity zone | false |
+| `--location-id` |  | `0` | Filter partner ports by location ID | false |
+| `--product-name` |  |  | Filter partner ports by product name | false |
 
 ## Subcommands
 * [docs](megaport-cli_partners_list_docs.md)

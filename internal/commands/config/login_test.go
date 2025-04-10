@@ -10,7 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var env string
+var (
+	env               string
+	accessKeyEnvVar   = "MEGAPORT_ACCESS_KEY"
+	secretKeyEnvVar   = "MEGAPORT_SECRET_KEY"
+	environmentEnvVar = "MEGAPORT_ENVIRONMENT"
+)
 
 func TestLogin(t *testing.T) {
 	// Save original login function to restore after tests

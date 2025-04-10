@@ -9,6 +9,8 @@
 - [Installation](#installation)
 - [Getting Started](#getting-started)
 - [Documentation](#documentation)
+- [Environment Support](#environment-support)
+- [Configuration](#configuration)
 - [Shell Completion](#shell-completion)
 - [Environment Support](#environment-support)
 - [Configuration](#configuration)
@@ -95,14 +97,47 @@ Specify the environment using the `--env` flag or `MEGAPORT_ENVIRONMENT` variabl
 
 ## Configuration
 
-Configure your CLI credentials using environment variables.
+The Megaport CLI uses a profile-based configuration system that securely stores API credentials and default settings.
+
+### Key Features
+
+- **Profiles**: Store multiple sets of credentials for different environments
+- **Secure Storage**: Credentials stored with 0600 permissions in `~/.megaport/config.json`
+- **Default Settings**: Configure preferred output format and other settings
+
+### Basic Usage
+
+```bash
+# Create a profile
+megaport-cli config create-profile myprofile --access-key xxx --secret-key xxx
+
+# Switch active profile
+megaport-cli config use-profile myprofile
+
+# View current configuration
+megaport-cli config view
+```
+
+### Configuration Precedence
+
+Settings are applied in this order (highest to lowest precedence):
+
+1. Command-line flags (e.g., `--access-key`)
+2. Environment variables (`MEGAPORT_ACCESS_KEY`, etc.)
+3. Active profile in config file
+4. Default settings in config file
+
+### Environment Variables
+
+For CI/CD pipelines or temporary usage:
 
 ```sh
-# Using environment variables
 export MEGAPORT_ACCESS_KEY=<your-access-key>
 export MEGAPORT_SECRET_KEY=<your-secret-key>
 export MEGAPORT_ENVIRONMENT=<environment>  # production, staging, or development
 ```
+
+For complete documentation on configuration options, profile management, import/export functionality, and troubleshooting, see the [Configuration Guide](internal/commands/config/config.md).
 
 ## Architecture
 
@@ -418,13 +453,13 @@ The CLI includes comprehensive generated documentation in the `docs` folder:
 
 - **[Index of all commands](docs/index.md)** - Complete listing of all available commands
 - **Command References:**
-  - [Locations](docs/megaport-cli_locations.md) - Find and explore Megaport locations
-  - [Ports](docs/megaport-cli_ports.md) - Manage physical ports
-  - [VXC](docs/megaport-cli_vxc.md) - Virtual cross connects between endpoints
-  - [MCR](docs/megaport-cli_mcr.md) - Megaport Cloud Router management
-  - [MVE](docs/megaport-cli_mve.md) - Megaport Virtual Edge devices
-  - [Partners](docs/megaport-cli_partners.md) - Cloud service provider connections
-  - [Service Keys](docs/megaport-cli_servicekeys.md) - Manage service keys for connections
+  - Locations - Find and explore Megaport locations
+  - Ports - Manage physical ports
+  - VXC - Virtual cross connects between endpoints
+  - MCR - Megaport Cloud Router management
+  - MVE - Megaport Virtual Edge devices
+  - Partners - Cloud service provider connections
+  - Service Keys - Manage service keys for connections
 
 Each command page includes:
 
@@ -443,13 +478,13 @@ megaport-cli generate-docs ./docs
 
 Contributions via pull request are welcome. Familiarize yourself with these guidelines to increase the likelihood of your pull request being accepted.
 
-All contributions are subject to the [Megaport Contributor Licence Agreement](CLA.md).
+All contributions are subject to the Megaport Contributor Licence Agreement.
 
-The CLA clarifies the terms of the [Mozilla Public Licence 2.0](LICENSE) used to Open Source this repository and ensures that contributors are explicitly informed of the conditions. Megaport requires all contributors to accept these terms to ensure that the Megaport Terraform Provider remains available and licensed for the community.
+The CLA clarifies the terms of the Mozilla Public Licence 2.0 used to Open Source this repository and ensures that contributors are explicitly informed of the conditions. Megaport requires all contributors to accept these terms to ensure that the Megaport Terraform Provider remains available and licensed for the community.
 
 When you open a Pull Request, all authors of the contributions are required to comment on the Pull Request confirming acceptance of the CLA terms. Pull Requests cannot be merged until this is complete.
 
-Megaport users are also bound by the [Acceptable Use Policy](https://www.megaport.com/legal/acceptable-use-policy).
+Megaport users are also bound by the [Acceptable Use Policy](https://www.megaport.com/legal/acceptable-use-policy/).
 
 ## Support
 
