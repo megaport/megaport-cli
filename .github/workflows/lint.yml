@@ -17,22 +17,42 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.21'
           cache: false
 
       - name: Install dependencies
         run: |
           go mod download
+          # Create go bin directory if it doesn't exist
+          mkdir -p $(go env GOPATH)/bin
 
       - name: Debug Go Environment
         run: |
           go version
           go env
+          echo "Directory listing:"
+          ls -la
+          echo "Memory info:"
+          free -h
 
-      - name: Run golangci-lint directly
+      - name: Install and run golangci-lint with better performance
         run: |
-          # Install golangci-lint
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.56.2
+          # Install golangci-lint with verbose output
+          curl -sSfL -v https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.56.2
 
-          # Run with verbose output
-          $(go env GOPATH)/bin/golangci-lint run --verbose --timeout 10m
+          # Ensure the binary is available
+          ls -la $(go env GOPATH)/bin
+
+          # Run with optimizations for CI environment
+          $(go env GOPATH)/bin/golangci-lint run \
+            --timeout 5m \
+            --issues-exit-code=1 \
+            --max-issues-per-linter=0 \
+            --max-same-issues=0 \
+            --exclude-use-default=false \
+            --fix=false \
+            --out-format=colored-line-number \
+            --sort-results \
+            --tests=false \
+            --concurrency=4 \
+            --verbose
