@@ -13,6 +13,9 @@ type MockMCRService struct {
 	ValidateMCROrderErr                      error
 	GetMCRResult                             *megaport.MCR
 	GetMCRErr                                error
+	ListMCRsResult                           []*megaport.MCR
+	ListMCRsErr                              error
+	CapturedListMCRsRequest                  *megaport.ListMCRsRequest
 	DeleteMCRResult                          *megaport.DeleteMCRResponse
 	DeleteMCRErr                             error
 	CapturedDeleteMCRUID                     string
@@ -69,6 +72,17 @@ func (m *MockMCRService) GetMCR(ctx context.Context, mcrUID string) (*megaport.M
 		return nil, m.GetMCRErr
 	}
 	return m.GetMCRResult, nil
+}
+
+func (m *MockMCRService) ListMCRs(ctx context.Context, req *megaport.ListMCRsRequest) ([]*megaport.MCR, error) {
+	m.CapturedListMCRsRequest = req
+	if m.ListMCRsErr != nil {
+		return nil, m.ListMCRsErr
+	}
+	if m.ListMCRsResult != nil {
+		return m.ListMCRsResult, nil
+	}
+	return []*megaport.MCR{}, nil
 }
 
 func (m *MockMCRService) DeleteMCR(ctx context.Context, req *megaport.DeleteMCRRequest) (*megaport.DeleteMCRResponse, error) {
