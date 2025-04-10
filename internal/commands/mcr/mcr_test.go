@@ -163,3 +163,184 @@ func TestPrintMCRs_EmptyAndNilSlice(t *testing.T) {
 		})
 	}
 }
+
+func TestFilterMCRs(t *testing.T) {
+	activeMCRs := []*megaport.MCR{
+		{
+			UID:                "mcr-1",
+			Name:               "TestMCR-1",
+			LocationID:         123,
+			PortSpeed:          1000,
+			ProvisioningStatus: "LIVE",
+			Resources: megaport.MCRResources{
+				VirtualRouter: megaport.MCRVirtualRouter{
+					ASN: 64512,
+				},
+			},
+		},
+		{
+			UID:                "mcr-2",
+			Name:               "TestMCR-2",
+			LocationID:         456,
+			PortSpeed:          10000,
+			ProvisioningStatus: "CONFIGURED",
+			Resources: megaport.MCRResources{
+				VirtualRouter: megaport.MCRVirtualRouter{
+					ASN: 64513,
+				},
+			},
+		},
+		{
+			UID:                "mcr-3",
+			Name:               "Production-MCR",
+			LocationID:         123,
+			PortSpeed:          10000,
+			ProvisioningStatus: "LIVE",
+			Resources: megaport.MCRResources{
+				VirtualRouter: megaport.MCRVirtualRouter{
+					ASN: 64514,
+				},
+			},
+		},
+		{
+			UID:                "mcr-4",
+			Name:               "Staging-MCR",
+			LocationID:         789,
+			PortSpeed:          5000,
+			ProvisioningStatus: "LIVE",
+			Resources: megaport.MCRResources{
+				VirtualRouter: megaport.MCRVirtualRouter{
+					ASN: 64515,
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name         string
+		mcrs         []*megaport.MCR
+		locationID   int
+		portSpeed    int
+		mcrName      string
+		expected     int      // number of MCRs after filtering
+		expectedUIDs []string // specific MCR UIDs expected in result
+	}{
+		{
+			name:         "no filters",
+			mcrs:         activeMCRs,
+			locationID:   0,
+			portSpeed:    0,
+			mcrName:      "",
+			expected:     4,
+			expectedUIDs: []string{"mcr-1", "mcr-2", "mcr-3", "mcr-4"},
+		},
+		{
+			name:         "filter by location ID",
+			mcrs:         activeMCRs,
+			locationID:   123,
+			portSpeed:    0,
+			mcrName:      "",
+			expected:     2,
+			expectedUIDs: []string{"mcr-1", "mcr-3"},
+		},
+		{
+			name:         "filter by port speed",
+			mcrs:         activeMCRs,
+			locationID:   0,
+			portSpeed:    10000,
+			mcrName:      "",
+			expected:     2,
+			expectedUIDs: []string{"mcr-2", "mcr-3"},
+		},
+		{
+			name:         "filter by name (case insensitive)",
+			mcrs:         activeMCRs,
+			locationID:   0,
+			portSpeed:    0,
+			mcrName:      "test",
+			expected:     2,
+			expectedUIDs: []string{"mcr-1", "mcr-2"},
+		},
+		{
+			name:         "filter by name (partial match)",
+			mcrs:         activeMCRs,
+			locationID:   0,
+			portSpeed:    0,
+			mcrName:      "Production",
+			expected:     1,
+			expectedUIDs: []string{"mcr-3"},
+		},
+		{
+			name:         "multiple filters (location and port speed)",
+			mcrs:         activeMCRs,
+			locationID:   123,
+			portSpeed:    10000,
+			mcrName:      "",
+			expected:     1,
+			expectedUIDs: []string{"mcr-3"},
+		},
+		{
+			name:         "multiple filters (location, port speed, and name)",
+			mcrs:         activeMCRs,
+			locationID:   123,
+			portSpeed:    10000,
+			mcrName:      "Production",
+			expected:     1,
+			expectedUIDs: []string{"mcr-3"},
+		},
+		{
+			name:         "no matching mcrs",
+			mcrs:         activeMCRs,
+			locationID:   999,
+			portSpeed:    0,
+			mcrName:      "",
+			expected:     0,
+			expectedUIDs: []string{},
+		},
+		{
+			name:         "nil slice",
+			mcrs:         nil,
+			locationID:   0,
+			portSpeed:    0,
+			mcrName:      "",
+			expected:     0,
+			expectedUIDs: []string{},
+		},
+		{
+			name:         "empty slice",
+			mcrs:         []*megaport.MCR{},
+			locationID:   0,
+			portSpeed:    0,
+			mcrName:      "",
+			expected:     0,
+			expectedUIDs: []string{},
+		},
+		{
+			name:         "slice with nil mcr",
+			mcrs:         []*megaport.MCR{nil, activeMCRs[0], nil, activeMCRs[1]},
+			locationID:   0,
+			portSpeed:    0,
+			mcrName:      "",
+			expected:     2,
+			expectedUIDs: []string{"mcr-1", "mcr-2"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filtered := filterMCRs(tt.mcrs, tt.locationID, tt.portSpeed, tt.mcrName)
+
+			// Check the count matches
+			assert.Equal(t, tt.expected, len(filtered), "Filtered MCR count should match expected")
+
+			// Check specific UIDs if provided
+			if len(tt.expectedUIDs) > 0 {
+				actualUIDs := make([]string, len(filtered))
+				for i, mcr := range filtered {
+					actualUIDs[i] = mcr.UID
+				}
+				assert.ElementsMatch(t, tt.expectedUIDs, actualUIDs, "Filtered MCR UIDs should match expected")
+			}
+		})
+	}
+}
