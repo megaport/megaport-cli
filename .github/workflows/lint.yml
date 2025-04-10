@@ -1,5 +1,4 @@
 name: golangci-lint
-
 on:
   push:
     branches:
@@ -8,51 +7,15 @@ on:
 
 jobs:
   golangci:
-    name: Lint
+    name: lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.22'
           cache: false
-
-      - name: Install dependencies
-        run: |
-          go mod download
-          # Create go bin directory if it doesn't exist
-          mkdir -p $(go env GOPATH)/bin
-
-      - name: Debug Go Environment
-        run: |
-          go version
-          go env
-          echo "Directory listing:"
-          ls -la
-          echo "Memory info:"
-          free -h
-
-      - name: Install and run golangci-lint with better performance
-        run: |
-          # Install golangci-lint with verbose output
-          curl -sSfL -v https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.56.2
-
-          # Ensure the binary is available
-          ls -la $(go env GOPATH)/bin
-
-          # Run with optimizations for CI environment
-          $(go env GOPATH)/bin/golangci-lint run \
-            --timeout 5m \
-            --issues-exit-code=1 \
-            --max-issues-per-linter=0 \
-            --max-same-issues=0 \
-            --exclude-use-default=false \
-            --fix=false \
-            --out-format=colored-line-number \
-            --sort-results \
-            --tests=false \
-            --concurrency=4 \
-            --verbose
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: v1.56
