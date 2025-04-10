@@ -33,9 +33,10 @@ func TestPrintMVEs_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `UID     Name         Location ID   Status       Vendor      Size
-mve-1   MyMVEOne     1             LIVE         cisco       small
-mve-2   AnotherMVE   2             CONFIGURED   palo_alto   medium
+	expected := ` UID   │ NAME       │ LOCATION ID │ STATUS     │ VENDOR    │ SIZE   
+───────┼────────────┼─────────────┼────────────┼───────────┼────────
+ mve-1 │ MyMVEOne   │ 1           │ LIVE       │ cisco     │ small  
+ mve-2 │ AnotherMVE │ 2           │ CONFIGURED │ palo_alto │ medium 
 `
 	assert.Equal(t, expected, output)
 }
@@ -104,7 +105,9 @@ func TestPrintMVEs_EdgeCases(t *testing.T) {
 			mves:        nil,
 			format:      "table",
 			shouldError: false,
-			expected:    "UID   Name   Location ID   Status   Vendor   Size\n",
+			expected: ` UID │ NAME │ LOCATION ID │ STATUS │ VENDOR │ SIZE 
+─────┼──────┼─────────────┼────────┼────────┼──────
+`,
 		},
 		{
 			name:        "empty slice",

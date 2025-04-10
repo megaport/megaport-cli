@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var noColor = false
+var noColor = true // Disable color for testing
 
 var testMVEImages = []*megaport.MVEImage{
 	{

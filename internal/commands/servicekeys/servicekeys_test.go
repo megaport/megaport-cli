@@ -138,13 +138,14 @@ func TestServiceKeyOutput_Table(t *testing.T) {
 	}
 
 	output := output.CaptureOutput(func() {
-		err := output.PrintOutput(outputs, "table", false)
+		err := output.PrintOutput(outputs, "table", true)
 		assert.NoError(t, err)
 	})
 
-	expected := `key_uid               product_name   product_uid   description    create_date
-abcd-1234-efgh-5678   Product One    prd-uid-1     Test Key One   2025-02-25T12:00:00Z
-ijkl-9012-mnop-3456   Product Two    prd-uid-2     Test Key Two   2025-02-25T12:00:00Z
+	expected := ` KEY_UID             │ PRODUCT_NAME │ PRODUCT_UID │ DESCRIPTION  │ CREATE_DATE          
+─────────────────────┼──────────────┼─────────────┼──────────────┼──────────────────────
+ abcd-1234-efgh-5678 │ Product One  │ prd-uid-1   │ Test Key One │ 2025-02-25T12:00:00Z 
+ ijkl-9012-mnop-3456 │ Product Two  │ prd-uid-2   │ Test Key Two │ 2025-02-25T12:00:00Z 
 `
 	assert.Equal(t, expected, output)
 }

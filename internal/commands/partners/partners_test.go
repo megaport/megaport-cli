@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var noColor = false
+var noColor = true // Disable color for testing
 
 var testPartners = []*megaport.PartnerMegaport{
 	{
@@ -142,9 +142,10 @@ func TestPrintPartners_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `Name         UID    Connect Type   Company Name   Location ID   Diversity Zone   VXC Permitted
-ProductOne   uid1   TypeA          CompanyA       1             ZoneA            true
-ProductTwo   uid2   TypeB          CompanyB       2             ZoneB            false
+	expected := ` NAME       │ UID  │ CONNECT TYPE │ COMPANY NAME │ LOCATION ID │ DIVERSITY ZONE │ VXC PERMITTED 
+────────────┼──────┼──────────────┼──────────────┼─────────────┼────────────────┼───────────────
+ ProductOne │ uid1 │ TypeA        │ CompanyA     │ 1           │ ZoneA          │ true          
+ ProductTwo │ uid2 │ TypeB        │ CompanyB     │ 2           │ ZoneB          │ false         
 `
 	assert.Equal(t, expected, output)
 }
@@ -157,7 +158,8 @@ func TestPrintPartners_EmptySlice(t *testing.T) {
 		err := printPartnersFunc(emptySlice, "table", noColor)
 		assert.NoError(t, err)
 	})
-	expectedTable := `Name   UID   Connect Type   Company Name   Location ID   Diversity Zone   VXC Permitted
+	expectedTable := ` NAME │ UID │ CONNECT TYPE │ COMPANY NAME │ LOCATION ID │ DIVERSITY ZONE │ VXC PERMITTED 
+──────┼─────┼──────────────┼──────────────┼─────────────┼────────────────┼───────────────
 `
 	assert.Equal(t, expectedTable, tableOutput)
 

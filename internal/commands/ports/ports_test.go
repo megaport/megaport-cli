@@ -79,15 +79,15 @@ func TestFilterPorts(t *testing.T) {
 }
 
 func TestPrintPorts_Table(t *testing.T) {
-	noColor := false
 	output := op.CaptureOutput(func() {
-		err := printPorts(testPorts, "table", noColor)
+		err := printPorts(testPorts, "table", true)
 		assert.NoError(t, err)
 	})
 
-	expected := `UID      Name          LocationID   Speed   Status
-port-1   MyPortOne     1            1000    ACTIVE
-port-2   AnotherPort   2            2000    INACTIVE
+	expected := ` UID    │ NAME        │ LOCATIONID │ SPEED │ STATUS   
+────────┼─────────────┼────────────┼───────┼──────────
+ port-1 │ MyPortOne   │ 1          │ 1000  │ ACTIVE   
+ port-2 │ AnotherPort │ 2          │ 2000  │ INACTIVE 
 `
 	assert.Equal(t, expected, output)
 }
@@ -158,7 +158,9 @@ func TestPrintPorts_EdgeCases(t *testing.T) {
 			ports:       nil,
 			format:      "table",
 			shouldError: false,
-			expected:    "UID   Name   LocationID   Speed   Status\n",
+			expected: ` UID │ NAME │ LOCATIONID │ SPEED │ STATUS 
+─────┼──────┼────────────┼───────┼────────
+`,
 		},
 		{
 			name:        "empty slice",
@@ -226,10 +228,9 @@ func TestPrintPorts_EdgeCases(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var output string
 			var err error
-			var noColor bool
 
 			output = op.CaptureOutput(func() {
-				err = printPorts(tt.ports, tt.format, noColor)
+				err = printPorts(tt.ports, tt.format, true)
 			})
 
 			if tt.shouldError {
