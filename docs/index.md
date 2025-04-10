@@ -75,6 +75,8 @@
 | [megaport-cli mve docs](megaport-cli_mve_docs.md) | Show documentation for this command |
 | [megaport-cli mve get](megaport-cli_mve_get.md) | Get details for a single MVE |
 | [megaport-cli mve get docs](megaport-cli_mve_get_docs.md) | Show documentation for this command |
+| [megaport-cli mve list](megaport-cli_mve_list.md) | List all MVEs with optional filters |
+| [megaport-cli mve list docs](megaport-cli_mve_list_docs.md) | Show documentation for this command |
 | [megaport-cli mve list-images](megaport-cli_mve_list-images.md) | List all available MVE images |
 | [megaport-cli mve list-images docs](megaport-cli_mve_list-images_docs.md) | Show documentation for this command |
 | [megaport-cli mve list-sizes](megaport-cli_mve_list-sizes.md) | List all available MVE sizes |

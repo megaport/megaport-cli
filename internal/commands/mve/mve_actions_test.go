@@ -3,6 +3,7 @@ package mve
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -875,6 +876,219 @@ func TestBuyMVE(t *testing.T) {
 				if tt.validateRequest != nil {
 					tt.validateRequest(t, mockService.CapturedBuyMVERequest)
 				}
+			}
+		})
+	}
+}
+
+// Add this test function to the existing file
+func TestListMVEsCmd_WithMockClient(t *testing.T) {
+	// Save original login function and restore after test
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	// Test MVEs for our mock response
+	mves := []*megaport.MVE{
+		{
+			UID:                "mve-1",
+			Name:               "TestMVE-1",
+			LocationID:         123,
+			ProvisioningStatus: "LIVE",
+			Vendor:             "cisco",
+		},
+		{
+			UID:                "mve-2",
+			Name:               "TestMVE-2",
+			LocationID:         456,
+			ProvisioningStatus: "CONFIGURED",
+			Vendor:             "fortinet",
+		},
+		{
+			UID:                "mve-3",
+			Name:               "MVE-Decommissioned",
+			LocationID:         789,
+			ProvisioningStatus: "DECOMMISSIONED",
+			Vendor:             "versa",
+		},
+	}
+
+	tests := []struct {
+		name             string
+		flags            map[string]string
+		outputFormat     string
+		setupMock        func(*MockMVEService)
+		expectedError    string
+		expectedOutput   []string
+		unexpectedOutput []string
+	}{
+		{
+			name:         "list all active mves",
+			outputFormat: "table",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEsResult = mves
+			},
+			expectedOutput:   []string{"mve-1", "TestMVE-1", "mve-2", "TestMVE-2"},
+			unexpectedOutput: []string{"mve-3", "MVE-Decommissioned", "DECOMMISSIONED"}, // Shouldn't include inactive MVEs
+		},
+		{
+			name:         "list all mves including inactive",
+			flags:        map[string]string{"include-inactive": "true"},
+			outputFormat: "table",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEsResult = mves
+			},
+			expectedOutput: []string{"mve-1", "TestMVE-1", "mve-2", "TestMVE-2", "mve-3", "MVE-Decommissioned", "DECOMMISSIONED"},
+		},
+		{
+			name:         "filter by location ID",
+			flags:        map[string]string{"location-id": "123"},
+			outputFormat: "table",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEsResult = mves
+			},
+			expectedOutput:   []string{"mve-1", "TestMVE-1"},
+			unexpectedOutput: []string{"mve-2", "TestMVE-2", "mve-3"},
+		},
+		{
+			name:         "filter by vendor",
+			flags:        map[string]string{"vendor": "cisco"},
+			outputFormat: "table",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEsResult = mves
+			},
+			expectedOutput:   []string{"mve-1", "TestMVE-1"},
+			unexpectedOutput: []string{"mve-2", "fortinet", "mve-3"},
+		},
+		{
+			name:         "filter by name",
+			flags:        map[string]string{"name": "TestMVE"},
+			outputFormat: "table",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEsResult = mves
+			},
+			expectedOutput:   []string{"mve-1", "TestMVE-1", "mve-2", "TestMVE-2"},
+			unexpectedOutput: []string{"mve-3", "MVE-Decommissioned"},
+		},
+		{
+			name: "combined filters",
+			flags: map[string]string{
+				"location-id": "123",
+				"vendor":      "cisco",
+				"name":        "TestMVE",
+			},
+			outputFormat: "table",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEsResult = mves
+			},
+			expectedOutput:   []string{"mve-1", "TestMVE-1"},
+			unexpectedOutput: []string{"mve-2", "TestMVE-2", "mve-3"},
+		},
+		{
+			name:         "json format",
+			outputFormat: "json",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEsResult = mves
+			},
+			expectedOutput:   []string{`"uid": "mve-1"`, `"name": "TestMVE-1"`, `"uid": "mve-2"`, `"name": "TestMVE-2"`},
+			unexpectedOutput: []string{`"uid": "mve-3"`},
+		},
+		{
+			name:         "no matching mves",
+			flags:        map[string]string{"location-id": "999"},
+			outputFormat: "table",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEsResult = mves
+			},
+			// Fix case to match actual output (capital N in "No")
+			expectedOutput:   []string{"No MVEs found matching the specified filters"},
+			unexpectedOutput: []string{"mve-1", "mve-2", "mve-3"},
+		},
+		{
+			name:         "API error",
+			outputFormat: "table",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEsError = fmt.Errorf("API error: service unavailable")
+			},
+			expectedError: "error listing MVEs",
+		},
+		{
+			name:         "empty result",
+			outputFormat: "table",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEsResult = []*megaport.MVE{}
+			},
+			// Fix case to match actual output (capital N in "No")
+			expectedOutput: []string{"No MVEs found matching the specified filters"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a new mock mve service for each test
+			mockMVEService := &MockMVEService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockMVEService)
+			}
+
+			// Mock the login function to return a client with our mock service
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				return &megaport.Client{
+					MVEService: mockMVEService,
+				}, nil
+			}
+
+			// Create command with flags
+			cmd := &cobra.Command{}
+			cmd.Flags().Bool("include-inactive", false, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().String("vendor", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().String("output", tt.outputFormat, "")
+
+			// Set flag values from test case
+			for flag, value := range tt.flags {
+				if flag == "include-inactive" {
+					boolVal, _ := strconv.ParseBool(value)
+					err := cmd.Flags().Set(flag, strconv.FormatBool(boolVal))
+					assert.NoError(t, err)
+				} else if flag == "location-id" {
+					err := cmd.Flags().Set(flag, value)
+					assert.NoError(t, err)
+				} else {
+					err := cmd.Flags().Set(flag, value)
+					assert.NoError(t, err)
+				}
+			}
+			err := cmd.Flags().Set("output", tt.outputFormat)
+			assert.NoError(t, err)
+
+			// Capture output and run the command
+			out, err := output.CaptureOutputErr(func() error {
+				return ListMVEs(cmd, []string{}, true, tt.outputFormat)
+			})
+
+			// Check error if expected
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+
+				// Verify expected output
+				for _, expected := range tt.expectedOutput {
+					assert.Contains(t, out, expected)
+				}
+
+				// Verify unexpected output is not present
+				for _, unexpected := range tt.unexpectedOutput {
+					assert.NotContains(t, out, unexpected)
+				}
+
+				// Verify that the right request was made with include-inactive
+				includeInactive, _ := cmd.Flags().GetBool("include-inactive")
+				assert.Equal(t, includeInactive, mockMVEService.CapturedListMVEsRequest.IncludeInactive)
 			}
 		})
 	}
