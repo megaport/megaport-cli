@@ -12,6 +12,69 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Log into Megaport API
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	// Get filter values from flags
+	locationID, _ := cmd.Flags().GetInt("location-id")
+	vendor, _ := cmd.Flags().GetString("vendor")
+	name, _ := cmd.Flags().GetString("name")
+	includeInactive, _ := cmd.Flags().GetBool("include-inactive")
+
+	// Create a ListMVEsRequest
+	req := &megaport.ListMVEsRequest{
+		IncludeInactive: includeInactive,
+	}
+
+	// Get all MVEs
+	output.PrintInfo("Retrieving MVEs...", noColor)
+	mves, err := client.MVEService.ListMVEs(ctx, req)
+	if err != nil {
+		output.PrintError("Failed to list MVEs: %v", noColor, err)
+		return fmt.Errorf("error listing MVEs: %v", err)
+	}
+
+	// Apply manual filtering for inactive MVEs since our mock doesn't implement this behavior
+	var activeMVEs []*megaport.MVE
+	if !includeInactive {
+		for _, mve := range mves {
+			if mve != nil &&
+				mve.ProvisioningStatus != "DECOMMISSIONED" &&
+				mve.ProvisioningStatus != "CANCELLED" &&
+				mve.ProvisioningStatus != "DECOMMISSIONING" {
+				activeMVEs = append(activeMVEs, mve)
+			}
+		}
+		mves = activeMVEs
+	}
+
+	// Apply additional filters
+	filteredMVEs := filterMVEs(mves, locationID, vendor, name)
+
+	if len(filteredMVEs) == 0 {
+		output.PrintWarning("No MVEs found matching the specified filters", noColor)
+		// Return empty array for consistent rendering, not an error
+		return printMVEs(filteredMVEs, outputFormat, noColor)
+	}
+
+	// Print MVEs with current output format
+	err = printMVEs(filteredMVEs, outputFormat, noColor)
+	if err != nil {
+		output.PrintError("Failed to print MVEs: %v", noColor, err)
+		return fmt.Errorf("error printing MVEs: %v", err)
+	}
+	return nil
+}
+
 // BuyMVE handles the purchase of a new Megaport Virtual Edge device
 func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx := context.Background()

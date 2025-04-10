@@ -255,3 +255,174 @@ func TestToMVEOutput_EdgeCases(t *testing.T) {
 		})
 	}
 }
+
+func TestFilterMVEs(t *testing.T) {
+	// Create test MVEs
+	activeMVEs := []*megaport.MVE{
+		{
+			UID:                "mve-1",
+			Name:               "TestMVE-1",
+			LocationID:         123,
+			ProvisioningStatus: "LIVE",
+			Vendor:             "cisco",
+		},
+		{
+			UID:                "mve-2",
+			Name:               "TestMVE-2",
+			LocationID:         456,
+			ProvisioningStatus: "CONFIGURED",
+			Vendor:             "fortinet",
+		},
+		{
+			UID:                "mve-3",
+			Name:               "Production-Edge",
+			LocationID:         123,
+			ProvisioningStatus: "LIVE",
+			Vendor:             "cisco",
+		},
+		{
+			UID:                "mve-4",
+			Name:               "Staging-Edge",
+			LocationID:         789,
+			ProvisioningStatus: "LIVE",
+			Vendor:             "versa",
+		},
+	}
+
+	tests := []struct {
+		name         string
+		mves         []*megaport.MVE
+		locationID   int
+		vendor       string
+		mveName      string
+		expected     int      // number of MVEs after filtering
+		expectedUIDs []string // specific MVE UIDs expected in result
+	}{
+		{
+			name:         "no filters",
+			mves:         activeMVEs,
+			locationID:   0,
+			vendor:       "",
+			mveName:      "",
+			expected:     4,
+			expectedUIDs: []string{"mve-1", "mve-2", "mve-3", "mve-4"},
+		},
+		{
+			name:         "filter by location ID",
+			mves:         activeMVEs,
+			locationID:   123,
+			vendor:       "",
+			mveName:      "",
+			expected:     2,
+			expectedUIDs: []string{"mve-1", "mve-3"},
+		},
+		{
+			name:         "filter by vendor",
+			mves:         activeMVEs,
+			locationID:   0,
+			vendor:       "cisco",
+			mveName:      "",
+			expected:     2,
+			expectedUIDs: []string{"mve-1", "mve-3"},
+		},
+		{
+			name:         "filter by vendor case insensitive",
+			mves:         activeMVEs,
+			locationID:   0,
+			vendor:       "CiScO",
+			mveName:      "",
+			expected:     2,
+			expectedUIDs: []string{"mve-1", "mve-3"},
+		},
+		{
+			name:         "filter by name",
+			mves:         activeMVEs,
+			locationID:   0,
+			vendor:       "",
+			mveName:      "edge",
+			expected:     2,
+			expectedUIDs: []string{"mve-3", "mve-4"},
+		},
+		{
+			name:         "filter by name and location",
+			mves:         activeMVEs,
+			locationID:   123,
+			vendor:       "",
+			mveName:      "Production",
+			expected:     1,
+			expectedUIDs: []string{"mve-3"},
+		},
+		{
+			name:         "multiple filters",
+			mves:         activeMVEs,
+			locationID:   123,
+			vendor:       "cisco",
+			mveName:      "TestMVE",
+			expected:     1,
+			expectedUIDs: []string{"mve-1"},
+		},
+		{
+			name:         "no matching mves",
+			mves:         activeMVEs,
+			locationID:   999,
+			vendor:       "",
+			mveName:      "",
+			expected:     0,
+			expectedUIDs: []string{},
+		},
+		{
+			name:         "nil slice",
+			mves:         nil,
+			locationID:   0,
+			vendor:       "",
+			mveName:      "",
+			expected:     0,
+			expectedUIDs: []string{},
+		},
+		{
+			name:         "empty slice",
+			mves:         []*megaport.MVE{},
+			locationID:   0,
+			vendor:       "",
+			mveName:      "",
+			expected:     0,
+			expectedUIDs: []string{},
+		},
+		{
+			name:         "slice with nil mve",
+			mves:         []*megaport.MVE{nil, activeMVEs[0], nil, activeMVEs[1]},
+			locationID:   0,
+			vendor:       "",
+			mveName:      "",
+			expected:     2,
+			expectedUIDs: []string{"mve-1", "mve-2"},
+		},
+		{
+			name:         "mve with empty vendor string filtered by vendor",
+			mves:         []*megaport.MVE{{UID: "mve-no-vendor", Name: "No Vendor", LocationID: 123, ProvisioningStatus: "LIVE", Vendor: ""}},
+			locationID:   0,
+			vendor:       "cisco",
+			mveName:      "",
+			expected:     0,
+			expectedUIDs: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filtered := filterMVEs(tt.mves, tt.locationID, tt.vendor, tt.mveName)
+
+			// Check the count matches
+			assert.Equal(t, tt.expected, len(filtered), "Filtered MVE count should match expected")
+
+			// Check specific UIDs if provided
+			if len(tt.expectedUIDs) > 0 {
+				actualUIDs := make([]string, len(filtered))
+				for i, mve := range filtered {
+					actualUIDs[i] = mve.UID
+				}
+				assert.ElementsMatch(t, tt.expectedUIDs, actualUIDs, "Filtered MVE UIDs should match expected")
+			}
+		})
+	}
+}

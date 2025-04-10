@@ -28,6 +28,9 @@ func ToMVEOutput(m *megaport.MVE) (MVEOutput, error) {
 		UID:        m.UID,
 		Name:       m.Name,
 		LocationID: m.LocationID,
+		Status:     m.ProvisioningStatus,
+		Vendor:     m.Vendor,
+		Size:       m.Size,
 	}
 
 	if m.ProvisioningStatus != "" {

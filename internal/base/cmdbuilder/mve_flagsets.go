@@ -39,3 +39,12 @@ func (b *CommandBuilder) WithMVEImageFilterFlags() *CommandBuilder {
 	b.WithBoolFlag("release-image", false, "Filter images by release image (only show release images)")
 	return b
 }
+
+// WithMVEFilterFlags adds flags for filtering MVE lists
+func (b *CommandBuilder) WithMVEFilterFlags() *CommandBuilder {
+	b.WithIntFlag("location-id", 0, "Filter MVEs by location ID")
+	b.WithFlag("vendor", "", "Filter MVEs by vendor")
+	b.WithFlag("name", "", "Filter MVEs by name")
+	b.WithBoolFlag("include-inactive", false, "Include inactive MVEs in the list")
+	return b
+}
