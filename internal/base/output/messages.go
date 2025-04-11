@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/fatih/color"
 )
@@ -33,7 +35,8 @@ func PrintResourceSuccess(resourceType, action, uid string, noColor bool) {
 	if strings.HasSuffix(action, "ed") {
 		PrintSuccess("%s %s %s", noColor, resourceType, action, uidFormatted)
 	} else {
-		PrintSuccess("%s %sed %s", noColor, resourceType, action, uidFormatted)
+		// Add 'd' instead of 'ed' to correctly form past tense
+		PrintSuccess("%s %sd %s", noColor, resourceType, action, uidFormatted)
 	}
 }
 
@@ -56,6 +59,129 @@ func PrintResourceDeleted(resourceType, uid string, immediate, noColor bool) {
 		msg += "\nThe resource will be deleted at the end of the current billing period"
 	}
 	PrintSuccess(msg, noColor)
+}
+
+// spinnerChars is the character sequence used for the loading spinner
+var spinnerChars = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
+// Spinner represents a loading spinner with state
+type Spinner struct {
+	stop      chan bool
+	stopped   bool
+	frameRate time.Duration
+	mu        sync.Mutex
+	noColor   bool
+}
+
+// NewSpinner creates a new spinner instance
+func NewSpinner(noColor bool) *Spinner {
+	return &Spinner{
+		stop:      make(chan bool),
+		frameRate: 100 * time.Millisecond,
+		noColor:   noColor,
+	}
+}
+
+// Start begins the spinner animation
+func (s *Spinner) Start(prefix string) {
+	s.mu.Lock()
+	if s.stopped {
+		s.mu.Unlock()
+		return
+	}
+	s.mu.Unlock()
+
+	go func() {
+		for i := 0; ; i++ {
+			select {
+			case <-s.stop:
+				return
+			default:
+				s.mu.Lock()
+				if s.stopped {
+					s.mu.Unlock()
+					return
+				}
+
+				frame := spinnerChars[i%len(spinnerChars)]
+				if s.noColor {
+					fmt.Printf("\r%s %s", frame, prefix)
+				} else {
+					fmt.Printf("\r%s %s", color.CyanString(frame), prefix)
+				}
+				s.mu.Unlock()
+
+				time.Sleep(s.frameRate)
+			}
+		}
+	}()
+}
+
+// Stop halts the spinner animation and clears the line
+func (s *Spinner) Stop() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.stopped {
+		return
+	}
+	s.stopped = true
+	s.stop <- true
+	fmt.Print("\r\033[K") // Clear the current line
+}
+
+// StopWithSuccess stops the spinner and shows a success message
+func (s *Spinner) StopWithSuccess(msg string) {
+	s.Stop()
+	if s.noColor {
+		fmt.Printf("✓ %s\n", msg)
+	} else {
+		fmt.Print(color.GreenString("✓ "))
+		fmt.Println(msg)
+	}
+}
+
+// PrintResourceCreating shows an animated spinner while a resource is being created
+func PrintResourceCreating(resourceType, uid string, noColor bool) *Spinner {
+	uidFormatted := FormatUID(uid, noColor)
+	msg := fmt.Sprintf("Creating %s %s...", resourceType, uidFormatted)
+	spinner := NewSpinner(noColor)
+	spinner.Start(msg)
+	return spinner
+}
+
+// PrintResourceUpdating shows an animated spinner while a resource is being updated
+func PrintResourceUpdating(resourceType, uid string, noColor bool) *Spinner {
+	uidFormatted := FormatUID(uid, noColor)
+	msg := fmt.Sprintf("Updating %s %s...", resourceType, uidFormatted)
+	spinner := NewSpinner(noColor)
+	spinner.Start(msg)
+	return spinner
+}
+
+// PrintResourceDeleting shows an animated spinner while a resource is being deleted
+func PrintResourceDeleting(resourceType, uid string, noColor bool) *Spinner {
+	uidFormatted := FormatUID(uid, noColor)
+	msg := fmt.Sprintf("Deleting %s %s...", resourceType, uidFormatted)
+	spinner := NewSpinner(noColor)
+	spinner.Start(msg)
+	return spinner
+}
+
+// PrintResourceListing shows an animated spinner while resources are being listed
+func PrintResourceListing(resourceType string, noColor bool) *Spinner {
+	msg := fmt.Sprintf("Listing %ss...", resourceType)
+	spinner := NewSpinner(noColor)
+	spinner.Start(msg)
+	return spinner
+}
+
+// PrintResourceGetting shows an animated spinner while getting a resource's details
+func PrintResourceGetting(resourceType, uid string, noColor bool) *Spinner {
+	uidFormatted := FormatUID(uid, noColor)
+	msg := fmt.Sprintf("Getting %s %s details...", resourceType, uidFormatted)
+	spinner := NewSpinner(noColor)
+	spinner.Start(msg)
+	return spinner
 }
 
 // PrintError prints an error message with red color

@@ -13,7 +13,7 @@ func promptForPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	req := &megaport.BuyPortRequest{}
 
 	// Prompt for required fields
-	name, err := utils.Prompt("Enter port name (required): ", noColor)
+	name, err := utils.ResourcePrompt("port", "Enter port name (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -22,7 +22,7 @@ func promptForPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.Name = name
 
-	termStr, err := utils.Prompt("Enter term (1, 12, 24, 36) (required): ", noColor)
+	termStr, err := utils.ResourcePrompt("port", "Enter term (1, 12, 24, 36) (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +32,7 @@ func promptForPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.Term = term
 
-	portSpeedStr, err := utils.Prompt("Enter port speed (1000, 10000, 100000) (required): ", noColor)
+	portSpeedStr, err := utils.ResourcePrompt("port", "Enter port speed (1000, 10000, 100000) (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func promptForPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.PortSpeed = portSpeed
 
-	locationIDStr, err := utils.Prompt("Enter location ID (required): ", noColor)
+	locationIDStr, err := utils.ResourcePrompt("port", "Enter location ID (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func promptForPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.LocationId = locationID
 
-	marketplaceVisibilityStr, err := utils.Prompt("Enter marketplace visibility (true/false) (required): ", noColor)
+	marketplaceVisibilityStr, err := utils.ResourcePrompt("port", "Enter marketplace visibility (true/false) (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -63,19 +63,19 @@ func promptForPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	req.MarketPlaceVisibility = marketplaceVisibility
 
 	// Prompt for optional fields
-	diversityZone, err := utils.Prompt("Enter diversity zone (optional): ", noColor)
+	diversityZone, err := utils.ResourcePrompt("port", "Enter diversity zone (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
 	req.DiversityZone = diversityZone
 
-	costCentre, err := utils.Prompt("Enter cost centre (optional): ", noColor)
+	costCentre, err := utils.ResourcePrompt("port", "Enter cost centre (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
 	req.CostCentre = costCentre
 
-	promoCode, err := utils.Prompt("Enter promo code (optional): ", noColor)
+	promoCode, err := utils.ResourcePrompt("port", "Enter promo code (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	req := &megaport.BuyPortRequest{}
 
 	// Prompt for required fields
-	name, err := utils.Prompt("Enter port name (required): ", noColor)
+	name, err := utils.ResourcePrompt("port", "Enter port name (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.Name = name
 
-	termStr, err := utils.Prompt("Enter term (1, 12, 24, 36) (required): ", noColor)
+	termStr, err := utils.ResourcePrompt("port", "Enter term (1, 12, 24, 36) (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +108,7 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.Term = term
 
-	portSpeedStr, err := utils.Prompt("Enter port speed (10000 or 100000) (required): ", noColor)
+	portSpeedStr, err := utils.ResourcePrompt("port", "Enter port speed (10000 or 100000) (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.PortSpeed = portSpeed
 
-	locationIDStr, err := utils.Prompt("Enter location ID (required): ", noColor)
+	locationIDStr, err := utils.ResourcePrompt("port", "Enter location ID (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.LocationId = locationID
 
-	lagCountStr, err := utils.Prompt("Enter LAG count (1-8) (required): ", noColor)
+	lagCountStr, err := utils.ResourcePrompt("port", "Enter LAG count (1-8) (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.LagCount = lagCount
 
-	marketplaceVisibilityStr, err := utils.Prompt("Enter marketplace visibility (true/false) (required): ", noColor)
+	marketplaceVisibilityStr, err := utils.ResourcePrompt("port", "Enter marketplace visibility (true/false) (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -149,19 +149,19 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	req.MarketPlaceVisibility = marketplaceVisibility
 
 	// Prompt for optional fields
-	diversityZone, err := utils.Prompt("Enter diversity zone (optional): ", noColor)
+	diversityZone, err := utils.ResourcePrompt("port", "Enter diversity zone (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
 	req.DiversityZone = diversityZone
 
-	costCentre, err := utils.Prompt("Enter cost centre (optional): ", noColor)
+	costCentre, err := utils.ResourcePrompt("port", "Enter cost centre (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
 	req.CostCentre = costCentre
 
-	promoCode, err := utils.Prompt("Enter promo code (optional): ", noColor)
+	promoCode, err := utils.ResourcePrompt("port", "Enter promo code (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +176,7 @@ func promptForUpdatePortDetails(portUID string, noColor bool) (*megaport.ModifyP
 		PortID: portUID,
 	}
 
-	name, err := utils.Prompt("Enter new port name (optional, press Enter to keep current name): ", noColor)
+	name, err := utils.ResourcePrompt("port", "Enter new port name (optional, press Enter to keep current name): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +184,7 @@ func promptForUpdatePortDetails(portUID string, noColor bool) (*megaport.ModifyP
 		req.Name = name
 	}
 
-	marketplaceVisibilityStr, err := utils.Prompt("Enter marketplace visibility (true/false) (optional, press Enter to keep current setting): ", noColor)
+	marketplaceVisibilityStr, err := utils.ResourcePrompt("port", "Enter marketplace visibility (true/false) (optional, press Enter to keep current setting): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +195,7 @@ func promptForUpdatePortDetails(portUID string, noColor bool) (*megaport.ModifyP
 		}
 		req.MarketplaceVisibility = &marketplaceVisibility
 	}
-	costCentre, err := utils.Prompt("Enter cost centre (optional): ", noColor)
+	costCentre, err := utils.ResourcePrompt("port", "Enter cost centre (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +203,7 @@ func promptForUpdatePortDetails(portUID string, noColor bool) (*megaport.ModifyP
 		req.CostCentre = costCentre
 	}
 
-	termStr, err := utils.Prompt("Enter new term (1, 12, 24, 36) (optional): ", noColor)
+	termStr, err := utils.ResourcePrompt("port", "Enter new term (1, 12, 24, 36) (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}

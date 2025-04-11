@@ -1,12 +1,9 @@
 package utils
 
 import (
-	"bufio"
 	"fmt"
 	"os"
-	"strings"
 
-	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
@@ -41,43 +38,9 @@ func ShouldDisableColors() bool {
 
 func GetCurrentEnv() string {
 	if Env == "" {
-		return "prod" // Default to production if not specified
+		return "production" // Default to production if not specified
 	}
 	return Env
-}
-
-var Prompt = func(msg string, noColor bool) (string, error) {
-	if !noColor {
-		fmt.Print(color.BlueString(msg))
-	} else {
-		fmt.Print(msg)
-	}
-
-	reader := bufio.NewReader(os.Stdin)
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(input), nil
-}
-
-var ConfirmPrompt = func(question string, noColor bool) bool {
-	var response string
-
-	if !noColor {
-		fmt.Print(color.YellowString("%s [y/N]: ", question))
-	} else {
-		fmt.Printf("%s [y/N]: ", question)
-	}
-
-	_, err := fmt.Scanln(&response)
-	if err != nil {
-		fmt.Println("Error reading input:", err)
-		return false // Or handle the error as appropriate for your use case
-	}
-
-	response = strings.ToLower(strings.TrimSpace(response))
-	return response == "y" || response == "yes"
 }
 
 // WrapRunE wraps a RunE function to set SilenceUsage to true if an error occurs and formats the error message.

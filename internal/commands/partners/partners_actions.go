@@ -21,8 +21,14 @@ func ListPartners(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
-	output.PrintInfo("Retrieving partner ports...", noColor)
+	// Start the spinner for better visual feedback
+	spinner := output.PrintResourceListing("partner", noColor)
+
 	partners, err := client.PartnerService.ListPartnerMegaports(ctx)
+
+	// Stop the spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to list partner ports: %v", noColor, err)
 		return fmt.Errorf("error listing partners: %v", err)
@@ -66,9 +72,14 @@ func FindPartners(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
-	// Get all partners first (we'll filter them based on interactive inputs)
-	output.PrintInfo("Retrieving all partner ports...", noColor)
+	// Start the spinner for better visual feedback
+	spinner := output.PrintResourceListing("partner", noColor)
+
 	partners, err := client.PartnerService.ListPartnerMegaports(ctx)
+
+	// Stop the spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to list partner ports: %v", noColor, err)
 		return fmt.Errorf("error listing partners: %v", err)

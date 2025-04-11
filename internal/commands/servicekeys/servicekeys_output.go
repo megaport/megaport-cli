@@ -11,11 +11,11 @@ import (
 // ServiceKeyOutput represents the desired fields for output
 type ServiceKeyOutput struct {
 	output.Output `json:"-" header:"-"`
-	KeyUID        string `json:"key_uid"`
-	ProductName   string `json:"product_name"`
-	ProductUID    string `json:"product_uid"`
-	Description   string `json:"description"`
-	CreateDate    string `json:"create_date"`
+	KeyUID        string `json:"key_uid" header:"KEY UID"`
+	ProductName   string `json:"product_name" header:"PRODUCT NAME"`
+	ProductUID    string `json:"product_uid" header:"PRODUCT UID"`
+	Description   string `json:"description" header:"DESCRIPTION"`
+	CreateDate    string `json:"create_date" header:"CREATE DATE"`
 }
 
 // ToServiceKeyOutput converts a ServiceKey to ServiceKeyOutput

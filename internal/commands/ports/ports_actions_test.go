@@ -341,11 +341,11 @@ func TestListPortsCmd_WithMockClient(t *testing.T) {
 
 func TestBuyPortCmd(t *testing.T) {
 	// Save original functions and restore after test
-	originalPrompt := utils.Prompt
+	originalPrompt := utils.ResourcePrompt
 	originalLoginFunc := config.LoginFunc
 	originalBuyPortFunc := buyPortFunc
 	defer func() {
-		utils.Prompt = originalPrompt
+		utils.ResourcePrompt = originalPrompt
 		config.LoginFunc = originalLoginFunc
 		buyPortFunc = originalBuyPortFunc
 	}()
@@ -483,7 +483,7 @@ func TestBuyPortCmd(t *testing.T) {
 			// Setup mock prompt
 			if len(tt.prompts) > 0 {
 				promptIndex := 0
-				utils.Prompt = func(msg string, _ bool) (string, error) {
+				utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
 					if promptIndex < len(tt.prompts) {
 						response := tt.prompts[promptIndex]
 						promptIndex++
@@ -587,11 +587,11 @@ func TestBuyPortCmd(t *testing.T) {
 // TestBuyLAGPortCmd tests the buyLagCmd with all three input modes
 func TestBuyLAGPortCmd(t *testing.T) {
 	// Save original functions and restore after test
-	originalPrompt := utils.Prompt
+	originalPrompt := utils.ResourcePrompt
 	originalLoginFunc := config.LoginFunc
 	originalBuyPortFunc := buyPortFunc
 	defer func() {
-		utils.Prompt = originalPrompt
+		utils.ResourcePrompt = originalPrompt
 		config.LoginFunc = originalLoginFunc
 		buyPortFunc = originalBuyPortFunc
 	}()
@@ -747,7 +747,7 @@ func TestBuyLAGPortCmd(t *testing.T) {
 			// Setup mock prompt
 			if len(tt.prompts) > 0 {
 				promptIndex := 0
-				utils.Prompt = func(msg string, _ bool) (string, error) {
+				utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
 					if promptIndex < len(tt.prompts) {
 						response := tt.prompts[promptIndex]
 						promptIndex++
@@ -854,12 +854,12 @@ func TestBuyLAGPortCmd(t *testing.T) {
 // TestUpdatePortCmd tests the updatePortCmd with all three input modes
 func TestUpdatePortCmd(t *testing.T) {
 	// Save original functions and restore after test
-	originalPrompt := utils.Prompt
+	originalPrompt := utils.ResourcePrompt
 	originalLoginFunc := config.LoginFunc
 	originalUpdatePortFunc := updatePortFunc
 	originalGetPortFunc := getPortFunc
 	defer func() {
-		utils.Prompt = originalPrompt
+		utils.ResourcePrompt = originalPrompt
 		config.LoginFunc = originalLoginFunc
 		updatePortFunc = originalUpdatePortFunc
 		getPortFunc = originalGetPortFunc
@@ -1021,7 +1021,7 @@ func TestUpdatePortCmd(t *testing.T) {
 			// Setup mock prompt
 			if len(tt.prompts) > 0 {
 				promptIndex := 0
-				utils.Prompt = func(msg string, _ bool) (string, error) {
+				utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
 					if promptIndex < len(tt.prompts) {
 						response := tt.prompts[promptIndex]
 						promptIndex++

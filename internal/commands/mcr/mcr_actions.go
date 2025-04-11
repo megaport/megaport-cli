@@ -345,8 +345,15 @@ func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	// Retrieve the MCR UID from the command line arguments.
 	mcrUID := args[0]
 
+	// Start a spinner to show progress while getting the MCR details
+	spinner := output.PrintResourceGetting("MCR", mcrUID, noColor)
+
 	// Use the API client to get the MCR details based on the provided UID.
 	mcr, err := getMCRFunc(ctx, client, mcrUID)
+
+	// Stop the spinner
+	spinner.Stop()
+
 	if err != nil {
 		return fmt.Errorf("error getting MCR: %v", err)
 	}
@@ -387,7 +394,7 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if !force {
 		confirmMsg := "Are you sure you want to delete MCR " + mcrUID + "? (y/n): "
-		confirmation, err := utils.Prompt(confirmMsg, noColor)
+		confirmation, err := utils.ResourcePrompt("mcr", confirmMsg, noColor)
 		if err != nil {
 			return err
 		}
@@ -404,10 +411,15 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		DeleteNow: deleteNow,
 	}
 
-	output.PrintInfo("Deleting MCR %s...", noColor, mcrUID)
+	// Start the spinner to show progress during deletion
+	spinner := output.PrintResourceDeleting("MCR", mcrUID, noColor)
 
 	// Delete the MCR
 	resp, err := deleteMCRFunc(ctx, client, deleteRequest)
+
+	// Stop the spinner
+	spinner.Stop()
+
 	if err != nil {
 		return fmt.Errorf("error deleting MCR: %v", err)
 	}
@@ -464,8 +476,15 @@ func ListMCRPrefixFilterLists(cmd *cobra.Command, args []string, noColor bool, o
 	// Retrieve the MCR UID from the command line arguments
 	mcrUID := args[0]
 
+	// Start a spinner to show progress while listing prefix filter lists
+	spinner := output.PrintResourceListing("Prefix filter list", noColor)
+
 	// Call the ListMCRPrefixFilterLists method
 	prefixFilterLists, err := listMCRPrefixFilterListsFunc(ctx, client, mcrUID)
+
+	// Stop the spinner
+	spinner.Stop()
+
 	if err != nil {
 		return fmt.Errorf("error listing prefix filter lists: %v", err)
 	}
@@ -494,8 +513,15 @@ func GetMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool, out
 		return fmt.Errorf("invalid prefix filter list ID: %v", err)
 	}
 
+	// Start a spinner to show progress while getting the prefix filter list details
+	spinner := output.PrintResourceGetting("Prefix filter list", fmt.Sprintf("%d", prefixFilterListID), noColor)
+
 	// Call the GetMCRPrefixFilterList method
 	prefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
+
+	// Stop the spinner
+	spinner.Stop()
+
 	if err != nil {
 		return fmt.Errorf("error getting prefix filter list: %v", err)
 	}
@@ -530,10 +556,15 @@ func DeleteMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 		return fmt.Errorf("invalid prefix filter list ID: %v", err)
 	}
 
-	output.PrintInfo("Deleting prefix filter list %d...", noColor, prefixFilterListID)
+	// Start the spinner to show progress during deletion
+	spinner := output.PrintResourceDeleting("Prefix filter list", fmt.Sprintf("%d", prefixFilterListID), noColor)
 
 	// Call the DeleteMCRPrefixFilterList method
 	resp, err := deleteMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
+
+	// Stop the spinner
+	spinner.Stop()
+
 	if err != nil {
 		return fmt.Errorf("error deleting prefix filter list: %v", err)
 	}
@@ -571,9 +602,15 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 		IncludeInactive: includeInactive,
 	}
 
+	// Start the spinner to show progress while retrieving MCRs
+	spinner := output.PrintResourceListing("MCR", noColor)
+
 	// Get all MCRs
-	output.PrintInfo("Retrieving MCRs...", noColor)
 	mcrs, err := client.MCRService.ListMCRs(ctx, req)
+
+	// Stop the spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to list MCRs: %v", noColor, err)
 		return fmt.Errorf("error listing MCRs: %v", err)

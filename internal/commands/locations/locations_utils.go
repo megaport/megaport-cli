@@ -1,6 +1,8 @@
 package locations
 
 import (
+	"context"
+
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -20,4 +22,9 @@ func filterLocations(locations []*megaport.Location, filters map[string]string) 
 		filtered = append(filtered, loc)
 	}
 	return filtered
+}
+
+var listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Location, error) {
+	// List locations using the Megaport API client.
+	return client.LocationService.ListLocations(ctx)
 }
