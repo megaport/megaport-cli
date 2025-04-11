@@ -1,6 +1,6 @@
 # Megaport CLI Documentation
 
-> Generated on April 10, 2025 for version v0.3.8
+> Generated on April 11, 2025 for version v0.3.9
 
 ## Available Commands
 
