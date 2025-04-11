@@ -64,17 +64,24 @@ func generateDocs(rootCmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create output directory: %v", err)
 	}
 
+	// Start a spinner to show progress while generating documentation
+	spinner := output.NewSpinner(false)
+	spinner.Start("Generating CLI documentation...")
+
 	// Generate index.md - a table of contents for all commands
 	if err := generateIndex(rootCmd, outputDir); err != nil {
+		spinner.Stop()
 		return fmt.Errorf("failed to generate index: %v", err)
 	}
 
 	// Recursively generate docs for all commands
 	if err := generateCommandDocs(rootCmd, outputDir, ""); err != nil {
+		spinner.Stop()
 		return fmt.Errorf("failed to generate command docs: %v", err)
 	}
 
-	fmt.Printf("Documentation generated in %s\n", outputDir)
+	// Stop the spinner and show success message
+	spinner.StopWithSuccess(fmt.Sprintf("Documentation successfully generated in %s", outputDir))
 	return nil
 }
 

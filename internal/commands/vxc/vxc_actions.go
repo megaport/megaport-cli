@@ -20,28 +20,38 @@ func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	// Log into the Megaport API.
 	client, err := config.Login(ctx)
 	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
 	// Retrieve the VXC UID from the command line arguments.
 	vxcUID := args[0]
 
+	// Start spinner for getting VXC details
+	spinner := output.PrintResourceGetting("VXC", vxcUID, noColor)
+
 	// Retrieve VXC details using the API client.
 	vxc, err := client.VXCService.GetVXC(ctx, vxcUID)
+
+	// Stop spinner
+	spinner.Stop()
+
 	if err != nil {
+		output.PrintError("Failed to get VXC: %v", noColor, err)
 		return fmt.Errorf("error getting VXC: %v", err)
 	}
 
 	// Print the VXC details using the desired output format.
 	err = printVXCs([]*megaport.VXC{vxc}, outputFormat, noColor)
 	if err != nil {
+		output.PrintError("Failed to print VXCs: %v", noColor, err)
 		return fmt.Errorf("error printing VXCs: %v", err)
 	}
 	return nil
 }
 
 // hasUpdateVXCNonInteractiveFlags checks if any non-interactive flags are set for updating a VXC.
-func hasUpdateVXCNonInteractiveFlags(cmd *cobra.Command) bool {
+var hasUpdateVXCNonInteractiveFlags = func(cmd *cobra.Command) bool {
 	flagNames := []string{"name", "rate-limit", "a-end-vlan", "b-end-vlan", "a-end-location", "b-end-location", "locked"}
 	for _, name := range flagNames {
 		if cmd.Flags().Changed(name) {
@@ -120,8 +130,15 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	output.PrintInfo("Creating VXC...", noColor)
+	// Start spinner for creating VXC
+	spinner := output.PrintResourceCreating("VXC", req.VXCName, noColor)
+
+	// Call the API
 	resp, err := buyVXCFunc(ctx, client, req)
+
+	// Stop spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to buy VXC: %v", noColor, err)
 		return err
@@ -146,8 +163,15 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	// Start spinner for getting original VXC details
+	getSpinner := output.PrintResourceGetting("VXC", vxcUID, noColor)
+
 	// Retrieve the original VXC for later comparison
 	originalVXC, err := client.VXCService.GetVXC(ctx, vxcUID)
+
+	// Stop spinner
+	getSpinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to retrieve original VXC details: %v", noColor, err)
 		return fmt.Errorf("failed to retrieve original VXC details: %v", err)
@@ -185,16 +209,29 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	req.WaitForUpdate = true
 	req.WaitForTime = 10 * time.Minute
 
+	// Start spinner for updating VXC
+	updateSpinner := output.PrintResourceUpdating("VXC", vxcUID, noColor)
+
 	// Call update API
-	output.PrintInfo("Updating VXC %s...", noColor, formattedUID)
 	err = updateVXCFunc(ctx, client, vxcUID, req)
+
+	// Stop spinner
+	updateSpinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to update VXC: %v", noColor, err)
 		return fmt.Errorf("failed to update VXC: %v", err)
 	}
 
+	// Start spinner for getting updated VXC details
+	getUpdatedSpinner := output.PrintResourceGetting("VXC", vxcUID, noColor)
+
 	// Retrieve the updated VXC for comparison
-	updatedVXC, err := client.VXCService.GetVXC(ctx, vxcUID)
+	updatedVXC, err := getVXCFunc(ctx, client, vxcUID)
+
+	// Stop spinner
+	getUpdatedSpinner.Stop()
+
 	if err != nil {
 		output.PrintError("VXC was updated but failed to retrieve updated details: %v", noColor, err)
 		output.PrintResourceUpdated("VXC", vxcUID, noColor)
@@ -241,8 +278,16 @@ func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
 		DeleteNow: deleteNow,
 	}
 
-	output.PrintInfo("Deleting VXC %s...", noColor, formattedUID)
-	if err := deleteVXCFunc(ctx, client, vxcUID, req); err != nil {
+	// Start spinner for deleting VXC
+	spinner := output.PrintResourceDeleting("VXC", vxcUID, noColor)
+
+	// Call the API
+	err = deleteVXCFunc(ctx, client, vxcUID, req)
+
+	// Stop spinner
+	spinner.Stop()
+
+	if err != nil {
 		output.PrintError("Failed to delete VXC: %v", noColor, err)
 		return err
 	}

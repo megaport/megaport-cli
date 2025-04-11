@@ -22,6 +22,11 @@ var updateVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID st
 	return err
 }
 
+// Function to handle VXC get API calls
+var getVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string) (*megaport.VXC, error) {
+	return client.VXCService.GetVXC(ctx, vxcUID)
+}
+
 func getPartnerPortUID(ctx context.Context, svc megaport.VXCService, key, partner string) (string, error) {
 	fmt.Println("Finding partner port...")
 

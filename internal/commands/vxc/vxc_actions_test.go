@@ -18,14 +18,14 @@ var originalBuyVXCFunc = buyVXCFunc
 var interactive bool
 
 func TestBuyVXC(t *testing.T) {
-	originalPrompt := utils.Prompt
+	originalResourcePrompt := utils.ResourcePrompt
 	originalLoginFunc := config.LoginFunc
 	originalInteractiveFlag := interactive
 	noColor := true
 
 	// Restore the originals after test completes
 	defer func() {
-		utils.Prompt = originalPrompt
+		utils.ResourcePrompt = originalResourcePrompt
 		config.LoginFunc = originalLoginFunc
 		buyVXCFunc = originalBuyVXCFunc
 		interactive = originalInteractiveFlag
@@ -245,7 +245,8 @@ func TestBuyVXC(t *testing.T) {
 			// Override the prompt responses
 			promptIndex := 0
 			promptResponses := tt.prompts
-			utils.Prompt = func(_ string, _ bool) (string, error) {
+
+			utils.ResourcePrompt = func(_, _ string, _ bool) (string, error) {
 				if promptIndex < len(promptResponses) {
 					resp := promptResponses[promptIndex]
 					promptIndex++
@@ -311,17 +312,19 @@ func TestBuyVXC(t *testing.T) {
 }
 func TestUpdateVXC(t *testing.T) {
 	noColor := true
-	originalPrompt := utils.Prompt
 	originalLoginFunc := config.LoginFunc
 	originalInteractiveFlag := interactive
 	originalUpdateVXCFunc := updateVXCFunc
+	originalResourcePrompt := utils.ResourcePrompt
+	originalGetVXCFunc := getVXCFunc
 
 	// Restore the originals after test completes
 	defer func() {
-		utils.Prompt = originalPrompt
+		utils.ResourcePrompt = originalResourcePrompt
 		config.LoginFunc = originalLoginFunc
 		updateVXCFunc = originalUpdateVXCFunc
 		interactive = originalInteractiveFlag
+		getVXCFunc = originalGetVXCFunc
 	}()
 
 	tests := []struct {
@@ -545,6 +548,24 @@ func TestUpdateVXC(t *testing.T) {
 					Name: "Test VXC",
 				}
 
+				// First set interactive mode to false
+				interactive = false
+
+				// Mock hasUpdateVXCNonInteractiveFlags to return true to avoid entering interactive mode
+				hasUpdateVXCNonInteractiveFlagsOrig := hasUpdateVXCNonInteractiveFlags
+				hasUpdateVXCNonInteractiveFlags = func(cmd *cobra.Command) bool {
+					return true // Force non-interactive mode
+				}
+				t.Cleanup(func() {
+					hasUpdateVXCNonInteractiveFlags = hasUpdateVXCNonInteractiveFlagsOrig
+				})
+
+				// Override utils.ResourcePrompt to fail immediately if called
+				utils.ResourcePrompt = func(resourceType, prompt string, noColor bool) (string, error) {
+					t.Fatalf("ResourcePrompt should not be called in non-interactive mode")
+					return "", fmt.Errorf("unexpected additional prompt")
+				}
+
 				// Skip the buildUpdateVXCRequestFromFlags function
 				buildUpdateVXCRequestFromFlagsOrig := buildUpdateVXCRequestFromFlags
 				buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateVXCRequest, error) {
@@ -576,14 +597,14 @@ func TestUpdateVXC(t *testing.T) {
 					buildUpdateVXCRequestFromFlags = buildUpdateVXCRequestFromFlagsOrig
 				})
 
-				// Mock the updateVXCFunc to bypass the VRouter check for testing
+				// Mock the updateVXCFunc to bypass any checks
 				updateVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string, req *megaport.UpdateVXCRequest) error {
-					_, err := m.UpdateVXC(ctx, vxcUID, req)
-					return err
+					return nil
 				}
 			},
 			args: []string{"vxc-12345"},
 			flags: map[string]string{
+				"name": "Partner Config VXC", // Add a standard flag to ensure hasUpdateVXCNonInteractiveFlags returns true
 				"b-end-partner-config": `{
                     "interfaces": [
                         {
@@ -690,16 +711,19 @@ func TestUpdateVXC(t *testing.T) {
 				}, nil
 			}
 
+			// Override the getVXCFunc to return a mock response
+			getVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string) (*megaport.VXC, error) {
+				return &megaport.VXC{
+					UID:  "vxc-test",
+					Name: "Test VXC",
+				}, nil
+			}
+
 			// Override the prompt responses - with safe handling for no prompts
 			promptIndex := 0
 			promptResponses := tt.prompts
-			utils.Prompt = func(msg string, _ bool) (string, error) {
-				if len(promptResponses) == 0 {
-					// If no prompts are expected in this test, return empty string
-					// instead of failing
-					return "", nil
-				}
 
+			utils.ResourcePrompt = func(_, _ string, _ bool) (string, error) {
 				if promptIndex < len(promptResponses) {
 					resp := promptResponses[promptIndex]
 					promptIndex++

@@ -24,7 +24,7 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 
 	// Prompt for name (can be skipped with empty input)
 	namePrompt := "Enter new MCR name (leave empty to skip): "
-	name, err := utils.Prompt(namePrompt, noColor)
+	name, err := utils.ResourcePrompt("mcr", namePrompt, noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +35,7 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 
 	// Prompt for cost centre (optional)
 	costCentrePrompt := "Enter new cost centre (leave empty to skip): "
-	costCentre, err := utils.Prompt(costCentrePrompt, noColor)
+	costCentre, err := utils.ResourcePrompt("mcr", costCentrePrompt, noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -46,13 +46,13 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 
 	// Prompt for marketplace visibility
 	marketplaceVisibilityPrompt := "Update marketplace visibility? (yes/no, leave empty to skip): "
-	marketplaceVisibilityStr, err := utils.Prompt(marketplaceVisibilityPrompt, noColor)
+	marketplaceVisibilityStr, err := utils.ResourcePrompt("mcr", marketplaceVisibilityPrompt, noColor)
 	if err != nil {
 		return nil, err
 	}
 	if strings.ToLower(marketplaceVisibilityStr) == "yes" {
 		visibilityValuePrompt := "Enter marketplace visibility (true or false): "
-		visibilityValue, err := utils.Prompt(visibilityValuePrompt, noColor)
+		visibilityValue, err := utils.ResourcePrompt("mcr", visibilityValuePrompt, noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -64,7 +64,7 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 
 	// Prompt for term (optional)
 	termPrompt := "Enter new term (1, 12, 24, or 36 months, leave empty to skip): "
-	termStr, err := utils.Prompt(termPrompt, noColor)
+	termStr, err := utils.ResourcePrompt("mcr", termPrompt, noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 
 // Extract the existing interactive prompting into a separate function for MCR
 func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
-	name, err := utils.Prompt("Enter MCR name (required): ", noColor)
+	name, err := utils.ResourcePrompt("mcr", "Enter MCR name (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 		return nil, fmt.Errorf("name is required")
 	}
 
-	termStr, err := utils.Prompt("Enter term (1, 12, 24, or 36 months) (required): ", noColor)
+	termStr, err := utils.ResourcePrompt("mcr", "Enter term (1, 12, 24, or 36 months) (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 		return nil, fmt.Errorf("invalid term: %v", err)
 	}
 
-	portSpeedStr, err := utils.Prompt("Enter port speed (1000, 10000, or 100000 Mbps) (required): ", noColor)
+	portSpeedStr, err := utils.ResourcePrompt("mcr", "Enter port speed (1000, 10000, or 100000 Mbps) (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 		return nil, fmt.Errorf("invalid port speed: %v", err)
 	}
 
-	locationIDStr, err := utils.Prompt("Enter location ID (required): ", noColor)
+	locationIDStr, err := utils.ResourcePrompt("mcr", "Enter location ID (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 		return nil, fmt.Errorf("invalid location ID: %v", err)
 	}
 
-	asnStr, err := utils.Prompt("Enter MCR ASN (optional): ", noColor)
+	asnStr, err := utils.ResourcePrompt("mcr", "Enter MCR ASN (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -147,17 +147,17 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 	}
 
 	// Optional fields
-	diversityZone, err := utils.Prompt("Enter diversity zone (optional): ", noColor)
+	diversityZone, err := utils.ResourcePrompt("mcr", "Enter diversity zone (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
 
-	costCentre, err := utils.Prompt("Enter cost centre (optional): ", noColor)
+	costCentre, err := utils.ResourcePrompt("mcr", "Enter cost centre (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
 
-	promoCode, err := utils.Prompt("Enter promo code (optional): ", noColor)
+	promoCode, err := utils.ResourcePrompt("mcr", "Enter promo code (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 }
 
 func promptForPrefixFilterListDetails(mcrUID string, noColor bool) (*megaport.CreateMCRPrefixFilterListRequest, error) {
-	description, err := utils.Prompt("Enter description (required): ", noColor)
+	description, err := utils.ResourcePrompt("mcr", "Enter description (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +190,7 @@ func promptForPrefixFilterListDetails(mcrUID string, noColor bool) (*megaport.Cr
 		return nil, fmt.Errorf("description is required")
 	}
 
-	addressFamily, err := utils.Prompt("Enter address family (IPv4 or IPv6) (required): ", noColor)
+	addressFamily, err := utils.ResourcePrompt("mcr", "Enter address family (IPv4 or IPv6) (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +203,7 @@ func promptForPrefixFilterListDetails(mcrUID string, noColor bool) (*megaport.Cr
 	for {
 		fmt.Println("Add a new prefix filter entry (leave prefix blank to finish):")
 
-		prefix, err := utils.Prompt("Enter prefix (e.g., 192.168.0.0/24): ", noColor)
+		prefix, err := utils.ResourcePrompt("mcr", "Enter prefix (e.g., 192.168.0.0/24): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -211,7 +211,7 @@ func promptForPrefixFilterListDetails(mcrUID string, noColor bool) (*megaport.Cr
 			break
 		}
 
-		actionStr, err := utils.Prompt("Enter action (permit or deny): ", noColor)
+		actionStr, err := utils.ResourcePrompt("mcr", "Enter action (permit or deny): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -219,7 +219,7 @@ func promptForPrefixFilterListDetails(mcrUID string, noColor bool) (*megaport.Cr
 			return nil, fmt.Errorf("invalid action, must be permit or deny")
 		}
 
-		geStr, err := utils.Prompt("Enter GE value (optional): ", noColor)
+		geStr, err := utils.ResourcePrompt("mcr", "Enter GE value (optional): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -232,7 +232,7 @@ func promptForPrefixFilterListDetails(mcrUID string, noColor bool) (*megaport.Cr
 			ge = geVal
 		}
 
-		leStr, err := utils.Prompt("Enter LE value (optional): ", noColor)
+		leStr, err := utils.ResourcePrompt("mcr", "Enter LE value (optional): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -282,7 +282,7 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 	}
 
 	fmt.Printf("Current description: %s\n", currentPrefixFilterList.Description)
-	description, err := utils.Prompt("Enter new description (leave empty to keep current): ", noColor)
+	description, err := utils.ResourcePrompt("mcr", "Enter new description (leave empty to keep current): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +297,7 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 	// Initialize a zero-length slice with capacity to hold existing entries
 	entries := make([]*megaport.MCRPrefixListEntry, 0, len(currentPrefixFilterList.Entries))
 
-	modifyExisting, err := utils.Prompt("Do you want to modify existing entries? (yes/no): ", noColor)
+	modifyExisting, err := utils.ResourcePrompt("mcr", "Do you want to modify existing entries? (yes/no): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -310,19 +310,19 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 			fmt.Printf("Entry %d - Current: Action: %s, Prefix: %s, GE: %d, LE: %d\n",
 				i+1, entry.Action, entry.Prefix, entry.Ge, entry.Le)
 
-			keepEntry, err := utils.Prompt(fmt.Sprintf("Keep entry %d? (yes/no): ", i+1), noColor)
+			keepEntry, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Keep entry %d? (yes/no): ", i+1), noColor)
 			if err != nil {
 				return nil, err
 			}
 
 			if strings.ToLower(keepEntry) == "yes" {
-				modifyEntry, err := utils.Prompt(fmt.Sprintf("Modify entry %d? (yes/no): ", i+1), noColor)
+				modifyEntry, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Modify entry %d? (yes/no): ", i+1), noColor)
 				if err != nil {
 					return nil, err
 				}
 
 				if strings.ToLower(modifyEntry) == "yes" {
-					prefix, err := utils.Prompt(fmt.Sprintf("Enter new prefix for entry %d (current: %s): ", i+1, entry.Prefix), noColor)
+					prefix, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter new prefix for entry %d (current: %s): ", i+1, entry.Prefix), noColor)
 					if err != nil {
 						return nil, err
 					}
@@ -330,7 +330,7 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 						prefix = entry.Prefix
 					}
 
-					actionStr, err := utils.Prompt(fmt.Sprintf("Enter new action for entry %d (permit or deny, current: %s): ", i+1, entry.Action), noColor)
+					actionStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter new action for entry %d (permit or deny, current: %s): ", i+1, entry.Action), noColor)
 					if err != nil {
 						return nil, err
 					}
@@ -340,7 +340,7 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 						return nil, fmt.Errorf("invalid action, must be permit or deny")
 					}
 
-					geStr, err := utils.Prompt(fmt.Sprintf("Enter new GE value for entry %d (current: %d): ", i+1, entry.Ge), noColor)
+					geStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter new GE value for entry %d (current: %d): ", i+1, entry.Ge), noColor)
 					if err != nil {
 						return nil, err
 					}
@@ -353,7 +353,7 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 						ge = geVal
 					}
 
-					leStr, err := utils.Prompt(fmt.Sprintf("Enter new LE value for entry %d (current: %d): ", i+1, entry.Le), noColor)
+					leStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter new LE value for entry %d (current: %d): ", i+1, entry.Le), noColor)
 					if err != nil {
 						return nil, err
 					}
@@ -379,7 +379,7 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 		}
 	}
 
-	addNew, err := utils.Prompt("Do you want to add new entries? (yes/no): ", noColor)
+	addNew, err := utils.ResourcePrompt("mcr", "Do you want to add new entries? (yes/no): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -388,7 +388,7 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 		for {
 			fmt.Println("Add a new prefix filter entry (leave prefix blank to finish):")
 
-			prefix, err := utils.Prompt("Enter prefix (e.g., 192.168.0.0/24): ", noColor)
+			prefix, err := utils.ResourcePrompt("mcr", "Enter prefix (e.g., 192.168.0.0/24): ", noColor)
 			if err != nil {
 				return nil, err
 			}
@@ -396,7 +396,7 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 				break
 			}
 
-			actionStr, err := utils.Prompt("Enter action (permit or deny): ", noColor)
+			actionStr, err := utils.ResourcePrompt("mcr", "Enter action (permit or deny): ", noColor)
 			if err != nil {
 				return nil, err
 			}
@@ -404,7 +404,7 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 				return nil, fmt.Errorf("invalid action, must be permit or deny")
 			}
 
-			geStr, err := utils.Prompt("Enter GE value (optional): ", noColor)
+			geStr, err := utils.ResourcePrompt("mcr", "Enter GE value (optional): ", noColor)
 			if err != nil {
 				return nil, err
 			}
@@ -417,7 +417,7 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 				ge = geVal
 			}
 
-			leStr, err := utils.Prompt("Enter LE value (optional): ", noColor)
+			leStr, err := utils.ResourcePrompt("mcr", "Enter LE value (optional): ", noColor)
 			if err != nil {
 				return nil, err
 			}

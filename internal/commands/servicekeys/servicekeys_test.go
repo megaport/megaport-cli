@@ -142,7 +142,7 @@ func TestServiceKeyOutput_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := ` KEY_UID             │ PRODUCT_NAME │ PRODUCT_UID │ DESCRIPTION  │ CREATE_DATE          
+	expected := ` KEY UID             │ PRODUCT NAME │ PRODUCT UID │ DESCRIPTION  │ CREATE DATE          
 ─────────────────────┼──────────────┼─────────────┼──────────────┼──────────────────────
  abcd-1234-efgh-5678 │ Product One  │ prd-uid-1   │ Test Key One │ 2025-02-25T12:00:00Z 
  ijkl-9012-mnop-3456 │ Product Two  │ prd-uid-2   │ Test Key Two │ 2025-02-25T12:00:00Z 

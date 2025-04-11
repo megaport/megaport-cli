@@ -47,7 +47,6 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
-	output.PrintInfo("Creating service key...", noColor)
 	req := &megaport.CreateServiceKeyRequest{
 		ProductUID:  productUID,
 		ProductID:   productID,
@@ -57,7 +56,14 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 		ValidFor:    validFor,
 	}
 
+	// Start spinner for creating service key
+	spinner := output.PrintResourceCreating("Service Key", description, noColor)
+
 	resp, err := client.ServiceKeyService.CreateServiceKey(ctx, req)
+
+	// Stop spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to create service key: %v", noColor, err)
 		return fmt.Errorf("error creating service key: %v", err)
@@ -82,7 +88,6 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
-	output.PrintInfo("Updating service key...", noColor)
 	req := &megaport.UpdateServiceKeyRequest{
 		Key:        key,
 		ProductUID: productUID,
@@ -91,14 +96,21 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 		Active:     active,
 	}
 
+	// Start spinner for updating service key
+	spinner := output.PrintResourceUpdating("Service Key", key, noColor)
+
 	resp, err := client.ServiceKeyService.UpdateServiceKey(ctx, req)
+
+	// Stop spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to update service key: %v", noColor, err)
 		return fmt.Errorf("error updating service key: %v", err)
 	}
 
 	if resp.IsUpdated {
-		output.PrintInfo("Service key updated successfully", noColor)
+		output.PrintResourceUpdated("Service Key", key, noColor)
 	} else {
 		output.PrintWarning("Service key update request was not successful", noColor)
 	}
@@ -114,9 +126,15 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
-	output.PrintInfo("Retrieving service keys...", noColor)
+	// Start spinner for listing service keys
+	spinner := output.PrintResourceListing("Service Key", noColor)
+
 	req := &megaport.ListServiceKeysRequest{}
 	resp, err := client.ServiceKeyService.ListServiceKeys(ctx, req)
+
+	// Stop spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to list service keys: %v", noColor, err)
 		return fmt.Errorf("error listing service keys: %v", err)
@@ -149,10 +167,15 @@ func GetServiceKey(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	}
 
 	keyID := args[0]
-	formattedUID := output.FormatUID(keyID, noColor)
 
-	output.PrintInfo("Retrieving service key %s...", noColor, formattedUID)
+	// Start spinner for getting service key
+	spinner := output.PrintResourceGetting("Service Key", keyID, noColor)
+
 	resp, err := client.ServiceKeyService.GetServiceKey(ctx, keyID)
+
+	// Stop spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to get service key: %v", noColor, err)
 		return fmt.Errorf("error getting service key: %v", err)

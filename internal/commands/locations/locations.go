@@ -24,9 +24,9 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli locations list --name \"Equinix SY1\"").WithRootCmd(rootCmd).Build()
 
 	// Create get location command
-	getLocationCmd := cmdbuilder.NewCommand("get", "Get details for a single location").
+	getLocationCmd := cmdbuilder.NewCommand("get", "Get details for a specific location by ID").
 		WithArgs(cobra.ExactArgs(1)).
-		WithLongDesc("Get details for a single location from the Megaport API.\n\nThis command fetches and displays detailed information about a specific location. You need to provide the ID of the location as an argument.").
+		WithLongDesc("Get details for a specific location from the Megaport API.\n\nThis command fetches and displays detailed information about a location using its ID. You must provide the location ID as an argument.").
 		WithOutputFormatRunFunc(GetLocation).
 		WithExample("megaport-cli locations get 67").
 		WithRootCmd(rootCmd).

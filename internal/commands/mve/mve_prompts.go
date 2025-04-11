@@ -15,7 +15,7 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 	req := &megaport.BuyMVERequest{}
 
 	// Prompt for required fields
-	name, err := utils.Prompt("Enter MVE name (required): ", noColor)
+	name, err := utils.ResourcePrompt("mve", "Enter MVE name (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -24,7 +24,7 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 	}
 	req.Name = name
 
-	termStr, err := utils.Prompt("Enter term (1, 12, 24, or 36 months) (required): ", noColor)
+	termStr, err := utils.ResourcePrompt("mve", "Enter term (1, 12, 24, or 36 months) (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 	}
 	req.Term = term
 
-	locationIDStr, err := utils.Prompt("Enter location ID (required): ", noColor)
+	locationIDStr, err := utils.ResourcePrompt("mve", "Enter location ID (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -45,26 +45,26 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 	req.LocationID = locationID
 
 	// Prompt for optional fields
-	diversityZone, err := utils.Prompt("Enter diversity zone (optional): ", noColor)
+	diversityZone, err := utils.ResourcePrompt("mve", "Enter diversity zone (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
 	req.DiversityZone = diversityZone
 
-	promoCode, err := utils.Prompt("Enter promo code (optional): ", noColor)
+	promoCode, err := utils.ResourcePrompt("mve", "Enter promo code (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
 	req.PromoCode = promoCode
 
-	costCentre, err := utils.Prompt("Enter cost centre (optional): ", noColor)
+	costCentre, err := utils.ResourcePrompt("mve", "Enter cost centre (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
 	req.CostCentre = costCentre
 
 	// Prompt for vendor selection
-	vendorStr, err := utils.Prompt("Enter vendor (6wind, aruba, aviatrix, cisco, fortinet, palo_alto, prisma, versa, vmware, meraki) (required): ", noColor)
+	vendorStr, err := utils.ResourcePrompt("mve", "Enter vendor (6wind, aruba, aviatrix, cisco, fortinet, palo_alto, prisma, versa, vmware, meraki) (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 	}
 
 	// Prompt for image ID
-	imageIDStr, err := utils.Prompt("Enter image ID (required): ", noColor)
+	imageIDStr, err := utils.ResourcePrompt("mve", "Enter image ID (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 	}
 
 	// Prompt for product size
-	productSize, err := utils.Prompt("Enter product size (required): ", noColor)
+	productSize, err := utils.ResourcePrompt("mve", "Enter product size (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 	}
 
 	// Prompt for MVE label
-	mveLabel, err := utils.Prompt("Enter MVE label (optional): ", noColor)
+	mveLabel, err := utils.ResourcePrompt("mve", "Enter MVE label (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 
 	switch vendorStr {
 	case "6wind":
-		sshPublicKey, err := utils.Prompt("Enter SSH public key (required): ", noColor)
+		sshPublicKey, err := utils.ResourcePrompt("mve", "Enter SSH public key (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -114,15 +114,15 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 			SSHPublicKey: sshPublicKey,
 		}
 	case "aruba":
-		accountName, err := utils.Prompt("Enter account name (required): ", noColor)
+		accountName, err := utils.ResourcePrompt("mve", "Enter account name (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		accountKey, err := utils.Prompt("Enter account key (required): ", noColor)
+		accountKey, err := utils.ResourcePrompt("mve", "Enter account key (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		systemTag, err := utils.Prompt("Enter system tag (optional): ", noColor)
+		systemTag, err := utils.ResourcePrompt("mve", "Enter system tag (optional): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +136,7 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 			SystemTag:   systemTag,
 		}
 	case "aviatrix":
-		cloudInit, err := utils.Prompt("Enter cloud init data (required): ", noColor)
+		cloudInit, err := utils.ResourcePrompt("mve", "Enter cloud init data (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -148,33 +148,33 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 			CloudInit:   cloudInit,
 		}
 	case "cisco":
-		manageLocallyStr, err := utils.Prompt("Manage locally (true/false) (required): ", noColor)
+		manageLocallyStr, err := utils.ResourcePrompt("mve", "Manage locally (true/false) (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
 		manageLocally := strings.ToLower(manageLocallyStr) == "true"
 
-		adminSSHPublicKey, err := utils.Prompt("Enter admin SSH public key (required): ", noColor)
+		adminSSHPublicKey, err := utils.ResourcePrompt("mve", "Enter admin SSH public key (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		sshPublicKey, err := utils.Prompt("Enter SSH public key (required): ", noColor)
+		sshPublicKey, err := utils.ResourcePrompt("mve", "Enter SSH public key (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		cloudInit, err := utils.Prompt("Enter cloud init data (required): ", noColor)
+		cloudInit, err := utils.ResourcePrompt("mve", "Enter cloud init data (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		fmcIPAddress, err := utils.Prompt("Enter FMC IP address (required): ", noColor)
+		fmcIPAddress, err := utils.ResourcePrompt("mve", "Enter FMC IP address (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		fmcRegistrationKey, err := utils.Prompt("Enter FMC registration key (required): ", noColor)
+		fmcRegistrationKey, err := utils.ResourcePrompt("mve", "Enter FMC registration key (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		fmcNatID, err := utils.Prompt("Enter FMC NAT ID (required): ", noColor)
+		fmcNatID, err := utils.ResourcePrompt("mve", "Enter FMC NAT ID (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -192,15 +192,15 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 			FMCNatID:           fmcNatID,
 		}
 	case "fortinet":
-		adminSSHPublicKey, err := utils.Prompt("Enter admin SSH public key (required): ", noColor)
+		adminSSHPublicKey, err := utils.ResourcePrompt("mve", "Enter admin SSH public key (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		sshPublicKey, err := utils.Prompt("Enter SSH public key (required): ", noColor)
+		sshPublicKey, err := utils.ResourcePrompt("mve", "Enter SSH public key (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		licenseData, err := utils.Prompt("Enter license data (required): ", noColor)
+		licenseData, err := utils.ResourcePrompt("mve", "Enter license data (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -214,15 +214,15 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 			LicenseData:       licenseData,
 		}
 	case "palo_alto":
-		sshPublicKey, err := utils.Prompt("Enter SSH public key (required): ", noColor)
+		sshPublicKey, err := utils.ResourcePrompt("mve", "Enter SSH public key (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		adminPasswordHash, err := utils.Prompt("Enter admin password hash (required): ", noColor)
+		adminPasswordHash, err := utils.ResourcePrompt("mve", "Enter admin password hash (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		licenseData, err := utils.Prompt("Enter license data (required): ", noColor)
+		licenseData, err := utils.ResourcePrompt("mve", "Enter license data (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -236,11 +236,11 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 			LicenseData:       licenseData,
 		}
 	case "prisma":
-		ionKey, err := utils.Prompt("Enter ION key (required): ", noColor)
+		ionKey, err := utils.ResourcePrompt("mve", "Enter ION key (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		secretKey, err := utils.Prompt("Enter secret key (required): ", noColor)
+		secretKey, err := utils.ResourcePrompt("mve", "Enter secret key (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -253,23 +253,23 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 			SecretKey:   secretKey,
 		}
 	case "versa":
-		directorAddress, err := utils.Prompt("Enter director address (required): ", noColor)
+		directorAddress, err := utils.ResourcePrompt("mve", "Enter director address (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		controllerAddress, err := utils.Prompt("Enter controller address (required): ", noColor)
+		controllerAddress, err := utils.ResourcePrompt("mve", "Enter controller address (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		localAuth, err := utils.Prompt("Enter local auth (required): ", noColor)
+		localAuth, err := utils.ResourcePrompt("mve", "Enter local auth (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		remoteAuth, err := utils.Prompt("Enter remote auth (required): ", noColor)
+		remoteAuth, err := utils.ResourcePrompt("mve", "Enter remote auth (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		serialNumber, err := utils.Prompt("Enter serial number (required): ", noColor)
+		serialNumber, err := utils.ResourcePrompt("mve", "Enter serial number (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -285,19 +285,19 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 			SerialNumber:      serialNumber,
 		}
 	case "vmware":
-		adminSSHPublicKey, err := utils.Prompt("Enter admin SSH public key (required): ", noColor)
+		adminSSHPublicKey, err := utils.ResourcePrompt("mve", "Enter admin SSH public key (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		sshPublicKey, err := utils.Prompt("Enter SSH public key (required): ", noColor)
+		sshPublicKey, err := utils.ResourcePrompt("mve", "Enter SSH public key (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		vcoAddress, err := utils.Prompt("Enter VCO address (required): ", noColor)
+		vcoAddress, err := utils.ResourcePrompt("mve", "Enter VCO address (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		vcoActivationCode, err := utils.Prompt("Enter VCO activation code (required): ", noColor)
+		vcoActivationCode, err := utils.ResourcePrompt("mve", "Enter VCO activation code (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -312,7 +312,7 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 			VcoActivationCode: vcoActivationCode,
 		}
 	case "meraki":
-		token, err := utils.Prompt("Enter token (required): ", noColor)
+		token, err := utils.ResourcePrompt("mve", "Enter token (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -333,7 +333,7 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 	vnics := []megaport.MVENetworkInterface{}
 	for {
 		fmt.Println("\nEnter VNIC details (leave description empty to finish):")
-		description, err := utils.Prompt("Enter VNIC description: ", noColor)
+		description, err := utils.ResourcePrompt("mve", "Enter VNIC description: ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -342,7 +342,7 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 			break
 		}
 
-		vlanStr, err := utils.Prompt("Enter VLAN ID: ", noColor)
+		vlanStr, err := utils.ResourcePrompt("mve", "Enter VLAN ID: ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -382,7 +382,7 @@ func promptForUpdateMVEDetails(mveUID string, noColor bool) (*megaport.ModifyMVE
 	}
 
 	// Prompt for new name (optional)
-	name, err := utils.Prompt("Enter new MVE name (leave empty to keep current): ", noColor)
+	name, err := utils.ResourcePrompt("mve", "Enter new MVE name (leave empty to keep current): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -391,7 +391,7 @@ func promptForUpdateMVEDetails(mveUID string, noColor bool) (*megaport.ModifyMVE
 	}
 
 	// Prompt for new cost centre (optional)
-	costCentre, err := utils.Prompt("Enter new cost centre (leave empty to keep current): ", noColor)
+	costCentre, err := utils.ResourcePrompt("mve", "Enter new cost centre (leave empty to keep current): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +400,7 @@ func promptForUpdateMVEDetails(mveUID string, noColor bool) (*megaport.ModifyMVE
 	}
 
 	// Prompt for new contract term (optional)
-	contractTermStr, err := utils.Prompt("Enter new contract term (1, 12, 24, or 36 months, leave empty to keep current): ", noColor)
+	contractTermStr, err := utils.ResourcePrompt("mve", "Enter new contract term (1, 12, 24, or 36 months, leave empty to keep current): ", noColor)
 	if err != nil {
 		return nil, err
 	}

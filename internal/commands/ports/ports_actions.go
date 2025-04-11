@@ -75,8 +75,15 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("Failed to validate port request: %v", noColor, err)
 		return err
 	}
-	output.PrintInfo("Buying port...", noColor)
+
+	// Start spinner for creating port
+	spinner := output.PrintResourceCreating("Port", req.Name, noColor)
+
 	resp, err := buyPortFunc(ctx, client, req)
+
+	// Stop spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to buy port: %v", noColor, err)
 		return err
@@ -85,6 +92,7 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 	output.PrintResourceCreated("Port", resp.TechnicalServiceUIDs[0], noColor)
 	return nil
 }
+
 func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx := context.Background()
 
@@ -140,8 +148,15 @@ func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
-	output.PrintInfo("Buying LAG port...", noColor)
+
+	// Start spinner for creating LAG port
+	spinner := output.PrintResourceCreating("LAG Port", req.Name, noColor)
+
 	resp, err := buyPortFunc(ctx, client, req)
+
+	// Stop spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to buy LAG port: %v", noColor, err)
 		return err
@@ -163,9 +178,15 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
+	// Start spinner for listing ports
+	spinner := output.PrintResourceListing("Port", noColor)
+
 	// Get all ports
-	output.PrintInfo("Retrieving ports...", noColor)
 	ports, err := client.PortService.ListPorts(ctx)
+
+	// Stop spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to list ports: %v", noColor, err)
 		return fmt.Errorf("error listing ports: %v", err)
@@ -207,11 +228,16 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 
 	// Retrieve the port UID from the command line arguments.
 	portUID := args[0]
-	formattedUID := output.FormatUID(portUID, noColor)
+
+	// Start spinner for getting port details
+	spinner := output.PrintResourceGetting("Port", portUID, noColor)
 
 	// Retrieve port details using the API client.
-	output.PrintInfo("Retrieving port %s...", noColor, formattedUID)
 	port, err := client.PortService.GetPort(ctx, portUID)
+
+	// Stop spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to get port: %v", noColor, err)
 		return fmt.Errorf("error getting port: %v", err)
@@ -249,6 +275,20 @@ func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
 
 	var req *megaport.ModifyPortRequest
 
+	// Start spinner for getting original port details
+	getSpinner := output.PrintResourceGetting("Port", portUID, noColor)
+
+	// Retrieve the original port for comparison
+	originalPort, err := getPortFunc(ctx, client, portUID)
+
+	// Stop spinner
+	getSpinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to retrieve original port: %v", noColor, err)
+		return err
+	}
+
 	if interactive {
 		output.PrintInfo("Starting interactive mode", noColor)
 		req, err = promptForUpdatePortDetails(portUID, noColor)
@@ -277,17 +317,15 @@ func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
 	req.WaitForUpdate = true
 	req.WaitForTime = 10 * time.Minute
 
-	output.PrintInfo("Updating port %s...", noColor, portUID)
-
-	// Retrieve the original port for comparison
-	originalPort, err := getPortFunc(ctx, client, portUID)
-	if err != nil {
-		output.PrintError("Failed to retrieve original port: %v", noColor, err)
-		return err
-	}
+	// Start spinner for updating port
+	updateSpinner := output.PrintResourceUpdating("Port", portUID, noColor)
 
 	// Call the API
 	resp, err := updatePortFunc(ctx, client, req)
+
+	// Stop spinner
+	updateSpinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to update port: %v", noColor, err)
 		return err
@@ -301,8 +339,15 @@ func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
 
 	output.PrintResourceUpdated("Port", portUID, noColor)
 
+	// Start spinner for getting updated port details
+	getUpdatedSpinner := output.PrintResourceGetting("Port", portUID, noColor)
+
 	// Retrieve the updated port for comparison
 	updatedPort, err := getPortFunc(ctx, client, portUID)
+
+	// Stop spinner
+	getUpdatedSpinner.Stop()
+
 	if err != nil {
 		output.PrintError("Port was updated but failed to retrieve updated details: %v", noColor, err)
 		return nil
@@ -319,7 +364,6 @@ func DeletePort(cmd *cobra.Command, args []string, noColor bool) error {
 
 	// Retrieve the port UID from the command line arguments.
 	portUID := args[0]
-	formattedUID := output.FormatUID(portUID, noColor)
 
 	// Get delete now flag
 	deleteNow, err := cmd.Flags().GetBool("now")
@@ -355,8 +399,15 @@ func DeletePort(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
-	output.PrintInfo("Deleting port %s...", noColor, formattedUID)
+
+	// Start spinner for deleting port
+	spinner := output.PrintResourceDeleting("Port", portUID, noColor)
+
 	resp, err := deletePortFunc(ctx, client, deleteRequest)
+
+	// Stop spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to delete port: %v", noColor, err)
 		return err
@@ -383,8 +434,15 @@ func RestorePort(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
-	output.PrintInfo("Restoring port %s...", noColor, formattedUID)
+
+	// Start spinner for restoring port
+	spinner := output.PrintResourceUpdating("Port", portUID, noColor)
+
 	resp, err := restorePortFunc(ctx, client, portUID)
+
+	// Stop spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to restore port: %v", noColor, err)
 		return err
@@ -411,8 +469,15 @@ func LockPort(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
-	output.PrintInfo("Locking port %s...", noColor, formattedUID)
+
+	// Start spinner for locking port
+	spinner := output.PrintResourceUpdating("Port", portUID, noColor)
+
 	resp, err := lockPortFunc(ctx, client, portUID)
+
+	// Stop spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to lock port: %v", noColor, err)
 		return err
@@ -439,8 +504,15 @@ func UnlockPort(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
-	output.PrintInfo("Unlocking port %s...", noColor, formattedUID)
+
+	// Start spinner for unlocking port
+	spinner := output.PrintResourceUpdating("Port", portUID, noColor)
+
 	resp, err := unlockPortFunc(ctx, client, portUID)
+
+	// Stop spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to unlock port: %v", noColor, err)
 		return err
@@ -464,7 +536,6 @@ func CheckPortVLANAvailability(cmd *cobra.Command, args []string, noColor bool) 
 		output.PrintError("Invalid VLAN ID: %v", noColor, err)
 		return fmt.Errorf("invalid VLAN ID")
 	}
-	formattedUID := output.FormatUID(portUID, noColor)
 
 	// Check VLAN availability
 	client, err := config.Login(ctx)
@@ -472,17 +543,24 @@ func CheckPortVLANAvailability(cmd *cobra.Command, args []string, noColor bool) 
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
-	output.PrintInfo("Checking VLAN %d availability on port %s...", noColor, vlan, formattedUID)
+
+	// Start spinner for checking VLAN availability
+	spinner := output.PrintResourceGetting("Port", portUID, noColor)
+
 	available, err := checkPortVLANAvailabilityFunc(ctx, client, portUID, vlan)
+
+	// Stop spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to check VLAN availability: %v", noColor, err)
 		return err
 	}
 
 	if available {
-		output.PrintInfo("VLAN %d is available on port %s", noColor, vlan, formattedUID)
+		output.PrintInfo("VLAN %d is available on port %s", noColor, vlan, output.FormatUID(portUID, noColor))
 	} else {
-		output.PrintWarning("VLAN %d is not available on port %s", noColor, vlan, formattedUID)
+		output.PrintWarning("VLAN %d is not available on port %s", noColor, vlan, output.FormatUID(portUID, noColor))
 	}
 	return nil
 }

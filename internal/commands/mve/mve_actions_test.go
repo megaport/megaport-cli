@@ -298,10 +298,10 @@ func TestListAvailableMVESizes(t *testing.T) {
 }
 
 func TestUpdateMVE(t *testing.T) {
-	originalPrompt := utils.Prompt
+	originalPrompt := utils.ResourcePrompt
 	originalLoginFunc := config.LoginFunc
 	defer func() {
-		utils.Prompt = originalPrompt
+		utils.ResourcePrompt = originalPrompt
 		config.LoginFunc = originalLoginFunc
 	}()
 
@@ -452,7 +452,7 @@ func TestUpdateMVE(t *testing.T) {
 
 			// Set up prompts
 			promptIndex := 0
-			utils.Prompt = func(msg string, _ bool) (string, error) {
+			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
 				if promptIndex < len(tt.prompts) {
 					response := tt.prompts[promptIndex]
 					promptIndex++
@@ -606,10 +606,10 @@ func TestDeleteMVE(t *testing.T) {
 }
 
 func TestBuyMVE(t *testing.T) {
-	originalPrompt := utils.Prompt
+	originalPrompt := utils.ResourcePrompt
 	originalLoginFunc := config.LoginFunc
 	defer func() {
-		utils.Prompt = originalPrompt
+		utils.ResourcePrompt = originalPrompt
 		config.LoginFunc = originalLoginFunc
 	}()
 
@@ -833,7 +833,7 @@ func TestBuyMVE(t *testing.T) {
 
 			// Set up prompts
 			promptIndex := 0
-			utils.Prompt = func(msg string, _ bool) (string, error) {
+			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
 				if promptIndex < len(tt.prompts) {
 					response := tt.prompts[promptIndex]
 					promptIndex++

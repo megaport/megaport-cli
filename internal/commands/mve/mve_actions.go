@@ -35,9 +35,15 @@ func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 		IncludeInactive: includeInactive,
 	}
 
+	// Start the spinner for better visual feedback
+	spinner := output.PrintResourceListing("MVE", noColor)
+
 	// Get all MVEs
-	output.PrintInfo("Retrieving MVEs...", noColor)
 	mves, err := client.MVEService.ListMVEs(ctx, req)
+
+	// Stop the spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to list MVEs: %v", noColor, err)
 		return fmt.Errorf("error listing MVEs: %v", err)
@@ -140,8 +146,14 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	req.WaitForProvision = true
 	req.WaitForTime = 10 * time.Minute
 
-	output.PrintInfo("Buying MVE...", noColor)
+	// Start the spinner for better visual feedback during creation
+	spinner := output.PrintResourceCreating("MVE", req.Name, noColor)
+
 	resp, err := client.MVEService.BuyMVE(ctx, req)
+
+	// Stop the spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to buy MVE: %v", noColor, err)
 		return err
@@ -163,7 +175,14 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	// Fetch original MVE details before update
+	// Start spinner for getting MVE details
+	getSpinner := output.PrintResourceGetting("MVE", mveUID, noColor)
+
 	originalMVE, err := client.MVEService.GetMVE(ctx, mveUID)
+
+	// Stop the spinner
+	getSpinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to get original MVE details: %v", noColor, err)
 		return fmt.Errorf("error getting MVE details: %v", err)
@@ -213,9 +232,15 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	req.WaitForUpdate = true
 	req.WaitForTime = 10 * time.Minute
 
+	// Start the spinner for better visual feedback during update
+	updateSpinner := output.PrintResourceUpdating("MVE", mveUID, noColor)
+
 	// Call the ModifyMVE method
-	output.PrintInfo("Updating MVE %s...", noColor, formattedUID)
 	resp, err := client.MVEService.ModifyMVE(ctx, req)
+
+	// Stop the spinner
+	updateSpinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to update MVE: %v", noColor, err)
 		return err
@@ -227,7 +252,13 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	// Fetch the updated MVE to get the new values
+	getUpdatedSpinner := output.PrintResourceGetting("MVE", mveUID, noColor)
+
 	updatedMVE, err := client.MVEService.GetMVE(ctx, mveUID)
+
+	// Stop the spinner
+	getUpdatedSpinner.Stop()
+
 	if err != nil {
 		output.PrintError("MVE was updated but failed to retrieve updated details: %v", noColor, err)
 		output.PrintResourceUpdated("MVE", mveUID, noColor)
@@ -260,8 +291,14 @@ func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 		return fmt.Errorf("MVE UID cannot be empty")
 	}
 
-	output.PrintInfo("Retrieving MVE %s...", noColor, formattedUID)
+	// Start spinner for retrieving MVE details
+	spinner := output.PrintResourceGetting("MVE", formattedUID, noColor)
+
 	mve, err := client.MVEService.GetMVE(ctx, mveUID)
+
+	// Stop the spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to get MVE: %v", noColor, err)
 		return fmt.Errorf("error getting MVE: %v", err)
@@ -290,8 +327,14 @@ func ListMVEImages(cmd *cobra.Command, args []string, noColor bool, outputFormat
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
-	output.PrintInfo("Retrieving MVE images...", noColor)
+	// Start spinner for listing MVE images
+	spinner := output.PrintResourceListing("MVE image", noColor)
+
 	images, err := client.MVEService.ListMVEImages(ctx)
+
+	// Stop the spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to list MVE images: %v", noColor, err)
 		return fmt.Errorf("error listing MVE images: %v", err)
@@ -330,8 +373,14 @@ func ListAvailableMVESizes(cmd *cobra.Command, args []string, noColor bool, outp
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
-	output.PrintInfo("Retrieving available MVE sizes...", noColor)
+	// Start spinner for listing MVE sizes
+	spinner := output.PrintResourceListing("MVE size", noColor)
+
 	sizes, err := client.MVEService.ListAvailableMVESizes(ctx)
+
+	// Stop the spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to list MVE sizes: %v", noColor, err)
 		return fmt.Errorf("error listing MVE sizes: %v", err)
@@ -353,7 +402,6 @@ func ListAvailableMVESizes(cmd *cobra.Command, args []string, noColor bool, outp
 func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx := context.Background()
 	mveUID := args[0]
-	formattedUID := output.FormatUID(mveUID, noColor)
 
 	// Confirm deletion unless force flag is set
 	force, err := cmd.Flags().GetBool("force")
@@ -376,11 +424,17 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
-	output.PrintInfo("Deleting MVE %s...", noColor, formattedUID)
+	// Start spinner for deleting MVE
+	spinner := output.PrintResourceDeleting("MVE", mveUID, noColor)
+
 	req := &megaport.DeleteMVERequest{
 		MVEID: mveUID,
 	}
 	resp, err := client.MVEService.DeleteMVE(ctx, req)
+
+	// Stop the spinner
+	spinner.Stop()
+
 	if err != nil {
 		output.PrintError("Failed to delete MVE: %v", noColor, err)
 		return fmt.Errorf("error deleting MVE: %v", err)

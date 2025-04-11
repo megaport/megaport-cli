@@ -132,10 +132,12 @@ func TestGetMCRCmd_WithMockClient(t *testing.T) {
 func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 	// Save original functions and restore after test
 	originalLoginFunc := config.LoginFunc
-	originalPrompt := utils.Prompt
+	originalPrompt := utils.ResourcePrompt
+	originalConfirmPrompt := utils.ConfirmPrompt
 	defer func() {
 		config.LoginFunc = originalLoginFunc
-		utils.Prompt = originalPrompt
+		utils.ResourcePrompt = originalPrompt
+		utils.ConfirmPrompt = originalConfirmPrompt
 	}()
 
 	tests := []struct {
@@ -225,8 +227,14 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 				return client, nil
 			}
 
-			// Setup prompt mock
-			utils.Prompt = func(msg string, _ bool) (string, error) {
+			// Mock the confirmation prompt specifically for delete confirmation
+			utils.ConfirmPrompt = func(message string, _ bool) bool {
+				assert.Contains(t, message, fmt.Sprintf("Are you sure you want to delete MCR %s?", tt.mcrID))
+				return tt.promptResponse == "y"
+			}
+
+			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+				assert.Contains(t, msg, fmt.Sprintf("Are you sure you want to delete MCR %s?", tt.mcrID))
 				return tt.promptResponse, nil
 			}
 
@@ -594,10 +602,10 @@ func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 
 func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 	originalLoginFunc := config.LoginFunc
-	originalPrompt := utils.Prompt
+	originalPrompt := utils.ResourcePrompt
 	defer func() {
 		config.LoginFunc = originalLoginFunc
-		utils.Prompt = originalPrompt
+		utils.ResourcePrompt = originalPrompt
 	}()
 
 	tests := []struct {
@@ -648,7 +656,7 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 			}
 
 			// Mock the prompt function
-			utils.Prompt = func(msg string, _ bool) (string, error) {
+			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
 				return tt.promptResponse, nil
 			}
 
@@ -686,11 +694,11 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 
 func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 	// Save original functions and restore after test
-	originalPrompt := utils.Prompt
+	originalPrompt := utils.ResourcePrompt
 	originalLoginFunc := config.LoginFunc
 	originalBuyMCRFunc := buyMCRFunc
 	defer func() {
-		utils.Prompt = originalPrompt
+		utils.ResourcePrompt = originalPrompt
 		config.LoginFunc = originalLoginFunc
 		buyMCRFunc = originalBuyMCRFunc
 	}()
@@ -808,7 +816,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			// Setup mock prompt
 			if len(tt.prompts) > 0 {
 				promptIndex := 0
-				utils.Prompt = func(msg string, _ bool) (string, error) {
+				utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
 					if promptIndex < len(tt.prompts) {
 						response := tt.prompts[promptIndex]
 						promptIndex++
@@ -923,12 +931,12 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 // Update TestUpdateMCRCmd_WithMockClient to handle new interactive prompts
 func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 	// Setup shared test components
-	originalPrompt := utils.Prompt
+	originalPrompt := utils.ResourcePrompt
 	originalLoginFunc := config.LoginFunc
 	originalUpdateMCRFunc := updateMCRFunc
 	originalGetMCRFunc := getMCRFunc
 	defer func() {
-		utils.Prompt = originalPrompt
+		utils.ResourcePrompt = originalPrompt
 		config.LoginFunc = originalLoginFunc
 		updateMCRFunc = originalUpdateMCRFunc
 		getMCRFunc = originalGetMCRFunc
@@ -936,7 +944,7 @@ func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 
 	mockPromptCalls := 0
 	mockPromptResponses := []string{}
-	utils.Prompt = func(msg string, noColor bool) (string, error) {
+	utils.ResourcePrompt = func(_, msg string, noColor bool) (string, error) {
 		if mockPromptCalls >= len(mockPromptResponses) {
 			t.Fatalf("unexpected prompt call: %s", msg)
 		}
@@ -1178,11 +1186,11 @@ func TestUpdateMCRCmd_WithMockClient(t *testing.T) {
 // TestCreateMCRPrefixFilterListCmd tests the createMCRPrefixFilterListCmd with all three input modes
 func TestCreateMCRPrefixFilterListCmd(t *testing.T) {
 	// Save original functions and restore after test
-	originalPrompt := utils.Prompt
+	originalPrompt := utils.ResourcePrompt
 	originalLoginFunc := config.LoginFunc
 	originalCreateMCRPrefixFilterListFunc := createMCRPrefixFilterListFunc
 	defer func() {
-		utils.Prompt = originalPrompt
+		utils.ResourcePrompt = originalPrompt
 		config.LoginFunc = originalLoginFunc
 		createMCRPrefixFilterListFunc = originalCreateMCRPrefixFilterListFunc
 	}()
@@ -1330,7 +1338,7 @@ func TestCreateMCRPrefixFilterListCmd(t *testing.T) {
 			// Setup mock prompt
 			if len(tt.prompts) > 0 {
 				promptIndex := 0
-				utils.Prompt = func(msg string, _ bool) (string, error) {
+				utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
 					if promptIndex < len(tt.prompts) {
 						response := tt.prompts[promptIndex]
 						promptIndex++
@@ -1441,13 +1449,13 @@ func TestCreateMCRPrefixFilterListCmd(t *testing.T) {
 // TestUpdateMCRPrefixFilterListCmd tests the updateMCRPrefixFilterListCmd functionality
 func TestUpdateMCRPrefixFilterListCmd(t *testing.T) {
 	// Save original functions and restore after test
-	originalPrompt := utils.Prompt
+	originalPrompt := utils.ResourcePrompt
 	originalLoginFunc := config.LoginFunc
 	originalModifyMCRPrefixFilterListFunc := modifyMCRPrefixFilterListFunc
 	originalGetMCRPrefixFilterListFunc := getMCRPrefixFilterListFunc
 
 	defer func() {
-		utils.Prompt = originalPrompt
+		utils.ResourcePrompt = originalPrompt
 		config.LoginFunc = originalLoginFunc
 		modifyMCRPrefixFilterListFunc = originalModifyMCRPrefixFilterListFunc
 		getMCRPrefixFilterListFunc = originalGetMCRPrefixFilterListFunc
@@ -1731,7 +1739,7 @@ func TestUpdateMCRPrefixFilterListCmd(t *testing.T) {
 			// Setup mock prompt
 			if len(tt.prompts) > 0 {
 				promptIndex := 0
-				utils.Prompt = func(msg string, _ bool) (string, error) {
+				utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
 					if promptIndex < len(tt.prompts) {
 						response := tt.prompts[promptIndex]
 						promptIndex++
