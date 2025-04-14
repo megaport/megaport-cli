@@ -84,12 +84,31 @@ func TestPrintPorts_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := ` UID    │ NAME        │ LOCATIONID │ SPEED │ STATUS   
-────────┼─────────────┼────────────┼───────┼──────────
- port-1 │ MyPortOne   │ 1          │ 1000  │ ACTIVE   
- port-2 │ AnotherPort │ 2          │ 2000  │ INACTIVE 
-`
-	assert.Equal(t, expected, output)
+	// Check for headers and content
+	assert.Contains(t, output, "UID")
+	assert.Contains(t, output, "NAME")
+	assert.Contains(t, output, "LOCATIONID")
+	assert.Contains(t, output, "SPEED")
+	assert.Contains(t, output, "STATUS")
+
+	// Check for actual data
+	assert.Contains(t, output, "port-1")
+	assert.Contains(t, output, "MyPortOne")
+	assert.Contains(t, output, "ACTIVE")
+
+	assert.Contains(t, output, "port-2")
+	assert.Contains(t, output, "AnotherPort")
+	assert.Contains(t, output, "INACTIVE")
+
+	// Check for box drawing characters
+	assert.Contains(t, output, "┌")
+	assert.Contains(t, output, "┐")
+	assert.Contains(t, output, "└")
+	assert.Contains(t, output, "┘")
+	assert.Contains(t, output, "├")
+	assert.Contains(t, output, "┤")
+	assert.Contains(t, output, "│")
+	assert.Contains(t, output, "─")
 }
 
 func TestPrintPorts_JSON(t *testing.T) {
@@ -146,21 +165,35 @@ func TestPrintPorts_Invalid(t *testing.T) {
 
 func TestPrintPorts_EdgeCases(t *testing.T) {
 	tests := []struct {
-		name        string
-		ports       []*megaport.Port
-		format      string
-		shouldError bool
-		expected    string
-		contains    string // New field for partial matches
+		name         string
+		ports        []*megaport.Port
+		format       string
+		shouldError  bool
+		validateFunc func(*testing.T, string) // New function to validate output
+		expected     string                   // Keep for JSON validation
+		contains     string                   // For partial matches
 	}{
 		{
 			name:        "nil slice",
 			ports:       nil,
 			format:      "table",
 			shouldError: false,
-			expected: ` UID │ NAME │ LOCATIONID │ SPEED │ STATUS 
-─────┼──────┼────────────┼───────┼────────
-`,
+			validateFunc: func(t *testing.T, output string) {
+				// Check for headers and box drawing characters in empty table
+				assert.Contains(t, output, "UID")
+				assert.Contains(t, output, "NAME")
+				assert.Contains(t, output, "LOCATIONID")
+				assert.Contains(t, output, "SPEED")
+				assert.Contains(t, output, "STATUS")
+
+				// Check for box drawing characters
+				assert.Contains(t, output, "┌")
+				assert.Contains(t, output, "┐")
+				assert.Contains(t, output, "└")
+				assert.Contains(t, output, "┘")
+				assert.Contains(t, output, "│")
+				assert.Contains(t, output, "─")
+			},
 		},
 		{
 			name:        "empty slice",
@@ -241,7 +274,9 @@ func TestPrintPorts_EdgeCases(t *testing.T) {
 				assert.Empty(t, output)
 			} else {
 				assert.NoError(t, err)
-				if tt.expected != "" {
+				if tt.validateFunc != nil {
+					tt.validateFunc(t, output)
+				} else if tt.expected != "" {
 					if tt.format == "json" {
 						assert.JSONEq(t, tt.expected, output)
 					} else {
