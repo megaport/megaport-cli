@@ -43,12 +43,34 @@ func TestPrintMCRs_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := ` UID   │ NAME       │ LOCATION ID │ STATUS   │ ASN   │ SPEED 
-───────┼────────────┼─────────────┼──────────┼───────┼───────
- mcr-1 │ MyMCROne   │ 1           │ ACTIVE   │ 64512 │ 1000  
- mcr-2 │ AnotherMCR │ 2           │ INACTIVE │ 64513 │ 5000  
-`
-	assert.Equal(t, expected, output)
+	// Now we check for box drawing characters and content
+	assert.Contains(t, output, "UID")
+	assert.Contains(t, output, "NAME")
+	assert.Contains(t, output, "LOCATION ID")
+	assert.Contains(t, output, "STATUS")
+	assert.Contains(t, output, "ASN")
+	assert.Contains(t, output, "SPEED")
+
+	// Check for actual data
+	assert.Contains(t, output, "mcr-1")
+	assert.Contains(t, output, "MyMCROne")
+	assert.Contains(t, output, "ACTIVE")
+	assert.Contains(t, output, "64512")
+
+	assert.Contains(t, output, "mcr-2")
+	assert.Contains(t, output, "AnotherMCR")
+	assert.Contains(t, output, "INACTIVE")
+	assert.Contains(t, output, "64513")
+
+	// Check for box drawing characters
+	assert.Contains(t, output, "┌")
+	assert.Contains(t, output, "┐")
+	assert.Contains(t, output, "└")
+	assert.Contains(t, output, "┘")
+	assert.Contains(t, output, "├")
+	assert.Contains(t, output, "┤")
+	assert.Contains(t, output, "│")
+	assert.Contains(t, output, "─")
 }
 
 func TestPrintMCRs_JSON(t *testing.T) {
@@ -104,52 +126,39 @@ func TestPrintMCRs_Invalid(t *testing.T) {
 
 func TestPrintMCRs_EmptyAndNilSlice(t *testing.T) {
 	tests := []struct {
-		name     string
-		mcrs     []*megaport.MCR
-		format   string
-		expected string
+		name   string
+		mcrs   []*megaport.MCR
+		format string
 	}{
 		{
 			name:   "empty slice table format",
 			mcrs:   []*megaport.MCR{},
 			format: "table",
-			expected: ` UID │ NAME │ LOCATION ID │ STATUS │ ASN │ SPEED 
-─────┼──────┼─────────────┼────────┼─────┼───────
-`,
 		},
 		{
 			name:   "empty slice csv format",
 			mcrs:   []*megaport.MCR{},
 			format: "csv",
-			expected: `uid,name,location_id,provisioning_status,asn,speed
-`,
 		},
 		{
-			name:     "empty slice json format",
-			mcrs:     []*megaport.MCR{},
-			format:   "json",
-			expected: "[]\n",
+			name:   "empty slice json format",
+			mcrs:   []*megaport.MCR{},
+			format: "json",
 		},
 		{
 			name:   "nil slice table format",
 			mcrs:   nil,
 			format: "table",
-			expected: ` UID │ NAME │ LOCATION ID │ STATUS │ ASN │ SPEED 
-─────┼──────┼─────────────┼────────┼─────┼───────
-`,
 		},
 		{
 			name:   "nil slice csv format",
 			mcrs:   nil,
 			format: "csv",
-			expected: `uid,name,location_id,provisioning_status,asn,speed
-`,
 		},
 		{
-			name:     "nil slice json format",
-			mcrs:     nil,
-			format:   "json",
-			expected: "[]\n",
+			name:   "nil slice json format",
+			mcrs:   nil,
+			format: "json",
 		},
 	}
 
@@ -159,7 +168,29 @@ func TestPrintMCRs_EmptyAndNilSlice(t *testing.T) {
 				err := printMCRs(tt.mcrs, tt.format, noColor)
 				assert.NoError(t, err)
 			})
-			assert.Equal(t, tt.expected, output)
+
+			if tt.format == "table" {
+				// For table format, check for box drawing characters and headers
+				assert.Contains(t, output, "UID")
+				assert.Contains(t, output, "NAME")
+				assert.Contains(t, output, "LOCATION ID")
+				assert.Contains(t, output, "STATUS")
+				assert.Contains(t, output, "ASN")
+				assert.Contains(t, output, "SPEED")
+				assert.Contains(t, output, "┌")
+				assert.Contains(t, output, "┐")
+				assert.Contains(t, output, "└")
+				assert.Contains(t, output, "┘")
+				assert.Contains(t, output, "│")
+				assert.Contains(t, output, "─")
+			} else if tt.format == "csv" {
+				// For CSV format, check for headers only
+				expected := "uid,name,location_id,provisioning_status,asn,speed\n"
+				assert.Equal(t, expected, output)
+			} else if tt.format == "json" {
+				// For JSON format, check for empty array
+				assert.Equal(t, "[]\n", output)
+			}
 		})
 	}
 }

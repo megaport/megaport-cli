@@ -457,9 +457,10 @@ func TestPrintPrettyTable_EmptySlice(t *testing.T) {
 	assert.Contains(t, output, "ACTIVE")
 	assert.Contains(t, output, "│")
 	assert.Contains(t, output, "─")
-	// Verify there's a header row and separator but no data rows
+	// Verify there's a box-style table with header but no data rows
+	// Box drawing characters are now used instead of simple pipe characters
 	lines := strings.Split(strings.TrimSpace(output), "\n")
-	assert.Equal(t, 2, len(lines), "Empty table should have only header and separator")
+	assert.Equal(t, 4, len(lines), "Empty table should have header, separator and closing line")
 }
 
 func TestPrintPrettyTable_NilSlice(t *testing.T) {

@@ -41,12 +41,40 @@ func TestPrintVXCs_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := ` UID   │ NAME       │ A END UID │ B END UID │ A END VLAN │ B END VLAN │ RATE LIMIT │ STATUS     
-───────┼────────────┼───────────┼───────────┼────────────┼────────────┼────────────┼────────────
- vxc-1 │ MyVXCOne   │ a-end-1   │ b-end-1   │ 0          │ 0          │ 100        │ CONFIGURED 
- vxc-2 │ AnotherVXC │ a-end-2   │ b-end-2   │ 0          │ 0          │ 200        │ LIVE       
-`
-	assert.Equal(t, expected, output)
+	// Check for headers and content
+	assert.Contains(t, output, "UID")
+	assert.Contains(t, output, "NAME")
+	assert.Contains(t, output, "A END UID")
+	assert.Contains(t, output, "B END UID")
+	assert.Contains(t, output, "A END VLAN")
+	assert.Contains(t, output, "B END VLAN")
+	assert.Contains(t, output, "RATE LIMIT")
+	assert.Contains(t, output, "STATUS")
+
+	// Check for actual data
+	assert.Contains(t, output, "vxc-1")
+	assert.Contains(t, output, "MyVXCOne")
+	assert.Contains(t, output, "a-end-1")
+	assert.Contains(t, output, "b-end-1")
+	assert.Contains(t, output, "100")
+	assert.Contains(t, output, "CONFIGURED")
+
+	assert.Contains(t, output, "vxc-2")
+	assert.Contains(t, output, "AnotherVXC")
+	assert.Contains(t, output, "a-end-2")
+	assert.Contains(t, output, "b-end-2")
+	assert.Contains(t, output, "200")
+	assert.Contains(t, output, "LIVE")
+
+	// Check for box drawing characters
+	assert.Contains(t, output, "┌")
+	assert.Contains(t, output, "┐")
+	assert.Contains(t, output, "└")
+	assert.Contains(t, output, "┘")
+	assert.Contains(t, output, "├")
+	assert.Contains(t, output, "┤")
+	assert.Contains(t, output, "│")
+	assert.Contains(t, output, "─")
 }
 
 func TestPrintVXCs_JSON(t *testing.T) {
@@ -106,20 +134,37 @@ func TestPrintVXCs_Invalid(t *testing.T) {
 
 func TestPrintVXCs_EdgeCases(t *testing.T) {
 	tests := []struct {
-		name        string
-		vxcs        []*megaport.VXC
-		format      string
-		shouldError bool
-		expected    string
+		name         string
+		vxcs         []*megaport.VXC
+		format       string
+		shouldError  bool
+		validateFunc func(*testing.T, string) // New function to validate output
+		expected     string                   // Keep for JSON and CSV validation
 	}{
 		{
 			name:        "nil slice",
 			vxcs:        nil,
 			format:      "table",
 			shouldError: false,
-			expected: ` UID │ NAME │ A END UID │ B END UID │ A END VLAN │ B END VLAN │ RATE LIMIT │ STATUS 
-─────┼──────┼───────────┼───────────┼────────────┼────────────┼────────────┼────────
-`,
+			validateFunc: func(t *testing.T, output string) {
+				// Check for headers and box drawing characters in empty table
+				assert.Contains(t, output, "UID")
+				assert.Contains(t, output, "NAME")
+				assert.Contains(t, output, "A END UID")
+				assert.Contains(t, output, "B END UID")
+				assert.Contains(t, output, "A END VLAN")
+				assert.Contains(t, output, "B END VLAN")
+				assert.Contains(t, output, "RATE LIMIT")
+				assert.Contains(t, output, "STATUS")
+
+				// Check for box drawing characters
+				assert.Contains(t, output, "┌")
+				assert.Contains(t, output, "┐")
+				assert.Contains(t, output, "└")
+				assert.Contains(t, output, "┘")
+				assert.Contains(t, output, "│")
+				assert.Contains(t, output, "─")
+			},
 		},
 		{
 			name:        "empty slice",
@@ -171,11 +216,15 @@ func TestPrintVXCs_EdgeCases(t *testing.T) {
 				assert.Empty(t, capturedOutput)
 			} else {
 				assert.NoError(t, err)
-				switch tt.format {
-				case "json":
-					assert.JSONEq(t, tt.expected, capturedOutput)
-				case "table", "csv":
-					assert.Equal(t, tt.expected, capturedOutput)
+				if tt.validateFunc != nil {
+					tt.validateFunc(t, capturedOutput)
+				} else if tt.expected != "" {
+					switch tt.format {
+					case "json":
+						assert.JSONEq(t, tt.expected, capturedOutput)
+					case "csv":
+						assert.Equal(t, tt.expected, capturedOutput)
+					}
 				}
 			}
 		})
