@@ -81,6 +81,13 @@ func promptForPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.PromoCode = promoCode
 
+	// Prompt for resource tags
+	resourceTags, err := utils.ResourceTagsPrompt(noColor)
+	if err != nil {
+		return nil, err
+	}
+	req.ResourceTags = resourceTags
+
 	return req, nil
 }
 
@@ -166,6 +173,13 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 		return nil, err
 	}
 	req.PromoCode = promoCode
+
+	// Prompt for resource tags
+	resourceTags, err := utils.ResourceTagsPrompt(noColor)
+	if err != nil {
+		return nil, err
+	}
+	req.ResourceTags = resourceTags
 
 	return req, nil
 }

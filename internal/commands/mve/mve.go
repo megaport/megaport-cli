@@ -37,8 +37,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("promo-code", "Promotional code for discounts").
 		WithOptionalFlag("cost-centre", "Cost centre for billing").
 		WithExample("megaport-cli mve buy --interactive").
-		WithExample("megaport-cli mve buy --name \"My MVE\" --term 12 --location-id 123 --vendor-config '{\"vendor\":\"cisco\",\"imageId\":123,\"productSize\":\"MEDIUM\"}' --vnics '[{\"description\":\"Data Plane\",\"vlan\":100}]'").
-		WithExample("megaport-cli mve buy --json '{\"name\":\"My MVE\",\"term\":12,\"locationId\":123,\"vendorConfig\":{\"vendor\":\"cisco\",\"imageId\":123,\"productSize\":\"MEDIUM\"},\"vnics\":[{\"description\":\"Data Plane\",\"vlan\":100}]}'").
+		WithExample("megaport-cli mve buy --name \"My MVE\" --term 12 --location-id 123 --vendor-config '{\"vendor\":\"cisco\",\"imageId\":123,\"productSize\":\"MEDIUM\"}' --vnics '[{\"description\":\"Data Plane\",\"vlan\":100}]' --resource-tags '{\"env\":\"prod\",\"owner\":\"netops\"}'").
+		WithExample("megaport-cli mve buy --json '{\"name\":\"My MVE\",\"term\":12,\"locationId\":123,\"vendorConfig\":{\"vendor\":\"cisco\",\"imageId\":123,\"productSize\":\"MEDIUM\"},\"vnics\":[{\"description\":\"Data Plane\",\"vlan\":100}],\"resourceTags\":{\"env\":\"prod\",\"owner\":\"netops\"}}'").
 		WithExample("megaport-cli mve buy --json-file ./mve-config.json").
 		WithJSONExample(`{
   "name": "My MVE Display Name",
@@ -60,12 +60,18 @@ func AddCommandsTo(rootCmd *cobra.Command) {
   "vnics": [
     {"description": "Data Plane", "vlan": 100},
     {"description": "Management", "vlan": 200}
-  ]
+  ],
+  "resourceTags": {
+    "environment": "production",
+    "billing_code": "BC12345",
+    "owner_team": "network-operations"
+  }
 }`).
 		WithImportantNote("For production deployments, you may want to use a JSON file to manage complex configurations").
 		WithImportantNote("To list available images and their IDs, use: megaport-cli mve list-images").
 		WithImportantNote("To list available sizes, use: megaport-cli mve list-sizes").
 		WithImportantNote("Location IDs can be retrieved with: megaport-cli locations list").
+		WithImportantNote("Resource tags are key-value pairs used for organizing and managing resources.").
 		WithRootCmd(rootCmd).
 		WithConditionalRequirements("name", "term", "location-id", "vendor-config", "vnics").
 		Build()
@@ -165,6 +171,26 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
+	// Add list-tags command
+	listTagsCmd := cmdbuilder.NewCommand("list-tags", "List resource tags on a specific MVE").
+		WithLongDesc("Lists all resource tags associated with a specific MVE").
+		WithArgs(cobra.ExactArgs(1)).
+		WithOutputFormatRunFunc(ListMVEResourceTags).
+		WithExample("megaport-cli mve list-tags mve-abc123").
+		Build()
+
+	// Add update-tags command
+	updateTagsCmd := cmdbuilder.NewCommand("update-tags", "Update resource tags on a specific MVE").
+		WithLongDesc("Update resource tags associated with a specific MVE. Tags can be provided via interactive prompts, JSON string, or JSON file.").
+		WithArgs(cobra.ExactArgs(1)).
+		WithColorAwareRunFunc(UpdateMVEResourceTags).
+		WithStandardInputFlags().
+		WithExample("megaport-cli mve update-tags mve-abc123 --interactive").
+		WithExample("megaport-cli mve update-tags mve-abc123 --json '{\"env\":\"production\",\"team\":\"network\"}'").
+		WithExample("megaport-cli mve update-tags mve-abc123 --json-file ./tags.json").
+		WithImportantNote("All existing tags will be replaced with the provided tags. To clear all tags, provide an empty tag set.").
+		Build()
+
 	// Add commands to their parents
 	mveCmd.AddCommand(
 		buyMVECmd,
@@ -174,6 +200,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		listMVEImagesCmd,
 		listAvailableMVESizesCmd,
 		listMVEsCmd,
+		listTagsCmd,   // Add list-tags
+		updateTagsCmd, // Add update-tags
 	)
 	rootCmd.AddCommand(mveCmd)
 }

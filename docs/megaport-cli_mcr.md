@@ -46,7 +46,9 @@ megaport-cli mcr [flags]
 * [get-prefix-filter-list](megaport-cli_mcr_get-prefix-filter-list.md)
 * [list](megaport-cli_mcr_list.md)
 * [list-prefix-filter-lists](megaport-cli_mcr_list-prefix-filter-lists.md)
+* [list-tags](megaport-cli_mcr_list-tags.md)
 * [restore](megaport-cli_mcr_restore.md)
 * [update](megaport-cli_mcr_update.md)
 * [update-prefix-filter-list](megaport-cli_mcr_update-prefix-filter-list.md)
+* [update-tags](megaport-cli_mcr_update-tags.md)
 

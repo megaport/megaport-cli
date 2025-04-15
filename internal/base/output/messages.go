@@ -105,9 +105,9 @@ func (s *Spinner) Start(prefix string) {
 
 				frame := spinnerChars[i%len(spinnerChars)]
 				if s.noColor {
-					fmt.Printf("\r%s %s", frame, prefix)
+					fmt.Printf("\r\033[K%s %s", frame, prefix)
 				} else {
-					fmt.Printf("\r%s %s", color.CyanString(frame), prefix)
+					fmt.Printf("\r\033[K%s %s", color.CyanString(frame), prefix)
 				}
 				s.mu.Unlock()
 
@@ -179,6 +179,15 @@ func PrintResourceListing(resourceType string, noColor bool) *Spinner {
 func PrintResourceGetting(resourceType, uid string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Getting %s %s details...", resourceType, uidFormatted)
+	spinner := NewSpinner(noColor)
+	spinner.Start(msg)
+	return spinner
+}
+
+// PrintListingResourceTags shows an animated spinner while listing resource tags
+func PrintListingResourceTags(resourceType, uid string, noColor bool) *Spinner {
+	uidFormatted := FormatUID(uid, noColor)
+	msg := fmt.Sprintf("Listing resource tags for %s %s...", resourceType, uidFormatted)
 	spinner := NewSpinner(noColor)
 	spinner.Start(msg)
 	return spinner

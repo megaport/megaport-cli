@@ -43,8 +43,10 @@ megaport-cli ports [flags]
 * [docs](megaport-cli_ports_docs.md)
 * [get](megaport-cli_ports_get.md)
 * [list](megaport-cli_ports_list.md)
+* [list-tags](megaport-cli_ports_list-tags.md)
 * [lock](megaport-cli_ports_lock.md)
 * [restore](megaport-cli_ports_restore.md)
 * [unlock](megaport-cli_ports_unlock.md)
 * [update](megaport-cli_ports_update.md)
+* [update-tags](megaport-cli_ports_update-tags.md)
 

@@ -19,6 +19,12 @@ type OutputFields interface {
 	any
 }
 
+// ResourceTag represents a resource tag key-value pair for output
+type ResourceTag struct {
+	Key   string `json:"key" header:"KEY"`
+	Value string `json:"value" header:"VALUE"`
+}
+
 // PrintOutput formats data in the specified output style
 func PrintOutput[T OutputFields](data []T, format string, noColor bool) error {
 	validFormats := map[string]bool{

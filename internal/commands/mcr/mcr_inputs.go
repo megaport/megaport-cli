@@ -23,7 +23,7 @@ func processJSONMCRInput(jsonStr, jsonFile string) (*megaport.BuyMCRRequest, err
 			return nil, fmt.Errorf("error reading JSON file: %v", err)
 		}
 	} else {
-		// Use the provided string
+		// Use the provided string directly
 		jsonData = []byte(jsonStr)
 	}
 
@@ -55,6 +55,15 @@ func processFlagMCRInput(cmd *cobra.Command) (*megaport.BuyMCRRequest, error) {
 	promoCode, _ := cmd.Flags().GetString("promo-code")
 	diversityZone, _ := cmd.Flags().GetString("diversity-zone")
 
+	// Get resource tags if provided
+	resourceTagsStr, _ := cmd.Flags().GetString("resource-tags")
+	var resourceTags map[string]string
+	if resourceTagsStr != "" {
+		if err := json.Unmarshal([]byte(resourceTagsStr), &resourceTags); err != nil {
+			return nil, fmt.Errorf("error parsing resource tags JSON: %v", err)
+		}
+	}
+
 	req := &megaport.BuyMCRRequest{
 		Name:          name,
 		Term:          term,
@@ -64,6 +73,7 @@ func processFlagMCRInput(cmd *cobra.Command) (*megaport.BuyMCRRequest, error) {
 		CostCentre:    costCentre,
 		PromoCode:     promoCode,
 		DiversityZone: diversityZone,
+		ResourceTags:  resourceTags,
 	}
 
 	// Validate required fields
@@ -86,7 +96,7 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 			return nil, fmt.Errorf("error reading JSON file: %v", err)
 		}
 	} else {
-		// Use the provided string
+		// Use the provided string directly
 		jsonData = []byte(jsonStr)
 	}
 
@@ -201,7 +211,7 @@ func processJSONPrefixFilterListInput(jsonStr, jsonFile string, mcrUID string) (
 			return nil, fmt.Errorf("error reading JSON file: %v", err)
 		}
 	} else {
-		// Use the provided string
+		// Use the provided string directly
 		jsonData = []byte(jsonStr)
 	}
 
@@ -331,7 +341,7 @@ func processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile string, mcrUID str
 			return nil, fmt.Errorf("error reading JSON file: %v", err)
 		}
 	} else {
-		// Use the provided string
+		// Use the provided string directly
 		jsonData = []byte(jsonStr)
 	}
 

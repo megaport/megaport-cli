@@ -43,7 +43,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithDocumentedRequiredFlag("b-end-vlan", "VLAN for B-End (0-4093, except 1)").
 		WithExample("megaport-cli vxc buy --interactive").
 		WithExample("megaport-cli vxc buy --name \"My VXC\" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200").
-		WithExample("megaport-cli vxc buy --json '{\"vxcName\":\"My VXC\",\"rateLimit\":1000,\"term\":12,\"portUid\":\"port-123\",\"aEndConfiguration\":{\"vlan\":100},\"bEndConfiguration\":{\"productUID\":\"port-456\",\"vlan\":200}}'").
+		WithExample("megaport-cli vxc buy --name \"My VXC\" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200 --resource-tags '{\"environment\":\"production\",\"team\":\"networking\"}'").
+		WithExample("megaport-cli vxc buy --json '{\"vxcName\":\"My VXC\",\"rateLimit\":1000,\"term\":12,\"portUid\":\"port-123\",\"aEndConfiguration\":{\"vlan\":100},\"bEndConfiguration\":{\"productUID\":\"port-456\",\"vlan\":200},\"resourceTags\":{\"environment\":\"production\",\"owner\":\"network-team\"}}'").
 		WithExample("megaport-cli vxc buy --json-file ./vxc-config.json").
 		WithJSONExample(`{
   "vxcName": "My VXC",
@@ -57,7 +58,12 @@ func AddCommandsTo(rootCmd *cobra.Command) {
     "productUID": "port-456",
     "vlan": 200
   },
-  "costCentre": "IT Department"
+  "costCentre": "IT Department",
+  "resourceTags": {
+    "environment": "production",
+    "owner": "network-team",
+    "project": "cloud-migration"
+  }
 }`).
 		WithRootCmd(rootCmd).
 		WithConditionalRequirements("name", "rate-limit", "term", "a-end-uid").
@@ -120,12 +126,34 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
+	// Add list-tags command
+	listTagsCmd := cmdbuilder.NewCommand("list-tags", "List resource tags on a specific VXC").
+		WithLongDesc("Lists all resource tags associated with a specific VXC").
+		WithArgs(cobra.ExactArgs(1)).
+		WithOutputFormatRunFunc(ListVXCResourceTags).
+		WithExample("megaport-cli vxc list-tags vxc-abc123").
+		Build()
+
+	// Add update-tags command
+	updateTagsCmd := cmdbuilder.NewCommand("update-tags", "Update resource tags on a specific VXC").
+		WithLongDesc("Update resource tags associated with a specific VXC. Tags can be provided via interactive prompts, JSON string, or JSON file.").
+		WithArgs(cobra.ExactArgs(1)).
+		WithColorAwareRunFunc(UpdateVXCResourceTags).
+		WithStandardInputFlags().
+		WithExample("megaport-cli vxc update-tags vxc-abc123 --interactive").
+		WithExample("megaport-cli vxc update-tags vxc-abc123 --json '{\"env\":\"production\",\"team\":\"network\"}'").
+		WithExample("megaport-cli vxc update-tags vxc-abc123 --json-file ./tags.json").
+		WithImportantNote("All existing tags will be replaced with the provided tags. To clear all tags, provide an empty tag set.").
+		Build()
+
 	// Add commands to their parents
 	vxcCmd.AddCommand(
 		getVXCCmd,
 		buyVXCCmd,
 		updateVXCCmd,
 		deleteVXCCmd,
+		listTagsCmd,
+		updateTagsCmd,
 	)
 	rootCmd.AddCommand(vxcCmd)
 }

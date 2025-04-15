@@ -29,6 +29,7 @@ type MockPortService struct {
 	ListPortResourceTagsErr    error
 	ListPortResourceTagsResult map[string]string
 	CapturedResourceTagPortUID string
+	CapturedResourceTags       map[string]string
 
 	ValidatePortOrderErr      error
 	ModifyPortErr             error
@@ -205,13 +206,17 @@ func (m *MockPortService) UnlockPort(ctx context.Context, portId string) (*megap
 	}, nil
 }
 
+// UpdatePortResourceTags implements the megaport.PortServicer interface
 func (m *MockPortService) UpdatePortResourceTags(ctx context.Context, portID string, tags map[string]string) error {
-	m.CapturedUpdateTagsRequest.PortID = portID
-	m.CapturedUpdateTagsRequest.Tags = tags
-
-	if m.UpdatePortResourceTagsErr != nil {
-		return m.UpdatePortResourceTagsErr
+	// Initialize the map if it's nil
+	if m.CapturedResourceTags == nil {
+		m.CapturedResourceTags = make(map[string]string)
 	}
 
-	return nil
+	// Copy the tags to the captured map
+	for k, v := range tags {
+		m.CapturedResourceTags[k] = v
+	}
+
+	return m.UpdatePortResourceTagsErr
 }

@@ -24,6 +24,15 @@ func processFlagLAGPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, erro
 	costCentre, _ := cmd.Flags().GetString("cost-centre")
 	promoCode, _ := cmd.Flags().GetString("promo-code")
 
+	// Get resource tags if provided
+	resourceTagsStr, _ := cmd.Flags().GetString("resource-tags")
+	var resourceTags map[string]string
+	if resourceTagsStr != "" {
+		if err := json.Unmarshal([]byte(resourceTagsStr), &resourceTags); err != nil {
+			return nil, fmt.Errorf("error parsing resource tags JSON: %v", err)
+		}
+	}
+
 	req := &megaport.BuyPortRequest{
 		Name:                  name,
 		Term:                  term,
@@ -34,6 +43,7 @@ func processFlagLAGPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, erro
 		DiversityZone:         diversityZone,
 		CostCentre:            costCentre,
 		PromoCode:             promoCode,
+		ResourceTags:          resourceTags,
 	}
 
 	// Validate required fields
@@ -148,6 +158,15 @@ func processFlagPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, error) 
 	costCentre, _ := cmd.Flags().GetString("cost-centre")
 	promoCode, _ := cmd.Flags().GetString("promo-code")
 
+	// Get resource tags if provided
+	resourceTagsStr, _ := cmd.Flags().GetString("resource-tags")
+	var resourceTags map[string]string
+	if resourceTagsStr != "" {
+		if err := json.Unmarshal([]byte(resourceTagsStr), &resourceTags); err != nil {
+			return nil, fmt.Errorf("error parsing resource tags JSON: %v", err)
+		}
+	}
+
 	req := &megaport.BuyPortRequest{
 		Name:                  name,
 		Term:                  term,
@@ -157,6 +176,7 @@ func processFlagPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, error) 
 		DiversityZone:         diversityZone,
 		CostCentre:            costCentre,
 		PromoCode:             promoCode,
+		ResourceTags:          resourceTags,
 	}
 
 	// Validate required fields

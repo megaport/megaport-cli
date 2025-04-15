@@ -9,31 +9,35 @@ import (
 
 type MockMVEService struct {
 	mock.Mock
-	BuyMVEError                       error
-	BuyMVEResult                      *megaport.BuyMVEResponse
-	CapturedBuyMVERequest             *megaport.BuyMVERequest
-	ValidateMVEOrderError             error
-	GetMVEError                       error
-	GetMVEResult                      *megaport.MVE
-	ModifyMVEError                    error
-	ModifyMVEResult                   *megaport.ModifyMVEResponse
-	CapturedModifyMVERequest          *megaport.ModifyMVERequest
-	DeleteMVEError                    error
-	DeleteMVEResult                   *megaport.DeleteMVEResponse
-	CapturedDeleteMVERequest          *megaport.DeleteMVERequest
-	ListMVEImagesError                error
-	ListMVEImagesResult               []*megaport.MVEImage
-	ListAvailableMVESizesError        error
-	ListAvailableMVESizesResult       []*megaport.MVESize
-	ListMVEResourceTagsError          error
-	ListMVEResourceTagsResult         map[string]string
-	CapturedListMVEResourceTagsUID    string
-	UpdateMVEResourceTagsError        error
-	CapturedUpdateMVEResourceTagsUID  string
-	CapturedUpdateMVEResourceTagsTags map[string]string
-	ListMVEsError                     error
-	ListMVEsResult                    []*megaport.MVE
-	CapturedListMVEsRequest           *megaport.ListMVEsRequest
+	BuyMVEError                          error
+	BuyMVEResult                         *megaport.BuyMVEResponse
+	CapturedBuyMVERequest                *megaport.BuyMVERequest
+	ValidateMVEOrderError                error
+	GetMVEError                          error
+	GetMVEResult                         *megaport.MVE
+	ModifyMVEError                       error
+	ModifyMVEResult                      *megaport.ModifyMVEResponse
+	CapturedModifyMVERequest             *megaport.ModifyMVERequest
+	DeleteMVEError                       error
+	DeleteMVEResult                      *megaport.DeleteMVEResponse
+	CapturedDeleteMVERequest             *megaport.DeleteMVERequest
+	ListMVEImagesError                   error
+	ListMVEImagesResult                  []*megaport.MVEImage
+	ListAvailableMVESizesError           error
+	ListAvailableMVESizesResult          []*megaport.MVESize
+	ListMVEResourceTagsError             error
+	ListMVEResourceTagsResult            map[string]string
+	CapturedListMVEResourceTagsUID       string
+	UpdateMVEResourceTagsError           error
+	CapturedUpdateMVEResourceTagsUID     string
+	CapturedUpdateMVEResourceTagsTags    map[string]string
+	ListMVEsError                        error
+	ListMVEsResult                       []*megaport.MVE
+	CapturedListMVEsRequest              *megaport.ListMVEsRequest
+	RestoreMVEError                      error
+	ListMVEResourceTagsErr               error
+	UpdateMVEResourceTagsErr             error
+	CapturedUpdateMVEResourceTagsRequest map[string]string
 }
 
 func (m *MockMVEService) Reset() {
@@ -44,6 +48,22 @@ func (m *MockMVEService) Reset() {
 	m.ModifyMVEError = nil
 	m.CapturedBuyMVERequest = nil
 	m.CapturedModifyMVERequest = nil
+	m.GetMVEResult = nil
+	m.GetMVEError = nil
+	m.ListMVEsResult = nil
+	m.ListMVEsError = nil
+	m.DeleteMVEResult = nil
+	m.DeleteMVEError = nil
+	m.RestoreMVEError = nil
+	m.ListMVEImagesResult = nil
+	m.ListMVEImagesError = nil
+	m.ListAvailableMVESizesResult = nil
+	m.ListAvailableMVESizesError = nil
+	m.CapturedListMVEsRequest = nil
+	m.ListMVEResourceTagsResult = nil
+	m.ListMVEResourceTagsErr = nil
+	m.UpdateMVEResourceTagsErr = nil
+	m.CapturedUpdateMVEResourceTagsRequest = nil
 }
 
 func (m *MockMVEService) BuyMVE(ctx context.Context, req *megaport.BuyMVERequest) (*megaport.BuyMVEResponse, error) {
@@ -135,25 +155,14 @@ func (m *MockMVEService) ListAvailableMVESizes(ctx context.Context) ([]*megaport
 	return []*megaport.MVESize{}, nil
 }
 
-func (m *MockMVEService) ListMVEResourceTags(ctx context.Context, mveID string) (map[string]string, error) {
-	m.CapturedListMVEResourceTagsUID = mveID
-	if m.ListMVEResourceTagsError != nil {
-		return nil, m.ListMVEResourceTagsError
+func (m *MockMVEService) ListMVEResourceTags(ctx context.Context, mcrID string) (map[string]string, error) {
+	if m.ListMVEResourceTagsErr != nil {
+		return nil, m.ListMVEResourceTagsErr
 	}
-	if m.ListMVEResourceTagsResult != nil {
-		return m.ListMVEResourceTagsResult, nil
-	}
-	return map[string]string{
-		"environment": "test",
-		"owner":       "automation",
-	}, nil
+	return m.ListMVEResourceTagsResult, nil
 }
 
-func (m *MockMVEService) UpdateMVEResourceTags(ctx context.Context, mveID string, tags map[string]string) error {
-	m.CapturedUpdateMVEResourceTagsUID = mveID
-	m.CapturedUpdateMVEResourceTagsTags = tags
-	if m.UpdateMVEResourceTagsError != nil {
-		return m.UpdateMVEResourceTagsError
-	}
-	return nil
+func (m *MockMVEService) UpdateMVEResourceTags(ctx context.Context, mcrID string, tags map[string]string) error {
+	m.CapturedUpdateMVEResourceTagsRequest = tags
+	return m.UpdateMVEResourceTagsErr
 }

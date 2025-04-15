@@ -34,5 +34,7 @@ megaport-cli vxc [flags]
 * [delete](megaport-cli_vxc_delete.md)
 * [docs](megaport-cli_vxc_docs.md)
 * [get](megaport-cli_vxc_get.md)
+* [list-tags](megaport-cli_vxc_list-tags.md)
 * [update](megaport-cli_vxc_update.md)
+* [update-tags](megaport-cli_vxc_update-tags.md)
 

@@ -1167,3 +1167,305 @@ func TestUpdatePortCmd(t *testing.T) {
 		})
 	}
 }
+
+// TestListPortResourceTagsCmd tests the list-tags command
+func TestListPortResourceTagsCmd(t *testing.T) {
+	// Save original login function and restore after test
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name          string
+		portID        string
+		format        string
+		setupMock     func(*MockPortService)
+		expectedError string
+		expectedOut   []string
+	}{
+		{
+			name:   "list resource tags success table format",
+			portID: "port-123",
+			format: "table",
+			setupMock: func(m *MockPortService) {
+				m.ListPortResourceTagsResult = map[string]string{
+					"env":  "production",
+					"team": "network",
+					"cost": "it-department",
+				}
+			},
+			expectedOut: []string{"env", "production", "team", "network", "cost", "it-department"},
+		},
+		{
+			name:   "list resource tags success json format",
+			portID: "port-123",
+			format: "json",
+			setupMock: func(m *MockPortService) {
+				m.ListPortResourceTagsResult = map[string]string{
+					"env":  "production",
+					"team": "network",
+				}
+			},
+			expectedOut: []string{`"key": "env"`, `"value": "production"`, `"key": "team"`, `"value": "network"`},
+		},
+		{
+			name:   "list empty resource tags",
+			portID: "port-123",
+			format: "table",
+			setupMock: func(m *MockPortService) {
+				m.ListPortResourceTagsResult = map[string]string{}
+			},
+			expectedOut: []string{"KEY", "VALUE"}, // Headers should still be visible
+		},
+		{
+			name:   "list resource tags error",
+			portID: "port-invalid",
+			format: "table",
+			setupMock: func(m *MockPortService) {
+				m.ListPortResourceTagsErr = fmt.Errorf("Port not found")
+			},
+			expectedError: "Port not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mock Port service
+			mockPortService := &MockPortService{}
+			tt.setupMock(mockPortService)
+
+			// Setup login to return our mock client
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.PortService = mockPortService
+				return client, nil
+			}
+
+			// Set up command
+			cmd := &cobra.Command{
+				Use:  "list-tags",
+				RunE: testCommandAdapterOutput(ListPortResourceTags),
+			}
+			cmd.Flags().String("output", "table", "Output format (table, json)")
+			if err := cmd.Flags().Set("output", tt.format); err != nil {
+				t.Fatalf("Failed to set output flag: %v", err)
+			}
+
+			// Execute command and capture output
+			var err error
+			output := output.CaptureOutput(func() {
+				err = testCommandAdapterOutput(ListPortResourceTags)(cmd, []string{tt.portID})
+			})
+
+			// Check results
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				for _, expected := range tt.expectedOut {
+					assert.Contains(t, output, expected)
+				}
+			}
+		})
+	}
+}
+
+// TestUpdatePortResourceTagsCmd tests the update-tags command with various input methods
+func TestUpdatePortResourceTagsCmd(t *testing.T) {
+	// Save original functions and restore after test
+	originalPrompt := utils.UpdateResourceTagsPrompt
+	originalConfirmPrompt := utils.ConfirmPrompt
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		utils.UpdateResourceTagsPrompt = originalPrompt
+		utils.ConfirmPrompt = originalConfirmPrompt
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name           string
+		args           []string
+		interactive    bool
+		prompts        map[string]string
+		flags          map[string]string
+		setupMock      func(*MockPortService)
+		expectedError  string
+		expectedOutput string
+		expectedTags   map[string]string
+	}{
+		{
+			name:        "interactive mode success",
+			args:        []string{"port-123"},
+			interactive: true,
+			prompts: map[string]string{
+				"env":  "production",
+				"team": "network",
+			},
+			setupMock: func(m *MockPortService) {
+				m.UpdatePortResourceTagsErr = nil
+			},
+			expectedOutput: "Resource tags updated for port port-123",
+			expectedTags: map[string]string{
+				"env":  "production",
+				"team": "network",
+			},
+		},
+		{
+			name: "tags JSON string mode success",
+			args: []string{"port-456"},
+			flags: map[string]string{
+				"tags": `{"env":"staging","team":"devops","app":"webserver"}`,
+			},
+			setupMock: func(m *MockPortService) {
+				m.UpdatePortResourceTagsErr = nil
+			},
+			expectedOutput: "Resource tags updated for port port-456",
+			expectedTags: map[string]string{
+				"env":  "staging",
+				"team": "devops",
+				"app":  "webserver",
+			},
+		},
+		{
+			name: "json string mode success",
+			args: []string{"port-789"},
+			flags: map[string]string{
+				"json": `{"env":"development","team":"backend"}`,
+			},
+			setupMock: func(m *MockPortService) {
+				m.UpdatePortResourceTagsErr = nil
+			},
+			expectedOutput: "Resource tags updated for port port-789",
+			expectedTags: map[string]string{
+				"env":  "development",
+				"team": "backend",
+			},
+		},
+		{
+			name: "empty tags to clear all tags",
+			args: []string{"port-123"},
+			flags: map[string]string{
+				"tags": `{}`,
+			},
+			setupMock: func(m *MockPortService) {
+				m.UpdatePortResourceTagsErr = nil
+			},
+			expectedOutput: "Resource tags updated for port port-123",
+			expectedTags:   map[string]string{},
+		},
+		{
+			name: "invalid JSON format",
+			args: []string{"port-123"},
+			flags: map[string]string{
+				"tags": `{"env":"production",invalid}`,
+			},
+			expectedError: "error parsing tags JSON",
+		},
+		{
+			name: "API error",
+			args: []string{"port-123"},
+			flags: map[string]string{
+				"tags": `{"env":"production","team":"network"}`,
+			},
+			setupMock: func(m *MockPortService) {
+				m.UpdatePortResourceTagsErr = fmt.Errorf("API error: service unavailable")
+			},
+			expectedError: "failed to update resource tags: API error: service unavailable",
+		},
+		{
+			name:          "missing port UID",
+			args:          []string{},
+			expectedError: "accepts 1 arg(s), received 0",
+		},
+		{
+			name:          "no input provided",
+			args:          []string{"port-123"},
+			expectedError: "no input provided",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mock resource tags prompt
+			if tt.interactive && tt.prompts != nil {
+				promptIndex := 0
+				utils.UpdateResourceTagsPrompt = func(existingTags map[string]string, noColor bool) (map[string]string, error) {
+					if promptIndex < len(tt.prompts) {
+						response := tt.prompts
+						promptIndex++
+						return response, nil
+					}
+					return nil, fmt.Errorf("unexpected prompt call")
+				}
+			}
+
+			// Setup mock Port service
+			mockPortService := &MockPortService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockPortService)
+			}
+
+			// Setup login to return our mock client
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.PortService = mockPortService
+				return client, nil
+			}
+
+			// Create a fresh command for each test to avoid flag conflicts
+			cmd := &cobra.Command{
+				Use:  "update-tags [portUID]",
+				Args: cobra.ExactArgs(1),
+				RunE: testCommandAdapter(UpdatePortResourceTags),
+			}
+
+			// Add all the necessary flags
+			cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode with prompts")
+			cmd.Flags().String("json", "", "JSON string containing resource tags")
+			cmd.Flags().String("json-file", "", "Path to JSON file containing resource tags")
+			cmd.Flags().String("tags", "", "JSON string containing resource tags")
+			cmd.Flags().String("tags-file", "", "Path to JSON file containing resource tags")
+
+			// Set interactive flag if needed
+			if tt.interactive {
+				if err := cmd.Flags().Set("interactive", "true"); err != nil {
+					t.Fatalf("Failed to set interactive flag: %v", err)
+				}
+			}
+
+			// Set flag values for this test
+			for flagName, flagValue := range tt.flags {
+				err := cmd.Flags().Set(flagName, flagValue)
+				if err != nil {
+					t.Fatalf("Failed to set %s flag: %v", flagName, err)
+				}
+			}
+
+			// Execute command and capture output
+			var err error
+			cmdOutput := output.CaptureOutput(func() {
+				if len(tt.args) > 0 {
+					err = cmd.RunE(cmd, tt.args)
+				} else {
+					err = cmd.Execute()
+				}
+			})
+
+			// Check results
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, cmdOutput, tt.expectedOutput)
+
+				// Verify tags sent to the API
+				if tt.expectedTags != nil && mockPortService != nil {
+					assert.Equal(t, tt.expectedTags, mockPortService.CapturedResourceTags)
+				}
+			}
+		})
+	}
+}
