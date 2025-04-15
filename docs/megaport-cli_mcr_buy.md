@@ -12,7 +12,7 @@ This command allows you to purchase an MCR by providing the necessary details.
   - `location-id`: The ID of the location where the MCR will be provisioned
   - `marketplace-visibility`: Whether the MCR should be visible in the marketplace (true or false)
   - `name`: The name of the MCR (1-64 characters)
-  - `port-speed`: The speed of the MCR (1000, 2500, 5000, or 10000 Mbps)
+  - `port-speed`: The speed of the MCR (1000, 2500, 5000, 10000, 25000, 50000, or 100000 Mbps)
   - `term`: The term of the MCR (1, 12, 24, or 36 months)
 
 ### Optional Fields
@@ -84,7 +84,7 @@ megaport-cli mcr buy [flags]
 | `--marketplace-visibility` |  |  | Whether the MCR should be visible in the marketplace (true or false) | true |
 | `--mcr-asn` |  | `0` | The ASN for the MCR (64512-65534 for private ASN, or a public ASN) | false |
 | `--name` |  |  | The name of the MCR (1-64 characters) | true |
-| `--port-speed` |  | `0` | The speed of the MCR (1000, 2500, 5000, or 10000 Mbps) | true |
+| `--port-speed` |  | `0` | The speed of the MCR (1000, 2500, 5000, 10000, 25000, 50000, or 100000 Mbps) | true |
 | `--promo-code` |  |  | A promotional code for discounts | false |
 | `--resource-tags` |  |  | Resource tags as a JSON string (e.g. {"key1":"value1","key2":"value2"}) | false |
 | `--resource-tags-file` |  |  | Path to JSON file containing resource tags | false |

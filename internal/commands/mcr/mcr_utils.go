@@ -3,6 +3,7 @@ package mcr
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	megaport "github.com/megaport/megaportgo"
@@ -66,6 +67,10 @@ func validateMCRRequest(req *megaport.BuyMCRRequest) error {
 
 	if req.PortSpeed == 0 {
 		return fmt.Errorf("port speed is required")
+	}
+
+	if !slices.Contains(megaport.VALID_MCR_PORT_SPEEDS, req.PortSpeed) {
+		return megaport.ErrMCRInvalidPortSpeed
 	}
 
 	if req.LocationID == 0 {
