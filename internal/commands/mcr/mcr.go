@@ -40,7 +40,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithLongDesc("Buy an MCR through the Megaport API.\n\nThis command allows you to purchase an MCR by providing the necessary details.").
 		WithDocumentedRequiredFlag("name", "The name of the MCR (1-64 characters)").
 		WithDocumentedRequiredFlag("term", "The term of the MCR (1, 12, 24, or 36 months)").
-		WithDocumentedRequiredFlag("port-speed", "The speed of the MCR (1000, 2500, 5000, or 10000 Mbps)").
+		WithDocumentedRequiredFlag("port-speed", "The speed of the MCR (1000, 2500, 5000, 10000, 25000, 50000, or 100000 Mbps)").
 		WithDocumentedRequiredFlag("location-id", "The ID of the location where the MCR will be provisioned").
 		WithDocumentedRequiredFlag("marketplace-visibility", "Whether the MCR should be visible in the marketplace (true or false)").
 		WithOptionalFlag("mcr-asn", "The ASN for the MCR (if not provided, a private ASN will be assigned)").
