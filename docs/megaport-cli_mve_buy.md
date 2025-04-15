@@ -60,7 +60,7 @@ This command allows you to purchase an MVE by providing the necessary details.
     {"description": "Data Plane", "vlan": 100},
     {"description": "Management", "vlan": 200}
   ],
-  "resourceTags": { // Add resourceTags to JSON example
+  "resourceTags": {
     "environment": "production",
     "billing_code": "BC12345",
     "owner_team": "network-operations"
