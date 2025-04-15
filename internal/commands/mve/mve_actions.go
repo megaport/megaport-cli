@@ -2,7 +2,10 @@ package mve
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"sort"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -445,5 +448,130 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	} else {
 		output.PrintWarning("MVE delete failed", noColor)
 	}
+	return nil
+}
+
+// ListMVEResourceTags retrieves and displays resource tags for an MVE
+func ListMVEResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	mveUID := args[0]
+
+	ctx := context.Background()
+
+	// Login to the Megaport API
+	client, err := config.LoginFunc(ctx)
+	if err != nil {
+		return err
+	}
+
+	spinner := output.PrintListingResourceTags("MVE", mveUID, noColor)
+
+	// Get the resource tags for the MVE
+	tagsMap, err := listMVEResourceTagsFunc(ctx, client, mveUID)
+
+	spinner.Stop()
+	if err != nil {
+		return fmt.Errorf("error getting resource tags for MVE %s: %v", mveUID, err)
+	}
+
+	// Convert map to slice of ResourceTag for output
+	tags := make([]output.ResourceTag, 0, len(tagsMap))
+	for k, v := range tagsMap {
+		tags = append(tags, output.ResourceTag{Key: k, Value: v})
+	}
+
+	// Sort tags by key for consistent output
+	sort.Slice(tags, func(i, j int) bool {
+		return tags[i].Key < tags[j].Key
+	})
+
+	// Use the existing PrintOutput function
+	return output.PrintOutput(tags, outputFormat, noColor)
+}
+
+// UpdateMVEResourceTags updates resource tags for an MVE
+func UpdateMVEResourceTags(cmd *cobra.Command, args []string, noColor bool) error {
+	mveUID := args[0]
+
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Login to the Megaport API
+	client, err := config.LoginFunc(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return err
+	}
+
+	existingTags, err := listMVEResourceTagsFunc(ctx, client, mveUID)
+	if err != nil {
+		return fmt.Errorf("failed to get existing resource tags: %v", err)
+	}
+
+	// Check if we're in interactive mode
+	interactive, _ := cmd.Flags().GetBool("interactive")
+
+	// Variables to store tags
+	var resourceTags map[string]string
+
+	if interactive {
+		// Interactive mode: prompt for tags
+		resourceTags, err = utils.UpdateResourceTagsPrompt(existingTags, noColor)
+		if err != nil {
+			output.PrintError("Failed to update resource tags", noColor)
+			return err
+		}
+	} else {
+		// Check if we have JSON input
+		jsonStr, _ := cmd.Flags().GetString("json")
+		jsonFile, _ := cmd.Flags().GetString("json-file")
+
+		// Process JSON input if provided
+		if jsonStr != "" {
+			// Parse JSON string
+			resourceTags = make(map[string]string)
+			if err := json.Unmarshal([]byte(jsonStr), &resourceTags); err != nil {
+				output.PrintError("Failed to parse JSON: %v", noColor, err)
+				return fmt.Errorf("error parsing JSON: %v", err)
+			}
+		} else if jsonFile != "" {
+			// Read from file
+			jsonData, err := os.ReadFile(jsonFile)
+			if err != nil {
+				output.PrintError("Failed to read JSON file: %v", noColor, err)
+				return fmt.Errorf("error reading JSON file: %v", err)
+			}
+
+			// Parse JSON from file
+			resourceTags = make(map[string]string)
+			if err := json.Unmarshal(jsonData, &resourceTags); err != nil {
+				output.PrintError("Failed to parse JSON file: %v", noColor, err)
+				return fmt.Errorf("error parsing JSON file: %v", err)
+			}
+		} else {
+			output.PrintError("No input provided for tags", noColor)
+			return fmt.Errorf("no input provided, use --interactive, --json, or --json-file to specify resource tags")
+		}
+	}
+
+	// If we got here, we have tags to update
+	if len(resourceTags) == 0 {
+		fmt.Println("No tags provided. The MVE will have all existing tags removed.")
+	}
+
+	// Start spinner for updating resource tags
+	spinner := output.PrintResourceUpdating("MVE-Resource-Tags", mveUID, noColor)
+
+	// Update tags
+	err = client.MVEService.UpdateMVEResourceTags(ctx, mveUID, resourceTags)
+
+	// Stop spinner
+	spinner.Stop()
+
+	if err != nil {
+		return fmt.Errorf("failed to update resource tags: %v", err)
+	}
+
+	fmt.Printf("Resource tags updated for MVE %s\n", mveUID)
 	return nil
 }

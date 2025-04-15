@@ -1,6 +1,7 @@
 package mve
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -109,4 +110,8 @@ func filterMVEs(mves []*megaport.MVE, locationID int, vendor, name string) []*me
 	}
 
 	return filtered
+}
+
+var listMVEResourceTagsFunc = func(ctx context.Context, client *megaport.Client, mveID string) (map[string]string, error) {
+	return client.MVEService.ListMVEResourceTags(ctx, mveID)
 }

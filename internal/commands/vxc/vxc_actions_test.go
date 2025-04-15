@@ -943,3 +943,324 @@ func TestDeleteVXC(t *testing.T) {
 		})
 	}
 }
+
+// TestListVXCResourceTagsCmd tests the list-tags command functionality
+func TestListVXCResourceTagsCmd(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name          string
+		vxcUID        string
+		setupMock     func(*mockVXCService)
+		outputFormat  string
+		expectedError string
+		expectedOut   []string
+	}{
+		{
+			name:         "successful list with multiple tags",
+			vxcUID:       "vxc-123",
+			outputFormat: "table",
+			setupMock: func(m *mockVXCService) {
+				m.ListVXCResourceTagsResult = map[string]string{
+					"environment": "production",
+					"team":        "networking",
+					"project":     "cloud-migration",
+					"owner":       "john.smith@example.com",
+				}
+			},
+			expectedOut: []string{"environment", "production", "team", "networking"},
+		},
+		{
+			name:         "successful list with no tags",
+			vxcUID:       "vxc-456",
+			outputFormat: "table",
+			setupMock: func(m *mockVXCService) {
+				m.ListVXCResourceTagsResult = map[string]string{}
+			},
+			// An empty table is displayed, not a "No resource tags found" message
+			expectedOut: []string{"┌─────┬───────┐", "└─────┴───────┘"},
+		},
+		{
+			name:         "successful list with json format",
+			vxcUID:       "vxc-789",
+			outputFormat: "json",
+			setupMock: func(m *mockVXCService) {
+				m.ListVXCResourceTagsResult = map[string]string{
+					"environment": "staging",
+					"cost-center": "cc-123",
+				}
+			},
+			expectedOut: []string{"\"key\": \"environment\"", "\"value\": \"staging\""},
+		},
+		{
+			name:   "error fetching tags",
+			vxcUID: "vxc-error",
+			setupMock: func(m *mockVXCService) {
+				m.ListVXCResourceTagsErr = fmt.Errorf("API error: not found")
+			},
+			expectedError: "error getting resource tags",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &mockVXCService{}
+			tt.setupMock(mockService)
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.VXCService = mockService
+				return client, nil
+			}
+
+			cmd := &cobra.Command{
+				Use: "list-tags [vxcUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return ListVXCResourceTags(cmd, args, true, tt.outputFormat)
+				},
+			}
+
+			// Add output format flag
+			cmd.Flags().StringP("output", "o", "table", "Output format (json, table)")
+			if tt.outputFormat != "" {
+				err := cmd.Flags().Set("output", tt.outputFormat)
+				assert.NoError(t, err)
+			}
+
+			var err error
+			output := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.vxcUID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				for _, expected := range tt.expectedOut {
+					assert.Contains(t, output, expected)
+				}
+			}
+		})
+	}
+}
+
+// TestUpdateVXCResourceTagsCmd tests the update-tags command functionality
+func TestUpdateVXCResourceTagsCmd(t *testing.T) {
+	// Save original functions and restore after test
+	originalLoginFunc := config.LoginFunc
+	originalResourcePrompt := utils.UpdateResourceTagsPrompt
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		utils.UpdateResourceTagsPrompt = originalResourcePrompt
+	}()
+
+	tests := []struct {
+		name                 string
+		vxcUID               string
+		interactive          bool
+		promptResult         map[string]string
+		promptError          error
+		jsonInput            string
+		jsonFile             string
+		existingTags         map[string]string
+		setupMock            func(*mockVXCService)
+		expectedError        string
+		expectedOutput       string
+		expectedCapturedTags map[string]string
+	}{
+		{
+			name:        "successful update with interactive mode",
+			vxcUID:      "vxc-123",
+			interactive: true,
+			existingTags: map[string]string{
+				"environment": "staging",
+			},
+			promptResult: map[string]string{
+				"environment": "production",
+				"team":        "networking",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.ListVXCResourceTagsResult = map[string]string{
+					"environment": "staging",
+				}
+			},
+			expectedOutput: "Resource tags updated for VXC vxc-123",
+			expectedCapturedTags: map[string]string{
+				"environment": "production",
+				"team":        "networking",
+			},
+		},
+		{
+			name:   "successful update with json",
+			vxcUID: "vxc-456",
+			jsonInput: `{
+				"environment": "production", 
+				"team": "networking",
+				"project": "cloud-migration"
+			}`,
+			existingTags: map[string]string{
+				"environment": "development",
+				"owner":       "john.doe@example.com",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.ListVXCResourceTagsResult = map[string]string{
+					"environment": "development",
+					"owner":       "john.doe@example.com",
+				}
+			},
+			expectedOutput: "Resource tags updated for VXC vxc-456",
+			expectedCapturedTags: map[string]string{
+				"environment": "production",
+				"team":        "networking",
+				"project":     "cloud-migration",
+			},
+		},
+		{
+			name:      "error with invalid json",
+			vxcUID:    "vxc-789",
+			jsonInput: `{invalid json}`,
+			setupMock: func(m *mockVXCService) {
+				m.ListVXCResourceTagsResult = map[string]string{}
+			},
+			expectedError: "error parsing JSON",
+		},
+		{
+			name:        "error in interactive mode",
+			vxcUID:      "vxc-prompt-error",
+			interactive: true,
+			existingTags: map[string]string{
+				"environment": "staging",
+			},
+			promptError: fmt.Errorf("user cancelled input"),
+			setupMock: func(m *mockVXCService) {
+				m.ListVXCResourceTagsResult = map[string]string{
+					"environment": "staging",
+				}
+			},
+			expectedError: "user cancelled input",
+		},
+		{
+			name:   "error with API update",
+			vxcUID: "vxc-update-error",
+			jsonInput: `{
+				"environment": "production"
+			}`,
+			setupMock: func(m *mockVXCService) {
+				m.ListVXCResourceTagsResult = map[string]string{}
+				m.UpdateVXCResourceTagsErr = fmt.Errorf("API error: unauthorized")
+			},
+			expectedError: "failed to update resource tags",
+		},
+		{
+			name:   "error with API tag listing",
+			vxcUID: "vxc-list-error",
+			jsonInput: `{
+				"environment": "production"
+			}`,
+			setupMock: func(m *mockVXCService) {
+				m.ListVXCResourceTagsErr = fmt.Errorf("API error: resource not found")
+			},
+			expectedError: "failed to get existing resource tags",
+		},
+		{
+			name:      "empty tags clear all existing tags",
+			vxcUID:    "vxc-clear-tags",
+			jsonInput: `{}`,
+			existingTags: map[string]string{
+				"environment": "staging",
+				"team":        "networking",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.ListVXCResourceTagsResult = map[string]string{
+					"environment": "staging",
+					"team":        "networking",
+				}
+			},
+			expectedOutput:       "No tags provided. The VXC will have all existing tags removed",
+			expectedCapturedTags: map[string]string{},
+		},
+		{
+			name:   "no input provided",
+			vxcUID: "vxc-no-input",
+			setupMock: func(m *mockVXCService) {
+				m.ListVXCResourceTagsResult = map[string]string{}
+			},
+			expectedError: "no input provided",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mock service
+			mockService := &mockVXCService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			// Mock the login function
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.VXCService = mockService
+				return client, nil
+			}
+
+			// Mock the interactive prompt specifically for UpdateResourceTagsPrompt
+			utils.UpdateResourceTagsPrompt = func(existingTags map[string]string, noColor bool) (map[string]string, error) {
+				return tt.promptResult, tt.promptError
+			}
+
+			// Create command
+			cmd := &cobra.Command{
+				Use: "update-tags [vxcUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return UpdateVXCResourceTags(cmd, args, false)
+				},
+			}
+
+			// Add flags
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			// Set the flags as needed
+			if tt.interactive {
+				err := cmd.Flags().Set("interactive", "true")
+				assert.NoError(t, err)
+			}
+
+			if tt.jsonInput != "" {
+				err := cmd.Flags().Set("json", tt.jsonInput)
+				assert.NoError(t, err)
+			}
+
+			if tt.jsonFile != "" {
+				err := cmd.Flags().Set("json-file", tt.jsonFile)
+				assert.NoError(t, err)
+			}
+
+			// Run the command
+			var err error
+			output := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.vxcUID})
+			})
+
+			// Verify results
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, output, tt.expectedOutput)
+
+				// Check if the expected tags were passed to the update method
+				if tt.expectedCapturedTags != nil {
+					assert.Equal(t, tt.expectedCapturedTags, mockService.CapturedUpdateVXCResourceTagsRequest)
+				}
+			}
+		})
+	}
+}

@@ -1093,3 +1093,343 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 		})
 	}
 }
+
+// TestListMVEResourceTagsCmd_WithMockClient tests the list-tags command functionality
+func TestListMVEResourceTagsCmd_WithMockClient(t *testing.T) {
+	// Save original login function and restore after test
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name          string
+		mveUID        string
+		setupMock     func(*MockMVEService)
+		outputFormat  string
+		expectedError string
+		expectedOut   []string
+	}{
+		{
+			name:         "successful list with multiple tags",
+			mveUID:       "mve-123",
+			outputFormat: "table",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEResourceTagsResult = map[string]string{
+					"environment": "production",
+					"team":        "networking",
+					"project":     "sdwan-rollout",
+				}
+				m.ListMVEResourceTagsErr = nil
+			},
+			expectedOut: []string{"environment", "production", "team", "networking", "project", "sdwan-rollout"},
+		},
+		{
+			name:         "successful list with no tags",
+			mveUID:       "mve-456",
+			outputFormat: "table",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEResourceTagsResult = map[string]string{}
+				m.ListMVEResourceTagsErr = nil
+			},
+			expectedOut: []string{"KEY", "VALUE"}, // Headers should still be visible
+		},
+		{
+			name:         "successful list with json format",
+			mveUID:       "mve-789",
+			outputFormat: "json",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEResourceTagsResult = map[string]string{
+					"environment": "staging",
+					"cost-center": "cc-123",
+				}
+				m.ListMVEResourceTagsErr = nil
+			},
+			expectedOut: []string{`"key": "environment"`, `"value": "staging"`, `"key": "cost-center"`, `"value": "cc-123"`},
+		},
+		{
+			name:         "error fetching tags",
+			mveUID:       "mve-error",
+			outputFormat: "table",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEResourceTagsResult = make(map[string]string) // Initialize to avoid nil pointer
+				m.ListMVEResourceTagsErr = fmt.Errorf("API error: not found")
+			},
+			expectedError: "error getting resource tags",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockMVEService := &MockMVEService{}
+			tt.setupMock(mockMVEService)
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MVEService = mockMVEService
+				return client, nil
+			}
+
+			cmd := &cobra.Command{
+				Use: "list-tags [mveUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return ListMVEResourceTags(cmd, args, false, tt.outputFormat)
+				},
+			}
+
+			// Add output format flag
+			cmd.Flags().StringP("output", "o", "table", "Output format (json, table)")
+			if tt.outputFormat != "" {
+				err := cmd.Flags().Set("output", tt.outputFormat)
+				if err != nil {
+					t.Fatalf("Failed to set output format: %v", err)
+				}
+			}
+
+			var err error
+			output := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.mveUID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				for _, expected := range tt.expectedOut {
+					assert.Contains(t, output, expected)
+				}
+
+				// If no expected output is defined but we expected success, make sure there's no error message
+				if len(tt.expectedOut) == 0 && tt.expectedError == "" {
+					assert.NotContains(t, output, "Error")
+				}
+			}
+		})
+	}
+}
+
+// TestUpdateMVEResourceTagsCmd_WithMockClient tests the update-tags command functionality
+func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
+	// Save original functions and restore after test
+	originalLoginFunc := config.LoginFunc
+	originalResourcePrompt := utils.UpdateResourceTagsPrompt
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		utils.UpdateResourceTagsPrompt = originalResourcePrompt
+	}()
+
+	tests := []struct {
+		name                 string
+		mveUID               string
+		interactive          bool
+		promptResult         map[string]string
+		promptError          error
+		jsonInput            string
+		jsonFile             string
+		setupMock            func(*MockMVEService)
+		expectedError        string
+		expectedOutput       string
+		expectedCapturedTags map[string]string
+	}{
+		{
+			name:        "successful update with interactive mode",
+			mveUID:      "mve-123",
+			interactive: true,
+			promptResult: map[string]string{
+				"environment": "production",
+				"team":        "networking",
+			},
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEResourceTagsResult = map[string]string{
+					"environment": "staging",
+				}
+				m.ListMVEResourceTagsErr = nil
+				m.UpdateMVEResourceTagsErr = nil
+				m.CapturedUpdateMVEResourceTagsRequest = make(map[string]string)
+			},
+			expectedOutput: "Resource tags updated for MVE mve-123",
+			expectedCapturedTags: map[string]string{
+				"environment": "production",
+				"team":        "networking",
+			},
+		},
+		{
+			name:   "successful update with json",
+			mveUID: "mve-456",
+			jsonInput: `{
+				"environment": "production",
+				"project": "sdwan-rollout"
+			}`,
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEResourceTagsResult = map[string]string{
+					"environment": "development",
+					"owner":       "john.doe@example.com",
+				}
+				m.ListMVEResourceTagsErr = nil
+				m.UpdateMVEResourceTagsErr = nil
+				m.CapturedUpdateMVEResourceTagsRequest = make(map[string]string)
+			},
+			expectedOutput: "Resource tags updated for MVE mve-456",
+			expectedCapturedTags: map[string]string{
+				"environment": "production",
+				"project":     "sdwan-rollout",
+			},
+		},
+		{
+			name:      "error with invalid json",
+			mveUID:    "mve-789",
+			jsonInput: `{invalid json}`,
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEResourceTagsResult = map[string]string{}
+				m.CapturedUpdateMVEResourceTagsRequest = make(map[string]string)
+			},
+			expectedError: "error parsing JSON",
+		},
+		{
+			name:        "error in interactive mode",
+			mveUID:      "mve-prompt-error",
+			interactive: true,
+			promptError: fmt.Errorf("user cancelled input"),
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEResourceTagsResult = map[string]string{
+					"environment": "staging",
+				}
+				m.ListMVEResourceTagsErr = nil
+				m.CapturedUpdateMVEResourceTagsRequest = make(map[string]string)
+			},
+			expectedError: "user cancelled input",
+		},
+		{
+			name:   "error with API update",
+			mveUID: "mve-update-error",
+			jsonInput: `{
+				"environment": "production"
+			}`,
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEResourceTagsResult = map[string]string{}
+				m.ListMVEResourceTagsErr = nil
+				m.UpdateMVEResourceTagsErr = fmt.Errorf("API error: unauthorized")
+				m.CapturedUpdateMVEResourceTagsRequest = make(map[string]string)
+			},
+			expectedError: "failed to update resource tags",
+		},
+		{
+			name:   "error with API tag listing",
+			mveUID: "mve-list-error",
+			jsonInput: `{
+				"environment": "production"
+			}`,
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEResourceTagsResult = map[string]string{} // Initialize to avoid nil pointer
+				m.ListMVEResourceTagsErr = fmt.Errorf("API error: resource not found")
+				m.CapturedUpdateMVEResourceTagsRequest = make(map[string]string)
+			},
+			expectedError: "failed to get existing resource tags",
+		},
+		{
+			name:      "empty tags clear all existing tags",
+			mveUID:    "mve-clear-tags",
+			jsonInput: `{}`,
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEResourceTagsResult = map[string]string{
+					"environment": "staging",
+					"team":        "networking",
+				}
+				m.ListMVEResourceTagsErr = nil
+				m.UpdateMVEResourceTagsErr = nil
+				m.CapturedUpdateMVEResourceTagsRequest = make(map[string]string)
+			},
+			expectedOutput:       "No tags provided. The MVE will have all existing tags removed",
+			expectedCapturedTags: map[string]string{},
+		},
+		{
+			name:   "no input provided",
+			mveUID: "mve-no-input",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEResourceTagsResult = map[string]string{}
+				m.ListMVEResourceTagsErr = nil
+				m.CapturedUpdateMVEResourceTagsRequest = make(map[string]string)
+			},
+			expectedError: "no input provided",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mock service
+			mockMVEService := &MockMVEService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockMVEService)
+			}
+
+			// Mock the login function
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MVEService = mockMVEService
+				return client, nil
+			}
+
+			// Mock the interactive prompt specifically for UpdateResourceTagsPrompt
+			utils.UpdateResourceTagsPrompt = func(existingTags map[string]string, noColor bool) (map[string]string, error) {
+				return tt.promptResult, tt.promptError
+			}
+
+			// Create command
+			cmd := &cobra.Command{
+				Use: "update-tags [mveUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return UpdateMVEResourceTags(cmd, args, false)
+				},
+			}
+
+			// Add flags
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			// Set the flags as needed
+			if tt.interactive {
+				err := cmd.Flags().Set("interactive", "true")
+				if err != nil {
+					t.Fatalf("Failed to set interactive flag: %v", err)
+				}
+			}
+
+			if tt.jsonInput != "" {
+				err := cmd.Flags().Set("json", tt.jsonInput)
+				if err != nil {
+					t.Fatalf("Failed to set json flag: %v", err)
+				}
+			}
+
+			if tt.jsonFile != "" {
+				err := cmd.Flags().Set("json-file", tt.jsonFile)
+				if err != nil {
+					t.Fatalf("Failed to set json-file flag: %v", err)
+				}
+			}
+
+			// Run the command and capture output
+			var err error
+			output := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.mveUID})
+			})
+
+			// Check results
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, output, tt.expectedOutput)
+
+				// Verify the captured request
+				if tt.expectedCapturedTags != nil {
+					assert.NotNil(t, mockMVEService.CapturedUpdateMVEResourceTagsRequest)
+					assert.Equal(t, tt.expectedCapturedTags, mockMVEService.CapturedUpdateMVEResourceTagsRequest)
+				}
+			}
+		})
+	}
+}

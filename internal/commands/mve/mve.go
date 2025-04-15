@@ -165,6 +165,26 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
+	// Add list-tags command
+	listTagsCmd := cmdbuilder.NewCommand("list-tags", "List resource tags on a specific MVE").
+		WithLongDesc("Lists all resource tags associated with a specific MVE").
+		WithArgs(cobra.ExactArgs(1)).
+		WithOutputFormatRunFunc(ListMVEResourceTags).
+		WithExample("megaport-cli mve list-tags mve-abc123").
+		Build()
+
+	// Add update-tags command
+	updateTagsCmd := cmdbuilder.NewCommand("update-tags", "Update resource tags on a specific MVE").
+		WithLongDesc("Update resource tags associated with a specific MVE. Tags can be provided via interactive prompts, JSON string, or JSON file.").
+		WithArgs(cobra.ExactArgs(1)).
+		WithColorAwareRunFunc(UpdateMVEResourceTags).
+		WithStandardInputFlags().
+		WithExample("megaport-cli mve update-tags mve-abc123 --interactive").
+		WithExample("megaport-cli mve update-tags mve-abc123 --json '{\"env\":\"production\",\"team\":\"network\"}'").
+		WithExample("megaport-cli mve update-tags mve-abc123 --json-file ./tags.json").
+		WithImportantNote("All existing tags will be replaced with the provided tags. To clear all tags, provide an empty tag set.").
+		Build()
+
 	// Add commands to their parents
 	mveCmd.AddCommand(
 		buyMVECmd,
@@ -174,6 +194,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		listMVEImagesCmd,
 		listAvailableMVESizesCmd,
 		listMVEsCmd,
+		listTagsCmd,   // Add list-tags
+		updateTagsCmd, // Add update-tags
 	)
 	rootCmd.AddCommand(mveCmd)
 }

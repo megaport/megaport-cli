@@ -8,24 +8,26 @@ import (
 
 // // Mock VXC service for testing
 type mockVXCService struct {
-	buyVXCResponse              *megaport.BuyVXCResponse
-	buyVXCError                 error
-	validateVXCOrderError       error
-	getVXCResponse              *megaport.VXC
-	getVXCError                 error
-	deleteVXCError              error
-	updateVXCError              error
-	lookupPartnerPortsResponse  *megaport.LookupPartnerPortsResponse
-	lookupPartnerPortsError     error
-	listPartnerPortsResponse    *megaport.ListPartnerPortsResponse
-	listPartnerPortsError       error
-	listVXCResourceTagsResponse map[string]string
-	listVXCResourceTagsError    error
-	updateVXCResourceTagsError  error
-	updateVXCResponse           *megaport.VXC
-	buyVXCErr                   error
-	updateVXCErr                error
-	onBuyVXC                    func(context.Context, *megaport.BuyVXCRequest)
+	buyVXCResponse                       *megaport.BuyVXCResponse
+	buyVXCError                          error
+	validateVXCOrderError                error
+	getVXCResponse                       *megaport.VXC
+	getVXCError                          error
+	deleteVXCError                       error
+	updateVXCError                       error
+	lookupPartnerPortsResponse           *megaport.LookupPartnerPortsResponse
+	lookupPartnerPortsError              error
+	listPartnerPortsResponse             *megaport.ListPartnerPortsResponse
+	listPartnerPortsError                error
+	updateVXCResponse                    *megaport.VXC
+	buyVXCErr                            error
+	updateVXCErr                         error
+	onBuyVXC                             func(context.Context, *megaport.BuyVXCRequest)
+	ListVXCResourceTagsErr               error
+	ListVXCResourceTagsResult            map[string]string
+	CapturedUpdateVXCResourceTagsRequest map[string]string
+	CapturedListVXCResourceTagsUID       string
+	UpdateVXCResourceTagsErr             error
 }
 
 func (m *mockVXCService) BuyVXC(ctx context.Context, req *megaport.BuyVXCRequest) (*megaport.BuyVXCResponse, error) {
@@ -61,9 +63,13 @@ func (m *mockVXCService) ListPartnerPorts(ctx context.Context, req *megaport.Lis
 }
 
 func (m *mockVXCService) ListVXCResourceTags(ctx context.Context, vxcID string) (map[string]string, error) {
-	return m.listVXCResourceTagsResponse, m.listVXCResourceTagsError
+	if m.ListVXCResourceTagsErr != nil {
+		return nil, m.ListVXCResourceTagsErr
+	}
+	return m.ListVXCResourceTagsResult, nil
 }
 
 func (m *mockVXCService) UpdateVXCResourceTags(ctx context.Context, vxcID string, tags map[string]string) error {
-	return m.updateVXCResourceTagsError
+	m.CapturedUpdateVXCResourceTagsRequest = tags
+	return m.UpdateVXCResourceTagsErr
 }
