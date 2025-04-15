@@ -2082,3 +2082,337 @@ func TestListMCRsCmd_WithMockClient(t *testing.T) {
 		})
 	}
 }
+
+// TestListMCRResourceTagsCmd_WithMockClient tests the list-tags command functionality
+func TestListMCRResourceTagsCmd_WithMockClient(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name          string
+		mcrUID        string
+		setupMock     func(*MockMCRService)
+		outputFormat  string
+		expectedError string
+		expectedOut   []string
+	}{
+		{
+			name:         "successful list with multiple tags",
+			mcrUID:       "mcr-123",
+			outputFormat: "table",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsResult = map[string]string{
+					"environment": "production",
+					"team":        "networking",
+					"project":     "cloud-migration",
+					"owner":       "john.smith@example.com",
+				}
+			},
+			expectedOut: []string{"environment", "production", "team", "networking"},
+		},
+		{
+			name:         "successful list with no tags",
+			mcrUID:       "mcr-456",
+			outputFormat: "table",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsResult = map[string]string{}
+			},
+			expectedOut: []string{}, // Empty output expected
+		},
+		{
+			name:         "successful list with json format",
+			mcrUID:       "mcr-789",
+			outputFormat: "json",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsResult = map[string]string{
+					"environment": "staging",
+					"cost-center": "cc-123",
+				}
+			},
+			expectedOut: []string{"\"key\": \"environment\"", "\"value\": \"staging\""},
+		},
+		{
+			name:   "error fetching tags",
+			mcrUID: "mcr-error",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsErr = fmt.Errorf("API error: not found")
+			},
+			expectedError: "error getting resource tags",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockMCRService := &MockMCRService{}
+			tt.setupMock(mockMCRService)
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockMCRService
+				return client, nil
+			}
+
+			cmd := &cobra.Command{
+				Use: "list-tags [mcrUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return ListMCRResourceTags(cmd, args, false, tt.outputFormat)
+				},
+			}
+
+			// Add output format flag
+			cmd.Flags().StringP("output", "o", "table", "Output format (json, table)")
+			if tt.outputFormat != "" {
+				err := cmd.Flags().Set("output", tt.outputFormat)
+				if err != nil {
+					t.Fatalf("Failed to set output format: %v", err)
+				}
+			}
+
+			var err error
+			output := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.mcrUID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				for _, expected := range tt.expectedOut {
+					assert.Contains(t, output, expected)
+				}
+
+				// If no expected output is defined but we expected success, make sure there's no error message
+				if len(tt.expectedOut) == 0 && tt.expectedError == "" {
+					assert.NotContains(t, output, "Error")
+				}
+			}
+		})
+	}
+}
+
+// TestUpdateMCRResourceTagsCmd_WithMockClient tests the update-tags command functionality
+func TestUpdateMCRResourceTagsCmd_WithMockClient(t *testing.T) {
+	// Save original functions and restore after test
+	originalLoginFunc := config.LoginFunc
+	originalResourcePrompt := utils.UpdateResourceTagsPrompt
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		utils.UpdateResourceTagsPrompt = originalResourcePrompt
+	}()
+
+	tests := []struct {
+		name                 string
+		mcrUID               string
+		interactive          bool
+		promptResult         map[string]string
+		promptError          error
+		jsonInput            string
+		jsonFile             string
+		existingTags         map[string]string
+		setupMock            func(*MockMCRService)
+		expectedError        string
+		expectedOutput       string
+		expectedCapturedTags map[string]string
+	}{
+		{
+			name:        "successful update with interactive mode",
+			mcrUID:      "mcr-123",
+			interactive: true,
+			existingTags: map[string]string{
+				"environment": "staging",
+			},
+			promptResult: map[string]string{
+				"environment": "production",
+				"team":        "networking",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsResult = map[string]string{
+					"environment": "staging",
+				}
+			},
+			expectedOutput: "Resource tags updated for MCR mcr-123",
+			expectedCapturedTags: map[string]string{
+				"environment": "production",
+				"team":        "networking",
+			},
+		},
+		{
+			name:   "successful update with json",
+			mcrUID: "mcr-456",
+			jsonInput: `{
+				"environment": "production", 
+				"team": "networking",
+				"project": "cloud-migration"
+			}`,
+			existingTags: map[string]string{
+				"environment": "development",
+				"owner":       "john.doe@example.com",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsResult = map[string]string{
+					"environment": "development",
+					"owner":       "john.doe@example.com",
+				}
+			},
+			expectedOutput: "Resource tags updated for MCR mcr-456",
+			expectedCapturedTags: map[string]string{
+				"environment": "production",
+				"team":        "networking",
+				"project":     "cloud-migration",
+			},
+		},
+		{
+			name:      "error with invalid json",
+			mcrUID:    "mcr-789",
+			jsonInput: `{invalid json}`,
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsResult = map[string]string{}
+			},
+			expectedError: "error parsing JSON",
+		},
+		{
+			name:        "error in interactive mode",
+			mcrUID:      "mcr-prompt-error",
+			interactive: true,
+			existingTags: map[string]string{
+				"environment": "staging",
+			},
+			promptError: fmt.Errorf("user cancelled input"),
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsResult = map[string]string{
+					"environment": "staging",
+				}
+			},
+			expectedError: "user cancelled input",
+		},
+		{
+			name:   "error with API update",
+			mcrUID: "mcr-update-error",
+			jsonInput: `{
+				"environment": "production"
+			}`,
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsResult = map[string]string{}
+				m.UpdateMCRResourceTagsErr = fmt.Errorf("API error: unauthorized")
+			},
+			expectedError: "failed to update resource tags",
+		},
+		{
+			name:   "error with API tag listing",
+			mcrUID: "mcr-list-error",
+			jsonInput: `{
+				"environment": "production"
+			}`,
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsErr = fmt.Errorf("API error: resource not found")
+			},
+			expectedError: "failed to get existing resource tags",
+		},
+		{
+			name:      "empty tags clear all existing tags",
+			mcrUID:    "mcr-clear-tags",
+			jsonInput: `{}`,
+			existingTags: map[string]string{
+				"environment": "staging",
+				"team":        "networking",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsResult = map[string]string{
+					"environment": "staging",
+					"team":        "networking",
+				}
+			},
+			expectedOutput:       "No tags provided. The MCR will have all existing tags removed",
+			expectedCapturedTags: map[string]string{},
+		},
+		{
+			name:   "no input provided",
+			mcrUID: "mcr-no-input",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsResult = map[string]string{}
+			},
+			expectedError: "no input provided",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mock service
+			mockMCRService := &MockMCRService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockMCRService)
+			}
+
+			// Mock the login function
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockMCRService
+				return client, nil
+			}
+
+			// Mock the interactive prompt specifically for UpdateResourceTagsPrompt
+			utils.UpdateResourceTagsPrompt = func(existingTags map[string]string, noColor bool) (map[string]string, error) {
+				return tt.promptResult, tt.promptError
+			}
+
+			// Create command
+			cmd := &cobra.Command{
+				Use: "update-tags [mcrUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return UpdateMCRResourceTags(cmd, args, false)
+				},
+			}
+
+			// Add flags
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			// Set the flags as needed
+			if tt.interactive {
+				err := cmd.Flags().Set("interactive", "true")
+				if err != nil {
+					t.Fatalf("Failed to set interactive flag: %v", err)
+				}
+			}
+
+			if tt.jsonInput != "" {
+				err := cmd.Flags().Set("json", tt.jsonInput)
+				if err != nil {
+					t.Fatalf("Failed to set json flag: %v", err)
+				}
+			}
+
+			if tt.jsonFile != "" {
+				err := cmd.Flags().Set("json-file", tt.jsonFile)
+				if err != nil {
+					t.Fatalf("Failed to set json-file flag: %v", err)
+				}
+			}
+
+			// Run the command and capture output
+			var err error
+			output := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.mcrUID})
+			})
+
+			// Check results
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, output, tt.expectedOutput)
+
+				// Verify the captured request
+				if tt.expectedCapturedTags != nil {
+					assert.NotNil(t, mockMCRService.CapturedUpdateMCRResourceTagsRequest)
+					assert.Equal(t, tt.expectedCapturedTags, mockMCRService.CapturedUpdateMCRResourceTagsRequest)
+				}
+			}
+		})
+	}
+}

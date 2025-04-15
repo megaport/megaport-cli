@@ -38,7 +38,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("cost-centre", "The cost centre for the port").
 		WithOptionalFlag("promo-code", "A promotional code for the port").
 		WithExample("megaport-cli ports buy --interactive").
-		WithExample("megaport-cli ports buy --name \"My Port\" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true").
+		WithExample(`megaport-cli ports buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true`).
+		WithExample(`megaport-cli ports buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true --resource-tags '{"env":"prod","owner":"network-team"}'`).
 		WithExample("megaport-cli ports buy --json '{\"name\":\"My Port\",\"term\":12,\"portSpeed\":10000,\"locationId\":123,\"marketPlaceVisibility\":true}'").
 		WithExample("megaport-cli ports buy --json-file ./port-config.json").
 		WithJSONExample(`{
@@ -48,8 +49,15 @@ func AddCommandsTo(rootCmd *cobra.Command) {
   "locationId": 123,
   "marketPlaceVisibility": true,
   "diversityZone": "blue",
-  "costCentre": "IT-2023"
+  "costCentre": "IT-2023",
+  "resourceTags": {
+    "environment": "production",
+    "department": "networking",
+    "project": "cloud-migration",
+    "owner": "john.doe@example.com"
+  }
 }`).
+		WithImportantNote("Resource tags allow you to categorize resources for organization, filtering, and billing purposes").
 		WithImportantNote("Required flags (name, term, port-speed, location-id, marketplace-visibility) can be skipped when using --interactive, --json, or --json-file").
 		WithRootCmd(rootCmd).
 		WithConditionalRequirements("name", "term", "port-speed", "location-id", "marketplace-visibility").
@@ -71,7 +79,26 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("diversity-zone", "The diversity zone for the LAG port").
 		WithOptionalFlag("cost-centre", "The cost centre for the LAG port").
 		WithOptionalFlag("promo-code", "A promotional code for the LAG port").
-		// Add examples and other documentation...
+		WithExample("megaport-cli ports buy-lag --interactive").
+		WithExample(`megaport-cli ports buy-lag --name "My LAG Port" --term 12 --port-speed 10000 --location-id 123 --lag-count 2 --marketplace-visibility true`).
+		WithExample(`megaport-cli ports buy-lag --name "My LAG Port" --term 12 --port-speed 10000 --location-id 123 --lag-count 2 --marketplace-visibility true --resource-tags '{"env":"prod","owner":"network-team"}'`).
+		WithExample("megaport-cli ports buy-lag --json '{\"name\":\"My LAG Port\",\"term\":12,\"portSpeed\":10000,\"locationId\":123,\"lagCount\":2,\"marketPlaceVisibility\":true}'").
+		WithJSONExample(`{
+  "name": "My LAG Port",
+  "term": 12,
+  "portSpeed": 10000,
+  "locationId": 123,
+  "lagCount": 2,
+  "marketPlaceVisibility": true,
+  "diversityZone": "blue",
+  "costCentre": "IT-2023",
+  "resourceTags": {
+    "environment": "production",
+    "department": "networking",
+    "application": "database-cluster"
+  }
+}`).
+		WithImportantNote("Resource tags allow you to categorize resources for organization, filtering, and billing purposes").
 		WithImportantNote("Required flags can be skipped when using --interactive, --json, or --json-file").
 		WithRootCmd(rootCmd).
 		WithConditionalRequirements("name", "term", "port-speed", "location-id", "lag-count", "marketplace-visibility").
@@ -193,6 +220,26 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
+	// Add list-tags command
+	listTagsCmd := cmdbuilder.NewCommand("list-tags", "List resource tags on a specific port.").
+		WithLongDesc("Lists all resource tags associated with a specific port").
+		WithArgs(cobra.ExactArgs(1)).
+		WithOutputFormatRunFunc(ListPortResourceTags).
+		WithExample("megaport port list-tags port-abc123").
+		Build()
+
+	// Add update-tags command
+	updateTagsCmd := cmdbuilder.NewCommand("update-tags", "Update resource tags on a specific port").
+		WithLongDesc("Update resource tags associated with a specific port. Tags can be provided via interactive prompts, JSON string, or JSON file.").
+		WithArgs(cobra.ExactArgs(1)).
+		WithColorAwareRunFunc(UpdatePortResourceTags).
+		WithStandardInputFlags().
+		WithExample("megaport-cli ports update-tags port-abc123 --interactive").
+		WithExample("megaport-cli ports update-tags port-abc123 --json '{\"env\":\"production\",\"team\":\"network\"}'").
+		WithExample("megaport-cli ports update-tags port-abc123 --json-file ./tags.json").
+		WithImportantNote("All existing tags will be replaced with the provided tags. To clear all tags, provide an empty tag set.").
+		Build()
+
 	// Add commands to their parents
 	portsCmd.AddCommand(
 		buyPortCmd,
@@ -205,6 +252,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		lockPortCmd,
 		unlockPortCmd,
 		checkPortVLANAvailabilityCmd,
+		listTagsCmd,
+		updateTagsCmd,
 	)
 	rootCmd.AddCommand(portsCmd)
 }

@@ -2,7 +2,10 @@ package ports
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"sort"
 	"strconv"
 	"time"
 
@@ -422,7 +425,9 @@ func DeletePort(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func RestorePort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	// Retrieve the port UID from the command line arguments.
 	portUID := args[0]
@@ -457,7 +462,9 @@ func RestorePort(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func LockPort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	// Retrieve the port UID from the command line arguments.
 	portUID := args[0]
@@ -492,7 +499,9 @@ func LockPort(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UnlockPort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	// Retrieve the port UID from the command line arguments.
 	portUID := args[0]
@@ -527,7 +536,9 @@ func UnlockPort(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func CheckPortVLANAvailability(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	// Retrieve the port UID and VLAN ID from the command line arguments.
 	portUID := args[0]
@@ -562,5 +573,163 @@ func CheckPortVLANAvailability(cmd *cobra.Command, args []string, noColor bool) 
 	} else {
 		output.PrintWarning("VLAN %d is not available on port %s", noColor, vlan, output.FormatUID(portUID, noColor))
 	}
+	return nil
+}
+
+// ListPortResourceTags retrieves and displays resource tags for a port
+func ListPortResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	portUID := args[0]
+
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Login to the Megaport API
+	client, err := config.LoginFunc(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Start spinner for listing resource tags
+	spinner := output.PrintListingResourceTags("Port", portUID, noColor)
+
+	// Get the resource tags for the port
+	tagsMap, err := client.PortService.ListPortResourceTags(ctx, portUID)
+
+	// Stop spinner
+	spinner.Stop()
+	if err != nil {
+		output.PrintError("Error getting resource tags for port %s: %v", noColor, portUID, err)
+		return fmt.Errorf("error getting resource tags for port %s: %v", portUID, err)
+	}
+
+	// Convert map to slice of ResourceTag for output
+	tags := make([]output.ResourceTag, 0, len(tagsMap))
+	for k, v := range tagsMap {
+		tags = append(tags, output.ResourceTag{Key: k, Value: v})
+	}
+
+	// Sort tags by key for consistent output
+	sort.Slice(tags, func(i, j int) bool {
+		return tags[i].Key < tags[j].Key
+	})
+
+	// Use the existing PrintOutput function
+	return output.PrintOutput(tags, outputFormat, noColor)
+}
+
+// UpdatePortResourceTags updates resource tags for a port
+func UpdatePortResourceTags(cmd *cobra.Command, args []string, noColor bool) error {
+	portUID := args[0]
+
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Login to the Megaport API
+	client, err := config.LoginFunc(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return err
+	}
+
+	existingTags, err := client.PortService.ListPortResourceTags(ctx, portUID)
+	if err != nil {
+		output.PrintError("Failed to get existing resource tags: %v", noColor, err)
+		return err
+	}
+
+	// Check if we're in interactive mode
+	interactive, _ := cmd.Flags().GetBool("interactive")
+
+	// Variables to store tags
+	var resourceTags map[string]string
+
+	if interactive {
+		// Interactive mode: prompt for tags
+		resourceTags, err = utils.UpdateResourceTagsPrompt(existingTags, noColor)
+		if err != nil {
+			output.PrintError("Failed to update resource tags", noColor, err)
+			return err
+		}
+	} else {
+		// Check if we have JSON input (also supporting test flags)
+		jsonStr, _ := cmd.Flags().GetString("json")
+		jsonFile, _ := cmd.Flags().GetString("json-file")
+
+		// Support deprecated flags for tests
+		tagsStr, _ := cmd.Flags().GetString("tags")
+		tagsFile, _ := cmd.Flags().GetString("tags-file")
+		resourceTagsStr, _ := cmd.Flags().GetString("resource-tags")
+
+		// Process JSON input priority: json > json-file > tags > resource-tags > tags-file
+		if jsonStr != "" {
+			// Parse JSON string
+			if err := json.Unmarshal([]byte(jsonStr), &resourceTags); err != nil {
+				output.PrintError("Failed to parse JSON: %v", noColor, err)
+				return fmt.Errorf("error parsing JSON: %v", err)
+			}
+		} else if jsonFile != "" {
+			// Read from file
+			jsonData, err := os.ReadFile(jsonFile)
+			if err != nil {
+				output.PrintError("Failed to read JSON file: %v", noColor, err)
+				return fmt.Errorf("error reading JSON file: %v", err)
+			}
+
+			// Parse JSON from file
+			if err := json.Unmarshal(jsonData, &resourceTags); err != nil {
+				output.PrintError("Failed to parse JSON file: %v", noColor, err)
+				return fmt.Errorf("error parsing JSON file: %v", err)
+			}
+		} else if tagsStr != "" {
+			// Support for tests using tags flag
+			if err := json.Unmarshal([]byte(tagsStr), &resourceTags); err != nil {
+				output.PrintError("Failed to parse tags JSON: %v", noColor, err)
+				return fmt.Errorf("error parsing tags JSON: %v", err)
+			}
+		} else if resourceTagsStr != "" {
+			// Support for tests using resource-tags flag
+			if err := json.Unmarshal([]byte(resourceTagsStr), &resourceTags); err != nil {
+				output.PrintError("Failed to parse resource-tags JSON: %v", noColor, err)
+				return fmt.Errorf("error parsing resource-tags JSON: %v", err)
+			}
+		} else if tagsFile != "" {
+			// Support for tests using tags-file flag
+			tagData, err := os.ReadFile(tagsFile)
+			if err != nil {
+				output.PrintError("Failed to read tags file: %v", noColor, err)
+				return fmt.Errorf("error reading tags file: %v", err)
+			}
+			if err := json.Unmarshal(tagData, &resourceTags); err != nil {
+				output.PrintError("Failed to parse tags file JSON: %v", noColor, err)
+				return fmt.Errorf("error parsing tags file JSON: %v", err)
+			}
+		} else {
+			output.PrintError("No input provided for tags", noColor)
+			return fmt.Errorf("no input provided, use --interactive, --json, --json-file, --tags, --resource-tags, or --tags-file to specify resource tags")
+		}
+	}
+
+	// If we got here, we have tags to update
+	if len(resourceTags) == 0 {
+		fmt.Println("No tags provided. The port will have all existing tags removed.")
+	}
+
+	// Start spinner for updating resource tags
+	spinner := output.PrintResourceUpdating("Port-Resource-Tags", portUID, noColor)
+
+	// Update tags
+	err = client.PortService.UpdatePortResourceTags(ctx, portUID, resourceTags)
+
+	// Stop spinner
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to update resource tags: %v", noColor, err)
+		return fmt.Errorf("failed to update resource tags: %v", err)
+	}
+
+	fmt.Printf("Resource tags updated for port %s\n", portUID)
 	return nil
 }

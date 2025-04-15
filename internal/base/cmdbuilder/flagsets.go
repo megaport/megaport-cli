@@ -22,6 +22,15 @@ func (b *CommandBuilder) WithJSONConfigFlags() *CommandBuilder {
 	return b
 }
 
+// WithResourceTagFlags adds flags for resource tagging
+func (b *CommandBuilder) WithResourceTagFlags() *CommandBuilder {
+	b.WithFlag("resource-tags", "", "Resource tags as a JSON string (e.g. {\"key1\":\"value1\",\"key2\":\"value2\"})")
+	b.WithFlag("resource-tags-file", "", "Path to JSON file containing resource tags")
+	b.WithOptionalFlag("resource-tags", "Resource tags as a JSON string (e.g. {\"key1\":\"value1\",\"key2\":\"value2\"})")
+	b.WithOptionalFlag("resource-tags-file", "Path to JSON file containing resource tags")
+	return b
+}
+
 // WithMCRDeleteFlags adds flags for deletion
 func (b *CommandBuilder) WithDeleteFlags() *CommandBuilder {
 	b.WithBoolFlagP("force", "f", false, "Skip confirmation prompt")

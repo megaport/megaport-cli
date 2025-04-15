@@ -17,6 +17,7 @@ func (b *CommandBuilder) WithPortCreationFlags() *CommandBuilder {
 	b.WithIntFlag("port-speed", 0, "Port speed in Mbps (1000, 10000, or 100000)")
 	b.WithIntFlag("location-id", 0, "Location ID where the port will be provisioned")
 	b.WithFlag("promo-code", "", "Promotional code for discounts")
+	b.WithResourceTagFlags()
 	return b
 }
 

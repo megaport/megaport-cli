@@ -36,6 +36,7 @@ func (b *CommandBuilder) WithVXCCreateFlags() *CommandBuilder {
 	b.WithIntFlag("b-end-vnic-index", 0, "vNIC index for B-End MVE")
 	b.WithFlag("promo-code", "", "Promotional code")
 	b.WithFlag("service-key", "", "Service key")
+	b.WithResourceTagFlags()
 	return b
 }
 

@@ -18,6 +18,7 @@ func (b *CommandBuilder) WithMVECreateFlags() *CommandBuilder {
 	b.WithFlag("diversity-zone", "", "The diversity zone for the MVE")
 	b.WithFlag("promo-code", "", "Promotional code for discounts")
 	b.WithFlag("cost-centre", "", "Cost centre for billing")
+	b.WithResourceTagFlags()
 	return b
 }
 

@@ -162,6 +162,12 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 		return nil, err
 	}
 
+	// Prompt for resource tags
+	resourceTags, err := utils.ResourceTagsPrompt(noColor)
+	if err != nil {
+		return nil, err
+	}
+
 	req := &megaport.BuyMCRRequest{
 		Name:          name,
 		Term:          term,
@@ -171,6 +177,7 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 		DiversityZone: diversityZone,
 		CostCentre:    costCentre,
 		PromoCode:     promoCode,
+		ResourceTags:  resourceTags,
 	}
 
 	// Validate the request

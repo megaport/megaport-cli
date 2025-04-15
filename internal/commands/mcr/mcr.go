@@ -47,9 +47,11 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("diversity-zone", "The diversity zone for the MCR").
 		WithOptionalFlag("cost-centre", "The cost centre for the MCR").
 		WithOptionalFlag("promo-code", "A promotional code for the MCR").
+		WithOptionalFlag("resource-tags", "JSON string of key-value pairs for resource tagging").
 		WithExample("megaport-cli mcr buy --interactive").
-		WithExample("megaport-cli mcr buy --name \"My MCR\" --term 12 --port-speed 5000 --location-id 123 --mcr-asn 65000").
-		WithExample("megaport-cli mcr buy --json '{\"name\":\"My MCR\",\"term\":12,\"portSpeed\":5000,\"locationId\":123,\"mcrAsn\":65000}'").
+		WithExample("megaport-cli mcr buy --name \"My MCR\" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility true --mcr-asn 65000").
+		WithExample("megaport-cli mcr buy --name \"My MCR\" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility true --resource-tags '{\"env\":\"prod\",\"owner\":\"network-team\"}'").
+		WithExample("megaport-cli mcr buy --json '{\"name\":\"My MCR\",\"term\":12,\"portSpeed\":5000,\"locationId\":123,\"mcrAsn\":65000,\"marketplaceVisibility\":true}'").
 		WithExample("megaport-cli mcr buy --json-file ./mcr-config.json").
 		WithJSONExample(`{
   "name": "My MCR",
@@ -57,13 +59,21 @@ func AddCommandsTo(rootCmd *cobra.Command) {
   "portSpeed": 5000,
   "locationId": 123,
   "mcrAsn": 65000,
+  "marketplaceVisibility": true,
   "diversityZone": "blue",
   "costCentre": "IT-Networking",
-  "promoCode": "SUMMER2024"
+  "promoCode": "SUMMER2024",
+  "resourceTags": {
+    "environment": "production",
+    "department": "networking",
+    "project": "cloud-migration",
+    "owner": "john.doe@example.com"
+  }
 }`).
 		WithImportantNote("The location_id must correspond to a valid location in the Megaport API").
 		WithImportantNote("The port_speed must be one of the supported speeds (1000, 2500, 5000, or 10000 Mbps)").
 		WithImportantNote("If mcr_asn is not provided, a private ASN will be automatically assigned").
+		WithImportantNote("Resource tags allow you to categorize resources for organization and billing purposes").
 		WithImportantNote("Required flags (name, term, port-speed, location-id, marketplace-visibility) can be skipped when using --interactive, --json, or --json-file").
 		WithRootCmd(rootCmd).
 		WithConditionalRequirements("name", "term", "port-speed", "location-id", "marketplace-visibility").
@@ -224,6 +234,26 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
+	// Add list-tags command
+	listTagsCmd := cmdbuilder.NewCommand("list-tags", "List resource tags on a specific MCR").
+		WithLongDesc("Lists all resource tags associated with a specific MCR").
+		WithArgs(cobra.ExactArgs(1)).
+		WithOutputFormatRunFunc(ListMCRResourceTags).
+		WithExample("megaport-cli mcr list-tags mcr-abc123").
+		Build()
+
+	// Add update-tags command
+	updateTagsCmd := cmdbuilder.NewCommand("update-tags", "Update resource tags on a specific MCR").
+		WithLongDesc("Update resource tags associated with a specific MCR. Tags can be provided via interactive prompts, JSON string, or JSON file.").
+		WithArgs(cobra.ExactArgs(1)).
+		WithColorAwareRunFunc(UpdateMCRResourceTags).
+		WithStandardInputFlags().
+		WithExample("megaport-cli mcr update-tags mcr-abc123 --interactive").
+		WithExample("megaport-cli mcr update-tags mcr-abc123 --json '{\"env\":\"production\",\"team\":\"network\"}'").
+		WithExample("megaport-cli mcr update-tags mcr-abc123 --json-file ./tags.json").
+		WithImportantNote("All existing tags will be replaced with the provided tags. To clear all tags, provide an empty tag set.").
+		Build()
+
 	// Add commands to their parents
 	mcrCmd.AddCommand(
 		getMCRCmd,
@@ -237,6 +267,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		updateMCRPrefixFilterListCmd,
 		deleteMCRPrefixFilterListCmd,
 		listMCRsCmd,
+		listTagsCmd,
+		updateTagsCmd,
 	)
 	rootCmd.AddCommand(mcrCmd)
 }
