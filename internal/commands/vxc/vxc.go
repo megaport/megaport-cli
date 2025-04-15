@@ -43,7 +43,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithDocumentedRequiredFlag("b-end-vlan", "VLAN for B-End (0-4093, except 1)").
 		WithExample("megaport-cli vxc buy --interactive").
 		WithExample("megaport-cli vxc buy --name \"My VXC\" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200").
-		WithExample("megaport-cli vxc buy --json '{\"vxcName\":\"My VXC\",\"rateLimit\":1000,\"term\":12,\"portUid\":\"port-123\",\"aEndConfiguration\":{\"vlan\":100},\"bEndConfiguration\":{\"productUID\":\"port-456\",\"vlan\":200}}'").
+		WithExample("megaport-cli vxc buy --name \"My VXC\" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200 --resource-tags '{\"environment\":\"production\",\"team\":\"networking\"}'").
+		WithExample("megaport-cli vxc buy --json '{\"vxcName\":\"My VXC\",\"rateLimit\":1000,\"term\":12,\"portUid\":\"port-123\",\"aEndConfiguration\":{\"vlan\":100},\"bEndConfiguration\":{\"productUID\":\"port-456\",\"vlan\":200},\"resourceTags\":{\"environment\":\"production\",\"owner\":\"network-team\"}}'").
 		WithExample("megaport-cli vxc buy --json-file ./vxc-config.json").
 		WithJSONExample(`{
   "vxcName": "My VXC",
@@ -57,7 +58,12 @@ func AddCommandsTo(rootCmd *cobra.Command) {
     "productUID": "port-456",
     "vlan": 200
   },
-  "costCentre": "IT Department"
+  "costCentre": "IT Department",
+  "resourceTags": {
+    "environment": "production",
+    "owner": "network-team",
+    "project": "cloud-migration"
+  }
 }`).
 		WithRootCmd(rootCmd).
 		WithConditionalRequirements("name", "rate-limit", "term", "a-end-uid").

@@ -37,8 +37,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("promo-code", "Promotional code for discounts").
 		WithOptionalFlag("cost-centre", "Cost centre for billing").
 		WithExample("megaport-cli mve buy --interactive").
-		WithExample("megaport-cli mve buy --name \"My MVE\" --term 12 --location-id 123 --vendor-config '{\"vendor\":\"cisco\",\"imageId\":123,\"productSize\":\"MEDIUM\"}' --vnics '[{\"description\":\"Data Plane\",\"vlan\":100}]'").
-		WithExample("megaport-cli mve buy --json '{\"name\":\"My MVE\",\"term\":12,\"locationId\":123,\"vendorConfig\":{\"vendor\":\"cisco\",\"imageId\":123,\"productSize\":\"MEDIUM\"},\"vnics\":[{\"description\":\"Data Plane\",\"vlan\":100}]}'").
+		WithExample("megaport-cli mve buy --name \"My MVE\" --term 12 --location-id 123 --vendor-config '{\"vendor\":\"cisco\",\"imageId\":123,\"productSize\":\"MEDIUM\"}' --vnics '[{\"description\":\"Data Plane\",\"vlan\":100}]' --resource-tags '{\"env\":\"prod\",\"owner\":\"netops\"}'").
+		WithExample("megaport-cli mve buy --json '{\"name\":\"My MVE\",\"term\":12,\"locationId\":123,\"vendorConfig\":{\"vendor\":\"cisco\",\"imageId\":123,\"productSize\":\"MEDIUM\"},\"vnics\":[{\"description\":\"Data Plane\",\"vlan\":100}],\"resourceTags\":{\"env\":\"prod\",\"owner\":\"netops\"}}'").
 		WithExample("megaport-cli mve buy --json-file ./mve-config.json").
 		WithJSONExample(`{
   "name": "My MVE Display Name",
@@ -60,12 +60,18 @@ func AddCommandsTo(rootCmd *cobra.Command) {
   "vnics": [
     {"description": "Data Plane", "vlan": 100},
     {"description": "Management", "vlan": 200}
-  ]
+  ],
+  "resourceTags": { // Add resourceTags to JSON example
+    "environment": "production",
+    "billing_code": "BC12345",
+    "owner_team": "network-operations"
+  }
 }`).
 		WithImportantNote("For production deployments, you may want to use a JSON file to manage complex configurations").
 		WithImportantNote("To list available images and their IDs, use: megaport-cli mve list-images").
 		WithImportantNote("To list available sizes, use: megaport-cli mve list-sizes").
 		WithImportantNote("Location IDs can be retrieved with: megaport-cli locations list").
+		WithImportantNote("Resource tags are key-value pairs used for organizing and managing resources.").
 		WithRootCmd(rootCmd).
 		WithConditionalRequirements("name", "term", "location-id", "vendor-config", "vnics").
 		Build()

@@ -19,8 +19,11 @@ This command allows you to purchase a port by providing the necessary details.
   - `cost-centre`: The cost centre for the port
   - `diversity-zone`: The diversity zone for the port
   - `promo-code`: A promotional code for the port
+  - `resource-tags`: Resource tags as a JSON string (e.g. {"key1":"value1","key2":"value2"})
+  - `resource-tags-file`: Path to JSON file containing resource tags
 
 ### Important Notes
+  - Resource tags allow you to categorize resources for organization, filtering, and billing purposes
   - Required flags (name, term, port-speed, location-id, marketplace-visibility) can be skipped when using --interactive, --json, or --json-file
 
 ### Example Usage
@@ -28,6 +31,7 @@ This command allows you to purchase a port by providing the necessary details.
 ```sh
   megaport-cli ports buy --interactive
   megaport-cli ports buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true
+  megaport-cli ports buy --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true --resource-tags '{"env":"prod","owner":"network-team"}'
   megaport-cli ports buy --json '{"name":"My Port","term":12,"portSpeed":10000,"locationId":123,"marketPlaceVisibility":true}'
   megaport-cli ports buy --json-file ./port-config.json
 ```
@@ -40,7 +44,13 @@ This command allows you to purchase a port by providing the necessary details.
   "locationId": 123,
   "marketPlaceVisibility": true,
   "diversityZone": "blue",
-  "costCentre": "IT-2023"
+  "costCentre": "IT-2023",
+  "resourceTags": {
+    "environment": "production",
+    "department": "networking",
+    "project": "cloud-migration",
+    "owner": "john.doe@example.com"
+  }
 }
 
 ```
@@ -69,6 +79,8 @@ megaport-cli ports buy [flags]
 | `--name` |  |  | The name of the port (1-64 characters) | true |
 | `--port-speed` |  | `0` | The speed of the port (1000, 10000, or 100000 Mbps) | true |
 | `--promo-code` |  |  | Promotional code for discounts | false |
+| `--resource-tags` |  |  | Resource tags as a JSON string (e.g. {"key1":"value1","key2":"value2"}) | false |
+| `--resource-tags-file` |  |  | Path to JSON file containing resource tags | false |
 | `--term` |  | `0` | The term of the port (1, 12, 24, or 36 months) | true |
 
 ## Subcommands

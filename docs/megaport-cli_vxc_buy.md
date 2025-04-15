@@ -17,12 +17,17 @@ This command allows you to create a VXC by providing the necessary details.
   - `rate-limit`: Bandwidth in Mbps
   - `term`: Contract term in months (1, 12, 24, or 36)
 
+### Optional Fields
+  - `resource-tags`: Resource tags as a JSON string (e.g. {"key1":"value1","key2":"value2"})
+  - `resource-tags-file`: Path to JSON file containing resource tags
+
 ### Example Usage
 
 ```sh
   megaport-cli vxc buy --interactive
   megaport-cli vxc buy --name "My VXC" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200
-  megaport-cli vxc buy --json '{"vxcName":"My VXC","rateLimit":1000,"term":12,"portUid":"port-123","aEndConfiguration":{"vlan":100},"bEndConfiguration":{"productUID":"port-456","vlan":200}}'
+  megaport-cli vxc buy --name "My VXC" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200 --resource-tags '{"environment":"production","team":"networking"}'
+  megaport-cli vxc buy --json '{"vxcName":"My VXC","rateLimit":1000,"term":12,"portUid":"port-123","aEndConfiguration":{"vlan":100},"bEndConfiguration":{"productUID":"port-456","vlan":200},"resourceTags":{"environment":"production","owner":"network-team"}}'
   megaport-cli vxc buy --json-file ./vxc-config.json
 ```
 ### JSON Format Example
@@ -39,7 +44,12 @@ This command allows you to create a VXC by providing the necessary details.
     "productUID": "port-456",
     "vlan": 200
   },
-  "costCentre": "IT Department"
+  "costCentre": "IT Department",
+  "resourceTags": {
+    "environment": "production",
+    "owner": "network-team",
+    "project": "cloud-migration"
+  }
 }
 
 ```
@@ -75,6 +85,8 @@ megaport-cli vxc buy [flags]
 | `--name` |  |  | Name of the VXC | true |
 | `--promo-code` |  |  | Promotional code | false |
 | `--rate-limit` |  | `0` | Bandwidth in Mbps | true |
+| `--resource-tags` |  |  | Resource tags as a JSON string (e.g. {"key1":"value1","key2":"value2"}) | false |
+| `--resource-tags-file` |  |  | Path to JSON file containing resource tags | false |
 | `--service-key` |  |  | Service key | false |
 | `--term` |  | `0` | Contract term in months (1, 12, 24, or 36) | true |
 
