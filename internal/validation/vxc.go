@@ -2,7 +2,6 @@ package validation
 
 import (
 	"fmt"
-	"net"
 	"strings"
 )
 
@@ -48,25 +47,6 @@ const (
 )
 
 // Helper functions for validation
-
-// validateIPv4CIDR uses the net package to validate CIDR notation
-func validateIPv4CIDR(cidr string, fieldName string) error {
-	if cidr == "" {
-		return NewValidationError(fieldName, cidr, "cannot be empty")
-	}
-
-	_, ipNet, err := net.ParseCIDR(cidr)
-	if err != nil {
-		return NewValidationError(fieldName, cidr, "must be a valid IPv4 CIDR notation")
-	}
-
-	// Ensure it's an IPv4 CIDR
-	if ipNet.IP.To4() == nil {
-		return NewValidationError(fieldName, cidr, "must be an IPv4 CIDR (not IPv6)")
-	}
-
-	return nil
-}
 
 // ValidateVXCEndVLAN validates the VLAN ID for a VXC endpoint.
 func ValidateVXCEndVLAN(vlan int) error {
@@ -126,13 +106,13 @@ func ValidateAWSPartnerConfig(connectType string, ownerAccount string, asn int, 
 
 	// Validate IP Addresses if provided
 	if customerIPAddress != "" {
-		if err := ValidateIPv4CIDR(customerIPAddress); err != nil {
+		if err := ValidateCIDR(customerIPAddress, "AWS customer IP address"); err != nil {
 			return NewValidationError("AWS customer IP address", customerIPAddress, "must be a valid IPv4 CIDR")
 		}
 	}
 
 	if amazonIPAddress != "" {
-		if err := ValidateIPv4CIDR(amazonIPAddress); err != nil {
+		if err := ValidateCIDR(amazonIPAddress, "AWS Amazon IP address"); err != nil {
 			return NewValidationError("AWS Amazon IP address", amazonIPAddress, "must be a valid IPv4 CIDR")
 		}
 	}
@@ -185,13 +165,13 @@ func ValidateAzurePartnerConfig(serviceKey string, peers []map[string]interface{
 
 			// Validate subnets if provided
 			if primarySubnet, ok := GetStringFromInterface(peer["primary_subnet"]); ok && primarySubnet != "" {
-				if err := validateIPv4CIDR(primarySubnet, fmt.Sprintf("Azure peer [%d] primary subnet", i)); err != nil {
+				if err := ValidateCIDR(primarySubnet, fmt.Sprintf("Azure peer [%d] primary subnet", i)); err != nil {
 					return err
 				}
 			}
 
 			if secondarySubnet, ok := GetStringFromInterface(peer["secondary_subnet"]); ok && secondarySubnet != "" {
-				if err := validateIPv4CIDR(secondarySubnet, fmt.Sprintf("Azure peer [%d] secondary subnet", i)); err != nil {
+				if err := ValidateCIDR(secondarySubnet, fmt.Sprintf("Azure peer [%d] secondary subnet", i)); err != nil {
 					return err
 				}
 			}
@@ -266,23 +246,18 @@ func ValidateIBMPartnerConfig(accountID string, customerASN int, name string, cu
 
 	// Validate IP addresses if provided
 	if customerIPAddress != "" {
-		if err := validateIPv4CIDR(customerIPAddress, "IBM customer IP address"); err != nil {
+		if err := ValidateCIDR(customerIPAddress, "IBM customer IP address"); err != nil {
 			return err
 		}
 	}
 
 	if providerIPAddress != "" {
-		if err := validateIPv4CIDR(providerIPAddress, "IBM provider IP address"); err != nil {
+		if err := ValidateCIDR(providerIPAddress, "IBM provider IP address"); err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-// ValidateIPv4CIDR validates that a string is a valid IPv4 CIDR
-func ValidateIPv4CIDR(cidr string) error {
-	return validateIPv4CIDR(cidr, "CIDR")
 }
 
 // ValidateVXCPartnerConfig validates that the partner configuration is valid
@@ -459,7 +434,7 @@ func ValidateVrouterPartnerConfig(interfaces []map[string]interface{}) error {
 					return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP address [%d]", i, j), ip,
 						"must be a string in CIDR format")
 				}
-				if err := validateIPv4CIDR(ipStr, fmt.Sprintf("vRouter interface [%d] IP address [%d]", i, j)); err != nil {
+				if err := ValidateCIDR(ipStr, fmt.Sprintf("vRouter interface [%d] IP address [%d]", i, j)); err != nil {
 					return err
 				}
 			}
@@ -473,7 +448,7 @@ func ValidateVrouterPartnerConfig(interfaces []map[string]interface{}) error {
 					return NewValidationError(fmt.Sprintf("vRouter interface [%d] NAT IP address [%d]", i, j), ip,
 						"must be a string in CIDR format")
 				}
-				if err := validateIPv4CIDR(ipStr, fmt.Sprintf("vRouter interface [%d] NAT IP address [%d]", i, j)); err != nil {
+				if err := ValidateCIDR(ipStr, fmt.Sprintf("vRouter interface [%d] NAT IP address [%d]", i, j)); err != nil {
 					return err
 				}
 			}
@@ -526,7 +501,7 @@ func ValidateIPRoute(route map[string]interface{}, ifaceIndex, routeIndex int) e
 		return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP route [%d] prefix", ifaceIndex, routeIndex), route["prefix"],
 			"cannot be empty and must be a string")
 	}
-	if err := validateIPv4CIDR(prefix, fmt.Sprintf("vRouter interface [%d] IP route [%d] prefix", ifaceIndex, routeIndex)); err != nil {
+	if err := ValidateCIDR(prefix, fmt.Sprintf("vRouter interface [%d] IP route [%d] prefix", ifaceIndex, routeIndex)); err != nil {
 		return err
 	}
 
@@ -612,7 +587,7 @@ func ValidateBGPConnection(conn map[string]interface{}, ifaceIndex, connIndex in
 		return NewValidationError(fmt.Sprintf("%s local IP address", fieldPrefix), conn["local_ip_address"], "cannot be empty and must be a string")
 	}
 	if strings.Contains(localIP, "/") {
-		if err := validateIPv4CIDR(localIP, fmt.Sprintf("%s local IP address", fieldPrefix)); err != nil {
+		if err := ValidateCIDR(localIP, fmt.Sprintf("%s local IP address", fieldPrefix)); err != nil {
 			return err
 		}
 	} else {
@@ -627,7 +602,7 @@ func ValidateBGPConnection(conn map[string]interface{}, ifaceIndex, connIndex in
 		return NewValidationError(fmt.Sprintf("%s peer IP address", fieldPrefix), conn["peer_ip_address"], "cannot be empty and must be a string")
 	}
 	if strings.Contains(peerIP, "/") {
-		if err := validateIPv4CIDR(peerIP, fmt.Sprintf("%s peer IP address", fieldPrefix)); err != nil {
+		if err := ValidateCIDR(peerIP, fmt.Sprintf("%s peer IP address", fieldPrefix)); err != nil {
 			return err
 		}
 	} else {
