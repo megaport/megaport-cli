@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"net"
 	"strings"
 )
 
@@ -9,15 +10,66 @@ import (
 // This file contains validation functions for VXC-specific fields.
 // These functions are used to validate requests and responses related to VXCs.
 
-// ValidateVXCRateLimit validates a VXC rate limit
-func ValidateVXCRateLimit(rateLimit int, maxRate int) error {
-	if rateLimit <= 0 {
-		return NewValidationError("VXC rate limit", rateLimit, "must be a positive integer")
+// Constants for validation
+const (
+	// VLAN ranges
+	MinVLAN        = 2
+	MaxVLAN        = 4093
+	UntaggedVLAN   = -1
+	AutoAssignVLAN = 0
+	ReservedVLAN   = 1
+
+	// BGP validation
+	MinASPathPrependCount = 0
+	MaxASPathPrependCount = 10
+
+	// BFD validation
+	MinBFDInterval   = 300
+	MaxBFDInterval   = 30000
+	MinBFDMultiplier = 3
+	MaxBFDMultiplier = 20
+
+	// MED validation
+	MinMED = 0
+	MaxMED = 4294967295
+
+	// BGP peer types
+	BGPPeerNonCloud  = "NON_CLOUD"
+	BGPPeerPrivCloud = "PRIV_CLOUD"
+	BGPPeerPubCloud  = "PUB_CLOUD"
+
+	// BGP export policies
+	BGPExportPolicyPermit = "permit"
+	BGPExportPolicyDeny   = "deny"
+
+	// IBM validation
+	MaxIBMNameLength   = 100
+	IBMAccountIDLength = 32
+
+	// AWS connect types
+	AWSConnectTypeAWS     = "AWS"
+	AWSConnectTypeAWSHC   = "AWSHC"
+	AWSConnectTypeTransit = "transit"
+	AWSConnectTypePrivate = "private"
+	AWSConnectTypePublic  = "public"
+)
+
+// Helper functions for validation
+
+// validateIPv4CIDR uses the net package to validate CIDR notation
+func validateIPv4CIDR(cidr string, fieldName string) error {
+	if cidr == "" {
+		return NewValidationError(fieldName, cidr, "cannot be empty")
 	}
 
-	if maxRate > 0 && rateLimit > maxRate {
-		return NewValidationError("VXC rate limit", rateLimit,
-			fmt.Sprintf("cannot exceed maximum port speed of %d Mbps", maxRate))
+	_, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return NewValidationError(fieldName, cidr, "must be a valid IPv4 CIDR notation")
+	}
+
+	// Ensure it's an IPv4 CIDR
+	if ipNet.IP.To4() == nil {
+		return NewValidationError(fieldName, cidr, "must be an IPv4 CIDR (not IPv6)")
 	}
 
 	return nil
@@ -25,11 +77,12 @@ func ValidateVXCRateLimit(rateLimit int, maxRate int) error {
 
 // ValidateVXCEndVLAN validates a VXC endpoint VLAN
 func ValidateVXCEndVLAN(vlan int, endName string) error {
-	if vlan == -1 || vlan == 0 || (vlan >= 2 && vlan <= 4093) {
+	if vlan == UntaggedVLAN || vlan == AutoAssignVLAN || (vlan >= MinVLAN && vlan <= MaxVLAN) {
 		return nil
 	}
 	return NewValidationError(fmt.Sprintf("%s VLAN", endName), vlan,
-		"must be -1 (untagged), 0 (auto-assigned), or between 2-4093 (1 is reserved)")
+		fmt.Sprintf("must be %d (untagged), %d (auto-assigned), or between %d-%d (%d is reserved)",
+			UntaggedVLAN, AutoAssignVLAN, MinVLAN, MaxVLAN, ReservedVLAN))
 }
 
 // ValidateVXCEndInnerVLAN validates a VXC endpoint inner VLAN (for QinQ)
@@ -194,8 +247,8 @@ func ValidateIBMPartnerConfig(accountID string, customerASN int, name string, cu
 	}
 
 	// Validate account ID format - must be 32 hexadecimal characters
-	if len(accountID) != 32 {
-		return NewValidationError("IBM account ID", accountID, "must be exactly 32 characters")
+	if len(accountID) != IBMAccountIDLength {
+		return NewValidationError("IBM account ID", accountID, fmt.Sprintf("must be exactly %d characters", IBMAccountIDLength))
 	}
 
 	// Check if account ID contains only hexadecimal characters
@@ -213,15 +266,20 @@ func ValidateIBMPartnerConfig(accountID string, customerASN int, name string, cu
 	// Validate name if provided
 	if name != "" {
 		// Max 100 characters from 0-9 a-z A-Z / - _ ,
-		if len(name) > 100 {
-			return NewValidationError("IBM connection name", name, "must be no longer than 100 characters")
+		if len(name) > MaxIBMNameLength {
+			return NewValidationError("IBM connection name", name,
+				fmt.Sprintf("must be no longer than %d characters", MaxIBMNameLength))
+		}
+
+		validNameChars := func(c rune) bool {
+			return (c >= '0' && c <= '9') ||
+				(c >= 'a' && c <= 'z') ||
+				(c >= 'A' && c <= 'Z') ||
+				c == '/' || c == '-' || c == '_' || c == ','
 		}
 
 		for _, c := range name {
-			if !((c >= '0' && c <= '9') ||
-				(c >= 'a' && c <= 'z') ||
-				(c >= 'A' && c <= 'Z') ||
-				c == '/' || c == '-' || c == '_' || c == ',') {
+			if !validNameChars(c) {
 				return NewValidationError("IBM connection name", name,
 					"must only contain characters 0-9, a-z, A-Z, /, -, _, or ,")
 			}
@@ -230,14 +288,14 @@ func ValidateIBMPartnerConfig(accountID string, customerASN int, name string, cu
 
 	// Validate IP addresses if provided
 	if customerIPAddress != "" {
-		if err := ValidateIPv4CIDR(customerIPAddress); err != nil {
-			return NewValidationError("IBM customer IP address", customerIPAddress, "must be a valid IPv4 CIDR")
+		if err := validateIPv4CIDR(customerIPAddress, "IBM customer IP address"); err != nil {
+			return err
 		}
 	}
 
 	if providerIPAddress != "" {
-		if err := ValidateIPv4CIDR(providerIPAddress); err != nil {
-			return NewValidationError("IBM provider IP address", providerIPAddress, "must be a valid IPv4 CIDR")
+		if err := validateIPv4CIDR(providerIPAddress, "IBM provider IP address"); err != nil {
+			return err
 		}
 	}
 
@@ -246,78 +304,7 @@ func ValidateIBMPartnerConfig(accountID string, customerASN int, name string, cu
 
 // ValidateIPv4CIDR validates that a string is a valid IPv4 CIDR
 func ValidateIPv4CIDR(cidr string) error {
-	// Basic validation of IPv4 CIDR format (e.g., 192.168.1.0/24)
-	// A more sophisticated validation could use net.ParseCIDR, but that requires importing net package
-
-	// Check for slash in the CIDR
-	slashPos := -1
-	for i, c := range cidr {
-		if c == '/' {
-			slashPos = i
-			break
-		}
-	}
-
-	if slashPos == -1 {
-		return fmt.Errorf("invalid CIDR format: missing subnet mask")
-	}
-
-	// Validate IP part
-	ipPart := cidr[:slashPos]
-	octets := 0
-	currentOctet := ""
-
-	for i, c := range ipPart {
-		if c >= '0' && c <= '9' {
-			currentOctet += string(c)
-		} else if c == '.' {
-			// Check octet value
-			if currentOctet == "" {
-				return fmt.Errorf("invalid IPv4 address: empty octet")
-			}
-
-			// Parse octet value
-			var octetVal int
-			_, err := fmt.Sscanf(currentOctet, "%d", &octetVal)
-			if err != nil || octetVal < 0 || octetVal > 255 {
-				return fmt.Errorf("invalid IPv4 address: octet value must be between 0-255")
-			}
-
-			currentOctet = ""
-			octets++
-		} else {
-			return fmt.Errorf("invalid IPv4 address: contains invalid character")
-		}
-
-		// Handle the last octet
-		if i == len(ipPart)-1 {
-			if currentOctet == "" {
-				return fmt.Errorf("invalid IPv4 address: empty octet")
-			}
-
-			var octetVal int
-			_, err := fmt.Sscanf(currentOctet, "%d", &octetVal)
-			if err != nil || octetVal < 0 || octetVal > 255 {
-				return fmt.Errorf("invalid IPv4 address: octet value must be between 0-255")
-			}
-
-			octets++
-		}
-	}
-
-	if octets != 4 {
-		return fmt.Errorf("invalid IPv4 address: must have exactly 4 octets")
-	}
-
-	// Validate subnet mask part
-	maskPart := cidr[slashPos+1:]
-	var maskVal int
-	_, err := fmt.Sscanf(maskPart, "%d", &maskVal)
-	if err != nil || maskVal < 0 || maskVal > 32 {
-		return fmt.Errorf("invalid CIDR mask: must be between 0-32")
-	}
-
-	return nil
+	return validateIPv4CIDR(cidr, "CIDR")
 }
 
 // ValidateVXCPartnerConfig validates that the partner configuration is valid

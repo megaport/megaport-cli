@@ -4,41 +4,6 @@ import (
 	"testing"
 )
 
-func TestValidateVXCRateLimit(t *testing.T) {
-	tests := []struct {
-		name      string
-		rateLimit int
-		maxRate   int
-		wantErr   bool
-	}{
-		{"Valid rate limit", 100, 1000, false},
-		{"Equal to max", 1000, 1000, false},
-		{"Zero value", 0, 1000, true},
-		{"Negative value", -10, 1000, true},
-		{"Exceeds max", 1500, 1000, true},
-		{"No max specified", 2000, 0, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateVXCRateLimit(tt.rateLimit, tt.maxRate)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateVXCRateLimit() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if err != nil && tt.wantErr {
-				// Check that the error message includes the invalid value
-				if valErr, ok := err.(*ValidationError); ok {
-					if valErr.Value != tt.rateLimit {
-						t.Errorf("Expected error to contain value %d, got %v", tt.rateLimit, valErr.Value)
-					}
-				} else {
-					t.Errorf("ValidateVXCRateLimit() should return ValidationError, got %T", err)
-				}
-			}
-		})
-	}
-}
-
 func TestValidateVXCEndVLAN(t *testing.T) {
 	tests := []struct {
 		name    string
