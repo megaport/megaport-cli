@@ -88,3 +88,48 @@ func ValidateMVEProductSize(size string) error {
 	return NewValidationError("MVE product size", size,
 		fmt.Sprintf("must be one of: %v", ValidMVEProductSizes))
 }
+
+// ValidateFieldPresence checks if required fields are present and non-empty in a map
+// Returns the first missing field name, or an empty string if all required fields are present
+func ValidateFieldPresence(config map[string]interface{}, requiredFields []string) string {
+	for _, field := range requiredFields {
+		val, exists := config[field]
+		if !exists || val == nil {
+			return field
+		}
+
+		// Check for empty strings
+		if strVal, isStr := val.(string); isStr && strVal == "" {
+			return field
+		}
+	}
+	return ""
+}
+
+// ExtractFieldsWithTypes is a helper to extract multiple fields from a config map with type conversion
+// Returns a map of field name to extracted value (or nil if extraction failed)
+func ExtractFieldsWithTypes(config map[string]interface{}, fields map[string]string) map[string]interface{} {
+	result := make(map[string]interface{})
+
+	for field, fieldType := range fields {
+		switch fieldType {
+		case "string":
+			val, _ := GetStringFromInterface(config[field])
+			result[field] = val
+		case "int":
+			val, _ := GetIntFromInterface(config[field])
+			result[field] = val
+		case "bool":
+			val, _ := GetBoolFromInterface(config[field])
+			result[field] = val
+		case "string_slice":
+			val, _ := GetSliceInterfaceFromInterface(config[field])
+			result[field] = val
+		case "map_slice":
+			val, _ := GetSliceMapStringInterfaceFromInterface(config[field])
+			result[field] = val
+		}
+	}
+
+	return result
+}

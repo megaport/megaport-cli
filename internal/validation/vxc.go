@@ -90,6 +90,7 @@ func ValidateVXCRequest(name string, term int, rateLimit int, aEndUID string, bE
 
 // ValidateAWSPartnerConfig validates AWS partner configuration
 func ValidateAWSPartnerConfig(connectType string, ownerAccount string, asn int, amazonAsn int, authKey string, customerIPAddress string, amazonIPAddress string, name string, awsType string) error {
+	// Required fields check
 	if connectType == "" {
 		return NewValidationError("AWS connect type", connectType, "cannot be empty")
 	}
@@ -132,6 +133,80 @@ func ValidateAWSPartnerConfig(connectType string, ownerAccount string, asn int, 
 	}
 
 	return nil
+}
+
+// ValidateAWSPartnerConfigMap validates AWS partner configuration from a map
+func ValidateAWSPartnerConfigMap(config map[string]interface{}) error {
+	// Check required fields first
+	missingField := ValidateFieldPresence(config, []string{"connect_type", "owner_account"})
+	if missingField != "" {
+		return NewValidationError(fmt.Sprintf("AWS %s", missingField), "", "cannot be empty")
+	}
+
+	// Extract all fields with proper types
+	fields := ExtractFieldsWithTypes(config, map[string]string{
+		"connect_type":        "string",
+		"owner_account":       "string",
+		"asn":                 "int",
+		"amazon_asn":          "int",
+		"auth_key":            "string",
+		"customer_ip_address": "string",
+		"amazon_ip_address":   "string",
+		"name":                "string",
+		"type":                "string",
+	})
+
+	// Call the original validator with extracted fields
+	connectType, ok1 := fields["connect_type"].(string)
+	ownerAccount, ok2 := fields["owner_account"].(string)
+	asn, ok3 := fields["asn"].(int)
+	amazonAsn, ok4 := fields["amazon_asn"].(int)
+	authKey, ok5 := fields["auth_key"].(string)
+	customerIPAddress, ok6 := fields["customer_ip_address"].(string)
+	amazonIPAddress, ok7 := fields["amazon_ip_address"].(string)
+	name, ok8 := fields["name"].(string)
+	awsType, ok9 := fields["type"].(string)
+
+	// Check if type assertions were successful (should be, due to ExtractFieldsWithTypes)
+	if !ok1 {
+		return NewValidationError("AWS connect_type", fields["connect_type"], "must be a valid string")
+	}
+	if !ok2 {
+		return NewValidationError("AWS owner_account", fields["owner_account"], "must be a valid string")
+	}
+	if !ok3 {
+		return NewValidationError("AWS asn", fields["asn"], "must be a valid integer")
+	}
+	if !ok4 {
+		return NewValidationError("AWS amazon_asn", fields["amazon_asn"], "must be a valid integer")
+	}
+	if !ok5 {
+		return NewValidationError("AWS auth_key", fields["auth_key"], "must be a valid string")
+	}
+	if !ok6 {
+		return NewValidationError("AWS customer_ip_address", fields["customer_ip_address"], "must be a valid string")
+	}
+	if !ok7 {
+		return NewValidationError("AWS amazon_ip_address", fields["amazon_ip_address"], "must be a valid string")
+	}
+	if !ok8 {
+		return NewValidationError("AWS name", fields["name"], "must be a valid string")
+	}
+	if !ok9 {
+		return NewValidationError("AWS type", fields["type"], "must be a valid string")
+	}
+
+	return ValidateAWSPartnerConfig(
+		connectType,
+		ownerAccount,
+		asn,
+		amazonAsn,
+		authKey,
+		customerIPAddress,
+		amazonIPAddress,
+		name,
+		awsType,
+	)
 }
 
 // ValidateAzurePartnerConfig validates Azure partner configuration
@@ -264,145 +339,195 @@ func ValidateIBMPartnerConfig(accountID string, customerASN int, name string, cu
 // It ensures that only one partner configuration type is provided, and that the
 // configuration for that partner type is valid according to the schema.
 func ValidateVXCPartnerConfig(config map[string]interface{}) error {
-	// Extract the partner type
+	// Map raw field names to user-friendly display names
+	fieldDisplayNames := map[string]string{
+		"connect_type":        "connect type",
+		"owner_account":       "owner account",
+		"asn":                 "ASN",
+		"amazon_asn":          "Amazon ASN",
+		"auth_key":            "auth key",
+		"customer_ip_address": "customer IP address",
+		"amazon_ip_address":   "Amazon IP address",
+		"name":                "name",
+		"type":                "type",
+	}
+
+	// Supported partner types and their config keys
+	var partnerValidators = map[string]struct {
+		configKey string
+		validate  func(map[string]interface{}) error
+	}{
+		"aws": {
+			configKey: "aws_config",
+			validate: func(cfg map[string]interface{}) error {
+				err := ValidateAWSPartnerConfigMap(cfg)
+				if err != nil {
+					ve, ok := err.(*ValidationError)
+					if !ok {
+						// If it's not a ValidationError, return it directly
+						return err
+					}
+					// Prefer "connect type" over "type" for connect_type errors
+					if strings.Contains(ve.Field, "connect_type") {
+						return NewValidationError("AWS connect type", ve.Value, ve.Reason)
+					}
+					for rawField, friendlyField := range fieldDisplayNames {
+						if strings.Contains(ve.Field, rawField) {
+							return NewValidationError(fmt.Sprintf("AWS %s", friendlyField), ve.Value, ve.Reason)
+						}
+					}
+				}
+				return err
+			},
+		},
+		"azure": {
+			configKey: "azure_config",
+			validate: func(cfg map[string]interface{}) error {
+				serviceKey, _ := GetStringFromInterface(cfg["service_key"])
+				peers, _ := GetSliceMapStringInterfaceFromInterface(cfg["peers"])
+				return ValidateAzurePartnerConfig(serviceKey, peers)
+			},
+		},
+		"google": {
+			configKey: "google_config",
+			validate: func(cfg map[string]interface{}) error {
+				pairingKey, _ := GetStringFromInterface(cfg["pairing_key"])
+				return ValidateGooglePartnerConfig(pairingKey)
+			},
+		},
+		"oracle": {
+			configKey: "oracle_config",
+			validate: func(cfg map[string]interface{}) error {
+				virtualCircuitID, _ := GetStringFromInterface(cfg["virtual_circuit_id"])
+				return ValidateOraclePartnerConfig(virtualCircuitID)
+			},
+		},
+		"ibm": {
+			configKey: "ibm_config",
+			validate: func(cfg map[string]interface{}) error {
+				fields := ExtractFieldsWithTypes(cfg, map[string]string{
+					"account_id":          "string",
+					"customer_asn":        "int",
+					"name":                "string",
+					"customer_ip_address": "string",
+					"provider_ip_address": "string",
+				})
+				accountID, ok1 := fields["account_id"].(string)
+				customerASN, ok2 := fields["customer_asn"].(int)
+				name, ok3 := fields["name"].(string)
+				customerIPAddress, ok4 := fields["customer_ip_address"].(string)
+				providerIPAddress, ok5 := fields["provider_ip_address"].(string)
+
+				if !ok1 {
+					return NewValidationError("IBM account_id", fields["account_id"], "must be a valid string")
+				}
+				if !ok2 {
+					return NewValidationError("IBM customer_asn", fields["customer_asn"], "must be a valid integer")
+				}
+				if !ok3 {
+					return NewValidationError("IBM name", fields["name"], "must be a valid string")
+				}
+				if !ok4 {
+					return NewValidationError("IBM customer_ip_address", fields["customer_ip_address"], "must be a valid string")
+				}
+				if !ok5 {
+					return NewValidationError("IBM provider_ip_address", fields["provider_ip_address"], "must be a valid string")
+				}
+
+				return ValidateIBMPartnerConfig(
+					accountID,
+					customerASN,
+					name,
+					customerIPAddress,
+					providerIPAddress,
+				)
+			},
+		},
+		"vrouter": {
+			configKey: "vrouter_config",
+			validate: func(cfg map[string]interface{}) error {
+				interfaces, _ := GetSliceMapStringInterfaceFromInterface(cfg["interfaces"])
+				return ValidateVrouterPartnerConfig(interfaces)
+			},
+		},
+	}
+
 	partnerType, hasPartner := GetStringFromInterface(config["partner"])
 	if !hasPartner || partnerType == "" {
 		return NewValidationError("Partner type", "", "cannot be empty")
 	}
 
-	// Check that partner type is one of the supported types
-	validPartners := []string{"aws", "azure", "google", "oracle", "ibm", "vrouter"}
-	isValidPartner := false
-	for _, p := range validPartners {
-		if partnerType == p {
-			isValidPartner = true
-			break
+	validatorEntry, ok := partnerValidators[partnerType]
+	if !ok {
+		// Build a list of valid partner types in the expected order for the error message
+		orderedPartnerTypes := []string{"aws", "azure", "google", "oracle", "ibm", "vrouter"}
+		// Join with commas and "or" before the last item
+		var partnersMsg string
+		if len(orderedPartnerTypes) > 1 {
+			partnersMsg = strings.Join(orderedPartnerTypes[:len(orderedPartnerTypes)-1], ", ") + ", or " + orderedPartnerTypes[len(orderedPartnerTypes)-1]
+		} else {
+			partnersMsg = orderedPartnerTypes[0]
 		}
-	}
-	if !isValidPartner {
 		return NewValidationError("Partner type", partnerType,
-			"must be one of aws, azure, google, oracle, ibm, or vrouter")
+			fmt.Sprintf("must be one of %s", partnersMsg))
 	}
 
 	// Count the number of partner configs provided
 	configCount := 0
+	var foundConfig map[string]interface{}
 
-	// Check for AWS config
-	awsConfig, hasAWS := GetMapStringInterfaceFromInterface(config["aws_config"])
-	if hasAWS {
-		configCount++
-		if partnerType == "aws" {
-			connectType, _ := GetStringFromInterface(awsConfig["connect_type"])
-			ownerAccount, _ := GetStringFromInterface(awsConfig["owner_account"])
-			asn, _ := GetIntFromInterface(awsConfig["asn"])
-			amazonAsn, _ := GetIntFromInterface(awsConfig["amazon_asn"])
-			authKey, _ := GetStringFromInterface(awsConfig["auth_key"])
-			customerIPAddress, _ := GetStringFromInterface(awsConfig["customer_ip_address"])
-			amazonIPAddress, _ := GetStringFromInterface(awsConfig["amazon_ip_address"])
-			name, _ := GetStringFromInterface(awsConfig["name"])
-			awsType, _ := GetStringFromInterface(awsConfig["type"])
-
-			if err := ValidateAWSPartnerConfig(connectType, ownerAccount, asn, amazonAsn, authKey,
-				customerIPAddress, amazonIPAddress, name, awsType); err != nil {
-				return err
+	for partnerKey, entry := range partnerValidators {
+		cfg, has := GetMapStringInterfaceFromInterface(config[entry.configKey])
+		if has {
+			configCount++
+			if partnerType == partnerKey {
+				foundConfig = cfg
+			} else {
+				// Ensure consistent uppercase for "AWS" instead of "Aws"
+				partnerKeyDisplay := partnerKey
+				if partnerKey == "aws" {
+					partnerKeyDisplay = "AWS"
+				} else {
+					// Use a simple alternative to strings.Title for ASCII keys
+					if len(partnerKey) > 0 {
+						partnerKeyDisplay = strings.ToUpper(partnerKey[:1]) + partnerKey[1:]
+					}
+				}
+				return NewValidationError(partnerKeyDisplay+" config", cfg,
+					fmt.Sprintf("cannot be provided when partner type is not %s", partnerKey))
 			}
-		} else {
-			return NewValidationError("AWS config", awsConfig, "cannot be provided when partner type is not aws")
 		}
 	}
 
-	// Check for Azure config
-	azureConfig, hasAzure := GetMapStringInterfaceFromInterface(config["azure_config"])
-	if hasAzure {
-		configCount++
-		if partnerType == "azure" {
-			serviceKey, _ := GetStringFromInterface(azureConfig["service_key"])
-			peers, _ := GetSliceMapStringInterfaceFromInterface(azureConfig["peers"]) // Handles []map[string]interface{} and []interface{}
-
-			if err := ValidateAzurePartnerConfig(serviceKey, peers); err != nil {
-				return err
-			}
-		} else {
-			return NewValidationError("Azure config", azureConfig, "cannot be provided when partner type is not azure")
-		}
-	}
-
-	// Check for Google config
-	googleConfig, hasGoogle := GetMapStringInterfaceFromInterface(config["google_config"])
-	if hasGoogle {
-		configCount++
-		if partnerType == "google" {
-			pairingKey, _ := GetStringFromInterface(googleConfig["pairing_key"])
-			if err := ValidateGooglePartnerConfig(pairingKey); err != nil {
-				return err
-			}
-		} else {
-			return NewValidationError("Google config", googleConfig, "cannot be provided when partner type is not google")
-		}
-	}
-
-	// Check for Oracle config
-	oracleConfig, hasOracle := GetMapStringInterfaceFromInterface(config["oracle_config"])
-	if hasOracle {
-		configCount++
-		if partnerType == "oracle" {
-			virtualCircuitID, _ := GetStringFromInterface(oracleConfig["virtual_circuit_id"])
-			if err := ValidateOraclePartnerConfig(virtualCircuitID); err != nil {
-				return err
-			}
-		} else {
-			return NewValidationError("Oracle config", oracleConfig, "cannot be provided when partner type is not oracle")
-		}
-	}
-
-	// Check for IBM config
-	ibmConfig, hasIBM := GetMapStringInterfaceFromInterface(config["ibm_config"])
-	if hasIBM {
-		configCount++
-		if partnerType == "ibm" {
-			accountID, _ := GetStringFromInterface(ibmConfig["account_id"])
-			customerASN, _ := GetIntFromInterface(ibmConfig["customer_asn"])
-			name, _ := GetStringFromInterface(ibmConfig["name"])
-			customerIPAddress, _ := GetStringFromInterface(ibmConfig["customer_ip_address"])
-			providerIPAddress, _ := GetStringFromInterface(ibmConfig["provider_ip_address"])
-
-			if err := ValidateIBMPartnerConfig(accountID, customerASN, name, customerIPAddress, providerIPAddress); err != nil {
-				return err
-			}
-		} else {
-			return NewValidationError("IBM config", ibmConfig, "cannot be provided when partner type is not ibm")
-		}
-	}
-
-	// Check for vRouter config
-	vrouterConfig, hasVrouter := GetMapStringInterfaceFromInterface(config["vrouter_config"])
-	if hasVrouter {
-		configCount++
-		if partnerType == "vrouter" {
-			interfaces, _ := GetSliceMapStringInterfaceFromInterface(vrouterConfig["interfaces"]) // Handles []map[string]interface{} and []interface{}
-			if err := ValidateVrouterPartnerConfig(interfaces); err != nil {
-				return err
-			}
-		} else {
-			return NewValidationError("vRouter config", vrouterConfig, "cannot be provided when partner type is not vrouter")
-		}
-	}
-
-	// Check for deprecated partner_a_end_config
+	// Check for deprecated partner_a_end_config and handle more gracefully
 	_, hasPartnerAEnd := GetMapStringInterfaceFromInterface(config["partner_a_end_config"])
 	if hasPartnerAEnd {
 		configCount++
 		fmt.Println("Warning: partner_a_end_config is deprecated, please use vrouter_config instead")
-		// Potentially add validation for partner_a_end_config if needed, similar to vrouter
+		// Make this a warning rather than an error if it's for the vrouter type
+		if partnerType == "vrouter" {
+			// Just continue with processing rather than returning an error
+			return nil
+		}
 	}
 
-	// Ensure exactly one partner config is provided
 	if configCount == 0 {
 		return NewValidationError("Partner configuration", nil,
 			fmt.Sprintf("no configuration provided for partner type '%s'", partnerType))
-	} else if configCount > 1 {
+	} else if configCount > 1 && partnerType != "vrouter" {
+		// Skip this check for vrouter type since we're handling partner_a_end_config as a warning
 		return NewValidationError("Partner configuration", nil,
 			"only one partner configuration can be provided")
+	}
+
+	if foundConfig == nil && partnerType != "vrouter" {
+		// Skip this check for vrouter if we have the deprecated config
+		return NewValidationError("Partner configuration", nil,
+			fmt.Sprintf("missing configuration for partner type '%s'", partnerType))
+	}
+
+	if foundConfig != nil {
+		return validatorEntry.validate(foundConfig)
 	}
 
 	return nil
