@@ -1,31 +1,18 @@
 package validation
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
 
-// ValidatePortRequest validates a Port order request
-func ValidatePortRequest(name string, term int, portSpeed int, locationID int) error {
-	if name == "" {
-		return NewValidationError("port name", name, "cannot be empty")
-	}
+	megaport "github.com/megaport/megaportgo"
+)
 
-	if len(name) > MaxPortNameLength {
-		return NewValidationError("port name", name, fmt.Sprintf("cannot exceed %d characters", MaxPortNameLength))
-	}
-
-	if err := ValidateContractTerm(term); err != nil {
-		return err
-	}
-
-	if err := ValidatePortSpeed(portSpeed); err != nil {
-		return err
-	}
-
-	if locationID <= 0 {
-		return NewValidationError("location ID", locationID, "must be a positive integer")
-	}
-
-	return nil
-}
+// Define constants for LAG validation
+var (
+	ValidLAGPortSpeeds = []int{10000, 100000}
+	MinLAGCount        = 1
+	MaxLAGCount        = 8
+)
 
 // ValidatePortVLANAvailability validates if a VLAN ID is within the range
 // typically available for user assignment on a Port (excluding special/reserved values).
@@ -50,5 +37,50 @@ func ValidatePortName(name string) error {
 		return NewValidationError("port name", name, fmt.Sprintf("cannot exceed %d characters", MaxPortNameLength))
 	}
 
+	return nil
+}
+
+// ValidatePortRequest validates a standard port buy request.
+func ValidatePortRequest(req *megaport.BuyPortRequest) error {
+	if req.Name == "" {
+		return NewValidationError("port name", req.Name, "cannot be empty")
+	}
+	if len(req.Name) > MaxPortNameLength {
+		return NewValidationError("port name", req.Name, fmt.Sprintf("cannot exceed %d characters", MaxPortNameLength))
+	}
+	if req.LocationId <= 0 {
+		return NewValidationError("location ID", req.LocationId, "must be a positive integer")
+	}
+	if err := ValidatePortSpeed(req.PortSpeed); err != nil {
+		return err
+	}
+	if err := ValidateContractTerm(req.Term); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ValidateLAGPortRequest validates a LAG port buy request.
+func ValidateLAGPortRequest(req *megaport.BuyPortRequest) error {
+	if req.Name == "" {
+		return NewValidationError("port name", req.Name, "cannot be empty")
+	}
+	if len(req.Name) > MaxPortNameLength {
+		return NewValidationError("port name", req.Name, fmt.Sprintf("cannot exceed %d characters", MaxPortNameLength))
+	}
+	if req.LocationId <= 0 {
+		return NewValidationError("location ID", req.LocationId, "must be a positive integer")
+	}
+	// Use the defined constant for LAG port speeds with specific formatting
+	if !slices.Contains(ValidLAGPortSpeeds, req.PortSpeed) {
+		return NewValidationError("port speed", req.PortSpeed, fmt.Sprintf("must be one of: %v for LAG ports", ValidLAGPortSpeeds))
+	}
+	// Use the defined constants for LAG count
+	if req.LagCount < MinLAGCount || req.LagCount > MaxLAGCount {
+		return NewValidationError("LAG count", req.LagCount, fmt.Sprintf("must be between %d and %d", MinLAGCount, MaxLAGCount))
+	}
+	if err := ValidateContractTerm(req.Term); err != nil {
+		return err
+	}
 	return nil
 }

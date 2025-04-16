@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -47,7 +48,7 @@ func processFlagLAGPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, erro
 	}
 
 	// Validate required fields
-	if err := validateLAGPortRequest(req); err != nil {
+	if err := validation.ValidateLAGPortRequest(req); err != nil {
 		return nil, err
 	}
 
@@ -180,7 +181,7 @@ func processFlagPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, error) 
 	}
 
 	// Validate required fields
-	if err := validatePortRequest(req); err != nil {
+	if err := validation.ValidatePortRequest(req); err != nil {
 		return nil, err
 	}
 
@@ -210,7 +211,7 @@ func processJSONPortInput(jsonStr, jsonFile string) (*megaport.BuyPortRequest, e
 	}
 
 	// Validate required fields
-	if err := validatePortRequest(req); err != nil {
+	if err := validation.ValidatePortRequest(req); err != nil {
 		return nil, err
 	}
 
