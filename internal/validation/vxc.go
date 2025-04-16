@@ -119,8 +119,8 @@ func ValidateAWSPartnerConfig(connectType string, ownerAccount string, asn int, 
 
 	// Validate AWS connection name if provided
 	if name != "" {
-		if len(name) > 255 {
-			return NewValidationError("AWS connection name", name, "must be no longer than 255 characters")
+		if len(name) > MaxAWSConnectionNameLength {
+			return NewValidationError("AWS connection name", name, fmt.Sprintf("must be no longer than %d characters", MaxAWSConnectionNameLength))
 		}
 	}
 

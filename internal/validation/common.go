@@ -21,6 +21,11 @@ const (
 	ReservedVLAN      = 1    // Reserved VLAN ID (often not assignable)
 	MinAssignableVLAN = 2    // Minimum VLAN ID that can typically be assigned by a user
 	MaxAssignableVLAN = 4093 // Maximum VLAN ID that can typically be assigned by a user (4094 often reserved)
+
+	// Length/size constants
+	MaxPortNameLength          = 64
+	MaxAWSConnectionNameLength = 255
+	MaxMVENameLength           = 64
 )
 
 // ValidateContractTerm validates a contract term

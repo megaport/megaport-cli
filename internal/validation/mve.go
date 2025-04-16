@@ -31,8 +31,8 @@ func ValidateMVERequest(name string, term int, locationID int) error {
 		return NewValidationError("MVE name", name, "cannot be empty")
 	}
 
-	if len(name) > 64 {
-		return NewValidationError("MVE name", name, "cannot exceed 64 characters")
+	if len(name) > MaxMVENameLength {
+		return NewValidationError("MVE name", name, fmt.Sprintf("cannot exceed %d characters", MaxMVENameLength))
 	}
 
 	if err := ValidateContractTerm(term); err != nil {

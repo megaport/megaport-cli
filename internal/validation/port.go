@@ -8,6 +8,10 @@ func ValidatePortRequest(name string, term int, portSpeed int, locationID int) e
 		return NewValidationError("port name", name, "cannot be empty")
 	}
 
+	if len(name) > MaxPortNameLength {
+		return NewValidationError("port name", name, fmt.Sprintf("cannot exceed %d characters", MaxPortNameLength))
+	}
+
 	if err := ValidateContractTerm(term); err != nil {
 		return err
 	}
@@ -41,9 +45,9 @@ func ValidatePortName(name string) error {
 		return NewValidationError("port name", name, "cannot be empty")
 	}
 
-	// The spec says names can be up to 64 characters (inclusive)
-	if len(name) > 64 {
-		return NewValidationError("port name", name, "cannot exceed 64 characters")
+	// The spec says names can be up to MaxPortNameLength characters (inclusive)
+	if len(name) > MaxPortNameLength {
+		return NewValidationError("port name", name, fmt.Sprintf("cannot exceed %d characters", MaxPortNameLength))
 	}
 
 	return nil
