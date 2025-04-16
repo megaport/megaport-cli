@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -76,25 +77,33 @@ func TestValidateMCRPortSpeed(t *testing.T) {
 }
 
 func TestValidateVLAN(t *testing.T) {
+	baseErrMsg := fmt.Sprintf("must be %d, %d, or between %d-%d", AutoAssignVLAN, UntaggedVLAN, MinAssignableVLAN, MaxVLAN)
 	tests := []struct {
 		name    string
 		vlan    int
 		wantErr bool
+		errText string
 	}{
-		{"Valid VLAN 2", 2, false},
-		{"Valid VLAN 1000", 1000, false},
-		{"Valid VLAN 4093", 4093, false},
-		{"Invalid VLAN 0", 0, false},
-		{"Invalid VLAN 1", 1, true}, // Reserved
-		{"Invalid VLAN -1", -1, false},
-		{"Invalid VLAN 4094", 4094, true},
+		{"Valid Auto Assign", AutoAssignVLAN, false, ""},
+		{"Valid Untagged", UntaggedVLAN, false, ""},
+		{"Valid Min Assignable", MinAssignableVLAN, false, ""},
+		{"Valid Max Assignable", MaxAssignableVLAN, false, ""},
+		{"Valid Max VLAN", MaxVLAN, false, ""},
+		{"Valid Mid Range", 1000, false, ""},
+		// Update expected error messages to include the prefix
+		{"Invalid Too Low", -2, true, fmt.Sprintf("Invalid VLAN ID: %d - %s", -2, baseErrMsg)},
+		{"Invalid Reserved 1", 1, true, fmt.Sprintf("Invalid VLAN ID: %d - %s", 1, baseErrMsg)},
+		{"Invalid Too High", MaxVLAN + 1, true, fmt.Sprintf("Invalid VLAN ID: %d - %s", MaxVLAN+1, baseErrMsg)},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateVLAN(tt.vlan)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateVLAN() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && err.Error() != tt.errText {
+				t.Errorf("ValidateVLAN() error text = %q, want %q", err.Error(), tt.errText)
 			}
 		})
 	}

@@ -59,7 +59,7 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		if err != nil {
 			return nil, fmt.Errorf("A-End VLAN must be a valid integer")
 		}
-		if err := validation.ValidateVXCEndVLAN(aEndVLAN, "A-End"); err != nil {
+		if err := validation.ValidateVXCEndVLAN(aEndVLAN); err != nil {
 			return nil, err
 		}
 	}
@@ -74,7 +74,7 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		if err != nil {
 			return nil, fmt.Errorf("invalid A-End Inner VLAN")
 		}
-		if err := validation.ValidateVXCEndInnerVLAN(aEndInnerVLAN, aEndVLAN, "A-End"); err != nil {
+		if err := validation.ValidateVXCEndInnerVLAN(aEndInnerVLAN); err != nil {
 			return nil, err
 		}
 	}
@@ -151,7 +151,7 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		if err != nil {
 			return nil, fmt.Errorf("B-End VLAN must be a valid integer")
 		}
-		if err := validation.ValidateVXCEndVLAN(bEndVLAN, "B-End"); err != nil {
+		if err := validation.ValidateVXCEndVLAN(bEndVLAN); err != nil {
 			return nil, err
 		}
 		req.BEndConfiguration.VLAN = bEndVLAN
@@ -167,7 +167,7 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		if err != nil {
 			return nil, fmt.Errorf("invalid B-End Inner VLAN")
 		}
-		if err := validation.ValidateVXCEndInnerVLAN(bEndInnerVLAN, bEndVLAN, "B-End"); err != nil {
+		if err := validation.ValidateVXCEndInnerVLAN(bEndInnerVLAN); err != nil {
 			return nil, err
 		}
 	}
@@ -368,7 +368,7 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		if err != nil {
 			return nil, fmt.Errorf("A-End VLAN must be a valid integer")
 		}
-		if err := validation.ValidateVXCEndVLAN(aEndVLAN, "A-End"); err != nil {
+		if err := validation.ValidateVXCEndVLAN(aEndVLAN); err != nil {
 			return nil, err
 		}
 		req.AEndVLAN = &aEndVLAN
@@ -389,7 +389,7 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		if err != nil {
 			return nil, fmt.Errorf("B-End VLAN must be a valid integer")
 		}
-		if err := validation.ValidateVXCEndVLAN(bEndVLAN, "B-End"); err != nil {
+		if err := validation.ValidateVXCEndVLAN(bEndVLAN); err != nil {
 			return nil, err
 		}
 		req.BEndVLAN = &bEndVLAN
@@ -415,13 +415,7 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 			return nil, fmt.Errorf("A-End Inner VLAN must be a valid integer")
 		}
 
-		// Get current A-End VLAN for validation context
-		aEndVLAN := vxc.AEndConfiguration.VLAN
-		if req.AEndVLAN != nil {
-			aEndVLAN = *req.AEndVLAN
-		}
-
-		if err := validation.ValidateVXCEndInnerVLAN(aEndInnerVLAN, aEndVLAN, "A-End"); err != nil {
+		if err := validation.ValidateVXCEndInnerVLAN(aEndInnerVLAN); err != nil {
 			return nil, err
 		}
 
@@ -448,13 +442,7 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 			return nil, fmt.Errorf("B-End Inner VLAN must be a valid integer")
 		}
 
-		// Get current B-End VLAN for validation context
-		bEndVLAN := vxc.BEndConfiguration.VLAN
-		if req.BEndVLAN != nil {
-			bEndVLAN = *req.BEndVLAN
-		}
-
-		if err := validation.ValidateVXCEndInnerVLAN(bEndInnerVLAN, bEndVLAN, "B-End"); err != nil {
+		if err := validation.ValidateVXCEndInnerVLAN(bEndInnerVLAN); err != nil {
 			return nil, err
 		}
 

@@ -12,6 +12,17 @@ var (
 	ValidMVEProductSizes = []string{"SMALL", "MEDIUM", "LARGE"}
 )
 
+// VLAN Constants
+const (
+	MinVLAN           = 0    // Minimum possible VLAN ID (Untagged)
+	MaxVLAN           = 4094 // Maximum possible VLAN ID (some systems use 4095, Megaport API seems to cap at 4094 for assignable)
+	UntaggedVLAN      = -1   // Represents an untagged VLAN
+	AutoAssignVLAN    = 0    // Represents automatic VLAN assignment
+	ReservedVLAN      = 1    // Reserved VLAN ID (often not assignable)
+	MinAssignableVLAN = 2    // Minimum VLAN ID that can typically be assigned by a user
+	MaxAssignableVLAN = 4093 // Maximum VLAN ID that can typically be assigned by a user (4094 often reserved)
+)
+
 // ValidateContractTerm validates a contract term
 func ValidateContractTerm(term int) error {
 	for _, validTerm := range ValidContractTerms {
@@ -45,17 +56,13 @@ func ValidatePortSpeed(speed int) error {
 		fmt.Sprintf("must be one of: %v", ValidPortSpeeds))
 }
 
-// ValidateVLAN validates if the VLAN is within the allowed range.
-// A valid VLAN can be:
-// -1 (untagged)
-// 0 (auto-assigned)
-// 2-4093 (actual VLAN values, with 1 being reserved)
+// ValidateVLAN checks if a VLAN ID is valid for general use cases.
+// Allows AutoAssignVLAN (-1), UntaggedVLAN (0), or assignable range (2-4094).
 func ValidateVLAN(vlan int) error {
-	if vlan == -1 || vlan == 0 || (vlan >= 2 && vlan <= 4093) {
+	if vlan == AutoAssignVLAN || vlan == UntaggedVLAN || (vlan >= MinAssignableVLAN && vlan <= MaxVLAN) {
 		return nil
 	}
-	return NewValidationError("VLAN", vlan,
-		"must be -1 (untagged), 0 (auto-assigned), or between 2-4093 (1 is reserved)")
+	return NewValidationError("VLAN ID", vlan, fmt.Sprintf("must be %d, %d, or between %d-%d", AutoAssignVLAN, UntaggedVLAN, MinAssignableVLAN, MaxVLAN))
 }
 
 // ValidateRateLimit validates a VXC rate limit

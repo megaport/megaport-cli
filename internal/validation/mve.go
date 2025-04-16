@@ -336,77 +336,77 @@ func ValidateMVEVendorConfig(vendor string, config map[string]interface{}) error
 		return err
 	}
 
-	// Check common required fields
-	imageID, ok := config["image_id"].(int)
+	// Check common required fields using helper functions
+	imageID, ok := GetIntFromInterface(config["image_id"])
 	if !ok {
 		return NewValidationError("image ID", config["image_id"], "must be a valid integer")
 	}
 
-	productSize, ok := config["product_size"].(string)
+	productSize, ok := GetStringFromInterface(config["product_size"])
 	if !ok {
 		return NewValidationError("product size", config["product_size"], "must be a valid string")
 	}
 
-	mveLabel, _ := config["mve_label"].(string)
-	// mveLabel is optional
+	mveLabel, _ := GetStringFromInterface(config["mve_label"]) // Optional field
 
 	// Validate based on vendor type
 	normalizedVendor := strings.ToLower(vendor)
 	switch normalizedVendor {
 	case "6wind":
-		sshPublicKey, _ := config["ssh_public_key"].(string)
+		sshPublicKey, _ := GetStringFromInterface(config["ssh_public_key"])
 		return ValidateSixwindVSRConfig(imageID, productSize, mveLabel, sshPublicKey)
 	case "aruba":
-		accountName, _ := config["account_name"].(string)
-		accountKey, _ := config["account_key"].(string)
-		systemTag, _ := config["system_tag"].(string)
+		accountName, _ := GetStringFromInterface(config["account_name"])
+		accountKey, _ := GetStringFromInterface(config["account_key"])
+		systemTag, _ := GetStringFromInterface(config["system_tag"])
 		return ValidateArubaConfig(imageID, productSize, mveLabel, accountName, accountKey, systemTag)
 	case "aviatrix":
-		cloudInit, _ := config["cloud_init"].(string)
+		cloudInit, _ := GetStringFromInterface(config["cloud_init"])
 		return ValidateAviatrixConfig(imageID, productSize, mveLabel, cloudInit)
 	case "cisco":
-		adminSSHPublicKey, _ := config["admin_ssh_public_key"].(string)
-		sshPublicKey, _ := config["ssh_public_key"].(string)
-		cloudInit, _ := config["cloud_init"].(string)
-		manageLocally, _ := config["manage_locally"].(bool)
-		fmcIPAddress, _ := config["fmc_ip_address"].(string)
-		fmcRegistrationKey, _ := config["fmc_registration_key"].(string)
-		fmcNatID, _ := config["fmc_nat_id"].(string)
+		adminSSHPublicKey, _ := GetStringFromInterface(config["admin_ssh_public_key"])
+		sshPublicKey, _ := GetStringFromInterface(config["ssh_public_key"])
+		cloudInit, _ := GetStringFromInterface(config["cloud_init"])
+		manageLocally, _ := GetBoolFromInterface(config["manage_locally"]) // Default is false if not present or invalid
+		fmcIPAddress, _ := GetStringFromInterface(config["fmc_ip_address"])
+		fmcRegistrationKey, _ := GetStringFromInterface(config["fmc_registration_key"])
+		fmcNatID, _ := GetStringFromInterface(config["fmc_nat_id"])
 		return ValidateCiscoConfig(imageID, productSize, mveLabel, adminSSHPublicKey, sshPublicKey, cloudInit,
 			manageLocally, fmcIPAddress, fmcRegistrationKey, fmcNatID)
 	case "fortinet":
-		adminSSHPublicKey, _ := config["admin_ssh_public_key"].(string)
-		sshPublicKey, _ := config["ssh_public_key"].(string)
-		licenseData, _ := config["license_data"].(string)
+		adminSSHPublicKey, _ := GetStringFromInterface(config["admin_ssh_public_key"])
+		sshPublicKey, _ := GetStringFromInterface(config["ssh_public_key"])
+		licenseData, _ := GetStringFromInterface(config["license_data"])
 		return ValidateFortinetConfig(imageID, productSize, mveLabel, adminSSHPublicKey, sshPublicKey, licenseData)
 	case "palo_alto":
-		sshPublicKey, _ := config["ssh_public_key"].(string)
-		adminPasswordHash, _ := config["admin_password_hash"].(string)
-		licenseData, _ := config["license_data"].(string)
+		sshPublicKey, _ := GetStringFromInterface(config["ssh_public_key"])
+		adminPasswordHash, _ := GetStringFromInterface(config["admin_password_hash"])
+		licenseData, _ := GetStringFromInterface(config["license_data"])
 		return ValidatePaloAltoConfig(imageID, productSize, mveLabel, sshPublicKey, adminPasswordHash, licenseData)
 	case "prisma":
-		ionKey, _ := config["ion_key"].(string)
-		secretKey, _ := config["secret_key"].(string)
+		ionKey, _ := GetStringFromInterface(config["ion_key"])
+		secretKey, _ := GetStringFromInterface(config["secret_key"])
 		return ValidatePrismaConfig(imageID, productSize, mveLabel, ionKey, secretKey)
 	case "versa":
-		directorAddress, _ := config["director_address"].(string)
-		controllerAddress, _ := config["controller_address"].(string)
-		localAuth, _ := config["local_auth"].(string)
-		remoteAuth, _ := config["remote_auth"].(string)
-		serialNumber, _ := config["serial_number"].(string)
+		directorAddress, _ := GetStringFromInterface(config["director_address"])
+		controllerAddress, _ := GetStringFromInterface(config["controller_address"])
+		localAuth, _ := GetStringFromInterface(config["local_auth"])
+		remoteAuth, _ := GetStringFromInterface(config["remote_auth"])
+		serialNumber, _ := GetStringFromInterface(config["serial_number"])
 		return ValidateVersaConfig(imageID, productSize, mveLabel, directorAddress, controllerAddress,
 			localAuth, remoteAuth, serialNumber)
 	case "vmware":
-		adminSSHPublicKey, _ := config["admin_ssh_public_key"].(string)
-		sshPublicKey, _ := config["ssh_public_key"].(string)
-		vcoAddress, _ := config["vco_address"].(string)
-		vcoActivationCode, _ := config["vco_activation_code"].(string)
+		adminSSHPublicKey, _ := GetStringFromInterface(config["admin_ssh_public_key"])
+		sshPublicKey, _ := GetStringFromInterface(config["ssh_public_key"])
+		vcoAddress, _ := GetStringFromInterface(config["vco_address"])
+		vcoActivationCode, _ := GetStringFromInterface(config["vco_activation_code"])
 		return ValidateVmwareConfig(imageID, productSize, mveLabel, adminSSHPublicKey, sshPublicKey,
 			vcoAddress, vcoActivationCode)
 	case "meraki":
-		token, _ := config["token"].(string)
+		token, _ := GetStringFromInterface(config["token"])
 		return ValidateMerakiConfig(imageID, productSize, mveLabel, token)
 	default:
+		// This case should ideally not be reached due to ValidateMVEVendor check, but included for completeness
 		return NewValidationError("vendor", vendor, "is not supported")
 	}
 }

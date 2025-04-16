@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -74,25 +75,33 @@ func TestValidatePortRequest(t *testing.T) {
 }
 
 func TestValidatePortVLANAvailability(t *testing.T) {
+	baseErrMsg := fmt.Sprintf("must be between %d-%d for VLAN availability check", MinAssignableVLAN, MaxAssignableVLAN)
 	tests := []struct {
 		name    string
 		vlan    int
 		wantErr bool
+		errText string
 	}{
-		{"Valid VLAN 2", 2, false},
-		{"Valid VLAN 1000", 1000, false},
-		{"Valid VLAN 4093", 4093, false},
-		{"Invalid VLAN 0", 0, true},
-		{"Invalid VLAN 1", 1, true},
-		{"Invalid VLAN -1", -1, true},
-		{"Invalid VLAN 4094", 4094, true},
+		{"Valid Min Assignable", MinAssignableVLAN, false, ""},
+		{"Valid Max Assignable", MaxAssignableVLAN, false, ""},
+		{"Valid Mid Range", 2000, false, ""},
+		// Update expected error messages to include the prefix
+		{"Invalid Auto Assign", AutoAssignVLAN, true, fmt.Sprintf("Invalid VLAN ID: %d - %s", AutoAssignVLAN, baseErrMsg)},
+		{"Invalid Untagged", UntaggedVLAN, true, fmt.Sprintf("Invalid VLAN ID: %d - %s", UntaggedVLAN, baseErrMsg)},
+		{"Invalid Reserved 1", 1, true, fmt.Sprintf("Invalid VLAN ID: %d - %s", 1, baseErrMsg)},
+		{"Invalid Max VLAN", MaxVLAN, true, fmt.Sprintf("Invalid VLAN ID: %d - %s", MaxVLAN, baseErrMsg)}, // 4094 is outside 2-4093
+		{"Invalid Too High", MaxVLAN + 1, true, fmt.Sprintf("Invalid VLAN ID: %d - %s", MaxVLAN+1, baseErrMsg)},
+		{"Invalid Too Low", MinAssignableVLAN - 10, true, fmt.Sprintf("Invalid VLAN ID: %d - %s", MinAssignableVLAN-10, baseErrMsg)},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidatePortVLANAvailability(tt.vlan)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidatePortVLANAvailability() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && err.Error() != tt.errText {
+				t.Errorf("ValidatePortVLANAvailability() error text = %q, want %q", err.Error(), tt.errText)
 			}
 		})
 	}

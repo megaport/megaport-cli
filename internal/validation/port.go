@@ -1,5 +1,7 @@
 package validation
 
+import "fmt"
+
 // ValidatePortRequest validates a Port order request
 func ValidatePortRequest(name string, term int, portSpeed int, locationID int) error {
 	if name == "" {
@@ -21,10 +23,14 @@ func ValidatePortRequest(name string, term int, portSpeed int, locationID int) e
 	return nil
 }
 
-// ValidatePortVLANAvailability validates if a VLAN is available on a port
+// ValidatePortVLANAvailability validates if a VLAN ID is within the range
+// typically available for user assignment on a Port (excluding special/reserved values).
 func ValidatePortVLANAvailability(vlan int) error {
-	if vlan < 2 || vlan > 4093 {
-		return NewValidationError("VLAN ID", vlan, "must be between 2-4093 for VLAN availability check")
+	// This function specifically checks the range for VLANs that can be assigned,
+	// excluding special values like AutoAssign (-1) or Untagged (0), and potentially
+	// reserved values like 1 or 4094/4095 depending on the platform.
+	if vlan < MinAssignableVLAN || vlan > MaxAssignableVLAN {
+		return NewValidationError("VLAN ID", vlan, fmt.Sprintf("must be between %d-%d for VLAN availability check", MinAssignableVLAN, MaxAssignableVLAN))
 	}
 	return nil
 }

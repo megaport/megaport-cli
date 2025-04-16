@@ -12,13 +12,6 @@ import (
 
 // Constants for validation
 const (
-	// VLAN ranges
-	MinVLAN        = 2
-	MaxVLAN        = 4093
-	UntaggedVLAN   = -1
-	AutoAssignVLAN = 0
-	ReservedVLAN   = 1
-
 	// BGP validation
 	MinASPathPrependCount = 0
 	MaxASPathPrependCount = 10
@@ -75,31 +68,17 @@ func validateIPv4CIDR(cidr string, fieldName string) error {
 	return nil
 }
 
-// ValidateVXCEndVLAN validates a VXC endpoint VLAN
-func ValidateVXCEndVLAN(vlan int, endName string) error {
-	if vlan == UntaggedVLAN || vlan == AutoAssignVLAN || (vlan >= MinVLAN && vlan <= MaxVLAN) {
-		return nil
-	}
-	return NewValidationError(fmt.Sprintf("%s VLAN", endName), vlan,
-		fmt.Sprintf("must be %d (untagged), %d (auto-assigned), or between %d-%d (%d is reserved)",
-			UntaggedVLAN, AutoAssignVLAN, MinVLAN, MaxVLAN, ReservedVLAN))
+// ValidateVXCEndVLAN validates the VLAN ID for a VXC endpoint.
+func ValidateVXCEndVLAN(vlan int) error {
+	// Use the common validation function
+	return ValidateVLAN(vlan)
 }
 
-// ValidateVXCEndInnerVLAN validates a VXC endpoint inner VLAN (for QinQ)
-func ValidateVXCEndInnerVLAN(vlan int, outerVLAN int, endName string) error {
-	// Inner VLAN can't be set if outer VLAN is untagged (-1)
-	if outerVLAN == -1 && vlan != 0 {
-		return NewValidationError(fmt.Sprintf("%s inner VLAN", endName), vlan,
-			"cannot be set when the outer VLAN is untagged (-1)")
-	}
-
-	// For non-zero inner VLANs, they should be in the valid range
-	if vlan != 0 && (vlan < 2 || vlan > 4093) {
-		return NewValidationError(fmt.Sprintf("%s inner VLAN", endName), vlan,
-			"must be 0 (not set) or between 2-4093 (1 is reserved)")
-	}
-
-	return nil
+// ValidateVXCEndInnerVLAN validates the inner VLAN ID for a VXC endpoint (Q-in-Q).
+func ValidateVXCEndInnerVLAN(vlan int) error {
+	// Inner VLAN typically follows the same rules as outer VLAN
+	// Use the common validation function
+	return ValidateVLAN(vlan)
 }
 
 // ValidateVXCRequest validates a VXC order request
@@ -185,7 +164,7 @@ func ValidateAzurePartnerConfig(serviceKey string, peers []map[string]interface{
 	if len(peers) > 0 {
 		for i, peer := range peers {
 			// Validate peer type
-			peerType, hasType := peer["type"].(string)
+			peerType, hasType := GetStringFromInterface(peer["type"])
 			if hasType {
 				if peerType != "private" && peerType != "microsoft" {
 					return NewValidationError(fmt.Sprintf("Azure peer [%d] type", i), peerType, "must be 'private' or 'microsoft'")
@@ -193,28 +172,27 @@ func ValidateAzurePartnerConfig(serviceKey string, peers []map[string]interface{
 			}
 
 			// Validate peer_asn if provided
-			if peerASN, ok := peer["peer_asn"].(string); ok && peerASN != "" {
+			if peerASN, ok := GetStringFromInterface(peer["peer_asn"]); ok && peerASN != "" {
 				// Azure ASN is stored as string but should be parseable as integer
 				// and be within valid ranges
 				var asnValue int
 				_, err := fmt.Sscanf(peerASN, "%d", &asnValue)
 				if err != nil {
+					// Consider adding ASN range validation if needed
 					return NewValidationError(fmt.Sprintf("Azure peer [%d] ASN", i), peerASN, "must be a valid ASN number")
 				}
 			}
 
 			// Validate subnets if provided
-			if primarySubnet, ok := peer["primary_subnet"].(string); ok && primarySubnet != "" {
-				if err := ValidateIPv4CIDR(primarySubnet); err != nil {
-					return NewValidationError(fmt.Sprintf("Azure peer [%d] primary subnet", i), primarySubnet,
-						"must be a valid IPv4 CIDR")
+			if primarySubnet, ok := GetStringFromInterface(peer["primary_subnet"]); ok && primarySubnet != "" {
+				if err := validateIPv4CIDR(primarySubnet, fmt.Sprintf("Azure peer [%d] primary subnet", i)); err != nil {
+					return err
 				}
 			}
 
-			if secondarySubnet, ok := peer["secondary_subnet"].(string); ok && secondarySubnet != "" {
-				if err := ValidateIPv4CIDR(secondarySubnet); err != nil {
-					return NewValidationError(fmt.Sprintf("Azure peer [%d] secondary subnet", i), secondarySubnet,
-						"must be a valid IPv4 CIDR")
+			if secondarySubnet, ok := GetStringFromInterface(peer["secondary_subnet"]); ok && secondarySubnet != "" {
+				if err := validateIPv4CIDR(secondarySubnet, fmt.Sprintf("Azure peer [%d] secondary subnet", i)); err != nil {
+					return err
 				}
 			}
 		}
@@ -312,7 +290,7 @@ func ValidateIPv4CIDR(cidr string) error {
 // configuration for that partner type is valid according to the schema.
 func ValidateVXCPartnerConfig(config map[string]interface{}) error {
 	// Extract the partner type
-	partnerType, hasPartner := config["partner"].(string)
+	partnerType, hasPartner := GetStringFromInterface(config["partner"])
 	if !hasPartner || partnerType == "" {
 		return NewValidationError("Partner type", "", "cannot be empty")
 	}
@@ -335,236 +313,112 @@ func ValidateVXCPartnerConfig(config map[string]interface{}) error {
 	configCount := 0
 
 	// Check for AWS config
-	awsConfig, hasAWS := config["aws_config"].(map[string]interface{})
-	if hasAWS && awsConfig != nil {
+	awsConfig, hasAWS := GetMapStringInterfaceFromInterface(config["aws_config"])
+	if hasAWS {
 		configCount++
-
-		// Only validate AWS config if partner type is aws
 		if partnerType == "aws" {
-			// Extract and validate AWS config fields
-			connectType := ""
-			if ct, ok := awsConfig["connect_type"].(string); ok {
-				connectType = ct
-			}
-
-			ownerAccount := ""
-			if oa, ok := awsConfig["owner_account"].(string); ok {
-				ownerAccount = oa
-			}
-
-			asn := 0
-			if a, ok := awsConfig["asn"].(int); ok {
-				asn = a
-			} else if a, ok := awsConfig["asn"].(float64); ok {
-				asn = int(a)
-			}
-
-			amazonAsn := 0
-			if a, ok := awsConfig["amazon_asn"].(int); ok {
-				amazonAsn = a
-			} else if a, ok := awsConfig["amazon_asn"].(float64); ok {
-				amazonAsn = int(a)
-			}
-
-			authKey := ""
-			if ak, ok := awsConfig["auth_key"].(string); ok {
-				authKey = ak
-			}
-
-			customerIPAddress := ""
-			if cip, ok := awsConfig["customer_ip_address"].(string); ok {
-				customerIPAddress = cip
-			}
-
-			amazonIPAddress := ""
-			if aip, ok := awsConfig["amazon_ip_address"].(string); ok {
-				amazonIPAddress = aip
-			}
-
-			name := ""
-			if n, ok := awsConfig["name"].(string); ok {
-				name = n
-			}
-
-			awsType := ""
-			if t, ok := awsConfig["type"].(string); ok {
-				awsType = t
-			}
+			connectType, _ := GetStringFromInterface(awsConfig["connect_type"])
+			ownerAccount, _ := GetStringFromInterface(awsConfig["owner_account"])
+			asn, _ := GetIntFromInterface(awsConfig["asn"])
+			amazonAsn, _ := GetIntFromInterface(awsConfig["amazon_asn"])
+			authKey, _ := GetStringFromInterface(awsConfig["auth_key"])
+			customerIPAddress, _ := GetStringFromInterface(awsConfig["customer_ip_address"])
+			amazonIPAddress, _ := GetStringFromInterface(awsConfig["amazon_ip_address"])
+			name, _ := GetStringFromInterface(awsConfig["name"])
+			awsType, _ := GetStringFromInterface(awsConfig["type"])
 
 			if err := ValidateAWSPartnerConfig(connectType, ownerAccount, asn, amazonAsn, authKey,
 				customerIPAddress, amazonIPAddress, name, awsType); err != nil {
 				return err
 			}
-		} else if hasAWS {
-			// If AWS config is provided but partner type is not aws, return an error
-			return NewValidationError("AWS config", awsConfig,
-				"cannot be provided when partner type is not aws")
+		} else {
+			return NewValidationError("AWS config", awsConfig, "cannot be provided when partner type is not aws")
 		}
 	}
 
 	// Check for Azure config
-	azureConfig, hasAzure := config["azure_config"].(map[string]interface{})
-	if hasAzure && azureConfig != nil {
+	azureConfig, hasAzure := GetMapStringInterfaceFromInterface(config["azure_config"])
+	if hasAzure {
 		configCount++
-
-		// Only validate Azure config if partner type is azure
 		if partnerType == "azure" {
-			// Extract and validate Azure config fields
-			serviceKey := ""
-			if sk, ok := azureConfig["service_key"].(string); ok {
-				serviceKey = sk
-			}
-
-			var peers []map[string]interface{}
-			if p, ok := azureConfig["peers"].([]map[string]interface{}); ok {
-				peers = p
-			} else if p, ok := azureConfig["peers"].([]interface{}); ok {
-				for _, peer := range p {
-					if peerMap, isPeerMap := peer.(map[string]interface{}); isPeerMap {
-						peers = append(peers, peerMap)
-					}
-				}
-			}
+			serviceKey, _ := GetStringFromInterface(azureConfig["service_key"])
+			peers, _ := GetSliceMapStringInterfaceFromInterface(azureConfig["peers"]) // Handles []map[string]interface{} and []interface{}
 
 			if err := ValidateAzurePartnerConfig(serviceKey, peers); err != nil {
 				return err
 			}
-		} else if hasAzure {
-			// If Azure config is provided but partner type is not azure, return an error
-			return NewValidationError("Azure config", azureConfig,
-				"cannot be provided when partner type is not azure")
+		} else {
+			return NewValidationError("Azure config", azureConfig, "cannot be provided when partner type is not azure")
 		}
 	}
 
 	// Check for Google config
-	googleConfig, hasGoogle := config["google_config"].(map[string]interface{})
-	if hasGoogle && googleConfig != nil {
+	googleConfig, hasGoogle := GetMapStringInterfaceFromInterface(config["google_config"])
+	if hasGoogle {
 		configCount++
-
-		// Only validate Google config if partner type is google
 		if partnerType == "google" {
-			// Extract and validate Google config fields
-			pairingKey := ""
-			if pk, ok := googleConfig["pairing_key"].(string); ok {
-				pairingKey = pk
-			}
-
+			pairingKey, _ := GetStringFromInterface(googleConfig["pairing_key"])
 			if err := ValidateGooglePartnerConfig(pairingKey); err != nil {
 				return err
 			}
-		} else if hasGoogle {
-			// If Google config is provided but partner type is not google, return an error
-			return NewValidationError("Google config", googleConfig,
-				"cannot be provided when partner type is not google")
+		} else {
+			return NewValidationError("Google config", googleConfig, "cannot be provided when partner type is not google")
 		}
 	}
 
 	// Check for Oracle config
-	oracleConfig, hasOracle := config["oracle_config"].(map[string]interface{})
-	if hasOracle && oracleConfig != nil {
+	oracleConfig, hasOracle := GetMapStringInterfaceFromInterface(config["oracle_config"])
+	if hasOracle {
 		configCount++
-
-		// Only validate Oracle config if partner type is oracle
 		if partnerType == "oracle" {
-			// Extract and validate Oracle config fields
-			virtualCircuitID := ""
-			if vcid, ok := oracleConfig["virtual_circuit_id"].(string); ok {
-				virtualCircuitID = vcid
-			}
-
+			virtualCircuitID, _ := GetStringFromInterface(oracleConfig["virtual_circuit_id"])
 			if err := ValidateOraclePartnerConfig(virtualCircuitID); err != nil {
 				return err
 			}
-		} else if hasOracle {
-			// If Oracle config is provided but partner type is not oracle, return an error
-			return NewValidationError("Oracle config", oracleConfig,
-				"cannot be provided when partner type is not oracle")
+		} else {
+			return NewValidationError("Oracle config", oracleConfig, "cannot be provided when partner type is not oracle")
 		}
 	}
 
 	// Check for IBM config
-	ibmConfig, hasIBM := config["ibm_config"].(map[string]interface{})
-	if hasIBM && ibmConfig != nil {
+	ibmConfig, hasIBM := GetMapStringInterfaceFromInterface(config["ibm_config"])
+	if hasIBM {
 		configCount++
-
-		// Only validate IBM config if partner type is ibm
 		if partnerType == "ibm" {
-			// Extract and validate IBM config fields
-			accountID := ""
-			if aid, ok := ibmConfig["account_id"].(string); ok {
-				accountID = aid
-			}
-
-			customerASN := 0
-			if casn, ok := ibmConfig["customer_asn"].(int); ok {
-				customerASN = casn
-			} else if casn, ok := ibmConfig["customer_asn"].(float64); ok {
-				customerASN = int(casn)
-			}
-
-			name := ""
-			if n, ok := ibmConfig["name"].(string); ok {
-				name = n
-			}
-
-			customerIPAddress := ""
-			if cip, ok := ibmConfig["customer_ip_address"].(string); ok {
-				customerIPAddress = cip
-			}
-
-			providerIPAddress := ""
-			if pip, ok := ibmConfig["provider_ip_address"].(string); ok {
-				providerIPAddress = pip
-			}
+			accountID, _ := GetStringFromInterface(ibmConfig["account_id"])
+			customerASN, _ := GetIntFromInterface(ibmConfig["customer_asn"])
+			name, _ := GetStringFromInterface(ibmConfig["name"])
+			customerIPAddress, _ := GetStringFromInterface(ibmConfig["customer_ip_address"])
+			providerIPAddress, _ := GetStringFromInterface(ibmConfig["provider_ip_address"])
 
 			if err := ValidateIBMPartnerConfig(accountID, customerASN, name, customerIPAddress, providerIPAddress); err != nil {
 				return err
 			}
-		} else if hasIBM {
-			// If IBM config is provided but partner type is not ibm, return an error
-			return NewValidationError("IBM config", ibmConfig,
-				"cannot be provided when partner type is not ibm")
+		} else {
+			return NewValidationError("IBM config", ibmConfig, "cannot be provided when partner type is not ibm")
 		}
 	}
 
 	// Check for vRouter config
-	vrouterConfig, hasVrouter := config["vrouter_config"].(map[string]interface{})
-	if hasVrouter && vrouterConfig != nil {
+	vrouterConfig, hasVrouter := GetMapStringInterfaceFromInterface(config["vrouter_config"])
+	if hasVrouter {
 		configCount++
-
-		// Only validate vRouter config if partner type is vrouter
 		if partnerType == "vrouter" {
-			// vRouter validation is complex and would require additional functions
-			// to validate the interfaces, BGP connections, etc.
-			// For now, we'll just check if it exists
-
-			// TODO: Add detailed validation for vRouter config
-			var interfaces []map[string]interface{}
-			if ifaces, ok := vrouterConfig["interfaces"].([]interface{}); ok {
-				for _, iface := range ifaces {
-					if ifaceMap, isIfaceMap := iface.(map[string]interface{}); isIfaceMap {
-						interfaces = append(interfaces, ifaceMap)
-					}
-				}
-			}
-
+			interfaces, _ := GetSliceMapStringInterfaceFromInterface(vrouterConfig["interfaces"]) // Handles []map[string]interface{} and []interface{}
 			if err := ValidateVrouterPartnerConfig(interfaces); err != nil {
 				return err
 			}
-		} else if hasVrouter {
-			// If vRouter config is provided but partner type is not vrouter, return an error
-			return NewValidationError("vRouter config", vrouterConfig,
-				"cannot be provided when partner type is not vrouter")
+		} else {
+			return NewValidationError("vRouter config", vrouterConfig, "cannot be provided when partner type is not vrouter")
 		}
 	}
 
 	// Check for deprecated partner_a_end_config
-	_, hasPartnerAEnd := config["partner_a_end_config"].(map[string]interface{})
+	_, hasPartnerAEnd := GetMapStringInterfaceFromInterface(config["partner_a_end_config"])
 	if hasPartnerAEnd {
 		configCount++
-
-		// Display a warning about using deprecated config
 		fmt.Println("Warning: partner_a_end_config is deprecated, please use vrouter_config instead")
+		// Potentially add validation for partner_a_end_config if needed, similar to vrouter
 	}
 
 	// Ensure exactly one partner config is provided
@@ -579,7 +433,8 @@ func ValidateVXCPartnerConfig(config map[string]interface{}) error {
 	return nil
 }
 
-// ValidateVrouterPartnerConfig validates vRouter partner configuration
+// ValidateVrouterPartnerConfig validates partner-specific configuration for a VXC attached to a VRouter.
+// Assuming it includes VLAN validation, update it similarly.
 func ValidateVrouterPartnerConfig(interfaces []map[string]interface{}) error {
 	// Interfaces are required for vRouter config
 	if len(interfaces) == 0 {
@@ -589,54 +444,49 @@ func ValidateVrouterPartnerConfig(interfaces []map[string]interface{}) error {
 	// Validate each interface
 	for i, iface := range interfaces {
 		// Validate VLAN if provided
-		if vlan, ok := iface["vlan"].(int); ok && vlan != 0 {
-			if vlan < 2 || vlan > 4093 {
+		if vlan, ok := GetIntFromInterface(iface["vlan"]); ok && vlan != 0 {
+			if err := ValidateVLAN(vlan); err != nil {
 				return NewValidationError(fmt.Sprintf("vRouter interface [%d] VLAN", i), vlan,
-					"must be between 2-4093 (1 is reserved)")
+					fmt.Sprintf("must be between %d-%d (%d is reserved)", MinVLAN, MaxVLAN, ReservedVLAN))
 			}
 		}
 
 		// Validate IP addresses if provided
-		if ipAddresses, ok := iface["ip_addresses"].([]interface{}); ok && len(ipAddresses) > 0 {
+		if ipAddresses, ok := GetSliceInterfaceFromInterface(iface["ip_addresses"]); ok && len(ipAddresses) > 0 {
 			for j, ip := range ipAddresses {
-				ipStr, isStr := ip.(string)
+				ipStr, isStr := GetStringFromInterface(ip)
 				if !isStr {
 					return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP address [%d]", i, j), ip,
 						"must be a string in CIDR format")
 				}
-
-				if err := ValidateIPv4CIDR(ipStr); err != nil {
-					return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP address [%d]", i, j), ipStr,
-						"must be a valid IPv4 CIDR")
+				if err := validateIPv4CIDR(ipStr, fmt.Sprintf("vRouter interface [%d] IP address [%d]", i, j)); err != nil {
+					return err
 				}
 			}
 		}
 
 		// Validate NAT IP addresses if provided
-		if natIPs, ok := iface["nat_ip_addresses"].([]interface{}); ok && len(natIPs) > 0 {
+		if natIPs, ok := GetSliceInterfaceFromInterface(iface["nat_ip_addresses"]); ok && len(natIPs) > 0 {
 			for j, ip := range natIPs {
-				ipStr, isStr := ip.(string)
+				ipStr, isStr := GetStringFromInterface(ip)
 				if !isStr {
 					return NewValidationError(fmt.Sprintf("vRouter interface [%d] NAT IP address [%d]", i, j), ip,
 						"must be a string in CIDR format")
 				}
-
-				if err := ValidateIPv4CIDR(ipStr); err != nil {
-					return NewValidationError(fmt.Sprintf("vRouter interface [%d] NAT IP address [%d]", i, j), ipStr,
-						"must be a valid IPv4 CIDR")
+				if err := validateIPv4CIDR(ipStr, fmt.Sprintf("vRouter interface [%d] NAT IP address [%d]", i, j)); err != nil {
+					return err
 				}
 			}
 		}
 
 		// Validate IP routes if provided
-		if ipRoutes, ok := iface["ip_routes"].([]interface{}); ok && len(ipRoutes) > 0 {
+		if ipRoutes, ok := GetSliceInterfaceFromInterface(iface["ip_routes"]); ok && len(ipRoutes) > 0 {
 			for j, route := range ipRoutes {
-				routeMap, isMap := route.(map[string]interface{})
+				routeMap, isMap := GetMapStringInterfaceFromInterface(route)
 				if !isMap {
 					return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP route [%d]", i, j), route,
-						"must be a valid route configuration")
+						"must be a valid route configuration map")
 				}
-
 				if err := ValidateIPRoute(routeMap, i, j); err != nil {
 					return err
 				}
@@ -644,21 +494,20 @@ func ValidateVrouterPartnerConfig(interfaces []map[string]interface{}) error {
 		}
 
 		// Validate BFD configuration if provided
-		if bfd, ok := iface["bfd"].(map[string]interface{}); ok && bfd != nil {
+		if bfd, ok := GetMapStringInterfaceFromInterface(iface["bfd"]); ok {
 			if err := ValidateBFDConfig(bfd, i); err != nil {
 				return err
 			}
 		}
 
 		// Validate BGP connections if provided
-		if bgpConns, ok := iface["bgp_connections"].([]interface{}); ok && len(bgpConns) > 0 {
+		if bgpConns, ok := GetSliceInterfaceFromInterface(iface["bgp_connections"]); ok && len(bgpConns) > 0 {
 			for j, conn := range bgpConns {
-				connMap, isMap := conn.(map[string]interface{})
+				connMap, isMap := GetMapStringInterfaceFromInterface(conn)
 				if !isMap {
 					return NewValidationError(fmt.Sprintf("vRouter interface [%d] BGP connection [%d]", i, j), conn,
-						"must be a valid BGP connection configuration")
+						"must be a valid BGP connection configuration map")
 				}
-
 				if err := ValidateBGPConnection(connMap, i, j); err != nil {
 					return err
 				}
@@ -672,22 +521,20 @@ func ValidateVrouterPartnerConfig(interfaces []map[string]interface{}) error {
 // ValidateIPRoute validates a route configuration
 func ValidateIPRoute(route map[string]interface{}, ifaceIndex, routeIndex int) error {
 	// Prefix is required and must be a valid CIDR
-	prefix, hasPrefix := route["prefix"].(string)
+	prefix, hasPrefix := GetStringFromInterface(route["prefix"])
 	if !hasPrefix || prefix == "" {
-		return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP route [%d] prefix", ifaceIndex, routeIndex), prefix,
-			"cannot be empty")
+		return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP route [%d] prefix", ifaceIndex, routeIndex), route["prefix"],
+			"cannot be empty and must be a string")
 	}
-
-	if err := ValidateIPv4CIDR(prefix); err != nil {
-		return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP route [%d] prefix", ifaceIndex, routeIndex), prefix,
-			"must be a valid IPv4 CIDR")
+	if err := validateIPv4CIDR(prefix, fmt.Sprintf("vRouter interface [%d] IP route [%d] prefix", ifaceIndex, routeIndex)); err != nil {
+		return err
 	}
 
 	// Next hop is required and must be a valid IP address
-	nextHop, hasNextHop := route["next_hop"].(string)
+	nextHop, hasNextHop := GetStringFromInterface(route["next_hop"])
 	if !hasNextHop || nextHop == "" {
-		return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP route [%d] next hop", ifaceIndex, routeIndex), nextHop,
-			"cannot be empty")
+		return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP route [%d] next hop", ifaceIndex, routeIndex), route["next_hop"],
+			"cannot be empty and must be a string")
 	}
 
 	// Validate next hop as IP address (not CIDR)
@@ -695,20 +542,8 @@ func ValidateIPRoute(route map[string]interface{}, ifaceIndex, routeIndex int) e
 		return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP route [%d] next hop", ifaceIndex, routeIndex), nextHop,
 			"must be a valid IPv4 address (not CIDR)")
 	}
-
-	// Basic IPv4 validation for next hop
-	octets := strings.Split(nextHop, ".")
-	if len(octets) != 4 {
-		return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP route [%d] next hop", ifaceIndex, routeIndex), nextHop,
-			"must be a valid IPv4 address with 4 octets")
-	}
-
-	for _, octet := range octets {
-		var val int
-		if _, err := fmt.Sscanf(octet, "%d", &val); err != nil || val < 0 || val > 255 {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP route [%d] next hop", ifaceIndex, routeIndex), nextHop,
-				"must have octet values between 0-255")
-		}
+	if err := ValidateIPv4(nextHop, fmt.Sprintf("vRouter interface [%d] IP route [%d] next hop", ifaceIndex, routeIndex)); err != nil {
+		return err // Use the more specific error from ValidateIPv4
 	}
 
 	return nil
@@ -716,43 +551,34 @@ func ValidateIPRoute(route map[string]interface{}, ifaceIndex, routeIndex int) e
 
 // ValidateBFDConfig validates a BFD configuration
 func ValidateBFDConfig(bfd map[string]interface{}, ifaceIndex int) error {
-	// TX interval - must be between 300-30000 ms
-	if txInterval, ok := bfd["tx_interval"].(int); ok {
-		if txInterval < 300 || txInterval > 30000 {
+	// TX interval - must be between MinBFDInterval-MaxBFDInterval ms
+	if txInterval, ok := GetIntFromInterface(bfd["tx_interval"]); ok {
+		if txInterval < MinBFDInterval || txInterval > MaxBFDInterval {
 			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BFD TX interval", ifaceIndex), txInterval,
-				"must be between 300-30000 milliseconds")
+				fmt.Sprintf("must be between %d-%d milliseconds", MinBFDInterval, MaxBFDInterval))
 		}
-	} else if txInterval, ok := bfd["tx_interval"].(float64); ok {
-		if txInterval < 300 || txInterval > 30000 {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BFD TX interval", ifaceIndex), txInterval,
-				"must be between 300-30000 milliseconds")
-		}
+	} else if bfd["tx_interval"] != nil { // Check if key exists but type is wrong
+		return NewValidationError(fmt.Sprintf("vRouter interface [%d] BFD TX interval", ifaceIndex), bfd["tx_interval"], "must be a valid integer")
 	}
 
-	// RX interval - must be between 300-30000 ms
-	if rxInterval, ok := bfd["rx_interval"].(int); ok {
-		if rxInterval < 300 || rxInterval > 30000 {
+	// RX interval - must be between MinBFDInterval-MaxBFDInterval ms
+	if rxInterval, ok := GetIntFromInterface(bfd["rx_interval"]); ok {
+		if rxInterval < MinBFDInterval || rxInterval > MaxBFDInterval {
 			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BFD RX interval", ifaceIndex), rxInterval,
-				"must be between 300-30000 milliseconds")
+				fmt.Sprintf("must be between %d-%d milliseconds", MinBFDInterval, MaxBFDInterval))
 		}
-	} else if rxInterval, ok := bfd["rx_interval"].(float64); ok {
-		if rxInterval < 300 || rxInterval > 30000 {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BFD RX interval", ifaceIndex), rxInterval,
-				"must be between 300-30000 milliseconds")
-		}
+	} else if bfd["rx_interval"] != nil {
+		return NewValidationError(fmt.Sprintf("vRouter interface [%d] BFD RX interval", ifaceIndex), bfd["rx_interval"], "must be a valid integer")
 	}
 
-	// Multiplier - must be between 3-20
-	if multiplier, ok := bfd["multiplier"].(int); ok {
-		if multiplier < 3 || multiplier > 20 {
+	// Multiplier - must be between MinBFDMultiplier-MaxBFDMultiplier
+	if multiplier, ok := GetIntFromInterface(bfd["multiplier"]); ok {
+		if multiplier < MinBFDMultiplier || multiplier > MaxBFDMultiplier {
 			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BFD multiplier", ifaceIndex), multiplier,
-				"must be between 3-20")
+				fmt.Sprintf("must be between %d-%d", MinBFDMultiplier, MaxBFDMultiplier))
 		}
-	} else if multiplier, ok := bfd["multiplier"].(float64); ok {
-		if multiplier < 3 || multiplier > 20 {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BFD multiplier", ifaceIndex), multiplier,
-				"must be between 3-20")
-		}
+	} else if bfd["multiplier"] != nil {
+		return NewValidationError(fmt.Sprintf("vRouter interface [%d] BFD multiplier", ifaceIndex), bfd["multiplier"], "must be a valid integer")
 	}
 
 	return nil
@@ -760,82 +586,61 @@ func ValidateBFDConfig(bfd map[string]interface{}, ifaceIndex int) error {
 
 // ValidateBGPConnection validates a BGP connection configuration
 func ValidateBGPConnection(conn map[string]interface{}, ifaceIndex, connIndex int) error {
-	// Peer ASN - no validation, let API handle it
-	_, hasPeerASN := conn["peer_asn"]
+	fieldPrefix := fmt.Sprintf("vRouter interface [%d] BGP connection [%d]", ifaceIndex, connIndex)
+
+	// Peer ASN - required, type check (int or string parsable to int)
+	peerASNVal, hasPeerASN := conn["peer_asn"]
 	if !hasPeerASN {
-		return NewValidationError(fmt.Sprintf("vRouter interface [%d] BGP connection [%d] peer ASN", ifaceIndex, connIndex),
-			nil, "is required")
+		return NewValidationError(fmt.Sprintf("%s peer ASN", fieldPrefix), nil, "is required")
+	}
+	if _, ok := GetIntFromInterface(peerASNVal); !ok { // Allow int, float64, or string representation
+		return NewValidationError(fmt.Sprintf("%s peer ASN", fieldPrefix), peerASNVal, "must be a valid integer ASN")
+	}
+	// Add ASN range validation if needed
+
+	// Local ASN - optional, type check if present
+	if localASNVal, hasLocalASN := conn["local_asn"]; hasLocalASN {
+		if _, ok := GetIntFromInterface(localASNVal); !ok {
+			return NewValidationError(fmt.Sprintf("%s local ASN", fieldPrefix), localASNVal, "must be a valid integer ASN")
+		}
+		// Add ASN range validation if needed
 	}
 
-	// Local ASN - no validation, let API handle it
-
-	// Local IP address validation (required and must be a valid IP)
-	localIP, hasLocalIP := conn["local_ip_address"].(string)
+	// Local IP address validation (required and must be a valid IP or CIDR)
+	localIP, hasLocalIP := GetStringFromInterface(conn["local_ip_address"])
 	if !hasLocalIP || localIP == "" {
-		return NewValidationError(fmt.Sprintf("vRouter interface [%d] BGP connection [%d] local IP address", ifaceIndex, connIndex),
-			localIP, "cannot be empty")
+		return NewValidationError(fmt.Sprintf("%s local IP address", fieldPrefix), conn["local_ip_address"], "cannot be empty and must be a string")
 	}
-
-	// Basic IPv4 validation for local IP
 	if strings.Contains(localIP, "/") {
-		// If CIDR format, validate as CIDR
-		if err := ValidateIPv4CIDR(localIP); err != nil {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BGP connection [%d] local IP address", ifaceIndex, connIndex),
-				localIP, "must be a valid IPv4 address or CIDR")
+		if err := validateIPv4CIDR(localIP, fmt.Sprintf("%s local IP address", fieldPrefix)); err != nil {
+			return err
 		}
 	} else {
-		// Non-CIDR format, validate as simple IP
-		octets := strings.Split(localIP, ".")
-		if len(octets) != 4 {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BGP connection [%d] local IP address", ifaceIndex, connIndex),
-				localIP, "must be a valid IPv4 address with 4 octets")
-		}
-
-		for _, octet := range octets {
-			var val int
-			if _, err := fmt.Sscanf(octet, "%d", &val); err != nil || val < 0 || val > 255 {
-				return NewValidationError(fmt.Sprintf("vRouter interface [%d] BGP connection [%d] local IP address", ifaceIndex, connIndex),
-					localIP, "must have octet values between 0-255")
-			}
+		if err := ValidateIPv4(localIP, fmt.Sprintf("%s local IP address", fieldPrefix)); err != nil {
+			return err
 		}
 	}
 
-	// Peer IP address validation (required and must be a valid IP)
-	peerIP, hasPeerIP := conn["peer_ip_address"].(string)
+	// Peer IP address validation (required and must be a valid IP or CIDR)
+	peerIP, hasPeerIP := GetStringFromInterface(conn["peer_ip_address"])
 	if !hasPeerIP || peerIP == "" {
-		return NewValidationError(fmt.Sprintf("vRouter interface [%d] BGP connection [%d] peer IP address", ifaceIndex, connIndex),
-			peerIP, "cannot be empty")
+		return NewValidationError(fmt.Sprintf("%s peer IP address", fieldPrefix), conn["peer_ip_address"], "cannot be empty and must be a string")
 	}
-
-	// Basic IPv4 validation for peer IP
 	if strings.Contains(peerIP, "/") {
-		// If CIDR format, validate as CIDR
-		if err := ValidateIPv4CIDR(peerIP); err != nil {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BGP connection [%d] peer IP address", ifaceIndex, connIndex),
-				peerIP, "must be a valid IPv4 address or CIDR")
+		if err := validateIPv4CIDR(peerIP, fmt.Sprintf("%s peer IP address", fieldPrefix)); err != nil {
+			return err
 		}
 	} else {
-		// Non-CIDR format, validate as simple IP
-		octets := strings.Split(peerIP, ".")
-		if len(octets) != 4 {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BGP connection [%d] peer IP address", ifaceIndex, connIndex),
-				peerIP, "must be a valid IPv4 address with 4 octets")
-		}
-
-		for _, octet := range octets {
-			var val int
-			if _, err := fmt.Sscanf(octet, "%d", &val); err != nil || val < 0 || val > 255 {
-				return NewValidationError(fmt.Sprintf("vRouter interface [%d] BGP connection [%d] peer IP address", ifaceIndex, connIndex),
-					peerIP, "must have octet values between 0-255")
-			}
+		if err := ValidateIPv4(peerIP, fmt.Sprintf("%s peer IP address", fieldPrefix)); err != nil {
+			return err
 		}
 	}
 
 	// Password validation removed - let API handle it
 
-	// Validate peer type if provided - update to match Terraform schema
-	if peerType, ok := conn["peer_type"].(string); ok && peerType != "" {
-		validTypes := []string{"NON_CLOUD", "PRIV_CLOUD", "PUB_CLOUD"}
+	// Validate peer type if provided
+	if peerType, ok := GetStringFromInterface(conn["peer_type"]); ok && peerType != "" {
+		validTypes := []string{BGPPeerNonCloud, BGPPeerPrivCloud, BGPPeerPubCloud}
 		isValid := false
 		for _, vt := range validTypes {
 			if peerType == vt {
@@ -844,54 +649,51 @@ func ValidateBGPConnection(conn map[string]interface{}, ifaceIndex, connIndex in
 			}
 		}
 		if !isValid {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BGP connection [%d] peer type", ifaceIndex, connIndex),
-				peerType, "must be one of 'NON_CLOUD', 'PRIV_CLOUD', or 'PUB_CLOUD'")
+			return NewValidationError(fmt.Sprintf("%s peer type", fieldPrefix), peerType,
+				fmt.Sprintf("must be one of '%s', '%s', or '%s'", BGPPeerNonCloud, BGPPeerPrivCloud, BGPPeerPubCloud))
 		}
 	}
 
 	// Validate MED (Multi-Exit Discriminator) values
-	if medIn, ok := conn["med_in"].(int); ok {
-		if medIn < 0 || medIn > 4294967295 {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BGP connection [%d] MED in", ifaceIndex, connIndex),
-				medIn, "must be between 0-4294967295")
-		}
-	} else if medIn, ok := conn["med_in"].(float64); ok {
-		if medIn < 0 || medIn > 4294967295 {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BGP connection [%d] MED in", ifaceIndex, connIndex),
-				medIn, "must be between 0-4294967295")
+	if medInVal, hasMedIn := conn["med_in"]; hasMedIn {
+		if medIn, ok := GetIntFromInterface(medInVal); ok {
+			if medIn < MinMED || medIn > MaxMED {
+				return NewValidationError(fmt.Sprintf("%s MED in", fieldPrefix), medIn,
+					fmt.Sprintf("must be between %d-%d", MinMED, MaxMED))
+			}
+		} else {
+			return NewValidationError(fmt.Sprintf("%s MED in", fieldPrefix), medInVal, "must be a valid integer")
 		}
 	}
 
-	if medOut, ok := conn["med_out"].(int); ok {
-		if medOut < 0 || medOut > 4294967295 {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BGP connection [%d] MED out", ifaceIndex, connIndex),
-				medOut, "must be between 0-4294967295")
-		}
-	} else if medOut, ok := conn["med_out"].(float64); ok {
-		if medOut < 0 || medOut > 4294967295 {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BGP connection [%d] MED out", ifaceIndex, connIndex),
-				medOut, "must be between 0-4294967295")
+	if medOutVal, hasMedOut := conn["med_out"]; hasMedOut {
+		if medOut, ok := GetIntFromInterface(medOutVal); ok {
+			if medOut < MinMED || medOut > MaxMED {
+				return NewValidationError(fmt.Sprintf("%s MED out", fieldPrefix), medOut,
+					fmt.Sprintf("must be between %d-%d", MinMED, MaxMED))
+			}
+		} else {
+			return NewValidationError(fmt.Sprintf("%s MED out", fieldPrefix), medOutVal, "must be a valid integer")
 		}
 	}
 
 	// AS path prepend count validation
-	if asPathPrependCount, ok := conn["as_path_prepend_count"].(int); ok {
-		if asPathPrependCount < 0 || asPathPrependCount > 10 {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BGP connection [%d] AS path prepend count", ifaceIndex, connIndex),
-				asPathPrependCount, "must be between 0-10")
-		}
-	} else if asPathPrependCount, ok := conn["as_path_prepend_count"].(float64); ok {
-		if asPathPrependCount < 0 || asPathPrependCount > 10 {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BGP connection [%d] AS path prepend count", ifaceIndex, connIndex),
-				asPathPrependCount, "must be between 0-10")
+	if asPathPrependCountVal, hasASPath := conn["as_path_prepend_count"]; hasASPath {
+		if asPathPrependCount, ok := GetIntFromInterface(asPathPrependCountVal); ok {
+			if asPathPrependCount < MinASPathPrependCount || asPathPrependCount > MaxASPathPrependCount {
+				return NewValidationError(fmt.Sprintf("%s AS path prepend count", fieldPrefix), asPathPrependCount,
+					fmt.Sprintf("must be between %d-%d", MinASPathPrependCount, MaxASPathPrependCount))
+			}
+		} else {
+			return NewValidationError(fmt.Sprintf("%s AS path prepend count", fieldPrefix), asPathPrependCountVal, "must be a valid integer")
 		}
 	}
 
 	// Export policy validation
-	if exportPolicy, ok := conn["export_policy"].(string); ok && exportPolicy != "" {
-		if exportPolicy != "permit" && exportPolicy != "deny" {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BGP connection [%d] export policy", ifaceIndex, connIndex),
-				exportPolicy, "must be 'permit' or 'deny'")
+	if exportPolicy, ok := GetStringFromInterface(conn["export_policy"]); ok && exportPolicy != "" {
+		if exportPolicy != BGPExportPolicyPermit && exportPolicy != BGPExportPolicyDeny {
+			return NewValidationError(fmt.Sprintf("%s export policy", fieldPrefix), exportPolicy,
+				fmt.Sprintf("must be '%s' or '%s'", BGPExportPolicyPermit, BGPExportPolicyDeny))
 		}
 	}
 
