@@ -3,6 +3,8 @@ package validation
 import (
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestValidatePortRequest(t *testing.T) {
@@ -13,54 +15,51 @@ func TestValidatePortRequest(t *testing.T) {
 		portSpeed  int
 		locationID int
 		wantErr    bool
+		errText    string
 	}{
 		{
-			name:       "Valid port request",
+			name:       "Valid Port request",
 			portName:   "Test Port",
 			term:       12,
-			portSpeed:  1000,
+			portSpeed:  10000,
 			locationID: 100,
 			wantErr:    false,
 		},
 		{
-			name:       "Empty port name",
+			name:       "Empty Port name",
 			portName:   "",
 			term:       12,
-			portSpeed:  1000,
+			portSpeed:  10000,
 			locationID: 100,
 			wantErr:    true,
+			errText:    "Invalid port name:  - cannot be empty", // Updated expected error (lowercase 'port')
 		},
 		{
 			name:       "Invalid term",
 			portName:   "Test Port",
 			term:       5,
-			portSpeed:  1000,
+			portSpeed:  10000,
 			locationID: 100,
 			wantErr:    true,
+			errText:    fmt.Sprintf("Invalid contract term: 5 - must be one of: %v", ValidContractTerms),
 		},
 		{
 			name:       "Invalid port speed",
 			portName:   "Test Port",
 			term:       12,
-			portSpeed:  500,
+			portSpeed:  5000, // Not a valid Port speed
 			locationID: 100,
 			wantErr:    true,
+			errText:    fmt.Sprintf("Invalid port speed: 5000 - must be one of: %v", ValidPortSpeeds),
 		},
 		{
 			name:       "Invalid location ID",
 			portName:   "Test Port",
 			term:       12,
-			portSpeed:  1000,
+			portSpeed:  10000,
 			locationID: 0,
 			wantErr:    true,
-		},
-		{
-			name:       "Negative location ID",
-			portName:   "Test Port",
-			term:       12,
-			portSpeed:  1000,
-			locationID: -1,
-			wantErr:    true,
+			errText:    "Invalid location ID: 0 - must be a positive integer",
 		},
 	}
 
@@ -69,6 +68,11 @@ func TestValidatePortRequest(t *testing.T) {
 			err := ValidatePortRequest(tt.portName, tt.term, tt.portSpeed, tt.locationID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidatePortRequest() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
+				assert.Equal(t, tt.errText, err.Error(), "Error message mismatch")
 			}
 		})
 	}

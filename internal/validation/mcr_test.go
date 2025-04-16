@@ -3,6 +3,8 @@ package validation
 import (
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestValidateMCRRequest(t *testing.T) {
@@ -79,13 +81,10 @@ func TestValidateMCRRequest(t *testing.T) {
 			}
 			// Check if the error message matches the expected text when an error is expected
 			if err != nil && tt.wantErr {
-				if err.Error() != tt.errText {
-					t.Errorf("ValidateMCRRequest() error text = %q, want %q", err.Error(), tt.errText)
-				}
 				// Check if the error type is *ValidationError
-				if _, ok := err.(*ValidationError); !ok {
-					t.Errorf("ValidateMCRRequest() should return *ValidationError, got %T", err)
-				}
+				assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
+				// Check the error message
+				assert.Equal(t, tt.errText, err.Error(), "Error message mismatch")
 			}
 		})
 	}
