@@ -3,9 +3,9 @@ package mcr
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -52,32 +52,8 @@ var restoreMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID s
 
 // Validate MCR request
 func validateMCRRequest(req *megaport.BuyMCRRequest) error {
-	if req.Name == "" {
-		return fmt.Errorf("name is required")
-	}
-
-	if req.Term == 0 {
-		return fmt.Errorf("term is required")
-	}
-
-	// Then validate that term is one of the allowed values
-	if req.Term != 1 && req.Term != 12 && req.Term != 24 && req.Term != 36 {
-		return fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
-	}
-
-	if req.PortSpeed == 0 {
-		return fmt.Errorf("port speed is required")
-	}
-
-	if !slices.Contains(megaport.VALID_MCR_PORT_SPEEDS, req.PortSpeed) {
-		return megaport.ErrMCRInvalidPortSpeed
-	}
-
-	if req.LocationID == 0 {
-		return fmt.Errorf("location ID is required")
-	}
-
-	return nil
+	// Use the dedicated validation function from our validation package
+	return validation.ValidateMCRRequest(req.Name, req.Term, req.PortSpeed, req.LocationID)
 }
 
 // Update the validation function for prefix filter list requests
