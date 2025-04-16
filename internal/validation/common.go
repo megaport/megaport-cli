@@ -4,7 +4,6 @@ import (
 	"fmt"
 )
 
-// Constants for valid values
 var (
 	ValidContractTerms   = []int{1, 12, 24, 36}
 	ValidMCRPortSpeeds   = []int{1000, 2500, 5000, 10000, 25000, 50000, 100000}
@@ -12,23 +11,19 @@ var (
 	ValidMVEProductSizes = []string{"SMALL", "MEDIUM", "LARGE"}
 )
 
-// VLAN Constants
 const (
-	MinVLAN           = 0    // Minimum possible VLAN ID (Untagged)
-	MaxVLAN           = 4094 // Maximum possible VLAN ID (some systems use 4095, Megaport API seems to cap at 4094 for assignable)
-	UntaggedVLAN      = -1   // Represents an untagged VLAN
-	AutoAssignVLAN    = 0    // Represents automatic VLAN assignment
-	ReservedVLAN      = 1    // Reserved VLAN ID (often not assignable)
-	MinAssignableVLAN = 2    // Minimum VLAN ID that can typically be assigned by a user
-	MaxAssignableVLAN = 4093 // Maximum VLAN ID that can typically be assigned by a user (4094 often reserved)
-
-	// Length/size constants
+	MinVLAN                    = 0
+	MaxVLAN                    = 4094
+	UntaggedVLAN               = -1
+	AutoAssignVLAN             = 0
+	ReservedVLAN               = 1
+	MinAssignableVLAN          = 2
+	MaxAssignableVLAN          = 4093
 	MaxPortNameLength          = 64
 	MaxAWSConnectionNameLength = 255
 	MaxMVENameLength           = 64
 )
 
-// ValidateContractTerm validates a contract term
 func ValidateContractTerm(term int) error {
 	for _, validTerm := range ValidContractTerms {
 		if term == validTerm {
@@ -39,7 +34,6 @@ func ValidateContractTerm(term int) error {
 		fmt.Sprintf("must be one of: %v", ValidContractTerms))
 }
 
-// ValidateMCRPortSpeed validates an MCR port speed
 func ValidateMCRPortSpeed(speed int) error {
 	for _, validSpeed := range ValidMCRPortSpeeds {
 		if speed == validSpeed {
@@ -50,7 +44,6 @@ func ValidateMCRPortSpeed(speed int) error {
 		fmt.Sprintf("must be one of: %v", ValidMCRPortSpeeds))
 }
 
-// ValidatePortSpeed validates a port speed
 func ValidatePortSpeed(speed int) error {
 	for _, validSpeed := range ValidPortSpeeds {
 		if speed == validSpeed {
@@ -61,8 +54,6 @@ func ValidatePortSpeed(speed int) error {
 		fmt.Sprintf("must be one of: %v", ValidPortSpeeds))
 }
 
-// ValidateVLAN checks if a VLAN ID is valid for general use cases.
-// Allows AutoAssignVLAN (-1), UntaggedVLAN (0), or assignable range (2-4094).
 func ValidateVLAN(vlan int) error {
 	if vlan == AutoAssignVLAN || vlan == UntaggedVLAN || (vlan >= MinAssignableVLAN && vlan <= MaxVLAN) {
 		return nil
@@ -70,7 +61,6 @@ func ValidateVLAN(vlan int) error {
 	return NewValidationError("VLAN ID", vlan, fmt.Sprintf("must be %d, %d, or between %d-%d", AutoAssignVLAN, UntaggedVLAN, MinAssignableVLAN, MaxVLAN))
 }
 
-// ValidateRateLimit validates a VXC rate limit
 func ValidateRateLimit(rateLimit int) error {
 	if rateLimit <= 0 {
 		return NewValidationError("rate limit", rateLimit, "must be a positive integer")
@@ -78,7 +68,6 @@ func ValidateRateLimit(rateLimit int) error {
 	return nil
 }
 
-// ValidateMVEProductSize validates an MVE product size
 func ValidateMVEProductSize(size string) error {
 	for _, validSize := range ValidMVEProductSizes {
 		if size == validSize {
@@ -89,16 +78,12 @@ func ValidateMVEProductSize(size string) error {
 		fmt.Sprintf("must be one of: %v", ValidMVEProductSizes))
 }
 
-// ValidateFieldPresence checks if required fields are present and non-empty in a map
-// Returns the first missing field name, or an empty string if all required fields are present
 func ValidateFieldPresence(config map[string]interface{}, requiredFields []string) string {
 	for _, field := range requiredFields {
 		val, exists := config[field]
 		if !exists || val == nil {
 			return field
 		}
-
-		// Check for empty strings
 		if strVal, isStr := val.(string); isStr && strVal == "" {
 			return field
 		}
@@ -106,11 +91,8 @@ func ValidateFieldPresence(config map[string]interface{}, requiredFields []strin
 	return ""
 }
 
-// ExtractFieldsWithTypes is a helper to extract multiple fields from a config map with type conversion
-// Returns a map of field name to extracted value (or nil if extraction failed)
 func ExtractFieldsWithTypes(config map[string]interface{}, fields map[string]string) map[string]interface{} {
 	result := make(map[string]interface{})
-
 	for field, fieldType := range fields {
 		switch fieldType {
 		case "string":
@@ -130,6 +112,5 @@ func ExtractFieldsWithTypes(config map[string]interface{}, fields map[string]str
 			result[field] = val
 		}
 	}
-
 	return result
 }
