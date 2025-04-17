@@ -50,14 +50,63 @@ const (
 	AWSConnectTypePublic = "public"
 )
 
+// ValidateVXCEndVLAN validates the VLAN ID for a VXC (Virtual Cross Connect) endpoint.
+// This ensures the VLAN ID meets the Megaport requirements for VXC configurations.
+//
+// Parameters:
+//   - vlan: The VLAN ID to validate (typically 0-4094)
+//
+// Validation checks:
+//   - The VLAN must be one of the following:
+//   - AutoAssignVLAN (0): System will auto-assign a VLAN
+//   - UntaggedVLAN (-1): Packet will be untagged
+//   - A value between MinAssignableVLAN (2) and MaxVLAN (4094) inclusive
+//
+// Returns:
+//   - A ValidationError if the VLAN ID is not valid
+//   - nil if the validation passes
 func ValidateVXCEndVLAN(vlan int) error {
 	return ValidateVLAN(vlan)
 }
 
+// ValidateVXCEndInnerVLAN validates the inner VLAN ID (Q-in-Q) for a VXC endpoint.
+// This function ensures the inner VLAN ID meets the requirements for QinQ configurations.
+//
+// Parameters:
+//   - vlan: The inner VLAN ID to validate (typically 0-4094)
+//
+// Validation checks:
+//   - Inner VLAN follows the same validation rules as outer VLANs
+//   - Must be a valid VLAN ID (0, -1, or 2-4094)
+//
+// Returns:
+//   - A ValidationError if the inner VLAN ID is not valid
+//   - nil if the validation passes
 func ValidateVXCEndInnerVLAN(vlan int) error {
 	return ValidateVLAN(vlan)
 }
 
+// ValidateVXCRequest validates the core parameters for creating a VXC (Virtual Cross Connect).
+// This function ensures the input parameters meet all requirements for establishing a connection.
+//
+// Parameters:
+//   - name: The name of the VXC to be created
+//   - term: The contract term in months
+//   - rateLimit: The rate limit in Mbps for the connection
+//   - aEndUID: The unique identifier for the A-End (source) port
+//   - bEndUID: The unique identifier for the B-End (destination) port
+//   - hasPartnerConfig: Flag indicating if a partner configuration is provided (for cloud connections)
+//
+// Validation checks:
+//   - Name cannot be empty
+//   - Contract term must be valid (typically 1, 12, 24, or 36 months)
+//   - Rate limit must be a positive value
+//   - A-End UID cannot be empty
+//   - B-End UID cannot be empty when no partner configuration is provided
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateVXCRequest(name string, term int, rateLimit int, aEndUID string, bEndUID string, hasPartnerConfig bool) error {
 	if name == "" {
 		return NewValidationError("VXC name", name, "cannot be empty")
@@ -77,6 +126,20 @@ func ValidateVXCRequest(name string, term int, rateLimit int, aEndUID string, bE
 	return nil
 }
 
+// ValidateVXCRequestFromConfig validates a VXC order configuration object.
+// This is a convenience function that extracts needed values from the configuration
+// object and delegates to the ValidateVXCRequest function.
+//
+// Parameters:
+//   - config: A VXCOrderConfiguration object containing all VXC order parameters
+//
+// Validation checks:
+//   - All validations performed by ValidateVXCRequest
+//   - Checks if B-End includes a partner configuration
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateVXCRequestFromConfig(config *megaport.VXCOrderConfiguration) error {
 	hasPartnerConfig := false
 	if config.BEnd.PartnerConfig != nil {
@@ -92,6 +155,23 @@ func ValidateVXCRequestFromConfig(config *megaport.VXCOrderConfiguration) error 
 	)
 }
 
+// ValidateAWSPartnerConfig validates an AWS partner configuration for a VXC connection.
+// This function ensures the AWS-specific connection parameters meet all requirements.
+//
+// Parameters:
+//   - config: The AWS partner configuration to validate
+//
+// Validation checks include:
+//   - Connect type must be provided and be one of the valid types ('AWS', 'AWSHC', 'private', 'public')
+//   - Owner account must be provided (AWS account ID)
+//   - If customer IP address is provided, it must be in valid CIDR notation
+//   - If Amazon IP address is provided, it must be in valid CIDR notation
+//   - If connection name is provided, it must not exceed 255 characters
+//   - For 'AWS' connect type with a specified connection type, it must be 'private' or 'public'
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateAWSPartnerConfig(config *megaport.VXCPartnerConfigAWS) error {
 	if config.ConnectType == "" {
 		return NewValidationError("AWS connect type", config.ConnectType, "cannot be empty")
@@ -129,6 +209,20 @@ func ValidateAWSPartnerConfig(config *megaport.VXCPartnerConfigAWS) error {
 	return nil
 }
 
+// ValidateAzurePartnerConfig validates an Azure partner configuration for a VXC connection.
+// This function ensures the Azure-specific connection parameters meet all requirements.
+//
+// Parameters:
+//   - config: The Azure partner configuration to validate
+//
+// Validation checks include:
+//   - Configuration cannot be nil
+//   - Service key must be provided (required for Azure connections)
+//   - Note: Azure peer configurations are assumed to be validated elsewhere if needed
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateAzurePartnerConfig(config *megaport.VXCPartnerConfigAzure) error {
 	if config == nil {
 		return NewValidationError("Azure partner config", nil, "cannot be nil")
@@ -139,6 +233,18 @@ func ValidateAzurePartnerConfig(config *megaport.VXCPartnerConfigAzure) error {
 	return nil
 }
 
+// ValidateGooglePartnerConfig validates a Google Cloud partner configuration for a VXC connection.
+// This function ensures the Google-specific connection parameters meet all requirements.
+//
+// Parameters:
+//   - config: The Google partner configuration to validate
+//
+// Validation checks include:
+//   - Pairing key must be provided (required for Google Cloud connections)
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateGooglePartnerConfig(config *megaport.VXCPartnerConfigGoogle) error {
 	if config.PairingKey == "" {
 		return NewValidationError("Google pairing key", config.PairingKey, "cannot be empty")
@@ -146,6 +252,18 @@ func ValidateGooglePartnerConfig(config *megaport.VXCPartnerConfigGoogle) error 
 	return nil
 }
 
+// ValidateOraclePartnerConfig validates an Oracle Cloud partner configuration for a VXC connection.
+// This function ensures the Oracle-specific connection parameters meet all requirements.
+//
+// Parameters:
+//   - config: The Oracle partner configuration to validate
+//
+// Validation checks include:
+//   - Virtual Circuit ID must be provided (required for Oracle Cloud connections)
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateOraclePartnerConfig(config *megaport.VXCPartnerConfigOracle) error {
 	if config.VirtualCircuitId == "" {
 		return NewValidationError("Oracle virtual circuit ID", config.VirtualCircuitId, "cannot be empty")
@@ -153,6 +271,24 @@ func ValidateOraclePartnerConfig(config *megaport.VXCPartnerConfigOracle) error 
 	return nil
 }
 
+// ValidateIBMPartnerConfig validates an IBM Cloud partner configuration for a VXC connection.
+// This function ensures the IBM-specific connection parameters meet all requirements.
+//
+// Parameters:
+//   - config: The IBM partner configuration to validate
+//
+// Validation checks include:
+//   - Account ID must be provided
+//   - Account ID must be exactly 32 characters (IBMAccountIDLength)
+//   - Account ID must contain only hexadecimal characters (0-9, a-f, A-F)
+//   - If connection name is provided, it must not exceed the maximum length (MaxIBMNameLength)
+//   - If connection name is provided, it must contain only allowed characters (0-9, a-z, A-Z, /, -, _, ,)
+//   - If customer IP address is provided, it must be in valid CIDR notation
+//   - If provider IP address is provided, it must be in valid CIDR notation
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateIBMPartnerConfig(config *megaport.VXCPartnerConfigIBM) error {
 	if config.AccountID == "" {
 		return NewValidationError("IBM account ID", config.AccountID, "cannot be empty")
@@ -193,6 +329,26 @@ func isValidIBMName(name string) bool {
 	return true
 }
 
+// ValidateVrouterPartnerConfig validates a vRouter partner configuration for a VXC connection.
+// This function ensures all aspects of a connection to a Megaport virtual router are properly configured.
+//
+// Parameters:
+//   - config: The vRouter partner configuration to validate
+//
+// Validation checks include:
+//   - Configuration cannot be nil
+//   - At least one interface must be provided
+//   - For each interface:
+//   - If VLAN is specified, it must be within allowed range
+//   - All IP addresses must be in valid CIDR notation
+//   - All NAT IP addresses must be in valid CIDR notation
+//   - All IP routes must be valid (calls ValidateIPRouteConfig)
+//   - BFD configuration must be valid (calls ValidateBFDConfig)
+//   - All BGP connections must be valid (calls ValidateBGPConnectionConfig)
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateVrouterPartnerConfig(config *megaport.VXCOrderVrouterPartnerConfig) error {
 	if config == nil {
 		return NewValidationError("vRouter partner config", nil, "cannot be nil")
@@ -241,6 +397,26 @@ func ValidateVrouterPartnerConfig(config *megaport.VXCOrderVrouterPartnerConfig)
 	return nil
 }
 
+// ValidateVXCPartnerConfig validates a partner configuration for a VXC connection.
+// This function uses type switching to determine the specific type of partner configuration
+// and delegates to the appropriate type-specific validation function.
+//
+// Parameters:
+//   - config: The partner configuration to validate (can be any of the supported partner types)
+//
+// Validation checks include:
+//   - Type-specific validations delegated to:
+//   - ValidateAWSPartnerConfig
+//   - ValidateAzurePartnerConfig
+//   - ValidateGooglePartnerConfig
+//   - ValidateOraclePartnerConfig
+//   - ValidateIBMPartnerConfig
+//   - ValidateVrouterPartnerConfig
+//   - Configuration type must be one of the supported types
+//
+// Returns:
+//   - A ValidationError if the type is not supported or if type-specific validation fails
+//   - nil if all validation checks pass
 func ValidateVXCPartnerConfig(config megaport.VXCPartnerConfiguration) error {
 	switch v := config.(type) {
 	case *megaport.VXCPartnerConfigAWS:
@@ -260,44 +436,27 @@ func ValidateVXCPartnerConfig(config megaport.VXCPartnerConfiguration) error {
 	}
 }
 
-func ValidateIPRouteConfig(route megaport.IpRoute, ifaceIndex, routeIndex int) error {
-	if route.Prefix == "" {
-		return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP route [%d] prefix", ifaceIndex, routeIndex), route.Prefix, "cannot be empty")
-	}
-	if err := ValidateCIDR(route.Prefix, fmt.Sprintf("vRouter interface [%d] IP route [%d] prefix", ifaceIndex, routeIndex)); err != nil {
-		return err
-	}
-	if route.NextHop == "" {
-		return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP route [%d] next hop", ifaceIndex, routeIndex), route.NextHop, "cannot be empty")
-	}
-	if strings.Contains(route.NextHop, "/") {
-		return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP route [%d] next hop", ifaceIndex, routeIndex), route.NextHop, "must be a valid IPv4 address (not CIDR)")
-	}
-	if err := ValidateIPv4(route.NextHop, fmt.Sprintf("vRouter interface [%d] IP route [%d] next hop", ifaceIndex, routeIndex)); err != nil {
-		return err
-	}
-	return nil
-}
-
-func ValidateBFDConfig(bfd megaport.BfdConfig, ifaceIndex int) error {
-	if bfd.TxInterval != 0 {
-		if bfd.TxInterval < MinBFDInterval || bfd.TxInterval > MaxBFDInterval {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BFD TX interval", ifaceIndex), bfd.TxInterval, fmt.Sprintf("must be between %d-%d milliseconds", MinBFDInterval, MaxBFDInterval))
-		}
-	}
-	if bfd.RxInterval != 0 {
-		if bfd.RxInterval < MinBFDInterval || bfd.RxInterval > MaxBFDInterval {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BFD RX interval", ifaceIndex), bfd.RxInterval, fmt.Sprintf("must be between %d-%d milliseconds", MinBFDInterval, MaxBFDInterval))
-		}
-	}
-	if bfd.Multiplier != 0 {
-		if bfd.Multiplier < MinBFDMultiplier || bfd.Multiplier > MaxBFDMultiplier {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BFD multiplier", ifaceIndex), bfd.Multiplier, fmt.Sprintf("must be between %d-%d", MinBFDMultiplier, MaxBFDMultiplier))
-		}
-	}
-	return nil
-}
-
+// ValidateBGPConnectionConfig validates the configuration for a BGP (Border Gateway Protocol) connection.
+// This function performs comprehensive validation of all BGP connection parameters to ensure they meet
+// the requirements for establishing BGP peering sessions in a vRouter interface.
+//
+// Parameters:
+//   - conn: The BGP connection configuration to validate
+//   - ifaceIndex: The index of the interface this BGP connection belongs to (used for error messages)
+//   - connIndex: The index of this BGP connection within the interface (used for error messages)
+//
+// Validation checks include:
+//   - Peer ASN must be provided (non-zero)
+//   - Local IP address must be provided and be a valid IPv4 address or CIDR
+//   - Peer IP address must be provided and be a valid IPv4 address or CIDR
+//   - If Peer Type is provided, it must be one of the predefined values (NON_CLOUD, PRIV_CLOUD, PUB_CLOUD)
+//   - If MED values (Multi-Exit Discriminator) are provided, they must be within allowed range (0-4294967295)
+//   - If AS path prepend count is provided, it must be within allowed range (0-10)
+//   - If Export Policy is provided, it must be either "permit" or "deny"
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateBGPConnectionConfig(conn megaport.BgpConnectionConfig, ifaceIndex, connIndex int) error {
 	fieldPrefix := fmt.Sprintf("vRouter interface [%d] BGP connection [%d]", ifaceIndex, connIndex)
 	if conn.PeerAsn == 0 {
@@ -358,6 +517,77 @@ func ValidateBGPConnectionConfig(conn megaport.BgpConnectionConfig, ifaceIndex, 
 	if conn.ExportPolicy != "" {
 		if conn.ExportPolicy != BGPExportPolicyPermit && conn.ExportPolicy != BGPExportPolicyDeny {
 			return NewValidationError(fmt.Sprintf("%s export policy", fieldPrefix), conn.ExportPolicy, "must be 'permit' or 'deny'")
+		}
+	}
+	return nil
+}
+
+// ValidateIPRouteConfig validates an IP route configuration for a vRouter interface.
+// This function ensures that IP routes are correctly formatted according to networking requirements.
+//
+// Parameters:
+//   - route: The IP route configuration to validate (contains prefix and next hop)
+//   - ifaceIndex: The index of the interface this route belongs to (used for error messages)
+//   - routeIndex: The index of this route within the interface (used for error messages)
+//
+// Validation checks include:
+//   - Prefix must be provided and be a valid CIDR notation (e.g., "10.0.0.0/24")
+//   - Next hop must be provided and be a valid IPv4 address (not a CIDR)
+//   - Next hop must be in the standard IPv4 format (e.g., "192.168.1.1")
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
+func ValidateIPRouteConfig(route megaport.IpRoute, ifaceIndex, routeIndex int) error {
+	if route.Prefix == "" {
+		return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP route [%d] prefix", ifaceIndex, routeIndex), route.Prefix, "cannot be empty")
+	}
+	if err := ValidateCIDR(route.Prefix, fmt.Sprintf("vRouter interface [%d] IP route [%d] prefix", ifaceIndex, routeIndex)); err != nil {
+		return err
+	}
+	if route.NextHop == "" {
+		return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP route [%d] next hop", ifaceIndex, routeIndex), route.NextHop, "cannot be empty")
+	}
+	if strings.Contains(route.NextHop, "/") {
+		return NewValidationError(fmt.Sprintf("vRouter interface [%d] IP route [%d] next hop", ifaceIndex, routeIndex), route.NextHop, "must be a valid IPv4 address (not CIDR)")
+	}
+	if err := ValidateIPv4(route.NextHop, fmt.Sprintf("vRouter interface [%d] IP route [%d] next hop", ifaceIndex, routeIndex)); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ValidateBFDConfig validates a Bidirectional Forwarding Detection (BFD) configuration.
+// BFD is a network protocol used to detect link failures between adjacent forwarding engines.
+// This function ensures that BFD parameters are within acceptable ranges for stable operation.
+//
+// Parameters:
+//   - bfd: The BFD configuration to validate, containing interval and multiplier settings
+//   - ifaceIndex: The index of the interface this BFD configuration belongs to (used for error messages)
+//
+// Validation checks include:
+//   - TX interval (transmission interval) must be within allowed range (300-30000 milliseconds)
+//   - RX interval (receive interval) must be within allowed range (300-30000 milliseconds)
+//   - Multiplier must be within allowed range (3-20)
+//   - Zero values are allowed and considered as "not specified"
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
+func ValidateBFDConfig(bfd megaport.BfdConfig, ifaceIndex int) error {
+	if bfd.TxInterval != 0 {
+		if bfd.TxInterval < MinBFDInterval || bfd.TxInterval > MaxBFDInterval {
+			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BFD TX interval", ifaceIndex), bfd.TxInterval, fmt.Sprintf("must be between %d-%d milliseconds", MinBFDInterval, MaxBFDInterval))
+		}
+	}
+	if bfd.RxInterval != 0 {
+		if bfd.RxInterval < MinBFDInterval || bfd.RxInterval > MaxBFDInterval {
+			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BFD RX interval", ifaceIndex), bfd.RxInterval, fmt.Sprintf("must be between %d-%d milliseconds", MinBFDInterval, MaxBFDInterval))
+		}
+	}
+	if bfd.Multiplier != 0 {
+		if bfd.Multiplier < MinBFDMultiplier || bfd.Multiplier > MaxBFDMultiplier {
+			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BFD multiplier", ifaceIndex), bfd.Multiplier, fmt.Sprintf("must be between %d-%d", MinBFDMultiplier, MaxBFDMultiplier))
 		}
 	}
 	return nil

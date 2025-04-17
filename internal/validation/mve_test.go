@@ -341,7 +341,7 @@ func TestValidateMVEVendorConfig(t *testing.T) {
 				ManageLocally:     true, // Avoid FMC errors
 			},
 			wantErr: true,
-			errText: fmt.Sprintf("Invalid MVE product size: INVALID_SIZE - must be one of: %v", ValidMVEProductSizes),
+			errText: fmt.Sprintf("Invalid product size: INVALID_SIZE - must be one of: %v", ValidMVEProductSizes), // Updated error message prefix
 		},
 		{
 			name: "Invalid vendor in config", // Renamed test
@@ -366,7 +366,6 @@ func TestValidateMVEVendorConfig(t *testing.T) {
 			wantErr: true,
 			errText: "Invalid image ID: 0 - must be a positive integer", // Adjusted error for zero value check
 		},
-		// Removed "Invalid image ID type" test case as it's not applicable to structs
 		{
 			name: "Missing product size (empty string)", // Renamed test
 			config: &megaport.CiscoConfig{ // Use struct pointer
@@ -376,7 +375,7 @@ func TestValidateMVEVendorConfig(t *testing.T) {
 				ManageLocally: true, // Avoid FMC errors
 			},
 			wantErr: true,
-			errText: fmt.Sprintf("Invalid MVE product size:  - must be one of: %v", ValidMVEProductSizes), // Adjusted error for empty string check
+			errText: fmt.Sprintf("Invalid product size:  - must be one of: %v", ValidMVEProductSizes), // Updated error message prefix and adjusted for empty string check
 		},
 	}
 

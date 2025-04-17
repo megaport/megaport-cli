@@ -22,17 +22,44 @@ var (
 	}
 )
 
+// ValidateMVEProductSize validates the product size for an MVE (Megaport Virtual Edge) instance.
+// This function ensures the specified size is among the allowed values for MVE deployments.
+//
+// Parameters:
+//   - size: The MVE product size to validate (e.g., "SMALL", "MEDIUM", "LARGE", "X_LARGE_12")
+//
+// Validation checks:
+//   - Size must be one of the predefined valid values (ValidMVEProductSizes)
+//   - Size cannot be empty
+//
+// Returns:
+//   - A ValidationError if the size is not valid
+//   - nil if the validation passes
 func ValidateMVEProductSize(size string) error {
 	for _, validSize := range ValidMVEProductSizes {
 		if size == validSize {
 			return nil
 		}
 	}
-	return NewValidationError("MVE product size", size,
+	return NewValidationError("product size", size,
 		fmt.Sprintf("must be one of: %v", ValidMVEProductSizes))
 }
 
-// Validate MVE buy request
+// ValidateBuyMVERequest validates a request to buy/provision a new MVE (Megaport Virtual Edge) instance.
+// This function ensures all required parameters are present and valid for creating a new MVE.
+//
+// Parameters:
+//   - req: The BuyMVERequest object containing all MVE provisioning parameters
+//
+// Validation checks:
+//   - Name must be provided and cannot exceed the maximum length (MaxMVENameLength)
+//   - Contract term must be valid (typically 1, 12, 24, or 36 months)
+//   - Location ID must be a positive integer
+//   - Vendor configuration must be provided and valid
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateBuyMVERequest(req *megaport.BuyMVERequest) error {
 	if req.Name == "" {
 		return NewValidationError("MVE name", req.Name, "cannot be empty")
@@ -60,7 +87,19 @@ func ValidateBuyMVERequest(req *megaport.BuyMVERequest) error {
 	return nil
 }
 
-// Validate MVE update request
+// ValidateUpdateMVERequest validates a request to update an existing MVE (Megaport Virtual Edge) instance.
+// This function ensures that necessary fields are provided to modify an MVE.
+//
+// Parameters:
+//   - req: The ModifyMVERequest object containing the fields to update
+//
+// Validation checks:
+//   - At least one updateable field must be provided (name, cost center, or contract term)
+//   - If contract term is provided, it must be valid (typically 1, 12, 24, or 36 months)
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateUpdateMVERequest(req *megaport.ModifyMVERequest) error {
 	// Check if any update fields are provided
 	if req.Name == "" && req.CostCentre == "" && req.ContractTermMonths == nil {
@@ -79,6 +118,23 @@ func ValidateUpdateMVERequest(req *megaport.ModifyMVERequest) error {
 	return nil
 }
 
+// ValidateMVERequest validates the core parameters for creating an MVE (Megaport Virtual Edge).
+// This function is used by other validators to validate common MVE parameters.
+//
+// Parameters:
+//   - name: The name to give the MVE instance
+//   - term: The contract term in months
+//   - locationID: The ID of the Megaport location where the MVE will be deployed
+//
+// Validation checks:
+//   - Name cannot be empty
+//   - Name cannot exceed the maximum length (MaxMVENameLength)
+//   - Contract term must be valid (typically 1, 12, 24, or 36 months)
+//   - Location ID must be a positive integer
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateMVERequest(name string, term int, locationID int) error {
 	if name == "" {
 		return NewValidationError("MVE name", name, "cannot be empty")
@@ -95,6 +151,19 @@ func ValidateMVERequest(name string, term int, locationID int) error {
 	return nil
 }
 
+// ValidateMVEVendor validates that a vendor name is one of the supported MVE vendors.
+// This ensures that only supported network virtualization platforms can be deployed.
+//
+// Parameters:
+//   - vendor: The name of the vendor/platform (e.g., "cisco", "palo_alto", "vmware")
+//
+// Validation checks:
+//   - Vendor name must be one of the predefined values in ValidMVEVendors
+//   - Vendor name is case-insensitive (normalized to lowercase for comparison)
+//
+// Returns:
+//   - A ValidationError if the vendor is not supported
+//   - nil if the validation passes
 func ValidateMVEVendor(vendor string) error {
 	normalizedVendor := strings.ToLower(vendor)
 	for _, validVendor := range ValidMVEVendors {
@@ -106,6 +175,19 @@ func ValidateMVEVendor(vendor string) error {
 		fmt.Sprintf("must be one of: %v", ValidMVEVendors))
 }
 
+// ValidateMVENetworkInterfaces validates the network interfaces for an MVE instance.
+// This function ensures the virtual network interfaces meet Megaport's requirements.
+//
+// Parameters:
+//   - vnics: A slice of MVENetworkInterface objects representing the virtual NICs to configure
+//
+// Validation checks:
+//   - Cannot have more than 5 vNICs per MVE instance
+//   - Each vNIC must have a non-empty description
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateMVENetworkInterfaces(vnics []megaport.MVENetworkInterface) error {
 	if len(vnics) > 5 {
 		return NewValidationError("network interfaces", len(vnics), "cannot exceed 5 vNICs")
@@ -118,6 +200,20 @@ func ValidateMVENetworkInterfaces(vnics []megaport.MVENetworkInterface) error {
 	return nil
 }
 
+// ValidateSixwindVSRConfig validates a 6WIND VSR configuration for an MVE deployment.
+// This function ensures all required parameters for a 6WIND virtual router are provided.
+//
+// Parameters:
+//   - config: The 6WIND VSR configuration to validate
+//
+// Validation checks:
+//   - Image ID must be a positive integer
+//   - Product size must be valid (calls ValidateMVEProductSize)
+//   - SSH public key must be provided (for authentication)
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateSixwindVSRConfig(config *megaport.SixwindVSRConfig) error {
 	if config.ImageID <= 0 {
 		return NewValidationError("image ID", config.ImageID, "must be a positive integer")
@@ -131,6 +227,22 @@ func ValidateSixwindVSRConfig(config *megaport.SixwindVSRConfig) error {
 	return nil
 }
 
+// ValidateArubaConfig validates an Aruba configuration for an MVE deployment.
+// This function ensures all required parameters for an Aruba virtual appliance are provided.
+//
+// Parameters:
+//   - config: The Aruba configuration to validate
+//
+// Validation checks:
+//   - Image ID must be a positive integer
+//   - Product size must be valid (calls ValidateMVEProductSize)
+//   - Account name must be provided
+//   - Account key must be provided
+//   - System tag must be provided
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateArubaConfig(config *megaport.ArubaConfig) error {
 	if config.ImageID <= 0 {
 		return NewValidationError("image ID", config.ImageID, "must be a positive integer")
@@ -150,6 +262,20 @@ func ValidateArubaConfig(config *megaport.ArubaConfig) error {
 	return nil
 }
 
+// ValidateAviatrixConfig validates an Aviatrix configuration for an MVE deployment.
+// This function ensures all required parameters for an Aviatrix virtual appliance are provided.
+//
+// Parameters:
+//   - config: The Aviatrix configuration to validate
+//
+// Validation checks:
+//   - Image ID must be a positive integer
+//   - Product size must be valid (calls ValidateMVEProductSize)
+//   - Cloud init data must be provided (for initial configuration)
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateAviatrixConfig(config *megaport.AviatrixConfig) error {
 	if config.ImageID <= 0 {
 		return NewValidationError("image ID", config.ImageID, "must be a positive integer")
@@ -163,6 +289,25 @@ func ValidateAviatrixConfig(config *megaport.AviatrixConfig) error {
 	return nil
 }
 
+// ValidateCiscoConfig validates a Cisco configuration for an MVE deployment.
+// This function ensures all required parameters for a Cisco virtual appliance are provided.
+//
+// Parameters:
+//   - config: The Cisco configuration to validate
+//
+// Validation checks:
+//   - Image ID must be a positive integer
+//   - Product size must be valid (calls ValidateMVEProductSize)
+//   - Admin SSH public key must be provided
+//   - SSH public key must be provided
+//   - If not managing locally (FMC management):
+//   - FMC IP address must be provided
+//   - FMC registration key must be provided
+//   - FMC NAT ID must be provided
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateCiscoConfig(config *megaport.CiscoConfig) error {
 	if config.ImageID <= 0 {
 		return NewValidationError("image ID", config.ImageID, "must be a positive integer")
@@ -190,6 +335,23 @@ func ValidateCiscoConfig(config *megaport.CiscoConfig) error {
 	return nil
 }
 
+// ValidateVmwareConfig validates a VMware SD-WAN configuration for an MVE deployment.
+// This function ensures all required parameters for a VMware SD-WAN virtual appliance are provided.
+//
+// Parameters:
+//   - config: The VMware configuration to validate
+//
+// Validation checks:
+//   - Image ID must be a positive integer
+//   - Product size must be valid (calls ValidateMVEProductSize)
+//   - Admin SSH public key must be provided
+//   - SSH public key must be provided
+//   - VCO address must be provided (VMware SD-WAN orchestrator address)
+//   - VCO activation code must be provided
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateVmwareConfig(config *megaport.VmwareConfig) error {
 	if config.ImageID <= 0 {
 		return NewValidationError("image ID", config.ImageID, "must be a positive integer")
@@ -212,6 +374,20 @@ func ValidateVmwareConfig(config *megaport.VmwareConfig) error {
 	return nil
 }
 
+// ValidateMerakiConfig validates a Cisco Meraki configuration for an MVE deployment.
+// This function ensures all required parameters for a Meraki virtual appliance are provided.
+//
+// Parameters:
+//   - config: The Meraki configuration to validate
+//
+// Validation checks:
+//   - Image ID must be a positive integer
+//   - Product size must be valid (calls ValidateMVEProductSize)
+//   - Authentication token must be provided
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateMerakiConfig(config *megaport.MerakiConfig) error {
 	if config.ImageID <= 0 {
 		return NewValidationError("image ID", config.ImageID, "must be a positive integer")
@@ -225,6 +401,22 @@ func ValidateMerakiConfig(config *megaport.MerakiConfig) error {
 	return nil
 }
 
+// ValidateFortinetConfig validates a Fortinet configuration for an MVE deployment.
+// This function ensures all required parameters for a Fortinet virtual appliance are provided.
+//
+// Parameters:
+//   - config: The Fortinet configuration to validate
+//
+// Validation checks:
+//   - Image ID must be a positive integer
+//   - Product size must be valid (calls ValidateMVEProductSize)
+//   - Admin SSH public key must be provided (for administrator access)
+//   - SSH public key must be provided (for regular user access)
+//   - License data must be provided (for Fortinet licensing)
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateFortinetConfig(config *megaport.FortinetConfig) error {
 	if config.ImageID <= 0 {
 		return NewValidationError("image ID", config.ImageID, "must be a positive integer")
@@ -244,6 +436,22 @@ func ValidateFortinetConfig(config *megaport.FortinetConfig) error {
 	return nil
 }
 
+// ValidatePaloAltoConfig validates a Palo Alto Networks configuration for an MVE deployment.
+// This function ensures all required parameters for a Palo Alto Networks virtual appliance are provided.
+//
+// Parameters:
+//   - config: The Palo Alto Networks configuration to validate
+//
+// Validation checks:
+//   - Image ID must be a positive integer
+//   - Product size must be valid (calls ValidateMVEProductSize)
+//   - SSH public key must be provided (for user access)
+//   - Admin password hash must be provided (for secure administrator authentication)
+//   - License data must be provided (for Palo Alto Networks licensing)
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidatePaloAltoConfig(config *megaport.PaloAltoConfig) error {
 	if config.ImageID <= 0 {
 		return NewValidationError("image ID", config.ImageID, "must be a positive integer")
@@ -263,6 +471,21 @@ func ValidatePaloAltoConfig(config *megaport.PaloAltoConfig) error {
 	return nil
 }
 
+// ValidatePrismaConfig validates a Prisma SD-WAN configuration for an MVE deployment.
+// This function ensures all required parameters for a Prisma SD-WAN virtual appliance are provided.
+//
+// Parameters:
+//   - config: The Prisma configuration to validate
+//
+// Validation checks:
+//   - Image ID must be a positive integer
+//   - Product size must be valid (calls ValidateMVEProductSize)
+//   - ION key must be provided (required for Prisma SD-WAN activation)
+//   - Secret key must be provided (required for Prisma SD-WAN authentication)
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidatePrismaConfig(config *megaport.PrismaConfig) error {
 	if config.ImageID <= 0 {
 		return NewValidationError("image ID", config.ImageID, "must be a positive integer")
@@ -279,6 +502,24 @@ func ValidatePrismaConfig(config *megaport.PrismaConfig) error {
 	return nil
 }
 
+// ValidateVersaConfig validates a Versa Networks configuration for an MVE deployment.
+// This function ensures all required parameters for a Versa Networks virtual appliance are provided.
+//
+// Parameters:
+//   - config: The Versa Networks configuration to validate
+//
+// Validation checks:
+//   - Image ID must be a positive integer
+//   - Product size must be valid (calls ValidateMVEProductSize)
+//   - Director address must be provided (Versa Director management plane)
+//   - Controller address must be provided (Versa Controller address)
+//   - Local auth credential must be provided
+//   - Remote auth credential must be provided
+//   - Serial number must be provided (for device registration)
+//
+// Returns:
+//   - A ValidationError if any validation check fails
+//   - nil if all validation checks pass
 func ValidateVersaConfig(config *megaport.VersaConfig) error {
 	if config.ImageID <= 0 {
 		return NewValidationError("image ID", config.ImageID, "must be a positive integer")
@@ -304,6 +545,31 @@ func ValidateVersaConfig(config *megaport.VersaConfig) error {
 	return nil
 }
 
+// ValidateMVEVendorConfig validates vendor-specific configurations for an MVE deployment.
+// This function acts as a dispatcher that routes validation to the appropriate vendor-specific
+// validation function based on the concrete type of the configuration.
+//
+// Parameters:
+//   - config: The vendor configuration to validate (an interface that can be any vendor-specific type)
+//
+// Validation checks:
+//   - Configuration cannot be nil
+//   - The concrete type must be one of the supported vendor configuration types
+//   - Delegates to vendor-specific validation functions:
+//   - ValidateSixwindVSRConfig
+//   - ValidateArubaConfig
+//   - ValidateAviatrixConfig
+//   - ValidateCiscoConfig
+//   - ValidateFortinetConfig
+//   - ValidatePaloAltoConfig
+//   - ValidatePrismaConfig
+//   - ValidateVersaConfig
+//   - ValidateVmwareConfig
+//   - ValidateMerakiConfig
+//
+// Returns:
+//   - A ValidationError if the configuration type is not supported or vendor-specific validation fails
+//   - nil if all validation checks pass
 func ValidateMVEVendorConfig(config megaport.VendorConfig) error {
 	if config == nil {
 		return NewValidationError("vendor config", nil, "cannot be nil")

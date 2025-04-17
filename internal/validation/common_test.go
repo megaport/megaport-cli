@@ -175,9 +175,9 @@ func TestValidateMVEProductSize(t *testing.T) {
 		{"Valid SMALL", "SMALL", false, ""},
 		{"Valid MEDIUM", "MEDIUM", false, ""},
 		{"Valid LARGE", "LARGE", false, ""},
-		{"Invalid lowercase", "small", true, fmt.Sprintf("Invalid MVE product size: small - must be one of: %v", ValidMVEProductSizes)},
-		{"Invalid value", "XLARGE", true, fmt.Sprintf("Invalid MVE product size: XLARGE - must be one of: %v", ValidMVEProductSizes)},
-		{"Empty value", "", true, fmt.Sprintf("Invalid MVE product size:  - must be one of: %v", ValidMVEProductSizes)}, // Adjusted for empty value check if ValidateStringOneOf handles it
+		{"Invalid lowercase", "small", true, fmt.Sprintf("Invalid product size: small - must be one of: %v", ValidMVEProductSizes)},
+		{"Invalid value", "XLARGE", true, fmt.Sprintf("Invalid product size: XLARGE - must be one of: %v", ValidMVEProductSizes)},
+		{"Empty value", "", true, fmt.Sprintf("Invalid product size:  - must be one of: %v", ValidMVEProductSizes)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
