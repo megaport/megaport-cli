@@ -68,29 +68,6 @@ func ValidateRateLimit(rateLimit int) error {
 	return nil
 }
 
-func ValidateMVEProductSize(size string) error {
-	for _, validSize := range ValidMVEProductSizes {
-		if size == validSize {
-			return nil
-		}
-	}
-	return NewValidationError("MVE product size", size,
-		fmt.Sprintf("must be one of: %v", ValidMVEProductSizes))
-}
-
-func ValidateFieldPresence(config map[string]interface{}, requiredFields []string) string {
-	for _, field := range requiredFields {
-		val, exists := config[field]
-		if !exists || val == nil {
-			return field
-		}
-		if strVal, isStr := val.(string); isStr && strVal == "" {
-			return field
-		}
-	}
-	return ""
-}
-
 func ExtractFieldsWithTypes(config map[string]interface{}, fields map[string]string) map[string]interface{} {
 	result := make(map[string]interface{})
 	for field, fieldType := range fields {

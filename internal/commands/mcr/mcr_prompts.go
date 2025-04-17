@@ -10,6 +10,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -184,7 +185,7 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 	}
 
 	// Validate the request
-	if err := validateMCRRequest(req); err != nil {
+	if err := validation.ValidateMCRRequest(req); err != nil {
 		return nil, err
 	}
 
@@ -460,7 +461,7 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 		Entries:       entries,
 	}
 
-	if err := validateUpdatePrefixFilterList(prefixFilterList); err != nil {
+	if err := validation.ValidateUpdatePrefixFilterList(prefixFilterList); err != nil {
 		return nil, err
 	}
 

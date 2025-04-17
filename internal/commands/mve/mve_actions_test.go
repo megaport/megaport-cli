@@ -423,7 +423,7 @@ func TestUpdateMVE(t *testing.T) {
 			flags: map[string]string{
 				"contract-term": "13", // Not 1, 12, 24, or 36
 			},
-			expectedError: "invalid contract term",
+			expectedError: "Invalid contract term: 13 - must be one of: [1 12 24 36]",
 		},
 		{
 			name: "update not successful",
@@ -647,7 +647,7 @@ func TestBuyMVE(t *testing.T) {
 				"CC-123",     // cost centre
 				"cisco",      // vendor
 				"1",          // image ID
-				"large",      // product size
+				"LARGE",      // product size (ensure uppercase)
 				"label-1",    // MVE label
 				"true",       // manage locally
 				"admin-ssh",  // admin SSH public key
@@ -677,7 +677,7 @@ func TestBuyMVE(t *testing.T) {
 				ciscoConfig, ok := req.VendorConfig.(*megaport.CiscoConfig)
 				assert.True(t, ok, "Expected a CiscoConfig")
 				assert.Equal(t, 1, ciscoConfig.ImageID)
-				assert.Equal(t, "large", ciscoConfig.ProductSize)
+				assert.Equal(t, "LARGE", ciscoConfig.ProductSize) // Ensure validation checks uppercase
 				assert.Equal(t, "label-1", ciscoConfig.MVELabel)
 				assert.True(t, ciscoConfig.ManageLocally)
 				assert.Equal(t, "admin-ssh", ciscoConfig.AdminSSHPublicKey)
@@ -699,7 +699,7 @@ func TestBuyMVE(t *testing.T) {
 				"name":          "Test MVE",
 				"term":          "12",
 				"location-id":   "123",
-				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"large","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
 				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
 			},
 			mockSetup: func(m *MockMVEService) {
@@ -717,7 +717,7 @@ func TestBuyMVE(t *testing.T) {
 				ciscoConfig, ok := req.VendorConfig.(*megaport.CiscoConfig)
 				assert.True(t, ok, "Expected a CiscoConfig")
 				assert.Equal(t, 1, ciscoConfig.ImageID)
-				assert.Equal(t, "large", ciscoConfig.ProductSize)
+				assert.Equal(t, "LARGE", ciscoConfig.ProductSize)
 				assert.Equal(t, "label-1", ciscoConfig.MVELabel)
 				assert.True(t, ciscoConfig.ManageLocally)
 				assert.Equal(t, "admin-ssh", ciscoConfig.AdminSSHPublicKey)
@@ -743,7 +743,7 @@ func TestBuyMVE(t *testing.T) {
                     "vendorConfig": {
                         "vendor": "cisco",
                         "imageId": 1,
-                        "productSize": "large",
+                        "productSize": "LARGE",
                         "mveLabel": "json-label",
                         "manageLocally": true,
                         "adminSshPublicKey": "admin-ssh",
@@ -773,7 +773,7 @@ func TestBuyMVE(t *testing.T) {
 				ciscoConfig, ok := req.VendorConfig.(*megaport.CiscoConfig)
 				assert.True(t, ok, "Expected a CiscoConfig")
 				assert.Equal(t, 1, ciscoConfig.ImageID)
-				assert.Equal(t, "large", ciscoConfig.ProductSize)
+				assert.Equal(t, "LARGE", ciscoConfig.ProductSize) // Update validation check
 				assert.Equal(t, "json-label", ciscoConfig.MVELabel)
 				assert.True(t, ciscoConfig.ManageLocally)
 				assert.Equal(t, "admin-ssh", ciscoConfig.AdminSSHPublicKey)
@@ -798,7 +798,7 @@ func TestBuyMVE(t *testing.T) {
 				"name":          "Test MVE",
 				"term":          "12",
 				"location-id":   "123",
-				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"large","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
 				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
 			},
 			mockSetup: func(m *MockMVEService) {
@@ -812,7 +812,7 @@ func TestBuyMVE(t *testing.T) {
 				"name":          "Test MVE",
 				"term":          "12",
 				"location-id":   "123",
-				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"large","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
 				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
 			},
 			mockSetup: func(m *MockMVEService) {

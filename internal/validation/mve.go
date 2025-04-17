@@ -22,6 +22,63 @@ var (
 	}
 )
 
+func ValidateMVEProductSize(size string) error {
+	for _, validSize := range ValidMVEProductSizes {
+		if size == validSize {
+			return nil
+		}
+	}
+	return NewValidationError("MVE product size", size,
+		fmt.Sprintf("must be one of: %v", ValidMVEProductSizes))
+}
+
+// Validate MVE buy request
+func ValidateBuyMVERequest(req *megaport.BuyMVERequest) error {
+	if req.Name == "" {
+		return NewValidationError("MVE name", req.Name, "cannot be empty")
+	}
+	if len(req.Name) > MaxMVENameLength {
+		return NewValidationError("MVE name", req.Name, fmt.Sprintf("cannot exceed %d characters", MaxMVENameLength))
+	}
+	if err := ValidateContractTerm(req.Term); err != nil {
+		return err
+	}
+	if req.LocationID <= 0 {
+		return NewValidationError("location ID", req.LocationID, "must be a positive integer")
+	}
+
+	// Vendor Config is required
+	if req.VendorConfig == nil {
+		return NewValidationError("vendor config", req.VendorConfig, "cannot be nil")
+	}
+
+	// Validate vendor config
+	if err := ValidateMVEVendorConfig(req.VendorConfig); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Validate MVE update request
+func ValidateUpdateMVERequest(req *megaport.ModifyMVERequest) error {
+	// Check if any update fields are provided
+	if req.Name == "" && req.CostCentre == "" && req.ContractTermMonths == nil {
+		return NewValidationError("update request", req, "at least one field must be provided for update")
+	}
+
+	// If contract term is provided, validate it
+	if req.ContractTermMonths != nil {
+		term := *req.ContractTermMonths
+		err := ValidateContractTerm(term)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func ValidateMVERequest(name string, term int, locationID int) error {
 	if name == "" {
 		return NewValidationError("MVE name", name, "cannot be empty")

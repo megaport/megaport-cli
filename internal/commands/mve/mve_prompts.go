@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -367,7 +368,7 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 	req.Vnics = vnics
 
 	// Validate the request
-	if err := validateBuyMVERequest(req); err != nil {
+	if err := validation.ValidateBuyMVERequest(req); err != nil {
 		return nil, err
 	}
 
@@ -413,7 +414,7 @@ func promptForUpdateMVEDetails(mveUID string, noColor bool) (*megaport.ModifyMVE
 	}
 
 	// Validate the request
-	if err := validateUpdateMVERequest(req); err != nil {
+	if err := validation.ValidateUpdateMVERequest(req); err != nil {
 		return nil, err
 	}
 

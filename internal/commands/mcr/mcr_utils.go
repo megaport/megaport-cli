@@ -2,10 +2,8 @@ package mcr
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
-	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -48,57 +46,6 @@ var deleteMCRFunc = func(ctx context.Context, client *megaport.Client, req *mega
 
 var restoreMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.RestoreMCRResponse, error) {
 	return client.MCRService.RestoreMCR(ctx, mcrUID)
-}
-
-// Validate MCR request
-func validateMCRRequest(req *megaport.BuyMCRRequest) error {
-	// Use the dedicated validation function from our validation package
-	return validation.ValidateMCRRequest(req.Name, req.Term, req.PortSpeed, req.LocationID)
-}
-
-// Update the validation function for prefix filter list requests
-func validatePrefixFilterListRequest(req *megaport.CreateMCRPrefixFilterListRequest) error {
-	if req.PrefixFilterList.Description == "" {
-		return fmt.Errorf("description is required")
-	}
-	if req.PrefixFilterList.AddressFamily == "" {
-		return fmt.Errorf("address family is required")
-	}
-	if req.PrefixFilterList.AddressFamily != "IPv4" && req.PrefixFilterList.AddressFamily != "IPv6" {
-		return fmt.Errorf("invalid address family, must be IPv4 or IPv6")
-	}
-	if len(req.PrefixFilterList.Entries) == 0 {
-		return fmt.Errorf("at least one entry is required")
-	}
-
-	// Validate each entry
-	for i, entry := range req.PrefixFilterList.Entries {
-		if entry.Prefix == "" {
-			return fmt.Errorf("entry %d: prefix is required", i+1)
-		}
-		if entry.Action != "permit" && entry.Action != "deny" {
-			return fmt.Errorf("entry %d: invalid action, must be permit or deny", i+1)
-		}
-	}
-
-	return nil
-}
-
-func validateUpdatePrefixFilterList(prefixFilterList *megaport.MCRPrefixFilterList) error {
-	// If entries are provided, validate them
-	if len(prefixFilterList.Entries) > 0 {
-		// Validate each entry
-		for i, entry := range prefixFilterList.Entries {
-			if entry.Prefix == "" {
-				return fmt.Errorf("entry %d: prefix is required", i+1)
-			}
-			if entry.Action != "permit" && entry.Action != "deny" {
-				return fmt.Errorf("entry %d: invalid action, must be permit or deny", i+1)
-			}
-		}
-	}
-
-	return nil
 }
 
 // filterMCRs applies filters to a list of MCRs

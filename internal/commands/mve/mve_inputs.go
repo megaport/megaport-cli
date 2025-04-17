@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -91,7 +92,7 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 	}
 
 	// Validate the request
-	if err := validateBuyMVERequest(req); err != nil {
+	if err := validation.ValidateBuyMVERequest(req); err != nil {
 		return nil, err
 	}
 
@@ -164,7 +165,7 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 	}
 
 	// Validate the request
-	if err := validateBuyMVERequest(req); err != nil {
+	if err := validation.ValidateBuyMVERequest(req); err != nil {
 		return nil, err
 	}
 
@@ -665,7 +666,7 @@ func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.
 	}
 
 	// Validate the request
-	if err := validateUpdateMVERequest(req); err != nil {
+	if err := validation.ValidateUpdateMVERequest(req); err != nil {
 		return nil, err
 	}
 
@@ -697,7 +698,7 @@ func processFlagUpdateMVEInput(cmd *cobra.Command, mveUID string) (*megaport.Mod
 	}
 
 	// Validate the request
-	if err := validateUpdateMVERequest(req); err != nil {
+	if err := validation.ValidateUpdateMVERequest(req); err != nil {
 		return nil, err
 	}
 

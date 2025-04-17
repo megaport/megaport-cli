@@ -11,6 +11,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -138,6 +139,12 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
+	}
+
+	// Validate vendor config including product size
+	if err := validation.ValidateMVEVendorConfig(req.VendorConfig); err != nil {
+		output.PrintError("Validation failed: %v", noColor, err)
+		return fmt.Errorf("validation failed: %v", err)
 	}
 
 	output.PrintInfo("Validating MVE order...", noColor)
