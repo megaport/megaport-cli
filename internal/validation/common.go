@@ -1,4 +1,6 @@
 // Package validation provides validation functions for Megaport resources and configurations.
+// It contains utilities to validate inputs for Megaport API calls, ensuring that input parameters
+// meet required criteria before they are submitted to the API.
 package validation
 
 import (
@@ -13,7 +15,7 @@ var (
 	// ValidPortSpeeds lists the supported port speeds in Mbps.
 	ValidPortSpeeds = []int{1000, 10000, 100000}
 	// ValidMVEProductSizes lists the supported MVE product sizes.
-	ValidMVEProductSizes = []string{"SMALL", "MEDIUM", "LARGE"}
+	ValidMVEProductSizes = []string{"SMALL", "MEDIUM", "LARGE", "X_LARGE_12"}
 )
 
 const (
@@ -22,6 +24,7 @@ const (
 	// UntaggedVLAN indicates a packet should be untagged.
 	UntaggedVLAN = -1
 	// AutoAssignVLAN indicates the system should auto-assign a VLAN.
+	// This was previously known as MinVLAN.
 	AutoAssignVLAN = 0
 	// ReservedVLAN is a VLAN reserved by the system.
 	ReservedVLAN = 1
@@ -37,6 +40,8 @@ const (
 	MaxMVENameLength = 64
 )
 
+// ValidateContractTerm validates if a contract term is one of the allowed values.
+// Returns an error if the term is not a valid contract term duration.
 func ValidateContractTerm(term int) error {
 	for _, validTerm := range ValidContractTerms {
 		if term == validTerm {
@@ -47,6 +52,8 @@ func ValidateContractTerm(term int) error {
 		fmt.Sprintf("must be one of: %v", ValidContractTerms))
 }
 
+// ValidateMCRPortSpeed validates if a port speed is one of the allowed values for MCR.
+// Returns an error if the speed is not a valid MCR port speed.
 func ValidateMCRPortSpeed(speed int) error {
 	for _, validSpeed := range ValidMCRPortSpeeds {
 		if speed == validSpeed {
@@ -57,6 +64,8 @@ func ValidateMCRPortSpeed(speed int) error {
 		fmt.Sprintf("must be one of: %v", ValidMCRPortSpeeds))
 }
 
+// ValidatePortSpeed validates if a port speed is one of the allowed values for ports.
+// Returns an error if the speed is not a valid port speed.
 func ValidatePortSpeed(speed int) error {
 	for _, validSpeed := range ValidPortSpeeds {
 		if speed == validSpeed {
@@ -67,6 +76,12 @@ func ValidatePortSpeed(speed int) error {
 		fmt.Sprintf("must be one of: %v", ValidPortSpeeds))
 }
 
+// ValidateVLAN validates if a VLAN ID is valid.
+// Valid values include:
+// - AutoAssignVLAN (0): System will auto-assign a VLAN
+// - UntaggedVLAN (-1): Packet will be untagged
+// - Values between MinAssignableVLAN and MaxVLAN (inclusive)
+// Returns an error if the VLAN ID is not valid.
 func ValidateVLAN(vlan int) error {
 	if vlan == AutoAssignVLAN || vlan == UntaggedVLAN || (vlan >= MinAssignableVLAN && vlan <= MaxVLAN) {
 		return nil
@@ -74,6 +89,8 @@ func ValidateVLAN(vlan int) error {
 	return NewValidationError("VLAN ID", vlan, fmt.Sprintf("must be %d, %d, or between %d-%d", AutoAssignVLAN, UntaggedVLAN, MinAssignableVLAN, MaxVLAN))
 }
 
+// ValidateRateLimit validates if a rate limit is a positive integer.
+// Returns an error if the rate limit is not a positive integer.
 func ValidateRateLimit(rateLimit int) error {
 	if rateLimit <= 0 {
 		return NewValidationError("rate limit", rateLimit, "must be a positive integer")
@@ -81,6 +98,8 @@ func ValidateRateLimit(rateLimit int) error {
 	return nil
 }
 
+// ExtractFieldsWithTypes extracts fields from a configuration map according to their expected types.
+// This helper function is used to convert untyped map data to correctly typed fields.
 func ExtractFieldsWithTypes(config map[string]interface{}, fields map[string]string) map[string]interface{} {
 	result := make(map[string]interface{})
 	for field, fieldType := range fields {
