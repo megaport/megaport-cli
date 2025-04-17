@@ -1,3 +1,4 @@
+// Package validation provides validation functions for Megaport resources and configurations.
 package validation
 
 import (
@@ -5,23 +6,35 @@ import (
 )
 
 var (
-	ValidContractTerms   = []int{1, 12, 24, 36}
-	ValidMCRPortSpeeds   = []int{1000, 2500, 5000, 10000, 25000, 50000, 100000}
-	ValidPortSpeeds      = []int{1000, 10000, 100000}
+	// ValidContractTerms lists the allowed contract term durations in months.
+	ValidContractTerms = []int{1, 12, 24, 36}
+	// ValidMCRPortSpeeds lists the supported MCR port speeds in Mbps.
+	ValidMCRPortSpeeds = []int{1000, 2500, 5000, 10000, 25000, 50000, 100000}
+	// ValidPortSpeeds lists the supported port speeds in Mbps.
+	ValidPortSpeeds = []int{1000, 10000, 100000}
+	// ValidMVEProductSizes lists the supported MVE product sizes.
 	ValidMVEProductSizes = []string{"SMALL", "MEDIUM", "LARGE"}
 )
 
 const (
-	MinVLAN                    = 0
-	MaxVLAN                    = 4094
-	UntaggedVLAN               = -1
-	AutoAssignVLAN             = 0
-	ReservedVLAN               = 1
-	MinAssignableVLAN          = 2
-	MaxAssignableVLAN          = 4093
-	MaxPortNameLength          = 64
+	// MaxVLAN is the maximum VLAN ID.
+	MaxVLAN = 4094
+	// UntaggedVLAN indicates a packet should be untagged.
+	UntaggedVLAN = -1
+	// AutoAssignVLAN indicates the system should auto-assign a VLAN.
+	AutoAssignVLAN = 0
+	// ReservedVLAN is a VLAN reserved by the system.
+	ReservedVLAN = 1
+	// MinAssignableVLAN is the lowest VLAN ID assignable to a user.
+	MinAssignableVLAN = 2
+	// MaxAssignableVLAN is the highest VLAN ID assignable to a user.
+	MaxAssignableVLAN = 4093
+	// MaxPortNameLength is the maximum allowed length of a port name.
+	MaxPortNameLength = 64
+	// MaxAWSConnectionNameLength is the maximum allowed length of an AWS connection name.
 	MaxAWSConnectionNameLength = 255
-	MaxMVENameLength           = 64
+	// MaxMVENameLength is the maximum allowed length of an MVE name.
+	MaxMVENameLength = 64
 )
 
 func ValidateContractTerm(term int) error {

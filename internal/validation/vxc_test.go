@@ -557,7 +557,7 @@ func TestValidateVXCPartnerConfig(t *testing.T) {
 				},
 			},
 			wantErr: true,
-			errText: fmt.Sprintf("Invalid vRouter interface [0] VLAN: 1 - must be between %d-%d (%d is reserved)", MinVLAN, MaxVLAN, ReservedVLAN),
+			errText: fmt.Sprintf("Invalid vRouter interface [0] VLAN: 1 - must be between %d-%d (%d is reserved)", AutoAssignVLAN, MaxVLAN, ReservedVLAN),
 		},
 		// How to handle deprecated partner_a_end_config depends on implementation.
 		// If it's just ignored or warns, a nil or empty struct might suffice.
@@ -651,7 +651,7 @@ func TestValidateVrouterPartnerConfig(t *testing.T) {
 				},
 			},
 			wantErr: true,
-			errText: fmt.Sprintf("Invalid vRouter interface [0] VLAN: 1 - must be between %d-%d (%d is reserved)", MinVLAN, MaxVLAN, ReservedVLAN),
+			errText: fmt.Sprintf("Invalid vRouter interface [0] VLAN: 1 - must be between %d-%d (%d is reserved)", AutoAssignVLAN, MaxVLAN, ReservedVLAN),
 		},
 		{
 			name: "Invalid IP address format in interface",

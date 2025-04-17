@@ -8,26 +8,46 @@ import (
 )
 
 const (
+	// MinASPathPrependCount is the minimum allowed AS path prepend count in BGP configurations.
 	MinASPathPrependCount = 0
+	// MaxASPathPrependCount is the maximum allowed AS path prepend count in BGP configurations.
 	MaxASPathPrependCount = 10
-	MinBFDInterval        = 300
-	MaxBFDInterval        = 30000
-	MinBFDMultiplier      = 3
-	MaxBFDMultiplier      = 20
-	MinMED                = 0
-	MaxMED                = 4294967295
-	BGPPeerNonCloud       = "NON_CLOUD"
-	BGPPeerPrivCloud      = "PRIV_CLOUD"
-	BGPPeerPubCloud       = "PUB_CLOUD"
+	// MinBFDInterval is the minimum Bidirectional Forwarding Detection interval in milliseconds.
+	MinBFDInterval = 300
+	// MaxBFDInterval is the maximum Bidirectional Forwarding Detection interval in milliseconds.
+	MaxBFDInterval = 30000
+	// MinBFDMultiplier is the minimum Bidirectional Forwarding Detection multiplier value.
+	MinBFDMultiplier = 3
+	// MaxBFDMultiplier is the maximum Bidirectional Forwarding Detection multiplier value.
+	MaxBFDMultiplier = 20
+	// MinMED is the minimum Multi-Exit Discriminator value for BGP routing.
+	MinMED = 0
+	// MaxMED is the maximum Multi-Exit Discriminator value for BGP routing.
+	MaxMED = 4294967295
+	// BGPPeerNonCloud identifies a non-cloud BGP peer type.
+	BGPPeerNonCloud = "NON_CLOUD"
+	// BGPPeerPrivCloud identifies a private cloud BGP peer type.
+	BGPPeerPrivCloud = "PRIV_CLOUD"
+	// BGPPeerPubCloud identifies a public cloud BGP peer type.
+	BGPPeerPubCloud = "PUB_CLOUD"
+	// BGPExportPolicyPermit defines the permit policy for BGP route exports.
 	BGPExportPolicyPermit = "permit"
-	BGPExportPolicyDeny   = "deny"
-	MaxIBMNameLength      = 100
-	IBMAccountIDLength    = 32
-	AWSConnectTypeAWS     = "AWS"
-	AWSConnectTypeAWSHC   = "AWSHC"
+	// BGPExportPolicyDeny defines the deny policy for BGP route exports.
+	BGPExportPolicyDeny = "deny"
+	// MaxIBMNameLength is the maximum allowed length of an IBM connection name.
+	MaxIBMNameLength = 100
+	// IBMAccountIDLength is the required length of an IBM account ID.
+	IBMAccountIDLength = 32
+	// AWSConnectTypeAWS denotes a standard AWS connection type.
+	AWSConnectTypeAWS = "AWS"
+	// AWSConnectTypeAWSHC denotes a high-capacity AWS connection type.
+	AWSConnectTypeAWSHC = "AWSHC"
+	// AWSConnectTypeTransit denotes a transit AWS connection type.
 	AWSConnectTypeTransit = "transit"
+	// AWSConnectTypePrivate denotes a private AWS connection type.
 	AWSConnectTypePrivate = "private"
-	AWSConnectTypePublic  = "public"
+	// AWSConnectTypePublic denotes a public AWS connection type.
+	AWSConnectTypePublic = "public"
 )
 
 func ValidateVXCEndVLAN(vlan int) error {
@@ -182,8 +202,8 @@ func ValidateVrouterPartnerConfig(config *megaport.VXCOrderVrouterPartnerConfig)
 	}
 	for i, iface := range config.Interfaces {
 		if iface.VLAN != 0 {
-			if iface.VLAN < MinVLAN || iface.VLAN > MaxVLAN || iface.VLAN == ReservedVLAN {
-				return NewValidationError(fmt.Sprintf("vRouter interface [%d] VLAN", i), iface.VLAN, fmt.Sprintf("must be between %d-%d (%d is reserved)", MinVLAN, MaxVLAN, ReservedVLAN))
+			if iface.VLAN < AutoAssignVLAN || iface.VLAN > MaxVLAN || iface.VLAN == ReservedVLAN {
+				return NewValidationError(fmt.Sprintf("vRouter interface [%d] VLAN", i), iface.VLAN, fmt.Sprintf("must be between %d-%d (%d is reserved)", AutoAssignVLAN, MaxVLAN, ReservedVLAN))
 			}
 		}
 		if len(iface.IpAddresses) > 0 {
