@@ -23,7 +23,8 @@ const (
 	// MinMED is the minimum Multi-Exit Discriminator value for BGP routing.
 	MinMED = 0
 	// MaxMED is the maximum Multi-Exit Discriminator value for BGP routing.
-	MaxMED = 4294967295
+	// Using int64 to avoid overflow on 32-bit platforms.
+	MaxMED int64 = 4294967295
 	// BGPPeerNonCloud identifies a non-cloud BGP peer type.
 	BGPPeerNonCloud = "NON_CLOUD"
 	// BGPPeerPrivCloud identifies a private cloud BGP peer type.
@@ -538,13 +539,17 @@ func ValidateBGPConnectionConfig(conn megaport.BgpConnectionConfig, ifaceIndex, 
 		}
 	}
 	if conn.MedIn != 0 {
-		if conn.MedIn < MinMED || conn.MedIn > MaxMED {
-			return NewValidationError(fmt.Sprintf("%s MED in", fieldPrefix), conn.MedIn, fmt.Sprintf("must be between %d-%d", MinMED, MaxMED))
+		// Convert to int64 for comparison with MaxMED
+		medIn := int64(conn.MedIn)
+		if medIn < MinMED || medIn > MaxMED {
+			return NewValidationError(fmt.Sprintf("%s MED in", fieldPrefix), conn.MedIn, fmt.Sprintf("must be between %d-%s", MinMED, "4294967295"))
 		}
 	}
 	if conn.MedOut != 0 {
-		if conn.MedOut < MinMED || conn.MedOut > MaxMED {
-			return NewValidationError(fmt.Sprintf("%s MED out", fieldPrefix), conn.MedOut, fmt.Sprintf("must be between %d-%d", MinMED, MaxMED))
+		// Convert to int64 for comparison with MaxMED
+		medOut := int64(conn.MedOut)
+		if medOut < MinMED || medOut > MaxMED {
+			return NewValidationError(fmt.Sprintf("%s MED out", fieldPrefix), conn.MedOut, fmt.Sprintf("must be between %d-%s", MinMED, "4294967295"))
 		}
 	}
 	if conn.AsPathPrependCount != 0 {
