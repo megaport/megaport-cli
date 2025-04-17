@@ -86,73 +86,86 @@ func ValidateVXCEndInnerVLAN(vlan int) error {
 	return ValidateVLAN(vlan)
 }
 
-// ValidateVXCRequest validates the core parameters for creating a VXC (Virtual Cross Connect).
-// This function ensures the input parameters meet all requirements for establishing a connection.
+// ValidateVXCRequest validates a VXC (Virtual Cross Connect) request.
+// This function ensures all required parameters for creating a VXC are present and valid.
 //
 // Parameters:
-//   - name: The name of the VXC to be created
-//   - term: The contract term in months
-//   - rateLimit: The rate limit in Mbps for the connection
-//   - aEndUID: The unique identifier for the A-End (source) port
-//   - bEndUID: The unique identifier for the B-End (destination) port
-//   - hasPartnerConfig: Flag indicating if a partner configuration is provided (for cloud connections)
+//   - req: The BuyVXCRequest containing all VXC configuration parameters
 //
-// Validation checks:
-//   - Name cannot be empty
-//   - Contract term must be valid (typically 1, 12, 24, or 36 months)
+// Validation checks include:
+//   - VXC name cannot be empty
+//   - Contract term must be valid (1, 12, 24, or 36 months)
 //   - Rate limit must be a positive value
-//   - A-End UID cannot be empty
+//   - Port UID (A-End) cannot be empty
 //   - B-End UID cannot be empty when no partner configuration is provided
+//   - Partner configurations (if present) must be valid for their respective types
 //
 // Returns:
 //   - A ValidationError if any validation check fails
 //   - nil if all validation checks pass
-func ValidateVXCRequest(name string, term int, rateLimit int, aEndUID string, bEndUID string, hasPartnerConfig bool) error {
-	if name == "" {
-		return NewValidationError("VXC name", name, "cannot be empty")
+func ValidateVXCRequest(req *megaport.BuyVXCRequest) error {
+	if req.VXCName == "" {
+		return NewValidationError("VXC name", req.VXCName, "cannot be empty")
 	}
-	if err := ValidateContractTerm(term); err != nil {
+	if err := ValidateContractTerm(req.Term); err != nil {
 		return err
 	}
-	if err := ValidateRateLimit(rateLimit); err != nil {
+	if err := ValidateRateLimit(req.RateLimit); err != nil {
 		return err
 	}
-	if aEndUID == "" {
-		return NewValidationError("A-End UID", aEndUID, "cannot be empty")
+	if req.PortUID == "" {
+		return NewValidationError("A-End UID (PortUID)", req.PortUID, "cannot be empty")
 	}
-	if bEndUID == "" && !hasPartnerConfig {
-		return NewValidationError("B-End UID", bEndUID, "cannot be empty when no partner configuration is provided")
-	}
-	return nil
-}
 
-// ValidateVXCRequestFromConfig validates a VXC order configuration object.
-// This is a convenience function that extracts needed values from the configuration
-// object and delegates to the ValidateVXCRequest function.
-//
-// Parameters:
-//   - config: A VXCOrderConfiguration object containing all VXC order parameters
-//
-// Validation checks:
-//   - All validations performed by ValidateVXCRequest
-//   - Checks if B-End includes a partner configuration
-//
-// Returns:
-//   - A ValidationError if any validation check fails
-//   - nil if all validation checks pass
-func ValidateVXCRequestFromConfig(config *megaport.VXCOrderConfiguration) error {
-	hasPartnerConfig := false
-	if config.BEnd.PartnerConfig != nil {
-		hasPartnerConfig = true
+	// Check if B-End has a partner config
+	hasPartnerConfig := req.BEndConfiguration.PartnerConfig != nil
+
+	// Check B-End UID (ProductUID in the BEndConfiguration)
+	if req.BEndConfiguration.ProductUID == "" && !hasPartnerConfig {
+		return NewValidationError("B-End UID", req.BEndConfiguration.ProductUID, "cannot be empty when no partner configuration is provided")
 	}
-	return ValidateVXCRequest(
-		config.Name,
-		config.Term,
-		config.RateLimit,
-		config.AEnd.ProductUID,
-		config.BEnd.ProductUID,
-		hasPartnerConfig,
-	)
+
+	// Validate A-End partner configuration if present
+	if req.AEndConfiguration.PartnerConfig != nil {
+		if err := ValidateVXCPartnerConfig(req.AEndConfiguration.PartnerConfig); err != nil {
+			return err
+		}
+	}
+
+	// Validate B-End partner configuration if present
+	if req.BEndConfiguration.PartnerConfig != nil {
+		if err := ValidateVXCPartnerConfig(req.BEndConfiguration.PartnerConfig); err != nil {
+			return err
+		}
+	}
+
+	// Validate VLANs if specified
+	if req.AEndConfiguration.VLAN != 0 {
+		if err := ValidateVXCEndVLAN(req.AEndConfiguration.VLAN); err != nil {
+			return NewValidationError("A-End VLAN", req.AEndConfiguration.VLAN, err.Error())
+		}
+	}
+
+	if req.BEndConfiguration.VLAN != 0 {
+		if err := ValidateVXCEndVLAN(req.BEndConfiguration.VLAN); err != nil {
+			return NewValidationError("B-End VLAN", req.BEndConfiguration.VLAN, err.Error())
+		}
+	}
+
+	// Validate inner VLANs if specified
+	if req.AEndConfiguration.VXCOrderMVEConfig != nil && req.AEndConfiguration.VXCOrderMVEConfig.InnerVLAN != 0 {
+		if err := ValidateVXCEndInnerVLAN(req.AEndConfiguration.VXCOrderMVEConfig.InnerVLAN); err != nil {
+			return NewValidationError("A-End Inner VLAN", req.AEndConfiguration.VXCOrderMVEConfig.InnerVLAN, err.Error())
+		}
+	}
+
+	if req.BEndConfiguration.VXCOrderMVEConfig != nil && req.BEndConfiguration.VXCOrderMVEConfig.InnerVLAN != 0 {
+		if err := ValidateVXCEndInnerVLAN(req.BEndConfiguration.VXCOrderMVEConfig.InnerVLAN); err != nil {
+			return NewValidationError("B-End Inner VLAN", req.BEndConfiguration.VXCOrderMVEConfig.InnerVLAN, err.Error())
+		}
+	}
+
+	return nil
 }
 
 // ValidateAWSPartnerConfig validates an AWS partner configuration for a VXC connection.
@@ -185,10 +198,15 @@ func ValidateAWSPartnerConfig(config *megaport.VXCPartnerConfigAWS) error {
 		}
 	}
 	if !isValidType {
-		return NewValidationError("AWS connect type", config.ConnectType, "must be 'AWS', 'AWSHC', 'private', or 'public'")
+		return NewValidationError("AWS connect type", config.ConnectType, "must be 'AWS', or 'AWSHC'")
 	}
+
 	if config.OwnerAccount == "" {
 		return NewValidationError("AWS owner account", config.OwnerAccount, "cannot be empty")
+	}
+
+	if config.ConnectionName != "" && len(config.ConnectionName) > 255 {
+		return NewValidationError("AWS connection name", config.ConnectionName, "cannot exceed 255 characters")
 	}
 	if config.CustomerIPAddress != "" {
 		if err := ValidateCIDR(config.CustomerIPAddress, "AWS customer IP address"); err != nil {
@@ -200,11 +218,12 @@ func ValidateAWSPartnerConfig(config *megaport.VXCPartnerConfigAWS) error {
 			return err
 		}
 	}
-	if config.ConnectionName != "" && len(config.ConnectionName) > 255 {
-		return NewValidationError("AWS connection name", config.ConnectionName, "cannot exceed 255 characters")
-	}
+
 	if config.ConnectType == "AWS" && config.Type != "" && config.Type != "private" && config.Type != "public" {
 		return NewValidationError("AWS type", config.Type, "must be 'private' or 'public' for AWS connect type")
+	}
+	if config.ASN == 0 {
+		return NewValidationError("ASN", config.ASN, "cannot be empty")
 	}
 	return nil
 }
@@ -218,7 +237,8 @@ func ValidateAWSPartnerConfig(config *megaport.VXCPartnerConfigAWS) error {
 // Validation checks include:
 //   - Configuration cannot be nil
 //   - Service key must be provided (required for Azure connections)
-//   - Note: Azure peer configurations are assumed to be validated elsewhere if needed
+//   - For each peer, at least one of primary_subnet or secondary_subnet must be provided
+//   - For each peer, VLAN must be provided and valid
 //
 // Returns:
 //   - A ValidationError if any validation check fails
@@ -230,6 +250,24 @@ func ValidateAzurePartnerConfig(config *megaport.VXCPartnerConfigAzure) error {
 	if config.ServiceKey == "" {
 		return NewValidationError("Azure service key", config.ServiceKey, "cannot be empty")
 	}
+
+	// Validate each peer configuration
+	if len(config.Peers) > 0 {
+		for i, peer := range config.Peers {
+			if peer.PrimarySubnet == "" && peer.SecondarySubnet == "" {
+				return NewValidationError(fmt.Sprintf("Azure peer [%d] subnet", i), nil,
+					"at least one of primary_subnet or secondary_subnet must be provided")
+			}
+
+			// Validate VLAN
+			if err := ValidateVLAN(peer.VLAN); err != nil {
+				return NewValidationError(fmt.Sprintf("Azure peer [%d] VLAN", i), peer.VLAN,
+					fmt.Sprintf("must be valid (0 for auto-assign, -1 for untagged, or %d-%d except %d)",
+						MinAssignableVLAN, MaxVLAN, ReservedVLAN))
+			}
+		}
+	}
+
 	return nil
 }
 

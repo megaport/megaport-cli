@@ -1057,22 +1057,28 @@ func promptAWSConfig(noColor bool) (*megaport.VXCPartnerConfigAWS, error) {
 		return nil, err
 	}
 
-	asnStr, err := utils.ResourcePrompt("vxc", "Enter ASN (optional): ", noColor)
+	asnStr, err := utils.ResourcePrompt("vxc", "Enter ASN (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
-	asn, err := strconv.Atoi(asnStr)
-	if err != nil {
-		asn = 0
+	var asn int
+	if asnStr != "" {
+		asn, err = strconv.Atoi(asnStr)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	amazonASNStr, err := utils.ResourcePrompt("vxc", "Enter Amazon ASN (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
-	amazonASN, err := strconv.Atoi(amazonASNStr)
-	if err != nil {
-		amazonASN = 0
+	var amazonASN int
+	if amazonASNStr != "" {
+		amazonASN, err = strconv.Atoi(amazonASNStr)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	authKey, err := utils.ResourcePrompt("vxc", "Enter auth key (optional): ", noColor)

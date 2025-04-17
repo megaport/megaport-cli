@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/megaport/megaport-cli/internal/base/output"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -71,12 +72,25 @@ var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 
 	httpClient := &http.Client{}
 
+	// Create client without authenticating yet
 	megaportClient, err := megaport.New(httpClient, megaport.WithCredentials(accessKey, secretKey), envOpt)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := megaportClient.Authorize(ctx); err != nil {
+
+	// Start spinner for login
+	spinner := output.PrintLoggingIn(false) // You might want to pass a noColor flag here if available
+
+	// Authenticate with the API
+	_, err = megaportClient.Authorize(ctx)
+
+	// Stop spinner, handling success or error
+	if err != nil {
+		spinner.Stop() // Just stop the spinner without success message if there's an error
 		return nil, err
+	} else {
+		spinner.StopWithSuccess("Successfully logged in to Megaport")
 	}
+
 	return megaportClient, nil
 }

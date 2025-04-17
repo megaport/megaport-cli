@@ -21,7 +21,6 @@ type mockVXCService struct {
 	listPartnerPortsError                error
 	updateVXCResponse                    *megaport.VXC
 	buyVXCErr                            error
-	updateVXCErr                         error
 	onBuyVXC                             func(context.Context, *megaport.BuyVXCRequest)
 	ListVXCResourceTagsErr               error
 	ListVXCResourceTagsResult            map[string]string

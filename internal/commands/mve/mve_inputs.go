@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
@@ -216,6 +217,7 @@ func parseSixwindConfig(config map[string]interface{}) (*megaport.SixwindVSRConf
 	if !ok {
 		return nil, fmt.Errorf("productSize is required for 6WIND configuration")
 	}
+	productSize = strings.ToUpper(productSize)
 
 	mveLabel, _ := getStringFromMap(config, "mveLabel")
 
@@ -243,6 +245,7 @@ func parseArubaConfig(config map[string]interface{}) (*megaport.ArubaConfig, err
 	if !ok {
 		return nil, fmt.Errorf("productSize is required for Aruba configuration")
 	}
+	productSize = strings.ToUpper(productSize)
 
 	mveLabel, _ := getStringFromMap(config, "mveLabel")
 
@@ -279,6 +282,7 @@ func parseAviatrixConfig(config map[string]interface{}) (*megaport.AviatrixConfi
 	if !ok {
 		return nil, fmt.Errorf("productSize is required for Aviatrix configuration")
 	}
+	productSize = strings.ToUpper(productSize)
 
 	mveLabel, _ := getStringFromMap(config, "mveLabel")
 
@@ -306,6 +310,7 @@ func parseCiscoConfig(config map[string]interface{}) (*megaport.CiscoConfig, err
 	if !ok {
 		return nil, fmt.Errorf("productSize is required for Cisco configuration")
 	}
+	productSize = strings.ToUpper(productSize)
 
 	mveLabel, ok := getStringFromMap(config, "mveLabel")
 	if !ok {
@@ -372,6 +377,7 @@ func parseFortinetConfig(config map[string]interface{}) (*megaport.FortinetConfi
 	if !ok {
 		return nil, fmt.Errorf("productSize is required for Fortinet configuration")
 	}
+	productSize = strings.ToUpper(productSize)
 
 	mveLabel, _ := getStringFromMap(config, "mveLabel")
 
@@ -411,6 +417,7 @@ func parsePaloAltoConfig(config map[string]interface{}) (*megaport.PaloAltoConfi
 	if !ok {
 		return nil, fmt.Errorf("productSize is required for PaloAlto configuration")
 	}
+	productSize = strings.ToUpper(productSize)
 
 	mveLabel, _ := getStringFromMap(config, "mveLabel")
 
@@ -450,6 +457,7 @@ func parsePrismaConfig(config map[string]interface{}) (*megaport.PrismaConfig, e
 	if !ok {
 		return nil, fmt.Errorf("productSize is required for Prisma configuration")
 	}
+	productSize = strings.ToUpper(productSize)
 
 	mveLabel, _ := getStringFromMap(config, "mveLabel")
 
@@ -483,6 +491,7 @@ func parseVersaConfig(config map[string]interface{}) (*megaport.VersaConfig, err
 	if !ok {
 		return nil, fmt.Errorf("productSize is required for Versa configuration")
 	}
+	productSize = strings.ToUpper(productSize)
 
 	mveLabel, _ := getStringFromMap(config, "mveLabel")
 
@@ -534,6 +543,7 @@ func parseVmwareConfig(config map[string]interface{}) (*megaport.VmwareConfig, e
 	if !ok {
 		return nil, fmt.Errorf("productSize is required for VMware configuration")
 	}
+	productSize = strings.ToUpper(productSize)
 
 	mveLabel, _ := getStringFromMap(config, "mveLabel")
 
@@ -579,6 +589,8 @@ func parseMerakiConfig(config map[string]interface{}) (*megaport.MerakiConfig, e
 	if !ok {
 		return nil, fmt.Errorf("productSize is required for Meraki configuration")
 	}
+
+	productSize = strings.ToUpper(productSize)
 
 	mveLabel, _ := getStringFromMap(config, "mveLabel")
 
