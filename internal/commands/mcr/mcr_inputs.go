@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -34,7 +35,7 @@ func processJSONMCRInput(jsonStr, jsonFile string) (*megaport.BuyMCRRequest, err
 	}
 
 	// Validate required fields
-	if err := validateMCRRequest(req); err != nil {
+	if err := validation.ValidateMCRRequest(req); err != nil {
 		return nil, err
 	}
 
@@ -77,7 +78,7 @@ func processFlagMCRInput(cmd *cobra.Command) (*megaport.BuyMCRRequest, error) {
 	}
 
 	// Validate required fields
-	if err := validateMCRRequest(req); err != nil {
+	if err := validation.ValidateMCRRequest(req); err != nil {
 		return nil, err
 	}
 
@@ -262,7 +263,7 @@ func processJSONPrefixFilterListInput(jsonStr, jsonFile string, mcrUID string) (
 	}
 
 	// Validate the request
-	if err := validatePrefixFilterListRequest(req); err != nil {
+	if err := validation.ValidatePrefixFilterListRequest(req); err != nil {
 		return nil, err
 	}
 
@@ -322,7 +323,7 @@ func processFlagPrefixFilterListInput(cmd *cobra.Command, mcrUID string) (*megap
 	}
 
 	// Validate required fields
-	if err := validatePrefixFilterListRequest(req); err != nil {
+	if err := validation.ValidatePrefixFilterListRequest(req); err != nil {
 		return nil, err
 	}
 
@@ -440,7 +441,7 @@ func processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile string, mcrUID str
 	}
 
 	// Validate the request
-	if err := validateUpdatePrefixFilterList(prefixFilterList); err != nil {
+	if err := validation.ValidateUpdatePrefixFilterList(prefixFilterList); err != nil {
 		return nil, err
 	}
 
@@ -544,7 +545,7 @@ func processFlagUpdatePrefixFilterListInput(cmd *cobra.Command, mcrUID string, p
 	}
 
 	// Validate required fields
-	if err := validateUpdatePrefixFilterList(prefixFilterList); err != nil {
+	if err := validation.ValidateUpdatePrefixFilterList(prefixFilterList); err != nil {
 		return nil, err
 	}
 

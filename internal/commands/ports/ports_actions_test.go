@@ -422,7 +422,9 @@ func TestBuyPortCmd(t *testing.T) {
 				"name": "Test Port",
 				// Missing other required fields
 			},
-			expectedError: "invalid term, must be one of 1, 12, 24, 36",
+			// Only expect the contract term error since it's checked first
+			// Update: Location ID seems to be checked first now
+			expectedError: "Invalid location ID: 0 - must be a positive integer",
 		},
 		{
 			name: "invalid term in flag mode",
@@ -434,7 +436,7 @@ func TestBuyPortCmd(t *testing.T) {
 				"location-id":            "123",
 				"marketplace-visibility": "true",
 			},
-			expectedError: "invalid term, must be one of 1, 12, 24, 36",
+			expectedError: "Invalid contract term: 13 - must be one of: [1 12 24 36]",
 		},
 		{
 			name: "invalid port speed in flag mode",
@@ -446,7 +448,7 @@ func TestBuyPortCmd(t *testing.T) {
 				"location-id":            "123",
 				"marketplace-visibility": "true",
 			},
-			expectedError: "invalid port speed, must be one of 1000, 10000, 100000",
+			expectedError: "Invalid port speed: 5000 - must be one of: [1000 10000 100000]",
 		},
 		{
 			name: "invalid JSON",
@@ -549,7 +551,7 @@ func TestBuyPortCmd(t *testing.T) {
 			// Check results
 			if tt.expectedError != "" {
 				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError)
+				assert.ErrorContains(t, err, tt.expectedError) // Only check for the primary expected error
 			} else {
 				assert.NoError(t, err)
 				assert.Contains(t, output, tt.expectedOutput)
@@ -670,7 +672,9 @@ func TestBuyLAGPortCmd(t *testing.T) {
 				"name": "Test LAG Port",
 				// Missing other required fields
 			},
-			expectedError: "invalid term, must be one of 1, 12, 24, 36",
+			// Only expect the contract term error since it's checked first
+			// Update: Location ID seems to be checked first now
+			expectedError: "Invalid location ID: 0 - must be a positive integer",
 		},
 		{
 			name: "invalid term in flag mode",
@@ -683,7 +687,7 @@ func TestBuyLAGPortCmd(t *testing.T) {
 				"lag-count":              "2",
 				"marketplace-visibility": "true",
 			},
-			expectedError: "invalid term, must be one of 1, 12, 24, 36",
+			expectedError: "Invalid contract term: 13 - must be one of: [1 12 24 36]",
 		},
 		{
 			name: "invalid port speed in flag mode for LAG",
@@ -696,7 +700,8 @@ func TestBuyLAGPortCmd(t *testing.T) {
 				"lag-count":              "2",
 				"marketplace-visibility": "true",
 			},
-			expectedError: "invalid port speed, must be one of 10000 or 100000",
+			// Match the exact string from the updated ValidateLAGPortRequest
+			expectedError: "Invalid port speed: 1000 - must be one of: [10000 100000] for LAG ports",
 		},
 		{
 			name: "invalid LAG count in flag mode",
@@ -709,7 +714,7 @@ func TestBuyLAGPortCmd(t *testing.T) {
 				"lag-count":              "10", // Invalid LAG count (should be 1-8)
 				"marketplace-visibility": "true",
 			},
-			expectedError: "invalid LAG count, must be between 1 and 8",
+			expectedError: "Invalid LAG count: 10 - must be between 1 and 8",
 		},
 		{
 			name: "invalid JSON",
@@ -814,7 +819,7 @@ func TestBuyLAGPortCmd(t *testing.T) {
 			// Check results
 			if tt.expectedError != "" {
 				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError)
+				assert.ErrorContains(t, err, tt.expectedError) // Only check for the primary expected error
 			} else {
 				assert.NoError(t, err)
 				assert.Contains(t, output, tt.expectedOutput)
@@ -964,6 +969,7 @@ func TestUpdatePortCmd(t *testing.T) {
 				"marketplace-visibility": "true",
 				"term":                   "13", // Invalid term
 			},
+			// This error message needs to match what the validation is actually returning
 			expectedError:         "invalid term, must be one of 1, 12, 24, 36",
 			skipRequestValidation: true, // Skip validation because no request will be sent
 		},
@@ -1109,7 +1115,8 @@ func TestUpdatePortCmd(t *testing.T) {
 			if tt.expectedError != "" {
 				assert.Error(t, err, "Expected an error but got none")
 				if err != nil { // Only check error contents if there actually is an error
-					assert.Contains(t, err.Error(), tt.expectedError)
+					// Use ErrorContains for flexibility if multiple errors could occur
+					assert.ErrorContains(t, err, tt.expectedError)
 				}
 			} else {
 				assert.NoError(t, err)

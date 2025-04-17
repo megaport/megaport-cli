@@ -117,7 +117,7 @@ func (s *Spinner) Start(prefix string) {
 	}()
 }
 
-// Stop halts the spinner animation and clears the line
+// Stop halts the spinner animation but preserves the last message
 func (s *Spinner) Stop() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -126,10 +126,11 @@ func (s *Spinner) Stop() {
 	}
 	s.stopped = true
 	s.stop <- true
-	fmt.Print("\r\033[K") // Clear the current line
+	// No longer clearing the line, keeping the last message visible
+	fmt.Print("\r") // Just return to the beginning of the line
 }
 
-// StopWithSuccess stops the spinner and shows a success message
+// StopWithSuccess stops the spinner and shows a success message while preserving the context
 func (s *Spinner) StopWithSuccess(msg string) {
 	s.Stop()
 	if s.noColor {
@@ -188,6 +189,22 @@ func PrintResourceGetting(resourceType, uid string, noColor bool) *Spinner {
 func PrintListingResourceTags(resourceType, uid string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Listing resource tags for %s %s...", resourceType, uidFormatted)
+	spinner := NewSpinner(noColor)
+	spinner.Start(msg)
+	return spinner
+}
+
+// PrintResourceValidating shows an animated spinner while validating a resource order
+func PrintResourceValidating(resourceType string, noColor bool) *Spinner {
+	msg := fmt.Sprintf("Validating %s order...", resourceType)
+	spinner := NewSpinner(noColor)
+	spinner.Start(msg)
+	return spinner
+}
+
+// PrintLoggingIn shows an animated spinner while logging in to Megaport
+func PrintLoggingIn(noColor bool) *Spinner {
+	msg := "Logging in to Megaport..."
 	spinner := NewSpinner(noColor)
 	spinner.Start(msg)
 	return spinner

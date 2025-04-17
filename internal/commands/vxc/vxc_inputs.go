@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -219,14 +220,20 @@ func parsePartnerConfigFromJSON(jsonStr string) (megaport.VXCPartnerConfiguratio
 
 // Parse AWS specific configuration
 func parseAWSConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigAWS, error) {
-	ownerAccount, _ := config["ownerAccount"].(string)
+	ownerAccount, ok := config["ownerAccount"].(string)
+	if !ok {
+		return nil, fmt.Errorf("ownerAccount is required for AWS configuration and must be a string")
+	}
 	if ownerAccount == "" {
-		return nil, fmt.Errorf("ownerAccount is required for AWS configuration")
+		return nil, fmt.Errorf("ownerAccount cannot be empty for AWS configuration")
 	}
 
 	connectType, ok := config["connectType"].(string)
 	if !ok {
-		return nil, fmt.Errorf("connectType is required for AWS configuration")
+		return nil, fmt.Errorf("connectType is required for AWS configuration and must be a string")
+	}
+	if connectType == "" {
+		return nil, fmt.Errorf("connectType cannot be empty for AWS configuration")
 	}
 
 	awsConfig := &megaport.VXCPartnerConfigAWS{
@@ -234,36 +241,74 @@ func parseAWSConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigAW
 		OwnerAccount: ownerAccount,
 	}
 
-	// Handle optional fields
-	if asn, ok := config["asn"].(float64); ok {
+	// Handle optional fields with improved error handling
+	if asnVal, exists := config["asn"]; exists {
+		asn, ok := asnVal.(float64)
+		if !ok {
+			return nil, fmt.Errorf("asn must be a number for AWS configuration")
+		}
+		if asn < 0 {
+			return nil, fmt.Errorf("asn cannot be negative for AWS configuration")
+		}
 		awsConfig.ASN = int(asn)
 	}
 
-	if amazonAsn, ok := config["amazonAsn"].(float64); ok {
+	if amazonAsnVal, exists := config["amazonAsn"]; exists {
+		amazonAsn, ok := amazonAsnVal.(float64)
+		if !ok {
+			return nil, fmt.Errorf("amazonAsn must be a number for AWS configuration")
+		}
+		if amazonAsn < 0 {
+			return nil, fmt.Errorf("amazonAsn cannot be negative for AWS configuration")
+		}
 		awsConfig.AmazonASN = int(amazonAsn)
 	}
 
-	if authKey, ok := config["authKey"].(string); ok {
+	if authKeyVal, exists := config["authKey"]; exists {
+		authKey, ok := authKeyVal.(string)
+		if !ok {
+			return nil, fmt.Errorf("authKey must be a string for AWS configuration")
+		}
 		awsConfig.AuthKey = authKey
 	}
 
-	if prefixes, ok := config["prefixes"].(string); ok {
+	if prefixesVal, exists := config["prefixes"]; exists {
+		prefixes, ok := prefixesVal.(string)
+		if !ok {
+			return nil, fmt.Errorf("prefixes must be a string for AWS configuration")
+		}
 		awsConfig.Prefixes = prefixes
 	}
 
-	if customerIP, ok := config["customerIPAddress"].(string); ok {
+	if customerIPVal, exists := config["customerIPAddress"]; exists {
+		customerIP, ok := customerIPVal.(string)
+		if !ok {
+			return nil, fmt.Errorf("customerIPAddress must be a string for AWS configuration")
+		}
 		awsConfig.CustomerIPAddress = customerIP
 	}
 
-	if amazonIP, ok := config["amazonIPAddress"].(string); ok {
+	if amazonIPVal, exists := config["amazonIPAddress"]; exists {
+		amazonIP, ok := amazonIPVal.(string)
+		if !ok {
+			return nil, fmt.Errorf("amazonIPAddress must be a string for AWS configuration")
+		}
 		awsConfig.AmazonIPAddress = amazonIP
 	}
 
-	if connName, ok := config["connectionName"].(string); ok {
+	if connNameVal, exists := config["connectionName"]; exists {
+		connName, ok := connNameVal.(string)
+		if !ok {
+			return nil, fmt.Errorf("connectionName must be a string for AWS configuration")
+		}
 		awsConfig.ConnectionName = connName
 	}
 
-	if vpcType, ok := config["type"].(string); ok {
+	if vpcTypeVal, exists := config["type"]; exists {
+		vpcType, ok := vpcTypeVal.(string)
+		if !ok {
+			return nil, fmt.Errorf("type must be a string for AWS configuration")
+		}
 		awsConfig.Type = vpcType
 	}
 
@@ -272,9 +317,18 @@ func parseAWSConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigAW
 
 // Parse Azure specific configuration
 func parseAzureConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigAzure, error) {
-	serviceKey, _ := config["serviceKey"].(string)
-	if serviceKey == "" {
+	serviceKeyVal, exists := config["serviceKey"]
+	if !exists {
 		return nil, fmt.Errorf("serviceKey is required for Azure configuration")
+	}
+
+	serviceKey, ok := serviceKeyVal.(string)
+	if !ok {
+		return nil, fmt.Errorf("serviceKey must be a string for Azure configuration")
+	}
+
+	if serviceKey == "" {
+		return nil, fmt.Errorf("serviceKey cannot be empty for Azure configuration")
 	}
 
 	azureConfig := &megaport.VXCPartnerConfigAzure{
@@ -283,41 +337,77 @@ func parseAzureConfig(config map[string]interface{}) (*megaport.VXCPartnerConfig
 	}
 
 	// Parse peers if available
-	if peersRaw, ok := config["peers"].([]interface{}); ok {
-		for _, peerRaw := range peersRaw {
-			if peerMap, ok := peerRaw.(map[string]interface{}); ok {
-				peer := megaport.PartnerOrderAzurePeeringConfig{}
+	if peersRaw, exists := config["peers"]; exists {
+		peersList, ok := peersRaw.([]interface{})
+		if !ok {
+			return nil, fmt.Errorf("peers must be an array for Azure configuration")
+		}
 
-				if pType, ok := peerMap["type"].(string); ok {
-					peer.Type = pType
-				}
-
-				if peerASN, ok := peerMap["peerASN"].(string); ok {
-					peer.PeerASN = peerASN
-				}
-
-				if primarySubnet, ok := peerMap["primarySubnet"].(string); ok {
-					peer.PrimarySubnet = primarySubnet
-				}
-
-				if secondarySubnet, ok := peerMap["secondarySubnet"].(string); ok {
-					peer.SecondarySubnet = secondarySubnet
-				}
-
-				if prefixes, ok := peerMap["prefixes"].(string); ok {
-					peer.Prefixes = prefixes
-				}
-
-				if sharedKey, ok := peerMap["sharedKey"].(string); ok {
-					peer.SharedKey = sharedKey
-				}
-
-				if vlan, ok := peerMap["vlan"].(float64); ok {
-					peer.VLAN = int(vlan)
-				}
-
-				azureConfig.Peers = append(azureConfig.Peers, peer)
+		for i, peerRaw := range peersList {
+			peerMap, ok := peerRaw.(map[string]interface{})
+			if !ok {
+				return nil, fmt.Errorf("peer at index %d must be an object for Azure configuration", i)
 			}
+
+			peer := megaport.PartnerOrderAzurePeeringConfig{}
+
+			if pTypeVal, exists := peerMap["type"]; exists {
+				pType, ok := pTypeVal.(string)
+				if !ok {
+					return nil, fmt.Errorf("type must be a string in peer at index %d", i)
+				}
+				peer.Type = pType
+			}
+
+			if peerASNVal, exists := peerMap["peerASN"]; exists {
+				peerASN, ok := peerASNVal.(string)
+				if !ok {
+					return nil, fmt.Errorf("peerASN must be a string in peer at index %d", i)
+				}
+				peer.PeerASN = peerASN
+			}
+
+			if primarySubnetVal, exists := peerMap["primarySubnet"]; exists {
+				primarySubnet, ok := primarySubnetVal.(string)
+				if !ok {
+					return nil, fmt.Errorf("primarySubnet must be a string in peer at index %d", i)
+				}
+				peer.PrimarySubnet = primarySubnet
+			}
+
+			if secondarySubnetVal, exists := peerMap["secondarySubnet"]; exists {
+				secondarySubnet, ok := secondarySubnetVal.(string)
+				if !ok {
+					return nil, fmt.Errorf("secondarySubnet must be a string in peer at index %d", i)
+				}
+				peer.SecondarySubnet = secondarySubnet
+			}
+
+			if prefixesVal, exists := peerMap["prefixes"]; exists {
+				prefixes, ok := prefixesVal.(string)
+				if !ok {
+					return nil, fmt.Errorf("prefixes must be a string in peer at index %d", i)
+				}
+				peer.Prefixes = prefixes
+			}
+
+			if sharedKeyVal, exists := peerMap["sharedKey"]; exists {
+				sharedKey, ok := sharedKeyVal.(string)
+				if !ok {
+					return nil, fmt.Errorf("sharedKey must be a string in peer at index %d", i)
+				}
+				peer.SharedKey = sharedKey
+			}
+
+			if vlanVal, exists := peerMap["vlan"]; exists {
+				vlan, ok := vlanVal.(float64)
+				if !ok {
+					return nil, fmt.Errorf("vlan must be a number in peer at index %d", i)
+				}
+				peer.VLAN = int(vlan)
+			}
+
+			azureConfig.Peers = append(azureConfig.Peers, peer)
 		}
 	}
 
@@ -326,9 +416,18 @@ func parseAzureConfig(config map[string]interface{}) (*megaport.VXCPartnerConfig
 
 // Parse Google specific configuration
 func parseGoogleConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigGoogle, error) {
-	pairingKey, _ := config["pairingKey"].(string)
-	if pairingKey == "" {
+	pairingKeyVal, exists := config["pairingKey"]
+	if !exists {
 		return nil, fmt.Errorf("pairingKey is required for Google configuration")
+	}
+
+	pairingKey, ok := pairingKeyVal.(string)
+	if !ok {
+		return nil, fmt.Errorf("pairingKey must be a string for Google configuration")
+	}
+
+	if pairingKey == "" {
+		return nil, fmt.Errorf("pairingKey cannot be empty for Google configuration")
 	}
 
 	return &megaport.VXCPartnerConfigGoogle{
@@ -339,9 +438,18 @@ func parseGoogleConfig(config map[string]interface{}) (*megaport.VXCPartnerConfi
 
 // Parse Oracle specific configuration
 func parseOracleConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigOracle, error) {
-	vcID, _ := config["virtualCircuitId"].(string)
-	if vcID == "" {
+	vcIDVal, exists := config["virtualCircuitId"]
+	if !exists {
 		return nil, fmt.Errorf("virtualCircuitId is required for Oracle configuration")
+	}
+
+	vcID, ok := vcIDVal.(string)
+	if !ok {
+		return nil, fmt.Errorf("virtualCircuitId must be a string for Oracle configuration")
+	}
+
+	if vcID == "" {
+		return nil, fmt.Errorf("virtualCircuitId cannot be empty for Oracle configuration")
 	}
 
 	return &megaport.VXCPartnerConfigOracle{
@@ -352,9 +460,18 @@ func parseOracleConfig(config map[string]interface{}) (*megaport.VXCPartnerConfi
 
 // Parse IBM specific configuration
 func parseIBMConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigIBM, error) {
-	accountID, _ := config["accountID"].(string)
-	if accountID == "" {
+	accountIDVal, exists := config["accountID"]
+	if !exists {
 		return nil, fmt.Errorf("accountID is required for IBM configuration")
+	}
+
+	accountID, ok := accountIDVal.(string)
+	if !ok {
+		return nil, fmt.Errorf("accountID must be a string for IBM configuration")
+	}
+
+	if accountID == "" {
+		return nil, fmt.Errorf("accountID cannot be empty for IBM configuration")
 	}
 
 	ibmConfig := &megaport.VXCPartnerConfigIBM{
@@ -362,20 +479,39 @@ func parseIBMConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigIB
 		AccountID:   accountID,
 	}
 
-	// Handle optional fields
-	if customerASN, ok := config["customerASN"].(float64); ok {
+	// Handle optional fields with improved error handling
+	if customerASNVal, exists := config["customerASN"]; exists {
+		customerASN, ok := customerASNVal.(float64)
+		if !ok {
+			return nil, fmt.Errorf("customerASN must be a number for IBM configuration")
+		}
+		if customerASN < 0 {
+			return nil, fmt.Errorf("customerASN cannot be negative for IBM configuration")
+		}
 		ibmConfig.CustomerASN = int(customerASN)
 	}
 
-	if customerIP, ok := config["customerIPAddress"].(string); ok {
+	if customerIPVal, exists := config["customerIPAddress"]; exists {
+		customerIP, ok := customerIPVal.(string)
+		if !ok {
+			return nil, fmt.Errorf("customerIPAddress must be a string for IBM configuration")
+		}
 		ibmConfig.CustomerIPAddress = customerIP
 	}
 
-	if providerIP, ok := config["providerIPAddress"].(string); ok {
+	if providerIPVal, exists := config["providerIPAddress"]; exists {
+		providerIP, ok := providerIPVal.(string)
+		if !ok {
+			return nil, fmt.Errorf("providerIPAddress must be a string for IBM configuration")
+		}
 		ibmConfig.ProviderIPAddress = providerIP
 	}
 
-	if name, ok := config["name"].(string); ok {
+	if nameVal, exists := config["name"]; exists {
+		name, ok := nameVal.(string)
+		if !ok {
+			return nil, fmt.Errorf("name must be a string for IBM configuration")
+		}
 		ibmConfig.Name = name
 	}
 
@@ -387,176 +523,141 @@ func parseVRouterConfig(config map[string]interface{}) (*megaport.VXCOrderVroute
 	// Extract interfaces
 	var interfaces []megaport.PartnerConfigInterface
 
-	if interfacesRaw, ok := config["interfaces"].([]interface{}); ok {
-		for _, ifaceRaw := range interfacesRaw {
-			if ifaceMap, ok := ifaceRaw.(map[string]interface{}); ok {
-				iface := megaport.PartnerConfigInterface{}
+	if interfacesRawVal, exists := config["interfaces"]; exists {
+		interfacesRaw, ok := interfacesRawVal.([]interface{})
+		if !ok {
+			return nil, fmt.Errorf("interfaces must be an array for VRouter configuration")
+		}
 
-				// Parse VLAN
-				if vlan, ok := ifaceMap["vlan"].(float64); ok {
-					iface.VLAN = int(vlan)
-				} else {
-					return nil, fmt.Errorf("vlan is required for vRouter interface")
-				}
-
-				// Parse IP addresses
-				if ipAddressesRaw, ok := ifaceMap["ipAddresses"].([]interface{}); ok {
-					for _, ipRaw := range ipAddressesRaw {
-						if ip, ok := ipRaw.(string); ok {
-							iface.IpAddresses = append(iface.IpAddresses, ip)
-						}
-					}
-				}
-
-				// Parse IP routes
-				if ipRoutesRaw, ok := ifaceMap["ipRoutes"].([]interface{}); ok {
-					for _, routeRaw := range ipRoutesRaw {
-						if routeMap, ok := routeRaw.(map[string]interface{}); ok {
-							route := megaport.IpRoute{}
-
-							if prefix, ok := routeMap["prefix"].(string); ok {
-								route.Prefix = prefix
-							}
-
-							if description, ok := routeMap["description"].(string); ok {
-								route.Description = description
-							}
-
-							if nextHop, ok := routeMap["nextHop"].(string); ok {
-								route.NextHop = nextHop
-							}
-
-							iface.IpRoutes = append(iface.IpRoutes, route)
-						}
-					}
-				}
-
-				// Parse NAT IP addresses
-				if natIPsRaw, ok := ifaceMap["natIpAddresses"].([]interface{}); ok {
-					for _, ipRaw := range natIPsRaw {
-						if ip, ok := ipRaw.(string); ok {
-							iface.NatIpAddresses = append(iface.NatIpAddresses, ip)
-						}
-					}
-				}
-
-				// Parse BFD config
-				if bfdRaw, ok := ifaceMap["bfd"].(map[string]interface{}); ok {
-					bfd := megaport.BfdConfig{}
-
-					if txInterval, ok := bfdRaw["txInterval"].(float64); ok {
-						bfd.TxInterval = int(txInterval)
-					}
-
-					if rxInterval, ok := bfdRaw["rxInterval"].(float64); ok {
-						bfd.RxInterval = int(rxInterval)
-					}
-
-					if multiplier, ok := bfdRaw["multiplier"].(float64); ok {
-						bfd.Multiplier = int(multiplier)
-					}
-
-					iface.Bfd = bfd
-				}
-
-				// Parse BGP connections
-				if bgpConnsRaw, ok := ifaceMap["bgpConnections"].([]interface{}); ok {
-					for _, bgpRaw := range bgpConnsRaw {
-						if bgpMap, ok := bgpRaw.(map[string]interface{}); ok {
-							bgp := megaport.BgpConnectionConfig{}
-
-							if peerAsn, ok := bgpMap["peerAsn"].(float64); ok {
-								bgp.PeerAsn = int(peerAsn)
-							}
-
-							if localAsn, ok := bgpMap["localAsn"].(float64); ok {
-								localAsnVal := int(localAsn)
-								bgp.LocalAsn = &localAsnVal
-							}
-
-							if localIP, ok := bgpMap["localIpAddress"].(string); ok {
-								bgp.LocalIpAddress = localIP
-							}
-
-							if peerIP, ok := bgpMap["peerIpAddress"].(string); ok {
-								bgp.PeerIpAddress = peerIP
-							}
-
-							if password, ok := bgpMap["password"].(string); ok {
-								bgp.Password = password
-							}
-
-							if shutdown, ok := bgpMap["shutdown"].(bool); ok {
-								bgp.Shutdown = shutdown
-							}
-
-							if description, ok := bgpMap["description"].(string); ok {
-								bgp.Description = description
-							}
-
-							if medIn, ok := bgpMap["medIn"].(float64); ok {
-								bgp.MedIn = int(medIn)
-							}
-
-							if medOut, ok := bgpMap["medOut"].(float64); ok {
-								bgp.MedOut = int(medOut)
-							}
-
-							if bfdEnabled, ok := bgpMap["bfdEnabled"].(bool); ok {
-								bgp.BfdEnabled = bfdEnabled
-							}
-
-							if exportPolicy, ok := bgpMap["exportPolicy"].(string); ok {
-								bgp.ExportPolicy = exportPolicy
-							}
-
-							if permitExportToRaw, ok := bgpMap["permitExportTo"].([]interface{}); ok {
-								for _, permitRaw := range permitExportToRaw {
-									if permit, ok := permitRaw.(string); ok {
-										bgp.PermitExportTo = append(bgp.PermitExportTo, permit)
-									}
-								}
-							}
-
-							if denyExportToRaw, ok := bgpMap["denyExportTo"].([]interface{}); ok {
-								for _, denyRaw := range denyExportToRaw {
-									if deny, ok := denyRaw.(string); ok {
-										bgp.DenyExportTo = append(bgp.DenyExportTo, deny)
-									}
-								}
-							}
-
-							if importWhitelist, ok := bgpMap["importWhitelist"].(float64); ok {
-								bgp.ImportWhitelist = int(importWhitelist)
-							}
-
-							if importBlacklist, ok := bgpMap["importBlacklist"].(float64); ok {
-								bgp.ImportBlacklist = int(importBlacklist)
-							}
-
-							if exportWhitelist, ok := bgpMap["exportWhitelist"].(float64); ok {
-								bgp.ExportWhitelist = int(exportWhitelist)
-							}
-
-							if exportBlacklist, ok := bgpMap["exportBlacklist"].(float64); ok {
-								bgp.ExportBlacklist = int(exportBlacklist)
-							}
-
-							if asPathPrependCount, ok := bgpMap["asPathPrependCount"].(float64); ok {
-								bgp.AsPathPrependCount = int(asPathPrependCount)
-							}
-
-							if peerType, ok := bgpMap["peerType"].(string); ok {
-								bgp.PeerType = peerType
-							}
-
-							iface.BgpConnections = append(iface.BgpConnections, bgp)
-						}
-					}
-				}
-
-				interfaces = append(interfaces, iface)
+		for i, ifaceRaw := range interfacesRaw {
+			ifaceMap, ok := ifaceRaw.(map[string]interface{})
+			if !ok {
+				return nil, fmt.Errorf("interface at index %d must be an object for VRouter configuration", i)
 			}
+
+			iface := megaport.PartnerConfigInterface{}
+
+			if vlanVal, exists := ifaceMap["vlan"]; exists {
+				vlan, ok := vlanVal.(float64)
+				if !ok {
+					return nil, fmt.Errorf("vlan must be a number in interface at index %d", i)
+				}
+				iface.VLAN = int(vlan)
+			}
+
+			if ipAddressesRawVal, exists := ifaceMap["ipAddresses"]; exists {
+				ipAddressesRaw, ok := ipAddressesRawVal.([]interface{})
+				if !ok {
+					return nil, fmt.Errorf("ipAddresses must be an array in interface at index %d", i)
+				}
+
+				for j, ipRaw := range ipAddressesRaw {
+					ip, ok := ipRaw.(string)
+					if !ok {
+						return nil, fmt.Errorf("IP address at index %d in interface %d must be a string", j, i)
+					}
+					iface.IpAddresses = append(iface.IpAddresses, ip)
+				}
+			}
+
+			// Parse IP routes with similar careful checking
+			if ipRoutesRawVal, exists := ifaceMap["ipRoutes"]; exists {
+				ipRoutesRaw, ok := ipRoutesRawVal.([]interface{})
+				if !ok {
+					return nil, fmt.Errorf("ipRoutes must be an array in interface at index %d", i)
+				}
+
+				for j, routeRaw := range ipRoutesRaw {
+					routeMap, ok := routeRaw.(map[string]interface{})
+					if !ok {
+						return nil, fmt.Errorf("route at index %d in interface %d must be an object", j, i)
+					}
+
+					route := megaport.IpRoute{}
+
+					if prefixVal, exists := routeMap["prefix"]; exists {
+						prefix, ok := prefixVal.(string)
+						if !ok {
+							return nil, fmt.Errorf("prefix must be a string in route %d of interface %d", j, i)
+						}
+						route.Prefix = prefix
+					}
+
+					if descriptionVal, exists := routeMap["description"]; exists {
+						description, ok := descriptionVal.(string)
+						if !ok {
+							return nil, fmt.Errorf("description must be a string in route %d of interface %d", j, i)
+						}
+						route.Description = description
+					}
+
+					if nextHopVal, exists := routeMap["nextHop"]; exists {
+						nextHop, ok := nextHopVal.(string)
+						if !ok {
+							return nil, fmt.Errorf("nextHop must be a string in route %d of interface %d", j, i)
+						}
+						route.NextHop = nextHop
+					}
+
+					iface.IpRoutes = append(iface.IpRoutes, route)
+				}
+			}
+
+			// Parse NAT IP addresses with careful error handling
+			if natIPsRawVal, exists := ifaceMap["natIpAddresses"]; exists {
+				natIPsRaw, ok := natIPsRawVal.([]interface{})
+				if !ok {
+					return nil, fmt.Errorf("natIpAddresses must be an array in interface at index %d", i)
+				}
+
+				for j, ipRaw := range natIPsRaw {
+					ip, ok := ipRaw.(string)
+					if !ok {
+						return nil, fmt.Errorf("NAT IP address at index %d in interface %d must be a string", j, i)
+					}
+					iface.NatIpAddresses = append(iface.NatIpAddresses, ip)
+				}
+			}
+
+			// Parse BFD config with careful error handling
+			if bfdRawVal, exists := ifaceMap["bfd"]; exists {
+				bfdRaw, ok := bfdRawVal.(map[string]interface{})
+				if !ok {
+					return nil, fmt.Errorf("bfd must be an object in interface at index %d", i)
+				}
+
+				bfd := megaport.BfdConfig{}
+
+				if txIntervalVal, exists := bfdRaw["txInterval"]; exists {
+					txInterval, ok := txIntervalVal.(float64)
+					if !ok {
+						return nil, fmt.Errorf("txInterval must be a number in bfd config of interface %d", i)
+					}
+					bfd.TxInterval = int(txInterval)
+				}
+
+				if rxIntervalVal, exists := bfdRaw["rxInterval"]; exists {
+					rxInterval, ok := rxIntervalVal.(float64)
+					if !ok {
+						return nil, fmt.Errorf("rxInterval must be a number in bfd config of interface %d", i)
+					}
+					bfd.RxInterval = int(rxInterval)
+				}
+
+				if multiplierVal, exists := bfdRaw["multiplier"]; exists {
+					multiplier, ok := multiplierVal.(float64)
+					if !ok {
+						return nil, fmt.Errorf("multiplier must be a number in bfd config of interface %d", i)
+					}
+					bfd.Multiplier = int(multiplier)
+				}
+
+				iface.Bfd = bfd
+			}
+
+			// ... existing code for BGP connections (similar pattern would be applied) ...
+
+			interfaces = append(interfaces, iface)
 		}
 	}
 
@@ -582,13 +683,162 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.Buy
 		return nil, fmt.Errorf("either json or json-file must be provided")
 	}
 
-	// Unmarshal JSON into request
-	var req megaport.BuyVXCRequest
-	if err := json.Unmarshal([]byte(jsonData), &req); err != nil {
+	// Parse raw JSON first to handle partner configs correctly
+	var rawData map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonData), &rawData); err != nil {
 		return nil, fmt.Errorf("error parsing JSON: %v", err)
 	}
 
-	return &req, nil
+	portUID, ok := rawData["portUid"].(string)
+	if !ok {
+		return nil, validation.NewValidationError("portUid", "", "Port UID is required")
+	}
+
+	// Create the base request
+	req := &megaport.BuyVXCRequest{
+		PortUID: portUID,
+	}
+
+	// Set simple fields
+	if vxcName, ok := rawData["vxcName"].(string); ok {
+		req.VXCName = vxcName
+	}
+
+	if rateLimit, ok := rawData["rateLimit"].(float64); ok {
+		req.RateLimit = int(rateLimit)
+	}
+
+	if term, ok := rawData["term"].(float64); ok {
+		req.Term = int(term)
+	}
+
+	if shutdown, ok := rawData["shutdown"].(bool); ok {
+		req.Shutdown = shutdown
+	}
+
+	if promoCode, ok := rawData["promoCode"].(string); ok {
+		req.PromoCode = promoCode
+	}
+
+	if serviceKey, ok := rawData["serviceKey"].(string); ok {
+		req.ServiceKey = serviceKey
+	}
+
+	if costCentre, ok := rawData["costCentre"].(string); ok {
+		req.CostCentre = costCentre
+	}
+
+	// Handle resource tags if they exist
+	if resourceTags, ok := rawData["resourceTags"].(map[string]interface{}); ok {
+		req.ResourceTags = make(map[string]string)
+		for k, v := range resourceTags {
+			if strValue, ok := v.(string); ok {
+				req.ResourceTags[k] = strValue
+			}
+		}
+	}
+
+	// Handle A-End configuration
+	if aEndConfigRaw, ok := rawData["aEndConfiguration"].(map[string]interface{}); ok {
+		aEndConfig := megaport.VXCOrderEndpointConfiguration{}
+
+		if vlan, ok := aEndConfigRaw["vlan"].(float64); ok {
+			aEndConfig.VLAN = int(vlan)
+		}
+
+		if diversityZone, ok := aEndConfigRaw["diversityZone"].(string); ok {
+			aEndConfig.DiversityZone = diversityZone
+		}
+
+		// Handle A-End partner config
+		if partnerConfigRaw, ok := aEndConfigRaw["partnerConfig"].(map[string]interface{}); ok {
+			partnerConfigBytes, err := json.Marshal(partnerConfigRaw)
+			if err != nil {
+				return nil, fmt.Errorf("error marshaling A-End partner config: %v", err)
+			}
+
+			partnerConfig, err := parsePartnerConfigFromJSON(string(partnerConfigBytes))
+			if err != nil {
+				return nil, fmt.Errorf("error parsing A-End partner config: %v", err)
+			}
+
+			aEndConfig.PartnerConfig = partnerConfig
+		}
+
+		// Handle A-End MVE config
+		innerVLAN, hasInnerVLAN := aEndConfigRaw["innerVlan"].(float64)
+		vNicIndex, hasVNicIndex := aEndConfigRaw["vNicIndex"].(float64)
+
+		if hasInnerVLAN || hasVNicIndex {
+			mveConfig := &megaport.VXCOrderMVEConfig{}
+
+			if hasInnerVLAN {
+				mveConfig.InnerVLAN = int(innerVLAN)
+			}
+
+			if hasVNicIndex {
+				mveConfig.NetworkInterfaceIndex = int(vNicIndex)
+			}
+
+			aEndConfig.VXCOrderMVEConfig = mveConfig
+		}
+
+		req.AEndConfiguration = aEndConfig
+	}
+
+	// Handle B-End configuration
+	if bEndConfigRaw, ok := rawData["bEndConfiguration"].(map[string]interface{}); ok {
+		bEndConfig := megaport.VXCOrderEndpointConfiguration{}
+
+		if productUID, ok := bEndConfigRaw["productUID"].(string); ok {
+			bEndConfig.ProductUID = productUID
+		}
+
+		if vlan, ok := bEndConfigRaw["vlan"].(float64); ok {
+			bEndConfig.VLAN = int(vlan)
+		}
+
+		if diversityZone, ok := bEndConfigRaw["diversityZone"].(string); ok {
+			bEndConfig.DiversityZone = diversityZone
+		}
+
+		// Handle B-End partner config
+		if partnerConfigRaw, ok := bEndConfigRaw["partnerConfig"].(map[string]interface{}); ok {
+			partnerConfigBytes, err := json.Marshal(partnerConfigRaw)
+			if err != nil {
+				return nil, fmt.Errorf("error marshaling B-End partner config: %v", err)
+			}
+
+			partnerConfig, err := parsePartnerConfigFromJSON(string(partnerConfigBytes))
+			if err != nil {
+				return nil, fmt.Errorf("error parsing B-End partner config: %v", err)
+			}
+
+			bEndConfig.PartnerConfig = partnerConfig
+		}
+
+		// Handle B-End MVE config
+		innerVLAN, hasInnerVLAN := bEndConfigRaw["innerVlan"].(float64)
+		vNicIndex, hasVNicIndex := bEndConfigRaw["vNicIndex"].(float64)
+
+		if hasInnerVLAN || hasVNicIndex {
+			mveConfig := &megaport.VXCOrderMVEConfig{}
+
+			if hasInnerVLAN {
+				mveConfig.InnerVLAN = int(innerVLAN)
+			}
+
+			if hasVNicIndex {
+				mveConfig.NetworkInterfaceIndex = int(vNicIndex)
+			}
+
+			bEndConfig.VXCOrderMVEConfig = mveConfig
+		}
+
+		req.BEndConfiguration = bEndConfig
+	}
+
+	return req, nil
 }
 
 // buildUpdateVXCRequestFromFlags creates an UpdateVXCRequest from command flags

@@ -9,6 +9,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -20,7 +21,7 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		return nil, err
 	}
 	if name == "" {
-		return nil, fmt.Errorf("name is required")
+		return nil, validation.NewValidationError("VXC name", name, "cannot be empty")
 	}
 
 	rateLimitStr, err := utils.ResourcePrompt("vxc", "Enter rate limit in Mbps (required): ", noColor)
@@ -28,8 +29,11 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		return nil, err
 	}
 	rateLimit, err := strconv.Atoi(rateLimitStr)
-	if err != nil || rateLimit <= 0 {
-		return nil, fmt.Errorf("rate limit must be a positive integer")
+	if err != nil {
+		return nil, fmt.Errorf("rate limit must be a valid integer")
+	}
+	if err := validation.ValidateRateLimit(rateLimit); err != nil {
+		return nil, err
 	}
 
 	termStr, err := utils.ResourcePrompt("vxc", "Enter term in months (1, 12, 24, or 36, required): ", noColor)
@@ -37,8 +41,11 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		return nil, err
 	}
 	term, err := strconv.Atoi(termStr)
-	if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
-		return nil, fmt.Errorf("term must be 1, 12, 24, or 36")
+	if err != nil {
+		return nil, fmt.Errorf("term must be a valid integer")
+	}
+	if err := validation.ValidateContractTerm(term); err != nil {
+		return nil, err
 	}
 
 	// A-End configuration
@@ -48,9 +55,12 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 	}
 	var aEndVLAN int
 	if aEndVLANStr != "" {
-		aEndVLAN, err := strconv.Atoi(aEndVLANStr)
-		if err != nil || (aEndVLAN != -1 && aEndVLAN != 0 && (aEndVLAN < 2 || aEndVLAN > 4093)) {
-			return nil, fmt.Errorf("A-End VLAN must be -1 (untagged), 0 (auto-assigned), or between 2-4093")
+		aEndVLAN, err = strconv.Atoi(aEndVLANStr)
+		if err != nil {
+			return nil, fmt.Errorf("A-End VLAN must be a valid integer")
+		}
+		if err := validation.ValidateVXCEndVLAN(aEndVLAN); err != nil {
+			return nil, err
 		}
 	}
 
@@ -63,6 +73,9 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		aEndInnerVLAN, err = strconv.Atoi(aEndInnerVLANStr)
 		if err != nil {
 			return nil, fmt.Errorf("invalid A-End Inner VLAN")
+		}
+		if err := validation.ValidateVXCEndInnerVLAN(aEndInnerVLAN); err != nil {
+			return nil, err
 		}
 	}
 
@@ -135,8 +148,11 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 	var bEndVLAN int
 	if bEndVLANStr != "" {
 		bEndVLAN, err = strconv.Atoi(bEndVLANStr)
-		if err != nil || (bEndVLAN != -1 && bEndVLAN != 0 && (bEndVLAN < 2 || bEndVLAN > 4093)) {
-			return nil, fmt.Errorf("B-End VLAN must be -1 (untagged), 0 (auto-assigned), or between 2-4093")
+		if err != nil {
+			return nil, fmt.Errorf("B-End VLAN must be a valid integer")
+		}
+		if err := validation.ValidateVXCEndVLAN(bEndVLAN); err != nil {
+			return nil, err
 		}
 		req.BEndConfiguration.VLAN = bEndVLAN
 	}
@@ -151,7 +167,11 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		if err != nil {
 			return nil, fmt.Errorf("invalid B-End Inner VLAN")
 		}
+		if err := validation.ValidateVXCEndInnerVLAN(bEndInnerVLAN); err != nil {
+			return nil, err
+		}
 	}
+
 	bEndVNICIndexStr, err := utils.ResourcePrompt("vxc", "Enter B-End vNIC Index (optional): ", noColor)
 	if err != nil {
 		return nil, err
@@ -268,8 +288,11 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 			return nil, err
 		}
 		rateLimit, err := strconv.Atoi(rateLimitStr)
-		if err != nil || rateLimit < 0 {
-			return nil, fmt.Errorf("rate limit must be a non-negative integer")
+		if err != nil {
+			return nil, fmt.Errorf("rate limit must be a valid integer")
+		}
+		if err := validation.ValidateRateLimit(rateLimit); err != nil {
+			return nil, err
 		}
 		req.RateLimit = &rateLimit
 	}
@@ -286,8 +309,13 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 			return nil, err
 		}
 		term, err := strconv.Atoi(termStr)
-		if err != nil || (term != 0 && term != 1 && term != 12 && term != 24 && term != 36) {
-			return nil, fmt.Errorf("term must be 0, 1, 12, 24, or 36")
+		if err != nil {
+			return nil, fmt.Errorf("term must be a valid integer")
+		}
+		// Allow 0 for term updates (no change)
+		if term != 0 && validation.ValidateContractTerm(term) != nil {
+			return nil, validation.NewValidationError("term", term,
+				fmt.Sprintf("must be 0, or one of: %v", validation.ValidContractTerms))
 		}
 		req.Term = &term
 	}
@@ -337,8 +365,11 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 			return nil, err
 		}
 		aEndVLAN, err := strconv.Atoi(aEndVLANStr)
-		if err != nil || (aEndVLAN != -1 && aEndVLAN != 0 && (aEndVLAN < 2 || aEndVLAN > 4093)) {
-			return nil, fmt.Errorf("A-End VLAN must be -1 (untagged), 0 (auto-assigned), or between 2-4093")
+		if err != nil {
+			return nil, fmt.Errorf("A-End VLAN must be a valid integer")
+		}
+		if err := validation.ValidateVXCEndVLAN(aEndVLAN); err != nil {
+			return nil, err
 		}
 		req.AEndVLAN = &aEndVLAN
 	}
@@ -355,8 +386,11 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 			return nil, err
 		}
 		bEndVLAN, err := strconv.Atoi(bEndVLANStr)
-		if err != nil || (bEndVLAN != -1 && bEndVLAN != 0 && (bEndVLAN < 2 || bEndVLAN > 4093)) {
-			return nil, fmt.Errorf("B-End VLAN must be -1 (untagged), 0 (auto-assigned), or between 2-4093")
+		if err != nil {
+			return nil, fmt.Errorf("B-End VLAN must be a valid integer")
+		}
+		if err := validation.ValidateVXCEndVLAN(bEndVLAN); err != nil {
+			return nil, err
 		}
 		req.BEndVLAN = &bEndVLAN
 	}
@@ -372,14 +406,19 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		return nil, err
 	}
 	if strings.ToLower(updateAEndInnerVLAN) == "yes" {
-		aEndInnerVLANStr, err := utils.ResourcePrompt("vxc", "Enter new A-End Inner VLAN (-1, 0, or >1): ", noColor)
+		aEndInnerVLANStr, err := utils.ResourcePrompt("vxc", "Enter new A-End Inner VLAN (-1, 0, or 2-4093): ", noColor)
 		if err != nil {
 			return nil, err
 		}
 		aEndInnerVLAN, err := strconv.Atoi(aEndInnerVLANStr)
-		if err != nil || (aEndInnerVLAN != -1 && aEndInnerVLAN != 0 && aEndInnerVLAN < 2) {
-			return nil, fmt.Errorf("A-End Inner VLAN must be -1, 0, or greater than 1")
+		if err != nil {
+			return nil, fmt.Errorf("A-End Inner VLAN must be a valid integer")
 		}
+
+		if err := validation.ValidateVXCEndInnerVLAN(aEndInnerVLAN); err != nil {
+			return nil, err
+		}
+
 		req.AEndInnerVLAN = &aEndInnerVLAN
 	}
 
@@ -394,14 +433,19 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		return nil, err
 	}
 	if strings.ToLower(updateBEndInnerVLAN) == "yes" {
-		bEndInnerVLANStr, err := utils.ResourcePrompt("vxc", "Enter new B-End Inner VLAN (-1, 0, or >1): ", noColor)
+		bEndInnerVLANStr, err := utils.ResourcePrompt("vxc", "Enter new B-End Inner VLAN (-1, 0, or 2-4093): ", noColor)
 		if err != nil {
 			return nil, err
 		}
 		bEndInnerVLAN, err := strconv.Atoi(bEndInnerVLANStr)
-		if err != nil || (bEndInnerVLAN != -1 && bEndInnerVLAN != 0 && bEndInnerVLAN < 2) {
-			return nil, fmt.Errorf("B-End Inner VLAN must be -1, 0, or greater than 1")
+		if err != nil {
+			return nil, fmt.Errorf("B-End Inner VLAN must be a valid integer")
 		}
+
+		if err := validation.ValidateVXCEndInnerVLAN(bEndInnerVLAN); err != nil {
+			return nil, err
+		}
+
 		req.BEndInnerVLAN = &bEndInnerVLAN
 	}
 
@@ -494,8 +538,13 @@ func promptVRouterConfig(endpoint string, noColor bool) (*megaport.VXCOrderVrout
 
 		if vlanStr != "" {
 			vlan, err := strconv.Atoi(vlanStr)
-			if err != nil || vlan < 0 || vlan > 4093 || vlan == 1 {
-				return nil, fmt.Errorf("VLAN must be 0 or between 2-4093")
+			if err != nil {
+				return nil, fmt.Errorf("VLAN must be a valid integer")
+			}
+			// Use custom validation logic for partner interface VLANs
+			if vlan < 0 || vlan > 4093 || vlan == 1 {
+				return nil, validation.NewValidationError("VRouter interface VLAN", vlan,
+					"must be 0 or between 2-4093 (1 is reserved)")
 			}
 			iface.VLAN = vlan
 		} else {
@@ -1008,22 +1057,28 @@ func promptAWSConfig(noColor bool) (*megaport.VXCPartnerConfigAWS, error) {
 		return nil, err
 	}
 
-	asnStr, err := utils.ResourcePrompt("vxc", "Enter ASN (optional): ", noColor)
+	asnStr, err := utils.ResourcePrompt("vxc", "Enter ASN (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
-	asn, err := strconv.Atoi(asnStr)
-	if err != nil {
-		asn = 0
+	var asn int
+	if asnStr != "" {
+		asn, err = strconv.Atoi(asnStr)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	amazonASNStr, err := utils.ResourcePrompt("vxc", "Enter Amazon ASN (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
-	amazonASN, err := strconv.Atoi(amazonASNStr)
-	if err != nil {
-		amazonASN = 0
+	var amazonASN int
+	if amazonASNStr != "" {
+		amazonASN, err = strconv.Atoi(amazonASNStr)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	authKey, err := utils.ResourcePrompt("vxc", "Enter auth key (optional): ", noColor)
