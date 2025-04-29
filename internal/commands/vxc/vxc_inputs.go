@@ -13,7 +13,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// buildVXCRequestFromFlags creates a BuyVXCRequest from command flags
 var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc megaport.VXCService) (*megaport.BuyVXCRequest, error) {
 	aEndUID, _ := cmd.Flags().GetString("a-end-uid")
 
@@ -184,13 +183,16 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 	return req, nil
 }
 
-// parsePartnerConfigFromJSON parses a JSON string into a VXCPartnerConfiguration
 func parsePartnerConfigFromJSON(jsonStr string) (megaport.VXCPartnerConfiguration, error) {
 	var rawConfig map[string]interface{}
 	if err := json.Unmarshal([]byte(jsonStr), &rawConfig); err != nil {
 		return nil, err
 	}
 
+	return parsePartnerConfigFromMap(rawConfig)
+}
+
+func parsePartnerConfigFromMap(rawConfig map[string]interface{}) (megaport.VXCPartnerConfiguration, error) {
 	connectType, ok := rawConfig["connectType"].(string)
 	if !ok {
 		return nil, fmt.Errorf("connectType is required and must be a string")
@@ -218,7 +220,6 @@ func parsePartnerConfigFromJSON(jsonStr string) (megaport.VXCPartnerConfiguratio
 	}
 }
 
-// Parse AWS specific configuration
 func parseAWSConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigAWS, error) {
 	ownerAccount, ok := config["ownerAccount"].(string)
 	if !ok {
@@ -315,7 +316,6 @@ func parseAWSConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigAW
 	return awsConfig, nil
 }
 
-// Parse Azure specific configuration
 func parseAzureConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigAzure, error) {
 	serviceKeyVal, exists := config["serviceKey"]
 	if !exists {
@@ -414,7 +414,6 @@ func parseAzureConfig(config map[string]interface{}) (*megaport.VXCPartnerConfig
 	return azureConfig, nil
 }
 
-// Parse Google specific configuration
 func parseGoogleConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigGoogle, error) {
 	pairingKeyVal, exists := config["pairingKey"]
 	if !exists {
@@ -436,7 +435,6 @@ func parseGoogleConfig(config map[string]interface{}) (*megaport.VXCPartnerConfi
 	}, nil
 }
 
-// Parse Oracle specific configuration
 func parseOracleConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigOracle, error) {
 	vcIDVal, exists := config["virtualCircuitId"]
 	if !exists {
@@ -458,7 +456,6 @@ func parseOracleConfig(config map[string]interface{}) (*megaport.VXCPartnerConfi
 	}, nil
 }
 
-// Parse IBM specific configuration
 func parseIBMConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigIBM, error) {
 	accountIDVal, exists := config["accountID"]
 	if !exists {
@@ -518,7 +515,6 @@ func parseIBMConfig(config map[string]interface{}) (*megaport.VXCPartnerConfigIB
 	return ibmConfig, nil
 }
 
-// Parse VRouter specific configuration
 func parseVRouterConfig(config map[string]interface{}) (*megaport.VXCOrderVrouterPartnerConfig, error) {
 	// Extract interfaces
 	var interfaces []megaport.PartnerConfigInterface
@@ -666,7 +662,6 @@ func parseVRouterConfig(config map[string]interface{}) (*megaport.VXCOrderVroute
 	}, nil
 }
 
-// buildVXCRequestFromJSON creates a BuyVXCRequest from a JSON string or file
 func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.BuyVXCRequest, error) {
 	var jsonData string
 
@@ -750,14 +745,9 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.Buy
 			aEndConfig.DiversityZone = diversityZone
 		}
 
-		// Handle A-End partner config
+		// Handle A-End partner config - directly use map data
 		if partnerConfigRaw, ok := aEndConfigRaw["partnerConfig"].(map[string]interface{}); ok {
-			partnerConfigBytes, err := json.Marshal(partnerConfigRaw)
-			if err != nil {
-				return nil, fmt.Errorf("error marshaling A-End partner config: %v", err)
-			}
-
-			partnerConfig, err := parsePartnerConfigFromJSON(string(partnerConfigBytes))
+			partnerConfig, err := parsePartnerConfigFromMap(partnerConfigRaw)
 			if err != nil {
 				return nil, fmt.Errorf("error parsing A-End partner config: %v", err)
 			}
@@ -802,14 +792,9 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.Buy
 			bEndConfig.DiversityZone = diversityZone
 		}
 
-		// Handle B-End partner config
+		// Handle B-End partner config - directly use map data
 		if partnerConfigRaw, ok := bEndConfigRaw["partnerConfig"].(map[string]interface{}); ok {
-			partnerConfigBytes, err := json.Marshal(partnerConfigRaw)
-			if err != nil {
-				return nil, fmt.Errorf("error marshaling B-End partner config: %v", err)
-			}
-
-			partnerConfig, err := parsePartnerConfigFromJSON(string(partnerConfigBytes))
+			partnerConfig, err := parsePartnerConfigFromMap(partnerConfigRaw)
 			if err != nil {
 				return nil, fmt.Errorf("error parsing B-End partner config: %v", err)
 			}
@@ -841,7 +826,6 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.Buy
 	return req, nil
 }
 
-// buildUpdateVXCRequestFromFlags creates an UpdateVXCRequest from command flags
 var buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateVXCRequest, error) {
 	req := &megaport.UpdateVXCRequest{}
 
@@ -957,7 +941,6 @@ var buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateV
 	return req, nil
 }
 
-// buildUpdateVXCRequestFromJSON creates an UpdateVXCRequest from a JSON string or file
 var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*megaport.UpdateVXCRequest, error) {
 	var jsonData string
 
@@ -1075,15 +1058,10 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 		req.BEndProductUID = &bEndUID
 	}
 
-	// Handle partner configurations
+	// Handle partner configurations - using direct map access
 	if aEndPartnerConfigRaw, ok := rawData["aEndPartnerConfig"].(map[string]interface{}); ok {
 		if connectType, ok := aEndPartnerConfigRaw["connectType"].(string); ok && strings.ToUpper(connectType) == "VROUTER" {
-			aEndPartnerConfigBytes, err := json.Marshal(aEndPartnerConfigRaw)
-			if err != nil {
-				return nil, fmt.Errorf("error marshaling A-End partner config: %v", err)
-			}
-
-			aEndPartnerConfig, err := parsePartnerConfigFromJSON(string(aEndPartnerConfigBytes))
+			aEndPartnerConfig, err := parsePartnerConfigFromMap(aEndPartnerConfigRaw)
 			if err != nil {
 				return nil, fmt.Errorf("error parsing A-End partner config: %v", err)
 			}
@@ -1096,12 +1074,7 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 
 	if bEndPartnerConfigRaw, ok := rawData["bEndPartnerConfig"].(map[string]interface{}); ok {
 		if connectType, ok := bEndPartnerConfigRaw["connectType"].(string); ok && strings.ToUpper(connectType) == "VROUTER" {
-			bEndPartnerConfigBytes, err := json.Marshal(bEndPartnerConfigRaw)
-			if err != nil {
-				return nil, fmt.Errorf("error marshaling B-End partner config: %v", err)
-			}
-
-			bEndPartnerConfig, err := parsePartnerConfigFromJSON(string(bEndPartnerConfigBytes))
+			bEndPartnerConfig, err := parsePartnerConfigFromMap(bEndPartnerConfigRaw)
 			if err != nil {
 				return nil, fmt.Errorf("error parsing B-End partner config: %v", err)
 			}
