@@ -864,16 +864,16 @@ var buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateV
 	// Handle VLAN fields
 	if cmd.Flags().Changed("a-end-vlan") {
 		aEndVLAN, _ := cmd.Flags().GetInt("a-end-vlan")
-		if aEndVLAN < 0 || aEndVLAN > 4093 || aEndVLAN == 1 {
-			return nil, fmt.Errorf("a-end-vlan must be 0 or between 2-4093")
+		if aEndVLAN != -1 && (aEndVLAN < 0 || aEndVLAN > 4093 || aEndVLAN == 1) {
+			return nil, fmt.Errorf("a-end-vlan must be -1, 0, or between 2-4093")
 		}
 		req.AEndVLAN = &aEndVLAN
 	}
 
 	if cmd.Flags().Changed("b-end-vlan") {
 		bEndVLAN, _ := cmd.Flags().GetInt("b-end-vlan")
-		if bEndVLAN < 0 || bEndVLAN > 4093 || bEndVLAN == 1 {
-			return nil, fmt.Errorf("b-end-vlan must be 0 or between 2-4093")
+		if bEndVLAN != -1 && (bEndVLAN < 0 || bEndVLAN > 4093 || bEndVLAN == 1) {
+			return nil, fmt.Errorf("b-end-vlan must be -1, 0, or between 2-4093")
 		}
 		req.BEndVLAN = &bEndVLAN
 	}
