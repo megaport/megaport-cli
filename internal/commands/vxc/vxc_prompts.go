@@ -13,9 +13,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// buildVXCRequestFromPrompt creates a BuyVXCRequest from interactive prompts
 var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCService, noColor bool) (*megaport.BuyVXCRequest, error) {
-
 	name, err := utils.ResourcePrompt("vxc", "Enter VXC name (required): ", noColor)
 	if err != nil {
 		return nil, err
@@ -48,7 +46,6 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		return nil, err
 	}
 
-	// A-End configuration
 	aEndVLANStr, err := utils.ResourcePrompt("vxc", "A-End VLAN (-1=untagged, 0=auto-assigned, 2-4093 for specific VLAN): ", noColor)
 	if err != nil {
 		return nil, err
@@ -91,7 +88,6 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		}
 	}
 
-	// Ask if A-End has partner config
 	hasAEndPartnerConfig, err := utils.ResourcePrompt("vxc", "Do you want to configure A-End partner? (yes/no): ", noColor)
 	if err != nil {
 		return nil, err
@@ -108,7 +104,6 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		}
 	}
 
-	// Create the base request
 	req := &megaport.BuyVXCRequest{
 		VXCName:   name,
 		RateLimit: rateLimit,
@@ -127,7 +122,6 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 	}
 
 	if req.PortUID == "" {
-		// Prompt for the required fields
 		aEndUID, err := utils.ResourcePrompt("vxc", "Enter A-End product UID (required): ", noColor)
 		if err != nil {
 			return nil, err
@@ -220,7 +214,6 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 
 	req.BEndConfiguration = bEndConfig
 
-	// Optional fields
 	promoCode, err := utils.ResourcePrompt("vxc", "Enter promo code (optional): ", noColor)
 	if err != nil {
 		return nil, err
@@ -242,14 +235,12 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 	return req, nil
 }
 
-// buildUpdateVXCRequestFromPrompt creates an UpdateVXCRequest from interactive prompts
 var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megaport.UpdateVXCRequest, error) {
 	req := &megaport.UpdateVXCRequest{
 		WaitForUpdate: true,
 		WaitForTime:   5 * time.Minute,
 	}
 
-	// Fetch the current VXC to show current values
 	ctx := context.Background()
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -262,7 +253,6 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		return nil, fmt.Errorf("error fetching VXC details: %v", err)
 	}
 
-	// Name
 	fmt.Printf("Current name: %s\n", vxc.Name)
 	updateName, err := utils.ResourcePrompt("vxc", "Update name? (yes/no): ", noColor)
 	if err != nil {
@@ -276,7 +266,6 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		req.Name = &name
 	}
 
-	// Rate limit
 	fmt.Printf("Current rate limit: %d Mbps\n", vxc.RateLimit)
 	updateRateLimit, err := utils.ResourcePrompt("vxc", "Update rate limit? (yes/no): ", noColor)
 	if err != nil {
@@ -297,7 +286,6 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		req.RateLimit = &rateLimit
 	}
 
-	// Term
 	fmt.Printf("Current term: %d months\n", vxc.ContractTermMonths)
 	updateTerm, err := utils.ResourcePrompt("vxc", "Update term? (yes/no): ", noColor)
 	if err != nil {
@@ -312,7 +300,6 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		if err != nil {
 			return nil, fmt.Errorf("term must be a valid integer")
 		}
-		// Allow 0 for term updates (no change)
 		if term != 0 && validation.ValidateContractTerm(term) != nil {
 			return nil, validation.NewValidationError("term", term,
 				fmt.Sprintf("must be 0, or one of: %v", validation.ValidContractTerms))
@@ -320,7 +307,6 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		req.Term = &term
 	}
 
-	// Cost centre
 	fmt.Printf("Current cost centre: %s\n", vxc.CostCentre)
 	updateCostCentre, err := utils.ResourcePrompt("vxc", "Update cost centre? (yes/no): ", noColor)
 	if err != nil {
@@ -334,7 +320,6 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		req.CostCentre = &costCentre
 	}
 
-	// Shutdown
 	shutdownStatus := "No"
 	if vxc.AdminLocked {
 		shutdownStatus = "Yes"
@@ -353,7 +338,6 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		req.Shutdown = &shutdown
 	}
 
-	// A-End VLAN
 	fmt.Printf("Current A-End VLAN: %d\n", vxc.AEndConfiguration.VLAN)
 	updateAEndVLAN, err := utils.ResourcePrompt("vxc", "Update A-End VLAN? (yes/no): ", noColor)
 	if err != nil {
@@ -374,7 +358,6 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		req.AEndVLAN = &aEndVLAN
 	}
 
-	// B-End VLAN
 	fmt.Printf("Current B-End VLAN: %d\n", vxc.BEndConfiguration.VLAN)
 	updateBEndVLAN, err := utils.ResourcePrompt("vxc", "Update B-End VLAN? (yes/no): ", noColor)
 	if err != nil {
@@ -395,7 +378,6 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		req.BEndVLAN = &bEndVLAN
 	}
 
-	// A-End Inner VLAN
 	innerVLANAEnd := 0
 	if vxc.AEndConfiguration.InnerVLAN != 0 {
 		innerVLANAEnd = vxc.AEndConfiguration.InnerVLAN
@@ -422,7 +404,6 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		req.AEndInnerVLAN = &aEndInnerVLAN
 	}
 
-	// B-End Inner VLAN
 	innerVLANBEnd := 0
 	if vxc.BEndConfiguration.InnerVLAN != 0 {
 		innerVLANBEnd = vxc.BEndConfiguration.InnerVLAN
@@ -449,7 +430,6 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		req.BEndInnerVLAN = &bEndInnerVLAN
 	}
 
-	// A-End UID
 	fmt.Printf("Current A-End UID: %s\n", vxc.AEndConfiguration.UID)
 	updateAEndUID, err := utils.ResourcePrompt("vxc", "Update A-End product UID? (yes/no): ", noColor)
 	if err != nil {
@@ -463,7 +443,6 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		req.AEndProductUID = &aEndUID
 	}
 
-	// B-End UID
 	fmt.Printf("Current B-End UID: %s\n", vxc.BEndConfiguration.UID)
 	updateBEndUID, err := utils.ResourcePrompt("vxc", "Update B-End product UID? (yes/no): ", noColor)
 	if err != nil {
@@ -483,7 +462,7 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 	}
 
 	if strings.ToLower(wantsAEndPartnerConfig) == "yes" {
-		aEndPartnerConfig, err := promptVRouterConfig("A-End", noColor)
+		aEndPartnerConfig, err := promptVRouterConfig(noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -496,7 +475,7 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 	}
 
 	if strings.ToLower(wantsBEndPartnerConfig) == "yes" {
-		bEndPartnerConfig, err := promptVRouterConfig("B-End", noColor)
+		bEndPartnerConfig, err := promptVRouterConfig(noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -506,15 +485,11 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 	return req, nil
 }
 
-// promptVRouterConfig prompts the user for VRouter-specific configuration details.
-func promptVRouterConfig(endpoint string, noColor bool) (*megaport.VXCOrderVrouterPartnerConfig, error) {
-	fmt.Printf("\n=== %s VRouter Configuration ===\n", endpoint)
-
+func promptVRouterConfig(noColor bool) (*megaport.VXCOrderVrouterPartnerConfig, error) {
 	config := &megaport.VXCOrderVrouterPartnerConfig{
 		Interfaces: []megaport.PartnerConfigInterface{},
 	}
 
-	// Ask for number of interfaces
 	interfaceCountStr, err := utils.ResourcePrompt("vxc", "Number of interfaces to configure: ", noColor)
 	if err != nil {
 		return nil, err
@@ -524,13 +499,9 @@ func promptVRouterConfig(endpoint string, noColor bool) (*megaport.VXCOrderVrout
 		return nil, fmt.Errorf("number of interfaces must be a positive integer")
 	}
 
-	// Configure each interface
 	for i := 0; i < interfaceCount; i++ {
-		fmt.Printf("\n--- Interface %d ---\n", i+1)
-
 		iface := megaport.PartnerConfigInterface{}
 
-		// VLAN
 		vlanStr, err := utils.ResourcePrompt("vxc", "VLAN (0-4093, except 1, optional - press Enter for no VLAN): ", noColor)
 		if err != nil {
 			return nil, err
@@ -541,7 +512,6 @@ func promptVRouterConfig(endpoint string, noColor bool) (*megaport.VXCOrderVrout
 			if err != nil {
 				return nil, fmt.Errorf("VLAN must be a valid integer")
 			}
-			// Use custom validation logic for partner interface VLANs
 			if vlan < 0 || vlan > 4093 || vlan == 1 {
 				return nil, validation.NewValidationError("VRouter interface VLAN", vlan,
 					"must be 0 or between 2-4093 (1 is reserved)")
@@ -551,14 +521,12 @@ func promptVRouterConfig(endpoint string, noColor bool) (*megaport.VXCOrderVrout
 			iface.VLAN = -1
 		}
 
-		// IP Addresses
 		ipAddrs, err := promptIPAddresses("IP Addresses (CIDR notation, e.g., 192.168.1.1/30)", noColor)
 		if err != nil {
 			return nil, err
 		}
 		iface.IpAddresses = ipAddrs
 
-		// IP Routes
 		hasRoutes, err := utils.ResourcePrompt("vxc", "Do you want to add IP routes? (yes/no): ", noColor)
 		if err != nil {
 			return nil, err
@@ -571,7 +539,6 @@ func promptVRouterConfig(endpoint string, noColor bool) (*megaport.VXCOrderVrout
 			iface.IpRoutes = routes
 		}
 
-		// NAT IP Addresses
 		hasNatIPs, err := utils.ResourcePrompt("vxc", "Do you want to add NAT IP addresses? (yes/no): ", noColor)
 		if err != nil {
 			return nil, err
@@ -584,7 +551,6 @@ func promptVRouterConfig(endpoint string, noColor bool) (*megaport.VXCOrderVrout
 			iface.NatIpAddresses = natIPs
 		}
 
-		// BFD Configuration
 		hasBFD, err := utils.ResourcePrompt("vxc", "Do you want to configure BFD? (yes/no): ", noColor)
 		if err != nil {
 			return nil, err
@@ -597,7 +563,6 @@ func promptVRouterConfig(endpoint string, noColor bool) (*megaport.VXCOrderVrout
 			iface.Bfd = bfd
 		}
 
-		// BGP Connections
 		hasBGP, err := utils.ResourcePrompt("vxc", "Do you want to configure BGP connections? (yes/no): ", noColor)
 		if err != nil {
 			return nil, err
@@ -616,7 +581,6 @@ func promptVRouterConfig(endpoint string, noColor bool) (*megaport.VXCOrderVrout
 	return config, nil
 }
 
-// promptIPRoutes prompts the user for IP routes
 func promptIPRoutes(noColor bool) ([]megaport.IpRoute, error) {
 	var routes []megaport.IpRoute
 
@@ -656,7 +620,6 @@ func promptIPRoutes(noColor bool) ([]megaport.IpRoute, error) {
 	return routes, nil
 }
 
-// promptIPAddresses prompts the user for IP addresses
 func promptIPAddresses(message string, noColor bool) ([]string, error) {
 	var addresses []string
 
@@ -680,12 +643,10 @@ func promptIPAddresses(message string, noColor bool) ([]string, error) {
 	return addresses, nil
 }
 
-// promptNATIPAddresses prompts the user for NAT IP addresses
 func promptNATIPAddresses(noColor bool) ([]string, error) {
 	return promptIPAddresses("a NAT IP address", noColor)
 }
 
-// promptBFDConfig prompts the user for BFD configuration details
 func promptBFDConfig(noColor bool) (megaport.BfdConfig, error) {
 	bfd := megaport.BfdConfig{}
 
@@ -734,7 +695,6 @@ func promptBFDConfig(noColor bool) (megaport.BfdConfig, error) {
 	return bfd, nil
 }
 
-// promptBGPConnections prompts the user for BGP connections
 func promptBGPConnections(noColor bool) ([]megaport.BgpConnectionConfig, error) {
 	var bgpConnections []megaport.BgpConnectionConfig
 
@@ -749,7 +709,6 @@ func promptBGPConnections(noColor bool) ([]megaport.BgpConnectionConfig, error) 
 
 		bgp := megaport.BgpConnectionConfig{}
 
-		// Required fields
 		peerAsnStr, err := utils.ResourcePrompt("vxc", "Enter peer ASN (required): ", noColor)
 		if err != nil {
 			return nil, err
@@ -778,7 +737,6 @@ func promptBGPConnections(noColor bool) ([]megaport.BgpConnectionConfig, error) 
 		}
 		bgp.PeerIpAddress = peerIP
 
-		// Optional fields
 		localAsnStr, err := utils.ResourcePrompt("vxc", "Enter local ASN (optional): ", noColor)
 		if err != nil {
 			return nil, err
@@ -815,7 +773,6 @@ func promptBGPConnections(noColor bool) ([]megaport.BgpConnectionConfig, error) 
 		}
 		bgp.BfdEnabled = strings.ToLower(bfdEnabledStr) == "yes"
 
-		// Added: Export Policy
 		exportPolicy, err := utils.ResourcePrompt("vxc", "Enter export policy (permit/deny, optional): ", noColor)
 		if err != nil {
 			return nil, err
@@ -825,7 +782,6 @@ func promptBGPConnections(noColor bool) ([]megaport.BgpConnectionConfig, error) 
 		}
 		bgp.ExportPolicy = exportPolicy
 
-		// Added: Peer Type
 		peerType, err := utils.ResourcePrompt("vxc", "Enter peer type (NON_CLOUD/PRIV_CLOUD/PUB_CLOUD, optional): ", noColor)
 		if err != nil {
 			return nil, err
@@ -835,7 +791,6 @@ func promptBGPConnections(noColor bool) ([]megaport.BgpConnectionConfig, error) 
 		}
 		bgp.PeerType = peerType
 
-		// Added: MED values
 		medInStr, err := utils.ResourcePrompt("vxc", "Enter MED in (optional): ", noColor)
 		if err != nil {
 			return nil, err
@@ -860,7 +815,6 @@ func promptBGPConnections(noColor bool) ([]megaport.BgpConnectionConfig, error) 
 			bgp.MedOut = medOut
 		}
 
-		// Added: AS Path Prepend Count
 		asPathPrependStr, err := utils.ResourcePrompt("vxc", "Enter AS path prepend count (0-10, optional): ", noColor)
 		if err != nil {
 			return nil, err
@@ -873,13 +827,12 @@ func promptBGPConnections(noColor bool) ([]megaport.BgpConnectionConfig, error) 
 			bgp.AsPathPrependCount = asPathPrepend
 		}
 
-		// Added: Permit Export To
 		hasPermitExportTo, err := utils.ResourcePrompt("vxc", "Add permit export to addresses? (yes/no): ", noColor)
 		if err != nil {
 			return nil, err
 		}
 		if strings.ToLower(hasPermitExportTo) == "yes" {
-			for i := 0; i < 17; i++ { // Maximum 17 items
+			for i := 0; i < 17; i++ {
 				ipAddress, err := utils.ResourcePrompt("vxc", fmt.Sprintf("Enter IP address to permit export to (or empty to finish) [%d/17]: ", i+1), noColor)
 				if err != nil {
 					return nil, err
@@ -891,13 +844,12 @@ func promptBGPConnections(noColor bool) ([]megaport.BgpConnectionConfig, error) 
 			}
 		}
 
-		// Added: Deny Export To
 		hasDenyExportTo, err := utils.ResourcePrompt("vxc", "Add deny export to addresses? (yes/no): ", noColor)
 		if err != nil {
 			return nil, err
 		}
 		if strings.ToLower(hasDenyExportTo) == "yes" {
-			for i := 0; i < 17; i++ { // Maximum 17 items
+			for i := 0; i < 17; i++ {
 				ipAddress, err := utils.ResourcePrompt("vxc", fmt.Sprintf("Enter IP address to deny export to (or empty to finish) [%d/17]: ", i+1), noColor)
 				if err != nil {
 					return nil, err
@@ -909,7 +861,6 @@ func promptBGPConnections(noColor bool) ([]megaport.BgpConnectionConfig, error) 
 			}
 		}
 
-		// Added: Import/Export Whitelist/Blacklist
 		importWhitelistStr, err := utils.ResourcePrompt("vxc", "Enter import whitelist prefix list ID (optional): ", noColor)
 		if err != nil {
 			return nil, err
@@ -1019,7 +970,7 @@ func promptPartnerConfig(end string, ctx context.Context, svc megaport.VXCServic
 		}
 		return ibmPartner, partnerPortUID, nil
 	case "vrouter":
-		vrouterPartner, err := promptVRouterConfig(end, noColor)
+		vrouterPartner, err := promptVRouterConfig(noColor)
 		if err != nil {
 			return nil, "", err
 		}
@@ -1125,7 +1076,6 @@ func promptAWSConfig(noColor bool) (*megaport.VXCPartnerConfigAWS, error) {
 	return partnerConfigAWS, nil
 }
 
-// promptAzureConfig prompts the user for Azure-specific configuration details.
 func promptAzureConfig(ctx context.Context, svc megaport.VXCService, noColor bool) (*megaport.VXCPartnerConfigAzure, string, error) {
 	serviceKey, err := utils.ResourcePrompt("vxc", "Enter service key (required): ", noColor)
 	if err != nil {
@@ -1170,7 +1120,6 @@ func promptAzureConfig(ctx context.Context, svc megaport.VXCService, noColor boo
 		return nil, "", fmt.Errorf("error looking up partner ports: %v", err)
 	}
 	var uid string
-	// find primary or secondary port
 	for _, port := range partnerPortRes.Data.Megaports {
 		p := &port
 		if p.Type == portChoice {
@@ -1188,7 +1137,6 @@ func promptAzureConfig(ctx context.Context, svc megaport.VXCService, noColor boo
 	}, uid, nil
 }
 
-// Helper to prompt for Azure Peering Config
 func promptAzurePeeringConfig(noColor bool) (megaport.PartnerOrderAzurePeeringConfig, error) {
 	peeringType, err := utils.ResourcePrompt("vxc", "Enter peering type (required): ", noColor)
 	if err != nil {

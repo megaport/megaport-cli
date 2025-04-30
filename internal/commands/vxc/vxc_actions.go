@@ -46,7 +46,6 @@ func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	return nil
 }
 
-// hasUpdateVXCNonInteractiveFlags checks if any non-interactive flags are set for updating a VXC.
 var hasUpdateVXCNonInteractiveFlags = func(cmd *cobra.Command) bool {
 	flagNames := []string{"name", "rate-limit", "a-end-vlan", "b-end-vlan", "a-end-location", "b-end-location", "locked"}
 	for _, name := range flagNames {
@@ -57,7 +56,6 @@ var hasUpdateVXCNonInteractiveFlags = func(cmd *cobra.Command) bool {
 	return false
 }
 
-// BuyVXC handles purchasing a new VXC
 func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx := context.Background()
 
@@ -132,7 +130,6 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
-// UpdateVXC updates an existing VXC with the provided configuration
 func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx := context.Background()
 
@@ -217,7 +214,6 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
-// DeleteVXC deletes a VXC with the provided UID
 func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
@@ -261,7 +257,6 @@ func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
-// ListVXCResourceTags retrieves and displays resource tags for a VXC
 func ListVXCResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	vxcUID := args[0]
 
@@ -291,7 +286,6 @@ func ListVXCResourceTags(cmd *cobra.Command, args []string, noColor bool, output
 	return output.PrintOutput(tags, outputFormat, noColor)
 }
 
-// UpdateVXCResourceTags updates resource tags for a VXC
 func UpdateVXCResourceTags(cmd *cobra.Command, args []string, noColor bool) error {
 	vxcUID := args[0]
 
@@ -366,7 +360,6 @@ func UpdateVXCResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 	return nil
 }
 
-// GetVXCStatus retrieves only the provisioning status of a VXC without all details
 func GetVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
