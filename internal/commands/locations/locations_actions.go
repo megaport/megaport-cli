@@ -13,24 +13,19 @@ import (
 )
 
 func ListLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Create a context with a 30-second timeout.
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Log into the Megaport API.
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
-	// Start a spinner to show progress while listing locations
 	spinner := output.PrintResourceListing("Location", noColor)
 
-	// Retrieve the list of locations from the API.
 	locations, err := listLocationsFunc(ctx, client)
 
-	// Stop the spinner
 	spinner.Stop()
 
 	if err != nil {
@@ -38,7 +33,6 @@ func ListLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat
 		return fmt.Errorf("error listing locations: %v", err)
 	}
 
-	// Apply filters if provided.
 	filters := map[string]string{}
 	if cmd.Flags().Changed("metro") {
 		metro, _ := cmd.Flags().GetString("metro")
@@ -56,7 +50,6 @@ func ListLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat
 		output.PrintInfo("Filtering by name: %s", noColor, name)
 	}
 
-	// Filter locations based on the provided flags.
 	filteredLocations := filterLocations(locations, filters)
 
 	if len(filteredLocations) == 0 {
@@ -74,37 +67,31 @@ func ListLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat
 }
 
 func GetLocation(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Create a context with a 30-second timeout.
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Log into the Megaport API.
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
-	// Parse location ID from args
 	locationID, err := strconv.Atoi(args[0])
 	if err != nil {
 		output.PrintError("Invalid location ID: %v", noColor, err)
 		return fmt.Errorf("invalid location ID: %v", err)
 	}
 
-	// Start a spinner to show progress while retrieving the location
 	spinner := output.PrintResourceGetting("Location", fmt.Sprintf("%d", locationID), noColor)
 
-	// Retrieve the list of locations from the API.
 	locations, err := listLocationsFunc(ctx, client)
 
 	if err != nil {
-		spinner.Stop() // Make sure to stop spinner on error
+		spinner.Stop()
 		output.PrintError("Failed to retrieve locations: %v", noColor, err)
 		return fmt.Errorf("error listing locations: %v", err)
 	}
 
-	// Find the location with the matching ID
 	var targetLocation *megaport.Location
 	for _, loc := range locations {
 		if loc.ID == locationID {
@@ -114,15 +101,13 @@ func GetLocation(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 	}
 
 	if targetLocation == nil {
-		spinner.Stop() // Stop the spinner before showing error
+		spinner.Stop()
 		output.PrintWarning("No location found with ID: %d", noColor, locationID)
 		return fmt.Errorf("no location found with ID: %d", locationID)
 	}
 
-	// Stop the spinner with success message
 	spinner.StopWithSuccess(fmt.Sprintf("Found location with ID: %d", locationID))
 
-	// Print location details
 	err = printLocations([]*megaport.Location{targetLocation}, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print location details: %v", noColor, err)

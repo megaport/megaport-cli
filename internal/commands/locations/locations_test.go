@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var noColor = true // Disable color for testing
+var noColor = true
 
 var testLocations = []*megaport.Location{
 	{
@@ -84,8 +84,6 @@ func TestPrintLocations_Table(t *testing.T) {
 	assert.Contains(t, output, "METRO")
 	assert.Contains(t, output, "SITE CODE")
 	assert.Contains(t, output, "STATUS")
-
-	// Verify the actual content is present
 	assert.Contains(t, output, "Sydney")
 	assert.Contains(t, output, "London")
 	assert.Contains(t, output, "Australia")
@@ -151,7 +149,6 @@ func TestPrintLocations_Invalid(t *testing.T) {
 }
 
 func TestFilterLocations_EmptySlice(t *testing.T) {
-	// Passing an empty slice with no filters should yield zero results
 	var emptyLocations []*megaport.Location
 	result := filterLocations(emptyLocations, map[string]string{})
 	assert.Equal(t, 0, len(result), "Expected no results for empty input")
@@ -160,12 +157,10 @@ func TestFilterLocations_EmptySlice(t *testing.T) {
 func TestPrintLocations_EmptySlice(t *testing.T) {
 	var emptyLocations []*megaport.Location
 
-	// Table format
 	tableOutput := output.CaptureOutput(func() {
 		err := printLocations(emptyLocations, "table", noColor)
 		assert.NoError(t, err)
 	})
-	// Should have header with box drawing characters
 	assert.Contains(t, tableOutput, "ID")
 	assert.Contains(t, tableOutput, "NAME")
 	assert.Contains(t, tableOutput, "COUNTRY")
@@ -178,7 +173,6 @@ func TestPrintLocations_EmptySlice(t *testing.T) {
 	assert.Contains(t, tableOutput, "│")
 	assert.Contains(t, tableOutput, "─")
 
-	// CSV format
 	csvOutput := output.CaptureOutput(func() {
 		err := printLocations(emptyLocations, "csv", noColor)
 		assert.NoError(t, err)
@@ -187,11 +181,9 @@ func TestPrintLocations_EmptySlice(t *testing.T) {
 `
 	assert.Equal(t, expectedCSV, csvOutput)
 
-	// JSON format
 	jsonOutput := output.CaptureOutput(func() {
 		err := printLocations(emptyLocations, "json", noColor)
 		assert.NoError(t, err)
 	})
-	// Should simply be an empty array
 	assert.Equal(t, "[]\n", jsonOutput)
 }
