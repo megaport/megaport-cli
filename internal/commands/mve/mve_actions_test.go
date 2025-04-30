@@ -413,7 +413,7 @@ func TestUpdateMVE(t *testing.T) {
 				"name": "Updated MVE",
 			},
 			mockSetup: func(m *MockMVEService) {
-				m.ModifyMVEError = fmt.Errorf("update failed")
+				m.ModifyMVEErr = fmt.Errorf("update failed")
 			},
 			expectedError: "update failed",
 		},
@@ -518,7 +518,7 @@ func TestDeleteMVE(t *testing.T) {
 		{
 			name: "successful MVE deletion",
 			mockSetup: func(m *MockMVEService) {
-				m.DeleteMVEError = nil
+				m.DeleteMVEErr = nil
 			},
 			confirmDelete:  true,
 			expectedOutput: "MVE deleted mve-uid",
@@ -526,7 +526,7 @@ func TestDeleteMVE(t *testing.T) {
 		{
 			name: "deletion error",
 			mockSetup: func(m *MockMVEService) {
-				m.DeleteMVEError = fmt.Errorf("deletion failed")
+				m.DeleteMVEErr = fmt.Errorf("deletion failed")
 				m.DeleteMVEResult = &megaport.DeleteMVEResponse{
 					IsDeleted: false,
 				}
@@ -545,7 +545,7 @@ func TestDeleteMVE(t *testing.T) {
 		{
 			name: "force deletion",
 			mockSetup: func(m *MockMVEService) {
-				m.DeleteMVEError = nil
+				m.DeleteMVEErr = nil
 			},
 			forceFlag:      true,
 			expectedOutput: "MVE deleted mve-uid",
@@ -553,7 +553,7 @@ func TestDeleteMVE(t *testing.T) {
 		{
 			name: "immediate deletion",
 			mockSetup: func(m *MockMVEService) {
-				m.DeleteMVEError = nil
+				m.DeleteMVEErr = nil
 			},
 			confirmDelete:  true,
 			nowFlag:        true,
@@ -662,7 +662,7 @@ func TestBuyMVE(t *testing.T) {
 				"",           // No resource tags
 			},
 			mockSetup: func(m *MockMVEService) {
-				m.ValidateMVEOrderError = nil
+				m.ValidateMVEOrderErr = nil
 				m.BuyMVEResult = &megaport.BuyMVEResponse{
 					TechnicalServiceUID: "mock-mve-uid",
 				}
@@ -703,7 +703,7 @@ func TestBuyMVE(t *testing.T) {
 				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
 			},
 			mockSetup: func(m *MockMVEService) {
-				m.ValidateMVEOrderError = nil
+				m.ValidateMVEOrderErr = nil
 				m.BuyMVEResult = &megaport.BuyMVEResponse{
 					TechnicalServiceUID: "mock-mve-uid",
 				}
@@ -759,7 +759,7 @@ func TestBuyMVE(t *testing.T) {
                 }`,
 			},
 			mockSetup: func(m *MockMVEService) {
-				m.ValidateMVEOrderError = nil
+				m.ValidateMVEOrderErr = nil
 				m.BuyMVEResult = &megaport.BuyMVEResponse{
 					TechnicalServiceUID: "mock-mve-uid",
 				}
@@ -802,7 +802,7 @@ func TestBuyMVE(t *testing.T) {
 				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
 			},
 			mockSetup: func(m *MockMVEService) {
-				m.ValidateMVEOrderError = fmt.Errorf("validation failed")
+				m.ValidateMVEOrderErr = fmt.Errorf("validation failed")
 			},
 			expectedError: "validation failed",
 		},
@@ -817,8 +817,8 @@ func TestBuyMVE(t *testing.T) {
 			},
 			mockSetup: func(m *MockMVEService) {
 				// Make sure validation passes but purchase fails
-				m.ValidateMVEOrderError = nil
-				m.BuyMVEError = fmt.Errorf("purchase failed")
+				m.ValidateMVEOrderErr = nil
+				m.BuyMVEErr = fmt.Errorf("purchase failed")
 			},
 			expectedError: "purchase failed",
 		},
@@ -862,7 +862,7 @@ func TestBuyMVE(t *testing.T) {
 			// Run the command
 			var err error
 			output := output.CaptureOutput(func() {
-				err = BuyMVE(cmd, tt.args, noColor)
+				err = BuyMVE(cmd, tt.args, tt.interactive)
 			})
 
 			// Check results
@@ -1009,7 +1009,7 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 			name:         "API error",
 			outputFormat: "table",
 			setupMock: func(m *MockMVEService) {
-				m.ListMVEsError = fmt.Errorf("API error: service unavailable")
+				m.ListMVEsErr = fmt.Errorf("API error: service unavailable")
 			},
 			expectedError: "error listing MVEs",
 		},
@@ -1428,6 +1428,123 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 				if tt.expectedCapturedTags != nil {
 					assert.NotNil(t, mockMVEService.CapturedUpdateMVEResourceTagsRequest)
 					assert.Equal(t, tt.expectedCapturedTags, mockMVEService.CapturedUpdateMVEResourceTagsRequest)
+				}
+			}
+		})
+	}
+}
+
+// TestGetMVEStatus tests the status subcommand for MVEs
+func TestGetMVEStatus(t *testing.T) {
+	// Save original functions and restore after test
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name           string
+		mveUID         string
+		setupMock      func(*MockMVEService)
+		expectedError  string
+		expectedOutput string
+		outputFormat   string
+	}{
+		{
+			name:   "successful status retrieval - table format",
+			mveUID: "mve-123abc",
+			setupMock: func(m *MockMVEService) {
+				m.GetMVEResult = &megaport.MVE{
+					UID:                "mve-123abc",
+					Name:               "Test MVE",
+					ProvisioningStatus: "CONFIGURED",
+					Vendor:             "cisco",
+					Size:               "MEDIUM",
+				}
+			},
+			expectedOutput: "mve-123abc",
+			outputFormat:   "table",
+		},
+		{
+			name:   "successful status retrieval - json format",
+			mveUID: "mve-123abc",
+			setupMock: func(m *MockMVEService) {
+				m.GetMVEResult = &megaport.MVE{
+					UID:                "mve-123abc",
+					Name:               "Test MVE",
+					ProvisioningStatus: "LIVE",
+					Vendor:             "fortinet",
+					Size:               "LARGE",
+				}
+			},
+			expectedOutput: "mve-123abc",
+			outputFormat:   "json",
+		},
+		{
+			name:   "MVE not found",
+			mveUID: "mve-notfound",
+			setupMock: func(m *MockMVEService) {
+				m.GetMVEErr = fmt.Errorf("MVE not found")
+			},
+			expectedError: "error getting MVE status",
+			outputFormat:  "table",
+		},
+		{
+			name:   "API error",
+			mveUID: "mve-error",
+			setupMock: func(m *MockMVEService) {
+				m.GetMVEErr = fmt.Errorf("API error")
+			},
+			expectedError: "API error",
+			outputFormat:  "table",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mock service
+			mockService := &MockMVEService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			// Mock the login function
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MVEService = mockService
+				return client, nil
+			}
+
+			// Create command
+			cmd := &cobra.Command{
+				Use: "status [mveUID]",
+			}
+
+			// Capture output and run command
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = GetMVEStatus(cmd, []string{tt.mveUID}, true, tt.outputFormat)
+			})
+
+			// Verify results
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+
+				// Additional checks based on output format
+				if tt.outputFormat == "json" {
+					assert.Contains(t, capturedOutput, "\"uid\":")
+					assert.Contains(t, capturedOutput, "\"name\":")
+					assert.Contains(t, capturedOutput, "\"status\":")
+					assert.Contains(t, capturedOutput, "\"vendor\":")
+				} else if tt.outputFormat == "table" {
+					assert.Contains(t, capturedOutput, "UID")
+					assert.Contains(t, capturedOutput, "NAME")
+					assert.Contains(t, capturedOutput, "STATUS")
+					assert.Contains(t, capturedOutput, "VENDOR")
 				}
 			}
 		})

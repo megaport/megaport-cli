@@ -1,6 +1,6 @@
 # Megaport CLI Documentation
 
-> Generated on April 17, 2025 for version v0.4.2
+> Generated on April 30, 2025 for version v0.4.3
 
 ## Available Commands
 
@@ -65,6 +65,8 @@
 | [megaport-cli mcr list-tags docs](megaport-cli_mcr_list-tags_docs.md) | Show documentation for this command |
 | [megaport-cli mcr restore](megaport-cli_mcr_restore.md) | Restore a deleted MCR |
 | [megaport-cli mcr restore docs](megaport-cli_mcr_restore_docs.md) | Show documentation for this command |
+| [megaport-cli mcr status](megaport-cli_mcr_status.md) | Check the provisioning status of an MCR |
+| [megaport-cli mcr status docs](megaport-cli_mcr_status_docs.md) | Show documentation for this command |
 | [megaport-cli mcr update](megaport-cli_mcr_update.md) | Update an existing MCR |
 | [megaport-cli mcr update docs](megaport-cli_mcr_update_docs.md) | Show documentation for this command |
 | [megaport-cli mcr update-prefix-filter-list](megaport-cli_mcr_update-prefix-filter-list.md) | Update a prefix filter list on an MCR |
@@ -87,6 +89,8 @@
 | [megaport-cli mve list-sizes docs](megaport-cli_mve_list-sizes_docs.md) | Show documentation for this command |
 | [megaport-cli mve list-tags](megaport-cli_mve_list-tags.md) | List resource tags on a specific MVE |
 | [megaport-cli mve list-tags docs](megaport-cli_mve_list-tags_docs.md) | Show documentation for this command |
+| [megaport-cli mve status](megaport-cli_mve_status.md) | Check the provisioning status of an MVE |
+| [megaport-cli mve status docs](megaport-cli_mve_status_docs.md) | Show documentation for this command |
 | [megaport-cli mve update](megaport-cli_mve_update.md) | Update an existing MVE |
 | [megaport-cli mve update docs](megaport-cli_mve_update_docs.md) | Show documentation for this command |
 | [megaport-cli mve update-tags](megaport-cli_mve_update-tags.md) | Update resource tags on a specific MVE |
@@ -117,6 +121,8 @@
 | [megaport-cli ports lock docs](megaport-cli_ports_lock_docs.md) | Show documentation for this command |
 | [megaport-cli ports restore](megaport-cli_ports_restore.md) | Restore a deleted port |
 | [megaport-cli ports restore docs](megaport-cli_ports_restore_docs.md) | Show documentation for this command |
+| [megaport-cli ports status](megaport-cli_ports_status.md) | Check the provisioning status of a port |
+| [megaport-cli ports status docs](megaport-cli_ports_status_docs.md) | Show documentation for this command |
 | [megaport-cli ports unlock](megaport-cli_ports_unlock.md) | Unlock a port |
 | [megaport-cli ports unlock docs](megaport-cli_ports_unlock_docs.md) | Show documentation for this command |
 | [megaport-cli ports update](megaport-cli_ports_update.md) | Update a port's details |
@@ -145,6 +151,8 @@
 | [megaport-cli vxc get docs](megaport-cli_vxc_get_docs.md) | Show documentation for this command |
 | [megaport-cli vxc list-tags](megaport-cli_vxc_list-tags.md) | List resource tags on a specific VXC |
 | [megaport-cli vxc list-tags docs](megaport-cli_vxc_list-tags_docs.md) | Show documentation for this command |
+| [megaport-cli vxc status](megaport-cli_vxc_status.md) | Check the provisioning status of a VXC |
+| [megaport-cli vxc status docs](megaport-cli_vxc_status_docs.md) | Show documentation for this command |
 | [megaport-cli vxc update](megaport-cli_vxc_update.md) | Update an existing Virtual Cross Connect (VXC) |
 | [megaport-cli vxc update docs](megaport-cli_vxc_update_docs.md) | Show documentation for this command |
 | [megaport-cli vxc update-tags](megaport-cli_vxc_update-tags.md) | Update resource tags on a specific VXC |

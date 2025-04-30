@@ -234,6 +234,16 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
+	// Create status MCR command
+	statusMCRCmd := cmdbuilder.NewCommand("status", "Check the provisioning status of an MCR").
+		WithArgs(cobra.ExactArgs(1)).
+		WithOutputFormatRunFunc(GetMCRStatus).
+		WithLongDesc("Check the provisioning status of an MCR through the Megaport API.\n\nThis command retrieves only the essential status information for a Megaport Cloud Router (MCR) without all the details. It's useful for monitoring ongoing provisioning.").
+		WithExample("megaport-cli mcr status mcr-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
+		WithImportantNote("This is a lightweight command that only shows the MCR's status without retrieving all details.").
+		WithRootCmd(rootCmd).
+		Build()
+
 	// Add list-tags command
 	listTagsCmd := cmdbuilder.NewCommand("list-tags", "List resource tags on a specific MCR").
 		WithLongDesc("Lists all resource tags associated with a specific MCR").
@@ -267,6 +277,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		updateMCRPrefixFilterListCmd,
 		deleteMCRPrefixFilterListCmd,
 		listMCRsCmd,
+		statusMCRCmd,
 		listTagsCmd,
 		updateTagsCmd,
 	)

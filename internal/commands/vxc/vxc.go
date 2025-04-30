@@ -27,7 +27,17 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-		// Create buy VXC command
+	// Create status VXC command
+	statusVXCCmd := cmdbuilder.NewCommand("status", "Check the provisioning status of a VXC").
+		WithArgs(cobra.ExactArgs(1)).
+		WithOutputFormatRunFunc(GetVXCStatus).
+		WithLongDesc("Check the provisioning status of a VXC through the Megaport API.\n\nThis command retrieves only the essential status information for a Virtual Cross Connect (VXC) without all the details. It's useful for monitoring ongoing provisioning.").
+		WithExample("megaport-cli vxc status vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
+		WithImportantNote("This is a lightweight command that only shows the VXC's status without retrieving all details.").
+		WithRootCmd(rootCmd).
+		Build()
+
+	// Create buy VXC command
 	buyVXCCmd := cmdbuilder.NewCommand("buy", "Purchase a new VXC").
 		WithColorAwareRunFunc(BuyVXC).
 		WithInteractiveFlag().
@@ -149,6 +159,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	// Add commands to their parents
 	vxcCmd.AddCommand(
 		getVXCCmd,
+		statusVXCCmd,
 		buyVXCCmd,
 		updateVXCCmd,
 		deleteVXCCmd,

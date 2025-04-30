@@ -171,6 +171,16 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
+	// Create status MVE command
+	statusMVECmd := cmdbuilder.NewCommand("status", "Check the provisioning status of an MVE").
+		WithArgs(cobra.ExactArgs(1)).
+		WithOutputFormatRunFunc(GetMVEStatus).
+		WithLongDesc("Check the provisioning status of an MVE through the Megaport API.\n\nThis command retrieves only the essential status information for a Megaport Virtual Edge (MVE) without all the details. It's useful for monitoring ongoing provisioning.").
+		WithExample("megaport-cli mve status mve-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
+		WithImportantNote("This is a lightweight command that only shows the MVE's status without retrieving all details.").
+		WithRootCmd(rootCmd).
+		Build()
+
 	// Add list-tags command
 	listTagsCmd := cmdbuilder.NewCommand("list-tags", "List resource tags on a specific MVE").
 		WithLongDesc("Lists all resource tags associated with a specific MVE").
@@ -200,6 +210,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		listMVEImagesCmd,
 		listAvailableMVESizesCmd,
 		listMVEsCmd,
+		statusMVECmd,
 		listTagsCmd,   // Add list-tags
 		updateTagsCmd, // Add update-tags
 	)

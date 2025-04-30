@@ -18,6 +18,14 @@ type MVEOutput struct {
 	Size          string `json:"size" header:"Size"`
 }
 
+type MVEStatus struct {
+	UID    string `json:"uid" header:"UID"`
+	Name   string `json:"name" header:"NAME"`
+	Status string `json:"status" header:"STATUS"`
+	Vendor string `json:"vendor" header:"VENDOR"`
+	Size   string `json:"size" header:"SIZE"`
+}
+
 // ToMVEOutput converts an MVE to an MVEOutput.
 func ToMVEOutput(m *megaport.MVE) (MVEOutput, error) {
 	if m == nil {

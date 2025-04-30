@@ -236,6 +236,43 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 	return nil
 }
 
+// GetPortStatus retrieves only the provisioning status of a Port without all details
+func GetPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	portUID := args[0]
+
+	spinner := output.PrintResourceGetting("Port", portUID, noColor)
+
+	port, err := client.PortService.GetPort(ctx, portUID)
+
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to get Port status: %v", noColor, err)
+		return fmt.Errorf("error getting Port status: %v", err)
+	}
+
+	status := []PortStatus{
+		{
+			UID:    port.UID,
+			Name:   port.Name,
+			Status: port.ProvisioningStatus,
+			Type:   port.Type,
+			Speed:  port.PortSpeed,
+		},
+	}
+
+	return output.PrintOutput(status, outputFormat, noColor)
+}
+
 // UpdatePort handles updating an existing port
 func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx := context.Background()

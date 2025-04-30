@@ -516,3 +516,40 @@ func UpdateMVEResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 	fmt.Printf("Resource tags updated for MVE %s\n", mveUID)
 	return nil
 }
+
+// GetMVEStatus retrieves only the provisioning status of an MVE without all details
+func GetMVEStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	mveUID := args[0]
+
+	spinner := output.PrintResourceGetting("MVE", mveUID, noColor)
+
+	mve, err := client.MVEService.GetMVE(ctx, mveUID)
+
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to get MVE status: %v", noColor, err)
+		return fmt.Errorf("error getting MVE status: %v", err)
+	}
+
+	status := []MVEStatus{
+		{
+			UID:    mve.UID,
+			Name:   mve.Name,
+			Status: mve.ProvisioningStatus,
+			Vendor: mve.Vendor,
+			Size:   mve.Size,
+		},
+	}
+
+	return output.PrintOutput(status, outputFormat, noColor)
+}
