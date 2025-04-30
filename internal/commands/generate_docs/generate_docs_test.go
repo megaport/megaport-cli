@@ -10,7 +10,6 @@ import (
 )
 
 func TestGenerateCommandDoc(t *testing.T) {
-	// Mock command for testing
 	mockCmd := &cobra.Command{
 		Use:   "mock",
 		Short: "Mock command for testing",
@@ -30,26 +29,21 @@ Example usage:
 		Example: `mock-cli mock --example-flag value`,
 	}
 
-	// Temporary output file
 	outputFile := "test_mock_command.md"
-	defer os.Remove(outputFile) // Clean up after test
+	defer os.Remove(outputFile)
 
-	// Run the function
 	err := generateCommandDoc(mockCmd, outputFile)
 	if err != nil {
 		t.Fatalf("generateCommandDoc failed: %v", err)
 	}
 
-	// Read the generated file
 	content, err := os.ReadFile(outputFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated file: %v", err)
 	}
 
-	// Convert content to string for assertions
 	doc := string(content)
 
-	// Assertions
 	t.Run("Check if file contains command name", func(t *testing.T) {
 		if !strings.Contains(doc, "# mock") {
 			t.Errorf("Expected command name '# mock' in the documentation")
@@ -83,44 +77,36 @@ Example usage:
 		}
 	})
 }
+
 func TestCollectFlags(t *testing.T) {
-	// Create a command with various flags for testing
 	cmd := &cobra.Command{
 		Use: "test",
 	}
 
-	// Add some flags
 	cmd.Flags().String("flag1", "default1", "description1")
 	cmd.Flags().StringP("flag2", "f", "default2", "description2")
 	cmd.Flags().Bool("flag3", false, "description3")
-
-	// Add a duplicate flag to ensure deduplication
 	cmd.PersistentFlags().String("flag1", "default1", "description1")
-
-	// Add a required flag
 	cmd.Flags().String("required", "", "Required flag")
 	err := cmd.MarkFlagRequired("required")
 	if err != nil {
 		t.Fatalf("Failed to mark flag as required: %v", err)
 	}
 
-	// Test flag collection
 	allFlags, localFlags, persistentFlags := collectFlags(cmd)
 
-	// Verify lengths
-	if len(allFlags) != 4 { // flag1, flag2, flag3, required (deduplicated)
+	if len(allFlags) != 4 {
 		t.Errorf("Expected 4 deduplicated flags, got %d", len(allFlags))
 	}
 
-	if len(localFlags) != 4 { // flag1, flag2, flag3, required all appear in localFlags
+	if len(localFlags) != 4 {
 		t.Errorf("Expected 4 local flags, got %d", len(localFlags))
 	}
 
-	if len(persistentFlags) != 1 { // Only flag1 should be in persistentFlags
+	if len(persistentFlags) != 1 {
 		t.Errorf("Expected 1 persistent flag, got %d", len(persistentFlags))
 	}
 
-	// Check if the required flag is properly marked as required
 	foundRequired := false
 	for _, flag := range allFlags {
 		if flag.Name == "required" {
@@ -135,7 +121,6 @@ func TestCollectFlags(t *testing.T) {
 		t.Errorf("Required flag not found in the collected flags")
 	}
 
-	// Check specific flag attributes
 	for _, flag := range allFlags {
 		if flag.Name == "flag2" && flag.Shorthand != "f" {
 			t.Errorf("Flag 'flag2' should have shorthand 'f'")
@@ -154,7 +139,7 @@ func TestFormatSection(t *testing.T) {
 		{"Example usage:", "### Example Usage"},
 		{"Examples:", "### Example Usage"},
 		{"JSON format example:", "### JSON Format Example"},
-		{"Other section:", "Other section:"}, // Unchanged
+		{"Other section:", "Other section:"},
 	}
 
 	for _, tc := range testCases {
@@ -174,9 +159,9 @@ func TestFormatFieldLine(t *testing.T) {
 	}{
 		{"field: description", "- `field`: description"},
 		{"  field: description with spaces", "  - `field`: description with spaces"},
-		{"field without colon", "field without colon"}, // Unchanged
+		{"field without colon", "field without colon"},
 		{"  multiple-word-field: description", "  - `multiple-word-field`: description"},
-		{"field: description: with: colons", "- `field`: description: with: colons"}, // Only splits on first colon
+		{"field: description: with: colons", "- `field`: description: with: colons"},
 	}
 
 	for i, tc := range testCases {
@@ -196,9 +181,9 @@ func TestFormatNoteLine(t *testing.T) {
 	}{
 		{"This is a note", "- This is a note"},
 		{"  Indented note", "  - Indented note"},
-		{"- Already bulleted", "- Already bulleted"},                             // Unchanged
-		{"  - Already bulleted with indent", "  - Already bulleted with indent"}, // Unchanged
-		{"", ""}, // Empty line stays empty
+		{"- Already bulleted", "- Already bulleted"},
+		{"  - Already bulleted with indent", "  - Already bulleted with indent"},
+		{"", ""},
 	}
 
 	for i, tc := range testCases {
@@ -212,7 +197,6 @@ func TestFormatNoteLine(t *testing.T) {
 }
 
 func TestProcessDescription(t *testing.T) {
-	// Test descriptions with various sections and formatting
 	testCases := []struct {
 		name                   string
 		input                  string
@@ -333,14 +317,12 @@ test --flag value`,
 		t.Run(tc.name, func(t *testing.T) {
 			result := processDescription(tc.input, tc.cmdName)
 
-			// Check for expected content
 			for _, expected := range tc.expectedOutputContains {
 				if !strings.Contains(result, expected) {
 					t.Errorf("Expected output to contain %q but it didn't\nOutput: %s", expected, result)
 				}
 			}
 
-			// Check for content that shouldn't be there
 			for _, unexpected := range tc.notExpectedToContain {
 				if strings.Contains(result, unexpected) {
 					t.Errorf("Output contains %q when it shouldn't\nOutput: %s", unexpected, result)
@@ -351,7 +333,6 @@ test --flag value`,
 }
 
 func TestDetermineParentInfo(t *testing.T) {
-	// Create a command hierarchy for testing
 	rootCmd := &cobra.Command{Use: "megaport-cli"}
 	parentCmd := &cobra.Command{Use: "parent"}
 	childCmd := &cobra.Command{Use: "child"}
@@ -388,16 +369,11 @@ func TestDetermineParentInfo(t *testing.T) {
 }
 
 func TestGatherSubcommands(t *testing.T) {
-	// Create a command hierarchy for testing
 	cmd := &cobra.Command{Use: "parent"}
 	cmd.AddCommand(&cobra.Command{Use: "child1"})
 	cmd.AddCommand(&cobra.Command{Use: "child2"})
-
-	// Add a hidden command
 	hiddenCmd := &cobra.Command{Use: "hidden", Hidden: true}
 	cmd.AddCommand(hiddenCmd)
-
-	// Add a help command
 	helpCmd := &cobra.Command{Use: "help"}
 	cmd.AddCommand(helpCmd)
 
@@ -420,7 +396,6 @@ func TestGatherSubcommands(t *testing.T) {
 	}
 }
 
-// Helper function to check if a string slice contains a specific string
 func containsString(slice []string, s string) bool {
 	for _, item := range slice {
 		if item == s {
@@ -431,7 +406,6 @@ func containsString(slice []string, s string) bool {
 }
 
 func TestFullDocumentationPipeline(t *testing.T) {
-	// Create a complex command for testing
 	mockCmd := &cobra.Command{
 		Use:   "complex-command",
 		Short: "A complex command for testing",
@@ -457,7 +431,6 @@ JSON format example:
 {"username": "admin", "password": "secret"}`,
 	}
 
-	// Add some flags
 	mockCmd.Flags().String("username", "", "Username for authentication")
 	mockCmd.Flags().String("password", "", "Password for authentication")
 	mockCmd.Flags().Bool("verbose", false, "Enable verbose output")
@@ -471,26 +444,21 @@ JSON format example:
 		t.Fatalf("Failed to mark flag as required: %v", err)
 	}
 
-	// Temporary output file
 	outputFile := "test_complex_command.md"
-	defer os.Remove(outputFile) // Clean up after test
+	defer os.Remove(outputFile)
 
-	// Generate the documentation
 	err = generateCommandDoc(mockCmd, outputFile)
 	if err != nil {
 		t.Fatalf("generateCommandDoc failed: %v", err)
 	}
 
-	// Read the generated file
 	content, err := os.ReadFile(outputFile)
 	if err != nil {
 		t.Fatalf("Failed to read generated file: %v", err)
 	}
 
-	// Convert content to string for assertions
 	doc := string(content)
 
-	// Verify all the expected sections are present with correct formatting
 	expectedSections := []string{
 		"# complex-command",
 		"A complex command for testing",

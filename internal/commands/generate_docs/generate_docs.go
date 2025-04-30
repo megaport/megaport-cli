@@ -53,40 +53,34 @@ type CommandData struct {
 	HasSubCommands     bool
 	SubCommands        []string
 	IsAvailableCommand bool
-	FilepathPrefix     string // Add this new field
+	FilepathPrefix     string
 }
 
 func generateDocs(rootCmd *cobra.Command, args []string) error {
 	outputDir := args[0]
 
-	// Create output directory if it doesn't exist
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output directory: %v", err)
 	}
 
-	// Start a spinner to show progress while generating documentation
 	spinner := output.NewSpinner(false)
 	spinner.Start("Generating CLI documentation...")
 
-	// Generate index.md - a table of contents for all commands
 	if err := generateIndex(rootCmd, outputDir); err != nil {
 		spinner.Stop()
 		return fmt.Errorf("failed to generate index: %v", err)
 	}
 
-	// Recursively generate docs for all commands
 	if err := generateCommandDocs(rootCmd, outputDir, ""); err != nil {
 		spinner.Stop()
 		return fmt.Errorf("failed to generate command docs: %v", err)
 	}
 
-	// Stop the spinner and show success message
 	spinner.StopWithSuccess(fmt.Sprintf("Documentation successfully generated in %s", outputDir))
 	return nil
 }
 
 func generateIndex(root *cobra.Command, outputDir string) error {
-	// Collect command information
 	var commands []CommandInfo
 	collectCommands(root, "", &commands)
 
@@ -97,14 +91,12 @@ func generateIndex(root *cobra.Command, outputDir string) error {
 		Version:     v,
 	}
 
-	// Create index file
 	f, err := os.Create(filepath.Join(outputDir, "index.md"))
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	// Define the template
 	indexTemplate := `# Megaport CLI Documentation
 
 > Generated on {{ .GeneratedAt }} for version {{ .Version }}
@@ -117,7 +109,6 @@ func generateIndex(root *cobra.Command, outputDir string) error {
 | [{{ .Name }}]({{ .Path }}) | {{ .Description }} |
 {{- end }}
 `
-
 	tmpl, err := template.New("index").Parse(indexTemplate)
 	if err != nil {
 		return err
@@ -128,7 +119,7 @@ func generateIndex(root *cobra.Command, outputDir string) error {
 
 func collectCommands(cmd *cobra.Command, parentPath string, commands *[]CommandInfo) {
 	if cmd.Hidden || cmd.Name() == "help" {
-		return // Skip only hidden commands and help
+		return
 	}
 
 	cmdPath := cmd.Name()
@@ -148,8 +139,8 @@ func collectCommands(cmd *cobra.Command, parentPath string, commands *[]CommandI
 }
 
 func generateCommandDocs(cmd *cobra.Command, outputDir, parentPath string) error {
-	if cmd.Hidden || cmd.Name() == "help" { // Removed "|| cmd.Name() == "completion"
-		return nil // Skip only hidden commands and help
+	if cmd.Hidden || cmd.Name() == "help" {
+		return nil
 	}
 
 	cmdPath := cmd.Name()
@@ -157,13 +148,11 @@ func generateCommandDocs(cmd *cobra.Command, outputDir, parentPath string) error
 		cmdPath = parentPath + "_" + cmdPath
 	}
 
-	// Create command doc
 	err := generateCommandDoc(cmd, filepath.Join(outputDir, cmdPath+".md"))
 	if err != nil {
 		return err
 	}
 
-	// Generate docs for subcommands
 	for _, subCmd := range cmd.Commands() {
 		if err := generateCommandDocs(subCmd, outputDir, cmdPath); err != nil {
 			return err
@@ -173,32 +162,21 @@ func generateCommandDocs(cmd *cobra.Command, outputDir, parentPath string) error
 	return nil
 }
 
-// collectFlags gathers and deduplicates flags from the command
 func collectFlags(cmd *cobra.Command) ([]FlagInfo, []FlagInfo, []FlagInfo) {
-	// Use a map to track unique flags by name
 	flagMap := make(map[string]FlagInfo)
 
-	// Collect all flags
 	cmd.LocalFlags().VisitAll(func(flag *pflag.Flag) {
-		// Get the flag directly from the command to check required status
 		cmdFlag := cmd.Flags().Lookup(flag.Name)
 		required := false
-
-		// Check cobra annotation
 		if cmdFlag != nil && cmdFlag.Annotations != nil {
 			_, required = cmdFlag.Annotations["cobra_annotation_bash_completion_one_required_flag"]
 		}
-
-		// If not found in annotations, check if the flag description indicates it's required
 		if !required && strings.Contains(flag.Usage, "[required]") {
 			required = true
 		}
-
-		// Also check description for terms like "required flag"
 		if !required && strings.Contains(strings.ToLower(flag.Usage), "required flag") {
 			required = true
 		}
-
 		flagMap[flag.Name] = FlagInfo{
 			Name:        flag.Name,
 			Shorthand:   flag.Shorthand,
@@ -208,7 +186,6 @@ func collectFlags(cmd *cobra.Command) ([]FlagInfo, []FlagInfo, []FlagInfo) {
 		}
 	})
 
-	// For local flags (separate collection)
 	var localFlags []FlagInfo
 	cmd.NonInheritedFlags().VisitAll(func(flag *pflag.Flag) {
 		cmdFlag := cmd.Flags().Lookup(flag.Name)
@@ -216,17 +193,12 @@ func collectFlags(cmd *cobra.Command) ([]FlagInfo, []FlagInfo, []FlagInfo) {
 		if cmdFlag != nil && cmdFlag.Annotations != nil {
 			_, required = cmdFlag.Annotations["cobra_annotation_bash_completion_one_required_flag"]
 		}
-
-		// Check description for required indicator
 		if !required && strings.Contains(flag.Usage, "[required]") {
 			required = true
 		}
-
-		// Also check description for terms like "required flag"
 		if !required && strings.Contains(strings.ToLower(flag.Usage), "required flag") {
 			required = true
 		}
-
 		localFlags = append(localFlags, FlagInfo{
 			Name:        flag.Name,
 			Shorthand:   flag.Shorthand,
@@ -236,7 +208,6 @@ func collectFlags(cmd *cobra.Command) ([]FlagInfo, []FlagInfo, []FlagInfo) {
 		})
 	})
 
-	// Same treatment for persistent flags
 	var persistentFlags []FlagInfo
 	cmd.PersistentFlags().VisitAll(func(flag *pflag.Flag) {
 		cmdFlag := cmd.PersistentFlags().Lookup(flag.Name)
@@ -244,18 +215,12 @@ func collectFlags(cmd *cobra.Command) ([]FlagInfo, []FlagInfo, []FlagInfo) {
 		if cmdFlag != nil && cmdFlag.Annotations != nil {
 			_, required = cmdFlag.Annotations["cobra_annotation_bash_completion_one_required_flag"]
 		}
-
-		// Check description for required indicator
 		if !required && strings.Contains(flag.Usage, "[required]") {
 			required = true
 		}
-
-		// Also check description for terms like "required flag"
 		if !required && strings.Contains(strings.ToLower(flag.Usage), "required flag") {
 			required = true
 		}
-
-		// Only add to the persistent collection if not already in the flagMap
 		if _, exists := flagMap[flag.Name]; !exists {
 			flagMap[flag.Name] = FlagInfo{
 				Name:        flag.Name,
@@ -274,13 +239,11 @@ func collectFlags(cmd *cobra.Command) ([]FlagInfo, []FlagInfo, []FlagInfo) {
 		})
 	})
 
-	// Convert the map to a slice for the template
 	var allFlags []FlagInfo
 	for _, flagInfo := range flagMap {
 		allFlags = append(allFlags, flagInfo)
 	}
 
-	// Sort flags alphabetically for consistent output
 	sort.Slice(allFlags, func(i, j int) bool {
 		return allFlags[i].Name < allFlags[j].Name
 	})
@@ -288,7 +251,6 @@ func collectFlags(cmd *cobra.Command) ([]FlagInfo, []FlagInfo, []FlagInfo) {
 	return allFlags, localFlags, persistentFlags
 }
 
-// gatherSubcommands collects visible subcommands
 func gatherSubcommands(cmd *cobra.Command) []string {
 	var subCommands []string
 	for _, subCmd := range cmd.Commands() {
@@ -299,7 +261,6 @@ func gatherSubcommands(cmd *cobra.Command) []string {
 	return subCommands
 }
 
-// determineParentInfo calculates parent command relationships
 func determineParentInfo(cmd *cobra.Command, filePrefix string) (bool, string, string, string) {
 	var parentCommandPath, parentCommandName, parentFilePath string
 	hasParent := cmd.Parent() != nil && cmd.Parent().Name() != "megaport-cli"
@@ -324,7 +285,6 @@ func determineParentInfo(cmd *cobra.Command, filePrefix string) (bool, string, s
 	return hasParent, parentCommandPath, parentCommandName, parentFilePath
 }
 
-// formatSection handles section formatting based on section type
 func formatSection(section string) string {
 	switch section {
 	case "Required fields:":
@@ -342,7 +302,6 @@ func formatSection(section string) string {
 	}
 }
 
-// formatFieldLine formats field definitions with bullets and backticks
 func formatFieldLine(line string) string {
 	trimLine := strings.TrimSpace(line)
 
@@ -351,8 +310,6 @@ func formatFieldLine(line string) string {
 		if len(parts) == 2 {
 			fieldName := strings.TrimSpace(parts[0])
 			fieldDesc := strings.TrimSpace(parts[1])
-
-			// Format with bullets and backticks
 			leadingSpaces := len(line) - len(strings.TrimLeft(line, " "))
 			spacePadding := strings.Repeat(" ", leadingSpaces)
 			return fmt.Sprintf("%s- `%s`: %s", spacePadding, fieldName, fieldDesc)
@@ -361,7 +318,6 @@ func formatFieldLine(line string) string {
 	return line
 }
 
-// formatNoteLine formats important notes with bullets
 func formatNoteLine(line string) string {
 	trimLine := strings.TrimSpace(line)
 
@@ -373,7 +329,6 @@ func formatNoteLine(line string) string {
 	return line
 }
 
-// processDescription handles the main formatting of command descriptions
 func processDescription(description string, cmdName string) string {
 	if description == "" {
 		return ""
@@ -392,7 +347,6 @@ func processDescription(description string, cmdName string) string {
 	for i, line := range lines {
 		trimLine := strings.TrimSpace(line)
 
-		// Check for section headers
 		switch trimLine {
 		case "Required fields:":
 			inRequiredFields = true
@@ -437,7 +391,6 @@ func processDescription(description string, cmdName string) string {
 			continue
 		}
 
-		// Process field entries
 		if (inRequiredFields || inOptionalFields) && trimLine != "" &&
 			!strings.HasPrefix(trimLine, "Required fields:") &&
 			!strings.HasPrefix(trimLine, "Optional fields:") {
@@ -445,21 +398,18 @@ func processDescription(description string, cmdName string) string {
 			continue
 		}
 
-		// Process important notes
 		if inImportantNotes && trimLine != "" &&
 			!strings.HasPrefix(trimLine, "Important notes:") {
 			formattedLines = append(formattedLines, formatNoteLine(line))
 			continue
 		}
 
-		// Start code block after example header
 		if lineAfterExampleHeader && trimLine != "" && !strings.HasPrefix(trimLine, "```") {
 			formattedLines = append(formattedLines, "```sh")
 			inExampleBlock = true
 			lineAfterExampleHeader = false
 		}
 
-		// Handle header lines
 		isHeaderLine := strings.HasPrefix(trimLine, "#") && len(trimLine) > 1 && trimLine[1] == ' '
 
 		if isHeaderLine && inExampleBlock {
@@ -478,13 +428,11 @@ func processDescription(description string, cmdName string) string {
 			continue
 		}
 
-		// Reset example section
 		if isHeaderLine && !strings.Contains(strings.ToLower(trimLine), "example") &&
 			strings.Count(trimLine, "#") <= 2 {
 			inExampleSection = false
 		}
 
-		// Detect command examples
 		isExampleLine := strings.HasPrefix(trimLine, "megaport-cli") ||
 			(cmdName == "buy" && strings.HasPrefix(trimLine, "buy")) ||
 			(inExampleSection &&
@@ -498,7 +446,6 @@ func processDescription(description string, cmdName string) string {
 			inExampleBlock = true
 		}
 
-		// Handle end of examples
 		if inExampleBlock && trimLine == "" && inExampleSection {
 			hasMoreExamples := false
 			for j := i + 1; j < len(lines) && j < i+5; j++ {
@@ -521,7 +468,6 @@ func processDescription(description string, cmdName string) string {
 		formattedLines = append(formattedLines, line)
 	}
 
-	// Close any open code block
 	if inExampleBlock {
 		formattedLines = append(formattedLines, "```")
 	}
@@ -529,7 +475,6 @@ func processDescription(description string, cmdName string) string {
 	return strings.Join(formattedLines, "\n")
 }
 
-// generateCommandDoc creates documentation for a single command
 func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 	f, err := os.Create(outputPath)
 	if err != nil {
@@ -537,25 +482,16 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 	}
 	defer f.Close()
 
-	// Collect flags
 	allFlags, localFlags, persistentFlags := collectFlags(cmd)
-
-	// Gather subcommands
 	subCommands := gatherSubcommands(cmd)
-
-	// Calculate file paths
 	baseFileName := filepath.Base(outputPath)
 	filePrefix := strings.TrimSuffix(baseFileName, ".md")
-
-	// Determine parent command info
 	hasParent, parentCommandPath, parentCommandName, parentFilePath :=
 		determineParentInfo(cmd, filePrefix)
 
-	// Process the long description
 	processedLongDesc := output.StripANSIColors(cmd.Long)
 	processedLongDesc = processDescription(processedLongDesc, cmd.Name())
 
-	// Process examples
 	example := cmd.Example
 	if example == "" && strings.Contains(cmd.Long, "Example:") {
 		parts := strings.Split(cmd.Long, "Example:")
@@ -565,7 +501,6 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 	}
 	example = output.StripANSIColors(example)
 
-	// Prepare template data
 	data := CommandData{
 		Name:               cmd.Name(),
 		Description:        output.StripANSIColors(cmd.Short),
@@ -586,7 +521,6 @@ func generateCommandDoc(cmd *cobra.Command, outputPath string) error {
 		FilepathPrefix:     filePrefix,
 	}
 
-	// Apply template
 	cmdTemplate := getCommandTemplate()
 	tmpl, err := template.New("command").Parse(cmdTemplate)
 	if err != nil {
@@ -636,11 +570,9 @@ func getCommandTemplate() string {
 }
 
 func AddCommandsTo(rootCmd *cobra.Command) {
-	// Create generate-docs command using the command builder pattern
 	genDocsCmd := cmdbuilder.NewCommand("generate-docs", "Generate markdown documentation for the CLI").
 		WithArgs(cobra.ExactArgs(1)).
 		WithRunFunc(func(cmd *cobra.Command, args []string) error {
-			// Pass the root command to generateDocs explicitly
 			return generateDocs(rootCmd, args)
 		}).
 		WithExample("megaport-cli generate-docs ./docs").
