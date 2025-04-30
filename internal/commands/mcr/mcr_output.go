@@ -56,7 +56,7 @@ func displayMCRChanges(original, updated *megaport.MCR, noColor bool) {
 		return
 	}
 
-	fmt.Println() // Empty line before changes
+	fmt.Println()
 	output.PrintInfo("Changes applied:", noColor)
 
 	// Track if any changes were found
@@ -70,7 +70,6 @@ func displayMCRChanges(original, updated *megaport.MCR, noColor bool) {
 		fmt.Printf("  • Name: %s → %s\n", oldName, newName)
 	}
 
-	// Compare cost centre
 	if original.CostCentre != updated.CostCentre {
 		changesFound = true
 		oldCostCentre := original.CostCentre
@@ -94,7 +93,6 @@ func displayMCRChanges(original, updated *megaport.MCR, noColor bool) {
 		fmt.Printf("  • Contract Term: %s → %s\n", oldTerm, newTerm)
 	}
 
-	// Compare marketplace visibility
 	if original.MarketplaceVisibility != updated.MarketplaceVisibility {
 		changesFound = true
 		oldVisibility := "No"
@@ -113,7 +111,6 @@ func displayMCRChanges(original, updated *megaport.MCR, noColor bool) {
 	originalASN := original.Resources.VirtualRouter.ASN
 	updatedASN := updated.Resources.VirtualRouter.ASN
 
-	// Compare ASN if it changed
 	if originalASN != updatedASN && (originalASN != 0 || updatedASN != 0) {
 		changesFound = true
 		oldASN := output.FormatOldValue(fmt.Sprintf("%d", originalASN), noColor)
@@ -126,7 +123,6 @@ func displayMCRChanges(original, updated *megaport.MCR, noColor bool) {
 	}
 }
 
-// PrefixFilterListOutput represents the desired fields for JSON output.
 type PrefixFilterListOutput struct {
 	output.Output `json:"-" header:"-"`
 	ID            int                           `json:"id"`
@@ -143,7 +139,6 @@ type PrefixFilterListEntryOutput struct {
 	Le            int    `json:"le,omitempty"`
 }
 
-// ToPrefixFilterListOutput converts a *megaport.MCRPrefixFilterList to our PrefixFilterListOutput struct.
 func ToPrefixFilterListOutput(prefixFilterList *megaport.MCRPrefixFilterList) (PrefixFilterListOutput, error) {
 	if prefixFilterList == nil {
 		return PrefixFilterListOutput{}, fmt.Errorf("invalid prefix filter list: nil value")

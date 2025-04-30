@@ -14,10 +14,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Function to adapt our old tests to work with new wrapCommandFunc signature
 func testCommandAdapter(fn func(cmd *cobra.Command, args []string, noColor bool) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		return fn(cmd, args, false) // Pass false for noColor in tests
+		return fn(cmd, args, false)
 	}
 }
 
@@ -103,7 +102,6 @@ func TestGetMCRCmd_WithMockClient(t *testing.T) {
 				},
 			}
 
-			// Now add the output flag to the new command
 			cmd.Flags().StringP("output", "o", "table", "Output format (json, table)")
 			err = cmd.Flags().Set("output", tt.format)
 			if err != nil {
@@ -128,7 +126,6 @@ func TestGetMCRCmd_WithMockClient(t *testing.T) {
 }
 
 func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
-	// Save original functions and restore after test
 	originalLoginFunc := config.LoginFunc
 	originalPrompt := utils.ResourcePrompt
 	originalConfirmPrompt := utils.ConfirmPrompt
@@ -160,7 +157,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 					IsDeleting: true,
 				}
 			},
-			expectedOutput: "MCR deleted", // Changed from "MCR mcr-to-delete deleted successfully"
+			expectedOutput: "MCR deleted",
 			expectDeleted:  true,
 		},
 		{
@@ -174,7 +171,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 					IsDeleting: true,
 				}
 			},
-			expectedOutput: "MCR deleted", // Changed from "MCR mcr-to-delete-now deleted successfully"
+			expectedOutput: "MCR deleted",
 			expectDeleted:  true,
 		},
 		{
@@ -187,7 +184,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 					IsDeleting: true,
 				}
 			},
-			expectedOutput: "MCR deleted", // Changed from "MCR mcr-force-delete deleted successfully"
+			expectedOutput: "MCR deleted",
 			expectDeleted:  true,
 		},
 		{
@@ -214,18 +211,15 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup mock MCR service
 			mockMCRService := &MockMCRService{}
 			tt.setupMock(mockMCRService)
 
-			// Setup login to return our mock client
 			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
 			}
 
-			// Mock the confirmation prompt specifically for delete confirmation
 			utils.ConfirmPrompt = func(message string, _ bool) bool {
 				assert.Contains(t, message, fmt.Sprintf("Are you sure you want to delete MCR %s?", tt.mcrID))
 				return tt.promptResponse == "y"
@@ -236,7 +230,6 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 				return tt.promptResponse, nil
 			}
 
-			// Set flags
 			cmd := &cobra.Command{
 				Use: "delete-mcr [mcrID]",
 				RunE: func(cmd *cobra.Command, args []string) error {
@@ -254,12 +247,10 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 				t.Fatalf("Failed to set now flag: %v", err)
 			}
 
-			// Execute command and capture output
 			output := output.CaptureOutput(func() {
 				err = cmd.RunE(cmd, []string{tt.mcrID})
 			})
 
-			// Check results
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -267,7 +258,6 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Contains(t, output, tt.expectedOutput)
 
-				// Verify the request if deletion was expected
 				if tt.expectDeleted {
 					assert.NotNil(t, mockMCRService.CapturedDeleteMCRUID)
 					assert.Equal(t, tt.mcrID, mockMCRService.CapturedDeleteMCRUID)
@@ -278,7 +268,6 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 }
 
 func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
-	// Save original login function and restore after test
 	originalLoginFunc := config.LoginFunc
 	defer func() {
 		config.LoginFunc = originalLoginFunc
@@ -323,18 +312,15 @@ func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup mock MCR service
 			mockMCRService := &MockMCRService{}
 			tt.setupMock(mockMCRService)
 
-			// Setup login to return our mock client
 			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
 			}
 
-			// Setup command
 			restoreMCRCmd := &cobra.Command{
 				Use: "restore-mcr [mcrID]",
 				RunE: func(cmd *cobra.Command, args []string) error {
@@ -342,13 +328,11 @@ func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
 				},
 			}
 
-			// Execute command and capture output
 			var err error
 			output := output.CaptureOutput(func() {
 				err = restoreMCRCmd.RunE(restoreMCRCmd, []string{tt.mcrID})
 			})
 
-			// Check results
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -502,7 +486,6 @@ func TestListMCRPrefixFilterListsCmd_WithMockClient(t *testing.T) {
 				return client, nil
 			}
 
-			// Setup command
 			listMCRPrefixFilterListsCmd := &cobra.Command{
 				Use: "list-mcr-prefix-filter-lists [mcrUID]",
 				RunE: func(cmd *cobra.Command, args []string) error {
@@ -653,7 +636,6 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 				return client, nil
 			}
 
-			// Mock the prompt function
 			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
 				return tt.promptResponse, nil
 			}
@@ -691,7 +673,6 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 }
 
 func TestBuyMCRCmd_WithMockClient(t *testing.T) {
-	// Save original functions and restore after test
 	originalPrompt := utils.ResourcePrompt
 	originalLoginFunc := config.LoginFunc
 	originalBuyMCRFunc := buyMCRFunc
@@ -717,14 +698,14 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			name:        "interactive mode success",
 			interactive: true,
 			prompts: []string{
-				"Test MCR",     // name
-				"12",           // term
-				"10000",        // port speed
-				"123",          // location ID
-				"65000",        // ASN
-				"red",          // diversity zone
-				"cost-123",     // cost centre
-				"MCRPROMO2025", // promo code
+				"Test MCR",
+				"12",
+				"10000",
+				"123",
+				"65000",
+				"red",
+				"cost-123",
+				"MCRPROMO2025",
 			},
 			setupMock: func(m *MockMCRService) {
 				m.BuyMCRResult = &megaport.BuyMCRResponse{
@@ -768,7 +749,6 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			name: "missing required fields in flag mode",
 			flags: map[string]string{
 				"name": "Test MCR",
-				// term is missing, defaults to 0, which is invalid
 			},
 			expectedError: "Invalid contract term: 0 - must be one of: [1 12 24 36]",
 		},
@@ -776,7 +756,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			name: "invalid term in flag mode",
 			flags: map[string]string{
 				"name":        "Test MCR",
-				"term":        "13", // Invalid term
+				"term":        "13",
 				"port-speed":  "10000",
 				"location-id": "123",
 				"mcr-asn":     "65000",
@@ -812,7 +792,6 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup mock prompt
 			if len(tt.prompts) > 0 {
 				promptIndex := 0
 				utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
@@ -825,26 +804,22 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 				}
 			}
 
-			// Setup mock MCR service
 			mockMCRService := &MockMCRService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockMCRService)
 			}
 
-			// Setup login to return our mock client
 			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
 			}
 
-			// Create a fresh command for each test to avoid flag conflicts
 			cmd := &cobra.Command{
 				Use:  "buy",
 				RunE: testCommandAdapter(BuyMCR),
 			}
 
-			// Add all the necessary flags
 			cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode with prompts")
 			cmd.Flags().String("name", "", "MCR name")
 			cmd.Flags().Int("term", 0, "Contract term in months (1, 12, 24, or 36)")
@@ -857,14 +832,12 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			cmd.Flags().String("json", "", "JSON string containing MCR configuration")
 			cmd.Flags().String("json-file", "", "Path to JSON file containing MCR configuration")
 
-			// Set interactive flag if needed
 			if tt.interactive {
 				if err := cmd.Flags().Set("interactive", "true"); err != nil {
 					t.Fatalf("Failed to set interactive flag: %v", err)
 				}
 			}
 
-			// Set flag values for this test
 			for flagName, flagValue := range tt.flags {
 				err := cmd.Flags().Set(flagName, flagValue)
 				if err != nil {
@@ -872,13 +845,11 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 				}
 			}
 
-			// Execute command and capture output
 			var err error
 			output := output.CaptureOutput(func() {
 				err = cmd.RunE(cmd, tt.args)
 			})
 
-			// Check results
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -886,12 +857,10 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Contains(t, output, tt.expectedOutput)
 
-				// Verify request details if applicable
 				if tt.expectedOutput != "" && mockMCRService != nil && mockMCRService.CapturedBuyMCRRequest != nil {
 					req := mockMCRService.CapturedBuyMCRRequest
 
 					if tt.flags != nil && tt.flags["json"] != "" {
-						// For JSON mode
 						assert.Equal(t, "JSON MCR", req.Name)
 						assert.Equal(t, 24, req.Term)
 						assert.Equal(t, 10000, req.PortSpeed)
@@ -901,7 +870,6 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 						assert.Equal(t, "cost-789", req.CostCentre)
 						assert.Equal(t, "JSONPROMO", req.PromoCode)
 					} else if tt.flags != nil {
-						// For flag mode
 						assert.Equal(t, "Flag MCR", req.Name)
 						assert.Equal(t, 12, req.Term)
 						assert.Equal(t, 10000, req.PortSpeed)
@@ -911,7 +879,6 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 						assert.Equal(t, "cost-456", req.CostCentre)
 						assert.Equal(t, "FLAGPROMO", req.PromoCode)
 					} else if len(tt.prompts) > 0 {
-						// For interactive mode
 						assert.Equal(t, "Test MCR", req.Name)
 						assert.Equal(t, 12, req.Term)
 						assert.Equal(t, 10000, req.PortSpeed)
@@ -927,9 +894,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 	}
 }
 
-// TestGetMCRStatus tests the status subcommand for MCRs
 func TestGetMCRStatus(t *testing.T) {
-	// Save original functions and restore after test
 	originalLoginFunc := config.LoginFunc
 	defer func() {
 		config.LoginFunc = originalLoginFunc
@@ -1003,31 +968,26 @@ func TestGetMCRStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup mock service
 			mockService := &MockMCRService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockService)
 			}
 
-			// Mock the login function
 			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockService
 				return client, nil
 			}
 
-			// Create command
 			cmd := &cobra.Command{
 				Use: "status [mcrUID]",
 			}
 
-			// Capture output and run command
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
 				err = GetMCRStatus(cmd, []string{tt.mcrUID}, true, tt.outputFormat)
 			})
 
-			// Verify results
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -1035,7 +995,6 @@ func TestGetMCRStatus(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Contains(t, capturedOutput, tt.expectedOutput)
 
-				// Additional checks based on output format
 				if tt.outputFormat == "json" {
 					assert.Contains(t, capturedOutput, "\"uid\":")
 					assert.Contains(t, capturedOutput, "\"name\":")
