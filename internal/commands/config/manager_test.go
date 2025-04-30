@@ -12,19 +12,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// setupTestConfig creates a temporary config directory and returns its path and cleanup func
 func setupTestConfig(t *testing.T) (string, func()) {
 	t.Helper()
 
-	// Create temporary directory
 	tempDir, err := os.MkdirTemp("", "megaport-config-test")
 	require.NoError(t, err)
 
-	// Set environment to point to our test directory
 	oldConfigDir := os.Getenv("MEGAPORT_CONFIG_DIR")
 	os.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
 
-	// Return cleanup function
 	return tempDir, func() {
 		os.Setenv("MEGAPORT_CONFIG_DIR", oldConfigDir)
 		os.RemoveAll(tempDir)
@@ -35,17 +31,14 @@ func TestNewConfigManager(t *testing.T) {
 	tempDir, cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	// Test creating a new config manager (should create default config file)
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
 	require.NotNil(t, manager)
 
-	// Verify default config was created
 	configPath := filepath.Join(tempDir, "config.json")
 	_, err = os.Stat(configPath)
 	assert.NoError(t, err, "Config file should exist")
 
-	// Verify content
 	data, err := os.ReadFile(configPath)
 	require.NoError(t, err)
 
@@ -66,11 +59,8 @@ func TestCreateProfile(t *testing.T) {
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
 
-	// Test creating a profile
 	err = manager.CreateProfile("test-profile", "access123", "secret123", "production", "Test profile")
 	require.NoError(t, err)
-
-	// Verify profile was created
 	profiles, err := manager.ListProfiles()
 	require.NoError(t, err)
 
@@ -89,15 +79,11 @@ func TestUpdateProfile(t *testing.T) {
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
 
-	// Create a profile
 	err = manager.CreateProfile("test-profile", "access123", "secret123", "production", "Original")
 	require.NoError(t, err)
 
-	// Test updating a field
 	err = manager.UpdateProfile("test-profile", "", "", "staging", false, "")
 	require.NoError(t, err)
-
-	// Verify the update
 	profiles, err := manager.ListProfiles()
 	require.NoError(t, err)
 
@@ -108,7 +94,6 @@ func TestUpdateProfile(t *testing.T) {
 	assert.Equal(t, "staging", profile.Environment, "Environment should be updated")
 	assert.Equal(t, "Original", profile.Description, "Description should remain unchanged")
 
-	// Update multiple fields
 	err = manager.UpdateProfile("test-profile", "newaccess", "", "", true, "Updated desc")
 	require.NoError(t, err)
 
@@ -122,7 +107,6 @@ func TestUpdateProfile(t *testing.T) {
 	assert.Equal(t, "staging", profile.Environment, "Environment should remain unchanged")
 	assert.Equal(t, "Updated desc", profile.Description, "Description should be updated")
 
-	// Try updating non-existent profile
 	err = manager.UpdateProfile("non-existent", "foo", "bar", "production", false, "")
 	assert.Error(t, err)
 	assert.Equal(t, ErrProfileNotFound, err)
@@ -135,33 +119,26 @@ func TestDeleteProfile(t *testing.T) {
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
 
-	// Create a profile
 	err = manager.CreateProfile("test-profile", "access123", "secret123", "production", "")
 	require.NoError(t, err)
 
-	// Set it as active profile
 	err = manager.UseProfile("test-profile")
 	require.NoError(t, err)
 
-	// Attempt to delete active profile (should fail)
 	err = manager.DeleteProfile("test-profile")
 	assert.Error(t, err, "Should not allow deleting active profile")
 
-	// Create another profile
 	err = manager.CreateProfile("other-profile", "access456", "secret456", "staging", "")
 	require.NoError(t, err)
 
-	// Delete non-active profile
 	err = manager.DeleteProfile("other-profile")
 	require.NoError(t, err)
 
-	// Verify it was deleted
 	profiles, err := manager.ListProfiles()
 	require.NoError(t, err)
 	_, exists := profiles["other-profile"]
 	assert.False(t, exists, "Profile should be deleted")
 
-	// Delete non-existent profile
 	err = manager.DeleteProfile("non-existent")
 	assert.Error(t, err)
 	assert.Equal(t, ErrProfileNotFound, err)
@@ -174,19 +151,15 @@ func TestGetCurrentProfile(t *testing.T) {
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
 
-	// No active profile initially
 	_, _, err = manager.GetCurrentProfile()
 	assert.Equal(t, ErrProfileNotFound, err)
 
-	// Create a profile
 	err = manager.CreateProfile("test-profile", "access123", "secret123", "production", "")
 	require.NoError(t, err)
 
-	// Set it as active profile
 	err = manager.UseProfile("test-profile")
 	require.NoError(t, err)
 
-	// Get active profile
 	profile, name, err := manager.GetCurrentProfile()
 	require.NoError(t, err)
 	assert.Equal(t, "test-profile", name)
@@ -202,20 +175,16 @@ func TestDefaultSettings(t *testing.T) {
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
 
-	// Initially no defaults
 	val, exists := manager.GetDefault("output")
 	assert.False(t, exists)
 	assert.Nil(t, val)
 
-	// Set a string default
 	err = manager.SetDefault("output", "json")
 	require.NoError(t, err)
 
-	// Set a bool default
 	err = manager.SetDefault("no-color", true)
 	require.NoError(t, err)
 
-	// Get the defaults
 	val, exists = manager.GetDefault("output")
 	assert.True(t, exists)
 	assert.Equal(t, "json", val)
@@ -248,27 +217,21 @@ func TestExportConfig(t *testing.T) {
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
 
-	// Create a profile
 	err = manager.CreateProfile("test-profile", "access123", "secret456", "production", "Test desc")
 	require.NoError(t, err)
 
-	// Set an active profile
 	err = manager.UseProfile("test-profile")
 	require.NoError(t, err)
 
-	// Set a default
 	err = manager.SetDefault("output", "json")
 	require.NoError(t, err)
 
-	// Export
 	exported, err := manager.Export()
 	require.NoError(t, err)
 
-	// Verify exported data
 	assert.Equal(t, "test-profile", exported.ActiveProfile)
 	assert.Equal(t, "json", exported.Defaults["output"])
 
-	// Check that sensitive data is redacted
 	exportedProfile, exists := exported.Profiles["test-profile"]
 	assert.True(t, exists)
 	assert.Equal(t, "[REDACTED]", exportedProfile.AccessKey)
@@ -284,19 +247,16 @@ func TestListProfiles(t *testing.T) {
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
 
-	// Initially no profiles
 	profiles, err := manager.ListProfiles()
 	require.NoError(t, err)
 	assert.Empty(t, profiles)
 
-	// Create profiles
 	err = manager.CreateProfile("profile1", "access1", "secret1", "production", "")
 	require.NoError(t, err)
 
 	err = manager.CreateProfile("profile2", "access2", "secret2", "staging", "")
 	require.NoError(t, err)
 
-	// List profiles
 	profiles, err = manager.ListProfiles()
 	require.NoError(t, err)
 	assert.Len(t, profiles, 2)
@@ -315,45 +275,37 @@ func TestUseProfile(t *testing.T) {
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
 
-	// Create profiles
 	err = manager.CreateProfile("profile1", "access1", "secret1", "production", "")
 	require.NoError(t, err)
 
 	err = manager.CreateProfile("profile2", "access2", "secret2", "staging", "")
 	require.NoError(t, err)
 
-	// Use profile
 	err = manager.UseProfile("profile1")
 	require.NoError(t, err)
 	assert.Equal(t, "profile1", manager.config.ActiveProfile)
 
-	// Switch profile
 	err = manager.UseProfile("profile2")
 	require.NoError(t, err)
 	assert.Equal(t, "profile2", manager.config.ActiveProfile)
 
-	// Try to use non-existent profile
 	err = manager.UseProfile("non-existent")
 	assert.Error(t, err)
 	assert.Equal(t, ErrProfileNotFound, err)
 	assert.Equal(t, "profile2", manager.config.ActiveProfile, "Active profile should remain unchanged")
 }
 
-// TestNilSafety ensures methods can handle nil safely
 func TestNilSafety(t *testing.T) {
-	// Test with nil manager
 	var m *ConfigManager = nil
 	profiles, err := m.ListProfiles()
 	assert.NoError(t, err)
 	assert.Empty(t, profiles)
 }
 
-// TestConfigPersistence tests that config changes are persisted to disk
 func TestConfigPersistence(t *testing.T) {
 	_, cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	// Create and modify config
 	{
 		manager, err := NewConfigManager()
 		require.NoError(t, err)
@@ -365,7 +317,6 @@ func TestConfigPersistence(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	// Load config again and check changes persisted
 	{
 		manager, err := NewConfigManager()
 		require.NoError(t, err)
@@ -381,28 +332,23 @@ func TestCorruptedConfigFile(t *testing.T) {
 	_, cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	// Create a manager and profile first
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
 	err = manager.CreateProfile("test-profile", "access123", "secret123", "production", "")
 	require.NoError(t, err)
 
-	// Corrupt the config file with invalid JSON
 	configPath, err := GetConfigFilePath()
 	require.NoError(t, err)
 	err = os.WriteFile(configPath, []byte("{this is not valid json"), 0644)
 	require.NoError(t, err)
 
-	// Try to load the config again - should create a new default config
 	manager, err = NewConfigManager()
 	require.NoError(t, err)
 
-	// The profile should be gone since we corrupted the file
 	profiles, err := manager.ListProfiles()
 	require.NoError(t, err)
 	assert.Empty(t, profiles, "Corrupted config should be replaced with default empty config")
 
-	// Check that we can use the manager normally after recovery
 	err = manager.CreateProfile("new-profile", "access123", "secret123", "production", "")
 	require.NoError(t, err)
 }
@@ -414,20 +360,16 @@ func TestSpecialProfileNames(t *testing.T) {
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
 
-	// Test empty profile name - should fail
 	err = manager.CreateProfile("", "access123", "secret123", "production", "")
 	assert.Error(t, err, "Empty profile name should be rejected")
 
-	// Test profile name with just spaces - should fail
 	err = manager.CreateProfile("   ", "access123", "secret123", "production", "")
 	assert.Error(t, err, "Whitespace-only profile name should be rejected")
 
-	// Test profile name with special characters - should work
 	specialName := "test!@#$%^&*()_+-=[]{}|;':,./<>?"
 	err = manager.CreateProfile(specialName, "access123", "secret123", "production", "")
 	require.NoError(t, err)
 
-	// Test profile name with Unicode characters
 	unicodeName := "उपयोगकर्ता-परीक्षण"
 	err = manager.CreateProfile(unicodeName, "access123", "secret123", "production", "")
 	require.NoError(t, err)

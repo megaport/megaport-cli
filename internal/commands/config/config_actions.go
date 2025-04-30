@@ -11,9 +11,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Command implementations
-
-// CreateProfile creates a new profile
 func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	profileName := args[0]
 	accessKey, _ := cmd.Flags().GetString("access-key")
@@ -21,7 +18,6 @@ func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	environment, _ := cmd.Flags().GetString("environment")
 	description, _ := cmd.Flags().GetString("description")
 
-	// Validate environment
 	if environment != "production" && environment != "staging" && environment != "development" {
 		return fmt.Errorf("environment must be 'production', 'staging', or 'development'")
 	}
@@ -39,7 +35,6 @@ func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
-// UpdateProfile updates an existing profile
 func UpdateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	profileName := args[0]
 
@@ -48,13 +43,11 @@ func UpdateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	// Check which fields to update
 	accessKeyChanged := cmd.Flags().Changed("access-key")
 	secretKeyChanged := cmd.Flags().Changed("secret-key")
 	environmentChanged := cmd.Flags().Changed("environment")
 	descriptionChanged := cmd.Flags().Changed("description")
 
-	// Get values
 	accessKey := ""
 	if accessKeyChanged {
 		accessKey, _ = cmd.Flags().GetString("access-key")
@@ -83,7 +76,6 @@ func UpdateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
-// DeleteProfile deletes a profile
 func DeleteProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	profileName := args[0]
 
@@ -100,7 +92,6 @@ func DeleteProfile(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("profile '%s' not found", profileName)
 	}
 
-	// Confirm deletion
 	confirmed := utils.ConfirmPrompt(fmt.Sprintf("Are you sure you want to delete profile '%s'? (y/n): ", profileName), noColor)
 	if !confirmed {
 		output.PrintInfo("Profile deletion cancelled", noColor)
@@ -115,7 +106,6 @@ func DeleteProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
-// ProfileOutput represents the output format for profiles
 type ProfileOutput struct {
 	output.Output `json:"-" header:"-"`
 	Name          string `json:"name" header:"Name"`
@@ -125,7 +115,6 @@ type ProfileOutput struct {
 	IsActive      bool   `json:"is_active" header:"Active"`
 }
 
-// ListProfiles lists all profiles
 func ListProfiles(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	manager, err := NewConfigManager()
 	if err != nil {
@@ -139,7 +128,6 @@ func ListProfiles(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	}
 	activeProfile := manager.config.ActiveProfile
 
-	// Prepare output
 	var profileOutputs []ProfileOutput
 	for name, profile := range profiles {
 		profileOutputs = append(profileOutputs, ProfileOutput{
@@ -151,7 +139,6 @@ func ListProfiles(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 		})
 	}
 
-	// Print output
 	if len(profileOutputs) == 0 {
 		output.PrintInfo("No profiles found", noColor)
 		return nil
@@ -160,7 +147,6 @@ func ListProfiles(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	return output.PrintOutput(profileOutputs, outputFormat, noColor)
 }
 
-// UseProfile sets the active profile
 func UseProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	profileName := args[0]
 
@@ -188,12 +174,10 @@ func UseProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
-// SetDefault sets a default value
 func SetDefault(cmd *cobra.Command, args []string, noColor bool) error {
 	key := args[0]
 	valueStr := args[1]
 
-	// Define allowed configuration keys and their validators
 	allowedSettings := map[string]func(string) (interface{}, error){
 		"output": func(v string) (interface{}, error) {
 			validFormats := map[string]bool{"json": true, "yaml": true, "table": true}
@@ -210,17 +194,14 @@ func SetDefault(cmd *cobra.Command, args []string, noColor bool) error {
 			}
 			return nil, fmt.Errorf("no-color must be true or false")
 		},
-		// Add other valid settings here
 	}
 
-	// Check if the key is allowed
 	validator, exists := allowedSettings[key]
 	if !exists {
 		return fmt.Errorf("unknown configuration key: %s. Valid keys are: %s",
 			key, strings.Join(mapKeys(allowedSettings), ", "))
 	}
 
-	// Validate and convert the value
 	value, err := validator(valueStr)
 	if err != nil {
 		return err
@@ -239,7 +220,6 @@ func SetDefault(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
-// GetDefault gets a default value
 func GetDefault(cmd *cobra.Command, args []string, noColor bool) error {
 	key := args[0]
 
@@ -257,7 +237,6 @@ func GetDefault(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
-// ExportConfig exports the configuration
 func ExportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 	manager, err := NewConfigManager()
 	if err != nil {
@@ -269,13 +248,11 @@ func ExportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	// Convert config to JSON
 	data, err := json.MarshalIndent(exportConfig, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	// Write to file or stdout
 	filePath, _ := cmd.Flags().GetString("file")
 	if filePath != "" {
 		if err := os.WriteFile(filePath, data, 0644); err != nil {
@@ -289,49 +266,38 @@ func ExportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
-// ImportConfig imports configuration from a file
 func ImportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 	filePath, _ := cmd.Flags().GetString("file")
 
-	// Read file
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
 	}
 
-	// Parse JSON
 	var importConfig ConfigFile
 	if err := json.Unmarshal(data, &importConfig); err != nil {
 		return fmt.Errorf("failed to parse config file: %w", err)
 	}
 	if importConfig.ActiveProfile != "" {
-		// Check if the profile actually exists
 		if _, exists := importConfig.Profiles[importConfig.ActiveProfile]; !exists {
-			// Either skip setting active profile or create an empty one
 			return fmt.Errorf("import specifies active profile '%s' but the profile was not found", importConfig.ActiveProfile)
 		}
 
-		// Set default values for missing fields
 		for profileName, profile := range importConfig.Profiles {
-			// Set environment to production if missing
 			if profile.Environment == "" {
 				profile.Environment = "production"
 			}
-
-			// Ensure other required fields have values
 			if profile.AccessKey == "" || profile.SecretKey == "" {
 				return fmt.Errorf("profile '%s' is missing required credential fields", profileName)
 			}
 		}
 	}
 
-	// Create a new config manager
 	manager, err := NewConfigManager()
 	if err != nil {
 		return fmt.Errorf("failed to create config manager: %w", err)
 	}
 
-	// Import profiles
 	for name, profile := range importConfig.Profiles {
 		err = manager.CreateProfile(
 			name,
@@ -345,7 +311,6 @@ func ImportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 	}
 
-	// Import default settings
 	for key, value := range importConfig.Defaults {
 		err = manager.SetDefault(key, value)
 		if err != nil {
@@ -353,37 +318,30 @@ func ImportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 	}
 
-	// Set active profile if specified and exists
 	if importConfig.ActiveProfile != "" {
 		err = manager.UseProfile(importConfig.ActiveProfile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: Could not set active profile to '%s': %v\n",
 				importConfig.ActiveProfile, err)
-			// Continue without error - this is a non-critical issue
 		}
 	}
 
-	// Confirm import
 	confirmed := utils.ConfirmPrompt("This will overwrite any existing profiles with the same names. Continue? (y/n): ", noColor)
 	if !confirmed {
 		output.PrintInfo("Import cancelled", noColor)
 		return nil
 	}
 
-	// Update current config with imported values
-	// Merge profiles (skip ones with [REDACTED] credentials)
 	for name, profile := range importConfig.Profiles {
 		if profile.AccessKey != "[REDACTED]" && profile.SecretKey != "[REDACTED]" {
 			manager.config.Profiles[name] = profile
 		}
 	}
 
-	// Merge defaults
 	for key, value := range importConfig.Defaults {
 		manager.config.Defaults[key] = value
 	}
 
-	// Save config
 	if err := manager.Save(); err != nil {
 		return err
 	}
@@ -392,22 +350,18 @@ func ImportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
-// ViewConfig displays the current configuration
 func ViewConfig(cmd *cobra.Command, args []string, noColor bool) error {
 	manager, err := NewConfigManager()
 	if err != nil {
 		return err
 	}
 
-	// Get current settings
 	activeProfile, profileName, err := manager.GetCurrentProfile()
 	if err != nil {
-		// No active profile
 		fmt.Fprintf(cmd.OutOrStdout(), "Current Configuration:\n\n")
 		fmt.Fprintf(cmd.OutOrStdout(), "  No active profile set.\n")
 		fmt.Fprintf(cmd.OutOrStdout(), "  Use 'megaport-cli config use-profile <name>' to set an active profile.\n\n")
 	} else {
-		// Print current settings
 		fmt.Fprintf(cmd.OutOrStdout(), "Current Configuration:\n\n")
 		fmt.Fprintf(cmd.OutOrStdout(), "  Active Profile: %s\n", profileName)
 		fmt.Fprintf(cmd.OutOrStdout(), "  Access Key: %s\n", activeProfile.AccessKey)
@@ -419,7 +373,6 @@ func ViewConfig(cmd *cobra.Command, args []string, noColor bool) error {
 		fmt.Fprintf(cmd.OutOrStdout(), "\n")
 	}
 
-	// Print defaults
 	fmt.Fprintf(cmd.OutOrStdout(), "  Default Settings:\n")
 	if len(manager.config.Defaults) == 0 {
 		fmt.Fprintf(cmd.OutOrStdout(), "    No default settings configured.\n")
@@ -432,7 +385,6 @@ func ViewConfig(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
-// RemoveDefault removes a default setting
 func RemoveDefault(cmd *cobra.Command, args []string, noColor bool) error {
 	key := args[0]
 
@@ -449,14 +401,12 @@ func RemoveDefault(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
-// ClearDefaults removes all default settings
 func ClearDefaults(cmd *cobra.Command, args []string, noColor bool) error {
 	manager, err := NewConfigManager()
 	if err != nil {
 		return err
 	}
 
-	// Confirm deletion
 	confirmed := utils.ConfirmPrompt("Are you sure you want to clear all default settings? (y/n): ", noColor)
 	if !confirmed {
 		output.PrintInfo("Operation cancelled", noColor)

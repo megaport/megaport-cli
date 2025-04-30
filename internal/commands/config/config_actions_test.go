@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// captureOutputFromAction runs the given action and captures stdout output
 func captureOutputFromAction(action func() error) (string, error) {
 	var outputText string
 	var err error
@@ -25,7 +24,6 @@ func captureOutputFromAction(action func() error) (string, error) {
 	return outputText, err
 }
 
-// setupTestCmd creates a test command with output capture
 func setupTestCmd() (*cobra.Command, *bytes.Buffer) {
 	outBuf := new(bytes.Buffer)
 	cmd := &cobra.Command{Use: "test"}
@@ -34,7 +32,6 @@ func setupTestCmd() (*cobra.Command, *bytes.Buffer) {
 	return cmd, outBuf
 }
 
-// setupTestConfigEnv sets up a temporary config environment
 func setupTestConfigEnv(t *testing.T) (string, func()) {
 	t.Helper()
 	tempDir, err := os.MkdirTemp("", "megaport-config-actions-test")
