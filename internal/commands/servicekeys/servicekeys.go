@@ -6,7 +6,6 @@ import (
 )
 
 func AddCommandsTo(rootCmd *cobra.Command) {
-	// Create the root servicekeys command
 	servicekeysCmd := cmdbuilder.NewCommand("servicekeys", "Manage service keys for the Megaport API").
 		WithLongDesc("Manage service keys for the Megaport API.\n\nThis command groups all operations related to service keys. You can use its subcommands to create, update, list, and get details of service keys.").
 		WithExample("megaport-cli servicekeys list").
@@ -16,7 +15,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create service key command
 	createServiceKeyCmd := cmdbuilder.NewCommand("create", "Create a new service key").
 		WithLongDesc("Create a new service key for interacting with the Megaport API.\n\nThis command generates a new service key and displays its details.").
 		WithColorAwareRunFunc(CreateServiceKey).
@@ -27,7 +25,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Update service key command
 	updateServiceKeyCmd := cmdbuilder.NewCommand("update", "Update an existing service key").
 		WithArgs(cobra.ExactArgs(1)).
 		WithLongDesc("Update an existing service key for the Megaport API.\n\nThis command allows you to modify the details of an existing service key. You need to specify the key identifier as an argument, and provide any updated values as flags.").
@@ -39,7 +36,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// List service keys command
 	listServiceKeysCmd := cmdbuilder.NewCommand("list", "List all service keys").
 		WithLongDesc("List all service keys for the Megaport API.\n\nThis command retrieves and displays all service keys along with their details. Use this command to review the keys available in your account.").
 		WithOutputFormatRunFunc(ListServiceKeys).
@@ -47,7 +43,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Get service key command
 	getServiceKeyCmd := cmdbuilder.NewCommand("get", "Get details of a service key").
 		WithArgs(cobra.ExactArgs(1)).
 		WithLongDesc("Get details of a specific service key.\n\nThis command fetches and displays detailed information about a given service key. You must provide the service key identifier as an argument.").
@@ -56,7 +51,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Build the command hierarchy
 	servicekeysCmd.AddCommand(createServiceKeyCmd, updateServiceKeyCmd, listServiceKeysCmd, getServiceKeyCmd)
 	rootCmd.AddCommand(servicekeysCmd)
 }

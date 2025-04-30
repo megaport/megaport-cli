@@ -8,7 +8,6 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// ServiceKeyOutput represents the desired fields for output
 type ServiceKeyOutput struct {
 	output.Output `json:"-" header:"-"`
 	KeyUID        string `json:"key_uid" header:"KEY UID"`
@@ -18,7 +17,6 @@ type ServiceKeyOutput struct {
 	CreateDate    string `json:"create_date" header:"CREATE DATE"`
 }
 
-// ToServiceKeyOutput converts a ServiceKey to ServiceKeyOutput
 func ToServiceKeyOutput(sk *megaport.ServiceKey) (ServiceKeyOutput, error) {
 	if sk == nil {
 		return ServiceKeyOutput{}, fmt.Errorf("nil service key")
@@ -31,7 +29,6 @@ func ToServiceKeyOutput(sk *megaport.ServiceKey) (ServiceKeyOutput, error) {
 		Description: sk.Description,
 	}
 
-	// Handle nil CreateDate
 	if sk.CreateDate != nil {
 		output.CreateDate = sk.CreateDate.Time.Format(time.RFC3339)
 	}

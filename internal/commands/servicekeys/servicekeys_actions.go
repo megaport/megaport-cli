@@ -12,7 +12,6 @@ import (
 )
 
 func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
-	// Create a context with a 30-second timeout for the API call.
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	productUID, _ := cmd.Flags().GetString("product-uid")
@@ -56,12 +55,10 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 		ValidFor:    validFor,
 	}
 
-	// Start spinner for creating service key
 	spinner := output.PrintResourceCreating("Service Key", description, noColor)
 
 	resp, err := client.ServiceKeyService.CreateServiceKey(ctx, req)
 
-	// Stop spinner
 	spinner.Stop()
 
 	if err != nil {
@@ -96,12 +93,10 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 		Active:     active,
 	}
 
-	// Start spinner for updating service key
 	spinner := output.PrintResourceUpdating("Service Key", key, noColor)
 
 	resp, err := client.ServiceKeyService.UpdateServiceKey(ctx, req)
 
-	// Stop spinner
 	spinner.Stop()
 
 	if err != nil {
@@ -126,13 +121,11 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
-	// Start spinner for listing service keys
 	spinner := output.PrintResourceListing("Service Key", noColor)
 
 	req := &megaport.ListServiceKeysRequest{}
 	resp, err := client.ServiceKeyService.ListServiceKeys(ctx, req)
 
-	// Stop spinner
 	spinner.Stop()
 
 	if err != nil {
@@ -168,12 +161,10 @@ func GetServiceKey(cmd *cobra.Command, args []string, noColor bool, outputFormat
 
 	keyID := args[0]
 
-	// Start spinner for getting service key
 	spinner := output.PrintResourceGetting("Service Key", keyID, noColor)
 
 	resp, err := client.ServiceKeyService.GetServiceKey(ctx, keyID)
 
-	// Stop spinner
 	spinner.Stop()
 
 	if err != nil {
