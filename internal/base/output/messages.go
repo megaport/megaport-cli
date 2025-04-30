@@ -10,7 +10,6 @@ import (
 	"github.com/fatih/color"
 )
 
-// PrintSuccess prints a success message with green color and a checkmark
 func PrintSuccess(format string, noColor bool, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	if noColor {
@@ -21,7 +20,6 @@ func PrintSuccess(format string, noColor bool, args ...interface{}) {
 	}
 }
 
-// FormatSuccess returns a formatted success string
 func FormatSuccess(msg string, noColor bool) string {
 	if noColor {
 		return "successfully"
@@ -29,28 +27,23 @@ func FormatSuccess(msg string, noColor bool) string {
 	return color.GreenString("successfully")
 }
 
-// PrintResourceSuccess prints a success message for a resource operation
 func PrintResourceSuccess(resourceType, action, uid string, noColor bool) {
 	uidFormatted := FormatUID(uid, noColor)
 	if strings.HasSuffix(action, "ed") {
 		PrintSuccess("%s %s %s", noColor, resourceType, action, uidFormatted)
 	} else {
-		// Add 'd' instead of 'ed' to correctly form past tense
 		PrintSuccess("%s %sd %s", noColor, resourceType, action, uidFormatted)
 	}
 }
 
-// PrintResourceCreated prints a standardized resource creation message
 func PrintResourceCreated(resourceType, uid string, noColor bool) {
 	PrintSuccess("%s created %s", noColor, resourceType, FormatUID(uid, noColor))
 }
 
-// PrintResourceUpdated prints a standardized resource update message
 func PrintResourceUpdated(resourceType, uid string, noColor bool) {
 	PrintSuccess("%s updated %s", noColor, resourceType, FormatUID(uid, noColor))
 }
 
-// PrintResourceDeleted prints a standardized resource deletion message
 func PrintResourceDeleted(resourceType, uid string, immediate, noColor bool) {
 	msg := fmt.Sprintf("%s deleted %s", resourceType, FormatUID(uid, noColor))
 	if immediate {
@@ -61,10 +54,8 @@ func PrintResourceDeleted(resourceType, uid string, immediate, noColor bool) {
 	PrintSuccess(msg, noColor)
 }
 
-// spinnerChars is the character sequence used for the loading spinner
 var spinnerChars = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
-// Spinner represents a loading spinner with state
 type Spinner struct {
 	stop      chan bool
 	stopped   bool
@@ -73,7 +64,6 @@ type Spinner struct {
 	noColor   bool
 }
 
-// NewSpinner creates a new spinner instance
 func NewSpinner(noColor bool) *Spinner {
 	return &Spinner{
 		stop:      make(chan bool),
@@ -82,7 +72,6 @@ func NewSpinner(noColor bool) *Spinner {
 	}
 }
 
-// Start begins the spinner animation
 func (s *Spinner) Start(prefix string) {
 	s.mu.Lock()
 	if s.stopped {
@@ -102,7 +91,6 @@ func (s *Spinner) Start(prefix string) {
 					s.mu.Unlock()
 					return
 				}
-
 				frame := spinnerChars[i%len(spinnerChars)]
 				if s.noColor {
 					fmt.Printf("\r\033[K%s %s", frame, prefix)
@@ -110,14 +98,12 @@ func (s *Spinner) Start(prefix string) {
 					fmt.Printf("\r\033[K%s %s", color.CyanString(frame), prefix)
 				}
 				s.mu.Unlock()
-
 				time.Sleep(s.frameRate)
 			}
 		}
 	}()
 }
 
-// Stop halts the spinner animation and clears the line
 func (s *Spinner) Stop() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -126,11 +112,9 @@ func (s *Spinner) Stop() {
 	}
 	s.stopped = true
 	s.stop <- true
-	// Clear the line completely to remove any leftover text
-	fmt.Print("\r\033[K") // \r to return to beginning of line, \033[K to clear to end of line
+	fmt.Print("\r\033[K")
 }
 
-// StopWithSuccess stops the spinner and shows a success message while preserving the context
 func (s *Spinner) StopWithSuccess(msg string) {
 	s.Stop()
 	if s.noColor {
@@ -141,7 +125,6 @@ func (s *Spinner) StopWithSuccess(msg string) {
 	}
 }
 
-// PrintResourceCreating shows an animated spinner while a resource is being created
 func PrintResourceCreating(resourceType, uid string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Creating %s %s...", resourceType, uidFormatted)
@@ -150,7 +133,6 @@ func PrintResourceCreating(resourceType, uid string, noColor bool) *Spinner {
 	return spinner
 }
 
-// PrintResourceUpdating shows an animated spinner while a resource is being updated
 func PrintResourceUpdating(resourceType, uid string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Updating %s %s...", resourceType, uidFormatted)
@@ -159,7 +141,6 @@ func PrintResourceUpdating(resourceType, uid string, noColor bool) *Spinner {
 	return spinner
 }
 
-// PrintResourceDeleting shows an animated spinner while a resource is being deleted
 func PrintResourceDeleting(resourceType, uid string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Deleting %s %s...", resourceType, uidFormatted)
@@ -168,7 +149,6 @@ func PrintResourceDeleting(resourceType, uid string, noColor bool) *Spinner {
 	return spinner
 }
 
-// PrintResourceListing shows an animated spinner while resources are being listed
 func PrintResourceListing(resourceType string, noColor bool) *Spinner {
 	msg := fmt.Sprintf("Listing %ss...", resourceType)
 	spinner := NewSpinner(noColor)
@@ -176,7 +156,6 @@ func PrintResourceListing(resourceType string, noColor bool) *Spinner {
 	return spinner
 }
 
-// PrintResourceGetting shows an animated spinner while getting a resource's details
 func PrintResourceGetting(resourceType, uid string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Getting %s %s details...", resourceType, uidFormatted)
@@ -185,7 +164,6 @@ func PrintResourceGetting(resourceType, uid string, noColor bool) *Spinner {
 	return spinner
 }
 
-// PrintListingResourceTags shows an animated spinner while listing resource tags
 func PrintListingResourceTags(resourceType, uid string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Listing resource tags for %s %s...", resourceType, uidFormatted)
@@ -194,7 +172,6 @@ func PrintListingResourceTags(resourceType, uid string, noColor bool) *Spinner {
 	return spinner
 }
 
-// PrintResourceValidating shows an animated spinner while validating a resource order
 func PrintResourceValidating(resourceType string, noColor bool) *Spinner {
 	msg := fmt.Sprintf("Validating %s order...", resourceType)
 	spinner := NewSpinner(noColor)
@@ -202,7 +179,6 @@ func PrintResourceValidating(resourceType string, noColor bool) *Spinner {
 	return spinner
 }
 
-// PrintLoggingIn shows an animated spinner while logging in to Megaport
 func PrintLoggingIn(noColor bool) *Spinner {
 	msg := "Logging in to Megaport..."
 	spinner := NewSpinner(noColor)
@@ -210,7 +186,6 @@ func PrintLoggingIn(noColor bool) *Spinner {
 	return spinner
 }
 
-// PrintCustomSpinner shows an animated spinner with a custom message
 func PrintCustomSpinner(action, resourceId string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(resourceId, noColor)
 	msg := fmt.Sprintf("%s %s...", action, uidFormatted)
@@ -219,7 +194,6 @@ func PrintCustomSpinner(action, resourceId string, noColor bool) *Spinner {
 	return spinner
 }
 
-// PrintError prints an error message with red color
 func PrintError(format string, noColor bool, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	if noColor {
@@ -230,7 +204,6 @@ func PrintError(format string, noColor bool, args ...interface{}) {
 	}
 }
 
-// PrintWarning prints a warning message with yellow color
 func PrintWarning(format string, noColor bool, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	if noColor {
@@ -241,7 +214,6 @@ func PrintWarning(format string, noColor bool, args ...interface{}) {
 	}
 }
 
-// PrintInfo prints an info message with blue color
 func PrintInfo(format string, noColor bool, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	if noColor {
@@ -252,7 +224,6 @@ func PrintInfo(format string, noColor bool, args ...interface{}) {
 	}
 }
 
-// FormatConfirmation returns a formatted confirmation prompt
 func FormatConfirmation(msg string, noColor bool) string {
 	if noColor {
 		return fmt.Sprintf("%s [y/N]", msg)
@@ -260,7 +231,6 @@ func FormatConfirmation(msg string, noColor bool) string {
 	return fmt.Sprintf("%s %s", msg, color.YellowString("[y/N]"))
 }
 
-// FormatPrompt returns a formatted input prompt
 func FormatPrompt(msg string, noColor bool) string {
 	if noColor {
 		return msg
@@ -268,7 +238,6 @@ func FormatPrompt(msg string, noColor bool) string {
 	return color.BlueString(msg)
 }
 
-// FormatExample colorizes command examples in help text
 func FormatExample(example string, noColor bool) string {
 	if noColor {
 		return example
@@ -276,7 +245,6 @@ func FormatExample(example string, noColor bool) string {
 	return color.CyanString(example)
 }
 
-// FormatCommandName colorizes command names
 func FormatCommandName(name string, noColor bool) string {
 	if noColor {
 		return name
@@ -284,7 +252,6 @@ func FormatCommandName(name string, noColor bool) string {
 	return color.MagentaString(name)
 }
 
-// FormatRequiredFlag highlights required flags in help text
 func FormatRequiredFlag(flag string, description string, noColor bool) string {
 	if noColor {
 		return fmt.Sprintf("%s (REQUIRED): %s", flag, description)
@@ -292,7 +259,6 @@ func FormatRequiredFlag(flag string, description string, noColor bool) string {
 	return fmt.Sprintf("%s: %s", color.YellowString("%s (REQUIRED)", flag), description)
 }
 
-// FormatOptionalFlag formats optional flags in help text
 func FormatOptionalFlag(flag string, description string, noColor bool) string {
 	if noColor {
 		return fmt.Sprintf("%s: %s", flag, description)
@@ -300,7 +266,6 @@ func FormatOptionalFlag(flag string, description string, noColor bool) string {
 	return fmt.Sprintf("%s: %s", color.BlueString(flag), description)
 }
 
-// FormatJSONExample formats JSON examples in help text
 func FormatJSONExample(json string, noColor bool) string {
 	if noColor {
 		return json
@@ -315,13 +280,11 @@ func FormatUID(uid string, noColor bool) string {
 	return color.CyanString(uid)
 }
 
-// stripANSIColors removes ANSI color codes from a string
 func StripANSIColors(s string) string {
 	re := regexp.MustCompile("\x1b\\[[0-9;]*m")
 	return re.ReplaceAllString(s, "")
 }
 
-// Helper functions to format old and new values
 func FormatOldValue(value string, noColor bool) string {
 	if noColor {
 		return value

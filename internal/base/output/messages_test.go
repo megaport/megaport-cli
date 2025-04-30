@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Helper function to capture stdout
 func captureOutput(f func()) string {
 	old := os.Stdout
 	r, w, _ := os.Pipe()
@@ -26,7 +25,6 @@ func captureOutput(f func()) string {
 	var buf bytes.Buffer
 	_, err := io.Copy(&buf, r)
 	if err != nil {
-		// In tests, we can just panic on unexpected IO errors
 		panic(fmt.Sprintf("Failed to copy from pipe: %v", err))
 	}
 	return buf.String()
@@ -67,16 +65,13 @@ func TestPrintSuccess(t *testing.T) {
 }
 
 func TestFormatSuccess(t *testing.T) {
-	// Save original state
 	origNoColor := color.NoColor
 	defer func() { color.NoColor = origNoColor }()
 
-	// Test with color
 	color.NoColor = false
 	result := FormatSuccess("test", false)
-	assert.NotEqual(t, "successfully", result) // With color, should contain ANSI codes
+	assert.NotEqual(t, "successfully", result)
 
-	// Test without color
 	result = FormatSuccess("test", true)
 	assert.Equal(t, "successfully", result)
 }
@@ -175,10 +170,9 @@ func TestSpinner(t *testing.T) {
 	assert.Equal(t, 100*time.Millisecond, spinner.frameRate)
 	assert.True(t, spinner.noColor)
 
-	// Test start and stop
 	output := captureOutput(func() {
 		spinner.Start("Testing spinner")
-		time.Sleep(500 * time.Millisecond) // Let the spinner run briefly
+		time.Sleep(500 * time.Millisecond)
 		spinner.Stop()
 	})
 	assert.NotEmpty(t, output)
@@ -231,10 +225,9 @@ func TestPrintResourceSpinners(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := captureOutput(func() {
 				spinner := tt.function(tt.resourceType, tt.uid, tt.noColor)
-				time.Sleep(200 * time.Millisecond) // Let the spinner show briefly
+				time.Sleep(200 * time.Millisecond)
 				spinner.Stop()
 			})
-			// Since spinner output can vary, just check that our expected message appears
 			assert.Contains(t, output, tt.expected)
 		})
 	}
@@ -243,7 +236,7 @@ func TestPrintResourceSpinners(t *testing.T) {
 func TestPrintResourceListing(t *testing.T) {
 	output := captureOutput(func() {
 		spinner := PrintResourceListing("Port", true)
-		time.Sleep(200 * time.Millisecond) // Let the spinner show briefly
+		time.Sleep(200 * time.Millisecond)
 		spinner.Stop()
 	})
 	assert.Contains(t, output, "Listing Ports...")
@@ -289,7 +282,6 @@ func TestFormatConfirmation(t *testing.T) {
 	result := FormatConfirmation("Delete this resource?", true)
 	assert.Equal(t, "Delete this resource? [y/N]", result)
 
-	// Need to force color.NoColor to false to test colored output
 	oldNoColor := color.NoColor
 	color.NoColor = false
 	defer func() { color.NoColor = oldNoColor }()
@@ -297,19 +289,17 @@ func TestFormatConfirmation(t *testing.T) {
 	result = FormatConfirmation("Delete this resource?", false)
 	assert.Contains(t, result, "Delete this resource?")
 	assert.Contains(t, result, "[y/N]")
-	assert.NotEqual(t, "Delete this resource? [y/N]", result) // Should contain ANSI codes
+	assert.NotEqual(t, "Delete this resource? [y/N]", result)
 }
 
 func TestFormatPrompt(t *testing.T) {
 	result := FormatPrompt("Enter name:", true)
 	assert.Equal(t, "Enter name:", result)
 
-	// Need to force color.NoColor to false to test colored output
 	oldNoColor := color.NoColor
 	color.NoColor = false
 	defer func() { color.NoColor = oldNoColor }()
 
-	// With color will add ANSI codes
 	result = FormatPrompt("Enter name:", false)
 	assert.NotEqual(t, "Enter name:", result)
 	assert.Contains(t, StripANSIColors(result), "Enter name:")
@@ -319,12 +309,10 @@ func TestFormatExample(t *testing.T) {
 	result := FormatExample("megaport-cli port list", true)
 	assert.Equal(t, "megaport-cli port list", result)
 
-	// Need to force color.NoColor to false to test colored output
 	oldNoColor := color.NoColor
 	color.NoColor = false
 	defer func() { color.NoColor = oldNoColor }()
 
-	// With color should add ANSI codes
 	result = FormatExample("megaport-cli port list", false)
 	assert.NotEqual(t, "megaport-cli port list", result)
 	assert.Contains(t, StripANSIColors(result), "megaport-cli port list")
@@ -334,12 +322,10 @@ func TestFormatCommandName(t *testing.T) {
 	result := FormatCommandName("port list", true)
 	assert.Equal(t, "port list", result)
 
-	// Need to force color.NoColor to false to test colored output
 	oldNoColor := color.NoColor
 	color.NoColor = false
 	defer func() { color.NoColor = oldNoColor }()
 
-	// With color should add ANSI codes
 	result = FormatCommandName("port list", false)
 	assert.NotEqual(t, "port list", result)
 	assert.Contains(t, StripANSIColors(result), "port list")
@@ -349,12 +335,10 @@ func TestFormatRequiredFlag(t *testing.T) {
 	result := FormatRequiredFlag("--name", "Name of the resource", true)
 	assert.Equal(t, "--name (REQUIRED): Name of the resource", result)
 
-	// Need to force color.NoColor to false to test colored output
 	oldNoColor := color.NoColor
 	color.NoColor = false
 	defer func() { color.NoColor = oldNoColor }()
 
-	// With color should add ANSI codes
 	result = FormatRequiredFlag("--name", "Name of the resource", false)
 	assert.NotEqual(t, "--name (REQUIRED): Name of the resource", result)
 	assert.Contains(t, StripANSIColors(result), "--name (REQUIRED): Name of the resource")
@@ -364,12 +348,10 @@ func TestFormatOptionalFlag(t *testing.T) {
 	result := FormatOptionalFlag("--location-id", "ID of the location", true)
 	assert.Equal(t, "--location-id: ID of the location", result)
 
-	// Need to force color.NoColor to false to test colored output
 	oldNoColor := color.NoColor
 	color.NoColor = false
 	defer func() { color.NoColor = oldNoColor }()
 
-	// With color should add ANSI codes
 	result = FormatOptionalFlag("--location-id", "ID of the location", false)
 	assert.NotEqual(t, "--location-id: ID of the location", result)
 	assert.Contains(t, StripANSIColors(result), "--location-id: ID of the location")
@@ -380,12 +362,10 @@ func TestFormatJSONExample(t *testing.T) {
 	result := FormatJSONExample(json, true)
 	assert.Equal(t, json, result)
 
-	// Need to force color.NoColor to false to test colored output
 	oldNoColor := color.NoColor
 	color.NoColor = false
 	defer func() { color.NoColor = oldNoColor }()
 
-	// With color should add ANSI codes
 	result = FormatJSONExample(json, false)
 	assert.NotEqual(t, json, result)
 	assert.Contains(t, StripANSIColors(result), json)
@@ -395,12 +375,10 @@ func TestFormatUID(t *testing.T) {
 	result := FormatUID("port-123", true)
 	assert.Equal(t, "port-123", result)
 
-	// Need to force color.NoColor to false to test colored output
 	oldNoColor := color.NoColor
 	color.NoColor = false
 	defer func() { color.NoColor = oldNoColor }()
 
-	// With color should add ANSI codes
 	result = FormatUID("port-123", false)
 	assert.NotEqual(t, "port-123", result)
 	assert.Contains(t, StripANSIColors(result), "port-123")
@@ -416,12 +394,10 @@ func TestFormatOldValue(t *testing.T) {
 	result := FormatOldValue("old-value", true)
 	assert.Equal(t, "old-value", result)
 
-	// Need to force color.NoColor to false to test colored output
 	oldNoColor := color.NoColor
 	color.NoColor = false
 	defer func() { color.NoColor = oldNoColor }()
 
-	// With color should add ANSI codes
 	result = FormatOldValue("old-value", false)
 	assert.NotEqual(t, "old-value", result)
 	assert.Contains(t, StripANSIColors(result), "old-value")
@@ -431,12 +407,10 @@ func TestFormatNewValue(t *testing.T) {
 	result := FormatNewValue("new-value", true)
 	assert.Equal(t, "new-value", result)
 
-	// Need to force color.NoColor to false to test colored output
 	oldNoColor := color.NoColor
 	color.NoColor = false
 	defer func() { color.NoColor = oldNoColor }()
 
-	// With color should add ANSI codes
 	result = FormatNewValue("new-value", false)
 	assert.NotEqual(t, "new-value", result)
 	assert.Contains(t, StripANSIColors(result), "new-value")

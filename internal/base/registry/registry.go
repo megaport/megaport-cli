@@ -6,10 +6,7 @@ import (
 
 // Module is the interface that all command modules must implement
 type Module interface {
-	// Name returns the module's name
 	Name() string
-
-	// RegisterCommands registers the module's commands with the root command
 	RegisterCommands(rootCmd *cobra.Command)
 }
 
