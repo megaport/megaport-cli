@@ -5,9 +5,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// AddCommandsTo builds the partners commands and adds them to the root command
 func AddCommandsTo(rootCmd *cobra.Command) {
-	// Create partners parent command
 	partnersCmd := cmdbuilder.NewCommand("partners", "Manage partner ports in the Megaport API").
 		WithLongDesc("Manage partner ports in the Megaport API.\n\nThis command groups all operations related to partner ports. You can use its subcommands to list and filter available partner ports based on specific criteria.").
 		WithExample("partners find").
@@ -16,7 +14,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create list partners command
 	listPartnersCmd := cmdbuilder.NewCommand("list", "List all partner ports").
 		WithLongDesc("List all partner ports available in the Megaport API.\n\nThis command fetches and displays a list of all available partner ports. You can filter the partner ports based on specific criteria.").
 		WithOutputFormatRunFunc(ListPartners).
@@ -41,7 +38,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create find partners command
 	findPartnersCmd := cmdbuilder.NewCommand("find", "Find partner ports interactively").
 		WithLongDesc("Find partner ports using an interactive search with optional filters.\n\nThis command launches an interactive session to help you find partner ports. You'll be prompted for various search criteria, but all prompts are optional. Simply press Enter to skip any filter you don't want to apply.").
 		WithColorAwareRunFunc(FindPartners).
@@ -52,7 +48,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Add commands to their parents
 	partnersCmd.AddCommand(listPartnersCmd, findPartnersCmd)
 	rootCmd.AddCommand(partnersCmd)
 }

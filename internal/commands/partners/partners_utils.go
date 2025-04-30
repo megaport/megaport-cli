@@ -6,7 +6,6 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// filterPartners applies basic in-memory filters to a list of partner ports.
 func filterPartners(
 	partners []*megaport.PartnerMegaport,
 	productName, connectType, companyName string,

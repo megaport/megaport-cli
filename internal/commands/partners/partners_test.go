@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var noColor = true // Disable color for testing
+var noColor = true
 
 var testPartners = []*megaport.PartnerMegaport{
 	{
@@ -136,13 +136,13 @@ func TestFilterPartners(t *testing.T) {
 		})
 	}
 }
+
 func TestPrintPartners_Table(t *testing.T) {
 	output := output.CaptureOutput(func() {
 		err := printPartnersFunc(testPartners, "table", noColor)
 		assert.NoError(t, err)
 	})
 
-	// Check for headers and content
 	assert.Contains(t, output, "NAME")
 	assert.Contains(t, output, "UID")
 	assert.Contains(t, output, "CONNECT TYPE")
@@ -151,7 +151,6 @@ func TestPrintPartners_Table(t *testing.T) {
 	assert.Contains(t, output, "DIVERSITY ZONE")
 	assert.Contains(t, output, "VXC PERMITTED")
 
-	// Check for actual data
 	assert.Contains(t, output, "ProductOne")
 	assert.Contains(t, output, "uid1")
 	assert.Contains(t, output, "TypeA")
@@ -166,7 +165,6 @@ func TestPrintPartners_Table(t *testing.T) {
 	assert.Contains(t, output, "ZoneB")
 	assert.Contains(t, output, "false")
 
-	// Check for box drawing characters
 	assert.Contains(t, output, "┌")
 	assert.Contains(t, output, "┐")
 	assert.Contains(t, output, "└")
@@ -180,13 +178,11 @@ func TestPrintPartners_Table(t *testing.T) {
 func TestPrintPartners_EmptySlice(t *testing.T) {
 	var emptySlice []*megaport.PartnerMegaport
 
-	// Table format with empty slice
 	tableOutput := output.CaptureOutput(func() {
 		err := printPartnersFunc(emptySlice, "table", noColor)
 		assert.NoError(t, err)
 	})
 
-	// Check for headers and box drawing characters in empty table
 	assert.Contains(t, tableOutput, "NAME")
 	assert.Contains(t, tableOutput, "UID")
 	assert.Contains(t, tableOutput, "CONNECT TYPE")
@@ -195,7 +191,6 @@ func TestPrintPartners_EmptySlice(t *testing.T) {
 	assert.Contains(t, tableOutput, "DIVERSITY ZONE")
 	assert.Contains(t, tableOutput, "VXC PERMITTED")
 
-	// Check for box drawing characters
 	assert.Contains(t, tableOutput, "┌")
 	assert.Contains(t, tableOutput, "┐")
 	assert.Contains(t, tableOutput, "└")
@@ -203,15 +198,12 @@ func TestPrintPartners_EmptySlice(t *testing.T) {
 	assert.Contains(t, tableOutput, "│")
 	assert.Contains(t, tableOutput, "─")
 
-	// The rest of this function can remain unchanged
-	// JSON format with empty slice
 	jsonOutput := output.CaptureOutput(func() {
 		err := printPartnersFunc(emptySlice, "json", noColor)
 		assert.NoError(t, err)
 	})
 	assert.Equal(t, "[]\n", jsonOutput)
 
-	// CSV format with empty slice
 	csvOutput := output.CaptureOutput(func() {
 		err := printPartnersFunc(emptySlice, "csv", noColor)
 		assert.NoError(t, err)
