@@ -6,9 +6,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// MockPortService implements the required Port service methods for testing
 type MockPortService struct {
-	// Optional fields to customize behavior
 	GetPortErr                      error
 	GetPortResult                   *megaport.Port
 	ListPortsErr                    error
@@ -22,30 +20,28 @@ type MockPortService struct {
 		PortID string
 		VLANID int
 	}
-	DeletePortErr         error
-	DeletePortResult      *megaport.DeletePortResponse
-	CapturedDeletePortUID string
-
+	DeletePortErr              error
+	DeletePortResult           *megaport.DeletePortResponse
+	CapturedDeletePortUID      string
 	ListPortResourceTagsErr    error
 	ListPortResourceTagsResult map[string]string
 	CapturedResourceTagPortUID string
 	CapturedResourceTags       map[string]string
-
-	ValidatePortOrderErr      error
-	ModifyPortErr             error
-	ModifyPortResult          *megaport.ModifyPortResponse
-	CapturedModifyPortRequest *megaport.ModifyPortRequest
-	RestorePortErr            error
-	RestorePortResult         *megaport.RestorePortResponse
-	CapturedRestorePortUID    string
-	LockPortErr               error
-	LockPortResult            *megaport.LockPortResponse
-	CapturedLockPortUID       string
-	UnlockPortErr             error
-	UnlockPortResult          *megaport.UnlockPortResponse
-	CapturedUnlockPortUID     string
-	UpdatePortResourceTagsErr error
-	CapturedUpdateTagsRequest struct {
+	ValidatePortOrderErr       error
+	ModifyPortErr              error
+	ModifyPortResult           *megaport.ModifyPortResponse
+	CapturedModifyPortRequest  *megaport.ModifyPortRequest
+	RestorePortErr             error
+	RestorePortResult          *megaport.RestorePortResponse
+	CapturedRestorePortUID     string
+	LockPortErr                error
+	LockPortResult             *megaport.LockPortResponse
+	CapturedLockPortUID        string
+	UnlockPortErr              error
+	UnlockPortResult           *megaport.UnlockPortResponse
+	CapturedUnlockPortUID      string
+	UpdatePortResourceTagsErr  error
+	CapturedUpdateTagsRequest  struct {
 		PortID string
 		Tags   map[string]string
 	}
@@ -79,7 +75,6 @@ func (m *MockPortService) ListPorts(ctx context.Context) ([]*megaport.Port, erro
 
 func (m *MockPortService) BuyPort(ctx context.Context, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
 	m.CapturedRequest = req
-
 	if m.BuyPortErr != nil {
 		return nil, m.BuyPortErr
 	}
@@ -94,25 +89,20 @@ func (m *MockPortService) BuyPort(ctx context.Context, req *megaport.BuyPortRequ
 func (m *MockPortService) CheckPortVLANAvailability(ctx context.Context, portID string, vlanID int) (bool, error) {
 	m.CapturedVLANRequest.PortID = portID
 	m.CapturedVLANRequest.VLANID = vlanID
-
 	if m.CheckPortVLANAvailabilityErr != nil {
 		return false, m.CheckPortVLANAvailabilityErr
 	}
-
 	return m.CheckPortVLANAvailabilityResult, nil
 }
 
 func (m *MockPortService) DeletePort(ctx context.Context, req *megaport.DeletePortRequest) (*megaport.DeletePortResponse, error) {
 	m.CapturedDeletePortUID = req.PortID
-
 	if m.DeletePortErr != nil {
 		return nil, m.DeletePortErr
 	}
-
 	if m.DeletePortResult != nil {
 		return m.DeletePortResult, nil
 	}
-
 	return &megaport.DeletePortResponse{
 		IsDeleting: true,
 	}, nil
@@ -120,15 +110,12 @@ func (m *MockPortService) DeletePort(ctx context.Context, req *megaport.DeletePo
 
 func (m *MockPortService) ListPortResourceTags(ctx context.Context, portID string) (map[string]string, error) {
 	m.CapturedResourceTagPortUID = portID
-
 	if m.ListPortResourceTagsErr != nil {
 		return nil, m.ListPortResourceTagsErr
 	}
-
 	if m.ListPortResourceTagsResult != nil {
 		return m.ListPortResourceTagsResult, nil
 	}
-
 	return map[string]string{
 		"environment": "test",
 		"owner":       "automation",
@@ -144,15 +131,12 @@ func (m *MockPortService) ValidatePortOrder(ctx context.Context, req *megaport.B
 
 func (m *MockPortService) LockPort(ctx context.Context, portId string) (*megaport.LockPortResponse, error) {
 	m.CapturedLockPortUID = portId
-
 	if m.LockPortErr != nil {
 		return nil, m.LockPortErr
 	}
-
 	if m.LockPortResult != nil {
 		return m.LockPortResult, nil
 	}
-
 	return &megaport.LockPortResponse{
 		IsLocking: true,
 	}, nil
@@ -160,15 +144,12 @@ func (m *MockPortService) LockPort(ctx context.Context, portId string) (*megapor
 
 func (m *MockPortService) ModifyPort(ctx context.Context, req *megaport.ModifyPortRequest) (*megaport.ModifyPortResponse, error) {
 	m.CapturedModifyPortRequest = req
-
 	if m.ModifyPortErr != nil {
 		return nil, m.ModifyPortErr
 	}
-
 	if m.ModifyPortResult != nil {
 		return m.ModifyPortResult, nil
 	}
-
 	return &megaport.ModifyPortResponse{
 		IsUpdated: true,
 	}, nil
@@ -176,15 +157,12 @@ func (m *MockPortService) ModifyPort(ctx context.Context, req *megaport.ModifyPo
 
 func (m *MockPortService) RestorePort(ctx context.Context, portId string) (*megaport.RestorePortResponse, error) {
 	m.CapturedRestorePortUID = portId
-
 	if m.RestorePortErr != nil {
 		return nil, m.RestorePortErr
 	}
-
 	if m.RestorePortResult != nil {
 		return m.RestorePortResult, nil
 	}
-
 	return &megaport.RestorePortResponse{
 		IsRestored: true,
 	}, nil
@@ -192,31 +170,23 @@ func (m *MockPortService) RestorePort(ctx context.Context, portId string) (*mega
 
 func (m *MockPortService) UnlockPort(ctx context.Context, portId string) (*megaport.UnlockPortResponse, error) {
 	m.CapturedUnlockPortUID = portId
-
 	if m.UnlockPortErr != nil {
 		return nil, m.UnlockPortErr
 	}
-
 	if m.UnlockPortResult != nil {
 		return m.UnlockPortResult, nil
 	}
-
 	return &megaport.UnlockPortResponse{
 		IsUnlocking: true,
 	}, nil
 }
 
-// UpdatePortResourceTags implements the megaport.PortServicer interface
 func (m *MockPortService) UpdatePortResourceTags(ctx context.Context, portID string, tags map[string]string) error {
-	// Initialize the map if it's nil
 	if m.CapturedResourceTags == nil {
 		m.CapturedResourceTags = make(map[string]string)
 	}
-
-	// Copy the tags to the captured map
 	for k, v := range tags {
 		m.CapturedResourceTags[k] = v
 	}
-
 	return m.UpdatePortResourceTagsErr
 }
