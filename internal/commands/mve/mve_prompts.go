@@ -10,12 +10,9 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// Interactive prompting for MVE buy details
 func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
-	// Initialize request
 	req := &megaport.BuyMVERequest{}
 
-	// Prompt for required fields
 	name, err := utils.ResourcePrompt("mve", "Enter MVE name (required): ", noColor)
 	if err != nil {
 		return nil, err
@@ -45,7 +42,6 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 	}
 	req.LocationID = locationID
 
-	// Prompt for optional fields
 	diversityZone, err := utils.ResourcePrompt("mve", "Enter diversity zone (optional): ", noColor)
 	if err != nil {
 		return nil, err
@@ -64,7 +60,6 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 	}
 	req.CostCentre = costCentre
 
-	// Prompt for vendor selection
 	vendorStr, err := utils.ResourcePrompt("mve", "Enter vendor (6wind, aruba, aviatrix, cisco, fortinet, palo_alto, prisma, versa, vmware, meraki) (required): ", noColor)
 	if err != nil {
 		return nil, err
@@ -73,7 +68,6 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 		return nil, fmt.Errorf("vendor is required")
 	}
 
-	// Prompt for image ID
 	imageIDStr, err := utils.ResourcePrompt("mve", "Enter image ID (required): ", noColor)
 	if err != nil {
 		return nil, err
@@ -83,7 +77,6 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 		return nil, fmt.Errorf("invalid image ID: %v", err)
 	}
 
-	// Prompt for product size
 	productSize, err := utils.ResourcePrompt("mve", "Enter product size (required): ", noColor)
 	if err != nil {
 		return nil, err
@@ -92,13 +85,11 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 		return nil, fmt.Errorf("product size is required")
 	}
 
-	// Prompt for MVE label
 	mveLabel, err := utils.ResourcePrompt("mve", "Enter MVE label (optional): ", noColor)
 	if err != nil {
 		return nil, err
 	}
 
-	// Configure vendor-specific options based on selected vendor
 	var vendorConfig megaport.VendorConfig
 
 	switch vendorStr {
@@ -330,7 +321,6 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 
 	req.VendorConfig = vendorConfig
 
-	// Prompt for VNICs
 	vnics := []megaport.MVENetworkInterface{}
 	for {
 		fmt.Println("\nEnter VNIC details (leave description empty to finish):")
@@ -338,7 +328,6 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 		if err != nil {
 			return nil, err
 		}
-		// If description is empty, we're done with VNICs
 		if description == "" {
 			break
 		}
@@ -367,7 +356,6 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 
 	req.Vnics = vnics
 
-	// Validate the request
 	if err := validation.ValidateBuyMVERequest(req); err != nil {
 		return nil, err
 	}
@@ -375,14 +363,11 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 	return req, nil
 }
 
-// Interactive prompting for MVE update details
 func promptForUpdateMVEDetails(mveUID string, noColor bool) (*megaport.ModifyMVERequest, error) {
-	// Initialize request with required MVE UID
 	req := &megaport.ModifyMVERequest{
 		MVEID: mveUID,
 	}
 
-	// Prompt for new name (optional)
 	name, err := utils.ResourcePrompt("mve", "Enter new MVE name (leave empty to keep current): ", noColor)
 	if err != nil {
 		return nil, err
@@ -391,7 +376,6 @@ func promptForUpdateMVEDetails(mveUID string, noColor bool) (*megaport.ModifyMVE
 		req.Name = name
 	}
 
-	// Prompt for new cost centre (optional)
 	costCentre, err := utils.ResourcePrompt("mve", "Enter new cost centre (leave empty to keep current): ", noColor)
 	if err != nil {
 		return nil, err
@@ -400,7 +384,6 @@ func promptForUpdateMVEDetails(mveUID string, noColor bool) (*megaport.ModifyMVE
 		req.CostCentre = costCentre
 	}
 
-	// Prompt for new contract term (optional)
 	contractTermStr, err := utils.ResourcePrompt("mve", "Enter new contract term (1, 12, 24, or 36 months, leave empty to keep current): ", noColor)
 	if err != nil {
 		return nil, err
@@ -413,7 +396,6 @@ func promptForUpdateMVEDetails(mveUID string, noColor bool) (*megaport.ModifyMVE
 		req.ContractTermMonths = &contractTerm
 	}
 
-	// Validate the request
 	if err := validation.ValidateUpdateMVERequest(req); err != nil {
 		return nil, err
 	}

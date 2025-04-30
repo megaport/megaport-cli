@@ -5,9 +5,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// AddCommandsTo builds the mve commands and adds them to the root command
 func AddCommandsTo(rootCmd *cobra.Command) {
-	// Create mve parent command
 	mveCmd := cmdbuilder.NewCommand("mve", "Manage Megaport Virtual Edge (MVE) devices").
 		WithLongDesc("Manage Megaport Virtual Edge (MVE) devices.\n\nThis command groups all operations related to Megaport Virtual Edge devices (MVEs). MVEs are virtual networking appliances that run in the Megaport network, providing software-defined networking capabilities from various vendors.").
 		WithExample("megaport-cli mve list").
@@ -21,7 +19,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-		// Create buy MVE command
 	buyMVECmd := cmdbuilder.NewCommand("buy", "Purchase a new Megaport Virtual Edge (MVE) device").
 		WithColorAwareRunFunc(BuyMVE).
 		WithInteractiveFlag().
@@ -76,7 +73,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithConditionalRequirements("name", "term", "location-id", "vendor-config", "vnics").
 		Build()
 
-	// Create get MVE command
 	getMVECmd := cmdbuilder.NewCommand("get", "Get details for a single MVE").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetMVE).
@@ -86,7 +82,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create update MVE command
 	updateMVECmd := cmdbuilder.NewCommand("update", "Update an existing MVE").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(UpdateMVE).
@@ -114,7 +109,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create delete MVE command
 	deleteMVECmd := cmdbuilder.NewCommand("delete", "Delete an existing MVE").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(DeleteMVE).
@@ -129,7 +123,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create list MVE images command
 	listMVEImagesCmd := cmdbuilder.NewCommand("list-images", "List all available MVE images").
 		WithOutputFormatRunFunc(ListMVEImages).
 		WithMVEImageFilterFlags().
@@ -147,7 +140,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create list MVE sizes command
 	listAvailableMVESizesCmd := cmdbuilder.NewCommand("list-sizes", "List all available MVE sizes").
 		WithOutputFormatRunFunc(ListAvailableMVESizes).
 		WithLongDesc("List all available MVE sizes from the Megaport API.\n\nThis command fetches and displays details about all available MVE instance sizes. The size you select determines the MVE's capabilities and compute resources.").
@@ -157,7 +149,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-		// Create list MVEs command
 	listMVEsCmd := cmdbuilder.NewCommand("list", "List all MVEs with optional filters").
 		WithOutputFormatRunFunc(ListMVEs).
 		WithMVEFilterFlags().
@@ -171,7 +162,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create status MVE command
 	statusMVECmd := cmdbuilder.NewCommand("status", "Check the provisioning status of an MVE").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetMVEStatus).
@@ -181,7 +171,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Add list-tags command
 	listTagsCmd := cmdbuilder.NewCommand("list-tags", "List resource tags on a specific MVE").
 		WithLongDesc("Lists all resource tags associated with a specific MVE").
 		WithArgs(cobra.ExactArgs(1)).
@@ -189,7 +178,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli mve list-tags mve-abc123").
 		Build()
 
-	// Add update-tags command
 	updateTagsCmd := cmdbuilder.NewCommand("update-tags", "Update resource tags on a specific MVE").
 		WithLongDesc("Update resource tags associated with a specific MVE. Tags can be provided via interactive prompts, JSON string, or JSON file.").
 		WithArgs(cobra.ExactArgs(1)).
@@ -201,7 +189,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("All existing tags will be replaced with the provided tags. To clear all tags, provide an empty tag set.").
 		Build()
 
-	// Add commands to their parents
 	mveCmd.AddCommand(
 		buyMVECmd,
 		getMVECmd,
@@ -211,8 +198,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		listAvailableMVESizesCmd,
 		listMVEsCmd,
 		statusMVECmd,
-		listTagsCmd,   // Add list-tags
-		updateTagsCmd, // Add update-tags
+		listTagsCmd,
+		updateTagsCmd,
 	)
 	rootCmd.AddCommand(mveCmd)
 }

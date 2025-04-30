@@ -11,19 +11,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Process JSON input (either from string or file) for buying MVE
 func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVERequest, error) {
 	var jsonData map[string]interface{}
 	var err error
 
 	if jsonStr != "" {
-		// Parse JSON from string
 		err = json.Unmarshal([]byte(jsonStr), &jsonData)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing JSON string: %v", err)
 		}
 	} else if jsonFilePath != "" {
-		// Read and parse JSON from file
 		jsonBytes, err := os.ReadFile(jsonFilePath)
 		if err != nil {
 			return nil, fmt.Errorf("error reading JSON file: %v", err)
@@ -34,10 +31,8 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 		}
 	}
 
-	// Create and populate the request with the parsed JSON data
 	req := &megaport.BuyMVERequest{}
 
-	// Map the JSON fields to the request struct
 	if name, ok := jsonData["name"].(string); ok && name != "" {
 		req.Name = name
 	}
@@ -62,7 +57,6 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 		req.CostCentre = costCentre
 	}
 
-	// Process vendor config
 	if vendorConfigMap, ok := jsonData["vendorConfig"].(map[string]interface{}); ok {
 		vendorConfig, err := parseVendorConfig(vendorConfigMap)
 		if err != nil {
@@ -71,7 +65,6 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 		req.VendorConfig = vendorConfig
 	}
 
-	// Process vnics
 	if vnicsData, ok := jsonData["vnics"].([]interface{}); ok {
 		vnics := make([]megaport.MVENetworkInterface, 0, len(vnicsData))
 		for _, vnicData := range vnicsData {
@@ -92,7 +85,6 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 		req.Vnics = vnics
 	}
 
-	// Validate the request
 	if err := validation.ValidateBuyMVERequest(req); err != nil {
 		return nil, err
 	}
@@ -100,9 +92,7 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 	return req, nil
 }
 
-// Process flag-based input for buying MVE
 func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error) {
-	// Get flag values
 	name, _ := cmd.Flags().GetString("name")
 	term, _ := cmd.Flags().GetInt("term")
 	locationID, _ := cmd.Flags().GetInt("location-id")
@@ -112,7 +102,6 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 	vendorConfigStr, _ := cmd.Flags().GetString("vendor-config")
 	vnicsStr, _ := cmd.Flags().GetString("vnics")
 
-	// Parse vendor config JSON string
 	var vendorConfig megaport.VendorConfig
 	if vendorConfigStr != "" {
 		var vendorConfigMap map[string]interface{}
@@ -126,7 +115,6 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 		}
 	}
 
-	// Parse VNics JSON string
 	var vnics []megaport.MVENetworkInterface
 	if vnicsStr != "" {
 		var vnicsData []interface{}
@@ -153,7 +141,6 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 		}
 	}
 
-	// Build the request
 	req := &megaport.BuyMVERequest{
 		Name:          name,
 		Term:          term,
@@ -165,7 +152,6 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 		Vnics:         vnics,
 	}
 
-	// Validate the request
 	if err := validation.ValidateBuyMVERequest(req); err != nil {
 		return nil, err
 	}
@@ -173,7 +159,6 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 	return req, nil
 }
 
-// parseVendorConfig parses a vendor config map to the appropriate VendorConfig type
 func parseVendorConfig(vendorConfigMap map[string]interface{}) (megaport.VendorConfig, error) {
 	vendor, ok := vendorConfigMap["vendor"].(string)
 	if !ok {
@@ -206,7 +191,6 @@ func parseVendorConfig(vendorConfigMap map[string]interface{}) (megaport.VendorC
 	}
 }
 
-// Parse vendor config functions
 func parseSixwindConfig(config map[string]interface{}) (*megaport.SixwindVSRConfig, error) {
 	imageID, ok := getImageIDFromMap(config)
 	if !ok {
@@ -608,7 +592,6 @@ func parseMerakiConfig(config map[string]interface{}) (*megaport.MerakiConfig, e
 	}, nil
 }
 
-// Helper functions for parsing maps
 func getStringFromMap(m map[string]interface{}, key string) (string, bool) {
 	val, ok := m[key]
 	if !ok {
@@ -635,19 +618,16 @@ func getBoolFromMap(m map[string]interface{}, key string) (bool, bool) {
 	return b, ok
 }
 
-// Process JSON input (either from string or file) for updating MVE
 func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.ModifyMVERequest, error) {
 	var jsonData map[string]interface{}
 	var err error
 
 	if jsonStr != "" {
-		// Parse JSON from string
 		err = json.Unmarshal([]byte(jsonStr), &jsonData)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing JSON string: %v", err)
 		}
 	} else if jsonFilePath != "" {
-		// Read and parse JSON from file
 		jsonBytes, err := os.ReadFile(jsonFilePath)
 		if err != nil {
 			return nil, fmt.Errorf("error reading JSON file: %v", err)
@@ -658,12 +638,10 @@ func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.
 		}
 	}
 
-	// Create and populate the request with the parsed JSON data
 	req := &megaport.ModifyMVERequest{
 		MVEID: mveUID,
 	}
 
-	// Map the JSON fields to the request struct
 	if name, ok := jsonData["name"].(string); ok && name != "" {
 		req.Name = name
 	}
@@ -677,7 +655,6 @@ func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.
 		req.ContractTermMonths = &termMonths
 	}
 
-	// Validate the request
 	if err := validation.ValidateUpdateMVERequest(req); err != nil {
 		return nil, err
 	}
@@ -685,14 +662,11 @@ func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.
 	return req, nil
 }
 
-// Process flag-based input for updating MVE
 func processFlagUpdateMVEInput(cmd *cobra.Command, mveUID string) (*megaport.ModifyMVERequest, error) {
-	// Get flag values
 	name, _ := cmd.Flags().GetString("name")
 	costCentre, _ := cmd.Flags().GetString("cost-centre")
 	contractTerm, _ := cmd.Flags().GetInt("contract-term")
 
-	// Build the request
 	req := &megaport.ModifyMVERequest{
 		MVEID: mveUID,
 	}
@@ -709,7 +683,6 @@ func processFlagUpdateMVEInput(cmd *cobra.Command, mveUID string) (*megaport.Mod
 		req.ContractTermMonths = &contractTerm
 	}
 
-	// Validate the request
 	if err := validation.ValidateUpdateMVERequest(req); err != nil {
 		return nil, err
 	}

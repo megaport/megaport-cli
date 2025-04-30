@@ -33,7 +33,6 @@ func TestPrintMVEs_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	// Check for headers and content
 	assert.Contains(t, output, "UID")
 	assert.Contains(t, output, "NAME")
 	assert.Contains(t, output, "LOCATION ID")
@@ -41,7 +40,6 @@ func TestPrintMVEs_Table(t *testing.T) {
 	assert.Contains(t, output, "VENDOR")
 	assert.Contains(t, output, "SIZE")
 
-	// Check for actual data
 	assert.Contains(t, output, "mve-1")
 	assert.Contains(t, output, "MyMVEOne")
 	assert.Contains(t, output, "LIVE")
@@ -54,7 +52,6 @@ func TestPrintMVEs_Table(t *testing.T) {
 	assert.Contains(t, output, "palo_alto")
 	assert.Contains(t, output, "medium")
 
-	// Check for box drawing characters
 	assert.Contains(t, output, "┌")
 	assert.Contains(t, output, "┐")
 	assert.Contains(t, output, "└")
@@ -130,7 +127,6 @@ func TestPrintMVEs_EdgeCases(t *testing.T) {
 			format:      "table",
 			shouldError: false,
 			validateFunc: func(t *testing.T, output string) {
-				// For table format, check for box drawing characters and headers
 				assert.Contains(t, output, "UID")
 				assert.Contains(t, output, "NAME")
 				assert.Contains(t, output, "LOCATION ID")
@@ -298,7 +294,6 @@ func TestToMVEOutput_EdgeCases(t *testing.T) {
 }
 
 func TestFilterMVEs(t *testing.T) {
-	// Create test MVEs
 	activeMVEs := []*megaport.MVE{
 		{
 			UID:                "mve-1",
@@ -336,8 +331,8 @@ func TestFilterMVEs(t *testing.T) {
 		locationID   int
 		vendor       string
 		mveName      string
-		expected     int      // number of MVEs after filtering
-		expectedUIDs []string // specific MVE UIDs expected in result
+		expected     int
+		expectedUIDs []string
 	}{
 		{
 			name:         "no filters",
@@ -453,10 +448,8 @@ func TestFilterMVEs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			filtered := filterMVEs(tt.mves, tt.locationID, tt.vendor, tt.mveName)
 
-			// Check the count matches
 			assert.Equal(t, tt.expected, len(filtered), "Filtered MVE count should match expected")
 
-			// Check specific UIDs if provided
 			if len(tt.expectedUIDs) > 0 {
 				actualUIDs := make([]string, len(filtered))
 				for i, mve := range filtered {
