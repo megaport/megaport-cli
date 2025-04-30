@@ -117,7 +117,7 @@ func (s *Spinner) Start(prefix string) {
 	}()
 }
 
-// Stop halts the spinner animation but preserves the last message
+// Stop halts the spinner animation and clears the line
 func (s *Spinner) Stop() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -126,8 +126,8 @@ func (s *Spinner) Stop() {
 	}
 	s.stopped = true
 	s.stop <- true
-	// No longer clearing the line, keeping the last message visible
-	fmt.Print("\r") // Just return to the beginning of the line
+	// Clear the line completely to remove any leftover text
+	fmt.Print("\r\033[K") // \r to return to beginning of line, \033[K to clear to end of line
 }
 
 // StopWithSuccess stops the spinner and shows a success message while preserving the context
@@ -205,6 +205,15 @@ func PrintResourceValidating(resourceType string, noColor bool) *Spinner {
 // PrintLoggingIn shows an animated spinner while logging in to Megaport
 func PrintLoggingIn(noColor bool) *Spinner {
 	msg := "Logging in to Megaport..."
+	spinner := NewSpinner(noColor)
+	spinner.Start(msg)
+	return spinner
+}
+
+// PrintCustomSpinner shows an animated spinner with a custom message
+func PrintCustomSpinner(action, resourceId string, noColor bool) *Spinner {
+	uidFormatted := FormatUID(resourceId, noColor)
+	msg := fmt.Sprintf("%s %s...", action, uidFormatted)
 	spinner := NewSpinner(noColor)
 	spinner.Start(msg)
 	return spinner

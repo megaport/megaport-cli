@@ -152,6 +152,16 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
+	// Create status port command
+	statusPortCmd := cmdbuilder.NewCommand("status", "Check the provisioning status of a port").
+		WithArgs(cobra.ExactArgs(1)).
+		WithOutputFormatRunFunc(GetPortStatus).
+		WithLongDesc("Check the provisioning status of a port through the Megaport API.\n\nThis command retrieves only the essential status information for a port without all the details. It's useful for monitoring ongoing provisioning.").
+		WithExample("megaport-cli ports status port-abc123").
+		WithImportantNote("This is a lightweight command that only shows the port's status without retrieving all details.").
+		WithRootCmd(rootCmd).
+		Build()
+
 	// Create delete port command
 	deletePortCmd := cmdbuilder.NewCommand("delete", "Delete a port from your account").
 		WithArgs(cobra.ExactArgs(1)).
@@ -246,6 +256,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		buyLagCmd,
 		listPortsCmd,
 		getPortCmd,
+		statusPortCmd,
 		updatePortCmd,
 		deletePortCmd,
 		restorePortCmd,

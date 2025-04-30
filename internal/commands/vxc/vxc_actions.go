@@ -365,3 +365,39 @@ func UpdateVXCResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 	fmt.Printf("Resource tags updated for VXC %s\n", vxcUID)
 	return nil
 }
+
+// GetVXCStatus retrieves only the provisioning status of a VXC without all details
+func GetVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	vxcUID := args[0]
+
+	spinner := output.PrintResourceGetting("VXC", vxcUID, noColor)
+
+	vxc, err := client.VXCService.GetVXC(ctx, vxcUID)
+
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to get VXC status: %v", noColor, err)
+		return fmt.Errorf("error getting VXC status: %v", err)
+	}
+
+	status := []VXCStatus{
+		{
+			UID:    vxc.UID,
+			Name:   vxc.Name,
+			Status: vxc.ProvisioningStatus,
+			Type:   vxc.Type,
+		},
+	}
+
+	return output.PrintOutput(status, outputFormat, noColor)
+}

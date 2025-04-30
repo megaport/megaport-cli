@@ -670,3 +670,40 @@ func UpdateMCRResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 	fmt.Printf("Resource tags updated for MCR %s\n", mcrUID)
 	return nil
 }
+
+// GetMCRStatus retrieves only the provisioning status of an MCR without all details
+func GetMCRStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	mcrUID := args[0]
+
+	spinner := output.PrintResourceGetting("MCR", mcrUID, noColor)
+
+	mcr, err := client.MCRService.GetMCR(ctx, mcrUID)
+
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to get MCR status: %v", noColor, err)
+		return fmt.Errorf("error getting MCR status: %v", err)
+	}
+
+	status := []MCRStatus{
+		{
+			UID:    mcr.UID,
+			Name:   mcr.Name,
+			Status: mcr.ProvisioningStatus,
+			ASN:    mcr.Resources.VirtualRouter.ASN,
+			Speed:  mcr.PortSpeed,
+		},
+	}
+
+	return output.PrintOutput(status, outputFormat, noColor)
+}

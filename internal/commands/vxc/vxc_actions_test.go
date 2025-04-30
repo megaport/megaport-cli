@@ -527,3 +527,130 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 		})
 	}
 }
+
+// TestGetVXCStatus tests the status subcommand for VXCs
+func TestGetVXCStatus(t *testing.T) {
+	// Save original functions and restore after test
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name           string
+		vxcUID         string
+		setupMock      func(*mockVXCService)
+		expectedError  string
+		expectedOutput string
+		outputFormat   string
+	}{
+		{
+			name:   "successful status retrieval - table format",
+			vxcUID: "vxc-123abc",
+			setupMock: func(m *mockVXCService) {
+				m.getVXCResponse = &megaport.VXC{
+					UID:                "vxc-123abc",
+					Name:               "Test VXC",
+					ProvisioningStatus: "CONFIGURED",
+					AEndConfiguration: megaport.VXCEndConfiguration{
+						UID: "port-aend",
+					},
+					BEndConfiguration: megaport.VXCEndConfiguration{
+						UID: "port-bend",
+					},
+					RateLimit: 1000,
+				}
+			},
+			expectedOutput: "vxc-123abc",
+			outputFormat:   "table",
+		},
+		{
+			name:   "successful status retrieval - json format",
+			vxcUID: "vxc-123abc",
+			setupMock: func(m *mockVXCService) {
+				m.getVXCResponse = &megaport.VXC{
+					UID:                "vxc-123abc",
+					Name:               "Test VXC",
+					ProvisioningStatus: "LIVE",
+					AEndConfiguration: megaport.VXCEndConfiguration{
+						UID: "port-aend",
+					},
+					BEndConfiguration: megaport.VXCEndConfiguration{
+						UID: "port-bend",
+					},
+					RateLimit: 1000,
+				}
+			},
+			expectedOutput: "vxc-123abc",
+			outputFormat:   "json",
+		},
+		{
+			name:   "VXC not found",
+			vxcUID: "vxc-notfound",
+			setupMock: func(m *mockVXCService) {
+				m.getVXCError = fmt.Errorf("VXC not found")
+			},
+			expectedError: "error getting VXC status",
+			outputFormat:  "table",
+		},
+		{
+			name:   "API error",
+			vxcUID: "vxc-error",
+			setupMock: func(m *mockVXCService) {
+				m.getVXCError = fmt.Errorf("API error")
+			},
+			expectedError: "API error",
+			outputFormat:  "table",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mock service
+			mockService := &mockVXCService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			// Mock the login function
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.VXCService = mockService
+				return client, nil
+			}
+
+			// Create command
+			cmd := &cobra.Command{
+				Use: "status [vxcUID]",
+			}
+
+			// Capture output and run command
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = GetVXCStatus(cmd, []string{tt.vxcUID}, true, tt.outputFormat)
+			})
+
+			// Verify results
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+
+				// Additional checks based on output format
+				if tt.outputFormat == "json" {
+					assert.Contains(t, capturedOutput, "\"uid\":")
+					assert.Contains(t, capturedOutput, "\"name\":")
+					assert.Contains(t, capturedOutput, "\"status\":")
+					assert.Contains(t, capturedOutput, "\"type\":")
+				} else if tt.outputFormat == "table" {
+					assert.Contains(t, capturedOutput, "UID")
+					assert.Contains(t, capturedOutput, "NAME")
+					assert.Contains(t, capturedOutput, "STATUS")
+					assert.Contains(t, capturedOutput, "TYPE")
+				}
+			}
+		})
+	}
+}

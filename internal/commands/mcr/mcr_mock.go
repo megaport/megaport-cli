@@ -169,3 +169,51 @@ func (m *MockMCRService) GetMCRPrefixFilterLists(ctx context.Context, mcrID stri
 	}
 	return m.GetMCRPrefixFilterListsResult, nil
 }
+
+// Reset resets all the fields in the MockMCRService for testing
+func (m *MockMCRService) Reset() {
+	m.BuyMCRResult = nil
+	m.BuyMCRErr = nil
+	m.CapturedBuyMCRRequest = nil
+	m.ValidateMCROrderErr = nil
+	m.GetMCRResult = nil
+	m.GetMCRErr = nil
+	m.ListMCRsResult = nil
+	m.ListMCRsErr = nil
+	m.CapturedListMCRsRequest = nil
+	m.DeleteMCRResult = nil
+	m.DeleteMCRErr = nil
+	m.CapturedDeleteMCRUID = ""
+	m.CapturedMCRUID = ""
+	m.RestoreMCRResult = nil
+	m.RestoreMCRErr = nil
+	m.CapturedRestoreMCRUID = ""
+	m.CreateMCRPrefixFilterListResult = nil
+	m.CreateMCRPrefixFilterListErr = nil
+	m.CapturedCreateMCRPrefixFilterListRequest = nil
+	m.CapturedCreatePrefixFilterListRequest = nil
+	m.CreateMCRPrefixFilterListResponse = nil
+	m.CreateMCRPrefixFilterListError = nil
+	m.CapturedCreatePrefixFilterList = nil
+	m.ListMCRPrefixFilterListsResult = nil
+	m.ListMCRPrefixFilterListsErr = nil
+	m.GetMCRPrefixFilterListResult = nil
+	m.GetMCRPrefixFilterListErr = nil
+	m.ModifyMCRPrefixFilterListResult = nil
+	m.ModifyMCRPrefixFilterListErr = nil
+	m.CapturedModifyMCRPrefixFilterListRequest = nil
+	m.DeleteMCRPrefixFilterListResult = nil
+	m.DeleteMCRPrefixFilterListErr = nil
+	m.ModifyMCRResult = nil
+	m.ModifyMCRErr = nil
+	m.CapturedModifyMCRRequest = nil
+	m.ListMCRResourceTagsResult = nil
+	m.ListMCRResourceTagsErr = nil
+	m.UpdateMCRResourceTagsErr = nil
+	m.CapturedUpdateMCRResourceTagsRequest = nil
+	m.GetMCRPrefixFilterListsResult = nil
+	m.GetMCRPrefixFilterListsErr = nil
+	m.CapturedModifyPrefixFilterListMCRID = ""
+	m.CapturedModifyPrefixFilterListID = 0
+	m.CapturedModifyPrefixFilterList = nil
+}

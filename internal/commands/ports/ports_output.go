@@ -123,3 +123,11 @@ func displayPortChanges(original, updated *megaport.Port, noColor bool) {
 		fmt.Println("  No changes detected")
 	}
 }
+
+type PortStatus struct {
+	UID    string `json:"uid" header:"UID"`
+	Name   string `json:"name" header:"NAME"`
+	Status string `json:"status" header:"STATUS"`
+	Type   string `json:"type" header:"TYPE"`
+	Speed  int    `json:"speed" header:"SPEED"`
+}

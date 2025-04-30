@@ -150,3 +150,10 @@ func displayVXCChanges(original, updated *megaport.VXC, noColor bool) {
 		fmt.Println("  No changes detected")
 	}
 }
+
+type VXCStatus struct {
+	UID    string `json:"uid" header:"UID"`
+	Name   string `json:"name" header:"NAME"`
+	Status string `json:"status" header:"STATUS"`
+	Type   string `json:"type" header:"TYPE"`
+}
