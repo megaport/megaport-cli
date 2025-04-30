@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var noColor = true // Disable color for testing
+var noColor = true
 
 var testMCRs = []*megaport.MCR{
 	{
@@ -43,7 +43,6 @@ func TestPrintMCRs_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	// Now we check for box drawing characters and content
 	assert.Contains(t, output, "UID")
 	assert.Contains(t, output, "NAME")
 	assert.Contains(t, output, "LOCATION ID")
@@ -51,7 +50,6 @@ func TestPrintMCRs_Table(t *testing.T) {
 	assert.Contains(t, output, "ASN")
 	assert.Contains(t, output, "SPEED")
 
-	// Check for actual data
 	assert.Contains(t, output, "mcr-1")
 	assert.Contains(t, output, "MyMCROne")
 	assert.Contains(t, output, "ACTIVE")
@@ -62,7 +60,6 @@ func TestPrintMCRs_Table(t *testing.T) {
 	assert.Contains(t, output, "INACTIVE")
 	assert.Contains(t, output, "64513")
 
-	// Check for box drawing characters
 	assert.Contains(t, output, "┌")
 	assert.Contains(t, output, "┐")
 	assert.Contains(t, output, "└")
@@ -170,7 +167,6 @@ func TestPrintMCRs_EmptyAndNilSlice(t *testing.T) {
 			})
 
 			if tt.format == "table" {
-				// For table format, check for box drawing characters and headers
 				assert.Contains(t, output, "UID")
 				assert.Contains(t, output, "NAME")
 				assert.Contains(t, output, "LOCATION ID")
@@ -184,11 +180,9 @@ func TestPrintMCRs_EmptyAndNilSlice(t *testing.T) {
 				assert.Contains(t, output, "│")
 				assert.Contains(t, output, "─")
 			} else if tt.format == "csv" {
-				// For CSV format, check for headers only
 				expected := "uid,name,location_id,provisioning_status,asn,speed\n"
 				assert.Equal(t, expected, output)
 			} else if tt.format == "json" {
-				// For JSON format, check for empty array
 				assert.Equal(t, "[]\n", output)
 			}
 		})
@@ -253,8 +247,8 @@ func TestFilterMCRs(t *testing.T) {
 		locationID   int
 		portSpeed    int
 		mcrName      string
-		expected     int      // number of MCRs after filtering
-		expectedUIDs []string // specific MCR UIDs expected in result
+		expected     int
+		expectedUIDs []string
 	}{
 		{
 			name:         "no filters",
@@ -361,10 +355,8 @@ func TestFilterMCRs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			filtered := filterMCRs(tt.mcrs, tt.locationID, tt.portSpeed, tt.mcrName)
 
-			// Check the count matches
 			assert.Equal(t, tt.expected, len(filtered), "Filtered MCR count should match expected")
 
-			// Check specific UIDs if provided
 			if len(tt.expectedUIDs) > 0 {
 				actualUIDs := make([]string, len(filtered))
 				for i, mcr := range filtered {

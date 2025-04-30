@@ -39,22 +39,15 @@ var buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megapo
 	return client.PortService.BuyPort(ctx, req)
 }
 
-// filterPorts applies filters to a list of ports
 func filterPorts(ports []*megaport.Port, locationID, portSpeed int, portName string, includeInactive bool) []*megaport.Port {
 	var filtered []*megaport.Port
-
-	// Handle nil slice
 	if ports == nil {
 		return filtered
 	}
-
 	for _, port := range ports {
-		// Skip nil ports
 		if port == nil {
 			continue
 		}
-
-		// Skip inactive ports if not explicitly requested
 		if !includeInactive {
 			if port.ProvisioningStatus == megaport.STATUS_CANCELLED ||
 				port.ProvisioningStatus == megaport.STATUS_DECOMMISSIONED ||
@@ -62,8 +55,6 @@ func filterPorts(ports []*megaport.Port, locationID, portSpeed int, portName str
 				continue
 			}
 		}
-
-		// Apply other filters
 		if locationID > 0 && port.LocationID != locationID {
 			continue
 		}
@@ -73,9 +64,7 @@ func filterPorts(ports []*megaport.Port, locationID, portSpeed int, portName str
 		if portName != "" && !strings.Contains(strings.ToLower(port.Name), strings.ToLower(portName)) {
 			continue
 		}
-
 		filtered = append(filtered, port)
 	}
-
 	return filtered
 }

@@ -6,7 +6,6 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// mockPartnerService implements the PartnerService interface for testing
 type mockPartnerService struct {
 	listPartnersResponse []*megaport.PartnerMegaport
 	listPartnersErr      error

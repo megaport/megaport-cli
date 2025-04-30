@@ -14,17 +14,13 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// Extract the existing interactive prompting into a separate function for updating MCR
 func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCRRequest, error) {
-	// Initialize request with MCR ID
 	req := &megaport.ModifyMCRRequest{
 		MCRID: mcrUID,
 	}
 
-	// Track if any field is updated
 	fieldsUpdated := false
 
-	// Prompt for name (can be skipped with empty input)
 	namePrompt := "Enter new MCR name (leave empty to skip): "
 	name, err := utils.ResourcePrompt("mcr", namePrompt, noColor)
 	if err != nil {
@@ -35,7 +31,6 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 		fieldsUpdated = true
 	}
 
-	// Prompt for cost centre (optional)
 	costCentrePrompt := "Enter new cost centre (leave empty to skip): "
 	costCentre, err := utils.ResourcePrompt("mcr", costCentrePrompt, noColor)
 	if err != nil {
@@ -46,7 +41,6 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 		fieldsUpdated = true
 	}
 
-	// Prompt for marketplace visibility
 	marketplaceVisibilityPrompt := "Update marketplace visibility? (yes/no, leave empty to skip): "
 	marketplaceVisibilityStr, err := utils.ResourcePrompt("mcr", marketplaceVisibilityPrompt, noColor)
 	if err != nil {
@@ -64,7 +58,6 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 		fieldsUpdated = true
 	}
 
-	// Prompt for term (optional)
 	termPrompt := "Enter new term (1, 12, 24, or 36 months, leave empty to skip): "
 	termStr, err := utils.ResourcePrompt("mcr", termPrompt, noColor)
 	if err != nil {
@@ -76,7 +69,6 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 			return nil, fmt.Errorf("invalid term: %v", err)
 		}
 
-		// Validate term value
 		if term != 1 && term != 12 && term != 24 && term != 36 {
 			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
 		}
@@ -85,19 +77,16 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 		fieldsUpdated = true
 	}
 
-	// Make sure at least one field is being updated
 	if !fieldsUpdated {
 		return nil, fmt.Errorf("at least one field must be updated")
 	}
 
-	// Set common defaults
 	req.WaitForUpdate = true
 	req.WaitForTime = 10 * time.Minute
 
 	return req, nil
 }
 
-// Extract the existing interactive prompting into a separate function for MCR
 func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 	name, err := utils.ResourcePrompt("mcr", "Enter MCR name (required): ", noColor)
 	if err != nil {
@@ -150,7 +139,6 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 		asn = asnValue
 	}
 
-	// Optional fields
 	diversityZone, err := utils.ResourcePrompt("mcr", "Enter diversity zone (optional): ", noColor)
 	if err != nil {
 		return nil, err
@@ -166,7 +154,6 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 		return nil, err
 	}
 
-	// Prompt for resource tags
 	resourceTags, err := utils.ResourceTagsPrompt(noColor)
 	if err != nil {
 		return nil, err
@@ -184,7 +171,6 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 		ResourceTags:  resourceTags,
 	}
 
-	// Validate the request
 	if err := validation.ValidateMCRRequest(req); err != nil {
 		return nil, err
 	}
@@ -209,7 +195,6 @@ func promptForPrefixFilterListDetails(mcrUID string, noColor bool) (*megaport.Cr
 		return nil, fmt.Errorf("invalid address family, must be IPv4 or IPv6")
 	}
 
-	// Prompt for entries
 	entries := []*megaport.MCRPrefixListEntry{}
 	for {
 		fmt.Println("Add a new prefix filter entry (leave prefix blank to finish):")
@@ -301,11 +286,9 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 		description = currentPrefixFilterList.Description
 	}
 
-	// Just display the address family but don't allow changing it
 	fmt.Printf("Address family: %s (cannot be changed after creation)\n", currentPrefixFilterList.AddressFamily)
 	addressFamily := currentPrefixFilterList.AddressFamily
 
-	// Initialize a zero-length slice with capacity to hold existing entries
 	entries := make([]*megaport.MCRPrefixListEntry, 0, len(currentPrefixFilterList.Entries))
 
 	modifyExisting, err := utils.ResourcePrompt("mcr", "Do you want to modify existing entries? (yes/no): ", noColor)
@@ -314,7 +297,6 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 	}
 
 	if strings.ToLower(modifyExisting) != "yes" {
-		// Just keep existing entries as is
 		entries = append(entries, currentPrefixFilterList.Entries...)
 	} else {
 		for i, entry := range currentPrefixFilterList.Entries {
@@ -457,7 +439,7 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 	prefixFilterList := &megaport.MCRPrefixFilterList{
 		ID:            prefixFilterListID,
 		Description:   description,
-		AddressFamily: addressFamily, // Always use current address family
+		AddressFamily: addressFamily,
 		Entries:       entries,
 	}
 

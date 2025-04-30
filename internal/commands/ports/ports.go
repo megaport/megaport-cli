@@ -23,6 +23,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
+		// Create buy port command
 	buyPortCmd := cmdbuilder.NewCommand("buy", "Buy a port through the Megaport API").
 		WithColorAwareRunFunc(BuyPort).
 		WithInteractiveFlag().
@@ -116,10 +117,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("marketplace-visibility", "Whether the port should be visible in the marketplace (true or false)").
 		WithOptionalFlag("cost-centre", "The cost centre for billing purposes").
 		WithOptionalFlag("term", "The new contract term in months (1, 12, 24, or 36)").
-		// At least one flag must be provided when not using interactive or JSON
 		WithImportantNote("At least one update flag must be provided when not using --interactive, --json, or --json-file").
 		WithRootCmd(rootCmd).
-		// Ensure at least one flag is set, but only when not using interactive/JSON
 		WithConditionalRequirements("at_least_one:name,marketplace-visibility,cost-centre,term").
 		Build()
 

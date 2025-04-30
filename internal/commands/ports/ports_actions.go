@@ -236,7 +236,6 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 	return nil
 }
 
-// GetPortStatus retrieves only the provisioning status of a Port without all details
 func GetPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -273,7 +272,6 @@ func GetPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	return output.PrintOutput(status, outputFormat, noColor)
 }
 
-// UpdatePort handles updating an existing port
 func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx := context.Background()
 	client, err := config.Login(ctx)
@@ -548,7 +546,6 @@ func CheckPortVLANAvailability(cmd *cobra.Command, args []string, noColor bool) 
 	return nil
 }
 
-// ListPortResourceTags retrieves and displays resource tags for a port
 func ListPortResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	portUID := args[0]
 
@@ -579,7 +576,6 @@ func ListPortResourceTags(cmd *cobra.Command, args []string, noColor bool, outpu
 	return output.PrintOutput(tags, outputFormat, noColor)
 }
 
-// UpdatePortResourceTags updates resource tags for a port
 func UpdatePortResourceTags(cmd *cobra.Command, args []string, noColor bool) error {
 	portUID := args[0]
 
@@ -613,7 +609,6 @@ func UpdatePortResourceTags(cmd *cobra.Command, args []string, noColor bool) err
 		jsonStr, _ := cmd.Flags().GetString("json")
 		jsonFile, _ := cmd.Flags().GetString("json-file")
 
-		// Support deprecated flags for tests
 		tagsStr, _ := cmd.Flags().GetString("tags")
 		tagsFile, _ := cmd.Flags().GetString("tags-file")
 		resourceTagsStr, _ := cmd.Flags().GetString("resource-tags")

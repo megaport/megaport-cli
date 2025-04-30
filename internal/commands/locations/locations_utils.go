@@ -6,7 +6,6 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// filterLocations filters the provided locations based on the given filters.
 func filterLocations(locations []*megaport.Location, filters map[string]string) []*megaport.Location {
 	var filtered []*megaport.Location
 	for _, loc := range locations {
@@ -25,6 +24,5 @@ func filterLocations(locations []*megaport.Location, filters map[string]string) 
 }
 
 var listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Location, error) {
-	// List locations using the Megaport API client.
 	return client.LocationService.ListLocations(ctx)
 }

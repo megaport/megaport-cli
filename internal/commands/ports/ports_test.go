@@ -84,14 +84,12 @@ func TestPrintPorts_Table(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	// Check for headers and content
 	assert.Contains(t, output, "UID")
 	assert.Contains(t, output, "NAME")
 	assert.Contains(t, output, "LOCATIONID")
 	assert.Contains(t, output, "SPEED")
 	assert.Contains(t, output, "STATUS")
 
-	// Check for actual data
 	assert.Contains(t, output, "port-1")
 	assert.Contains(t, output, "MyPortOne")
 	assert.Contains(t, output, "ACTIVE")
@@ -100,7 +98,6 @@ func TestPrintPorts_Table(t *testing.T) {
 	assert.Contains(t, output, "AnotherPort")
 	assert.Contains(t, output, "INACTIVE")
 
-	// Check for box drawing characters
 	assert.Contains(t, output, "┌")
 	assert.Contains(t, output, "┐")
 	assert.Contains(t, output, "└")
@@ -169,9 +166,9 @@ func TestPrintPorts_EdgeCases(t *testing.T) {
 		ports        []*megaport.Port
 		format       string
 		shouldError  bool
-		validateFunc func(*testing.T, string) // New function to validate output
-		expected     string                   // Keep for JSON validation
-		contains     string                   // For partial matches
+		validateFunc func(*testing.T, string)
+		expected     string
+		contains     string
 	}{
 		{
 			name:        "nil slice",
@@ -179,14 +176,11 @@ func TestPrintPorts_EdgeCases(t *testing.T) {
 			format:      "table",
 			shouldError: false,
 			validateFunc: func(t *testing.T, output string) {
-				// Check for headers and box drawing characters in empty table
 				assert.Contains(t, output, "UID")
 				assert.Contains(t, output, "NAME")
 				assert.Contains(t, output, "LOCATIONID")
 				assert.Contains(t, output, "SPEED")
 				assert.Contains(t, output, "STATUS")
-
-				// Check for box drawing characters
 				assert.Contains(t, output, "┌")
 				assert.Contains(t, output, "┐")
 				assert.Contains(t, output, "└")
@@ -253,7 +247,7 @@ func TestPrintPorts_EdgeCases(t *testing.T) {
 			},
 			format:      "table",
 			shouldError: false,
-			contains:    "INVALID_STATUS", // We just want to check if this status appears
+			contains:    "INVALID_STATUS",
 		},
 	}
 
@@ -329,7 +323,7 @@ func TestFilterPorts_EdgeCases(t *testing.T) {
 			locationID: 0,
 			portSpeed:  1000,
 			portName:   "",
-			expected:   1, // Should skip nil and return valid port
+			expected:   1,
 		},
 		{
 			name: "zero values in port",
@@ -356,7 +350,6 @@ func TestFilterPorts_EdgeCases(t *testing.T) {
 }
 
 func TestFilterPortsWithInactiveFlag(t *testing.T) {
-	// Create test ports with different status values
 	activePorts := []*megaport.Port{
 		{UID: "port-123", Name: "Active Port 1", LocationID: 1, PortSpeed: 1000, ProvisioningStatus: "LIVE"},
 		{UID: "port-456", Name: "Active Port 2", LocationID: 2, PortSpeed: 10000, ProvisioningStatus: "CONFIGURED"},
@@ -370,21 +363,18 @@ func TestFilterPortsWithInactiveFlag(t *testing.T) {
 
 	allPorts := append(activePorts, inactivePorts...)
 
-	// Test with includeInactive = false (default behavior)
 	filtered := filterPorts(allPorts, 0, 0, "", false)
-	assert.Len(t, filtered, 2, "Should only include active ports")
+	assert.Len(t, filtered, 2)
 	assert.Equal(t, "port-123", filtered[0].UID)
 	assert.Equal(t, "port-456", filtered[1].UID)
 
-	// Test with includeInactive = true
 	filtered = filterPorts(allPorts, 0, 0, "", true)
-	assert.Len(t, filtered, 5, "Should include both active and inactive ports")
+	assert.Len(t, filtered, 5)
 
-	// Test with multiple filters including inactive flag
 	filtered = filterPorts(allPorts, 1, 1000, "", false)
-	assert.Len(t, filtered, 1, "Should only include active ports matching all filters")
+	assert.Len(t, filtered, 1)
 	assert.Equal(t, "port-123", filtered[0].UID)
 
 	filtered = filterPorts(allPorts, 1, 1000, "", true)
-	assert.Len(t, filtered, 2, "Should include both active and inactive ports matching all filters")
+	assert.Len(t, filtered, 2)
 }

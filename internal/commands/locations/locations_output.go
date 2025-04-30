@@ -6,7 +6,6 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// LocationOutput represents the complete fields for JSON and CSV output.
 type LocationOutput struct {
 	output.Output `json:"-" header:"-"`
 	ID            int     `json:"id" header:"ID"`
@@ -15,12 +14,11 @@ type LocationOutput struct {
 	Metro         string  `json:"metro" header:"Metro"`
 	SiteCode      string  `json:"site_code" header:"Site Code"`
 	Market        string  `json:"market" header:"Market"`
-	Latitude      float64 `json:"latitude" header:"-"`  // Exclude from table output
-	Longitude     float64 `json:"longitude" header:"-"` // Exclude from table output
+	Latitude      float64 `json:"latitude" header:"-"`
+	Longitude     float64 `json:"longitude" header:"-"`
 	Status        string  `json:"status" header:"Status"`
 }
 
-// ToLocationOutput converts a Location to a LocationOutput.
 func ToLocationOutput(l *megaport.Location) LocationOutput {
 	return LocationOutput{
 		ID:        l.ID,
@@ -35,7 +33,6 @@ func ToLocationOutput(l *megaport.Location) LocationOutput {
 	}
 }
 
-// LocationTableOutput is a compact version for table display
 type LocationTableOutput struct {
 	ID       int    `header:"ID"`
 	Name     string `header:"Name"`
@@ -45,7 +42,6 @@ type LocationTableOutput struct {
 	Status   string `header:"Status"`
 }
 
-// ToLocationTableOutput converts a Location to a LocationTableOutput.
 func ToLocationTableOutput(l *megaport.Location) LocationTableOutput {
 	return LocationTableOutput{
 		ID:       l.ID,
@@ -57,9 +53,7 @@ func ToLocationTableOutput(l *megaport.Location) LocationTableOutput {
 	}
 }
 
-// printLocations prints the locations in the specified output format.
 func printLocations(locations []*megaport.Location, format string, noColor bool) error {
-	// For table format, use the compact version
 	if format == utils.FormatTable {
 		tableOutputs := make([]LocationTableOutput, 0, len(locations))
 		for _, loc := range locations {
@@ -68,7 +62,6 @@ func printLocations(locations []*megaport.Location, format string, noColor bool)
 		return output.PrintOutput(tableOutputs, format, noColor)
 	}
 
-	// For JSON and CSV formats, use the full output
 	outputs := make([]LocationOutput, 0, len(locations))
 	for _, loc := range locations {
 		outputs = append(outputs, ToLocationOutput(loc))

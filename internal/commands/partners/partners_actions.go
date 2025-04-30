@@ -21,12 +21,8 @@ func ListPartners(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
-	// Start the spinner for better visual feedback
 	spinner := output.PrintResourceListing("partner", noColor)
-
 	partners, err := client.PartnerService.ListPartnerMegaports(ctx)
-
-	// Stop the spinner
 	spinner.Stop()
 
 	if err != nil {
@@ -34,14 +30,12 @@ func ListPartners(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 		return fmt.Errorf("error listing partners: %v", err)
 	}
 
-	// Get filter values from flags
 	productName, _ := cmd.Flags().GetString("product-name")
 	connectType, _ := cmd.Flags().GetString("connect-type")
 	companyName, _ := cmd.Flags().GetString("company-name")
 	locationID, _ := cmd.Flags().GetInt("location-id")
 	diversityZone, _ := cmd.Flags().GetString("diversity-zone")
 
-	// Apply filters
 	filteredPartners := filterPartners(partners, productName, connectType, companyName, locationID, diversityZone)
 
 	if len(filteredPartners) == 0 {
@@ -50,7 +44,6 @@ func ListPartners(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 		output.PrintInfo("Found %d partner ports matching the specified filters", noColor, len(filteredPartners))
 	}
 
-	// output.Print partners with current output format
 	err = printPartnersFunc(filteredPartners, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to output.Print partner ports: %v", noColor, err)
@@ -59,7 +52,6 @@ func ListPartners(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	return nil
 }
 
-// FindPartners implements the interactive search functionality for partner ports.
 func FindPartners(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -72,12 +64,8 @@ func FindPartners(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
-	// Start the spinner for better visual feedback
 	spinner := output.PrintResourceListing("partner", noColor)
-
 	partners, err := client.PartnerService.ListPartnerMegaports(ctx)
-
-	// Stop the spinner
 	spinner.Stop()
 
 	if err != nil {
@@ -85,7 +73,6 @@ func FindPartners(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("error listing partners: %v", err)
 	}
 
-	// Collect filters interactively
 	output.PrintInfo("Filter partner ports - press Enter to skip any filter", noColor)
 	output.PrintInfo("----------------------------------------------------", noColor)
 
@@ -107,7 +94,6 @@ func FindPartners(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	// Handle numeric input for location ID
 	var locationID int
 	locationIDStr, err := utils.Prompt("Location ID (numeric): ", noColor)
 	if err != nil {
@@ -127,26 +113,21 @@ func FindPartners(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	// Prompt for output format
 	format, err := utils.Prompt("Output format [table/json] (default: table): ", noColor)
 	if err != nil {
 		output.PrintError("Failed to get output format: %v", noColor, err)
 		return err
 	}
 
-	// Set output format - default to table if not specified
 	selectedFormat := "table"
 	if format == "json" {
 		selectedFormat = "json"
 	}
 
-	// Apply filters
 	filteredPartners := filterPartners(partners, productName, connectType, companyName, locationID, diversityZone)
 
-	// Show count of results
 	output.PrintInfo("Found %d matching partner ports", noColor, len(filteredPartners))
 
-	// output.Print partners with selected output format
 	err = printPartnersFunc(filteredPartners, selectedFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to output.Print partner ports: %v", noColor, err)

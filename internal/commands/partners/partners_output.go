@@ -5,7 +5,6 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// PartnerOutput represents the desired fields for JSON output.
 type PartnerOutput struct {
 	output.Output `json:"-" header:"-"`
 	ProductName   string `json:"product_name" header:"Name"`
@@ -17,7 +16,6 @@ type PartnerOutput struct {
 	VXCPermitted  bool   `json:"vxc_permitted" header:"VXC Permitted"`
 }
 
-// ToPartnerOutput converts a PartnerMegaport to a PartnerOutput.
 func ToPartnerOutput(p *megaport.PartnerMegaport) PartnerOutput {
 	return PartnerOutput{
 		ProductName:   p.ProductName,
@@ -30,14 +28,10 @@ func ToPartnerOutput(p *megaport.PartnerMegaport) PartnerOutput {
 	}
 }
 
-// printPartners prints the partner ports in the specified output format.
 var printPartnersFunc = func(partners []*megaport.PartnerMegaport, format string, noColor bool) error {
-	// Convert partners to output format
 	outputs := make([]PartnerOutput, 0, len(partners))
 	for _, partner := range partners {
 		outputs = append(outputs, ToPartnerOutput(partner))
 	}
-
-	// Use generic printOutput function
 	return output.PrintOutput(outputs, format, noColor)
 }

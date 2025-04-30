@@ -508,7 +508,6 @@ func DeleteMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	return nil
 }
 
-// ListMCRs retrieves and prints a list of MCRs based on the provided filters.
 func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -566,7 +565,6 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	return nil
 }
 
-// ListMCRResourceTags retrieves and displays resource tags for an MCR
 func ListMCRResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	mcrUID := args[0]
 
@@ -596,7 +594,6 @@ func ListMCRResourceTags(cmd *cobra.Command, args []string, noColor bool, output
 	return output.PrintOutput(tags, outputFormat, noColor)
 }
 
-// UpdateMCRResourceTags updates resource tags for an MCR
 func UpdateMCRResourceTags(cmd *cobra.Command, args []string, noColor bool) error {
 	mcrUID := args[0]
 
@@ -671,7 +668,6 @@ func UpdateMCRResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 	return nil
 }
 
-// GetMCRStatus retrieves only the provisioning status of an MCR without all details
 func GetMCRStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

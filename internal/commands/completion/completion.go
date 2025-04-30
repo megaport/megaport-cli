@@ -7,9 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// AddCommandsTo builds the completion command and adds it to the root command
 func AddCommandsTo(rootCmd *cobra.Command) {
-	// Create completion command using command builder
 	completionCmd := cmdbuilder.NewCommand("completion", "Generate completion script").
 		WithArgs(cobra.ExactArgs(1)).
 		WithRunFunc(RunCompletion).
@@ -28,7 +26,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(completionCmd)
 }
 
-// RunCompletion handles the completion command execution
 func RunCompletion(cmd *cobra.Command, args []string) error {
 	switch args[0] {
 	case "bash":

@@ -169,7 +169,6 @@ func TestListMVEImages(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a test-specific command structure
 			rootCmd := &cobra.Command{Use: "megaport"}
 			mveCmd := &cobra.Command{Use: "mve"}
 
@@ -182,23 +181,19 @@ func TestListMVEImages(t *testing.T) {
 						return err
 					}
 
-					// Get parameters from flags
 					vendor, _ := cmd.Flags().GetString("vendor")
 					productCode, _ := cmd.Flags().GetString("product-code")
 					id, _ := cmd.Flags().GetInt("id")
 					version, _ := cmd.Flags().GetString("version")
 					releaseImage, _ := cmd.Flags().GetBool("release-image")
 
-					// Fetch images from mock service (provided by loginFunc)
 					images, err := client.MVEService.ListMVEImages(ctx)
 					if err != nil {
 						return err
 					}
 
-					// Filter images based on flags
 					filteredImages := filterMVEImages(images, vendor, productCode, id, version, releaseImage)
 
-					// Print the images as a table
 					for _, img := range filteredImages {
 						fmt.Printf("%d    %s       %s    %s     %s      %t           %s\n",
 							img.ID, img.Version, img.Product, img.Vendor, img.VendorDescription, img.ReleaseImage, img.ProductCode)
@@ -208,21 +203,17 @@ func TestListMVEImages(t *testing.T) {
 				},
 			}
 
-			// Add flags to the command
 			listImagesCmd.Flags().String("vendor", "", "Filter by vendor")
 			listImagesCmd.Flags().String("product-code", "", "Filter by product code")
 			listImagesCmd.Flags().Int("id", 0, "Filter by ID")
 			listImagesCmd.Flags().String("version", "", "Filter by version")
 			listImagesCmd.Flags().Bool("release-image", false, "Filter by release image")
 
-			// Build command hierarchy
 			mveCmd.AddCommand(listImagesCmd)
 			rootCmd.AddCommand(mveCmd)
 
-			// Set arguments for this test case
 			rootCmd.SetArgs(append([]string{"mve", "list-images"}, tt.args...))
 
-			// Capture and check the output
 			output, err := output.CaptureOutputErr(func() error {
 				return rootCmd.Execute()
 			})
@@ -252,7 +243,6 @@ func TestListAvailableMVESizes(t *testing.T) {
 		return client, nil
 	}
 
-	// Create test-specific command structure
 	rootCmd := &cobra.Command{Use: "megaport"}
 	mveCmd := &cobra.Command{Use: "mve"}
 
@@ -265,13 +255,11 @@ func TestListAvailableMVESizes(t *testing.T) {
 				return err
 			}
 
-			// Fetch sizes from mock service
 			sizes, err := client.MVEService.ListAvailableMVESizes(ctx)
 			if err != nil {
 				return err
 			}
 
-			// Print size information
 			for _, size := range sizes {
 				fmt.Printf("%s    %s    %d    %d\n", size.Size, size.Label, size.CPUCoreCount, size.RamGB)
 			}
@@ -280,14 +268,11 @@ func TestListAvailableMVESizes(t *testing.T) {
 		},
 	}
 
-	// Build command hierarchy
 	mveCmd.AddCommand(listSizesCmd)
 	rootCmd.AddCommand(mveCmd)
 
-	// Set arguments
 	rootCmd.SetArgs([]string{"mve", "list-sizes"})
 
-	// Capture and check the output
 	output, err := output.CaptureOutputErr(func() error {
 		return rootCmd.Execute()
 	})
@@ -334,9 +319,9 @@ func TestUpdateMVE(t *testing.T) {
 			args:        []string{"mve-123"},
 			interactive: true,
 			prompts: []string{
-				"Updated MVE",     // name
-				"New Cost Centre", // cost centre
-				"24",              // contract term months
+				"Updated MVE",
+				"New Cost Centre",
+				"24",
 			},
 			mockSetup: func(m *MockMVEService) {
 				m.ModifyMVEResult = &megaport.ModifyMVEResponse{
@@ -421,7 +406,7 @@ func TestUpdateMVE(t *testing.T) {
 			name: "invalid contract term",
 			args: []string{"mve-123"},
 			flags: map[string]string{
-				"contract-term": "13", // Not 1, 12, 24, or 36
+				"contract-term": "13",
 			},
 			expectedError: "Invalid contract term: 13 - must be one of: [1 12 24 36]",
 		},
@@ -450,7 +435,6 @@ func TestUpdateMVE(t *testing.T) {
 				tt.mockSetup(mockService)
 			}
 
-			// Set up prompts
 			promptIndex := 0
 			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
 				if promptIndex < len(tt.prompts) {
@@ -461,7 +445,6 @@ func TestUpdateMVE(t *testing.T) {
 				return "", fmt.Errorf("unexpected prompt call")
 			}
 
-			// Create a fresh command for each test
 			cmd := &cobra.Command{Use: "update"}
 			cmd.Flags().Bool("interactive", tt.interactive, "")
 			cmd.Flags().String("json", "", "")
@@ -470,19 +453,16 @@ func TestUpdateMVE(t *testing.T) {
 			cmd.Flags().String("cost-centre", "", "")
 			cmd.Flags().Int("contract-term", 0, "")
 
-			// Set flag values
 			for flag, value := range tt.flags {
 				err := cmd.Flags().Set(flag, value)
 				assert.NoError(t, err)
 			}
 
-			// Run the command
 			var err error
 			output := output.CaptureOutput(func() {
 				err = UpdateMVE(cmd, tt.args, noColor)
 			})
 
-			// Check results
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -537,7 +517,6 @@ func TestDeleteMVE(t *testing.T) {
 		{
 			name: "deletion cancelled",
 			mockSetup: func(m *MockMVEService) {
-				// No setup needed as deletion won't be called
 			},
 			confirmDelete:  false,
 			expectedOutput: "Deletion cancelled",
@@ -573,12 +552,10 @@ func TestDeleteMVE(t *testing.T) {
 				return client, nil
 			}
 
-			// Mock the confirmation prompt
 			utils.ConfirmPrompt = func(question string, _ bool) bool {
 				return tt.confirmDelete
 			}
 
-			// Create a new command for testing
 			cmd := &cobra.Command{
 				Use: "delete",
 				RunE: func(cmd *cobra.Command, args []string) error {
@@ -639,27 +616,27 @@ func TestBuyMVE(t *testing.T) {
 			args:        []string{},
 			interactive: true,
 			prompts: []string{
-				"Test MVE",   // name
-				"12",         // term
-				"123",        // location ID
-				"",           // diversity zone
-				"",           // promo code
-				"CC-123",     // cost centre
-				"cisco",      // vendor
-				"1",          // image ID
-				"LARGE",      // product size (ensure uppercase)
-				"label-1",    // MVE label
-				"true",       // manage locally
-				"admin-ssh",  // admin SSH public key
-				"ssh-key",    // SSH public key
-				"cloud-init", // cloud init
-				"fmc-ip",     // FMC IP address
-				"fmc-key",    // FMC registration key
-				"fmc-nat",    // FMC NAT ID
-				"VNIC 1",     // VNIC description
-				"100",        // VNIC VLAN
-				"",           // End VNIC input
-				"",           // No resource tags
+				"Test MVE",
+				"12",
+				"123",
+				"",
+				"",
+				"CC-123",
+				"cisco",
+				"1",
+				"LARGE",
+				"label-1",
+				"true",
+				"admin-ssh",
+				"ssh-key",
+				"cloud-init",
+				"fmc-ip",
+				"fmc-key",
+				"fmc-nat",
+				"VNIC 1",
+				"100",
+				"",
+				"",
 			},
 			mockSetup: func(m *MockMVEService) {
 				m.ValidateMVEOrderErr = nil
@@ -677,7 +654,7 @@ func TestBuyMVE(t *testing.T) {
 				ciscoConfig, ok := req.VendorConfig.(*megaport.CiscoConfig)
 				assert.True(t, ok, "Expected a CiscoConfig")
 				assert.Equal(t, 1, ciscoConfig.ImageID)
-				assert.Equal(t, "LARGE", ciscoConfig.ProductSize) // Ensure validation checks uppercase
+				assert.Equal(t, "LARGE", ciscoConfig.ProductSize)
 				assert.Equal(t, "label-1", ciscoConfig.MVELabel)
 				assert.True(t, ciscoConfig.ManageLocally)
 				assert.Equal(t, "admin-ssh", ciscoConfig.AdminSSHPublicKey)
@@ -773,7 +750,7 @@ func TestBuyMVE(t *testing.T) {
 				ciscoConfig, ok := req.VendorConfig.(*megaport.CiscoConfig)
 				assert.True(t, ok, "Expected a CiscoConfig")
 				assert.Equal(t, 1, ciscoConfig.ImageID)
-				assert.Equal(t, "LARGE", ciscoConfig.ProductSize) // Update validation check
+				assert.Equal(t, "LARGE", ciscoConfig.ProductSize)
 				assert.Equal(t, "json-label", ciscoConfig.MVELabel)
 				assert.True(t, ciscoConfig.ManageLocally)
 				assert.Equal(t, "admin-ssh", ciscoConfig.AdminSSHPublicKey)
@@ -816,7 +793,6 @@ func TestBuyMVE(t *testing.T) {
 				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
 			},
 			mockSetup: func(m *MockMVEService) {
-				// Make sure validation passes but purchase fails
 				m.ValidateMVEOrderErr = nil
 				m.BuyMVEErr = fmt.Errorf("purchase failed")
 			},
@@ -831,7 +807,6 @@ func TestBuyMVE(t *testing.T) {
 				tt.mockSetup(mockService)
 			}
 
-			// Set up prompts
 			promptIndex := 0
 			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
 				if promptIndex < len(tt.prompts) {
@@ -842,7 +817,6 @@ func TestBuyMVE(t *testing.T) {
 				return "", fmt.Errorf("unexpected prompt call")
 			}
 
-			// Create a fresh command for each test
 			cmd := &cobra.Command{Use: "buy"}
 			cmd.Flags().Bool("interactive", tt.interactive, "")
 			cmd.Flags().String("json", "", "")
@@ -853,19 +827,16 @@ func TestBuyMVE(t *testing.T) {
 			cmd.Flags().String("vendor-config", "", "")
 			cmd.Flags().String("vnics", "", "")
 
-			// Set flag values
 			for flag, value := range tt.flags {
 				err := cmd.Flags().Set(flag, value)
 				assert.NoError(t, err)
 			}
 
-			// Run the command
 			var err error
 			output := output.CaptureOutput(func() {
 				err = BuyMVE(cmd, tt.args, tt.interactive)
 			})
 
-			// Check results
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -881,15 +852,12 @@ func TestBuyMVE(t *testing.T) {
 	}
 }
 
-// Add this test function to the existing file
 func TestListMVEsCmd_WithMockClient(t *testing.T) {
-	// Save original login function and restore after test
 	originalLoginFunc := config.LoginFunc
 	defer func() {
 		config.LoginFunc = originalLoginFunc
 	}()
 
-	// Test MVEs for our mock response
 	mves := []*megaport.MVE{
 		{
 			UID:                "mve-1",
@@ -930,7 +898,7 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 				m.ListMVEsResult = mves
 			},
 			expectedOutput:   []string{"mve-1", "TestMVE-1", "mve-2", "TestMVE-2"},
-			unexpectedOutput: []string{"mve-3", "MVE-Decommissioned", "DECOMMISSIONED"}, // Shouldn't include inactive MVEs
+			unexpectedOutput: []string{"mve-3", "MVE-Decommissioned", "DECOMMISSIONED"},
 		},
 		{
 			name:         "list all mves including inactive",
@@ -1001,7 +969,6 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 			setupMock: func(m *MockMVEService) {
 				m.ListMVEsResult = mves
 			},
-			// Fix case to match actual output (capital N in "No")
 			expectedOutput:   []string{"No MVEs found matching the specified filters"},
 			unexpectedOutput: []string{"mve-1", "mve-2", "mve-3"},
 		},
@@ -1019,27 +986,23 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 			setupMock: func(m *MockMVEService) {
 				m.ListMVEsResult = []*megaport.MVE{}
 			},
-			// Fix case to match actual output (capital N in "No")
 			expectedOutput: []string{"No MVEs found matching the specified filters"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a new mock mve service for each test
 			mockMVEService := &MockMVEService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockMVEService)
 			}
 
-			// Mock the login function to return a client with our mock service
 			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 				return &megaport.Client{
 					MVEService: mockMVEService,
 				}, nil
 			}
 
-			// Create command with flags
 			cmd := &cobra.Command{}
 			cmd.Flags().Bool("include-inactive", false, "")
 			cmd.Flags().Int("location-id", 0, "")
@@ -1047,7 +1010,6 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 			cmd.Flags().String("name", "", "")
 			cmd.Flags().String("output", tt.outputFormat, "")
 
-			// Set flag values from test case
 			for flag, value := range tt.flags {
 				if flag == "include-inactive" {
 					boolVal, _ := strconv.ParseBool(value)
@@ -1064,29 +1026,24 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 			err := cmd.Flags().Set("output", tt.outputFormat)
 			assert.NoError(t, err)
 
-			// Capture output and run the command
 			out, err := output.CaptureOutputErr(func() error {
 				return ListMVEs(cmd, []string{}, true, tt.outputFormat)
 			})
 
-			// Check error if expected
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
 
-				// Verify expected output
 				for _, expected := range tt.expectedOutput {
 					assert.Contains(t, out, expected)
 				}
 
-				// Verify unexpected output is not present
 				for _, unexpected := range tt.unexpectedOutput {
 					assert.NotContains(t, out, unexpected)
 				}
 
-				// Verify that the right request was made with include-inactive
 				includeInactive, _ := cmd.Flags().GetBool("include-inactive")
 				assert.Equal(t, includeInactive, mockMVEService.CapturedListMVEsRequest.IncludeInactive)
 			}
@@ -1094,9 +1051,7 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 	}
 }
 
-// TestListMVEResourceTagsCmd_WithMockClient tests the list-tags command functionality
 func TestListMVEResourceTagsCmd_WithMockClient(t *testing.T) {
-	// Save original login function and restore after test
 	originalLoginFunc := config.LoginFunc
 	defer func() {
 		config.LoginFunc = originalLoginFunc
@@ -1132,7 +1087,7 @@ func TestListMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 				m.ListMVEResourceTagsResult = map[string]string{}
 				m.ListMVEResourceTagsErr = nil
 			},
-			expectedOut: []string{"KEY", "VALUE"}, // Headers should still be visible
+			expectedOut: []string{"KEY", "VALUE"},
 		},
 		{
 			name:         "successful list with json format",
@@ -1152,7 +1107,7 @@ func TestListMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 			mveUID:       "mve-error",
 			outputFormat: "table",
 			setupMock: func(m *MockMVEService) {
-				m.ListMVEResourceTagsResult = make(map[string]string) // Initialize to avoid nil pointer
+				m.ListMVEResourceTagsResult = make(map[string]string)
 				m.ListMVEResourceTagsErr = fmt.Errorf("API error: not found")
 			},
 			expectedError: "error getting resource tags",
@@ -1177,7 +1132,6 @@ func TestListMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 				},
 			}
 
-			// Add output format flag
 			cmd.Flags().StringP("output", "o", "table", "Output format (json, table)")
 			if tt.outputFormat != "" {
 				err := cmd.Flags().Set("output", tt.outputFormat)
@@ -1200,7 +1154,6 @@ func TestListMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 					assert.Contains(t, output, expected)
 				}
 
-				// If no expected output is defined but we expected success, make sure there's no error message
 				if len(tt.expectedOut) == 0 && tt.expectedError == "" {
 					assert.NotContains(t, output, "Error")
 				}
@@ -1209,9 +1162,7 @@ func TestListMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 	}
 }
 
-// TestUpdateMVEResourceTagsCmd_WithMockClient tests the update-tags command functionality
 func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
-	// Save original functions and restore after test
 	originalLoginFunc := config.LoginFunc
 	originalResourcePrompt := utils.UpdateResourceTagsPrompt
 	defer func() {
@@ -1321,7 +1272,7 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 				"environment": "production"
 			}`,
 			setupMock: func(m *MockMVEService) {
-				m.ListMVEResourceTagsResult = map[string]string{} // Initialize to avoid nil pointer
+				m.ListMVEResourceTagsResult = map[string]string{}
 				m.ListMVEResourceTagsErr = fmt.Errorf("API error: resource not found")
 				m.CapturedUpdateMVEResourceTagsRequest = make(map[string]string)
 			},
@@ -1357,25 +1308,21 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup mock service
 			mockMVEService := &MockMVEService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockMVEService)
 			}
 
-			// Mock the login function
 			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MVEService = mockMVEService
 				return client, nil
 			}
 
-			// Mock the interactive prompt specifically for UpdateResourceTagsPrompt
 			utils.UpdateResourceTagsPrompt = func(existingTags map[string]string, noColor bool) (map[string]string, error) {
 				return tt.promptResult, tt.promptError
 			}
 
-			// Create command
 			cmd := &cobra.Command{
 				Use: "update-tags [mveUID]",
 				RunE: func(cmd *cobra.Command, args []string) error {
@@ -1383,12 +1330,10 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 				},
 			}
 
-			// Add flags
 			cmd.Flags().Bool("interactive", false, "")
 			cmd.Flags().String("json", "", "")
 			cmd.Flags().String("json-file", "", "")
 
-			// Set the flags as needed
 			if tt.interactive {
 				err := cmd.Flags().Set("interactive", "true")
 				if err != nil {
@@ -1410,13 +1355,11 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 				}
 			}
 
-			// Run the command and capture output
 			var err error
 			output := output.CaptureOutput(func() {
 				err = cmd.RunE(cmd, []string{tt.mveUID})
 			})
 
-			// Check results
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -1424,7 +1367,6 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Contains(t, output, tt.expectedOutput)
 
-				// Verify the captured request
 				if tt.expectedCapturedTags != nil {
 					assert.NotNil(t, mockMVEService.CapturedUpdateMVEResourceTagsRequest)
 					assert.Equal(t, tt.expectedCapturedTags, mockMVEService.CapturedUpdateMVEResourceTagsRequest)
@@ -1434,9 +1376,7 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 	}
 }
 
-// TestGetMVEStatus tests the status subcommand for MVEs
 func TestGetMVEStatus(t *testing.T) {
-	// Save original functions and restore after test
 	originalLoginFunc := config.LoginFunc
 	defer func() {
 		config.LoginFunc = originalLoginFunc
@@ -1502,31 +1442,26 @@ func TestGetMVEStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup mock service
 			mockService := &MockMVEService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockService)
 			}
 
-			// Mock the login function
 			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MVEService = mockService
 				return client, nil
 			}
 
-			// Create command
 			cmd := &cobra.Command{
 				Use: "status [mveUID]",
 			}
 
-			// Capture output and run command
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
 				err = GetMVEStatus(cmd, []string{tt.mveUID}, true, tt.outputFormat)
 			})
 
-			// Verify results
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -1534,7 +1469,6 @@ func TestGetMVEStatus(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Contains(t, capturedOutput, tt.expectedOutput)
 
-				// Additional checks based on output format
 				if tt.outputFormat == "json" {
 					assert.Contains(t, capturedOutput, "\"uid\":")
 					assert.Contains(t, capturedOutput, "\"name\":")

@@ -5,10 +5,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// AddCommandsTo builds the config commands and adds them to the root command
 func AddCommandsTo(rootCmd *cobra.Command) {
-	// Create config parent command
-
 	configCmd := cmdbuilder.NewCommand("config", "Manage configuration settings").
 		WithLongDesc("Manage configuration settings for Megaport CLI.\n\n" +
 			"The config command allows you to manage persistent configuration settings for the CLI, " +
@@ -28,7 +25,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Profile management commands
 	createProfileCmd := cmdbuilder.NewCommand("create-profile", "Create a new credential profile").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(CreateProfile).
@@ -85,7 +81,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Default settings commands
 	setDefaultCmd := cmdbuilder.NewCommand("set-default", "Set a default value").
 		WithArgs(cobra.ExactArgs(2)).
 		WithColorAwareRunFunc(SetDefault).
@@ -103,7 +98,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Export command:
 	exportCmd := cmdbuilder.NewCommand("export", "Export configuration").
 		WithLongDesc("Export configuration to a file (excluding sensitive information).\n\n"+
 			"The export function writes your configuration to a JSON file with sensitive "+
@@ -121,7 +115,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Import command:
 	importCmd := cmdbuilder.NewCommand("import", "Import configuration").
 		WithLongDesc("Import configuration from a file.\n\n"+
 			"Import allows you to load profiles and default settings from a JSON file. "+
@@ -141,7 +134,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// View current config
 	viewCmd := cmdbuilder.NewCommand("view", "Display current configuration").
 		WithLongDesc("Display the current active configuration settings for the Megaport CLI.\n\n" +
 			"This command shows your active profile and default settings. " +
@@ -167,26 +159,18 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Add all commands to the config command
 	configCmd.AddCommand(
-		// Profile commands
 		createProfileCmd,
 		updateProfileCmd,
 		deleteProfileCmd,
 		listProfilesCmd,
 		useProfileCmd,
-
-		// Default settings commands
 		setDefaultCmd,
 		getDefaultCmd,
 		removeDefaultCmd,
 		clearDefaultsCmd,
-
-		// Import/export commands
 		exportCmd,
 		importCmd,
-
-		// View command
 		viewCmd,
 	)
 

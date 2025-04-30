@@ -7,7 +7,6 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// Utility functions for testing
 var getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
 	return client.MCRService.GetMCR(ctx, mcrUID)
 }
@@ -48,22 +47,17 @@ var restoreMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID s
 	return client.MCRService.RestoreMCR(ctx, mcrUID)
 }
 
-// filterMCRs applies filters to a list of MCRs
 func filterMCRs(mcrs []*megaport.MCR, locationID, portSpeed int, mcrName string) []*megaport.MCR {
 	var filtered []*megaport.MCR
 
-	// Handle nil slice
 	if mcrs == nil {
 		return filtered
 	}
 
 	for _, mcr := range mcrs {
-		// Skip nil MCRs
 		if mcr == nil {
 			continue
 		}
-
-		// Apply filters
 		if locationID > 0 && mcr.LocationID != locationID {
 			continue
 		}
@@ -73,7 +67,6 @@ func filterMCRs(mcrs []*megaport.MCR, locationID, portSpeed int, mcrName string)
 		if mcrName != "" && !strings.Contains(strings.ToLower(mcr.Name), strings.ToLower(mcrName)) {
 			continue
 		}
-
 		filtered = append(filtered, mcr)
 	}
 

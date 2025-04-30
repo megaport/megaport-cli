@@ -12,20 +12,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Function to adapt our old tests to work with new wrapCommandFunc signature
 func testCommandAdapterOutput(fn func(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		format, _ := cmd.Flags().GetString("output")
 		if format == "" {
-			format = "table" // Default to table if not specified
+			format = "table"
 		}
 		return fn(cmd, args, false, format)
 	}
 }
 
-// TestGetPortStatus tests the status subcommand for Ports
 func TestGetPortStatus(t *testing.T) {
-	// Save original functions and restore after test
 	originalLoginFunc := config.LoginFunc
 	defer func() {
 		config.LoginFunc = originalLoginFunc
@@ -91,31 +88,26 @@ func TestGetPortStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup mock service
 			mockService := &MockPortService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockService)
 			}
 
-			// Mock the login function
 			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.PortService = mockService
 				return client, nil
 			}
 
-			// Create command
 			cmd := &cobra.Command{
 				Use: "status [portUID]",
 			}
 
-			// Capture output and run command
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
 				err = GetPortStatus(cmd, []string{tt.portUID}, true, tt.outputFormat)
 			})
 
-			// Verify results
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -123,7 +115,6 @@ func TestGetPortStatus(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Contains(t, capturedOutput, tt.expectedOutput)
 
-				// Additional checks based on output format
 				if tt.outputFormat == "json" {
 					assert.Contains(t, capturedOutput, "\"uid\":")
 					assert.Contains(t, capturedOutput, "\"name\":")
@@ -141,7 +132,6 @@ func TestGetPortStatus(t *testing.T) {
 }
 
 func TestGetPortCmd_WithMockClient(t *testing.T) {
-	// Save original login function and restore after test
 	originalLoginFunc := config.Login
 	defer func() {
 		config.LoginFunc = originalLoginFunc
@@ -198,18 +188,15 @@ func TestGetPortCmd_WithMockClient(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup mock Port service
 			mockPortService := &MockPortService{}
 			tt.setupMock(mockPortService)
 
-			// Setup login to return our mock client
 			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.PortService = mockPortService
 				return client, nil
 			}
 
-			// Set the global outputFormat variable
 			cmd := &cobra.Command{
 				Use:  "get",
 				RunE: testCommandAdapterOutput(GetPort),
@@ -219,19 +206,17 @@ func TestGetPortCmd_WithMockClient(t *testing.T) {
 				t.Fatalf("Failed to set output flag: %v", err)
 			}
 
-			// Execute command and capture output
 			var err error
 			output := output.CaptureOutput(func() {
 				cmdWithFormat := &cobra.Command{}
 				cmdWithFormat.Flags().String("output", "table", "Output format")
-				flagErr := cmdWithFormat.Flags().Set("output", tt.format) // Set the format
+				flagErr := cmdWithFormat.Flags().Set("output", tt.format)
 				if flagErr != nil {
 					t.Fatalf("Failed to set output flag: %v", err)
 				}
 				err = testCommandAdapterOutput(GetPort)(cmd, []string{tt.portID})
 			})
 
-			// Check results
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)

@@ -7,7 +7,6 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// PortOutput represents the desired fields for JSON output.
 type PortOutput struct {
 	output.Output      `json:"-" header:"-"`
 	UID                string `json:"uid" header:"UID"`
@@ -17,7 +16,6 @@ type PortOutput struct {
 	ProvisioningStatus string `json:"provisioning_status" header:"Status"`
 }
 
-// ToPortOutput converts a *megaport.Port to our PortOutput struct.
 func ToPortOutput(port *megaport.Port) (PortOutput, error) {
 	if port == nil {
 		return PortOutput{}, fmt.Errorf("invalid port: nil value")
@@ -43,19 +41,23 @@ func printPorts(ports []*megaport.Port, format string, noColor bool) error {
 	return output.PrintOutput(outputs, format, noColor)
 }
 
-// displayPortChanges compares the original and updated Port and displays the differences
+type PortStatus struct {
+	UID    string `json:"uid" header:"UID"`
+	Name   string `json:"name" header:"NAME"`
+	Status string `json:"status" header:"STATUS"`
+	Type   string `json:"type" header:"TYPE"`
+	Speed  int    `json:"speed" header:"SPEED"`
+}
+
 func displayPortChanges(original, updated *megaport.Port, noColor bool) {
 	if original == nil || updated == nil {
 		return
 	}
 
-	fmt.Println() // Empty line before changes
+	fmt.Println()
 	output.PrintInfo("Changes applied:", noColor)
-
-	// Track if any changes were found
 	changesFound := false
 
-	// Compare name
 	if original.Name != updated.Name {
 		changesFound = true
 		oldName := output.FormatOldValue(original.Name, noColor)
@@ -63,7 +65,6 @@ func displayPortChanges(original, updated *megaport.Port, noColor bool) {
 		fmt.Printf("  • Name: %s → %s\n", oldName, newName)
 	}
 
-	// Compare cost centre
 	if original.CostCentre != updated.CostCentre {
 		changesFound = true
 		oldCostCentre := original.CostCentre
@@ -79,7 +80,6 @@ func displayPortChanges(original, updated *megaport.Port, noColor bool) {
 			output.FormatNewValue(newCostCentre, noColor))
 	}
 
-	// Compare contract term
 	if original.ContractTermMonths != updated.ContractTermMonths {
 		changesFound = true
 		oldTerm := output.FormatOldValue(fmt.Sprintf("%d months", original.ContractTermMonths), noColor)
@@ -87,7 +87,6 @@ func displayPortChanges(original, updated *megaport.Port, noColor bool) {
 		fmt.Printf("  • Contract Term: %s → %s\n", oldTerm, newTerm)
 	}
 
-	// Compare marketplace visibility
 	if original.MarketplaceVisibility != updated.MarketplaceVisibility {
 		changesFound = true
 		oldVisibility := "No"
@@ -103,7 +102,6 @@ func displayPortChanges(original, updated *megaport.Port, noColor bool) {
 			output.FormatNewValue(newVisibility, noColor))
 	}
 
-	// Compare locked status
 	if original.AdminLocked != updated.AdminLocked {
 		changesFound = true
 		oldLocked := "No"
@@ -122,12 +120,4 @@ func displayPortChanges(original, updated *megaport.Port, noColor bool) {
 	if !changesFound {
 		fmt.Println("  No changes detected")
 	}
-}
-
-type PortStatus struct {
-	UID    string `json:"uid" header:"UID"`
-	Name   string `json:"name" header:"NAME"`
-	Status string `json:"status" header:"STATUS"`
-	Type   string `json:"type" header:"TYPE"`
-	Speed  int    `json:"speed" header:"SPEED"`
 }

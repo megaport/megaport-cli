@@ -8,11 +8,9 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// Extract the existing interactive prompting into a separate function
 func promptForPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	req := &megaport.BuyPortRequest{}
 
-	// Prompt for required fields
 	name, err := utils.ResourcePrompt("port", "Enter port name (required): ", noColor)
 	if err != nil {
 		return nil, err
@@ -62,7 +60,6 @@ func promptForPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.MarketPlaceVisibility = marketplaceVisibility
 
-	// Prompt for optional fields
 	diversityZone, err := utils.ResourcePrompt("port", "Enter diversity zone (optional): ", noColor)
 	if err != nil {
 		return nil, err
@@ -81,7 +78,6 @@ func promptForPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.PromoCode = promoCode
 
-	// Prompt for resource tags
 	resourceTags, err := utils.ResourceTagsPrompt(noColor)
 	if err != nil {
 		return nil, err
@@ -91,11 +87,9 @@ func promptForPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	return req, nil
 }
 
-// Extract the existing interactive prompting into a separate function for LAG port
 func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	req := &megaport.BuyPortRequest{}
 
-	// Prompt for required fields
 	name, err := utils.ResourcePrompt("port", "Enter port name (required): ", noColor)
 	if err != nil {
 		return nil, err
@@ -155,7 +149,6 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.MarketPlaceVisibility = marketplaceVisibility
 
-	// Prompt for optional fields
 	diversityZone, err := utils.ResourcePrompt("port", "Enter diversity zone (optional): ", noColor)
 	if err != nil {
 		return nil, err
@@ -174,7 +167,6 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.PromoCode = promoCode
 
-	// Prompt for resource tags
 	resourceTags, err := utils.ResourceTagsPrompt(noColor)
 	if err != nil {
 		return nil, err
@@ -184,7 +176,6 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	return req, nil
 }
 
-// Extract the existing interactive prompting into a separate function for updating port
 func promptForUpdatePortDetails(portUID string, noColor bool) (*megaport.ModifyPortRequest, error) {
 	req := &megaport.ModifyPortRequest{
 		PortID: portUID,
@@ -229,7 +220,6 @@ func promptForUpdatePortDetails(portUID string, noColor bool) (*megaport.ModifyP
 		req.ContractTermMonths = &term
 	}
 
-	// Ensure at least one field is being updated
 	if req.Name == "" && req.MarketplaceVisibility == nil && req.CostCentre == "" && req.ContractTermMonths == nil {
 		return nil, fmt.Errorf("at least one field must be updated")
 	}

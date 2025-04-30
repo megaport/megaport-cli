@@ -6,33 +6,25 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// MockMVEService implements the required MVE service methods for testing
 type MockMVEService struct {
-	// Optional fields to customize behavior
-	GetMVEErr           error
-	GetMVEResult        *megaport.MVE
-	ListMVEsErr         error
-	ListMVEsResult      []*megaport.MVE
-	BuyMVEErr           error
-	BuyMVEResult        *megaport.BuyMVEResponse
-	DeleteMVEErr        error
-	DeleteMVEResult     *megaport.DeleteMVEResponse
-	ModifyMVEErr        error
-	ModifyMVEResult     *megaport.ModifyMVEResponse
-	ValidateMVEOrderErr error
-
-	// Resource tags related fields
-	ListMVEResourceTagsErr    error
-	ListMVEResourceTagsResult map[string]string
-	UpdateMVEResourceTagsErr  error
-
-	// Images and sizes
-	ListMVEImagesErr            error
-	ListMVEImagesResult         []*megaport.MVEImage
-	ListAvailableMVESizesErr    error
-	ListAvailableMVESizesResult []*megaport.MVESize
-
-	// For tracking request parameters in tests
+	GetMVEErr                            error
+	GetMVEResult                         *megaport.MVE
+	ListMVEsErr                          error
+	ListMVEsResult                       []*megaport.MVE
+	BuyMVEErr                            error
+	BuyMVEResult                         *megaport.BuyMVEResponse
+	DeleteMVEErr                         error
+	DeleteMVEResult                      *megaport.DeleteMVEResponse
+	ModifyMVEErr                         error
+	ModifyMVEResult                      *megaport.ModifyMVEResponse
+	ValidateMVEOrderErr                  error
+	ListMVEResourceTagsErr               error
+	ListMVEResourceTagsResult            map[string]string
+	UpdateMVEResourceTagsErr             error
+	ListMVEImagesErr                     error
+	ListMVEImagesResult                  []*megaport.MVEImage
+	ListAvailableMVESizesErr             error
+	ListAvailableMVESizesResult          []*megaport.MVESize
 	CapturedBuyMVERequest                *megaport.BuyMVERequest
 	CapturedModifyMVERequest             *megaport.ModifyMVERequest
 	CapturedListMVEsRequest              *megaport.ListMVEsRequest
@@ -146,9 +138,7 @@ func (m *MockMVEService) ListAvailableMVESizes(ctx context.Context) ([]*megaport
 	return []*megaport.MVESize{}, nil
 }
 
-// Reset clears all captured values and resets errors to nil
 func (m *MockMVEService) Reset() {
-	// Reset errors
 	m.GetMVEErr = nil
 	m.ListMVEsErr = nil
 	m.BuyMVEErr = nil
@@ -159,8 +149,6 @@ func (m *MockMVEService) Reset() {
 	m.UpdateMVEResourceTagsErr = nil
 	m.ListMVEImagesErr = nil
 	m.ListAvailableMVESizesErr = nil
-
-	// Reset captured requests
 	m.CapturedBuyMVERequest = nil
 	m.CapturedModifyMVERequest = nil
 	m.CapturedListMVEsRequest = nil
