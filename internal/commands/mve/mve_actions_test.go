@@ -366,10 +366,10 @@ func TestUpdateMVE(t *testing.T) {
 			args: []string{"mve-123"},
 			flags: map[string]string{
 				"json": `{
-                    "name": "JSON Updated MVE",
-                    "costCentre": "JSON Cost Centre",
-                    "contractTermMonths": 12
-                }`,
+					"name": "JSON Updated MVE",
+					"costCentre": "JSON Cost Centre",
+					"contractTermMonths": 12
+				}`,
 			},
 			mockSetup: func(m *MockMVEService) {
 				m.ModifyMVEResult = &megaport.ModifyMVEResponse{
@@ -714,26 +714,26 @@ func TestBuyMVE(t *testing.T) {
 			args: []string{},
 			flags: map[string]string{
 				"json": `{
-                    "name": "JSON MVE",
-                    "term": 12,
-                    "locationId": 123,
-                    "vendorConfig": {
-                        "vendor": "cisco",
-                        "imageId": 1,
-                        "productSize": "LARGE",
-                        "mveLabel": "json-label",
-                        "manageLocally": true,
-                        "adminSshPublicKey": "admin-ssh",
-                        "sshPublicKey": "ssh-key",
-                        "cloudInit": "cloud-init",
-                        "fmcIpAddress": "fmc-ip",
-                        "fmcRegistrationKey": "fmc-key",
-                        "fmcNatId": "fmc-nat"
-                    },
-                    "vnics": [
-                        {"description": "JSON VNIC", "vlan": 200}
-                    ]
-                }`,
+					"name": "JSON MVE",
+					"term": 12,
+					"locationId": 123,
+					"vendorConfig": {
+						"vendor": "cisco",
+						"imageId": 1,
+						"productSize": "LARGE",
+						"mveLabel": "json-label",
+						"manageLocally": true,
+						"adminSshPublicKey": "admin-ssh",
+						"sshPublicKey": "ssh-key",
+						"cloudInit": "cloud-init",
+						"fmcIpAddress": "fmc-ip",
+						"fmcRegistrationKey": "fmc-key",
+						"fmcNatId": "fmc-nat"
+					},
+					"vnics": [
+						{"description": "JSON VNIC", "vlan": 200}
+					]
+				}`,
 			},
 			mockSetup: func(m *MockMVEService) {
 				m.ValidateMVEOrderErr = nil
@@ -1011,14 +1011,15 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 			cmd.Flags().String("output", tt.outputFormat, "")
 
 			for flag, value := range tt.flags {
-				if flag == "include-inactive" {
+				switch flag {
+				case "include-inactive":
 					boolVal, _ := strconv.ParseBool(value)
 					err := cmd.Flags().Set(flag, strconv.FormatBool(boolVal))
 					assert.NoError(t, err)
-				} else if flag == "location-id" {
+				case "location-id":
 					err := cmd.Flags().Set(flag, value)
 					assert.NoError(t, err)
-				} else {
+				default:
 					err := cmd.Flags().Set(flag, value)
 					assert.NoError(t, err)
 				}
@@ -1469,12 +1470,13 @@ func TestGetMVEStatus(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Contains(t, capturedOutput, tt.expectedOutput)
 
-				if tt.outputFormat == "json" {
+				switch tt.outputFormat {
+				case "json":
 					assert.Contains(t, capturedOutput, "\"uid\":")
 					assert.Contains(t, capturedOutput, "\"name\":")
 					assert.Contains(t, capturedOutput, "\"status\":")
 					assert.Contains(t, capturedOutput, "\"vendor\":")
-				} else if tt.outputFormat == "table" {
+				case "table":
 					assert.Contains(t, capturedOutput, "UID")
 					assert.Contains(t, capturedOutput, "NAME")
 					assert.Contains(t, capturedOutput, "STATUS")
