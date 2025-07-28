@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <meta charset="utf-8">
+        <title>Megaport CLI Web Terminal</title>
+        <style>
+            body {
+                background-color: #000;
+                color: #33ff33;
+                font-family: monospace;
+                margin: 0;
+                padding: 10px;
+                height: 100vh;
+            }
+
+            #terminal {
+                height: calc(100vh - 60px);
+                overflow-y: auto;
+                padding: 5px;
+            }
+
+            .input-line {
+                display: flex;
+                margin-top: 10px;
+            }
+
+            .prompt {
+                color: #33ff33;
+                margin-right: 5px;
+            }
+
+            #input {
+                background-color: transparent;
+                border: none;
+                color: #33ff33;
+                flex-grow: 1;
+                font-family: monospace;
+                font-size: 1em;
+                outline: none;
+            }
+
+            .error {
+                color: #ff3333;
+            }
+
+            .system {
+                color: #ffff33;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div id="terminal"></div>
+        <div class="input-line">
+            <span class="prompt">megaport></span>
+            <input id="input" type="text" autofocus />
+        </div>
+        <script src="wasm_exec.js"></script>
+        <script>
+            const terminal = document.getElementById('terminal');
+            const input = document.getElementById('input');
+
+            // Initialize output
+            appendToTerminal("Megaport CLI Web Terminal ready", "system");
+
+            // Function to append text to terminal
+            function appendToTerminal(text, className) {
+                text.split('\n').forEach(line => {
+                    if (line.trim() === '') return;
+
+                    const lineElement = document.createElement('div');
+                    lineElement.textContent = line;
+                    if (className) {
+                        lineElement.className = className;
+                    }
+                    terminal.appendChild(lineElement);
+                });
+
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+
+            // Load WASM module
+            const go = new Go();
+
+            WebAssembly.instantiateStreaming(fetch("megaport.wasm"), go.importObject)
+                .then((result) => {
+                    console.log("WASM module loaded successfully");
+                    go.run(result.instance);
+
+                    // Check if executeMegaportCommand is available
+                    if (typeof window.executeMegaportCommand !== 'function') {
+                        appendToTerminal("Error: Command execution not available", "error");
+                        console.error("executeMegaportCommand function not found");
+                    }
+                })
+                .catch(err => {
+                    appendToTerminal("Failed to load WASM module: " + err, "error");
+                    console.error("WASM load error:", err);
+                });
+
+            // Handle input
+            input.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    const command = input.value.trim();
+
+                    if (command) {
+                        appendToTerminal("megaport> " + command);
+
+                        // Execute command
+                        try {
+                            if (typeof window.executeMegaportCommand === 'function') {
+                                const result = window.executeMegaportCommand(command);
+
+                                if (result && result.output) {
+                                    appendToTerminal(result.output);
+                                } else if (result && result.error) {
+                                    appendToTerminal("Error: " + result.error, "error");
+                                } else {
+                                    appendToTerminal("Command executed with no output", "system");
+                                }
+                            } else {
+                                appendToTerminal("Error: Command execution not available", "error");
+                            }
+                        } catch (err) {
+                            appendToTerminal("Error: " + err.message, "error");
+                            console.error("Command execution error:", err);
+                        }
+
+                        input.value = "";
+                    }
+                }
+            });
+
+            // Debug helper
+            window.wasmDebug = function (msg) {
+                console.log("[WASM Debug]", msg);
+                appendToTerminal("[Debug] " + msg, "system");
+            };
+        </script>
+    </body>
+
+</html>

@@ -299,7 +299,7 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 }
 
 func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -328,7 +328,7 @@ func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 }
 
 func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -386,7 +386,7 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func RestoreMCR(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -509,7 +509,7 @@ func DeleteMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 }
 
 func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -597,7 +597,7 @@ func ListMCRResourceTags(cmd *cobra.Command, args []string, noColor bool, output
 func UpdateMCRResourceTags(cmd *cobra.Command, args []string, noColor bool) error {
 	mcrUID := args[0]
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.LoginFunc(ctx)
@@ -669,7 +669,7 @@ func UpdateMCRResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 }
 
 func GetMCRStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.Login(ctx)
