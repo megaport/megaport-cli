@@ -20,7 +20,9 @@ type mockVXCService struct {
 	listPartnerPortsResponse             *megaport.ListPartnerPortsResponse
 	listPartnerPortsError                error
 	updateVXCResponse                    *megaport.VXC
+	listVXCResponse                      []*megaport.VXC
 	buyVXCErr                            error
+	listVXCErr                           error
 	onBuyVXC                             func(context.Context, *megaport.BuyVXCRequest)
 	ListVXCResourceTagsErr               error
 	ListVXCResourceTagsResult            map[string]string
@@ -51,6 +53,13 @@ func (m *mockVXCService) DeleteVXC(ctx context.Context, id string, req *megaport
 
 func (m *mockVXCService) UpdateVXC(ctx context.Context, id string, req *megaport.UpdateVXCRequest) (*megaport.VXC, error) {
 	return m.updateVXCResponse, m.updateVXCError
+}
+
+func (m *mockVXCService) ListVXCs(ctx context.Context, req *megaport.ListVXCsRequest) ([]*megaport.VXC, error) {
+	if m.listVXCErr != nil {
+		return nil, m.listVXCErr
+	}
+	return m.listVXCResponse, nil
 }
 
 func (m *mockVXCService) LookupPartnerPorts(ctx context.Context, req *megaport.LookupPartnerPortsRequest) (*megaport.LookupPartnerPortsResponse, error) {

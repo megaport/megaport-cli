@@ -25,12 +25,14 @@ func TestGetGitVersion_WithMocks(t *testing.T) {
 
 	t.Run("With no tag, only commit", func(t *testing.T) {
 		execCommand = func(command string, args ...string) *exec.Cmd {
-			if args[0] == "describe" {
+			switch args[0] {
+			case "describe":
 				return exec.Command("false")
-			} else if args[0] == "rev-parse" {
+			case "rev-parse":
 				return exec.Command("echo", "abc1234")
+			default:
+				return exec.Command("echo", "unexpected command")
 			}
-			return exec.Command("echo", "unexpected command")
 		}
 
 		result := GetGitVersion()

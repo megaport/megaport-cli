@@ -115,12 +115,13 @@ func TestGetPortStatus(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Contains(t, capturedOutput, tt.expectedOutput)
 
-				if tt.outputFormat == "json" {
+				switch tt.outputFormat {
+				case "json":
 					assert.Contains(t, capturedOutput, "\"uid\":")
 					assert.Contains(t, capturedOutput, "\"name\":")
 					assert.Contains(t, capturedOutput, "\"status\":")
 					assert.Contains(t, capturedOutput, "\"type\":")
-				} else if tt.outputFormat == "table" {
+				case "table":
 					assert.Contains(t, capturedOutput, "UID")
 					assert.Contains(t, capturedOutput, "NAME")
 					assert.Contains(t, capturedOutput, "STATUS")

@@ -28,12 +28,8 @@ func (b *CommandHelpBuilder) Build(rootCmd *cobra.Command) string {
 	hasSections := false
 
 	// Better flag detection - check both parsed flags and raw args
-	noColor := false
-
-	// First check the explicit DisableColor property
-	if b.DisableColor {
-		noColor = true
-	}
+	// Better flag detection - check both parsed flags and raw args
+	noColor := b.DisableColor
 
 	// Then check environment variables
 	if !noColor {
