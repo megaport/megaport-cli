@@ -336,7 +336,7 @@ func ValidateIBMPartnerConfig(config *megaport.VXCPartnerConfigIBM) error {
 		return NewValidationError("IBM account ID", config.AccountID, fmt.Sprintf("must be exactly %d characters", IBMAccountIDLength))
 	}
 	for _, c := range config.AccountID {
-		if c < '0' || (c > '9' && c < 'a') || (c > 'f' && c < 'A') || c > 'F' {
+		if c < '0' || (c > '9' && c < 'A') || (c > 'F' && c < 'a') || c > 'f' {
 			return NewValidationError("IBM account ID", config.AccountID, "must contain only hexadecimal characters (0-9, a-f, A-F)")
 		}
 	}
