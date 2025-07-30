@@ -520,7 +520,7 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 
 	locationID, _ := cmd.Flags().GetInt("location-id")
 	portSpeed, _ := cmd.Flags().GetInt("port-speed")
-	mcrName, _ := cmd.Flags().GetString("mcr-name")
+	mcrName, _ := cmd.Flags().GetString("name")
 	includeInactive, _ := cmd.Flags().GetBool("include-inactive")
 
 	req := &megaport.ListMCRsRequest{
