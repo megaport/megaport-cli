@@ -11,13 +11,48 @@ import (
 	"github.com/fatih/color"
 )
 
+// Global variable to track current output format for JSON mode detection
+var currentOutputFormat = "table"
+
+func SetOutputFormat(format string) {
+	currentOutputFormat = format
+}
+
 func PrintSuccess(format string, noColor bool, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	if noColor {
-		fmt.Fprintf(os.Stderr, "✓ %s\n", msg)
+	if currentOutputFormat == "json" {
+		if noColor {
+			fmt.Fprintf(os.Stderr, "✓ %s\n", msg)
+		} else {
+			fmt.Fprint(os.Stderr, color.GreenString("✓ "))
+			fmt.Fprintln(os.Stderr, msg)
+		}
 	} else {
-		fmt.Fprint(os.Stderr, color.GreenString("✓ "))
-		fmt.Fprintln(os.Stderr, msg)
+		if noColor {
+			fmt.Printf("✓ %s\n", msg)
+		} else {
+			fmt.Print(color.GreenString("✓ "))
+			fmt.Println(msg)
+		}
+	}
+}
+
+func PrintSuccessWithOutput(format string, noColor bool, outputFormat string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	if outputFormat == "json" {
+		if noColor {
+			fmt.Fprintf(os.Stderr, "✓ %s\n", msg)
+		} else {
+			fmt.Fprint(os.Stderr, color.GreenString("✓ "))
+			fmt.Fprintln(os.Stderr, msg)
+		}
+	} else {
+		if noColor {
+			fmt.Printf("✓ %s\n", msg)
+		} else {
+			fmt.Print(color.GreenString("✓ "))
+			fmt.Println(msg)
+		}
 	}
 }
 
@@ -58,18 +93,29 @@ func PrintResourceDeleted(resourceType, uid string, immediate, noColor bool) {
 var spinnerChars = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
 type Spinner struct {
-	stop      chan bool
-	stopped   bool
-	frameRate time.Duration
-	mu        sync.Mutex
-	noColor   bool
+	stop         chan bool
+	stopped      bool
+	frameRate    time.Duration
+	mu           sync.Mutex
+	noColor      bool
+	outputFormat string
 }
 
 func NewSpinner(noColor bool) *Spinner {
 	return &Spinner{
-		stop:      make(chan bool),
-		frameRate: 100 * time.Millisecond,
-		noColor:   noColor,
+		stop:         make(chan bool),
+		frameRate:    100 * time.Millisecond,
+		noColor:      noColor,
+		outputFormat: "table", // default to table format for backward compatibility
+	}
+}
+
+func NewSpinnerWithOutput(noColor bool, outputFormat string) *Spinner {
+	return &Spinner{
+		stop:         make(chan bool),
+		frameRate:    100 * time.Millisecond,
+		noColor:      noColor,
+		outputFormat: outputFormat,
 	}
 }
 
@@ -93,10 +139,18 @@ func (s *Spinner) Start(prefix string) {
 					return
 				}
 				frame := spinnerChars[i%len(spinnerChars)]
-				if s.noColor {
-					fmt.Fprintf(os.Stderr, "\r\033[K%s %s", frame, prefix)
+				if s.outputFormat == "json" {
+					if s.noColor {
+						fmt.Fprintf(os.Stderr, "\r\033[K%s %s", frame, prefix)
+					} else {
+						fmt.Fprintf(os.Stderr, "\r\033[K%s %s", color.CyanString(frame), prefix)
+					}
 				} else {
-					fmt.Fprintf(os.Stderr, "\r\033[K%s %s", color.CyanString(frame), prefix)
+					if s.noColor {
+						fmt.Printf("\r\033[K%s %s", frame, prefix)
+					} else {
+						fmt.Printf("\r\033[K%s %s", color.CyanString(frame), prefix)
+					}
 				}
 				s.mu.Unlock()
 				time.Sleep(s.frameRate)
@@ -113,16 +167,29 @@ func (s *Spinner) Stop() {
 	}
 	s.stopped = true
 	s.stop <- true
-	fmt.Fprint(os.Stderr, "\r\033[K")
+	if s.outputFormat == "json" {
+		fmt.Fprint(os.Stderr, "\r\033[K")
+	} else {
+		fmt.Print("\r\033[K")
+	}
 }
 
 func (s *Spinner) StopWithSuccess(msg string) {
 	s.Stop()
-	if s.noColor {
-		fmt.Fprintf(os.Stderr, "✓ %s\n", msg)
+	if s.outputFormat == "json" {
+		if s.noColor {
+			fmt.Fprintf(os.Stderr, "✓ %s\n", msg)
+		} else {
+			fmt.Fprint(os.Stderr, color.GreenString("✓ "))
+			fmt.Fprintln(os.Stderr, msg)
+		}
 	} else {
-		fmt.Fprint(os.Stderr, color.GreenString("✓ "))
-		fmt.Fprintln(os.Stderr, msg)
+		if s.noColor {
+			fmt.Printf("✓ %s\n", msg)
+		} else {
+			fmt.Print(color.GreenString("✓ "))
+			fmt.Println(msg)
+		}
 	}
 }
 
@@ -152,7 +219,7 @@ func PrintResourceDeleting(resourceType, uid string, noColor bool) *Spinner {
 
 func PrintResourceListing(resourceType string, noColor bool) *Spinner {
 	msg := fmt.Sprintf("Listing %ss...", resourceType)
-	spinner := NewSpinner(noColor)
+	spinner := NewSpinnerWithOutput(noColor, currentOutputFormat)
 	spinner.Start(msg)
 	return spinner
 }
@@ -160,7 +227,15 @@ func PrintResourceListing(resourceType string, noColor bool) *Spinner {
 func PrintResourceGetting(resourceType, uid string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Getting %s %s details...", resourceType, uidFormatted)
-	spinner := NewSpinner(noColor)
+	spinner := NewSpinnerWithOutput(noColor, currentOutputFormat)
+	spinner.Start(msg)
+	return spinner
+}
+
+func PrintResourceGettingWithOutput(resourceType, uid string, noColor bool, outputFormat string) *Spinner {
+	uidFormatted := FormatUID(uid, noColor)
+	msg := fmt.Sprintf("Getting %s %s details...", resourceType, uidFormatted)
+	spinner := NewSpinnerWithOutput(noColor, outputFormat)
 	spinner.Start(msg)
 	return spinner
 }
@@ -182,7 +257,14 @@ func PrintResourceValidating(resourceType string, noColor bool) *Spinner {
 
 func PrintLoggingIn(noColor bool) *Spinner {
 	msg := "Logging in to Megaport..."
-	spinner := NewSpinner(noColor)
+	spinner := NewSpinnerWithOutput(noColor, currentOutputFormat)
+	spinner.Start(msg)
+	return spinner
+}
+
+func PrintLoggingInWithOutput(noColor bool, outputFormat string) *Spinner {
+	msg := "Logging in to Megaport..."
+	spinner := NewSpinnerWithOutput(noColor, outputFormat)
 	spinner.Start(msg)
 	return spinner
 }
@@ -197,31 +279,58 @@ func PrintCustomSpinner(action, resourceId string, noColor bool) *Spinner {
 
 func PrintError(format string, noColor bool, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	if noColor {
-		fmt.Fprintf(os.Stderr, "✗ %s\n", msg)
+	if currentOutputFormat == "json" {
+		if noColor {
+			fmt.Fprintf(os.Stderr, "✗ %s\n", msg)
+		} else {
+			fmt.Fprint(os.Stderr, color.RedString("✗ "))
+			fmt.Fprintln(os.Stderr, msg)
+		}
 	} else {
-		fmt.Fprint(os.Stderr, color.RedString("✗ "))
-		fmt.Fprintln(os.Stderr, msg)
+		if noColor {
+			fmt.Printf("✗ %s\n", msg)
+		} else {
+			fmt.Print(color.RedString("✗ "))
+			fmt.Println(msg)
+		}
 	}
 }
 
 func PrintWarning(format string, noColor bool, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	if noColor {
-		fmt.Fprintf(os.Stderr, "⚠ %s\n", msg)
+	if currentOutputFormat == "json" {
+		if noColor {
+			fmt.Fprintf(os.Stderr, "⚠ %s\n", msg)
+		} else {
+			fmt.Fprint(os.Stderr, color.YellowString("⚠ "))
+			fmt.Fprintln(os.Stderr, msg)
+		}
 	} else {
-		fmt.Fprint(os.Stderr, color.YellowString("⚠ "))
-		fmt.Fprintln(os.Stderr, msg)
+		if noColor {
+			fmt.Printf("⚠ %s\n", msg)
+		} else {
+			fmt.Print(color.YellowString("⚠ "))
+			fmt.Println(msg)
+		}
 	}
 }
 
 func PrintInfo(format string, noColor bool, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	if noColor {
-		fmt.Fprintf(os.Stderr, "ℹ %s\n", msg)
+	if currentOutputFormat == "json" {
+		if noColor {
+			fmt.Fprintf(os.Stderr, "ℹ %s\n", msg)
+		} else {
+			fmt.Fprint(os.Stderr, color.BlueString("ℹ "))
+			fmt.Fprintln(os.Stderr, msg)
+		}
 	} else {
-		fmt.Fprint(os.Stderr, color.BlueString("ℹ "))
-		fmt.Fprintln(os.Stderr, msg)
+		if noColor {
+			fmt.Printf("ℹ %s\n", msg)
+		} else {
+			fmt.Print(color.BlueString("ℹ "))
+			fmt.Println(msg)
+		}
 	}
 }
 
