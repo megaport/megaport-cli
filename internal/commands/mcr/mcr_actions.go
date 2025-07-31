@@ -650,7 +650,7 @@ func UpdateMCRResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 	}
 
 	if len(resourceTags) == 0 {
-		fmt.Println("No tags provided. The MCR will have all existing tags removed.")
+		fmt.Fprintln(os.Stderr, "No tags provided. The MCR will have all existing tags removed.")
 	}
 
 	spinner := output.PrintResourceUpdating("MCR-Resource-Tags", mcrUID, noColor)
@@ -664,7 +664,7 @@ func UpdateMCRResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 		return fmt.Errorf("failed to update resource tags: %v", err)
 	}
 
-	fmt.Printf("Resource tags updated for MCR %s\n", mcrUID)
+	fmt.Fprintf(os.Stderr, "Resource tags updated for MCR %s\n", mcrUID)
 	return nil
 }
 

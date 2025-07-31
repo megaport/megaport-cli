@@ -2,6 +2,7 @@ package output
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -13,10 +14,10 @@ import (
 func PrintSuccess(format string, noColor bool, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	if noColor {
-		fmt.Printf("✓ %s\n", msg)
+		fmt.Fprintf(os.Stderr, "✓ %s\n", msg)
 	} else {
-		fmt.Print(color.GreenString("✓ "))
-		fmt.Println(msg)
+		fmt.Fprint(os.Stderr, color.GreenString("✓ "))
+		fmt.Fprintln(os.Stderr, msg)
 	}
 }
 
@@ -93,9 +94,9 @@ func (s *Spinner) Start(prefix string) {
 				}
 				frame := spinnerChars[i%len(spinnerChars)]
 				if s.noColor {
-					fmt.Printf("\r\033[K%s %s", frame, prefix)
+					fmt.Fprintf(os.Stderr, "\r\033[K%s %s", frame, prefix)
 				} else {
-					fmt.Printf("\r\033[K%s %s", color.CyanString(frame), prefix)
+					fmt.Fprintf(os.Stderr, "\r\033[K%s %s", color.CyanString(frame), prefix)
 				}
 				s.mu.Unlock()
 				time.Sleep(s.frameRate)
@@ -112,16 +113,16 @@ func (s *Spinner) Stop() {
 	}
 	s.stopped = true
 	s.stop <- true
-	fmt.Print("\r\033[K")
+	fmt.Fprint(os.Stderr, "\r\033[K")
 }
 
 func (s *Spinner) StopWithSuccess(msg string) {
 	s.Stop()
 	if s.noColor {
-		fmt.Printf("✓ %s\n", msg)
+		fmt.Fprintf(os.Stderr, "✓ %s\n", msg)
 	} else {
-		fmt.Print(color.GreenString("✓ "))
-		fmt.Println(msg)
+		fmt.Fprint(os.Stderr, color.GreenString("✓ "))
+		fmt.Fprintln(os.Stderr, msg)
 	}
 }
 
@@ -197,30 +198,30 @@ func PrintCustomSpinner(action, resourceId string, noColor bool) *Spinner {
 func PrintError(format string, noColor bool, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	if noColor {
-		fmt.Printf("✗ %s\n", msg)
+		fmt.Fprintf(os.Stderr, "✗ %s\n", msg)
 	} else {
-		fmt.Print(color.RedString("✗ "))
-		fmt.Println(msg)
+		fmt.Fprint(os.Stderr, color.RedString("✗ "))
+		fmt.Fprintln(os.Stderr, msg)
 	}
 }
 
 func PrintWarning(format string, noColor bool, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	if noColor {
-		fmt.Printf("⚠ %s\n", msg)
+		fmt.Fprintf(os.Stderr, "⚠ %s\n", msg)
 	} else {
-		fmt.Print(color.YellowString("⚠ "))
-		fmt.Println(msg)
+		fmt.Fprint(os.Stderr, color.YellowString("⚠ "))
+		fmt.Fprintln(os.Stderr, msg)
 	}
 }
 
 func PrintInfo(format string, noColor bool, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	if noColor {
-		fmt.Printf("ℹ %s\n", msg)
+		fmt.Fprintf(os.Stderr, "ℹ %s\n", msg)
 	} else {
-		fmt.Print(color.BlueString("ℹ "))
-		fmt.Println(msg)
+		fmt.Fprint(os.Stderr, color.BlueString("ℹ "))
+		fmt.Fprintln(os.Stderr, msg)
 	}
 }
 
