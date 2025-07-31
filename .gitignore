@@ -6,9 +6,43 @@
 .mpt_test_credentials
 .envrc
 
+# Build artifacts
 *.exe
 *.exe~
 *.dll
 *.so
 *.test
 *.out
+
+# Go build artifacts
+/megaport-cli
+megaport-cli
+dist/
+build/
+
+# Go module cache and vendor
+vendor/
+go.sum.tmp
+
+# Coverage reports
+coverage.out
+coverage.html
+*.prof
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.swp
+*.swo
+*~
+
+# Archive files
+*.tar
+*.tar.gz
+*.zip
+*.rar
+
+# OS specific
+Thumbs.db
+.DS_Store?
