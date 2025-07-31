@@ -161,6 +161,9 @@ func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Set output format for proper JSON mode handling
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -201,6 +204,9 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 }
 
 func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Set output format for proper JSON mode handling
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -237,6 +243,9 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 }
 
 func GetPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Set output format for proper JSON mode handling
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -547,6 +556,9 @@ func CheckPortVLANAvailability(cmd *cobra.Command, args []string, noColor bool) 
 }
 
 func ListPortResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Set output format for proper JSON mode handling
+	output.SetOutputFormat(outputFormat)
+
 	portUID := args[0]
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

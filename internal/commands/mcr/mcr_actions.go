@@ -299,6 +299,8 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 }
 
 func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -413,6 +415,9 @@ func RestoreMCR(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func ListMCRPrefixFilterLists(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Set output format for proper JSON mode handling
+	output.SetOutputFormat(outputFormat)
+
 	ctx := context.Background()
 
 	client, err := config.Login(ctx)
@@ -440,6 +445,9 @@ func ListMCRPrefixFilterLists(cmd *cobra.Command, args []string, noColor bool, o
 }
 
 func GetMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Set output format for proper JSON mode handling
+	output.SetOutputFormat(outputFormat)
+
 	ctx := context.Background()
 
 	client, err := config.Login(ctx)
@@ -509,6 +517,9 @@ func DeleteMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 }
 
 func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Set output format for proper JSON mode handling
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -566,6 +577,9 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 }
 
 func ListMCRResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Set output format for proper JSON mode handling
+	output.SetOutputFormat(outputFormat)
+
 	mcrUID := args[0]
 
 	ctx := context.Background()
@@ -650,7 +664,7 @@ func UpdateMCRResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 	}
 
 	if len(resourceTags) == 0 {
-		fmt.Println("No tags provided. The MCR will have all existing tags removed.")
+		fmt.Fprintln(os.Stderr, "No tags provided. The MCR will have all existing tags removed.")
 	}
 
 	spinner := output.PrintResourceUpdating("MCR-Resource-Tags", mcrUID, noColor)
@@ -664,11 +678,14 @@ func UpdateMCRResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 		return fmt.Errorf("failed to update resource tags: %v", err)
 	}
 
-	fmt.Printf("Resource tags updated for MCR %s\n", mcrUID)
+	fmt.Fprintf(os.Stderr, "Resource tags updated for MCR %s\n", mcrUID)
 	return nil
 }
 
 func GetMCRStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Set output format for proper JSON mode handling
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 

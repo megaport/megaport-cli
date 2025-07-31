@@ -2,6 +2,7 @@ package output
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -411,4 +412,198 @@ func TestPrintPrettyTable_TableStyle(t *testing.T) {
 	assert.Contains(t, output, " ID ")
 	assert.Contains(t, output, " NAME ")
 	assert.Contains(t, output, " ACTIVE ")
+}
+
+func TestJSONOutput_JQCompatibility(t *testing.T) {
+	// Test that JSON output is clean and can be parsed by jq-like parsers
+	data := []SimpleStruct{
+		{ID: 1, Name: "Item 1", Active: true},
+		{ID: 2, Name: "Item 2", Active: false},
+	}
+
+	output := CaptureOutput(func() {
+		err := PrintOutput(data, "json", noColor)
+		assert.NoError(t, err)
+	})
+
+	// Verify the output is valid JSON
+	var parsed []map[string]interface{}
+	err := json.Unmarshal([]byte(output), &parsed)
+	assert.NoError(t, err, "JSON output should be valid and parseable")
+
+	// Verify the structure matches expectations
+	assert.Len(t, parsed, 2, "Should have 2 items")
+	assert.Equal(t, float64(1), parsed[0]["id"])
+	assert.Equal(t, "Item 1", parsed[0]["name"])
+	assert.Equal(t, true, parsed[0]["active"])
+
+	// Verify no extra whitespace or control characters
+	trimmed := strings.TrimSpace(output)
+	assert.True(t, strings.HasPrefix(trimmed, "["), "JSON should start with [")
+	assert.True(t, strings.HasSuffix(trimmed, "]"), "JSON should end with ]")
+
+	// Verify no ANSI color codes in JSON output
+	assert.False(t, strings.Contains(output, "\033["), "JSON should not contain ANSI escape codes")
+	assert.False(t, strings.Contains(output, "\u001b["), "JSON should not contain ANSI escape codes")
+}
+
+func TestJSONOutput_ComplexData_JQCompatibility(t *testing.T) {
+	// Test complex data structures for jq compatibility
+	now := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
+	reference := &SimpleStruct{ID: 100, Name: "Referenced Item", Active: true}
+
+	data := []ComplexStruct{
+		{
+			ID:        1,
+			Name:      "Complex Item",
+			Created:   now,
+			Tags:      []string{"tag1", "tag2", "tag3"},
+			Metadata:  map[string]string{"key1": "value1", "key2": "value2"},
+			Reference: reference,
+		},
+	}
+
+	output := CaptureOutput(func() {
+		err := PrintOutput(data, "json", noColor)
+		assert.NoError(t, err)
+	})
+
+	// Verify the output is valid JSON
+	var parsed []map[string]interface{}
+	err := json.Unmarshal([]byte(output), &parsed)
+	assert.NoError(t, err, "Complex JSON output should be valid and parseable")
+
+	// Verify complex structures are properly serialized
+	assert.Len(t, parsed, 1)
+	item := parsed[0]
+
+	assert.Equal(t, float64(1), item["id"])
+	assert.Equal(t, "Complex Item", item["name"])
+	assert.Contains(t, item["created"], "2023-01-01T12:00:00Z")
+
+	// Verify arrays are properly serialized
+	tags, ok := item["tags"].([]interface{})
+	assert.True(t, ok, "Tags should be an array")
+	assert.Len(t, tags, 3)
+	assert.Equal(t, "tag1", tags[0])
+
+	// Verify maps are properly serialized
+	metadata, ok := item["metadata"].(map[string]interface{})
+	assert.True(t, ok, "Metadata should be a map")
+	assert.Equal(t, "value1", metadata["key1"])
+
+	// Verify nested objects are properly serialized
+	ref, ok := item["reference"].(map[string]interface{})
+	assert.True(t, ok, "Reference should be an object")
+	assert.Equal(t, float64(100), ref["id"])
+	assert.Equal(t, "Referenced Item", ref["name"])
+}
+
+func TestJSONOutput_EmptyData_JQCompatibility(t *testing.T) {
+	// Test empty data produces valid JSON
+	var data []SimpleStruct
+
+	output := CaptureOutput(func() {
+		err := PrintOutput(data, "json", noColor)
+		assert.NoError(t, err)
+	})
+
+	// Verify empty array is valid JSON
+	var parsed []interface{}
+	err := json.Unmarshal([]byte(output), &parsed)
+	assert.NoError(t, err, "Empty JSON array should be valid")
+	assert.Len(t, parsed, 0, "Empty array should have no elements")
+
+	// Verify it's exactly "[]" (or "[]" with whitespace)
+	trimmed := strings.TrimSpace(output)
+	assert.Equal(t, "[]", trimmed, "Empty data should produce clean empty JSON array")
+}
+
+func TestJSONOutput_NilData_JQCompatibility(t *testing.T) {
+	// Test nil data produces valid JSON
+	var data []SimpleStruct = nil
+
+	output := CaptureOutput(func() {
+		err := PrintOutput(data, "json", noColor)
+		assert.NoError(t, err)
+	})
+
+	// Verify nil produces valid JSON
+	var parsed []interface{}
+	err := json.Unmarshal([]byte(output), &parsed)
+	assert.NoError(t, err, "Nil data JSON should be valid")
+	assert.Len(t, parsed, 0, "Nil data should produce empty array")
+}
+
+func TestJSONOutput_SpecialCharacters_JQCompatibility(t *testing.T) {
+	// Test data with special characters that need proper JSON escaping
+	data := []SimpleStruct{
+		{ID: 1, Name: "Item with \"quotes\" and \nnewlines\tand\ttabs", Active: true},
+		{ID: 2, Name: "Item with unicode: 🚀 and backslash: \\", Active: false},
+	}
+
+	output := CaptureOutput(func() {
+		err := PrintOutput(data, "json", noColor)
+		assert.NoError(t, err)
+	})
+
+	// Verify the output is valid JSON despite special characters
+	var parsed []map[string]interface{}
+	err := json.Unmarshal([]byte(output), &parsed)
+	assert.NoError(t, err, "JSON with special characters should be valid")
+
+	// Verify special characters are properly escaped and preserved
+	assert.Contains(t, parsed[0]["name"], "quotes")
+	assert.Contains(t, parsed[0]["name"], "newlines")
+	assert.Contains(t, parsed[0]["name"], "tabs")
+	assert.Contains(t, parsed[1]["name"], "🚀")
+	assert.Contains(t, parsed[1]["name"], "\\")
+}
+
+func TestJSONOutput_LargeData_JQCompatibility(t *testing.T) {
+	// Test with larger dataset to ensure performance and correctness
+	var data []SimpleStruct
+	for i := 1; i <= 100; i++ {
+		data = append(data, SimpleStruct{
+			ID:     i,
+			Name:   fmt.Sprintf("Item %d", i),
+			Active: i%2 == 0,
+		})
+	}
+
+	output := CaptureOutput(func() {
+		err := PrintOutput(data, "json", noColor)
+		assert.NoError(t, err)
+	})
+
+	// Verify large JSON is still valid
+	var parsed []map[string]interface{}
+	err := json.Unmarshal([]byte(output), &parsed)
+	assert.NoError(t, err, "Large JSON output should be valid")
+	assert.Len(t, parsed, 100, "Should have all 100 items")
+
+	// Spot check first and last items
+	assert.Equal(t, float64(1), parsed[0]["id"])
+	assert.Equal(t, "Item 1", parsed[0]["name"])
+	assert.Equal(t, false, parsed[0]["active"])
+
+	assert.Equal(t, float64(100), parsed[99]["id"])
+	assert.Equal(t, "Item 100", parsed[99]["name"])
+	assert.Equal(t, true, parsed[99]["active"])
+}
+
+func TestJSONOutput_NoTrailingNewlines(t *testing.T) {
+	// Ensure JSON output doesn't have trailing newlines that could interfere with jq
+	data := []SimpleStruct{
+		{ID: 1, Name: "Test", Active: true},
+	}
+
+	output := CaptureOutput(func() {
+		err := PrintOutput(data, "json", noColor)
+		assert.NoError(t, err)
+	})
+
+	// JSON should end with ] and a single newline, not multiple newlines
+	assert.True(t, strings.HasSuffix(output, "]\n"), "JSON should end with ] followed by single newline")
+	assert.False(t, strings.HasSuffix(output, "]\n\n"), "JSON should not have multiple trailing newlines")
 }

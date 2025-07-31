@@ -13,6 +13,7 @@ import (
 )
 
 func ListLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -67,6 +68,7 @@ func ListLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat
 }
 
 func GetLocation(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 

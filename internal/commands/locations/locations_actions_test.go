@@ -277,7 +277,7 @@ func TestListLocationsCommand(t *testing.T) {
 				t.Fatalf("Failed to set flag: %v", err)
 			}
 
-			err := ListLocations(cmd, []string{}, true, "json")
+			err := ListLocations(cmd, []string{}, true, "table")
 			assert.NoError(t, err)
 		})
 

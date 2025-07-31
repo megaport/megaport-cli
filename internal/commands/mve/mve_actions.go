@@ -17,6 +17,9 @@ import (
 )
 
 func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Set output format for proper JSON mode handling
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -253,6 +256,9 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Set output format for proper JSON mode handling
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -294,6 +300,9 @@ func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 }
 
 func ListMVEImages(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Set output format for proper JSON mode handling
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -336,6 +345,9 @@ func ListMVEImages(cmd *cobra.Command, args []string, noColor bool, outputFormat
 }
 
 func ListAvailableMVESizes(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Set output format for proper JSON mode handling
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -416,6 +428,9 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func ListMVEResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Set output format for proper JSON mode handling
+	output.SetOutputFormat(outputFormat)
+
 	mveUID := args[0]
 
 	ctx := context.Background()
@@ -519,6 +534,9 @@ func UpdateMVEResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 
 // GetMVEStatus retrieves only the provisioning status of an MVE without all details
 func GetMVEStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Set output format for proper JSON mode handling
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
