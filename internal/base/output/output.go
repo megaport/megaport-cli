@@ -47,7 +47,7 @@ func printJSON[T OutputFields](data []T) error {
 	if data == nil {
 		data = []T{}
 	}
-	
+
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(data)
