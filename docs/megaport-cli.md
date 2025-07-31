@@ -18,7 +18,7 @@ The CLI allows you to manage Megaport resources such as ports, VXCs, MCRs, MVEs,
   - Use the --help flag with any command to see specific usage information
   - Authentication is handled via the MEGAPORT_ACCESS_KEY and MEGAPORT_SECRET_KEY environment variables
   - By default, the CLI connects to the Megaport production environment
-  - Set the MEGAPORT_ENVIRONMENT environment variable to connect to a different environment
+  - Set the MEGAPORT_ENDPOINT environment variable to connect to a different environment
 
 ### Example Usage
 

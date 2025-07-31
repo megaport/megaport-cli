@@ -11,7 +11,7 @@ This command fetches and displays a list of MCRs with details such as MCR ID, na
 ### Optional Fields
   - `include-inactive`: Include MCRs in CANCELLED, DECOMMISSIONED, or DECOMMISSIONING states
   - `location-id`: Filter MCRs by location ID
-  - `name`: Filter MCRs by name
+  - `mcr-name`: Filter MCRs by MCR name
   - `port-speed`: Filter MCRs by port speed
 
 ### Example Usage
@@ -20,9 +20,9 @@ This command fetches and displays a list of MCRs with details such as MCR ID, na
   megaport-cli mcr list
   megaport-cli mcr list --location-id 1
   megaport-cli mcr list --port-speed 10000
-  megaport-cli mcr list --name "My MCR"
+  megaport-cli mcr list --mcr-name "My MCR"
   megaport-cli mcr list --include-inactive
-  megaport-cli mcr list --location-id 1 --port-speed 10000 --name "My MCR"
+  megaport-cli mcr list --location-id 1 --port-speed 10000 --mcr-name "My MCR"
 ```
 
 ## Usage
