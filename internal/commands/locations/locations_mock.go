@@ -121,3 +121,84 @@ func (m *MockLocationsService) FilterLocationsByMcrAvailability(ctx context.Cont
 	}
 	return filteredLocations
 }
+
+// V3 API method implementations
+func (m *MockLocationsService) ListLocationsV3(ctx context.Context) ([]*megaport.LocationV3, error) {
+	args := m.Called(ctx)
+	val := args.Get(0)
+	if val == nil {
+		return nil, args.Error(1)
+	}
+	locations, ok := val.([]*megaport.LocationV3)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return locations, args.Error(1)
+}
+
+func (m *MockLocationsService) GetLocationByIDV3(ctx context.Context, locationID int) (*megaport.LocationV3, error) {
+	args := m.Called(ctx, locationID)
+
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+
+	location, ok := args.Get(0).(*megaport.LocationV3)
+	if !ok {
+		panic("mock returned wrong type for GetLocationByIDV3")
+	}
+	return location, args.Error(1)
+}
+
+func (m *MockLocationsService) GetLocationByNameV3(ctx context.Context, locationName string) (*megaport.LocationV3, error) {
+	args := m.Called(ctx, locationName)
+
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+
+	location, ok := args.Get(0).(*megaport.LocationV3)
+	if !ok {
+		panic("mock returned wrong type for GetLocationByNameV3")
+	}
+	return location, args.Error(1)
+}
+
+func (m *MockLocationsService) GetLocationByNameFuzzyV3(ctx context.Context, search string) ([]*megaport.LocationV3, error) {
+	args := m.Called(ctx, search)
+	val := args.Get(0)
+	if val == nil {
+		return nil, args.Error(1)
+	}
+	locations, ok := val.([]*megaport.LocationV3)
+	if !ok {
+		panic("mock returned wrong type for GetLocationByNameFuzzyV3")
+	}
+	return locations, args.Error(1)
+}
+
+func (m *MockLocationsService) FilterLocationsByMarketCodeV3(ctx context.Context, marketCode string, locations []*megaport.LocationV3) ([]*megaport.LocationV3, error) {
+	args := m.Called(ctx, marketCode, locations)
+	val := args.Get(0)
+	if val == nil {
+		return nil, args.Error(1)
+	}
+	filteredLocations, ok := val.([]*megaport.LocationV3)
+	if !ok {
+		panic("mock returned wrong type for FilterLocationsByMarketCodeV3")
+	}
+	return filteredLocations, args.Error(1)
+}
+
+func (m *MockLocationsService) FilterLocationsByMcrAvailabilityV3(ctx context.Context, mcrAvailable bool, locations []*megaport.LocationV3) []*megaport.LocationV3 {
+	args := m.Called(ctx, mcrAvailable, locations)
+	val := args.Get(0)
+	if val == nil {
+		return nil
+	}
+	filteredLocations, ok := val.([]*megaport.LocationV3)
+	if !ok {
+		panic("mock returned wrong type for FilterLocationsByMcrAvailabilityV3")
+	}
+	return filteredLocations
+}

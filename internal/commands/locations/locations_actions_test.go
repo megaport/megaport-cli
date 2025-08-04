@@ -81,9 +81,60 @@ func setupTestEnvironment() (*MockLocationsService, []*megaport.Location) {
 }
 
 func TestListLocationsFunc(t *testing.T) {
-	mockSvc, testLocations := setupTestEnvironment()
+	mockSvc, _ := setupTestEnvironment()
 
-	mockSvc.On("ListLocations", mock.Anything).Return(testLocations, nil)
+	// Create corresponding v3 locations for the test
+	testLocationsV3 := []*megaport.LocationV3{
+		{
+			ID:     1,
+			Name:   "Sydney Data Center",
+			Metro:  "Sydney",
+			Market: "AU",
+			Status: "Active",
+			Address: megaport.LocationV3Address{
+				Country: "Australia",
+			},
+			DiversityZones: &megaport.LocationV3DiversityZones{
+				Red: &megaport.LocationV3DiversityZone{
+					McrSpeedMbps:      []int{1000, 10000},
+					MegaportSpeedMbps: []int{1, 10},
+				},
+			},
+		},
+		{
+			ID:     2,
+			Name:   "London Data Center",
+			Metro:  "London",
+			Market: "UK",
+			Status: "Active",
+			Address: megaport.LocationV3Address{
+				Country: "United Kingdom",
+			},
+			DiversityZones: &megaport.LocationV3DiversityZones{
+				Red: &megaport.LocationV3DiversityZone{
+					MegaportSpeedMbps: []int{1},
+				},
+			},
+		},
+		{
+			ID:     3,
+			Name:   "New York Data Center",
+			Metro:  "New York",
+			Market: "US",
+			Status: "Active",
+			Address: megaport.LocationV3Address{
+				Country: "USA",
+			},
+			DiversityZones: &megaport.LocationV3DiversityZones{
+				Red: &megaport.LocationV3DiversityZone{
+					McrSpeedMbps:      []int{10000},
+					MegaportSpeedMbps: []int{10},
+				},
+			},
+		},
+	}
+
+	mockSvc.On("ListLocationsV3", mock.Anything).Return(testLocationsV3, nil)
 
 	originalLoginFunc := config.LoginFunc
 	originalListLocationsFunc := listLocationsFunc
@@ -104,7 +155,18 @@ func TestListLocationsFunc(t *testing.T) {
 	}
 
 	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Location, error) {
-		return client.LocationService.ListLocations(ctx)
+		// Use v3 API and convert to legacy format
+		locationsV3, err := client.LocationService.ListLocationsV3(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		var legacyLocations []*megaport.Location
+		for _, v3Loc := range locationsV3 {
+			legacyLocations = append(legacyLocations, v3Loc.ToLegacyLocation())
+		}
+
+		return legacyLocations, nil
 	}
 
 	locations, err := listLocationsFunc(context.Background(), testClient)
@@ -123,7 +185,7 @@ func TestListLocationsFuncError(t *testing.T) {
 
 	expectedError := errors.New("api connection failed")
 
-	mockSvc.On("ListLocations", mock.Anything).Return([]*megaport.Location{}, expectedError)
+	mockSvc.On("ListLocationsV3", mock.Anything).Return([]*megaport.LocationV3{}, expectedError)
 
 	originalListLocationsFunc := listLocationsFunc
 	originalLoginFunc := config.LoginFunc
@@ -145,7 +207,18 @@ func TestListLocationsFuncError(t *testing.T) {
 	}
 
 	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Location, error) {
-		return client.LocationService.ListLocations(ctx)
+		// Use v3 API and convert to legacy format
+		locationsV3, err := client.LocationService.ListLocationsV3(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		var legacyLocations []*megaport.Location
+		for _, v3Loc := range locationsV3 {
+			legacyLocations = append(legacyLocations, v3Loc.ToLegacyLocation())
+		}
+
+		return legacyLocations, nil
 	}
 
 	locations, err := listLocationsFunc(context.Background(), testClient)
@@ -158,9 +231,60 @@ func TestListLocationsFuncError(t *testing.T) {
 }
 
 func TestListLocationsCommand(t *testing.T) {
-	mockSvc, testLocations := setupTestEnvironment()
+	mockSvc, _ := setupTestEnvironment()
 
-	mockSvc.On("ListLocations", mock.Anything).Return(testLocations, nil)
+	// Create corresponding v3 locations for the test
+	testLocationsV3 := []*megaport.LocationV3{
+		{
+			ID:     1,
+			Name:   "Sydney Data Center",
+			Metro:  "Sydney",
+			Market: "AU",
+			Status: "Active",
+			Address: megaport.LocationV3Address{
+				Country: "Australia",
+			},
+			DiversityZones: &megaport.LocationV3DiversityZones{
+				Red: &megaport.LocationV3DiversityZone{
+					McrSpeedMbps:      []int{1000, 10000},
+					MegaportSpeedMbps: []int{1, 10},
+				},
+			},
+		},
+		{
+			ID:     2,
+			Name:   "London Data Center",
+			Metro:  "London",
+			Market: "UK",
+			Status: "Active",
+			Address: megaport.LocationV3Address{
+				Country: "United Kingdom",
+			},
+			DiversityZones: &megaport.LocationV3DiversityZones{
+				Red: &megaport.LocationV3DiversityZone{
+					MegaportSpeedMbps: []int{1},
+				},
+			},
+		},
+		{
+			ID:     3,
+			Name:   "New York Data Center",
+			Metro:  "New York",
+			Market: "US",
+			Status: "Active",
+			Address: megaport.LocationV3Address{
+				Country: "USA",
+			},
+			DiversityZones: &megaport.LocationV3DiversityZones{
+				Red: &megaport.LocationV3DiversityZone{
+					McrSpeedMbps:      []int{10000},
+					MegaportSpeedMbps: []int{10},
+				},
+			},
+		},
+	}
+
+	mockSvc.On("ListLocationsV3", mock.Anything).Return(testLocationsV3, nil)
 
 	originalListLocationsFunc := listLocationsFunc
 	originalLoginFunc := config.LoginFunc
@@ -177,7 +301,18 @@ func TestListLocationsCommand(t *testing.T) {
 	}
 
 	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Location, error) {
-		return client.LocationService.ListLocations(ctx)
+		// Use v3 API and convert to legacy format
+		locationsV3, err := client.LocationService.ListLocationsV3(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		var legacyLocations []*megaport.Location
+		for _, v3Loc := range locationsV3 {
+			legacyLocations = append(legacyLocations, v3Loc.ToLegacyLocation())
+		}
+
+		return legacyLocations, nil
 	}
 
 	t.Run("NoFilters", func(t *testing.T) {
