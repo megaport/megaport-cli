@@ -12,7 +12,7 @@ type LocationOutput struct {
 	Name          string  `json:"name" header:"Name"`
 	Country       string  `json:"country" header:"Country"`
 	Metro         string  `json:"metro" header:"Metro"`
-	SiteCode      string  `json:"site_code" header:"Site Code"`
+	SiteCode      string  `json:"site_code" header:"Site Code"` // Note: Site code deprecated in v3 API
 	Market        string  `json:"market" header:"Market"`
 	Latitude      float64 `json:"latitude" header:"-"`
 	Longitude     float64 `json:"longitude" header:"-"`
@@ -25,7 +25,7 @@ func ToLocationOutput(l *megaport.Location) LocationOutput {
 		Name:      l.Name,
 		Country:   l.Country,
 		Metro:     l.Metro,
-		SiteCode:  l.SiteCode,
+		SiteCode:  l.SiteCode, // Will be empty for v3-sourced data
 		Market:    l.Market,
 		Latitude:  l.Latitude,
 		Longitude: l.Longitude,
@@ -38,7 +38,7 @@ type LocationTableOutput struct {
 	Name     string `header:"Name"`
 	Country  string `header:"Country"`
 	Metro    string `header:"Metro"`
-	SiteCode string `header:"Site Code"`
+	SiteCode string `header:"Site Code"` // Note: Site code deprecated in v3 API
 	Status   string `header:"Status"`
 }
 
@@ -48,7 +48,7 @@ func ToLocationTableOutput(l *megaport.Location) LocationTableOutput {
 		Name:     l.Name,
 		Country:  l.Country,
 		Metro:    l.Metro,
-		SiteCode: l.SiteCode,
+		SiteCode: l.SiteCode, // Will be empty for v3-sourced data
 		Status:   l.Status,
 	}
 }
