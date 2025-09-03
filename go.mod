@@ -11,7 +11,7 @@ require (
 	github.com/megaport/megaportgo v1.4.0
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d
 	github.com/spf13/cobra v1.9.1
-	github.com/spf13/pflag v1.0.7
+	github.com/spf13/pflag v1.0.9
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/term v0.33.0
 )
