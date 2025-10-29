@@ -307,12 +307,12 @@ func TestExportImportConfig(t *testing.T) {
 	// where they manually edit the export file to use real credentials
 	manualExportPath := filepath.Join(configDir, "manual-export.json")
 	manualExportContent := `{
-        "version": 2,
-        "active_profile": "test-profile",
+        "version": 1,
+        "activeProfile": "test-profile",
         "profiles": {
             "test-profile": {
-                "access_key": "test-access",
-                "secret_key": "test-secret",
+                "accessKey": "test-access",
+                "secretKey": "test-secret",
                 "environment": "production",
                 "description": "Test profile"
             }

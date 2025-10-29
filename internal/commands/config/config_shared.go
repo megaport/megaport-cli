@@ -11,7 +11,7 @@ type ConfigFile struct {
 	Version       int                    `json:"version"`
 	ActiveProfile string                 `json:"activeProfile,omitempty"`
 	Profiles      map[string]*Profile    `json:"profiles,omitempty"`
-	Defaults      map[string]interface{} `json:"defaults,omitempty"`
+	Defaults      map[string]interface{} `json:"defaults"`
 }
 
 // Profile represents a credential profile
