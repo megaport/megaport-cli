@@ -78,20 +78,20 @@ func TestPrintMCRs_JSON(t *testing.T) {
 
 	expected := `[
   {
-    "uid": "mcr-1",
-    "name": "MyMCROne",
-    "location_id": 1,
-    "provisioning_status": "ACTIVE",
-    "asn": 64512,
-    "speed": 1000
+	"uid": "mcr-1",
+	"name": "MyMCROne",
+	"location_id": 1,
+	"provisioning_status": "ACTIVE",
+	"asn": 64512,
+	"speed": 1000
   },
   {
-    "uid": "mcr-2",
-    "name": "AnotherMCR",
-    "location_id": 2,
-    "provisioning_status": "INACTIVE",
-    "asn": 64513,
-    "speed": 5000
+	"uid": "mcr-2",
+	"name": "AnotherMCR",
+	"location_id": 2,
+	"provisioning_status": "INACTIVE",
+	"asn": 64513,
+	"speed": 5000
   }
 ]`
 	assert.JSONEq(t, expected, output)
@@ -166,7 +166,8 @@ func TestPrintMCRs_EmptyAndNilSlice(t *testing.T) {
 				assert.NoError(t, err)
 			})
 
-			if tt.format == "table" {
+			switch tt.format {
+			case "table":
 				assert.Contains(t, output, "UID")
 				assert.Contains(t, output, "NAME")
 				assert.Contains(t, output, "LOCATION ID")
@@ -179,10 +180,10 @@ func TestPrintMCRs_EmptyAndNilSlice(t *testing.T) {
 				assert.Contains(t, output, "┘")
 				assert.Contains(t, output, "│")
 				assert.Contains(t, output, "─")
-			} else if tt.format == "csv" {
+			case "csv":
 				expected := "uid,name,location_id,provisioning_status,asn,speed\n"
 				assert.Equal(t, expected, output)
-			} else if tt.format == "json" {
+			case "json":
 				assert.Equal(t, "[]\n", output)
 			}
 		})

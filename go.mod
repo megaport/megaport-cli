@@ -7,13 +7,13 @@ toolchain go1.23.5
 require (
 	github.com/charmbracelet/glamour v0.10.0
 	github.com/fatih/color v1.18.0
-	github.com/jedib0t/go-pretty/v6 v6.6.7
-	github.com/megaport/megaportgo v1.3.5
+	github.com/jedib0t/go-pretty/v6 v6.6.8
+	github.com/megaport/megaportgo v1.4.0
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d
 	github.com/spf13/cobra v1.9.1
-	github.com/spf13/pflag v1.0.6
+	github.com/spf13/pflag v1.0.7
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/term v0.31.0
+	golang.org/x/term v0.33.0
 )
 
 require (
@@ -52,6 +52,6 @@ require (
 	github.com/yuin/goldmark v1.7.8 // indirect
 	github.com/yuin/goldmark-emoji v1.0.5 // indirect
 	golang.org/x/net v0.38.0 // indirect
-	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/text v0.24.0 // indirect
 )

@@ -154,15 +154,15 @@ func ValidateVXCRequest(req *megaport.BuyVXCRequest) error {
 	}
 
 	// Validate inner VLANs if specified
-	if req.AEndConfiguration.VXCOrderMVEConfig != nil && req.AEndConfiguration.VXCOrderMVEConfig.InnerVLAN != 0 {
-		if err := ValidateVXCEndInnerVLAN(req.AEndConfiguration.VXCOrderMVEConfig.InnerVLAN); err != nil {
-			return NewValidationError("A-End Inner VLAN", req.AEndConfiguration.VXCOrderMVEConfig.InnerVLAN, err.Error())
+	if req.AEndConfiguration.VXCOrderMVEConfig != nil && req.AEndConfiguration.InnerVLAN != 0 {
+		if err := ValidateVXCEndInnerVLAN(req.AEndConfiguration.InnerVLAN); err != nil {
+			return NewValidationError("A-End Inner VLAN", req.AEndConfiguration.InnerVLAN, err.Error())
 		}
 	}
 
-	if req.BEndConfiguration.VXCOrderMVEConfig != nil && req.BEndConfiguration.VXCOrderMVEConfig.InnerVLAN != 0 {
-		if err := ValidateVXCEndInnerVLAN(req.BEndConfiguration.VXCOrderMVEConfig.InnerVLAN); err != nil {
-			return NewValidationError("B-End Inner VLAN", req.BEndConfiguration.VXCOrderMVEConfig.InnerVLAN, err.Error())
+	if req.BEndConfiguration.VXCOrderMVEConfig != nil && req.BEndConfiguration.InnerVLAN != 0 {
+		if err := ValidateVXCEndInnerVLAN(req.BEndConfiguration.InnerVLAN); err != nil {
+			return NewValidationError("B-End Inner VLAN", req.BEndConfiguration.InnerVLAN, err.Error())
 		}
 	}
 
@@ -336,7 +336,7 @@ func ValidateIBMPartnerConfig(config *megaport.VXCPartnerConfigIBM) error {
 		return NewValidationError("IBM account ID", config.AccountID, fmt.Sprintf("must be exactly %d characters", IBMAccountIDLength))
 	}
 	for _, c := range config.AccountID {
-		if !(c >= '0' && c <= '9') && !(c >= 'a' && c <= 'f') && !(c >= 'A' && c <= 'F') {
+		if c < '0' || (c > '9' && c < 'A') || (c > 'F' && c < 'a') || c > 'f' {
 			return NewValidationError("IBM account ID", config.AccountID, "must contain only hexadecimal characters (0-9, a-f, A-F)")
 		}
 	}
@@ -361,7 +361,7 @@ func ValidateIBMPartnerConfig(config *megaport.VXCPartnerConfigIBM) error {
 
 func isValidIBMName(name string) bool {
 	for _, c := range name {
-		if !(c >= '0' && c <= '9') && !(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z') && c != '/' && c != '-' && c != '_' && c != ',' {
+		if c < '0' || (c > '9' && c < 'A') || (c > 'Z' && c < 'a') || (c > 'z' && c != '/' && c != '-' && c != '_' && c != ',') {
 			return false
 		}
 	}

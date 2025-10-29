@@ -14,6 +14,11 @@ import (
 )
 
 func printJSON[T OutputFields](data []T) error {
+	// Handle nil slices by ensuring we output an empty array instead of null
+	if data == nil {
+		data = []T{}
+	}
+
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(data)

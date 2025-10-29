@@ -416,6 +416,9 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func ListMVEResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Set output format for proper JSON mode handling
+	output.SetOutputFormat(outputFormat)
+
 	mveUID := args[0]
 
 	ctx := context.Background()

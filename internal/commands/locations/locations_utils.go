@@ -23,6 +23,19 @@ func filterLocations(locations []*megaport.Location, filters map[string]string) 
 	return filtered
 }
 
+// listLocationsFunc now uses the v3 API and converts to legacy format for compatibility
 var listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Location, error) {
-	return client.LocationService.ListLocations(ctx)
+	// Use v3 API (recommended)
+	locationsV3, err := client.LocationService.ListLocationsV3(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert v3 locations to legacy format for backward compatibility
+	var legacyLocations []*megaport.Location
+	for _, v3Loc := range locationsV3 {
+		legacyLocations = append(legacyLocations, v3Loc.ToLegacyLocation())
+	}
+
+	return legacyLocations, nil
 }

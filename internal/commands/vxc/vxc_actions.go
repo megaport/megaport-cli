@@ -258,6 +258,9 @@ func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func ListVXCResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	// Set output format for proper JSON mode handling
+	output.SetOutputFormat(outputFormat)
+
 	vxcUID := args[0]
 
 	ctx := context.Background()

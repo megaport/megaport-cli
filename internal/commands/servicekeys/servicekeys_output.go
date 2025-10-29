@@ -30,7 +30,7 @@ func ToServiceKeyOutput(sk *megaport.ServiceKey) (ServiceKeyOutput, error) {
 	}
 
 	if sk.CreateDate != nil {
-		output.CreateDate = sk.CreateDate.Time.Format(time.RFC3339)
+		output.CreateDate = sk.CreateDate.Format(time.RFC3339)
 	}
 
 	return output, nil

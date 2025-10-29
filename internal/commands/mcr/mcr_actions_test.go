@@ -995,18 +995,452 @@ func TestGetMCRStatus(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Contains(t, capturedOutput, tt.expectedOutput)
 
-				if tt.outputFormat == "json" {
+				switch tt.outputFormat {
+				case "json":
 					assert.Contains(t, capturedOutput, "\"uid\":")
 					assert.Contains(t, capturedOutput, "\"name\":")
 					assert.Contains(t, capturedOutput, "\"status\":")
 					assert.Contains(t, capturedOutput, "\"asn\":")
-				} else if tt.outputFormat == "table" {
+				case "table":
 					assert.Contains(t, capturedOutput, "UID")
 					assert.Contains(t, capturedOutput, "NAME")
 					assert.Contains(t, capturedOutput, "STATUS")
 					assert.Contains(t, capturedOutput, "ASN")
 				}
 			}
+		})
+	}
+}
+
+func TestListMCRsCmd_WithMockClient(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	// Sample MCRs for testing
+	testMCRs := []*megaport.MCR{
+		{
+			UID:                "mcr-123",
+			Name:               "mcr-demo-01",
+			LocationID:         571,
+			ProvisioningStatus: "LIVE",
+			PortSpeed:          1000,
+			Resources: megaport.MCRResources{
+				VirtualRouter: megaport.MCRVirtualRouter{
+					ASN: 133937,
+				},
+			},
+		},
+		{
+			UID:                "mcr-456",
+			Name:               "mcr-demo0-01",
+			LocationID:         558,
+			ProvisioningStatus: "LIVE",
+			PortSpeed:          1000,
+			Resources: megaport.MCRResources{
+				VirtualRouter: megaport.MCRVirtualRouter{
+					ASN: 133937,
+				},
+			},
+		},
+		{
+			UID:                "mcr-789",
+			Name:               "production-mcr",
+			LocationID:         64,
+			ProvisioningStatus: "LIVE",
+			PortSpeed:          2500,
+			Resources: megaport.MCRResources{
+				VirtualRouter: megaport.MCRVirtualRouter{
+					ASN: 133937,
+				},
+			},
+		},
+		{
+			UID:                "mcr-abc",
+			Name:               "test-mcr-sydney",
+			LocationID:         571,
+			ProvisioningStatus: "DECOMMISSIONED",
+			PortSpeed:          5000,
+			Resources: megaport.MCRResources{
+				VirtualRouter: megaport.MCRVirtualRouter{
+					ASN: 64512,
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name           string
+		flags          map[string]string
+		setupMock      func(*MockMCRService)
+		expectedError  string
+		expectedMCRs   []string // Names of MCRs that should be in the output
+		unexpectedMCRs []string // Names of MCRs that should NOT be in the output
+		outputFormat   string
+	}{
+		{
+			name: "list all active MCRs",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = testMCRs
+			},
+			expectedMCRs:   []string{"mcr-demo-01", "mcr-demo0-01", "production-mcr"},
+			unexpectedMCRs: []string{"test-mcr-sydney"}, // Should be excluded due to DECOMMISSIONED status
+			outputFormat:   "table",
+		},
+		{
+			name: "filter by exact name match",
+			flags: map[string]string{
+				"name": "mcr-demo-01",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = testMCRs
+			},
+			expectedMCRs:   []string{"mcr-demo-01"},
+			unexpectedMCRs: []string{"mcr-demo0-01", "production-mcr", "test-mcr-sydney"},
+			outputFormat:   "table",
+		},
+		{
+			name: "filter by partial name match",
+			flags: map[string]string{
+				"name": "demo",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = testMCRs
+			},
+			expectedMCRs:   []string{"mcr-demo-01", "mcr-demo0-01"},
+			unexpectedMCRs: []string{"production-mcr", "test-mcr-sydney"},
+			outputFormat:   "table",
+		},
+		{
+			name: "filter by case insensitive name",
+			flags: map[string]string{
+				"name": "MCR-DEMO-01",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = testMCRs
+			},
+			expectedMCRs:   []string{"mcr-demo-01"},
+			unexpectedMCRs: []string{"mcr-demo0-01", "production-mcr", "test-mcr-sydney"},
+			outputFormat:   "table",
+		},
+		{
+			name: "filter by location ID",
+			flags: map[string]string{
+				"location-id": "571",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = testMCRs
+			},
+			expectedMCRs:   []string{"mcr-demo-01"}, // Only active MCR at location 571
+			unexpectedMCRs: []string{"mcr-demo0-01", "production-mcr", "test-mcr-sydney"},
+			outputFormat:   "table",
+		},
+		{
+			name: "filter by port speed",
+			flags: map[string]string{
+				"port-speed": "2500",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = testMCRs
+			},
+			expectedMCRs:   []string{"production-mcr"},
+			unexpectedMCRs: []string{"mcr-demo-01", "mcr-demo0-01", "test-mcr-sydney"},
+			outputFormat:   "table",
+		},
+		{
+			name: "filter by name and location combined",
+			flags: map[string]string{
+				"name":        "demo",
+				"location-id": "571",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = testMCRs
+			},
+			expectedMCRs:   []string{"mcr-demo-01"},
+			unexpectedMCRs: []string{"mcr-demo0-01", "production-mcr", "test-mcr-sydney"},
+			outputFormat:   "table",
+		},
+		{
+			name: "include inactive MCRs",
+			flags: map[string]string{
+				"include-inactive": "true",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = testMCRs
+			},
+			expectedMCRs:   []string{"mcr-demo-01", "mcr-demo0-01", "production-mcr", "test-mcr-sydney"},
+			unexpectedMCRs: []string{},
+			outputFormat:   "table",
+		},
+		{
+			name: "filter with no matches",
+			flags: map[string]string{
+				"name": "nonexistent-mcr",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = testMCRs
+			},
+			expectedMCRs:   []string{},
+			unexpectedMCRs: []string{"mcr-demo-01", "mcr-demo0-01", "production-mcr", "test-mcr-sydney"},
+			outputFormat:   "table",
+		},
+		{
+			name: "JSON output format",
+			flags: map[string]string{
+				"name": "mcr-demo-01",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = testMCRs
+			},
+			expectedMCRs:   []string{"mcr-demo-01"},
+			unexpectedMCRs: []string{"mcr-demo0-01", "production-mcr"},
+			outputFormat:   "json",
+		},
+		{
+			name: "API error",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsErr = fmt.Errorf("API error: service unavailable")
+			},
+			expectedError: "API error: service unavailable",
+			outputFormat:  "table",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockMCRService := &MockMCRService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockMCRService)
+			}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockMCRService
+				return client, nil
+			}
+
+			cmd := &cobra.Command{
+				Use: "list",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return ListMCRs(cmd, args, true, tt.outputFormat) // noColor = true for testing
+				},
+			}
+
+			// Add flags
+			cmd.Flags().String("name", "", "Filter MCRs by name")
+			cmd.Flags().Int("location-id", 0, "Filter MCRs by location ID")
+			cmd.Flags().Int("port-speed", 0, "Filter MCRs by port speed")
+			cmd.Flags().Bool("include-inactive", false, "Include inactive MCRs")
+
+			// Set flag values from test case
+			for flagName, flagValue := range tt.flags {
+				err := cmd.Flags().Set(flagName, flagValue)
+				if err != nil {
+					t.Fatalf("Failed to set %s flag: %v", flagName, err)
+				}
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+
+				// Check that expected MCRs are in the output
+				for _, expectedMCR := range tt.expectedMCRs {
+					assert.Contains(t, capturedOutput, expectedMCR,
+						"Expected MCR '%s' should be in output", expectedMCR)
+				}
+
+				// Check that unexpected MCRs are NOT in the output
+				for _, unexpectedMCR := range tt.unexpectedMCRs {
+					assert.NotContains(t, capturedOutput, unexpectedMCR,
+						"Unexpected MCR '%s' should NOT be in output", unexpectedMCR)
+				}
+
+				// Verify output format
+				switch tt.outputFormat {
+				case "json":
+					if len(tt.expectedMCRs) > 0 {
+						assert.Contains(t, capturedOutput, "\"uid\":")
+						assert.Contains(t, capturedOutput, "\"name\":")
+					}
+				case "table":
+					if len(tt.expectedMCRs) > 0 {
+						assert.Contains(t, capturedOutput, "UID")
+						assert.Contains(t, capturedOutput, "NAME")
+					}
+				}
+
+				// Check warning message when no results found
+				if len(tt.expectedMCRs) == 0 && tt.expectedError == "" {
+					assert.Contains(t, capturedOutput, "No MCRs found matching the specified filters")
+				}
+			}
+
+			// Verify that the correct request was passed to the mock
+			if mockMCRService.CapturedListMCRsRequest != nil {
+				if tt.flags["include-inactive"] == "true" {
+					assert.True(t, mockMCRService.CapturedListMCRsRequest.IncludeInactive)
+				} else {
+					assert.False(t, mockMCRService.CapturedListMCRsRequest.IncludeInactive)
+				}
+			}
+		})
+	}
+}
+
+func TestFilterMCRsFunction(t *testing.T) {
+	testMCRs := []*megaport.MCR{
+		{
+			UID:        "mcr-123",
+			Name:       "mcr-demo-01",
+			LocationID: 571,
+			PortSpeed:  1000,
+		},
+		{
+			UID:        "mcr-456",
+			Name:       "mcr-demo0-01",
+			LocationID: 558,
+			PortSpeed:  1000,
+		},
+		{
+			UID:        "mcr-789",
+			Name:       "Production-MCR",
+			LocationID: 64,
+			PortSpeed:  2500,
+		},
+		{
+			UID:        "mcr-abc",
+			Name:       "test-mcr-sydney",
+			LocationID: 571,
+			PortSpeed:  5000,
+		},
+	}
+
+	tests := []struct {
+		name         string
+		locationID   int
+		portSpeed    int
+		mcrName      string
+		expectedUIDs []string
+	}{
+		{
+			name:         "no filters - return all",
+			expectedUIDs: []string{"mcr-123", "mcr-456", "mcr-789", "mcr-abc"},
+		},
+		{
+			name:         "filter by exact name",
+			mcrName:      "mcr-demo-01",
+			expectedUIDs: []string{"mcr-123"},
+		},
+		{
+			name:         "filter by partial name",
+			mcrName:      "demo",
+			expectedUIDs: []string{"mcr-123", "mcr-456"},
+		},
+		{
+			name:         "filter by case insensitive name",
+			mcrName:      "PRODUCTION",
+			expectedUIDs: []string{"mcr-789"},
+		},
+		{
+			name:         "filter by location ID",
+			locationID:   571,
+			expectedUIDs: []string{"mcr-123", "mcr-abc"},
+		},
+		{
+			name:         "filter by port speed",
+			portSpeed:    1000,
+			expectedUIDs: []string{"mcr-123", "mcr-456"},
+		},
+		{
+			name:         "filter by name and location",
+			mcrName:      "demo",
+			locationID:   571,
+			expectedUIDs: []string{"mcr-123"},
+		},
+		{
+			name:         "filter by all parameters",
+			mcrName:      "mcr-demo-01",
+			locationID:   571,
+			portSpeed:    1000,
+			expectedUIDs: []string{"mcr-123"},
+		},
+		{
+			name:         "no matches",
+			mcrName:      "nonexistent",
+			expectedUIDs: []string{},
+		},
+		{
+			name:         "empty name filter - return all",
+			mcrName:      "",
+			expectedUIDs: []string{"mcr-123", "mcr-456", "mcr-789", "mcr-abc"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := filterMCRs(testMCRs, tt.locationID, tt.portSpeed, tt.mcrName)
+
+			// Check that we got the expected number of results
+			assert.Equal(t, len(tt.expectedUIDs), len(result),
+				"Expected %d MCRs, got %d", len(tt.expectedUIDs), len(result))
+
+			// Check that all expected UIDs are present
+			resultUIDs := make([]string, len(result))
+			for i, mcr := range result {
+				resultUIDs[i] = mcr.UID
+			}
+
+			for _, expectedUID := range tt.expectedUIDs {
+				assert.Contains(t, resultUIDs, expectedUID,
+					"Expected UID '%s' should be in filtered results", expectedUID)
+			}
+		})
+	}
+}
+
+func TestFilterMCRs_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		mcrs        []*megaport.MCR
+		locationID  int
+		portSpeed   int
+		mcrName     string
+		expectedLen int
+	}{
+		{
+			name:        "nil slice",
+			mcrs:        nil,
+			expectedLen: 0,
+		},
+		{
+			name:        "empty slice",
+			mcrs:        []*megaport.MCR{},
+			expectedLen: 0,
+		},
+		{
+			name: "slice with nil elements",
+			mcrs: []*megaport.MCR{
+				{UID: "mcr-123", Name: "test-mcr"},
+				nil,
+				{UID: "mcr-456", Name: "another-mcr"},
+			},
+			expectedLen: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := filterMCRs(tt.mcrs, tt.locationID, tt.portSpeed, tt.mcrName)
+			assert.Equal(t, tt.expectedLen, len(result))
 		})
 	}
 }
