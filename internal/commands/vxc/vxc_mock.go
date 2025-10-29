@@ -81,8 +81,3 @@ func (m *mockVXCService) UpdateVXCResourceTags(ctx context.Context, vxcID string
 	m.CapturedUpdateVXCResourceTagsRequest = tags
 	return m.UpdateVXCResourceTagsErr
 }
-
-func (m *mockVXCService) ListVXCs(ctx context.Context, req *megaport.ListVXCsRequest) ([]*megaport.VXC, error) {
-	// Return empty list if not implemented in test
-	return []*megaport.VXC{}, nil
-}
