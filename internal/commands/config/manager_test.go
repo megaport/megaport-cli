@@ -1,3 +1,6 @@
+//go:build !js && !wasm
+// +build !js,!wasm
+
 package config
 
 import (
@@ -611,12 +614,12 @@ func TestImportWithMissingFields(t *testing.T) {
 
 	// Create a minimal import file with missing fields
 	minimalConfig := `{
-        "version": 2,
-        "active_profile": "minimal-profile",
+        "version": 1,
+        "activeProfile": "minimal-profile",
         "profiles": {
             "minimal-profile": {
-                "access_key": "access",
-                "secret_key": "secret"
+                "accessKey": "access",
+                "secretKey": "secret"
             }
         },
         "defaults": {}

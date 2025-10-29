@@ -278,19 +278,30 @@ func ImportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 	if err := json.Unmarshal(data, &importConfig); err != nil {
 		return fmt.Errorf("failed to parse config file: %w", err)
 	}
+
+	// Validate the import config before confirming
 	if importConfig.ActiveProfile != "" {
 		if _, exists := importConfig.Profiles[importConfig.ActiveProfile]; !exists {
 			return fmt.Errorf("import specifies active profile '%s' but the profile was not found", importConfig.ActiveProfile)
 		}
+	}
 
-		for profileName, profile := range importConfig.Profiles {
-			if profile.Environment == "" {
-				profile.Environment = "production"
-			}
-			if profile.AccessKey == "" || profile.SecretKey == "" {
-				return fmt.Errorf("profile '%s' is missing required credential fields", profileName)
-			}
+	// Validate and set defaults for profiles
+	for profileName, profile := range importConfig.Profiles {
+		if profile.Environment == "" {
+			profile.Environment = "production"
 		}
+		if profile.AccessKey == "" || profile.SecretKey == "" ||
+			profile.AccessKey == "[REDACTED]" || profile.SecretKey == "[REDACTED]" {
+			return fmt.Errorf("profile '%s' has missing or redacted credentials - cannot import", profileName)
+		}
+	}
+
+	// Ask for confirmation BEFORE making any changes
+	confirmed := utils.ConfirmPrompt("This will overwrite any existing profiles with the same names. Continue? (y/n): ", noColor)
+	if !confirmed {
+		output.PrintInfo("Import cancelled", noColor)
+		return nil
 	}
 
 	manager, err := NewConfigManager()
@@ -298,6 +309,7 @@ func ImportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("failed to create config manager: %w", err)
 	}
 
+	// Now actually import the profiles
 	for name, profile := range importConfig.Profiles {
 		err = manager.CreateProfile(
 			name,
@@ -311,6 +323,7 @@ func ImportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 	}
 
+	// Import defaults
 	for key, value := range importConfig.Defaults {
 		err = manager.SetDefault(key, value)
 		if err != nil {
@@ -318,32 +331,13 @@ func ImportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 	}
 
+	// Set active profile if specified
 	if importConfig.ActiveProfile != "" {
 		err = manager.UseProfile(importConfig.ActiveProfile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: Could not set active profile to '%s': %v\n",
 				importConfig.ActiveProfile, err)
 		}
-	}
-
-	confirmed := utils.ConfirmPrompt("This will overwrite any existing profiles with the same names. Continue? (y/n): ", noColor)
-	if !confirmed {
-		output.PrintInfo("Import cancelled", noColor)
-		return nil
-	}
-
-	for name, profile := range importConfig.Profiles {
-		if profile.AccessKey != "[REDACTED]" && profile.SecretKey != "[REDACTED]" {
-			manager.config.Profiles[name] = profile
-		}
-	}
-
-	for key, value := range importConfig.Defaults {
-		manager.config.Defaults[key] = value
-	}
-
-	if err := manager.Save(); err != nil {
-		return err
 	}
 
 	output.PrintSuccess("Configuration imported successfully", noColor)

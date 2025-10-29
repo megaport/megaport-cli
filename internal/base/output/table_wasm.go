@@ -1,26 +1,23 @@
-//go:build !wasm
-// +build !wasm
+//go:build js && wasm
+// +build js,wasm
 
 package output
 
 import (
-	"os"
+	"bytes"
+	"fmt"
 	"reflect"
 	"strings"
+	"syscall/js"
 
 	prettytable "github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	"golang.org/x/term"
 )
 
-func getTerminalWidth() int {
-	width, _, err := term.GetSize(int(os.Stdout.Fd()))
-	if err != nil || width <= 0 {
-		return 100
-	}
-	return width
-}
+// WasmTableWriter is a global buffer for capturing table output in WASM
+var WasmTableWriter = &bytes.Buffer{}
 
+// calculateDynamicWidth calculates the maximum width for a column
 func calculateDynamicWidth(termWidth int, minWidth, maxPercentage int) int {
 	maxWidth := termWidth * maxPercentage / 100
 	if maxWidth < minWidth {
@@ -29,6 +26,7 @@ func calculateDynamicWidth(termWidth int, minWidth, maxPercentage int) int {
 	return maxWidth
 }
 
+// printTable is the WASM-specific implementation that properly captures table output
 func printTable[T OutputFields](data []T, noColor bool) error {
 	headers, fieldIndices, err := getStructTypeInfo(data)
 	if err != nil {
@@ -37,9 +35,20 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 	if len(headers) == 0 {
 		return nil
 	}
+	
+	// Create table writer
 	t := prettytable.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	termWidth := getTerminalWidth()
+	
+	// CRITICAL FIX: In WASM, write ONLY to WasmTableWriter
+	// Don't write to os.Stdout as it causes capture issues
+	WasmTableWriter.Reset() // Clear previous content
+	t.SetOutputMirror(WasmTableWriter)
+	
+	js.Global().Get("console").Call("log", "📊 Table will write to WasmTableWriter")
+	
+	// In WASM, use a fixed width since term.GetSize() doesn't work
+	termWidth := 120
+	
 	columnConfigs := make([]prettytable.ColumnConfig, len(headers))
 	for i := range headers {
 		if i == 0 {
@@ -49,6 +58,7 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 		}
 	}
 	t.SetColumnConfigs(columnConfigs)
+	
 	if noColor {
 		t.SetStyle(prettytable.StyleLight)
 	} else {
@@ -94,14 +104,17 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 		}
 		t.SetStyle(megaportStyle)
 	}
+	
 	t.Style().Options.DrawBorder = true
 	t.Style().Options.SeparateColumns = true
 	t.Style().Options.SeparateHeader = true
+	
 	headerRow := prettytable.Row{}
 	for _, header := range headers {
 		headerRow = append(headerRow, strings.ToUpper(header))
 	}
 	t.AppendHeader(headerRow)
+	
 	for _, item := range data {
 		if reflect.ValueOf(item).IsZero() {
 			continue
@@ -116,6 +129,21 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 		}
 		t.AppendRow(row)
 	}
+	
+	js.Global().Get("console").Call("log", "🎨 About to render table...")
 	t.Render()
+	
+	// Get the rendered table output
+	tableOutput := WasmTableWriter.String()
+	js.Global().Get("console").Call("log", fmt.Sprintf("✅ Table rendered, buffer size: %d bytes", len(tableOutput)))
+	
+	// Write the table output to stdout so it can be captured by wasm buffers
+	// This is the key: write the buffered content to stdout
+	fmt.Print(tableOutput)
+	
+	// Also write to a JavaScript-accessible global variable
+	js.Global().Set("wasmTableOutput", tableOutput)
+	js.Global().Get("console").Call("log", "📝 Table output also stored in wasmTableOutput global")
+	
 	return nil
 }
