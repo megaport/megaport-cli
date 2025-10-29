@@ -208,9 +208,15 @@ func ResetOutputBuffers() {
 
 	stdoutBuffer.Reset()
 	stderrBuffer.Reset()
+	WasmOutputBuffer.Reset()
+
+	// CRITICAL: Also clear all the global output variables
+	js.Global().Delete("wasmJSONOutput")
+	js.Global().Delete("wasmCSVOutput")
+	js.Global().Delete("wasmTableOutput")
 
 	if debugMode {
-		js.Global().Get("console").Call("log", "Output buffers reset")
+		js.Global().Get("console").Call("log", "Output buffers reset (including all structured output globals)")
 	}
 }
 
@@ -223,20 +229,60 @@ func GetCapturedOutput() string {
 	err := stderrBuffer.String()
 	direct := WasmOutputBuffer.String()
 
+	// IMPORTANT: Also check for structured output from output package
+	// Check for JSON output
+	jsonOutput := ""
+	if wasmJSONGlobal := js.Global().Get("wasmJSONOutput"); !wasmJSONGlobal.IsUndefined() && !wasmJSONGlobal.IsNull() {
+		jsonOutput = wasmJSONGlobal.String()
+		js.Global().Get("console").Call("log", fmt.Sprintf("📝 Found JSON output: %d bytes", len(jsonOutput)))
+	}
+
+	// Check for CSV output
+	csvOutput := ""
+	if wasmCSVGlobal := js.Global().Get("wasmCSVOutput"); !wasmCSVGlobal.IsUndefined() && !wasmCSVGlobal.IsNull() {
+		csvOutput = wasmCSVGlobal.String()
+		js.Global().Get("console").Call("log", fmt.Sprintf("📊 Found CSV output: %d bytes", len(csvOutput)))
+	}
+
+	// Check for table output
+	tableOutput := ""
+	if wasmTableWriterGlobal := js.Global().Get("wasmTableOutput"); !wasmTableWriterGlobal.IsUndefined() && !wasmTableWriterGlobal.IsNull() {
+		tableOutput = wasmTableWriterGlobal.String()
+		js.Global().Get("console").Call("log", fmt.Sprintf("📊 Found table output: %d bytes", len(tableOutput)))
+	}
+
 	// Log what was captured in each buffer
 	js.Global().Get("console").Call("group", "📤 OUTPUT CAPTURE RESULTS")
 	js.Global().Get("console").Call("log", fmt.Sprintf("stdout buffer: [%d bytes]", len(out)))
 	js.Global().Get("console").Call("log", fmt.Sprintf("stderr buffer: [%d bytes]", len(err)))
 	js.Global().Get("console").Call("log", fmt.Sprintf("direct buffer: [%d bytes]", len(direct)))
+	js.Global().Get("console").Call("log", fmt.Sprintf("JSON buffer: [%d bytes]", len(jsonOutput)))
+	js.Global().Get("console").Call("log", fmt.Sprintf("CSV buffer: [%d bytes]", len(csvOutput)))
+	js.Global().Get("console").Call("log", fmt.Sprintf("table buffer: [%d bytes]", len(tableOutput)))
 
-	// Show which output will be returned
-	finalOutput := direct
-	if finalOutput == "" {
-		finalOutput = out + err
-		js.Global().Get("console").Call("log", "Using combined stdout/stderr (direct buffer empty)")
+	// Priority order: JSON > CSV > table > direct > stdout/stderr combined
+	// This ensures structured output formats take precedence
+	finalOutput := ""
+	outputSource := ""
+
+	if jsonOutput != "" {
+		finalOutput = jsonOutput
+		outputSource = "JSON buffer"
+	} else if csvOutput != "" {
+		finalOutput = csvOutput
+		outputSource = "CSV buffer"
+	} else if tableOutput != "" {
+		finalOutput = tableOutput
+		outputSource = "table buffer"
+	} else if direct != "" {
+		finalOutput = direct
+		outputSource = "direct buffer"
 	} else {
-		js.Global().Get("console").Call("log", "Using direct buffer output")
+		finalOutput = out + err
+		outputSource = "combined stdout/stderr"
 	}
+
+	js.Global().Get("console").Call("log", fmt.Sprintf("Using %s for output", outputSource))
 
 	js.Global().Get("console").Call("log", fmt.Sprintf("Final output length: %d bytes", len(finalOutput)))
 	js.Global().Get("console").Call("groupEnd")
@@ -244,42 +290,26 @@ func GetCapturedOutput() string {
 	return finalOutput
 }
 
-// SetupIO redirects stdout/stderr to our buffers
+// SetupIO redirects stdout/stderr to our buffers using WasmOutputBuffer
+// In WASM, os.Pipe() is not implemented, so we don't need complex IO redirection
+// The output is already captured through WasmOutputBuffer which Cobra commands use
 func SetupIO() {
-	bufferMutex.Lock()
-	defer bufferMutex.Unlock()
-
-	// Save original stdout/stderr
+	// Save original stdout/stderr references
 	originalStdout = os.Stdout
 	originalStderr = os.Stderr
 
-	// Create pipes for output redirection
-	rOut, wOut, _ := os.Pipe()
-	rErr, wErr, _ := os.Pipe()
+	// Note: In WASM, we don't need to redirect os.Stdout/Stderr because:
+	// 1. Cobra commands are configured to write to WasmOutputBuffer directly
+	// 2. Table output writes to WasmTableWriter and sets wasmTableOutput global
+	// 3. Any fmt.Print() calls go to the console via wasm_exec.js
 
-	// Redirect standard output/error to our pipes
-	os.Stdout = wOut
-	os.Stderr = wErr
-
-	// Start goroutines to capture output
-	go func() {
-		var buf bytes.Buffer
-		io.Copy(&buf, rOut)
-		bufferMutex.Lock()
-		stdoutBuffer.Write(buf.Bytes())
-		bufferMutex.Unlock()
-	}()
-
-	go func() {
-		var buf bytes.Buffer
-		io.Copy(&buf, rErr)
-		bufferMutex.Lock()
-		stderrBuffer.Write(buf.Bytes())
-		bufferMutex.Unlock()
-	}()
+	// The output capture happens through:
+	// - Direct writes to WasmOutputBuffer from Cobra commands
+	// - Table output via WasmTableWriter -> wasmTableOutput global
+	// - These are collected in GetCapturedOutput()
 
 	if debugMode {
-		fmt.Println("WASM IO redirection setup complete")
+		js.Global().Get("console").Call("log", "✅ WASM IO setup complete (using WasmOutputBuffer)")
 	}
 }
 
@@ -406,24 +436,20 @@ func SplitArgs(cmd string) []string {
 		args = append(args, currentArg.String())
 	}
 
-	// Avoid duplicate program names in args
+	// Remove program name if user included it
+	// The main_wasm.go will add it back, so we don't want duplicates
 	cleanedArgs := []string{}
-	programNameCount := 0
 	for _, arg := range args {
-		if arg == "megaport-cli" || arg == "./megaport-cli" {
-			// Only include the first occurrence of the program name
-			if programNameCount == 0 {
-				cleanedArgs = append(cleanedArgs, arg)
-			}
-			programNameCount++
-		} else {
-			cleanedArgs = append(cleanedArgs, arg)
+		// Skip any occurrence of the program name
+		if arg == "megaport-cli" || arg == "./megaport-cli" || arg == "megaport" {
+			continue
 		}
+		cleanedArgs = append(cleanedArgs, arg)
 	}
 
 	// Debug the cleaned arguments
 	fmt.Printf("WASM Debug: Original args: %v\n", args)
-	fmt.Printf("WASM Debug: Cleaned args: %v\n", cleanedArgs)
+	fmt.Printf("WASM Debug: Cleaned args (program name removed): %v\n", cleanedArgs)
 
 	return cleanedArgs
 }

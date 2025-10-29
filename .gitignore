@@ -12,3 +12,7 @@
 *.so
 *.test
 *.out
+
+# WASM build artifacts
+web/megaport.wasm
+*.wasm

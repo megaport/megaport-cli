@@ -1,3 +1,7 @@
+// go:build !js && !wasm
+//go:build !js && !wasm
+// +build !js,!wasm
+
 package config
 
 import (

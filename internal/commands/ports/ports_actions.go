@@ -160,6 +160,11 @@ func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
+// listPortsFunc is a variable that can be overridden by WASM builds
+var listPortsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Port, error) {
+	return client.PortService.ListPorts(ctx)
+}
+
 func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
@@ -172,7 +177,7 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 
 	spinner := output.PrintResourceListing("Port", noColor)
 
-	ports, err := client.PortService.ListPorts(ctx)
+	ports, err := listPortsFunc(ctx, client)
 
 	spinner.Stop()
 
@@ -214,7 +219,7 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 
 	spinner := output.PrintResourceGetting("Port", portUID, noColor)
 
-	port, err := client.PortService.GetPort(ctx, portUID)
+	port, err := getPortFunc(ctx, client, portUID)
 
 	spinner.Stop()
 
@@ -250,7 +255,7 @@ func GetPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat
 
 	spinner := output.PrintResourceGetting("Port", portUID, noColor)
 
-	port, err := client.PortService.GetPort(ctx, portUID)
+	port, err := getPortFunc(ctx, client, portUID)
 
 	spinner.Stop()
 

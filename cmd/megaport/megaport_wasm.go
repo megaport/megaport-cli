@@ -42,11 +42,10 @@ func ExecuteWithArgs(args []string) {
 	// Execute and capture errors
 	err := rootCmd.Execute()
 
-	// Debug the command result
+	// Debug the command result - only report errors
+	// The command output is already in WasmOutputBuffer
 	if err != nil {
 		fmt.Fprintf(wasm.WasmOutputBuffer, "Error executing command: %v\n", err)
-	} else {
-		fmt.Fprintf(wasm.WasmOutputBuffer, "Command completed successfully\n")
 	}
 }
 

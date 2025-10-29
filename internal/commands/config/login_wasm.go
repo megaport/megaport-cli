@@ -5,17 +5,15 @@ package config
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"strings"
 	"syscall/js"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
-	"github.com/megaport/megaport-cli/internal/wasm/api"
+	"github.com/megaport/megaport-cli/internal/wasm/wasmhttp"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -111,12 +109,12 @@ var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 
 	js.Global().Get("console").Call("log", "Using API endpoint: "+apiEndpoint)
 
-	// Create HTTP client with longer timeout for browser environments
-	httpClient := &http.Client{
-		Timeout: 45 * time.Second, // Increase from default timeout
-	}
+	// Create WASM HTTP client that uses browser fetch API
+	httpClient := wasmhttp.NewWasmHTTPClient()
+	httpClient.Timeout = 45 * time.Second // Increase from default timeout
 
 	js.Global().Get("console").Call("log", "HTTP client timeout set to: "+httpClient.Timeout.String())
+	js.Global().Get("console").Call("log", "✨ Using WASM HTTP transport with browser fetch")
 
 	// Create Megaport client with credentials
 	js.Global().Get("console").Call("log", "Creating Megaport client...")
@@ -215,8 +213,8 @@ func RetryWithBackoffAndConsoleLogging(ctx context.Context, attempts int, client
 		// Attempt the authorization
 		startTime := time.Now()
 
-		// Use the new proxy-based authentication method
-		authInfo, err := authorizeWithProxy(authCtx, client)
+		// Use the SDK's built-in Authorize() method with our WASM HTTP transport
+		authInfo, err := client.Authorize(authCtx)
 
 		// Must cancel the context after use
 		cancel()
@@ -314,126 +312,4 @@ func ClearCachedToken() {
 func Logout() {
 	ClearCachedToken()
 	js.Global().Get("console").Call("log", "User logged out and tokens cleared")
-}
-
-// authorizeWithProxy handles authentication through the server-side proxy
-func authorizeWithProxy(_ context.Context, client *megaport.Client) (*megaport.AuthInfo, error) {
-	// Determine the token URL based on environment
-	var tokenHostname string
-	var tokenPath string
-
-	switch client.BaseURL.Host {
-	case "api.megaport.com":
-		tokenHostname = "auth-m2m.megaport.com"
-	case "api-staging.megaport.com":
-		tokenHostname = "auth-m2m-staging.megaport.com"
-	default:
-		tokenHostname = "auth-m2m-mpone-dev.megaport.com"
-	}
-
-	tokenPath = "oauth2/token"
-
-	js.Global().Get("console").Call("log", fmt.Sprintf("Using proxied auth request to %s/%s", tokenHostname, tokenPath))
-
-	// Create form data for the token request
-	formData := map[string]interface{}{
-		"grant_type":    "client_credentials",
-		"client_id":     client.AccessKey,
-		"client_secret": client.SecretKey,
-	}
-
-	// Convert this to JSON for the request body
-	formJSON, err := json.Marshal(formData)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling auth request: %w", err)
-	}
-
-	// Use our API.MakeProxiedRequest function but with special token endpoint handling
-	state, err := api.MakeProxiedRequest(
-		js.ValueOf(nil),
-		fmt.Sprintf("https://%s/%s", tokenHostname, tokenPath),
-		"", // No auth token needed for authentication request
-		js.ValueOf(map[string]interface{}{
-			"method": "POST",
-			"headers": map[string]interface{}{
-				"Content-Type": "application/json",
-			},
-			"body": string(formJSON),
-		}),
-	)
-
-	if err != nil {
-		js.Global().Get("console").Call("error", "Proxied auth request failed:", err.Error())
-		return nil, fmt.Errorf("authentication request failed: %w", err)
-	}
-
-	if state.Error != nil {
-		js.Global().Get("console").Call("error", "Auth response error:", state.Error.Error())
-		return nil, state.Error
-	}
-
-	// Parse the response
-	if len(state.Result) == 0 {
-		return nil, fmt.Errorf("empty response from authentication endpoint")
-	}
-
-	js.Global().Get("console").Call("log", fmt.Sprintf("Auth response received (%d bytes)", len(state.Result)))
-
-	// Parse the JSON to extract token data
-	var response struct {
-		AccessToken string `json:"access_token"`
-		ExpiresIn   int    `json:"expires_in"`
-		TokenType   string `json:"token_type"`
-		Error       string `json:"error"`
-		ErrorDesc   string `json:"error_description"`
-	}
-
-	if err := json.Unmarshal(state.Result, &response); err != nil {
-		js.Global().Get("console").Call("error", "Failed to parse auth response:", err.Error())
-		return nil, fmt.Errorf("failed to parse authentication response: %w", err)
-	}
-
-	// Check for errors in the response
-	if response.Error != "" {
-		errMsg := response.Error
-		if response.ErrorDesc != "" {
-			errMsg += ": " + response.ErrorDesc
-		}
-		js.Global().Get("console").Call("error", "Auth error from server:", errMsg)
-		return nil, fmt.Errorf("authentication error: %s", errMsg)
-	}
-
-	// Validate access token
-	if response.AccessToken == "" {
-		js.Global().Get("console").Call("error", "No access token in response")
-		return nil, errors.New("no access token received")
-	}
-
-	// Calculate token expiration
-	expiry := time.Now().Add(time.Duration(response.ExpiresIn) * time.Second)
-
-	js.Global().Get("console").Call("log", fmt.Sprintf(
-		"Token acquired successfully: type=%s, expires_in=%d",
-		response.TokenType, response.ExpiresIn))
-
-	// If we have a token manager, store the token
-	if !js.Global().Get("tokenManager").IsUndefined() {
-		environment := "production"
-		if client != nil && client.BaseURL != nil {
-			switch client.BaseURL.Host {
-			case "api-staging.megaport.com":
-				environment = "staging"
-			case "api-dev.megaport.com":
-				environment = "development"
-			}
-		}
-		js.Global().Get("tokenManager").Call("setToken", response.AccessToken, environment)
-		js.Global().Get("console").Call("log", "Token cached in browser storage")
-	}
-
-	// Create the auth info with the token
-	return &megaport.AuthInfo{
-		AccessToken: response.AccessToken,
-		Expiration:  expiry,
-	}, nil
 }

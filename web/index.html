@@ -57,6 +57,7 @@
             <input id="input" type="text" autofocus />
         </div>
         <script src="wasm_exec.js"></script>
+        <script src="script.js"></script>
         <script>
             const terminal = document.getElementById('terminal');
             const input = document.getElementById('input');
@@ -81,7 +82,10 @@
             }
 
             // Load WASM module
-            const go = new Go();
+            // Note: Go instance is created in script.js
+            if (typeof go === 'undefined') {
+                console.error('Go WASM runtime not initialized by script.js');
+            }
 
             WebAssembly.instantiateStreaming(fetch("megaport.wasm"), go.importObject)
                 .then((result) => {
