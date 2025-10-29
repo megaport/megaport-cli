@@ -291,7 +291,7 @@ func ImportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 		if profile.Environment == "" {
 			profile.Environment = "production"
 		}
-		if profile.AccessKey == "" || profile.SecretKey == "" || 
+		if profile.AccessKey == "" || profile.SecretKey == "" ||
 			profile.AccessKey == "[REDACTED]" || profile.SecretKey == "[REDACTED]" {
 			return fmt.Errorf("profile '%s' has missing or redacted credentials - cannot import", profileName)
 		}
