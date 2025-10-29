@@ -1,4 +1,3 @@
-// go:build !js && !wasm
 //go:build !js && !wasm
 // +build !js,!wasm
 
