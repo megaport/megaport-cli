@@ -142,7 +142,7 @@ func printCSV[T OutputFields](data []T) error {
 	return nil
 }
 
-func CaptureOutput(f func()) string{
+func CaptureOutput(f func()) string {
 	old := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
