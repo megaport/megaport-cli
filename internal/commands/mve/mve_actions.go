@@ -17,10 +17,7 @@ import (
 )
 
 func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -256,10 +253,7 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -300,10 +294,7 @@ func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 }
 
 func ListMVEImages(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -345,10 +336,7 @@ func ListMVEImages(cmd *cobra.Command, args []string, noColor bool, outputFormat
 }
 
 func ListAvailableMVESizes(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -461,7 +449,7 @@ func ListMVEResourceTags(cmd *cobra.Command, args []string, noColor bool, output
 func UpdateMVEResourceTags(cmd *cobra.Command, args []string, noColor bool) error {
 	mveUID := args[0]
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.LoginFunc(ctx)
@@ -534,10 +522,7 @@ func UpdateMVEResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 
 // GetMVEStatus retrieves only the provisioning status of an MVE without all details
 func GetMVEStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.Login(ctx)

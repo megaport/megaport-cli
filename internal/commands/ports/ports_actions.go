@@ -160,11 +160,13 @@ func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
-func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
+// listPortsFunc is a variable that can be overridden by WASM builds
+var listPortsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Port, error) {
+	return client.PortService.ListPorts(ctx)
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -175,7 +177,7 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 
 	spinner := output.PrintResourceListing("Port", noColor)
 
-	ports, err := client.PortService.ListPorts(ctx)
+	ports, err := listPortsFunc(ctx, client)
 
 	spinner.Stop()
 
@@ -204,10 +206,7 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 }
 
 func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -220,7 +219,7 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 
 	spinner := output.PrintResourceGetting("Port", portUID, noColor)
 
-	port, err := client.PortService.GetPort(ctx, portUID)
+	port, err := getPortFunc(ctx, client, portUID)
 
 	spinner.Stop()
 
@@ -243,10 +242,7 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 }
 
 func GetPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -259,7 +255,7 @@ func GetPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat
 
 	spinner := output.PrintResourceGetting("Port", portUID, noColor)
 
-	port, err := client.PortService.GetPort(ctx, portUID)
+	port, err := getPortFunc(ctx, client, portUID)
 
 	spinner.Stop()
 
@@ -424,7 +420,7 @@ func DeletePort(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func RestorePort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	portUID := args[0]
@@ -456,7 +452,7 @@ func RestorePort(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func LockPort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	portUID := args[0]
@@ -488,7 +484,7 @@ func LockPort(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UnlockPort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	portUID := args[0]
@@ -520,7 +516,7 @@ func UnlockPort(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func CheckPortVLANAvailability(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	portUID := args[0]
@@ -561,7 +557,7 @@ func ListPortResourceTags(cmd *cobra.Command, args []string, noColor bool, outpu
 
 	portUID := args[0]
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.LoginFunc(ctx)
@@ -591,7 +587,7 @@ func ListPortResourceTags(cmd *cobra.Command, args []string, noColor bool, outpu
 func UpdatePortResourceTags(cmd *cobra.Command, args []string, noColor bool) error {
 	portUID := args[0]
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.LoginFunc(ctx)

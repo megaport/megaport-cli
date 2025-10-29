@@ -1,3 +1,5 @@
+//go:build !js && !wasm
+
 package config
 
 import (
@@ -11,11 +13,6 @@ import (
 var (
 	ErrProfileNotFound = errors.New("profile not found")
 )
-
-type ConfigManager struct {
-	config     *ConfigFile
-	configPath string
-}
 
 func NewConfigManager() (*ConfigManager, error) {
 	configPath, err := GetConfigFilePath()

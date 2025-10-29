@@ -122,7 +122,7 @@ func (m *MockLocationsService) FilterLocationsByMcrAvailability(ctx context.Cont
 	return filteredLocations
 }
 
-// V3 API method implementations
+// V3 API methods
 func (m *MockLocationsService) ListLocationsV3(ctx context.Context) ([]*megaport.LocationV3, error) {
 	args := m.Called(ctx)
 	val := args.Get(0)
@@ -138,11 +138,9 @@ func (m *MockLocationsService) ListLocationsV3(ctx context.Context) ([]*megaport
 
 func (m *MockLocationsService) GetLocationByIDV3(ctx context.Context, locationID int) (*megaport.LocationV3, error) {
 	args := m.Called(ctx, locationID)
-
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-
 	location, ok := args.Get(0).(*megaport.LocationV3)
 	if !ok {
 		panic("mock returned wrong type for GetLocationByIDV3")
@@ -152,11 +150,9 @@ func (m *MockLocationsService) GetLocationByIDV3(ctx context.Context, locationID
 
 func (m *MockLocationsService) GetLocationByNameV3(ctx context.Context, locationName string) (*megaport.LocationV3, error) {
 	args := m.Called(ctx, locationName)
-
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-
 	location, ok := args.Get(0).(*megaport.LocationV3)
 	if !ok {
 		panic("mock returned wrong type for GetLocationByNameV3")

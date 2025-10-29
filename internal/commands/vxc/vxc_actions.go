@@ -16,10 +16,7 @@ import (
 )
 
 func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -295,7 +292,7 @@ func ListVXCResourceTags(cmd *cobra.Command, args []string, noColor bool, output
 func UpdateVXCResourceTags(cmd *cobra.Command, args []string, noColor bool) error {
 	vxcUID := args[0]
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.LoginFunc(ctx)
@@ -367,10 +364,7 @@ func UpdateVXCResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 }
 
 func GetVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.Login(ctx)

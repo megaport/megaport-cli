@@ -1,68 +1,32 @@
+//go:build !js && !wasm
+// +build !js,!wasm
+
 package megaport
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
 
 	"github.com/megaport/megaport-cli/internal/base/help"
-	"github.com/megaport/megaport-cli/internal/base/registry"
-	"github.com/megaport/megaport-cli/internal/commands/completion"
 	"github.com/megaport/megaport-cli/internal/commands/config"
-	"github.com/megaport/megaport-cli/internal/commands/generate_docs"
-	"github.com/megaport/megaport-cli/internal/commands/locations"
-	"github.com/megaport/megaport-cli/internal/commands/mcr"
-	"github.com/megaport/megaport-cli/internal/commands/mve"
-	"github.com/megaport/megaport-cli/internal/commands/partners"
-	"github.com/megaport/megaport-cli/internal/commands/ports"
-	"github.com/megaport/megaport-cli/internal/commands/servicekeys"
-	"github.com/megaport/megaport-cli/internal/commands/version"
-	"github.com/megaport/megaport-cli/internal/commands/vxc"
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/wasm"
 	"github.com/spf13/cobra"
 )
 
-var noColor bool
-
-var rootCmd = &cobra.Command{
-	Use:   "megaport-cli",
-	Short: "A CLI tool to interact with the Megaport API",
-	// Long will be set by the help builder later
-}
-
-var outputFormat string
-
-// moduleRegistry holds all command modules
-var moduleRegistry *registry.Registry
-
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		os.Exit(1)
-	}
-}
-
 func init() {
-	// Initialize module registry
-	moduleRegistry = registry.NewRegistry()
+	// Initialize common components
+	InitializeCommon()
 
-	// Register all modules
-	registerModules()
-
-	// Setup persistent flags
-	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", utils.FormatTable,
-		fmt.Sprintf("Output format (%s)", strings.Join(utils.ValidFormats, ", ")))
-	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable colorful output")
-	rootCmd.PersistentFlags().StringVar(&utils.Env, "env", "", "Environment to use (prod, dev, or staging)")
-
+	// Apply non-WASM specific initialization
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		applyDefaultSettings(cmd)
 		format := strings.ToLower(outputFormat)
 		for _, validFormat := range utils.ValidFormats {
 			if format == validFormat {
-				outputFormat = format
 				return nil
 			}
 		}
@@ -149,21 +113,6 @@ func init() {
 	moduleRegistry.RegisterAll(rootCmd)
 }
 
-func registerModules() {
-	// Register all modules
-	moduleRegistry.Register(version.NewModule())
-	moduleRegistry.Register(ports.NewModule())
-	moduleRegistry.Register(vxc.NewModule())
-	moduleRegistry.Register(mcr.NewModule())
-	moduleRegistry.Register(mve.NewModule())
-	moduleRegistry.Register(locations.NewModule())
-	moduleRegistry.Register(partners.NewModule())
-	moduleRegistry.Register(servicekeys.NewModule())
-	moduleRegistry.Register(generate_docs.NewModule())
-	moduleRegistry.Register(completion.NewModule())
-	moduleRegistry.Register(config.NewModule())
-}
-
 // Apply defaults from config to command flags
 func applyDefaultSettings(cmd *cobra.Command) {
 	manager, err := config.NewConfigManager()
@@ -197,5 +146,47 @@ func applyDefaultSettings(cmd *cobra.Command) {
 				}
 			}
 		}
+	}
+}
+
+// ExecuteWithArgs adds all child commands to the root command and executes with given args.
+func ExecuteWithArgs(args []string) {
+	// Save original args
+	originalArgs := os.Args
+
+	// Debug
+	fmt.Printf("WASM ExecuteWithArgs: args=%v\n", args)
+
+	// Set new args for this execution
+	os.Args = args
+
+	// Direct output to our WASM buffer
+	rootCmd.SetOut(wasm.WasmOutputBuffer)
+	rootCmd.SetErr(wasm.WasmOutputBuffer)
+
+	// IMPORTANT: When executing in WASM, set this to ensure args are processed properly
+	rootCmd.SetArgs(args[1:]) // Skip program name (args[0])
+
+	// Execute and capture errors
+	err := rootCmd.Execute()
+
+	// Debug the command result
+	if err != nil {
+		fmt.Fprintf(wasm.WasmOutputBuffer, "Error executing command: %v\n", err)
+	}
+
+	// Restore original args
+	os.Args = originalArgs
+}
+
+func EnsureRootCommandOutput(writer io.Writer) {
+	rootCmd.SetOut(writer)
+	rootCmd.SetErr(writer)
+}
+
+// Execute adds all child commands to the root command and sets flags appropriately.
+func Execute() {
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
 	}
 }

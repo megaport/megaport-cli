@@ -12,10 +12,7 @@ import (
 )
 
 func ListPartners(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -56,7 +53,7 @@ func ListPartners(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 }
 
 func FindPartners(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	output.PrintInfo("Searching for partner ports...", noColor)

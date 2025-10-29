@@ -12,7 +12,7 @@ import (
 )
 
 func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	productUID, _ := cmd.Flags().GetString("product-uid")
 	productID, _ := cmd.Flags().GetInt("product-id")
@@ -71,7 +71,7 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	key, _ := cmd.Flags().GetString("key")
 	productUID, _ := cmd.Flags().GetString("product-uid")
@@ -113,10 +113,7 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -154,10 +151,7 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 }
 
 func GetServiceKey(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	client, err := config.Login(ctx)
 	if err != nil {
