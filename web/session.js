@@ -40,7 +40,7 @@
 
       localStorage.setItem(SESSION_STORAGE_KEY, token);
       localStorage.setItem(SESSION_EXPIRY_KEY, this.expiresAt.toString());
-      
+
       // Store credentials for WASM (needed after page reload)
       if (accessKey && secretKey && environment) {
         localStorage.setItem('megaport_access_key', accessKey);
@@ -50,13 +50,13 @@
 
       console.log(`Session saved, expires in ${expiresIn}s`);
     }
-    
+
     // Restore credentials from localStorage
     restoreCredentials() {
       const accessKey = localStorage.getItem('megaport_access_key');
       const secretKey = localStorage.getItem('megaport_secret_key');
       const environment = localStorage.getItem('megaport_environment');
-      
+
       if (accessKey && secretKey && environment) {
         window.megaportCredentials = {
           accessKey,
