@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/megaport/megaport-cli/internal/server"
 )
 
 // Optimized HTTP client with connection pooling
@@ -44,19 +46,137 @@ var optimizedHTTPClient = &http.Client{
 func main() {
 	port := flag.String("port", "8080", "Port to serve on")
 	webDir := flag.String("dir", "web", "Directory to serve files from")
+	sessionDuration := flag.Duration("session-duration", 1*time.Hour, "Session duration")
 	flag.Parse()
 
-	// Proxy handler for API requests
+	// Create server with session management
+	srv := server.NewServer(*sessionDuration, log.Default())
+
+	// Authentication endpoints
+	http.HandleFunc("/auth/login", srv.HandleLogin)
+	http.HandleFunc("/auth/logout", srv.HandleLogout)
+	http.HandleFunc("/auth/check", srv.HandleSessionCheck)
+
+	// Authenticated API proxy
+	http.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
+		authenticatedProxyHandler(w, r, srv)
+	})
+
+	// Legacy proxy handler (backward compatible)
 	http.HandleFunc("/proxy/", proxyHandler)
 
 	// Static file server for everything else
 	fs := http.FileServer(http.Dir(*webDir))
 	http.Handle("/", addCorsHeaders(fs))
 
-	log.Printf("Starting server on http://localhost:%s", *port)
+	log.Printf("Starting Megaport CLI WASM Server on http://localhost:%s", *port)
 	log.Printf("Serving files from: %s", *webDir)
-	log.Printf("Proxy endpoint available at /proxy/")
+	log.Printf("Session duration: %v", *sessionDuration)
+	log.Printf("\nEndpoints:")
+	log.Printf("  - POST /auth/login    - Customer login")
+	log.Printf("  - POST /auth/logout   - Customer logout")
+	log.Printf("  - GET  /auth/check    - Check session validity")
+	log.Printf("  - *    /api/*         - Authenticated API proxy")
+	log.Printf("  - *    /proxy/*       - Legacy direct proxy")
 	log.Fatal(http.ListenAndServe(":"+*port, nil))
+}
+
+func authenticatedProxyHandler(w http.ResponseWriter, r *http.Request, srv *server.Server) {
+	// Get session token from header
+	sessionToken := r.Header.Get("X-Session-Token")
+	if sessionToken == "" {
+		http.Error(w, "Unauthorized: Missing session token", http.StatusUnauthorized)
+		return
+	}
+
+	// Validate session
+	session := srv.GetSessionManager().GetSession(sessionToken)
+	if session == nil {
+		http.Error(w, "Unauthorized: Invalid or expired session", http.StatusUnauthorized)
+		return
+	}
+
+	// Update session activity
+	srv.GetSessionManager().UpdateActivity(sessionToken)
+
+	// Check if Megaport token needs refresh
+	if time.Now().After(session.TokenExpiry.Add(-5 * time.Minute)) {
+		log.Printf("Token expiring soon, refreshing...")
+		// Refresh token logic would go here
+		// For now, we'll let it use the existing token
+	}
+
+	// Extract the path after /api/
+	path := strings.TrimPrefix(r.URL.Path, "/api/")
+
+	// Determine target host based on environment
+	targetHost := "api.megaport.com" // Default to production
+	if strings.Contains(session.AccessKey, "staging") {
+		targetHost = "api-staging.megaport.com"
+	}
+
+	// Build the target URL
+	targetURL := "https://" + targetHost + "/" + path
+
+	// Forward query parameters
+	if len(r.URL.Query()) > 0 {
+		targetURL += "?" + r.URL.RawQuery
+	}
+
+	log.Printf("Authenticated proxy: %s %s (session: %s)", r.Method, targetURL, sessionToken[:8]+"...")
+
+	// Create proxy request
+	proxyReq, err := http.NewRequest(r.Method, targetURL, r.Body)
+	if err != nil {
+		http.Error(w, "Failed to create proxy request: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Copy headers from original request
+	for key, values := range r.Header {
+		if key != "Host" && key != "X-Session-Token" {
+			for _, value := range values {
+				proxyReq.Header.Add(key, value)
+			}
+		}
+	}
+
+	// Use the session's Megaport token for authentication
+	proxyReq.Header.Set("Authorization", "Bearer "+session.MegaportToken)
+
+	// Set proper Content-Type
+	if proxyReq.Header.Get("Content-Type") == "" && r.Method == "POST" {
+		proxyReq.Header.Set("Content-Type", "application/json")
+	}
+
+	// Make the request
+	resp, err := optimizedHTTPClient.Do(proxyReq)
+	if err != nil {
+		log.Printf("Proxy request failed: %v", err)
+		http.Error(w, "Proxy request failed: "+err.Error(), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	respBody, _ := io.ReadAll(resp.Body)
+	log.Printf("Proxy response status: %d, body size: %d bytes", resp.StatusCode, len(respBody))
+
+	// Copy response headers
+	for key, values := range resp.Header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
+	// Add CORS headers
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Session-Token")
+
+	// Write response
+	w.WriteHeader(resp.StatusCode)
+	w.Write(respBody)
 }
 
 func proxyHandler(w http.ResponseWriter, r *http.Request) {
@@ -174,7 +294,7 @@ func addCorsHeaders(fs http.Handler) http.HandlerFunc {
 		// CORS headers
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Session-Token")
 
 		// Handle preflight
 		if r.Method == "OPTIONS" {

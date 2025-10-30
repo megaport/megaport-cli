@@ -1,0 +1,46 @@
+# Git
+.git
+.gitignore
+.github
+
+# Documentation (keep docs/*.md for go:embed, exclude root *.md)
+/*.md
+!docs/*.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+
+# Test files
+*_test.go
+testdata/
+
+# Development files
+.env
+.env.local
+start-server.sh
+wasm.sh
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Demo and test directories
+demo/

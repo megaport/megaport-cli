@@ -1,0 +1,49 @@
+services:
+  megaport-cli-wasm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '${PORT:-8080}:8080'
+    environment:
+      - TZ=${TZ:-UTC}
+      - SESSION_DURATION=${SESSION_DURATION:-1h}
+    command:
+      [
+        './server',
+        '--port',
+        '8080',
+        '--dir',
+        'web',
+        '--session-duration',
+        '${SESSION_DURATION:-1h}',
+      ]
+    # volumes:
+    # Optional: Mount local web directory for development
+    # Uncomment the lines below for hot-reload during development
+    # - ./web:/app/web:ro
+    restart: unless-stopped
+    networks:
+      - megaport-network
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost:8080/',
+        ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    labels:
+      - 'com.megaport.service=cli-wasm'
+      - 'com.megaport.version=2.0.0'
+      - 'com.megaport.auth=session-based'
+
+networks:
+  megaport-network:
+    driver: bridge

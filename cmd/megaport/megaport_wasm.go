@@ -36,16 +36,29 @@ func ExecuteWithArgs(args []string) {
 	// Debug the actual args we're using
 	fmt.Printf("WASM using args for command: %v\n", argsToUse)
 
+	// Disable automatic usage on errors so we can control the output
+	rootCmd.SilenceUsage = true
+
 	// Set the args on the root command
 	rootCmd.SetArgs(argsToUse)
 
 	// Execute and capture errors
 	err := rootCmd.Execute()
 
+	// Log to JS console for debugging
+	fmt.Printf("WASM Execute returned error: %v\n", err)
+
 	// Debug the command result - only report errors
 	// The command output is already in WasmOutputBuffer
 	if err != nil {
-		fmt.Fprintf(wasm.WasmOutputBuffer, "Error executing command: %v\n", err)
+		fmt.Printf("WASM: Error detected, clearing buffer and showing error\n")
+		// Clear the buffer if help was shown automatically
+		wasm.ResetOutputBuffers()
+
+		fmt.Fprintf(wasm.WasmOutputBuffer, "Error: %v\n\n", err)
+		fmt.Fprintf(wasm.WasmOutputBuffer, "Run 'megaport-cli --help' to see the list of available commands.\n")
+	} else {
+		fmt.Printf("WASM: No error returned from Execute()\n")
 	}
 }
 
@@ -65,7 +78,7 @@ func EnsureRootCommandOutput(writer io.Writer) {
 }
 
 func init() {
-	// Initialize common components
+	// Initialize common components (uses WASM-specific registerModules that excludes config)
 	InitializeCommon()
 
 	// Store the original help function so we can call it when needed
@@ -122,6 +135,13 @@ func init() {
 
 	// Set the initial root command help text
 	rootCmd.Long = getRootHelpBuilder(false).Build(rootCmd)
+
+	// Configure Cobra to show proper error messages for unknown commands
+	rootCmd.SilenceErrors = false
+	rootCmd.SilenceUsage = false
+
+	// Add suggestions for similar commands
+	rootCmd.SuggestionsMinimumDistance = 1
 
 	moduleRegistry.RegisterAll(rootCmd)
 }

@@ -1,4 +1,5 @@
-// This file has no build tags so it's included in all builds
+//go:build !wasm
+// +build !wasm
 
 package megaport
 
