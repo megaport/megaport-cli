@@ -14,6 +14,81 @@
                 height: 100vh;
             }
 
+            #login-screen {
+                max-width: 500px;
+                margin: 50px auto;
+                padding: 30px;
+                background-color: #111;
+                border: 2px solid #33ff33;
+                border-radius: 5px;
+            }
+
+            #login-screen h2 {
+                margin-top: 0;
+                color: #33ff33;
+            }
+
+            #login-screen input,
+            #login-screen select {
+                width: 100%;
+                padding: 10px;
+                margin: 10px 0;
+                background-color: #222;
+                border: 1px solid #33ff33;
+                color: #33ff33;
+                font-family: monospace;
+                box-sizing: border-box;
+            }
+
+            #login-screen button {
+                width: 100%;
+                padding: 12px;
+                margin-top: 15px;
+                background-color: #33ff33;
+                color: #000;
+                border: none;
+                font-family: monospace;
+                font-weight: bold;
+                cursor: pointer;
+                font-size: 1.1em;
+            }
+
+            #login-screen button:hover {
+                background-color: #22cc22;
+            }
+
+            #login-screen button:disabled {
+                background-color: #666;
+                cursor: not-allowed;
+            }
+
+            .error-msg {
+                color: #ff3333;
+                margin-top: 10px;
+            }
+
+            #terminal-container {
+                display: none;
+                height: 100vh;
+            }
+
+            #terminal-container.active {
+                display: block;
+            }
+
+            #logout-btn {
+                position: fixed;
+                top: 10px;
+                right: 10px;
+                padding: 10px 20px;
+                background-color: #ff3333;
+                color: #fff;
+                border: none;
+                cursor: pointer;
+                font-family: monospace;
+                font-weight: bold;
+            }
+
             #terminal {
                 height: calc(100vh - 60px);
                 overflow-y: auto;
@@ -51,19 +126,138 @@
     </head>
 
     <body>
-        <div id="terminal"></div>
-        <div class="input-line">
-            <span class="prompt">megaport></span>
-            <input id="input" type="text" autofocus />
+        <!-- Login Screen -->
+        <div id="login-screen">
+            <h2>🔐 Megaport CLI Login</h2>
+            <p style="color: #888;">Enter your Megaport API credentials to continue</p>
+            <label for="access-key">Access Key:</label>
+            <input type="text" id="access-key" placeholder="Your access key" />
+            <label for="secret-key">Secret Key:</label>
+            <input type="password" id="secret-key" placeholder="Your secret key" />
+            <label for="environment">Environment:</label>
+            <select id="environment">
+                <option value="production">Production</option>
+                <option value="staging">Staging</option>
+                <option value="development">Development</option>
+            </select>
+            <button id="login-btn" onclick="handleLogin()">Login</button>
+            <div id="login-error" class="error-msg"></div>
+        </div>
+        <!-- Terminal Container (hidden until logged in) -->
+        <div id="terminal-container">
+            <button id="logout-btn" onclick="handleLogout()">Logout</button>
+            <div id="terminal"></div>
+            <div class="input-line">
+                <span class="prompt">megaport></span>
+                <input id="input" type="text" autofocus />
+            </div>
         </div>
         <script src="wasm_exec.js"></script>
+        <script src="session.js"></script>
         <script src="script.js"></script>
         <script>
             const terminal = document.getElementById('terminal');
             const input = document.getElementById('input');
 
+            // Login handling
+            async function handleLogin() {
+                const accessKey = document.getElementById('access-key').value.trim();
+                const secretKey = document.getElementById('secret-key').value.trim();
+                const environment = document.getElementById('environment').value;
+                const errorDiv = document.getElementById('login-error');
+                const loginBtn = document.getElementById('login-btn');
+
+                if (!accessKey || !secretKey) {
+                    errorDiv.textContent = 'Please enter both access key and secret key';
+                    return;
+                }
+
+                errorDiv.textContent = '';
+                loginBtn.disabled = true;
+                loginBtn.textContent = 'Logging in...';
+
+                try {
+                    await window.loginToMegaport(accessKey, secretKey, environment);
+
+                    // Hide login, show terminal
+                    document.getElementById('login-screen').style.display = 'none';
+                    document.getElementById('terminal-container').classList.add('active');
+
+                    // Initialize terminal
+                    appendToTerminal("✅ Logged in successfully", "system");
+                    appendToTerminal("Megaport CLI Web Terminal ready", "system");
+
+                    // Start session timer
+                    updateSessionTimer();
+                    setInterval(updateSessionTimer, 1000);
+
+                    // Focus input
+                    input.focus();
+                } catch (error) {
+                    errorDiv.textContent = error.message;
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = 'Login';
+                }
+            }
+
+            async function handleLogout() {
+                await window.logoutFromMegaport();
+                location.reload();
+            }
+
+            function checkSessionExpiration() {
+                const remaining = window.sessionManager.getTimeRemaining();
+                if (remaining <= 0) {
+                    appendToTerminal("⚠️  Session expired. Redirecting to login...", "error");
+                    // Clear session and show login screen
+                    window.sessionManager.clearSession();
+                    setTimeout(() => {
+                        document.getElementById('terminal-container').classList.remove('active');
+                        document.getElementById('login-screen').style.display = 'block';
+                        // Clear terminal output
+                        document.getElementById('terminal-output').innerHTML = '';
+                    }, 1500); // Give user time to see the message
+                }
+            }
+
+            // Global handler for session expiration during API calls
+            window.onSessionExpired = function () {
+                appendToTerminal("⚠️  Session expired. Please login again.", "error");
+                setTimeout(() => {
+                    document.getElementById('terminal-container').classList.remove('active');
+                    document.getElementById('login-screen').style.display = 'block';
+                    // Clear terminal output
+                    document.getElementById('terminal-output').innerHTML = '';
+                }, 1500);
+            };
+
+            // Check if already logged in and verify with server
+            async function initializeSession() {
+                if (window.sessionManager.isValid()) {
+                    // Verify session with server (important for container restarts)
+                    const isValid = await window.verifySessionOnLoad();
+
+                    if (isValid) {
+                        document.getElementById('login-screen').style.display = 'none';
+                        document.getElementById('terminal-container').classList.add('active');
+                        appendToTerminal("✅ Session restored", "system");
+                        appendToTerminal("Megaport CLI Web Terminal ready", "system");
+                        // Check for session expiration every 10 seconds (no visible timer)
+                        setInterval(checkSessionExpiration, 10000);
+                    } else {
+                        // Session invalid on server - show login screen
+                        console.log('Session invalid, showing login screen');
+                        document.getElementById('login-screen').style.display = 'block';
+                        document.getElementById('terminal-container').classList.remove('active');
+                    }
+                }
+            }
+
+            // Initialize session on page load
+            initializeSession();
+
             // Initialize output
-            appendToTerminal("Megaport CLI Web Terminal ready", "system");
+            // appendToTerminal("Megaport CLI Web Terminal ready", "system");
 
             // Function to append text to terminal
             function appendToTerminal(text, className) {

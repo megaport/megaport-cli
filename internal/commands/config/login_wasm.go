@@ -22,48 +22,39 @@ func Login(ctx context.Context) (*megaport.Client, error) {
 }
 
 // LoginFunc overrides the standard login for WASM environments
+// Note: WASM version uses session-based authentication managed by the browser UI.
+// Config profiles are not supported in the WASM version.
 var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	var accessKey, secretKey, env string
 
 	// Add console logging for debugging
 	js.Global().Get("console").Call("group", "🔐 Megaport Authentication Debug")
+	js.Global().Get("console").Call("info", "ℹ️  WASM version uses session-based authentication")
+	js.Global().Get("console").Call("info", "ℹ️  Config profiles are not supported - please use the login form in the UI")
 
-	// Try to get credentials from local storage first
-	manager, err := NewConfigManager()
-	if err == nil {
-		profile, profileName, err := manager.GetCurrentProfile()
-		if err == nil {
-			accessKey = profile.AccessKey
-			secretKey = profile.SecretKey
-			env = profile.Environment
-
-			// Log credential source with masked values
-			js.Global().Get("console").Call("log", "Using credentials from profile: "+profileName)
-			js.Global().Get("console").Call("log", "Access Key: "+maskCredential(accessKey))
-			js.Global().Get("console").Call("log", "Secret Key: [HIDDEN]")
-			js.Global().Get("console").Call("log", "Environment: "+env)
-		} else {
-			js.Global().Get("console").Call("log", "No active profile found, error: "+err.Error())
-		}
+	// WASM only supports environment variables (not config profiles)
+	// First, try to get credentials from JavaScript global (set by browser login)
+	megaportCredsGlobal := js.Global().Get("megaportCredentials")
+	if !megaportCredsGlobal.IsUndefined() && !megaportCredsGlobal.IsNull() {
+		js.Global().Get("console").Call("log", "✅ Found credentials from browser login")
+		accessKey = megaportCredsGlobal.Get("accessKey").String()
+		secretKey = megaportCredsGlobal.Get("secretKey").String()
+		env = megaportCredsGlobal.Get("environment").String()
+		js.Global().Get("console").Call("log", "Access Key: "+maskCredential(accessKey))
+		js.Global().Get("console").Call("log", "Environment: "+env)
 	} else {
-		js.Global().Get("console").Call("log", "Failed to load config manager: "+err.Error())
-	}
-
-	// Fall back to environment variables
-	if accessKey == "" {
+		// Fallback to environment variables
 		accessKey = os.Getenv("MEGAPORT_ACCESS_KEY")
 		if accessKey != "" {
 			js.Global().Get("console").Call("log", "Using access key from environment variable")
 			js.Global().Get("console").Call("log", "Access Key: "+maskCredential(accessKey))
 		}
-	}
-	if secretKey == "" {
+
 		secretKey = os.Getenv("MEGAPORT_SECRET_KEY")
 		if secretKey != "" {
 			js.Global().Get("console").Call("log", "Using secret key from environment variable")
 		}
-	}
-	if env == "" {
+
 		env = os.Getenv("MEGAPORT_ENVIRONMENT")
 		if env != "" {
 			js.Global().Get("console").Call("log", "Using environment from environment variable: "+env)
@@ -73,13 +64,15 @@ var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	// Validate credentials
 	if accessKey == "" {
 		js.Global().Get("console").Call("error", "No access key provided")
+		js.Global().Get("console").Call("error", "💡 WASM Tip: Use the login form in the browser UI or set MEGAPORT_ACCESS_KEY environment variable")
 		js.Global().Get("console").Call("groupEnd")
-		return nil, fmt.Errorf("megaport API access key not provided. Configure a profile or set MEGAPORT_ACCESS_KEY environment variable")
+		return nil, fmt.Errorf("megaport API access key not provided. Please use the login form in the browser UI or set MEGAPORT_ACCESS_KEY environment variable")
 	}
 	if secretKey == "" {
 		js.Global().Get("console").Call("error", "No secret key provided")
+		js.Global().Get("console").Call("error", "💡 WASM Tip: Use the login form in the browser UI or set MEGAPORT_SECRET_KEY environment variable")
 		js.Global().Get("console").Call("groupEnd")
-		return nil, fmt.Errorf("megaport API secret key not provided. Configure a profile or set MEGAPORT_SECRET_KEY environment variable")
+		return nil, fmt.Errorf("megaport API secret key not provided. Please use the login form in the browser UI or set MEGAPORT_SECRET_KEY environment variable")
 	}
 
 	// Default to production

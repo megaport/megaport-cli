@@ -2,6 +2,12 @@
 
 This document provides a comprehensive overview of the Megaport CLI configuration system.
 
+> **⚠️ WASM Note**: Configuration profiles are **NOT available** in the WASM/browser version of Megaport CLI.
+> The WASM version uses **session-based authentication** managed through the browser UI.
+> Please use the login form in the web interface for authentication instead of config commands.
+>
+> This documentation applies only to the standard CLI (non-WASM) version.
+
 ## Configuration File
 
 The configuration file is stored at `~/.megaport/config.json` by default, or at the path specified by the `MEGAPORT_CONFIG_DIR` environment variable. The file has 0600 permissions (readable/writable only by the owner) to protect sensitive credential information.
