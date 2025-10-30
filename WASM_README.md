@@ -162,20 +162,6 @@ Customer Browser                Docker Container
 6. **Session auto-expires** - After configured duration, redirects to login
 7. **Logout clears session** - Session token and credentials removed from browser
 
-### Security Features
-
-✅ **Customer credentials never stored in browser**  
-✅ **Session tokens are short-lived and revocable**  
-✅ **Server-side session management**  
-✅ **Automatic session expiration**  
-✅ **HTTPS recommended for production**
-
-### What's NOT Secure
-
-❌ **Don't use over unencrypted HTTP in production**  
-❌ **Don't share session tokens between users**  
-❌ **Don't store credentials in Docker environment variables**
-
 ### Important Notes
 
 > **⚠️ Config Commands Not Available**: The WASM/browser version does **NOT** support `config` commands
