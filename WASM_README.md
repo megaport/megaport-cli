@@ -1,4 +1,3 @@
-````markdown
 # Megaport CLI - WebAssembly (WASM) Browser Terminal
 
 A browser-based terminal for the Megaport CLI powered by **WebAssembly (WASM)**, deployed with Docker. This enables customers to use the Megaport CLI directly in their web browser without installing anything locally.
@@ -298,4 +297,3 @@ docker-compose logs | grep "Authentication failed"
 ## License
 
 See LICENSE file for details.
-````
