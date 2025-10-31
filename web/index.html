@@ -4,14 +4,17 @@
     <head>
         <meta charset="utf-8">
         <title>Megaport CLI Web Terminal</title>
+        <!-- XTerm.js CSS from CDN -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css" />
         <style>
             body {
                 background-color: #000;
                 color: #33ff33;
                 font-family: monospace;
                 margin: 0;
-                padding: 10px;
+                padding: 0;
                 height: 100vh;
+                overflow: hidden;
             }
 
             #login-screen {
@@ -73,54 +76,40 @@
             }
 
             #terminal-container.active {
-                display: block;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .info-banner {
+                background-color: #222;
+                color: #33ff33;
+                padding: 5px 10px;
+                font-size: 0.9em;
+                border-bottom: 1px solid #33ff33;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
             }
 
             #logout-btn {
-                position: fixed;
-                top: 10px;
-                right: 10px;
-                padding: 10px 20px;
+                padding: 5px 15px;
                 background-color: #ff3333;
                 color: #fff;
                 border: none;
                 cursor: pointer;
                 font-family: monospace;
                 font-weight: bold;
+                font-size: 0.85em;
+            }
+
+            #logout-btn:hover {
+                background-color: #cc2222;
             }
 
             #terminal {
-                height: calc(100vh - 60px);
-                overflow-y: auto;
-                padding: 5px;
-            }
-
-            .input-line {
-                display: flex;
-                margin-top: 10px;
-            }
-
-            .prompt {
-                color: #33ff33;
-                margin-right: 5px;
-            }
-
-            #input {
-                background-color: transparent;
-                border: none;
-                color: #33ff33;
-                flex-grow: 1;
-                font-family: monospace;
-                font-size: 1em;
-                outline: none;
-            }
-
-            .error {
-                color: #ff3333;
-            }
-
-            .system {
-                color: #ffff33;
+                flex: 1;
+                padding: 10px;
+                overflow: hidden;
             }
         </style>
     </head>
@@ -140,26 +129,33 @@
                 <option value="staging">Staging</option>
                 <option value="development">Development</option>
             </select>
-            <button id="login-btn" onclick="handleLogin()">Login</button>
+            <button id="login-btn">Login</button>
             <div id="login-error" class="error-msg"></div>
         </div>
         <!-- Terminal Container (hidden until logged in) -->
         <div id="terminal-container">
-            <button id="logout-btn" onclick="handleLogout()">Logout</button>
-            <div id="terminal"></div>
-            <div class="input-line">
-                <span class="prompt">megaport></span>
-                <input id="input" type="text" autofocus />
+            <div class="info-banner">
+                <span>🚀 Megaport CLI Web Terminal</span>
+                <button id="logout-btn">Logout</button>
             </div>
+            <div id="terminal"></div>
         </div>
+        <!-- Load WASM runtime -->
         <script src="wasm_exec.js"></script>
         <script src="session.js"></script>
         <script src="script.js"></script>
-        <script>
-            const terminal = document.getElementById('terminal');
-            const input = document.getElementById('input');
+        <!-- XTerm.js Library and Addons from CDN (UMD modules - load before ES6 module) -->
+        <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.js"></script>
+        <!-- XTerm.js Integration Module -->
+        <script type="module">
+            import { xtermManager } from './xterm-terminal.js';
 
-            // Login handling
+            // Make xterm manager globally accessible
+            window.xtermManager = xtermManager;
+
+            // Login handling function
             async function handleLogin() {
                 const accessKey = document.getElementById('access-key').value.trim();
                 const secretKey = document.getElementById('secret-key').value.trim();
@@ -183,16 +179,22 @@
                     document.getElementById('login-screen').style.display = 'none';
                     document.getElementById('terminal-container').classList.add('active');
 
-                    // Initialize terminal
-                    appendToTerminal("✅ Logged in successfully", "system");
-                    appendToTerminal("Megaport CLI Web Terminal ready", "system");
+                    // Initialize xterm.js terminal
+                    const terminalElement = document.getElementById('terminal');
+                    xtermManager.init(terminalElement);
+
+                    // Write welcome message
+                    xtermManager.writeSuccess('✅ Logged in successfully');
+                    xtermManager.writeInfo('Megaport CLI Web Terminal ready');
+                    xtermManager.writeInfo('Type a command and press Enter. Use Ctrl+L to clear screen.');
+                    xtermManager.writePrompt();
 
                     // Start session timer
                     updateSessionTimer();
                     setInterval(updateSessionTimer, 1000);
 
-                    // Focus input
-                    input.focus();
+                    // Focus terminal
+                    xtermManager.focus();
                 } catch (error) {
                     errorDiv.textContent = error.message;
                     loginBtn.disabled = false;
@@ -200,6 +202,7 @@
                 }
             }
 
+            // Logout handling function
             async function handleLogout() {
                 await window.logoutFromMegaport();
                 location.reload();
@@ -208,75 +211,66 @@
             function checkSessionExpiration() {
                 const remaining = window.sessionManager.getTimeRemaining();
                 if (remaining <= 0) {
-                    appendToTerminal("⚠️  Session expired. Redirecting to login...", "error");
-                    // Clear session and show login screen
+                    if (xtermManager.initialized) {
+                        xtermManager.writeError('⚠️  Session expired. Redirecting to login...');
+                    }
                     window.sessionManager.clearSession();
                     setTimeout(() => {
-                        document.getElementById('terminal-container').classList.remove('active');
-                        document.getElementById('login-screen').style.display = 'block';
-                        // Clear terminal output
-                        document.getElementById('terminal-output').innerHTML = '';
-                    }, 1500); // Give user time to see the message
+                        location.reload();
+                    }, 1500);
                 }
             }
 
             // Global handler for session expiration during API calls
             window.onSessionExpired = function () {
-                appendToTerminal("⚠️  Session expired. Please login again.", "error");
+                if (xtermManager.initialized) {
+                    xtermManager.writeError('⚠️  Session expired. Please login again.');
+                }
                 setTimeout(() => {
-                    document.getElementById('terminal-container').classList.remove('active');
-                    document.getElementById('login-screen').style.display = 'block';
-                    // Clear terminal output
-                    document.getElementById('terminal-output').innerHTML = '';
+                    location.reload();
                 }, 1500);
             };
 
+            // Attach event listeners
+            document.getElementById('login-btn').addEventListener('click', handleLogin);
+            document.getElementById('logout-btn').addEventListener('click', handleLogout);
+
+            // Allow Enter key to submit login
+            document.getElementById('secret-key').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    handleLogin();
+                }
+            });
+
             // Check if already logged in and verify with server
             async function initializeSession() {
-                if (window.sessionManager.isValid()) {
-                    // Verify session with server (important for container restarts)
+                if (window.sessionManager && window.sessionManager.isValid()) {
                     const isValid = await window.verifySessionOnLoad();
 
                     if (isValid) {
                         document.getElementById('login-screen').style.display = 'none';
                         document.getElementById('terminal-container').classList.add('active');
-                        appendToTerminal("✅ Session restored", "system");
-                        appendToTerminal("Megaport CLI Web Terminal ready", "system");
-                        // Check for session expiration every 10 seconds (no visible timer)
+
+                        // Initialize xterm.js terminal
+                        const terminalElement = document.getElementById('terminal');
+                        xtermManager.init(terminalElement);
+
+                        xtermManager.writeSuccess('✅ Session restored');
+                        xtermManager.writeInfo('Megaport CLI Web Terminal ready');
+                        xtermManager.writePrompt();
+
+                        // Check for session expiration every 10 seconds
                         setInterval(checkSessionExpiration, 10000);
+
+                        xtermManager.focus();
                     } else {
-                        // Session invalid on server - show login screen
-                        console.log('Session invalid, showing login screen');
                         document.getElementById('login-screen').style.display = 'block';
                         document.getElementById('terminal-container').classList.remove('active');
                     }
                 }
             }
 
-            // Initialize session on page load
-            initializeSession();
-
-            // Initialize output
-            // appendToTerminal("Megaport CLI Web Terminal ready", "system");
-
-            // Function to append text to terminal
-            function appendToTerminal(text, className) {
-                text.split('\n').forEach(line => {
-                    if (line.trim() === '') return;
-
-                    const lineElement = document.createElement('div');
-                    lineElement.textContent = line;
-                    if (className) {
-                        lineElement.className = className;
-                    }
-                    terminal.appendChild(lineElement);
-                });
-
-                terminal.scrollTop = terminal.scrollHeight;
-            }
-
             // Load WASM module
-            // Note: Go instance is created in script.js
             if (typeof go === 'undefined') {
                 console.error('Go WASM runtime not initialized by script.js');
             }
@@ -287,54 +281,19 @@
                     go.run(result.instance);
 
                     // Check if executeMegaportCommand is available
-                    if (typeof window.executeMegaportCommand !== 'function') {
-                        appendToTerminal("Error: Command execution not available", "error");
-                        console.error("executeMegaportCommand function not found");
+                    if (typeof window.executeMegaportCommand !== 'function' && typeof window.executeMegaportCommandAsync !== 'function') {
+                        console.error("Command execution functions not found");
                     }
+
+                    // Initialize session after WASM is loaded
+                    initializeSession();
                 })
                 .catch(err => {
-                    appendToTerminal("Failed to load WASM module: " + err, "error");
                     console.error("WASM load error:", err);
+                    document.getElementById('login-error').textContent = 'Failed to load WASM module: ' + err.message;
                 });
 
-            // Handle input
-            input.addEventListener('keydown', function (event) {
-                if (event.key === 'Enter') {
-                    const command = input.value.trim();
-
-                    if (command) {
-                        appendToTerminal("megaport> " + command);
-
-                        // Execute command
-                        try {
-                            if (typeof window.executeMegaportCommand === 'function') {
-                                const result = window.executeMegaportCommand(command);
-
-                                if (result && result.output) {
-                                    appendToTerminal(result.output);
-                                } else if (result && result.error) {
-                                    appendToTerminal("Error: " + result.error, "error");
-                                } else {
-                                    appendToTerminal("Command executed with no output", "system");
-                                }
-                            } else {
-                                appendToTerminal("Error: Command execution not available", "error");
-                            }
-                        } catch (err) {
-                            appendToTerminal("Error: " + err.message, "error");
-                            console.error("Command execution error:", err);
-                        }
-
-                        input.value = "";
-                    }
-                }
-            });
-
-            // Debug helper
-            window.wasmDebug = function (msg) {
-                console.log("[WASM Debug]", msg);
-                appendToTerminal("[Debug] " + msg, "system");
-            };
+            console.log('✅ XTerm.js integration loaded');
         </script>
     </body>
 

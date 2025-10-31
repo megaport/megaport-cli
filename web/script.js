@@ -100,6 +100,20 @@ function ansiToHtml(text) {
 }
 
 function appendToTerminal(text, className) {
+  // If XTerm.js is initialized, use it instead (better ANSI support)
+  if (window.xtermManager && window.xtermManager.initialized) {
+    if (className === 'error') {
+      window.xtermManager.writeError(text);
+    } else if (className === 'system') {
+      window.xtermManager.writeInfo(text);
+    } else {
+      // Write raw text - XTerm handles ANSI codes natively
+      window.xtermManager.write(text);
+    }
+    return;
+  }
+
+  // Fallback to DOM terminal
   const terminal = document.getElementById('terminal');
   const line = document.createElement('div');
   if (className) line.className = className;
@@ -431,6 +445,123 @@ window.wasmDebug = (msg) => {
   appendToTerminal('[Debug] ' + msg, 'system');
 };
 
+// WASM Spinner Support
+let activeSpinners = new Map();
+let spinnerIdCounter = 0;
+
+window.wasmStartSpinner = (message) => {
+  const spinnerId = ++spinnerIdCounter;
+  const spinnerChars = ['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷'];
+  let frameIndex = 0;
+
+  console.log(`🔄 Starting spinner ${spinnerId}: ${message}`);
+  console.log(
+    `   XTerm available: ${!!(
+      window.xtermManager && window.xtermManager.initialized
+    )}`
+  );
+
+  // Store spinner info for cleanup
+  const spinnerInfo = {
+    message: message,
+    intervalId: null,
+    lastLine: null,
+  };
+
+  // If XTerm.js is available, use it
+  if (window.xtermManager && window.xtermManager.initialized) {
+    console.log(`   Using XTerm.js for spinner ${spinnerId}`);
+
+    // Write initial spinner line
+    const initialChar = spinnerChars[0];
+    // Use bold and bright cyan for better visibility
+    const line = `\x1b[1;96m${initialChar}\x1b[0m ${message}`;
+    window.xtermManager.terminal.write(line);
+
+    console.log(`   Initial spinner line written for ${spinnerId}`);
+
+    // Animate the spinner by updating the line
+    spinnerInfo.intervalId = setInterval(() => {
+      const char = spinnerChars[frameIndex % spinnerChars.length];
+      // Move cursor to beginning of line, clear line, write new spinner
+      // Use bold and cycle through bright colors for visibility
+      const colors = ['\x1b[1;96m', '\x1b[1;94m', '\x1b[1;95m', '\x1b[1;92m']; // Bright cyan, blue, magenta, green
+      const color =
+        colors[Math.floor(frameIndex / spinnerChars.length) % colors.length];
+      const updateLine = `\r\x1b[K${color}${char}\x1b[0m ${message}`;
+      window.xtermManager.terminal.write(updateLine);
+
+      // Log every 10th frame to avoid spam
+      if (frameIndex % 10 === 0) {
+        console.log(`   Spinner ${spinnerId} animating... frame ${frameIndex}`);
+      }
+      frameIndex++;
+    }, 150);
+  } else {
+    console.log(`   Using DOM fallback for spinner ${spinnerId}`);
+
+    // Fallback to DOM-based spinner
+    const spinnerDiv = document.createElement('div');
+    spinnerDiv.id = `spinner-${spinnerId}`;
+    spinnerDiv.className = 'spinner-line';
+    spinnerDiv.style.color = '#00ffff';
+    spinnerDiv.style.fontWeight = 'bold';
+    spinnerDiv.style.padding = '5px';
+    spinnerDiv.style.marginBottom = '5px';
+
+    const outputDiv = document.getElementById('output');
+    if (outputDiv) {
+      outputDiv.appendChild(spinnerDiv);
+      outputDiv.scrollTop = outputDiv.scrollHeight;
+      console.log(`   Spinner ${spinnerId} div added to DOM`);
+    }
+
+    spinnerInfo.element = spinnerDiv;
+    spinnerInfo.intervalId = setInterval(() => {
+      const char = spinnerChars[frameIndex % spinnerChars.length];
+      spinnerDiv.textContent = `${char} ${message}`;
+      frameIndex++;
+    }, 150);
+  }
+
+  activeSpinners.set(spinnerId, spinnerInfo);
+  console.log(`✅ Spinner ${spinnerId} started and stored`);
+  return spinnerId;
+};
+
+window.wasmStopSpinner = (spinnerId) => {
+  console.log(`⏹️  Stopping spinner ${spinnerId}`);
+  const spinner = activeSpinners.get(spinnerId);
+  if (spinner) {
+    console.log(`   Found spinner ${spinnerId}, clearing interval`);
+    clearInterval(spinner.intervalId);
+
+    if (window.xtermManager && window.xtermManager.initialized) {
+      console.log(`   Clearing XTerm line for spinner ${spinnerId}`);
+      // Clear the spinner line completely and move to next line
+      window.xtermManager.terminal.write('\r\x1b[K\r\n');
+    } else if (spinner.element) {
+      console.log(`   Removing DOM element for spinner ${spinnerId}`);
+      // Remove DOM element
+      spinner.element.remove();
+    }
+
+    activeSpinners.delete(spinnerId);
+    console.log(`✅ Spinner ${spinnerId} stopped and removed`);
+  } else {
+    console.warn(`⚠️  Spinner ${spinnerId} not found in activeSpinners`);
+  }
+};
+
+window.wasmShowLoading = (message) => {
+  // Show a static loading message
+  if (window.xtermManager && window.xtermManager.initialized) {
+    window.xtermManager.writeInfo(`⏳ ${message}`);
+  } else {
+    appendToTerminal(`⏳ ${message}`, 'system');
+  }
+};
+
 // WASM init & input handling
 const go = new Go();
 WebAssembly.instantiateStreaming(fetch('megaport.wasm'), go.importObject)
@@ -465,73 +596,78 @@ WebAssembly.instantiateStreaming(fetch('megaport.wasm'), go.importObject)
     console.error('WASM instantiation or run error:', err);
   });
 
-document.getElementById('input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    const cmd = e.target.value.trim();
-    if (!cmd) return;
-    appendToTerminal('megaport> ' + cmd);
+// Command input is now handled by xterm-terminal.js
+// Using optional chaining to prevent error if element doesn't exist
+const inputElement = document.getElementById('input');
+if (inputElement) {
+  inputElement.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const cmd = e.target.value.trim();
+      if (!cmd) return;
+      appendToTerminal('megaport> ' + cmd);
 
-    // Clear input immediately
-    e.target.value = '';
+      // Clear input immediately
+      e.target.value = '';
 
-    try {
-      // Try async version first (preferred for commands that need auth/API calls)
-      console.log(
-        'Checking for async function:',
-        typeof window.executeMegaportCommandAsync
-      );
-      if (typeof window.executeMegaportCommandAsync === 'function') {
-        console.log('🚀 Using async command execution for:', cmd);
-        appendToTerminal('⏳ Processing...', 'system');
-
-        window.executeMegaportCommandAsync(cmd, function (result) {
-          console.log('✅ Async command completed', result);
-
-          // Remove the "Processing..." message
-          const terminalDiv = document.getElementById('terminal');
-          const lastLine = terminalDiv.lastElementChild;
-          if (lastLine && lastLine.textContent.includes('Processing...')) {
-            terminalDiv.removeChild(lastLine);
-          }
-
-          if (result && result.output) {
-            appendToTerminal(result.output);
-          } else if (result && result.error) {
-            appendToTerminal('Error: ' + result.error, 'error');
-          } else {
-            appendToTerminal('Command completed (no output)', 'system');
-          }
-        });
-
-        return; // Exit early - callback will handle the rest
-      }
-
-      // Fallback to sync version (may not work for async operations)
-      if (typeof window.executeMegaportCommand !== 'function') {
-        appendToTerminal(
-          'Error: No command execution function available. WASM module may not be ready.',
-          'error'
+      try {
+        // Try async version first (preferred for commands that need auth/API calls)
+        console.log(
+          'Checking for async function:',
+          typeof window.executeMegaportCommandAsync
         );
-        return;
-      }
+        if (typeof window.executeMegaportCommandAsync === 'function') {
+          console.log('🚀 Using async command execution for:', cmd);
+          appendToTerminal('⏳ Processing...', 'system');
 
-      console.log(
-        '⚠️ Using sync command execution (may block on async operations)'
-      );
-      const out = window.executeMegaportCommand(cmd);
-      if (out && out.output) appendToTerminal(out.output);
-      else if (out && out.error)
-        appendToTerminal('Error: ' + out.error, 'error');
-      else if (out === undefined && cmd.startsWith('exit')) {
-        /* Graceful exit */
-      } else
-        appendToTerminal(
-          'No output or unexpected return from command.',
-          'system'
+          window.executeMegaportCommandAsync(cmd, function (result) {
+            console.log('✅ Async command completed', result);
+
+            // Remove the "Processing..." message
+            const terminalDiv = document.getElementById('terminal');
+            const lastLine = terminalDiv.lastElementChild;
+            if (lastLine && lastLine.textContent.includes('Processing...')) {
+              terminalDiv.removeChild(lastLine);
+            }
+
+            if (result && result.output) {
+              appendToTerminal(result.output);
+            } else if (result && result.error) {
+              appendToTerminal('Error: ' + result.error, 'error');
+            } else {
+              appendToTerminal('Command completed (no output)', 'system');
+            }
+          });
+
+          return; // Exit early - callback will handle the rest
+        }
+
+        // Fallback to sync version (may not work for async operations)
+        if (typeof window.executeMegaportCommand !== 'function') {
+          appendToTerminal(
+            'Error: No command execution function available. WASM module may not be ready.',
+            'error'
+          );
+          return;
+        }
+
+        console.log(
+          '⚠️ Using sync command execution (may block on async operations)'
         );
-    } catch (err) {
-      appendToTerminal('Execution error: ' + err.message, 'error');
-      console.error('Error executing command via WASM:', err);
+        const out = window.executeMegaportCommand(cmd);
+        if (out && out.output) appendToTerminal(out.output);
+        else if (out && out.error)
+          appendToTerminal('Error: ' + out.error, 'error');
+        else if (out === undefined && cmd.startsWith('exit')) {
+          /* Graceful exit */
+        } else
+          appendToTerminal(
+            'No output or unexpected return from command.',
+            'system'
+          );
+      } catch (err) {
+        appendToTerminal('Execution error: ' + err.message, 'error');
+        console.error('Error executing command via WASM:', err);
+      }
     }
-  }
-});
+  });
+} // End of inputElement check

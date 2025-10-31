@@ -249,6 +249,12 @@ func GetCapturedOutput() string {
 	if wasmTableWriterGlobal := js.Global().Get("wasmTableOutput"); !wasmTableWriterGlobal.IsUndefined() && !wasmTableWriterGlobal.IsNull() {
 		tableOutput = wasmTableWriterGlobal.String()
 		js.Global().Get("console").Call("log", fmt.Sprintf("📊 Found table output: %d bytes", len(tableOutput)))
+		// Debug: Show first 200 chars to see if ANSI codes are present
+		sample := tableOutput
+		if len(sample) > 200 {
+			sample = sample[:200]
+		}
+		js.Global().Get("console").Call("log", fmt.Sprintf("📊 Table output sample: %s", sample))
 	}
 
 	// Log what was captured in each buffer

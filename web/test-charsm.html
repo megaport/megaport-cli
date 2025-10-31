@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <meta charset="utf-8">
+        <title>Quick Charsm Test</title>
+        <style>
+            body {
+                background-color: #000;
+                color: #33ff33;
+                font-family: monospace;
+                padding: 20px;
+            }
+
+            #output {
+                background-color: #111;
+                padding: 20px;
+                border: 1px solid #33ff33;
+            }
+        </style>
+    </head>
+
+    <body>
+        <h1>Quick Charsm Color Test</h1>
+        <div id="output"></div>
+        <script type="module">
+            import { charsmRenderer } from './charsm-renderer.js';
+
+            console.log('Loading Charsm renderer...');
+
+            // Wait for initialization
+            const initialized = await charsmRenderer.init();
+            console.log('Charsm initialization result:', initialized); console.log('Charsm initialized:', charsmRenderer.initialized);
+
+            const output = document.getElementById('output');
+
+            // Test 1: Simple table
+            const testData = [
+                { ID: '2', NAME: 'Equinix Sydney SY1', COUNTRY: 'Australia', STATUS: 'Active' },
+                { ID: '3', NAME: 'DigiCo Sydney', COUNTRY: 'Australia', STATUS: 'Active' },
+                { ID: '4', NAME: 'NextDC Melbourne', COUNTRY: 'Australia', STATUS: 'Active' }
+            ];
+
+            const headers = ['ID', 'NAME', 'COUNTRY', 'STATUS'];
+
+            console.log('Rendering table with data:', testData);
+            const table = charsmRenderer.renderTable(testData, headers);
+            console.log('Table output:', table);
+
+            output.innerHTML = `<pre>${table}</pre>`;
+        </script>
+    </body>
+
+</html>

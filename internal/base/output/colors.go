@@ -75,28 +75,39 @@ func colorizeStatus(status string, noColor bool) string {
 		return status
 	}
 	status = strings.ToUpper(status)
+	
+	// Create bordered badges for better visibility
+	// Format: [ STATUS ] with colored background and borders
+	
 	if strings.Contains(status, "ACTIVE") || strings.Contains(status, "LIVE") ||
 		strings.Contains(status, "CONFIGURED") || status == "UP" || status == "AVAILABLE" {
-		return color.New(color.Bold).Sprintf("%s", LinkGreen(status))
+		// Green badge with bright background
+		return color.New(color.FgHiWhite, color.BgGreen, color.Bold).Sprintf(" %s ", status)
 	}
 	if strings.Contains(status, "PENDING") || strings.Contains(status, "PROVISIONING") ||
 		strings.Contains(status, "WAITING") || strings.Contains(status, "REQUESTED") ||
 		strings.Contains(status, "DEPLOYABLE") {
-		return color.New(color.Bold).Sprintf("%s", GoldYellow(status))
+		// Yellow badge for in-progress states
+		return color.New(color.FgBlack, color.BgYellow, color.Bold).Sprintf(" %s ", status)
 	}
 	if strings.Contains(status, "ERROR") || strings.Contains(status, "FAILED") {
-		return color.New(color.Bold).Sprintf("%s", RadRed(status))
+		// Red badge for error states
+		return color.New(color.FgHiWhite, color.BgRed, color.Bold).Sprintf(" %s ", status)
 	}
 	if strings.Contains(status, "CANCELLED") || strings.Contains(status, "DELETED") ||
 		status == "DOWN" || strings.Contains(status, "INACTIVE") ||
 		strings.Contains(status, "DECOMMISSIONING") || strings.Contains(status, "DECOMMISSIONED") {
-		return color.New(color.Bold).Sprintf("%s", SunsetOrange(status))
+		// Orange badge for terminated states
+		return color.New(color.FgHiWhite, color.BgHiRed, color.Bold).Sprintf(" %s ", status)
 	}
 	if strings.Contains(status, "DEGRADED") || strings.Contains(status, "PARTIAL") {
-		return color.New(color.Bold).Sprintf("%s", Mauve(status))
+		// Magenta badge for degraded states
+		return color.New(color.FgHiWhite, color.BgMagenta, color.Bold).Sprintf(" %s ", status)
 	}
 	if strings.Contains(status, "RESERVED") || strings.Contains(status, "LOCKED") {
-		return color.New(color.Bold).Sprintf("%s", Magenta(status))
+		// Purple badge for locked states
+		return color.New(color.FgHiWhite, color.BgHiMagenta, color.Bold).Sprintf(" %s ", status)
 	}
-	return color.New(color.Bold).Sprintf("%s", DodgerBlue(status))
+	// Blue badge for other states
+	return color.New(color.FgHiWhite, color.BgBlue, color.Bold).Sprintf(" %s ", status)
 }
