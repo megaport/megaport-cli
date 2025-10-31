@@ -171,6 +171,9 @@ func printCSV[T OutputFields](data []T) error {
 		}
 	}
 
+	// Flush the CSV writer to ensure all data is written to the buffer
+	w.Flush()
+
 	// Get the CSV output
 	csvOutput := WasmCSVWriter.String()
 	js.Global().Get("console").Call("log", fmt.Sprintf("✅ CSV encoded, buffer size: %d bytes", len(csvOutput)))
