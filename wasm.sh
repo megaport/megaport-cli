@@ -9,6 +9,13 @@ echo "Building Megaport CLI WASM version..."
 # Create web directory if it doesn't exist
 mkdir -p web
 
+# Install npm dependencies if package.json exists
+if [ -f "web/package.json" ]; then
+  echo "Installing npm dependencies..."
+  cd web && npm install && cd ..
+  echo "✅ npm dependencies installed"
+fi
+
 # Build the WASM binary
 GOOS=js GOARCH=wasm go build -o web/megaport.wasm ./main_wasm.go
 

@@ -18,6 +18,12 @@
 web/megaport.wasm
 *.wasm
 
+# Node.js / npm
+node_modules/
+web/node_modules/
+package-lock.json
+web/package-lock.json
+
 # Go build artifacts
 /megaport-cli
 megaport-cli

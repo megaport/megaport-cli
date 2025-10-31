@@ -90,7 +90,18 @@ func PrintResourceDeleted(resourceType, uid string, immediate, noColor bool) {
 	PrintSuccess(msg, noColor)
 }
 
+// Default spinner characters (Braille dots)
 var spinnerChars = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
+// Enhanced spinner characters for WASM (more visible in browser)
+var spinnerCharsWasm = []string{
+	"◐", "◓", "◑", "◒",  // Circle spinners
+}
+
+// Fancy spinner with colors
+var spinnerCharsFancy = []string{
+	"⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷",  // Braille block animation
+}
 
 type Spinner struct {
 	stop         chan bool
@@ -99,6 +110,14 @@ type Spinner struct {
 	mu           sync.Mutex
 	noColor      bool
 	outputFormat string
+	style        string // "default", "wasm", "fancy"
+	wasmSpinner  SpinnerInterface // WASM-specific spinner implementation
+}
+
+// SpinnerInterface allows different spinner implementations (WASM vs native)
+type SpinnerInterface interface {
+	Start(message string)
+	Stop()
 }
 
 func NewSpinner(noColor bool) *Spinner {
@@ -107,22 +126,29 @@ func NewSpinner(noColor bool) *Spinner {
 		frameRate:    100 * time.Millisecond,
 		noColor:      noColor,
 		outputFormat: "table", // default to table format for backward compatibility
+		style:        "default",
 	}
 }
 
 func NewSpinnerWithOutput(noColor bool, outputFormat string) *Spinner {
-	return &Spinner{
-		stop:         make(chan bool),
-		frameRate:    100 * time.Millisecond,
-		noColor:      noColor,
-		outputFormat: outputFormat,
-	}
+	// In WASM builds, this will call the WASM version
+	// In non-WASM builds, this will use the regular spinner
+	return NewSpinnerWasm(noColor, outputFormat)
 }
+
+// NewSpinnerWasm is defined in spinner_wasm.go (WASM) or spinner_native.go (non-WASM)
 
 func (s *Spinner) Start(prefix string) {
 	s.mu.Lock()
 	if s.stopped {
 		s.mu.Unlock()
+		return
+	}
+	
+	// If WASM spinner is available, delegate to it
+	if s.wasmSpinner != nil {
+		s.mu.Unlock()
+		s.wasmSpinner.Start(prefix)
 		return
 	}
 	s.mu.Unlock()
@@ -138,19 +164,44 @@ func (s *Spinner) Start(prefix string) {
 					s.mu.Unlock()
 					return
 				}
-				frame := spinnerChars[i%len(spinnerChars)]
-				if s.outputFormat == "json" {
-					if s.noColor {
-						fmt.Fprintf(os.Stderr, "\r\033[K%s %s", frame, prefix)
-					} else {
-						fmt.Fprintf(os.Stderr, "\r\033[K%s %s", color.CyanString(frame), prefix)
-					}
+				
+				// Select spinner characters based on style
+				var chars []string
+				switch s.style {
+				case "wasm":
+					chars = spinnerCharsWasm
+				case "fancy":
+					chars = spinnerCharsFancy
+				default:
+					chars = spinnerChars
+				}
+				
+				frame := chars[i%len(chars)]
+				
+				// Enhanced styling for fancy/wasm spinners
+				var styledFrame string
+				if s.noColor {
+					styledFrame = frame
 				} else {
-					if s.noColor {
-						fmt.Printf("\r\033[K%s %s", frame, prefix)
+					if s.style == "fancy" || s.style == "wasm" {
+						// Cycle through colors for more visual appeal
+						colors := []func(...interface{}) string{
+							color.New(color.FgHiCyan, color.Bold).SprintFunc(),
+							color.New(color.FgHiBlue, color.Bold).SprintFunc(),
+							color.New(color.FgHiMagenta, color.Bold).SprintFunc(),
+							color.New(color.FgHiGreen, color.Bold).SprintFunc(),
+						}
+						colorFunc := colors[(i/len(chars))%len(colors)]
+						styledFrame = colorFunc(frame)
 					} else {
-						fmt.Printf("\r\033[K%s %s", color.CyanString(frame), prefix)
+						styledFrame = color.CyanString(frame)
 					}
+				}
+				
+				if s.outputFormat == "json" {
+					fmt.Fprintf(os.Stderr, "\r\033[K%s %s", styledFrame, prefix)
+				} else {
+					fmt.Printf("\r\033[K%s %s", styledFrame, prefix)
 				}
 				s.mu.Unlock()
 				time.Sleep(s.frameRate)
@@ -161,11 +212,22 @@ func (s *Spinner) Start(prefix string) {
 
 func (s *Spinner) Stop() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	
 	if s.stopped {
+		s.mu.Unlock()
 		return
 	}
+	
+	// If WASM spinner is available, delegate to it
+	if s.wasmSpinner != nil {
+		s.stopped = true
+		s.mu.Unlock()
+		s.wasmSpinner.Stop()
+		return
+	}
+	
 	s.stopped = true
+	s.mu.Unlock()
 	s.stop <- true
 	if s.outputFormat == "json" {
 		fmt.Fprint(os.Stderr, "\r\033[K")

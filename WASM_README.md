@@ -10,6 +10,7 @@ This is the **WASM browser version** of the Megaport CLI that:
 - **Powered by WebAssembly** - Go code compiled to WASM runs directly in the browser
 - **Deployed with Docker** - Easy deployment with a containerized web server
 - **Session-based authentication** - Secure login using customer's Megaport credentials
+- **XTerm.js Terminal** - Full-featured terminal emulator with ANSI support
 - **Early Release** - Currently supports locations and ports commands (more coming soon!)
 
 ## Quick Start (One Command!)
@@ -49,19 +50,24 @@ That's it! The script will:
 
 ⚠️ **Note**: This is a very early release of the WASM version. Currently supported commands:
 
-- `locations list --output json` - List all Megaport locations
-- `locations get <locationId> --output json` - Get details for a specific location
-- `ports list --output json` - List your ports
-- `ports get <portId> --output json` - Get details for a specific port
+- `locations list` - List all Megaport locations
+- `locations get <locationId>` - Get details for a specific location
+- `ports list` - List your ports
+- `ports get <portId>` - Get details for a specific port
 
-**Recommended Output Format**: Use `--output json` for best results. Table output is not yet optimized for WebAssembly.
+**Output Formats**: All standard output formats are supported:
+
+- `--output table` (default) - Formatted table with styled output
+- `--output json` - JSON format for programmatic use
+- `--output csv` - CSV format for data export
 
 **Example Commands**:
 
 ```bash
+megaport-cli locations list
 megaport-cli locations list --output json
-megaport-cli ports list --output json
-megaport-cli ports get abc123 --output json
+megaport-cli ports list
+megaport-cli ports get abc123
 ```
 
 More commands will be added in future releases!

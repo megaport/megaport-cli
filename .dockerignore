@@ -32,6 +32,11 @@ testdata/
 start-server.sh
 wasm.sh
 
+# Node.js (using CDN instead)
+web/node_modules/
+web/package.json
+web/package-lock.json
+
 # Temporary files
 tmp/
 temp/
