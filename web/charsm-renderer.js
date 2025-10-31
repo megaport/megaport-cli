@@ -211,7 +211,8 @@ export class CharsmRenderer {
       return this.lip.apply({ value: formatted, id: this.styleIds.json });
     } catch (error) {
       console.error('Error rendering JSON with Charsm:', error);
-      return JSON.stringify(jsonData, null, 2);
+      // Return a safe string representation for circular or other JSON errors
+      return '[Unable to serialize JSON]';
     }
   }
 
@@ -298,6 +299,10 @@ export class CharsmRenderer {
    * Calculate column widths for table
    */
   _calculateColumnWidths(data, headers) {
+    if (!data || !Array.isArray(data) || !headers || !Array.isArray(headers)) {
+      return headers ? headers.map(() => 10) : [10]; // Default width
+    }
+
     const widths = headers.map((header) => header.length);
 
     data.forEach((row) => {
@@ -315,11 +320,15 @@ export class CharsmRenderer {
    * Fallback plain table renderer
    */
   _renderPlainTable(data, headers) {
+    if (!headers || !Array.isArray(headers)) {
+      return 'Invalid table data';
+    }
+
     const widths = this._calculateColumnWidths(data, headers);
 
     // Header
     const headerRow = headers
-      .map((h, i) => h.toUpperCase().padEnd(widths[i]))
+      .map((h, i) => h.padEnd(widths[i]))
       .join(' | ');
 
     const separator = widths.map((w) => '─'.repeat(w)).join('─┼─');
