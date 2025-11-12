@@ -18,24 +18,9 @@ func SetOutputFormat(format string) {
 	currentOutputFormat = format
 }
 
-func PrintSuccess(format string, noColor bool, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
-	if currentOutputFormat == "json" {
-		if noColor {
-			fmt.Fprintf(os.Stderr, "✓ %s\n", msg)
-		} else {
-			fmt.Fprint(os.Stderr, color.GreenString("✓ "))
-			fmt.Fprintln(os.Stderr, msg)
-		}
-	} else {
-		if noColor {
-			fmt.Printf("✓ %s\n", msg)
-		} else {
-			fmt.Print(color.GreenString("✓ "))
-			fmt.Println(msg)
-		}
-	}
-}
+// PrintSuccess, PrintError, PrintWarning, PrintInfo are defined in:
+// - messages_native.go for non-WASM builds
+// - messages_wasm.go for WASM builds
 
 func PrintSuccessWithOutput(format string, noColor bool, outputFormat string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
@@ -95,12 +80,12 @@ var spinnerChars = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "�
 
 // Enhanced spinner characters for WASM (more visible in browser)
 var spinnerCharsWasm = []string{
-	"◐", "◓", "◑", "◒",  // Circle spinners
+	"◐", "◓", "◑", "◒", // Circle spinners
 }
 
 // Fancy spinner with colors
 var spinnerCharsFancy = []string{
-	"⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷",  // Braille block animation
+	"⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷", // Braille block animation
 }
 
 type Spinner struct {
@@ -110,7 +95,7 @@ type Spinner struct {
 	mu           sync.Mutex
 	noColor      bool
 	outputFormat string
-	style        string // "default", "wasm", "fancy"
+	style        string           // "default", "wasm", "fancy"
 	wasmSpinner  SpinnerInterface // WASM-specific spinner implementation
 }
 
@@ -144,7 +129,7 @@ func (s *Spinner) Start(prefix string) {
 		s.mu.Unlock()
 		return
 	}
-	
+
 	// If WASM spinner is available, delegate to it
 	if s.wasmSpinner != nil {
 		s.mu.Unlock()
@@ -164,7 +149,7 @@ func (s *Spinner) Start(prefix string) {
 					s.mu.Unlock()
 					return
 				}
-				
+
 				// Select spinner characters based on style
 				var chars []string
 				switch s.style {
@@ -175,9 +160,9 @@ func (s *Spinner) Start(prefix string) {
 				default:
 					chars = spinnerChars
 				}
-				
+
 				frame := chars[i%len(chars)]
-				
+
 				// Enhanced styling for fancy/wasm spinners
 				var styledFrame string
 				if s.noColor {
@@ -197,7 +182,7 @@ func (s *Spinner) Start(prefix string) {
 						styledFrame = color.CyanString(frame)
 					}
 				}
-				
+
 				if s.outputFormat == "json" {
 					fmt.Fprintf(os.Stderr, "\r\033[K%s %s", styledFrame, prefix)
 				} else {
@@ -212,12 +197,12 @@ func (s *Spinner) Start(prefix string) {
 
 func (s *Spinner) Stop() {
 	s.mu.Lock()
-	
+
 	if s.stopped {
 		s.mu.Unlock()
 		return
 	}
-	
+
 	// If WASM spinner is available, delegate to it
 	if s.wasmSpinner != nil {
 		s.stopped = true
@@ -225,7 +210,7 @@ func (s *Spinner) Stop() {
 		s.wasmSpinner.Stop()
 		return
 	}
-	
+
 	s.stopped = true
 	s.mu.Unlock()
 	s.stop <- true
@@ -258,7 +243,7 @@ func (s *Spinner) StopWithSuccess(msg string) {
 func PrintResourceCreating(resourceType, uid string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Creating %s %s...", resourceType, uidFormatted)
-	spinner := NewSpinner(noColor)
+	spinner := NewSpinnerWithOutput(noColor, currentOutputFormat)
 	spinner.Start(msg)
 	return spinner
 }
@@ -266,7 +251,7 @@ func PrintResourceCreating(resourceType, uid string, noColor bool) *Spinner {
 func PrintResourceUpdating(resourceType, uid string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Updating %s %s...", resourceType, uidFormatted)
-	spinner := NewSpinner(noColor)
+	spinner := NewSpinnerWithOutput(noColor, currentOutputFormat)
 	spinner.Start(msg)
 	return spinner
 }
@@ -274,7 +259,7 @@ func PrintResourceUpdating(resourceType, uid string, noColor bool) *Spinner {
 func PrintResourceDeleting(resourceType, uid string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Deleting %s %s...", resourceType, uidFormatted)
-	spinner := NewSpinner(noColor)
+	spinner := NewSpinnerWithOutput(noColor, currentOutputFormat)
 	spinner.Start(msg)
 	return spinner
 }
@@ -305,14 +290,14 @@ func PrintResourceGettingWithOutput(resourceType, uid string, noColor bool, outp
 func PrintListingResourceTags(resourceType, uid string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Listing resource tags for %s %s...", resourceType, uidFormatted)
-	spinner := NewSpinner(noColor)
+	spinner := NewSpinnerWithOutput(noColor, currentOutputFormat)
 	spinner.Start(msg)
 	return spinner
 }
 
 func PrintResourceValidating(resourceType string, noColor bool) *Spinner {
 	msg := fmt.Sprintf("Validating %s order...", resourceType)
-	spinner := NewSpinner(noColor)
+	spinner := NewSpinnerWithOutput(noColor, currentOutputFormat)
 	spinner.Start(msg)
 	return spinner
 }
@@ -334,67 +319,14 @@ func PrintLoggingInWithOutput(noColor bool, outputFormat string) *Spinner {
 func PrintCustomSpinner(action, resourceId string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(resourceId, noColor)
 	msg := fmt.Sprintf("%s %s...", action, uidFormatted)
-	spinner := NewSpinner(noColor)
+	spinner := NewSpinnerWithOutput(noColor, currentOutputFormat)
 	spinner.Start(msg)
 	return spinner
 }
 
-func PrintError(format string, noColor bool, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
-	if currentOutputFormat == "json" {
-		if noColor {
-			fmt.Fprintf(os.Stderr, "✗ %s\n", msg)
-		} else {
-			fmt.Fprint(os.Stderr, color.RedString("✗ "))
-			fmt.Fprintln(os.Stderr, msg)
-		}
-	} else {
-		if noColor {
-			fmt.Printf("✗ %s\n", msg)
-		} else {
-			fmt.Print(color.RedString("✗ "))
-			fmt.Println(msg)
-		}
-	}
-}
-
-func PrintWarning(format string, noColor bool, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
-	if currentOutputFormat == "json" {
-		if noColor {
-			fmt.Fprintf(os.Stderr, "⚠ %s\n", msg)
-		} else {
-			fmt.Fprint(os.Stderr, color.YellowString("⚠ "))
-			fmt.Fprintln(os.Stderr, msg)
-		}
-	} else {
-		if noColor {
-			fmt.Printf("⚠ %s\n", msg)
-		} else {
-			fmt.Print(color.YellowString("⚠ "))
-			fmt.Println(msg)
-		}
-	}
-}
-
-func PrintInfo(format string, noColor bool, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
-	if currentOutputFormat == "json" {
-		if noColor {
-			fmt.Fprintf(os.Stderr, "ℹ %s\n", msg)
-		} else {
-			fmt.Fprint(os.Stderr, color.BlueString("ℹ "))
-			fmt.Fprintln(os.Stderr, msg)
-		}
-	} else {
-		if noColor {
-			fmt.Printf("ℹ %s\n", msg)
-		} else {
-			fmt.Print(color.BlueString("ℹ "))
-			fmt.Println(msg)
-		}
-	}
-}
+// PrintError, PrintWarning, PrintInfo are defined in:
+// - messages_native.go for non-WASM builds
+// - messages_wasm.go for WASM builds
 
 func FormatConfirmation(msg string, noColor bool) string {
 	if noColor {

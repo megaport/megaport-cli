@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/megaport/megaport-cli/internal/wasm"
 )
 
 // WASM-specific message formatting with prominent boxes and borders
@@ -188,4 +189,55 @@ func PrintProgressBox(message string, percentage int, noColor bool) {
 	
 	fmt.Print("\r") // Clear line
 	fmt.Print(box)
+}
+
+// WASM-specific overrides for print functions to ensure output is captured
+// These write to WasmOutputBuffer instead of stdout
+
+// PrintSuccess overrides the base function for WASM to capture output
+func PrintSuccess(format string, noColor bool, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	var output string
+	if noColor {
+		output = fmt.Sprintf("✓ %s\n", msg)
+	} else {
+		output = color.GreenString("✓ ") + msg + "\n"
+	}
+	wasm.WasmOutputBuffer.Write([]byte(output))
+}
+
+// PrintError overrides the base function for WASM to capture output
+func PrintError(format string, noColor bool, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	var output string
+	if noColor {
+		output = fmt.Sprintf("✗ %s\n", msg)
+	} else {
+		output = color.RedString("✗ ") + msg + "\n"
+	}
+	wasm.WasmOutputBuffer.Write([]byte(output))
+}
+
+// PrintWarning overrides the base function for WASM to capture output
+func PrintWarning(format string, noColor bool, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	var output string
+	if noColor {
+		output = fmt.Sprintf("⚠ %s\n", msg)
+	} else {
+		output = color.YellowString("⚠ ") + msg + "\n"
+	}
+	wasm.WasmOutputBuffer.Write([]byte(output))
+}
+
+// PrintInfo overrides the base function for WASM to capture output
+func PrintInfo(format string, noColor bool, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	var output string
+	if noColor {
+		output = fmt.Sprintf("ℹ %s\n", msg)
+	} else {
+		output = color.BlueString("ℹ ") + msg + "\n"
+	}
+	wasm.WasmOutputBuffer.Write([]byte(output))
 }

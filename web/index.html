@@ -270,31 +270,14 @@
                 }
             }
 
-            // Load WASM module
-            if (typeof go === 'undefined') {
-                console.error('Go WASM runtime not initialized by script.js');
-            }
-
-            WebAssembly.instantiateStreaming(fetch("megaport.wasm"), go.importObject)
-                .then((result) => {
-                    console.log("WASM module loaded successfully");
-                    go.run(result.instance);
-
-                    // Check if executeMegaportCommand is available
-                    if (typeof window.executeMegaportCommand !== 'function' && typeof window.executeMegaportCommandAsync !== 'function') {
-                        console.error("Command execution functions not found");
-                    }
-
-                    // Initialize session after WASM is loaded
-                    initializeSession();
-                })
-                .catch(err => {
-                    console.error("WASM load error:", err);
-                    document.getElementById('login-error').textContent = 'Failed to load WASM module: ' + err.message;
-                });
+            // Make initializeSession available globally so script.js can call it after WASM loads
+            window.initializeSession = initializeSession;
 
             console.log('✅ XTerm.js integration loaded');
         </script>
     </body>
+
+</html> ``` </script>
+</body>
 
 </html>

@@ -176,7 +176,9 @@ func authenticatedProxyHandler(w http.ResponseWriter, r *http.Request, srv *serv
 
 	// Write response
 	w.WriteHeader(resp.StatusCode)
-	w.Write(respBody)
+	if _, err := w.Write(respBody); err != nil {
+		log.Printf("Error writing response: %v", err)
+	}
 }
 
 func proxyHandler(w http.ResponseWriter, r *http.Request) {

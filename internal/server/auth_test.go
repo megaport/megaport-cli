@@ -192,7 +192,9 @@ func TestHandleSessionCheck_ValidSession(t *testing.T) {
 	err = json.NewDecoder(w.Body).Decode(&response)
 	require.NoError(t, err)
 
-	assert.True(t, response["valid"].(bool))
+	valid, ok := response["valid"].(bool)
+	assert.True(t, ok, "valid field should be a bool")
+	assert.True(t, valid)
 	assert.NotNil(t, response["expiresAt"])
 }
 
