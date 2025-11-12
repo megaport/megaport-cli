@@ -567,29 +567,135 @@ const go = new Go();
 WebAssembly.instantiateStreaming(fetch('megaport.wasm'), go.importObject)
   .then((res) => {
     console.log('WASM module loaded successfully');
+
+    // Start the Go program (this runs asynchronously and doesn't block)
     go.run(res.instance);
 
-    console.log('Go WASM program has started.');
+    console.log('Go WASM program starting...');
 
-    if (typeof window.registerAuthFunction === 'function') {
-      console.log('Auth fn registration check (JS side): function exists.');
-    } else {
-      console.warn(
-        'Auth fn registration check (JS side): window.registerAuthFunction not found.'
-      );
-    }
-    if (typeof window.browserApiRequest === 'function') {
-      console.log(
-        'API helper (browserApiRequest) check (JS side): function exists.'
-      );
-    }
-    if (typeof window.executeMegaportCommand === 'function') {
-      console.log('executeMegaportCommand check (JS side): function exists.');
-    } else {
-      console.warn(
-        'executeMegaportCommand check (JS side): window.executeMegaportCommand not found.'
-      );
-    }
+    // Wait for WASM to fully initialize by polling for the functions
+    let pollCount = 0;
+    const waitForWASM = setInterval(() => {
+      pollCount++;
+      const hasRegister = typeof window.registerPromptHandler === 'function';
+      const hasAsync = typeof window.executeMegaportCommandAsync === 'function';
+
+      if (pollCount === 1 || pollCount % 10 === 0) {
+        console.log(
+          `Polling WASM (attempt ${pollCount}): registerPromptHandler=${hasRegister}, executeMegaportCommandAsync=${hasAsync}`
+        );
+      }
+
+      if (hasRegister && hasAsync) {
+        clearInterval(waitForWASM);
+        console.log('✅ WASM fully initialized');
+
+        // Now register the prompt handler immediately
+        if (typeof window.registerPromptHandler === 'function') {
+          console.log('Registering prompt handler for interactive mode');
+
+          window.registerPromptHandler((promptRequest) => {
+            console.log('Prompt requested:', promptRequest);
+
+            // Use XTerm terminal if available, otherwise fallback to appendToTerminal
+            if (window.xtermManager && window.xtermManager.initialized) {
+              const terminal = window.xtermManager.terminal;
+
+              // Disable the main terminal input handler to prevent double processing
+              window.xtermManager.disableInput();
+
+              // Display the prompt message
+              terminal.write(`\r\n\x1b[36m${promptRequest.message}\x1b[0m `);
+
+              let currentInput = '';
+              let disposable;
+
+              const inputHandler = (data) => {
+                // Handle Enter key
+                if (data === '\r' || data === '\n') {
+                  terminal.write('\r\n');
+                  if (disposable) disposable.dispose();
+
+                  // Re-enable the main terminal input handler
+                  window.xtermManager.enableInput();
+
+                  // Submit the response
+                  if (typeof window.submitPromptResponse === 'function') {
+                    window.submitPromptResponse(promptRequest.id, currentInput);
+                  }
+                  return;
+                }
+
+                // Handle Backspace
+                if (data === '\x7F' || data === '\b') {
+                  if (currentInput.length > 0) {
+                    currentInput = currentInput.slice(0, -1);
+                    terminal.write('\b \b');
+                  }
+                  return;
+                }
+
+                // Handle Ctrl+C (cancel)
+                if (data === '\x03') {
+                  terminal.write('^C\r\n');
+                  if (disposable) disposable.dispose();
+
+                  // Re-enable the main terminal input handler
+                  window.xtermManager.enableInput();
+
+                  if (typeof window.cancelPrompt === 'function') {
+                    window.cancelPrompt(promptRequest.id);
+                  }
+                  return;
+                }
+
+                // Regular character input
+                if (
+                  data >= String.fromCharCode(0x20) &&
+                  data <= String.fromCharCode(0x7e)
+                ) {
+                  currentInput += data;
+                  terminal.write(data);
+                }
+              };
+
+              // Register the input handler - onData returns a disposable
+              disposable = terminal.onData(inputHandler);
+            } else {
+              // Fallback for non-XTerm terminals
+              appendToTerminal(promptRequest.message, 'system');
+              const userInput = prompt(promptRequest.message);
+              if (
+                userInput !== null &&
+                typeof window.submitPromptResponse === 'function'
+              ) {
+                window.submitPromptResponse(promptRequest.id, userInput);
+              } else if (typeof window.cancelPrompt === 'function') {
+                window.cancelPrompt(promptRequest.id);
+              }
+            }
+          });
+
+          console.log('✅ Prompt handler registered for interactive mode');
+
+          // Initialize session now that WASM is fully ready
+          if (typeof window.initializeSession === 'function') {
+            console.log('Calling initializeSession after WASM ready');
+            window.initializeSession();
+          }
+        }
+      }
+    }, 100); // Check every 100ms
+
+    // Timeout after 10 seconds
+    setTimeout(() => {
+      clearInterval(waitForWASM);
+      if (typeof window.registerPromptHandler !== 'function') {
+        console.error(
+          '❌ WASM initialization timeout - prompt handler not available'
+        );
+      }
+    }, 10000);
   })
   .catch((err) => {
     appendToTerminal('WASM load error: ' + err, 'error');

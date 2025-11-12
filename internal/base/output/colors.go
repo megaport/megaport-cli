@@ -75,10 +75,10 @@ func colorizeStatus(status string, noColor bool) string {
 		return status
 	}
 	status = strings.ToUpper(status)
-	
+
 	// Create bordered badges for better visibility
 	// Format: [ STATUS ] with colored background and borders
-	
+
 	if strings.Contains(status, "ACTIVE") || strings.Contains(status, "LIVE") ||
 		strings.Contains(status, "CONFIGURED") || status == "UP" || status == "AVAILABLE" {
 		// Green badge with bright background

@@ -153,7 +153,9 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		s.logger.Printf("Error encoding login response: %v", err)
+	}
 }
 
 // HandleLogout handles customer logout requests
@@ -182,7 +184,9 @@ func (s *Server) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	s.logger.Printf("Logout successful for session: %s", sessionToken)
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"success": true}`))
+	if _, err := w.Write([]byte(`{"success": true}`)); err != nil {
+		s.logger.Printf("Error writing logout response: %v", err)
+	}
 }
 
 // HandleSessionCheck checks if a session is valid
@@ -209,5 +213,7 @@ func (s *Server) HandleSessionCheck(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		s.logger.Printf("Error encoding session check response: %v", err)
+	}
 }
