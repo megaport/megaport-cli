@@ -162,7 +162,7 @@ func TestSessionManager_ConcurrentAccess(t *testing.T) {
 	// Create multiple sessions concurrently
 	done := make(chan bool)
 	for i := 0; i < 10; i++ {
-		go func(id int) {
+		go func() {
 			session, err := sm.CreateSession("key", "secret")
 			assert.NoError(t, err)
 			assert.NotNil(t, session)
@@ -178,7 +178,7 @@ func TestSessionManager_ConcurrentAccess(t *testing.T) {
 			sm.DeleteSession(session.ID)
 
 			done <- true
-		}(i)
+		}()
 	}
 
 	// Wait for all goroutines

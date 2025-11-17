@@ -117,12 +117,12 @@ func isOutputCompatibleType(t reflect.Type) bool {
 	if t.Kind() == reflect.Ptr {
 		return isOutputCompatibleType(t.Elem())
 	}
-	
+
 	// Special case: time.Time is always compatible
 	if t == reflect.TypeOf(time.Time{}) {
 		return true
 	}
-	
+
 	switch t.Kind() {
 	case reflect.Slice, reflect.Array:
 		// Slices and arrays are compatible (we can serialize them)
@@ -173,16 +173,16 @@ func formatFieldValue(fieldVal reflect.Value) string {
 		}
 		fieldVal = fieldVal.Elem()
 	}
-	
+
 	// Special handling for time.Time - format as ISO date
 	if fieldVal.Type() == reflect.TypeOf(time.Time{}) {
-		t := fieldVal.Interface().(time.Time)
-		if t.IsZero() {
+		t, ok := fieldVal.Interface().(time.Time)
+		if !ok || t.IsZero() {
 			return ""
 		}
 		return t.Format("2006-01-02")
 	}
-	
+
 	switch fieldVal.Kind() {
 	case reflect.Slice, reflect.Array:
 		if fieldVal.Len() == 0 {

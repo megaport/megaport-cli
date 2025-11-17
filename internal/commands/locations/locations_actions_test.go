@@ -35,53 +35,14 @@ func TestMockSetup(t *testing.T) {
 	mockSvc.AssertExpectations(t)
 }
 
-func setupTestEnvironment() (*MockLocationsService, []*megaport.Location) {
+func setupTestEnvironment() *MockLocationsService {
 	mockSvc := new(MockLocationsService)
 
-	testLocations := []*megaport.Location{
-		{
-			ID:       1,
-			Name:     "Sydney Data Center",
-			Country:  "Australia",
-			Metro:    "Sydney",
-			SiteCode: "SYD",
-			Status:   "Active",
-			Products: &megaport.LocationProducts{
-				MCR:      true,
-				Megaport: []int{1, 10},
-			},
-		},
-		{
-			ID:       2,
-			Name:     "London Data Center",
-			Country:  "United Kingdom",
-			Metro:    "London",
-			SiteCode: "LON",
-			Status:   "Active",
-			Products: &megaport.LocationProducts{
-				MCR:      false,
-				Megaport: []int{1},
-			},
-		},
-		{
-			ID:       3,
-			Name:     "New York Data Center",
-			Country:  "USA",
-			Metro:    "New York",
-			SiteCode: "NYC",
-			Status:   "Active",
-			Products: &megaport.LocationProducts{
-				MCR:      true,
-				Megaport: []int{10},
-			},
-		},
-	}
-
-	return mockSvc, testLocations
+	return mockSvc
 }
 
 func TestListLocationsFunc(t *testing.T) {
-	mockSvc, _ := setupTestEnvironment()
+	mockSvc := setupTestEnvironment()
 
 	// Create corresponding v3 locations for the test
 	testLocationsV3 := []*megaport.LocationV3{
@@ -181,7 +142,7 @@ func TestListLocationsFunc(t *testing.T) {
 }
 
 func TestListLocationsFuncError(t *testing.T) {
-	mockSvc, _ := setupTestEnvironment()
+	mockSvc := setupTestEnvironment()
 
 	expectedError := errors.New("api connection failed")
 
@@ -231,7 +192,7 @@ func TestListLocationsFuncError(t *testing.T) {
 }
 
 func TestListLocationsCommand(t *testing.T) {
-	mockSvc, _ := setupTestEnvironment()
+	mockSvc := setupTestEnvironment()
 
 	// Create corresponding v3 locations for the test
 	testLocationsV3 := []*megaport.LocationV3{

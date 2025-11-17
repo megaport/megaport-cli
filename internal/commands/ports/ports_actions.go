@@ -565,7 +565,7 @@ func ListPortResourceTags(cmd *cobra.Command, args []string, noColor bool, outpu
 		return err
 	}
 
-	tagsMap, err := client.PortService.ListPortResourceTags(ctx, portUID)
+	tagsMap, err := listPortResourceTagsFunc(ctx, client, portUID)
 
 	if err != nil {
 		output.PrintError("Error getting resource tags for port %s: %v", noColor, portUID, err)

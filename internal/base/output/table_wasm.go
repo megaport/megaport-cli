@@ -46,26 +46,32 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 
 	js.Global().Get("console").Call("log", "📊 Table will write to WasmTableWriter")
 
-	// WASM-specific table configuration with fixed column widths
-	// This ensures consistent, even column distribution in the browser
+	// WASM-specific table configuration with improved column widths
+	// This ensures consistent, readable column distribution in the browser
 	columnConfigs := make([]prettytable.ColumnConfig, len(headers))
 	for i, header := range headers {
 		headerLower := strings.ToLower(header)
 		var widthMax int
 
-		// Set specific widths for each column type to match CLI proportions
+		// Set specific widths for each column type optimized for web display
 		switch headerLower {
-		case "id":
-			widthMax = 6
+		case "uid", "id":
+			widthMax = 38 // Full UUID width for better readability
 		case "name", "title":
-			widthMax = 35
+			widthMax = 30 // Reasonable width for port names
+		case "locationid", "location_id", "location id":
+			widthMax = 12 // Numeric ID
+		case "speed", "port_speed", "port speed":
+			widthMax = 10 // Numeric speed
+		case "status", "provisioning_status", "provisioning status", "state":
+			widthMax = 15 // Status strings
 		case "country":
 			widthMax = 16
 		case "metro", "city":
 			widthMax = 16
 		case "site code", "code":
 			widthMax = 12
-		case "status", "state":
+		case "type":
 			widthMax = 12
 		default:
 			widthMax = 20
@@ -74,7 +80,7 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 		columnConfigs[i] = prettytable.ColumnConfig{
 			Number:    i + 1,
 			WidthMax:  widthMax,
-			WidthMin:  widthMax, // Set min = max for consistent width
+			WidthMin:  8, // Minimum width for readability
 			AutoMerge: false,
 		}
 	}
@@ -86,12 +92,12 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 	// noColor = true  // REMOVED: xterm.js supports colors!
 
 	if noColor {
-		// Use a clean, simple style without colors for WASM
+		// Clean, readable style without colors for WASM
 		t.SetStyle(prettytable.StyleLight)
 	} else {
-		// Enhanced Megaport style with prominent headers for WASM
+		// Enhanced style optimized for web terminal with dark background
 		megaportStyle := prettytable.Style{
-			Name: "MegaportEnhancedStyle",
+			Name: "MegaportWebStyle",
 			Box: prettytable.BoxStyle{
 				BottomLeft:       "└",
 				BottomRight:      "┘",
@@ -101,8 +107,8 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 				MiddleHorizontal: "─",
 				MiddleSeparator:  "┼",
 				MiddleVertical:   "│",
-				PaddingLeft:      "  ",  // More padding for better readability
-				PaddingRight:     "  ",
+				PaddingLeft:      " ",  // Single space for compact display
+				PaddingRight:     " ",
 				Right:            "│",
 				RightSeparator:   "┤",
 				TopLeft:          "┌",
@@ -111,16 +117,16 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 				UnfinishedRow:    " ≡",
 			},
 			Color: prettytable.ColorOptions{
-				// Bright cyan header with white text for maximum visibility
-				Header:       text.Colors{text.FgHiWhite, text.BgCyan, text.Bold},
-				Row:          text.Colors{text.FgWhite},  // White text for rows
-				RowAlternate: text.Colors{text.FgHiCyan}, // Alternating cyan text
-				Footer:       text.Colors{text.FgHiWhite, text.BgBlue, text.Bold},
-				Border:       text.Colors{text.FgHiCyan},  // Bright cyan borders
+				// Bright, readable colors for dark terminal background
+				Header:       text.Colors{text.FgHiCyan, text.Bold},     // Bright cyan text, no background
+				Row:          text.Colors{text.FgHiWhite},               // Bright white for rows
+				RowAlternate: text.Colors{text.FgCyan},                  // Cyan for alternating rows
+				Footer:       text.Colors{text.FgHiCyan, text.Bold},     // Bright cyan footer
+				Border:       text.Colors{text.FgBlue},                  // Blue borders for subtle frame
 			},
 			Format: prettytable.FormatOptions{
 				Footer: text.FormatDefault,
-				Header: text.FormatUpper,  // Force uppercase headers
+				Header: text.FormatUpper,  // Uppercase headers for clarity
 				Row:    text.FormatDefault,
 			},
 			Options: prettytable.Options{
@@ -128,7 +134,7 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 				SeparateColumns: true,
 				SeparateFooter:  true,
 				SeparateHeader:  true,
-				SeparateRows:    false,
+				SeparateRows:    false,  // No row separation for compact display
 			},
 		}
 		t.SetStyle(megaportStyle)

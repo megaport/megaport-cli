@@ -39,6 +39,10 @@ var buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megapo
 	return client.PortService.BuyPort(ctx, req)
 }
 
+var listPortResourceTagsFunc = func(ctx context.Context, client *megaport.Client, portUID string) (map[string]string, error) {
+	return client.PortService.ListPortResourceTags(ctx, portUID)
+}
+
 func filterPorts(ports []*megaport.Port, locationID, portSpeed int, portName string, includeInactive bool) []*megaport.Port {
 	var filtered []*megaport.Port
 	if ports == nil {

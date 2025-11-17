@@ -17,6 +17,7 @@ class XTerminalManager {
     this.historyIndex = -1;
     this.promptText = 'megaport> ';
     this.initialized = false;
+    this.inputDisabled = false; // Flag to disable input handling during prompts
   }
 
   /**
@@ -114,6 +115,11 @@ class XTerminalManager {
    */
   setupInputHandling() {
     this.terminal.onData((data) => {
+      // Skip all input handling if disabled (e.g., during prompt input)
+      if (this.inputDisabled) {
+        return;
+      }
+
       const code = data.charCodeAt(0);
 
       // Handle Enter key
@@ -341,6 +347,20 @@ class XTerminalManager {
     if (this.fitAddon) {
       this.fitAddon.fit();
     }
+  }
+
+  /**
+   * Disable input handling (for prompts)
+   */
+  disableInput() {
+    this.inputDisabled = true;
+  }
+
+  /**
+   * Enable input handling (after prompts)
+   */
+  enableInput() {
+    this.inputDisabled = false;
   }
 
   /**

@@ -154,10 +154,13 @@ func main() {
 	// Setup output redirection
 	wasm.SetupIO()
 
+	// Initialize the prompt system for interactive mode
+	wasm.InitPromptSystem()
+
 	// Export both sync (legacy) and async (preferred) versions
 	js.Global().Set("executeMegaportCommand", js.FuncOf(executeMegaportCommand))
 	js.Global().Set("executeMegaportCommandAsync", js.FuncOf(executeMegaportCommandAsync))
-	
+
 	js.Global().Get("console").Call("log", "✅ Registered executeMegaportCommand (sync) and executeMegaportCommandAsync (async)")
 
 	// Prevent Go WASM from exiting after main finishes
