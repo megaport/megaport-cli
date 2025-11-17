@@ -81,6 +81,9 @@ func init() {
 	// Initialize common components (uses WASM-specific registerModules that excludes config)
 	InitializeCommon()
 
+	// Remove the auto-generated completion command since it's not supported in WASM
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
+
 	// Store the original help function so we can call it when needed
 	originalHelpFunc := rootCmd.HelpFunc()
 

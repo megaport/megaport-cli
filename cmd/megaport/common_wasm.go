@@ -26,11 +26,24 @@ var (
 		Run: func(cmd *cobra.Command, args []string) {
 			// If we reach here with args, it means an unknown command was used
 			if len(args) > 0 {
-				// Special message for config commands since they're not available in WASM
-				if args[0] == "config" {
+				// Special messages for commands not available in WASM
+				switch args[0] {
+				case "config":
 					fmt.Fprintf(cmd.OutOrStderr(), "Error: the 'config' command is not available in the browser version\n\n")
 					fmt.Fprintf(cmd.OutOrStderr(), "Configuration is managed through the web UI login form.\n")
 					fmt.Fprintf(cmd.OutOrStderr(), "Use the --env flag to specify environment: megaport-cli ports list --env staging\n")
+					return
+				case "completion":
+					fmt.Fprintf(cmd.OutOrStderr(), "Error: the 'completion' command is not available in the browser version\n\n")
+					fmt.Fprintf(cmd.OutOrStderr(), "Shell completion is not applicable in a browser environment.\n")
+					return
+				case "generate-docs":
+					fmt.Fprintf(cmd.OutOrStderr(), "Error: the 'generate-docs' command is not available in the browser version\n\n")
+					fmt.Fprintf(cmd.OutOrStderr(), "Documentation generation is a development tool, not available in WASM.\n")
+					return
+				case "version":
+					fmt.Fprintf(cmd.OutOrStderr(), "Error: the 'version' command is not available in the browser version\n\n")
+					fmt.Fprintf(cmd.OutOrStderr(), "Version information is managed by the web application.\n")
 					return
 				}
 				// Show error for other unknown commands
