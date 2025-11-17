@@ -25,6 +25,7 @@ func init() {
 	unlockPortFunc = unlockPortWasmImpl
 	checkPortVLANAvailabilityFunc = checkPortVLANAvailabilityWasmImpl
 	buyPortFunc = buyPortWasmImpl
+	listPortResourceTagsFunc = listPortResourceTagsWasmImpl
 }
 
 // isAuthError checks if an error is a 401 authentication error
@@ -320,4 +321,35 @@ func buyPortWasmImpl(ctx context.Context, client *megaport.Client, req *megaport
 
 	js.Global().Get("console").Call("log", "✅ SDK BuyPort successful")
 	return response, nil
+}
+
+// listPortResourceTagsWasmImpl uses the SDK's PortService.ListPortResourceTags() method
+func listPortResourceTagsWasmImpl(ctx context.Context, client *megaport.Client, portUID string) (map[string]string, error) {
+	js.Global().Get("console").Call("log", fmt.Sprintf("🚀 Using SDK PortService.ListPortResourceTags() for port %s", portUID))
+
+	if client == nil {
+		var err error
+		client, err = config.Login(ctx)
+		if err != nil {
+			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
+			return nil, fmt.Errorf("error logging in: %v", err)
+		}
+	}
+
+	js.Global().Get("console").Call("log", "📡 Calling SDK PortService.ListPortResourceTags()...")
+	tags, err := client.PortService.ListPortResourceTags(ctx, portUID)
+	if err != nil {
+		js.Global().Get("console").Call("error", fmt.Sprintf("❌ SDK ListPortResourceTags failed: %v", err))
+
+		if isAuthError(err) {
+			js.Global().Get("console").Call("warn", "🔓 Authentication token expired or invalid, clearing cache")
+			config.ClearCachedToken()
+			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
+		}
+
+		return nil, fmt.Errorf("error listing port resource tags: %v", err)
+	}
+
+	js.Global().Get("console").Call("log", fmt.Sprintf("✅ SDK returned %d resource tags successfully", len(tags)))
+	return tags, nil
 }
