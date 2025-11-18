@@ -40,8 +40,8 @@ func (s *WasmSpinner) Start(message string) {
 	s.message = message
 	
 	if js.Global().Get("wasmStartSpinner").IsUndefined() {
-		// Fallback: just print the message
-		s.printStartMessage()
+		// Fallback: Do NOT print anything in WASM mode
+		// The spinner is purely visual via JavaScript
 		return
 	}
 
@@ -74,22 +74,9 @@ func (s *WasmSpinner) Stop() {
 func (s *WasmSpinner) StopWithSuccess(msg string) {
 	s.Stop()
 	
-	if s.noColor {
-		fmt.Printf("✓ %s\n", msg)
-	} else {
-		fmt.Print(color.GreenString("✓ "))
-		fmt.Println(msg)
-	}
-}
-
-// printStartMessage prints a static loading message
-func (s *WasmSpinner) printStartMessage() {
-	if s.noColor {
-		fmt.Printf("⏳ %s\n", s.message)
-	} else {
-		fmt.Print(color.CyanString("⏳ "))
-		fmt.Println(s.message)
-	}
+	// In WASM mode, success messages are handled separately
+	// Do not output here to avoid duplication
+	PrintSuccess(msg, s.noColor)
 }
 
 // Override spinner functions to use WASM-specific implementation
