@@ -103,8 +103,8 @@ echo "  3. Start using the CLI in your browser!"
 echo ""
 echo "💡 Ready for Megaport Portal Integration"
 echo "  This Vue 3 component can be easily integrated into the"
-echo "  Megaport Portal by the frontend team. See HANDOFF.md"
-echo "  for integration documentation."
+echo "  Megaport Portal. See frontend-integration/INTEGRATION_GUIDE.md"
+echo "  for complete integration documentation."
 echo ""
 
 # Wait a moment and check if container is healthy

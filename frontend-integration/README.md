@@ -14,8 +14,8 @@ frontend-integration/
 │   └── useMegaportWASM.ts          # Vue composable for WASM
 ├── components/
 │   └── MegaportTerminal.vue        # Terminal component with xterm.js
-├── workers/
-│   └── megaport-worker.ts          # Web Worker (optional, for heavy workloads)
+├── utils/
+│   └── type-guards.ts              # Runtime type validation
 ├── demo/
 │   ├── App.vue                     # Demo application
 │   └── main.ts                     # Demo entry point
@@ -95,7 +95,7 @@ import MegaportTerminal from './components/MegaportTerminal.vue';
 
 ## 🏗️ Architecture
 
-### Direct Mode (Recommended for Portal)
+### Direct Mode (Main Thread Execution)
 
 ```
 ┌─────────────────────┐
@@ -104,39 +104,22 @@ import MegaportTerminal from './components/MegaportTerminal.vue';
            │
            ▼
 ┌─────────────────────┐
-│  useMegaportWASM()  │  ← Composable
+│  useMegaportWASM()  │  ← Vue Composable
 └──────────┬──────────┘
            │
            ▼
 ┌─────────────────────┐
 │   wasm_exec.js      │  ← Go WASM runtime
-│   megaport.wasm     │
+│   megaport.wasm     │  ← CLI binary
 └─────────────────────┘
 ```
 
-### Worker Mode (Optional, for better performance)
+The WASM module runs directly in the main thread with async command execution for non-blocking operation. This provides:
 
-```
-┌─────────────────────┐
-│   Vue 3 Component   │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│  useMegaportWASM()  │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│   Web Worker        │
-│  (dedicated thread) │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│   WASM Module       │
-└─────────────────────┘
-```
+- Simple integration with minimal overhead
+- Direct access to browser APIs
+- Reliable authentication handling
+- Interactive prompt support
 
 ## 📚 API Reference
 
@@ -149,7 +132,10 @@ Vue composable for WASM integration.
 - `config.wasmPath` (string): Path to megaport.wasm (default: '/megaport.wasm')
 - `config.wasmExecPath` (string): Path to wasm_exec.js (default: '/wasm_exec.js')
 - `config.debug` (boolean): Enable debug logging (default: false)
-- `config.useWorker` (boolean): Use Web Worker (default: false)
+- `config.initTimeout` (number): WASM initialization timeout in ms (default: 30000)
+- `config.maxRetries` (number): Max retry attempts for initialization (default: 3)
+- `config.retryDelay` (number): Base delay between retries in ms (default: 1000)
+- `config.onTelemetry` (function): Optional callback for telemetry events
 
 **Returns:**
 
@@ -312,9 +298,27 @@ port list --output json
    ]);
    ```
 
-3. **Use Worker**: For heavy workloads
+3. **Telemetry Tracking**: Monitor performance and errors
+
    ```typescript
-   useMegaportWASM({ useWorker: true });
+   useMegaportWASM({
+     onTelemetry: (event) => {
+       analytics.track(event.type, {
+         duration: event.duration,
+         ...event.metadata,
+       });
+     },
+   });
+   ```
+
+4. **Type Safety**: Use runtime type guards
+
+   ```typescript
+   import { isValidCommand } from './utils/type-guards';
+
+   if (isValidCommand(userInput)) {
+     await execute(userInput);
+   }
    ```
 
 ## 🐛 Troubleshooting
@@ -362,6 +366,64 @@ Ensure types are properly configured:
   },
   "include": ["types/megaport-wasm.d.ts"]
 }
+```
+
+## 🆕 New Features
+
+### Telemetry Support
+
+Track WASM operations and performance:
+
+```typescript
+const { execute } = useMegaportWASM({
+  onTelemetry: (event) => {
+    console.log(`${event.type}: ${event.duration}ms`, event.metadata);
+  },
+});
+```
+
+Event types:
+
+- `wasm_init_start` / `wasm_init_success` / `wasm_init_error`
+- `command_execute_start` / `command_execute_success` / `command_execute_error`
+- `auth_set` / `auth_clear`
+- `spinner_start` / `spinner_stop`
+
+### Runtime Type Guards
+
+Validate data at runtime:
+
+```typescript
+import {
+  isValidCommand,
+  isMegaportCommandResult,
+  hasWASMFunctions,
+} from './utils/type-guards';
+
+// Validate commands before execution
+if (isValidCommand(userInput)) {
+  const result = await execute(userInput);
+
+  if (isMegaportCommandResult(result)) {
+    // Type-safe result handling
+  }
+}
+```
+
+### Lazy CSS Loading
+
+xterm.js CSS is now loaded on-demand when the terminal initializes, reducing initial bundle size.
+
+### Retry Logic
+
+Automatic retry with exponential backoff for failed WASM initialization:
+
+```typescript
+useMegaportWASM({
+  maxRetries: 3,
+  retryDelay: 1000, // Increases exponentially
+  initTimeout: 30000,
+});
 ```
 
 ## 🌐 Browser Compatibility

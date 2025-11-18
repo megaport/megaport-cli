@@ -51,7 +51,6 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { useMegaportWASM } from '../composables/useMegaportWASM';
 import type { MegaportPromptRequest } from '../types/megaport-wasm';
-import '@xterm/xterm/css/xterm.css';
 
 // Constants
 const TERMINAL_FONT_SIZE = 14;
@@ -117,7 +116,6 @@ const {
   wasmPath: props.wasmPath,
   wasmExecPath: props.wasmExecPath,
   debug: true,
-  useWorker: false, // Direct mode for now
 });
 
 // Local error state for component-level errors
@@ -199,10 +197,39 @@ const setupPromptHandler = () => {
 };
 
 /**
+ * Lazy load xterm CSS only when needed
+ */
+const loadXtermCSS = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    // Check if already loaded
+    if (document.querySelector('link[href*="xterm.css"]')) {
+      resolve();
+      return;
+    }
+
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css';
+    link.onload = () => resolve();
+    link.onerror = () => reject(new Error('Failed to load xterm CSS'));
+    document.head.appendChild(link);
+  });
+};
+
+/**
  * Initialize xterm.js terminal
  */
-const initTerminal = () => {
+const initTerminal = async () => {
   if (!terminalRef.value) return;
+
+  // Lazy load xterm CSS first
+  try {
+    await loadXtermCSS();
+  } catch (err) {
+    console.error('Failed to load xterm CSS:', err);
+    componentError.value = err instanceof Error ? err : new Error(String(err));
+    return;
+  }
 
   terminal = new Terminal({
     cursorBlink: true,
@@ -219,6 +246,13 @@ const initTerminal = () => {
   fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
   terminal.loadAddon(new WebLinksAddon());
+
+  // Check if terminalRef still exists (component might have unmounted)
+  if (!terminalRef.value) {
+    terminal?.dispose();
+    fitAddon?.dispose();
+    return;
+  }
 
   // Open terminal
   terminal.open(terminalRef.value);
@@ -624,7 +658,7 @@ onMounted(() => {
   const checkReady = setInterval(() => {
     if (isReady.value) {
       clearInterval(checkReady);
-      initTerminal();
+      initTerminal(); // Now async but we don't need to await
       setupPromptHandler(); // Register inline prompt handler
     }
   }, 100);

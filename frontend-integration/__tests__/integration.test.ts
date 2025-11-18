@@ -82,7 +82,7 @@ describe('WASM Integration Tests', () => {
       // Create wrapper with composable
       let composableInstance: any;
       const wrapper = createTestWrapper(() => {
-        composableInstance = useMegaportWASM({ useWorker: false });
+        composableInstance = useMegaportWASM({});
         return composableInstance;
       });
 
@@ -133,7 +133,7 @@ describe('WASM Integration Tests', () => {
 
       let composableInstance: any;
       const wrapper = createTestWrapper(() => {
-        composableInstance = useMegaportWASM({ useWorker: false });
+        composableInstance = useMegaportWASM({});
         return composableInstance;
       });
 
@@ -206,7 +206,7 @@ describe('WASM Integration Tests', () => {
 
       let composableInstance: any;
       const wrapper = createTestWrapper(() => {
-        composableInstance = useMegaportWASM({ useWorker: false });
+        composableInstance = useMegaportWASM({});
         return composableInstance;
       });
 
@@ -232,7 +232,7 @@ describe('WASM Integration Tests', () => {
 
       let composableInstance: any;
       const wrapper = createTestWrapper(() => {
-        composableInstance = useMegaportWASM({ useWorker: false });
+        composableInstance = useMegaportWASM({});
         return composableInstance;
       });
 
@@ -258,13 +258,13 @@ describe('WASM Integration Tests', () => {
 
       let instance1: any;
       const wrapper1 = createTestWrapper(() => {
-        instance1 = useMegaportWASM({ useWorker: false });
+        instance1 = useMegaportWASM({});
         return instance1;
       });
 
       let instance2: any;
       const wrapper2 = createTestWrapper(() => {
-        instance2 = useMegaportWASM({ useWorker: false });
+        instance2 = useMegaportWASM({});
         return instance2;
       });
 
@@ -300,7 +300,7 @@ describe('WASM Integration Tests', () => {
 
       let composableInstance: any;
       const wrapper = createTestWrapper(() => {
-        composableInstance = useMegaportWASM({ useWorker: false });
+        composableInstance = useMegaportWASM({});
         return composableInstance;
       });
 
@@ -354,7 +354,7 @@ describe('WASM Integration Tests', () => {
 
       let composableInstance: any;
       const wrapper = createTestWrapper(() => {
-        composableInstance = useMegaportWASM({ useWorker: false });
+        composableInstance = useMegaportWASM({});
         return composableInstance;
       });
 
@@ -377,7 +377,7 @@ describe('WASM Integration Tests', () => {
 
       let composableInstance: any;
       const wrapper = createTestWrapper(() => {
-        composableInstance = useMegaportWASM({ useWorker: false });
+        composableInstance = useMegaportWASM({});
         return composableInstance;
       });
 
@@ -404,7 +404,7 @@ describe('WASM Integration Tests', () => {
 
       let composableInstance: any;
       const wrapper = createTestWrapper(() => {
-        composableInstance = useMegaportWASM({ useWorker: false });
+        composableInstance = useMegaportWASM({});
         return composableInstance;
       });
 
@@ -429,7 +429,7 @@ describe('WASM Integration Tests', () => {
       // Should still work in direct mode
       let composableInstance: any;
       const wrapper = createTestWrapper(() => {
-        composableInstance = useMegaportWASM({ useWorker: false });
+        composableInstance = useMegaportWASM({});
         return composableInstance;
       });
 
@@ -470,7 +470,7 @@ describe('WASM Integration Tests', () => {
 
       let composableInstance: any;
       const wrapper = createTestWrapper(() => {
-        composableInstance = useMegaportWASM({ useWorker: false });
+        composableInstance = useMegaportWASM({});
         return composableInstance;
       });
 
@@ -521,9 +521,7 @@ describe('WASM Integration Tests', () => {
 
       let composableInstance: any;
       const wrapper = createTestWrapper(() => {
-        composableInstance = useMegaportWASM({
-          useWorker: false,
-        });
+        composableInstance = useMegaportWASM();
         return composableInstance;
       });
 

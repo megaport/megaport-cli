@@ -33,6 +33,39 @@ export interface MegaportPromptRequest {
 }
 
 /**
+ * Telemetry event types for tracking WASM operations
+ */
+export type TelemetryEventType =
+  | 'wasm_init_start'
+  | 'wasm_init_success'
+  | 'wasm_init_error'
+  | 'command_execute_start'
+  | 'command_execute_success'
+  | 'command_execute_error'
+  | 'auth_set'
+  | 'auth_clear'
+  | 'spinner_start'
+  | 'spinner_stop'
+  | 'prompt_requested'
+  | 'prompt_submitted'
+  | 'prompt_cancelled';
+
+/**
+ * Telemetry event data
+ */
+export interface TelemetryEvent {
+  type: TelemetryEventType;
+  timestamp: number;
+  duration?: number; // milliseconds
+  metadata?: Record<string, any>;
+}
+
+/**
+ * Telemetry callback function
+ */
+export type TelemetryCallback = (event: TelemetryEvent) => void;
+
+/**
  * Global WASM interface exposed by the Megaport CLI
  * Available after WASM module initialization
  */

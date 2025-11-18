@@ -5,6 +5,14 @@
 
 import { ref, onMounted, onUnmounted, readonly, triggerRef } from 'vue';
 import type { Ref } from 'vue';
+import {
+  isMegaportCommandResult,
+  isMegaportPromptRequest,
+  hasWASMFunctions,
+  hasWebAssemblySupport,
+  isValidCommand,
+  getErrorMessage,
+} from '../utils/type-guards';
 
 interface MegaportCommandResult {
   output?: string;
@@ -15,10 +23,12 @@ interface MegaportWASMConfig {
   wasmPath?: string;
   wasmExecPath?: string;
   debug?: boolean;
-  useWorker?: boolean;
   initTimeout?: number; // Timeout for WASM initialization in ms
   maxRetries?: number; // Maximum retry attempts for failed initialization
   retryDelay?: number; // Base delay between retries in ms
+  onTelemetry?: (
+    event: import('../types/megaport-wasm').TelemetryEvent
+  ) => void; // Telemetry callback
 }
 
 // Constants
@@ -32,17 +42,16 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
     wasmPath = '/megaport.wasm',
     wasmExecPath = '/wasm_exec.js',
     debug = false,
-    useWorker = true,
     initTimeout = DEFAULT_INIT_TIMEOUT,
     maxRetries = DEFAULT_MAX_RETRIES,
     retryDelay = DEFAULT_RETRY_DELAY,
+    onTelemetry,
   } = config;
 
   // State
   const isLoading: Ref<boolean> = ref(true);
   const isReady: Ref<boolean> = ref(false);
   const error: Ref<Error | null> = ref(null);
-  const worker: Ref<Worker | null> = ref(null);
   const activeSpinners: Ref<Map<string, string>> = ref(new Map());
 
   // Counter for unique spinner IDs
@@ -60,6 +69,24 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
   const warn = (message: string, ...args: any[]) => {
     // Warnings should always be shown, regardless of debug mode
     console.warn(message, ...args);
+  };
+
+  /**
+   * Emit telemetry event if callback is provided
+   */
+  const emitTelemetry = (
+    type: import('../types/megaport-wasm').TelemetryEventType,
+    metadata?: Record<string, any>,
+    duration?: number
+  ) => {
+    if (onTelemetry) {
+      onTelemetry({
+        type,
+        timestamp: Date.now(),
+        duration,
+        metadata,
+      });
+    }
   };
 
   /**
@@ -92,6 +119,7 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
       triggerRef(activeSpinners);
 
       log(`🔄 Spinner started: ${spinnerId} - ${message}`);
+      emitTelemetry('spinner_start', { spinnerId, message });
 
       return spinnerId;
     };
@@ -106,98 +134,10 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
       if (message) {
         log(`⏹️ Spinner stopped: ${spinnerId} - ${message}`);
       }
+      emitTelemetry('spinner_stop', { spinnerId, message });
     };
 
     log('✅ Spinner functions registered on window');
-  };
-
-  /**
-   * Initialize WASM in Web Worker (recommended for production)
-   */
-  const initWithWorker = async (): Promise<void> => {
-    try {
-      // Create worker from inline code
-      const workerCode = `
-        let wasmReady = false;
-        let go = null;
-
-        self.addEventListener('message', async (e) => {
-          const { type, command, wasmPath, wasmExecPath } = e.data;
-
-          if (type === 'INIT') {
-            try {
-              // Load wasm_exec.js in worker
-              importScripts(wasmExecPath);
-              
-              // Initialize Go runtime
-              go = new Go();
-              
-              // Fetch and instantiate WASM
-              const result = await WebAssembly.instantiateStreaming(
-                fetch(wasmPath),
-                go.importObject
-              );
-              
-              // Run the Go program
-              go.run(result.instance);
-              wasmReady = true;
-              
-              self.postMessage({ type: 'READY' });
-            } catch (err) {
-              self.postMessage({ 
-                type: 'ERROR', 
-                error: err.message 
-              });
-            }
-          } else if (type === 'EXECUTE') {
-            if (!wasmReady) {
-              self.postMessage({ 
-                type: 'RESULT', 
-                result: { error: 'WASM not ready' } 
-              });
-              return;
-            }
-
-            // Since we can't easily expose window.executeMegaportCommandAsync in worker,
-            // we need to use a different approach or use direct WASM without worker
-            self.postMessage({ 
-              type: 'RESULT', 
-              result: { error: 'Worker execution not yet implemented. Use direct mode.' } 
-            });
-          }
-        });
-      `;
-
-      const blob = new Blob([workerCode], { type: 'application/javascript' });
-      const workerUrl = URL.createObjectURL(blob);
-      worker.value = new Worker(workerUrl);
-
-      // Set up message handler
-      worker.value.addEventListener('message', (e: MessageEvent) => {
-        const { type, error: workerError } = e.data;
-
-        if (type === 'READY') {
-          isReady.value = true;
-          isLoading.value = false;
-          if (debug) console.log('✅ Megaport WASM Worker ready');
-        } else if (type === 'ERROR') {
-          error.value = new Error(workerError);
-          isLoading.value = false;
-          console.error('❌ WASM Worker error:', workerError); // Always log errors
-        }
-      });
-
-      // Initialize worker
-      worker.value.postMessage({
-        type: 'INIT',
-        wasmPath,
-        wasmExecPath,
-      });
-    } catch (err) {
-      error.value = err as Error;
-      isLoading.value = false;
-      throw err;
-    }
   };
 
   /**
@@ -205,6 +145,25 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
    * Better for development and simpler integration
    */
   const initDirect = async (): Promise<void> => {
+    const startTime = Date.now();
+    emitTelemetry('wasm_init_start', { mode: 'direct' });
+
+    // Verify WebAssembly support
+    if (!hasWebAssemblySupport()) {
+      const err = new Error('WebAssembly is not supported in this browser');
+      error.value = err;
+      isLoading.value = false;
+      emitTelemetry(
+        'wasm_init_error',
+        {
+          mode: 'direct',
+          error: err.message,
+        },
+        Date.now() - startTime
+      );
+      throw err;
+    }
+
     // Create timeout promise
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {
@@ -242,13 +201,19 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
         );
 
         // Verify functions are available
-        if (!window.executeMegaportCommandAsync) {
+        if (!hasWASMFunctions(window)) {
           throw new Error('WASM functions not exposed');
         }
 
         // Register prompt handler for interactive mode
         if (window.registerPromptHandler) {
           window.registerPromptHandler((promptRequest: any) => {
+            // Validate prompt request with type guard
+            if (!isMegaportPromptRequest(promptRequest)) {
+              warn('⚠️ Invalid prompt request received:', promptRequest);
+              return;
+            }
+
             log('📝 Prompt requested:', promptRequest);
 
             // Note: The default handler does nothing - applications MUST register
@@ -269,6 +234,9 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
         isReady.value = true;
         isLoading.value = false;
 
+        const duration = Date.now() - startTime;
+        emitTelemetry('wasm_init_success', { mode: 'direct' }, duration);
+
         log('✅ Megaport WASM ready (direct mode)');
         log('Available functions:', {
           executeMegaportCommand: typeof window.executeMegaportCommand,
@@ -279,6 +247,15 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
       } catch (err) {
         error.value = err as Error;
         isLoading.value = false;
+        const duration = Date.now() - startTime;
+        emitTelemetry(
+          'wasm_init_error',
+          {
+            mode: 'direct',
+            error: (err as Error).message,
+          },
+          duration
+        );
         throw err;
       }
     };
@@ -289,6 +266,15 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
     } catch (err) {
       error.value = err as Error;
       isLoading.value = false;
+      const duration = Date.now() - startTime;
+      emitTelemetry(
+        'wasm_init_error',
+        {
+          mode: 'direct',
+          error: (err as Error).message,
+        },
+        duration
+      );
       throw err;
     }
   };
@@ -297,9 +283,20 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
    * Execute a CLI command
    */
   const execute = async (command: string): Promise<MegaportCommandResult> => {
+    // Validate command with type guard
+    if (!isValidCommand(command)) {
+      const error =
+        'Invalid command: must be a non-empty string without dangerous patterns';
+      emitTelemetry('command_execute_error', { command, error }, 0);
+      throw new Error(error);
+    }
+
     if (!isReady.value) {
       throw new Error('WASM not ready');
     }
+
+    const startTime = Date.now();
+    emitTelemetry('command_execute_start', { command });
 
     return new Promise((resolve, reject) => {
       try {
@@ -308,17 +305,92 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
         // Use async version for better reliability
         if (window.executeMegaportCommandAsync) {
           window.executeMegaportCommandAsync(command, (result) => {
+            const duration = Date.now() - startTime;
+
+            // Validate result with type guard
+            if (!isMegaportCommandResult(result)) {
+              const error = 'Invalid command result received from WASM';
+              warn('⚠️ Invalid result:', result);
+              emitTelemetry(
+                'command_execute_error',
+                { command, error },
+                duration
+              );
+              reject(new Error(error));
+              return;
+            }
+
             log('📦 Command result:', result);
+
+            if (result.error) {
+              emitTelemetry(
+                'command_execute_error',
+                {
+                  command,
+                  error: result.error,
+                },
+                duration
+              );
+            } else {
+              emitTelemetry('command_execute_success', { command }, duration);
+            }
+
             resolve(result);
           });
         } else if (window.executeMegaportCommand) {
           // Fallback to sync version
           const result = window.executeMegaportCommand(command);
+          const duration = Date.now() - startTime;
+
+          // Validate result with type guard
+          if (!isMegaportCommandResult(result)) {
+            const error = 'Invalid command result received from WASM';
+            warn('⚠️ Invalid result:', result);
+            emitTelemetry(
+              'command_execute_error',
+              { command, error },
+              duration
+            );
+            reject(new Error(error));
+            return;
+          }
+
+          if (result.error) {
+            emitTelemetry(
+              'command_execute_error',
+              {
+                command,
+                error: result.error,
+              },
+              duration
+            );
+          } else {
+            emitTelemetry('command_execute_success', { command }, duration);
+          }
+
           resolve(result);
         } else {
+          const duration = Date.now() - startTime;
+          emitTelemetry(
+            'command_execute_error',
+            {
+              command,
+              error: 'No WASM execute function available',
+            },
+            duration
+          );
           reject(new Error('No WASM execute function available'));
         }
       } catch (err) {
+        const duration = Date.now() - startTime;
+        emitTelemetry(
+          'command_execute_error',
+          {
+            command,
+            error: getErrorMessage(err),
+          },
+          duration
+        );
         reject(err);
       }
     });
@@ -352,6 +424,8 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
       );
 
       log('🔑 Auth credentials set securely (in-memory only)');
+      emitTelemetry('auth_set', { environment, success: result?.success });
+
       if (result && !result.success) {
         console.error('Failed to set credentials:', result.error); // Always log errors
       }
@@ -362,6 +436,7 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
       console.error(
         '❌ setAuthCredentials function not available. WASM may not be initialized.'
       ); // Always log errors
+      emitTelemetry('auth_set', { environment, success: false });
     }
   };
 
@@ -372,6 +447,7 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
     if (window.clearAuthCredentials) {
       window.clearAuthCredentials();
       log('🔓 Auth credentials cleared from memory');
+      emitTelemetry('auth_clear', {});
     } else {
       console.error(
         '❌ clearAuthCredentials function not available. WASM may not be initialized.'
@@ -482,14 +558,7 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
   // Initialize on mount
   onMounted(async () => {
     try {
-      if (useWorker) {
-        warn(
-          '⚠️ Worker mode not fully implemented. Falling back to direct mode.'
-        );
-        await initWithRetry();
-      } else {
-        await initWithRetry();
-      }
+      await initWithRetry();
     } catch (err) {
       console.error(
         'Failed to initialize Megaport WASM after all retries:',
@@ -500,17 +569,10 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
   });
 
   /**
-   * Cleanup function - terminates workers and clears state
+   * Cleanup function - clears state and auth
    */
   const cleanup = () => {
     log('🧹 Cleaning up WASM resources');
-
-    // Terminate worker if it exists
-    if (worker.value) {
-      worker.value.terminate();
-      worker.value = null;
-      log('Worker terminated');
-    }
 
     // Clear active spinners
     activeSpinners.value.clear();
