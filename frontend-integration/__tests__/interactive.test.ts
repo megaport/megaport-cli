@@ -38,7 +38,19 @@ describe('Interactive Mode', () => {
 
       registerPromptHandler(vi.fn());
 
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
+      // Filter out Vue lifecycle warnings (expected since we're not in a component context)
+      const relevantWarnings = consoleWarnSpy.mock.calls.filter(
+        (call: any[]) =>
+          !call.some(
+            (arg) =>
+              typeof arg === 'string' &&
+              arg.includes('[Vue warn]') &&
+              arg.includes('Lifecycle injection APIs')
+          )
+      );
+
+      expect(relevantWarnings.length).toBeGreaterThan(0);
+      expect(relevantWarnings[0][0]).toBe(
         'registerPromptHandler not available - WASM may not be initialized'
       );
     });

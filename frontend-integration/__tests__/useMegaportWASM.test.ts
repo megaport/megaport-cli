@@ -515,10 +515,12 @@ describe('useMegaportWASM', () => {
   });
 
   describe('Spinner Functionality', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       // Clear window spinner functions
       delete (window as any).wasmStartSpinner;
       delete (window as any).wasmStopSpinner;
+      // Small delay to ensure cleanup is complete
+      await new Promise((resolve) => setTimeout(resolve, 10));
     });
 
     it('should expose activeSpinners state', () => {

@@ -3,7 +3,7 @@
  * Handles WASM loading, initialization, and command execution
  */
 
-import { ref, onMounted, readonly } from 'vue';
+import { ref, onMounted, onUnmounted, readonly, triggerRef } from 'vue';
 import type { Ref } from 'vue';
 
 interface MegaportCommandResult {
@@ -16,7 +16,16 @@ interface MegaportWASMConfig {
   wasmExecPath?: string;
   debug?: boolean;
   useWorker?: boolean;
+  initTimeout?: number; // Timeout for WASM initialization in ms
+  maxRetries?: number; // Maximum retry attempts for failed initialization
+  retryDelay?: number; // Base delay between retries in ms
 }
+
+// Constants
+const DEFAULT_INIT_TIMEOUT = 30000; // 30 seconds
+const INIT_STABILIZATION_DELAY = 100; // Wait for WASM to stabilize
+const DEFAULT_MAX_RETRIES = 3; // Retry up to 3 times
+const DEFAULT_RETRY_DELAY = 1000; // Start with 1 second delay
 
 export function useMegaportWASM(config: MegaportWASMConfig = {}) {
   const {
@@ -24,6 +33,9 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
     wasmExecPath = '/wasm_exec.js',
     debug = false,
     useWorker = true,
+    initTimeout = DEFAULT_INIT_TIMEOUT,
+    maxRetries = DEFAULT_MAX_RETRIES,
+    retryDelay = DEFAULT_RETRY_DELAY,
   } = config;
 
   // State
@@ -35,6 +47,20 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
 
   // Counter for unique spinner IDs
   let spinnerCounter = 0;
+
+  /**
+   * Conditional logging helper - only logs when debug mode is enabled
+   */
+  const log = (message: string, ...args: any[]) => {
+    if (debug) {
+      console.log(message, ...args);
+    }
+  };
+
+  const warn = (message: string, ...args: any[]) => {
+    // Warnings should always be shown, regardless of debug mode
+    console.warn(message, ...args);
+  };
 
   /**
    * Load the wasm_exec.js script
@@ -61,11 +87,11 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
     // Global spinner start function
     (window as any).wasmStartSpinner = (message: string): string => {
       const spinnerId = `spinner_${Date.now()}_${spinnerCounter++}`;
+      // Mutate the Map directly and trigger reactivity manually
       activeSpinners.value.set(spinnerId, message);
+      triggerRef(activeSpinners);
 
-      if (debug) {
-        console.log(`🔄 Spinner started: ${spinnerId} - ${message}`);
-      }
+      log(`🔄 Spinner started: ${spinnerId} - ${message}`);
 
       return spinnerId;
     };
@@ -73,16 +99,16 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
     // Global spinner stop function
     (window as any).wasmStopSpinner = (spinnerId: string): void => {
       const message = activeSpinners.value.get(spinnerId);
+      // Mutate the Map directly and trigger reactivity manually
       activeSpinners.value.delete(spinnerId);
+      triggerRef(activeSpinners);
 
-      if (debug && message) {
-        console.log(`⏹️ Spinner stopped: ${spinnerId} - ${message}`);
+      if (message) {
+        log(`⏹️ Spinner stopped: ${spinnerId} - ${message}`);
       }
     };
 
-    if (debug) {
-      console.log('✅ Spinner functions registered on window');
-    }
+    log('✅ Spinner functions registered on window');
   };
 
   /**
@@ -157,7 +183,7 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
         } else if (type === 'ERROR') {
           error.value = new Error(workerError);
           isLoading.value = false;
-          console.error('❌ WASM Worker error:', workerError);
+          console.error('❌ WASM Worker error:', workerError); // Always log errors
         }
       });
 
@@ -175,76 +201,91 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
   };
 
   /**
-   * Initialize WASM directly in main thread
+   * Initialize WASM directly in main thread with timeout
    * Better for development and simpler integration
    */
   const initDirect = async (): Promise<void> => {
-    try {
-      // Setup spinner functions first
-      setupSpinnerFunctions();
+    // Create timeout promise
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`WASM initialization timeout after ${initTimeout}ms`));
+      }, initTimeout);
+    });
 
-      // Load wasm_exec.js
-      await loadWasmExec();
+    // Create initialization promise
+    const initPromise = async () => {
+      try {
+        // Setup spinner functions first
+        setupSpinnerFunctions();
 
-      if (!window.Go) {
-        throw new Error('Go WASM runtime not loaded');
-      }
+        // Load wasm_exec.js
+        await loadWasmExec();
 
-      // Initialize Go runtime
-      const go = new window.Go();
+        if (!window.Go) {
+          throw new Error('Go WASM runtime not loaded');
+        }
 
-      // Fetch and instantiate WASM
-      const response = await fetch(wasmPath);
-      const buffer = await response.arrayBuffer();
-      const result = await WebAssembly.instantiate(buffer, go.importObject);
+        // Initialize Go runtime
+        const go = new window.Go();
 
-      // Run the Go program
-      go.run(result.instance);
+        // Fetch and instantiate WASM
+        const response = await fetch(wasmPath);
+        const buffer = await response.arrayBuffer();
+        const result = await WebAssembly.instantiate(buffer, go.importObject);
 
-      // Wait a bit for initialization
-      await new Promise((resolve) => setTimeout(resolve, 100));
+        // Run the Go program
+        go.run(result.instance);
 
-      // Verify functions are available
-      if (!window.executeMegaportCommandAsync) {
-        throw new Error('WASM functions not exposed');
-      }
+        // Wait a bit for initialization
+        await new Promise((resolve) =>
+          setTimeout(resolve, INIT_STABILIZATION_DELAY)
+        );
 
-      // Register prompt handler for interactive mode
-      if (window.registerPromptHandler) {
-        window.registerPromptHandler((promptRequest: any) => {
-          if (debug) {
-            console.log('📝 Prompt requested:', promptRequest);
-          }
+        // Verify functions are available
+        if (!window.executeMegaportCommandAsync) {
+          throw new Error('WASM functions not exposed');
+        }
 
-          // Note: The default handler does nothing - applications MUST register
-          // their own prompt handler for interactive mode to work properly.
-          // This prevents unwanted browser prompt() dialogs.
-          // See MegaportTerminal.vue for an example of inline terminal prompts.
-          console.warn(
-            '⚠️ No custom prompt handler registered. Interactive commands require ' +
-              'a prompt handler. Use registerPromptHandler() to provide one.'
-          );
-        });
+        // Register prompt handler for interactive mode
+        if (window.registerPromptHandler) {
+          window.registerPromptHandler((promptRequest: any) => {
+            log('📝 Prompt requested:', promptRequest);
 
-        if (debug) {
-          console.log(
+            // Note: The default handler does nothing - applications MUST register
+            // their own prompt handler for interactive mode to work properly.
+            // This prevents unwanted browser prompt() dialogs.
+            // See MegaportTerminal.vue for an example of inline terminal prompts.
+            warn(
+              '⚠️ No custom prompt handler registered. Interactive commands require ' +
+                'a prompt handler. Use registerPromptHandler() to provide one.'
+            );
+          });
+
+          log(
             '✅ Default prompt handler registered (does nothing - override required)'
           );
         }
-      }
 
-      isReady.value = true;
-      isLoading.value = false;
+        isReady.value = true;
+        isLoading.value = false;
 
-      if (debug) {
-        console.log('✅ Megaport WASM ready (direct mode)');
-        console.log('Available functions:', {
+        log('✅ Megaport WASM ready (direct mode)');
+        log('Available functions:', {
           executeMegaportCommand: typeof window.executeMegaportCommand,
           executeMegaportCommandAsync:
             typeof window.executeMegaportCommandAsync,
           debugAuthInfo: typeof window.debugAuthInfo,
         });
+      } catch (err) {
+        error.value = err as Error;
+        isLoading.value = false;
+        throw err;
       }
+    };
+
+    // Race initialization against timeout
+    try {
+      await Promise.race([initPromise(), timeoutPromise]);
     } catch (err) {
       error.value = err as Error;
       isLoading.value = false;
@@ -262,16 +303,12 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
 
     return new Promise((resolve, reject) => {
       try {
-        if (debug) {
-          console.log(`🚀 Executing command: ${command}`);
-        }
+        log(`🚀 Executing command: ${command}`);
 
         // Use async version for better reliability
         if (window.executeMegaportCommandAsync) {
           window.executeMegaportCommandAsync(command, (result) => {
-            if (debug) {
-              console.log('📦 Command result:', result);
-            }
+            log('📦 Command result:', result);
             resolve(result);
           });
         } else if (window.executeMegaportCommand) {
@@ -314,19 +351,17 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
         environment
       );
 
-      if (debug) {
-        console.log('🔑 Auth credentials set securely (in-memory only)');
-        if (result && !result.success) {
-          console.error('Failed to set credentials:', result.error);
-        }
-        if (window.debugAuthInfo) {
-          console.log('Auth info:', window.debugAuthInfo());
-        }
+      log('🔑 Auth credentials set securely (in-memory only)');
+      if (result && !result.success) {
+        console.error('Failed to set credentials:', result.error); // Always log errors
+      }
+      if (window.debugAuthInfo) {
+        log('Auth info:', window.debugAuthInfo());
       }
     } else {
       console.error(
         '❌ setAuthCredentials function not available. WASM may not be initialized.'
-      );
+      ); // Always log errors
     }
   };
 
@@ -336,14 +371,11 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
   const clearAuth = (): void => {
     if (window.clearAuthCredentials) {
       window.clearAuthCredentials();
-
-      if (debug) {
-        console.log('🔓 Auth credentials cleared from memory');
-      }
+      log('🔓 Auth credentials cleared from memory');
     } else {
       console.error(
         '❌ clearAuthCredentials function not available. WASM may not be initialized.'
-      );
+      ); // Always log errors
     }
   };
 
@@ -402,27 +434,104 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
     if (window.registerPromptHandler) {
       return window.registerPromptHandler(callback);
     }
-    console.warn(
-      'registerPromptHandler not available - WASM may not be initialized'
-    );
+    warn('registerPromptHandler not available - WASM may not be initialized');
     return false;
+  };
+
+  /**
+   * Initialize WASM with retry logic
+   * Attempts initialization multiple times with exponential backoff
+   */
+  const initWithRetry = async (): Promise<void> => {
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        log(`Attempt ${attempt}/${maxRetries}: Initializing Megaport WASM...`);
+
+        await initDirect();
+
+        log(`✅ WASM initialized successfully on attempt ${attempt}`);
+        return; // Success!
+      } catch (err) {
+        lastError = err as Error;
+        console.error(
+          `❌ WASM initialization attempt ${attempt}/${maxRetries} failed:`,
+          err
+        );
+
+        if (attempt < maxRetries) {
+          // Calculate exponential backoff delay
+          const delay = retryDelay * Math.pow(2, attempt - 1);
+          log(`Retrying in ${delay}ms...`);
+
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    // All retries failed
+    const finalError = new Error(
+      `WASM initialization failed after ${maxRetries} attempts. Last error: ${lastError?.message}`
+    );
+    error.value = finalError;
+    isLoading.value = false;
+    throw finalError;
   };
 
   // Initialize on mount
   onMounted(async () => {
     try {
       if (useWorker) {
-        console.warn(
+        warn(
           '⚠️ Worker mode not fully implemented. Falling back to direct mode.'
         );
-        await initDirect();
+        await initWithRetry();
       } else {
-        await initDirect();
+        await initWithRetry();
       }
     } catch (err) {
-      console.error('Failed to initialize Megaport WASM:', err);
+      console.error(
+        'Failed to initialize Megaport WASM after all retries:',
+        err
+      ); // Always log final failure
       error.value = err as Error;
     }
+  });
+
+  /**
+   * Cleanup function - terminates workers and clears state
+   */
+  const cleanup = () => {
+    log('🧹 Cleaning up WASM resources');
+
+    // Terminate worker if it exists
+    if (worker.value) {
+      worker.value.terminate();
+      worker.value = null;
+      log('Worker terminated');
+    }
+
+    // Clear active spinners
+    activeSpinners.value.clear();
+
+    // Clear auth credentials from memory for security
+    if (window.clearAuthCredentials) {
+      window.clearAuthCredentials();
+    }
+
+    // Remove global spinner functions
+    if (typeof window !== 'undefined') {
+      delete (window as any).wasmStartSpinner;
+      delete (window as any).wasmStopSpinner;
+    }
+
+    log('Cleanup complete');
+  };
+
+  // Cleanup on unmount
+  onUnmounted(() => {
+    cleanup();
   });
 
   return {
@@ -440,5 +549,6 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
     resetOutput,
     toggleDebug,
     registerPromptHandler,
+    cleanup, // Expose cleanup for manual cleanup if needed
   };
 }

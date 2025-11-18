@@ -10,9 +10,9 @@ interface using xterm.js */
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="terminal-error">
+    <div v-else-if="hasError" class="terminal-error">
       <h3>❌ Failed to load Megaport CLI</h3>
-      <p>{{ error.message }}</p>
+      <p>{{ displayError?.message }}</p>
       <button @click="reload">Retry</button>
     </div>
 
@@ -39,13 +39,27 @@ interface using xterm.js */
 
 <script setup lang="ts">
 /// <reference path="../vite-env.d.ts" />
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import {
+  ref,
+  computed,
+  onMounted,
+  onBeforeUnmount,
+  onErrorCaptured,
+} from 'vue';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { useMegaportWASM } from '../composables/useMegaportWASM';
 import type { MegaportPromptRequest } from '../types/megaport-wasm';
 import '@xterm/xterm/css/xterm.css';
+
+// Constants
+const TERMINAL_FONT_SIZE = 14;
+const TERMINAL_FONT_FAMILY = 'Menlo, Monaco, "Courier New", monospace';
+const WASM_READY_CHECK_INTERVAL = 100; // ms
+const WASM_READY_TIMEOUT = 30000; // ms
+const RESIZE_DEBOUNCE_DELAY = 150; // ms
+const MAX_HISTORY_SIZE = 100;
 
 // Type augmentation for window methods
 declare global {
@@ -86,6 +100,10 @@ let currentLine = '';
 let cursorPosition = 0;
 let justCleared = false; // Track if terminal was just cleared
 
+// Command history
+const commandHistory = ref<string[]>([]);
+let historyIndex = -1; // Current position in history (-1 = not browsing)
+
 // WASM integration
 const {
   isLoading,
@@ -102,11 +120,45 @@ const {
   useWorker: false, // Direct mode for now
 });
 
+// Local error state for component-level errors
+const componentError = ref<Error | null>(null);
+
+// Computed to combine WASM and component errors
+const hasError = computed(() => error.value || componentError.value);
+const displayError = computed(() => componentError.value || error.value);
+
 // Prompt handling state
 let activePrompt: { id: string; resolve: (value: string) => void } | null =
   null;
 let promptInputBuffer = '';
 let isInInteractiveCommand = false; // Track if we're in an interactive command session
+let resizeTimeoutId: NodeJS.Timeout | null = null; // For debouncing resize
+
+/**
+ * Debounce utility function
+ */
+const debounce = (fn: Function, ms: number) => {
+  return (...args: any[]) => {
+    if (resizeTimeoutId) {
+      clearTimeout(resizeTimeoutId);
+    }
+    resizeTimeoutId = setTimeout(() => fn(...args), ms);
+  };
+};
+
+/**
+ * Error boundary handler - captures component-level errors
+ */
+onErrorCaptured((err, instance, info) => {
+  console.error('❌ Terminal component error:', err);
+  console.error('Error context:', info);
+
+  // Set local error state to display error UI
+  componentError.value = err instanceof Error ? err : new Error(String(err));
+
+  // Prevent error from propagating to parent components
+  return false;
+});
 
 /**
  * Register inline terminal prompt handler
@@ -154,8 +206,8 @@ const initTerminal = () => {
 
   terminal = new Terminal({
     cursorBlink: true,
-    fontSize: 14,
-    fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+    fontSize: TERMINAL_FONT_SIZE,
+    fontFamily: TERMINAL_FONT_FAMILY,
     theme: {
       background: props.theme.background,
       foreground: props.theme.foreground,
@@ -182,10 +234,12 @@ const initTerminal = () => {
     handleInput(data);
   });
 
-  // Handle resize
-  window.addEventListener('resize', () => {
+  // Handle resize with debounce to prevent excessive re-calculations
+  const handleResize = debounce(() => {
     fitAddon?.fit();
-  });
+  }, RESIZE_DEBOUNCE_DELAY);
+
+  window.addEventListener('resize', handleResize);
 };
 
 /**
@@ -202,10 +256,159 @@ const writePrompt = () => {
   }
   currentLine = '';
   cursorPosition = 0;
+  historyIndex = -1; // Reset history index when showing new prompt
 };
 
 /**
- * Handle terminal input
+ * Handle prompt input when in interactive mode
+ */
+const handlePromptInput = (data: string, code: number): boolean => {
+  if (!terminal || !activePrompt) return false;
+
+  // Enter key - submit prompt response
+  if (code === 13) {
+    terminal.write('\r\n');
+    const response = promptInputBuffer;
+
+    // Submit the response
+    activePrompt.resolve(response);
+
+    // Clear the prompt buffer but DON'T clear activePrompt yet
+    // The next prompt will overwrite it, or command completion will clear it
+    promptInputBuffer = '';
+    return true;
+  }
+
+  // Backspace
+  if (code === 127) {
+    if (promptInputBuffer.length > 0) {
+      promptInputBuffer = promptInputBuffer.slice(0, -1);
+      terminal.write('\b \b');
+    }
+    return true;
+  }
+
+  // Ctrl+C - cancel prompt
+  if (code === 3) {
+    terminal.write('^C\r\n');
+    if (window.cancelPrompt && activePrompt) {
+      window.cancelPrompt(activePrompt.id);
+    }
+    activePrompt = null;
+    promptInputBuffer = '';
+    writePrompt();
+    return true;
+  }
+
+  // Regular character for prompt
+  if (code >= 32 && code <= 126) {
+    promptInputBuffer += data;
+    terminal.write(data);
+    return true;
+  }
+
+  return true;
+};
+
+/**
+ * Handle arrow key navigation
+ */
+const handleArrowKeys = (data: string): boolean => {
+  if (!terminal) return false;
+
+  // Left arrow
+  if (data === '\x1b[D') {
+    if (cursorPosition > 0) {
+      cursorPosition--;
+      terminal.write('\x1b[D');
+    }
+    return true;
+  }
+
+  // Right arrow
+  if (data === '\x1b[C') {
+    if (cursorPosition < currentLine.length) {
+      cursorPosition++;
+      terminal.write('\x1b[C');
+    }
+    return true;
+  }
+
+  // Up arrow - navigate history backwards
+  if (data === '\x1b[A') {
+    if (historyIndex < commandHistory.value.length - 1) {
+      historyIndex++;
+      const historicalCommand =
+        commandHistory.value[commandHistory.value.length - 1 - historyIndex];
+
+      // Clear current line
+      terminal.write('\r\x1b[K');
+      terminal.write('\x1b[32mmegaport>\x1b[0m ');
+
+      // Write historical command
+      terminal.write(historicalCommand);
+      currentLine = historicalCommand;
+      cursorPosition = currentLine.length;
+    }
+    return true;
+  }
+
+  // Down arrow - navigate history forwards
+  if (data === '\x1b[B') {
+    if (historyIndex > 0) {
+      historyIndex--;
+      const historicalCommand =
+        commandHistory.value[commandHistory.value.length - 1 - historyIndex];
+
+      // Clear current line
+      terminal.write('\r\x1b[K');
+      terminal.write('\x1b[32mmegaport>\x1b[0m ');
+
+      // Write historical command
+      terminal.write(historicalCommand);
+      currentLine = historicalCommand;
+      cursorPosition = currentLine.length;
+    } else if (historyIndex === 0) {
+      // Return to empty line
+      historyIndex = -1;
+      terminal.write('\r\x1b[K');
+      terminal.write('\x1b[32mmegaport>\x1b[0m ');
+      currentLine = '';
+      cursorPosition = 0;
+    }
+    return true;
+  }
+
+  return false;
+};
+
+/**
+ * Handle control keys (Ctrl+C, Ctrl+L, etc.)
+ */
+const handleControlKeys = (code: number): boolean => {
+  if (!terminal) return false;
+
+  // Ctrl+C
+  if (code === 3) {
+    terminal.write('^C');
+    writePrompt();
+    return true;
+  }
+
+  // Ctrl+L (clear)
+  if (code === 12) {
+    terminal.clear();
+    terminal.write('\x1b[H'); // Move cursor to home position
+    justCleared = true;
+    writePrompt();
+    return true;
+  }
+
+  return false;
+};
+
+/**
+ * Handle terminal input - delegates to specialized helper functions
  */
 const handleInput = (data: string) => {
   if (!terminal) return;
@@ -223,67 +426,34 @@ const handleInput = (data: string) => {
     isInInteractiveCommand
   );
 
-  // If we're in prompt mode, handle it differently
+  // Handle prompt mode input
   if (activePrompt) {
-    // Enter key - submit prompt response
-    if (code === 13) {
-      terminal.write('\r\n');
-      const response = promptInputBuffer;
-      const promptId = activePrompt.id;
-
-      // Submit the response
-      activePrompt.resolve(response);
-
-      // Clear the prompt buffer but DON'T clear activePrompt yet
-      // The next prompt will overwrite it, or command completion will clear it
-      promptInputBuffer = '';
-
-      // Don't write a new prompt here - wait for next prompt or command completion
-      return;
-    }
-
-    // Backspace
-    if (code === 127) {
-      if (promptInputBuffer.length > 0) {
-        promptInputBuffer = promptInputBuffer.slice(0, -1);
-        terminal.write('\b \b');
-      }
-      return;
-    }
-
-    // Ctrl+C - cancel prompt
-    if (code === 3) {
-      terminal.write('^C\r\n');
-      if (window.cancelPrompt && activePrompt) {
-        window.cancelPrompt(activePrompt.id);
-      }
-      activePrompt = null;
-      promptInputBuffer = '';
-      writePrompt();
-      return;
-    }
-
-    // Regular character for prompt
-    if (code >= 32 && code <= 126) {
-      promptInputBuffer += data;
-      terminal.write(data);
-    }
+    handlePromptInput(data, code);
     return;
   }
 
-  // Normal command input handling
   // If we're in an interactive command but not in an active prompt,
   // ignore input (waiting for next prompt)
   if (isInInteractiveCommand && !activePrompt) {
     return;
   }
 
-  // Enter key
+  // Handle control keys first
+  if (handleControlKeys(code)) {
+    return;
+  }
+
+  // Handle arrow keys for navigation and history
+  if (handleArrowKeys(data)) {
+    return;
+  }
+
+  // Enter key - execute command
   if (code === 13) {
     terminal.write('\r\n');
     if (currentLine.trim()) {
       const commandToExecute = currentLine.trim();
-      currentLine = ''; // Clear immediately to prevent contamination
+      currentLine = '';
       cursorPosition = 0;
       executeCommand(commandToExecute);
     } else {
@@ -304,41 +474,7 @@ const handleInput = (data: string) => {
     return;
   }
 
-  // Left arrow
-  if (data === '\x1b[D') {
-    if (cursorPosition > 0) {
-      cursorPosition--;
-      terminal.write('\x1b[D');
-    }
-    return;
-  }
-
-  // Right arrow
-  if (data === '\x1b[C') {
-    if (cursorPosition < currentLine.length) {
-      cursorPosition++;
-      terminal.write('\x1b[C');
-    }
-    return;
-  }
-
-  // Ctrl+C
-  if (code === 3) {
-    terminal.write('^C');
-    writePrompt();
-    return;
-  }
-
-  // Ctrl+L (clear)
-  if (code === 12) {
-    terminal.clear();
-    terminal.write('\x1b[H'); // Move cursor to home position
-    justCleared = true;
-    writePrompt();
-    return;
-  }
-
-  // Regular character
+  // Regular character input
   if (code >= 32 && code <= 126) {
     currentLine =
       currentLine.slice(0, cursorPosition) +
@@ -348,7 +484,6 @@ const handleInput = (data: string) => {
     terminal.write(data);
   }
 };
-
 /**
  * Execute a CLI command
  */
@@ -357,6 +492,22 @@ const executeCommand = async (command: string) => {
     terminal?.write('\x1b[31mCLI not ready\x1b[0m');
     writePrompt();
     return;
+  }
+
+  // Add to command history (skip empty commands and duplicates)
+  if (command.trim()) {
+    // Don't add if same as last command
+    if (
+      commandHistory.value.length === 0 ||
+      commandHistory.value[commandHistory.value.length - 1] !== command
+    ) {
+      commandHistory.value.push(command);
+
+      // Limit history size
+      if (commandHistory.value.length > MAX_HISTORY_SIZE) {
+        commandHistory.value.shift();
+      }
+    }
   }
 
   try {
@@ -483,6 +634,11 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  // Clear resize timeout if pending
+  if (resizeTimeoutId) {
+    clearTimeout(resizeTimeoutId);
+  }
+
   fitAddon?.dispose();
   terminal?.dispose();
 });
