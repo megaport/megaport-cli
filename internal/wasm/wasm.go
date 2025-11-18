@@ -139,11 +139,25 @@ func debugAuthInfo(this js.Value, args []js.Value) interface{} {
 	secretKey := os.Getenv("MEGAPORT_SECRET_KEY")
 	env := os.Getenv("MEGAPORT_ENVIRONMENT")
 
+	// Mask access key for security
+	maskedAccess := ""
+	if accessKey != "" {
+		if len(accessKey) > 8 {
+			maskedAccess = accessKey[:4] + "..." + accessKey[len(accessKey)-4:]
+		} else if len(accessKey) > 4 {
+			maskedAccess = accessKey[:2] + "..." + accessKey[len(accessKey)-2:]
+		} else {
+			maskedAccess = "****"
+		}
+	}
+
 	// Mask secret key for security
 	maskedSecret := ""
 	if secretKey != "" {
-		if len(secretKey) > 4 {
+		if len(secretKey) > 8 {
 			maskedSecret = secretKey[:4] + "..." + secretKey[len(secretKey)-4:]
+		} else if len(secretKey) > 4 {
+			maskedSecret = secretKey[:2] + "..." + secretKey[len(secretKey)-2:]
 		} else {
 			maskedSecret = "****"
 		}
@@ -151,7 +165,7 @@ func debugAuthInfo(this js.Value, args []js.Value) interface{} {
 
 	return map[string]interface{}{
 		"accessKeySet":     accessKey != "",
-		"accessKeyPreview": accessKey[:4] + "..." + accessKey[len(accessKey)-4:],
+		"accessKeyPreview": maskedAccess,
 		"secretKeySet":     secretKey != "",
 		"secretKeyPreview": maskedSecret,
 		"environment":      env,
@@ -168,6 +182,10 @@ func RegisterJSFunctions() {
 	// Export storage operations
 	js.Global().Set("saveToLocalStorage", js.FuncOf(saveToLocalStorage))
 	js.Global().Set("loadFromLocalStorage", js.FuncOf(loadFromLocalStorage))
+	
+	// Export auth operations (secure, in-memory only)
+	js.Global().Set("setAuthCredentials", js.FuncOf(setAuthCredentials))
+	js.Global().Set("clearAuthCredentials", js.FuncOf(clearAuthCredentials))
 
 	// Debug functions
 	js.Global().Set("resetWasmOutput", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
@@ -533,6 +551,58 @@ func loadFromLocalStorage(this js.Value, args []js.Value) interface{} {
 
 	key := args[0].String()
 	return js.Global().Get("localStorage").Call("getItem", key)
+}
+
+// setAuthCredentials securely sets authentication credentials in-memory
+// This is the recommended way to set credentials in WASM environment
+// Credentials are stored in:
+// 1. Go environment variables (for os.Getenv calls)
+// 2. JavaScript global object (for direct access)
+// This avoids localStorage which is vulnerable to XSS attacks
+func setAuthCredentials(this js.Value, args []js.Value) interface{} {
+	if len(args) < 3 {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "accessKey, secretKey, and environment required",
+		}
+	}
+
+	accessKey := args[0].String()
+	secretKey := args[1].String()
+	environment := args[2].String()
+
+	// Set environment variables for Go code
+	os.Setenv("MEGAPORT_ACCESS_KEY", accessKey)
+	os.Setenv("MEGAPORT_SECRET_KEY", secretKey)
+	os.Setenv("MEGAPORT_ENVIRONMENT", environment)
+
+	// Also set the megaportCredentials global object that login_wasm.go checks
+	credentialsObj := js.Global().Get("Object").New()
+	credentialsObj.Set("accessKey", accessKey)
+	credentialsObj.Set("secretKey", secretKey)
+	credentialsObj.Set("environment", environment)
+	js.Global().Set("megaportCredentials", credentialsObj)
+
+	js.Global().Get("console").Call("log", "🔐 Credentials set securely (in-memory only)")
+
+	return map[string]interface{}{
+		"success": true,
+	}
+}
+
+// clearAuthCredentials removes authentication credentials from memory
+func clearAuthCredentials(this js.Value, args []js.Value) interface{} {
+	os.Setenv("MEGAPORT_ACCESS_KEY", "")
+	os.Setenv("MEGAPORT_SECRET_KEY", "")
+	os.Setenv("MEGAPORT_ENVIRONMENT", "")
+	
+	js.Global().Delete("megaportCredentials")
+	
+	js.Global().Get("console").Call("log", "🔓 Credentials cleared from memory")
+
+	return map[string]interface{}{
+		"success": true,
+	}
 }
 
 // Add this function to install hook for specific commands
