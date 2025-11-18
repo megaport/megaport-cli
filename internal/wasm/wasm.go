@@ -34,6 +34,20 @@ var (
 	debugMode = false
 )
 
+// maskSensitiveValue masks a sensitive value for logging/display purposes
+// Shows first and last few characters with "..." in between
+func maskSensitiveValue(value string) string {
+	if value == "" {
+		return ""
+	}
+	if len(value) > 8 {
+		return value[:4] + "..." + value[len(value)-4:]
+	} else if len(value) > 4 {
+		return value[:2] + "..." + value[len(value)-2:]
+	}
+	return "****"
+}
+
 // Add this near the top of the file after your imports
 
 // WasmOutputBuffer is used to directly capture output from Cobra commands
@@ -139,35 +153,11 @@ func debugAuthInfo(this js.Value, args []js.Value) interface{} {
 	secretKey := os.Getenv("MEGAPORT_SECRET_KEY")
 	env := os.Getenv("MEGAPORT_ENVIRONMENT")
 
-	// Mask access key for security
-	maskedAccess := ""
-	if accessKey != "" {
-		if len(accessKey) > 8 {
-			maskedAccess = accessKey[:4] + "..." + accessKey[len(accessKey)-4:]
-		} else if len(accessKey) > 4 {
-			maskedAccess = accessKey[:2] + "..." + accessKey[len(accessKey)-2:]
-		} else {
-			maskedAccess = "****"
-		}
-	}
-
-	// Mask secret key for security
-	maskedSecret := ""
-	if secretKey != "" {
-		if len(secretKey) > 8 {
-			maskedSecret = secretKey[:4] + "..." + secretKey[len(secretKey)-4:]
-		} else if len(secretKey) > 4 {
-			maskedSecret = secretKey[:2] + "..." + secretKey[len(secretKey)-2:]
-		} else {
-			maskedSecret = "****"
-		}
-	}
-
 	return map[string]interface{}{
 		"accessKeySet":     accessKey != "",
-		"accessKeyPreview": maskedAccess,
+		"accessKeyPreview": maskSensitiveValue(accessKey),
 		"secretKeySet":     secretKey != "",
-		"secretKeyPreview": maskedSecret,
+		"secretKeyPreview": maskSensitiveValue(secretKey),
 		"environment":      env,
 	}
 }
