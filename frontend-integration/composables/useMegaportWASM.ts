@@ -5,6 +5,7 @@
 
 import { ref, onMounted, onUnmounted, readonly, triggerRef } from 'vue';
 import type { Ref } from 'vue';
+import { WASM_CONFIG } from '../constants/megaportWASM';
 import {
   isMegaportCommandResult,
   isMegaportPromptRequest,
@@ -31,20 +32,14 @@ interface MegaportWASMConfig {
   ) => void; // Telemetry callback
 }
 
-// Constants
-const DEFAULT_INIT_TIMEOUT = 30000; // 30 seconds
-const INIT_STABILIZATION_DELAY = 100; // Wait for WASM to stabilize
-const DEFAULT_MAX_RETRIES = 3; // Retry up to 3 times
-const DEFAULT_RETRY_DELAY = 1000; // Start with 1 second delay
-
 export function useMegaportWASM(config: MegaportWASMConfig = {}) {
   const {
     wasmPath = '/megaport.wasm',
     wasmExecPath = '/wasm_exec.js',
     debug = false,
-    initTimeout = DEFAULT_INIT_TIMEOUT,
-    maxRetries = DEFAULT_MAX_RETRIES,
-    retryDelay = DEFAULT_RETRY_DELAY,
+    initTimeout = WASM_CONFIG.INIT_TIMEOUT,
+    maxRetries = WASM_CONFIG.MAX_RETRIES,
+    retryDelay = WASM_CONFIG.RETRY_DELAY,
     onTelemetry,
   } = config;
 
@@ -197,7 +192,7 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
 
         // Wait a bit for initialization
         await new Promise((resolve) =>
-          setTimeout(resolve, INIT_STABILIZATION_DELAY)
+          setTimeout(resolve, WASM_CONFIG.INIT_STABILIZATION_DELAY)
         );
 
         // Verify functions are available

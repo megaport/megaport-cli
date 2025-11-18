@@ -50,15 +50,8 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { useMegaportWASM } from '../composables/useMegaportWASM';
+import { TERMINAL_CONFIG, WASM_CONFIG } from '../constants/megaportWASM';
 import type { MegaportPromptRequest } from '../types/megaport-wasm';
-
-// Constants
-const TERMINAL_FONT_SIZE = 14;
-const TERMINAL_FONT_FAMILY = 'Menlo, Monaco, "Courier New", monospace';
-const WASM_READY_CHECK_INTERVAL = 100; // ms
-const WASM_READY_TIMEOUT = 30000; // ms
-const RESIZE_DEBOUNCE_DELAY = 150; // ms
-const MAX_HISTORY_SIZE = 100;
 
 // Type augmentation for window methods
 declare global {
@@ -233,8 +226,8 @@ const initTerminal = async () => {
 
   terminal = new Terminal({
     cursorBlink: true,
-    fontSize: TERMINAL_FONT_SIZE,
-    fontFamily: TERMINAL_FONT_FAMILY,
+    fontSize: TERMINAL_CONFIG.FONT_SIZE,
+    fontFamily: TERMINAL_CONFIG.FONT_FAMILY,
     theme: {
       background: props.theme.background,
       foreground: props.theme.foreground,
@@ -271,7 +264,7 @@ const initTerminal = async () => {
   // Handle resize with debounce to prevent excessive re-calculations
   const handleResize = debounce(() => {
     fitAddon?.fit();
-  }, RESIZE_DEBOUNCE_DELAY);
+  }, TERMINAL_CONFIG.RESIZE_DEBOUNCE_DELAY);
 
   window.addEventListener('resize', handleResize);
 };
@@ -538,7 +531,7 @@ const executeCommand = async (command: string) => {
       commandHistory.value.push(command);
 
       // Limit history size
-      if (commandHistory.value.length > MAX_HISTORY_SIZE) {
+      if (commandHistory.value.length > TERMINAL_CONFIG.MAX_HISTORY_SIZE) {
         commandHistory.value.shift();
       }
     }
