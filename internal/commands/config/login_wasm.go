@@ -32,7 +32,56 @@ var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	js.Global().Get("console").Call("info", "ℹ️  WASM version uses session-based authentication")
 	js.Global().Get("console").Call("info", "ℹ️  Config profiles are not supported - please use the login form in the UI")
 
-	// WASM only supports environment variables (not config profiles)
+	// PRIORITY 1: Check for external token from portal (bypasses OAuth flow)
+	megaportTokenGlobal := js.Global().Get("megaportToken")
+	if !megaportTokenGlobal.IsUndefined() && !megaportTokenGlobal.IsNull() {
+		token := megaportTokenGlobal.Get("token").String()
+		tokenEnv := megaportTokenGlobal.Get("environment").String()
+
+		if token != "" {
+			js.Global().Get("console").Call("log", "✅ Using external token from portal (bypassing OAuth flow)")
+			js.Global().Get("console").Call("log", "Environment: "+tokenEnv)
+
+			// Default to production
+			if tokenEnv == "" {
+				tokenEnv = "production"
+			}
+
+			// Set environment option
+			var envOpt megaport.ClientOpt
+			switch tokenEnv {
+			case "production":
+				envOpt = megaport.WithEnvironment(megaport.EnvironmentProduction)
+			case "staging":
+				envOpt = megaport.WithEnvironment(megaport.EnvironmentStaging)
+			case "development":
+				envOpt = megaport.WithEnvironment(megaport.EnvironmentDevelopment)
+			default:
+				envOpt = megaport.WithEnvironment(megaport.EnvironmentProduction)
+			}
+
+			// Create WASM HTTP client
+			httpClient := wasmhttp.NewWasmHTTPClient()
+			httpClient.Timeout = 45 * time.Second
+
+			// Create Megaport client with the external token (no OAuth flow needed!)
+			megaportClient, err := megaport.New(httpClient,
+				megaport.WithAccessToken(token, time.Time{}), // Token managed externally by portal
+				envOpt,
+			)
+			if err != nil {
+				js.Global().Get("console").Call("error", "Failed to create Megaport client: "+err.Error())
+				js.Global().Get("console").Call("groupEnd")
+				return nil, fmt.Errorf("failed to create Megaport client: %w", err)
+			}
+
+			js.Global().Get("console").Call("log", "✅ Client created with external token - no OAuth needed!")
+			js.Global().Get("console").Call("groupEnd")
+			return megaportClient, nil
+		}
+	}
+
+	// PRIORITY 2: Check for API Key/Secret credentials (uses OAuth flow)
 	// First, try to get credentials from JavaScript global (set by browser login)
 	megaportCredsGlobal := js.Global().Get("megaportCredentials")
 	if !megaportCredsGlobal.IsUndefined() && !megaportCredsGlobal.IsNull() {
@@ -63,10 +112,10 @@ var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 
 	// Validate credentials
 	if accessKey == "" {
-		js.Global().Get("console").Call("error", "No access key provided")
-		js.Global().Get("console").Call("error", "💡 WASM Tip: Use the login form in the browser UI or set MEGAPORT_ACCESS_KEY environment variable")
+		js.Global().Get("console").Call("error", "No access key or token provided")
+		js.Global().Get("console").Call("error", "💡 WASM Tip: Use setAuthToken() for portal tokens or setAuth() for API keys")
 		js.Global().Get("console").Call("groupEnd")
-		return nil, fmt.Errorf("megaport API access key not provided. Please use the login form in the browser UI or set MEGAPORT_ACCESS_KEY environment variable")
+		return nil, fmt.Errorf("megaport API access key not provided. Please use setAuthToken() for portal tokens or setAuth() for API keys")
 	}
 	if secretKey == "" {
 		js.Global().Get("console").Call("error", "No secret key provided")

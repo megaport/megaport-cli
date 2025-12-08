@@ -451,6 +451,38 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
   };
 
   /**
+   * Set authentication using an existing token from the portal session
+   * This bypasses the OAuth flow - no API Key/Secret needed!
+   * Use this when the portal already has a valid session token.
+   *
+   * @param token - The access token from the portal session
+   * @param environment - Environment (production, staging, development)
+   */
+  const setAuthToken = (token: string, environment = 'production'): void => {
+    if (window.setAuthToken) {
+      const result = window.setAuthToken(token, environment);
+
+      log('🔑 External token set (bypassing OAuth flow)');
+      emitTelemetry('auth_token_set' as any, {
+        environment,
+        success: result?.success,
+      });
+
+      if (result && !result.success) {
+        console.error('Failed to set token:', result.error);
+      }
+      if (window.debugAuthInfo) {
+        log('Auth info:', window.debugAuthInfo());
+      }
+    } else {
+      console.error(
+        '❌ setAuthToken function not available. WASM may not be initialized.'
+      );
+      emitTelemetry('auth_token_set' as any, { environment, success: false });
+    }
+  };
+
+  /**
    * Get authentication status
    */
   const getAuthInfo = () => {
@@ -601,6 +633,7 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
     // Methods
     execute,
     setAuth,
+    setAuthToken, // For portal token integration (bypasses OAuth)
     clearAuth,
     getAuthInfo,
     resetOutput,

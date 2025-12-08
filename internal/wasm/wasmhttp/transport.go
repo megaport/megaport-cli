@@ -229,8 +229,7 @@ func (t *WasmHTTPTransport) extractHeaders(response js.Value) map[string]string 
 
 	// Try to use forEach if available
 	if !jsHeaders.Get("forEach").IsUndefined() {
-		var forEachFunc js.Func
-		forEachFunc = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		forEachFunc := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 			if len(args) >= 2 {
 				value := args[0].String()
 				key := args[1].String()

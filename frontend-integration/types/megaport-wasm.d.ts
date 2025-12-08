@@ -13,7 +13,10 @@ export interface MegaportAuthInfo {
   accessKeyPreview: string;
   secretKeySet: boolean;
   secretKeyPreview: string;
+  accessTokenSet: boolean;
+  accessTokenPreview: string;
   environment: string;
+  authMethod: 'token' | 'apikey' | 'none';
 }
 
 export interface MegaportBufferDump {
@@ -132,6 +135,19 @@ export interface MegaportWASM {
   ): { success: boolean; error?: string };
 
   /**
+   * Set authentication using an existing token from the portal session
+   * This bypasses the OAuth flow and uses the token directly
+   * Use this when the portal already has a valid login token stored in the browser
+   * @param token - The access token from the portal session
+   * @param environment - Environment (production, staging, development)
+   * @returns Result object with success status
+   */
+  setAuthToken(
+    token: string,
+    environment: string
+  ): { success: boolean; error?: string };
+
+  /**
    * Clear authentication credentials from memory
    * @returns Result object with success status
    */
@@ -223,6 +239,10 @@ declare global {
     setAuthCredentials?: (
       accessKey: string,
       secretKey: string,
+      environment: string
+    ) => { success: boolean; error?: string };
+    setAuthToken?: (
+      token: string,
       environment: string
     ) => { success: boolean; error?: string };
     clearAuthCredentials?: () => { success: boolean };

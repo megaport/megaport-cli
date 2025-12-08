@@ -377,12 +377,13 @@ func TestGetPendingPrompts(t *testing.T) {
 	foundPrompt2 := false
 	for _, p := range prompts {
 		if id, ok := p["id"].(string); ok {
-			if id == "prompt-1" {
+			switch id {
+			case "prompt-1":
 				foundPrompt1 = true
 				if p["message"] != "Enter name:" || p["type"] != "text" {
 					t.Error("Prompt-1 has incorrect data")
 				}
-			} else if id == "prompt-2" {
+			case "prompt-2":
 				foundPrompt2 = true
 				if p["message"] != "Enter port speed:" || p["type"] != "resource" || p["resourceType"] != "port" {
 					t.Error("Prompt-2 has incorrect data")
@@ -421,7 +422,8 @@ func TestPromptTimeout(t *testing.T) {
 	done := make(chan bool)
 
 	go func() {
-		_, _ = PromptForInput("Test", "text", "")
+		//nolint:errcheck // intentionally ignoring error in test to let it timeout
+		PromptForInput("Test", "text", "")
 		done <- true
 	}()
 
@@ -468,6 +470,7 @@ func TestConcurrentPrompts(t *testing.T) {
 			// Start the prompt
 			go func() {
 				message := fmt.Sprintf("Prompt %d", n)
+				//nolint:errcheck // intentionally ignoring error in concurrent test
 				PromptForInput(message, "text", "")
 			}()
 
@@ -523,6 +526,7 @@ func TestPromptIDUniqueness(t *testing.T) {
 
 	for i := 0; i < numPrompts; i++ {
 		go func() {
+			//nolint:errcheck // intentionally ignoring error in uniqueness test
 			PromptForInput("Test", "text", "")
 		}()
 	}

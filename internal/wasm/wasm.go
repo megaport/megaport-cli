@@ -22,14 +22,6 @@ var (
 	stderrBuffer bytes.Buffer
 	bufferMutex  sync.Mutex
 
-	// Original stdout/stderr
-	originalStdout *os.File
-	originalStderr *os.File
-
-	// Writers for capturing output
-	stdoutWriter io.Writer
-	stderrWriter io.Writer
-
 	// Debug flag
 	debugMode = false
 )
@@ -151,15 +143,30 @@ func EnableDebugMode() {
 func debugAuthInfo(this js.Value, args []js.Value) interface{} {
 	accessKey := os.Getenv("MEGAPORT_ACCESS_KEY")
 	secretKey := os.Getenv("MEGAPORT_SECRET_KEY")
+	accessToken := os.Getenv("MEGAPORT_ACCESS_TOKEN")
 	env := os.Getenv("MEGAPORT_ENVIRONMENT")
 
 	return map[string]interface{}{
-		"accessKeySet":     accessKey != "",
-		"accessKeyPreview": maskSensitiveValue(accessKey),
-		"secretKeySet":     secretKey != "",
-		"secretKeyPreview": maskSensitiveValue(secretKey),
-		"environment":      env,
+		"accessKeySet":       accessKey != "",
+		"accessKeyPreview":   maskSensitiveValue(accessKey),
+		"secretKeySet":       secretKey != "",
+		"secretKeyPreview":   maskSensitiveValue(secretKey),
+		"accessTokenSet":     accessToken != "",
+		"accessTokenPreview": maskSensitiveValue(accessToken),
+		"environment":        env,
+		"authMethod":         getAuthMethod(accessKey, secretKey, accessToken),
 	}
+}
+
+// getAuthMethod returns the authentication method being used
+func getAuthMethod(accessKey, secretKey, accessToken string) string {
+	if accessToken != "" {
+		return "token"
+	}
+	if accessKey != "" && secretKey != "" {
+		return "apikey"
+	}
+	return "none"
 }
 
 // RegisterJSFunctions registers Go functions with JavaScript
@@ -172,9 +179,10 @@ func RegisterJSFunctions() {
 	// Export storage operations
 	js.Global().Set("saveToLocalStorage", js.FuncOf(saveToLocalStorage))
 	js.Global().Set("loadFromLocalStorage", js.FuncOf(loadFromLocalStorage))
-	
+
 	// Export auth operations (secure, in-memory only)
 	js.Global().Set("setAuthCredentials", js.FuncOf(setAuthCredentials))
+	js.Global().Set("setAuthToken", js.FuncOf(setAuthToken))
 	js.Global().Set("clearAuthCredentials", js.FuncOf(clearAuthCredentials))
 
 	// Debug functions
@@ -308,10 +316,6 @@ func GetCapturedOutput() string {
 // In WASM, os.Pipe() is not implemented, so we don't need complex IO redirection
 // The output is already captured through WasmOutputBuffer which Cobra commands use
 func SetupIO() {
-	// Save original stdout/stderr references
-	originalStdout = os.Stdout
-	originalStderr = os.Stderr
-
 	// Note: In WASM, we don't need to redirect os.Stdout/Stderr because:
 	// 1. Cobra commands are configured to write to WasmOutputBuffer directly
 	// 2. Table output writes to WasmTableWriter and sets wasmTableOutput global
@@ -373,14 +377,14 @@ func CaptureOutput(fn func()) string {
 
 	go func() {
 		var buf bytes.Buffer
-		io.Copy(&buf, rOut)
+		_, _ = io.Copy(&buf, rOut)
 		stdoutStr = buf.String()
 		wg.Done()
 	}()
 
 	go func() {
 		var buf bytes.Buffer
-		io.Copy(&buf, rErr)
+		_, _ = io.Copy(&buf, rErr)
 		stderrStr = buf.String()
 		wg.Done()
 	}()
@@ -427,12 +431,14 @@ func SplitArgs(cmd string) []string {
 	quoteChar := rune(0) // Track which quote char opened the current quote
 
 	for _, r := range cmd {
+		isQuoteChar := r == '"' || r == '\''
+
 		switch {
-		case (r == '"' || r == '\'') && (inQuote && r == quoteChar):
+		case isQuoteChar && inQuote && r == quoteChar:
 			// Closing quote that matches opening quote
 			inQuote = false
 			quoteChar = rune(0)
-		case (r == '"' || r == '\'') && !inQuote:
+		case isQuoteChar && !inQuote:
 			// Opening quote
 			inQuote = true
 			quoteChar = r
@@ -585,10 +591,57 @@ func clearAuthCredentials(this js.Value, args []js.Value) interface{} {
 	os.Setenv("MEGAPORT_ACCESS_KEY", "")
 	os.Setenv("MEGAPORT_SECRET_KEY", "")
 	os.Setenv("MEGAPORT_ENVIRONMENT", "")
-	
+	os.Setenv("MEGAPORT_ACCESS_TOKEN", "")
+
 	js.Global().Delete("megaportCredentials")
-	
+	js.Global().Delete("megaportToken")
+
 	js.Global().Get("console").Call("log", "🔓 Credentials cleared from memory")
+
+	return map[string]interface{}{
+		"success": true,
+	}
+}
+
+// setAuthToken sets an external access token for authentication
+// This bypasses the OAuth flow and uses the token directly from the portal session
+// Use this when the portal already has a valid login token stored in the browser
+func setAuthToken(this js.Value, args []js.Value) interface{} {
+	if len(args) < 2 {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "token and environment required",
+		}
+	}
+
+	token := args[0].String()
+	environment := args[1].String()
+
+	if token == "" {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "token cannot be empty",
+		}
+	}
+
+	// Store token in environment variable for Go code
+	os.Setenv("MEGAPORT_ACCESS_TOKEN", token)
+	os.Setenv("MEGAPORT_ENVIRONMENT", environment)
+
+	// Clear any existing API key credentials to avoid confusion
+	os.Setenv("MEGAPORT_ACCESS_KEY", "")
+	os.Setenv("MEGAPORT_SECRET_KEY", "")
+
+	// Set the megaportToken global object for login_wasm.go to use
+	tokenObj := js.Global().Get("Object").New()
+	tokenObj.Set("token", token)
+	tokenObj.Set("environment", environment)
+	js.Global().Set("megaportToken", tokenObj)
+
+	// Clear any existing credentials object
+	js.Global().Delete("megaportCredentials")
+
+	js.Global().Get("console").Call("log", "🔐 External token set (in-memory only, bypassing OAuth flow)")
 
 	return map[string]interface{}{
 		"success": true,

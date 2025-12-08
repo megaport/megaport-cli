@@ -13,11 +13,11 @@ import (
 var (
 	// promptCallback is the JavaScript function to call when prompting for input
 	promptCallback js.Value
-	
+
 	// pendingPrompts tracks prompts waiting for responses
 	pendingPrompts = make(map[string]*PromptRequest)
 	pendingMutex   sync.Mutex
-	
+
 	// promptCounter generates unique IDs for each prompt
 	promptCounter int
 )
@@ -39,7 +39,7 @@ func RegisterPromptCallback(callback js.Value) {
 		js.Global().Get("console").Call("error", "Prompt callback must be a function")
 		return
 	}
-	
+
 	promptCallback = callback
 	js.Global().Get("console").Call("log", "✅ Prompt callback registered")
 }
@@ -50,17 +50,17 @@ func PromptForInput(message string, promptType string, resourceType string) (str
 	if promptCallback.IsUndefined() {
 		return "", fmt.Errorf("prompt callback not registered - interactive mode requires JavaScript integration")
 	}
-	
+
 	// Create a unique ID for this prompt
 	pendingMutex.Lock()
 	promptCounter++
 	promptID := fmt.Sprintf("prompt_%d_%d", promptCounter, time.Now().UnixNano())
 	pendingMutex.Unlock()
-	
+
 	// Create channels for the response
 	responseChan := make(chan string, 1)
 	errorChan := make(chan error, 1)
-	
+
 	// Register the pending prompt
 	request := &PromptRequest{
 		ID:           promptID,
@@ -70,15 +70,15 @@ func PromptForInput(message string, promptType string, resourceType string) (str
 		ResponseChan: responseChan,
 		ErrorChan:    errorChan,
 	}
-	
+
 	pendingMutex.Lock()
 	pendingPrompts[promptID] = request
 	pendingMutex.Unlock()
-	
+
 	// Log the prompt request
-	js.Global().Get("console").Call("log", fmt.Sprintf("📝 Requesting input: ID=%s, Type=%s, Message=%s", 
+	js.Global().Get("console").Call("log", fmt.Sprintf("📝 Requesting input: ID=%s, Type=%s, Message=%s",
 		promptID, promptType, message))
-	
+
 	// Call the JavaScript callback with the prompt details
 	promptCallback.Invoke(map[string]interface{}{
 		"id":           promptID,
@@ -86,7 +86,7 @@ func PromptForInput(message string, promptType string, resourceType string) (str
 		"type":         promptType,
 		"resourceType": resourceType,
 	})
-	
+
 	// Wait for response with timeout
 	select {
 	case response := <-responseChan:
@@ -94,25 +94,25 @@ func PromptForInput(message string, promptType string, resourceType string) (str
 		pendingMutex.Lock()
 		delete(pendingPrompts, promptID)
 		pendingMutex.Unlock()
-		
+
 		js.Global().Get("console").Call("log", fmt.Sprintf("✅ Received response for %s: %s", promptID, response))
 		return response, nil
-		
+
 	case err := <-errorChan:
 		// Clean up
 		pendingMutex.Lock()
 		delete(pendingPrompts, promptID)
 		pendingMutex.Unlock()
-		
+
 		js.Global().Get("console").Call("error", fmt.Sprintf("❌ Error for %s: %v", promptID, err))
 		return "", err
-		
+
 	case <-time.After(5 * time.Minute):
 		// Timeout
 		pendingMutex.Lock()
 		delete(pendingPrompts, promptID)
 		pendingMutex.Unlock()
-		
+
 		return "", fmt.Errorf("prompt timeout: no response received")
 	}
 }
@@ -131,23 +131,23 @@ func submitPromptResponse(this js.Value, args []js.Value) interface{} {
 			"error": "Invalid arguments",
 		}
 	}
-	
+
 	promptID := args[0].String()
 	response := args[1].String()
-	
+
 	js.Global().Get("console").Call("log", fmt.Sprintf("📨 Submitting response for %s: %s", promptID, response))
-	
+
 	pendingMutex.Lock()
 	request, exists := pendingPrompts[promptID]
 	pendingMutex.Unlock()
-	
+
 	if !exists {
 		js.Global().Get("console").Call("warn", fmt.Sprintf("No pending prompt found for ID: %s", promptID))
 		return map[string]interface{}{
 			"error": "Prompt not found",
 		}
 	}
-	
+
 	// Send the response to the waiting goroutine
 	select {
 	case request.ResponseChan <- response:
@@ -171,19 +171,19 @@ func cancelPrompt(this js.Value, args []js.Value) interface{} {
 			"error": "Invalid arguments",
 		}
 	}
-	
+
 	promptID := args[0].String()
-	
+
 	pendingMutex.Lock()
 	request, exists := pendingPrompts[promptID]
 	pendingMutex.Unlock()
-	
+
 	if !exists {
 		return map[string]interface{}{
 			"error": "Prompt not found",
 		}
 	}
-	
+
 	// Send error to the waiting goroutine
 	select {
 	case request.ErrorChan <- fmt.Errorf("prompt cancelled by user"):
@@ -204,13 +204,13 @@ func registerPromptHandler(this js.Value, args []js.Value) interface{} {
 		js.Global().Get("console").Call("error", "registerPromptHandler requires: callback (function)")
 		return false
 	}
-	
+
 	callback := args[0]
 	if callback.Type() != js.TypeFunction {
 		js.Global().Get("console").Call("error", "Argument must be a function")
 		return false
 	}
-	
+
 	RegisterPromptCallback(callback)
 	return true
 }
@@ -219,7 +219,7 @@ func registerPromptHandler(this js.Value, args []js.Value) interface{} {
 func getPendingPrompts(this js.Value, args []js.Value) interface{} {
 	pendingMutex.Lock()
 	defer pendingMutex.Unlock()
-	
+
 	prompts := make([]map[string]interface{}, 0, len(pendingPrompts))
 	for id, req := range pendingPrompts {
 		prompts = append(prompts, map[string]interface{}{
@@ -229,7 +229,7 @@ func getPendingPrompts(this js.Value, args []js.Value) interface{} {
 			"resourceType": req.ResourceType,
 		})
 	}
-	
+
 	return prompts
 }
 
@@ -239,7 +239,7 @@ func InitPromptSystem() {
 	js.Global().Set("submitPromptResponse", js.FuncOf(submitPromptResponse))
 	js.Global().Set("cancelPrompt", js.FuncOf(cancelPrompt))
 	js.Global().Set("getPendingPrompts", js.FuncOf(getPendingPrompts))
-	
+
 	js.Global().Get("console").Call("log", "✅ WASM Prompt System initialized")
 	js.Global().Get("console").Call("log", "Available functions:")
 	js.Global().Get("console").Call("log", "  - registerPromptHandler(callback)")
