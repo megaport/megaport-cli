@@ -543,6 +543,12 @@ func TestSetAuthToken(t *testing.T) {
 			environment: "production",
 			expectError: true,
 		},
+		{
+			name:        "invalid environment should fail",
+			token:       "valid-token-12345",
+			environment: "invalid-env",
+			expectError: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -561,17 +567,18 @@ func TestSetAuthToken(t *testing.T) {
 		if tt.expectError {
 			assert.False(t, success, "should fail for invalid input")
 		} else {
-			assert.True(t, success, "should succeed for valid input")				// Verify auth info shows token is set
-				authInfo := js.Global().Get("debugAuthInfo").Invoke()
-				tokenSet := authInfo.Get("accessTokenSet").Bool()
-				assert.True(t, tokenSet, "token should be marked as set")
+			assert.True(t, success, "should succeed for valid input")
+			// Verify auth info shows token is set
+			authInfo := js.Global().Get("debugAuthInfo").Invoke()
+			tokenSet := authInfo.Get("accessTokenSet").Bool()
+			assert.True(t, tokenSet, "token should be marked as set")
 
-				env := authInfo.Get("environment").String()
-				assert.Equal(t, tt.environment, env, "environment should match")
+			env := authInfo.Get("environment").String()
+			assert.Equal(t, tt.environment, env, "environment should match")
 
-				authMethod := authInfo.Get("authMethod").String()
-				assert.Equal(t, "token", authMethod, "authMethod should be 'token'")
-			}
+			authMethod := authInfo.Get("authMethod").String()
+			assert.Equal(t, "token", authMethod, "authMethod should be 'token'")
+		}
 		})
 	}
 }

@@ -630,6 +630,19 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 		}
 	}
 
+	// Validate environment parameter
+	validEnvironments := map[string]bool{
+		"production":  true,
+		"staging":     true,
+		"development": true,
+	}
+	if !validEnvironments[environment] {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "invalid environment value (must be 'production', 'staging', or 'development')",
+		}
+	}
+
 	// Store token in environment variable for Go code
 	os.Setenv("MEGAPORT_ACCESS_TOKEN", token)
 	os.Setenv("MEGAPORT_ENVIRONMENT", environment)

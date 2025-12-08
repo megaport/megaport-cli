@@ -113,9 +113,9 @@ var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	// Validate credentials
 	if accessKey == "" {
 		js.Global().Get("console").Call("error", "No access key or token provided")
-		js.Global().Get("console").Call("error", "💡 WASM Tip: Use setAuthToken() for portal tokens or setAuth() for API keys")
+		js.Global().Get("console").Call("error", "💡 WASM Tip: Use setAuthToken() for portal tokens or setAuthCredentials() for API keys")
 		js.Global().Get("console").Call("groupEnd")
-		return nil, fmt.Errorf("megaport API access key not provided. Please use setAuthToken() for portal tokens or setAuth() for API keys")
+		return nil, fmt.Errorf("megaport API access key not provided. Please use setAuthToken() for portal tokens or setAuthCredentials() for API keys")
 	}
 	if secretKey == "" {
 		js.Global().Get("console").Call("error", "No secret key provided")
