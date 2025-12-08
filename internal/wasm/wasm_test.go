@@ -18,7 +18,7 @@ func TestResetOutputBuffers(t *testing.T) {
 	// Write some data to buffers
 	stdoutBuffer.WriteString("test stdout")
 	stderrBuffer.WriteString("test stderr")
-	WasmOutputBuffer.Write([]byte("test direct"))
+	_, _ = WasmOutputBuffer.Write([]byte("test direct"))
 
 	// Set globals
 	js.Global().Set("wasmJSONOutput", "test json")
@@ -55,7 +55,7 @@ func TestGetCapturedOutput_Priority(t *testing.T) {
 				js.Global().Set("wasmCSVOutput", "csv output")
 				js.Global().Set("wasmTableOutput", "table output")
 				stdoutBuffer.WriteString("stdout output")
-				WasmOutputBuffer.Write([]byte("direct output"))
+				_, _ = WasmOutputBuffer.Write([]byte("direct output"))
 			},
 			expectedSource: "JSON buffer",
 			expectedOutput: "json output",
@@ -67,7 +67,7 @@ func TestGetCapturedOutput_Priority(t *testing.T) {
 				js.Global().Set("wasmCSVOutput", "csv output")
 				js.Global().Set("wasmTableOutput", "table output")
 				stdoutBuffer.WriteString("stdout output")
-				WasmOutputBuffer.Write([]byte("direct output"))
+				_, _ = WasmOutputBuffer.Write([]byte("direct output"))
 			},
 			expectedSource: "CSV buffer",
 			expectedOutput: "csv output",
@@ -78,7 +78,7 @@ func TestGetCapturedOutput_Priority(t *testing.T) {
 				ResetOutputBuffers()
 				js.Global().Set("wasmTableOutput", "table output")
 				stdoutBuffer.WriteString("stdout output")
-				WasmOutputBuffer.Write([]byte("direct output"))
+				_, _ = WasmOutputBuffer.Write([]byte("direct output"))
 			},
 			expectedSource: "table buffer",
 			expectedOutput: "table output",
@@ -88,7 +88,7 @@ func TestGetCapturedOutput_Priority(t *testing.T) {
 			setupFn: func() {
 				ResetOutputBuffers()
 				stdoutBuffer.WriteString("stdout output")
-				WasmOutputBuffer.Write([]byte("direct output"))
+				_, _ = WasmOutputBuffer.Write([]byte("direct output"))
 			},
 			expectedSource: "direct buffer",
 			expectedOutput: "direct output",
@@ -139,12 +139,12 @@ func TestDirectOutputBuffer_Concurrent(t *testing.T) {
 
 	// Multiple goroutines writing concurrently
 	for i := 0; i < 10; i++ {
-		go func(id int) {
+		go func() {
 			for j := 0; j < iterations; j++ {
-				buffer.Write([]byte("x"))
+				_, _ = buffer.Write([]byte("x"))
 			}
 			done <- true
-		}(i)
+		}()
 	}
 
 	// Wait for all goroutines
@@ -292,7 +292,9 @@ func TestReadConfigFile_ConfigJSON(t *testing.T) {
 
 	// Parse the content
 	var configData map[string]interface{}
-	err := json.Unmarshal([]byte(resultMap["content"].(string)), &configData)
+	contentStr, ok := resultMap["content"].(string)
+	assert.True(t, ok, "content should be a string")
+	err := json.Unmarshal([]byte(contentStr), &configData)
 	assert.NoError(t, err)
 
 	// Verify default structure
@@ -330,7 +332,9 @@ func TestSaveToLocalStorage(t *testing.T) {
 		js.ValueOf("test_value"),
 	})
 
-	assert.Equal(t, true, result.(bool))
+	resultBool, ok := result.(bool)
+	assert.True(t, ok, "result should be a bool")
+	assert.Equal(t, true, resultBool)
 
 	// Verify in localStorage
 	stored := js.Global().Get("localStorage").Call("getItem", "test_key")
@@ -347,8 +351,10 @@ func TestLoadFromLocalStorage(t *testing.T) {
 		js.ValueOf("test_key"),
 	})
 
-	assert.Equal(t, js.TypeString, result.(js.Value).Type())
-	assert.Equal(t, "test_value", result.(js.Value).String())
+	resultVal, ok := result.(js.Value)
+	assert.True(t, ok, "result should be a js.Value")
+	assert.Equal(t, js.TypeString, resultVal.Type())
+	assert.Equal(t, "test_value", resultVal.String())
 }
 
 // TestResetWasmOutput_JSFunction verifies JS function for resetting output
@@ -357,7 +363,7 @@ func TestResetWasmOutput_JSFunction(t *testing.T) {
 
 	// Add some content to buffers
 	stdoutBuffer.WriteString("test")
-	WasmOutputBuffer.Write([]byte("test"))
+	_, _ = WasmOutputBuffer.Write([]byte("test"))
 
 	// Call the JS function
 	resetFunc := js.Global().Get("resetWasmOutput")
@@ -396,7 +402,7 @@ func TestDumpBuffers_JSFunction(t *testing.T) {
 	// Add content to different buffers
 	stdoutBuffer.WriteString("stdout content")
 	stderrBuffer.WriteString("stderr content")
-	WasmOutputBuffer.Write([]byte("direct content"))
+	_, _ = WasmOutputBuffer.Write([]byte("direct content"))
 
 	// Call the JS function
 	dumpFunc := js.Global().Get("dumpBuffers")
@@ -434,7 +440,7 @@ func TestCaptureOutput(t *testing.T) {
 	testOutput := "test output from function"
 
 	captured := CaptureOutput(func() {
-		WasmOutputBuffer.Write([]byte(testOutput))
+		_, _ = WasmOutputBuffer.Write([]byte(testOutput))
 	})
 
 	// Should contain the output (may have additional content from pipes)
@@ -447,7 +453,7 @@ func TestDirectOutputBuffer_Reset(t *testing.T) {
 		buffer: &bytes.Buffer{},
 	}
 
-	buffer.Write([]byte("test data"))
+	_, _ = buffer.Write([]byte("test data"))
 	assert.NotEqual(t, "", buffer.String())
 
 	buffer.Reset()
@@ -507,6 +513,111 @@ func TestSplitArgs_EdgeCases(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+// TestSetAuthToken verifies token-based authentication
+func TestSetAuthToken(t *testing.T) {
+	RegisterJSFunctions()
+
+	tests := []struct {
+		name        string
+		token       string
+		environment string
+		expectError bool
+	}{
+		{
+			name:        "valid token for production",
+			token:       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test",
+			environment: "production",
+			expectError: false,
+		},
+		{
+			name:        "valid token for staging",
+			token:       "valid-staging-token-12345",
+			environment: "staging",
+			expectError: false,
+		},
+		{
+			name:        "empty token should fail",
+			token:       "",
+			environment: "production",
+			expectError: true,
+		},
+		{
+			name:        "invalid environment should fail",
+			token:       "valid-token-12345",
+			environment: "invalid-env",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Clear any previous auth
+			js.Global().Get("clearAuthCredentials").Invoke()
+
+		// Call setAuthToken
+		setAuthFunc := js.Global().Get("setAuthToken")
+		assert.False(t, setAuthFunc.IsUndefined(), "setAuthToken should be registered")
+
+		result := setAuthFunc.Invoke(tt.token, tt.environment)
+
+		success := result.Get("success").Bool()
+
+		if tt.expectError {
+			assert.False(t, success, "should fail for invalid input")
+		} else {
+			assert.True(t, success, "should succeed for valid input")
+			// Verify auth info shows token is set
+			authInfo := js.Global().Get("debugAuthInfo").Invoke()
+			tokenSet := authInfo.Get("accessTokenSet").Bool()
+			assert.True(t, tokenSet, "token should be marked as set")
+
+			env := authInfo.Get("environment").String()
+			assert.Equal(t, tt.environment, env, "environment should match")
+
+			authMethod := authInfo.Get("authMethod").String()
+			assert.Equal(t, "token", authMethod, "authMethod should be 'token'")
+		}
+		})
+	}
+}
+
+// TestAuthMethodPriority verifies that token auth takes precedence over API key auth
+func TestAuthMethodPriority(t *testing.T) {
+	RegisterJSFunctions()
+
+	// First set API key auth
+	js.Global().Get("setAuthCredentials").Invoke("api-key", "api-secret", "staging")
+	authInfo := js.Global().Get("debugAuthInfo").Invoke()
+	assert.Equal(t, "apikey", authInfo.Get("authMethod").String())
+
+	// Now set token auth - should override
+	js.Global().Get("setAuthToken").Invoke("test-token-12345", "production")
+	authInfo = js.Global().Get("debugAuthInfo").Invoke()
+	assert.Equal(t, "token", authInfo.Get("authMethod").String())
+	assert.Equal(t, "production", authInfo.Get("environment").String())
+
+	// Clear and verify
+	js.Global().Get("clearAuthCredentials").Invoke()
+	authInfo = js.Global().Get("debugAuthInfo").Invoke()
+	assert.Equal(t, "none", authInfo.Get("authMethod").String())
+}
+
+// TestSetAuthTokenMasking verifies token preview masking
+func TestSetAuthTokenMasking(t *testing.T) {
+	RegisterJSFunctions()
+
+	testToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.test"
+	js.Global().Get("setAuthToken").Invoke(testToken, "production")
+
+	authInfo := js.Global().Get("debugAuthInfo").Invoke()
+	preview := authInfo.Get("accessTokenPreview").String()
+
+	// Verify preview is masked
+	assert.Contains(t, preview, "...")
+	assert.NotEqual(t, testToken, preview, "full token should not be in preview")
+	assert.True(t, len(preview) < len(testToken), "preview should be shorter than full token")
 }
 
 // TestBufferThreadSafety verifies all buffers are thread-safe
