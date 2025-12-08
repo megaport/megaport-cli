@@ -515,6 +515,104 @@ func TestSplitArgs_EdgeCases(t *testing.T) {
 	}
 }
 
+// TestSetAuthToken verifies token-based authentication
+func TestSetAuthToken(t *testing.T) {
+	RegisterJSFunctions()
+
+	tests := []struct {
+		name        string
+		token       string
+		environment string
+		expectError bool
+	}{
+		{
+			name:        "valid token for production",
+			token:       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test",
+			environment: "production",
+			expectError: false,
+		},
+		{
+			name:        "valid token for staging",
+			token:       "valid-staging-token-12345",
+			environment: "staging",
+			expectError: false,
+		},
+		{
+			name:        "empty token should fail",
+			token:       "",
+			environment: "production",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Clear any previous auth
+			js.Global().Get("clearAuthCredentials").Invoke()
+
+		// Call setAuthToken
+		setAuthFunc := js.Global().Get("setAuthToken")
+		assert.False(t, setAuthFunc.IsUndefined(), "setAuthToken should be registered")
+
+		result := setAuthFunc.Invoke(tt.token, tt.environment)
+
+		success := result.Get("success").Bool()
+
+		if tt.expectError {
+			assert.False(t, success, "should fail for invalid input")
+		} else {
+			assert.True(t, success, "should succeed for valid input")				// Verify auth info shows token is set
+				authInfo := js.Global().Get("debugAuthInfo").Invoke()
+				tokenSet := authInfo.Get("accessTokenSet").Bool()
+				assert.True(t, tokenSet, "token should be marked as set")
+
+				env := authInfo.Get("environment").String()
+				assert.Equal(t, tt.environment, env, "environment should match")
+
+				authMethod := authInfo.Get("authMethod").String()
+				assert.Equal(t, "token", authMethod, "authMethod should be 'token'")
+			}
+		})
+	}
+}
+
+// TestAuthMethodPriority verifies that token auth takes precedence over API key auth
+func TestAuthMethodPriority(t *testing.T) {
+	RegisterJSFunctions()
+
+	// First set API key auth
+	js.Global().Get("setAuthCredentials").Invoke("api-key", "api-secret", "staging")
+	authInfo := js.Global().Get("debugAuthInfo").Invoke()
+	assert.Equal(t, "apikey", authInfo.Get("authMethod").String())
+
+	// Now set token auth - should override
+	js.Global().Get("setAuthToken").Invoke("test-token-12345", "production")
+	authInfo = js.Global().Get("debugAuthInfo").Invoke()
+	assert.Equal(t, "token", authInfo.Get("authMethod").String())
+	assert.Equal(t, "production", authInfo.Get("environment").String())
+
+	// Clear and verify
+	js.Global().Get("clearAuthCredentials").Invoke()
+	authInfo = js.Global().Get("debugAuthInfo").Invoke()
+	assert.Equal(t, "none", authInfo.Get("authMethod").String())
+}
+
+// TestSetAuthTokenMasking verifies token preview masking
+func TestSetAuthTokenMasking(t *testing.T) {
+	RegisterJSFunctions()
+
+	testToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.test"
+	js.Global().Get("setAuthToken").Invoke(testToken, "production")
+
+	authInfo := js.Global().Get("debugAuthInfo").Invoke()
+	preview := authInfo.Get("accessTokenPreview").String()
+
+	// Verify preview is masked
+	assert.Contains(t, preview, "...")
+	assert.NotEqual(t, testToken, preview, "full token should not be in preview")
+	assert.True(t, len(preview) < len(testToken), "preview should be shorter than full token")
+}
+
 // TestBufferThreadSafety verifies all buffers are thread-safe
 func TestBufferThreadSafety(t *testing.T) {
 	ResetOutputBuffers()

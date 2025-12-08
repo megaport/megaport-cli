@@ -429,6 +429,7 @@ func SplitArgs(cmd string) []string {
 	inQuote := false
 	var currentArg strings.Builder
 	quoteChar := rune(0) // Track which quote char opened the current quote
+	wasQuoted := false   // Track if current arg was quoted (to preserve empty strings)
 
 	for _, r := range cmd {
 		isQuoteChar := r == '"' || r == '\''
@@ -438,21 +439,26 @@ func SplitArgs(cmd string) []string {
 			// Closing quote that matches opening quote
 			inQuote = false
 			quoteChar = rune(0)
+			wasQuoted = true // Mark that this arg was quoted
 		case isQuoteChar && !inQuote:
 			// Opening quote
 			inQuote = true
 			quoteChar = r
+			wasQuoted = true // Mark that this arg was quoted
 		case r == ' ' && !inQuote:
-			if currentArg.Len() > 0 {
+			// End of argument - include empty strings if they were quoted
+			if currentArg.Len() > 0 || wasQuoted {
 				args = append(args, currentArg.String())
 				currentArg.Reset()
+				wasQuoted = false
 			}
 		default:
 			currentArg.WriteRune(r)
 		}
 	}
 
-	if currentArg.Len() > 0 {
+	// Don't forget the last argument - include empty strings if they were quoted
+	if currentArg.Len() > 0 || wasQuoted {
 		args = append(args, currentArg.String())
 	}
 

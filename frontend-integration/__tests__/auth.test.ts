@@ -348,4 +348,181 @@ describe('Authentication Flow', () => {
       }).not.toThrow();
     });
   });
+
+  describe('Token Authentication (setAuthToken)', () => {
+    it('should set authentication using portal token', () => {
+      const mockSetAuthToken = vi.fn(() => ({ success: true }));
+      (window as any).setAuthToken = mockSetAuthToken;
+
+      const { setAuthToken } = useMegaportWASM();
+      setAuthToken('portal-session-token-12345', 'production');
+
+      expect(mockSetAuthToken).toHaveBeenCalledWith(
+        'portal-session-token-12345',
+        'production'
+      );
+    });
+
+    it('should work with staging environment', () => {
+      const mockSetAuthToken = vi.fn(() => ({ success: true }));
+      (window as any).setAuthToken = mockSetAuthToken;
+
+      const { setAuthToken } = useMegaportWASM();
+      setAuthToken('staging-token', 'staging');
+
+      expect(mockSetAuthToken).toHaveBeenCalledWith('staging-token', 'staging');
+    });
+
+    it('should handle JWT-style tokens', () => {
+      const mockSetAuthToken = vi.fn(() => ({ success: true }));
+      (window as any).setAuthToken = mockSetAuthToken;
+
+      const { setAuthToken } = useMegaportWASM();
+      const jwtToken =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.test';
+      setAuthToken(jwtToken, 'production');
+
+      expect(mockSetAuthToken).toHaveBeenCalledWith(jwtToken, 'production');
+    });
+
+    it('should return success response', () => {
+      const mockSetAuthToken = vi.fn(() => ({
+        success: true,
+        message: 'Token set',
+      }));
+      (window as any).setAuthToken = mockSetAuthToken;
+
+      const { setAuthToken } = useMegaportWASM();
+      setAuthToken('token', 'production');
+
+      expect(mockSetAuthToken).toHaveReturnedWith({
+        success: true,
+        message: 'Token set',
+      });
+    });
+
+    it('should handle missing setAuthToken function', () => {
+      (window as any).setAuthToken = undefined;
+
+      const { setAuthToken } = useMegaportWASM();
+
+      // Should not throw error
+      expect(() => {
+        setAuthToken('token', 'production');
+      }).not.toThrow();
+    });
+
+    it('should call debugAuthInfo after setting token', () => {
+      const mockSetAuthToken = vi.fn(() => ({ success: true }));
+      const mockDebugAuthInfo = vi.fn(() => ({
+        accessTokenSet: true,
+        accessTokenPreview: 'por***45',
+        authMethod: 'token',
+        environment: 'production',
+      }));
+      (window as any).setAuthToken = mockSetAuthToken;
+      (window as any).debugAuthInfo = mockDebugAuthInfo;
+
+      const { setAuthToken } = useMegaportWASM();
+      setAuthToken('portal-token', 'production');
+
+      expect(mockDebugAuthInfo).toHaveBeenCalled();
+    });
+
+    it('should show token preview is masked in auth info', () => {
+      const mockSetAuthToken = vi.fn(() => ({ success: true }));
+      (window as any).setAuthToken = mockSetAuthToken;
+      (window as any).debugAuthInfo = vi.fn(() => ({
+        accessTokenSet: true,
+        accessTokenPreview: 'tok***123',
+        authMethod: 'token',
+        environment: 'production',
+      }));
+
+      const { setAuthToken, getAuthInfo } = useMegaportWASM();
+      setAuthToken('token-123456789', 'production');
+
+      const info = getAuthInfo();
+      expect(info?.accessTokenPreview).toContain('***');
+      expect(info?.accessTokenPreview).not.toBe('token-123456789');
+    });
+
+    it('should indicate token auth method', () => {
+      (window as any).setAuthToken = vi.fn(() => ({ success: true }));
+      (window as any).debugAuthInfo = vi.fn(() => ({
+        accessTokenSet: true,
+        accessTokenPreview: 'tok***',
+        authMethod: 'token',
+        environment: 'production',
+      }));
+
+      const { setAuthToken, getAuthInfo } = useMegaportWASM();
+      setAuthToken('test-token', 'production');
+
+      const info = getAuthInfo();
+      expect(info?.authMethod).toBe('token');
+    });
+
+    it('should handle error response from setAuthToken', () => {
+      const mockSetAuthToken = vi.fn(() => ({
+        success: false,
+        error: 'Invalid token format',
+      }));
+      (window as any).setAuthToken = mockSetAuthToken;
+
+      const { setAuthToken } = useMegaportWASM();
+
+      // Should not throw, but log error
+      expect(() => {
+        setAuthToken('invalid-token', 'production');
+      }).not.toThrow();
+
+      expect(mockSetAuthToken).toHaveBeenCalled();
+    });
+  });
+
+  describe('Token vs API Key Authentication', () => {
+    it('should support both token and API key auth methods', () => {
+      const mockSetAuth = vi.fn(() => ({ success: true }));
+      const mockSetAuthToken = vi.fn(() => ({ success: true }));
+      (window as any).setAuthCredentials = mockSetAuth;
+      (window as any).setAuthToken = mockSetAuthToken;
+
+      const { setAuth, setAuthToken } = useMegaportWASM();
+
+      // Both methods should be available
+      setAuth('api-key', 'api-secret', 'staging');
+      expect(mockSetAuth).toHaveBeenCalled();
+
+      setAuthToken('portal-token', 'production');
+      expect(mockSetAuthToken).toHaveBeenCalled();
+    });
+
+    it('should show different auth methods in debug info', () => {
+      const mockSetAuthToken = vi.fn(() => ({ success: true }));
+      (window as any).setAuthToken = mockSetAuthToken;
+      (window as any).debugAuthInfo = vi.fn(() => ({
+        accessTokenSet: true,
+        authMethod: 'token',
+        environment: 'production',
+      }));
+
+      const { setAuthToken, getAuthInfo } = useMegaportWASM();
+      setAuthToken('token', 'production');
+
+      const info = getAuthInfo();
+      expect(info?.authMethod).toBe('token');
+
+      // Simulate switching to API key
+      (window as any).debugAuthInfo = vi.fn(() => ({
+        accessKeySet: true,
+        secretKeySet: true,
+        authMethod: 'apikey',
+        environment: 'staging',
+      }));
+
+      const info2 = getAuthInfo();
+      expect(info2?.authMethod).toBe('apikey');
+    });
+  });
 });
