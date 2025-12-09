@@ -145,6 +145,7 @@ func debugAuthInfo(this js.Value, args []js.Value) interface{} {
 	secretKey := os.Getenv("MEGAPORT_SECRET_KEY")
 	accessToken := os.Getenv("MEGAPORT_ACCESS_TOKEN")
 	env := os.Getenv("MEGAPORT_ENVIRONMENT")
+	apiURL := os.Getenv("MEGAPORT_API_URL")
 
 	return map[string]interface{}{
 		"accessKeySet":       accessKey != "",
@@ -154,6 +155,7 @@ func debugAuthInfo(this js.Value, args []js.Value) interface{} {
 		"accessTokenSet":     accessToken != "",
 		"accessTokenPreview": maskSensitiveValue(accessToken),
 		"environment":        env,
+		"apiURL":             apiURL,
 		"authMethod":         getAuthMethod(accessKey, secretKey, accessToken),
 	}
 }
@@ -598,6 +600,7 @@ func clearAuthCredentials(this js.Value, args []js.Value) interface{} {
 	os.Setenv("MEGAPORT_SECRET_KEY", "")
 	os.Setenv("MEGAPORT_ENVIRONMENT", "")
 	os.Setenv("MEGAPORT_ACCESS_TOKEN", "")
+	os.Setenv("MEGAPORT_API_URL", "")
 
 	js.Global().Delete("megaportCredentials")
 	js.Global().Delete("megaportToken")
@@ -612,16 +615,17 @@ func clearAuthCredentials(this js.Value, args []js.Value) interface{} {
 // setAuthToken sets an external access token for authentication
 // This bypasses the OAuth flow and uses the token directly from the portal session
 // Use this when the portal already has a valid login token stored in the browser
+// Accepts hostname (e.g., window.location.hostname) to determine environment and API URL
 func setAuthToken(this js.Value, args []js.Value) interface{} {
 	if len(args) < 2 {
 		return map[string]interface{}{
 			"success": false,
-			"error":   "token and environment required",
+			"error":   "token and hostname required",
 		}
 	}
 
 	token := args[0].String()
-	environment := args[1].String()
+	hostname := args[1].String()
 
 	if token == "" {
 		return map[string]interface{}{
@@ -630,22 +634,25 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 		}
 	}
 
-	// Validate environment parameter
-	validEnvironments := map[string]bool{
-		"production":  true,
-		"staging":     true,
-		"development": true,
-	}
-	if !validEnvironments[environment] {
+	if hostname == "" {
 		return map[string]interface{}{
 			"success": false,
-			"error":   "invalid environment value (must be 'production', 'staging', or 'development')",
+			"error":   "hostname cannot be empty",
 		}
 	}
 
-	// Store token in environment variable for Go code
+	// Map hostname to environment and API URL
+	// This allows new environments to auto-work by deriving API URL from hostname
+	environment := hostnameToEnvironment(hostname)
+	apiURL := hostnameToAPIURL(hostname)
+
+	js.Global().Get("console").Call("log", fmt.Sprintf("🌐 Hostname '%s' mapped to environment '%s'", hostname, environment))
+	js.Global().Get("console").Call("log", fmt.Sprintf("🔗 API URL: %s", apiURL))
+
+	// Store token and API URL in environment variables for Go code
 	os.Setenv("MEGAPORT_ACCESS_TOKEN", token)
 	os.Setenv("MEGAPORT_ENVIRONMENT", environment)
+	os.Setenv("MEGAPORT_API_URL", apiURL)
 
 	// Clear any existing API key credentials to avoid confusion
 	os.Setenv("MEGAPORT_ACCESS_KEY", "")
@@ -655,6 +662,8 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 	tokenObj := js.Global().Get("Object").New()
 	tokenObj.Set("token", token)
 	tokenObj.Set("environment", environment)
+	tokenObj.Set("hostname", hostname)
+	tokenObj.Set("apiURL", apiURL)
 	js.Global().Set("megaportToken", tokenObj)
 
 	// Clear any existing credentials object
@@ -663,8 +672,121 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 	js.Global().Get("console").Call("log", "🔐 External token set (in-memory only, bypassing OAuth flow)")
 
 	return map[string]interface{}{
-		"success": true,
+		"success":     true,
+		"environment": environment,
+		"hostname":    hostname,
+		"apiURL":      apiURL,
 	}
+}
+
+// hostnameToEnvironment maps a hostname to the appropriate environment
+// Supports production, staging, and other environments based on hostname patterns
+func hostnameToEnvironment(hostname string) string {
+	hostname = strings.ToLower(hostname)
+
+	// Production patterns
+	if hostname == "portal.megaport.com" ||
+		hostname == "api.megaport.com" ||
+		hostname == "megaport.com" ||
+		(strings.HasSuffix(hostname, ".megaport.com") && !strings.Contains(hostname, "staging") && !strings.Contains(hostname, "dev") && !strings.Contains(hostname, "uat") && !strings.Contains(hostname, "qa")) {
+		return "production"
+	}
+
+	// Staging patterns
+	if strings.Contains(hostname, "staging") {
+		return "staging"
+	}
+
+	// Development/QA/UAT patterns - all map to development environment
+	if strings.Contains(hostname, "dev") ||
+		strings.Contains(hostname, "uat") ||
+		strings.Contains(hostname, "qa") ||
+		hostname == "localhost" ||
+		strings.HasPrefix(hostname, "127.") ||
+		strings.HasPrefix(hostname, "192.168.") ||
+		strings.HasPrefix(hostname, "10.") {
+		return "development"
+	}
+
+	// Default to production for unknown hostnames
+	return "production"
+}
+
+// hostnameToAPIURL maps a hostname to the appropriate API base URL
+// This allows the WASM client to auto-detect the correct API endpoint
+// based on the portal hostname, enabling new environments to work automatically
+// Note: This function expects portal hostnames (e.g., portal.megaport.com) but also
+// handles api-* hostnames by returning them as-is (already an API URL)
+func hostnameToAPIURL(hostname string) string {
+	hostname = strings.ToLower(hostname)
+
+	// Production patterns -> production API
+	if hostname == "portal.megaport.com" ||
+		hostname == "api.megaport.com" ||
+		hostname == "megaport.com" ||
+		hostname == "www.megaport.com" {
+		return "https://api.megaport.com/"
+	}
+
+	// If hostname is already an api-* subdomain, return it as-is
+	// e.g., api-qa.megaport.com -> https://api-qa.megaport.com/
+	if strings.HasPrefix(hostname, "api-") && strings.HasSuffix(hostname, ".megaport.com") {
+		return "https://" + hostname + "/"
+	}
+
+	// Staging patterns -> staging API
+	if strings.Contains(hostname, "staging") {
+		// Try to derive API URL from portal hostname pattern
+		// e.g., portal-staging.megaport.com -> api-staging.megaport.com
+		if strings.HasPrefix(hostname, "portal-") {
+			apiHost := strings.Replace(hostname, "portal-", "api-", 1)
+			return "https://" + apiHost + "/"
+		}
+		return "https://api-staging.megaport.com/"
+	}
+
+	// QA/UAT/Dev patterns - try to derive API URL from hostname
+	if strings.Contains(hostname, "qa") ||
+		strings.Contains(hostname, "uat") ||
+		strings.Contains(hostname, "dev") {
+		// Try to derive API URL from portal hostname pattern
+		// e.g., portal-qa.megaport.com -> api-qa.megaport.com
+		if strings.HasPrefix(hostname, "portal-") {
+			apiHost := strings.Replace(hostname, "portal-", "api-", 1)
+			return "https://" + apiHost + "/"
+		}
+		if strings.HasPrefix(hostname, "portal.") {
+			// portal.qa.megaport.com -> api.qa.megaport.com
+			apiHost := strings.Replace(hostname, "portal.", "api.", 1)
+			return "https://" + apiHost + "/"
+		}
+		// Fallback to development API
+		return "https://api-mpone-dev.megaport.com/"
+	}
+
+	// Localhost/IP patterns -> staging API (used for local development against staging)
+	if hostname == "localhost" ||
+		strings.HasPrefix(hostname, "127.") ||
+		strings.HasPrefix(hostname, "192.168.") ||
+		strings.HasPrefix(hostname, "10.") {
+		return "https://api-staging.megaport.com/"
+	}
+
+	// Unknown .megaport.com subdomain - try to derive API URL
+	if strings.HasSuffix(hostname, ".megaport.com") {
+		// Try portal- to api- substitution
+		if strings.HasPrefix(hostname, "portal-") {
+			apiHost := strings.Replace(hostname, "portal-", "api-", 1)
+			return "https://" + apiHost + "/"
+		}
+		if strings.HasPrefix(hostname, "portal.") {
+			apiHost := strings.Replace(hostname, "portal.", "api.", 1)
+			return "https://" + apiHost + "/"
+		}
+	}
+
+	// Default to production API for unknown hostnames
+	return "https://api.megaport.com/"
 }
 
 // Add this function to install hook for specific commands

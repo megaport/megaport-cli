@@ -350,54 +350,56 @@ describe('Authentication Flow', () => {
   });
 
   describe('Token Authentication (setAuthToken)', () => {
-    it('should set authentication using portal token', () => {
-      const mockSetAuthToken = vi.fn(() => ({ success: true }));
+    it('should set authentication using portal token with hostname', () => {
+      const mockSetAuthToken = vi.fn(() => ({ success: true, environment: 'production', hostname: 'portal.megaport.com' }));
       (window as any).setAuthToken = mockSetAuthToken;
 
       const { setAuthToken } = useMegaportWASM();
-      setAuthToken('portal-session-token-12345', 'production');
+      setAuthToken('portal-session-token-12345', 'portal.megaport.com');
 
       expect(mockSetAuthToken).toHaveBeenCalledWith(
         'portal-session-token-12345',
-        'production'
+        'portal.megaport.com'
       );
     });
 
-    it('should work with staging environment', () => {
-      const mockSetAuthToken = vi.fn(() => ({ success: true }));
+    it('should work with staging hostname', () => {
+      const mockSetAuthToken = vi.fn(() => ({ success: true, environment: 'staging', hostname: 'portal-staging.megaport.com' }));
       (window as any).setAuthToken = mockSetAuthToken;
 
       const { setAuthToken } = useMegaportWASM();
-      setAuthToken('staging-token', 'staging');
+      setAuthToken('staging-token', 'portal-staging.megaport.com');
 
-      expect(mockSetAuthToken).toHaveBeenCalledWith('staging-token', 'staging');
+      expect(mockSetAuthToken).toHaveBeenCalledWith('staging-token', 'portal-staging.megaport.com');
     });
 
     it('should handle JWT-style tokens', () => {
-      const mockSetAuthToken = vi.fn(() => ({ success: true }));
+      const mockSetAuthToken = vi.fn(() => ({ success: true, environment: 'production' }));
       (window as any).setAuthToken = mockSetAuthToken;
 
       const { setAuthToken } = useMegaportWASM();
       const jwtToken =
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.test';
-      setAuthToken(jwtToken, 'production');
+      setAuthToken(jwtToken, 'portal.megaport.com');
 
-      expect(mockSetAuthToken).toHaveBeenCalledWith(jwtToken, 'production');
+      expect(mockSetAuthToken).toHaveBeenCalledWith(jwtToken, 'portal.megaport.com');
     });
 
-    it('should return success response', () => {
+    it('should return success response with environment', () => {
       const mockSetAuthToken = vi.fn(() => ({
         success: true,
-        message: 'Token set',
+        environment: 'production',
+        hostname: 'portal.megaport.com',
       }));
       (window as any).setAuthToken = mockSetAuthToken;
 
       const { setAuthToken } = useMegaportWASM();
-      setAuthToken('token', 'production');
+      setAuthToken('token', 'portal.megaport.com');
 
       expect(mockSetAuthToken).toHaveReturnedWith({
         success: true,
-        message: 'Token set',
+        environment: 'production',
+        hostname: 'portal.megaport.com',
       });
     });
 
@@ -408,12 +410,12 @@ describe('Authentication Flow', () => {
 
       // Should not throw error
       expect(() => {
-        setAuthToken('token', 'production');
+        setAuthToken('token', 'portal.megaport.com');
       }).not.toThrow();
     });
 
     it('should call debugAuthInfo after setting token', () => {
-      const mockSetAuthToken = vi.fn(() => ({ success: true }));
+      const mockSetAuthToken = vi.fn(() => ({ success: true, environment: 'production' }));
       const mockDebugAuthInfo = vi.fn(() => ({
         accessTokenSet: true,
         accessTokenPreview: 'por***45',
@@ -424,13 +426,13 @@ describe('Authentication Flow', () => {
       (window as any).debugAuthInfo = mockDebugAuthInfo;
 
       const { setAuthToken } = useMegaportWASM();
-      setAuthToken('portal-token', 'production');
+      setAuthToken('portal-token', 'portal.megaport.com');
 
       expect(mockDebugAuthInfo).toHaveBeenCalled();
     });
 
     it('should show token preview is masked in auth info', () => {
-      const mockSetAuthToken = vi.fn(() => ({ success: true }));
+      const mockSetAuthToken = vi.fn(() => ({ success: true, environment: 'production' }));
       (window as any).setAuthToken = mockSetAuthToken;
       (window as any).debugAuthInfo = vi.fn(() => ({
         accessTokenSet: true,
@@ -440,7 +442,7 @@ describe('Authentication Flow', () => {
       }));
 
       const { setAuthToken, getAuthInfo } = useMegaportWASM();
-      setAuthToken('token-123456789', 'production');
+      setAuthToken('token-123456789', 'portal.megaport.com');
 
       const info = getAuthInfo();
       expect(info?.accessTokenPreview).toContain('***');
@@ -448,7 +450,7 @@ describe('Authentication Flow', () => {
     });
 
     it('should indicate token auth method', () => {
-      (window as any).setAuthToken = vi.fn(() => ({ success: true }));
+      (window as any).setAuthToken = vi.fn(() => ({ success: true, environment: 'production' }));
       (window as any).debugAuthInfo = vi.fn(() => ({
         accessTokenSet: true,
         accessTokenPreview: 'tok***',
@@ -457,7 +459,7 @@ describe('Authentication Flow', () => {
       }));
 
       const { setAuthToken, getAuthInfo } = useMegaportWASM();
-      setAuthToken('test-token', 'production');
+      setAuthToken('test-token', 'portal.megaport.com');
 
       const info = getAuthInfo();
       expect(info?.authMethod).toBe('token');
@@ -474,17 +476,37 @@ describe('Authentication Flow', () => {
 
       // Should not throw, but log error
       expect(() => {
-        setAuthToken('invalid-token', 'production');
+        setAuthToken('invalid-token', 'portal.megaport.com');
       }).not.toThrow();
 
       expect(mockSetAuthToken).toHaveBeenCalled();
+    });
+
+    it('should map localhost to development environment', () => {
+      const mockSetAuthToken = vi.fn(() => ({ success: true, environment: 'development', hostname: 'localhost' }));
+      (window as any).setAuthToken = mockSetAuthToken;
+
+      const { setAuthToken } = useMegaportWASM();
+      setAuthToken('dev-token', 'localhost');
+
+      expect(mockSetAuthToken).toHaveBeenCalledWith('dev-token', 'localhost');
+    });
+
+    it('should map QA hostname to development environment', () => {
+      const mockSetAuthToken = vi.fn(() => ({ success: true, environment: 'development', hostname: 'portal-qa.megaport.com' }));
+      (window as any).setAuthToken = mockSetAuthToken;
+
+      const { setAuthToken } = useMegaportWASM();
+      setAuthToken('qa-token', 'portal-qa.megaport.com');
+
+      expect(mockSetAuthToken).toHaveBeenCalledWith('qa-token', 'portal-qa.megaport.com');
     });
   });
 
   describe('Token vs API Key Authentication', () => {
     it('should support both token and API key auth methods', () => {
       const mockSetAuth = vi.fn(() => ({ success: true }));
-      const mockSetAuthToken = vi.fn(() => ({ success: true }));
+      const mockSetAuthToken = vi.fn(() => ({ success: true, environment: 'production' }));
       (window as any).setAuthCredentials = mockSetAuth;
       (window as any).setAuthToken = mockSetAuthToken;
 
@@ -494,12 +516,12 @@ describe('Authentication Flow', () => {
       setAuth('api-key', 'api-secret', 'staging');
       expect(mockSetAuth).toHaveBeenCalled();
 
-      setAuthToken('portal-token', 'production');
+      setAuthToken('portal-token', 'portal.megaport.com');
       expect(mockSetAuthToken).toHaveBeenCalled();
     });
 
     it('should show different auth methods in debug info', () => {
-      const mockSetAuthToken = vi.fn(() => ({ success: true }));
+      const mockSetAuthToken = vi.fn(() => ({ success: true, environment: 'production' }));
       (window as any).setAuthToken = mockSetAuthToken;
       (window as any).debugAuthInfo = vi.fn(() => ({
         accessTokenSet: true,
@@ -508,7 +530,7 @@ describe('Authentication Flow', () => {
       }));
 
       const { setAuthToken, getAuthInfo } = useMegaportWASM();
-      setAuthToken('token', 'production');
+      setAuthToken('token', 'portal.megaport.com');
 
       const info = getAuthInfo();
       expect(info?.authMethod).toBe('token');

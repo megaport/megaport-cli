@@ -599,7 +599,7 @@ func TestPromptIDUniqueness(t *testing.T) {
 	wg.Add(numPrompts)
 
 	for i := 0; i < numPrompts; i++ {
-		go func(n int) {
+		go func() {
 			defer wg.Done()
 
 			// Register prompt directly (similar to what PromptForInput does)
@@ -625,7 +625,7 @@ func TestPromptIDUniqueness(t *testing.T) {
 			}
 			seenIDs[promptID] = true
 			idMutex.Unlock()
-		}(i)
+		}()
 	}
 
 	// Wait for all goroutines to complete

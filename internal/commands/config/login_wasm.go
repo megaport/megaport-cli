@@ -37,38 +37,44 @@ var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	if !megaportTokenGlobal.IsUndefined() && !megaportTokenGlobal.IsNull() {
 		token := megaportTokenGlobal.Get("token").String()
 		tokenEnv := megaportTokenGlobal.Get("environment").String()
+		apiURL := megaportTokenGlobal.Get("apiURL").String()
 
 		if token != "" {
 			js.Global().Get("console").Call("log", "✅ Using external token from portal (bypassing OAuth flow)")
 			js.Global().Get("console").Call("log", "Environment: "+tokenEnv)
-
-			// Default to production
-			if tokenEnv == "" {
-				tokenEnv = "production"
-			}
-
-			// Set environment option
-			var envOpt megaport.ClientOpt
-			switch tokenEnv {
-			case "production":
-				envOpt = megaport.WithEnvironment(megaport.EnvironmentProduction)
-			case "staging":
-				envOpt = megaport.WithEnvironment(megaport.EnvironmentStaging)
-			case "development":
-				envOpt = megaport.WithEnvironment(megaport.EnvironmentDevelopment)
-			default:
-				envOpt = megaport.WithEnvironment(megaport.EnvironmentProduction)
-			}
+			js.Global().Get("console").Call("log", "API URL: "+apiURL)
 
 			// Create WASM HTTP client
 			httpClient := wasmhttp.NewWasmHTTPClient()
 			httpClient.Timeout = 45 * time.Second
 
+			// Build client options - prefer apiURL if available (hostname-derived)
+			var clientOpts []megaport.ClientOpt
+			clientOpts = append(clientOpts, megaport.WithAccessToken(token, time.Time{}))
+
+			if apiURL != "" {
+				// Use the API URL derived from hostname - this auto-works for new environments
+				js.Global().Get("console").Call("log", "🔗 Using hostname-derived API URL: "+apiURL)
+				clientOpts = append(clientOpts, megaport.WithBaseURL(apiURL))
+			} else {
+				// Fallback to environment-based URL selection
+				js.Global().Get("console").Call("log", "⚠️ No API URL provided, falling back to environment-based selection")
+				var envOpt megaport.ClientOpt
+				switch tokenEnv {
+				case "production":
+					envOpt = megaport.WithEnvironment(megaport.EnvironmentProduction)
+				case "staging":
+					envOpt = megaport.WithEnvironment(megaport.EnvironmentStaging)
+				case "development":
+					envOpt = megaport.WithEnvironment(megaport.EnvironmentDevelopment)
+				default:
+					envOpt = megaport.WithEnvironment(megaport.EnvironmentProduction)
+				}
+				clientOpts = append(clientOpts, envOpt)
+			}
+
 			// Create Megaport client with the external token (no OAuth flow needed!)
-			megaportClient, err := megaport.New(httpClient,
-				megaport.WithAccessToken(token, time.Time{}), // Token managed externally by portal
-				envOpt,
-			)
+			megaportClient, err := megaport.New(httpClient, clientOpts...)
 			if err != nil {
 				js.Global().Get("console").Call("error", "Failed to create Megaport client: "+err.Error())
 				js.Global().Get("console").Call("groupEnd")
@@ -139,10 +145,10 @@ var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		apiEndpoint = "https://api.megaport.com"
 		envOpt = megaport.WithEnvironment(megaport.EnvironmentProduction)
 	case "staging":
-		apiEndpoint = "https://api-staging.megaport.com" // Adjust if needed
+		apiEndpoint = "https://api-staging.megaport.com"
 		envOpt = megaport.WithEnvironment(megaport.EnvironmentStaging)
 	case "development":
-		apiEndpoint = "https://api-dev.megaport.com" // Adjust if needed
+		apiEndpoint = "https://api-mpone-dev.megaport.com"
 		envOpt = megaport.WithEnvironment(megaport.EnvironmentDevelopment)
 	default:
 		apiEndpoint = "https://api.megaport.com"
@@ -226,7 +232,7 @@ func RetryWithBackoffAndConsoleLogging(ctx context.Context, attempts int, client
 		switch client.BaseURL.Host {
 		case "api-staging.megaport.com":
 			environment = "staging"
-		case "api-dev.megaport.com":
+		case "api-mpone-dev.megaport.com":
 			environment = "development"
 		}
 	} else {
