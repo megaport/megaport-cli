@@ -515,39 +515,65 @@ func TestSplitArgs_EdgeCases(t *testing.T) {
 	}
 }
 
-// TestSetAuthToken verifies token-based authentication
+// TestSetAuthToken verifies token-based authentication with hostname mapping
 func TestSetAuthToken(t *testing.T) {
 	RegisterJSFunctions()
 
 	tests := []struct {
 		name        string
 		token       string
-		environment string
+		hostname    string
 		expectError bool
+		expectedEnv string
 	}{
 		{
-			name:        "valid token for production",
+			name:        "valid token for production portal",
 			token:       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test",
-			environment: "production",
+			hostname:    "portal.megaport.com",
 			expectError: false,
+			expectedEnv: "production",
 		},
 		{
-			name:        "valid token for staging",
+			name:        "valid token for staging portal",
 			token:       "valid-staging-token-12345",
-			environment: "staging",
+			hostname:    "portal-staging.megaport.com",
 			expectError: false,
+			expectedEnv: "staging",
+		},
+		{
+			name:        "valid token for localhost (development)",
+			token:       "dev-token-12345",
+			hostname:    "localhost",
+			expectError: false,
+			expectedEnv: "development",
+		},
+		{
+			name:        "valid token for QA environment",
+			token:       "qa-token-12345",
+			hostname:    "portal-qa.megaport.com",
+			expectError: false,
+			expectedEnv: "development",
+		},
+		{
+			name:        "valid token for UAT environment",
+			token:       "uat-token-12345",
+			hostname:    "portal-uat.megaport.com",
+			expectError: false,
+			expectedEnv: "development",
 		},
 		{
 			name:        "empty token should fail",
 			token:       "",
-			environment: "production",
+			hostname:    "portal.megaport.com",
 			expectError: true,
+			expectedEnv: "",
 		},
 		{
-			name:        "invalid environment should fail",
+			name:        "empty hostname should fail",
 			token:       "valid-token-12345",
-			environment: "invalid-env",
+			hostname:    "",
 			expectError: true,
+			expectedEnv: "",
 		},
 	}
 
@@ -556,29 +582,120 @@ func TestSetAuthToken(t *testing.T) {
 			// Clear any previous auth
 			js.Global().Get("clearAuthCredentials").Invoke()
 
-		// Call setAuthToken
-		setAuthFunc := js.Global().Get("setAuthToken")
-		assert.False(t, setAuthFunc.IsUndefined(), "setAuthToken should be registered")
+			// Call setAuthToken
+			setAuthFunc := js.Global().Get("setAuthToken")
+			assert.False(t, setAuthFunc.IsUndefined(), "setAuthToken should be registered")
 
-		result := setAuthFunc.Invoke(tt.token, tt.environment)
+			result := setAuthFunc.Invoke(tt.token, tt.hostname)
 
-		success := result.Get("success").Bool()
+			success := result.Get("success").Bool()
 
-		if tt.expectError {
-			assert.False(t, success, "should fail for invalid input")
-		} else {
-			assert.True(t, success, "should succeed for valid input")
-			// Verify auth info shows token is set
-			authInfo := js.Global().Get("debugAuthInfo").Invoke()
-			tokenSet := authInfo.Get("accessTokenSet").Bool()
-			assert.True(t, tokenSet, "token should be marked as set")
+			if tt.expectError {
+				assert.False(t, success, "should fail for invalid input")
+			} else {
+				assert.True(t, success, "should succeed for valid input")
 
-			env := authInfo.Get("environment").String()
-			assert.Equal(t, tt.environment, env, "environment should match")
+				// Verify returned environment matches expected
+				returnedEnv := result.Get("environment").String()
+				assert.Equal(t, tt.expectedEnv, returnedEnv, "returned environment should match expected")
 
-			authMethod := authInfo.Get("authMethod").String()
-			assert.Equal(t, "token", authMethod, "authMethod should be 'token'")
-		}
+				// Verify auth info shows token is set
+				authInfo := js.Global().Get("debugAuthInfo").Invoke()
+				tokenSet := authInfo.Get("accessTokenSet").Bool()
+				assert.True(t, tokenSet, "token should be marked as set")
+
+				env := authInfo.Get("environment").String()
+				assert.Equal(t, tt.expectedEnv, env, "environment should match expected")
+
+				authMethod := authInfo.Get("authMethod").String()
+				assert.Equal(t, "token", authMethod, "authMethod should be 'token'")
+			}
+		})
+	}
+}
+
+// TestHostnameToEnvironment verifies hostname mapping logic
+func TestHostnameToEnvironment(t *testing.T) {
+	RegisterJSFunctions()
+
+	tests := []struct {
+		hostname    string
+		expectedEnv string
+	}{
+		// Production hostnames
+		{"portal.megaport.com", "production"},
+		{"api.megaport.com", "production"},
+		{"megaport.com", "production"},
+		{"www.megaport.com", "production"},
+
+		// Staging hostnames
+		{"portal-staging.megaport.com", "staging"},
+		{"api-staging.megaport.com", "staging"},
+		{"staging.megaport.com", "staging"},
+
+		// Development/QA/UAT hostnames
+		{"portal-dev.megaport.com", "development"},
+		{"portal-qa.megaport.com", "development"},
+		{"portal-uat.megaport.com", "development"},
+		{"localhost", "development"},
+		{"127.0.0.1", "development"},
+		{"192.168.1.100", "development"},
+		{"10.0.0.1", "development"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.hostname, func(t *testing.T) {
+			js.Global().Get("clearAuthCredentials").Invoke()
+
+			result := js.Global().Get("setAuthToken").Invoke("test-token", tt.hostname)
+
+			assert.True(t, result.Get("success").Bool(), "should succeed")
+			assert.Equal(t, tt.expectedEnv, result.Get("environment").String(),
+				"hostname %s should map to %s", tt.hostname, tt.expectedEnv)
+		})
+	}
+}
+
+// TestHostnameToAPIURL verifies that hostnames are correctly mapped to API URLs
+func TestHostnameToAPIURL(t *testing.T) {
+	RegisterJSFunctions()
+
+	tests := []struct {
+		hostname    string
+		expectedURL string
+	}{
+		// Production hostnames -> production API
+		{"portal.megaport.com", "https://api.megaport.com/"},
+		{"api.megaport.com", "https://api.megaport.com/"},
+		{"megaport.com", "https://api.megaport.com/"},
+		{"www.megaport.com", "https://api.megaport.com/"},
+
+		// Staging hostnames -> staging API (derived from hostname)
+		{"portal-staging.megaport.com", "https://api-staging.megaport.com/"},
+		{"api-staging.megaport.com", "https://api-staging.megaport.com/"},
+
+		// QA/UAT/Dev hostnames -> derived API URL
+		{"portal-qa.megaport.com", "https://api-qa.megaport.com/"},
+		{"portal-uat.megaport.com", "https://api-uat.megaport.com/"},
+		{"portal-dev.megaport.com", "https://api-dev.megaport.com/"},
+
+		// API hostnames should return themselves (already an API URL)
+		{"api-qa.megaport.com", "https://api-qa.megaport.com/"},
+		{"api-uat.megaport.com", "https://api-uat.megaport.com/"},
+
+		// Localhost -> staging API (used for local development against staging environment)
+		{"localhost", "https://api-staging.megaport.com/"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.hostname, func(t *testing.T) {
+			js.Global().Get("clearAuthCredentials").Invoke()
+
+			result := js.Global().Get("setAuthToken").Invoke("test-token", tt.hostname)
+
+			assert.True(t, result.Get("success").Bool(), "should succeed")
+			assert.Equal(t, tt.expectedURL, result.Get("apiURL").String(),
+				"hostname %s should map to API URL %s", tt.hostname, tt.expectedURL)
 		})
 	}
 }
@@ -587,13 +704,16 @@ func TestSetAuthToken(t *testing.T) {
 func TestAuthMethodPriority(t *testing.T) {
 	RegisterJSFunctions()
 
+	// Clear any existing auth state first
+	js.Global().Get("clearAuthCredentials").Invoke()
+
 	// First set API key auth
 	js.Global().Get("setAuthCredentials").Invoke("api-key", "api-secret", "staging")
 	authInfo := js.Global().Get("debugAuthInfo").Invoke()
 	assert.Equal(t, "apikey", authInfo.Get("authMethod").String())
 
 	// Now set token auth - should override
-	js.Global().Get("setAuthToken").Invoke("test-token-12345", "production")
+	js.Global().Get("setAuthToken").Invoke("test-token-12345", "portal.megaport.com")
 	authInfo = js.Global().Get("debugAuthInfo").Invoke()
 	assert.Equal(t, "token", authInfo.Get("authMethod").String())
 	assert.Equal(t, "production", authInfo.Get("environment").String())
@@ -609,7 +729,7 @@ func TestSetAuthTokenMasking(t *testing.T) {
 	RegisterJSFunctions()
 
 	testToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.test"
-	js.Global().Get("setAuthToken").Invoke(testToken, "production")
+	js.Global().Get("setAuthToken").Invoke(testToken, "portal.megaport.com")
 
 	authInfo := js.Global().Get("debugAuthInfo").Invoke()
 	preview := authInfo.Get("accessTokenPreview").String()
