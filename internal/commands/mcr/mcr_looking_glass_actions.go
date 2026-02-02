@@ -30,7 +30,7 @@ func ListLookingGlassIPRoutes(cmd *cobra.Command, args []string, noColor bool, o
 	protocol, _ := cmd.Flags().GetString("protocol")
 	ipFilter, _ := cmd.Flags().GetString("ip")
 
-	spinner := output.PrintResourceGetting("IP routes", mcrUID, noColor)
+	spinner := output.PrintResourceListing("IP routes", noColor)
 
 	var routes []*megaport.LookingGlassIPRoute
 
@@ -79,7 +79,7 @@ func ListLookingGlassBGPRoutes(cmd *cobra.Command, args []string, noColor bool, 
 	// Get optional filter
 	ipFilter, _ := cmd.Flags().GetString("ip")
 
-	spinner := output.PrintResourceGetting("BGP routes", mcrUID, noColor)
+	spinner := output.PrintResourceListing("BGP routes", noColor)
 
 	var routes []*megaport.LookingGlassBGPRoute
 
@@ -122,7 +122,7 @@ func ListLookingGlassBGPSessions(cmd *cobra.Command, args []string, noColor bool
 
 	mcrUID := args[0]
 
-	spinner := output.PrintResourceGetting("BGP sessions", mcrUID, noColor)
+	spinner := output.PrintResourceListing("BGP sessions", noColor)
 
 	sessions, err := listBGPSessionsFunc(ctx, client, mcrUID)
 
@@ -165,7 +165,7 @@ func ListLookingGlassBGPNeighborRoutes(cmd *cobra.Command, args []string, noColo
 	// Get optional filter
 	ipFilter, _ := cmd.Flags().GetString("ip")
 
-	spinner := output.PrintResourceGetting("BGP neighbor routes", sessionID, noColor)
+	spinner := output.PrintResourceListing("BGP neighbor routes", noColor)
 
 	req := &megaport.ListBGPNeighborRoutesRequest{
 		MCRID:     mcrUID,

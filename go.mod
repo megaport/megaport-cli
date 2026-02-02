@@ -2,8 +2,6 @@ module github.com/megaport/megaport-cli
 
 go 1.24.0
 
-replace github.com/megaport/megaportgo => ../megaportgo
-
 require (
 	github.com/charmbracelet/glamour v0.10.0
 	github.com/fatih/color v1.18.0
