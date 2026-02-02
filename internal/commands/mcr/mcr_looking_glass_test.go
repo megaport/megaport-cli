@@ -5,15 +5,25 @@ import (
 	"context"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/commands/config"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestListLookingGlassIPRoutes(t *testing.T) {
-	// Store original function and restore after test
+	// Store original functions and restore after test
+	originalLoginFunc := config.LoginFunc
 	originalFunc := listIPRoutesFunc
-	defer func() { listIPRoutesFunc = originalFunc }()
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		listIPRoutesFunc = originalFunc
+	}()
+
+	// Mock the login function
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		return &megaport.Client{}, nil
+	}
 
 	metric := 100
 	localPref := 200
@@ -53,9 +63,18 @@ func TestListLookingGlassIPRoutes(t *testing.T) {
 }
 
 func TestListLookingGlassIPRoutesWithFilter(t *testing.T) {
-	// Store original function and restore after test
+	// Store original functions and restore after test
+	originalLoginFunc := config.LoginFunc
 	originalFunc := listIPRoutesWithFilterFunc
-	defer func() { listIPRoutesWithFilterFunc = originalFunc }()
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		listIPRoutesWithFilterFunc = originalFunc
+	}()
+
+	// Mock the login function
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		return &megaport.Client{}, nil
+	}
 
 	// Mock the function
 	listIPRoutesWithFilterFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ListIPRoutesRequest) ([]*megaport.LookingGlassIPRoute, error) {
@@ -81,9 +100,18 @@ func TestListLookingGlassIPRoutesWithFilter(t *testing.T) {
 }
 
 func TestListLookingGlassBGPRoutes(t *testing.T) {
-	// Store original function and restore after test
+	// Store original functions and restore after test
+	originalLoginFunc := config.LoginFunc
 	originalFunc := listBGPRoutesFunc
-	defer func() { listBGPRoutesFunc = originalFunc }()
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		listBGPRoutesFunc = originalFunc
+	}()
+
+	// Mock the login function
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		return &megaport.Client{}, nil
+	}
 
 	localPref := 100
 	med := 50
@@ -121,9 +149,18 @@ func TestListLookingGlassBGPRoutes(t *testing.T) {
 }
 
 func TestListLookingGlassBGPSessions(t *testing.T) {
-	// Store original function and restore after test
+	// Store original functions and restore after test
+	originalLoginFunc := config.LoginFunc
 	originalFunc := listBGPSessionsFunc
-	defer func() { listBGPSessionsFunc = originalFunc }()
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		listBGPSessionsFunc = originalFunc
+	}()
+
+	// Mock the login function
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		return &megaport.Client{}, nil
+	}
 
 	uptime := 86400
 	prefixesIn := 100
@@ -157,9 +194,18 @@ func TestListLookingGlassBGPSessions(t *testing.T) {
 }
 
 func TestListLookingGlassBGPNeighborRoutes(t *testing.T) {
-	// Store original function and restore after test
+	// Store original functions and restore after test
+	originalLoginFunc := config.LoginFunc
 	originalFunc := listBGPNeighborRoutesFunc
-	defer func() { listBGPNeighborRoutesFunc = originalFunc }()
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		listBGPNeighborRoutesFunc = originalFunc
+	}()
+
+	// Mock the login function
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		return &megaport.Client{}, nil
+	}
 
 	localPref := 100
 	med := 50
@@ -194,6 +240,15 @@ func TestListLookingGlassBGPNeighborRoutes(t *testing.T) {
 }
 
 func TestListLookingGlassBGPNeighborRoutesInvalidDirection(t *testing.T) {
+	// Store original function and restore after test
+	originalLoginFunc := config.LoginFunc
+	defer func() { config.LoginFunc = originalLoginFunc }()
+
+	// Mock the login function
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		return &megaport.Client{}, nil
+	}
+
 	// Create command
 	cmd := &cobra.Command{}
 	cmd.Flags().String("ip", "", "")
