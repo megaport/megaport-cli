@@ -157,16 +157,18 @@ func CaptureOutputErr(f func() error) (string, error) {
 	old := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
+	defer func() {
+		os.Stdout = old
+	}()
 	err := f()
-	if err != nil {
-		return "", err
-	}
 	w.Close()
-	var buf strings.Builder
-	_, err = io.Copy(&buf, r)
 	if err != nil {
 		return "", err
 	}
-	os.Stdout = old
-	return buf.String(), err
+	var buf strings.Builder
+	_, copyErr := io.Copy(&buf, r)
+	if copyErr != nil {
+		return "", copyErr
+	}
+	return buf.String(), nil
 }
