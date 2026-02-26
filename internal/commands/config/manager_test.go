@@ -363,14 +363,19 @@ func TestCorruptedConfigFile_Permissions(t *testing.T) {
 	configPath, err := GetConfigFilePath()
 	require.NoError(t, err)
 
-	// Write corrupted config to trigger the rewrite path
-	err = os.WriteFile(configPath, []byte("not valid json"), 0600)
+	// Write corrupted config with overly permissive 0644 to simulate drift
+	err = os.WriteFile(configPath, []byte("not valid json"), 0644)
 	require.NoError(t, err)
+
+	// Verify the file is indeed 0644 before recovery
+	info, err := os.Stat(configPath)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0644), info.Mode().Perm(), "precondition: file should be 0644 before recovery")
 
 	_, err = NewConfigManager()
 	require.NoError(t, err)
 
-	info, err := os.Stat(configPath)
+	info, err = os.Stat(configPath)
 	require.NoError(t, err)
 	assert.Equal(t, os.FileMode(0600), info.Mode().Perm(), "config file should have 0600 permissions after corruption recovery")
 }

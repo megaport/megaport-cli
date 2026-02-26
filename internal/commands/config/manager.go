@@ -72,6 +72,9 @@ func NewConfigManager() (*ConfigManager, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to write default config: %w", err)
 		}
+		if err := os.Chmod(configPath, 0600); err != nil {
+			return nil, fmt.Errorf("failed to set permissions on config file: %w", err)
+		}
 	}
 
 	if config.Version < ConfigVersion {
