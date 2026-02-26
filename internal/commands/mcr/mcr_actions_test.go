@@ -965,9 +965,11 @@ func TestGetMCRStatus(t *testing.T) {
 			outputFormat:  "table",
 		},
 		{
-			name:          "nil MCR returned without error",
-			mcrUID:        "mcr-nil",
-			setupMock:     func(m *MockMCRService) {},
+			name:   "nil MCR returned without error",
+			mcrUID: "mcr-nil",
+			setupMock: func(m *MockMCRService) {
+				m.ForceNilGetMCR = true
+			},
 			expectedError: "no MCR found",
 			outputFormat:  "table",
 		},

@@ -572,9 +572,11 @@ func TestGetVXCStatus(t *testing.T) {
 			outputFormat:  "table",
 		},
 		{
-			name:          "nil VXC returned without error",
-			vxcUID:        "vxc-nil",
-			setupMock:     func(m *mockVXCService) {},
+			name:   "nil VXC returned without error",
+			vxcUID: "vxc-nil",
+			setupMock: func(m *mockVXCService) {
+				m.forceNilGetVXC = true
+			},
 			expectedError: "no VXC found",
 			outputFormat:  "table",
 		},
