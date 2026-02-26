@@ -2,7 +2,9 @@ package output
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -606,4 +608,28 @@ func TestJSONOutput_NoTrailingNewlines(t *testing.T) {
 	// JSON should end with ] and a single newline, not multiple newlines
 	assert.True(t, strings.HasSuffix(output, "]\n"), "JSON should end with ] followed by single newline")
 	assert.False(t, strings.HasSuffix(output, "]\n\n"), "JSON should not have multiple trailing newlines")
+}
+
+func TestCaptureOutputErr_RestoresStdoutOnError(t *testing.T) {
+	originalStdout := os.Stdout
+
+	_, err := CaptureOutputErr(func() error {
+		return errors.New("simulated error")
+	})
+
+	assert.Error(t, err)
+	assert.Equal(t, originalStdout, os.Stdout, "os.Stdout should be restored after f() returns an error")
+}
+
+func TestCaptureOutputErr_RestoresStdoutOnSuccess(t *testing.T) {
+	originalStdout := os.Stdout
+
+	out, err := CaptureOutputErr(func() error {
+		fmt.Print("hello")
+		return nil
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "hello", out)
+	assert.Equal(t, originalStdout, os.Stdout, "os.Stdout should be restored after successful execution")
 }
