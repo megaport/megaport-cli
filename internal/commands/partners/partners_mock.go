@@ -36,3 +36,7 @@ func (m *mockPartnerService) FilterPartnerMegaportByLocationId(ctx context.Conte
 func (m *mockPartnerService) FilterPartnerMegaportByDiversityZone(ctx context.Context, partners []*megaport.PartnerMegaport, diversityZone string, exactMatch bool) ([]*megaport.PartnerMegaport, error) {
 	return m.filterResponse, m.filterErr
 }
+
+func (m *mockPartnerService) FilterPartnerMegaportByMetro(ctx context.Context, partners []*megaport.PartnerMegaport, locationService megaport.LocationService, metro string) ([]*megaport.PartnerMegaport, error) {
+	return m.filterResponse, m.filterErr
+}

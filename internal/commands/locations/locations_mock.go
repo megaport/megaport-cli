@@ -198,3 +198,16 @@ func (m *MockLocationsService) FilterLocationsByMcrAvailabilityV3(ctx context.Co
 	}
 	return filteredLocations
 }
+
+func (m *MockLocationsService) FilterLocationsByMetroV3(ctx context.Context, metro string, locations []*megaport.LocationV3) []*megaport.LocationV3 {
+	args := m.Called(ctx, metro, locations)
+	val := args.Get(0)
+	if val == nil {
+		return nil
+	}
+	filteredLocations, ok := val.([]*megaport.LocationV3)
+	if !ok {
+		panic("mock returned wrong type for FilterLocationsByMetroV3")
+	}
+	return filteredLocations
+}
