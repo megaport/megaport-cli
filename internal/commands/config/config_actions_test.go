@@ -342,9 +342,10 @@ func TestExportImportConfig(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, outputText, "Configuration exported")
 
-	// Verify file exists
-	_, err = os.Stat(exportPath)
+	// Verify file exists and has restrictive permissions
+	exportInfo, err := os.Stat(exportPath)
 	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0600), exportInfo.Mode().Perm(), "exported config file should have 0600 permissions")
 
 	// Read exported content to verify it - this also ensures file is fully written
 	exportContent, err := os.ReadFile(exportPath)

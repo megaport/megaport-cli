@@ -269,7 +269,7 @@ func ExportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 
 	filePath, _ := cmd.Flags().GetString("file")
 	if filePath != "" {
-		if err := os.WriteFile(filePath, data, 0644); err != nil {
+		if err := os.WriteFile(filePath, data, 0600); err != nil {
 			return fmt.Errorf("failed to write config to file: %w", err)
 		}
 		output.PrintSuccess("Configuration exported to '%s'", noColor, filePath)
