@@ -127,7 +127,7 @@ func (m *ConfigManager) CreateProfile(name, accessKey, secretKey, environment, d
 	if err != nil {
 		return fmt.Errorf("failed to get config file path: %w", err)
 	}
-	file, err := os.OpenFile(configPath, os.O_WRONLY, 0644)
+	file, err := os.OpenFile(configPath, os.O_WRONLY, 0600)
 	if err != nil {
 		return fmt.Errorf("cannot write to config file: %w", err)
 	}
