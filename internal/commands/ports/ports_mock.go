@@ -47,11 +47,15 @@ type MockPortService struct {
 	}
 	UpdatePortErr    error
 	UpdatePortResult *megaport.ModifyPortResponse
+	ForceNilGetPort  bool
 }
 
 func (m *MockPortService) GetPort(ctx context.Context, portID string) (*megaport.Port, error) {
 	if m.GetPortErr != nil {
 		return nil, m.GetPortErr
+	}
+	if m.ForceNilGetPort {
+		return nil, nil
 	}
 	if m.GetPortResult != nil {
 		return m.GetPortResult, nil

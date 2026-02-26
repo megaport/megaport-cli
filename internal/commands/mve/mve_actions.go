@@ -544,6 +544,11 @@ func GetMVEStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 		return fmt.Errorf("error getting MVE status: %v", err)
 	}
 
+	if mve == nil {
+		output.PrintError("No MVE found with UID: %s", noColor, mveUID)
+		return fmt.Errorf("no MVE found with UID: %s", mveUID)
+	}
+
 	status := []MVEStatus{
 		{
 			UID:    mve.UID,

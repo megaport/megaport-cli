@@ -356,6 +356,25 @@ func TestCorruptedConfigFile(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestCorruptedConfigFile_Permissions(t *testing.T) {
+	_, cleanup := setupTestConfig(t)
+	defer cleanup()
+
+	configPath, err := GetConfigFilePath()
+	require.NoError(t, err)
+
+	// Write corrupted config to trigger the rewrite path
+	err = os.WriteFile(configPath, []byte("not valid json"), 0600)
+	require.NoError(t, err)
+
+	_, err = NewConfigManager()
+	require.NoError(t, err)
+
+	info, err := os.Stat(configPath)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0600), info.Mode().Perm(), "config file should have 0600 permissions after corruption recovery")
+}
+
 func TestSpecialProfileNames(t *testing.T) {
 	_, cleanup := setupTestConfig(t)
 	defer cleanup()

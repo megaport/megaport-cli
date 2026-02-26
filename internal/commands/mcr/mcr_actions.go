@@ -700,6 +700,11 @@ func GetMCRStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 		return fmt.Errorf("error getting MCR status: %v", err)
 	}
 
+	if mcr == nil {
+		output.PrintError("No MCR found with UID: %s", noColor, mcrUID)
+		return fmt.Errorf("no MCR found with UID: %s", mcrUID)
+	}
+
 	status := []MCRStatus{
 		{
 			UID:    mcr.UID,

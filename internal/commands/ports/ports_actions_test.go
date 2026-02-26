@@ -230,3 +230,120 @@ func TestGetPortCmd_WithMockClient(t *testing.T) {
 		})
 	}
 }
+
+func TestGetPortStatus_NilPort(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	mockService := &MockPortService{ForceNilGetPort: true}
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.PortService = mockService
+		return client, nil
+	}
+
+	cmd := &cobra.Command{Use: "status"}
+	var err error
+	output.CaptureOutput(func() {
+		err = GetPortStatus(cmd, []string{"port-nil"}, true, "table")
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no port found")
+}
+
+func TestBuyPort_EmptyUIDs(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	originalBuyPortFunc := buyPortFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		buyPortFunc = originalBuyPortFunc
+	}()
+
+	mockService := &MockPortService{}
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.PortService = mockService
+		return client, nil
+	}
+	buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
+		return &megaport.BuyPortResponse{
+			TechnicalServiceUIDs: []string{},
+		}, nil
+	}
+
+	cmd := &cobra.Command{Use: "buy"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("name", "test-port", "")
+	cmd.Flags().Int("term", 12, "")
+	cmd.Flags().Int("port-speed", 1000, "")
+	cmd.Flags().Int("location-id", 1, "")
+	cmd.Flags().String("marketplace-visibility", "private", "")
+	cmd.Flags().String("diversity-zone", "", "")
+	cmd.Flags().Bool("cost-confirm", true, "")
+	_ = cmd.Flags().Set("name", "test-port")
+	_ = cmd.Flags().Set("term", "12")
+	_ = cmd.Flags().Set("port-speed", "1000")
+	_ = cmd.Flags().Set("location-id", "1")
+	_ = cmd.Flags().Set("marketplace-visibility", "private")
+
+	var err error
+	output.CaptureOutput(func() {
+		err = BuyPort(cmd, nil, true)
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no UID returned")
+}
+
+func TestBuyLAGPort_EmptyUIDs(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	originalBuyPortFunc := buyPortFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		buyPortFunc = originalBuyPortFunc
+	}()
+
+	mockService := &MockPortService{}
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.PortService = mockService
+		return client, nil
+	}
+	buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
+		return &megaport.BuyPortResponse{
+			TechnicalServiceUIDs: []string{},
+		}, nil
+	}
+
+	cmd := &cobra.Command{Use: "buy-lag"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("name", "test-lag", "")
+	cmd.Flags().Int("term", 12, "")
+	cmd.Flags().Int("port-speed", 10000, "")
+	cmd.Flags().Int("location-id", 1, "")
+	cmd.Flags().Int("lag-count", 2, "")
+	cmd.Flags().String("marketplace-visibility", "private", "")
+	cmd.Flags().String("diversity-zone", "", "")
+	cmd.Flags().Bool("cost-confirm", true, "")
+	_ = cmd.Flags().Set("name", "test-lag")
+	_ = cmd.Flags().Set("term", "12")
+	_ = cmd.Flags().Set("port-speed", "10000")
+	_ = cmd.Flags().Set("location-id", "1")
+	_ = cmd.Flags().Set("lag-count", "2")
+	_ = cmd.Flags().Set("marketplace-visibility", "private")
+
+	var err error
+	output.CaptureOutput(func() {
+		err = BuyLAGPort(cmd, nil, true)
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no UID returned")
+}

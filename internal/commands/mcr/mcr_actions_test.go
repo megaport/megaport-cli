@@ -964,6 +964,13 @@ func TestGetMCRStatus(t *testing.T) {
 			expectedError: "API error",
 			outputFormat:  "table",
 		},
+		{
+			name:          "nil MCR returned without error",
+			mcrUID:        "mcr-nil",
+			setupMock:     func(m *MockMCRService) {},
+			expectedError: "no MCR found",
+			outputFormat:  "table",
+		},
 	}
 
 	for _, tt := range tests {

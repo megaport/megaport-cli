@@ -29,11 +29,15 @@ type MockMVEService struct {
 	CapturedModifyMVERequest             *megaport.ModifyMVERequest
 	CapturedListMVEsRequest              *megaport.ListMVEsRequest
 	CapturedUpdateMVEResourceTagsRequest map[string]string
+	ForceNilGetMVE                       bool
 }
 
 func (m *MockMVEService) GetMVE(ctx context.Context, mveID string) (*megaport.MVE, error) {
 	if m.GetMVEErr != nil {
 		return nil, m.GetMVEErr
+	}
+	if m.ForceNilGetMVE {
+		return nil, nil
 	}
 	if m.GetMVEResult != nil {
 		return m.GetMVEResult, nil

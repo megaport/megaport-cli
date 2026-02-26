@@ -386,6 +386,11 @@ func GetVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 		return fmt.Errorf("error getting VXC status: %v", err)
 	}
 
+	if vxc == nil {
+		output.PrintError("No VXC found with UID: %s", noColor, vxcUID)
+		return fmt.Errorf("no VXC found with UID: %s", vxcUID)
+	}
+
 	status := []VXCStatus{
 		{
 			UID:    vxc.UID,

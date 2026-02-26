@@ -571,6 +571,13 @@ func TestGetVXCStatus(t *testing.T) {
 			expectedError: "API error",
 			outputFormat:  "table",
 		},
+		{
+			name:          "nil VXC returned without error",
+			vxcUID:        "vxc-nil",
+			setupMock:     func(m *mockVXCService) {},
+			expectedError: "no VXC found",
+			outputFormat:  "table",
+		},
 	}
 
 	for _, tt := range tests {
