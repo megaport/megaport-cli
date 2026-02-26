@@ -68,9 +68,12 @@ func NewConfigManager() (*ConfigManager, error) {
 			return nil, fmt.Errorf("failed to create default config: %w", err)
 		}
 
-		err = os.WriteFile(configPath, configData, 0644)
+		err = os.WriteFile(configPath, configData, 0600)
 		if err != nil {
 			return nil, fmt.Errorf("failed to write default config: %w", err)
+		}
+		if err := os.Chmod(configPath, 0600); err != nil {
+			return nil, fmt.Errorf("failed to set permissions on config file: %w", err)
 		}
 	}
 

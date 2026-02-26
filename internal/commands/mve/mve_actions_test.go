@@ -1439,6 +1439,15 @@ func TestGetMVEStatus(t *testing.T) {
 			expectedError: "API error",
 			outputFormat:  "table",
 		},
+		{
+			name:   "nil MVE returned without error",
+			mveUID: "mve-nil",
+			setupMock: func(m *MockMVEService) {
+				m.ForceNilGetMVE = true
+			},
+			expectedError: "no MVE found",
+			outputFormat:  "table",
+		},
 	}
 
 	for _, tt := range tests {

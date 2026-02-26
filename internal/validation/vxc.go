@@ -361,9 +361,10 @@ func ValidateIBMPartnerConfig(config *megaport.VXCPartnerConfigIBM) error {
 
 func isValidIBMName(name string) bool {
 	for _, c := range name {
-		if c < '0' || (c > '9' && c < 'A') || (c > 'Z' && c < 'a') || (c > 'z' && c != '/' && c != '-' && c != '_' && c != ',') {
-			return false
+		if (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '/' || c == '-' || c == '_' || c == ',' {
+			continue
 		}
+		return false
 	}
 	return true
 }

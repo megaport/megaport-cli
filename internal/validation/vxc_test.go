@@ -600,6 +600,32 @@ func TestValidateVXCPartnerConfig(t *testing.T) {
 	}
 }
 
+func TestIsValidIBMName(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  bool
+	}{
+		{"alphanumeric", "abc123", true},
+		{"uppercase", "ABC", true},
+		{"with slash", "my/name", true},
+		{"with dash", "my-name", true},
+		{"with underscore", "my_name", true},
+		{"with comma", "my,name", true},
+		{"all special chars", "a/b-c_d,e", true},
+		{"empty string", "", true},
+		{"with space", "my name", false},
+		{"with dot", "my.name", false},
+		{"with at sign", "my@name", false},
+		{"with exclamation", "hello!", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isValidIBMName(tt.input))
+		})
+	}
+}
+
 func TestValidateAzurePartnerConfig(t *testing.T) {
 	tests := []struct {
 		name    string

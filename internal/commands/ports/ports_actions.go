@@ -84,6 +84,11 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	if len(resp.TechnicalServiceUIDs) == 0 {
+		output.PrintError("Port created but no UID returned", noColor)
+		return fmt.Errorf("port created but no UID returned")
+	}
+
 	output.PrintResourceCreated("Port", resp.TechnicalServiceUIDs[0], noColor)
 	return nil
 }
@@ -154,6 +159,11 @@ func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 	if err != nil {
 		output.PrintError("Failed to buy LAG port: %v", noColor, err)
 		return err
+	}
+
+	if len(resp.TechnicalServiceUIDs) == 0 {
+		output.PrintError("LAG port created but no UID returned", noColor)
+		return fmt.Errorf("LAG port created but no UID returned")
 	}
 
 	output.PrintResourceCreated("LAG Port", resp.TechnicalServiceUIDs[0], noColor)
@@ -262,6 +272,11 @@ func GetPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	if err != nil {
 		output.PrintError("Failed to get Port status: %v", noColor, err)
 		return fmt.Errorf("error getting Port status: %v", err)
+	}
+
+	if port == nil {
+		output.PrintError("No port found with UID: %s", noColor, portUID)
+		return fmt.Errorf("no port found with UID: %s", portUID)
 	}
 
 	status := []PortStatus{

@@ -29,6 +29,7 @@ type mockVXCService struct {
 	CapturedUpdateVXCResourceTagsRequest map[string]string
 	CapturedListVXCResourceTagsUID       string
 	UpdateVXCResourceTagsErr             error
+	forceNilGetVXC                       bool
 }
 
 func (m *mockVXCService) BuyVXC(ctx context.Context, req *megaport.BuyVXCRequest) (*megaport.BuyVXCResponse, error) {
@@ -44,7 +45,20 @@ func (m *mockVXCService) ValidateVXCOrder(ctx context.Context, req *megaport.Buy
 }
 
 func (m *mockVXCService) GetVXC(ctx context.Context, id string) (*megaport.VXC, error) {
-	return m.getVXCResponse, m.getVXCError
+	if m.getVXCError != nil {
+		return nil, m.getVXCError
+	}
+	if m.forceNilGetVXC {
+		return nil, nil
+	}
+	if m.getVXCResponse != nil {
+		return m.getVXCResponse, nil
+	}
+	return &megaport.VXC{
+		UID:                id,
+		Name:               "Mock VXC",
+		ProvisioningStatus: "LIVE",
+	}, nil
 }
 
 func (m *mockVXCService) DeleteVXC(ctx context.Context, id string, req *megaport.DeleteVXCRequest) error {

@@ -53,6 +53,7 @@ type MockMCRService struct {
 	CapturedModifyPrefixFilterListMCRID      string
 	CapturedModifyPrefixFilterListID         int
 	CapturedModifyPrefixFilterList           *megaport.MCRPrefixFilterList
+	ForceNilGetMCR                           bool
 }
 
 func (m *MockMCRService) BuyMCR(ctx context.Context, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
@@ -71,7 +72,17 @@ func (m *MockMCRService) GetMCR(ctx context.Context, mcrUID string) (*megaport.M
 	if m.GetMCRErr != nil {
 		return nil, m.GetMCRErr
 	}
-	return m.GetMCRResult, nil
+	if m.ForceNilGetMCR {
+		return nil, nil
+	}
+	if m.GetMCRResult != nil {
+		return m.GetMCRResult, nil
+	}
+	return &megaport.MCR{
+		UID:                mcrUID,
+		Name:               "Mock MCR",
+		ProvisioningStatus: "LIVE",
+	}, nil
 }
 
 func (m *MockMCRService) ListMCRs(ctx context.Context, req *megaport.ListMCRsRequest) ([]*megaport.MCR, error) {
