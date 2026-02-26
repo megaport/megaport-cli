@@ -205,6 +205,65 @@ func TestViewConfig(t *testing.T) {
 	assert.Contains(t, output, "No active profile set")
 }
 
+func TestMaskAccessKey(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"empty string", "", ""},
+		{"short key (<=4 chars)", "abcd", "****"},
+		{"medium key (5-8 chars)", "abcdef", "ab...ef"},
+		{"long key (>8 chars)", "abcdefghijklmnop", "abcd...mnop"},
+		{"exactly 8 chars", "abcdefgh", "ab...gh"},
+		{"exactly 9 chars", "abcdefghi", "abcd...fghi"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, maskAccessKey(tt.input))
+		})
+	}
+}
+
+func TestViewConfig_MasksAccessKey(t *testing.T) {
+	_, cleanup := setupTestConfigEnv(t)
+	defer cleanup()
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+	err = manager.CreateProfile("mask-test", "my-secret-access-key-12345", "secret", "production", "")
+	require.NoError(t, err)
+	err = manager.UseProfile("mask-test")
+	require.NoError(t, err)
+
+	cmd, cmdOut := setupTestCmd()
+	err = ViewConfig(cmd, nil, false)
+	require.NoError(t, err)
+
+	viewOutput := cmdOut.String()
+	assert.NotContains(t, viewOutput, "my-secret-access-key-12345", "full access key should not appear in view output")
+	assert.Contains(t, viewOutput, "my-s...2345", "masked access key should appear in view output")
+}
+
+func TestListProfiles_MasksAccessKey(t *testing.T) {
+	_, cleanup := setupTestConfigEnv(t)
+	defer cleanup()
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+	err = manager.CreateProfile("mask-test", "my-secret-access-key-12345", "secret", "production", "")
+	require.NoError(t, err)
+
+	listOutput, err := captureOutputFromAction(func() error {
+		cmd, _ := setupTestCmd()
+		return ListProfiles(cmd, nil, true, "table")
+	})
+	require.NoError(t, err)
+
+	assert.NotContains(t, listOutput, "my-secret-access-key-12345", "full access key should not appear in list output")
+	assert.Contains(t, listOutput, "my-s...2345", "masked access key should appear in list output")
+}
+
 func TestDeleteProfile_CMD(t *testing.T) {
 	_, cleanup := setupTestConfigEnv(t)
 	defer cleanup()

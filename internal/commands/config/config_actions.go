@@ -11,6 +11,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// maskAccessKey masks an access key for display, showing only the first 4 and last 4 characters.
+func maskAccessKey(key string) string {
+	if key == "" {
+		return ""
+	}
+	if len(key) > 8 {
+		return key[:4] + "..." + key[len(key)-4:]
+	}
+	if len(key) > 4 {
+		return key[:2] + "..." + key[len(key)-2:]
+	}
+	return "****"
+}
+
 func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	profileName := args[0]
 	accessKey, _ := cmd.Flags().GetString("access-key")
@@ -132,7 +146,7 @@ func ListProfiles(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	for name, profile := range profiles {
 		profileOutputs = append(profileOutputs, ProfileOutput{
 			Name:        name,
-			AccessKey:   profile.AccessKey,
+			AccessKey:   maskAccessKey(profile.AccessKey),
 			Environment: profile.Environment,
 			Description: profile.Description,
 			IsActive:    name == activeProfile,
@@ -358,7 +372,7 @@ func ViewConfig(cmd *cobra.Command, args []string, noColor bool) error {
 	} else {
 		fmt.Fprintf(cmd.OutOrStdout(), "Current Configuration:\n\n")
 		fmt.Fprintf(cmd.OutOrStdout(), "  Active Profile: %s\n", profileName)
-		fmt.Fprintf(cmd.OutOrStdout(), "  Access Key: %s\n", activeProfile.AccessKey)
+		fmt.Fprintf(cmd.OutOrStdout(), "  Access Key: %s\n", maskAccessKey(activeProfile.AccessKey))
 		fmt.Fprintf(cmd.OutOrStdout(), "  Environment: %s\n", activeProfile.Environment)
 
 		if activeProfile.Description != "" {
