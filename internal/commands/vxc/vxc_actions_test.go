@@ -499,6 +499,413 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 	}
 }
 
+func TestListVXCs(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	testVXCs := []*megaport.VXC{
+		{
+			UID:  "vxc-123",
+			Name: "vxc-demo-01",
+			AEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-aaa",
+			},
+			BEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-bbb",
+			},
+			RateLimit:          1000,
+			ProvisioningStatus: "LIVE",
+		},
+		{
+			UID:  "vxc-456",
+			Name: "vxc-demo-02",
+			AEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-ccc",
+			},
+			BEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-ddd",
+			},
+			RateLimit:          500,
+			ProvisioningStatus: "LIVE",
+		},
+		{
+			UID:  "vxc-789",
+			Name: "production-vxc",
+			AEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-aaa",
+			},
+			BEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-eee",
+			},
+			RateLimit:          2000,
+			ProvisioningStatus: "LIVE",
+		},
+		{
+			UID:  "vxc-abc",
+			Name: "test-vxc-decom",
+			AEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-fff",
+			},
+			BEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-ggg",
+			},
+			RateLimit:          100,
+			ProvisioningStatus: "DECOMMISSIONED",
+		},
+		{
+			UID:  "vxc-cancelled",
+			Name: "cancelled-vxc",
+			AEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-hhh",
+			},
+			BEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-iii",
+			},
+			RateLimit:          200,
+			ProvisioningStatus: "CANCELLED",
+		},
+		{
+			UID:  "vxc-decommissioning",
+			Name: "decommissioning-vxc",
+			AEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-jjj",
+			},
+			BEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-kkk",
+			},
+			RateLimit:          300,
+			ProvisioningStatus: "DECOMMISSIONING",
+		},
+	}
+
+	tests := []struct {
+		name           string
+		flags          map[string]string
+		setupMock      func(*mockVXCService)
+		loginError     bool
+		expectedError  string
+		expectedVXCs   []string
+		unexpectedVXCs []string
+		outputFormat   string
+	}{
+		{
+			name: "list all active VXCs",
+			setupMock: func(m *mockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02", "production-vxc"},
+			unexpectedVXCs: []string{"test-vxc-decom", "cancelled-vxc", "decommissioning-vxc"},
+			outputFormat:   "table",
+		},
+		{
+			name: "excludes CANCELLED status",
+			setupMock: func(m *mockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-01"},
+			unexpectedVXCs: []string{"cancelled-vxc"},
+			outputFormat:   "table",
+		},
+		{
+			name: "excludes DECOMMISSIONING status",
+			setupMock: func(m *mockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-01"},
+			unexpectedVXCs: []string{"decommissioning-vxc"},
+			outputFormat:   "table",
+		},
+		{
+			name: "filter by exact name match",
+			flags: map[string]string{
+				"name": "vxc-demo-01",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-01"},
+			unexpectedVXCs: []string{"vxc-demo-02", "production-vxc", "test-vxc-decom"},
+			outputFormat:   "table",
+		},
+		{
+			name: "filter by name partial match",
+			flags: map[string]string{
+				"name": "demo",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02"},
+			unexpectedVXCs: []string{"production-vxc", "test-vxc-decom"},
+			outputFormat:   "table",
+		},
+		{
+			name: "filter by case insensitive name",
+			flags: map[string]string{
+				"name": "PRODUCTION",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"production-vxc"},
+			unexpectedVXCs: []string{"vxc-demo-01", "vxc-demo-02", "test-vxc-decom"},
+			outputFormat:   "table",
+		},
+		{
+			name: "filter by rate limit",
+			flags: map[string]string{
+				"rate-limit": "500",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-02"},
+			unexpectedVXCs: []string{"vxc-demo-01", "production-vxc", "test-vxc-decom"},
+			outputFormat:   "table",
+		},
+		{
+			name: "filter by a-end-uid",
+			flags: map[string]string{
+				"a-end-uid": "port-aaa",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-01", "production-vxc"},
+			unexpectedVXCs: []string{"vxc-demo-02", "test-vxc-decom"},
+			outputFormat:   "table",
+		},
+		{
+			name: "filter by b-end-uid",
+			flags: map[string]string{
+				"b-end-uid": "port-bbb",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-01"},
+			unexpectedVXCs: []string{"vxc-demo-02", "production-vxc", "test-vxc-decom"},
+			outputFormat:   "table",
+		},
+		{
+			name: "filter by name and a-end-uid combined",
+			flags: map[string]string{
+				"name":      "demo",
+				"a-end-uid": "port-aaa",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-01"},
+			unexpectedVXCs: []string{"vxc-demo-02", "production-vxc", "test-vxc-decom"},
+			outputFormat:   "table",
+		},
+		{
+			name: "filter by rate limit and b-end-uid combined",
+			flags: map[string]string{
+				"rate-limit": "1000",
+				"b-end-uid":  "port-bbb",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-01"},
+			unexpectedVXCs: []string{"vxc-demo-02", "production-vxc"},
+			outputFormat:   "table",
+		},
+		{
+			name: "include inactive VXCs",
+			flags: map[string]string{
+				"include-inactive": "true",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02", "production-vxc", "test-vxc-decom", "cancelled-vxc", "decommissioning-vxc"},
+			unexpectedVXCs: []string{},
+			outputFormat:   "table",
+		},
+		{
+			name: "include inactive with name filter",
+			flags: map[string]string{
+				"include-inactive": "true",
+				"name":             "decom",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"test-vxc-decom", "decommissioning-vxc"},
+			unexpectedVXCs: []string{"vxc-demo-01", "vxc-demo-02", "production-vxc", "cancelled-vxc"},
+			outputFormat:   "table",
+		},
+		{
+			name: "filter with no matches",
+			flags: map[string]string{
+				"name": "nonexistent-vxc",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{},
+			unexpectedVXCs: []string{"vxc-demo-01", "vxc-demo-02", "production-vxc", "test-vxc-decom"},
+			outputFormat:   "table",
+		},
+		{
+			name: "empty API result",
+			setupMock: func(m *mockVXCService) {
+				m.listVXCResponse = []*megaport.VXC{}
+			},
+			expectedVXCs:   []string{},
+			unexpectedVXCs: []string{},
+			outputFormat:   "table",
+		},
+		{
+			name: "nil API result",
+			setupMock: func(m *mockVXCService) {
+				m.listVXCResponse = nil
+			},
+			expectedVXCs:   []string{},
+			unexpectedVXCs: []string{},
+			outputFormat:   "table",
+		},
+		{
+			name: "JSON output format",
+			flags: map[string]string{
+				"name": "vxc-demo-01",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-01"},
+			unexpectedVXCs: []string{"vxc-demo-02", "production-vxc"},
+			outputFormat:   "json",
+		},
+		{
+			name: "CSV output format",
+			flags: map[string]string{
+				"name": "vxc-demo-01",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-01"},
+			unexpectedVXCs: []string{"vxc-demo-02", "production-vxc"},
+			outputFormat:   "csv",
+		},
+		{
+			name: "API error",
+			setupMock: func(m *mockVXCService) {
+				m.listVXCErr = fmt.Errorf("API error: service unavailable")
+			},
+			expectedError: "API error: service unavailable",
+			outputFormat:  "table",
+		},
+		{
+			name:          "login error",
+			loginError:    true,
+			expectedError: "error logging in",
+			outputFormat:  "table",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &mockVXCService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			if tt.loginError {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, fmt.Errorf("authentication failed")
+				}
+			} else {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.VXCService = mockService
+					return client, nil
+				}
+			}
+
+			cmd := &cobra.Command{
+				Use: "list",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return ListVXCs(cmd, args, true, tt.outputFormat)
+				},
+			}
+
+			cmd.Flags().String("name", "", "Filter VXCs by name")
+			cmd.Flags().Int("rate-limit", 0, "Filter VXCs by rate limit")
+			cmd.Flags().String("a-end-uid", "", "Filter VXCs by A-End UID")
+			cmd.Flags().String("b-end-uid", "", "Filter VXCs by B-End UID")
+			cmd.Flags().Bool("include-inactive", false, "Include inactive VXCs")
+
+			for flagName, flagValue := range tt.flags {
+				err := cmd.Flags().Set(flagName, flagValue)
+				if err != nil {
+					t.Fatalf("Failed to set %s flag: %v", flagName, err)
+				}
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+
+				for _, expectedVXC := range tt.expectedVXCs {
+					assert.Contains(t, capturedOutput, expectedVXC,
+						"Expected VXC '%s' should be in output", expectedVXC)
+				}
+
+				for _, unexpectedVXC := range tt.unexpectedVXCs {
+					assert.NotContains(t, capturedOutput, unexpectedVXC,
+						"Unexpected VXC '%s' should NOT be in output", unexpectedVXC)
+				}
+
+				switch tt.outputFormat {
+				case "json":
+					if len(tt.expectedVXCs) > 0 {
+						assert.Contains(t, capturedOutput, "\"uid\":")
+						assert.Contains(t, capturedOutput, "\"name\":")
+					}
+				case "csv":
+					if len(tt.expectedVXCs) > 0 {
+						assert.Contains(t, capturedOutput, "uid,name,")
+					}
+				case "table":
+					if len(tt.expectedVXCs) > 0 {
+						assert.Contains(t, capturedOutput, "UID")
+						assert.Contains(t, capturedOutput, "NAME")
+					}
+				}
+
+				if len(tt.expectedVXCs) == 0 && tt.expectedError == "" {
+					assert.Contains(t, capturedOutput, "No VXCs found matching the specified filters")
+				}
+			}
+
+			// Verify the captured request's IncludeInactive flag
+			if mockService.CapturedListVXCsRequest != nil {
+				if tt.flags["include-inactive"] == "true" {
+					assert.True(t, mockService.CapturedListVXCsRequest.IncludeInactive,
+						"IncludeInactive should be true when --include-inactive flag is set")
+				} else {
+					assert.False(t, mockService.CapturedListVXCsRequest.IncludeInactive,
+						"IncludeInactive should be false when --include-inactive flag is not set")
+				}
+			}
+		})
+	}
+}
+
 func TestGetVXCStatus(t *testing.T) {
 	originalLoginFunc := config.LoginFunc
 	defer func() {

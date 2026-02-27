@@ -231,6 +231,200 @@ func TestPrintVXCs_EdgeCases(t *testing.T) {
 	}
 }
 
+func TestFilterVXCs(t *testing.T) {
+	activeVXCs := []*megaport.VXC{
+		{
+			UID:  "vxc-1",
+			Name: "TestVXC-1",
+			AEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-aaa",
+			},
+			BEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-bbb",
+			},
+			RateLimit:          100,
+			ProvisioningStatus: "LIVE",
+		},
+		{
+			UID:  "vxc-2",
+			Name: "TestVXC-2",
+			AEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-ccc",
+			},
+			BEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-ddd",
+			},
+			RateLimit:          500,
+			ProvisioningStatus: "CONFIGURED",
+		},
+		{
+			UID:  "vxc-3",
+			Name: "Production-VXC",
+			AEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-aaa",
+			},
+			BEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-eee",
+			},
+			RateLimit:          1000,
+			ProvisioningStatus: "LIVE",
+		},
+		{
+			UID:  "vxc-4",
+			Name: "Staging-VXC",
+			AEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-fff",
+			},
+			BEndConfiguration: megaport.VXCEndConfiguration{
+				UID: "port-bbb",
+			},
+			RateLimit:          500,
+			ProvisioningStatus: "LIVE",
+		},
+	}
+
+	tests := []struct {
+		name         string
+		vxcs         []*megaport.VXC
+		vxcName      string
+		aEndUID      string
+		bEndUID      string
+		rateLimit    int
+		expected     int
+		expectedUIDs []string
+	}{
+		{
+			name:         "no filters",
+			vxcs:         activeVXCs,
+			expected:     4,
+			expectedUIDs: []string{"vxc-1", "vxc-2", "vxc-3", "vxc-4"},
+		},
+		{
+			name:         "filter by name (case insensitive)",
+			vxcs:         activeVXCs,
+			vxcName:      "test",
+			expected:     2,
+			expectedUIDs: []string{"vxc-1", "vxc-2"},
+		},
+		{
+			name:         "filter by name (partial match)",
+			vxcs:         activeVXCs,
+			vxcName:      "Production",
+			expected:     1,
+			expectedUIDs: []string{"vxc-3"},
+		},
+		{
+			name:         "filter by rate limit",
+			vxcs:         activeVXCs,
+			rateLimit:    500,
+			expected:     2,
+			expectedUIDs: []string{"vxc-2", "vxc-4"},
+		},
+		{
+			name:         "filter by a-end-uid",
+			vxcs:         activeVXCs,
+			aEndUID:      "port-aaa",
+			expected:     2,
+			expectedUIDs: []string{"vxc-1", "vxc-3"},
+		},
+		{
+			name:         "filter by b-end-uid",
+			vxcs:         activeVXCs,
+			bEndUID:      "port-bbb",
+			expected:     2,
+			expectedUIDs: []string{"vxc-1", "vxc-4"},
+		},
+		{
+			name:         "multiple filters (name and rate limit)",
+			vxcs:         activeVXCs,
+			vxcName:      "test",
+			rateLimit:    500,
+			expected:     1,
+			expectedUIDs: []string{"vxc-2"},
+		},
+		{
+			name:         "multiple filters (a-end-uid and b-end-uid)",
+			vxcs:         activeVXCs,
+			aEndUID:      "port-aaa",
+			bEndUID:      "port-bbb",
+			expected:     1,
+			expectedUIDs: []string{"vxc-1"},
+		},
+		{
+			name:         "all four filters combined",
+			vxcs:         activeVXCs,
+			vxcName:      "TestVXC",
+			rateLimit:    500,
+			aEndUID:      "port-ccc",
+			bEndUID:      "port-ddd",
+			expected:     1,
+			expectedUIDs: []string{"vxc-2"},
+		},
+		{
+			name:         "filter by exact name match",
+			vxcs:         activeVXCs,
+			vxcName:      "TestVXC-1",
+			expected:     1,
+			expectedUIDs: []string{"vxc-1"},
+		},
+		{
+			name:         "filter by non-matching a-end-uid",
+			vxcs:         activeVXCs,
+			aEndUID:      "port-nonexistent",
+			expected:     0,
+			expectedUIDs: []string{},
+		},
+		{
+			name:         "filter by non-matching rate limit",
+			vxcs:         activeVXCs,
+			rateLimit:    9999,
+			expected:     0,
+			expectedUIDs: []string{},
+		},
+		{
+			name:         "no matching VXCs",
+			vxcs:         activeVXCs,
+			vxcName:      "nonexistent",
+			expected:     0,
+			expectedUIDs: []string{},
+		},
+		{
+			name:         "nil slice",
+			vxcs:         nil,
+			expected:     0,
+			expectedUIDs: []string{},
+		},
+		{
+			name:         "empty slice",
+			vxcs:         []*megaport.VXC{},
+			expected:     0,
+			expectedUIDs: []string{},
+		},
+		{
+			name:         "slice with nil VXC",
+			vxcs:         []*megaport.VXC{nil, activeVXCs[0], nil, activeVXCs[1]},
+			expected:     2,
+			expectedUIDs: []string{"vxc-1", "vxc-2"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filtered := filterVXCs(tt.vxcs, tt.vxcName, tt.aEndUID, tt.bEndUID, tt.rateLimit)
+
+			assert.Equal(t, tt.expected, len(filtered), "Filtered VXC count should match expected")
+
+			if len(tt.expectedUIDs) > 0 {
+				actualUIDs := make([]string, len(filtered))
+				for i, vxc := range filtered {
+					actualUIDs[i] = vxc.UID
+				}
+				assert.ElementsMatch(t, tt.expectedUIDs, actualUIDs, "Filtered VXC UIDs should match expected")
+			}
+		})
+	}
+}
+
 func TestToVXCOutput_EdgeCases(t *testing.T) {
 	tests := []struct {
 		name          string

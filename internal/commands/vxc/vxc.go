@@ -10,10 +10,28 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	// Create vxc parent command
 	vxcCmd := cmdbuilder.NewCommand("vxc", "Manage VXCs in the Megaport API").
 		WithLongDesc("Manage VXCs in the Megaport API.\n\nThis command groups all operations related to Virtual Cross Connects (VXCs). VXCs are virtual point-to-point connections between two ports or devices on the Megaport network. You can use the subcommands to perform actions such as retrieving details, purchasing, updating, and deleting VXCs.").
+		WithExample("megaport-cli vxc list").
 		WithExample("megaport-cli vxc get [vxcUID]").
 		WithExample("megaport-cli vxc buy").
 		WithExample("megaport-cli vxc update [vxcUID]").
 		WithExample("megaport-cli vxc delete [vxcUID]").
+		WithRootCmd(rootCmd).
+		Build()
+
+	// Create list VXCs command
+	listVXCsCmd := cmdbuilder.NewCommand("list", "List all VXCs with optional filters").
+		WithOutputFormatRunFunc(ListVXCs).
+		WithVXCFilterFlags().
+		WithLongDesc("List all VXCs available in the Megaport API.\n\nThis command retrieves all Virtual Cross Connects (VXCs) associated with your account. You can filter results by name, rate limit, A-End UID, or B-End UID.").
+		WithOptionalFlag("name", "Filter VXCs by name (partial match)").
+		WithOptionalFlag("rate-limit", "Filter VXCs by rate limit in Mbps").
+		WithOptionalFlag("a-end-uid", "Filter VXCs by A-End product UID").
+		WithOptionalFlag("b-end-uid", "Filter VXCs by B-End product UID").
+		WithOptionalFlag("include-inactive", "Include inactive VXCs in the list").
+		WithExample("megaport-cli vxc list").
+		WithExample("megaport-cli vxc list --name \"My VXC\"").
+		WithExample("megaport-cli vxc list --a-end-uid port-abc123").
+		WithExample("megaport-cli vxc list --include-inactive").
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -158,6 +176,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 
 	// Add commands to their parents
 	vxcCmd.AddCommand(
+		listVXCsCmd,
 		getVXCCmd,
 		statusVXCCmd,
 		buyVXCCmd,
