@@ -604,8 +604,8 @@ func TestListVXCs(t *testing.T) {
 			setupMock: func(m *mockVXCService) {
 				m.listVXCResponse = testVXCs
 			},
-			expectedVXCs:   []string{"vxc-demo-01"},
-			unexpectedVXCs: []string{"cancelled-vxc"},
+			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02", "production-vxc"},
+			unexpectedVXCs: []string{"cancelled-vxc", "test-vxc-decom", "decommissioning-vxc"},
 			outputFormat:   "table",
 		},
 		{
@@ -613,8 +613,8 @@ func TestListVXCs(t *testing.T) {
 			setupMock: func(m *mockVXCService) {
 				m.listVXCResponse = testVXCs
 			},
-			expectedVXCs:   []string{"vxc-demo-01"},
-			unexpectedVXCs: []string{"decommissioning-vxc"},
+			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02", "production-vxc"},
+			unexpectedVXCs: []string{"decommissioning-vxc", "test-vxc-decom", "cancelled-vxc"},
 			outputFormat:   "table",
 		},
 		{
