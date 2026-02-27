@@ -8,6 +8,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/commands/completion"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/commands/generate_docs"
+	"github.com/megaport/megaport-cli/internal/commands/ix"
 	"github.com/megaport/megaport-cli/internal/commands/locations"
 	"github.com/megaport/megaport-cli/internal/commands/mcr"
 	"github.com/megaport/megaport-cli/internal/commands/mve"
@@ -49,6 +50,7 @@ func registerModules() {
 	moduleRegistry.Register(servicekeys.NewModule())
 	moduleRegistry.Register(generate_docs.NewModule())
 	moduleRegistry.Register(completion.NewModule())
+	moduleRegistry.Register(ix.NewModule())
 	moduleRegistry.Register(config.NewModule())
 }
 

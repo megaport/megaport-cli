@@ -1,0 +1,1480 @@
+package ix
+
+import (
+	"context"
+	"fmt"
+	"testing"
+
+	"github.com/megaport/megaport-cli/internal/base/output"
+	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/utils"
+	megaport "github.com/megaport/megaportgo"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+)
+
+func testCommandAdapter(fn func(cmd *cobra.Command, args []string, noColor bool) error) func(cmd *cobra.Command, args []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		return fn(cmd, args, false)
+	}
+}
+
+func TestListIXs(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	testIXs := []*megaport.IX{
+		{
+			ProductUID:         "ix-123",
+			ProductName:        "ix-demo-01",
+			NetworkServiceType: "Los Angeles IX",
+			ASN:                65000,
+			VLAN:               100,
+			RateLimit:          1000,
+			MACAddress:         "00:11:22:33:44:55",
+			LocationID:         571,
+			ProvisioningStatus: "LIVE",
+		},
+		{
+			ProductUID:         "ix-456",
+			ProductName:        "ix-demo-02",
+			NetworkServiceType: "Sydney IX",
+			ASN:                65001,
+			VLAN:               200,
+			RateLimit:          2000,
+			MACAddress:         "AA:BB:CC:DD:EE:FF",
+			LocationID:         558,
+			ProvisioningStatus: "LIVE",
+		},
+		{
+			ProductUID:         "ix-789",
+			ProductName:        "production-ix",
+			NetworkServiceType: "London IX",
+			ASN:                65002,
+			VLAN:               300,
+			RateLimit:          5000,
+			MACAddress:         "11:22:33:44:55:66",
+			LocationID:         64,
+			ProvisioningStatus: "LIVE",
+		},
+		{
+			ProductUID:         "ix-decomm",
+			ProductName:        "decommissioned-ix",
+			NetworkServiceType: "Tokyo IX",
+			ASN:                65003,
+			VLAN:               400,
+			RateLimit:          1000,
+			MACAddress:         "FF:EE:DD:CC:BB:AA",
+			LocationID:         571,
+			ProvisioningStatus: "DECOMMISSIONED",
+		},
+		{
+			ProductUID:         "ix-cancelled",
+			ProductName:        "cancelled-ix",
+			NetworkServiceType: "Paris IX",
+			ASN:                65004,
+			VLAN:               500,
+			RateLimit:          1000,
+			MACAddress:         "12:34:56:78:9A:BC",
+			LocationID:         571,
+			ProvisioningStatus: "CANCELLED",
+		},
+		{
+			ProductUID:         "ix-decommissioning",
+			ProductName:        "decommissioning-ix",
+			NetworkServiceType: "Berlin IX",
+			ASN:                65005,
+			VLAN:               600,
+			RateLimit:          1000,
+			MACAddress:         "AB:CD:EF:01:23:45",
+			LocationID:         571,
+			ProvisioningStatus: "DECOMMISSIONING",
+		},
+	}
+
+	tests := []struct {
+		name          string
+		flags         map[string]string
+		setupMock     func(*mockIXService)
+		expectedError string
+		expectedIXs   []string
+		unexpectedIXs []string
+		outputFormat  string
+	}{
+		{
+			name: "list all active IXs",
+			setupMock: func(m *mockIXService) {
+				m.listIXResponse = testIXs
+			},
+			expectedIXs:   []string{"ix-demo-01", "ix-demo-02", "production-ix"},
+			unexpectedIXs: []string{"decommissioned-ix", "cancelled-ix", "decommissioning-ix"},
+			outputFormat:  "table",
+		},
+		{
+			name: "excludes DECOMMISSIONED status",
+			setupMock: func(m *mockIXService) {
+				m.listIXResponse = testIXs
+			},
+			expectedIXs:   []string{"ix-demo-01", "ix-demo-02", "production-ix"},
+			unexpectedIXs: []string{"decommissioned-ix"},
+			outputFormat:  "table",
+		},
+		{
+			name: "excludes CANCELLED status",
+			setupMock: func(m *mockIXService) {
+				m.listIXResponse = testIXs
+			},
+			expectedIXs:   []string{"ix-demo-01", "ix-demo-02", "production-ix"},
+			unexpectedIXs: []string{"cancelled-ix"},
+			outputFormat:  "table",
+		},
+		{
+			name: "excludes DECOMMISSIONING status",
+			setupMock: func(m *mockIXService) {
+				m.listIXResponse = testIXs
+			},
+			expectedIXs:   []string{"ix-demo-01", "ix-demo-02", "production-ix"},
+			unexpectedIXs: []string{"decommissioning-ix"},
+			outputFormat:  "table",
+		},
+		{
+			name: "filter by name",
+			flags: map[string]string{
+				"name": "ix-demo",
+			},
+			setupMock: func(m *mockIXService) {
+				m.listIXResponse = testIXs
+			},
+			expectedIXs:   []string{"ix-demo-01", "ix-demo-02"},
+			unexpectedIXs: []string{"production-ix", "decommissioned-ix"},
+			outputFormat:  "table",
+		},
+		{
+			name: "filter by ASN",
+			flags: map[string]string{
+				"asn": "65000",
+			},
+			setupMock: func(m *mockIXService) {
+				m.listIXResponse = testIXs
+			},
+			expectedIXs:   []string{"ix-demo-01"},
+			unexpectedIXs: []string{"ix-demo-02", "production-ix"},
+			outputFormat:  "table",
+		},
+		{
+			name: "filter by VLAN",
+			flags: map[string]string{
+				"vlan": "200",
+			},
+			setupMock: func(m *mockIXService) {
+				m.listIXResponse = testIXs
+			},
+			expectedIXs:   []string{"ix-demo-02"},
+			unexpectedIXs: []string{"ix-demo-01", "production-ix"},
+			outputFormat:  "table",
+		},
+		{
+			name: "filter by network service type",
+			flags: map[string]string{
+				"network-service-type": "Los Angeles",
+			},
+			setupMock: func(m *mockIXService) {
+				m.listIXResponse = testIXs
+			},
+			expectedIXs:   []string{"ix-demo-01"},
+			unexpectedIXs: []string{"ix-demo-02", "production-ix"},
+			outputFormat:  "table",
+		},
+		{
+			name: "filter by location ID",
+			flags: map[string]string{
+				"location-id": "571",
+			},
+			setupMock: func(m *mockIXService) {
+				m.listIXResponse = testIXs
+			},
+			expectedIXs:   []string{"ix-demo-01"},
+			unexpectedIXs: []string{"ix-demo-02", "production-ix"},
+			outputFormat:  "table",
+		},
+		{
+			name: "filter by rate limit",
+			flags: map[string]string{
+				"rate-limit": "5000",
+			},
+			setupMock: func(m *mockIXService) {
+				m.listIXResponse = testIXs
+			},
+			expectedIXs:   []string{"production-ix"},
+			unexpectedIXs: []string{"ix-demo-01", "ix-demo-02"},
+			outputFormat:  "table",
+		},
+		{
+			name: "combined filters",
+			flags: map[string]string{
+				"name":        "demo",
+				"location-id": "571",
+			},
+			setupMock: func(m *mockIXService) {
+				m.listIXResponse = testIXs
+			},
+			expectedIXs:   []string{"ix-demo-01"},
+			unexpectedIXs: []string{"ix-demo-02", "production-ix"},
+			outputFormat:  "table",
+		},
+		{
+			name: "include inactive",
+			flags: map[string]string{
+				"include-inactive": "true",
+			},
+			setupMock: func(m *mockIXService) {
+				m.listIXResponse = testIXs
+			},
+			expectedIXs:   []string{"ix-demo-01", "ix-demo-02", "production-ix", "decommissioned-ix", "cancelled-ix", "decommissioning-ix"},
+			unexpectedIXs: []string{},
+			outputFormat:  "table",
+		},
+		{
+			name: "include inactive with filter",
+			flags: map[string]string{
+				"include-inactive": "true",
+				"location-id":      "571",
+			},
+			setupMock: func(m *mockIXService) {
+				m.listIXResponse = testIXs
+			},
+			expectedIXs:   []string{"ix-demo-01", "decommissioned-ix", "cancelled-ix", "decommissioning-ix"},
+			unexpectedIXs: []string{"ix-demo-02", "production-ix"},
+			outputFormat:  "table",
+		},
+		{
+			name: "empty API result",
+			setupMock: func(m *mockIXService) {
+				m.listIXResponse = []*megaport.IX{}
+			},
+			expectedIXs:  []string{},
+			outputFormat: "table",
+		},
+		{
+			name: "nil API result",
+			setupMock: func(m *mockIXService) {
+				m.listIXResponse = nil
+			},
+			expectedIXs:  []string{},
+			outputFormat: "table",
+		},
+		{
+			name: "JSON output format",
+			flags: map[string]string{
+				"name": "ix-demo-01",
+			},
+			setupMock: func(m *mockIXService) {
+				m.listIXResponse = testIXs
+			},
+			expectedIXs:   []string{"ix-demo-01"},
+			unexpectedIXs: []string{"ix-demo-02", "production-ix"},
+			outputFormat:  "json",
+		},
+		{
+			name: "CSV output format",
+			flags: map[string]string{
+				"name": "ix-demo-01",
+			},
+			setupMock: func(m *mockIXService) {
+				m.listIXResponse = testIXs
+			},
+			expectedIXs:   []string{"ix-demo-01"},
+			unexpectedIXs: []string{"ix-demo-02", "production-ix"},
+			outputFormat:  "csv",
+		},
+		{
+			name: "API error",
+			setupMock: func(m *mockIXService) {
+				m.listIXErr = fmt.Errorf("API error: service unavailable")
+			},
+			expectedError: "API error: service unavailable",
+			outputFormat:  "table",
+		},
+		{
+			name: "login error",
+			setupMock: func(m *mockIXService) {
+				// Will be handled by overriding LoginFunc to return error
+			},
+			expectedError: "login failed",
+			outputFormat:  "table",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &mockIXService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			if tt.name == "login error" {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, fmt.Errorf("login failed")
+				}
+			} else {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.IXService = mockService
+					return client, nil
+				}
+			}
+
+			cmd := &cobra.Command{
+				Use: "list",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return ListIXs(cmd, args, true, tt.outputFormat)
+				},
+			}
+
+			cmd.Flags().String("name", "", "Filter IXs by name")
+			cmd.Flags().Int("asn", 0, "Filter IXs by ASN")
+			cmd.Flags().Int("vlan", 0, "Filter IXs by VLAN")
+			cmd.Flags().String("network-service-type", "", "Filter IXs by network service type")
+			cmd.Flags().Int("location-id", 0, "Filter IXs by location ID")
+			cmd.Flags().Int("rate-limit", 0, "Filter IXs by rate limit")
+			cmd.Flags().Bool("include-inactive", false, "Include inactive IXs")
+
+			for flagName, flagValue := range tt.flags {
+				err := cmd.Flags().Set(flagName, flagValue)
+				if err != nil {
+					t.Fatalf("Failed to set %s flag: %v", flagName, err)
+				}
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+
+				for _, expectedIX := range tt.expectedIXs {
+					assert.Contains(t, capturedOutput, expectedIX,
+						"Expected IX '%s' should be in output", expectedIX)
+				}
+
+				for _, unexpectedIX := range tt.unexpectedIXs {
+					assert.NotContains(t, capturedOutput, unexpectedIX,
+						"Unexpected IX '%s' should NOT be in output", unexpectedIX)
+				}
+
+				switch tt.outputFormat {
+				case "json":
+					if len(tt.expectedIXs) > 0 {
+						assert.Contains(t, capturedOutput, "\"uid\":")
+						assert.Contains(t, capturedOutput, "\"name\":")
+					}
+				case "table":
+					if len(tt.expectedIXs) > 0 {
+						assert.Contains(t, capturedOutput, "UID")
+						assert.Contains(t, capturedOutput, "NAME")
+					}
+				}
+
+				if len(tt.expectedIXs) == 0 && tt.expectedError == "" {
+					assert.Contains(t, capturedOutput, "No IXs found matching the specified filters")
+				}
+			}
+
+			if mockService.CapturedListIXsRequest != nil {
+				if tt.flags["include-inactive"] == "true" {
+					assert.True(t, mockService.CapturedListIXsRequest.IncludeInactive)
+				} else {
+					assert.False(t, mockService.CapturedListIXsRequest.IncludeInactive)
+				}
+			}
+		})
+	}
+}
+
+func TestBuyIX(t *testing.T) {
+	originalPrompt := utils.ResourcePrompt
+	originalLoginFunc := config.LoginFunc
+	originalBuyIXFunc := buyIXFunc
+	defer func() {
+		utils.ResourcePrompt = originalPrompt
+		config.LoginFunc = originalLoginFunc
+		buyIXFunc = originalBuyIXFunc
+	}()
+
+	tests := []struct {
+		name           string
+		args           []string
+		interactive    bool
+		prompts        []string
+		flags          map[string]string
+		setupMock      func(*mockIXService)
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name: "flag mode success",
+			flags: map[string]string{
+				"product-uid":          "port-uid-123",
+				"name":                 "Flag IX",
+				"network-service-type": "Los Angeles IX",
+				"asn":                  "65000",
+				"mac-address":          "00:11:22:33:44:55",
+				"rate-limit":           "1000",
+				"vlan":                 "100",
+			},
+			setupMock: func(m *mockIXService) {
+				m.buyIXResponse = &megaport.BuyIXResponse{
+					TechnicalServiceUID: "ix-456-def",
+				}
+			},
+			expectedOutput: "IX created",
+		},
+		{
+			name:        "interactive mode success",
+			interactive: true,
+			prompts: []string{
+				"port-uid-123",
+				"Interactive IX",
+				"Los Angeles IX",
+				"65000",
+				"00:11:22:33:44:55",
+				"1000",
+				"100",
+				"",
+			},
+			setupMock: func(m *mockIXService) {
+				m.buyIXResponse = &megaport.BuyIXResponse{
+					TechnicalServiceUID: "ix-123-abc",
+				}
+			},
+			expectedOutput: "IX created",
+		},
+		{
+			name: "missing required fields in flag mode",
+			flags: map[string]string{
+				"name": "Test IX",
+			},
+			setupMock: func(m *mockIXService) {
+				m.validateIXOrderError = fmt.Errorf("validation failed: missing required fields")
+			},
+			expectedError: "validation failed",
+		},
+		{
+			name: "API error",
+			flags: map[string]string{
+				"product-uid":          "port-uid-123",
+				"name":                 "Test IX",
+				"network-service-type": "Los Angeles IX",
+				"asn":                  "65000",
+				"mac-address":          "00:11:22:33:44:55",
+				"rate-limit":           "1000",
+				"vlan":                 "100",
+			},
+			setupMock: func(m *mockIXService) {
+				m.buyIXError = fmt.Errorf("API error: service unavailable")
+			},
+			expectedError: "API error: service unavailable",
+		},
+		{
+			name: "validation error",
+			flags: map[string]string{
+				"product-uid":          "port-uid-123",
+				"name":                 "Test IX",
+				"network-service-type": "Los Angeles IX",
+				"asn":                  "65000",
+				"mac-address":          "00:11:22:33:44:55",
+				"rate-limit":           "1000",
+				"vlan":                 "100",
+			},
+			setupMock: func(m *mockIXService) {
+				m.validateIXOrderError = fmt.Errorf("validation error: invalid configuration")
+			},
+			expectedError: "validation error",
+		},
+		{
+			name:          "no input provided",
+			expectedError: "no input provided",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if len(tt.prompts) > 0 {
+				promptIndex := 0
+				utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+					if promptIndex < len(tt.prompts) {
+						response := tt.prompts[promptIndex]
+						promptIndex++
+						return response, nil
+					}
+					return "", fmt.Errorf("unexpected prompt call")
+				}
+			}
+
+			mockService := &mockIXService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.IXService = mockService
+				return client, nil
+			}
+
+			cmd := &cobra.Command{
+				Use:  "buy",
+				RunE: testCommandAdapter(BuyIX),
+			}
+
+			cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode with prompts")
+			cmd.Flags().String("product-uid", "", "Port UID")
+			cmd.Flags().String("name", "", "IX name")
+			cmd.Flags().String("network-service-type", "", "Network service type")
+			cmd.Flags().Int("asn", 0, "ASN")
+			cmd.Flags().String("mac-address", "", "MAC address")
+			cmd.Flags().Int("rate-limit", 0, "Rate limit")
+			cmd.Flags().Int("vlan", 0, "VLAN")
+			cmd.Flags().Bool("shutdown", false, "Shutdown")
+			cmd.Flags().String("promo-code", "", "Promo code")
+			cmd.Flags().String("json", "", "JSON string containing IX configuration")
+			cmd.Flags().String("json-file", "", "Path to JSON file containing IX configuration")
+
+			if tt.interactive {
+				if err := cmd.Flags().Set("interactive", "true"); err != nil {
+					t.Fatalf("Failed to set interactive flag: %v", err)
+				}
+			}
+
+			for flagName, flagValue := range tt.flags {
+				err := cmd.Flags().Set(flagName, flagValue)
+				if err != nil {
+					t.Fatalf("Failed to set %s flag: %v", flagName, err)
+				}
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, tt.args)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+
+				if mockService.capturedBuyIXRequest != nil {
+					req := mockService.capturedBuyIXRequest
+
+					if tt.flags != nil {
+						assert.Equal(t, tt.flags["product-uid"], req.ProductUID)
+						assert.Equal(t, tt.flags["name"], req.Name)
+						assert.Equal(t, tt.flags["network-service-type"], req.NetworkServiceType)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestGetIXStatus(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name           string
+		ixUID          string
+		setupMock      func(*mockIXService)
+		expectedError  string
+		expectedOutput string
+		outputFormat   string
+	}{
+		{
+			name:  "successful status retrieval - table format",
+			ixUID: "ix-123abc",
+			setupMock: func(m *mockIXService) {
+				m.getIXResponse = &megaport.IX{
+					ProductUID:         "ix-123abc",
+					ProductName:        "Test IX",
+					ProvisioningStatus: "CONFIGURED",
+					NetworkServiceType: "Los Angeles IX",
+				}
+			},
+			expectedOutput: "ix-123abc",
+			outputFormat:   "table",
+		},
+		{
+			name:  "successful status retrieval - json format",
+			ixUID: "ix-123abc",
+			setupMock: func(m *mockIXService) {
+				m.getIXResponse = &megaport.IX{
+					ProductUID:         "ix-123abc",
+					ProductName:        "Test IX",
+					ProvisioningStatus: "LIVE",
+					NetworkServiceType: "Los Angeles IX",
+				}
+			},
+			expectedOutput: "ix-123abc",
+			outputFormat:   "json",
+		},
+		{
+			name:  "API error",
+			ixUID: "ix-error",
+			setupMock: func(m *mockIXService) {
+				m.getIXError = fmt.Errorf("API error")
+			},
+			expectedError: "API error",
+			outputFormat:  "table",
+		},
+		{
+			name:  "nil IX returned without error",
+			ixUID: "ix-nil",
+			setupMock: func(m *mockIXService) {
+				m.forceNilGetIX = true
+			},
+			expectedError: "no IX found",
+			outputFormat:  "table",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &mockIXService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.IXService = mockService
+				return client, nil
+			}
+
+			cmd := &cobra.Command{
+				Use: "status [ixUID]",
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = GetIXStatus(cmd, []string{tt.ixUID}, true, tt.outputFormat)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+
+				switch tt.outputFormat {
+				case "json":
+					assert.Contains(t, capturedOutput, "\"uid\":")
+					assert.Contains(t, capturedOutput, "\"name\":")
+					assert.Contains(t, capturedOutput, "\"status\":")
+					assert.Contains(t, capturedOutput, "\"type\":")
+				case "table":
+					assert.Contains(t, capturedOutput, "UID")
+					assert.Contains(t, capturedOutput, "NAME")
+					assert.Contains(t, capturedOutput, "STATUS")
+					assert.Contains(t, capturedOutput, "TYPE")
+				}
+			}
+		})
+	}
+}
+
+func TestDeleteIX(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	originalPrompt := utils.ResourcePrompt
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		utils.ResourcePrompt = originalPrompt
+	}()
+
+	tests := []struct {
+		name           string
+		ixUID          string
+		force          bool
+		deleteNow      bool
+		promptResponse string
+		setupMock      func(*mockIXService)
+		expectedError  string
+		expectedOutput string
+		expectDeleted  bool
+	}{
+		{
+			name:           "confirm deletion with force",
+			ixUID:          "ix-to-delete",
+			force:          true,
+			setupMock:      func(m *mockIXService) {},
+			expectedOutput: "IX deleted",
+			expectDeleted:  true,
+		},
+		{
+			name:           "confirm deletion with prompt",
+			ixUID:          "ix-to-delete",
+			force:          false,
+			promptResponse: "y",
+			setupMock:      func(m *mockIXService) {},
+			expectedOutput: "IX deleted",
+			expectDeleted:  true,
+		},
+		{
+			name:           "cancel deletion",
+			ixUID:          "ix-keep",
+			force:          false,
+			promptResponse: "n",
+			setupMock:      func(m *mockIXService) {},
+			expectedOutput: "Deletion cancelled",
+			expectDeleted:  false,
+		},
+		{
+			name:  "deletion error",
+			ixUID: "ix-error",
+			force: true,
+			setupMock: func(m *mockIXService) {
+				m.deleteIXError = fmt.Errorf("error deleting IX")
+			},
+			expectedError: "error deleting IX",
+			expectDeleted: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &mockIXService{}
+			tt.setupMock(mockService)
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.IXService = mockService
+				return client, nil
+			}
+
+			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+				return tt.promptResponse, nil
+			}
+
+			cmd := &cobra.Command{
+				Use: "delete [ixUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return DeleteIX(cmd, args, false)
+				},
+			}
+			cmd.Flags().BoolP("force", "f", false, "Force deletion without confirmation")
+			cmd.Flags().Bool("now", false, "Delete IX immediately")
+			err := cmd.Flags().Set("force", fmt.Sprintf("%v", tt.force))
+			if err != nil {
+				t.Fatalf("Failed to set force flag: %v", err)
+			}
+			err = cmd.Flags().Set("now", fmt.Sprintf("%v", tt.deleteNow))
+			if err != nil {
+				t.Fatalf("Failed to set now flag: %v", err)
+			}
+
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.ixUID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+
+				if tt.expectDeleted {
+					assert.Equal(t, tt.ixUID, mockService.capturedDeleteIXUID)
+				}
+			}
+		})
+	}
+}
+
+func TestGetIX(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name          string
+		ixUID         string
+		format        string
+		setupMock     func(*mockIXService)
+		expectedError string
+		expectedOut   []string
+	}{
+		{
+			name:   "get IX success table format",
+			ixUID:  "ix-123",
+			format: "table",
+			setupMock: func(m *mockIXService) {
+				m.getIXResponse = &megaport.IX{
+					ProductUID:         "ix-123",
+					ProductName:        "Test IX",
+					NetworkServiceType: "Los Angeles IX",
+					ASN:                65000,
+					RateLimit:          1000,
+					VLAN:               100,
+					MACAddress:         "00:11:22:33:44:55",
+					ProvisioningStatus: "LIVE",
+				}
+			},
+			expectedOut: []string{"ix-123", "Test IX", "Los Angeles IX", "LIVE"},
+		},
+		{
+			name:   "get IX success json format",
+			ixUID:  "ix-123",
+			format: "json",
+			setupMock: func(m *mockIXService) {
+				m.getIXResponse = &megaport.IX{
+					ProductUID:         "ix-123",
+					ProductName:        "Test IX",
+					NetworkServiceType: "Los Angeles IX",
+					ASN:                65000,
+					RateLimit:          1000,
+					VLAN:               100,
+					MACAddress:         "00:11:22:33:44:55",
+					ProvisioningStatus: "LIVE",
+				}
+			},
+			expectedOut: []string{`"uid": "ix-123"`, `"name": "Test IX"`, `"network_service_type": "Los Angeles IX"`},
+		},
+		{
+			name:   "get IX success csv format",
+			ixUID:  "ix-123",
+			format: "csv",
+			setupMock: func(m *mockIXService) {
+				m.getIXResponse = &megaport.IX{
+					ProductUID:         "ix-123",
+					ProductName:        "Test IX",
+					NetworkServiceType: "Los Angeles IX",
+					ASN:                65000,
+					RateLimit:          1000,
+					VLAN:               100,
+					MACAddress:         "00:11:22:33:44:55",
+					ProvisioningStatus: "LIVE",
+				}
+			},
+			expectedOut: []string{"ix-123", "Test IX", "Los Angeles IX"},
+		},
+		{
+			name:   "get IX API error",
+			ixUID:  "ix-invalid",
+			format: "table",
+			setupMock: func(m *mockIXService) {
+				m.getIXError = fmt.Errorf("IX not found")
+			},
+			expectedError: "IX not found",
+		},
+		{
+			name:   "get IX login error",
+			ixUID:  "ix-123",
+			format: "table",
+			setupMock: func(m *mockIXService) {
+				// login error handled separately
+			},
+			expectedError: "login failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &mockIXService{}
+			tt.setupMock(mockService)
+
+			if tt.name == "get IX login error" {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, fmt.Errorf("login failed")
+				}
+			} else {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.IXService = mockService
+					return client, nil
+				}
+			}
+
+			var err error
+			cmd := &cobra.Command{
+				Use: "get [ixUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return GetIX(cmd, args, false, tt.format)
+				},
+			}
+
+			cmd.Flags().StringP("output", "o", "table", "Output format")
+			_ = cmd.Flags().Set("output", tt.format)
+
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.ixUID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				for _, expected := range tt.expectedOut {
+					assert.Contains(t, capturedOutput, expected)
+				}
+			}
+		})
+	}
+}
+
+func TestUpdateIX(t *testing.T) {
+	originalPrompt := utils.ResourcePrompt
+	originalLoginFunc := config.LoginFunc
+	originalUpdateIXFunc := updateIXFunc
+	originalGetIXFunc := getIXFunc
+	defer func() {
+		utils.ResourcePrompt = originalPrompt
+		config.LoginFunc = originalLoginFunc
+		updateIXFunc = originalUpdateIXFunc
+		getIXFunc = originalGetIXFunc
+	}()
+
+	tests := []struct {
+		name           string
+		ixUID          string
+		interactive    bool
+		prompts        []string
+		flags          map[string]string
+		jsonInput      string
+		setupMock      func(*mockIXService)
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name:  "flag mode - update name",
+			ixUID: "ix-123",
+			flags: map[string]string{
+				"name": "Updated IX",
+			},
+			setupMock: func(m *mockIXService) {
+				m.getIXResponse = &megaport.IX{
+					ProductUID:         "ix-123",
+					ProductName:        "Original IX",
+					ProvisioningStatus: "LIVE",
+				}
+				m.updateIXResponse = &megaport.IX{
+					ProductUID:         "ix-123",
+					ProductName:        "Updated IX",
+					ProvisioningStatus: "LIVE",
+				}
+			},
+			expectedOutput: "IX updated",
+		},
+		{
+			name:  "flag mode - update rate-limit",
+			ixUID: "ix-123",
+			flags: map[string]string{
+				"rate-limit": "2000",
+			},
+			setupMock: func(m *mockIXService) {
+				m.getIXResponse = &megaport.IX{
+					ProductUID:         "ix-123",
+					ProductName:        "Test IX",
+					RateLimit:          1000,
+					ProvisioningStatus: "LIVE",
+				}
+				m.updateIXResponse = &megaport.IX{
+					ProductUID:         "ix-123",
+					ProductName:        "Test IX",
+					RateLimit:          2000,
+					ProvisioningStatus: "LIVE",
+				}
+			},
+			expectedOutput: "IX updated",
+		},
+		{
+			name:  "flag mode - update multiple fields",
+			ixUID: "ix-123",
+			flags: map[string]string{
+				"name":        "Updated IX",
+				"rate-limit":  "2000",
+				"vlan":        "200",
+				"mac-address": "AA:BB:CC:DD:EE:FF",
+				"asn":         "65001",
+			},
+			setupMock: func(m *mockIXService) {
+				m.getIXResponse = &megaport.IX{
+					ProductUID:         "ix-123",
+					ProductName:        "Original IX",
+					RateLimit:          1000,
+					VLAN:               100,
+					MACAddress:         "00:11:22:33:44:55",
+					ASN:                65000,
+					ProvisioningStatus: "LIVE",
+				}
+				m.updateIXResponse = &megaport.IX{
+					ProductUID:         "ix-123",
+					ProductName:        "Updated IX",
+					RateLimit:          2000,
+					VLAN:               200,
+					MACAddress:         "AA:BB:CC:DD:EE:FF",
+					ASN:                65001,
+					ProvisioningStatus: "LIVE",
+				}
+			},
+			expectedOutput: "IX updated",
+		},
+		{
+			name:      "JSON string mode",
+			ixUID:     "ix-123",
+			jsonInput: `{"name":"JSON Updated IX","rateLimit":3000}`,
+			setupMock: func(m *mockIXService) {
+				m.getIXResponse = &megaport.IX{
+					ProductUID:         "ix-123",
+					ProductName:        "Original IX",
+					RateLimit:          1000,
+					ProvisioningStatus: "LIVE",
+				}
+				m.updateIXResponse = &megaport.IX{
+					ProductUID:         "ix-123",
+					ProductName:        "JSON Updated IX",
+					RateLimit:          3000,
+					ProvisioningStatus: "LIVE",
+				}
+			},
+			expectedOutput: "IX updated",
+		},
+		{
+			name:        "interactive mode",
+			ixUID:       "ix-123",
+			interactive: true,
+			prompts: []string{
+				"Updated IX", // name
+				"",           // rate-limit (skip)
+				"",           // cost-centre (skip)
+				"",           // vlan (skip)
+				"",           // mac-address (skip)
+				"",           // asn (skip)
+				"",           // password (skip)
+				"",           // reverse-dns (skip)
+			},
+			setupMock: func(m *mockIXService) {
+				m.getIXResponse = &megaport.IX{
+					ProductUID:         "ix-123",
+					ProductName:        "Original IX",
+					ProvisioningStatus: "LIVE",
+				}
+				m.updateIXResponse = &megaport.IX{
+					ProductUID:         "ix-123",
+					ProductName:        "Updated IX",
+					ProvisioningStatus: "LIVE",
+				}
+			},
+			expectedOutput: "IX updated",
+		},
+		{
+			name:          "no fields provided",
+			ixUID:         "ix-123",
+			setupMock:     func(m *mockIXService) {},
+			expectedError: "at least one field must be updated",
+		},
+		{
+			name:  "no args",
+			ixUID: "",
+			flags: map[string]string{
+				"name": "Test",
+			},
+			setupMock:     func(m *mockIXService) {},
+			expectedError: "IX UID is required",
+		},
+		{
+			name:  "API error during update",
+			ixUID: "ix-123",
+			flags: map[string]string{
+				"name": "Updated IX",
+			},
+			setupMock: func(m *mockIXService) {
+				m.getIXResponse = &megaport.IX{
+					ProductUID:         "ix-123",
+					ProductName:        "Original IX",
+					ProvisioningStatus: "LIVE",
+				}
+				m.updateIXError = fmt.Errorf("API error: update failed")
+			},
+			expectedError: "API error: update failed",
+		},
+		{
+			name:  "error getting original IX",
+			ixUID: "ix-123",
+			flags: map[string]string{
+				"name": "Updated IX",
+			},
+			setupMock: func(m *mockIXService) {
+				m.getIXError = fmt.Errorf("IX not found")
+			},
+			expectedError: "IX not found",
+		},
+		{
+			name:  "login error",
+			ixUID: "ix-123",
+			flags: map[string]string{
+				"name": "Updated IX",
+			},
+			setupMock:     func(m *mockIXService) {},
+			expectedError: "login failed",
+		},
+		{
+			name:          "invalid JSON input",
+			ixUID:         "ix-123",
+			jsonInput:     `{invalid json`,
+			setupMock:     func(m *mockIXService) {},
+			expectedError: "error parsing JSON",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if len(tt.prompts) > 0 {
+				promptIndex := 0
+				utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+					if promptIndex < len(tt.prompts) {
+						response := tt.prompts[promptIndex]
+						promptIndex++
+						return response, nil
+					}
+					return "", fmt.Errorf("unexpected prompt call")
+				}
+			}
+
+			mockService := &mockIXService{}
+			tt.setupMock(mockService)
+
+			if tt.name == "login error" {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, fmt.Errorf("login failed")
+				}
+			} else {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.IXService = mockService
+					return client, nil
+				}
+			}
+
+			cmd := &cobra.Command{
+				Use:  "update",
+				RunE: testCommandAdapter(UpdateIX),
+			}
+
+			cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode")
+			cmd.Flags().String("name", "", "IX name")
+			cmd.Flags().Int("rate-limit", 0, "Rate limit")
+			cmd.Flags().String("cost-centre", "", "Cost centre")
+			cmd.Flags().Int("vlan", 0, "VLAN")
+			cmd.Flags().String("mac-address", "", "MAC address")
+			cmd.Flags().Int("asn", 0, "ASN")
+			cmd.Flags().String("password", "", "Password")
+			cmd.Flags().Bool("public-graph", false, "Public graph")
+			cmd.Flags().String("reverse-dns", "", "Reverse DNS")
+			cmd.Flags().String("a-end-product-uid", "", "A-End product UID")
+			cmd.Flags().Bool("shutdown", false, "Shutdown")
+			cmd.Flags().String("json", "", "JSON string")
+			cmd.Flags().String("json-file", "", "JSON file")
+
+			if tt.interactive {
+				_ = cmd.Flags().Set("interactive", "true")
+			}
+
+			if tt.jsonInput != "" {
+				_ = cmd.Flags().Set("json", tt.jsonInput)
+			}
+
+			for flagName, flagValue := range tt.flags {
+				err := cmd.Flags().Set(flagName, flagValue)
+				if err != nil {
+					t.Fatalf("Failed to set %s flag: %v", flagName, err)
+				}
+			}
+
+			var args []string
+			if tt.ixUID != "" {
+				args = []string{tt.ixUID}
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, args)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+
+				// Verify the mock captured the update request
+				if mockService.capturedUpdateIXUID != "" {
+					assert.Equal(t, tt.ixUID, mockService.capturedUpdateIXUID)
+				}
+			}
+		})
+	}
+}
+
+func TestUpdateIXFunc(t *testing.T) {
+	mockService := &mockIXService{
+		updateIXResponse: &megaport.IX{
+			ProductUID:         "ix-123",
+			ProductName:        "Updated IX",
+			ProvisioningStatus: "LIVE",
+		},
+	}
+
+	client := &megaport.Client{
+		IXService: mockService,
+	}
+
+	ctx := context.Background()
+	name := "Updated IX"
+	req := &megaport.UpdateIXRequest{
+		Name: &name,
+	}
+	resp, err := updateIXFunc(ctx, client, "ix-123", req)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, "Updated IX", resp.ProductName)
+	assert.Equal(t, "ix-123", mockService.capturedUpdateIXUID)
+	assert.Equal(t, req, mockService.capturedUpdateIXReq)
+}
+
+func TestUpdateIXFunc_Error(t *testing.T) {
+	mockService := &mockIXService{
+		updateIXError: fmt.Errorf("update failed"),
+	}
+
+	client := &megaport.Client{
+		IXService: mockService,
+	}
+
+	ctx := context.Background()
+	name := "Updated IX"
+	req := &megaport.UpdateIXRequest{
+		Name: &name,
+	}
+	resp, err := updateIXFunc(ctx, client, "ix-123", req)
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "update failed")
+}
+
+func TestBuyIX_JSONStringMode(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	mockService := &mockIXService{
+		buyIXResponse: &megaport.BuyIXResponse{
+			TechnicalServiceUID: "ix-json-abc",
+		},
+	}
+
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.IXService = mockService
+		return client, nil
+	}
+
+	cmd := &cobra.Command{
+		Use:  "buy",
+		RunE: testCommandAdapter(BuyIX),
+	}
+
+	cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode")
+	cmd.Flags().String("product-uid", "", "Port UID")
+	cmd.Flags().String("name", "", "IX name")
+	cmd.Flags().String("network-service-type", "", "Network service type")
+	cmd.Flags().Int("asn", 0, "ASN")
+	cmd.Flags().String("mac-address", "", "MAC address")
+	cmd.Flags().Int("rate-limit", 0, "Rate limit")
+	cmd.Flags().Int("vlan", 0, "VLAN")
+	cmd.Flags().Bool("shutdown", false, "Shutdown")
+	cmd.Flags().String("promo-code", "", "Promo code")
+	cmd.Flags().String("json", "", "JSON string")
+	cmd.Flags().String("json-file", "", "JSON file")
+
+	jsonInput := `{"productUid":"port-uid-json","productName":"JSON IX","networkServiceType":"Sydney IX","asn":65100,"macAddress":"AA:BB:CC:DD:EE:FF","rateLimit":2000,"vlan":200}`
+	_ = cmd.Flags().Set("json", jsonInput)
+
+	var err error
+	capturedOutput := output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, []string{})
+	})
+
+	assert.NoError(t, err)
+	assert.Contains(t, capturedOutput, "IX created")
+	assert.Contains(t, capturedOutput, "ix-json-abc")
+
+	// Verify captured request fields
+	assert.NotNil(t, mockService.capturedBuyIXRequest)
+	assert.Equal(t, "port-uid-json", mockService.capturedBuyIXRequest.ProductUID)
+	assert.Equal(t, "JSON IX", mockService.capturedBuyIXRequest.Name)
+	assert.Equal(t, "Sydney IX", mockService.capturedBuyIXRequest.NetworkServiceType)
+	assert.Equal(t, 65100, mockService.capturedBuyIXRequest.ASN)
+	assert.Equal(t, "AA:BB:CC:DD:EE:FF", mockService.capturedBuyIXRequest.MACAddress)
+	assert.Equal(t, 2000, mockService.capturedBuyIXRequest.RateLimit)
+	assert.Equal(t, 200, mockService.capturedBuyIXRequest.VLAN)
+}
+
+func TestBuyIX_InvalidJSON(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.IXService = &mockIXService{}
+		return client, nil
+	}
+
+	cmd := &cobra.Command{
+		Use:  "buy",
+		RunE: testCommandAdapter(BuyIX),
+	}
+
+	cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode")
+	cmd.Flags().String("product-uid", "", "Port UID")
+	cmd.Flags().String("name", "", "IX name")
+	cmd.Flags().String("network-service-type", "", "Network service type")
+	cmd.Flags().Int("asn", 0, "ASN")
+	cmd.Flags().String("mac-address", "", "MAC address")
+	cmd.Flags().Int("rate-limit", 0, "Rate limit")
+	cmd.Flags().Int("vlan", 0, "VLAN")
+	cmd.Flags().Bool("shutdown", false, "Shutdown")
+	cmd.Flags().String("promo-code", "", "Promo code")
+	cmd.Flags().String("json", "", "JSON string")
+	cmd.Flags().String("json-file", "", "JSON file")
+
+	_ = cmd.Flags().Set("json", `{invalid json}`)
+
+	var err error
+	output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, []string{})
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "error parsing JSON")
+}
+
+func TestBuyIX_LoginError(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		return nil, fmt.Errorf("login failed")
+	}
+
+	cmd := &cobra.Command{
+		Use:  "buy",
+		RunE: testCommandAdapter(BuyIX),
+	}
+
+	cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode")
+	cmd.Flags().String("product-uid", "", "Port UID")
+	cmd.Flags().String("name", "", "IX name")
+	cmd.Flags().String("network-service-type", "", "Network service type")
+	cmd.Flags().Int("asn", 0, "ASN")
+	cmd.Flags().String("mac-address", "", "MAC address")
+	cmd.Flags().Int("rate-limit", 0, "Rate limit")
+	cmd.Flags().Int("vlan", 0, "VLAN")
+	cmd.Flags().Bool("shutdown", false, "Shutdown")
+	cmd.Flags().String("promo-code", "", "Promo code")
+	cmd.Flags().String("json", "", "JSON string")
+	cmd.Flags().String("json-file", "", "JSON file")
+
+	_ = cmd.Flags().Set("name", "Test IX")
+
+	var err error
+	output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, []string{})
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "login failed")
+}
+
+func TestGetIXFunc(t *testing.T) {
+	mockService := &mockIXService{
+		getIXResponse: &megaport.IX{
+			ProductUID:         "ix-123",
+			ProductName:        "Test IX",
+			ProvisioningStatus: "LIVE",
+		},
+	}
+
+	client := &megaport.Client{
+		IXService: mockService,
+	}
+
+	ctx := context.Background()
+	ix, err := getIXFunc(ctx, client, "ix-123")
+	assert.NoError(t, err)
+	assert.NotNil(t, ix)
+	assert.Equal(t, "ix-123", ix.ProductUID)
+	assert.Equal(t, "Test IX", ix.ProductName)
+}
+
+func TestBuyIXFunc(t *testing.T) {
+	mockService := &mockIXService{
+		buyIXResponse: &megaport.BuyIXResponse{
+			TechnicalServiceUID: "ix-123-abc",
+		},
+	}
+
+	client := &megaport.Client{
+		IXService: mockService,
+	}
+
+	ctx := context.Background()
+	req := &megaport.BuyIXRequest{
+		ProductUID:         "port-uid-123",
+		Name:               "Test IX",
+		NetworkServiceType: "Los Angeles IX",
+		ASN:                65000,
+		MACAddress:         "00:11:22:33:44:55",
+		RateLimit:          1000,
+		VLAN:               100,
+	}
+	resp, err := buyIXFunc(ctx, client, req)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, "ix-123-abc", resp.TechnicalServiceUID)
+}
+
+func TestDeleteIXFunc(t *testing.T) {
+	mockService := &mockIXService{}
+
+	client := &megaport.Client{
+		IXService: mockService,
+	}
+
+	ctx := context.Background()
+	req := &megaport.DeleteIXRequest{
+		DeleteNow: true,
+	}
+	err := deleteIXFunc(ctx, client, "ix-123", req)
+	assert.NoError(t, err)
+	assert.Equal(t, "ix-123", mockService.capturedDeleteIXUID)
+}
