@@ -3,6 +3,7 @@ package vxc
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	megaport "github.com/megaport/megaportgo"
 )
@@ -47,4 +48,33 @@ var getPartnerPortUID = func(ctx context.Context, svc megaport.VXCService, key, 
 	}
 
 	return res.ProductUID, nil
+}
+
+func filterVXCs(vxcs []*megaport.VXC, name, aEndUID, bEndUID string, rateLimit int) []*megaport.VXC {
+	var filtered []*megaport.VXC
+
+	if vxcs == nil {
+		return filtered
+	}
+
+	for _, vxc := range vxcs {
+		if vxc == nil {
+			continue
+		}
+		if name != "" && !strings.Contains(strings.ToLower(vxc.Name), strings.ToLower(name)) {
+			continue
+		}
+		if rateLimit > 0 && vxc.RateLimit != rateLimit {
+			continue
+		}
+		if aEndUID != "" && vxc.AEndConfiguration.UID != aEndUID {
+			continue
+		}
+		if bEndUID != "" && vxc.BEndConfiguration.UID != bEndUID {
+			continue
+		}
+		filtered = append(filtered, vxc)
+	}
+
+	return filtered
 }

@@ -15,6 +15,64 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	name, _ := cmd.Flags().GetString("name")
+	rateLimit, _ := cmd.Flags().GetInt("rate-limit")
+	aEndUID, _ := cmd.Flags().GetString("a-end-uid")
+	bEndUID, _ := cmd.Flags().GetString("b-end-uid")
+	includeInactive, _ := cmd.Flags().GetBool("include-inactive")
+
+	req := &megaport.ListVXCsRequest{
+		IncludeInactive: includeInactive,
+	}
+
+	spinner := output.PrintResourceListing("VXC", noColor)
+
+	vxcs, err := client.VXCService.ListVXCs(ctx, req)
+
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to list VXCs: %v", noColor, err)
+		return fmt.Errorf("error listing VXCs: %v", err)
+	}
+
+	var activeVXCs []*megaport.VXC
+	if !includeInactive {
+		for _, vxc := range vxcs {
+			if vxc != nil &&
+				vxc.ProvisioningStatus != megaport.STATUS_DECOMMISSIONED &&
+				vxc.ProvisioningStatus != megaport.STATUS_CANCELLED &&
+				vxc.ProvisioningStatus != "DECOMMISSIONING" {
+				activeVXCs = append(activeVXCs, vxc)
+			}
+		}
+		vxcs = activeVXCs
+	}
+
+	filteredVXCs := filterVXCs(vxcs, name, aEndUID, bEndUID, rateLimit)
+
+	if len(filteredVXCs) == 0 {
+		output.PrintWarning("No VXCs found matching the specified filters", noColor)
+	}
+
+	err = printVXCs(filteredVXCs, outputFormat, noColor)
+	if err != nil {
+		output.PrintError("Failed to print VXCs: %v", noColor, err)
+		return fmt.Errorf("error printing VXCs: %v", err)
+	}
+	return nil
+}
+
 func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()

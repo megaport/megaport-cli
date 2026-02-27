@@ -23,6 +23,7 @@ type mockVXCService struct {
 	listVXCResponse                      []*megaport.VXC
 	buyVXCErr                            error
 	listVXCErr                           error
+	CapturedListVXCsRequest              *megaport.ListVXCsRequest
 	onBuyVXC                             func(context.Context, *megaport.BuyVXCRequest)
 	ListVXCResourceTagsErr               error
 	ListVXCResourceTagsResult            map[string]string
@@ -70,6 +71,7 @@ func (m *mockVXCService) UpdateVXC(ctx context.Context, id string, req *megaport
 }
 
 func (m *mockVXCService) ListVXCs(ctx context.Context, req *megaport.ListVXCsRequest) ([]*megaport.VXC, error) {
+	m.CapturedListVXCsRequest = req
 	if m.listVXCErr != nil {
 		return nil, m.listVXCErr
 	}
