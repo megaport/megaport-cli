@@ -83,6 +83,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
+	// Note: No delete command — the ManagedAccountService SDK does not expose a delete operation.
+
 	// Add commands to their parents
 	managedAccountCmd.AddCommand(
 		listCmd,

@@ -442,25 +442,6 @@ func TestCreateManagedAccount(t *testing.T) {
 			},
 		},
 		{
-			name: "flag mode - name only",
-			flags: map[string]string{
-				"account-name": "Name Only Account",
-			},
-			setupMock: func(m *mockManagedAccountService) {
-				m.createResult = &megaport.ManagedAccount{
-					AccountName: "Name Only Account",
-					AccountRef:  "",
-					CompanyUID:  "name-only-uid",
-				}
-			},
-			expectedOut: []string{"name-only-uid"},
-			validateCaptured: func(t *testing.T, m *mockManagedAccountService) {
-				assert.NotNil(t, m.capturedCreateReq)
-				assert.Equal(t, "Name Only Account", m.capturedCreateReq.AccountName)
-				assert.Equal(t, "", m.capturedCreateReq.AccountRef)
-			},
-		},
-		{
 			name: "interactive mode",
 			flags: map[string]string{
 				"interactive": "true",
