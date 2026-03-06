@@ -30,7 +30,7 @@ var getPartnerPortUID = func(ctx context.Context, svc megaport.VXCService, key, 
 	var res *megaport.LookupPartnerPortsResponse
 	var err error
 
-	if partnerName == "GOOGLE" || partnerName == "ORACLE" {
+	if partnerName == "AZURE" || partnerName == "GOOGLE" || partnerName == "ORACLE" {
 		res, err = svc.LookupPartnerPorts(ctx, &megaport.LookupPartnerPortsRequest{
 			Key:     key,
 			Partner: partnerName,
