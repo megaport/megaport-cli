@@ -880,16 +880,16 @@ var buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateV
 
 	if cmd.Flags().Changed("a-end-inner-vlan") {
 		aEndInnerVLAN, _ := cmd.Flags().GetInt("a-end-inner-vlan")
-		if aEndInnerVLAN != -1 && aEndInnerVLAN != 0 && aEndInnerVLAN < 2 {
-			return nil, fmt.Errorf("a-end-inner-vlan must be -1, 0, or greater than 1")
+		if err := validation.ValidateVXCEndInnerVLAN(aEndInnerVLAN); err != nil {
+			return nil, fmt.Errorf("invalid a-end-inner-vlan: %w", err)
 		}
 		req.AEndInnerVLAN = &aEndInnerVLAN
 	}
 
 	if cmd.Flags().Changed("b-end-inner-vlan") {
 		bEndInnerVLAN, _ := cmd.Flags().GetInt("b-end-inner-vlan")
-		if bEndInnerVLAN != -1 && bEndInnerVLAN != 0 && bEndInnerVLAN < 2 {
-			return nil, fmt.Errorf("b-end-inner-vlan must be -1, 0, or greater than 1")
+		if err := validation.ValidateVXCEndInnerVLAN(bEndInnerVLAN); err != nil {
+			return nil, fmt.Errorf("invalid b-end-inner-vlan: %w", err)
 		}
 		req.BEndInnerVLAN = &bEndInnerVLAN
 	}
@@ -1035,16 +1035,16 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 
 	if aEndInnerVLAN, ok := rawData["aEndInnerVlan"].(float64); ok {
 		aEndInnerVLANInt := int(aEndInnerVLAN)
-		if aEndInnerVLANInt != -1 && aEndInnerVLANInt != 0 && aEndInnerVLANInt < 2 {
-			return nil, fmt.Errorf("aEndInnerVlan must be -1, 0, or greater than 1")
+		if err := validation.ValidateVXCEndInnerVLAN(aEndInnerVLANInt); err != nil {
+			return nil, fmt.Errorf("invalid aEndInnerVlan: %w", err)
 		}
 		req.AEndInnerVLAN = &aEndInnerVLANInt
 	}
 
 	if bEndInnerVLAN, ok := rawData["bEndInnerVlan"].(float64); ok {
 		bEndInnerVLANInt := int(bEndInnerVLAN)
-		if bEndInnerVLANInt != -1 && bEndInnerVLANInt != 0 && bEndInnerVLANInt < 2 {
-			return nil, fmt.Errorf("bEndInnerVlan must be -1, 0, or greater than 1")
+		if err := validation.ValidateVXCEndInnerVLAN(bEndInnerVLANInt); err != nil {
+			return nil, fmt.Errorf("invalid bEndInnerVlan: %w", err)
 		}
 		req.BEndInnerVLAN = &bEndInnerVLANInt
 	}
