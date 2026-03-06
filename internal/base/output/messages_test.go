@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -414,6 +415,51 @@ func TestFormatNewValue(t *testing.T) {
 	result = FormatNewValue("new-value", false)
 	assert.NotEqual(t, "new-value", result)
 	assert.Contains(t, StripANSIColors(result), "new-value")
+}
+
+// TestOutputFormatConcurrency verifies that SetOutputFormat, getOutputFormat,
+// Print* helpers, and spinner creation can be called concurrently without a
+// data race. Run with: go test -race ./internal/base/output/...
+func TestOutputFormatConcurrency(t *testing.T) {
+	const goroutines = 10
+	const iterations = 50
+
+	// Restore original format after the test.
+	origFormat := getOutputFormat()
+	defer SetOutputFormat(origFormat)
+
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+
+	for i := 0; i < goroutines; i++ {
+		go func(id int) {
+			defer wg.Done()
+			for j := 0; j < iterations; j++ {
+				// Alternate between formats to maximize contention.
+				if j%2 == 0 {
+					SetOutputFormat("json")
+				} else {
+					SetOutputFormat("table")
+				}
+
+				// Read the format (the main thing under test).
+				f := getOutputFormat()
+				assert.Contains(t, []string{"json", "table"}, f)
+
+				// Exercise Print* helpers that read the atomic value.
+				PrintSuccess("concurrent %d", true, id)
+				PrintError("concurrent %d", true, id)
+				PrintWarning("concurrent %d", true, id)
+				PrintInfo("concurrent %d", true, id)
+
+				// Exercise spinner creation which also reads the format.
+				s := PrintResourceListing("Port", true)
+				s.Stop()
+			}
+		}(i)
+	}
+
+	wg.Wait()
 }
 
 func TestSpinnerStopWithSuccess(t *testing.T) {
