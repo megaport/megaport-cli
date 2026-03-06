@@ -6,16 +6,29 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/fatih/color"
 )
 
-// Global variable to track current output format for JSON mode detection
-var currentOutputFormat = "table"
+// currentOutputFormat stores the output format atomically to avoid data races
+// between spinner goroutines and Print* calls on the main goroutine.
+var currentOutputFormat atomic.Value
+
+func init() {
+	currentOutputFormat.Store("table")
+}
 
 func SetOutputFormat(format string) {
-	currentOutputFormat = format
+	currentOutputFormat.Store(format)
+}
+
+func getOutputFormat() string {
+	if v, ok := currentOutputFormat.Load().(string); ok {
+		return v
+	}
+	return "table"
 }
 
 // PrintSuccess, PrintError, PrintWarning, PrintInfo are defined in:
@@ -243,7 +256,7 @@ func (s *Spinner) StopWithSuccess(msg string) {
 func PrintResourceCreating(resourceType, uid string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Creating %s %s...", resourceType, uidFormatted)
-	spinner := NewSpinnerWithOutput(noColor, currentOutputFormat)
+	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
 	spinner.Start(msg)
 	return spinner
 }
@@ -251,7 +264,7 @@ func PrintResourceCreating(resourceType, uid string, noColor bool) *Spinner {
 func PrintResourceUpdating(resourceType, uid string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Updating %s %s...", resourceType, uidFormatted)
-	spinner := NewSpinnerWithOutput(noColor, currentOutputFormat)
+	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
 	spinner.Start(msg)
 	return spinner
 }
@@ -259,14 +272,14 @@ func PrintResourceUpdating(resourceType, uid string, noColor bool) *Spinner {
 func PrintResourceDeleting(resourceType, uid string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Deleting %s %s...", resourceType, uidFormatted)
-	spinner := NewSpinnerWithOutput(noColor, currentOutputFormat)
+	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
 	spinner.Start(msg)
 	return spinner
 }
 
 func PrintResourceListing(resourceType string, noColor bool) *Spinner {
 	msg := fmt.Sprintf("Listing %ss...", resourceType)
-	spinner := NewSpinnerWithOutput(noColor, currentOutputFormat)
+	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
 	spinner.Start(msg)
 	return spinner
 }
@@ -274,7 +287,7 @@ func PrintResourceListing(resourceType string, noColor bool) *Spinner {
 func PrintResourceGetting(resourceType, uid string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Getting %s %s details...", resourceType, uidFormatted)
-	spinner := NewSpinnerWithOutput(noColor, currentOutputFormat)
+	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
 	spinner.Start(msg)
 	return spinner
 }
@@ -290,21 +303,21 @@ func PrintResourceGettingWithOutput(resourceType, uid string, noColor bool, outp
 func PrintListingResourceTags(resourceType, uid string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Listing resource tags for %s %s...", resourceType, uidFormatted)
-	spinner := NewSpinnerWithOutput(noColor, currentOutputFormat)
+	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
 	spinner.Start(msg)
 	return spinner
 }
 
 func PrintResourceValidating(resourceType string, noColor bool) *Spinner {
 	msg := fmt.Sprintf("Validating %s order...", resourceType)
-	spinner := NewSpinnerWithOutput(noColor, currentOutputFormat)
+	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
 	spinner.Start(msg)
 	return spinner
 }
 
 func PrintLoggingIn(noColor bool) *Spinner {
 	msg := "Logging in to Megaport..."
-	spinner := NewSpinnerWithOutput(noColor, currentOutputFormat)
+	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
 	spinner.Start(msg)
 	return spinner
 }
@@ -319,7 +332,7 @@ func PrintLoggingInWithOutput(noColor bool, outputFormat string) *Spinner {
 func PrintCustomSpinner(action, resourceId string, noColor bool) *Spinner {
 	uidFormatted := FormatUID(resourceId, noColor)
 	msg := fmt.Sprintf("%s %s...", action, uidFormatted)
-	spinner := NewSpinnerWithOutput(noColor, currentOutputFormat)
+	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
 	spinner.Start(msg)
 	return spinner
 }
