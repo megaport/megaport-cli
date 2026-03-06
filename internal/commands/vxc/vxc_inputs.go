@@ -864,16 +864,16 @@ var buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateV
 	// Handle VLAN fields
 	if cmd.Flags().Changed("a-end-vlan") {
 		aEndVLAN, _ := cmd.Flags().GetInt("a-end-vlan")
-		if aEndVLAN != -1 && (aEndVLAN < 0 || aEndVLAN > 4093 || aEndVLAN == 1) {
-			return nil, fmt.Errorf("a-end-vlan must be -1, 0, or between 2-4093")
+		if err := validation.ValidateVLAN(aEndVLAN); err != nil {
+			return nil, fmt.Errorf("a-end-vlan: %w", err)
 		}
 		req.AEndVLAN = &aEndVLAN
 	}
 
 	if cmd.Flags().Changed("b-end-vlan") {
 		bEndVLAN, _ := cmd.Flags().GetInt("b-end-vlan")
-		if bEndVLAN != -1 && (bEndVLAN < 0 || bEndVLAN > 4093 || bEndVLAN == 1) {
-			return nil, fmt.Errorf("b-end-vlan must be -1, 0, or between 2-4093")
+		if err := validation.ValidateVLAN(bEndVLAN); err != nil {
+			return nil, fmt.Errorf("b-end-vlan: %w", err)
 		}
 		req.BEndVLAN = &bEndVLAN
 	}
@@ -993,16 +993,16 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	if aEndConfig, ok := rawData["aEndConfiguration"].(map[string]interface{}); ok {
 		if vlan, ok := aEndConfig["vlan"].(float64); ok {
 			vlanInt := int(vlan)
-			if vlanInt != -1 && (vlanInt < 0 || vlanInt > 4093 || vlanInt == 1) {
-				return nil, fmt.Errorf("aEndConfiguration.vlan must be -1, 0, or between 2-4093")
+			if err := validation.ValidateVLAN(vlanInt); err != nil {
+				return nil, fmt.Errorf("aEndConfiguration.vlan: %w", err)
 			}
 			req.AEndVLAN = &vlanInt
 		}
 	} else {
 		if aEndVLAN, ok := rawData["aEndVlan"].(float64); ok {
 			aEndVLANInt := int(aEndVLAN)
-			if aEndVLANInt != -1 && (aEndVLANInt < 0 || aEndVLANInt > 4093 || aEndVLANInt == 1) {
-				return nil, fmt.Errorf("aEndVlan must be -1, 0, or between 2-4093")
+			if err := validation.ValidateVLAN(aEndVLANInt); err != nil {
+				return nil, fmt.Errorf("aEndVlan: %w", err)
 			}
 			req.AEndVLAN = &aEndVLANInt
 		}
@@ -1011,16 +1011,16 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	if bEndConfig, ok := rawData["bEndConfiguration"].(map[string]interface{}); ok {
 		if vlan, ok := bEndConfig["vlan"].(float64); ok {
 			vlanInt := int(vlan)
-			if vlanInt != -1 && (vlanInt < 0 || vlanInt > 4093 || vlanInt == 1) {
-				return nil, fmt.Errorf("bEndConfiguration.vlan must be -1, 0, or between 2-4093")
+			if err := validation.ValidateVLAN(vlanInt); err != nil {
+				return nil, fmt.Errorf("bEndConfiguration.vlan: %w", err)
 			}
 			req.BEndVLAN = &vlanInt
 		}
 	} else {
 		if bEndVLAN, ok := rawData["bEndVlan"].(float64); ok {
 			bEndVLANInt := int(bEndVLAN)
-			if bEndVLANInt != -1 && (bEndVLANInt < 0 || bEndVLANInt > 4093 || bEndVLANInt == 1) {
-				return nil, fmt.Errorf("bEndVlan must be -1, 0, or between 2-4093")
+			if err := validation.ValidateVLAN(bEndVLANInt); err != nil {
+				return nil, fmt.Errorf("bEndVlan: %w", err)
 			}
 			req.BEndVLAN = &bEndVLANInt
 		}
