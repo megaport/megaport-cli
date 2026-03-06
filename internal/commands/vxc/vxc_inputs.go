@@ -180,6 +180,10 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 
 	req.BEndConfiguration = bEndConfig
 
+	if err := validation.ValidateVXCRequest(req); err != nil {
+		return nil, err
+	}
+
 	return req, nil
 }
 
@@ -821,6 +825,10 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.Buy
 		}
 
 		req.BEndConfiguration = bEndConfig
+	}
+
+	if err := validation.ValidateVXCRequest(req); err != nil {
+		return nil, err
 	}
 
 	return req, nil
