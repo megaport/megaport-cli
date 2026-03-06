@@ -46,7 +46,7 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		return nil, err
 	}
 
-	aEndVLANStr, err := utils.ResourcePrompt("vxc", "A-End VLAN (-1=untagged, 0=auto-assigned, 2-4093 for specific VLAN): ", noColor)
+	aEndVLANStr, err := utils.ResourcePrompt("vxc", "A-End VLAN (-1=untagged, 0=auto-assigned, 2-4094 for specific VLAN): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +135,7 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 
 	bEndConfig := megaport.VXCOrderEndpointConfiguration{}
 
-	bEndVLANStr, err := utils.ResourcePrompt("vxc", "B-End VLAN (-1=untagged, 0=auto-assigned, 2-4093 for specific VLAN): ", noColor)
+	bEndVLANStr, err := utils.ResourcePrompt("vxc", "B-End VLAN (-1=untagged, 0=auto-assigned, 2-4094 for specific VLAN): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -344,7 +344,7 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		return nil, err
 	}
 	if strings.ToLower(updateAEndVLAN) == "yes" {
-		aEndVLANStr, err := utils.ResourcePrompt("vxc", "A-End VLAN (-1=untagged, 0=auto-assigned, 2-4093 for specific VLAN): ", noColor)
+		aEndVLANStr, err := utils.ResourcePrompt("vxc", "A-End VLAN (-1=untagged, 0=auto-assigned, 2-4094 for specific VLAN): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -364,7 +364,7 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		return nil, err
 	}
 	if strings.ToLower(updateBEndVLAN) == "yes" {
-		bEndVLANStr, err := utils.ResourcePrompt("vxc", "B-End VLAN (-1=untagged, 0=auto-assigned, 2-4093 for specific VLAN): ", noColor)
+		bEndVLANStr, err := utils.ResourcePrompt("vxc", "B-End VLAN (-1=untagged, 0=auto-assigned, 2-4094 for specific VLAN): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -388,7 +388,7 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		return nil, err
 	}
 	if strings.ToLower(updateAEndInnerVLAN) == "yes" {
-		aEndInnerVLANStr, err := utils.ResourcePrompt("vxc", "Enter new A-End Inner VLAN (-1, 0, or 2-4093): ", noColor)
+		aEndInnerVLANStr, err := utils.ResourcePrompt("vxc", "Enter new A-End Inner VLAN (-1, 0, or 2-4094): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -414,7 +414,7 @@ var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megapo
 		return nil, err
 	}
 	if strings.ToLower(updateBEndInnerVLAN) == "yes" {
-		bEndInnerVLANStr, err := utils.ResourcePrompt("vxc", "Enter new B-End Inner VLAN (-1, 0, or 2-4093): ", noColor)
+		bEndInnerVLANStr, err := utils.ResourcePrompt("vxc", "Enter new B-End Inner VLAN (-1, 0, or 2-4094): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -502,7 +502,7 @@ func promptVRouterConfig(noColor bool) (*megaport.VXCOrderVrouterPartnerConfig, 
 	for i := 0; i < interfaceCount; i++ {
 		iface := megaport.PartnerConfigInterface{}
 
-		vlanStr, err := utils.ResourcePrompt("vxc", "VLAN (0-4093, except 1, optional - press Enter for no VLAN): ", noColor)
+		vlanStr, err := utils.ResourcePrompt("vxc", "VLAN (0-4094, except 1, optional - press Enter for no VLAN): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -512,9 +512,9 @@ func promptVRouterConfig(noColor bool) (*megaport.VXCOrderVrouterPartnerConfig, 
 			if err != nil {
 				return nil, fmt.Errorf("VLAN must be a valid integer")
 			}
-			if vlan < 0 || vlan > 4093 || vlan == 1 {
+			if vlan < 0 || vlan > 4094 || vlan == 1 {
 				return nil, validation.NewValidationError("VRouter interface VLAN", vlan,
-					"must be 0 or between 2-4093 (1 is reserved)")
+					"must be 0 or between 2-4094 (1 is reserved)")
 			}
 			iface.VLAN = vlan
 		} else {
