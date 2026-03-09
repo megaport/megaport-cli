@@ -140,6 +140,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 		mcrID          string
 		force          bool
 		deleteNow      bool
+		safeDelete     bool
 		promptResponse string
 		setupMock      func(*MockMCRService)
 		expectedError  string
@@ -152,6 +153,21 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			force:          false,
 			deleteNow:      false,
 			promptResponse: "y",
+			setupMock: func(m *MockMCRService) {
+				m.DeleteMCRResult = &megaport.DeleteMCRResponse{
+					IsDeleting: true,
+				}
+			},
+			expectedOutput: "MCR deleted",
+			expectDeleted:  true,
+		},
+		{
+			name:           "safe delete flag passed to request",
+			mcrID:          "mcr-safe-delete",
+			force:          true,
+			deleteNow:      false,
+			safeDelete:     true,
+			promptResponse: "",
 			setupMock: func(m *MockMCRService) {
 				m.DeleteMCRResult = &megaport.DeleteMCRResponse{
 					IsDeleting: true,
@@ -238,6 +254,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			}
 			cmd.Flags().BoolP("force", "f", false, "Force deletion without confirmation")
 			cmd.Flags().Bool("now", false, "Delete MCR immediately instead of at end of billing cycle")
+			cmd.Flags().Bool("safe-delete", false, "Fail if the resource has attached VXCs or other active services")
 			err := cmd.Flags().Set("force", fmt.Sprintf("%v", tt.force))
 			if err != nil {
 				t.Fatalf("Failed to set force flag: %v", err)
@@ -245,6 +262,12 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			err = cmd.Flags().Set("now", fmt.Sprintf("%v", tt.deleteNow))
 			if err != nil {
 				t.Fatalf("Failed to set now flag: %v", err)
+			}
+			if tt.safeDelete {
+				err = cmd.Flags().Set("safe-delete", "true")
+				if err != nil {
+					t.Fatalf("Failed to set safe-delete flag: %v", err)
+				}
 			}
 
 			output := output.CaptureOutput(func() {
@@ -261,6 +284,9 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 				if tt.expectDeleted {
 					assert.NotNil(t, mockMCRService.CapturedDeleteMCRUID)
 					assert.Equal(t, tt.mcrID, mockMCRService.CapturedDeleteMCRUID)
+					if tt.safeDelete {
+						assert.True(t, mockMCRService.CapturedDeleteMCRRequest.SafeDelete)
+					}
 				}
 			}
 		})

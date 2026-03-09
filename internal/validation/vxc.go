@@ -87,6 +87,15 @@ func ValidateVXCEndInnerVLAN(vlan int) error {
 	return ValidateVLAN(vlan)
 }
 
+// ValidateVNICIndex validates a vNIC index for a VXC endpoint.
+// The index must be non-negative.
+func ValidateVNICIndex(index int) error {
+	if index < 0 {
+		return NewValidationError("vNIC index", index, "must be non-negative")
+	}
+	return nil
+}
+
 // ValidateVXCRequest validates a VXC (Virtual Cross Connect) request.
 // This function ensures all required parameters for creating a VXC are present and valid.
 //

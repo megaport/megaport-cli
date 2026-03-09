@@ -393,10 +393,17 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
+	safeDelete, err := cmd.Flags().GetBool("safe-delete")
+	if err != nil {
+		output.PrintError("Failed to get safe-delete flag: %v", noColor, err)
+		return err
+	}
+
 	spinner := output.PrintResourceDeleting("MVE", mveUID, noColor)
 
 	req := &megaport.DeleteMVERequest{
-		MVEID: mveUID,
+		MVEID:      mveUID,
+		SafeDelete: safeDelete,
 	}
 	resp, err := client.MVEService.DeleteMVE(ctx, req)
 

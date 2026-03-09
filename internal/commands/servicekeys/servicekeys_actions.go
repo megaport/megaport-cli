@@ -46,6 +46,10 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("error logging in: %v", err)
 	}
 
+	active, _ := cmd.Flags().GetBool("active")
+	preApproved, _ := cmd.Flags().GetBool("pre-approved")
+	vlan, _ := cmd.Flags().GetInt("vlan")
+
 	req := &megaport.CreateServiceKeyRequest{
 		ProductUID:  productUID,
 		ProductID:   productID,
@@ -53,6 +57,9 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 		MaxSpeed:    maxSpeed,
 		Description: description,
 		ValidFor:    validFor,
+		Active:      active,
+		PreApproved: preApproved,
+		VLAN:        vlan,
 	}
 
 	spinner := output.PrintResourceCreating("Service Key", description, noColor)
@@ -124,6 +131,10 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 	spinner := output.PrintResourceListing("Service Key", noColor)
 
 	req := &megaport.ListServiceKeysRequest{}
+	if cmd.Flags().Changed("product-uid") {
+		productUID, _ := cmd.Flags().GetString("product-uid")
+		req.ProductUID = &productUID
+	}
 	resp, err := client.ServiceKeyService.ListServiceKeys(ctx, req)
 
 	spinner.Stop()

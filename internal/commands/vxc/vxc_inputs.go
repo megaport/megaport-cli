@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -913,6 +914,26 @@ var buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateV
 		req.BEndProductUID = &bEndUID
 	}
 
+	// Handle approval and vNIC index fields
+	if cmd.Flags().Changed("is-approved") {
+		isApproved, _ := cmd.Flags().GetBool("is-approved")
+		req.IsApproved = &isApproved
+	}
+	if cmd.Flags().Changed("a-vnic-index") {
+		aVnicIndex, _ := cmd.Flags().GetInt("a-vnic-index")
+		if err := validation.ValidateVNICIndex(aVnicIndex); err != nil {
+			return nil, fmt.Errorf("invalid a-vnic-index: %w", err)
+		}
+		req.AVnicIndex = &aVnicIndex
+	}
+	if cmd.Flags().Changed("b-vnic-index") {
+		bVnicIndex, _ := cmd.Flags().GetInt("b-vnic-index")
+		if err := validation.ValidateVNICIndex(bVnicIndex); err != nil {
+			return nil, fmt.Errorf("invalid b-vnic-index: %w", err)
+		}
+		req.BVnicIndex = &bVnicIndex
+	}
+
 	// Handle partner configurations
 	if cmd.Flags().Changed("a-end-partner-config") {
 		aEndPartnerConfigStr, _ := cmd.Flags().GetString("a-end-partner-config")
@@ -1091,6 +1112,31 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 		} else {
 			return nil, fmt.Errorf("only VRouter partner configurations can be updated")
 		}
+	}
+
+	// Handle approval and vNIC index fields from JSON
+	if isApproved, ok := rawData["isApproved"].(bool); ok {
+		req.IsApproved = &isApproved
+	}
+	if aVnicIndex, ok := rawData["aVnicIndex"].(float64); ok {
+		if aVnicIndex != math.Trunc(aVnicIndex) {
+			return nil, fmt.Errorf("aVnicIndex must be a whole number, got %v", aVnicIndex)
+		}
+		idx := int(aVnicIndex)
+		if err := validation.ValidateVNICIndex(idx); err != nil {
+			return nil, fmt.Errorf("invalid aVnicIndex: %w", err)
+		}
+		req.AVnicIndex = &idx
+	}
+	if bVnicIndex, ok := rawData["bVnicIndex"].(float64); ok {
+		if bVnicIndex != math.Trunc(bVnicIndex) {
+			return nil, fmt.Errorf("bVnicIndex must be a whole number, got %v", bVnicIndex)
+		}
+		idx := int(bVnicIndex)
+		if err := validation.ValidateVNICIndex(idx); err != nil {
+			return nil, fmt.Errorf("invalid bVnicIndex: %w", err)
+		}
+		req.BVnicIndex = &idx
 	}
 
 	// Set wait for update to true with a reasonable timeout

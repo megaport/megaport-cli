@@ -347,3 +347,38 @@ func TestBuyLAGPort_EmptyUIDs(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no UID returned")
 }
+
+func TestDeletePort_SafeDeleteFlag(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	mockService := &MockPortService{}
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.PortService = mockService
+		return client, nil
+	}
+
+	cmd := &cobra.Command{
+		Use: "delete",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return DeletePort(cmd, args, true)
+		},
+	}
+	cmd.Flags().BoolP("force", "f", true, "")
+	cmd.Flags().Bool("now", false, "")
+	cmd.Flags().Bool("safe-delete", false, "")
+	_ = cmd.Flags().Set("safe-delete", "true")
+
+	var err error
+	output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, []string{"port-uid-123"})
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, mockService.CapturedDeletePortRequest)
+	assert.True(t, mockService.CapturedDeletePortRequest.SafeDelete)
+	assert.Equal(t, "port-uid-123", mockService.CapturedDeletePortRequest.PortID)
+}
