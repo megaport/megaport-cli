@@ -62,10 +62,12 @@ type UpdateTagsOptions struct {
 // fetching existing tags, parsing input (interactive/JSON/JSON file), calling
 // the update function, and printing results.
 func UpdateResourceTags(opts UpdateTagsOptions) error {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTagsTimeout)
-	defer cancel()
+	// Use a dedicated context for the initial list call so interactive prompts
+	// don't consume the timeout budget.
+	listCtx, listCancel := context.WithTimeout(context.Background(), defaultTagsTimeout)
+	defer listCancel()
 
-	existingTags, err := opts.ListFunc(ctx, opts.UID)
+	existingTags, err := opts.ListFunc(listCtx, opts.UID)
 	if err != nil {
 		output.PrintError("Failed to get existing resource tags: %v", opts.NoColor, err)
 		return fmt.Errorf("failed to get existing resource tags: %v", err)
@@ -76,6 +78,7 @@ func UpdateResourceTags(opts UpdateTagsOptions) error {
 	var resourceTags map[string]string
 
 	if interactive {
+		// No timeout around interactive prompts — user input can take any amount of time.
 		resourceTags, err = UpdateResourceTagsPrompt(existingTags, opts.NoColor)
 		if err != nil {
 			output.PrintError("Failed to update resource tags: %v", opts.NoColor, err)
@@ -84,11 +87,13 @@ func UpdateResourceTags(opts UpdateTagsOptions) error {
 	} else if opts.ExtraTagFlags {
 		resourceTags, err = parseResourceTagsInputExtended(opts.Cmd)
 		if err != nil {
+			output.PrintError("Failed to parse resource tags input: %v", opts.NoColor, err)
 			return err
 		}
 	} else {
 		resourceTags, err = ParseResourceTagsInput(opts.Cmd)
 		if err != nil {
+			output.PrintError("Failed to parse resource tags input: %v", opts.NoColor, err)
 			return err
 		}
 	}
@@ -97,9 +102,13 @@ func UpdateResourceTags(opts UpdateTagsOptions) error {
 		output.PrintWarning("No tags provided. The %s will have all existing tags removed.", opts.NoColor, opts.ResourceType)
 	}
 
+	// Use a separate context for the update call.
+	updateCtx, updateCancel := context.WithTimeout(context.Background(), defaultTagsTimeout)
+	defer updateCancel()
+
 	spinner := output.PrintResourceUpdating(opts.ResourceType+"-Resource-Tags", opts.UID, opts.NoColor)
 
-	err = opts.UpdateFunc(ctx, opts.UID, resourceTags)
+	err = opts.UpdateFunc(updateCtx, opts.UID, resourceTags)
 
 	spinner.Stop()
 

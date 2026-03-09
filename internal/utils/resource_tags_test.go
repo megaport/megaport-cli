@@ -10,7 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newCmdWithFlags(flags map[string]string) *cobra.Command {
+func newCmdWithFlags(t *testing.T, flags map[string]string) *cobra.Command {
+	t.Helper()
 	cmd := &cobra.Command{Use: "test"}
 	cmd.Flags().String("json", "", "")
 	cmd.Flags().String("json-file", "", "")
@@ -18,7 +19,7 @@ func newCmdWithFlags(flags map[string]string) *cobra.Command {
 	cmd.Flags().String("tags-file", "", "")
 	cmd.Flags().String("resource-tags", "", "")
 	for k, v := range flags {
-		_ = cmd.Flags().Set(k, v)
+		require.NoError(t, cmd.Flags().Set(k, v), "failed to set flag %q", k)
 	}
 	return cmd
 }
@@ -54,7 +55,7 @@ func TestParseResourceTagsInput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := newCmdWithFlags(tt.flags)
+			cmd := newCmdWithFlags(t, tt.flags)
 			result, err := ParseResourceTagsInput(cmd)
 			if tt.expectError != "" {
 				require.Error(t, err)
@@ -72,14 +73,14 @@ func TestParseResourceTagsInput(t *testing.T) {
 		err := os.WriteFile(path, []byte(`{"env":"staging"}`), 0644)
 		require.NoError(t, err)
 
-		cmd := newCmdWithFlags(map[string]string{"json-file": path})
+		cmd := newCmdWithFlags(t, map[string]string{"json-file": path})
 		result, err := ParseResourceTagsInput(cmd)
 		require.NoError(t, err)
 		assert.Equal(t, map[string]string{"env": "staging"}, result)
 	})
 
 	t.Run("nonexistent JSON file", func(t *testing.T) {
-		cmd := newCmdWithFlags(map[string]string{"json-file": "/nonexistent/file.json"})
+		cmd := newCmdWithFlags(t, map[string]string{"json-file": "/nonexistent/file.json"})
 		_, err := ParseResourceTagsInput(cmd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "error reading JSON file")
@@ -91,7 +92,7 @@ func TestParseResourceTagsInput(t *testing.T) {
 		err := os.WriteFile(path, []byte(`not-json`), 0644)
 		require.NoError(t, err)
 
-		cmd := newCmdWithFlags(map[string]string{"json-file": path})
+		cmd := newCmdWithFlags(t, map[string]string{"json-file": path})
 		_, err = ParseResourceTagsInput(cmd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "error parsing JSON file")
@@ -103,7 +104,7 @@ func TestParseResourceTagsInput(t *testing.T) {
 		err := os.WriteFile(path, []byte(`{"from":"file"}`), 0644)
 		require.NoError(t, err)
 
-		cmd := newCmdWithFlags(map[string]string{
+		cmd := newCmdWithFlags(t, map[string]string{
 			"json":      `{"from":"string"}`,
 			"json-file": path,
 		})
@@ -154,7 +155,7 @@ func TestParseResourceTagsInputExtended(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := newCmdWithFlags(tt.flags)
+			cmd := newCmdWithFlags(t, tt.flags)
 			result, err := parseResourceTagsInputExtended(cmd)
 			if tt.expectError != "" {
 				require.Error(t, err)
@@ -172,14 +173,14 @@ func TestParseResourceTagsInputExtended(t *testing.T) {
 		err := os.WriteFile(path, []byte(`{"env":"file"}`), 0644)
 		require.NoError(t, err)
 
-		cmd := newCmdWithFlags(map[string]string{"tags-file": path})
+		cmd := newCmdWithFlags(t, map[string]string{"tags-file": path})
 		result, err := parseResourceTagsInputExtended(cmd)
 		require.NoError(t, err)
 		assert.Equal(t, map[string]string{"env": "file"}, result)
 	})
 
 	t.Run("nonexistent tags-file", func(t *testing.T) {
-		cmd := newCmdWithFlags(map[string]string{"tags-file": "/nonexistent/file.json"})
+		cmd := newCmdWithFlags(t, map[string]string{"tags-file": "/nonexistent/file.json"})
 		_, err := parseResourceTagsInputExtended(cmd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "error reading tags file")

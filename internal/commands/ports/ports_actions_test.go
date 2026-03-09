@@ -382,3 +382,242 @@ func TestDeletePort_SafeDeleteFlag(t *testing.T) {
 	assert.True(t, mockService.CapturedDeletePortRequest.SafeDelete)
 	assert.Equal(t, "port-uid-123", mockService.CapturedDeletePortRequest.PortID)
 }
+
+func TestListPortResourceTagsCmd(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name           string
+		portUID        string
+		setupMock      func(*MockPortService)
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name:    "successful list",
+			portUID: "port-123",
+			setupMock: func(m *MockPortService) {
+				m.ListPortResourceTagsResult = map[string]string{
+					"environment": "production",
+					"team":        "networking",
+				}
+			},
+			expectedOutput: "environment",
+		},
+		{
+			name:    "empty tags",
+			portUID: "port-empty",
+			setupMock: func(m *MockPortService) {
+				m.ListPortResourceTagsResult = map[string]string{}
+			},
+		},
+		{
+			name:    "API error",
+			portUID: "port-error",
+			setupMock: func(m *MockPortService) {
+				m.ListPortResourceTagsErr = fmt.Errorf("API error: not found")
+			},
+			expectedError: "error getting resource tags",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockPortService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.PortService = mockService
+				return client, nil
+			}
+
+			cmd := &cobra.Command{
+				Use: "list-tags [portUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return ListPortResourceTags(cmd, args, false, "table")
+				},
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.portUID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedOutput != "" {
+					assert.Contains(t, capturedOutput, tt.expectedOutput)
+				}
+			}
+		})
+	}
+}
+
+func TestUpdatePortResourceTagsCmd(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name                 string
+		portUID              string
+		interactive          bool
+		jsonInput            string
+		tagsInput            string
+		resourceTagsInput    string
+		setupMock            func(*MockPortService)
+		expectedError        string
+		expectedOutput       string
+		expectedCapturedTags map[string]string
+	}{
+		{
+			name:      "successful update with json",
+			portUID:   "port-456",
+			jsonInput: `{"environment": "production", "team": "networking"}`,
+			setupMock: func(m *MockPortService) {
+				m.ListPortResourceTagsResult = map[string]string{}
+			},
+			expectedOutput: "Resource tags updated for Port port-456",
+			expectedCapturedTags: map[string]string{
+				"environment": "production",
+				"team":        "networking",
+			},
+		},
+		{
+			name:      "successful update with tags flag",
+			portUID:   "port-tags",
+			tagsInput: `{"env": "dev"}`,
+			setupMock: func(m *MockPortService) {
+				m.ListPortResourceTagsResult = map[string]string{}
+			},
+			expectedOutput:       "Resource tags updated for Port port-tags",
+			expectedCapturedTags: map[string]string{"env": "dev"},
+		},
+		{
+			name:              "successful update with resource-tags flag",
+			portUID:           "port-rt",
+			resourceTagsInput: `{"env": "staging"}`,
+			setupMock: func(m *MockPortService) {
+				m.ListPortResourceTagsResult = map[string]string{}
+			},
+			expectedOutput:       "Resource tags updated for Port port-rt",
+			expectedCapturedTags: map[string]string{"env": "staging"},
+		},
+		{
+			name:      "error with invalid json",
+			portUID:   "port-789",
+			jsonInput: `{invalid json}`,
+			setupMock: func(m *MockPortService) {
+				m.ListPortResourceTagsResult = map[string]string{}
+			},
+			expectedError: "error parsing JSON",
+		},
+		{
+			name:      "error with API tag listing",
+			portUID:   "port-list-error",
+			jsonInput: `{"environment": "production"}`,
+			setupMock: func(m *MockPortService) {
+				m.ListPortResourceTagsErr = fmt.Errorf("API error: resource not found")
+			},
+			expectedError: "failed to get existing resource tags",
+		},
+		{
+			name:      "error with API update",
+			portUID:   "port-update-error",
+			jsonInput: `{"environment": "production"}`,
+			setupMock: func(m *MockPortService) {
+				m.ListPortResourceTagsResult = map[string]string{}
+				m.UpdatePortResourceTagsErr = fmt.Errorf("API error: unauthorized")
+			},
+			expectedError: "failed to update resource tags",
+		},
+		{
+			name:      "empty tags clear all existing tags",
+			portUID:   "port-clear",
+			jsonInput: `{}`,
+			setupMock: func(m *MockPortService) {
+				m.ListPortResourceTagsResult = map[string]string{"env": "staging"}
+			},
+			expectedOutput:       "Resource tags updated for Port port-clear",
+			expectedCapturedTags: map[string]string{},
+		},
+		{
+			name:    "no input provided",
+			portUID: "port-no-input",
+			setupMock: func(m *MockPortService) {
+				m.ListPortResourceTagsResult = map[string]string{}
+			},
+			expectedError: "no input provided",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockPortService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.PortService = mockService
+				return client, nil
+			}
+
+			cmd := &cobra.Command{
+				Use: "update-tags [portUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return UpdatePortResourceTags(cmd, args, false)
+				},
+			}
+
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("tags", "", "")
+			cmd.Flags().String("tags-file", "", "")
+			cmd.Flags().String("resource-tags", "", "")
+
+			if tt.interactive {
+				assert.NoError(t, cmd.Flags().Set("interactive", "true"))
+			}
+			if tt.jsonInput != "" {
+				assert.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+			if tt.tagsInput != "" {
+				assert.NoError(t, cmd.Flags().Set("tags", tt.tagsInput))
+			}
+			if tt.resourceTagsInput != "" {
+				assert.NoError(t, cmd.Flags().Set("resource-tags", tt.resourceTagsInput))
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.portUID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedOutput != "" {
+					assert.Contains(t, capturedOutput, tt.expectedOutput)
+				}
+				if tt.expectedCapturedTags != nil {
+					assert.Equal(t, tt.expectedCapturedTags, mockService.CapturedResourceTags)
+				}
+			}
+		})
+	}
+}
