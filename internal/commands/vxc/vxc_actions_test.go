@@ -1117,6 +1117,80 @@ func TestBuildUpdateVXCRequestFromFlags_NewFields(t *testing.T) {
 	}
 }
 
+func TestBuildUpdateVXCRequestFromFlags_NewFields_InvalidVNICIndex(t *testing.T) {
+	tests := []struct {
+		name  string
+		flags map[string]string
+	}{
+		{
+			name:  "negative a-vnic-index flag",
+			flags: map[string]string{"a-vnic-index": "-1"},
+		},
+		{
+			name:  "negative b-vnic-index flag",
+			flags: map[string]string{"b-vnic-index": "-1"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &cobra.Command{Use: "update [vxcUID]"}
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("rate-limit", 0, "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().Bool("shutdown", false, "")
+			cmd.Flags().Int("a-end-vlan", 0, "")
+			cmd.Flags().Int("b-end-vlan", 0, "")
+			cmd.Flags().Int("a-end-inner-vlan", 0, "")
+			cmd.Flags().Int("b-end-inner-vlan", 0, "")
+			cmd.Flags().String("a-end-uid", "", "")
+			cmd.Flags().String("b-end-uid", "", "")
+			cmd.Flags().String("a-end-partner-config", "", "")
+			cmd.Flags().String("b-end-partner-config", "", "")
+			cmd.Flags().Bool("is-approved", false, "")
+			cmd.Flags().Int("a-vnic-index", -1, "")
+			cmd.Flags().Int("b-vnic-index", -1, "")
+
+			for k, v := range tt.flags {
+				_ = cmd.Flags().Set(k, v)
+			}
+
+			_, err := buildUpdateVXCRequestFromFlags(cmd)
+			assert.Error(t, err)
+		})
+	}
+}
+
+func TestBuildUpdateVXCRequestFromJSON_NewFields_Invalid(t *testing.T) {
+	tests := []struct {
+		name string
+		json string
+	}{
+		{
+			name: "negative aVnicIndex in JSON",
+			json: `{"aVnicIndex": -1}`,
+		},
+		{
+			name: "negative bVnicIndex in JSON",
+			json: `{"bVnicIndex": -1}`,
+		},
+		{
+			name: "non-integer aVnicIndex in JSON",
+			json: `{"aVnicIndex": 1.5}`,
+		},
+		{
+			name: "non-integer bVnicIndex in JSON",
+			json: `{"bVnicIndex": 2.9}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := buildUpdateVXCRequestFromJSON(tt.json, "")
+			assert.Error(t, err)
+		})
+	}
+}
+
 func TestBuildUpdateVXCRequestFromJSON_NewFields(t *testing.T) {
 	tests := []struct {
 		name           string
