@@ -49,6 +49,15 @@ func ListLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat
 		filters["name"] = name
 		output.PrintInfo("Filtering by name: %s", noColor, name)
 	}
+	if cmd.Flags().Changed("market-code") {
+		marketCode, _ := cmd.Flags().GetString("market-code")
+		filters["market"] = marketCode
+		output.PrintInfo("Filtering by market code: %s", noColor, marketCode)
+	}
+	if cmd.Flags().Changed("mcr-available") {
+		filters["mcrAvailable"] = "true"
+		output.PrintInfo("Filtering by MCR availability", noColor)
+	}
 
 	filteredLocations := filterLocations(locations, filters)
 

@@ -404,9 +404,12 @@ func DeletePort(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 	}
 
+	safeDelete, _ := cmd.Flags().GetBool("safe-delete")
+
 	deleteRequest := &megaport.DeletePortRequest{
-		PortID:    portUID,
-		DeleteNow: deleteNow,
+		PortID:     portUID,
+		DeleteNow:  deleteNow,
+		SafeDelete: safeDelete,
 	}
 
 	client, err := config.Login(ctx)

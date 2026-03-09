@@ -46,6 +46,9 @@ func (b *CommandBuilder) WithVXCUpdateFlags() *CommandBuilder {
 	b.WithVXCEndpointFlags()
 	b.WithVXCPartnerConfigFlags()
 	b.WithBoolFlag("shutdown", false, "Whether to shut down the VXC")
+	b.WithBoolFlag("is-approved", false, "Approve or reject a VXC via the Megaport Marketplace")
+	b.WithIntFlag("a-vnic-index", -1, "New A-End vNIC index when moving a VXC on an MVE")
+	b.WithIntFlag("b-vnic-index", -1, "New B-End vNIC index when moving a VXC on an MVE")
 	return b
 }
 

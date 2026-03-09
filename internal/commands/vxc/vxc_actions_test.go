@@ -1034,3 +1034,147 @@ func TestGetVXCStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildUpdateVXCRequestFromFlags_NewFields(t *testing.T) {
+	tests := []struct {
+		name           string
+		flags          map[string]string
+		expectApproved *bool
+		expectAVnic    *int
+		expectBVnic    *int
+	}{
+		{
+			name:           "is-approved flag set to true",
+			flags:          map[string]string{"is-approved": "true"},
+			expectApproved: boolPtr(true),
+		},
+		{
+			name:        "a-vnic-index flag set",
+			flags:       map[string]string{"a-vnic-index": "2"},
+			expectAVnic: intPtr(2),
+		},
+		{
+			name:        "b-vnic-index flag set",
+			flags:       map[string]string{"b-vnic-index": "3"},
+			expectBVnic: intPtr(3),
+		},
+		{
+			name:           "all new flags set",
+			flags:          map[string]string{"is-approved": "false", "a-vnic-index": "1", "b-vnic-index": "0"},
+			expectApproved: boolPtr(false),
+			expectAVnic:    intPtr(1),
+			expectBVnic:    intPtr(0),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &cobra.Command{Use: "update"}
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("rate-limit", 0, "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().Bool("shutdown", false, "")
+			cmd.Flags().Int("a-end-vlan", 0, "")
+			cmd.Flags().Int("b-end-vlan", 0, "")
+			cmd.Flags().Int("a-end-inner-vlan", 0, "")
+			cmd.Flags().Int("b-end-inner-vlan", 0, "")
+			cmd.Flags().String("a-end-uid", "", "")
+			cmd.Flags().String("b-end-uid", "", "")
+			cmd.Flags().String("a-end-partner-config", "", "")
+			cmd.Flags().String("b-end-partner-config", "", "")
+			cmd.Flags().Bool("is-approved", false, "")
+			cmd.Flags().Int("a-vnic-index", -1, "")
+			cmd.Flags().Int("b-vnic-index", -1, "")
+
+			for k, v := range tt.flags {
+				err := cmd.Flags().Set(k, v)
+				assert.NoError(t, err)
+			}
+
+			req, err := buildUpdateVXCRequestFromFlags(cmd)
+			assert.NoError(t, err)
+
+			if tt.expectApproved != nil {
+				assert.NotNil(t, req.IsApproved)
+				assert.Equal(t, *tt.expectApproved, *req.IsApproved)
+			} else {
+				assert.Nil(t, req.IsApproved)
+			}
+			if tt.expectAVnic != nil {
+				assert.NotNil(t, req.AVnicIndex)
+				assert.Equal(t, *tt.expectAVnic, *req.AVnicIndex)
+			} else {
+				assert.Nil(t, req.AVnicIndex)
+			}
+			if tt.expectBVnic != nil {
+				assert.NotNil(t, req.BVnicIndex)
+				assert.Equal(t, *tt.expectBVnic, *req.BVnicIndex)
+			} else {
+				assert.Nil(t, req.BVnicIndex)
+			}
+		})
+	}
+}
+
+func TestBuildUpdateVXCRequestFromJSON_NewFields(t *testing.T) {
+	tests := []struct {
+		name           string
+		json           string
+		expectApproved *bool
+		expectAVnic    *int
+		expectBVnic    *int
+	}{
+		{
+			name:           "isApproved in JSON",
+			json:           `{"isApproved": true}`,
+			expectApproved: boolPtr(true),
+		},
+		{
+			name:        "aVnicIndex in JSON",
+			json:        `{"aVnicIndex": 2}`,
+			expectAVnic: intPtr(2),
+		},
+		{
+			name:        "bVnicIndex in JSON",
+			json:        `{"bVnicIndex": 3}`,
+			expectBVnic: intPtr(3),
+		},
+		{
+			name:           "all new fields in JSON",
+			json:           `{"isApproved": false, "aVnicIndex": 1, "bVnicIndex": 0}`,
+			expectApproved: boolPtr(false),
+			expectAVnic:    intPtr(1),
+			expectBVnic:    intPtr(0),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := buildUpdateVXCRequestFromJSON(tt.json, "")
+			assert.NoError(t, err)
+
+			if tt.expectApproved != nil {
+				assert.NotNil(t, req.IsApproved)
+				assert.Equal(t, *tt.expectApproved, *req.IsApproved)
+			} else {
+				assert.Nil(t, req.IsApproved)
+			}
+			if tt.expectAVnic != nil {
+				assert.NotNil(t, req.AVnicIndex)
+				assert.Equal(t, *tt.expectAVnic, *req.AVnicIndex)
+			} else {
+				assert.Nil(t, req.AVnicIndex)
+			}
+			if tt.expectBVnic != nil {
+				assert.NotNil(t, req.BVnicIndex)
+				assert.Equal(t, *tt.expectBVnic, *req.BVnicIndex)
+			} else {
+				assert.Nil(t, req.BVnicIndex)
+			}
+		})
+	}
+}
+
+func boolPtr(b bool) *bool { return &b }
+func intPtr(i int) *int    { return &i }

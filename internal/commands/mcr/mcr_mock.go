@@ -19,6 +19,7 @@ type MockMCRService struct {
 	DeleteMCRResult                          *megaport.DeleteMCRResponse
 	DeleteMCRErr                             error
 	CapturedDeleteMCRUID                     string
+	CapturedDeleteMCRRequest                 *megaport.DeleteMCRRequest
 	CapturedMCRUID                           string
 	RestoreMCRResult                         *megaport.RestoreMCRResponse
 	RestoreMCRErr                            error
@@ -98,6 +99,7 @@ func (m *MockMCRService) ListMCRs(ctx context.Context, req *megaport.ListMCRsReq
 
 func (m *MockMCRService) DeleteMCR(ctx context.Context, req *megaport.DeleteMCRRequest) (*megaport.DeleteMCRResponse, error) {
 	m.CapturedDeleteMCRUID = req.MCRID
+	m.CapturedDeleteMCRRequest = req
 	if m.DeleteMCRErr != nil {
 		return nil, m.DeleteMCRErr
 	}

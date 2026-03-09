@@ -23,6 +23,7 @@ type MockPortService struct {
 	DeletePortErr              error
 	DeletePortResult           *megaport.DeletePortResponse
 	CapturedDeletePortUID      string
+	CapturedDeletePortRequest  *megaport.DeletePortRequest
 	ListPortResourceTagsErr    error
 	ListPortResourceTagsResult map[string]string
 	CapturedResourceTagPortUID string
@@ -101,6 +102,7 @@ func (m *MockPortService) CheckPortVLANAvailability(ctx context.Context, portID 
 
 func (m *MockPortService) DeletePort(ctx context.Context, req *megaport.DeletePortRequest) (*megaport.DeletePortResponse, error) {
 	m.CapturedDeletePortUID = req.PortID
+	m.CapturedDeletePortRequest = req
 	if m.DeletePortErr != nil {
 		return nil, m.DeletePortErr
 	}

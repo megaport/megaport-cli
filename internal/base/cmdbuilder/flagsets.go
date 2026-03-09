@@ -35,6 +35,7 @@ func (b *CommandBuilder) WithResourceTagFlags() *CommandBuilder {
 func (b *CommandBuilder) WithDeleteFlags() *CommandBuilder {
 	b.WithBoolFlagP("force", "f", false, "Skip confirmation prompt")
 	b.WithBoolFlag("now", false, "Delete resource immediately instead of at end of billing cycle")
+	b.WithBoolFlag("safe-delete", false, "Fail if the resource has attached VXCs or other active services")
 	return b
 }
 

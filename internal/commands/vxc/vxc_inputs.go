@@ -913,6 +913,20 @@ var buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateV
 		req.BEndProductUID = &bEndUID
 	}
 
+	// Handle approval and vNIC index fields
+	if cmd.Flags().Changed("is-approved") {
+		isApproved, _ := cmd.Flags().GetBool("is-approved")
+		req.IsApproved = &isApproved
+	}
+	if cmd.Flags().Changed("a-vnic-index") {
+		aVnicIndex, _ := cmd.Flags().GetInt("a-vnic-index")
+		req.AVnicIndex = &aVnicIndex
+	}
+	if cmd.Flags().Changed("b-vnic-index") {
+		bVnicIndex, _ := cmd.Flags().GetInt("b-vnic-index")
+		req.BVnicIndex = &bVnicIndex
+	}
+
 	// Handle partner configurations
 	if cmd.Flags().Changed("a-end-partner-config") {
 		aEndPartnerConfigStr, _ := cmd.Flags().GetString("a-end-partner-config")
@@ -1091,6 +1105,19 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 		} else {
 			return nil, fmt.Errorf("only VRouter partner configurations can be updated")
 		}
+	}
+
+	// Handle approval and vNIC index fields from JSON
+	if isApproved, ok := rawData["isApproved"].(bool); ok {
+		req.IsApproved = &isApproved
+	}
+	if aVnicIndex, ok := rawData["aVnicIndex"].(float64); ok {
+		idx := int(aVnicIndex)
+		req.AVnicIndex = &idx
+	}
+	if bVnicIndex, ok := rawData["bVnicIndex"].(float64); ok {
+		idx := int(bVnicIndex)
+		req.BVnicIndex = &idx
 	}
 
 	// Set wait for update to true with a reasonable timeout

@@ -39,7 +39,9 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	listServiceKeysCmd := cmdbuilder.NewCommand("list", "List all service keys").
 		WithLongDesc("List all service keys for the Megaport API.\n\nThis command retrieves and displays all service keys along with their details. Use this command to review the keys available in your account.").
 		WithOutputFormatRunFunc(ListServiceKeys).
+		WithServiceKeyListFlags().
 		WithExample("megaport-cli servicekeys list").
+		WithExample("megaport-cli servicekeys list --product-uid \"product-uid\"").
 		WithRootCmd(rootCmd).
 		Build()
 

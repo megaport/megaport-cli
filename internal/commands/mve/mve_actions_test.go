@@ -492,6 +492,7 @@ func TestDeleteMVE(t *testing.T) {
 		confirmDelete  bool
 		forceFlag      bool
 		nowFlag        bool
+		safeDeleteFlag bool
 		expectedError  string
 		expectedOutput string
 	}{
@@ -501,6 +502,15 @@ func TestDeleteMVE(t *testing.T) {
 				m.DeleteMVEErr = nil
 			},
 			confirmDelete:  true,
+			expectedOutput: "MVE deleted mve-uid",
+		},
+		{
+			name: "safe delete flag passed to request",
+			mockSetup: func(m *MockMVEService) {
+				m.DeleteMVEErr = nil
+			},
+			forceFlag:      true,
+			safeDeleteFlag: true,
 			expectedOutput: "MVE deleted mve-uid",
 		},
 		{
@@ -565,6 +575,10 @@ func TestDeleteMVE(t *testing.T) {
 
 			cmd.Flags().Bool("force", tt.forceFlag, "")
 			cmd.Flags().Bool("now", tt.nowFlag, "")
+			cmd.Flags().Bool("safe-delete", false, "")
+			if tt.safeDeleteFlag {
+				_ = cmd.Flags().Set("safe-delete", "true")
+			}
 
 			var err error
 			output := output.CaptureOutput(func() {
@@ -577,6 +591,10 @@ func TestDeleteMVE(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Contains(t, output, tt.expectedOutput)
+				if tt.safeDeleteFlag {
+					assert.NotNil(t, mockService.CapturedDeleteMVERequest)
+					assert.True(t, mockService.CapturedDeleteMVERequest.SafeDelete)
+				}
 			}
 		})
 	}

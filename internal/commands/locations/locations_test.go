@@ -19,6 +19,9 @@ var testLocations = []*megaport.Location{
 		SiteCode: "SYD1",
 		Market:   "APAC",
 		Status:   "ACTIVE",
+		Products: &megaport.LocationProducts{
+			MCR: true,
+		},
 	},
 	{
 		ID:       2,
@@ -28,6 +31,9 @@ var testLocations = []*megaport.Location{
 		SiteCode: "LON1",
 		Market:   "EUROPE",
 		Status:   "ACTIVE",
+		Products: &megaport.LocationProducts{
+			MCR: false,
+		},
 	},
 }
 
@@ -60,6 +66,21 @@ func TestFilterLocations(t *testing.T) {
 		{
 			name:     "No match",
 			filters:  map[string]string{"name": "NoMatch"},
+			expected: 0,
+		},
+		{
+			name:     "Filter by Market",
+			filters:  map[string]string{"market": "APAC"},
+			expected: 1,
+		},
+		{
+			name:     "Filter by MCR Available",
+			filters:  map[string]string{"mcrAvailable": "true"},
+			expected: 1,
+		},
+		{
+			name:     "Filter by Market no match",
+			filters:  map[string]string{"market": "US"},
 			expected: 0,
 		},
 	}
