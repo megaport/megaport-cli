@@ -5,6 +5,7 @@ package megaport
 
 import (
 	"github.com/megaport/megaport-cli/internal/base/registry"
+	"github.com/megaport/megaport-cli/internal/commands/billing_market"
 	"github.com/megaport/megaport-cli/internal/commands/completion"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/commands/generate_docs"
@@ -54,6 +55,7 @@ func registerModules() {
 	moduleRegistry.Register(ix.NewModule())
 	moduleRegistry.Register(managed_account.NewModule())
 	moduleRegistry.Register(config.NewModule())
+	moduleRegistry.Register(billing_market.NewModule())
 }
 
 // InitializeCommon performs initialization steps common to all platforms
