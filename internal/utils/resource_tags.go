@@ -45,12 +45,13 @@ func ListResourceTags(resourceType, uid string, noColor bool, outputFormat strin
 
 // UpdateTagsOptions contains the options for UpdateResourceTags.
 type UpdateTagsOptions struct {
-	ResourceType string
-	UID          string
-	NoColor      bool
-	Cmd          *cobra.Command
-	ListFunc     TagListerFunc
-	UpdateFunc   TagUpdaterFunc
+	ResourceType  string
+	UID           string
+	NoColor       bool
+	Cmd           *cobra.Command
+	ListFunc      TagListerFunc
+	UpdateFunc    TagUpdaterFunc
+	ExtraTagFlags bool // When true, also check --tags, --tags-file, --resource-tags flags
 }
 
 // UpdateResourceTags handles the common pattern of updating resource tags:
@@ -73,6 +74,11 @@ func UpdateResourceTags(opts UpdateTagsOptions) error {
 		resourceTags, err = UpdateResourceTagsPrompt(existingTags, opts.NoColor)
 		if err != nil {
 			output.PrintError("Failed to update resource tags: %v", opts.NoColor, err)
+			return err
+		}
+	} else if opts.ExtraTagFlags {
+		resourceTags, err = parseResourceTagsInputExtended(opts.Cmd)
+		if err != nil {
 			return err
 		}
 	} else {
@@ -122,6 +128,53 @@ func ParseResourceTagsInput(cmd *cobra.Command) (map[string]string, error) {
 		}
 	} else {
 		return nil, fmt.Errorf("no input provided, use --interactive, --json, or --json-file to specify resource tags")
+	}
+
+	return resourceTags, nil
+}
+
+// parseResourceTagsInputExtended reads resource tags from --json, --json-file,
+// --tags, --tags-file, or --resource-tags flags (ports-specific extended flags).
+func parseResourceTagsInputExtended(cmd *cobra.Command) (map[string]string, error) {
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
+	tagsStr, _ := cmd.Flags().GetString("tags")
+	tagsFile, _ := cmd.Flags().GetString("tags-file")
+	resourceTagsStr, _ := cmd.Flags().GetString("resource-tags")
+
+	var resourceTags map[string]string
+
+	switch {
+	case jsonStr != "":
+		if err := json.Unmarshal([]byte(jsonStr), &resourceTags); err != nil {
+			return nil, fmt.Errorf("error parsing JSON: %v", err)
+		}
+	case jsonFile != "":
+		jsonData, err := os.ReadFile(jsonFile)
+		if err != nil {
+			return nil, fmt.Errorf("error reading JSON file: %v", err)
+		}
+		if err := json.Unmarshal(jsonData, &resourceTags); err != nil {
+			return nil, fmt.Errorf("error parsing JSON file: %v", err)
+		}
+	case tagsStr != "":
+		if err := json.Unmarshal([]byte(tagsStr), &resourceTags); err != nil {
+			return nil, fmt.Errorf("error parsing tags JSON: %v", err)
+		}
+	case resourceTagsStr != "":
+		if err := json.Unmarshal([]byte(resourceTagsStr), &resourceTags); err != nil {
+			return nil, fmt.Errorf("error parsing resource-tags JSON: %v", err)
+		}
+	case tagsFile != "":
+		tagData, err := os.ReadFile(tagsFile)
+		if err != nil {
+			return nil, fmt.Errorf("error reading tags file: %v", err)
+		}
+		if err := json.Unmarshal(tagData, &resourceTags); err != nil {
+			return nil, fmt.Errorf("error parsing tags file JSON: %v", err)
+		}
+	default:
+		return nil, fmt.Errorf("no input provided, use --interactive, --json, --json-file, --tags, --resource-tags, or --tags-file to specify resource tags")
 	}
 
 	return resourceTags, nil

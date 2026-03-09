@@ -2,9 +2,7 @@ package mve
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -434,76 +432,27 @@ func ListMVEResourceTags(cmd *cobra.Command, args []string, noColor bool, output
 
 func UpdateMVEResourceTags(cmd *cobra.Command, args []string, noColor bool) error {
 	mveUID := args[0]
-
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
-
-	client, err := config.LoginFunc(ctx)
-	if err != nil {
-		output.PrintError("Failed to log in: %v", noColor, err)
+	var client *megaport.Client
+	login := func(ctx context.Context) error {
+		var err error
+		client, err = config.LoginFunc(ctx)
 		return err
 	}
-
-	existingTags, err := listMVEResourceTagsFunc(ctx, client, mveUID)
-
-	if err != nil {
-		return fmt.Errorf("failed to get existing resource tags: %v", err)
-	}
-
-	interactive, _ := cmd.Flags().GetBool("interactive")
-
-	var resourceTags map[string]string
-
-	if interactive {
-		resourceTags, err = utils.UpdateResourceTagsPrompt(existingTags, noColor)
-		if err != nil {
-			output.PrintError("Failed to update resource tags", noColor)
-			return err
-		}
-	} else {
-		jsonStr, _ := cmd.Flags().GetString("json")
-		jsonFile, _ := cmd.Flags().GetString("json-file")
-
-		if jsonStr != "" {
-			resourceTags = make(map[string]string)
-			if err := json.Unmarshal([]byte(jsonStr), &resourceTags); err != nil {
-				output.PrintError("Failed to parse JSON: %v", noColor, err)
-				return fmt.Errorf("error parsing JSON: %v", err)
+	return utils.UpdateResourceTags(utils.UpdateTagsOptions{
+		ResourceType: "MVE",
+		UID:          mveUID,
+		NoColor:      noColor,
+		Cmd:          cmd,
+		ListFunc: func(ctx context.Context, uid string) (map[string]string, error) {
+			if err := login(ctx); err != nil {
+				return nil, err
 			}
-		} else if jsonFile != "" {
-			jsonData, err := os.ReadFile(jsonFile)
-			if err != nil {
-				output.PrintError("Failed to read JSON file: %v", noColor, err)
-				return fmt.Errorf("error reading JSON file: %v", err)
-			}
-
-			resourceTags = make(map[string]string)
-			if err := json.Unmarshal(jsonData, &resourceTags); err != nil {
-				output.PrintError("Failed to parse JSON file: %v", noColor, err)
-				return fmt.Errorf("error parsing JSON file: %v", err)
-			}
-		} else {
-			output.PrintError("No input provided for tags", noColor)
-			return fmt.Errorf("no input provided, use --interactive, --json, or --json-file to specify resource tags")
-		}
-	}
-
-	if len(resourceTags) == 0 {
-		fmt.Println("No tags provided. The MVE will have all existing tags removed.")
-	}
-
-	spinner := output.PrintResourceUpdating("MVE-Resource-Tags", mveUID, noColor)
-
-	err = client.MVEService.UpdateMVEResourceTags(ctx, mveUID, resourceTags)
-
-	spinner.Stop()
-
-	if err != nil {
-		return fmt.Errorf("failed to update resource tags: %v", err)
-	}
-
-	fmt.Printf("Resource tags updated for MVE %s\n", mveUID)
-	return nil
+			return listMVEResourceTagsFunc(ctx, client, uid)
+		},
+		UpdateFunc: func(ctx context.Context, uid string, tags map[string]string) error {
+			return client.MVEService.UpdateMVEResourceTags(ctx, uid, tags)
+		},
+	})
 }
 
 // GetMVEStatus retrieves only the provisioning status of an MVE without all details

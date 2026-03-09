@@ -2,9 +2,7 @@ package ports
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 	"time"
 
@@ -585,98 +583,26 @@ func ListPortResourceTags(cmd *cobra.Command, args []string, noColor bool, outpu
 
 func UpdatePortResourceTags(cmd *cobra.Command, args []string, noColor bool) error {
 	portUID := args[0]
-
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
-
-	client, err := config.LoginFunc(ctx)
-	if err != nil {
-		output.PrintError("Failed to log in: %v", noColor, err)
+	var client *megaport.Client
+	login := func(ctx context.Context) error {
+		var err error
+		client, err = config.LoginFunc(ctx)
 		return err
 	}
-
-	existingTags, err := client.PortService.ListPortResourceTags(ctx, portUID)
-
-	if err != nil {
-		output.PrintError("Failed to get existing resource tags: %v", noColor, err)
-		return err
-	}
-
-	interactive, _ := cmd.Flags().GetBool("interactive")
-
-	var resourceTags map[string]string
-
-	if interactive {
-		resourceTags, err = utils.UpdateResourceTagsPrompt(existingTags, noColor)
-		if err != nil {
-			output.PrintError("Failed to update resource tags", noColor, err)
-			return err
-		}
-	} else {
-		jsonStr, _ := cmd.Flags().GetString("json")
-		jsonFile, _ := cmd.Flags().GetString("json-file")
-
-		tagsStr, _ := cmd.Flags().GetString("tags")
-		tagsFile, _ := cmd.Flags().GetString("tags-file")
-		resourceTagsStr, _ := cmd.Flags().GetString("resource-tags")
-
-		if jsonStr != "" {
-			if err := json.Unmarshal([]byte(jsonStr), &resourceTags); err != nil {
-				output.PrintError("Failed to parse JSON: %v", noColor, err)
-				return fmt.Errorf("error parsing JSON: %v", err)
+	return utils.UpdateResourceTags(utils.UpdateTagsOptions{
+		ResourceType:  "Port",
+		UID:           portUID,
+		NoColor:       noColor,
+		Cmd:           cmd,
+		ExtraTagFlags: true,
+		ListFunc: func(ctx context.Context, uid string) (map[string]string, error) {
+			if err := login(ctx); err != nil {
+				return nil, err
 			}
-		} else if jsonFile != "" {
-			jsonData, err := os.ReadFile(jsonFile)
-			if err != nil {
-				output.PrintError("Failed to read JSON file: %v", noColor, err)
-				return fmt.Errorf("error reading JSON file: %v", err)
-			}
-
-			if err := json.Unmarshal(jsonData, &resourceTags); err != nil {
-				output.PrintError("Failed to parse JSON file: %v", noColor, err)
-				return fmt.Errorf("error parsing JSON file: %v", err)
-			}
-		} else if tagsStr != "" {
-			if err := json.Unmarshal([]byte(tagsStr), &resourceTags); err != nil {
-				output.PrintError("Failed to parse tags JSON: %v", noColor, err)
-				return fmt.Errorf("error parsing tags JSON: %v", err)
-			}
-		} else if resourceTagsStr != "" {
-			if err := json.Unmarshal([]byte(resourceTagsStr), &resourceTags); err != nil {
-				output.PrintError("Failed to parse resource-tags JSON: %v", noColor, err)
-				return fmt.Errorf("error parsing resource-tags JSON: %v", err)
-			}
-		} else if tagsFile != "" {
-			tagData, err := os.ReadFile(tagsFile)
-			if err != nil {
-				output.PrintError("Failed to read tags file: %v", noColor, err)
-				return fmt.Errorf("error reading tags file: %v", err)
-			}
-			if err := json.Unmarshal(tagData, &resourceTags); err != nil {
-				output.PrintError("Failed to parse tags file JSON: %v", noColor, err)
-				return fmt.Errorf("error parsing tags file JSON: %v", err)
-			}
-		} else {
-			output.PrintError("No input provided for tags", noColor)
-			return fmt.Errorf("no input provided, use --interactive, --json, --json-file, --tags, --resource-tags, or --tags-file to specify resource tags")
-		}
-	}
-
-	if len(resourceTags) == 0 {
-		fmt.Println("No tags provided. The port will have all existing tags removed.")
-	}
-
-	spinner := output.PrintResourceUpdating("Port-Resource-Tags", portUID, noColor)
-
-	err = client.PortService.UpdatePortResourceTags(ctx, portUID, resourceTags)
-
-	spinner.Stop()
-
-	if err != nil {
-		output.PrintError("Failed to update resource tags: %v", noColor, err)
-		return fmt.Errorf("failed to update resource tags: %v", err)
-	}
-
-	fmt.Printf("Resource tags updated for port %s\n", portUID)
-	return nil
+			return client.PortService.ListPortResourceTags(ctx, uid)
+		},
+		UpdateFunc: func(ctx context.Context, uid string, tags map[string]string) error {
+			return client.PortService.UpdatePortResourceTags(ctx, uid, tags)
+		},
+	})
 }
