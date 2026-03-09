@@ -1513,3 +1513,100 @@ func TestGetMVEStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestGetMVE(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name           string
+		mveUID         string
+		setupMock      func(m *MockMVEService)
+		outputFormat   string
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name:   "success table format",
+			mveUID: "mve-uid-123",
+			setupMock: func(m *MockMVEService) {
+				m.GetMVEResult = &megaport.MVE{
+					UID:                "mve-uid-123",
+					Name:               "Test MVE",
+					ProvisioningStatus: "LIVE",
+					Vendor:             "cisco",
+					Size:               "MEDIUM",
+				}
+			},
+			outputFormat:   "table",
+			expectedOutput: "mve-uid-123",
+		},
+		{
+			name:   "success JSON format",
+			mveUID: "mve-uid-456",
+			setupMock: func(m *MockMVEService) {
+				m.GetMVEResult = &megaport.MVE{
+					UID:                "mve-uid-456",
+					Name:               "JSON MVE",
+					ProvisioningStatus: "LIVE",
+					Vendor:             "fortinet",
+					Size:               "LARGE",
+				}
+			},
+			outputFormat:   "json",
+			expectedOutput: "mve-uid-456",
+		},
+		{
+			name:   "API error",
+			mveUID: "mve-error",
+			setupMock: func(m *MockMVEService) {
+				m.GetMVEErr = fmt.Errorf("API failure")
+			},
+			outputFormat:  "table",
+			expectedError: "error getting MVE",
+		},
+		{
+			name:   "nil MVE",
+			mveUID: "mve-nil",
+			setupMock: func(m *MockMVEService) {
+				m.ForceNilGetMVE = true
+			},
+			outputFormat:  "table",
+			expectedError: "no MVE found with UID: mve-nil",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockMVEService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MVEService = mockService
+				return client, nil
+			}
+
+			cmd := &cobra.Command{
+				Use: "get [mveUID]",
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = GetMVE(cmd, []string{tt.mveUID}, noColor, tt.outputFormat)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+			}
+		})
+	}
+}

@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -616,6 +617,783 @@ func TestUpdatePortResourceTagsCmd(t *testing.T) {
 				}
 				if tt.expectedCapturedTags != nil {
 					assert.Equal(t, tt.expectedCapturedTags, mockService.CapturedResourceTags)
+				}
+			}
+		})
+	}
+}
+
+func TestListPorts(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	originalListPortsFunc := listPortsFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		listPortsFunc = originalListPortsFunc
+	}()
+
+	allPorts := []*megaport.Port{
+		{UID: "port-1", Name: "Sydney Port", LocationID: 100, PortSpeed: 1000, ProvisioningStatus: "LIVE"},
+		{UID: "port-2", Name: "Melbourne Port", LocationID: 200, PortSpeed: 10000, ProvisioningStatus: "LIVE"},
+		{UID: "port-3", Name: "Sydney Fast", LocationID: 100, PortSpeed: 10000, ProvisioningStatus: "LIVE"},
+		{UID: "port-4", Name: "Decommissioned Port", LocationID: 100, PortSpeed: 1000, ProvisioningStatus: megaport.STATUS_DECOMMISSIONED},
+	}
+
+	tests := []struct {
+		name            string
+		locationID      int
+		portSpeed       int
+		portName        string
+		includeInactive bool
+		ports           []*megaport.Port
+		listErr         error
+		loginErr        error
+		expectedError   string
+		expectedOutputs []string
+		notExpected     []string
+	}{
+		{
+			name:            "list all ports no filters",
+			ports:           allPorts,
+			expectedOutputs: []string{"port-1", "port-2", "port-3"},
+			notExpected:     []string{"port-4"},
+		},
+		{
+			name:            "filter by location-id",
+			locationID:      100,
+			ports:           allPorts,
+			expectedOutputs: []string{"port-1", "port-3"},
+			notExpected:     []string{"port-2"},
+		},
+		{
+			name:            "filter by port-speed",
+			portSpeed:       10000,
+			ports:           allPorts,
+			expectedOutputs: []string{"port-2", "port-3"},
+			notExpected:     []string{"port-1"},
+		},
+		{
+			name:            "filter by port-name",
+			portName:        "Sydney",
+			ports:           allPorts,
+			expectedOutputs: []string{"port-1", "port-3"},
+			notExpected:     []string{"port-2"},
+		},
+		{
+			name:            "include-inactive shows decommissioned",
+			includeInactive: true,
+			ports:           allPorts,
+			expectedOutputs: []string{"port-1", "port-2", "port-3", "port-4"},
+		},
+		{
+			name:            "empty result",
+			ports:           []*megaport.Port{},
+			expectedOutputs: []string{"No ports found"},
+		},
+		{
+			name:          "API error",
+			listErr:       fmt.Errorf("service unavailable"),
+			expectedError: "error listing ports",
+		},
+		{
+			name:          "login error",
+			loginErr:      fmt.Errorf("invalid credentials"),
+			expectedError: "error logging in",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockPortService{}
+
+			if tt.loginErr != nil {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, tt.loginErr
+				}
+			} else {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.PortService = mockService
+					return client, nil
+				}
+			}
+
+			if tt.listErr != nil {
+				listPortsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Port, error) {
+					return nil, tt.listErr
+				}
+			} else {
+				listPortsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Port, error) {
+					return tt.ports, nil
+				}
+			}
+
+			cmd := &cobra.Command{Use: "list"}
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().String("port-name", "", "")
+			cmd.Flags().Bool("include-inactive", false, "")
+
+			if tt.locationID > 0 {
+				_ = cmd.Flags().Set("location-id", fmt.Sprintf("%d", tt.locationID))
+			}
+			if tt.portSpeed > 0 {
+				_ = cmd.Flags().Set("port-speed", fmt.Sprintf("%d", tt.portSpeed))
+			}
+			if tt.portName != "" {
+				_ = cmd.Flags().Set("port-name", tt.portName)
+			}
+			if tt.includeInactive {
+				_ = cmd.Flags().Set("include-inactive", "true")
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = ListPorts(cmd, nil, true, "table")
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				for _, expected := range tt.expectedOutputs {
+					assert.Contains(t, capturedOutput, expected)
+				}
+				for _, notExp := range tt.notExpected {
+					assert.NotContains(t, capturedOutput, notExp)
+				}
+			}
+		})
+	}
+}
+
+func TestBuyPort(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	originalBuyPortFunc := buyPortFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		buyPortFunc = originalBuyPortFunc
+	}()
+
+	tests := []struct {
+		name             string
+		flags            map[string]string
+		jsonInput        string
+		setupMock        func(*MockPortService)
+		buyPortOverride  func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error)
+		expectedError    string
+		expectedContains string
+	}{
+		{
+			name: "success with flags",
+			flags: map[string]string{
+				"name":                   "test-port",
+				"term":                   "12",
+				"port-speed":             "1000",
+				"location-id":            "1",
+				"marketplace-visibility": "private",
+			},
+			setupMock: func(m *MockPortService) {},
+			buyPortOverride: func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
+				return &megaport.BuyPortResponse{
+					TechnicalServiceUIDs: []string{"new-port-uid-123"},
+				}, nil
+			},
+			expectedContains: "new-port-uid-123",
+		},
+		{
+			name:      "success with JSON",
+			jsonInput: `{"name":"json-port","term":12,"portSpeed":1000,"locationId":1,"marketPlaceVisibility":false}`,
+			setupMock: func(m *MockPortService) {},
+			buyPortOverride: func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
+				return &megaport.BuyPortResponse{
+					TechnicalServiceUIDs: []string{"json-port-uid"},
+				}, nil
+			},
+			expectedContains: "json-port-uid",
+		},
+		{
+			name: "API error from buyPortFunc",
+			flags: map[string]string{
+				"name":                   "test-port",
+				"term":                   "12",
+				"port-speed":             "1000",
+				"location-id":            "1",
+				"marketplace-visibility": "private",
+			},
+			setupMock: func(m *MockPortService) {},
+			buyPortOverride: func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
+				return nil, fmt.Errorf("buy port failed")
+			},
+			expectedError: "buy port failed",
+		},
+		{
+			name: "validation error",
+			flags: map[string]string{
+				"name":                   "test-port",
+				"term":                   "12",
+				"port-speed":             "1000",
+				"location-id":            "1",
+				"marketplace-visibility": "private",
+			},
+			setupMock: func(m *MockPortService) {
+				m.ValidatePortOrderErr = fmt.Errorf("invalid port configuration")
+			},
+			expectedError: "invalid port configuration",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockPortService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.PortService = mockService
+				return client, nil
+			}
+
+			if tt.buyPortOverride != nil {
+				buyPortFunc = tt.buyPortOverride
+			} else {
+				buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
+					return client.PortService.BuyPort(ctx, req)
+				}
+			}
+
+			cmd := &cobra.Command{Use: "buy"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().String("marketplace-visibility", "", "")
+			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().Bool("cost-confirm", true, "")
+
+			if tt.jsonInput != "" {
+				_ = cmd.Flags().Set("json", tt.jsonInput)
+			}
+			for k, v := range tt.flags {
+				_ = cmd.Flags().Set(k, v)
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = BuyPort(cmd, nil, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedContains != "" {
+					assert.Contains(t, capturedOutput, tt.expectedContains)
+				}
+			}
+		})
+	}
+}
+
+func TestRestorePort(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	originalRestorePortFunc := restorePortFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		restorePortFunc = originalRestorePortFunc
+	}()
+
+	tests := []struct {
+		name          string
+		portUID       string
+		restoreResp   *megaport.RestorePortResponse
+		restoreErr    error
+		loginErr      error
+		expectedError string
+		expectedOut   string
+	}{
+		{
+			name:        "success",
+			portUID:     "port-restore-1",
+			restoreResp: &megaport.RestorePortResponse{IsRestored: true},
+			expectedOut: "restored successfully",
+		},
+		{
+			name:          "API error",
+			portUID:       "port-restore-err",
+			restoreErr:    fmt.Errorf("restore service unavailable"),
+			expectedError: "restore service unavailable",
+		},
+		{
+			name:          "login error",
+			portUID:       "port-restore-login",
+			loginErr:      fmt.Errorf("authentication failed"),
+			expectedError: "authentication failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.loginErr != nil {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, tt.loginErr
+				}
+			} else {
+				mockService := &MockPortService{}
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.PortService = mockService
+					return client, nil
+				}
+			}
+
+			if tt.restoreErr != nil {
+				restorePortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.RestorePortResponse, error) {
+					return nil, tt.restoreErr
+				}
+			} else if tt.restoreResp != nil {
+				resp := tt.restoreResp
+				restorePortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.RestorePortResponse, error) {
+					return resp, nil
+				}
+			}
+
+			cmd := &cobra.Command{Use: "restore"}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = RestorePort(cmd, []string{tt.portUID}, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedOut != "" {
+					assert.Contains(t, capturedOutput, tt.expectedOut)
+				}
+			}
+		})
+	}
+}
+
+func TestLockPort(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	originalLockPortFunc := lockPortFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		lockPortFunc = originalLockPortFunc
+	}()
+
+	tests := []struct {
+		name          string
+		portUID       string
+		lockResp      *megaport.LockPortResponse
+		lockErr       error
+		loginErr      error
+		expectedError string
+		expectedOut   string
+	}{
+		{
+			name:        "success",
+			portUID:     "port-lock-1",
+			lockResp:    &megaport.LockPortResponse{IsLocking: true},
+			expectedOut: "locked successfully",
+		},
+		{
+			name:          "API error",
+			portUID:       "port-lock-err",
+			lockErr:       fmt.Errorf("lock service unavailable"),
+			expectedError: "lock service unavailable",
+		},
+		{
+			name:          "login error",
+			portUID:       "port-lock-login",
+			loginErr:      fmt.Errorf("invalid token"),
+			expectedError: "invalid token",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.loginErr != nil {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, tt.loginErr
+				}
+			} else {
+				mockService := &MockPortService{}
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.PortService = mockService
+					return client, nil
+				}
+			}
+
+			if tt.lockErr != nil {
+				lockPortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.LockPortResponse, error) {
+					return nil, tt.lockErr
+				}
+			} else if tt.lockResp != nil {
+				resp := tt.lockResp
+				lockPortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.LockPortResponse, error) {
+					return resp, nil
+				}
+			}
+
+			cmd := &cobra.Command{Use: "lock"}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = LockPort(cmd, []string{tt.portUID}, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedOut != "" {
+					assert.Contains(t, capturedOutput, tt.expectedOut)
+				}
+			}
+		})
+	}
+}
+
+func TestUnlockPort(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	originalUnlockPortFunc := unlockPortFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		unlockPortFunc = originalUnlockPortFunc
+	}()
+
+	tests := []struct {
+		name          string
+		portUID       string
+		unlockResp    *megaport.UnlockPortResponse
+		unlockErr     error
+		loginErr      error
+		expectedError string
+		expectedOut   string
+	}{
+		{
+			name:        "success",
+			portUID:     "port-unlock-1",
+			unlockResp:  &megaport.UnlockPortResponse{IsUnlocking: true},
+			expectedOut: "unlocked successfully",
+		},
+		{
+			name:          "API error",
+			portUID:       "port-unlock-err",
+			unlockErr:     fmt.Errorf("unlock service unavailable"),
+			expectedError: "unlock service unavailable",
+		},
+		{
+			name:          "login error",
+			portUID:       "port-unlock-login",
+			loginErr:      fmt.Errorf("session expired"),
+			expectedError: "session expired",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.loginErr != nil {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, tt.loginErr
+				}
+			} else {
+				mockService := &MockPortService{}
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.PortService = mockService
+					return client, nil
+				}
+			}
+
+			if tt.unlockErr != nil {
+				unlockPortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.UnlockPortResponse, error) {
+					return nil, tt.unlockErr
+				}
+			} else if tt.unlockResp != nil {
+				resp := tt.unlockResp
+				unlockPortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.UnlockPortResponse, error) {
+					return resp, nil
+				}
+			}
+
+			cmd := &cobra.Command{Use: "unlock"}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = UnlockPort(cmd, []string{tt.portUID}, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedOut != "" {
+					assert.Contains(t, capturedOutput, tt.expectedOut)
+				}
+			}
+		})
+	}
+}
+
+func TestCheckPortVLANAvailability(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	originalCheckFunc := checkPortVLANAvailabilityFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		checkPortVLANAvailabilityFunc = originalCheckFunc
+	}()
+
+	tests := []struct {
+		name          string
+		portUID       string
+		vlanArg       string
+		available     bool
+		checkErr      error
+		loginErr      error
+		expectedError string
+		expectedOut   string
+	}{
+		{
+			name:        "available",
+			portUID:     "port-vlan-1",
+			vlanArg:     "100",
+			available:   true,
+			expectedOut: "is available",
+		},
+		{
+			name:        "not available",
+			portUID:     "port-vlan-2",
+			vlanArg:     "200",
+			available:   false,
+			expectedOut: "is not available",
+		},
+		{
+			name:          "invalid VLAN arg",
+			portUID:       "port-vlan-3",
+			vlanArg:       "abc",
+			expectedError: "invalid VLAN ID",
+		},
+		{
+			name:          "API error",
+			portUID:       "port-vlan-4",
+			vlanArg:       "300",
+			checkErr:      fmt.Errorf("VLAN check failed"),
+			expectedError: "VLAN check failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.loginErr != nil {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, tt.loginErr
+				}
+			} else {
+				mockService := &MockPortService{}
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.PortService = mockService
+					return client, nil
+				}
+			}
+
+			if tt.checkErr != nil {
+				checkPortVLANAvailabilityFunc = func(ctx context.Context, client *megaport.Client, portUID string, vlan int) (bool, error) {
+					return false, tt.checkErr
+				}
+			} else {
+				avail := tt.available
+				checkPortVLANAvailabilityFunc = func(ctx context.Context, client *megaport.Client, portUID string, vlan int) (bool, error) {
+					return avail, nil
+				}
+			}
+
+			cmd := &cobra.Command{Use: "check-vlan"}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = CheckPortVLANAvailability(cmd, []string{tt.portUID, tt.vlanArg}, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedOut != "" {
+					assert.Contains(t, capturedOutput, tt.expectedOut)
+				}
+			}
+		})
+	}
+}
+
+func TestUpdatePort(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	originalGetPortFunc := getPortFunc
+	originalUpdatePortFunc := updatePortFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		getPortFunc = originalGetPortFunc
+		updatePortFunc = originalUpdatePortFunc
+	}()
+
+	tests := []struct {
+		name             string
+		portUID          string
+		flags            map[string]string
+		jsonInput        string
+		getPortResult    *megaport.Port
+		getPortErr       error
+		updateResult     *megaport.ModifyPortResponse
+		updateErr        error
+		expectedError    string
+		expectedContains string
+	}{
+		{
+			name:    "success with flags",
+			portUID: "port-update-1",
+			flags:   map[string]string{"name": "Updated Port Name"},
+			getPortResult: &megaport.Port{
+				UID:                "port-update-1",
+				Name:               "Original Port",
+				ProvisioningStatus: "LIVE",
+			},
+			updateResult:     &megaport.ModifyPortResponse{IsUpdated: true},
+			expectedContains: "port-update-1",
+		},
+		{
+			name:    "success with JSON",
+			portUID: "port-update-2",
+			jsonInput: func() string {
+				b, _ := json.Marshal(map[string]interface{}{"name": "JSON Updated"})
+				return string(b)
+			}(),
+			getPortResult: &megaport.Port{
+				UID:                "port-update-2",
+				Name:               "Original Port",
+				ProvisioningStatus: "LIVE",
+			},
+			updateResult:     &megaport.ModifyPortResponse{IsUpdated: true},
+			expectedContains: "port-update-2",
+		},
+		{
+			name:          "get original error",
+			portUID:       "port-update-3",
+			flags:         map[string]string{"name": "New Name"},
+			getPortErr:    fmt.Errorf("port not found"),
+			expectedError: "port not found",
+		},
+		{
+			name:    "update error",
+			portUID: "port-update-4",
+			flags:   map[string]string{"name": "New Name"},
+			getPortResult: &megaport.Port{
+				UID:                "port-update-4",
+				Name:               "Original Port",
+				ProvisioningStatus: "LIVE",
+			},
+			updateErr:     fmt.Errorf("update rejected"),
+			expectedError: "update rejected",
+		},
+		{
+			name:    "no fields provided",
+			portUID: "port-update-5",
+			getPortResult: &megaport.Port{
+				UID:                "port-update-5",
+				Name:               "Original Port",
+				ProvisioningStatus: "LIVE",
+			},
+			expectedError: "at least one field must be updated",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockPortService{}
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.PortService = mockService
+				return client, nil
+			}
+
+			getCallCount := 0
+			if tt.getPortErr != nil {
+				getPortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.Port, error) {
+					return nil, tt.getPortErr
+				}
+			} else if tt.getPortResult != nil {
+				result := tt.getPortResult
+				getPortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.Port, error) {
+					getCallCount++
+					if getCallCount == 1 {
+						return result, nil
+					}
+					// Return updated port on second call
+					updated := *result
+					if tt.flags != nil {
+						if n, ok := tt.flags["name"]; ok {
+							updated.Name = n
+						}
+					}
+					return &updated, nil
+				}
+			}
+
+			if tt.updateErr != nil {
+				updatePortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyPortRequest) (*megaport.ModifyPortResponse, error) {
+					return nil, tt.updateErr
+				}
+			} else if tt.updateResult != nil {
+				resp := tt.updateResult
+				updatePortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyPortRequest) (*megaport.ModifyPortResponse, error) {
+					return resp, nil
+				}
+			}
+
+			cmd := &cobra.Command{Use: "update"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().String("marketplace-visibility", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().Int("term", 0, "")
+
+			if tt.jsonInput != "" {
+				_ = cmd.Flags().Set("json", tt.jsonInput)
+			}
+			for k, v := range tt.flags {
+				_ = cmd.Flags().Set(k, v)
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = UpdatePort(cmd, []string{tt.portUID}, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedContains != "" {
+					assert.Contains(t, capturedOutput, tt.expectedContains)
 				}
 			}
 		})

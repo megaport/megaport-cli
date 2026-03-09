@@ -3,6 +3,7 @@ package locations
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -379,4 +380,132 @@ func TestListLocationsCommand(t *testing.T) {
 
 		assert.Contains(t, output, "No locations found matching the specified filters")
 	})
+}
+
+func TestGetLocation(t *testing.T) {
+	testLocationsV3 := []*megaport.LocationV3{
+		{
+			ID:     1,
+			Name:   "Sydney Data Center",
+			Metro:  "Sydney",
+			Market: "AU",
+			Status: "Active",
+			Address: megaport.LocationV3Address{
+				Country: "Australia",
+			},
+			DiversityZones: &megaport.LocationV3DiversityZones{
+				Red: &megaport.LocationV3DiversityZone{
+					McrSpeedMbps:      []int{1000, 10000},
+					MegaportSpeedMbps: []int{1, 10},
+				},
+			},
+		},
+		{
+			ID:     2,
+			Name:   "London Data Center",
+			Metro:  "London",
+			Market: "UK",
+			Status: "Active",
+			Address: megaport.LocationV3Address{
+				Country: "United Kingdom",
+			},
+			DiversityZones: &megaport.LocationV3DiversityZones{
+				Red: &megaport.LocationV3DiversityZone{
+					MegaportSpeedMbps: []int{1},
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name           string
+		args           []string
+		setupMock      func(*MockLocationsService)
+		loginErr       error
+		expectedErr    string
+		expectedOutput string
+	}{
+		{
+			name: "success",
+			args: []string{"1"},
+			setupMock: func(m *MockLocationsService) {
+				m.On("ListLocationsV3", mock.Anything).Return(testLocationsV3, nil)
+			},
+			expectedOutput: "Sydney Data Center",
+		},
+		{
+			name:        "invalid ID arg",
+			args:        []string{"abc"},
+			setupMock:   func(m *MockLocationsService) {},
+			expectedErr: "invalid location ID",
+		},
+		{
+			name: "not found",
+			args: []string{"999"},
+			setupMock: func(m *MockLocationsService) {
+				m.On("ListLocationsV3", mock.Anything).Return(testLocationsV3, nil)
+			},
+			expectedErr: "no location found with ID: 999",
+		},
+		{
+			name: "API error",
+			args: []string{"1"},
+			setupMock: func(m *MockLocationsService) {
+				m.On("ListLocationsV3", mock.Anything).Return([]*megaport.LocationV3{}, fmt.Errorf("API failure"))
+			},
+			expectedErr: "error listing locations",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockSvc := setupTestEnvironment()
+			tt.setupMock(mockSvc)
+
+			originalLoginFunc := config.LoginFunc
+			originalListLocationsFunc := listLocationsFunc
+			defer func() {
+				config.LoginFunc = originalLoginFunc
+				listLocationsFunc = originalListLocationsFunc
+			}()
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				if tt.loginErr != nil {
+					return nil, tt.loginErr
+				}
+				testClient := &megaport.Client{}
+				testClient.LocationService = mockSvc
+				return testClient, nil
+			}
+
+			listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Location, error) {
+				locationsV3, err := client.LocationService.ListLocationsV3(ctx)
+				if err != nil {
+					return nil, err
+				}
+				var legacyLocations []*megaport.Location
+				for _, v3Loc := range locationsV3 {
+					legacyLocations = append(legacyLocations, v3Loc.ToLegacyLocation())
+				}
+				return legacyLocations, nil
+			}
+
+			cmd := &cobra.Command{
+				Use: "get",
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = GetLocation(cmd, tt.args, true, "json")
+			})
+
+			if tt.expectedErr != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+			}
+		})
+	}
 }

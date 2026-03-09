@@ -8,6 +8,215 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestValidateVNICIndex(t *testing.T) {
+	tests := []struct {
+		name    string
+		index   int
+		wantErr bool
+		errText string
+	}{
+		{"Valid index 0", 0, false, ""},
+		{"Valid index 5", 5, false, ""},
+		{"Valid index 100", 100, false, ""},
+		{"Invalid negative index", -1, true, "Invalid vNIC index: -1 - must be non-negative"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateVNICIndex(tt.index)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateVNICIndex() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
+				assert.Equal(t, tt.errText, err.Error(), "Error message mismatch")
+			}
+		})
+	}
+}
+
+func TestValidateBGPConnectionConfig(t *testing.T) {
+	tests := []struct {
+		name    string
+		conn    megaport.BgpConnectionConfig
+		wantErr bool
+		errText string
+	}{
+		{
+			name: "Valid BGP config",
+			conn: megaport.BgpConnectionConfig{
+				PeerAsn:        65000,
+				LocalIpAddress: "192.168.1.1",
+				PeerIpAddress:  "192.168.1.2",
+			},
+			wantErr: false,
+		},
+		{
+			name: "Missing peer ASN",
+			conn: megaport.BgpConnectionConfig{
+				PeerAsn:        0,
+				LocalIpAddress: "192.168.1.1",
+				PeerIpAddress:  "192.168.1.2",
+			},
+			wantErr: true,
+			errText: "Invalid vRouter interface [0] BGP connection [0] peer ASN: <nil> - is required",
+		},
+		{
+			name: "Invalid peer IP",
+			conn: megaport.BgpConnectionConfig{
+				PeerAsn:        65000,
+				LocalIpAddress: "192.168.1.1",
+				PeerIpAddress:  "not-an-ip",
+			},
+			wantErr: true,
+			errText: "Invalid vRouter interface [0] BGP connection [0] peer IP address: not-an-ip - must be a valid IPv4 address",
+		},
+		{
+			name: "Invalid local IP",
+			conn: megaport.BgpConnectionConfig{
+				PeerAsn:        65000,
+				LocalIpAddress: "bad-ip",
+				PeerIpAddress:  "192.168.1.2",
+			},
+			wantErr: true,
+			errText: "Invalid vRouter interface [0] BGP connection [0] local IP address: bad-ip - must be a valid IPv4 address",
+		},
+		{
+			name: "Invalid export policy",
+			conn: megaport.BgpConnectionConfig{
+				PeerAsn:        65000,
+				LocalIpAddress: "192.168.1.1",
+				PeerIpAddress:  "192.168.1.2",
+				ExportPolicy:   "invalid",
+			},
+			wantErr: true,
+			errText: "Invalid vRouter interface [0] BGP connection [0] export policy: invalid - must be 'permit' or 'deny'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateBGPConnectionConfig(tt.conn, 0, 0)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateBGPConnectionConfig() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
+				assert.Equal(t, tt.errText, err.Error(), "Error message mismatch")
+			}
+		})
+	}
+}
+
+func TestValidateIPRouteConfig(t *testing.T) {
+	tests := []struct {
+		name    string
+		route   megaport.IpRoute
+		wantErr bool
+		errText string
+	}{
+		{
+			name: "Valid IP route",
+			route: megaport.IpRoute{
+				Prefix:  "10.0.0.0/24",
+				NextHop: "192.168.1.1",
+			},
+			wantErr: false,
+		},
+		{
+			name: "Invalid prefix - not CIDR",
+			route: megaport.IpRoute{
+				Prefix:  "10.0.0.0",
+				NextHop: "192.168.1.1",
+			},
+			wantErr: true,
+			errText: "Invalid vRouter interface [0] IP route [0] prefix: 10.0.0.0 - must be a valid CIDR notation",
+		},
+		{
+			name: "Invalid next hop",
+			route: megaport.IpRoute{
+				Prefix:  "10.0.0.0/24",
+				NextHop: "not-an-ip",
+			},
+			wantErr: true,
+			errText: "Invalid vRouter interface [0] IP route [0] next hop: not-an-ip - must be a valid IPv4 address",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateIPRouteConfig(tt.route, 0, 0)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateIPRouteConfig() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
+				assert.Equal(t, tt.errText, err.Error(), "Error message mismatch")
+			}
+		})
+	}
+}
+
+func TestValidateBFDConfig(t *testing.T) {
+	tests := []struct {
+		name    string
+		bfd     megaport.BfdConfig
+		wantErr bool
+		errText string
+	}{
+		{
+			name: "Valid BFD config",
+			bfd: megaport.BfdConfig{
+				TxInterval: 500,
+				RxInterval: 500,
+				Multiplier: 5,
+			},
+			wantErr: false,
+		},
+		{
+			name: "TX interval too low",
+			bfd: megaport.BfdConfig{
+				TxInterval: 100,
+			},
+			wantErr: true,
+			errText: fmt.Sprintf("Invalid vRouter interface [0] BFD TX interval: 100 - must be between %d-%d milliseconds", MinBFDInterval, MaxBFDInterval),
+		},
+		{
+			name: "RX interval too high",
+			bfd: megaport.BfdConfig{
+				RxInterval: 50000,
+			},
+			wantErr: true,
+			errText: fmt.Sprintf("Invalid vRouter interface [0] BFD RX interval: 50000 - must be between %d-%d milliseconds", MinBFDInterval, MaxBFDInterval),
+		},
+		{
+			name: "Multiplier out of range",
+			bfd: megaport.BfdConfig{
+				Multiplier: 1,
+			},
+			wantErr: true,
+			errText: fmt.Sprintf("Invalid vRouter interface [0] BFD multiplier: 1 - must be between %d-%d", MinBFDMultiplier, MaxBFDMultiplier),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateBFDConfig(tt.bfd, 0)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateBFDConfig() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
+				assert.Equal(t, tt.errText, err.Error(), "Error message mismatch")
+			}
+		})
+	}
+}
+
 func TestValidateVXCEndVLAN(t *testing.T) {
 	tests := []struct {
 		name    string
