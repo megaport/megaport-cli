@@ -1005,6 +1005,9 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	}
 
 	if term, ok := rawData["term"].(float64); ok {
+		if term != math.Trunc(term) {
+			return nil, fmt.Errorf("term must be a whole number, got %v", term)
+		}
 		termInt := int(term)
 		if termInt != 0 {
 			if err := validation.ValidateContractTerm(termInt); err != nil {

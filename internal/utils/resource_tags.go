@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/spf13/cobra"
 )
+
+const defaultTagsTimeout = 90 * time.Second
 
 // TagListerFunc is a function that lists resource tags for a given UID.
 type TagListerFunc func(ctx context.Context, uid string) (map[string]string, error)
@@ -23,7 +26,8 @@ type TagUpdaterFunc func(ctx context.Context, uid string, tags map[string]string
 func ListResourceTags(resourceType, uid string, noColor bool, outputFormat string, listFunc TagListerFunc) error {
 	output.SetOutputFormat(outputFormat)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTagsTimeout)
+	defer cancel()
 
 	tagsMap, err := listFunc(ctx, uid)
 	if err != nil {
@@ -58,7 +62,8 @@ type UpdateTagsOptions struct {
 // fetching existing tags, parsing input (interactive/JSON/JSON file), calling
 // the update function, and printing results.
 func UpdateResourceTags(opts UpdateTagsOptions) error {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTagsTimeout)
+	defer cancel()
 
 	existingTags, err := opts.ListFunc(ctx, opts.UID)
 	if err != nil {

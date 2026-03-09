@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 
 	"github.com/megaport/megaport-cli/internal/commands/config"
@@ -123,6 +124,10 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 		termFloat, ok := term.(float64)
 		if !ok {
 			return nil, fmt.Errorf("invalid contract term type: must be a number")
+		}
+
+		if termFloat != math.Trunc(termFloat) {
+			return nil, fmt.Errorf("contractTermMonths must be a whole number, got %v", termFloat)
 		}
 
 		termValue := int(termFloat)
