@@ -354,6 +354,45 @@ func TestSetBillingMarketAction_WithOptionalFields(t *testing.T) {
 	assert.Equal(t, "ABN-123456", req.TaxNumber)
 }
 
+func TestBuildSetBillingMarketRequest_InvalidFirstPartyID(t *testing.T) {
+	tests := []struct {
+		name         string
+		firstPartyID string
+	}{
+		{"zero", "0"},
+		{"negative", "-1"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &cobra.Command{Use: "set"}
+			cmd.Flags().String("currency", "", "")
+			cmd.Flags().String("language", "", "")
+			cmd.Flags().String("billing-contact-name", "", "")
+			cmd.Flags().String("billing-contact-phone", "", "")
+			cmd.Flags().String("billing-contact-email", "", "")
+			cmd.Flags().String("address1", "", "")
+			cmd.Flags().String("address2", "", "")
+			cmd.Flags().String("city", "", "")
+			cmd.Flags().String("state", "", "")
+			cmd.Flags().String("postcode", "", "")
+			cmd.Flags().String("country", "", "")
+			cmd.Flags().String("po-number", "", "")
+			cmd.Flags().String("tax-number", "", "")
+			cmd.Flags().Int("first-party-id", 0, "")
+
+			_ = cmd.Flags().Set("currency", "USD")
+			_ = cmd.Flags().Set("country", "US")
+			_ = cmd.Flags().Set("first-party-id", tt.firstPartyID)
+
+			req, err := buildSetBillingMarketRequest(cmd)
+			assert.Nil(t, req)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "first-party-id must be a positive integer")
+		})
+	}
+}
+
 func TestSetBillingMarketAction_Error(t *testing.T) {
 	originalLoginFunc := config.LoginFunc
 	defer func() {
