@@ -125,9 +125,9 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 			return nil, fmt.Errorf("invalid contract term type: must be a number")
 		}
 
-		termValue := int64(termFloat)
-		if termValue != 1 && termValue != 12 && termValue != 24 && termValue != 36 {
-			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		termValue := int(termFloat)
+		if err := validation.ValidateContractTerm(termValue); err != nil {
+			return nil, err
 		}
 	}
 
@@ -168,8 +168,8 @@ func processFlagUpdateMCRInput(cmd *cobra.Command, mcrUID string) (*megaport.Mod
 
 	if termSet {
 		term, _ := cmd.Flags().GetInt("term")
-		if term != 1 && term != 12 && term != 24 && term != 36 {
-			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		if err := validation.ValidateContractTerm(term); err != nil {
+			return nil, err
 		}
 		req.ContractTermMonths = &term
 	}

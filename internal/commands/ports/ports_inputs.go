@@ -67,9 +67,8 @@ func processJSONUpdatePortInput(jsonStr, jsonFile string) (*megaport.ModifyPortR
 	}
 
 	if req.ContractTermMonths != nil {
-		if *req.ContractTermMonths != 1 && *req.ContractTermMonths != 12 &&
-			*req.ContractTermMonths != 24 && *req.ContractTermMonths != 36 {
-			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		if err := validation.ValidateContractTerm(*req.ContractTermMonths); err != nil {
+			return nil, err
 		}
 	}
 
@@ -117,8 +116,8 @@ func processFlagUpdatePortInput(cmd *cobra.Command, portUID string) (*megaport.M
 	if termSet {
 		term, _ := cmd.Flags().GetInt("term")
 		if term != 0 {
-			if term != 1 && term != 12 && term != 24 && term != 36 {
-				return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+			if err := validation.ValidateContractTerm(term); err != nil {
+				return nil, err
 			}
 			req.ContractTermMonths = &term
 		}

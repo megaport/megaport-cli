@@ -28,8 +28,8 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 	}
 
 	term, _ := cmd.Flags().GetInt("term")
-	if term != 1 && term != 12 && term != 24 && term != 36 {
-		return nil, fmt.Errorf("term must be 1, 12, 24, or 36")
+	if err := validation.ValidateContractTerm(term); err != nil {
+		return nil, err
 	}
 
 	// Get optional fields
@@ -854,8 +854,10 @@ var buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateV
 
 	if cmd.Flags().Changed("term") {
 		term, _ := cmd.Flags().GetInt("term")
-		if term != 0 && term != 1 && term != 12 && term != 24 && term != 36 {
-			return nil, fmt.Errorf("term must be 0, 1, 12, 24, or 36")
+		if term != 0 {
+			if err := validation.ValidateContractTerm(term); err != nil {
+				return nil, err
+			}
 		}
 		req.Term = &term
 	}
@@ -1004,8 +1006,10 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 
 	if term, ok := rawData["term"].(float64); ok {
 		termInt := int(term)
-		if termInt != 0 && termInt != 1 && termInt != 12 && termInt != 24 && termInt != 36 {
-			return nil, fmt.Errorf("term must be 0, 1, 12, 24, or 36")
+		if termInt != 0 {
+			if err := validation.ValidateContractTerm(termInt); err != nil {
+				return nil, err
+			}
 		}
 		req.Term = &termInt
 	}

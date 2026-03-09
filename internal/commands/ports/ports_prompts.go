@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -25,8 +26,11 @@ func promptForPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 		return nil, err
 	}
 	term, err := strconv.Atoi(termStr)
-	if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
-		return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+	if err != nil {
+		return nil, fmt.Errorf("invalid term: %v", err)
+	}
+	if err := validation.ValidateContractTerm(term); err != nil {
+		return nil, err
 	}
 	req.Term = term
 
@@ -104,8 +108,11 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 		return nil, err
 	}
 	term, err := strconv.Atoi(termStr)
-	if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
-		return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+	if err != nil {
+		return nil, fmt.Errorf("invalid term: %v", err)
+	}
+	if err := validation.ValidateContractTerm(term); err != nil {
+		return nil, err
 	}
 	req.Term = term
 
@@ -214,8 +221,11 @@ func promptForUpdatePortDetails(portUID string, noColor bool) (*megaport.ModifyP
 	}
 	if termStr != "" {
 		term, err := strconv.Atoi(termStr)
-		if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
-			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		if err != nil {
+			return nil, fmt.Errorf("invalid term: %v", err)
+		}
+		if err := validation.ValidateContractTerm(term); err != nil {
+			return nil, err
 		}
 		req.ContractTermMonths = &term
 	}
