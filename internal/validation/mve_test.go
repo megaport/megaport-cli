@@ -433,7 +433,7 @@ func TestValidateUpdateMVERequest(t *testing.T) {
 	}
 }
 
-func TestValidateVendorConfigs(t *testing.T) {
+func TestValidateMVEVendorConfig_AllVendors(t *testing.T) {
 	tests := []struct {
 		name    string
 		config  megaport.VendorConfig
@@ -698,7 +698,7 @@ func TestValidateVendorConfigs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateMVEVendorConfig(tt.config)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateVendorConfigs() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ValidateMVEVendorConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if err != nil && tt.wantErr {

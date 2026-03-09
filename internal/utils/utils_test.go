@@ -32,7 +32,7 @@ func TestShouldDisableColors(t *testing.T) {
 		assert.True(t, ShouldDisableColors())
 	})
 
-	t.Run("returns true when DisableColors global var is set", func(t *testing.T) {
+	t.Run("returns true when NoColor global var is set", func(t *testing.T) {
 		os.Unsetenv("NO_COLOR")
 		os.Args = []string{"cmd"}
 		NoColor = true

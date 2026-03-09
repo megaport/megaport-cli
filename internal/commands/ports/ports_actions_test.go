@@ -791,7 +791,7 @@ func TestBuyPort(t *testing.T) {
 				"term":                   "12",
 				"port-speed":             "1000",
 				"location-id":            "1",
-				"marketplace-visibility": "private",
+				"marketplace-visibility": "true",
 			},
 			setupMock: func(m *MockPortService) {},
 			buyPortOverride: func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
@@ -819,7 +819,7 @@ func TestBuyPort(t *testing.T) {
 				"term":                   "12",
 				"port-speed":             "1000",
 				"location-id":            "1",
-				"marketplace-visibility": "private",
+				"marketplace-visibility": "true",
 			},
 			setupMock: func(m *MockPortService) {},
 			buyPortOverride: func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
@@ -834,7 +834,7 @@ func TestBuyPort(t *testing.T) {
 				"term":                   "12",
 				"port-speed":             "1000",
 				"location-id":            "1",
-				"marketplace-visibility": "private",
+				"marketplace-visibility": "true",
 			},
 			setupMock: func(m *MockPortService) {
 				m.ValidatePortOrderErr = fmt.Errorf("invalid port configuration")
@@ -872,7 +872,7 @@ func TestBuyPort(t *testing.T) {
 			cmd.Flags().Int("term", 0, "")
 			cmd.Flags().Int("port-speed", 0, "")
 			cmd.Flags().Int("location-id", 0, "")
-			cmd.Flags().String("marketplace-visibility", "", "")
+			cmd.Flags().Bool("marketplace-visibility", false, "")
 			cmd.Flags().String("diversity-zone", "", "")
 			cmd.Flags().Bool("cost-confirm", true, "")
 
@@ -1371,7 +1371,7 @@ func TestUpdatePort(t *testing.T) {
 			cmd.Flags().String("json", "", "")
 			cmd.Flags().String("json-file", "", "")
 			cmd.Flags().String("name", "", "")
-			cmd.Flags().String("marketplace-visibility", "", "")
+			cmd.Flags().Bool("marketplace-visibility", false, "")
 			cmd.Flags().String("cost-centre", "", "")
 			cmd.Flags().Int("term", 0, "")
 
