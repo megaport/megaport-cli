@@ -361,7 +361,10 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 	}
 
-	safeDelete, _ := cmd.Flags().GetBool("safe-delete")
+	safeDelete, err := cmd.Flags().GetBool("safe-delete")
+	if err != nil {
+		return err
+	}
 
 	deleteRequest := &megaport.DeleteMCRRequest{
 		MCRID:      mcrUID,
