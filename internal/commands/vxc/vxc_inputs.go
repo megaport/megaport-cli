@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -1118,6 +1119,9 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 		req.IsApproved = &isApproved
 	}
 	if aVnicIndex, ok := rawData["aVnicIndex"].(float64); ok {
+		if aVnicIndex != math.Trunc(aVnicIndex) {
+			return nil, fmt.Errorf("aVnicIndex must be a whole number, got %v", aVnicIndex)
+		}
 		idx := int(aVnicIndex)
 		if err := validation.ValidateVNICIndex(idx); err != nil {
 			return nil, fmt.Errorf("invalid aVnicIndex: %w", err)
@@ -1125,6 +1129,9 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 		req.AVnicIndex = &idx
 	}
 	if bVnicIndex, ok := rawData["bVnicIndex"].(float64); ok {
+		if bVnicIndex != math.Trunc(bVnicIndex) {
+			return nil, fmt.Errorf("bVnicIndex must be a whole number, got %v", bVnicIndex)
+		}
 		idx := int(bVnicIndex)
 		if err := validation.ValidateVNICIndex(idx); err != nil {
 			return nil, fmt.Errorf("invalid bVnicIndex: %w", err)
