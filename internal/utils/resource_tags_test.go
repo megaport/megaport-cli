@@ -47,6 +47,11 @@ func TestParseResourceTagsInput(t *testing.T) {
 			expected: map[string]string{},
 		},
 		{
+			name:     "null JSON normalizes to nil map",
+			flags:    map[string]string{"json": `null`},
+			expected: nil,
+		},
+		{
 			name:        "no input provided",
 			flags:       map[string]string{},
 			expectError: "no input provided",
@@ -145,6 +150,11 @@ func TestParseResourceTagsInputExtended(t *testing.T) {
 			name:        "no input",
 			flags:       map[string]string{},
 			expectError: "no input provided",
+		},
+		{
+			name:     "null tags JSON normalizes to nil map",
+			flags:    map[string]string{"tags": `null`},
+			expected: nil,
 		},
 		{
 			name:     "json takes precedence over tags",

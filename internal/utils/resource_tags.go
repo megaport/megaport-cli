@@ -98,6 +98,11 @@ func UpdateResourceTags(opts UpdateTagsOptions) error {
 		}
 	}
 
+	// Normalize nil to empty map so the API receives {} rather than null.
+	if resourceTags == nil {
+		resourceTags = map[string]string{}
+	}
+
 	if len(resourceTags) == 0 {
 		output.PrintWarning("No tags provided. The %s will have all existing tags removed.", opts.NoColor, opts.ResourceType)
 	}
