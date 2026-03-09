@@ -63,14 +63,14 @@ type UpdateTagsOptions struct {
 // the update function, and printing results.
 func UpdateResourceTags(opts UpdateTagsOptions) error {
 	// Use a dedicated context for the initial list call so interactive prompts
-	// don't consume the timeout budget.
+	// don't consume the timeout budget. Cancel immediately after the call to
+	// release timer resources before any potentially long interactive prompt.
 	listCtx, listCancel := context.WithTimeout(context.Background(), defaultTagsTimeout)
-	defer listCancel()
-
 	existingTags, err := opts.ListFunc(listCtx, opts.UID)
+	listCancel()
 	if err != nil {
-		output.PrintError("Failed to get existing resource tags: %v", opts.NoColor, err)
-		return fmt.Errorf("failed to get existing resource tags: %v", err)
+		output.PrintError("Failed to login or list existing resource tags: %v", opts.NoColor, err)
+		return fmt.Errorf("failed to login or list existing resource tags: %v", err)
 	}
 
 	interactive, _ := opts.Cmd.Flags().GetBool("interactive")

@@ -529,7 +529,7 @@ func TestUpdatePortResourceTagsCmd(t *testing.T) {
 			setupMock: func(m *MockPortService) {
 				m.ListPortResourceTagsErr = fmt.Errorf("API error: resource not found")
 			},
-			expectedError: "failed to get existing resource tags",
+			expectedError: "failed to login or list existing resource tags",
 		},
 		{
 			name:      "error with API update",
