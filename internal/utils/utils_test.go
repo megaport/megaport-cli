@@ -14,10 +14,15 @@ func TestShouldDisableColors(t *testing.T) {
 	// Save original state and restore after each subtest.
 	origNoColor := NoColor
 	origArgs := os.Args
+	origNoColorEnv, origNoColorEnvSet := os.LookupEnv("NO_COLOR")
 	defer func() {
 		NoColor = origNoColor
 		os.Args = origArgs
-		os.Unsetenv("NO_COLOR")
+		if origNoColorEnvSet {
+			os.Setenv("NO_COLOR", origNoColorEnv)
+		} else {
+			os.Unsetenv("NO_COLOR")
+		}
 	}()
 
 	t.Run("returns true when NO_COLOR env is set", func(t *testing.T) {

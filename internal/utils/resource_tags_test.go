@@ -200,7 +200,7 @@ func TestParseResourceTagsInputExtended(t *testing.T) {
 }
 
 func TestListResourceTags(t *testing.T) {
-	t.Run("success returns sorted tags", func(t *testing.T) {
+	t.Run("success with tags", func(t *testing.T) {
 		listFunc := func(ctx context.Context, uid string) (map[string]string, error) {
 			assert.Equal(t, "test-uid-123", uid)
 			return map[string]string{"env": "prod", "app": "web"}, nil
