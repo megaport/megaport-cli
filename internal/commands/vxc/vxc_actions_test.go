@@ -407,7 +407,7 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 			setupMock: func(m *mockVXCService) {
 				m.ListVXCResourceTagsErr = fmt.Errorf("API error: resource not found")
 			},
-			expectedError: "failed to get existing resource tags",
+			expectedError: "failed to login or list existing resource tags",
 		},
 		{
 			name:      "empty tags clear all existing tags",

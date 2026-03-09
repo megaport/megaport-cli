@@ -2,10 +2,7 @@ package vxc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
-	"sort"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -316,109 +313,39 @@ func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func ListVXCResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
 	vxcUID := args[0]
-
-	ctx := context.Background()
-
-	client, err := config.LoginFunc(ctx)
-	if err != nil {
-		return err
-	}
-
-	tagsMap, err := client.VXCService.ListVXCResourceTags(ctx, vxcUID)
-
-	if err != nil {
-		output.PrintError("Error getting resource tags for VXC %s: %v", noColor, vxcUID, err)
-		return fmt.Errorf("error getting resource tags for VXC %s: %v", vxcUID, err)
-	}
-
-	tags := make([]output.ResourceTag, 0, len(tagsMap))
-	for k, v := range tagsMap {
-		tags = append(tags, output.ResourceTag{Key: k, Value: v})
-	}
-
-	sort.Slice(tags, func(i, j int) bool {
-		return tags[i].Key < tags[j].Key
+	return utils.ListResourceTags("VXC", vxcUID, noColor, outputFormat, func(ctx context.Context, uid string) (map[string]string, error) {
+		client, err := config.LoginFunc(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return client.VXCService.ListVXCResourceTags(ctx, uid)
 	})
-
-	return output.PrintOutput(tags, outputFormat, noColor)
 }
 
 func UpdateVXCResourceTags(cmd *cobra.Command, args []string, noColor bool) error {
 	vxcUID := args[0]
-
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
-
-	client, err := config.LoginFunc(ctx)
-	if err != nil {
-		output.PrintError("Failed to log in: %v", noColor, err)
+	var client *megaport.Client
+	login := func(ctx context.Context) error {
+		var err error
+		client, err = config.LoginFunc(ctx)
 		return err
 	}
-
-	existingTags, err := client.VXCService.ListVXCResourceTags(ctx, vxcUID)
-
-	if err != nil {
-		output.PrintError("Failed to get existing resource tags: %v", noColor, err)
-		return fmt.Errorf("failed to get existing resource tags: %v", err)
-	}
-
-	interactive, _ := cmd.Flags().GetBool("interactive")
-
-	var resourceTags map[string]string
-
-	if interactive {
-		resourceTags, err = utils.UpdateResourceTagsPrompt(existingTags, noColor)
-		if err != nil {
-			output.PrintError("Failed to update resource tags", noColor, err)
-			return err
-		}
-	} else {
-		jsonStr, _ := cmd.Flags().GetString("json")
-		jsonFile, _ := cmd.Flags().GetString("json-file")
-
-		if jsonStr != "" {
-			if err := json.Unmarshal([]byte(jsonStr), &resourceTags); err != nil {
-				output.PrintError("Failed to parse JSON: %v", noColor, err)
-				return fmt.Errorf("error parsing JSON: %v", err)
+	return utils.UpdateResourceTags(utils.UpdateTagsOptions{
+		ResourceType: "VXC",
+		UID:          vxcUID,
+		NoColor:      noColor,
+		Cmd:          cmd,
+		ListFunc: func(ctx context.Context, uid string) (map[string]string, error) {
+			if err := login(ctx); err != nil {
+				return nil, err
 			}
-		} else if jsonFile != "" {
-			jsonData, err := os.ReadFile(jsonFile)
-			if err != nil {
-				output.PrintError("Failed to read JSON file: %v", noColor, err)
-				return fmt.Errorf("error reading JSON file: %v", err)
-			}
-
-			if err := json.Unmarshal(jsonData, &resourceTags); err != nil {
-				output.PrintError("Failed to parse JSON file: %v", noColor, err)
-				return fmt.Errorf("error parsing JSON file: %v", err)
-			}
-		} else {
-			output.PrintError("No input provided for tags", noColor)
-			return fmt.Errorf("no input provided, use --interactive, --json, or --json-file to specify resource tags")
-		}
-	}
-
-	if len(resourceTags) == 0 {
-		cmd.PrintErrln("No tags provided. The VXC will have all existing tags removed")
-	}
-
-	spinner := output.PrintResourceUpdating("VXC-Resource-Tags", vxcUID, noColor)
-
-	err = client.VXCService.UpdateVXCResourceTags(ctx, vxcUID, resourceTags)
-
-	spinner.Stop()
-
-	if err != nil {
-		output.PrintError("Failed to update resource tags: %v", noColor, err)
-		return fmt.Errorf("failed to update resource tags: %v", err)
-	}
-
-	fmt.Printf("Resource tags updated for VXC %s\n", vxcUID)
-	return nil
+			return client.VXCService.ListVXCResourceTags(ctx, uid)
+		},
+		UpdateFunc: func(ctx context.Context, uid string, tags map[string]string) error {
+			return client.VXCService.UpdateVXCResourceTags(ctx, uid, tags)
+		},
+	})
 }
 
 func GetVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {

@@ -69,8 +69,8 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 			return nil, fmt.Errorf("invalid term: %v", err)
 		}
 
-		if term != 1 && term != 12 && term != 24 && term != 36 {
-			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		if err := validation.ValidateContractTerm(term); err != nil {
+			return nil, err
 		}
 
 		req.ContractTermMonths = &term

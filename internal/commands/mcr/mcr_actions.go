@@ -2,10 +2,7 @@ package mcr
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
-	"sort"
 	"strconv"
 	"time"
 
@@ -578,109 +575,39 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 }
 
 func ListMCRResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
 	mcrUID := args[0]
-
-	ctx := context.Background()
-
-	client, err := config.LoginFunc(ctx)
-	if err != nil {
-		return err
-	}
-
-	tagsMap, err := client.MCRService.ListMCRResourceTags(ctx, mcrUID)
-
-	if err != nil {
-		output.PrintError("Error getting resource tags for MCR %s: %v", noColor, mcrUID, err)
-		return fmt.Errorf("error getting resource tags for MCR %s: %v", mcrUID, err)
-	}
-
-	tags := make([]output.ResourceTag, 0, len(tagsMap))
-	for k, v := range tagsMap {
-		tags = append(tags, output.ResourceTag{Key: k, Value: v})
-	}
-
-	sort.Slice(tags, func(i, j int) bool {
-		return tags[i].Key < tags[j].Key
+	return utils.ListResourceTags("MCR", mcrUID, noColor, outputFormat, func(ctx context.Context, uid string) (map[string]string, error) {
+		client, err := config.LoginFunc(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return client.MCRService.ListMCRResourceTags(ctx, uid)
 	})
-
-	return output.PrintOutput(tags, outputFormat, noColor)
 }
 
 func UpdateMCRResourceTags(cmd *cobra.Command, args []string, noColor bool) error {
 	mcrUID := args[0]
-
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
-
-	client, err := config.LoginFunc(ctx)
-	if err != nil {
-		output.PrintError("Failed to log in: %v", noColor, err)
+	var client *megaport.Client
+	login := func(ctx context.Context) error {
+		var err error
+		client, err = config.LoginFunc(ctx)
 		return err
 	}
-
-	existingTags, err := client.MCRService.ListMCRResourceTags(ctx, mcrUID)
-
-	if err != nil {
-		output.PrintError("Failed to get existing resource tags: %v", noColor, err)
-		return fmt.Errorf("failed to get existing resource tags: %v", err)
-	}
-
-	interactive, _ := cmd.Flags().GetBool("interactive")
-
-	var resourceTags map[string]string
-
-	if interactive {
-		resourceTags, err = utils.UpdateResourceTagsPrompt(existingTags, noColor)
-		if err != nil {
-			output.PrintError("Failed to update resource tags", noColor, err)
-			return err
-		}
-	} else {
-		jsonStr, _ := cmd.Flags().GetString("json")
-		jsonFile, _ := cmd.Flags().GetString("json-file")
-
-		if jsonStr != "" {
-			if err := json.Unmarshal([]byte(jsonStr), &resourceTags); err != nil {
-				output.PrintError("Failed to parse JSON: %v", noColor, err)
-				return fmt.Errorf("error parsing JSON: %v", err)
+	return utils.UpdateResourceTags(utils.UpdateTagsOptions{
+		ResourceType: "MCR",
+		UID:          mcrUID,
+		NoColor:      noColor,
+		Cmd:          cmd,
+		ListFunc: func(ctx context.Context, uid string) (map[string]string, error) {
+			if err := login(ctx); err != nil {
+				return nil, err
 			}
-		} else if jsonFile != "" {
-			jsonData, err := os.ReadFile(jsonFile)
-			if err != nil {
-				output.PrintError("Failed to read JSON file: %v", noColor, err)
-				return fmt.Errorf("error reading JSON file: %v", err)
-			}
-
-			if err := json.Unmarshal(jsonData, &resourceTags); err != nil {
-				output.PrintError("Failed to parse JSON file: %v", noColor, err)
-				return fmt.Errorf("error parsing JSON file: %v", err)
-			}
-		} else {
-			output.PrintError("No input provided for tags", noColor)
-			return fmt.Errorf("no input provided, use --interactive, --json, or --json-file to specify resource tags")
-		}
-	}
-
-	if len(resourceTags) == 0 {
-		fmt.Fprintln(os.Stderr, "No tags provided. The MCR will have all existing tags removed.")
-	}
-
-	spinner := output.PrintResourceUpdating("MCR-Resource-Tags", mcrUID, noColor)
-
-	err = client.MCRService.UpdateMCRResourceTags(ctx, mcrUID, resourceTags)
-
-	spinner.Stop()
-
-	if err != nil {
-		output.PrintError("Failed to update resource tags: %v", noColor, err)
-		return fmt.Errorf("failed to update resource tags: %v", err)
-	}
-
-	fmt.Fprintf(os.Stderr, "Resource tags updated for MCR %s\n", mcrUID)
-	return nil
+			return client.MCRService.ListMCRResourceTags(ctx, uid)
+		},
+		UpdateFunc: func(ctx context.Context, uid string, tags map[string]string) error {
+			return client.MCRService.UpdateMCRResourceTags(ctx, uid, tags)
+		},
+	})
 }
 
 func GetMCRStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {

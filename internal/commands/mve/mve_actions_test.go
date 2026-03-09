@@ -1295,7 +1295,7 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 				m.ListMVEResourceTagsErr = fmt.Errorf("API error: resource not found")
 				m.CapturedUpdateMVEResourceTagsRequest = make(map[string]string)
 			},
-			expectedError: "failed to get existing resource tags",
+			expectedError: "failed to login or list existing resource tags",
 		},
 		{
 			name:      "empty tags clear all existing tags",

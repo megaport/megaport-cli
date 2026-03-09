@@ -323,6 +323,9 @@ func PrintLoggingIn(noColor bool) *Spinner {
 }
 
 func PrintLoggingInWithOutput(noColor bool, outputFormat string) *Spinner {
+	if outputFormat == "" {
+		outputFormat = getOutputFormat()
+	}
 	msg := "Logging in to Megaport..."
 	spinner := NewSpinnerWithOutput(noColor, outputFormat)
 	spinner.Start(msg)
