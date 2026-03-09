@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"sort"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -316,35 +315,14 @@ func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func ListVXCResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
 	vxcUID := args[0]
-
-	ctx := context.Background()
-
-	client, err := config.LoginFunc(ctx)
-	if err != nil {
-		return err
-	}
-
-	tagsMap, err := client.VXCService.ListVXCResourceTags(ctx, vxcUID)
-
-	if err != nil {
-		output.PrintError("Error getting resource tags for VXC %s: %v", noColor, vxcUID, err)
-		return fmt.Errorf("error getting resource tags for VXC %s: %v", vxcUID, err)
-	}
-
-	tags := make([]output.ResourceTag, 0, len(tagsMap))
-	for k, v := range tagsMap {
-		tags = append(tags, output.ResourceTag{Key: k, Value: v})
-	}
-
-	sort.Slice(tags, func(i, j int) bool {
-		return tags[i].Key < tags[j].Key
+	return utils.ListResourceTags("VXC", vxcUID, noColor, outputFormat, func(ctx context.Context, uid string) (map[string]string, error) {
+		client, err := config.LoginFunc(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return client.VXCService.ListVXCResourceTags(ctx, uid)
 	})
-
-	return output.PrintOutput(tags, outputFormat, noColor)
 }
 
 func UpdateVXCResourceTags(cmd *cobra.Command, args []string, noColor bool) error {

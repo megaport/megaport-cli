@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"sort"
 	"strconv"
 	"time"
 
@@ -578,35 +577,14 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 }
 
 func ListMCRResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
 	mcrUID := args[0]
-
-	ctx := context.Background()
-
-	client, err := config.LoginFunc(ctx)
-	if err != nil {
-		return err
-	}
-
-	tagsMap, err := client.MCRService.ListMCRResourceTags(ctx, mcrUID)
-
-	if err != nil {
-		output.PrintError("Error getting resource tags for MCR %s: %v", noColor, mcrUID, err)
-		return fmt.Errorf("error getting resource tags for MCR %s: %v", mcrUID, err)
-	}
-
-	tags := make([]output.ResourceTag, 0, len(tagsMap))
-	for k, v := range tagsMap {
-		tags = append(tags, output.ResourceTag{Key: k, Value: v})
-	}
-
-	sort.Slice(tags, func(i, j int) bool {
-		return tags[i].Key < tags[j].Key
+	return utils.ListResourceTags("MCR", mcrUID, noColor, outputFormat, func(ctx context.Context, uid string) (map[string]string, error) {
+		client, err := config.LoginFunc(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return client.MCRService.ListMCRResourceTags(ctx, uid)
 	})
-
-	return output.PrintOutput(tags, outputFormat, noColor)
 }
 
 func UpdateMCRResourceTags(cmd *cobra.Command, args []string, noColor bool) error {

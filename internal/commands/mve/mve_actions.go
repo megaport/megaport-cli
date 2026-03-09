@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"sort"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -423,34 +422,14 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func ListMVEResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
 	mveUID := args[0]
-
-	ctx := context.Background()
-
-	client, err := config.LoginFunc(ctx)
-	if err != nil {
-		return err
-	}
-
-	tagsMap, err := listMVEResourceTagsFunc(ctx, client, mveUID)
-
-	if err != nil {
-		return fmt.Errorf("error getting resource tags for MVE %s: %v", mveUID, err)
-	}
-
-	tags := make([]output.ResourceTag, 0, len(tagsMap))
-	for k, v := range tagsMap {
-		tags = append(tags, output.ResourceTag{Key: k, Value: v})
-	}
-
-	sort.Slice(tags, func(i, j int) bool {
-		return tags[i].Key < tags[j].Key
+	return utils.ListResourceTags("MVE", mveUID, noColor, outputFormat, func(ctx context.Context, uid string) (map[string]string, error) {
+		client, err := config.LoginFunc(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return listMVEResourceTagsFunc(ctx, client, uid)
 	})
-
-	return output.PrintOutput(tags, outputFormat, noColor)
 }
 
 func UpdateMVEResourceTags(cmd *cobra.Command, args []string, noColor bool) error {

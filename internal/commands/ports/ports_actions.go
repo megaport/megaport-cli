@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"sort"
 	"strconv"
 	"time"
 
@@ -574,36 +573,14 @@ func CheckPortVLANAvailability(cmd *cobra.Command, args []string, noColor bool) 
 }
 
 func ListPortResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
 	portUID := args[0]
-
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
-
-	client, err := config.LoginFunc(ctx)
-	if err != nil {
-		return err
-	}
-
-	tagsMap, err := listPortResourceTagsFunc(ctx, client, portUID)
-
-	if err != nil {
-		output.PrintError("Error getting resource tags for port %s: %v", noColor, portUID, err)
-		return fmt.Errorf("error getting resource tags for port %s: %v", portUID, err)
-	}
-
-	tags := make([]output.ResourceTag, 0, len(tagsMap))
-	for k, v := range tagsMap {
-		tags = append(tags, output.ResourceTag{Key: k, Value: v})
-	}
-
-	sort.Slice(tags, func(i, j int) bool {
-		return tags[i].Key < tags[j].Key
+	return utils.ListResourceTags("Port", portUID, noColor, outputFormat, func(ctx context.Context, uid string) (map[string]string, error) {
+		client, err := config.LoginFunc(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return listPortResourceTagsFunc(ctx, client, uid)
 	})
-
-	return output.PrintOutput(tags, outputFormat, noColor)
 }
 
 func UpdatePortResourceTags(cmd *cobra.Command, args []string, noColor bool) error {
