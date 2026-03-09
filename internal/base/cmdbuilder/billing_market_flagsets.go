@@ -15,7 +15,7 @@ func (b *CommandBuilder) WithBillingMarketSetFlags() *CommandBuilder {
 	b.WithFlag("country", "", "Country code (e.g., AU, US)")
 	b.WithFlag("po-number", "", "Purchase order number for tracking")
 	b.WithFlag("tax-number", "", "Tax or VAT registration number")
-	b.WithIntFlag("first-party-id", 0, "Billing market ID (e.g., 1558 for US, 808 for AU)")
+	b.WithIntFlag("first-party-id", 0, "First party ID for the billing market (e.g., 1558 for US, 808 for AU)")
 
 	b.ReflagCmd("currency", "language", "billing-contact-name", "billing-contact-phone",
 		"billing-contact-email", "address1", "city", "state", "postcode", "country", "first-party-id")
