@@ -105,7 +105,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	deleteMCRCmd := cmdbuilder.NewCommand("delete", "Delete an MCR from your account").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(DeleteMCR).
-		WithDeleteFlags().
+		WithSafeDeleteFlags().
 		WithLongDesc("Delete an MCR from your account.\n\nThis command allows you to delete an MCR from your account. By default, the MCR will be scheduled for deletion at the end of the current billing period.").
 		WithExample("megaport-cli mcr delete [mcrUID]").
 		WithExample("megaport-cli mcr delete [mcrUID] --now").

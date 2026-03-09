@@ -112,7 +112,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	deleteMVECmd := cmdbuilder.NewCommand("delete", "Delete an existing MVE").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(DeleteMVE).
-		WithDeleteFlags().
+		WithSafeDeleteFlags().
 		WithLongDesc("Delete an existing Megaport Virtual Edge (MVE).\n\nThis command allows you to delete an existing MVE by providing its UID.").
 		WithExample("megaport-cli mve delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
 		WithExample("megaport-cli mve delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --force").

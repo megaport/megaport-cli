@@ -920,10 +920,16 @@ var buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateV
 	}
 	if cmd.Flags().Changed("a-vnic-index") {
 		aVnicIndex, _ := cmd.Flags().GetInt("a-vnic-index")
+		if err := validation.ValidateVNICIndex(aVnicIndex); err != nil {
+			return nil, fmt.Errorf("invalid a-vnic-index: %w", err)
+		}
 		req.AVnicIndex = &aVnicIndex
 	}
 	if cmd.Flags().Changed("b-vnic-index") {
 		bVnicIndex, _ := cmd.Flags().GetInt("b-vnic-index")
+		if err := validation.ValidateVNICIndex(bVnicIndex); err != nil {
+			return nil, fmt.Errorf("invalid b-vnic-index: %w", err)
+		}
 		req.BVnicIndex = &bVnicIndex
 	}
 
@@ -1113,10 +1119,16 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	}
 	if aVnicIndex, ok := rawData["aVnicIndex"].(float64); ok {
 		idx := int(aVnicIndex)
+		if err := validation.ValidateVNICIndex(idx); err != nil {
+			return nil, fmt.Errorf("invalid aVnicIndex: %w", err)
+		}
 		req.AVnicIndex = &idx
 	}
 	if bVnicIndex, ok := rawData["bVnicIndex"].(float64); ok {
 		idx := int(bVnicIndex)
+		if err := validation.ValidateVNICIndex(idx); err != nil {
+			return nil, fmt.Errorf("invalid bVnicIndex: %w", err)
+		}
 		req.BVnicIndex = &idx
 	}
 

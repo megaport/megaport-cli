@@ -21,7 +21,7 @@ func filterLocations(locations []*megaport.Location, filters map[string]string) 
 		if market, ok := filters["market"]; ok && loc.Market != market {
 			continue
 		}
-		if _, ok := filters["mcrAvailable"]; ok && (loc.Products == nil || !loc.Products.MCR) {
+		if val, ok := filters["mcrAvailable"]; ok && val == "true" && (loc.Products == nil || !loc.Products.MCR) {
 			continue
 		}
 		filtered = append(filtered, loc)

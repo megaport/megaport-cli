@@ -165,7 +165,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	deletePortCmd := cmdbuilder.NewCommand("delete", "Delete a port from your account").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(DeletePort).
-		WithDeleteFlags().
+		WithSafeDeleteFlags().
 		WithLongDesc("Delete a port from your account in the Megaport API.\n\nThis command allows you to delete an existing port by providing the UID of the port as an argument. By default, the port will be scheduled for deletion at the end of the current billing period.").
 		WithOptionalFlag("now", "Delete the port immediately instead of waiting until the end of the billing period").
 		WithOptionalFlag("force", "Skip the confirmation prompt and proceed with deletion").
