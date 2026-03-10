@@ -11,6 +11,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFindPartners(t *testing.T) {
@@ -280,7 +281,7 @@ func TestListPartners(t *testing.T) {
 			cmd.Flags().String("diversity-zone", "", "")
 
 			for k, v := range tt.flags {
-				_ = cmd.Flags().Set(k, v)
+				require.NoError(t, cmd.Flags().Set(k, v))
 			}
 
 			var err error

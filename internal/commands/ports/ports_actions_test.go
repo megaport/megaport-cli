@@ -284,14 +284,14 @@ func TestBuyPort_EmptyUIDs(t *testing.T) {
 	cmd.Flags().Int("term", 12, "")
 	cmd.Flags().Int("port-speed", 1000, "")
 	cmd.Flags().Int("location-id", 1, "")
-	cmd.Flags().String("marketplace-visibility", "private", "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
 	cmd.Flags().String("diversity-zone", "", "")
 	cmd.Flags().Bool("cost-confirm", true, "")
 	require.NoError(t, cmd.Flags().Set("name", "test-port"))
 	require.NoError(t, cmd.Flags().Set("term", "12"))
 	require.NoError(t, cmd.Flags().Set("port-speed", "1000"))
 	require.NoError(t, cmd.Flags().Set("location-id", "1"))
-	require.NoError(t, cmd.Flags().Set("marketplace-visibility", "private"))
+	require.NoError(t, cmd.Flags().Set("marketplace-visibility", "true"))
 
 	var err error
 	output.CaptureOutput(func() {
@@ -331,7 +331,7 @@ func TestBuyLAGPort_EmptyUIDs(t *testing.T) {
 	cmd.Flags().Int("port-speed", 10000, "")
 	cmd.Flags().Int("location-id", 1, "")
 	cmd.Flags().Int("lag-count", 2, "")
-	cmd.Flags().String("marketplace-visibility", "private", "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
 	cmd.Flags().String("diversity-zone", "", "")
 	cmd.Flags().Bool("cost-confirm", true, "")
 	require.NoError(t, cmd.Flags().Set("name", "test-lag"))
@@ -339,7 +339,7 @@ func TestBuyLAGPort_EmptyUIDs(t *testing.T) {
 	require.NoError(t, cmd.Flags().Set("port-speed", "10000"))
 	require.NoError(t, cmd.Flags().Set("location-id", "1"))
 	require.NoError(t, cmd.Flags().Set("lag-count", "2"))
-	require.NoError(t, cmd.Flags().Set("marketplace-visibility", "private"))
+	require.NoError(t, cmd.Flags().Set("marketplace-visibility", "true"))
 
 	var err error
 	output.CaptureOutput(func() {
