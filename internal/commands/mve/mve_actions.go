@@ -282,7 +282,7 @@ func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 		return fmt.Errorf("no MVE found with UID: %s", mveUID)
 	}
 
-	err = output.PrintOutput([]*megaport.MVE{mve}, outputFormat, noColor)
+	err = printMVEs([]*megaport.MVE{mve}, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print MVEs: %v", noColor, err)
 		return fmt.Errorf("error printing MVEs: %v", err)

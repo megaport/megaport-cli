@@ -1613,7 +1613,7 @@ func TestGetMVE(t *testing.T) {
 					var parsed []map[string]interface{}
 					assert.NoError(t, json.Unmarshal([]byte(capturedOutput), &parsed), "JSON output should be valid JSON")
 					if assert.NotEmpty(t, parsed) {
-						assert.Equal(t, tt.mveUID, parsed[0]["productUid"])
+						assert.Equal(t, tt.mveUID, parsed[0]["uid"])
 					}
 				} else {
 					assert.Contains(t, capturedOutput, tt.expectedOutput)
