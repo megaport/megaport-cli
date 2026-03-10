@@ -11,6 +11,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func testCommandAdapterOutput(fn func(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error) func(cmd *cobra.Command, args []string) error {
@@ -286,11 +287,11 @@ func TestBuyPort_EmptyUIDs(t *testing.T) {
 	cmd.Flags().String("marketplace-visibility", "private", "")
 	cmd.Flags().String("diversity-zone", "", "")
 	cmd.Flags().Bool("cost-confirm", true, "")
-	_ = cmd.Flags().Set("name", "test-port")
-	_ = cmd.Flags().Set("term", "12")
-	_ = cmd.Flags().Set("port-speed", "1000")
-	_ = cmd.Flags().Set("location-id", "1")
-	_ = cmd.Flags().Set("marketplace-visibility", "private")
+	require.NoError(t, cmd.Flags().Set("name", "test-port"))
+	require.NoError(t, cmd.Flags().Set("term", "12"))
+	require.NoError(t, cmd.Flags().Set("port-speed", "1000"))
+	require.NoError(t, cmd.Flags().Set("location-id", "1"))
+	require.NoError(t, cmd.Flags().Set("marketplace-visibility", "private"))
 
 	var err error
 	output.CaptureOutput(func() {
@@ -333,12 +334,12 @@ func TestBuyLAGPort_EmptyUIDs(t *testing.T) {
 	cmd.Flags().String("marketplace-visibility", "private", "")
 	cmd.Flags().String("diversity-zone", "", "")
 	cmd.Flags().Bool("cost-confirm", true, "")
-	_ = cmd.Flags().Set("name", "test-lag")
-	_ = cmd.Flags().Set("term", "12")
-	_ = cmd.Flags().Set("port-speed", "10000")
-	_ = cmd.Flags().Set("location-id", "1")
-	_ = cmd.Flags().Set("lag-count", "2")
-	_ = cmd.Flags().Set("marketplace-visibility", "private")
+	require.NoError(t, cmd.Flags().Set("name", "test-lag"))
+	require.NoError(t, cmd.Flags().Set("term", "12"))
+	require.NoError(t, cmd.Flags().Set("port-speed", "10000"))
+	require.NoError(t, cmd.Flags().Set("location-id", "1"))
+	require.NoError(t, cmd.Flags().Set("lag-count", "2"))
+	require.NoError(t, cmd.Flags().Set("marketplace-visibility", "private"))
 
 	var err error
 	output.CaptureOutput(func() {
@@ -371,7 +372,7 @@ func TestDeletePort_SafeDeleteFlag(t *testing.T) {
 	cmd.Flags().BoolP("force", "f", true, "")
 	cmd.Flags().Bool("now", false, "")
 	cmd.Flags().Bool("safe-delete", false, "")
-	_ = cmd.Flags().Set("safe-delete", "true")
+	require.NoError(t, cmd.Flags().Set("safe-delete", "true"))
 
 	var err error
 	output.CaptureOutput(func() {
@@ -734,16 +735,16 @@ func TestListPorts(t *testing.T) {
 			cmd.Flags().Bool("include-inactive", false, "")
 
 			if tt.locationID > 0 {
-				_ = cmd.Flags().Set("location-id", fmt.Sprintf("%d", tt.locationID))
+				require.NoError(t, cmd.Flags().Set("location-id", fmt.Sprintf("%d", tt.locationID)))
 			}
 			if tt.portSpeed > 0 {
-				_ = cmd.Flags().Set("port-speed", fmt.Sprintf("%d", tt.portSpeed))
+				require.NoError(t, cmd.Flags().Set("port-speed", fmt.Sprintf("%d", tt.portSpeed)))
 			}
 			if tt.portName != "" {
-				_ = cmd.Flags().Set("port-name", tt.portName)
+				require.NoError(t, cmd.Flags().Set("port-name", tt.portName))
 			}
 			if tt.includeInactive {
-				_ = cmd.Flags().Set("include-inactive", "true")
+				require.NoError(t, cmd.Flags().Set("include-inactive", "true"))
 			}
 
 			var err error
@@ -877,10 +878,10 @@ func TestBuyPort(t *testing.T) {
 			cmd.Flags().Bool("cost-confirm", true, "")
 
 			if tt.jsonInput != "" {
-				_ = cmd.Flags().Set("json", tt.jsonInput)
+				require.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
 			}
 			for k, v := range tt.flags {
-				_ = cmd.Flags().Set(k, v)
+				require.NoError(t, cmd.Flags().Set(k, v))
 			}
 
 			var err error
@@ -1376,10 +1377,10 @@ func TestUpdatePort(t *testing.T) {
 			cmd.Flags().Int("term", 0, "")
 
 			if tt.jsonInput != "" {
-				_ = cmd.Flags().Set("json", tt.jsonInput)
+				require.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
 			}
 			for k, v := range tt.flags {
-				_ = cmd.Flags().Set(k, v)
+				require.NoError(t, cmd.Flags().Set(k, v))
 			}
 
 			var err error

@@ -11,6 +11,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCreateServiceKey_FlagsPropagated(t *testing.T) {
@@ -43,14 +44,14 @@ func TestCreateServiceKey_FlagsPropagated(t *testing.T) {
 	cmd.Flags().Bool("pre-approved", false, "")
 	cmd.Flags().Int("vlan", 0, "")
 
-	_ = cmd.Flags().Set("product-uid", "prod-uid-123")
-	_ = cmd.Flags().Set("product-id", "42")
-	_ = cmd.Flags().Set("single-use", "true")
-	_ = cmd.Flags().Set("max-speed", "1000")
-	_ = cmd.Flags().Set("description", "test key")
-	_ = cmd.Flags().Set("active", "true")
-	_ = cmd.Flags().Set("pre-approved", "true")
-	_ = cmd.Flags().Set("vlan", "100")
+	require.NoError(t, cmd.Flags().Set("product-uid", "prod-uid-123"))
+	require.NoError(t, cmd.Flags().Set("product-id", "42"))
+	require.NoError(t, cmd.Flags().Set("single-use", "true"))
+	require.NoError(t, cmd.Flags().Set("max-speed", "1000"))
+	require.NoError(t, cmd.Flags().Set("description", "test key"))
+	require.NoError(t, cmd.Flags().Set("active", "true"))
+	require.NoError(t, cmd.Flags().Set("pre-approved", "true"))
+	require.NoError(t, cmd.Flags().Set("vlan", "100"))
 
 	var err error
 	output.CaptureOutput(func() {
@@ -116,7 +117,7 @@ func TestListServiceKeys_ProductUIDFilter(t *testing.T) {
 			cmd.Flags().String("product-uid", "", "")
 
 			if tt.setProductUID {
-				_ = cmd.Flags().Set("product-uid", tt.productUID)
+				require.NoError(t, cmd.Flags().Set("product-uid", tt.productUID))
 			}
 
 			var err error
@@ -203,8 +204,8 @@ func TestUpdateServiceKey(t *testing.T) {
 			cmd.Flags().Bool("single-use", false, "")
 			cmd.Flags().Bool("active", false, "")
 
-			_ = cmd.Flags().Set("key", "test-key-123")
-			_ = cmd.Flags().Set("active", "true")
+			require.NoError(t, cmd.Flags().Set("key", "test-key-123"))
+			require.NoError(t, cmd.Flags().Set("active", "true"))
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
