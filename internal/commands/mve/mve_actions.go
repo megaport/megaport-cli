@@ -14,6 +14,8 @@ import (
 )
 
 func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
@@ -250,6 +252,8 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
@@ -282,7 +286,7 @@ func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 		return fmt.Errorf("no MVE found with UID: %s", mveUID)
 	}
 
-	err = output.PrintOutput([]*megaport.MVE{mve}, outputFormat, noColor)
+	err = printMVEs([]*megaport.MVE{mve}, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print MVEs: %v", noColor, err)
 		return fmt.Errorf("error printing MVEs: %v", err)
@@ -457,6 +461,8 @@ func UpdateMVEResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 
 // GetMVEStatus retrieves only the provisioning status of an MVE without all details
 func GetMVEStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 

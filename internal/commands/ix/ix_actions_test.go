@@ -15,7 +15,7 @@ import (
 
 func testCommandAdapter(fn func(cmd *cobra.Command, args []string, noColor bool) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		return fn(cmd, args, false)
+		return fn(cmd, args, true)
 	}
 }
 

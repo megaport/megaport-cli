@@ -6,12 +6,34 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+var ansiRegexp = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+
+// extractJSON strips ANSI escape sequences from captured output and extracts
+// the first complete JSON value (array or object) using json.Decoder.
+func extractJSON(s string) string {
+	clean := ansiRegexp.ReplaceAllString(s, "")
+	remaining := clean
+	for {
+		start := strings.IndexAny(remaining, "[{")
+		if start == -1 {
+			return clean
+		}
+		dec := json.NewDecoder(strings.NewReader(remaining[start:]))
+		var raw json.RawMessage
+		if err := dec.Decode(&raw); err == nil {
+			return string(raw)
+		}
+		remaining = remaining[start+1:]
+	}
+}
 
 var noColor = false
 
@@ -632,4 +654,80 @@ func TestCaptureOutputErr_RestoresStdoutOnSuccess(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "hello", out)
 	assert.Equal(t, originalStdout, os.Stdout, "os.Stdout should be restored after successful execution")
+}
+
+func Test_extractJSON(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "clean JSON array",
+			input:    `[{"uid":"abc-123","name":"test"}]`,
+			expected: `[{"uid":"abc-123","name":"test"}]`,
+		},
+		{
+			name:     "clean JSON object",
+			input:    `{"key":"value"}`,
+			expected: `{"key":"value"}`,
+		},
+		{
+			name:     "JSON array with ANSI spinner prefix",
+			input:    "\x1b[K\x1b[1mSpinner...\x1b[0m\n[{\"uid\":\"abc\"}]",
+			expected: `[{"uid":"abc"}]`,
+		},
+		{
+			name:     "JSON with ANSI escape sequences throughout",
+			input:    "\x1b[32m✓\x1b[0m Getting resource...\x1b[K[{\"name\":\"test\"}]",
+			expected: `[{"name":"test"}]`,
+		},
+		{
+			name:     "JSON with trailing text after array",
+			input:    `[{"a":1}] some trailing text`,
+			expected: `[{"a":1}]`,
+		},
+		{
+			name:     "no JSON content returns cleaned input",
+			input:    "just plain text with no JSON",
+			expected: "just plain text with no JSON",
+		},
+		{
+			name:     "ANSI-only input with no JSON",
+			input:    "\x1b[1mBold text\x1b[0m",
+			expected: "Bold text",
+		},
+		{
+			name:     "invalid JSON after bracket returns cleaned input",
+			input:    "[not valid json",
+			expected: "[not valid json",
+		},
+		{
+			name:     "empty input",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "nested JSON object",
+			input:    "prefix {\"outer\":{\"inner\":true}} suffix",
+			expected: `{"outer":{"inner":true}}`,
+		},
+		{
+			name:     "non-JSON bracket before valid JSON",
+			input:    `Command: deploy [a b] [{"uid":"abc-123"}]`,
+			expected: `[{"uid":"abc-123"}]`,
+		},
+		{
+			name:     "non-JSON brace before valid JSON",
+			input:    `log {invalid [{"name":"test"}]`,
+			expected: `[{"name":"test"}]`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractJSON(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }

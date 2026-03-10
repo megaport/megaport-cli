@@ -268,6 +268,447 @@ func TestValidateMVENetworkInterfacesTyped(t *testing.T) {
 	}
 }
 
+func TestValidateBuyMVERequest(t *testing.T) {
+	tests := []struct {
+		name    string
+		req     *megaport.BuyMVERequest
+		wantErr bool
+		errText string
+	}{
+		{
+			name: "Valid buy MVE request",
+			req: &megaport.BuyMVERequest{
+				Name:       "Test MVE",
+				Term:       12,
+				LocationID: 100,
+				VendorConfig: &megaport.CiscoConfig{
+					Vendor:            "cisco",
+					ImageID:           123,
+					ProductSize:       "MEDIUM",
+					AdminSSHPublicKey: "ssh-rsa AAAA...",
+					SSHPublicKey:      "ssh-rsa AAAA...",
+					ManageLocally:     true,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Missing name",
+			req: &megaport.BuyMVERequest{
+				Name:       "",
+				Term:       12,
+				LocationID: 100,
+				VendorConfig: &megaport.CiscoConfig{
+					Vendor:            "cisco",
+					ImageID:           123,
+					ProductSize:       "MEDIUM",
+					AdminSSHPublicKey: "ssh-rsa AAAA...",
+					SSHPublicKey:      "ssh-rsa AAAA...",
+					ManageLocally:     true,
+				},
+			},
+			wantErr: true,
+			errText: "Invalid MVE name:  - cannot be empty",
+		},
+		{
+			name: "Missing location",
+			req: &megaport.BuyMVERequest{
+				Name:       "Test MVE",
+				Term:       12,
+				LocationID: 0,
+				VendorConfig: &megaport.CiscoConfig{
+					Vendor:            "cisco",
+					ImageID:           123,
+					ProductSize:       "MEDIUM",
+					AdminSSHPublicKey: "ssh-rsa AAAA...",
+					SSHPublicKey:      "ssh-rsa AAAA...",
+					ManageLocally:     true,
+				},
+			},
+			wantErr: true,
+			errText: "Invalid location ID: 0 - must be a positive integer",
+		},
+		{
+			name: "Invalid term",
+			req: &megaport.BuyMVERequest{
+				Name:       "Test MVE",
+				Term:       5,
+				LocationID: 100,
+				VendorConfig: &megaport.CiscoConfig{
+					Vendor:            "cisco",
+					ImageID:           123,
+					ProductSize:       "MEDIUM",
+					AdminSSHPublicKey: "ssh-rsa AAAA...",
+					SSHPublicKey:      "ssh-rsa AAAA...",
+					ManageLocally:     true,
+				},
+			},
+			wantErr: true,
+			errText: fmt.Sprintf("Invalid contract term: 5 - must be one of: %v", ValidContractTerms),
+		},
+		{
+			name: "Missing vendor config",
+			req: &megaport.BuyMVERequest{
+				Name:         "Test MVE",
+				Term:         12,
+				LocationID:   100,
+				VendorConfig: nil,
+			},
+			wantErr: true,
+			errText: "Invalid vendor config: <nil> - cannot be nil",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateBuyMVERequest(tt.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateBuyMVERequest() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
+				assert.Equal(t, tt.errText, err.Error(), "Error message mismatch")
+			}
+		})
+	}
+}
+
+func TestValidateUpdateMVERequest(t *testing.T) {
+	term12 := 12
+	term5 := 5
+	tests := []struct {
+		name    string
+		req     *megaport.ModifyMVERequest
+		wantErr bool
+		errText string
+	}{
+		{
+			name: "Valid update with name change",
+			req: &megaport.ModifyMVERequest{
+				MVEID: "mve-uid-123",
+				Name:  "Updated MVE",
+			},
+			wantErr: false,
+		},
+		{
+			name: "No fields provided",
+			req: &megaport.ModifyMVERequest{
+				MVEID: "mve-uid-123",
+			},
+			wantErr: true,
+			errText: "at least one field must be provided for update",
+		},
+		{
+			name: "Valid contract term update",
+			req: &megaport.ModifyMVERequest{
+				MVEID:              "mve-uid-123",
+				ContractTermMonths: &term12,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Invalid contract term",
+			req: &megaport.ModifyMVERequest{
+				MVEID:              "mve-uid-123",
+				ContractTermMonths: &term5,
+			},
+			wantErr: true,
+			errText: fmt.Sprintf("Invalid contract term: 5 - must be one of: %v", ValidContractTerms),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateUpdateMVERequest(tt.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateUpdateMVERequest() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
+				assert.Contains(t, err.Error(), tt.errText, "Error message mismatch")
+			}
+		})
+	}
+}
+
+func TestValidateMVEVendorConfig_AllVendors(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  megaport.VendorConfig
+		wantErr bool
+		errText string
+	}{
+		// 6wind - valid
+		{
+			name: "Valid 6wind config",
+			config: &megaport.SixwindVSRConfig{
+				Vendor:       "6wind",
+				ImageID:      123,
+				ProductSize:  "MEDIUM",
+				SSHPublicKey: "ssh-rsa AAAA...",
+			},
+			wantErr: false,
+		},
+		// 6wind - missing SSH key
+		{
+			name: "Invalid 6wind - missing SSH key",
+			config: &megaport.SixwindVSRConfig{
+				Vendor:      "6wind",
+				ImageID:     123,
+				ProductSize: "MEDIUM",
+			},
+			wantErr: true,
+			errText: "Invalid SSH public key:  - cannot be empty",
+		},
+		// aruba - valid
+		{
+			name: "Valid aruba config",
+			config: &megaport.ArubaConfig{
+				Vendor:      "aruba",
+				ImageID:     123,
+				ProductSize: "MEDIUM",
+				AccountName: "test-account",
+				AccountKey:  "test-key",
+				SystemTag:   "test-tag",
+			},
+			wantErr: false,
+		},
+		// aruba - missing account name
+		{
+			name: "Invalid aruba - missing account name",
+			config: &megaport.ArubaConfig{
+				Vendor:      "aruba",
+				ImageID:     123,
+				ProductSize: "MEDIUM",
+				AccountKey:  "test-key",
+				SystemTag:   "test-tag",
+			},
+			wantErr: true,
+			errText: "Invalid account name:  - cannot be empty",
+		},
+		// aviatrix - valid
+		{
+			name: "Valid aviatrix config",
+			config: &megaport.AviatrixConfig{
+				Vendor:      "aviatrix",
+				ImageID:     123,
+				ProductSize: "MEDIUM",
+				CloudInit:   "cloud-init-data",
+			},
+			wantErr: false,
+		},
+		// aviatrix - missing cloud init
+		{
+			name: "Invalid aviatrix - missing cloud init",
+			config: &megaport.AviatrixConfig{
+				Vendor:      "aviatrix",
+				ImageID:     123,
+				ProductSize: "MEDIUM",
+			},
+			wantErr: true,
+			errText: "Invalid cloud init:  - cannot be empty",
+		},
+		// cisco - valid
+		{
+			name: "Valid cisco config",
+			config: &megaport.CiscoConfig{
+				Vendor:            "cisco",
+				ImageID:           123,
+				ProductSize:       "MEDIUM",
+				AdminSSHPublicKey: "ssh-rsa AAAA...",
+				SSHPublicKey:      "ssh-rsa AAAA...",
+				ManageLocally:     true,
+			},
+			wantErr: false,
+		},
+		// cisco - missing admin SSH key
+		{
+			name: "Invalid cisco - missing admin SSH key",
+			config: &megaport.CiscoConfig{
+				Vendor:        "cisco",
+				ImageID:       123,
+				ProductSize:   "MEDIUM",
+				SSHPublicKey:  "ssh-rsa AAAA...",
+				ManageLocally: true,
+			},
+			wantErr: true,
+			errText: "Invalid admin SSH public key:  - cannot be empty",
+		},
+		// fortinet - valid
+		{
+			name: "Valid fortinet config",
+			config: &megaport.FortinetConfig{
+				Vendor:            "fortinet",
+				ImageID:           123,
+				ProductSize:       "MEDIUM",
+				AdminSSHPublicKey: "ssh-rsa AAAA...",
+				SSHPublicKey:      "ssh-rsa AAAA...",
+				LicenseData:       "license-data",
+			},
+			wantErr: false,
+		},
+		// fortinet - missing license data
+		{
+			name: "Invalid fortinet - missing license data",
+			config: &megaport.FortinetConfig{
+				Vendor:            "fortinet",
+				ImageID:           123,
+				ProductSize:       "MEDIUM",
+				AdminSSHPublicKey: "ssh-rsa AAAA...",
+				SSHPublicKey:      "ssh-rsa AAAA...",
+			},
+			wantErr: true,
+			errText: "Invalid license data:  - cannot be empty",
+		},
+		// paloalto - valid
+		{
+			name: "Valid paloalto config",
+			config: &megaport.PaloAltoConfig{
+				Vendor:            "palo_alto",
+				ImageID:           123,
+				ProductSize:       "MEDIUM",
+				SSHPublicKey:      "ssh-rsa AAAA...",
+				AdminPasswordHash: "$6$rounds=4096$...",
+				LicenseData:       "license-data",
+			},
+			wantErr: false,
+		},
+		// paloalto - missing admin password hash
+		{
+			name: "Invalid paloalto - missing admin password hash",
+			config: &megaport.PaloAltoConfig{
+				Vendor:       "palo_alto",
+				ImageID:      123,
+				ProductSize:  "MEDIUM",
+				SSHPublicKey: "ssh-rsa AAAA...",
+				LicenseData:  "license-data",
+			},
+			wantErr: true,
+			errText: "Invalid admin password hash:  - cannot be empty",
+		},
+		// prisma - valid
+		{
+			name: "Valid prisma config",
+			config: &megaport.PrismaConfig{
+				Vendor:      "prisma",
+				ImageID:     123,
+				ProductSize: "MEDIUM",
+				IONKey:      "ion-key",
+				SecretKey:   "secret-key",
+			},
+			wantErr: false,
+		},
+		// prisma - missing ION key
+		{
+			name: "Invalid prisma - missing ION key",
+			config: &megaport.PrismaConfig{
+				Vendor:      "prisma",
+				ImageID:     123,
+				ProductSize: "MEDIUM",
+				SecretKey:   "secret-key",
+			},
+			wantErr: true,
+			errText: "Invalid ION key:  - cannot be empty",
+		},
+		// versa - valid
+		{
+			name: "Valid versa config",
+			config: &megaport.VersaConfig{
+				Vendor:            "versa",
+				ImageID:           123,
+				ProductSize:       "MEDIUM",
+				DirectorAddress:   "director.example.com",
+				ControllerAddress: "controller.example.com",
+				LocalAuth:         "local-auth",
+				RemoteAuth:        "remote-auth",
+				SerialNumber:      "SN123456",
+			},
+			wantErr: false,
+		},
+		// versa - missing director address
+		{
+			name: "Invalid versa - missing director address",
+			config: &megaport.VersaConfig{
+				Vendor:            "versa",
+				ImageID:           123,
+				ProductSize:       "MEDIUM",
+				ControllerAddress: "controller.example.com",
+				LocalAuth:         "local-auth",
+				RemoteAuth:        "remote-auth",
+				SerialNumber:      "SN123456",
+			},
+			wantErr: true,
+			errText: "Invalid director address:  - cannot be empty",
+		},
+		// vmware - valid
+		{
+			name: "Valid vmware config",
+			config: &megaport.VmwareConfig{
+				Vendor:            "vmware",
+				ImageID:           123,
+				ProductSize:       "MEDIUM",
+				AdminSSHPublicKey: "ssh-rsa AAAA...",
+				SSHPublicKey:      "ssh-rsa AAAA...",
+				VcoAddress:        "vco.example.com",
+				VcoActivationCode: "activation-code",
+			},
+			wantErr: false,
+		},
+		// vmware - missing VCO address
+		{
+			name: "Invalid vmware - missing VCO address",
+			config: &megaport.VmwareConfig{
+				Vendor:            "vmware",
+				ImageID:           123,
+				ProductSize:       "MEDIUM",
+				AdminSSHPublicKey: "ssh-rsa AAAA...",
+				SSHPublicKey:      "ssh-rsa AAAA...",
+				VcoActivationCode: "activation-code",
+			},
+			wantErr: true,
+			errText: "Invalid VCO address:  - cannot be empty",
+		},
+		// meraki - valid
+		{
+			name: "Valid meraki config",
+			config: &megaport.MerakiConfig{
+				Vendor:      "meraki",
+				ImageID:     123,
+				ProductSize: "MEDIUM",
+				Token:       "meraki-token",
+			},
+			wantErr: false,
+		},
+		// meraki - missing token
+		{
+			name: "Invalid meraki - missing token",
+			config: &megaport.MerakiConfig{
+				Vendor:      "meraki",
+				ImageID:     123,
+				ProductSize: "MEDIUM",
+			},
+			wantErr: true,
+			errText: "Invalid token:  - cannot be empty",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateMVEVendorConfig(tt.config)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateMVEVendorConfig() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
+				assert.Equal(t, tt.errText, err.Error(), "Error message mismatch")
+			}
+		})
+	}
+}
+
 func TestValidateMVEVendorConfig(t *testing.T) {
 	// Test cases for ValidateMVEVendorConfig
 	tests := []struct {

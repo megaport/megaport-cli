@@ -1,10 +1,13 @@
 package utils
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -194,5 +197,136 @@ func TestParseResourceTagsInputExtended(t *testing.T) {
 		_, err := parseResourceTagsInputExtended(cmd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "error reading tags file")
+	})
+}
+
+func TestListResourceTags(t *testing.T) {
+	// ListResourceTags sets a global output format; restore to "table" after each subtest.
+	t.Cleanup(func() { output.SetOutputFormat("table") })
+
+	t.Run("success with tags", func(t *testing.T) {
+		listFunc := func(ctx context.Context, uid string) (map[string]string, error) {
+			assert.Equal(t, "test-uid-123", uid)
+			return map[string]string{"env": "prod", "app": "web"}, nil
+		}
+		err := ListResourceTags("port", "test-uid-123", true, "json", listFunc)
+		assert.NoError(t, err)
+	})
+
+	t.Run("empty tags returns no error", func(t *testing.T) {
+		listFunc := func(ctx context.Context, uid string) (map[string]string, error) {
+			return map[string]string{}, nil
+		}
+		err := ListResourceTags("port", "uid-1", true, "json", listFunc)
+		assert.NoError(t, err)
+	})
+
+	t.Run("API error returns error", func(t *testing.T) {
+		listFunc := func(ctx context.Context, uid string) (map[string]string, error) {
+			return nil, fmt.Errorf("API failure")
+		}
+		err := ListResourceTags("mcr", "uid-2", true, "table", listFunc)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "error getting resource tags for mcr uid-2")
+		assert.Contains(t, err.Error(), "API failure")
+	})
+}
+
+func newUpdateCmd(t *testing.T, flags map[string]string) *cobra.Command {
+	t.Helper()
+	cmd := &cobra.Command{Use: "update-tags"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("tags", "", "")
+	cmd.Flags().String("tags-file", "", "")
+	cmd.Flags().String("resource-tags", "", "")
+	for k, v := range flags {
+		require.NoError(t, cmd.Flags().Set(k, v), "failed to set flag %q", k)
+	}
+	return cmd
+}
+
+func TestUpdateResourceTags(t *testing.T) {
+	successListFunc := func(ctx context.Context, uid string) (map[string]string, error) {
+		return map[string]string{"existing": "tag"}, nil
+	}
+	successUpdateFunc := func(ctx context.Context, uid string, tags map[string]string) error {
+		return nil
+	}
+
+	t.Run("success with JSON input", func(t *testing.T) {
+		cmd := newUpdateCmd(t, map[string]string{"json": `{"env":"prod"}`})
+		err := UpdateResourceTags(UpdateTagsOptions{
+			ResourceType: "port",
+			UID:          "uid-1",
+			NoColor:      true,
+			Cmd:          cmd,
+			ListFunc:     successListFunc,
+			UpdateFunc:   successUpdateFunc,
+		})
+		assert.NoError(t, err)
+	})
+
+	t.Run("error parsing JSON", func(t *testing.T) {
+		cmd := newUpdateCmd(t, map[string]string{"json": `not-json`})
+		err := UpdateResourceTags(UpdateTagsOptions{
+			ResourceType: "port",
+			UID:          "uid-2",
+			NoColor:      true,
+			Cmd:          cmd,
+			ListFunc:     successListFunc,
+			UpdateFunc:   successUpdateFunc,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "error parsing JSON")
+	})
+
+	t.Run("API list error", func(t *testing.T) {
+		failListFunc := func(ctx context.Context, uid string) (map[string]string, error) {
+			return nil, fmt.Errorf("list failed")
+		}
+		cmd := newUpdateCmd(t, map[string]string{"json": `{"a":"b"}`})
+		err := UpdateResourceTags(UpdateTagsOptions{
+			ResourceType: "mcr",
+			UID:          "uid-3",
+			NoColor:      true,
+			Cmd:          cmd,
+			ListFunc:     failListFunc,
+			UpdateFunc:   successUpdateFunc,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to login or list existing resource tags")
+	})
+
+	t.Run("API update error", func(t *testing.T) {
+		failUpdateFunc := func(ctx context.Context, uid string, tags map[string]string) error {
+			return fmt.Errorf("update failed")
+		}
+		cmd := newUpdateCmd(t, map[string]string{"json": `{"env":"staging"}`})
+		err := UpdateResourceTags(UpdateTagsOptions{
+			ResourceType: "port",
+			UID:          "uid-4",
+			NoColor:      true,
+			Cmd:          cmd,
+			ListFunc:     successListFunc,
+			UpdateFunc:   failUpdateFunc,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to update resource tags")
+	})
+
+	t.Run("no input provided", func(t *testing.T) {
+		cmd := newUpdateCmd(t, map[string]string{})
+		err := UpdateResourceTags(UpdateTagsOptions{
+			ResourceType: "port",
+			UID:          "uid-5",
+			NoColor:      true,
+			Cmd:          cmd,
+			ListFunc:     successListFunc,
+			UpdateFunc:   successUpdateFunc,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no input provided")
 	})
 }

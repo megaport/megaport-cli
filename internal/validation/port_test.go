@@ -117,6 +117,101 @@ func TestValidatePortVLANAvailability(t *testing.T) {
 	}
 }
 
+func TestValidateLAGPortRequest(t *testing.T) {
+	tests := []struct {
+		name    string
+		req     *megaport.BuyPortRequest
+		wantErr bool
+		errText string
+	}{
+		{
+			name: "Valid LAG request",
+			req: &megaport.BuyPortRequest{
+				Name:       "Test LAG Port",
+				LocationId: 100,
+				PortSpeed:  10000,
+				LagCount:   2,
+				Term:       12,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Missing name",
+			req: &megaport.BuyPortRequest{
+				Name:       "",
+				LocationId: 100,
+				PortSpeed:  10000,
+				LagCount:   2,
+				Term:       12,
+			},
+			wantErr: true,
+			errText: "Invalid port name:  - cannot be empty",
+		},
+		{
+			name: "Invalid port speed for LAG",
+			req: &megaport.BuyPortRequest{
+				Name:       "Test LAG Port",
+				LocationId: 100,
+				PortSpeed:  1000,
+				LagCount:   2,
+				Term:       12,
+			},
+			wantErr: true,
+			errText: fmt.Sprintf("Invalid port speed: 1000 - must be one of: %v for LAG ports", ValidLAGPortSpeeds),
+		},
+		{
+			name: "LAG count too low",
+			req: &megaport.BuyPortRequest{
+				Name:       "Test LAG Port",
+				LocationId: 100,
+				PortSpeed:  10000,
+				LagCount:   0,
+				Term:       12,
+			},
+			wantErr: true,
+			errText: fmt.Sprintf("Invalid LAG count: 0 - must be between %d and %d", MinLAGCount, MaxLAGCount),
+		},
+		{
+			name: "LAG count too high",
+			req: &megaport.BuyPortRequest{
+				Name:       "Test LAG Port",
+				LocationId: 100,
+				PortSpeed:  10000,
+				LagCount:   9,
+				Term:       12,
+			},
+			wantErr: true,
+			errText: fmt.Sprintf("Invalid LAG count: 9 - must be between %d and %d", MinLAGCount, MaxLAGCount),
+		},
+		{
+			name: "Invalid term",
+			req: &megaport.BuyPortRequest{
+				Name:       "Test LAG Port",
+				LocationId: 100,
+				PortSpeed:  10000,
+				LagCount:   2,
+				Term:       5,
+			},
+			wantErr: true,
+			errText: fmt.Sprintf("Invalid contract term: 5 - must be one of: %v", ValidContractTerms),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateLAGPortRequest(tt.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateLAGPortRequest() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
+				assert.Equal(t, tt.errText, err.Error(), "Error message mismatch")
+			}
+		})
+	}
+}
+
 func TestValidatePortName(t *testing.T) {
 	tests := []struct {
 		name     string

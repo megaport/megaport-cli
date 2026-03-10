@@ -2,6 +2,7 @@ package vxc
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -1252,3 +1253,575 @@ func TestBuildUpdateVXCRequestFromJSON_NewFields(t *testing.T) {
 
 func boolPtr(b bool) *bool { return &b }
 func intPtr(i int) *int    { return &i }
+
+func TestGetVXC(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name           string
+		vxcUID         string
+		setupMock      func(*mockVXCService)
+		loginError     bool
+		outputFormat   string
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name:   "success table format",
+			vxcUID: "vxc-123",
+			setupMock: func(m *mockVXCService) {
+				m.getVXCResponse = &megaport.VXC{
+					UID:  "vxc-123",
+					Name: "Test VXC",
+					AEndConfiguration: megaport.VXCEndConfiguration{
+						UID: "port-aaa",
+					},
+					BEndConfiguration: megaport.VXCEndConfiguration{
+						UID: "port-bbb",
+					},
+					RateLimit:          1000,
+					ProvisioningStatus: "LIVE",
+				}
+			},
+			outputFormat:   "table",
+			expectedOutput: "vxc-123",
+		},
+		{
+			name:   "success JSON format",
+			vxcUID: "vxc-456",
+			setupMock: func(m *mockVXCService) {
+				m.getVXCResponse = &megaport.VXC{
+					UID:  "vxc-456",
+					Name: "JSON VXC",
+					AEndConfiguration: megaport.VXCEndConfiguration{
+						UID: "port-aaa",
+					},
+					BEndConfiguration: megaport.VXCEndConfiguration{
+						UID: "port-bbb",
+					},
+					RateLimit:          500,
+					ProvisioningStatus: "LIVE",
+				}
+			},
+			outputFormat:   "json",
+			expectedOutput: "vxc-456",
+		},
+		{
+			name:   "API error",
+			vxcUID: "vxc-error",
+			setupMock: func(m *mockVXCService) {
+				m.getVXCError = fmt.Errorf("service unavailable")
+			},
+			outputFormat:  "table",
+			expectedError: "error getting VXC",
+		},
+		{
+			name:          "login error",
+			vxcUID:        "vxc-login-err",
+			loginError:    true,
+			outputFormat:  "table",
+			expectedError: "error logging in",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &mockVXCService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			if tt.loginError {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, fmt.Errorf("authentication failed")
+				}
+			} else {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.VXCService = mockService
+					return client, nil
+				}
+			}
+
+			cmd := &cobra.Command{
+				Use: "get [vxcUID]",
+			}
+
+			defer output.SetOutputFormat("table")
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = GetVXC(cmd, []string{tt.vxcUID}, true, tt.outputFormat)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+
+				switch tt.outputFormat {
+				case "json":
+					var parsed []map[string]interface{}
+					assert.NoError(t, json.Unmarshal([]byte(capturedOutput), &parsed), "JSON output should be valid JSON")
+					if assert.NotEmpty(t, parsed) {
+						assert.Equal(t, tt.vxcUID, parsed[0]["uid"])
+					}
+				case "table":
+					assert.Contains(t, capturedOutput, tt.expectedOutput)
+					assert.Contains(t, capturedOutput, "UID")
+					assert.Contains(t, capturedOutput, "NAME")
+				}
+			}
+		})
+	}
+}
+
+func TestUpdateVXC(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	originalUpdateVXCFunc := updateVXCFunc
+	originalGetVXCFunc := getVXCFunc
+	originalBuildFromFlags := buildUpdateVXCRequestFromFlags
+	originalBuildFromJSON := buildUpdateVXCRequestFromJSON
+	originalBuildFromPrompt := buildUpdateVXCRequestFromPrompt
+
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		updateVXCFunc = originalUpdateVXCFunc
+		getVXCFunc = originalGetVXCFunc
+		buildUpdateVXCRequestFromFlags = originalBuildFromFlags
+		buildUpdateVXCRequestFromJSON = originalBuildFromJSON
+		buildUpdateVXCRequestFromPrompt = originalBuildFromPrompt
+	}()
+
+	tests := []struct {
+		name           string
+		vxcUID         string
+		flags          map[string]string
+		setupMock      func(*mockVXCService)
+		loginError     bool
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name:   "success with flags",
+			vxcUID: "vxc-update-1",
+			flags: map[string]string{
+				"name": "Updated VXC",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.getVXCResponse = &megaport.VXC{
+					UID:                "vxc-update-1",
+					Name:               "Original VXC",
+					ProvisioningStatus: "LIVE",
+				}
+
+				buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateVXCRequest, error) {
+					name := "Updated VXC"
+					return &megaport.UpdateVXCRequest{
+						Name: &name,
+					}, nil
+				}
+
+				updateVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string, req *megaport.UpdateVXCRequest) error {
+					return nil
+				}
+
+				getVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string) (*megaport.VXC, error) {
+					return &megaport.VXC{
+						UID:                "vxc-update-1",
+						Name:               "Updated VXC",
+						ProvisioningStatus: "LIVE",
+					}, nil
+				}
+			},
+			expectedOutput: "updated",
+		},
+		{
+			name:   "success with JSON",
+			vxcUID: "vxc-update-2",
+			flags: map[string]string{
+				"json": `{"name":"JSON Updated VXC"}`,
+			},
+			setupMock: func(m *mockVXCService) {
+				m.getVXCResponse = &megaport.VXC{
+					UID:                "vxc-update-2",
+					Name:               "Original VXC",
+					ProvisioningStatus: "LIVE",
+				}
+
+				buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*megaport.UpdateVXCRequest, error) {
+					name := "JSON Updated VXC"
+					return &megaport.UpdateVXCRequest{
+						Name: &name,
+					}, nil
+				}
+
+				updateVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string, req *megaport.UpdateVXCRequest) error {
+					return nil
+				}
+
+				getVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string) (*megaport.VXC, error) {
+					return &megaport.VXC{
+						UID:                "vxc-update-2",
+						Name:               "JSON Updated VXC",
+						ProvisioningStatus: "LIVE",
+					}, nil
+				}
+			},
+			expectedOutput: "updated",
+		},
+		{
+			name:   "login error",
+			vxcUID: "vxc-login-err",
+			flags: map[string]string{
+				"name": "Updated VXC",
+			},
+			loginError:    true,
+			expectedError: "authentication failed",
+		},
+		{
+			name:   "get original VXC error",
+			vxcUID: "vxc-get-err",
+			flags: map[string]string{
+				"name": "Updated VXC",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.getVXCError = fmt.Errorf("VXC not found")
+			},
+			expectedError: "failed to retrieve original VXC details",
+		},
+		{
+			name:   "update API error",
+			vxcUID: "vxc-update-err",
+			flags: map[string]string{
+				"name": "Updated VXC",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.getVXCResponse = &megaport.VXC{
+					UID:                "vxc-update-err",
+					Name:               "Original VXC",
+					ProvisioningStatus: "LIVE",
+				}
+
+				buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateVXCRequest, error) {
+					name := "Updated VXC"
+					return &megaport.UpdateVXCRequest{
+						Name: &name,
+					}, nil
+				}
+
+				updateVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string, req *megaport.UpdateVXCRequest) error {
+					return fmt.Errorf("update service unavailable")
+				}
+			},
+			expectedError: "failed to update VXC",
+		},
+		{
+			name:   "build request error from flags",
+			vxcUID: "vxc-build-err",
+			flags: map[string]string{
+				"name": "Updated VXC",
+			},
+			setupMock: func(m *mockVXCService) {
+				m.getVXCResponse = &megaport.VXC{
+					UID:                "vxc-build-err",
+					Name:               "Original VXC",
+					ProvisioningStatus: "LIVE",
+				}
+
+				buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateVXCRequest, error) {
+					return nil, fmt.Errorf("invalid flag combination")
+				}
+			},
+			expectedError: "invalid flag combination",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset overrides per test
+			buildUpdateVXCRequestFromFlags = originalBuildFromFlags
+			buildUpdateVXCRequestFromJSON = originalBuildFromJSON
+			buildUpdateVXCRequestFromPrompt = originalBuildFromPrompt
+			updateVXCFunc = originalUpdateVXCFunc
+			getVXCFunc = originalGetVXCFunc
+
+			mockService := &mockVXCService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			if tt.loginError {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, fmt.Errorf("authentication failed")
+				}
+			} else {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.VXCService = mockService
+					return client, nil
+				}
+			}
+
+			cmd := &cobra.Command{Use: "update [vxcUID]"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("rate-limit", 0, "")
+			cmd.Flags().Int("a-end-vlan", 0, "")
+			cmd.Flags().Int("b-end-vlan", 0, "")
+			cmd.Flags().String("a-end-location", "", "")
+			cmd.Flags().String("b-end-location", "", "")
+			cmd.Flags().Bool("locked", false, "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().Bool("shutdown", false, "")
+			cmd.Flags().Int("a-end-inner-vlan", 0, "")
+			cmd.Flags().Int("b-end-inner-vlan", 0, "")
+			cmd.Flags().String("a-end-uid", "", "")
+			cmd.Flags().String("b-end-uid", "", "")
+			cmd.Flags().String("a-end-partner-config", "", "")
+			cmd.Flags().String("b-end-partner-config", "", "")
+			cmd.Flags().Bool("is-approved", false, "")
+			cmd.Flags().Int("a-vnic-index", -1, "")
+			cmd.Flags().Int("b-vnic-index", -1, "")
+
+			for flag, value := range tt.flags {
+				err := cmd.Flags().Set(flag, value)
+				assert.NoError(t, err)
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = UpdateVXC(cmd, []string{tt.vxcUID}, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+			}
+		})
+	}
+}
+
+func TestDeleteVXC(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	originalDeleteVXCFunc := deleteVXCFunc
+	originalConfirmPrompt := utils.ConfirmPrompt
+
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		deleteVXCFunc = originalDeleteVXCFunc
+		utils.ConfirmPrompt = originalConfirmPrompt
+	}()
+
+	tests := []struct {
+		name           string
+		vxcUID         string
+		flags          map[string]string
+		setupMock      func()
+		loginError     bool
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name:   "force delete success",
+			vxcUID: "vxc-del-1",
+			flags: map[string]string{
+				"force": "true",
+			},
+			setupMock: func() {
+				deleteVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string, req *megaport.DeleteVXCRequest) error {
+					return nil
+				}
+			},
+			expectedOutput: "deleted",
+		},
+		{
+			name:   "force and now delete success",
+			vxcUID: "vxc-del-2",
+			flags: map[string]string{
+				"force": "true",
+				"now":   "true",
+			},
+			setupMock: func() {
+				deleteVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string, req *megaport.DeleteVXCRequest) error {
+					assert.True(t, req.DeleteNow)
+					return nil
+				}
+			},
+			expectedOutput: "deleted",
+		},
+		{
+			name:   "API error",
+			vxcUID: "vxc-del-err",
+			flags: map[string]string{
+				"force": "true",
+			},
+			setupMock: func() {
+				deleteVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string, req *megaport.DeleteVXCRequest) error {
+					return fmt.Errorf("delete service unavailable")
+				}
+			},
+			expectedError: "delete service unavailable",
+		},
+		{
+			name:   "login error",
+			vxcUID: "vxc-del-login",
+			flags: map[string]string{
+				"force": "true",
+			},
+			loginError:    true,
+			expectedError: "authentication failed",
+		},
+		{
+			name:   "cancelled by user",
+			vxcUID: "vxc-del-cancel",
+			setupMock: func() {
+				utils.ConfirmPrompt = func(message string, noColor bool) bool {
+					return false
+				}
+			},
+			expectedOutput: "cancelled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset overrides per test
+			deleteVXCFunc = originalDeleteVXCFunc
+			utils.ConfirmPrompt = originalConfirmPrompt
+
+			if tt.setupMock != nil {
+				tt.setupMock()
+			}
+
+			if tt.loginError {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, fmt.Errorf("authentication failed")
+				}
+			} else {
+				mockService := &mockVXCService{}
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.VXCService = mockService
+					return client, nil
+				}
+			}
+
+			cmd := &cobra.Command{Use: "delete [vxcUID]"}
+			cmd.Flags().Bool("force", false, "")
+			cmd.Flags().Bool("now", false, "")
+
+			for flag, value := range tt.flags {
+				err := cmd.Flags().Set(flag, value)
+				assert.NoError(t, err)
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = DeleteVXC(cmd, []string{tt.vxcUID}, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+			}
+		})
+	}
+}
+
+func TestListVXCResourceTags(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+	}()
+
+	tests := []struct {
+		name           string
+		vxcUID         string
+		setupMock      func(*mockVXCService)
+		loginError     bool
+		outputFormat   string
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name:   "success with tags",
+			vxcUID: "vxc-tags-1",
+			setupMock: func(m *mockVXCService) {
+				m.ListVXCResourceTagsResult = map[string]string{
+					"environment": "production",
+					"team":        "networking",
+				}
+			},
+			outputFormat:   "table",
+			expectedOutput: "environment",
+		},
+		{
+			name:   "API error",
+			vxcUID: "vxc-tags-err",
+			setupMock: func(m *mockVXCService) {
+				m.ListVXCResourceTagsErr = fmt.Errorf("tags service unavailable")
+			},
+			outputFormat:  "table",
+			expectedError: "tags service unavailable",
+		},
+		{
+			name:          "login error",
+			vxcUID:        "vxc-tags-login",
+			loginError:    true,
+			outputFormat:  "table",
+			expectedError: "authentication failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &mockVXCService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			if tt.loginError {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, fmt.Errorf("authentication failed")
+				}
+			} else {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.VXCService = mockService
+					return client, nil
+				}
+			}
+
+			cmd := &cobra.Command{
+				Use: "tags [vxcUID]",
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = ListVXCResourceTags(cmd, []string{tt.vxcUID}, true, tt.outputFormat)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+			}
+		})
+	}
+}

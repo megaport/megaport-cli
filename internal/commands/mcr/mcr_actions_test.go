@@ -16,7 +16,7 @@ import (
 
 func testCommandAdapter(fn func(cmd *cobra.Command, args []string, noColor bool) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		return fn(cmd, args, false)
+		return fn(cmd, args, true)
 	}
 }
 
@@ -1705,6 +1705,543 @@ func TestUpdateMCRResourceTagsCmd(t *testing.T) {
 				}
 				if tt.expectedCapturedTags != nil {
 					assert.Equal(t, tt.expectedCapturedTags, mockService.CapturedUpdateMCRResourceTagsRequest)
+				}
+			}
+		})
+	}
+}
+
+func TestUpdateMCR(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	originalGetMCRFunc := getMCRFunc
+	originalUpdateMCRFunc := updateMCRFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		getMCRFunc = originalGetMCRFunc
+		updateMCRFunc = originalUpdateMCRFunc
+	}()
+
+	tests := []struct {
+		name           string
+		args           []string
+		flags          map[string]string
+		setupLogin     func()
+		setupGetMCR    func()
+		setupUpdateMCR func()
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name: "success with flags",
+			args: []string{"mcr-123"},
+			flags: map[string]string{
+				"name": "Updated MCR",
+			},
+			setupLogin: func() {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				}
+			},
+			setupGetMCR: func() {
+				getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+					return &megaport.MCR{
+						UID:                mcrUID,
+						Name:               "Original MCR",
+						ProvisioningStatus: "LIVE",
+					}, nil
+				}
+			},
+			setupUpdateMCR: func() {
+				updateMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyMCRRequest) (*megaport.ModifyMCRResponse, error) {
+					return &megaport.ModifyMCRResponse{IsUpdated: true}, nil
+				}
+			},
+			expectedOutput: "MCR updated mcr-123",
+		},
+		{
+			name: "success with JSON",
+			args: []string{"mcr-456"},
+			flags: map[string]string{
+				"json": `{"name":"JSON Updated MCR"}`,
+			},
+			setupLogin: func() {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				}
+			},
+			setupGetMCR: func() {
+				getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+					return &megaport.MCR{
+						UID:                mcrUID,
+						Name:               "JSON Updated MCR",
+						ProvisioningStatus: "LIVE",
+					}, nil
+				}
+			},
+			setupUpdateMCR: func() {
+				updateMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyMCRRequest) (*megaport.ModifyMCRResponse, error) {
+					return &megaport.ModifyMCRResponse{IsUpdated: true}, nil
+				}
+			},
+			expectedOutput: "MCR updated mcr-456",
+		},
+		{
+			name:          "missing UID",
+			args:          []string{},
+			expectedError: "mcr UID is required",
+		},
+		{
+			name: "login error",
+			args: []string{"mcr-123"},
+			flags: map[string]string{
+				"name": "Updated MCR",
+			},
+			setupLogin: func() {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, fmt.Errorf("authentication failed")
+				}
+			},
+			expectedError: "authentication failed",
+		},
+		{
+			name: "get original MCR error",
+			args: []string{"mcr-123"},
+			flags: map[string]string{
+				"name": "Updated MCR",
+			},
+			setupLogin: func() {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				}
+			},
+			setupGetMCR: func() {
+				getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+					return nil, fmt.Errorf("MCR not found")
+				}
+			},
+			expectedError: "MCR not found",
+		},
+		{
+			name: "update API error",
+			args: []string{"mcr-123"},
+			flags: map[string]string{
+				"name": "Updated MCR",
+			},
+			setupLogin: func() {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				}
+			},
+			setupGetMCR: func() {
+				getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+					return &megaport.MCR{
+						UID:                mcrUID,
+						Name:               "Original MCR",
+						ProvisioningStatus: "LIVE",
+					}, nil
+				}
+			},
+			setupUpdateMCR: func() {
+				updateMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyMCRRequest) (*megaport.ModifyMCRResponse, error) {
+					return nil, fmt.Errorf("API error: service unavailable")
+				}
+			},
+			expectedError: "API error: service unavailable",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset to defaults
+			getMCRFunc = originalGetMCRFunc
+			updateMCRFunc = originalUpdateMCRFunc
+			config.LoginFunc = originalLoginFunc
+
+			if tt.setupLogin != nil {
+				tt.setupLogin()
+			}
+			if tt.setupGetMCR != nil {
+				tt.setupGetMCR()
+			}
+			if tt.setupUpdateMCR != nil {
+				tt.setupUpdateMCR()
+			}
+
+			cmd := &cobra.Command{
+				Use:  "update",
+				RunE: testCommandAdapter(UpdateMCR),
+			}
+
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().Bool("marketplace-visibility", false, "")
+			cmd.Flags().Int("term", 0, "")
+
+			for flagName, flagValue := range tt.flags {
+				err := cmd.Flags().Set(flagName, flagValue)
+				if err != nil {
+					t.Fatalf("Failed to set %s flag: %v", flagName, err)
+				}
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, tt.args)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedOutput != "" {
+					assert.Contains(t, capturedOutput, tt.expectedOutput)
+				}
+			}
+		})
+	}
+}
+
+func TestCreateMCRPrefixFilterList(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	originalCreateFunc := createMCRPrefixFilterListFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		createMCRPrefixFilterListFunc = originalCreateFunc
+	}()
+
+	tests := []struct {
+		name           string
+		args           []string
+		flags          map[string]string
+		setupLogin     func()
+		setupCreate    func()
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name: "success with flags",
+			args: []string{"mcr-123"},
+			flags: map[string]string{
+				"description":    "Test Prefix List",
+				"address-family": "IPv4",
+				"entries":        `[{"action":"permit","prefix":"10.0.0.0/8"}]`,
+			},
+			setupLogin: func() {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				}
+			},
+			setupCreate: func() {
+				createMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, req *megaport.CreateMCRPrefixFilterListRequest) (*megaport.CreateMCRPrefixFilterListResponse, error) {
+					return &megaport.CreateMCRPrefixFilterListResponse{PrefixFilterListID: 42}, nil
+				}
+			},
+			expectedOutput: "Prefix filter list created successfully",
+		},
+		{
+			name: "success with JSON",
+			args: []string{"mcr-456"},
+			flags: map[string]string{
+				"json": `{"description":"JSON Prefix List","addressFamily":"IPv4","entries":[{"action":"deny","prefix":"192.168.0.0/16"}]}`,
+			},
+			setupLogin: func() {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				}
+			},
+			setupCreate: func() {
+				createMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, req *megaport.CreateMCRPrefixFilterListRequest) (*megaport.CreateMCRPrefixFilterListResponse, error) {
+					return &megaport.CreateMCRPrefixFilterListResponse{PrefixFilterListID: 99}, nil
+				}
+			},
+			expectedOutput: "Prefix filter list created successfully",
+		},
+		{
+			name:          "missing UID",
+			args:          []string{},
+			expectedError: "mcr UID is required",
+		},
+		{
+			name: "login error",
+			args: []string{"mcr-123"},
+			flags: map[string]string{
+				"description":    "Test Prefix List",
+				"address-family": "IPv4",
+				"entries":        `[{"action":"permit","prefix":"10.0.0.0/8"}]`,
+			},
+			setupLogin: func() {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, fmt.Errorf("authentication failed")
+				}
+			},
+			expectedError: "authentication failed",
+		},
+		{
+			name: "API error",
+			args: []string{"mcr-123"},
+			flags: map[string]string{
+				"description":    "Test Prefix List",
+				"address-family": "IPv4",
+				"entries":        `[{"action":"permit","prefix":"10.0.0.0/8"}]`,
+			},
+			setupLogin: func() {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				}
+			},
+			setupCreate: func() {
+				createMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, req *megaport.CreateMCRPrefixFilterListRequest) (*megaport.CreateMCRPrefixFilterListResponse, error) {
+					return nil, fmt.Errorf("API error: prefix filter list creation failed")
+				}
+			},
+			expectedError: "API error: prefix filter list creation failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset to defaults
+			config.LoginFunc = originalLoginFunc
+			createMCRPrefixFilterListFunc = originalCreateFunc
+
+			if tt.setupLogin != nil {
+				tt.setupLogin()
+			}
+			if tt.setupCreate != nil {
+				tt.setupCreate()
+			}
+
+			cmd := &cobra.Command{
+				Use:  "create-prefix-filter-list",
+				RunE: testCommandAdapter(CreateMCRPrefixFilterList),
+			}
+
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("description", "", "")
+			cmd.Flags().String("address-family", "", "")
+			cmd.Flags().String("entries", "", "")
+
+			for flagName, flagValue := range tt.flags {
+				err := cmd.Flags().Set(flagName, flagValue)
+				if err != nil {
+					t.Fatalf("Failed to set %s flag: %v", flagName, err)
+				}
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, tt.args)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedOutput != "" {
+					assert.Contains(t, capturedOutput, tt.expectedOutput)
+				}
+			}
+		})
+	}
+}
+
+func TestUpdateMCRPrefixFilterList(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	originalModifyFunc := modifyMCRPrefixFilterListFunc
+	originalGetPrefixFunc := getMCRPrefixFilterListFunc
+	defer func() {
+		config.LoginFunc = originalLoginFunc
+		modifyMCRPrefixFilterListFunc = originalModifyFunc
+		getMCRPrefixFilterListFunc = originalGetPrefixFunc
+	}()
+
+	tests := []struct {
+		name             string
+		args             []string
+		flags            map[string]string
+		setupLogin       func()
+		setupModify      func()
+		setupGetPrefixFL func()
+		expectedError    string
+		expectedOutput   string
+	}{
+		{
+			name: "success with flags",
+			args: []string{"mcr-123", "456"},
+			flags: map[string]string{
+				"description": "Updated Prefix List",
+			},
+			setupLogin: func() {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				}
+			},
+			setupGetPrefixFL: func() {
+				getMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrUID string, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
+					return &megaport.MCRPrefixFilterList{
+						ID:            456,
+						Description:   "Original Prefix List",
+						AddressFamily: "IPv4",
+						Entries: []*megaport.MCRPrefixListEntry{
+							{Action: "permit", Prefix: "10.0.0.0/8"},
+						},
+					}, nil
+				}
+			},
+			setupModify: func() {
+				modifyMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrID string, prefixFilterListID int, prefixFilterList *megaport.MCRPrefixFilterList) (*megaport.ModifyMCRPrefixFilterListResponse, error) {
+					return &megaport.ModifyMCRPrefixFilterListResponse{IsUpdated: true}, nil
+				}
+			},
+			expectedOutput: "Prefix filter list updated successfully",
+		},
+		{
+			name: "success with JSON",
+			args: []string{"mcr-789", "123"},
+			flags: map[string]string{
+				"json": `{"description":"JSON Updated Prefix List","entries":[{"action":"deny","prefix":"172.16.0.0/12"}]}`,
+			},
+			setupLogin: func() {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				}
+			},
+			setupGetPrefixFL: func() {
+				getMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrUID string, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
+					return &megaport.MCRPrefixFilterList{
+						ID:            123,
+						Description:   "Original Prefix List",
+						AddressFamily: "IPv4",
+						Entries: []*megaport.MCRPrefixListEntry{
+							{Action: "permit", Prefix: "10.0.0.0/8"},
+						},
+					}, nil
+				}
+			},
+			setupModify: func() {
+				modifyMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrID string, prefixFilterListID int, prefixFilterList *megaport.MCRPrefixFilterList) (*megaport.ModifyMCRPrefixFilterListResponse, error) {
+					return &megaport.ModifyMCRPrefixFilterListResponse{IsUpdated: true}, nil
+				}
+			},
+			expectedOutput: "Prefix filter list updated successfully",
+		},
+		{
+			name:          "missing args",
+			args:          []string{"mcr-123"},
+			expectedError: "mcr UID and prefix filter list ID are required",
+		},
+		{
+			name:          "invalid prefix filter list ID",
+			args:          []string{"mcr-123", "abc"},
+			expectedError: "invalid prefix filter list ID",
+		},
+		{
+			name: "API error",
+			args: []string{"mcr-123", "456"},
+			flags: map[string]string{
+				"description": "Updated Prefix List",
+			},
+			setupLogin: func() {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				}
+			},
+			setupGetPrefixFL: func() {
+				getMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrUID string, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
+					return &megaport.MCRPrefixFilterList{
+						ID:            456,
+						Description:   "Original Prefix List",
+						AddressFamily: "IPv4",
+						Entries: []*megaport.MCRPrefixListEntry{
+							{Action: "permit", Prefix: "10.0.0.0/8"},
+						},
+					}, nil
+				}
+			},
+			setupModify: func() {
+				modifyMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrID string, prefixFilterListID int, prefixFilterList *megaport.MCRPrefixFilterList) (*megaport.ModifyMCRPrefixFilterListResponse, error) {
+					return nil, fmt.Errorf("API error: update failed")
+				}
+			},
+			expectedError: "API error: update failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset to defaults
+			config.LoginFunc = originalLoginFunc
+			modifyMCRPrefixFilterListFunc = originalModifyFunc
+			getMCRPrefixFilterListFunc = originalGetPrefixFunc
+
+			if tt.setupLogin != nil {
+				tt.setupLogin()
+			}
+			if tt.setupGetPrefixFL != nil {
+				tt.setupGetPrefixFL()
+			}
+			if tt.setupModify != nil {
+				tt.setupModify()
+			}
+
+			cmd := &cobra.Command{
+				Use:  "update-prefix-filter-list",
+				RunE: testCommandAdapter(UpdateMCRPrefixFilterList),
+			}
+
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("description", "", "")
+			cmd.Flags().String("address-family", "", "")
+			cmd.Flags().String("entries", "", "")
+
+			for flagName, flagValue := range tt.flags {
+				err := cmd.Flags().Set(flagName, flagValue)
+				if err != nil {
+					t.Fatalf("Failed to set %s flag: %v", flagName, err)
+				}
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, tt.args)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedOutput != "" {
+					assert.Contains(t, capturedOutput, tt.expectedOutput)
 				}
 			}
 		})
