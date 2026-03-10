@@ -633,3 +633,69 @@ func TestCaptureOutputErr_RestoresStdoutOnSuccess(t *testing.T) {
 	assert.Equal(t, "hello", out)
 	assert.Equal(t, originalStdout, os.Stdout, "os.Stdout should be restored after successful execution")
 }
+
+func TestExtractJSON(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "clean JSON array",
+			input:    `[{"uid":"abc-123","name":"test"}]`,
+			expected: `[{"uid":"abc-123","name":"test"}]`,
+		},
+		{
+			name:     "clean JSON object",
+			input:    `{"key":"value"}`,
+			expected: `{"key":"value"}`,
+		},
+		{
+			name:     "JSON array with ANSI spinner prefix",
+			input:    "\x1b[K\x1b[1mSpinner...\x1b[0m\n[{\"uid\":\"abc\"}]",
+			expected: `[{"uid":"abc"}]`,
+		},
+		{
+			name:     "JSON with ANSI escape sequences throughout",
+			input:    "\x1b[32m✓\x1b[0m Getting resource...\x1b[K[{\"name\":\"test\"}]",
+			expected: `[{"name":"test"}]`,
+		},
+		{
+			name:     "JSON with trailing text after array",
+			input:    `[{"a":1}] some trailing text`,
+			expected: `[{"a":1}]`,
+		},
+		{
+			name:     "no JSON content returns cleaned input",
+			input:    "just plain text with no JSON",
+			expected: "just plain text with no JSON",
+		},
+		{
+			name:     "ANSI-only input with no JSON",
+			input:    "\x1b[1mBold text\x1b[0m",
+			expected: "Bold text",
+		},
+		{
+			name:     "invalid JSON after bracket returns cleaned input",
+			input:    "[not valid json",
+			expected: "[not valid json",
+		},
+		{
+			name:     "empty input",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "nested JSON object",
+			input:    "prefix {\"outer\":{\"inner\":true}} suffix",
+			expected: `{"outer":{"inner":true}}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ExtractJSON(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
