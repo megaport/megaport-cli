@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -200,6 +201,9 @@ func TestParseResourceTagsInputExtended(t *testing.T) {
 }
 
 func TestListResourceTags(t *testing.T) {
+	// ListResourceTags sets a global output format; restore to "table" after each subtest.
+	t.Cleanup(func() { output.SetOutputFormat("table") })
+
 	t.Run("success with tags", func(t *testing.T) {
 		listFunc := func(ctx context.Context, uid string) (map[string]string, error) {
 			assert.Equal(t, "test-uid-123", uid)
