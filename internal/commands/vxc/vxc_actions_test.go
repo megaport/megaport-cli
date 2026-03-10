@@ -2,7 +2,10 @@ package vxc
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -12,6 +15,17 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
+
+// extractJSON strips ANSI escape sequences and extracts the first JSON array from output.
+func extractJSON(s string) string {
+	ansi := regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]|\x1b\[K`)
+	clean := ansi.ReplaceAllString(s, "")
+	start := strings.Index(clean, "[")
+	if start == -1 {
+		return clean
+	}
+	return clean[start:]
+}
 
 var originalBuyVXCFunc = buyVXCFunc
 var interactive bool
@@ -1363,8 +1377,12 @@ func TestGetVXC(t *testing.T) {
 
 				switch tt.outputFormat {
 				case "json":
-					assert.Contains(t, capturedOutput, "\"uid\":")
-					assert.Contains(t, capturedOutput, "\"name\":")
+					var parsed []map[string]interface{}
+					jsonStr := extractJSON(capturedOutput)
+					assert.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed), "JSON output should be valid JSON")
+					if assert.NotEmpty(t, parsed) {
+						assert.Equal(t, tt.vxcUID, parsed[0]["uid"])
+					}
 				case "table":
 					assert.Contains(t, capturedOutput, "UID")
 					assert.Contains(t, capturedOutput, "NAME")
