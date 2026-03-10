@@ -6,12 +6,34 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+var ansiRegexp = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]|\x1b\[K`)
+
+// extractJSON strips ANSI escape sequences from captured output and extracts
+// the first complete JSON value (array or object) using json.Decoder.
+func extractJSON(s string) string {
+	clean := ansiRegexp.ReplaceAllString(s, "")
+	remaining := clean
+	for {
+		start := strings.IndexAny(remaining, "[{")
+		if start == -1 {
+			return clean
+		}
+		dec := json.NewDecoder(strings.NewReader(remaining[start:]))
+		var raw json.RawMessage
+		if err := dec.Decode(&raw); err == nil {
+			return string(raw)
+		}
+		remaining = remaining[start+1:]
+	}
+}
 
 var noColor = false
 
@@ -634,7 +656,7 @@ func TestCaptureOutputErr_RestoresStdoutOnSuccess(t *testing.T) {
 	assert.Equal(t, originalStdout, os.Stdout, "os.Stdout should be restored after successful execution")
 }
 
-func TestExtractJSON(t *testing.T) {
+func Test_extractJSON(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
@@ -704,7 +726,7 @@ func TestExtractJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ExtractJSON(tt.input)
+			result := extractJSON(tt.input)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
