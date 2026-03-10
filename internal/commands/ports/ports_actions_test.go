@@ -19,7 +19,7 @@ func testCommandAdapterOutput(fn func(cmd *cobra.Command, args []string, noColor
 		if format == "" {
 			format = "table"
 		}
-		return fn(cmd, args, false, format)
+		return fn(cmd, args, true, format)
 	}
 }
 
