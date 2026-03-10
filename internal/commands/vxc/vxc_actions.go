@@ -13,6 +13,8 @@ import (
 )
 
 func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
@@ -71,6 +73,8 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 }
 
 func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 

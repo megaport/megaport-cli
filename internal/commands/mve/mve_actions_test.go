@@ -1596,7 +1596,6 @@ func TestGetMVE(t *testing.T) {
 				Use: "get [mveUID]",
 			}
 
-			output.SetOutputFormat(tt.outputFormat)
 			defer output.SetOutputFormat("table")
 
 			var err error

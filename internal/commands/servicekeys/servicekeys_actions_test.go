@@ -294,7 +294,6 @@ func TestGetServiceKey(t *testing.T) {
 				Use: "get",
 			}
 
-			output.SetOutputFormat(tt.outputFormat)
 			defer output.SetOutputFormat("table")
 
 			var err error

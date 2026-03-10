@@ -14,6 +14,8 @@ import (
 )
 
 func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
@@ -459,6 +461,8 @@ func UpdateMVEResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 
 // GetMVEStatus retrieves only the provisioning status of an MVE without all details
 func GetMVEStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 

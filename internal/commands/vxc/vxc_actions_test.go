@@ -1350,7 +1350,6 @@ func TestGetVXC(t *testing.T) {
 				Use: "get [vxcUID]",
 			}
 
-			output.SetOutputFormat(tt.outputFormat)
 			defer output.SetOutputFormat("table")
 
 			var err error

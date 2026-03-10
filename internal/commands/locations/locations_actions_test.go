@@ -495,7 +495,6 @@ func TestGetLocation(t *testing.T) {
 				Use: "get",
 			}
 
-			output.SetOutputFormat("json")
 			defer output.SetOutputFormat("table")
 
 			var err error
