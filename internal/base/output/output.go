@@ -17,15 +17,22 @@ import (
 var ansiRegexp = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]|\x1b\[K`)
 
 // ExtractJSON strips ANSI escape sequences from captured output and extracts
-// the first JSON array. This is useful in tests where spinner output may
-// contaminate the captured stdout.
+// the first complete JSON value (array or object) using json.Decoder.
+// This is useful in tests where spinner output may contaminate stdout.
 func ExtractJSON(s string) string {
 	clean := ansiRegexp.ReplaceAllString(s, "")
-	start := strings.Index(clean, "[")
+	// Find the start of a JSON array or object
+	start := strings.IndexAny(clean, "[{")
 	if start == -1 {
 		return clean
 	}
-	return clean[start:]
+	// Use json.Decoder to extract exactly one complete JSON value
+	dec := json.NewDecoder(strings.NewReader(clean[start:]))
+	var raw json.RawMessage
+	if err := dec.Decode(&raw); err != nil {
+		return clean
+	}
+	return string(raw)
 }
 
 func printJSON[T OutputFields](data []T) error {

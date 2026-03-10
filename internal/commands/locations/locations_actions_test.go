@@ -495,6 +495,9 @@ func TestGetLocation(t *testing.T) {
 				Use: "get",
 			}
 
+			output.SetOutputFormat("json")
+			defer output.SetOutputFormat("")
+
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
 				err = GetLocation(cmd, tt.args, true, "json")
@@ -506,8 +509,7 @@ func TestGetLocation(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				var parsed []map[string]interface{}
-				jsonStr := output.ExtractJSON(capturedOutput)
-				assert.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed), "JSON output should be valid JSON")
+				assert.NoError(t, json.Unmarshal([]byte(capturedOutput), &parsed), "JSON output should be valid JSON")
 				if assert.NotEmpty(t, parsed) {
 					assert.Contains(t, capturedOutput, tt.expectedOutput)
 				}

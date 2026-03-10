@@ -1596,6 +1596,9 @@ func TestGetMVE(t *testing.T) {
 				Use: "get [mveUID]",
 			}
 
+			output.SetOutputFormat(tt.outputFormat)
+			defer output.SetOutputFormat("")
+
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
 				err = GetMVE(cmd, []string{tt.mveUID}, noColor, tt.outputFormat)
@@ -1608,8 +1611,7 @@ func TestGetMVE(t *testing.T) {
 				assert.NoError(t, err)
 				if tt.outputFormat == "json" {
 					var parsed []map[string]interface{}
-					jsonStr := output.ExtractJSON(capturedOutput)
-					assert.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed), "JSON output should be valid JSON")
+					assert.NoError(t, json.Unmarshal([]byte(capturedOutput), &parsed), "JSON output should be valid JSON")
 					if assert.NotEmpty(t, parsed) {
 						assert.Equal(t, tt.mveUID, parsed[0]["productUid"])
 					}

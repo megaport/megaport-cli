@@ -260,8 +260,7 @@ func TestGetServiceKey(t *testing.T) {
 			outputFormat: "json",
 			checkOutput: func(t *testing.T, capturedOutput string) {
 				var parsed []map[string]interface{}
-				jsonStr := output.ExtractJSON(capturedOutput)
-				assert.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed), "JSON output should be valid JSON")
+				assert.NoError(t, json.Unmarshal([]byte(capturedOutput), &parsed), "JSON output should be valid JSON")
 				if assert.NotEmpty(t, parsed) {
 					assert.Equal(t, "sk-456", parsed[0]["key_uid"])
 				}
@@ -293,6 +292,9 @@ func TestGetServiceKey(t *testing.T) {
 			cmd := &cobra.Command{
 				Use: "get",
 			}
+
+			output.SetOutputFormat(tt.outputFormat)
+			defer output.SetOutputFormat("")
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {

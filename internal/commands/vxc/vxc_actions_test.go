@@ -1350,6 +1350,9 @@ func TestGetVXC(t *testing.T) {
 				Use: "get [vxcUID]",
 			}
 
+			output.SetOutputFormat(tt.outputFormat)
+			defer output.SetOutputFormat("")
+
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
 				err = GetVXC(cmd, []string{tt.vxcUID}, true, tt.outputFormat)
@@ -1360,17 +1363,16 @@ func TestGetVXC(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, capturedOutput, tt.expectedOutput)
 
 				switch tt.outputFormat {
 				case "json":
 					var parsed []map[string]interface{}
-					jsonStr := output.ExtractJSON(capturedOutput)
-					assert.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed), "JSON output should be valid JSON")
+					assert.NoError(t, json.Unmarshal([]byte(capturedOutput), &parsed), "JSON output should be valid JSON")
 					if assert.NotEmpty(t, parsed) {
 						assert.Equal(t, tt.vxcUID, parsed[0]["uid"])
 					}
 				case "table":
+					assert.Contains(t, capturedOutput, tt.expectedOutput)
 					assert.Contains(t, capturedOutput, "UID")
 					assert.Contains(t, capturedOutput, "NAME")
 				}
