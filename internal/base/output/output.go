@@ -10,8 +10,23 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 )
+
+var ansiRegexp = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]|\x1b\[K`)
+
+// ExtractJSON strips ANSI escape sequences from captured output and extracts
+// the first JSON array. This is useful in tests where spinner output may
+// contaminate the captured stdout.
+func ExtractJSON(s string) string {
+	clean := ansiRegexp.ReplaceAllString(s, "")
+	start := strings.Index(clean, "[")
+	if start == -1 {
+		return clean
+	}
+	return clean[start:]
+}
 
 func printJSON[T OutputFields](data []T) error {
 	// Handle nil slices by ensuring we output an empty array instead of null

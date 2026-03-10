@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -18,17 +17,6 @@ import (
 )
 
 var noColor = true // Disable color for testing
-
-// extractJSON strips ANSI escape sequences and extracts the first JSON array from output.
-func extractJSON(s string) string {
-	ansi := regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]|\x1b\[K`)
-	clean := ansi.ReplaceAllString(s, "")
-	start := strings.Index(clean, "[")
-	if start == -1 {
-		return clean
-	}
-	return clean[start:]
-}
 
 var testMVEImages = []*megaport.MVEImage{
 	{
@@ -1620,7 +1608,7 @@ func TestGetMVE(t *testing.T) {
 				assert.NoError(t, err)
 				if tt.outputFormat == "json" {
 					var parsed []map[string]interface{}
-					jsonStr := extractJSON(capturedOutput)
+					jsonStr := output.ExtractJSON(capturedOutput)
 					assert.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed), "JSON output should be valid JSON")
 					if assert.NotEmpty(t, parsed) {
 						assert.Equal(t, tt.mveUID, parsed[0]["productUid"])
