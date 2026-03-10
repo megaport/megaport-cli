@@ -130,6 +130,7 @@ type ProfileOutput struct {
 }
 
 func ListProfiles(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
 	manager, err := NewConfigManager()
 	if err != nil {
 		return err

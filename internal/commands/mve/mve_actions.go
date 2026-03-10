@@ -295,6 +295,7 @@ func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 }
 
 func ListMVEImages(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
@@ -337,6 +338,7 @@ func ListMVEImages(cmd *cobra.Command, args []string, noColor bool, outputFormat
 }
 
 func ListAvailableMVESizes(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 

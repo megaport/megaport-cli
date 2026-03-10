@@ -12,6 +12,7 @@ import (
 )
 
 func ListManagedAccounts(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
@@ -50,6 +51,7 @@ func ListManagedAccounts(cmd *cobra.Command, args []string, noColor bool, output
 }
 
 func GetManagedAccount(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 

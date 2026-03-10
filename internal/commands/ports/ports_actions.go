@@ -173,6 +173,7 @@ var listPortsFunc = func(ctx context.Context, client *megaport.Client) ([]*megap
 }
 
 func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
@@ -213,6 +214,7 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 }
 
 func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
@@ -249,6 +251,7 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 }
 
 func GetPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 

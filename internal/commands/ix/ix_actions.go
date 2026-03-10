@@ -13,6 +13,7 @@ import (
 )
 
 func ListIXs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
@@ -73,6 +74,7 @@ func ListIXs(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 }
 
 func GetIX(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
@@ -102,6 +104,7 @@ func GetIX(cmd *cobra.Command, args []string, noColor bool, outputFormat string)
 }
 
 func GetIXStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
