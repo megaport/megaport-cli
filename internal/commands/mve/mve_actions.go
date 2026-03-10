@@ -250,6 +250,8 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 

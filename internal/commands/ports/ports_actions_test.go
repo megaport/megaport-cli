@@ -2,7 +2,6 @@ package ports
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -1281,10 +1280,7 @@ func TestUpdatePort(t *testing.T) {
 		{
 			name:    "success with JSON",
 			portUID: "port-update-2",
-			jsonInput: func() string {
-				b, _ := json.Marshal(map[string]interface{}{"name": "JSON Updated"})
-				return string(b)
-			}(),
+			jsonInput: `{"name":"JSON Updated"}`,
 			getPortResult: &megaport.Port{
 				UID:                "port-update-2",
 				Name:               "Original Port",
