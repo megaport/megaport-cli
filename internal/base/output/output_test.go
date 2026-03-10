@@ -690,6 +690,16 @@ func TestExtractJSON(t *testing.T) {
 			input:    "prefix {\"outer\":{\"inner\":true}} suffix",
 			expected: `{"outer":{"inner":true}}`,
 		},
+		{
+			name:     "non-JSON bracket before valid JSON",
+			input:    `Command: deploy [a b] [{"uid":"abc-123"}]`,
+			expected: `[{"uid":"abc-123"}]`,
+		},
+		{
+			name:     "non-JSON brace before valid JSON",
+			input:    `log {invalid [{"name":"test"}]`,
+			expected: `[{"name":"test"}]`,
+		},
 	}
 
 	for _, tt := range tests {

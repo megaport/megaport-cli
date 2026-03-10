@@ -21,18 +21,23 @@ var ansiRegexp = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]|\x1b\[K`)
 // This is useful in tests where spinner output may contaminate stdout.
 func ExtractJSON(s string) string {
 	clean := ansiRegexp.ReplaceAllString(s, "")
-	// Find the start of a JSON array or object
-	start := strings.IndexAny(clean, "[{")
-	if start == -1 {
-		return clean
+	// Scan forward through all '[' and '{' positions, attempting to decode
+	// a complete JSON value at each one. This handles cases where non-JSON
+	// brackets appear before the actual JSON (e.g., "deploy [a b] [{"uid":...}]").
+	remaining := clean
+	for {
+		start := strings.IndexAny(remaining, "[{")
+		if start == -1 {
+			return clean
+		}
+		dec := json.NewDecoder(strings.NewReader(remaining[start:]))
+		var raw json.RawMessage
+		if err := dec.Decode(&raw); err == nil {
+			return string(raw)
+		}
+		// Move past this bracket and try the next one
+		remaining = remaining[start+1:]
 	}
-	// Use json.Decoder to extract exactly one complete JSON value
-	dec := json.NewDecoder(strings.NewReader(clean[start:]))
-	var raw json.RawMessage
-	if err := dec.Decode(&raw); err != nil {
-		return clean
-	}
-	return string(raw)
 }
 
 func printJSON[T OutputFields](data []T) error {
