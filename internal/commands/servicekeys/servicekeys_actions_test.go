@@ -294,7 +294,7 @@ func TestGetServiceKey(t *testing.T) {
 			}
 
 			output.SetOutputFormat(tt.outputFormat)
-			defer output.SetOutputFormat("")
+			defer output.SetOutputFormat("table")
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
