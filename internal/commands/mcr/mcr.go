@@ -22,8 +22,23 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
+	get, buy, update, del, restore, list, status := buildMCRCommands(rootCmd)
+	create, listPFL, getPFL, updatePFL, deletePFL := buildMCRPrefixFilterCommands(rootCmd)
+	listTags, updateTags := buildMCRTagCommands()
+
+	mcrCmd.AddCommand(
+		get, buy, update, del, restore,
+		create, listPFL, getPFL, updatePFL, deletePFL,
+		list, status,
+		listTags, updateTags,
+	)
+	rootCmd.AddCommand(mcrCmd)
+}
+
+// buildMCRCommands extracts the get, buy, update, delete, restore, list, and status command definitions.
+func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, list, status *cobra.Command) {
 	// Create get MCR command
-	getMCRCmd := cmdbuilder.NewCommand("get", "Get details for a single MCR").
+	get = cmdbuilder.NewCommand("get", "Get details for a single MCR").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetMCR).
 		WithLongDesc("Get details for a single MCR.\n\nThis command retrieves and displays detailed information for a single Megaport Cloud Router (MCR). You must provide the unique identifier (UID) of the MCR you wish to retrieve.").
@@ -32,8 +47,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-		// Create buy MCR command
-	buyMCRCmd := cmdbuilder.NewCommand("buy", "Buy an MCR through the Megaport API").
+	// Create buy MCR command
+	buy = cmdbuilder.NewCommand("buy", "Buy an MCR through the Megaport API").
 		WithColorAwareRunFunc(BuyMCR).
 		WithMCRCreateFlags().
 		WithStandardInputFlags().
@@ -79,7 +94,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithConditionalRequirements("name", "term", "port-speed", "location-id", "marketplace-visibility").
 		Build()
 
-	updateMCRCmd := cmdbuilder.NewCommand("update", "Update an existing MCR").
+	update = cmdbuilder.NewCommand("update", "Update an existing MCR").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(UpdateMCR).
 		WithStandardInputFlags().
@@ -102,7 +117,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		Build()
 
 	// Create delete MCR command
-	deleteMCRCmd := cmdbuilder.NewCommand("delete", "Delete an MCR from your account").
+	del = cmdbuilder.NewCommand("delete", "Delete an MCR from your account").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(DeleteMCR).
 		WithSafeDeleteFlags().
@@ -114,7 +129,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		Build()
 
 	// Create restore MCR command
-	restoreMCRCmd := cmdbuilder.NewCommand("restore", "Restore a deleted MCR").
+	restore = cmdbuilder.NewCommand("restore", "Restore a deleted MCR").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(RestoreMCR).
 		WithLongDesc("Restore a previously deleted MCR.\n\nThis command allows you to restore a previously deleted MCR, provided it has not yet been fully decommissioned.").
@@ -122,8 +137,41 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-		// Create prefix filter list command
-	createMCRPrefixFilterListCmd := cmdbuilder.NewCommand("create-prefix-filter-list", "Create a prefix filter list on an MCR").
+	// Create list MCRs command
+	list = cmdbuilder.NewCommand("list", "List all MCRs with optional filters").
+		WithOutputFormatRunFunc(ListMCRs).
+		WithLongDesc("List all MCRs available in the Megaport API.\n\nThis command fetches and displays a list of MCRs with details such as MCR ID, name, location, speed, and status. By default, only active MCRs are shown.").
+		WithMCRFilterFlags().
+		WithOptionalFlag("location-id", "Filter MCRs by location ID").
+		WithOptionalFlag("name", "Filter MCRs by name").
+		WithOptionalFlag("port-speed", "Filter MCRs by port speed").
+		WithOptionalFlag("include-inactive", "Include MCRs in CANCELLED, DECOMMISSIONED, or DECOMMISSIONING states").
+		WithExample("megaport-cli mcr list").
+		WithExample("megaport-cli mcr list --location-id 1").
+		WithExample("megaport-cli mcr list --port-speed 10000").
+		WithExample("megaport-cli mcr list --name \"My MCR\"").
+		WithExample("megaport-cli mcr list --include-inactive").
+		WithExample("megaport-cli mcr list --location-id 1 --port-speed 10000 --name \"My MCR\"").
+		WithRootCmd(rootCmd).
+		Build()
+
+	// Create status MCR command
+	status = cmdbuilder.NewCommand("status", "Check the provisioning status of an MCR").
+		WithArgs(cobra.ExactArgs(1)).
+		WithOutputFormatRunFunc(GetMCRStatus).
+		WithLongDesc("Check the provisioning status of an MCR through the Megaport API.\n\nThis command retrieves only the essential status information for a Megaport Cloud Router (MCR) without all the details. It's useful for monitoring ongoing provisioning.").
+		WithExample("megaport-cli mcr status mcr-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
+		WithImportantNote("This is a lightweight command that only shows the MCR's status without retrieving all details.").
+		WithRootCmd(rootCmd).
+		Build()
+
+	return
+}
+
+// buildMCRPrefixFilterCommands extracts the prefix filter list command definitions.
+func buildMCRPrefixFilterCommands(rootCmd *cobra.Command) (create, listPFL, getPFL, updatePFL, deletePFL *cobra.Command) {
+	// Create prefix filter list command
+	create = cmdbuilder.NewCommand("create-prefix-filter-list", "Create a prefix filter list on an MCR").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(CreateMCRPrefixFilterList).
 		WithStandardInputFlags().
@@ -158,7 +206,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		Build()
 
 	// List prefix filter lists command
-	listMCRPrefixFilterListsCmd := cmdbuilder.NewCommand("list-prefix-filter-lists", "List all prefix filter lists for a specific MCR").
+	listPFL = cmdbuilder.NewCommand("list-prefix-filter-lists", "List all prefix filter lists for a specific MCR").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(ListMCRPrefixFilterLists).
 		WithLongDesc("List all prefix filter lists for a specific MCR.\n\nThis command retrieves and displays a list of all prefix filter lists configured on the specified MCR.").
@@ -167,7 +215,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		Build()
 
 	// Get prefix filter list command
-	getMCRPrefixFilterListCmd := cmdbuilder.NewCommand("get-prefix-filter-list", "Get details for a single prefix filter list on an MCR").
+	getPFL = cmdbuilder.NewCommand("get-prefix-filter-list", "Get details for a single prefix filter list on an MCR").
 		WithArgs(cobra.ExactArgs(2)).
 		WithOutputFormatRunFunc(GetMCRPrefixFilterList).
 		WithLongDesc("Get details for a single prefix filter list on an MCR.\n\nThis command retrieves and displays detailed information about a specific prefix filter list on the specified MCR.").
@@ -176,7 +224,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		Build()
 
 	// Update prefix filter list command
-	updateMCRPrefixFilterListCmd := cmdbuilder.NewCommand("update-prefix-filter-list", "Update a prefix filter list on an MCR").
+	updatePFL = cmdbuilder.NewCommand("update-prefix-filter-list", "Update a prefix filter list on an MCR").
 		WithArgs(cobra.ExactArgs(2)).
 		WithColorAwareRunFunc(UpdateMCRPrefixFilterList).
 		WithStandardInputFlags().
@@ -206,7 +254,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		Build()
 
 	// Delete prefix filter list command
-	deleteMCRPrefixFilterListCmd := cmdbuilder.NewCommand("delete-prefix-filter-list", "Delete a prefix filter list on an MCR").
+	deletePFL = cmdbuilder.NewCommand("delete-prefix-filter-list", "Delete a prefix filter list on an MCR").
 		WithArgs(cobra.ExactArgs(2)).
 		WithColorAwareRunFunc(DeleteMCRPrefixFilterList).
 		WithDeleteFlags().
@@ -216,36 +264,13 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-		// Create list MCRs command
-	listMCRsCmd := cmdbuilder.NewCommand("list", "List all MCRs with optional filters").
-		WithOutputFormatRunFunc(ListMCRs).
-		WithLongDesc("List all MCRs available in the Megaport API.\n\nThis command fetches and displays a list of MCRs with details such as MCR ID, name, location, speed, and status. By default, only active MCRs are shown.").
-		WithMCRFilterFlags().
-		WithOptionalFlag("location-id", "Filter MCRs by location ID").
-		WithOptionalFlag("name", "Filter MCRs by name").
-		WithOptionalFlag("port-speed", "Filter MCRs by port speed").
-		WithOptionalFlag("include-inactive", "Include MCRs in CANCELLED, DECOMMISSIONED, or DECOMMISSIONING states").
-		WithExample("megaport-cli mcr list").
-		WithExample("megaport-cli mcr list --location-id 1").
-		WithExample("megaport-cli mcr list --port-speed 10000").
-		WithExample("megaport-cli mcr list --name \"My MCR\"").
-		WithExample("megaport-cli mcr list --include-inactive").
-		WithExample("megaport-cli mcr list --location-id 1 --port-speed 10000 --name \"My MCR\"").
-		WithRootCmd(rootCmd).
-		Build()
+	return
+}
 
-	// Create status MCR command
-	statusMCRCmd := cmdbuilder.NewCommand("status", "Check the provisioning status of an MCR").
-		WithArgs(cobra.ExactArgs(1)).
-		WithOutputFormatRunFunc(GetMCRStatus).
-		WithLongDesc("Check the provisioning status of an MCR through the Megaport API.\n\nThis command retrieves only the essential status information for a Megaport Cloud Router (MCR) without all the details. It's useful for monitoring ongoing provisioning.").
-		WithExample("megaport-cli mcr status mcr-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
-		WithImportantNote("This is a lightweight command that only shows the MCR's status without retrieving all details.").
-		WithRootCmd(rootCmd).
-		Build()
-
+// buildMCRTagCommands extracts the tag command definitions.
+func buildMCRTagCommands() (listTags, updateTags *cobra.Command) {
 	// Add list-tags command
-	listTagsCmd := cmdbuilder.NewCommand("list-tags", "List resource tags on a specific MCR").
+	listTags = cmdbuilder.NewCommand("list-tags", "List resource tags on a specific MCR").
 		WithLongDesc("Lists all resource tags associated with a specific MCR").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(ListMCRResourceTags).
@@ -253,7 +278,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		Build()
 
 	// Add update-tags command
-	updateTagsCmd := cmdbuilder.NewCommand("update-tags", "Update resource tags on a specific MCR").
+	updateTags = cmdbuilder.NewCommand("update-tags", "Update resource tags on a specific MCR").
 		WithLongDesc("Update resource tags associated with a specific MCR. Tags can be provided via interactive prompts, JSON string, or JSON file.").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(UpdateMCRResourceTags).
@@ -264,22 +289,5 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("All existing tags will be replaced with the provided tags. To clear all tags, provide an empty tag set.").
 		Build()
 
-	// Add commands to their parents
-	mcrCmd.AddCommand(
-		getMCRCmd,
-		buyMCRCmd,
-		updateMCRCmd,
-		deleteMCRCmd,
-		restoreMCRCmd,
-		createMCRPrefixFilterListCmd,
-		listMCRPrefixFilterListsCmd,
-		getMCRPrefixFilterListCmd,
-		updateMCRPrefixFilterListCmd,
-		deleteMCRPrefixFilterListCmd,
-		listMCRsCmd,
-		statusMCRCmd,
-		listTagsCmd,
-		updateTagsCmd,
-	)
-	rootCmd.AddCommand(mcrCmd)
+	return
 }

@@ -667,6 +667,55 @@ func parseVRouterConfig(config map[string]interface{}) (*megaport.VXCOrderVroute
 	}, nil
 }
 
+// parseVXCEndpointConfig parses common endpoint configuration fields (productUID, vlan,
+// diversityZone, partnerConfig, MVE config) from a raw JSON map into a VXCOrderEndpointConfiguration.
+// The endLabel parameter (e.g. "A-End", "B-End") is used for error messages.
+func parseVXCEndpointConfig(endConfigRaw map[string]interface{}, endLabel string) (megaport.VXCOrderEndpointConfiguration, error) {
+	config := megaport.VXCOrderEndpointConfiguration{}
+
+	if productUID, ok := endConfigRaw["productUID"].(string); ok {
+		config.ProductUID = productUID
+	}
+
+	if vlan, ok := endConfigRaw["vlan"].(float64); ok {
+		config.VLAN = int(vlan)
+	}
+
+	if diversityZone, ok := endConfigRaw["diversityZone"].(string); ok {
+		config.DiversityZone = diversityZone
+	}
+
+	// Handle partner config - directly use map data
+	if partnerConfigRaw, ok := endConfigRaw["partnerConfig"].(map[string]interface{}); ok {
+		partnerConfig, err := parsePartnerConfigFromMap(partnerConfigRaw)
+		if err != nil {
+			return config, fmt.Errorf("error parsing %s partner config: %v", endLabel, err)
+		}
+
+		config.PartnerConfig = partnerConfig
+	}
+
+	// Handle MVE config
+	innerVLAN, hasInnerVLAN := endConfigRaw["innerVlan"].(float64)
+	vNicIndex, hasVNicIndex := endConfigRaw["vNicIndex"].(float64)
+
+	if hasInnerVLAN || hasVNicIndex {
+		mveConfig := &megaport.VXCOrderMVEConfig{}
+
+		if hasInnerVLAN {
+			mveConfig.InnerVLAN = int(innerVLAN)
+		}
+
+		if hasVNicIndex {
+			mveConfig.NetworkInterfaceIndex = int(vNicIndex)
+		}
+
+		config.VXCOrderMVEConfig = mveConfig
+	}
+
+	return config, nil
+}
+
 func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.BuyVXCRequest, error) {
 	var jsonData string
 
@@ -740,91 +789,19 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.Buy
 
 	// Handle A-End configuration
 	if aEndConfigRaw, ok := rawData["aEndConfiguration"].(map[string]interface{}); ok {
-		aEndConfig := megaport.VXCOrderEndpointConfiguration{}
-
-		if vlan, ok := aEndConfigRaw["vlan"].(float64); ok {
-			aEndConfig.VLAN = int(vlan)
+		aEndConfig, err := parseVXCEndpointConfig(aEndConfigRaw, "A-End")
+		if err != nil {
+			return nil, err
 		}
-
-		if diversityZone, ok := aEndConfigRaw["diversityZone"].(string); ok {
-			aEndConfig.DiversityZone = diversityZone
-		}
-
-		// Handle A-End partner config - directly use map data
-		if partnerConfigRaw, ok := aEndConfigRaw["partnerConfig"].(map[string]interface{}); ok {
-			partnerConfig, err := parsePartnerConfigFromMap(partnerConfigRaw)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing A-End partner config: %v", err)
-			}
-
-			aEndConfig.PartnerConfig = partnerConfig
-		}
-
-		// Handle A-End MVE config
-		innerVLAN, hasInnerVLAN := aEndConfigRaw["innerVlan"].(float64)
-		vNicIndex, hasVNicIndex := aEndConfigRaw["vNicIndex"].(float64)
-
-		if hasInnerVLAN || hasVNicIndex {
-			mveConfig := &megaport.VXCOrderMVEConfig{}
-
-			if hasInnerVLAN {
-				mveConfig.InnerVLAN = int(innerVLAN)
-			}
-
-			if hasVNicIndex {
-				mveConfig.NetworkInterfaceIndex = int(vNicIndex)
-			}
-
-			aEndConfig.VXCOrderMVEConfig = mveConfig
-		}
-
 		req.AEndConfiguration = aEndConfig
 	}
 
 	// Handle B-End configuration
 	if bEndConfigRaw, ok := rawData["bEndConfiguration"].(map[string]interface{}); ok {
-		bEndConfig := megaport.VXCOrderEndpointConfiguration{}
-
-		if productUID, ok := bEndConfigRaw["productUID"].(string); ok {
-			bEndConfig.ProductUID = productUID
+		bEndConfig, err := parseVXCEndpointConfig(bEndConfigRaw, "B-End")
+		if err != nil {
+			return nil, err
 		}
-
-		if vlan, ok := bEndConfigRaw["vlan"].(float64); ok {
-			bEndConfig.VLAN = int(vlan)
-		}
-
-		if diversityZone, ok := bEndConfigRaw["diversityZone"].(string); ok {
-			bEndConfig.DiversityZone = diversityZone
-		}
-
-		// Handle B-End partner config - directly use map data
-		if partnerConfigRaw, ok := bEndConfigRaw["partnerConfig"].(map[string]interface{}); ok {
-			partnerConfig, err := parsePartnerConfigFromMap(partnerConfigRaw)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing B-End partner config: %v", err)
-			}
-
-			bEndConfig.PartnerConfig = partnerConfig
-		}
-
-		// Handle B-End MVE config
-		innerVLAN, hasInnerVLAN := bEndConfigRaw["innerVlan"].(float64)
-		vNicIndex, hasVNicIndex := bEndConfigRaw["vNicIndex"].(float64)
-
-		if hasInnerVLAN || hasVNicIndex {
-			mveConfig := &megaport.VXCOrderMVEConfig{}
-
-			if hasInnerVLAN {
-				mveConfig.InnerVLAN = int(innerVLAN)
-			}
-
-			if hasVNicIndex {
-				mveConfig.NetworkInterfaceIndex = int(vNicIndex)
-			}
-
-			bEndConfig.VXCOrderMVEConfig = mveConfig
-		}
-
 		req.BEndConfiguration = bEndConfig
 	}
 
