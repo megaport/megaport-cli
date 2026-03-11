@@ -153,7 +153,7 @@ func displayVXCChanges(original, updated *megaport.VXC, noColor bool) {
 
 type VXCStatus struct {
 	UID    string `json:"uid" header:"UID"`
-	Name   string `json:"name" header:"NAME"`
-	Status string `json:"status" header:"STATUS"`
-	Type   string `json:"type" header:"TYPE"`
+	Name   string `json:"name" header:"Name"`
+	Status string `json:"status" header:"Status"`
+	Type   string `json:"type" header:"Type"`
 }

@@ -8,15 +8,15 @@ import (
 type BillingMarketOutput struct {
 	output.Output       `json:"-" header:"-"`
 	ID                  int     `json:"id" header:"ID"`
-	SupplierName        string  `json:"supplier_name" header:"SUPPLIER NAME"`
-	CurrencyEnum        string  `json:"currency" header:"CURRENCY"`
-	Country             string  `json:"country" header:"COUNTRY"`
-	Region              string  `json:"region" header:"REGION"`
-	BillingContactName  string  `json:"billing_contact_name" header:"CONTACT NAME"`
-	BillingContactEmail string  `json:"billing_contact_email" header:"CONTACT EMAIL"`
+	SupplierName        string  `json:"supplier_name" header:"Supplier Name"`
+	CurrencyEnum        string  `json:"currency" header:"Currency"`
+	Country             string  `json:"country" header:"Country"`
+	Region              string  `json:"region" header:"Region"`
+	BillingContactName  string  `json:"billing_contact_name" header:"Contact Name"`
+	BillingContactEmail string  `json:"billing_contact_email" header:"Contact Email"`
 	BillingContactPhone string  `json:"billing_contact_phone" header:"-"`
 	Address1            string  `json:"address1" header:"-"`
-	City                string  `json:"city" header:"CITY"`
+	City                string  `json:"city" header:"City"`
 	State               string  `json:"state" header:"-"`
 	Postcode            string  `json:"postcode" header:"-"`
 	Language            string  `json:"language" header:"-"`
@@ -24,7 +24,7 @@ type BillingMarketOutput struct {
 	FirstPartyID        int     `json:"first_party_id" header:"-"`
 	SecondPartyID       int     `json:"second_party_id" header:"-"`
 	PaymentTermInDays   int     `json:"payment_term_in_days" header:"-"`
-	Active              bool    `json:"active" header:"ACTIVE"`
+	Active              bool    `json:"active" header:"Active"`
 	VATExempt           bool    `json:"vat_exempt" header:"-"`
 }
 

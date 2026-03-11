@@ -86,7 +86,7 @@ func TestPrintPorts_Table(t *testing.T) {
 
 	assert.Contains(t, output, "UID")
 	assert.Contains(t, output, "NAME")
-	assert.Contains(t, output, "LOCATIONID")
+	assert.Contains(t, output, "LOCATION ID")
 	assert.Contains(t, output, "SPEED")
 	assert.Contains(t, output, "STATUS")
 
@@ -178,7 +178,7 @@ func TestPrintPorts_EdgeCases(t *testing.T) {
 			validateFunc: func(t *testing.T, output string) {
 				assert.Contains(t, output, "UID")
 				assert.Contains(t, output, "NAME")
-				assert.Contains(t, output, "LOCATIONID")
+				assert.Contains(t, output, "LOCATION ID")
 				assert.Contains(t, output, "SPEED")
 				assert.Contains(t, output, "STATUS")
 				assert.Contains(t, output, "┌")

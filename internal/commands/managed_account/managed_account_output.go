@@ -10,9 +10,9 @@ import (
 // ManagedAccountOutput represents the desired fields for output of managed account details.
 type ManagedAccountOutput struct {
 	output.Output `json:"-" header:"-"`
-	AccountName   string `json:"account_name" header:"ACCOUNT NAME"`
-	AccountRef    string `json:"account_ref" header:"ACCOUNT REF"`
-	CompanyUID    string `json:"company_uid" header:"COMPANY UID"`
+	AccountName   string `json:"account_name" header:"Account Name"`
+	AccountRef    string `json:"account_ref" header:"Account Ref"`
+	CompanyUID    string `json:"company_uid" header:"Company UID"`
 }
 
 // ToManagedAccountOutput converts a *megaport.ManagedAccount to our ManagedAccountOutput struct.
