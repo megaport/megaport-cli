@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"os"
@@ -20,6 +21,9 @@ var WasmJSONWriter = &bytes.Buffer{}
 
 // WasmCSVWriter is a global buffer for capturing CSV output in WASM
 var WasmCSVWriter = &bytes.Buffer{}
+
+// WasmXMLWriter is a global buffer for capturing XML output in WASM
+var WasmXMLWriter = &bytes.Buffer{}
 
 // printJSON is the WASM-specific implementation that properly captures JSON output
 func printJSON[T OutputFields](data []T) error {
@@ -184,6 +188,151 @@ func printCSV[T OutputFields](data []T) error {
 	// Also write to a JavaScript-accessible global variable for direct access
 	js.Global().Set("wasmCSVOutput", csvOutput)
 	js.Global().Get("console").Call("log", "📝 CSV output also stored in wasmCSVOutput global")
+
+	return nil
+}
+
+// printXML is the WASM-specific implementation that properly captures XML output
+func printXML[T OutputFields](data []T) error {
+	WasmXMLWriter.Reset()
+
+	js.Global().Get("console").Call("log", "📄 XML will write to WasmXMLWriter")
+
+	if data == nil {
+		data = []T{}
+	}
+
+	var sample T
+	if len(data) > 0 {
+		sample = data[0]
+	}
+	sampleVal := reflect.ValueOf(sample)
+	if !sampleVal.IsValid() {
+		WasmXMLWriter.WriteString(xml.Header + "<items></items>\n")
+		xmlOutput := WasmXMLWriter.String()
+		fmt.Print(xmlOutput)
+		js.Global().Set("wasmXMLOutput", xmlOutput)
+		return nil
+	}
+	t := sampleVal.Type()
+	if t.Kind() == reflect.Ptr {
+		if sampleVal.IsNil() {
+			if t.Elem().Kind() != reflect.Struct {
+				WasmXMLWriter.WriteString(xml.Header + "<items></items>\n")
+				xmlOutput := WasmXMLWriter.String()
+				fmt.Print(xmlOutput)
+				js.Global().Set("wasmXMLOutput", xmlOutput)
+				return nil
+			}
+			t = t.Elem()
+		} else {
+			sampleVal = sampleVal.Elem()
+			t = sampleVal.Type()
+		}
+	}
+	if t.Kind() != reflect.Struct {
+		WasmXMLWriter.WriteString(xml.Header + "<items></items>\n")
+		xmlOutput := WasmXMLWriter.String()
+		fmt.Print(xmlOutput)
+		js.Global().Set("wasmXMLOutput", xmlOutput)
+		return nil
+	}
+
+	type xmlField struct {
+		name  string
+		index int
+	}
+	var fields []xmlField
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		if field.PkgPath != "" {
+			continue
+		}
+		if !isOutputCompatibleType(field.Type) {
+			continue
+		}
+		name := field.Tag.Get("json")
+		if name == "-" {
+			continue
+		}
+		if name == "" {
+			name = field.Tag.Get("csv")
+			if name == "-" {
+				continue
+			}
+		}
+		if name == "" {
+			name = strings.ToLower(field.Name)
+		}
+		if idx := strings.Index(name, ","); idx != -1 {
+			name = name[:idx]
+		}
+		fields = append(fields, xmlField{name: name, index: i})
+	}
+
+	encoder := xml.NewEncoder(WasmXMLWriter)
+	encoder.Indent("", "  ")
+
+	WasmXMLWriter.WriteString(xml.Header)
+	start := xml.StartElement{Name: xml.Name{Local: "items"}}
+	if err := encoder.EncodeToken(start); err != nil {
+		return err
+	}
+
+	for _, item := range data {
+		v := reflect.ValueOf(item)
+		if !v.IsValid() {
+			continue
+		}
+		if v.Kind() == reflect.Ptr {
+			if v.IsNil() {
+				continue
+			}
+			v = v.Elem()
+		}
+		if v.Kind() != reflect.Struct {
+			continue
+		}
+
+		itemStart := xml.StartElement{Name: xml.Name{Local: "item"}}
+		if err := encoder.EncodeToken(itemStart); err != nil {
+			return err
+		}
+
+		for _, f := range fields {
+			fieldVal := v.Field(f.index)
+			valueStr := formatFieldValue(fieldVal)
+
+			elemStart := xml.StartElement{Name: xml.Name{Local: f.name}}
+			if err := encoder.EncodeToken(elemStart); err != nil {
+				return err
+			}
+			if err := encoder.EncodeToken(xml.CharData(valueStr)); err != nil {
+				return err
+			}
+			if err := encoder.EncodeToken(elemStart.End()); err != nil {
+				return err
+			}
+		}
+
+		if err := encoder.EncodeToken(itemStart.End()); err != nil {
+			return err
+		}
+	}
+
+	if err := encoder.EncodeToken(start.End()); err != nil {
+		return err
+	}
+	if err := encoder.Flush(); err != nil {
+		return err
+	}
+	WasmXMLWriter.WriteString("\n")
+
+	xmlOutput := WasmXMLWriter.String()
+	js.Global().Get("console").Call("log", fmt.Sprintf("✅ XML encoded, buffer size: %d bytes", len(xmlOutput)))
+	fmt.Print(xmlOutput)
+	js.Global().Set("wasmXMLOutput", xmlOutput)
+	js.Global().Get("console").Call("log", "📝 XML output also stored in wasmXMLOutput global")
 
 	return nil
 }
