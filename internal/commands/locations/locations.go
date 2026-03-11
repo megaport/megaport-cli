@@ -28,6 +28,29 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	locationsCmd.AddCommand(listLocationsCmd, getLocationCmd)
+	listCountriesCmd := cmdbuilder.NewCommand("list-countries", "List all countries with Megaport locations").
+		WithLongDesc("List all countries that have Megaport locations.\n\nThis command fetches and displays a list of all countries where Megaport has available locations, including country code, name, prefix, and site count.").
+		WithOutputFormatRunFunc(ListCountries).
+		WithExample("megaport-cli locations list-countries").
+		WithRootCmd(rootCmd).
+		Build()
+
+	listMarketCodesCmd := cmdbuilder.NewCommand("list-market-codes", "List all market codes").
+		WithLongDesc("List all market codes used to categorize Megaport locations.\n\nThis command fetches and displays a list of all market codes available in the Megaport API.").
+		WithOutputFormatRunFunc(ListMarketCodes).
+		WithExample("megaport-cli locations list-market-codes").
+		WithRootCmd(rootCmd).
+		Build()
+
+	searchCmd := cmdbuilder.NewCommand("search", "Search locations by name (fuzzy match)").
+		WithArgs(cobra.ExactArgs(1)).
+		WithLongDesc("Search for locations by name using fuzzy matching.\n\nThis command searches for locations whose names match the provided search term. The search uses fuzzy matching, so partial or approximate names will return results.").
+		WithOutputFormatRunFunc(SearchLocations).
+		WithExample("megaport-cli locations search \"Equinix\"").
+		WithExample("megaport-cli locations search \"Sydney\"").
+		WithRootCmd(rootCmd).
+		Build()
+
+	locationsCmd.AddCommand(listLocationsCmd, getLocationCmd, listCountriesCmd, listMarketCodesCmd, searchCmd)
 	rootCmd.AddCommand(locationsCmd)
 }
