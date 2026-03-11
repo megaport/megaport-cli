@@ -222,12 +222,14 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	if jsonStr != "" || jsonFilePath != "" {
 		output.PrintInfo("Using JSON input for VXC %s", noColor, formattedUID)
 		req, buildErr = buildUpdateVXCRequestFromJSON(jsonStr, jsonFilePath)
-	} else if interactive || !hasUpdateVXCNonInteractiveFlags(cmd) {
+	} else if hasUpdateVXCNonInteractiveFlags(cmd) {
+		output.PrintInfo("Using flag input for VXC %s", noColor, formattedUID)
+		req, buildErr = buildUpdateVXCRequestFromFlags(cmd)
+	} else if interactive {
 		output.PrintInfo("Starting interactive mode for VXC %s", noColor, formattedUID)
 		req, buildErr = buildUpdateVXCRequestFromPrompt(vxcUID, noColor)
 	} else {
-		output.PrintInfo("Using flag input for VXC %s", noColor, formattedUID)
-		req, buildErr = buildUpdateVXCRequestFromFlags(cmd)
+		return fmt.Errorf("at least one field must be updated")
 	}
 
 	if buildErr != nil {
