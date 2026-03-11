@@ -6,6 +6,7 @@ package output
 import (
 	"encoding/csv"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"os"
@@ -139,6 +140,133 @@ func printCSV[T OutputFields](data []T) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func printXML[T OutputFields](data []T) error {
+	if data == nil {
+		data = []T{}
+	}
+
+	// Determine struct type and field info
+	var sample T
+	if len(data) > 0 {
+		sample = data[0]
+	}
+	sampleVal := reflect.ValueOf(sample)
+	if !sampleVal.IsValid() {
+		fmt.Fprint(os.Stdout, xml.Header+"<items></items>\n")
+		return nil
+	}
+	t := sampleVal.Type()
+	if t.Kind() == reflect.Ptr {
+		if sampleVal.IsNil() {
+			if t.Elem().Kind() != reflect.Struct {
+				fmt.Fprint(os.Stdout, xml.Header+"<items></items>\n")
+				return nil
+			}
+			t = t.Elem()
+		} else {
+			sampleVal = sampleVal.Elem()
+			t = sampleVal.Type()
+		}
+	}
+	if t.Kind() != reflect.Struct {
+		fmt.Fprint(os.Stdout, xml.Header+"<items></items>\n")
+		return nil
+	}
+
+	// Build field names and indices using json tags
+	type xmlField struct {
+		name  string
+		index int
+	}
+	var fields []xmlField
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		if field.PkgPath != "" {
+			continue
+		}
+		if !isOutputCompatibleType(field.Type) {
+			continue
+		}
+		name := field.Tag.Get("json")
+		if name == "-" {
+			continue
+		}
+		if name == "" {
+			name = field.Tag.Get("csv")
+			if name == "-" {
+				continue
+			}
+		}
+		if name == "" {
+			name = strings.ToLower(field.Name)
+		}
+		// Strip json tag options (e.g. "name,omitempty" -> "name")
+		if idx := strings.Index(name, ","); idx != -1 {
+			name = name[:idx]
+		}
+		fields = append(fields, xmlField{name: name, index: i})
+	}
+
+	encoder := xml.NewEncoder(os.Stdout)
+	encoder.Indent("", "  ")
+
+	fmt.Fprint(os.Stdout, xml.Header)
+	start := xml.StartElement{Name: xml.Name{Local: "items"}}
+	if err := encoder.EncodeToken(start); err != nil {
+		return err
+	}
+
+	for _, item := range data {
+		v := reflect.ValueOf(item)
+		if !v.IsValid() {
+			continue
+		}
+		if v.Kind() == reflect.Ptr {
+			if v.IsNil() {
+				continue
+			}
+			v = v.Elem()
+		}
+		if v.Kind() != reflect.Struct {
+			continue
+		}
+
+		itemStart := xml.StartElement{Name: xml.Name{Local: "item"}}
+		if err := encoder.EncodeToken(itemStart); err != nil {
+			return err
+		}
+
+		for _, f := range fields {
+			fieldVal := v.Field(f.index)
+			valueStr := formatFieldValue(fieldVal)
+
+			elemStart := xml.StartElement{Name: xml.Name{Local: f.name}}
+			if err := encoder.EncodeToken(elemStart); err != nil {
+				return err
+			}
+			if err := encoder.EncodeToken(xml.CharData(valueStr)); err != nil {
+				return err
+			}
+			if err := encoder.EncodeToken(elemStart.End()); err != nil {
+				return err
+			}
+		}
+
+		if err := encoder.EncodeToken(itemStart.End()); err != nil {
+			return err
+		}
+	}
+
+	if err := encoder.EncodeToken(start.End()); err != nil {
+		return err
+	}
+	if err := encoder.Flush(); err != nil {
+		return err
+	}
+	fmt.Fprintln(os.Stdout)
 	return nil
 }
 

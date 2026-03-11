@@ -30,6 +30,7 @@ func PrintOutput[T OutputFields](data []T, format string, noColor bool) error {
 		"table": true,
 		"json":  true,
 		"csv":   true,
+		"xml":   true,
 	}
 	if !validFormats[format] {
 		return fmt.Errorf("invalid output format: %s", format)
@@ -39,6 +40,8 @@ func PrintOutput[T OutputFields](data []T, format string, noColor bool) error {
 		return printJSON(data)
 	case "csv":
 		return printCSV(data)
+	case "xml":
+		return printXML(data)
 	default:
 		return printTable(data, noColor)
 	}

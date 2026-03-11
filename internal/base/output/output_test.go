@@ -2,6 +2,7 @@ package output
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"os"
@@ -226,7 +227,7 @@ func TestPrintOutput_MixedFields(t *testing.T) {
 	timeVal := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
 	data := []MixedStruct{{ID: 1, Name: "Test Item", Created: timeVal, Active: true, NilPtr: nil, unexported: "hidden"}}
 
-	formats := []string{"table", "csv", "json"}
+	formats := []string{"table", "csv", "json", "xml"}
 	for _, format := range formats {
 		t.Run(format, func(t *testing.T) {
 			output := CaptureOutput(func() {
@@ -730,4 +731,219 @@ func Test_extractJSON(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestPrintXML_SimpleStruct(t *testing.T) {
+	data := []SimpleStruct{
+		{ID: 1, Name: "Test Port", Active: true},
+		{ID: 2, Name: "Another Port", Active: false},
+	}
+
+	output := CaptureOutput(func() {
+		err := printXML(data)
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, output, `<?xml version="1.0" encoding="UTF-8"?>`)
+	assert.Contains(t, output, "<items>")
+	assert.Contains(t, output, "<item>")
+	assert.Contains(t, output, "<id>1</id>")
+	assert.Contains(t, output, "<name>Test Port</name>")
+	assert.Contains(t, output, "<active>true</active>")
+	assert.Contains(t, output, "<id>2</id>")
+	assert.Contains(t, output, "<name>Another Port</name>")
+	assert.Contains(t, output, "<active>false</active>")
+	assert.Contains(t, output, "</items>")
+}
+
+func TestPrintXML_EmptySlice(t *testing.T) {
+	data := []SimpleStruct{}
+
+	output := CaptureOutput(func() {
+		err := printXML(data)
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, output, `<?xml version="1.0" encoding="UTF-8"?>`)
+	assert.Contains(t, output, "<items>")
+	assert.Contains(t, output, "</items>")
+	assert.NotContains(t, output, "<item>")
+}
+
+func TestPrintXML_NilSlice(t *testing.T) {
+	var data []SimpleStruct = nil
+
+	assert.NotPanics(t, func() {
+		output := CaptureOutput(func() {
+			err := printXML(data)
+			assert.NoError(t, err)
+		})
+		assert.Contains(t, output, "<items>")
+	})
+}
+
+func TestPrintXML_ComplexStruct(t *testing.T) {
+	now := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+	ref := &SimpleStruct{ID: 100, Name: "Referenced", Active: true}
+
+	data := []ComplexStruct{
+		{
+			ID:        1,
+			Name:      "Complex Item",
+			Created:   now,
+			Tags:      []string{"tag1", "tag2"},
+			Metadata:  map[string]string{"key1": "value1"},
+			Reference: ref,
+		},
+	}
+
+	output := CaptureOutput(func() {
+		err := printXML(data)
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, output, "<id>1</id>")
+	assert.Contains(t, output, "<name>Complex Item</name>")
+	assert.Contains(t, output, "<created>2023-01-01</created>")
+	assert.Contains(t, output, "<tags>")
+	assert.Contains(t, output, "<metadata>")
+	assert.Contains(t, output, "<reference>")
+
+	// Verify it's parseable XML
+	decoder := xml.NewDecoder(strings.NewReader(output))
+	for {
+		_, err := decoder.Token()
+		if err != nil {
+			break
+		}
+	}
+}
+
+func TestPrintXML_PointerStruct(t *testing.T) {
+	s1 := &SimpleStruct{ID: 1, Name: "First", Active: true}
+	s2 := &SimpleStruct{ID: 2, Name: "Second", Active: false}
+	var s3 *SimpleStruct // nil pointer
+
+	data := []*SimpleStruct{s1, s2, s3}
+
+	output := CaptureOutput(func() {
+		err := printXML(data)
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, output, "<id>1</id>")
+	assert.Contains(t, output, "<name>First</name>")
+	assert.Contains(t, output, "<id>2</id>")
+	assert.Contains(t, output, "<name>Second</name>")
+	// nil pointer should be skipped
+	count := strings.Count(output, "<item>")
+	assert.Equal(t, 2, count)
+}
+
+func TestPrintXML_CustomTagStruct(t *testing.T) {
+	data := []CustomTagStruct{
+		{ID: 1, Name: "Custom"},
+	}
+
+	output := CaptureOutput(func() {
+		err := printXML(data)
+		assert.NoError(t, err)
+	})
+
+	// json tags should be used for element names
+	assert.Contains(t, output, "<id>1</id>")
+	assert.Contains(t, output, "<name>Custom</name>")
+}
+
+func TestPrintXML_NoTagStruct(t *testing.T) {
+	data := []NoTagStruct{
+		{ID: 42, Name: "NoTags"},
+	}
+
+	output := CaptureOutput(func() {
+		err := printXML(data)
+		assert.NoError(t, err)
+	})
+
+	// Should fall back to lowercased field names
+	assert.Contains(t, output, "<id>42</id>")
+	assert.Contains(t, output, "<name>NoTags</name>")
+}
+
+func TestPrintXML_SpecialCharacters(t *testing.T) {
+	data := []SimpleStruct{
+		{ID: 1, Name: `<script>alert("xss")</script> & 'quotes'`, Active: true},
+	}
+
+	output := CaptureOutput(func() {
+		err := printXML(data)
+		assert.NoError(t, err)
+	})
+
+	// Special characters should be escaped
+	assert.NotContains(t, output, `<script>`)
+	assert.Contains(t, output, "&lt;script&gt;")
+	assert.Contains(t, output, "&amp;")
+
+	// Should still be parseable
+	decoder := xml.NewDecoder(strings.NewReader(output))
+	for {
+		_, err := decoder.Token()
+		if err != nil {
+			break
+		}
+	}
+}
+
+func TestPrintOutput_XMLFormat(t *testing.T) {
+	data := []SimpleStruct{
+		{ID: 1, Name: "Test", Active: true},
+	}
+
+	output := CaptureOutput(func() {
+		err := PrintOutput(data, "xml", noColor)
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, output, `<?xml version="1.0" encoding="UTF-8"?>`)
+	assert.Contains(t, output, "<items>")
+	assert.Contains(t, output, "<item>")
+	assert.Contains(t, output, "<id>1</id>")
+	assert.Contains(t, output, "</items>")
+
+	// Verify parseable by xml.Decoder
+	decoder := xml.NewDecoder(strings.NewReader(output))
+	for {
+		_, err := decoder.Token()
+		if err != nil {
+			break
+		}
+	}
+}
+
+func TestPrintXML_Parseable(t *testing.T) {
+	data := []SimpleStruct{
+		{ID: 1, Name: "First", Active: true},
+		{ID: 2, Name: "Second", Active: false},
+		{ID: 3, Name: "Third", Active: true},
+	}
+
+	output := CaptureOutput(func() {
+		err := printXML(data)
+		assert.NoError(t, err)
+	})
+
+	// Parse back and count items
+	decoder := xml.NewDecoder(strings.NewReader(output))
+	itemCount := 0
+	for {
+		tok, err := decoder.Token()
+		if err != nil {
+			break
+		}
+		if se, ok := tok.(xml.StartElement); ok && se.Name.Local == "item" {
+			itemCount++
+		}
+	}
+	assert.Equal(t, len(data), itemCount, "XML item count should match input data length")
 }
