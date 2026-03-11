@@ -194,6 +194,39 @@ func TestValidateMVEProductSize(t *testing.T) {
 	}
 }
 
+func TestValidateDateRange(t *testing.T) {
+	tests := []struct {
+		name      string
+		startDate string
+		endDate   string
+		wantErr   bool
+		errText   string
+	}{
+		{"Both empty", "", "", false, ""},
+		{"Both valid end after start", "2026-01-01", "2026-06-01", false, ""},
+		{"Only start provided", "2026-01-01", "", true, "Invalid date range: end-date - both --start-date and --end-date must be provided together"},
+		{"Only end provided", "", "2026-06-01", true, "Invalid date range: start-date - both --start-date and --end-date must be provided together"},
+		{"Invalid start format", "01-01-2026", "2026-06-01", true, "Invalid start-date: 01-01-2026 - must be in YYYY-MM-DD format"},
+		{"Invalid end format", "2026-01-01", "01-06-2026", true, "Invalid end-date: 01-06-2026 - must be in YYYY-MM-DD format"},
+		{"End before start", "2026-06-01", "2026-01-01", true, "Invalid date range: 2026-06-01 to 2026-01-01 - end date must be after start date"},
+		{"Same date", "2026-06-01", "2026-06-01", true, "Invalid date range: 2026-06-01 to 2026-06-01 - end date must be after start date"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateDateRange(tt.startDate, tt.endDate)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateDateRange() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
+				assert.Equal(t, tt.errText, err.Error(), "Error message mismatch")
+			}
+		})
+	}
+}
+
 func TestValidationError(t *testing.T) {
 	err := NewValidationError("test field", 123, "test reason")
 	expected := "Invalid test field: 123 - test reason"

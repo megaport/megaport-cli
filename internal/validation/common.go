@@ -5,6 +5,7 @@ package validation
 
 import (
 	"fmt"
+	"time"
 )
 
 var (
@@ -146,6 +147,33 @@ func ValidateVLAN(vlan int) error {
 func ValidateRateLimit(rateLimit int) error {
 	if rateLimit <= 0 {
 		return NewValidationError("rate limit", rateLimit, "must be a positive integer")
+	}
+	return nil
+}
+
+// ValidateDateRange validates that a start and end date pair is complete, well-formed, and ordered.
+// Both dates must be provided together in YYYY-MM-DD format, and the end date must be after the start date.
+func ValidateDateRange(startDate, endDate string) error {
+	if startDate == "" && endDate == "" {
+		return nil
+	}
+	if startDate == "" || endDate == "" {
+		missing := "start-date"
+		if startDate != "" {
+			missing = "end-date"
+		}
+		return NewValidationError("date range", missing, "both --start-date and --end-date must be provided together")
+	}
+	startTime, err := time.Parse("2006-01-02", startDate)
+	if err != nil {
+		return NewValidationError("start-date", startDate, "must be in YYYY-MM-DD format")
+	}
+	endTime, err := time.Parse("2006-01-02", endDate)
+	if err != nil {
+		return NewValidationError("end-date", endDate, "must be in YYYY-MM-DD format")
+	}
+	if !endTime.After(startTime) {
+		return NewValidationError("date range", fmt.Sprintf("%s to %s", startDate, endDate), "end date must be after start date")
 	}
 	return nil
 }

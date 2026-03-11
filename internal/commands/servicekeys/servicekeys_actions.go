@@ -7,6 +7,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -22,18 +23,15 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 	startDate, _ := cmd.Flags().GetString("start-date")
 	endDate, _ := cmd.Flags().GetString("end-date")
 
+	if err := validation.ValidateDateRange(startDate, endDate); err != nil {
+		output.PrintError(fmt.Sprintf("%v", err), noColor)
+		return err
+	}
+
 	var validFor *megaport.ValidFor
 	if startDate != "" && endDate != "" {
-		startTime, err := time.Parse("2006-01-02", startDate)
-		if err != nil {
-			output.PrintError("Error parsing start date: %v", noColor, err)
-			return fmt.Errorf("error parsing start date: %v", err)
-		}
-		endTime, err := time.Parse("2006-01-02", endDate)
-		if err != nil {
-			output.PrintError("Error parsing end date: %v", noColor, err)
-			return fmt.Errorf("error parsing end date: %v", err)
-		}
+		startTime, _ := time.Parse("2006-01-02", startDate)
+		endTime, _ := time.Parse("2006-01-02", endDate)
 		validFor = &megaport.ValidFor{
 			StartTime: &megaport.Time{Time: startTime},
 			EndTime:   &megaport.Time{Time: endTime},
