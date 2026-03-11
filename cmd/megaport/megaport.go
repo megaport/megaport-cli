@@ -4,12 +4,14 @@
 package megaport
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/help"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -187,6 +189,45 @@ func EnsureRootCommandOutput(writer io.Writer) {
 // Execute adds all child commands to the root command and sets flags appropriately.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		os.Exit(1)
+		os.Exit(exitCodeFromError(err))
 	}
+}
+
+func exitCodeFromError(err error) int {
+	// Check for explicitly typed CLIError (from wrappers or cmdbuilder)
+	var cliErr *exitcodes.CLIError
+	if errors.As(err, &cliErr) {
+		return cliErr.Code
+	}
+
+	// Cobra usage errors (unknown command/flag, wrong arg count)
+	msg := err.Error()
+	if isCobraUsageError(msg) {
+		return exitcodes.Usage
+	}
+
+	// PersistentPreRunE format validation
+	if strings.Contains(msg, "invalid output format") {
+		return exitcodes.Usage
+	}
+
+	return exitcodes.General
+}
+
+func isCobraUsageError(msg string) bool {
+	cobraPatterns := []string{
+		"unknown command",
+		"unknown flag",
+		"unknown shorthand flag",
+		"accepts between",
+		"accepts at most",
+		"accepts at least",
+		"required flag(s)",
+	}
+	for _, p := range cobraPatterns {
+		if strings.Contains(msg, p) {
+			return true
+		}
+	}
+	return false
 }

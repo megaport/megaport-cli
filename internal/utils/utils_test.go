@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -94,6 +95,10 @@ func TestWrapRunE(t *testing.T) {
 		assert.Contains(t, err.Error(), "arg1")
 		assert.True(t, cmd.SilenceUsage)
 		assert.True(t, cmd.SilenceErrors)
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.General, cliErr.Code)
 	})
 
 	t.Run("error message includes command name and args", func(t *testing.T) {
@@ -195,7 +200,7 @@ func TestWrapOutputFormatRunE(t *testing.T) {
 		assert.Equal(t, FormatTable, capturedFormat)
 	})
 
-	t.Run("invalid output format returns error", func(t *testing.T) {
+	t.Run("invalid output format returns error with usage exit code", func(t *testing.T) {
 		wrapped := WrapOutputFormatRunE(func(cmd *cobra.Command, args []string, noColor bool, format string) error {
 			return nil
 		})
@@ -210,6 +215,10 @@ func TestWrapOutputFormatRunE(t *testing.T) {
 		err := wrapped(child, []string{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid output format: yaml")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
 	})
 
 	t.Run("function error is formatted", func(t *testing.T) {
@@ -228,4 +237,77 @@ func TestWrapOutputFormatRunE(t *testing.T) {
 		assert.Contains(t, err.Error(), "error running get command")
 		assert.Contains(t, err.Error(), "inner failure")
 	})
+}
+
+func TestClassifyError(t *testing.T) {
+	tests := []struct {
+		name     string
+		errMsg   string
+		wantCode int
+	}{
+		// Auth patterns
+		{"auth - error logging in", "error logging in: bad creds", exitcodes.Authentication},
+		{"auth - access key not provided", "access key not provided", exitcodes.Authentication},
+		{"auth - secret key not provided", "secret key not provided", exitcodes.Authentication},
+		{"auth - authentication failed", "authentication failed for user", exitcodes.Authentication},
+		{"auth - Authorize", "failed to Authorize request", exitcodes.Authentication},
+
+		// Usage patterns
+		{"usage - invalid output format", "invalid output format: yaml", exitcodes.Usage},
+		{"usage - required flag", "required flag \"name\" not set", exitcodes.Usage},
+		{"usage - not set when not using interactive", "required flag \"term\" not set when not using interactive or JSON input", exitcodes.Usage},
+		{"usage - at least one field", "at least one field must be updated", exitcodes.Usage},
+		{"usage - at least one of these flags", "at least one of these flags must be set: name, term", exitcodes.Usage},
+		{"usage - invalid location ID", "invalid location ID: abc", exitcodes.Usage},
+		{"usage - invalid ID combo", "invalid port ID provided", exitcodes.Usage},
+
+		// API patterns
+		{"api - error listing", "error listing ports", exitcodes.API},
+		{"api - error getting", "error getting VXC details", exitcodes.API},
+		{"api - error creating", "error creating MCR", exitcodes.API},
+		{"api - error updating", "error updating port name", exitcodes.API},
+		{"api - error deleting", "error deleting service", exitcodes.API},
+		{"api - error buying", "error buying port", exitcodes.API},
+		{"api - error modifying", "error modifying VXC", exitcodes.API},
+		{"api - failed to retrieve", "failed to retrieve port info", exitcodes.API},
+		{"api - failed to buy", "failed to buy VXC", exitcodes.API},
+		{"api - failed to validate", "failed to validate order", exitcodes.API},
+		{"api - API failure", "API failure: 500 internal server error", exitcodes.API},
+
+		// General/unknown
+		{"general - unknown error", "something unexpected happened", exitcodes.General},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			code := classifyError(errors.New(tt.errMsg))
+			assert.Equal(t, tt.wantCode, code)
+		})
+	}
+}
+
+func TestWrapRunE_AuthError(t *testing.T) {
+	wrapped := WrapRunE(func(cmd *cobra.Command, args []string) error {
+		return errors.New("error logging in: invalid credentials")
+	})
+	cmd := &cobra.Command{Use: "test"}
+	err := wrapped(cmd, []string{})
+	require.Error(t, err)
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Authentication, cliErr.Code)
+}
+
+func TestWrapRunE_APIError(t *testing.T) {
+	wrapped := WrapRunE(func(cmd *cobra.Command, args []string) error {
+		return errors.New("error listing ports: connection refused")
+	})
+	cmd := &cobra.Command{Use: "test"}
+	err := wrapped(cmd, []string{})
+	require.Error(t, err)
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.API, cliErr.Code)
 }
