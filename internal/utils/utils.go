@@ -3,7 +3,9 @@ package utils
 import (
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/spf13/cobra"
 )
 
@@ -54,7 +56,9 @@ func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobr
 			cmd.SilenceErrors = true
 
 			// Return a formatted error message with additional context
-			return fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag", cmd.Name(), err, cmd.Name(), args)
+			code := classifyError(err)
+			wrapped := fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag", cmd.Name(), err, cmd.Name(), args)
+			return exitcodes.New(code, wrapped)
 		}
 		return nil
 	}
@@ -81,8 +85,10 @@ func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool)
 			cmd.SilenceErrors = true
 
 			// Return a formatted error message with additional context
-			return fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag",
+			code := classifyError(err)
+			wrapped := fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag",
 				cmd.Name(), err, cmd.Name(), args)
+			return exitcodes.New(code, wrapped)
 		}
 		return nil
 	}
@@ -116,7 +122,7 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 			// If an invalid format is provided, return an error
 			cmd.SilenceUsage = true
 			cmd.SilenceErrors = true
-			return fmt.Errorf("invalid output format: %s. Must be one of: %v", format, ValidFormats)
+			return exitcodes.NewUsageError(fmt.Errorf("invalid output format: %s. Must be one of: %v", format, ValidFormats))
 		}
 
 		// Call the function with both parameters
@@ -130,9 +136,71 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 			cmd.SilenceErrors = true
 
 			// Return a formatted error message with additional context
-			return fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag",
+			code := classifyError(err)
+			wrapped := fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag",
 				cmd.Name(), err, cmd.Name(), args)
+			return exitcodes.New(code, wrapped)
 		}
 		return nil
 	}
+}
+
+// classifyError inspects an error message to determine the appropriate exit code.
+func classifyError(err error) int {
+	msg := err.Error()
+
+	// Authentication errors
+	authPatterns := []string{
+		"error logging in",
+		"access key not provided",
+		"secret key not provided",
+		"authentication",
+		"Authorize",
+	}
+	for _, p := range authPatterns {
+		if strings.Contains(msg, p) {
+			return exitcodes.Authentication
+		}
+	}
+
+	// Usage/validation errors
+	usagePatterns := []string{
+		"invalid output format",
+		"required flag",
+		"not set when not using interactive",
+		"at least one field must be updated",
+		"at least one of these flags",
+		"invalid location ID",
+	}
+	for _, p := range usagePatterns {
+		if strings.Contains(msg, p) {
+			return exitcodes.Usage
+		}
+	}
+	// "invalid" + "ID" pattern
+	if strings.Contains(msg, "invalid") && strings.Contains(msg, "ID") {
+		return exitcodes.Usage
+	}
+
+	// API errors
+	apiPatterns := []string{
+		"error listing",
+		"error getting",
+		"error creating",
+		"error updating",
+		"error deleting",
+		"error buying",
+		"error modifying",
+		"failed to retrieve",
+		"failed to buy",
+		"failed to validate",
+		"API failure",
+	}
+	for _, p := range apiPatterns {
+		if strings.Contains(msg, p) {
+			return exitcodes.API
+		}
+	}
+
+	return exitcodes.General
 }

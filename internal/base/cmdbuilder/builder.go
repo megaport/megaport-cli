@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/help"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/spf13/cobra"
@@ -184,7 +185,7 @@ func (b *CommandBuilder) WithConditionalRequirements(conditionallyRequiredFlags 
 				}
 
 				if !atLeastOneSet {
-					return fmt.Errorf("at least one of these flags must be set: %s", strings.Join(flagList, ", "))
+					return exitcodes.NewUsageError(fmt.Errorf("at least one of these flags must be set: %s", strings.Join(flagList, ", ")))
 				}
 			} else {
 				// Handle normal required flag
@@ -195,7 +196,7 @@ func (b *CommandBuilder) WithConditionalRequirements(conditionallyRequiredFlags 
 
 				// Check if flag has been explicitly set
 				if !cmd.Flags().Changed(flagSpec) {
-					return fmt.Errorf("required flag \"%s\" not set when not using interactive or JSON input", flagSpec)
+					return exitcodes.NewUsageError(fmt.Errorf("required flag \"%s\" not set when not using interactive or JSON input", flagSpec))
 				}
 			}
 		}
