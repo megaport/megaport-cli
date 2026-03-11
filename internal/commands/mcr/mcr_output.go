@@ -164,8 +164,8 @@ func ToPrefixFilterListOutput(prefixFilterList *megaport.MCRPrefixFilterList) (P
 
 type MCRStatus struct {
 	UID    string `json:"uid" header:"UID"`
-	Name   string `json:"name" header:"NAME"`
-	Status string `json:"status" header:"STATUS"`
+	Name   string `json:"name" header:"Name"`
+	Status string `json:"status" header:"Status"`
 	ASN    int    `json:"asn" header:"ASN"`
-	Speed  int    `json:"speed" header:"SPEED"`
+	Speed  int    `json:"speed" header:"Speed"`
 }

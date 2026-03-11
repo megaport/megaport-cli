@@ -20,8 +20,8 @@ type OutputFields interface {
 
 // ResourceTag represents a key-value tag pair
 type ResourceTag struct {
-	Key   string `json:"key" header:"KEY"`
-	Value string `json:"value" header:"VALUE"`
+	Key   string `json:"key" header:"Key"`
+	Value string `json:"value" header:"Value"`
 }
 
 // PrintOutput prints data in the specified format

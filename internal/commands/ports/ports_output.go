@@ -11,7 +11,7 @@ type PortOutput struct {
 	output.Output      `json:"-" header:"-"`
 	UID                string `json:"uid" header:"UID"`
 	Name               string `json:"name" header:"Name"`
-	LocationID         int    `json:"location_id" header:"LocationID"`
+	LocationID         int    `json:"location_id" header:"Location ID"`
 	PortSpeed          int    `json:"port_speed" header:"Speed"`
 	ProvisioningStatus string `json:"provisioning_status" header:"Status"`
 }
@@ -43,10 +43,10 @@ func printPorts(ports []*megaport.Port, format string, noColor bool) error {
 
 type PortStatus struct {
 	UID    string `json:"uid" header:"UID"`
-	Name   string `json:"name" header:"NAME"`
-	Status string `json:"status" header:"STATUS"`
-	Type   string `json:"type" header:"TYPE"`
-	Speed  int    `json:"speed" header:"SPEED"`
+	Name   string `json:"name" header:"Name"`
+	Status string `json:"status" header:"Status"`
+	Type   string `json:"type" header:"Type"`
+	Speed  int    `json:"speed" header:"Speed"`
 }
 
 func displayPortChanges(original, updated *megaport.Port, noColor bool) {

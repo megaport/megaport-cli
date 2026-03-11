@@ -11,22 +11,22 @@ import (
 type IXOutput struct {
 	output.Output      `json:"-" header:"-"`
 	UID                string `json:"uid" header:"UID"`
-	Name               string `json:"name" header:"NAME"`
-	NetworkServiceType string `json:"network_service_type" header:"NETWORK SERVICE TYPE"`
+	Name               string `json:"name" header:"Name"`
+	NetworkServiceType string `json:"network_service_type" header:"Network Service Type"`
 	ASN                int    `json:"asn" header:"ASN"`
-	RateLimit          int    `json:"rate_limit" header:"RATE LIMIT"`
+	RateLimit          int    `json:"rate_limit" header:"Rate Limit"`
 	VLAN               int    `json:"vlan" header:"VLAN"`
-	MACAddress         string `json:"mac_address" header:"MAC ADDRESS"`
-	Status             string `json:"status" header:"STATUS"`
+	MACAddress         string `json:"mac_address" header:"MAC Address"`
+	Status             string `json:"status" header:"Status"`
 }
 
 // IXStatus represents a lightweight status view of an IX.
 type IXStatus struct {
 	output.Output `json:"-" header:"-"`
 	UID           string `json:"uid" header:"UID"`
-	Name          string `json:"name" header:"NAME"`
-	Status        string `json:"status" header:"STATUS"`
-	Type          string `json:"type" header:"TYPE"`
+	Name          string `json:"name" header:"Name"`
+	Status        string `json:"status" header:"Status"`
+	Type          string `json:"type" header:"Type"`
 }
 
 // ToIXOutput converts a *megaport.IX to our IXOutput struct.
