@@ -347,13 +347,8 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	if !force {
-		confirmMsg := "Are you sure you want to delete MCR " + mcrUID + "? (y/n): "
-		confirmation, err := utils.ResourcePrompt("mcr", confirmMsg, noColor)
-		if err != nil {
-			return err
-		}
-
-		if confirmation != "y" && confirmation != "Y" {
+		confirmMsg := "Are you sure you want to delete MCR " + mcrUID + "? "
+		if !utils.ConfirmPrompt(confirmMsg, noColor) {
 			output.PrintInfo("Deletion cancelled", noColor)
 			return nil
 		}
