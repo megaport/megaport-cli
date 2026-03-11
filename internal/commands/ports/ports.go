@@ -23,8 +23,21 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-		// Create buy port command
-	buyPortCmd := cmdbuilder.NewCommand("buy", "Buy a port through the Megaport API").
+	buy, buyLag, update := buildPortBuyCommands(rootCmd)
+	list, get, status, deleteCmd, restore, lock, unlock, checkVLAN := buildPortManagementCommands(rootCmd)
+	listTags, updateTags := buildPortTagCommands()
+
+	portsCmd.AddCommand(
+		buy, buyLag, update,
+		list, get, status, deleteCmd, restore, lock, unlock, checkVLAN,
+		listTags, updateTags,
+	)
+	rootCmd.AddCommand(portsCmd)
+}
+
+// buildPortBuyCommands creates the buy, buy-lag, and update port commands.
+func buildPortBuyCommands(rootCmd *cobra.Command) (buy, buyLag, update *cobra.Command) {
+	buy = cmdbuilder.NewCommand("buy", "Buy a port through the Megaport API").
 		WithColorAwareRunFunc(BuyPort).
 		WithInteractiveFlag().
 		WithPortCreationFlags().
@@ -64,8 +77,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithConditionalRequirements("name", "term", "port-speed", "location-id", "marketplace-visibility").
 		Build()
 
-	// Create buy LAG port command
-	buyLagCmd := cmdbuilder.NewCommand("buy-lag", "Buy a LAG port through the Megaport API").
+	buyLag = cmdbuilder.NewCommand("buy-lag", "Buy a LAG port through the Megaport API").
 		WithColorAwareRunFunc(BuyLAGPort).
 		WithInteractiveFlag().
 		WithPortLAGFlags().
@@ -105,8 +117,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithConditionalRequirements("name", "term", "port-speed", "location-id", "lag-count", "marketplace-visibility").
 		Build()
 
-	// Update port command
-	updatePortCmd := cmdbuilder.NewCommand("update", "Update a port's details").
+	update = cmdbuilder.NewCommand("update", "Update a port's details").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(UpdatePort).
 		WithInteractiveFlag().
@@ -122,8 +133,12 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithConditionalRequirements("at_least_one:name,marketplace-visibility,cost-centre,term").
 		Build()
 
-		// Create list ports command
-	listPortsCmd := cmdbuilder.NewCommand("list", "List all ports with optional filters").
+	return buy, buyLag, update
+}
+
+// buildPortManagementCommands creates the list, get, status, delete, restore, lock, unlock, and check-vlan commands.
+func buildPortManagementCommands(rootCmd *cobra.Command) (list, get, status, deleteCmd, restore, lock, unlock, checkVLAN *cobra.Command) {
+	list = cmdbuilder.NewCommand("list", "List all ports with optional filters").
 		WithOutputFormatRunFunc(ListPorts).
 		WithPortFilterFlags().
 		WithLongDesc("List all ports available in the Megaport API.\n\nThis command fetches and displays a list of ports with details such as port ID, name, location, speed, and status. By default, only active ports are shown.").
@@ -141,8 +156,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create get port command
-	getPortCmd := cmdbuilder.NewCommand("get", "Get details for a single port").
+	get = cmdbuilder.NewCommand("get", "Get details for a single port").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetPort).
 		WithLongDesc("Get details for a single port from the Megaport API.\n\nThis command fetches and displays detailed information about a specific port. You need to provide the UID of the port as an argument.").
@@ -151,8 +165,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create status port command
-	statusPortCmd := cmdbuilder.NewCommand("status", "Check the provisioning status of a port").
+	status = cmdbuilder.NewCommand("status", "Check the provisioning status of a port").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetPortStatus).
 		WithLongDesc("Check the provisioning status of a port through the Megaport API.\n\nThis command retrieves only the essential status information for a port without all the details. It's useful for monitoring ongoing provisioning.").
@@ -161,8 +174,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create delete port command
-	deletePortCmd := cmdbuilder.NewCommand("delete", "Delete a port from your account").
+	deleteCmd = cmdbuilder.NewCommand("delete", "Delete a port from your account").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(DeletePort).
 		WithSafeDeleteFlags().
@@ -178,8 +190,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create restore port command
-	restorePortCmd := cmdbuilder.NewCommand("restore", "Restore a deleted port").
+	restore = cmdbuilder.NewCommand("restore", "Restore a deleted port").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(RestorePort).
 		WithLongDesc("Restore a previously deleted port in the Megaport API.\n\nThis command allows you to restore a port that has been marked for deletion but not yet fully decommissioned. The port will be reinstated with its original configuration.").
@@ -192,8 +203,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create lock port command
-	lockPortCmd := cmdbuilder.NewCommand("lock", "Lock a port").
+	lock = cmdbuilder.NewCommand("lock", "Lock a port").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(LockPort).
 		WithLongDesc("Lock a port in the Megaport API.\n\nThis command allows you to lock an existing port, preventing any changes or modifications to the port or its associated VXCs. Locking a port is useful for ensuring critical infrastructure remains stable and preventing accidental changes.").
@@ -206,8 +216,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create unlock port command
-	unlockPortCmd := cmdbuilder.NewCommand("unlock", "Unlock a port").
+	unlock = cmdbuilder.NewCommand("unlock", "Unlock a port").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(UnlockPort).
 		WithLongDesc("Unlock a port in the Megaport API.\n\nThis command allows you to unlock a previously locked port, re-enabling the ability to make changes to the port and its associated VXCs.").
@@ -219,8 +228,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create check VLAN command
-	checkPortVLANAvailabilityCmd := cmdbuilder.NewCommand("check-vlan", "Check if a VLAN is available on a port").
+	checkVLAN = cmdbuilder.NewCommand("check-vlan", "Check if a VLAN is available on a port").
 		WithArgs(cobra.ExactArgs(2)).
 		WithColorAwareRunFunc(CheckPortVLANAvailability).
 		WithLongDesc("Check if a VLAN is available on a port in the Megaport API.\n\nThis command verifies whether a specific VLAN ID is available for use on a port. This is useful when planning new VXCs to ensure the VLAN ID you want to use is not already in use by another connection.\n\nVLAN ID must be between 2 and 4094 (inclusive).").
@@ -229,16 +237,19 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Add list-tags command
-	listTagsCmd := cmdbuilder.NewCommand("list-tags", "List resource tags on a specific port.").
+	return list, get, status, deleteCmd, restore, lock, unlock, checkVLAN
+}
+
+// buildPortTagCommands creates the list-tags and update-tags commands.
+func buildPortTagCommands() (listTags, updateTags *cobra.Command) {
+	listTags = cmdbuilder.NewCommand("list-tags", "List resource tags on a specific port.").
 		WithLongDesc("Lists all resource tags associated with a specific port").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(ListPortResourceTags).
 		WithExample("megaport port list-tags port-abc123").
 		Build()
 
-	// Add update-tags command
-	updateTagsCmd := cmdbuilder.NewCommand("update-tags", "Update resource tags on a specific port").
+	updateTags = cmdbuilder.NewCommand("update-tags", "Update resource tags on a specific port").
 		WithLongDesc("Update resource tags associated with a specific port. Tags can be provided via interactive prompts, JSON string, or JSON file.").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(UpdatePortResourceTags).
@@ -249,21 +260,5 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("All existing tags will be replaced with the provided tags. To clear all tags, provide an empty tag set.").
 		Build()
 
-	// Add commands to their parents
-	portsCmd.AddCommand(
-		buyPortCmd,
-		buyLagCmd,
-		listPortsCmd,
-		getPortCmd,
-		statusPortCmd,
-		updatePortCmd,
-		deletePortCmd,
-		restorePortCmd,
-		lockPortCmd,
-		unlockPortCmd,
-		checkPortVLANAvailabilityCmd,
-		listTagsCmd,
-		updateTagsCmd,
-	)
-	rootCmd.AddCommand(portsCmd)
+	return listTags, updateTags
 }

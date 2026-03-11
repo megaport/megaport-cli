@@ -1278,8 +1278,8 @@ func TestUpdatePort(t *testing.T) {
 			expectedContains: "port-update-1",
 		},
 		{
-			name:    "success with JSON",
-			portUID: "port-update-2",
+			name:      "success with JSON",
+			portUID:   "port-update-2",
 			jsonInput: `{"name":"JSON Updated"}`,
 			getPortResult: &megaport.Port{
 				UID:                "port-update-2",

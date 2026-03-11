@@ -709,210 +709,243 @@ func promptBGPConnections(noColor bool) ([]megaport.BgpConnectionConfig, error) 
 
 		bgp := megaport.BgpConnectionConfig{}
 
-		peerAsnStr, err := utils.ResourcePrompt("vxc", "Enter peer ASN (required): ", noColor)
+		peerAsn, localIP, peerIP, err := promptBGPRequiredFields(noColor)
 		if err != nil {
 			return nil, err
-		}
-		peerAsn, err := strconv.Atoi(peerAsnStr)
-		if err != nil || peerAsn <= 0 {
-			return nil, fmt.Errorf("peer ASN must be a positive integer")
 		}
 		bgp.PeerAsn = peerAsn
-
-		localIP, err := utils.ResourcePrompt("vxc", "Enter local IP address (required): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if localIP == "" {
-			return nil, fmt.Errorf("local IP address is required")
-		}
 		bgp.LocalIpAddress = localIP
-
-		peerIP, err := utils.ResourcePrompt("vxc", "Enter peer IP address (required): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if peerIP == "" {
-			return nil, fmt.Errorf("peer IP address is required")
-		}
 		bgp.PeerIpAddress = peerIP
 
-		localAsnStr, err := utils.ResourcePrompt("vxc", "Enter local ASN (optional): ", noColor)
-		if err != nil {
+		if err := promptBGPOptionalConfig(&bgp, noColor); err != nil {
 			return nil, err
-		}
-		if localAsnStr != "" {
-			localAsn, err := strconv.Atoi(localAsnStr)
-			if err != nil || localAsn <= 0 {
-				return nil, fmt.Errorf("local ASN must be a positive integer")
-			}
-			bgp.LocalAsn = &localAsn
 		}
 
-		password, err := utils.ResourcePrompt("vxc", "Enter password (optional): ", noColor)
-		if err != nil {
+		if err := promptBGPExportAddresses(&bgp, noColor); err != nil {
 			return nil, err
-		}
-		bgp.Password = password
-
-		shutdownStr, err := utils.ResourcePrompt("vxc", "Shutdown connection? (yes/no, default: no): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		bgp.Shutdown = strings.ToLower(shutdownStr) == "yes"
-
-		description, err := utils.ResourcePrompt("vxc", "Enter description (optional): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		bgp.Description = description
-
-		bfdEnabledStr, err := utils.ResourcePrompt("vxc", "Enable BFD? (yes/no, default: no): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		bgp.BfdEnabled = strings.ToLower(bfdEnabledStr) == "yes"
-
-		exportPolicy, err := utils.ResourcePrompt("vxc", "Enter export policy (permit/deny, optional): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if exportPolicy != "" && exportPolicy != "permit" && exportPolicy != "deny" {
-			return nil, fmt.Errorf("export policy must be 'permit' or 'deny'")
-		}
-		bgp.ExportPolicy = exportPolicy
-
-		peerType, err := utils.ResourcePrompt("vxc", "Enter peer type (NON_CLOUD/PRIV_CLOUD/PUB_CLOUD, optional): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if peerType != "" && peerType != "NON_CLOUD" && peerType != "PRIV_CLOUD" && peerType != "PUB_CLOUD" {
-			return nil, fmt.Errorf("peer type must be NON_CLOUD, PRIV_CLOUD, or PUB_CLOUD")
-		}
-		bgp.PeerType = peerType
-
-		medInStr, err := utils.ResourcePrompt("vxc", "Enter MED in (optional): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if medInStr != "" {
-			medIn, err := strconv.Atoi(medInStr)
-			if err != nil {
-				return nil, fmt.Errorf("MED in must be an integer")
-			}
-			bgp.MedIn = medIn
 		}
 
-		medOutStr, err := utils.ResourcePrompt("vxc", "Enter MED out (optional): ", noColor)
-		if err != nil {
+		if err := promptBGPPrefixLists(&bgp, noColor); err != nil {
 			return nil, err
-		}
-		if medOutStr != "" {
-			medOut, err := strconv.Atoi(medOutStr)
-			if err != nil {
-				return nil, fmt.Errorf("MED out must be an integer")
-			}
-			bgp.MedOut = medOut
-		}
-
-		asPathPrependStr, err := utils.ResourcePrompt("vxc", "Enter AS path prepend count (0-10, optional): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if asPathPrependStr != "" {
-			asPathPrepend, err := strconv.Atoi(asPathPrependStr)
-			if err != nil || asPathPrepend < 0 || asPathPrepend > 10 {
-				return nil, fmt.Errorf("AS path prepend count must be between 0 and 10")
-			}
-			bgp.AsPathPrependCount = asPathPrepend
-		}
-
-		hasPermitExportTo, err := utils.ResourcePrompt("vxc", "Add permit export to addresses? (yes/no): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if strings.ToLower(hasPermitExportTo) == "yes" {
-			for i := 0; i < 17; i++ {
-				ipAddress, err := utils.ResourcePrompt("vxc", fmt.Sprintf("Enter IP address to permit export to (or empty to finish) [%d/17]: ", i+1), noColor)
-				if err != nil {
-					return nil, err
-				}
-				if ipAddress == "" {
-					break
-				}
-				bgp.PermitExportTo = append(bgp.PermitExportTo, ipAddress)
-			}
-		}
-
-		hasDenyExportTo, err := utils.ResourcePrompt("vxc", "Add deny export to addresses? (yes/no): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if strings.ToLower(hasDenyExportTo) == "yes" {
-			for i := 0; i < 17; i++ {
-				ipAddress, err := utils.ResourcePrompt("vxc", fmt.Sprintf("Enter IP address to deny export to (or empty to finish) [%d/17]: ", i+1), noColor)
-				if err != nil {
-					return nil, err
-				}
-				if ipAddress == "" {
-					break
-				}
-				bgp.DenyExportTo = append(bgp.DenyExportTo, ipAddress)
-			}
-		}
-
-		importWhitelistStr, err := utils.ResourcePrompt("vxc", "Enter import whitelist prefix list ID (optional): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if importWhitelistStr != "" {
-			importWhitelist, err := strconv.Atoi(importWhitelistStr)
-			if err != nil {
-				return nil, fmt.Errorf("import whitelist must be an integer")
-			}
-			bgp.ImportWhitelist = importWhitelist
-		}
-
-		importBlacklistStr, err := utils.ResourcePrompt("vxc", "Enter import blacklist prefix list ID (optional): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if importBlacklistStr != "" {
-			importBlacklist, err := strconv.Atoi(importBlacklistStr)
-			if err != nil {
-				return nil, fmt.Errorf("import blacklist must be an integer")
-			}
-			bgp.ImportBlacklist = importBlacklist
-		}
-
-		exportWhitelistStr, err := utils.ResourcePrompt("vxc", "Enter export whitelist prefix list ID (optional): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if exportWhitelistStr != "" {
-			exportWhitelist, err := strconv.Atoi(exportWhitelistStr)
-			if err != nil {
-				return nil, fmt.Errorf("export whitelist must be an integer")
-			}
-			bgp.ExportWhitelist = exportWhitelist
-		}
-
-		exportBlacklistStr, err := utils.ResourcePrompt("vxc", "Enter export blacklist prefix list ID (optional): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if exportBlacklistStr != "" {
-			exportBlacklist, err := strconv.Atoi(exportBlacklistStr)
-			if err != nil {
-				return nil, fmt.Errorf("export blacklist must be an integer")
-			}
-			bgp.ExportBlacklist = exportBlacklist
 		}
 
 		bgpConnections = append(bgpConnections, bgp)
 	}
 
 	return bgpConnections, nil
+}
+
+func promptBGPRequiredFields(noColor bool) (peerAsn int, localIP string, peerIP string, err error) {
+	peerAsnStr, err := utils.ResourcePrompt("vxc", "Enter peer ASN (required): ", noColor)
+	if err != nil {
+		return 0, "", "", err
+	}
+	peerAsn, err = strconv.Atoi(peerAsnStr)
+	if err != nil || peerAsn <= 0 {
+		return 0, "", "", fmt.Errorf("peer ASN must be a positive integer")
+	}
+
+	localIP, err = utils.ResourcePrompt("vxc", "Enter local IP address (required): ", noColor)
+	if err != nil {
+		return 0, "", "", err
+	}
+	if localIP == "" {
+		return 0, "", "", fmt.Errorf("local IP address is required")
+	}
+
+	peerIP, err = utils.ResourcePrompt("vxc", "Enter peer IP address (required): ", noColor)
+	if err != nil {
+		return 0, "", "", err
+	}
+	if peerIP == "" {
+		return 0, "", "", fmt.Errorf("peer IP address is required")
+	}
+
+	return peerAsn, localIP, peerIP, nil
+}
+
+func promptBGPOptionalConfig(bgp *megaport.BgpConnectionConfig, noColor bool) error {
+	localAsnStr, err := utils.ResourcePrompt("vxc", "Enter local ASN (optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	if localAsnStr != "" {
+		localAsn, err := strconv.Atoi(localAsnStr)
+		if err != nil || localAsn <= 0 {
+			return fmt.Errorf("local ASN must be a positive integer")
+		}
+		bgp.LocalAsn = &localAsn
+	}
+
+	password, err := utils.ResourcePrompt("vxc", "Enter password (optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	bgp.Password = password
+
+	shutdownStr, err := utils.ResourcePrompt("vxc", "Shutdown connection? (yes/no, default: no): ", noColor)
+	if err != nil {
+		return err
+	}
+	bgp.Shutdown = strings.ToLower(shutdownStr) == "yes"
+
+	description, err := utils.ResourcePrompt("vxc", "Enter description (optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	bgp.Description = description
+
+	bfdEnabledStr, err := utils.ResourcePrompt("vxc", "Enable BFD? (yes/no, default: no): ", noColor)
+	if err != nil {
+		return err
+	}
+	bgp.BfdEnabled = strings.ToLower(bfdEnabledStr) == "yes"
+
+	exportPolicy, err := utils.ResourcePrompt("vxc", "Enter export policy (permit/deny, optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	if exportPolicy != "" && exportPolicy != "permit" && exportPolicy != "deny" {
+		return fmt.Errorf("export policy must be 'permit' or 'deny'")
+	}
+	bgp.ExportPolicy = exportPolicy
+
+	peerType, err := utils.ResourcePrompt("vxc", "Enter peer type (NON_CLOUD/PRIV_CLOUD/PUB_CLOUD, optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	if peerType != "" && peerType != "NON_CLOUD" && peerType != "PRIV_CLOUD" && peerType != "PUB_CLOUD" {
+		return fmt.Errorf("peer type must be NON_CLOUD, PRIV_CLOUD, or PUB_CLOUD")
+	}
+	bgp.PeerType = peerType
+
+	medInStr, err := utils.ResourcePrompt("vxc", "Enter MED in (optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	if medInStr != "" {
+		medIn, err := strconv.Atoi(medInStr)
+		if err != nil {
+			return fmt.Errorf("MED in must be an integer")
+		}
+		bgp.MedIn = medIn
+	}
+
+	medOutStr, err := utils.ResourcePrompt("vxc", "Enter MED out (optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	if medOutStr != "" {
+		medOut, err := strconv.Atoi(medOutStr)
+		if err != nil {
+			return fmt.Errorf("MED out must be an integer")
+		}
+		bgp.MedOut = medOut
+	}
+
+	asPathPrependStr, err := utils.ResourcePrompt("vxc", "Enter AS path prepend count (0-10, optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	if asPathPrependStr != "" {
+		asPathPrepend, err := strconv.Atoi(asPathPrependStr)
+		if err != nil || asPathPrepend < 0 || asPathPrepend > 10 {
+			return fmt.Errorf("AS path prepend count must be between 0 and 10")
+		}
+		bgp.AsPathPrependCount = asPathPrepend
+	}
+
+	return nil
+}
+
+func promptBGPExportAddresses(bgp *megaport.BgpConnectionConfig, noColor bool) error {
+	hasPermitExportTo, err := utils.ResourcePrompt("vxc", "Add permit export to addresses? (yes/no): ", noColor)
+	if err != nil {
+		return err
+	}
+	if strings.ToLower(hasPermitExportTo) == "yes" {
+		for i := 0; i < 17; i++ {
+			ipAddress, err := utils.ResourcePrompt("vxc", fmt.Sprintf("Enter IP address to permit export to (or empty to finish) [%d/17]: ", i+1), noColor)
+			if err != nil {
+				return err
+			}
+			if ipAddress == "" {
+				break
+			}
+			bgp.PermitExportTo = append(bgp.PermitExportTo, ipAddress)
+		}
+	}
+
+	hasDenyExportTo, err := utils.ResourcePrompt("vxc", "Add deny export to addresses? (yes/no): ", noColor)
+	if err != nil {
+		return err
+	}
+	if strings.ToLower(hasDenyExportTo) == "yes" {
+		for i := 0; i < 17; i++ {
+			ipAddress, err := utils.ResourcePrompt("vxc", fmt.Sprintf("Enter IP address to deny export to (or empty to finish) [%d/17]: ", i+1), noColor)
+			if err != nil {
+				return err
+			}
+			if ipAddress == "" {
+				break
+			}
+			bgp.DenyExportTo = append(bgp.DenyExportTo, ipAddress)
+		}
+	}
+
+	return nil
+}
+
+func promptBGPPrefixLists(bgp *megaport.BgpConnectionConfig, noColor bool) error {
+	importWhitelistStr, err := utils.ResourcePrompt("vxc", "Enter import whitelist prefix list ID (optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	if importWhitelistStr != "" {
+		importWhitelist, err := strconv.Atoi(importWhitelistStr)
+		if err != nil {
+			return fmt.Errorf("import whitelist must be an integer")
+		}
+		bgp.ImportWhitelist = importWhitelist
+	}
+
+	importBlacklistStr, err := utils.ResourcePrompt("vxc", "Enter import blacklist prefix list ID (optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	if importBlacklistStr != "" {
+		importBlacklist, err := strconv.Atoi(importBlacklistStr)
+		if err != nil {
+			return fmt.Errorf("import blacklist must be an integer")
+		}
+		bgp.ImportBlacklist = importBlacklist
+	}
+
+	exportWhitelistStr, err := utils.ResourcePrompt("vxc", "Enter export whitelist prefix list ID (optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	if exportWhitelistStr != "" {
+		exportWhitelist, err := strconv.Atoi(exportWhitelistStr)
+		if err != nil {
+			return fmt.Errorf("export whitelist must be an integer")
+		}
+		bgp.ExportWhitelist = exportWhitelist
+	}
+
+	exportBlacklistStr, err := utils.ResourcePrompt("vxc", "Enter export blacklist prefix list ID (optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	if exportBlacklistStr != "" {
+		exportBlacklist, err := strconv.Atoi(exportBlacklistStr)
+		if err != nil {
+			return fmt.Errorf("export blacklist must be an integer")
+		}
+		bgp.ExportBlacklist = exportBlacklist
+	}
+
+	return nil
 }
 
 func promptPartnerConfig(end string, ctx context.Context, svc megaport.VXCService, noColor bool) (megaport.VXCPartnerConfiguration, string, error) {

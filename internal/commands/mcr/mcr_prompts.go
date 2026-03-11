@@ -178,6 +178,154 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 	return req, nil
 }
 
+// promptPrefixFilterEntry collects a single prefix filter entry's fields (prefix, action, ge, le).
+// Returns nil entry if prefix is empty, signaling "done".
+func promptPrefixFilterEntry(noColor bool) (*megaport.MCRPrefixListEntry, error) {
+	prefix, err := utils.ResourcePrompt("mcr", "Enter prefix (e.g., 192.168.0.0/24): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	if prefix == "" {
+		return nil, nil
+	}
+
+	actionStr, err := utils.ResourcePrompt("mcr", "Enter action (permit or deny): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	if actionStr != "permit" && actionStr != "deny" {
+		return nil, fmt.Errorf("invalid action, must be permit or deny")
+	}
+
+	geStr, err := utils.ResourcePrompt("mcr", "Enter GE value (optional): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	var ge int
+	if geStr != "" {
+		geVal, err := strconv.Atoi(geStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid GE value, must be a number")
+		}
+		ge = geVal
+	}
+
+	leStr, err := utils.ResourcePrompt("mcr", "Enter LE value (optional): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	var le int
+	if leStr != "" {
+		leVal, err := strconv.Atoi(leStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid LE value, must be a number")
+		}
+		le = leVal
+	}
+
+	return &megaport.MCRPrefixListEntry{
+		Prefix: prefix,
+		Action: actionStr,
+		Ge:     ge,
+		Le:     le,
+	}, nil
+}
+
+// promptAddNewPrefixEntries prompts the user to add new prefix filter entries in a loop.
+func promptAddNewPrefixEntries(noColor bool) ([]*megaport.MCRPrefixListEntry, error) {
+	var entries []*megaport.MCRPrefixListEntry
+	for {
+		fmt.Println("Add a new prefix filter entry (leave prefix blank to finish):")
+
+		entry, err := promptPrefixFilterEntry(noColor)
+		if err != nil {
+			return nil, err
+		}
+		if entry == nil {
+			break
+		}
+		entries = append(entries, entry)
+	}
+	return entries, nil
+}
+
+// promptUpdateExistingEntries iterates existing entries and prompts keep/modify/delete for each.
+func promptUpdateExistingEntries(currentEntries []*megaport.MCRPrefixListEntry, noColor bool) ([]*megaport.MCRPrefixListEntry, error) {
+	var entries []*megaport.MCRPrefixListEntry
+	for i, entry := range currentEntries {
+		fmt.Printf("Entry %d - Current: Action: %s, Prefix: %s, GE: %d, LE: %d\n",
+			i+1, entry.Action, entry.Prefix, entry.Ge, entry.Le)
+
+		keepEntry, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Keep entry %d? (yes/no): ", i+1), noColor)
+		if err != nil {
+			return nil, err
+		}
+
+		if strings.ToLower(keepEntry) == "yes" {
+			modifyEntry, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Modify entry %d? (yes/no): ", i+1), noColor)
+			if err != nil {
+				return nil, err
+			}
+
+			if strings.ToLower(modifyEntry) == "yes" {
+				prefix, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter new prefix for entry %d (current: %s): ", i+1, entry.Prefix), noColor)
+				if err != nil {
+					return nil, err
+				}
+				if prefix == "" {
+					prefix = entry.Prefix
+				}
+
+				actionStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter new action for entry %d (permit or deny, current: %s): ", i+1, entry.Action), noColor)
+				if err != nil {
+					return nil, err
+				}
+				if actionStr == "" {
+					actionStr = entry.Action
+				} else if actionStr != "permit" && actionStr != "deny" {
+					return nil, fmt.Errorf("invalid action, must be permit or deny")
+				}
+
+				geStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter new GE value for entry %d (current: %d): ", i+1, entry.Ge), noColor)
+				if err != nil {
+					return nil, err
+				}
+				ge := entry.Ge
+				if geStr != "" {
+					geVal, err := strconv.Atoi(geStr)
+					if err != nil {
+						return nil, fmt.Errorf("invalid GE value, must be a number")
+					}
+					ge = geVal
+				}
+
+				leStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter new LE value for entry %d (current: %d): ", i+1, entry.Le), noColor)
+				if err != nil {
+					return nil, err
+				}
+				le := entry.Le
+				if leStr != "" {
+					leVal, err := strconv.Atoi(leStr)
+					if err != nil {
+						return nil, fmt.Errorf("invalid LE value, must be a number")
+					}
+					le = leVal
+				}
+
+				entries = append(entries, &megaport.MCRPrefixListEntry{
+					Prefix: prefix,
+					Action: actionStr,
+					Ge:     ge,
+					Le:     le,
+				})
+			} else {
+				entries = append(entries, entry)
+			}
+		}
+	}
+	return entries, nil
+}
+
 func promptForPrefixFilterListDetails(mcrUID string, noColor bool) (*megaport.CreateMCRPrefixFilterListRequest, error) {
 	description, err := utils.ResourcePrompt("mcr", "Enter description (required): ", noColor)
 	if err != nil {
@@ -195,58 +343,9 @@ func promptForPrefixFilterListDetails(mcrUID string, noColor bool) (*megaport.Cr
 		return nil, fmt.Errorf("invalid address family, must be IPv4 or IPv6")
 	}
 
-	entries := []*megaport.MCRPrefixListEntry{}
-	for {
-		fmt.Println("Add a new prefix filter entry (leave prefix blank to finish):")
-
-		prefix, err := utils.ResourcePrompt("mcr", "Enter prefix (e.g., 192.168.0.0/24): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if prefix == "" {
-			break
-		}
-
-		actionStr, err := utils.ResourcePrompt("mcr", "Enter action (permit or deny): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if actionStr != "permit" && actionStr != "deny" {
-			return nil, fmt.Errorf("invalid action, must be permit or deny")
-		}
-
-		geStr, err := utils.ResourcePrompt("mcr", "Enter GE value (optional): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		var ge int
-		if geStr != "" {
-			geVal, err := strconv.Atoi(geStr)
-			if err != nil {
-				return nil, fmt.Errorf("invalid GE value, must be a number")
-			}
-			ge = geVal
-		}
-
-		leStr, err := utils.ResourcePrompt("mcr", "Enter LE value (optional): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		var le int
-		if leStr != "" {
-			leVal, err := strconv.Atoi(leStr)
-			if err != nil {
-				return nil, fmt.Errorf("invalid LE value, must be a number")
-			}
-			le = leVal
-		}
-
-		entries = append(entries, &megaport.MCRPrefixListEntry{
-			Prefix: prefix,
-			Action: actionStr,
-			Ge:     ge,
-			Le:     le,
-		})
+	entries, err := promptAddNewPrefixEntries(noColor)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(entries) == 0 {
@@ -299,77 +398,11 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 	if strings.ToLower(modifyExisting) != "yes" {
 		entries = append(entries, currentPrefixFilterList.Entries...)
 	} else {
-		for i, entry := range currentPrefixFilterList.Entries {
-			fmt.Printf("Entry %d - Current: Action: %s, Prefix: %s, GE: %d, LE: %d\n",
-				i+1, entry.Action, entry.Prefix, entry.Ge, entry.Le)
-
-			keepEntry, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Keep entry %d? (yes/no): ", i+1), noColor)
-			if err != nil {
-				return nil, err
-			}
-
-			if strings.ToLower(keepEntry) == "yes" {
-				modifyEntry, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Modify entry %d? (yes/no): ", i+1), noColor)
-				if err != nil {
-					return nil, err
-				}
-
-				if strings.ToLower(modifyEntry) == "yes" {
-					prefix, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter new prefix for entry %d (current: %s): ", i+1, entry.Prefix), noColor)
-					if err != nil {
-						return nil, err
-					}
-					if prefix == "" {
-						prefix = entry.Prefix
-					}
-
-					actionStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter new action for entry %d (permit or deny, current: %s): ", i+1, entry.Action), noColor)
-					if err != nil {
-						return nil, err
-					}
-					if actionStr == "" {
-						actionStr = entry.Action
-					} else if actionStr != "permit" && actionStr != "deny" {
-						return nil, fmt.Errorf("invalid action, must be permit or deny")
-					}
-
-					geStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter new GE value for entry %d (current: %d): ", i+1, entry.Ge), noColor)
-					if err != nil {
-						return nil, err
-					}
-					ge := entry.Ge
-					if geStr != "" {
-						geVal, err := strconv.Atoi(geStr)
-						if err != nil {
-							return nil, fmt.Errorf("invalid GE value, must be a number")
-						}
-						ge = geVal
-					}
-
-					leStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter new LE value for entry %d (current: %d): ", i+1, entry.Le), noColor)
-					if err != nil {
-						return nil, err
-					}
-					le := entry.Le
-					if leStr != "" {
-						leVal, err := strconv.Atoi(leStr)
-						if err != nil {
-							return nil, fmt.Errorf("invalid LE value, must be a number")
-						}
-						le = leVal
-					}
-
-					entries = append(entries, &megaport.MCRPrefixListEntry{
-						Prefix: prefix,
-						Action: actionStr,
-						Ge:     ge,
-						Le:     le,
-					})
-				} else {
-					entries = append(entries, entry)
-				}
-			}
+		existingEntries, err := promptUpdateExistingEntries(currentPrefixFilterList.Entries, noColor)
+		if err != nil {
+			return nil, err
 		}
+		entries = append(entries, existingEntries...)
 	}
 
 	addNew, err := utils.ResourcePrompt("mcr", "Do you want to add new entries? (yes/no): ", noColor)
@@ -378,58 +411,11 @@ func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID in
 	}
 
 	if strings.ToLower(addNew) == "yes" {
-		for {
-			fmt.Println("Add a new prefix filter entry (leave prefix blank to finish):")
-
-			prefix, err := utils.ResourcePrompt("mcr", "Enter prefix (e.g., 192.168.0.0/24): ", noColor)
-			if err != nil {
-				return nil, err
-			}
-			if prefix == "" {
-				break
-			}
-
-			actionStr, err := utils.ResourcePrompt("mcr", "Enter action (permit or deny): ", noColor)
-			if err != nil {
-				return nil, err
-			}
-			if actionStr != "permit" && actionStr != "deny" {
-				return nil, fmt.Errorf("invalid action, must be permit or deny")
-			}
-
-			geStr, err := utils.ResourcePrompt("mcr", "Enter GE value (optional): ", noColor)
-			if err != nil {
-				return nil, err
-			}
-			var ge int
-			if geStr != "" {
-				geVal, err := strconv.Atoi(geStr)
-				if err != nil {
-					return nil, fmt.Errorf("invalid GE value, must be a number")
-				}
-				ge = geVal
-			}
-
-			leStr, err := utils.ResourcePrompt("mcr", "Enter LE value (optional): ", noColor)
-			if err != nil {
-				return nil, err
-			}
-			var le int
-			if leStr != "" {
-				leVal, err := strconv.Atoi(leStr)
-				if err != nil {
-					return nil, fmt.Errorf("invalid LE value, must be a number")
-				}
-				le = leVal
-			}
-
-			entries = append(entries, &megaport.MCRPrefixListEntry{
-				Prefix: prefix,
-				Action: actionStr,
-				Ge:     ge,
-				Le:     le,
-			})
+		newEntries, err := promptAddNewPrefixEntries(noColor)
+		if err != nil {
+			return nil, err
 		}
+		entries = append(entries, newEntries...)
 	}
 
 	if len(entries) == 0 {
