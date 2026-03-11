@@ -14,6 +14,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	megaport "github.com/megaport/megaportgo"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMockSetup(t *testing.T) {
@@ -512,6 +513,285 @@ func TestGetLocation(t *testing.T) {
 				if assert.NotEmpty(t, parsed) {
 					assert.Contains(t, capturedOutput, tt.expectedOutput)
 				}
+			}
+		})
+	}
+}
+
+func TestListCountries(t *testing.T) {
+	testCountries := []*megaport.Country{
+		{Code: "AU", Name: "Australia", Prefix: "61", SiteCount: 15},
+		{Code: "US", Name: "United States", Prefix: "1", SiteCount: 30},
+		{Code: "GB", Name: "United Kingdom", Prefix: "44", SiteCount: 10},
+	}
+
+	tests := []struct {
+		name           string
+		setupMock      func(*MockLocationsService)
+		loginErr       error
+		expectedErr    string
+		expectedOutput string
+	}{
+		{
+			name: "success",
+			setupMock: func(m *MockLocationsService) {
+				m.On("ListCountries", mock.Anything).Return(testCountries, nil)
+			},
+			expectedOutput: "Australia",
+		},
+		{
+			name: "API error",
+			setupMock: func(m *MockLocationsService) {
+				m.On("ListCountries", mock.Anything).Return(([]*megaport.Country)(nil), fmt.Errorf("API failure"))
+			},
+			expectedErr: "error listing countries",
+		},
+		{
+			name: "empty result",
+			setupMock: func(m *MockLocationsService) {
+				m.On("ListCountries", mock.Anything).Return([]*megaport.Country{}, nil)
+			},
+			expectedOutput: "[]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockSvc := setupTestEnvironment()
+			tt.setupMock(mockSvc)
+
+			originalLoginFunc := config.LoginFunc
+			originalListCountriesFunc := listCountriesFunc
+			defer func() {
+				config.LoginFunc = originalLoginFunc
+				listCountriesFunc = originalListCountriesFunc
+			}()
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				if tt.loginErr != nil {
+					return nil, tt.loginErr
+				}
+				testClient := &megaport.Client{}
+				testClient.LocationService = mockSvc
+				return testClient, nil
+			}
+
+			listCountriesFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Country, error) {
+				return client.LocationService.ListCountries(ctx)
+			}
+
+			cmd := &cobra.Command{Use: "list-countries"}
+			defer output.SetOutputFormat("table")
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = ListCountries(cmd, []string{}, true, "json")
+			})
+
+			if tt.expectedErr != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+			}
+		})
+	}
+}
+
+func TestListMarketCodes(t *testing.T) {
+	testMarketCodes := []string{"AU", "US", "UK", "SG", "HK"}
+
+	tests := []struct {
+		name           string
+		setupMock      func(*MockLocationsService)
+		loginErr       error
+		expectedErr    string
+		expectedOutput string
+	}{
+		{
+			name: "success",
+			setupMock: func(m *MockLocationsService) {
+				m.On("ListMarketCodes", mock.Anything).Return(testMarketCodes, nil)
+			},
+			expectedOutput: "AU",
+		},
+		{
+			name: "API error",
+			setupMock: func(m *MockLocationsService) {
+				m.On("ListMarketCodes", mock.Anything).Return(([]string)(nil), fmt.Errorf("API failure"))
+			},
+			expectedErr: "error listing market codes",
+		},
+		{
+			name: "empty result",
+			setupMock: func(m *MockLocationsService) {
+				m.On("ListMarketCodes", mock.Anything).Return([]string{}, nil)
+			},
+			expectedOutput: "[]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockSvc := setupTestEnvironment()
+			tt.setupMock(mockSvc)
+
+			originalLoginFunc := config.LoginFunc
+			originalListMarketCodesFunc := listMarketCodesFunc
+			defer func() {
+				config.LoginFunc = originalLoginFunc
+				listMarketCodesFunc = originalListMarketCodesFunc
+			}()
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				if tt.loginErr != nil {
+					return nil, tt.loginErr
+				}
+				testClient := &megaport.Client{}
+				testClient.LocationService = mockSvc
+				return testClient, nil
+			}
+
+			listMarketCodesFunc = func(ctx context.Context, client *megaport.Client) ([]string, error) {
+				return client.LocationService.ListMarketCodes(ctx)
+			}
+
+			cmd := &cobra.Command{Use: "list-market-codes"}
+			defer output.SetOutputFormat("table")
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = ListMarketCodes(cmd, []string{}, true, "json")
+			})
+
+			if tt.expectedErr != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+			}
+		})
+	}
+}
+
+func TestSearchLocations(t *testing.T) {
+	testLocationsV3 := []*megaport.LocationV3{
+		{
+			ID:     1,
+			Name:   "Equinix SY1",
+			Metro:  "Sydney",
+			Market: "AU",
+			Status: "Active",
+			Address: megaport.LocationV3Address{
+				Country: "Australia",
+			},
+			DiversityZones: &megaport.LocationV3DiversityZones{
+				Red: &megaport.LocationV3DiversityZone{
+					MegaportSpeedMbps: []int{1},
+				},
+			},
+		},
+		{
+			ID:     2,
+			Name:   "Equinix SY3",
+			Metro:  "Sydney",
+			Market: "AU",
+			Status: "Active",
+			Address: megaport.LocationV3Address{
+				Country: "Australia",
+			},
+			DiversityZones: &megaport.LocationV3DiversityZones{
+				Red: &megaport.LocationV3DiversityZone{
+					MegaportSpeedMbps: []int{1},
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name           string
+		args           []string
+		setupMock      func(*MockLocationsService)
+		loginErr       error
+		expectedErr    string
+		expectedOutput string
+	}{
+		{
+			name: "success",
+			args: []string{"Equinix"},
+			setupMock: func(m *MockLocationsService) {
+				m.On("GetLocationByNameFuzzyV3", mock.Anything, "Equinix").Return(testLocationsV3, nil)
+			},
+			expectedOutput: "Equinix SY1",
+		},
+		{
+			name: "no matches",
+			args: []string{"NonExistent"},
+			setupMock: func(m *MockLocationsService) {
+				m.On("GetLocationByNameFuzzyV3", mock.Anything, "NonExistent").Return([]*megaport.LocationV3{}, nil)
+			},
+			expectedOutput: "[]",
+		},
+		{
+			name: "API error",
+			args: []string{"Equinix"},
+			setupMock: func(m *MockLocationsService) {
+				m.On("GetLocationByNameFuzzyV3", mock.Anything, "Equinix").Return(([]*megaport.LocationV3)(nil), fmt.Errorf("API failure"))
+			},
+			expectedErr: "error searching locations",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockSvc := setupTestEnvironment()
+			tt.setupMock(mockSvc)
+
+			originalLoginFunc := config.LoginFunc
+			originalSearchLocationsFunc := searchLocationsFunc
+			defer func() {
+				config.LoginFunc = originalLoginFunc
+				searchLocationsFunc = originalSearchLocationsFunc
+			}()
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				if tt.loginErr != nil {
+					return nil, tt.loginErr
+				}
+				testClient := &megaport.Client{}
+				testClient.LocationService = mockSvc
+				return testClient, nil
+			}
+
+			searchLocationsFunc = func(ctx context.Context, client *megaport.Client, search string) ([]*megaport.Location, error) {
+				locationsV3, err := client.LocationService.GetLocationByNameFuzzyV3(ctx, search)
+				if err != nil {
+					return nil, err
+				}
+				var legacyLocations []*megaport.Location
+				for _, v3Loc := range locationsV3 {
+					legacyLocations = append(legacyLocations, v3Loc.ToLegacyLocation())
+				}
+				return legacyLocations, nil
+			}
+
+			cmd := &cobra.Command{Use: "search"}
+			require.Len(t, tt.args, 1)
+			defer output.SetOutputFormat("table")
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = SearchLocations(cmd, tt.args, true, "json")
+			})
+
+			if tt.expectedErr != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
 			}
 		})
 	}

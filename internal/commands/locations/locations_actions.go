@@ -80,6 +80,119 @@ func ListLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	return nil
 }
 
+func ListCountries(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	spinner := output.PrintResourceListing("Country", noColor)
+
+	countries, err := listCountriesFunc(ctx, client)
+
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to retrieve countries: %v", noColor, err)
+		return fmt.Errorf("error listing countries: %v", err)
+	}
+
+	if len(countries) == 0 {
+		output.PrintWarning("No countries found", noColor)
+	} else {
+		output.PrintInfo("Found %d countries", noColor, len(countries))
+	}
+
+	err = printCountries(countries, outputFormat, noColor)
+	if err != nil {
+		output.PrintError("Failed to print countries: %v", noColor, err)
+		return fmt.Errorf("error printing countries: %v", err)
+	}
+	return nil
+}
+
+func ListMarketCodes(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	spinner := output.PrintResourceListing("Market Code", noColor)
+
+	marketCodes, err := listMarketCodesFunc(ctx, client)
+
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to retrieve market codes: %v", noColor, err)
+		return fmt.Errorf("error listing market codes: %v", err)
+	}
+
+	if len(marketCodes) == 0 {
+		output.PrintWarning("No market codes found", noColor)
+	} else {
+		output.PrintInfo("Found %d market codes", noColor, len(marketCodes))
+	}
+
+	err = printMarketCodes(marketCodes, outputFormat, noColor)
+	if err != nil {
+		output.PrintError("Failed to print market codes: %v", noColor, err)
+		return fmt.Errorf("error printing market codes: %v", err)
+	}
+	return nil
+}
+
+func SearchLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	search := args[0]
+
+	spinner := output.PrintResourceListing("Location", noColor)
+
+	locations, err := searchLocationsFunc(ctx, client, search)
+
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to search locations: %v", noColor, err)
+		return fmt.Errorf("error searching locations: %v", err)
+	}
+
+	if len(locations) == 0 {
+		output.PrintWarning("No locations found matching '%s'", noColor, search)
+	} else {
+		output.PrintInfo("Found %d locations matching '%s'", noColor, len(locations), search)
+	}
+
+	err = printLocations(locations, outputFormat, noColor)
+	if err != nil {
+		output.PrintError("Failed to print locations: %v", noColor, err)
+		return fmt.Errorf("error printing locations: %v", err)
+	}
+	return nil
+}
+
 func GetLocation(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
 

@@ -29,6 +29,26 @@ func filterLocations(locations []*megaport.Location, filters map[string]string) 
 	return filtered
 }
 
+var listCountriesFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Country, error) {
+	return client.LocationService.ListCountries(ctx)
+}
+
+var listMarketCodesFunc = func(ctx context.Context, client *megaport.Client) ([]string, error) {
+	return client.LocationService.ListMarketCodes(ctx)
+}
+
+var searchLocationsFunc = func(ctx context.Context, client *megaport.Client, search string) ([]*megaport.Location, error) {
+	locationsV3, err := client.LocationService.GetLocationByNameFuzzyV3(ctx, search)
+	if err != nil {
+		return nil, err
+	}
+	var legacyLocations []*megaport.Location
+	for _, v3Loc := range locationsV3 {
+		legacyLocations = append(legacyLocations, v3Loc.ToLegacyLocation())
+	}
+	return legacyLocations, nil
+}
+
 // listLocationsFunc now uses the v3 API and converts to legacy format for compatibility
 var listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Location, error) {
 	// Use v3 API (recommended)
