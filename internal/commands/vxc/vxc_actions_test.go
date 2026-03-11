@@ -1521,6 +1521,19 @@ func TestUpdateVXC(t *testing.T) {
 			expectedError: "failed to update VXC",
 		},
 		{
+			name:   "no fields provided",
+			vxcUID: "vxc-update-no-fields",
+			flags:  map[string]string{},
+			setupMock: func(m *mockVXCService) {
+				m.getVXCResponse = &megaport.VXC{
+					UID:                "vxc-update-no-fields",
+					Name:               "Original VXC",
+					ProvisioningStatus: "LIVE",
+				}
+			},
+			expectedError: "at least one field must be updated",
+		},
+		{
 			name:   "build request error from flags",
 			vxcUID: "vxc-build-err",
 			flags: map[string]string{
