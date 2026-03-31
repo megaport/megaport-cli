@@ -16,8 +16,44 @@ import (
 // between spinner goroutines and Print* calls on the main goroutine.
 var currentOutputFormat atomic.Value
 
+// currentVerbosity stores the verbosity level atomically.
+// Valid values: "normal", "quiet", "verbose".
+var currentVerbosity atomic.Value
+
 func init() {
 	currentOutputFormat.Store("table")
+	currentVerbosity.Store("normal")
+}
+
+// SetVerbosity sets the global verbosity level ("normal", "quiet", or "verbose").
+func SetVerbosity(level string) {
+	currentVerbosity.Store(level)
+}
+
+// IsQuiet returns true when quiet mode is active.
+// In quiet mode, informational messages and spinners are suppressed.
+func IsQuiet() bool {
+	if v, ok := currentVerbosity.Load().(string); ok {
+		return v == "quiet"
+	}
+	return false
+}
+
+// IsVerbose returns true when verbose mode is active.
+func IsVerbose() bool {
+	if v, ok := currentVerbosity.Load().(string); ok {
+		return v == "verbose"
+	}
+	return false
+}
+
+// newNoOpSpinner returns a spinner that is already stopped.
+// Safe to call Start(), Stop(), and StopWithSuccess() on.
+func newNoOpSpinner() *Spinner {
+	return &Spinner{
+		stop:    make(chan bool, 1),
+		stopped: true,
+	}
 }
 
 func SetOutputFormat(format string) {
@@ -36,6 +72,9 @@ func getOutputFormat() string {
 // - messages_wasm.go for WASM builds
 
 func PrintSuccessWithOutput(format string, noColor bool, outputFormat string, args ...interface{}) {
+	if IsQuiet() {
+		return
+	}
 	msg := fmt.Sprintf(format, args...)
 	if outputFormat == "json" {
 		if noColor {
@@ -62,6 +101,9 @@ func FormatSuccess(msg string, noColor bool) string {
 }
 
 func PrintResourceSuccess(resourceType, action, uid string, noColor bool) {
+	if IsQuiet() {
+		return
+	}
 	uidFormatted := FormatUID(uid, noColor)
 	if strings.HasSuffix(action, "ed") {
 		PrintSuccess("%s %s %s", noColor, resourceType, action, uidFormatted)
@@ -71,14 +113,23 @@ func PrintResourceSuccess(resourceType, action, uid string, noColor bool) {
 }
 
 func PrintResourceCreated(resourceType, uid string, noColor bool) {
+	if IsQuiet() {
+		return
+	}
 	PrintSuccess("%s created %s", noColor, resourceType, FormatUID(uid, noColor))
 }
 
 func PrintResourceUpdated(resourceType, uid string, noColor bool) {
+	if IsQuiet() {
+		return
+	}
 	PrintSuccess("%s updated %s", noColor, resourceType, FormatUID(uid, noColor))
 }
 
 func PrintResourceDeleted(resourceType, uid string, immediate, noColor bool) {
+	if IsQuiet() {
+		return
+	}
 	msg := fmt.Sprintf("%s deleted %s", resourceType, FormatUID(uid, noColor))
 	if immediate {
 		msg += "\nThe resource will be deleted immediately"
@@ -236,6 +287,9 @@ func (s *Spinner) Stop() {
 
 func (s *Spinner) StopWithSuccess(msg string) {
 	s.Stop()
+	if IsQuiet() {
+		return
+	}
 	if s.outputFormat == "json" {
 		if s.noColor {
 			fmt.Fprintf(os.Stderr, "✓ %s\n", msg)
@@ -254,6 +308,9 @@ func (s *Spinner) StopWithSuccess(msg string) {
 }
 
 func PrintResourceCreating(resourceType, uid string, noColor bool) *Spinner {
+	if IsQuiet() {
+		return newNoOpSpinner()
+	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Creating %s %s...", resourceType, uidFormatted)
 	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
@@ -262,6 +319,9 @@ func PrintResourceCreating(resourceType, uid string, noColor bool) *Spinner {
 }
 
 func PrintResourceUpdating(resourceType, uid string, noColor bool) *Spinner {
+	if IsQuiet() {
+		return newNoOpSpinner()
+	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Updating %s %s...", resourceType, uidFormatted)
 	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
@@ -270,6 +330,9 @@ func PrintResourceUpdating(resourceType, uid string, noColor bool) *Spinner {
 }
 
 func PrintResourceDeleting(resourceType, uid string, noColor bool) *Spinner {
+	if IsQuiet() {
+		return newNoOpSpinner()
+	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Deleting %s %s...", resourceType, uidFormatted)
 	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
@@ -278,6 +341,9 @@ func PrintResourceDeleting(resourceType, uid string, noColor bool) *Spinner {
 }
 
 func PrintResourceListing(resourceType string, noColor bool) *Spinner {
+	if IsQuiet() {
+		return newNoOpSpinner()
+	}
 	msg := fmt.Sprintf("Listing %ss...", resourceType)
 	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
 	spinner.Start(msg)
@@ -285,6 +351,9 @@ func PrintResourceListing(resourceType string, noColor bool) *Spinner {
 }
 
 func PrintResourceGetting(resourceType, uid string, noColor bool) *Spinner {
+	if IsQuiet() {
+		return newNoOpSpinner()
+	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Getting %s %s details...", resourceType, uidFormatted)
 	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
@@ -293,6 +362,9 @@ func PrintResourceGetting(resourceType, uid string, noColor bool) *Spinner {
 }
 
 func PrintResourceGettingWithOutput(resourceType, uid string, noColor bool, outputFormat string) *Spinner {
+	if IsQuiet() {
+		return newNoOpSpinner()
+	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Getting %s %s details...", resourceType, uidFormatted)
 	spinner := NewSpinnerWithOutput(noColor, outputFormat)
@@ -301,6 +373,9 @@ func PrintResourceGettingWithOutput(resourceType, uid string, noColor bool, outp
 }
 
 func PrintListingResourceTags(resourceType, uid string, noColor bool) *Spinner {
+	if IsQuiet() {
+		return newNoOpSpinner()
+	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Listing resource tags for %s %s...", resourceType, uidFormatted)
 	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
@@ -309,6 +384,9 @@ func PrintListingResourceTags(resourceType, uid string, noColor bool) *Spinner {
 }
 
 func PrintResourceValidating(resourceType string, noColor bool) *Spinner {
+	if IsQuiet() {
+		return newNoOpSpinner()
+	}
 	msg := fmt.Sprintf("Validating %s order...", resourceType)
 	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
 	spinner.Start(msg)
@@ -316,6 +394,9 @@ func PrintResourceValidating(resourceType string, noColor bool) *Spinner {
 }
 
 func PrintLoggingIn(noColor bool) *Spinner {
+	if IsQuiet() {
+		return newNoOpSpinner()
+	}
 	msg := "Logging in to Megaport..."
 	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
 	spinner.Start(msg)
@@ -323,6 +404,9 @@ func PrintLoggingIn(noColor bool) *Spinner {
 }
 
 func PrintLoggingInWithOutput(noColor bool, outputFormat string) *Spinner {
+	if IsQuiet() {
+		return newNoOpSpinner()
+	}
 	if outputFormat == "" {
 		outputFormat = getOutputFormat()
 	}
@@ -333,11 +417,37 @@ func PrintLoggingInWithOutput(noColor bool, outputFormat string) *Spinner {
 }
 
 func PrintCustomSpinner(action, resourceId string, noColor bool) *Spinner {
+	if IsQuiet() {
+		return newNoOpSpinner()
+	}
 	uidFormatted := FormatUID(resourceId, noColor)
 	msg := fmt.Sprintf("%s %s...", action, uidFormatted)
 	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
 	spinner.Start(msg)
 	return spinner
+}
+
+// PrintVerbose prints a debug message only when verbose mode is active.
+func PrintVerbose(format string, noColor bool, args ...interface{}) {
+	if !IsVerbose() {
+		return
+	}
+	msg := fmt.Sprintf(format, args...)
+	if getOutputFormat() == "json" {
+		if noColor {
+			fmt.Fprintf(os.Stderr, "[DEBUG] %s\n", msg)
+		} else {
+			fmt.Fprint(os.Stderr, color.HiBlackString("[DEBUG] "))
+			fmt.Fprintln(os.Stderr, msg)
+		}
+	} else {
+		if noColor {
+			fmt.Printf("[DEBUG] %s\n", msg)
+		} else {
+			fmt.Print(color.HiBlackString("[DEBUG] "))
+			fmt.Println(msg)
+		}
+	}
 }
 
 // PrintError, PrintWarning, PrintInfo are defined in:

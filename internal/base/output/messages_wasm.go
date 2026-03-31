@@ -196,6 +196,9 @@ func PrintProgressBox(message string, percentage int, noColor bool) {
 
 // PrintSuccess overrides the base function for WASM to capture output
 func PrintSuccess(format string, noColor bool, args ...interface{}) {
+	if IsQuiet() {
+		return
+	}
 	msg := fmt.Sprintf(format, args...)
 	var output string
 	if noColor {
@@ -220,6 +223,9 @@ func PrintError(format string, noColor bool, args ...interface{}) {
 
 // PrintWarning overrides the base function for WASM to capture output
 func PrintWarning(format string, noColor bool, args ...interface{}) {
+	if IsQuiet() {
+		return
+	}
 	msg := fmt.Sprintf(format, args...)
 	var output string
 	if noColor {
@@ -232,6 +238,9 @@ func PrintWarning(format string, noColor bool, args ...interface{}) {
 
 // PrintInfo overrides the base function for WASM to capture output
 func PrintInfo(format string, noColor bool, args ...interface{}) {
+	if IsQuiet() {
+		return
+	}
 	msg := fmt.Sprintf(format, args...)
 	var output string
 	if noColor {

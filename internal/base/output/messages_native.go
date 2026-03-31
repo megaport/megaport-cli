@@ -13,6 +13,9 @@ import (
 // Native (non-WASM) implementations that write to stdout/stderr directly
 
 func PrintSuccess(format string, noColor bool, args ...interface{}) {
+	if IsQuiet() {
+		return
+	}
 	msg := fmt.Sprintf(format, args...)
 	if getOutputFormat() == "json" {
 		if noColor {
@@ -51,6 +54,9 @@ func PrintError(format string, noColor bool, args ...interface{}) {
 }
 
 func PrintWarning(format string, noColor bool, args ...interface{}) {
+	if IsQuiet() {
+		return
+	}
 	msg := fmt.Sprintf(format, args...)
 	if getOutputFormat() == "json" {
 		if noColor {
@@ -70,6 +76,9 @@ func PrintWarning(format string, noColor bool, args ...interface{}) {
 }
 
 func PrintInfo(format string, noColor bool, args ...interface{}) {
+	if IsQuiet() {
+		return
+	}
 	msg := fmt.Sprintf(format, args...)
 	if getOutputFormat() == "json" {
 		if noColor {
