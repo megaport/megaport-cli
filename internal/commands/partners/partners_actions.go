@@ -47,8 +47,8 @@ func ListPartners(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 	err = printPartnersFunc(filteredPartners, outputFormat, noColor)
 	if err != nil {
-		output.PrintError("Failed to output.Print partner ports: %v", noColor, err)
-		return fmt.Errorf("error output.Printing partners: %v", err)
+		output.PrintError("Failed to print partner ports: %v", noColor, err)
+		return fmt.Errorf("error printing partners: %v", err)
 	}
 	return nil
 }
@@ -131,8 +131,8 @@ func FindPartners(cmd *cobra.Command, args []string, noColor bool) error {
 
 	err = printPartnersFunc(filteredPartners, selectedFormat, noColor)
 	if err != nil {
-		output.PrintError("Failed to output.Print partner ports: %v", noColor, err)
-		return fmt.Errorf("error output.Printing partners: %v", err)
+		output.PrintError("Failed to print partner ports: %v", noColor, err)
+		return fmt.Errorf("error printing partners: %v", err)
 	}
 	return nil
 }
