@@ -201,9 +201,6 @@ func ExecuteWithArgs(args []string) {
 	// Save original args
 	originalArgs := os.Args
 
-	// Debug
-	fmt.Printf("WASM ExecuteWithArgs: args=%v\n", args)
-
 	// Set new args for this execution
 	os.Args = args
 
