@@ -333,18 +333,18 @@ func processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile string, mcrUID str
 		return nil, fmt.Errorf("at least one field (description or entries) must be updated")
 	}
 
+	ctx := context.Background()
+	client, err := config.Login(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
+	}
+
 	if tempData.AddressFamily != "" {
-		ctx := context.Background()
-		client, err := config.Login(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
-		if err != nil {
-			return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
-		}
-
 		if tempData.AddressFamily != currentPrefixFilterList.AddressFamily {
 			return nil, fmt.Errorf("address family cannot be changed after creation (current: %s, requested: %s)",
 				currentPrefixFilterList.AddressFamily, tempData.AddressFamily)
@@ -369,17 +369,6 @@ func processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile string, mcrUID str
 			Ge:     geValue,
 			Le:     leValue,
 		}
-	}
-
-	ctx := context.Background()
-	client, err := config.Login(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
 	}
 
 	description := tempData.Description
@@ -417,24 +406,6 @@ func processFlagUpdatePrefixFilterListInput(cmd *cobra.Command, mcrUID string, p
 	addressFamily, _ := cmd.Flags().GetString("address-family")
 	entriesJSON, _ := cmd.Flags().GetString("entries")
 
-	if cmd.Flags().Changed("address-family") {
-		ctx := context.Background()
-		client, err := config.Login(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
-		if err != nil {
-			return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
-		}
-
-		if addressFamily != currentPrefixFilterList.AddressFamily {
-			return nil, fmt.Errorf("address family cannot be changed after creation (current: %s, requested: %s)",
-				currentPrefixFilterList.AddressFamily, addressFamily)
-		}
-	}
-
 	ctx := context.Background()
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -444,6 +415,13 @@ func processFlagUpdatePrefixFilterListInput(cmd *cobra.Command, mcrUID string, p
 	currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
+	}
+
+	if cmd.Flags().Changed("address-family") {
+		if addressFamily != currentPrefixFilterList.AddressFamily {
+			return nil, fmt.Errorf("address family cannot be changed after creation (current: %s, requested: %s)",
+				currentPrefixFilterList.AddressFamily, addressFamily)
+		}
 	}
 
 	if !descriptionProvided {
