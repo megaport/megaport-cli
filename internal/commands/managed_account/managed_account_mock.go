@@ -6,7 +6,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-type mockManagedAccountService struct {
+type MockManagedAccountService struct {
 	listResult             []*megaport.ManagedAccount
 	listErr                error
 	createResult           *megaport.ManagedAccount
@@ -22,7 +22,7 @@ type mockManagedAccountService struct {
 	capturedGetAccountName string
 }
 
-func (m *mockManagedAccountService) ListManagedAccounts(ctx context.Context) ([]*megaport.ManagedAccount, error) {
+func (m *MockManagedAccountService) ListManagedAccounts(ctx context.Context) ([]*megaport.ManagedAccount, error) {
 	if m.listErr != nil {
 		return nil, m.listErr
 	}
@@ -32,7 +32,7 @@ func (m *mockManagedAccountService) ListManagedAccounts(ctx context.Context) ([]
 	return []*megaport.ManagedAccount{}, nil
 }
 
-func (m *mockManagedAccountService) CreateManagedAccount(ctx context.Context, req *megaport.ManagedAccountRequest) (*megaport.ManagedAccount, error) {
+func (m *MockManagedAccountService) CreateManagedAccount(ctx context.Context, req *megaport.ManagedAccountRequest) (*megaport.ManagedAccount, error) {
 	m.capturedCreateReq = req
 	if m.createErr != nil {
 		return nil, m.createErr
@@ -40,7 +40,7 @@ func (m *mockManagedAccountService) CreateManagedAccount(ctx context.Context, re
 	return m.createResult, nil
 }
 
-func (m *mockManagedAccountService) UpdateManagedAccount(ctx context.Context, companyUID string, req *megaport.ManagedAccountRequest) (*megaport.ManagedAccount, error) {
+func (m *MockManagedAccountService) UpdateManagedAccount(ctx context.Context, companyUID string, req *megaport.ManagedAccountRequest) (*megaport.ManagedAccount, error) {
 	m.capturedUpdateUID = companyUID
 	m.capturedUpdateReq = req
 	if m.updateErr != nil {
@@ -49,7 +49,7 @@ func (m *mockManagedAccountService) UpdateManagedAccount(ctx context.Context, co
 	return m.updateResult, nil
 }
 
-func (m *mockManagedAccountService) GetManagedAccount(ctx context.Context, companyUID string, name string) (*megaport.ManagedAccount, error) {
+func (m *MockManagedAccountService) GetManagedAccount(ctx context.Context, companyUID string, name string) (*megaport.ManagedAccount, error) {
 	m.capturedGetCompanyUID = companyUID
 	m.capturedGetAccountName = name
 	if m.getErr != nil {

@@ -6,37 +6,37 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-type mockPartnerService struct {
+type MockPartnerService struct {
 	listPartnersResponse []*megaport.PartnerMegaport
 	listPartnersErr      error
 	filterResponse       []*megaport.PartnerMegaport
 	filterErr            error
 }
 
-func (m *mockPartnerService) ListPartnerMegaports(ctx context.Context) ([]*megaport.PartnerMegaport, error) {
+func (m *MockPartnerService) ListPartnerMegaports(ctx context.Context) ([]*megaport.PartnerMegaport, error) {
 	return m.listPartnersResponse, m.listPartnersErr
 }
 
-func (m *mockPartnerService) FilterPartnerMegaportByProductName(ctx context.Context, partners []*megaport.PartnerMegaport, productName string, exactMatch bool) ([]*megaport.PartnerMegaport, error) {
+func (m *MockPartnerService) FilterPartnerMegaportByProductName(ctx context.Context, partners []*megaport.PartnerMegaport, productName string, exactMatch bool) ([]*megaport.PartnerMegaport, error) {
 	return m.filterResponse, m.filterErr
 }
 
-func (m *mockPartnerService) FilterPartnerMegaportByConnectType(ctx context.Context, partners []*megaport.PartnerMegaport, connectType string, exactMatch bool) ([]*megaport.PartnerMegaport, error) {
+func (m *MockPartnerService) FilterPartnerMegaportByConnectType(ctx context.Context, partners []*megaport.PartnerMegaport, connectType string, exactMatch bool) ([]*megaport.PartnerMegaport, error) {
 	return m.filterResponse, m.filterErr
 }
 
-func (m *mockPartnerService) FilterPartnerMegaportByCompanyName(ctx context.Context, partners []*megaport.PartnerMegaport, companyName string, exactMatch bool) ([]*megaport.PartnerMegaport, error) {
+func (m *MockPartnerService) FilterPartnerMegaportByCompanyName(ctx context.Context, partners []*megaport.PartnerMegaport, companyName string, exactMatch bool) ([]*megaport.PartnerMegaport, error) {
 	return m.filterResponse, m.filterErr
 }
 
-func (m *mockPartnerService) FilterPartnerMegaportByLocationId(ctx context.Context, partners []*megaport.PartnerMegaport, locationId int) ([]*megaport.PartnerMegaport, error) {
+func (m *MockPartnerService) FilterPartnerMegaportByLocationId(ctx context.Context, partners []*megaport.PartnerMegaport, locationId int) ([]*megaport.PartnerMegaport, error) {
 	return m.filterResponse, m.filterErr
 }
 
-func (m *mockPartnerService) FilterPartnerMegaportByDiversityZone(ctx context.Context, partners []*megaport.PartnerMegaport, diversityZone string, exactMatch bool) ([]*megaport.PartnerMegaport, error) {
+func (m *MockPartnerService) FilterPartnerMegaportByDiversityZone(ctx context.Context, partners []*megaport.PartnerMegaport, diversityZone string, exactMatch bool) ([]*megaport.PartnerMegaport, error) {
 	return m.filterResponse, m.filterErr
 }
 
-func (m *mockPartnerService) FilterPartnerMegaportByMetro(ctx context.Context, partners []*megaport.PartnerMegaport, locationService megaport.LocationService, metro string) ([]*megaport.PartnerMegaport, error) {
+func (m *MockPartnerService) FilterPartnerMegaportByMetro(ctx context.Context, partners []*megaport.PartnerMegaport, locationService megaport.LocationService, metro string) ([]*megaport.PartnerMegaport, error) {
 	return m.filterResponse, m.filterErr
 }

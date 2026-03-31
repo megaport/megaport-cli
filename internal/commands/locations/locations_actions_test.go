@@ -9,7 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
@@ -17,33 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMockSetup(t *testing.T) {
-	mockSvc := new(MockLocationsService)
-	testLocs := []*megaport.LocationV3{
-		{
-			ID:    1,
-			Name:  "Test Location 1",
-			Metro: "Sydney",
-			Address: megaport.LocationV3Address{
-				Country: "Australia",
-			},
-		},
-	}
-
-	mockSvc.On("ListLocationsV3", mock.Anything).Return(testLocs, nil)
-
-	locations, err := mockSvc.ListLocationsV3(context.Background())
-
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(locations))
-	assert.Equal(t, "Test Location 1", locations[0].Name)
-	mockSvc.AssertExpectations(t)
-}
-
 func setupTestEnvironment() *MockLocationsService {
-	mockSvc := new(MockLocationsService)
-
-	return mockSvc
+	return &MockLocationsService{}
 }
 
 func TestListLocationsFunc(t *testing.T) {
@@ -99,7 +73,7 @@ func TestListLocationsFunc(t *testing.T) {
 		},
 	}
 
-	mockSvc.On("ListLocationsV3", mock.Anything).Return(testLocationsV3, nil)
+	mockSvc.ListLocationsV3Result = testLocationsV3
 
 	originalLoginFunc := config.LoginFunc
 	originalListLocationsFunc := listLocationsFunc
@@ -130,8 +104,6 @@ func TestListLocationsFunc(t *testing.T) {
 	assert.Equal(t, "Sydney Data Center", locations[0].Name)
 	assert.Equal(t, "London Data Center", locations[1].Name)
 	assert.Equal(t, "New York Data Center", locations[2].Name)
-
-	mockSvc.AssertExpectations(t)
 }
 
 func TestListLocationsFuncError(t *testing.T) {
@@ -139,7 +111,7 @@ func TestListLocationsFuncError(t *testing.T) {
 
 	expectedError := errors.New("api connection failed")
 
-	mockSvc.On("ListLocationsV3", mock.Anything).Return([]*megaport.LocationV3{}, expectedError)
+	mockSvc.ListLocationsV3Err = expectedError
 
 	originalListLocationsFunc := listLocationsFunc
 	originalLoginFunc := config.LoginFunc
@@ -169,8 +141,6 @@ func TestListLocationsFuncError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, expectedError, err)
 	assert.Empty(t, locations)
-
-	mockSvc.AssertExpectations(t)
 }
 
 func TestListLocationsCommand(t *testing.T) {
@@ -226,7 +196,7 @@ func TestListLocationsCommand(t *testing.T) {
 		},
 	}
 
-	mockSvc.On("ListLocationsV3", mock.Anything).Return(testLocationsV3, nil)
+	mockSvc.ListLocationsV3Result = testLocationsV3
 
 	originalListLocationsFunc := listLocationsFunc
 	originalLoginFunc := config.LoginFunc
@@ -398,7 +368,7 @@ func TestGetLocation(t *testing.T) {
 			name: "success",
 			args: []string{"1"},
 			setupMock: func(m *MockLocationsService) {
-				m.On("ListLocationsV3", mock.Anything).Return(testLocationsV3, nil)
+				m.ListLocationsV3Result = testLocationsV3
 			},
 			expectedOutput: "Sydney Data Center",
 		},
@@ -412,7 +382,7 @@ func TestGetLocation(t *testing.T) {
 			name: "not found",
 			args: []string{"999"},
 			setupMock: func(m *MockLocationsService) {
-				m.On("ListLocationsV3", mock.Anything).Return(testLocationsV3, nil)
+				m.ListLocationsV3Result = testLocationsV3
 			},
 			expectedErr: "no location found with ID: 999",
 		},
@@ -420,7 +390,7 @@ func TestGetLocation(t *testing.T) {
 			name: "API error",
 			args: []string{"1"},
 			setupMock: func(m *MockLocationsService) {
-				m.On("ListLocationsV3", mock.Anything).Return([]*megaport.LocationV3{}, fmt.Errorf("API failure"))
+				m.ListLocationsV3Err = fmt.Errorf("API failure")
 			},
 			expectedErr: "error listing locations",
 		},
@@ -494,21 +464,21 @@ func TestListCountries(t *testing.T) {
 		{
 			name: "success",
 			setupMock: func(m *MockLocationsService) {
-				m.On("ListCountries", mock.Anything).Return(testCountries, nil)
+				m.ListCountriesResult = testCountries
 			},
 			expectedOutput: "Australia",
 		},
 		{
 			name: "API error",
 			setupMock: func(m *MockLocationsService) {
-				m.On("ListCountries", mock.Anything).Return(([]*megaport.Country)(nil), fmt.Errorf("API failure"))
+				m.ListCountriesErr = fmt.Errorf("API failure")
 			},
 			expectedErr: "error listing countries",
 		},
 		{
 			name: "empty result",
 			setupMock: func(m *MockLocationsService) {
-				m.On("ListCountries", mock.Anything).Return([]*megaport.Country{}, nil)
+				m.ListCountriesResult = []*megaport.Country{}
 			},
 			expectedOutput: "[]",
 		},
@@ -571,21 +541,21 @@ func TestListMarketCodes(t *testing.T) {
 		{
 			name: "success",
 			setupMock: func(m *MockLocationsService) {
-				m.On("ListMarketCodes", mock.Anything).Return(testMarketCodes, nil)
+				m.ListMarketCodesResult = testMarketCodes
 			},
 			expectedOutput: "AU",
 		},
 		{
 			name: "API error",
 			setupMock: func(m *MockLocationsService) {
-				m.On("ListMarketCodes", mock.Anything).Return(([]string)(nil), fmt.Errorf("API failure"))
+				m.ListMarketCodesErr = fmt.Errorf("API failure")
 			},
 			expectedErr: "error listing market codes",
 		},
 		{
 			name: "empty result",
 			setupMock: func(m *MockLocationsService) {
-				m.On("ListMarketCodes", mock.Anything).Return([]string{}, nil)
+				m.ListMarketCodesResult = []string{}
 			},
 			expectedOutput: "[]",
 		},
@@ -681,7 +651,7 @@ func TestSearchLocations(t *testing.T) {
 			name: "success",
 			args: []string{"Equinix"},
 			setupMock: func(m *MockLocationsService) {
-				m.On("GetLocationByNameFuzzyV3", mock.Anything, "Equinix").Return(testLocationsV3, nil)
+				m.GetLocationByNameFuzzyV3Result = testLocationsV3
 			},
 			expectedOutput: "Equinix SY1",
 		},
@@ -689,7 +659,7 @@ func TestSearchLocations(t *testing.T) {
 			name: "no matches",
 			args: []string{"NonExistent"},
 			setupMock: func(m *MockLocationsService) {
-				m.On("GetLocationByNameFuzzyV3", mock.Anything, "NonExistent").Return([]*megaport.LocationV3{}, nil)
+				m.GetLocationByNameFuzzyV3Result = []*megaport.LocationV3{}
 			},
 			expectedOutput: "[]",
 		},
@@ -697,7 +667,7 @@ func TestSearchLocations(t *testing.T) {
 			name: "API error",
 			args: []string{"Equinix"},
 			setupMock: func(m *MockLocationsService) {
-				m.On("GetLocationByNameFuzzyV3", mock.Anything, "Equinix").Return(([]*megaport.LocationV3)(nil), fmt.Errorf("API failure"))
+				m.GetLocationByNameFuzzyV3Err = fmt.Errorf("API failure")
 			},
 			expectedErr: "error searching locations",
 		},

@@ -7,31 +7,25 @@ import (
 )
 
 type MockMCRService struct {
-	BuyMCRResult                             *megaport.BuyMCRResponse
-	BuyMCRErr                                error
-	CapturedBuyMCRRequest                    *megaport.BuyMCRRequest
-	ValidateMCROrderErr                      error
-	GetMCRResult                             *megaport.MCR
-	GetMCRErr                                error
-	ListMCRsResult                           []*megaport.MCR
-	ListMCRsErr                              error
-	CapturedListMCRsRequest                  *megaport.ListMCRsRequest
-	DeleteMCRResult                          *megaport.DeleteMCRResponse
-	DeleteMCRErr                             error
-	CapturedDeleteMCRUID                     string
-	CapturedDeleteMCRRequest                 *megaport.DeleteMCRRequest
-	CapturedMCRUID                           string
-	RestoreMCRResult                         *megaport.RestoreMCRResponse
-	RestoreMCRErr                            error
-	CapturedRestoreMCRUID                    string
-	CreateMCRPrefixFilterListResult          *megaport.CreateMCRPrefixFilterListResponse
-	CreateMCRPrefixFilterListErr             error
-	CapturedCreateMCRPrefixFilterListRequest *megaport.CreateMCRPrefixFilterListRequest
-	CapturedCreatePrefixFilterListRequest    *megaport.CreateMCRPrefixFilterListRequest
-
-	CreateMCRPrefixFilterListResponse *megaport.CreateMCRPrefixFilterListResponse
-	CreateMCRPrefixFilterListError    error
-	CapturedCreatePrefixFilterList    *megaport.CreateMCRPrefixFilterListRequest
+	BuyMCRResult                          *megaport.BuyMCRResponse
+	BuyMCRErr                             error
+	CapturedBuyMCRRequest                 *megaport.BuyMCRRequest
+	ValidateMCROrderErr                   error
+	GetMCRResult                          *megaport.MCR
+	GetMCRErr                             error
+	ListMCRsResult                        []*megaport.MCR
+	ListMCRsErr                           error
+	CapturedListMCRsRequest               *megaport.ListMCRsRequest
+	DeleteMCRResult                       *megaport.DeleteMCRResponse
+	DeleteMCRErr                          error
+	CapturedDeleteMCRUID                  string
+	CapturedDeleteMCRRequest              *megaport.DeleteMCRRequest
+	RestoreMCRResult                      *megaport.RestoreMCRResponse
+	RestoreMCRErr                         error
+	CapturedRestoreMCRUID                 string
+	CreateMCRPrefixFilterListResult       *megaport.CreateMCRPrefixFilterListResponse
+	CreateMCRPrefixFilterListErr          error
+	CapturedCreatePrefixFilterListRequest *megaport.CreateMCRPrefixFilterListRequest
 
 	ListMCRPrefixFilterListsResult           []*megaport.PrefixFilterList
 	ListMCRPrefixFilterListsErr              error
@@ -193,17 +187,12 @@ func (m *MockMCRService) Reset() {
 	m.DeleteMCRResult = nil
 	m.DeleteMCRErr = nil
 	m.CapturedDeleteMCRUID = ""
-	m.CapturedMCRUID = ""
 	m.RestoreMCRResult = nil
 	m.RestoreMCRErr = nil
 	m.CapturedRestoreMCRUID = ""
 	m.CreateMCRPrefixFilterListResult = nil
 	m.CreateMCRPrefixFilterListErr = nil
-	m.CapturedCreateMCRPrefixFilterListRequest = nil
 	m.CapturedCreatePrefixFilterListRequest = nil
-	m.CreateMCRPrefixFilterListResponse = nil
-	m.CreateMCRPrefixFilterListError = nil
-	m.CapturedCreatePrefixFilterList = nil
 	m.ListMCRPrefixFilterListsResult = nil
 	m.ListMCRPrefixFilterListsErr = nil
 	m.GetMCRPrefixFilterListResult = nil

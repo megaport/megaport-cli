@@ -29,7 +29,7 @@ func TestFindPartners(t *testing.T) {
 		name          string
 		prompts       []string
 		expectedError string
-		setupMock     func(*testing.T, *mockPartnerService)
+		setupMock     func(*testing.T, *MockPartnerService)
 		expectedCount int
 	}{
 		{
@@ -43,7 +43,7 @@ func TestFindPartners(t *testing.T) {
 				"table",
 			},
 			expectedError: "",
-			setupMock: func(t *testing.T, m *mockPartnerService) {
+			setupMock: func(t *testing.T, m *MockPartnerService) {
 				m.listPartnersResponse = []*megaport.PartnerMegaport{
 					{
 						ProductName:   "Test Product",
@@ -75,7 +75,7 @@ func TestFindPartners(t *testing.T) {
 				"json",
 			},
 			expectedError: "",
-			setupMock: func(t *testing.T, m *mockPartnerService) {
+			setupMock: func(t *testing.T, m *MockPartnerService) {
 				m.listPartnersResponse = []*megaport.PartnerMegaport{
 					{
 						ProductName:   "Test Product",
@@ -107,7 +107,7 @@ func TestFindPartners(t *testing.T) {
 				"table",
 			},
 			expectedError: "invalid location ID format",
-			setupMock: func(t *testing.T, m *mockPartnerService) {
+			setupMock: func(t *testing.T, m *MockPartnerService) {
 				m.listPartnersResponse = []*megaport.PartnerMegaport{}
 				m.listPartnersErr = nil
 			},
@@ -120,7 +120,7 @@ func TestFindPartners(t *testing.T) {
 				"",
 			},
 			expectedError: "error listing partners",
-			setupMock: func(t *testing.T, m *mockPartnerService) {
+			setupMock: func(t *testing.T, m *MockPartnerService) {
 				m.listPartnersResponse = nil
 				m.listPartnersErr = fmt.Errorf("API connection failure")
 			},
@@ -130,7 +130,7 @@ func TestFindPartners(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := &mockPartnerService{}
+			mockService := &MockPartnerService{}
 			if tt.setupMock != nil {
 				tt.setupMock(t, mockService)
 			}
@@ -251,7 +251,7 @@ func TestListPartners(t *testing.T) {
 				printPartnersFunc = origPrintPartnersFunc
 			}()
 
-			mockService := &mockPartnerService{
+			mockService := &MockPartnerService{
 				listPartnersResponse: tt.partners,
 				listPartnersErr:      tt.partnersErr,
 			}

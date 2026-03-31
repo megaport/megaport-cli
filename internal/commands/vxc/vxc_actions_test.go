@@ -34,7 +34,7 @@ func TestBuyVXC(t *testing.T) {
 		name           string
 		prompts        []string
 		expectedError  string
-		setupMock      func(*testing.T, *mockVXCService)
+		setupMock      func(*testing.T, *MockVXCService)
 		flags          map[string]string
 		flagsInt       map[string]int
 		flagsBool      map[string]bool
@@ -63,7 +63,7 @@ func TestBuyVXC(t *testing.T) {
 				"no",
 			},
 			expectedError: "",
-			setupMock: func(t *testing.T, m *mockVXCService) {
+			setupMock: func(t *testing.T, m *MockVXCService) {
 				m.buyVXCResponse = &megaport.BuyVXCResponse{
 					TechnicalServiceUID: "vxc-sample-uid",
 				}
@@ -103,7 +103,7 @@ func TestBuyVXC(t *testing.T) {
 		{
 			name:          "successful VXC purchase - flag mode",
 			expectedError: "",
-			setupMock: func(t *testing.T, m *mockVXCService) {
+			setupMock: func(t *testing.T, m *MockVXCService) {
 				m.buyVXCResponse = &megaport.BuyVXCResponse{
 					TechnicalServiceUID: "vxc-sample-uid",
 				}
@@ -156,7 +156,7 @@ func TestBuyVXC(t *testing.T) {
 		{
 			name:          "missing required fields - flag mode",
 			expectedError: "a-end-uid is required",
-			setupMock: func(t *testing.T, m *mockVXCService) {
+			setupMock: func(t *testing.T, m *MockVXCService) {
 				buildVXCRequestFromFlagsOrig := buildVXCRequestFromFlags
 				buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc megaport.VXCService) (*megaport.BuyVXCRequest, error) {
 					return nil, fmt.Errorf("a-end-uid is required")
@@ -176,7 +176,7 @@ func TestBuyVXC(t *testing.T) {
 		{
 			name:          "API error",
 			expectedError: "API error",
-			setupMock: func(t *testing.T, m *mockVXCService) {
+			setupMock: func(t *testing.T, m *MockVXCService) {
 				m.buyVXCResponse = &megaport.BuyVXCResponse{
 					TechnicalServiceUID: "",
 				}
@@ -221,7 +221,7 @@ func TestBuyVXC(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := &mockVXCService{}
+			mockService := &MockVXCService{}
 			if tt.setupMock != nil {
 				tt.setupMock(t, mockService)
 			}
@@ -311,7 +311,7 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 		jsonInput            string
 		jsonFile             string
 		existingTags         map[string]string
-		setupMock            func(*mockVXCService)
+		setupMock            func(*MockVXCService)
 		expectedError        string
 		expectedOutput       string
 		expectedCapturedTags map[string]string
@@ -327,7 +327,7 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 				"environment": "production",
 				"team":        "networking",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.ListVXCResourceTagsResult = map[string]string{
 					"environment": "staging",
 				}
@@ -350,7 +350,7 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 				"environment": "development",
 				"owner":       "john.doe@example.com",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.ListVXCResourceTagsResult = map[string]string{
 					"environment": "development",
 					"owner":       "john.doe@example.com",
@@ -367,7 +367,7 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 			name:      "error with invalid json",
 			vxcUID:    "vxc-789",
 			jsonInput: `{invalid json}`,
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.ListVXCResourceTagsResult = map[string]string{}
 			},
 			expectedError: "error parsing JSON",
@@ -380,7 +380,7 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 				"environment": "staging",
 			},
 			promptError: fmt.Errorf("user cancelled input"),
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.ListVXCResourceTagsResult = map[string]string{
 					"environment": "staging",
 				}
@@ -393,7 +393,7 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 			jsonInput: `{
 				"environment": "production"
 			}`,
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.ListVXCResourceTagsResult = map[string]string{}
 				m.UpdateVXCResourceTagsErr = fmt.Errorf("API error: unauthorized")
 			},
@@ -405,7 +405,7 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 			jsonInput: `{
 				"environment": "production"
 			}`,
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.ListVXCResourceTagsErr = fmt.Errorf("API error: resource not found")
 			},
 			expectedError: "failed to login or list existing resource tags",
@@ -418,7 +418,7 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 				"environment": "staging",
 				"team":        "networking",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.ListVXCResourceTagsResult = map[string]string{
 					"environment": "staging",
 					"team":        "networking",
@@ -430,7 +430,7 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 		{
 			name:   "no input provided",
 			vxcUID: "vxc-no-input",
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.ListVXCResourceTagsResult = map[string]string{}
 			},
 			expectedError: "no input provided",
@@ -439,7 +439,7 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := &mockVXCService{}
+			mockService := &MockVXCService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockService)
 			}
@@ -584,7 +584,7 @@ func TestListVXCs(t *testing.T) {
 	tests := []struct {
 		name           string
 		flags          map[string]string
-		setupMock      func(*mockVXCService)
+		setupMock      func(*MockVXCService)
 		loginError     bool
 		expectedError  string
 		expectedVXCs   []string
@@ -593,7 +593,7 @@ func TestListVXCs(t *testing.T) {
 	}{
 		{
 			name: "list all active VXCs",
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02", "production-vxc"},
@@ -602,7 +602,7 @@ func TestListVXCs(t *testing.T) {
 		},
 		{
 			name: "excludes CANCELLED status",
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02", "production-vxc"},
@@ -611,7 +611,7 @@ func TestListVXCs(t *testing.T) {
 		},
 		{
 			name: "excludes DECOMMISSIONING status",
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02", "production-vxc"},
@@ -623,7 +623,7 @@ func TestListVXCs(t *testing.T) {
 			flags: map[string]string{
 				"name": "vxc-demo-01",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01"},
@@ -635,7 +635,7 @@ func TestListVXCs(t *testing.T) {
 			flags: map[string]string{
 				"name": "demo",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02"},
@@ -647,7 +647,7 @@ func TestListVXCs(t *testing.T) {
 			flags: map[string]string{
 				"name": "PRODUCTION",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"production-vxc"},
@@ -659,7 +659,7 @@ func TestListVXCs(t *testing.T) {
 			flags: map[string]string{
 				"rate-limit": "500",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-02"},
@@ -671,7 +671,7 @@ func TestListVXCs(t *testing.T) {
 			flags: map[string]string{
 				"a-end-uid": "port-aaa",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01", "production-vxc"},
@@ -683,7 +683,7 @@ func TestListVXCs(t *testing.T) {
 			flags: map[string]string{
 				"b-end-uid": "port-bbb",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01"},
@@ -696,7 +696,7 @@ func TestListVXCs(t *testing.T) {
 				"name":      "demo",
 				"a-end-uid": "port-aaa",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01"},
@@ -709,7 +709,7 @@ func TestListVXCs(t *testing.T) {
 				"rate-limit": "1000",
 				"b-end-uid":  "port-bbb",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01"},
@@ -721,7 +721,7 @@ func TestListVXCs(t *testing.T) {
 			flags: map[string]string{
 				"include-inactive": "true",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02", "production-vxc", "test-vxc-decom", "cancelled-vxc", "decommissioning-vxc"},
@@ -734,7 +734,7 @@ func TestListVXCs(t *testing.T) {
 				"include-inactive": "true",
 				"name":             "decom",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"test-vxc-decom", "decommissioning-vxc"},
@@ -746,7 +746,7 @@ func TestListVXCs(t *testing.T) {
 			flags: map[string]string{
 				"name": "nonexistent-vxc",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{},
@@ -755,7 +755,7 @@ func TestListVXCs(t *testing.T) {
 		},
 		{
 			name: "empty API result",
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCResponse = []*megaport.VXC{}
 			},
 			expectedVXCs:   []string{},
@@ -764,7 +764,7 @@ func TestListVXCs(t *testing.T) {
 		},
 		{
 			name: "nil API result",
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCResponse = nil
 			},
 			expectedVXCs:   []string{},
@@ -776,7 +776,7 @@ func TestListVXCs(t *testing.T) {
 			flags: map[string]string{
 				"name": "vxc-demo-01",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01"},
@@ -788,7 +788,7 @@ func TestListVXCs(t *testing.T) {
 			flags: map[string]string{
 				"name": "vxc-demo-01",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01"},
@@ -797,7 +797,7 @@ func TestListVXCs(t *testing.T) {
 		},
 		{
 			name: "API error",
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.listVXCErr = fmt.Errorf("API error: service unavailable")
 			},
 			expectedError: "API error: service unavailable",
@@ -813,7 +813,7 @@ func TestListVXCs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := &mockVXCService{}
+			mockService := &MockVXCService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockService)
 			}
@@ -916,7 +916,7 @@ func TestGetVXCStatus(t *testing.T) {
 	tests := []struct {
 		name           string
 		vxcUID         string
-		setupMock      func(*mockVXCService)
+		setupMock      func(*MockVXCService)
 		expectedError  string
 		expectedOutput string
 		outputFormat   string
@@ -924,7 +924,7 @@ func TestGetVXCStatus(t *testing.T) {
 		{
 			name:   "successful status retrieval - table format",
 			vxcUID: "vxc-123abc",
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.getVXCResponse = &megaport.VXC{
 					UID:                "vxc-123abc",
 					Name:               "Test VXC",
@@ -944,7 +944,7 @@ func TestGetVXCStatus(t *testing.T) {
 		{
 			name:   "successful status retrieval - json format",
 			vxcUID: "vxc-123abc",
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.getVXCResponse = &megaport.VXC{
 					UID:                "vxc-123abc",
 					Name:               "Test VXC",
@@ -964,7 +964,7 @@ func TestGetVXCStatus(t *testing.T) {
 		{
 			name:   "VXC not found",
 			vxcUID: "vxc-notfound",
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.getVXCError = fmt.Errorf("VXC not found")
 			},
 			expectedError: "error getting VXC status",
@@ -973,7 +973,7 @@ func TestGetVXCStatus(t *testing.T) {
 		{
 			name:   "API error",
 			vxcUID: "vxc-error",
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.getVXCError = fmt.Errorf("API error")
 			},
 			expectedError: "API error",
@@ -982,7 +982,7 @@ func TestGetVXCStatus(t *testing.T) {
 		{
 			name:   "nil VXC returned without error",
 			vxcUID: "vxc-nil",
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.forceNilGetVXC = true
 			},
 			expectedError: "no VXC found",
@@ -992,7 +992,7 @@ func TestGetVXCStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := &mockVXCService{}
+			mockService := &MockVXCService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockService)
 			}
@@ -1263,7 +1263,7 @@ func TestGetVXC(t *testing.T) {
 	tests := []struct {
 		name           string
 		vxcUID         string
-		setupMock      func(*mockVXCService)
+		setupMock      func(*MockVXCService)
 		loginError     bool
 		outputFormat   string
 		expectedError  string
@@ -1272,7 +1272,7 @@ func TestGetVXC(t *testing.T) {
 		{
 			name:   "success table format",
 			vxcUID: "vxc-123",
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.getVXCResponse = &megaport.VXC{
 					UID:  "vxc-123",
 					Name: "Test VXC",
@@ -1292,7 +1292,7 @@ func TestGetVXC(t *testing.T) {
 		{
 			name:   "success JSON format",
 			vxcUID: "vxc-456",
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.getVXCResponse = &megaport.VXC{
 					UID:  "vxc-456",
 					Name: "JSON VXC",
@@ -1312,7 +1312,7 @@ func TestGetVXC(t *testing.T) {
 		{
 			name:   "API error",
 			vxcUID: "vxc-error",
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.getVXCError = fmt.Errorf("service unavailable")
 			},
 			outputFormat:  "table",
@@ -1329,7 +1329,7 @@ func TestGetVXC(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := &mockVXCService{}
+			mockService := &MockVXCService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockService)
 			}
@@ -1401,7 +1401,7 @@ func TestUpdateVXC(t *testing.T) {
 		name           string
 		vxcUID         string
 		flags          map[string]string
-		setupMock      func(*mockVXCService)
+		setupMock      func(*MockVXCService)
 		loginError     bool
 		expectedError  string
 		expectedOutput string
@@ -1412,7 +1412,7 @@ func TestUpdateVXC(t *testing.T) {
 			flags: map[string]string{
 				"name": "Updated VXC",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.getVXCResponse = &megaport.VXC{
 					UID:                "vxc-update-1",
 					Name:               "Original VXC",
@@ -1446,7 +1446,7 @@ func TestUpdateVXC(t *testing.T) {
 			flags: map[string]string{
 				"json": `{"name":"JSON Updated VXC"}`,
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.getVXCResponse = &megaport.VXC{
 					UID:                "vxc-update-2",
 					Name:               "Original VXC",
@@ -1489,7 +1489,7 @@ func TestUpdateVXC(t *testing.T) {
 			flags: map[string]string{
 				"name": "Updated VXC",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.getVXCError = fmt.Errorf("VXC not found")
 			},
 			expectedError: "failed to retrieve original VXC details",
@@ -1500,7 +1500,7 @@ func TestUpdateVXC(t *testing.T) {
 			flags: map[string]string{
 				"name": "Updated VXC",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.getVXCResponse = &megaport.VXC{
 					UID:                "vxc-update-err",
 					Name:               "Original VXC",
@@ -1524,7 +1524,7 @@ func TestUpdateVXC(t *testing.T) {
 			name:   "no fields provided",
 			vxcUID: "vxc-update-no-fields",
 			flags:  map[string]string{},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.getVXCResponse = &megaport.VXC{
 					UID:                "vxc-update-no-fields",
 					Name:               "Original VXC",
@@ -1539,7 +1539,7 @@ func TestUpdateVXC(t *testing.T) {
 			flags: map[string]string{
 				"name": "Updated VXC",
 			},
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.getVXCResponse = &megaport.VXC{
 					UID:                "vxc-build-err",
 					Name:               "Original VXC",
@@ -1563,7 +1563,7 @@ func TestUpdateVXC(t *testing.T) {
 			updateVXCFunc = originalUpdateVXCFunc
 			getVXCFunc = originalGetVXCFunc
 
-			mockService := &mockVXCService{}
+			mockService := &MockVXCService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockService)
 			}
@@ -1722,7 +1722,7 @@ func TestDeleteVXC(t *testing.T) {
 					return nil, fmt.Errorf("authentication failed")
 				}
 			} else {
-				mockService := &mockVXCService{}
+				mockService := &MockVXCService{}
 				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.VXCService = mockService
@@ -1764,7 +1764,7 @@ func TestListVXCResourceTags(t *testing.T) {
 	tests := []struct {
 		name           string
 		vxcUID         string
-		setupMock      func(*mockVXCService)
+		setupMock      func(*MockVXCService)
 		loginError     bool
 		outputFormat   string
 		expectedError  string
@@ -1773,7 +1773,7 @@ func TestListVXCResourceTags(t *testing.T) {
 		{
 			name:   "success with tags",
 			vxcUID: "vxc-tags-1",
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.ListVXCResourceTagsResult = map[string]string{
 					"environment": "production",
 					"team":        "networking",
@@ -1785,7 +1785,7 @@ func TestListVXCResourceTags(t *testing.T) {
 		{
 			name:   "API error",
 			vxcUID: "vxc-tags-err",
-			setupMock: func(m *mockVXCService) {
+			setupMock: func(m *MockVXCService) {
 				m.ListVXCResourceTagsErr = fmt.Errorf("tags service unavailable")
 			},
 			outputFormat:  "table",
@@ -1802,7 +1802,7 @@ func TestListVXCResourceTags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := &mockVXCService{}
+			mockService := &MockVXCService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockService)
 			}
