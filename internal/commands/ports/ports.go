@@ -145,7 +145,6 @@ func buildPortManagementCommands(rootCmd *cobra.Command) (list, get, status, del
 		WithOptionalFlag("location-id", "Filter ports by location ID").
 		WithOptionalFlag("port-speed", "Filter ports by port speed").
 		WithOptionalFlag("port-name", "Filter ports by port name").
-		WithOptionalFlag("lag-only", "Show only LAG ports").
 		WithOptionalFlag("include-inactive", "Include ports in CANCELLED, DECOMMISSIONED, or DECOMMISSIONING states").
 		WithExample("megaport-cli ports list").
 		WithExample("megaport-cli ports list --location-id 1").

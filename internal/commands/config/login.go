@@ -102,10 +102,6 @@ var LoginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 		return nil, fmt.Errorf("megaport API secret key not provided. Configure an active profile or set MEGAPORT_SECRET_KEY environment variable")
 	}
 
-	if env == "" {
-		env = "production"
-	}
-
 	var envOpt megaport.ClientOpt
 	switch env {
 	case "production":
