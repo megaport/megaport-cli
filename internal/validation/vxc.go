@@ -208,7 +208,7 @@ func ValidateAWSPartnerConfig(config *megaport.VXCPartnerConfigAWS) error {
 		}
 	}
 	if !isValidType {
-		return NewValidationError("AWS connect type", config.ConnectType, "must be 'AWS', or 'AWSHC'")
+		return NewValidationError("AWS connect type", config.ConnectType, "must be 'AWS', 'AWSHC', 'private', or 'public'")
 	}
 
 	if config.OwnerAccount == "" {
