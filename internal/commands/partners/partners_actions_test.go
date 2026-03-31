@@ -7,22 +7,22 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/testutil"
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestFindPartners(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	originalPrompt := utils.Prompt
 	origPrintPartnersFunc := printPartnersFunc
 
 	defer func() {
 		printPartnersFunc = origPrintPartnersFunc
 		utils.Prompt = originalPrompt
-		config.LoginFunc = originalLoginFunc
+		cleanup()
 	}()
 
 	tests := []struct {
@@ -244,25 +244,24 @@ func TestListPartners(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			originalLoginFunc := config.LoginFunc
-			origPrintPartnersFunc := printPartnersFunc
-			defer func() {
-				config.LoginFunc = originalLoginFunc
-				printPartnersFunc = origPrintPartnersFunc
-			}()
-
 			mockService := &MockPartnerService{
 				listPartnersResponse: tt.partners,
 				listPartnersErr:      tt.partnersErr,
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				if tt.loginErr != nil {
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+				c.PartnerService = mockService
+			})
+			origPrintPartnersFunc := printPartnersFunc
+			defer func() {
+				printPartnersFunc = origPrintPartnersFunc
+				cleanup()
+			}()
+
+			if tt.loginErr != nil {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 					return nil, tt.loginErr
 				}
-				return &megaport.Client{
-					PartnerService: mockService,
-				}, nil
 			}
 
 			var capturedPartners []*megaport.PartnerMegaport
@@ -271,18 +270,14 @@ func TestListPartners(t *testing.T) {
 				return nil
 			}
 
-			cmd := &cobra.Command{
-				Use: "list",
-			}
+			cmd := testutil.NewCommand("list", nil)
 			cmd.Flags().String("product-name", "", "")
 			cmd.Flags().String("connect-type", "", "")
 			cmd.Flags().String("company-name", "", "")
 			cmd.Flags().Int("location-id", 0, "")
 			cmd.Flags().String("diversity-zone", "", "")
 
-			for k, v := range tt.flags {
-				require.NoError(t, cmd.Flags().Set(k, v))
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {

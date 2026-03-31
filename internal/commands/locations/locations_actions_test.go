@@ -12,6 +12,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/testutil"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/stretchr/testify/require"
 )
@@ -75,26 +76,23 @@ func TestListLocationsFunc(t *testing.T) {
 
 	mockSvc.ListLocationsV3Result = testLocationsV3
 
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.LocationService = mockSvc
+	})
+	defer cleanup()
+
 	originalListLocationsFunc := listLocationsFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		listLocationsFunc = originalListLocationsFunc
 	}()
 
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		testClient := &megaport.Client{}
-		testClient.LocationService = mockSvc
-		return testClient, nil
+	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
+		return client.LocationService.ListLocationsV3(ctx)
 	}
 
 	testClient, err := config.LoginFunc(context.Background())
 	if err != nil {
 		t.Fatalf("Failed to login: %v", err)
-	}
-
-	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
-		return client.LocationService.ListLocationsV3(ctx)
 	}
 
 	locations, err := listLocationsFunc(context.Background(), testClient)
@@ -113,27 +111,23 @@ func TestListLocationsFuncError(t *testing.T) {
 
 	mockSvc.ListLocationsV3Err = expectedError
 
-	originalListLocationsFunc := listLocationsFunc
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.LocationService = mockSvc
+	})
+	defer cleanup()
 
+	originalListLocationsFunc := listLocationsFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		listLocationsFunc = originalListLocationsFunc
 	}()
 
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		testClient := &megaport.Client{}
-		testClient.LocationService = mockSvc
-		return testClient, nil
+	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
+		return client.LocationService.ListLocationsV3(ctx)
 	}
 
 	testClient, err := config.LoginFunc(context.Background())
 	if err != nil {
 		t.Fatalf("Failed to login: %v", err)
-	}
-
-	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
-		return client.LocationService.ListLocationsV3(ctx)
 	}
 
 	locations, err := listLocationsFunc(context.Background(), testClient)
@@ -198,33 +192,31 @@ func TestListLocationsCommand(t *testing.T) {
 
 	mockSvc.ListLocationsV3Result = testLocationsV3
 
-	originalListLocationsFunc := listLocationsFunc
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.LocationService = mockSvc
+	})
+	defer cleanup()
 
+	originalListLocationsFunc := listLocationsFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		listLocationsFunc = originalListLocationsFunc
 	}()
-
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		testClient := &megaport.Client{}
-		testClient.LocationService = mockSvc
-		return testClient, nil
-	}
 
 	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
 		return client.LocationService.ListLocationsV3(ctx)
 	}
 
+	newListCmd := func() *cobra.Command {
+		cmd := &cobra.Command{Use: "list"}
+		cmd.Flags().String("metro", "", "Filter by metro")
+		cmd.Flags().String("country", "", "Filter by country")
+		cmd.Flags().String("name", "", "Filter by name")
+		return cmd
+	}
+
 	t.Run("NoFilters", func(t *testing.T) {
 		output := output.CaptureOutput(func() {
-			cmd := &cobra.Command{
-				Use: "list",
-			}
-			cmd.Flags().String("metro", "", "Filter by metro")
-			cmd.Flags().String("country", "", "Filter by country")
-			cmd.Flags().String("name", "", "Filter by name")
-
+			cmd := newListCmd()
 			err := ListLocations(cmd, []string{}, true, "json")
 			assert.NoError(t, err)
 		})
@@ -236,17 +228,8 @@ func TestListLocationsCommand(t *testing.T) {
 
 	t.Run("FilterByMetro", func(t *testing.T) {
 		output := output.CaptureOutput(func() {
-			cmd := &cobra.Command{
-				Use: "list",
-			}
-			cmd.Flags().String("metro", "", "Filter by metro")
-			cmd.Flags().String("country", "", "Filter by country")
-			cmd.Flags().String("name", "", "Filter by name")
-
-			if err := cmd.Flags().Set("metro", "New York"); err != nil {
-				t.Fatalf("Failed to set flag: %v", err)
-			}
-
+			cmd := newListCmd()
+			testutil.SetFlags(t, cmd, map[string]string{"metro": "New York"})
 			err := ListLocations(cmd, []string{}, true, "json")
 			assert.NoError(t, err)
 		})
@@ -258,17 +241,8 @@ func TestListLocationsCommand(t *testing.T) {
 
 	t.Run("FilterByCountry", func(t *testing.T) {
 		output := output.CaptureOutput(func() {
-			cmd := &cobra.Command{
-				Use: "list",
-			}
-			cmd.Flags().String("metro", "", "Filter by metro")
-			cmd.Flags().String("country", "", "Filter by country")
-			cmd.Flags().String("name", "", "Filter by name")
-
-			if err := cmd.Flags().Set("country", "United Kingdom"); err != nil {
-				t.Fatalf("Failed to set flag: %v", err)
-			}
-
+			cmd := newListCmd()
+			testutil.SetFlags(t, cmd, map[string]string{"country": "United Kingdom"})
 			err := ListLocations(cmd, []string{}, true, "json")
 			assert.NoError(t, err)
 		})
@@ -280,17 +254,8 @@ func TestListLocationsCommand(t *testing.T) {
 
 	t.Run("FilterByName", func(t *testing.T) {
 		output := output.CaptureOutput(func() {
-			cmd := &cobra.Command{
-				Use: "list",
-			}
-			cmd.Flags().String("metro", "", "Filter by metro")
-			cmd.Flags().String("country", "", "Filter by country")
-			cmd.Flags().String("name", "", "Filter by name")
-
-			if err := cmd.Flags().Set("name", "Sydney Data Center"); err != nil {
-				t.Fatalf("Failed to set flag: %v", err)
-			}
-
+			cmd := newListCmd()
+			testutil.SetFlags(t, cmd, map[string]string{"name": "Sydney Data Center"})
 			err := ListLocations(cmd, []string{}, true, "json")
 			assert.NoError(t, err)
 		})
@@ -302,17 +267,8 @@ func TestListLocationsCommand(t *testing.T) {
 
 	t.Run("NoMatchingLocations", func(t *testing.T) {
 		output := output.CaptureOutput(func() {
-			cmd := &cobra.Command{
-				Use: "list",
-			}
-			cmd.Flags().String("metro", "", "Filter by metro")
-			cmd.Flags().String("country", "", "Filter by country")
-			cmd.Flags().String("name", "", "Filter by name")
-
-			if err := cmd.Flags().Set("name", "Non-existent Location"); err != nil {
-				t.Fatalf("Failed to set flag: %v", err)
-			}
-
+			cmd := newListCmd()
+			testutil.SetFlags(t, cmd, map[string]string{"name": "Non-existent Location"})
 			err := ListLocations(cmd, []string{}, true, "table")
 			assert.NoError(t, err)
 		})
@@ -401,10 +357,11 @@ func TestGetLocation(t *testing.T) {
 			mockSvc := setupTestEnvironment()
 			tt.setupMock(mockSvc)
 
-			originalLoginFunc := config.LoginFunc
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+			defer cleanup()
+
 			originalListLocationsFunc := listLocationsFunc
 			defer func() {
-				config.LoginFunc = originalLoginFunc
 				listLocationsFunc = originalListLocationsFunc
 			}()
 
@@ -421,9 +378,7 @@ func TestGetLocation(t *testing.T) {
 				return client.LocationService.ListLocationsV3(ctx)
 			}
 
-			cmd := &cobra.Command{
-				Use: "get",
-			}
+			cmd := testutil.NewCommand("get", nil)
 
 			defer output.SetOutputFormat("table")
 
@@ -489,10 +444,11 @@ func TestListCountries(t *testing.T) {
 			mockSvc := setupTestEnvironment()
 			tt.setupMock(mockSvc)
 
-			originalLoginFunc := config.LoginFunc
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+			defer cleanup()
+
 			originalListCountriesFunc := listCountriesFunc
 			defer func() {
-				config.LoginFunc = originalLoginFunc
 				listCountriesFunc = originalListCountriesFunc
 			}()
 
@@ -509,7 +465,7 @@ func TestListCountries(t *testing.T) {
 				return client.LocationService.ListCountries(ctx)
 			}
 
-			cmd := &cobra.Command{Use: "list-countries"}
+			cmd := testutil.NewCommand("list-countries", nil)
 			defer output.SetOutputFormat("table")
 
 			var err error
@@ -566,10 +522,11 @@ func TestListMarketCodes(t *testing.T) {
 			mockSvc := setupTestEnvironment()
 			tt.setupMock(mockSvc)
 
-			originalLoginFunc := config.LoginFunc
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+			defer cleanup()
+
 			originalListMarketCodesFunc := listMarketCodesFunc
 			defer func() {
-				config.LoginFunc = originalLoginFunc
 				listMarketCodesFunc = originalListMarketCodesFunc
 			}()
 
@@ -586,7 +543,7 @@ func TestListMarketCodes(t *testing.T) {
 				return client.LocationService.ListMarketCodes(ctx)
 			}
 
-			cmd := &cobra.Command{Use: "list-market-codes"}
+			cmd := testutil.NewCommand("list-market-codes", nil)
 			defer output.SetOutputFormat("table")
 
 			var err error
@@ -678,10 +635,11 @@ func TestSearchLocations(t *testing.T) {
 			mockSvc := setupTestEnvironment()
 			tt.setupMock(mockSvc)
 
-			originalLoginFunc := config.LoginFunc
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+			defer cleanup()
+
 			originalSearchLocationsFunc := searchLocationsFunc
 			defer func() {
-				config.LoginFunc = originalLoginFunc
 				searchLocationsFunc = originalSearchLocationsFunc
 			}()
 
@@ -698,7 +656,7 @@ func TestSearchLocations(t *testing.T) {
 				return client.LocationService.GetLocationByNameFuzzyV3(ctx, search)
 			}
 
-			cmd := &cobra.Command{Use: "search"}
+			cmd := testutil.NewCommand("search", nil)
 			require.Len(t, tt.args, 1)
 			defer output.SetOutputFormat("table")
 

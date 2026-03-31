@@ -1,12 +1,11 @@
 package billing_market
 
 import (
-	"context"
 	"strings"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
-	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/testutil"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -163,20 +162,14 @@ func TestBillingMarketOutput_CSV(t *testing.T) {
 }
 
 func TestGetBillingMarketsAction(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
-
 	mockSvc := &MockBillingMarketService{
 		GetBillingMarketsResult: mockBillingMarkets,
 	}
 
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{}
-		client.BillingMarketService = mockSvc
-		return client, nil
-	}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.BillingMarketService = mockSvc
+	})
+	defer cleanup()
 
 	cmd := &cobra.Command{Use: "get"}
 
@@ -192,20 +185,14 @@ func TestGetBillingMarketsAction(t *testing.T) {
 }
 
 func TestGetBillingMarketsAction_Error(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
-
 	mockSvc := &MockBillingMarketService{
 		GetBillingMarketsError: assert.AnError,
 	}
 
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{}
-		client.BillingMarketService = mockSvc
-		return client, nil
-	}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.BillingMarketService = mockSvc
+	})
+	defer cleanup()
 
 	cmd := &cobra.Command{Use: "get"}
 
@@ -215,20 +202,14 @@ func TestGetBillingMarketsAction_Error(t *testing.T) {
 }
 
 func TestGetBillingMarketsAction_Empty(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
-
 	mockSvc := &MockBillingMarketService{
 		GetBillingMarketsResult: []*megaport.BillingMarket{},
 	}
 
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{}
-		client.BillingMarketService = mockSvc
-		return client, nil
-	}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.BillingMarketService = mockSvc
+	})
+	defer cleanup()
 
 	cmd := &cobra.Command{Use: "get"}
 
@@ -237,18 +218,12 @@ func TestGetBillingMarketsAction_Empty(t *testing.T) {
 }
 
 func TestSetBillingMarketAction(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
-
 	mockSvc := &MockBillingMarketService{}
 
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{}
-		client.BillingMarketService = mockSvc
-		return client, nil
-	}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.BillingMarketService = mockSvc
+	})
+	defer cleanup()
 
 	cmd := &cobra.Command{Use: "set"}
 	cmd.Flags().String("currency", "", "")
@@ -266,17 +241,19 @@ func TestSetBillingMarketAction(t *testing.T) {
 	cmd.Flags().String("tax-number", "", "")
 	cmd.Flags().Int("first-party-id", 0, "")
 
-	_ = cmd.Flags().Set("currency", "USD")
-	_ = cmd.Flags().Set("language", "en")
-	_ = cmd.Flags().Set("billing-contact-name", "John Doe")
-	_ = cmd.Flags().Set("billing-contact-phone", "+1234567890")
-	_ = cmd.Flags().Set("billing-contact-email", "john@example.com")
-	_ = cmd.Flags().Set("address1", "123 Main St")
-	_ = cmd.Flags().Set("city", "New York")
-	_ = cmd.Flags().Set("state", "NY")
-	_ = cmd.Flags().Set("postcode", "10001")
-	_ = cmd.Flags().Set("country", "US")
-	_ = cmd.Flags().Set("first-party-id", "1558")
+	testutil.SetFlags(t, cmd, map[string]string{
+		"currency":              "USD",
+		"language":              "en",
+		"billing-contact-name":  "John Doe",
+		"billing-contact-phone": "+1234567890",
+		"billing-contact-email": "john@example.com",
+		"address1":              "123 Main St",
+		"city":                  "New York",
+		"state":                 "NY",
+		"postcode":              "10001",
+		"country":               "US",
+		"first-party-id":        "1558",
+	})
 
 	err := SetBillingMarket(cmd, []string{}, true)
 	assert.NoError(t, err)
@@ -297,18 +274,12 @@ func TestSetBillingMarketAction(t *testing.T) {
 }
 
 func TestSetBillingMarketAction_WithOptionalFields(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
-
 	mockSvc := &MockBillingMarketService{}
 
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{}
-		client.BillingMarketService = mockSvc
-		return client, nil
-	}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.BillingMarketService = mockSvc
+	})
+	defer cleanup()
 
 	cmd := &cobra.Command{Use: "set"}
 	cmd.Flags().String("currency", "", "")
@@ -326,20 +297,22 @@ func TestSetBillingMarketAction_WithOptionalFields(t *testing.T) {
 	cmd.Flags().String("tax-number", "", "")
 	cmd.Flags().Int("first-party-id", 0, "")
 
-	_ = cmd.Flags().Set("currency", "AUD")
-	_ = cmd.Flags().Set("language", "en")
-	_ = cmd.Flags().Set("billing-contact-name", "Jane Smith")
-	_ = cmd.Flags().Set("billing-contact-phone", "+61400000000")
-	_ = cmd.Flags().Set("billing-contact-email", "jane@example.com")
-	_ = cmd.Flags().Set("address1", "456 George St")
-	_ = cmd.Flags().Set("address2", "Level 5")
-	_ = cmd.Flags().Set("city", "Sydney")
-	_ = cmd.Flags().Set("state", "NSW")
-	_ = cmd.Flags().Set("postcode", "2000")
-	_ = cmd.Flags().Set("country", "AU")
-	_ = cmd.Flags().Set("po-number", "PO-12345")
-	_ = cmd.Flags().Set("tax-number", "ABN-123456")
-	_ = cmd.Flags().Set("first-party-id", "808")
+	testutil.SetFlags(t, cmd, map[string]string{
+		"currency":              "AUD",
+		"language":              "en",
+		"billing-contact-name":  "Jane Smith",
+		"billing-contact-phone": "+61400000000",
+		"billing-contact-email": "jane@example.com",
+		"address1":              "456 George St",
+		"address2":              "Level 5",
+		"city":                  "Sydney",
+		"state":                 "NSW",
+		"postcode":              "2000",
+		"country":               "AU",
+		"po-number":             "PO-12345",
+		"tax-number":            "ABN-123456",
+		"first-party-id":        "808",
+	})
 
 	err := SetBillingMarket(cmd, []string{}, true)
 	assert.NoError(t, err)
@@ -381,9 +354,11 @@ func TestBuildSetBillingMarketRequest_InvalidFirstPartyID(t *testing.T) {
 			cmd.Flags().String("tax-number", "", "")
 			cmd.Flags().Int("first-party-id", 0, "")
 
-			_ = cmd.Flags().Set("currency", "USD")
-			_ = cmd.Flags().Set("country", "US")
-			_ = cmd.Flags().Set("first-party-id", tt.firstPartyID)
+			testutil.SetFlags(t, cmd, map[string]string{
+				"currency":       "USD",
+				"country":        "US",
+				"first-party-id": tt.firstPartyID,
+			})
 
 			req, err := buildSetBillingMarketRequest(cmd)
 			assert.Nil(t, req)
@@ -394,20 +369,14 @@ func TestBuildSetBillingMarketRequest_InvalidFirstPartyID(t *testing.T) {
 }
 
 func TestSetBillingMarketAction_Error(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
-
 	mockSvc := &MockBillingMarketService{
 		SetBillingMarketError: assert.AnError,
 	}
 
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{}
-		client.BillingMarketService = mockSvc
-		return client, nil
-	}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.BillingMarketService = mockSvc
+	})
+	defer cleanup()
 
 	cmd := &cobra.Command{Use: "set"}
 	cmd.Flags().String("currency", "", "")
@@ -425,9 +394,11 @@ func TestSetBillingMarketAction_Error(t *testing.T) {
 	cmd.Flags().String("tax-number", "", "")
 	cmd.Flags().Int("first-party-id", 0, "")
 
-	_ = cmd.Flags().Set("currency", "USD")
-	_ = cmd.Flags().Set("country", "US")
-	_ = cmd.Flags().Set("first-party-id", "1558")
+	testutil.SetFlags(t, cmd, map[string]string{
+		"currency":       "USD",
+		"country":        "US",
+		"first-party-id": "1558",
+	})
 
 	err := SetBillingMarket(cmd, []string{}, true)
 	assert.Error(t, err)

@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/testutil"
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -108,21 +108,14 @@ func TestFilterMVEImages(t *testing.T) {
 	}
 }
 func TestListMVEImages(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
-
 	mockService := &MockMVEService{
 		ListMVEImagesResult: testMVEImages,
 	}
 
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{
-			MVEService: mockService,
-		}
-		return client, nil
-	}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.MVEService = mockService
+	})
+	defer cleanup()
 
 	tests := []struct {
 		name          string
@@ -228,21 +221,14 @@ func TestListMVEImages(t *testing.T) {
 }
 
 func TestListAvailableMVESizes(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
-
 	mockService := &MockMVEService{
 		ListAvailableMVESizesResult: testMVESizes,
 	}
 
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{
-			MVEService: mockService,
-		}
-		return client, nil
-	}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.MVEService = mockService
+	})
+	defer cleanup()
 
 	rootCmd := &cobra.Command{Use: "megaport"}
 	mveCmd := &cobra.Command{Use: "mve"}
@@ -285,10 +271,8 @@ func TestListAvailableMVESizes(t *testing.T) {
 
 func TestUpdateMVE(t *testing.T) {
 	originalPrompt := utils.ResourcePrompt
-	originalLoginFunc := config.LoginFunc
 	defer func() {
 		utils.ResourcePrompt = originalPrompt
-		config.LoginFunc = originalLoginFunc
 	}()
 
 	mockService := &MockMVEService{
@@ -296,12 +280,11 @@ func TestUpdateMVE(t *testing.T) {
 			Name: "Mock MVE",
 		},
 	}
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{
-			MVEService: mockService,
-		}
-		return client, nil
-	}
+
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.MVEService = mockService
+	})
+	defer cleanup()
 
 	tests := []struct {
 		name            string
@@ -454,10 +437,7 @@ func TestUpdateMVE(t *testing.T) {
 			cmd.Flags().String("cost-centre", "", "")
 			cmd.Flags().Int("contract-term", 0, "")
 
-			for flag, value := range tt.flags {
-				err := cmd.Flags().Set(flag, value)
-				assert.NoError(t, err)
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
 			output := output.CaptureOutput(func() {
@@ -480,10 +460,10 @@ func TestUpdateMVE(t *testing.T) {
 }
 
 func TestDeleteMVE(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
 	originalConfirmPrompt := utils.ConfirmPrompt
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer func() {
-		config.LoginFunc = originalLoginFunc
+		cleanup()
 		utils.ConfirmPrompt = originalConfirmPrompt
 	}()
 
@@ -603,19 +583,16 @@ func TestDeleteMVE(t *testing.T) {
 
 func TestBuyMVE(t *testing.T) {
 	originalPrompt := utils.ResourcePrompt
-	originalLoginFunc := config.LoginFunc
 	defer func() {
 		utils.ResourcePrompt = originalPrompt
-		config.LoginFunc = originalLoginFunc
 	}()
 
 	mockService := &MockMVEService{}
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{
-			MVEService: mockService,
-		}
-		return client, nil
-	}
+
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.MVEService = mockService
+	})
+	defer cleanup()
 
 	tests := []struct {
 		name            string
@@ -846,10 +823,7 @@ func TestBuyMVE(t *testing.T) {
 			cmd.Flags().String("vendor-config", "", "")
 			cmd.Flags().String("vnics", "", "")
 
-			for flag, value := range tt.flags {
-				err := cmd.Flags().Set(flag, value)
-				assert.NoError(t, err)
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
 			output := output.CaptureOutput(func() {
@@ -872,10 +846,8 @@ func TestBuyMVE(t *testing.T) {
 }
 
 func TestListMVEsCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	mves := []*megaport.MVE{
 		{
@@ -1029,20 +1001,7 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 			cmd.Flags().String("name", "", "")
 			cmd.Flags().String("output", tt.outputFormat, "")
 
-			for flag, value := range tt.flags {
-				switch flag {
-				case "include-inactive":
-					boolVal, _ := strconv.ParseBool(value)
-					err := cmd.Flags().Set(flag, strconv.FormatBool(boolVal))
-					assert.NoError(t, err)
-				case "location-id":
-					err := cmd.Flags().Set(flag, value)
-					assert.NoError(t, err)
-				default:
-					err := cmd.Flags().Set(flag, value)
-					assert.NoError(t, err)
-				}
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 			err := cmd.Flags().Set("output", tt.outputFormat)
 			assert.NoError(t, err)
 
@@ -1072,10 +1031,8 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 }
 
 func TestListMVEResourceTagsCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name          string
@@ -1183,10 +1140,10 @@ func TestListMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 }
 
 func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
 	originalResourcePrompt := utils.UpdateResourceTagsPrompt
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer func() {
-		config.LoginFunc = originalLoginFunc
+		cleanup()
 		utils.UpdateResourceTagsPrompt = originalResourcePrompt
 	}()
 
@@ -1397,10 +1354,8 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 }
 
 func TestGetMVEStatus(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name           string
@@ -1516,10 +1471,8 @@ func TestGetMVEStatus(t *testing.T) {
 }
 
 func TestGetMVE(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name           string

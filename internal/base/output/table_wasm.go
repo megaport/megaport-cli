@@ -107,7 +107,7 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 				MiddleHorizontal: "─",
 				MiddleSeparator:  "┼",
 				MiddleVertical:   "│",
-				PaddingLeft:      " ",  // Single space for compact display
+				PaddingLeft:      " ", // Single space for compact display
 				PaddingRight:     " ",
 				Right:            "│",
 				RightSeparator:   "┤",
@@ -118,15 +118,15 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 			},
 			Color: prettytable.ColorOptions{
 				// Bright, readable colors for dark terminal background
-				Header:       text.Colors{text.FgHiCyan, text.Bold},     // Bright cyan text, no background
-				Row:          text.Colors{text.FgHiWhite},               // Bright white for rows
-				RowAlternate: text.Colors{text.FgCyan},                  // Cyan for alternating rows
-				Footer:       text.Colors{text.FgHiCyan, text.Bold},     // Bright cyan footer
-				Border:       text.Colors{text.FgBlue},                  // Blue borders for subtle frame
+				Header:       text.Colors{text.FgHiCyan, text.Bold}, // Bright cyan text, no background
+				Row:          text.Colors{text.FgHiWhite},           // Bright white for rows
+				RowAlternate: text.Colors{text.FgCyan},              // Cyan for alternating rows
+				Footer:       text.Colors{text.FgHiCyan, text.Bold}, // Bright cyan footer
+				Border:       text.Colors{text.FgBlue},              // Blue borders for subtle frame
 			},
 			Format: prettytable.FormatOptions{
 				Footer: text.FormatDefault,
-				Header: text.FormatUpper,  // Uppercase headers for clarity
+				Header: text.FormatUpper, // Uppercase headers for clarity
 				Row:    text.FormatDefault,
 			},
 			Options: prettytable.Options{
@@ -134,7 +134,7 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 				SeparateColumns: true,
 				SeparateFooter:  true,
 				SeparateHeader:  true,
-				SeparateRows:    false,  // No row separation for compact display
+				SeparateRows:    false, // No row separation for compact display
 			},
 		}
 		t.SetStyle(megaportStyle)

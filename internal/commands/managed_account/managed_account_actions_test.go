@@ -7,23 +7,16 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/testutil"
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
-func testCommandAdapter(fn func(cmd *cobra.Command, args []string, noColor bool) error) func(cmd *cobra.Command, args []string) error {
-	return func(cmd *cobra.Command, args []string) error {
-		return fn(cmd, args, true)
-	}
-}
-
 func TestListManagedAccounts(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	testAccounts := []*megaport.ManagedAccount{
 		{
@@ -182,22 +175,14 @@ func TestListManagedAccounts(t *testing.T) {
 				}
 			}
 
-			cmd := &cobra.Command{
-				Use: "list",
-				RunE: func(cmd *cobra.Command, args []string) error {
-					return ListManagedAccounts(cmd, args, true, tt.outputFormat)
-				},
-			}
+			cmd := testutil.NewCommand("list", func(cmd *cobra.Command, args []string) error {
+				return ListManagedAccounts(cmd, args, true, tt.outputFormat)
+			})
 
 			cmd.Flags().String("account-name", "", "Filter by account name")
 			cmd.Flags().String("account-ref", "", "Filter by account ref")
 
-			for flagName, flagValue := range tt.flags {
-				err := cmd.Flags().Set(flagName, flagValue)
-				if err != nil {
-					t.Fatalf("Failed to set %s flag: %v", flagName, err)
-				}
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
@@ -242,10 +227,10 @@ func TestListManagedAccounts(t *testing.T) {
 }
 
 func TestGetManagedAccount(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	originalGetFunc := getManagedAccountFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		getManagedAccountFunc = originalGetFunc
 	}()
 
@@ -369,12 +354,9 @@ func TestGetManagedAccount(t *testing.T) {
 				return mockService.GetManagedAccount(ctx, companyUID, name)
 			}
 
-			cmd := &cobra.Command{
-				Use: "get",
-				RunE: func(cmd *cobra.Command, args []string) error {
-					return GetManagedAccount(cmd, args, true, tt.outputFormat)
-				},
-			}
+			cmd := testutil.NewCommand("get", func(cmd *cobra.Command, args []string) error {
+				return GetManagedAccount(cmd, args, true, tt.outputFormat)
+			})
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
@@ -403,11 +385,11 @@ func TestGetManagedAccount(t *testing.T) {
 }
 
 func TestCreateManagedAccount(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	originalCreateFunc := createManagedAccountFunc
 	originalPrompt := utils.ResourcePrompt
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		createManagedAccountFunc = originalCreateFunc
 		utils.ResourcePrompt = originalPrompt
 	}()
@@ -528,10 +510,7 @@ func TestCreateManagedAccount(t *testing.T) {
 				}
 			}
 
-			cmd := &cobra.Command{
-				Use:  "create",
-				RunE: testCommandAdapter(CreateManagedAccount),
-			}
+			cmd := testutil.NewCommand("create", testutil.NoColorAdapter(CreateManagedAccount))
 
 			cmd.Flags().String("account-name", "", "")
 			cmd.Flags().String("account-ref", "", "")
@@ -539,9 +518,7 @@ func TestCreateManagedAccount(t *testing.T) {
 			cmd.Flags().String("json", "", "")
 			cmd.Flags().String("json-file", "", "")
 
-			for k, v := range tt.flags {
-				_ = cmd.Flags().Set(k, v)
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
@@ -566,23 +543,16 @@ func TestCreateManagedAccount(t *testing.T) {
 }
 
 func TestCreateManagedAccount_InvalidJSON(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.ManagedAccountService = &MockManagedAccountService{}
+	})
+	defer cleanup()
 	originalCreateFunc := createManagedAccountFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		createManagedAccountFunc = originalCreateFunc
 	}()
 
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{}
-		client.ManagedAccountService = &MockManagedAccountService{}
-		return client, nil
-	}
-
-	cmd := &cobra.Command{
-		Use:  "create",
-		RunE: testCommandAdapter(CreateManagedAccount),
-	}
+	cmd := testutil.NewCommand("create", testutil.NoColorAdapter(CreateManagedAccount))
 
 	cmd.Flags().String("account-name", "", "")
 	cmd.Flags().String("account-ref", "", "")
@@ -590,7 +560,7 @@ func TestCreateManagedAccount_InvalidJSON(t *testing.T) {
 	cmd.Flags().String("json", "", "")
 	cmd.Flags().String("json-file", "", "")
 
-	_ = cmd.Flags().Set("json", "{invalid json}")
+	testutil.SetFlags(t, cmd, map[string]string{"json": "{invalid json}"})
 
 	var err error
 	output.CaptureOutput(func() {
@@ -602,19 +572,10 @@ func TestCreateManagedAccount_InvalidJSON(t *testing.T) {
 }
 
 func TestCreateManagedAccount_LoginError(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLoginError(fmt.Errorf("login failed: invalid credentials"))
+	defer cleanup()
 
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		return nil, fmt.Errorf("login failed: invalid credentials")
-	}
-
-	cmd := &cobra.Command{
-		Use:  "create",
-		RunE: testCommandAdapter(CreateManagedAccount),
-	}
+	cmd := testutil.NewCommand("create", testutil.NoColorAdapter(CreateManagedAccount))
 
 	cmd.Flags().String("account-name", "", "")
 	cmd.Flags().String("account-ref", "", "")
@@ -622,8 +583,10 @@ func TestCreateManagedAccount_LoginError(t *testing.T) {
 	cmd.Flags().String("json", "", "")
 	cmd.Flags().String("json-file", "", "")
 
-	_ = cmd.Flags().Set("account-name", "Test Account")
-	_ = cmd.Flags().Set("account-ref", "REF-001")
+	testutil.SetFlags(t, cmd, map[string]string{
+		"account-name": "Test Account",
+		"account-ref":  "REF-001",
+	})
 
 	var err error
 	output.CaptureOutput(func() {
@@ -635,11 +598,11 @@ func TestCreateManagedAccount_LoginError(t *testing.T) {
 }
 
 func TestUpdateManagedAccount(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	originalUpdateFunc := updateManagedAccountFunc
 	originalPrompt := utils.ResourcePrompt
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		updateManagedAccountFunc = originalUpdateFunc
 		utils.ResourcePrompt = originalPrompt
 	}()
@@ -903,10 +866,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 				}
 			}
 
-			cmd := &cobra.Command{
-				Use:  "update",
-				RunE: testCommandAdapter(UpdateManagedAccount),
-			}
+			cmd := testutil.NewCommand("update", testutil.NoColorAdapter(UpdateManagedAccount))
 
 			cmd.Flags().String("account-name", "", "")
 			cmd.Flags().String("account-ref", "", "")
@@ -914,9 +874,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 			cmd.Flags().String("json", "", "")
 			cmd.Flags().String("json-file", "", "")
 
-			for k, v := range tt.flags {
-				_ = cmd.Flags().Set(k, v)
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
@@ -941,23 +899,16 @@ func TestUpdateManagedAccount(t *testing.T) {
 }
 
 func TestUpdateManagedAccount_InvalidJSON(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.ManagedAccountService = &MockManagedAccountService{}
+	})
+	defer cleanup()
 	originalUpdateFunc := updateManagedAccountFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		updateManagedAccountFunc = originalUpdateFunc
 	}()
 
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{}
-		client.ManagedAccountService = &MockManagedAccountService{}
-		return client, nil
-	}
-
-	cmd := &cobra.Command{
-		Use:  "update",
-		RunE: testCommandAdapter(UpdateManagedAccount),
-	}
+	cmd := testutil.NewCommand("update", testutil.NoColorAdapter(UpdateManagedAccount))
 
 	cmd.Flags().String("account-name", "", "")
 	cmd.Flags().String("account-ref", "", "")
@@ -965,7 +916,7 @@ func TestUpdateManagedAccount_InvalidJSON(t *testing.T) {
 	cmd.Flags().String("json", "", "")
 	cmd.Flags().String("json-file", "", "")
 
-	_ = cmd.Flags().Set("json", "{invalid json}")
+	testutil.SetFlags(t, cmd, map[string]string{"json": "{invalid json}"})
 
 	var err error
 	output.CaptureOutput(func() {
