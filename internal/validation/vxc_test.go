@@ -451,7 +451,7 @@ func TestValidateAWSPartnerConfig(t *testing.T) {
 			ownerAccount: "123456789012",
 			asn:          65000,
 			wantErr:      true,
-			errText:      "Invalid AWS connect type: INVALID - must be 'AWS', or 'AWSHC'",
+			errText:      "Invalid AWS connect type: INVALID - must be 'AWS', 'AWSHC', 'private', or 'public'",
 		},
 		{
 			name:         "Empty owner account",
@@ -755,7 +755,7 @@ func TestValidateVXCPartnerConfig(t *testing.T) {
 				ASN:          65000,
 			},
 			wantErr: true,
-			errText: "Invalid AWS connect type: invalid - must be 'AWS', or 'AWSHC'", // Adjusted error based on test output
+			errText: "Invalid AWS connect type: invalid - must be 'AWS', 'AWSHC', 'private', or 'public'", // Adjusted error based on test output
 		},
 		{
 			name:    "Missing config details (handled by specific validators)",
