@@ -263,34 +263,11 @@ func (b *CommandBuilder) WithFlagCompletionFunc(flagName string, f func(cmd *cob
 	return b
 }
 
-// WithDocumentation adds a 'docs' subcommand that shows rendered markdown documentation
-func (b *CommandBuilder) WithDocumentation() *CommandBuilder {
-	// Create a 'docs' subcommand
-	docsCmd := &cobra.Command{
-		Use:   "docs",
-		Short: "Show documentation for this command",
-		Long:  "Display formatted documentation for this command from markdown files",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Show documentation for the parent command
-			return ShowDocumentation(cmd.Parent())
-		},
-	}
-
-	// Add the docs subcommand
-	b.cmd.AddCommand(docsCmd)
-	return b
-}
-
 // Build constructs and returns the final command
 func (b *CommandBuilder) Build() *cobra.Command {
 	// Generate help text if root command is available
 	if b.rootCmd != nil {
-		fullCommandPath := b.cmd.Use
-		if b.cmd.Parent() != nil {
-			fullCommandPath = "megaport-cli " + fullCommandPath
-		} else {
-			fullCommandPath = "megaport-cli " + fullCommandPath
-		}
+		fullCommandPath := "megaport-cli " + b.cmd.Use
 
 		helpBuilder := &help.CommandHelpBuilder{
 			CommandName:    fullCommandPath,
