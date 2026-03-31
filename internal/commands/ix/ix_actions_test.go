@@ -97,7 +97,7 @@ func TestListIXs(t *testing.T) {
 	tests := []struct {
 		name          string
 		flags         map[string]string
-		setupMock     func(*mockIXService)
+		setupMock     func(*MockIXService)
 		expectedError string
 		expectedIXs   []string
 		unexpectedIXs []string
@@ -105,7 +105,7 @@ func TestListIXs(t *testing.T) {
 	}{
 		{
 			name: "list all active IXs",
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.listIXResponse = testIXs
 			},
 			expectedIXs:   []string{"ix-demo-01", "ix-demo-02", "production-ix"},
@@ -114,7 +114,7 @@ func TestListIXs(t *testing.T) {
 		},
 		{
 			name: "excludes DECOMMISSIONED status",
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.listIXResponse = testIXs
 			},
 			expectedIXs:   []string{"ix-demo-01", "ix-demo-02", "production-ix"},
@@ -123,7 +123,7 @@ func TestListIXs(t *testing.T) {
 		},
 		{
 			name: "excludes CANCELLED status",
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.listIXResponse = testIXs
 			},
 			expectedIXs:   []string{"ix-demo-01", "ix-demo-02", "production-ix"},
@@ -132,7 +132,7 @@ func TestListIXs(t *testing.T) {
 		},
 		{
 			name: "excludes DECOMMISSIONING status",
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.listIXResponse = testIXs
 			},
 			expectedIXs:   []string{"ix-demo-01", "ix-demo-02", "production-ix"},
@@ -144,7 +144,7 @@ func TestListIXs(t *testing.T) {
 			flags: map[string]string{
 				"name": "ix-demo",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.listIXResponse = testIXs
 			},
 			expectedIXs:   []string{"ix-demo-01", "ix-demo-02"},
@@ -156,7 +156,7 @@ func TestListIXs(t *testing.T) {
 			flags: map[string]string{
 				"asn": "65000",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.listIXResponse = testIXs
 			},
 			expectedIXs:   []string{"ix-demo-01"},
@@ -168,7 +168,7 @@ func TestListIXs(t *testing.T) {
 			flags: map[string]string{
 				"vlan": "200",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.listIXResponse = testIXs
 			},
 			expectedIXs:   []string{"ix-demo-02"},
@@ -180,7 +180,7 @@ func TestListIXs(t *testing.T) {
 			flags: map[string]string{
 				"network-service-type": "Los Angeles",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.listIXResponse = testIXs
 			},
 			expectedIXs:   []string{"ix-demo-01"},
@@ -192,7 +192,7 @@ func TestListIXs(t *testing.T) {
 			flags: map[string]string{
 				"location-id": "571",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.listIXResponse = testIXs
 			},
 			expectedIXs:   []string{"ix-demo-01"},
@@ -204,7 +204,7 @@ func TestListIXs(t *testing.T) {
 			flags: map[string]string{
 				"rate-limit": "5000",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.listIXResponse = testIXs
 			},
 			expectedIXs:   []string{"production-ix"},
@@ -217,7 +217,7 @@ func TestListIXs(t *testing.T) {
 				"name":        "demo",
 				"location-id": "571",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.listIXResponse = testIXs
 			},
 			expectedIXs:   []string{"ix-demo-01"},
@@ -229,7 +229,7 @@ func TestListIXs(t *testing.T) {
 			flags: map[string]string{
 				"include-inactive": "true",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.listIXResponse = testIXs
 			},
 			expectedIXs:   []string{"ix-demo-01", "ix-demo-02", "production-ix", "decommissioned-ix", "cancelled-ix", "decommissioning-ix"},
@@ -242,7 +242,7 @@ func TestListIXs(t *testing.T) {
 				"include-inactive": "true",
 				"location-id":      "571",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.listIXResponse = testIXs
 			},
 			expectedIXs:   []string{"ix-demo-01", "decommissioned-ix", "cancelled-ix", "decommissioning-ix"},
@@ -251,7 +251,7 @@ func TestListIXs(t *testing.T) {
 		},
 		{
 			name: "empty API result",
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.listIXResponse = []*megaport.IX{}
 			},
 			expectedIXs:  []string{},
@@ -259,7 +259,7 @@ func TestListIXs(t *testing.T) {
 		},
 		{
 			name: "nil API result",
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.listIXResponse = nil
 			},
 			expectedIXs:  []string{},
@@ -270,7 +270,7 @@ func TestListIXs(t *testing.T) {
 			flags: map[string]string{
 				"name": "ix-demo-01",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.listIXResponse = testIXs
 			},
 			expectedIXs:   []string{"ix-demo-01"},
@@ -282,7 +282,7 @@ func TestListIXs(t *testing.T) {
 			flags: map[string]string{
 				"name": "ix-demo-01",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.listIXResponse = testIXs
 			},
 			expectedIXs:   []string{"ix-demo-01"},
@@ -291,7 +291,7 @@ func TestListIXs(t *testing.T) {
 		},
 		{
 			name: "API error",
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.listIXErr = fmt.Errorf("API error: service unavailable")
 			},
 			expectedError: "API error: service unavailable",
@@ -299,7 +299,7 @@ func TestListIXs(t *testing.T) {
 		},
 		{
 			name: "login error",
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				// Will be handled by overriding LoginFunc to return error
 			},
 			expectedError: "login failed",
@@ -309,7 +309,7 @@ func TestListIXs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := &mockIXService{}
+			mockService := &MockIXService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockService)
 			}
@@ -414,7 +414,7 @@ func TestBuyIX(t *testing.T) {
 		interactive    bool
 		prompts        []string
 		flags          map[string]string
-		setupMock      func(*mockIXService)
+		setupMock      func(*MockIXService)
 		expectedError  string
 		expectedOutput string
 	}{
@@ -429,7 +429,7 @@ func TestBuyIX(t *testing.T) {
 				"rate-limit":           "1000",
 				"vlan":                 "100",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.buyIXResponse = &megaport.BuyIXResponse{
 					TechnicalServiceUID: "ix-456-def",
 				}
@@ -449,7 +449,7 @@ func TestBuyIX(t *testing.T) {
 				"100",
 				"",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.buyIXResponse = &megaport.BuyIXResponse{
 					TechnicalServiceUID: "ix-123-abc",
 				}
@@ -461,7 +461,7 @@ func TestBuyIX(t *testing.T) {
 			flags: map[string]string{
 				"name": "Test IX",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.validateIXOrderError = fmt.Errorf("validation failed: missing required fields")
 			},
 			expectedError: "validation failed",
@@ -477,7 +477,7 @@ func TestBuyIX(t *testing.T) {
 				"rate-limit":           "1000",
 				"vlan":                 "100",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.buyIXError = fmt.Errorf("API error: service unavailable")
 			},
 			expectedError: "API error: service unavailable",
@@ -493,7 +493,7 @@ func TestBuyIX(t *testing.T) {
 				"rate-limit":           "1000",
 				"vlan":                 "100",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.validateIXOrderError = fmt.Errorf("validation error: invalid configuration")
 			},
 			expectedError: "validation error",
@@ -518,7 +518,7 @@ func TestBuyIX(t *testing.T) {
 				}
 			}
 
-			mockService := &mockIXService{}
+			mockService := &MockIXService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockService)
 			}
@@ -595,7 +595,7 @@ func TestGetIXStatus(t *testing.T) {
 	tests := []struct {
 		name           string
 		ixUID          string
-		setupMock      func(*mockIXService)
+		setupMock      func(*MockIXService)
 		expectedError  string
 		expectedOutput string
 		outputFormat   string
@@ -603,7 +603,7 @@ func TestGetIXStatus(t *testing.T) {
 		{
 			name:  "successful status retrieval - table format",
 			ixUID: "ix-123abc",
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.getIXResponse = &megaport.IX{
 					ProductUID:         "ix-123abc",
 					ProductName:        "Test IX",
@@ -617,7 +617,7 @@ func TestGetIXStatus(t *testing.T) {
 		{
 			name:  "successful status retrieval - json format",
 			ixUID: "ix-123abc",
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.getIXResponse = &megaport.IX{
 					ProductUID:         "ix-123abc",
 					ProductName:        "Test IX",
@@ -631,7 +631,7 @@ func TestGetIXStatus(t *testing.T) {
 		{
 			name:  "API error",
 			ixUID: "ix-error",
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.getIXError = fmt.Errorf("API error")
 			},
 			expectedError: "API error",
@@ -640,7 +640,7 @@ func TestGetIXStatus(t *testing.T) {
 		{
 			name:  "nil IX returned without error",
 			ixUID: "ix-nil",
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.forceNilGetIX = true
 			},
 			expectedError: "no IX found",
@@ -650,7 +650,7 @@ func TestGetIXStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := &mockIXService{}
+			mockService := &MockIXService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockService)
 			}
@@ -708,7 +708,7 @@ func TestDeleteIX(t *testing.T) {
 		force          bool
 		deleteNow      bool
 		promptResponse string
-		setupMock      func(*mockIXService)
+		setupMock      func(*MockIXService)
 		expectedError  string
 		expectedOutput string
 		expectDeleted  bool
@@ -717,7 +717,7 @@ func TestDeleteIX(t *testing.T) {
 			name:           "confirm deletion with force",
 			ixUID:          "ix-to-delete",
 			force:          true,
-			setupMock:      func(m *mockIXService) {},
+			setupMock:      func(m *MockIXService) {},
 			expectedOutput: "IX deleted",
 			expectDeleted:  true,
 		},
@@ -726,7 +726,7 @@ func TestDeleteIX(t *testing.T) {
 			ixUID:          "ix-to-delete",
 			force:          false,
 			promptResponse: "y",
-			setupMock:      func(m *mockIXService) {},
+			setupMock:      func(m *MockIXService) {},
 			expectedOutput: "IX deleted",
 			expectDeleted:  true,
 		},
@@ -735,7 +735,7 @@ func TestDeleteIX(t *testing.T) {
 			ixUID:          "ix-keep",
 			force:          false,
 			promptResponse: "n",
-			setupMock:      func(m *mockIXService) {},
+			setupMock:      func(m *MockIXService) {},
 			expectedOutput: "Deletion cancelled",
 			expectDeleted:  false,
 		},
@@ -743,7 +743,7 @@ func TestDeleteIX(t *testing.T) {
 			name:  "deletion error",
 			ixUID: "ix-error",
 			force: true,
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.deleteIXError = fmt.Errorf("error deleting IX")
 			},
 			expectedError: "error deleting IX",
@@ -753,7 +753,7 @@ func TestDeleteIX(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := &mockIXService{}
+			mockService := &MockIXService{}
 			tt.setupMock(mockService)
 
 			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
@@ -812,7 +812,7 @@ func TestGetIX(t *testing.T) {
 		name          string
 		ixUID         string
 		format        string
-		setupMock     func(*mockIXService)
+		setupMock     func(*MockIXService)
 		expectedError string
 		expectedOut   []string
 	}{
@@ -820,7 +820,7 @@ func TestGetIX(t *testing.T) {
 			name:   "get IX success table format",
 			ixUID:  "ix-123",
 			format: "table",
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.getIXResponse = &megaport.IX{
 					ProductUID:         "ix-123",
 					ProductName:        "Test IX",
@@ -838,7 +838,7 @@ func TestGetIX(t *testing.T) {
 			name:   "get IX success json format",
 			ixUID:  "ix-123",
 			format: "json",
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.getIXResponse = &megaport.IX{
 					ProductUID:         "ix-123",
 					ProductName:        "Test IX",
@@ -856,7 +856,7 @@ func TestGetIX(t *testing.T) {
 			name:   "get IX success csv format",
 			ixUID:  "ix-123",
 			format: "csv",
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.getIXResponse = &megaport.IX{
 					ProductUID:         "ix-123",
 					ProductName:        "Test IX",
@@ -874,7 +874,7 @@ func TestGetIX(t *testing.T) {
 			name:   "get IX API error",
 			ixUID:  "ix-invalid",
 			format: "table",
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.getIXError = fmt.Errorf("IX not found")
 			},
 			expectedError: "IX not found",
@@ -883,7 +883,7 @@ func TestGetIX(t *testing.T) {
 			name:   "get IX login error",
 			ixUID:  "ix-123",
 			format: "table",
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				// login error handled separately
 			},
 			expectedError: "login failed",
@@ -892,7 +892,7 @@ func TestGetIX(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := &mockIXService{}
+			mockService := &MockIXService{}
 			tt.setupMock(mockService)
 
 			if tt.name == "get IX login error" {
@@ -954,7 +954,7 @@ func TestUpdateIX(t *testing.T) {
 		prompts        []string
 		flags          map[string]string
 		jsonInput      string
-		setupMock      func(*mockIXService)
+		setupMock      func(*MockIXService)
 		expectedError  string
 		expectedOutput string
 	}{
@@ -964,7 +964,7 @@ func TestUpdateIX(t *testing.T) {
 			flags: map[string]string{
 				"name": "Updated IX",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.getIXResponse = &megaport.IX{
 					ProductUID:         "ix-123",
 					ProductName:        "Original IX",
@@ -984,7 +984,7 @@ func TestUpdateIX(t *testing.T) {
 			flags: map[string]string{
 				"rate-limit": "2000",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.getIXResponse = &megaport.IX{
 					ProductUID:         "ix-123",
 					ProductName:        "Test IX",
@@ -1010,7 +1010,7 @@ func TestUpdateIX(t *testing.T) {
 				"mac-address": "AA:BB:CC:DD:EE:FF",
 				"asn":         "65001",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.getIXResponse = &megaport.IX{
 					ProductUID:         "ix-123",
 					ProductName:        "Original IX",
@@ -1036,7 +1036,7 @@ func TestUpdateIX(t *testing.T) {
 			name:      "JSON string mode",
 			ixUID:     "ix-123",
 			jsonInput: `{"name":"JSON Updated IX","rateLimit":3000}`,
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.getIXResponse = &megaport.IX{
 					ProductUID:         "ix-123",
 					ProductName:        "Original IX",
@@ -1066,7 +1066,7 @@ func TestUpdateIX(t *testing.T) {
 				"",           // password (skip)
 				"",           // reverse-dns (skip)
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.getIXResponse = &megaport.IX{
 					ProductUID:         "ix-123",
 					ProductName:        "Original IX",
@@ -1083,7 +1083,7 @@ func TestUpdateIX(t *testing.T) {
 		{
 			name:          "no fields provided",
 			ixUID:         "ix-123",
-			setupMock:     func(m *mockIXService) {},
+			setupMock:     func(m *MockIXService) {},
 			expectedError: "at least one field must be updated",
 		},
 		{
@@ -1092,7 +1092,7 @@ func TestUpdateIX(t *testing.T) {
 			flags: map[string]string{
 				"name": "Test",
 			},
-			setupMock:     func(m *mockIXService) {},
+			setupMock:     func(m *MockIXService) {},
 			expectedError: "IX UID is required",
 		},
 		{
@@ -1101,7 +1101,7 @@ func TestUpdateIX(t *testing.T) {
 			flags: map[string]string{
 				"name": "Updated IX",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.getIXResponse = &megaport.IX{
 					ProductUID:         "ix-123",
 					ProductName:        "Original IX",
@@ -1117,7 +1117,7 @@ func TestUpdateIX(t *testing.T) {
 			flags: map[string]string{
 				"name": "Updated IX",
 			},
-			setupMock: func(m *mockIXService) {
+			setupMock: func(m *MockIXService) {
 				m.getIXError = fmt.Errorf("IX not found")
 			},
 			expectedError: "IX not found",
@@ -1128,14 +1128,14 @@ func TestUpdateIX(t *testing.T) {
 			flags: map[string]string{
 				"name": "Updated IX",
 			},
-			setupMock:     func(m *mockIXService) {},
+			setupMock:     func(m *MockIXService) {},
 			expectedError: "login failed",
 		},
 		{
 			name:          "invalid JSON input",
 			ixUID:         "ix-123",
 			jsonInput:     `{invalid json`,
-			setupMock:     func(m *mockIXService) {},
+			setupMock:     func(m *MockIXService) {},
 			expectedError: "error parsing JSON",
 		},
 	}
@@ -1154,7 +1154,7 @@ func TestUpdateIX(t *testing.T) {
 				}
 			}
 
-			mockService := &mockIXService{}
+			mockService := &MockIXService{}
 			tt.setupMock(mockService)
 
 			if tt.name == "login error" {
@@ -1231,7 +1231,7 @@ func TestUpdateIX(t *testing.T) {
 }
 
 func TestUpdateIXFunc(t *testing.T) {
-	mockService := &mockIXService{
+	mockService := &MockIXService{
 		updateIXResponse: &megaport.IX{
 			ProductUID:         "ix-123",
 			ProductName:        "Updated IX",
@@ -1257,7 +1257,7 @@ func TestUpdateIXFunc(t *testing.T) {
 }
 
 func TestUpdateIXFunc_Error(t *testing.T) {
-	mockService := &mockIXService{
+	mockService := &MockIXService{
 		updateIXError: fmt.Errorf("update failed"),
 	}
 
@@ -1282,7 +1282,7 @@ func TestBuyIX_JSONStringMode(t *testing.T) {
 		config.LoginFunc = originalLoginFunc
 	}()
 
-	mockService := &mockIXService{
+	mockService := &MockIXService{
 		buyIXResponse: &megaport.BuyIXResponse{
 			TechnicalServiceUID: "ix-json-abc",
 		},
@@ -1343,7 +1343,7 @@ func TestBuyIX_InvalidJSON(t *testing.T) {
 
 	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
-		client.IXService = &mockIXService{}
+		client.IXService = &MockIXService{}
 		return client, nil
 	}
 
@@ -1416,7 +1416,7 @@ func TestBuyIX_LoginError(t *testing.T) {
 }
 
 func TestGetIXFunc(t *testing.T) {
-	mockService := &mockIXService{
+	mockService := &MockIXService{
 		getIXResponse: &megaport.IX{
 			ProductUID:         "ix-123",
 			ProductName:        "Test IX",
@@ -1437,7 +1437,7 @@ func TestGetIXFunc(t *testing.T) {
 }
 
 func TestBuyIXFunc(t *testing.T) {
-	mockService := &mockIXService{
+	mockService := &MockIXService{
 		buyIXResponse: &megaport.BuyIXResponse{
 			TechnicalServiceUID: "ix-123-abc",
 		},
@@ -1464,7 +1464,7 @@ func TestBuyIXFunc(t *testing.T) {
 }
 
 func TestDeleteIXFunc(t *testing.T) {
-	mockService := &mockIXService{}
+	mockService := &MockIXService{}
 
 	client := &megaport.Client{
 		IXService: mockService,

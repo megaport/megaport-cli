@@ -6,7 +6,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-type mockIXService struct {
+type MockIXService struct {
 	buyIXResponse          *megaport.BuyIXResponse
 	buyIXError             error
 	capturedBuyIXRequest   *megaport.BuyIXRequest
@@ -26,7 +26,7 @@ type mockIXService struct {
 	forceNilGetIX          bool
 }
 
-func (m *mockIXService) BuyIX(ctx context.Context, req *megaport.BuyIXRequest) (*megaport.BuyIXResponse, error) {
+func (m *MockIXService) BuyIX(ctx context.Context, req *megaport.BuyIXRequest) (*megaport.BuyIXResponse, error) {
 	m.capturedBuyIXRequest = req
 	if m.buyIXError != nil {
 		return nil, m.buyIXError
@@ -34,11 +34,11 @@ func (m *mockIXService) BuyIX(ctx context.Context, req *megaport.BuyIXRequest) (
 	return m.buyIXResponse, nil
 }
 
-func (m *mockIXService) ValidateIXOrder(ctx context.Context, req *megaport.BuyIXRequest) error {
+func (m *MockIXService) ValidateIXOrder(ctx context.Context, req *megaport.BuyIXRequest) error {
 	return m.validateIXOrderError
 }
 
-func (m *mockIXService) GetIX(ctx context.Context, id string) (*megaport.IX, error) {
+func (m *MockIXService) GetIX(ctx context.Context, id string) (*megaport.IX, error) {
 	if m.getIXError != nil {
 		return nil, m.getIXError
 	}
@@ -55,7 +55,7 @@ func (m *mockIXService) GetIX(ctx context.Context, id string) (*megaport.IX, err
 	}, nil
 }
 
-func (m *mockIXService) UpdateIX(ctx context.Context, id string, req *megaport.UpdateIXRequest) (*megaport.IX, error) {
+func (m *MockIXService) UpdateIX(ctx context.Context, id string, req *megaport.UpdateIXRequest) (*megaport.IX, error) {
 	m.capturedUpdateIXUID = id
 	m.capturedUpdateIXReq = req
 	if m.updateIXError != nil {
@@ -64,13 +64,13 @@ func (m *mockIXService) UpdateIX(ctx context.Context, id string, req *megaport.U
 	return m.updateIXResponse, nil
 }
 
-func (m *mockIXService) DeleteIX(ctx context.Context, id string, req *megaport.DeleteIXRequest) error {
+func (m *MockIXService) DeleteIX(ctx context.Context, id string, req *megaport.DeleteIXRequest) error {
 	m.capturedDeleteIXUID = id
 	m.capturedDeleteIXReq = req
 	return m.deleteIXError
 }
 
-func (m *mockIXService) ListIXs(ctx context.Context, req *megaport.ListIXsRequest) ([]*megaport.IX, error) {
+func (m *MockIXService) ListIXs(ctx context.Context, req *megaport.ListIXsRequest) ([]*megaport.IX, error) {
 	m.CapturedListIXsRequest = req
 	if m.listIXErr != nil {
 		return nil, m.listIXErr

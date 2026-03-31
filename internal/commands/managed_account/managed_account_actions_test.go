@@ -46,7 +46,7 @@ func TestListManagedAccounts(t *testing.T) {
 	tests := []struct {
 		name             string
 		flags            map[string]string
-		setupMock        func(*mockManagedAccountService)
+		setupMock        func(*MockManagedAccountService)
 		expectedError    string
 		expectedAccounts []string
 		unexpectedAccts  []string
@@ -54,7 +54,7 @@ func TestListManagedAccounts(t *testing.T) {
 	}{
 		{
 			name: "list all accounts",
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = testAccounts
 			},
 			expectedAccounts: []string{"Acme Corp", "Beta Inc", "Acme Subsidiary"},
@@ -65,7 +65,7 @@ func TestListManagedAccounts(t *testing.T) {
 			flags: map[string]string{
 				"account-name": "Acme",
 			},
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = testAccounts
 			},
 			expectedAccounts: []string{"Acme Corp", "Acme Subsidiary"},
@@ -77,7 +77,7 @@ func TestListManagedAccounts(t *testing.T) {
 			flags: map[string]string{
 				"account-ref": "REF",
 			},
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = testAccounts
 			},
 			expectedAccounts: []string{"Acme Corp", "Beta Inc"},
@@ -90,7 +90,7 @@ func TestListManagedAccounts(t *testing.T) {
 				"account-name": "Acme",
 				"account-ref":  "REF",
 			},
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = testAccounts
 			},
 			expectedAccounts: []string{"Acme Corp"},
@@ -102,7 +102,7 @@ func TestListManagedAccounts(t *testing.T) {
 			flags: map[string]string{
 				"account-name": "Acme Corp",
 			},
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = testAccounts
 			},
 			expectedAccounts: []string{"Acme Corp"},
@@ -114,7 +114,7 @@ func TestListManagedAccounts(t *testing.T) {
 			flags: map[string]string{
 				"account-name": "Acme Corp",
 			},
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = testAccounts
 			},
 			expectedAccounts: []string{"Acme Corp"},
@@ -123,7 +123,7 @@ func TestListManagedAccounts(t *testing.T) {
 		},
 		{
 			name: "empty result",
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = []*megaport.ManagedAccount{}
 			},
 			expectedAccounts: []string{},
@@ -131,7 +131,7 @@ func TestListManagedAccounts(t *testing.T) {
 		},
 		{
 			name: "nil API result",
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = nil
 			},
 			expectedAccounts: []string{},
@@ -139,7 +139,7 @@ func TestListManagedAccounts(t *testing.T) {
 		},
 		{
 			name: "API error",
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listErr = fmt.Errorf("API error: service unavailable")
 			},
 			expectedError: "API error: service unavailable",
@@ -147,7 +147,7 @@ func TestListManagedAccounts(t *testing.T) {
 		},
 		{
 			name: "login error",
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				// Will be handled by overriding LoginFunc to return error
 			},
 			expectedError: "login failed",
@@ -155,7 +155,7 @@ func TestListManagedAccounts(t *testing.T) {
 		},
 		{
 			name: "invalid output format",
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = testAccounts
 			},
 			expectedError: "invalid output format",
@@ -165,7 +165,7 @@ func TestListManagedAccounts(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := &mockManagedAccountService{}
+			mockService := &MockManagedAccountService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockService)
 			}
@@ -253,7 +253,7 @@ func TestGetManagedAccount(t *testing.T) {
 		name          string
 		companyUID    string
 		accountName   string
-		setupMock     func(*mockManagedAccountService)
+		setupMock     func(*MockManagedAccountService)
 		expectedError string
 		outputFormat  string
 		expectedOut   []string
@@ -262,7 +262,7 @@ func TestGetManagedAccount(t *testing.T) {
 			name:        "success table format",
 			companyUID:  "company-uid-1",
 			accountName: "Acme Corp",
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.getResult = &megaport.ManagedAccount{
 					AccountName: "Acme Corp",
 					AccountRef:  "REF-001",
@@ -276,7 +276,7 @@ func TestGetManagedAccount(t *testing.T) {
 			name:        "success JSON format",
 			companyUID:  "company-uid-1",
 			accountName: "Acme Corp",
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.getResult = &megaport.ManagedAccount{
 					AccountName: "Acme Corp",
 					AccountRef:  "REF-001",
@@ -290,7 +290,7 @@ func TestGetManagedAccount(t *testing.T) {
 			name:        "success CSV format",
 			companyUID:  "company-uid-1",
 			accountName: "Acme Corp",
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.getResult = &megaport.ManagedAccount{
 					AccountName: "Acme Corp",
 					AccountRef:  "REF-001",
@@ -304,7 +304,7 @@ func TestGetManagedAccount(t *testing.T) {
 			name:        "nil result without error",
 			companyUID:  "company-uid-1",
 			accountName: "Nonexistent",
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.getResult = nil
 			},
 			expectedError: "invalid managed account: nil value",
@@ -314,7 +314,7 @@ func TestGetManagedAccount(t *testing.T) {
 			name:        "invalid output format",
 			companyUID:  "company-uid-1",
 			accountName: "Acme Corp",
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.getResult = &megaport.ManagedAccount{
 					AccountName: "Acme Corp",
 					AccountRef:  "REF-001",
@@ -328,7 +328,7 @@ func TestGetManagedAccount(t *testing.T) {
 			name:        "API error",
 			companyUID:  "company-uid-1",
 			accountName: "Acme Corp",
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.getErr = fmt.Errorf("managed account not found")
 			},
 			expectedError: "managed account not found",
@@ -338,7 +338,7 @@ func TestGetManagedAccount(t *testing.T) {
 			name:        "login error",
 			companyUID:  "company-uid-1",
 			accountName: "Acme Corp",
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				// Will be handled by overriding LoginFunc to return error
 			},
 			expectedError: "login failed",
@@ -348,7 +348,7 @@ func TestGetManagedAccount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := &mockManagedAccountService{}
+			mockService := &MockManagedAccountService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockService)
 			}
@@ -415,11 +415,11 @@ func TestCreateManagedAccount(t *testing.T) {
 	tests := []struct {
 		name             string
 		flags            map[string]string
-		setupMock        func(*mockManagedAccountService)
+		setupMock        func(*MockManagedAccountService)
 		prompts          []string
 		expectedError    string
 		expectedOut      []string
-		validateCaptured func(t *testing.T, m *mockManagedAccountService)
+		validateCaptured func(t *testing.T, m *MockManagedAccountService)
 	}{
 		{
 			name: "flag mode",
@@ -427,7 +427,7 @@ func TestCreateManagedAccount(t *testing.T) {
 				"account-name": "Test Account",
 				"account-ref":  "REF-001",
 			},
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.createResult = &megaport.ManagedAccount{
 					AccountName: "Test Account",
 					AccountRef:  "REF-001",
@@ -435,7 +435,7 @@ func TestCreateManagedAccount(t *testing.T) {
 				}
 			},
 			expectedOut: []string{"new-company-uid"},
-			validateCaptured: func(t *testing.T, m *mockManagedAccountService) {
+			validateCaptured: func(t *testing.T, m *MockManagedAccountService) {
 				assert.NotNil(t, m.capturedCreateReq)
 				assert.Equal(t, "Test Account", m.capturedCreateReq.AccountName)
 				assert.Equal(t, "REF-001", m.capturedCreateReq.AccountRef)
@@ -446,7 +446,7 @@ func TestCreateManagedAccount(t *testing.T) {
 			flags: map[string]string{
 				"interactive": "true",
 			},
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.createResult = &megaport.ManagedAccount{
 					AccountName: "Interactive Account",
 					AccountRef:  "INT-REF",
@@ -455,7 +455,7 @@ func TestCreateManagedAccount(t *testing.T) {
 			},
 			prompts:     []string{"Interactive Account", "INT-REF"},
 			expectedOut: []string{"interactive-uid"},
-			validateCaptured: func(t *testing.T, m *mockManagedAccountService) {
+			validateCaptured: func(t *testing.T, m *MockManagedAccountService) {
 				assert.NotNil(t, m.capturedCreateReq)
 				assert.Equal(t, "Interactive Account", m.capturedCreateReq.AccountName)
 				assert.Equal(t, "INT-REF", m.capturedCreateReq.AccountRef)
@@ -466,7 +466,7 @@ func TestCreateManagedAccount(t *testing.T) {
 			flags: map[string]string{
 				"json": `{"accountName":"JSON Account","accountRef":"JSON-REF"}`,
 			},
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.createResult = &megaport.ManagedAccount{
 					AccountName: "JSON Account",
 					AccountRef:  "JSON-REF",
@@ -474,7 +474,7 @@ func TestCreateManagedAccount(t *testing.T) {
 				}
 			},
 			expectedOut: []string{"json-uid"},
-			validateCaptured: func(t *testing.T, m *mockManagedAccountService) {
+			validateCaptured: func(t *testing.T, m *MockManagedAccountService) {
 				assert.NotNil(t, m.capturedCreateReq)
 				assert.Equal(t, "JSON Account", m.capturedCreateReq.AccountName)
 				assert.Equal(t, "JSON-REF", m.capturedCreateReq.AccountRef)
@@ -486,7 +486,7 @@ func TestCreateManagedAccount(t *testing.T) {
 				"account-name": "Test Account",
 				"account-ref":  "REF-001",
 			},
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.createErr = fmt.Errorf("API error: creation failed")
 			},
 			expectedError: "API error: creation failed",
@@ -494,14 +494,14 @@ func TestCreateManagedAccount(t *testing.T) {
 		{
 			name:          "no input",
 			flags:         map[string]string{},
-			setupMock:     func(m *mockManagedAccountService) {},
+			setupMock:     func(m *MockManagedAccountService) {},
 			expectedError: "no input provided",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := &mockManagedAccountService{}
+			mockService := &MockManagedAccountService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockService)
 			}
@@ -575,7 +575,7 @@ func TestCreateManagedAccount_InvalidJSON(t *testing.T) {
 
 	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
-		client.ManagedAccountService = &mockManagedAccountService{}
+		client.ManagedAccountService = &MockManagedAccountService{}
 		return client, nil
 	}
 
@@ -648,11 +648,11 @@ func TestUpdateManagedAccount(t *testing.T) {
 		name             string
 		companyUID       string
 		flags            map[string]string
-		setupMock        func(*mockManagedAccountService)
+		setupMock        func(*MockManagedAccountService)
 		prompts          []string
 		expectedError    string
 		expectedOut      []string
-		validateCaptured func(t *testing.T, m *mockManagedAccountService)
+		validateCaptured func(t *testing.T, m *MockManagedAccountService)
 	}{
 		{
 			name:       "flag mode - update name",
@@ -660,7 +660,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 			flags: map[string]string{
 				"account-name": "Updated Name",
 			},
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = []*megaport.ManagedAccount{
 					{
 						AccountName: "Old Name",
@@ -675,7 +675,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 				}
 			},
 			expectedOut: []string{"Account Name:", "Old Name", "Updated Name"},
-			validateCaptured: func(t *testing.T, m *mockManagedAccountService) {
+			validateCaptured: func(t *testing.T, m *MockManagedAccountService) {
 				assert.Equal(t, "company-uid-1", m.capturedUpdateUID)
 				assert.NotNil(t, m.capturedUpdateReq)
 				assert.Equal(t, "Updated Name", m.capturedUpdateReq.AccountName)
@@ -688,7 +688,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 				"account-name": "New Name",
 				"account-ref":  "NEW-REF",
 			},
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = []*megaport.ManagedAccount{
 					{
 						AccountName: "Old Name",
@@ -703,7 +703,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 				}
 			},
 			expectedOut: []string{"Account Name:", "Account Ref:"},
-			validateCaptured: func(t *testing.T, m *mockManagedAccountService) {
+			validateCaptured: func(t *testing.T, m *MockManagedAccountService) {
 				assert.Equal(t, "company-uid-1", m.capturedUpdateUID)
 				assert.NotNil(t, m.capturedUpdateReq)
 				assert.Equal(t, "New Name", m.capturedUpdateReq.AccountName)
@@ -716,7 +716,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 			flags: map[string]string{
 				"account-ref": "UPDATED-REF",
 			},
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = []*megaport.ManagedAccount{
 					{
 						AccountName: "Same Name",
@@ -731,7 +731,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 				}
 			},
 			expectedOut: []string{"Account Ref:", "OLD-REF", "UPDATED-REF"},
-			validateCaptured: func(t *testing.T, m *mockManagedAccountService) {
+			validateCaptured: func(t *testing.T, m *MockManagedAccountService) {
 				assert.Equal(t, "company-uid-1", m.capturedUpdateUID)
 				assert.NotNil(t, m.capturedUpdateReq)
 				assert.Equal(t, "UPDATED-REF", m.capturedUpdateReq.AccountRef)
@@ -743,7 +743,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 			flags: map[string]string{
 				"interactive": "true",
 			},
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = []*megaport.ManagedAccount{
 					{
 						AccountName: "Old Name",
@@ -759,7 +759,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 			},
 			prompts:     []string{"Interactive Name", ""},
 			expectedOut: []string{"Account Name:", "Old Name", "Interactive Name"},
-			validateCaptured: func(t *testing.T, m *mockManagedAccountService) {
+			validateCaptured: func(t *testing.T, m *MockManagedAccountService) {
 				assert.Equal(t, "company-uid-1", m.capturedUpdateUID)
 				assert.NotNil(t, m.capturedUpdateReq)
 				assert.Equal(t, "Interactive Name", m.capturedUpdateReq.AccountName)
@@ -771,7 +771,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 			flags: map[string]string{
 				"json": `{"accountName":"JSON Name","accountRef":"JSON-REF"}`,
 			},
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = []*megaport.ManagedAccount{
 					{
 						AccountName: "Old Name",
@@ -786,7 +786,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 				}
 			},
 			expectedOut: []string{"Account Name:", "Account Ref:"},
-			validateCaptured: func(t *testing.T, m *mockManagedAccountService) {
+			validateCaptured: func(t *testing.T, m *MockManagedAccountService) {
 				assert.Equal(t, "company-uid-1", m.capturedUpdateUID)
 				assert.NotNil(t, m.capturedUpdateReq)
 				assert.Equal(t, "JSON Name", m.capturedUpdateReq.AccountName)
@@ -797,7 +797,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 			name:       "no fields provided",
 			companyUID: "company-uid-1",
 			flags:      map[string]string{},
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = []*megaport.ManagedAccount{}
 			},
 			expectedError: "at least one field must be updated",
@@ -808,7 +808,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 			flags: map[string]string{
 				"account-name": "New Name",
 			},
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = []*megaport.ManagedAccount{}
 				m.updateErr = fmt.Errorf("API error: update failed")
 			},
@@ -820,7 +820,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 			flags: map[string]string{
 				"account-name": "New Name",
 			},
-			setupMock:     func(m *mockManagedAccountService) {},
+			setupMock:     func(m *MockManagedAccountService) {},
 			expectedError: "login failed",
 		},
 		{
@@ -829,7 +829,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 			flags: map[string]string{
 				"account-name": "New Name",
 			},
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listErr = fmt.Errorf("list failed temporarily")
 				m.updateResult = &megaport.ManagedAccount{
 					AccountName: "New Name",
@@ -839,7 +839,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 			},
 			// Update should succeed even if list fails — no originalAccount for change display
 			expectedOut: []string{"company-uid-1"},
-			validateCaptured: func(t *testing.T, m *mockManagedAccountService) {
+			validateCaptured: func(t *testing.T, m *MockManagedAccountService) {
 				assert.Equal(t, "company-uid-1", m.capturedUpdateUID)
 				assert.NotNil(t, m.capturedUpdateReq)
 			},
@@ -850,7 +850,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 			flags: map[string]string{
 				"account-name": "New Name",
 			},
-			setupMock: func(m *mockManagedAccountService) {
+			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = []*megaport.ManagedAccount{
 					{
 						AccountName: "Other Account",
@@ -870,7 +870,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := &mockManagedAccountService{}
+			mockService := &MockManagedAccountService{}
 			if tt.setupMock != nil {
 				tt.setupMock(mockService)
 			}
@@ -950,7 +950,7 @@ func TestUpdateManagedAccount_InvalidJSON(t *testing.T) {
 
 	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
-		client.ManagedAccountService = &mockManagedAccountService{}
+		client.ManagedAccountService = &MockManagedAccountService{}
 		return client, nil
 	}
 
@@ -979,7 +979,7 @@ func TestUpdateManagedAccount_InvalidJSON(t *testing.T) {
 // Function variable tests - success cases
 
 func TestCreateManagedAccountFunc(t *testing.T) {
-	mockService := &mockManagedAccountService{
+	mockService := &MockManagedAccountService{
 		createResult: &megaport.ManagedAccount{
 			AccountName: "Test Account",
 			AccountRef:  "REF-001",
@@ -1006,7 +1006,7 @@ func TestCreateManagedAccountFunc(t *testing.T) {
 }
 
 func TestUpdateManagedAccountFunc(t *testing.T) {
-	mockService := &mockManagedAccountService{
+	mockService := &MockManagedAccountService{
 		updateResult: &megaport.ManagedAccount{
 			AccountName: "Updated Account",
 			AccountRef:  "NEW-REF",
@@ -1033,7 +1033,7 @@ func TestUpdateManagedAccountFunc(t *testing.T) {
 }
 
 func TestGetManagedAccountFunc(t *testing.T) {
-	mockService := &mockManagedAccountService{
+	mockService := &MockManagedAccountService{
 		getResult: &megaport.ManagedAccount{
 			AccountName: "Test Account",
 			AccountRef:  "REF-001",
@@ -1057,7 +1057,7 @@ func TestGetManagedAccountFunc(t *testing.T) {
 // Function variable tests - error cases
 
 func TestCreateManagedAccountFunc_Error(t *testing.T) {
-	mockService := &mockManagedAccountService{
+	mockService := &MockManagedAccountService{
 		createErr: fmt.Errorf("creation failed: duplicate account"),
 	}
 
@@ -1078,7 +1078,7 @@ func TestCreateManagedAccountFunc_Error(t *testing.T) {
 }
 
 func TestUpdateManagedAccountFunc_Error(t *testing.T) {
-	mockService := &mockManagedAccountService{
+	mockService := &MockManagedAccountService{
 		updateErr: fmt.Errorf("update failed: not found"),
 	}
 
@@ -1100,7 +1100,7 @@ func TestUpdateManagedAccountFunc_Error(t *testing.T) {
 }
 
 func TestGetManagedAccountFunc_Error(t *testing.T) {
-	mockService := &mockManagedAccountService{
+	mockService := &MockManagedAccountService{
 		getErr: fmt.Errorf("managed account not found"),
 	}
 
