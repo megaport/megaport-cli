@@ -8,31 +8,19 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/testutil"
 	megaport "github.com/megaport/megaportgo"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestCreateServiceKey_FlagsPropagated(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
-
 	mockService := &MockServiceKeyService{}
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{}
-		client.ServiceKeyService = mockService
-		return client, nil
-	}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.ServiceKeyService = mockService
+	})
+	defer cleanup()
 
-	cmd := &cobra.Command{
-		Use: "create",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return CreateServiceKey(cmd, args, true)
-		},
-	}
+	cmd := testutil.NewCommand("create", testutil.NoColorAdapter(CreateServiceKey))
 	cmd.Flags().String("product-uid", "", "")
 	cmd.Flags().Int("product-id", 0, "")
 	cmd.Flags().Bool("single-use", false, "")
@@ -44,14 +32,16 @@ func TestCreateServiceKey_FlagsPropagated(t *testing.T) {
 	cmd.Flags().Bool("pre-approved", false, "")
 	cmd.Flags().Int("vlan", 0, "")
 
-	require.NoError(t, cmd.Flags().Set("product-uid", "prod-uid-123"))
-	require.NoError(t, cmd.Flags().Set("product-id", "42"))
-	require.NoError(t, cmd.Flags().Set("single-use", "true"))
-	require.NoError(t, cmd.Flags().Set("max-speed", "1000"))
-	require.NoError(t, cmd.Flags().Set("description", "test key"))
-	require.NoError(t, cmd.Flags().Set("active", "true"))
-	require.NoError(t, cmd.Flags().Set("pre-approved", "true"))
-	require.NoError(t, cmd.Flags().Set("vlan", "100"))
+	testutil.SetFlags(t, cmd, map[string]string{
+		"product-uid":  "prod-uid-123",
+		"product-id":   "42",
+		"single-use":   "true",
+		"max-speed":    "1000",
+		"description":  "test key",
+		"active":       "true",
+		"pre-approved": "true",
+		"vlan":         "100",
+	})
 
 	var err error
 	output.CaptureOutput(func() {
@@ -73,10 +63,8 @@ func TestCreateServiceKey_FlagsPropagated(t *testing.T) {
 }
 
 func TestListServiceKeys_ProductUIDFilter(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name              string
@@ -108,16 +96,13 @@ func TestListServiceKeys_ProductUIDFilter(t *testing.T) {
 				return client, nil
 			}
 
-			cmd := &cobra.Command{
-				Use: "list",
-				RunE: func(cmd *cobra.Command, args []string) error {
-					return ListServiceKeys(cmd, args, true, "table")
-				},
-			}
+			cmd := testutil.NewCommand("list", testutil.OutputAdapter(ListServiceKeys))
 			cmd.Flags().String("product-uid", "", "")
 
 			if tt.setProductUID {
-				require.NoError(t, cmd.Flags().Set("product-uid", tt.productUID))
+				testutil.SetFlags(t, cmd, map[string]string{
+					"product-uid": tt.productUID,
+				})
 			}
 
 			var err error
@@ -181,10 +166,8 @@ func TestUpdateServiceKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			originalLoginFunc := config.LoginFunc
-			defer func() {
-				config.LoginFunc = originalLoginFunc
-			}()
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+			defer cleanup()
 
 			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 				if tt.loginErr != nil {
@@ -195,21 +178,21 @@ func TestUpdateServiceKey(t *testing.T) {
 				return client, nil
 			}
 
-			cmd := &cobra.Command{
-				Use: "update",
-			}
+			cmd := testutil.NewCommand("update", testutil.NoColorAdapter(UpdateServiceKey))
 			cmd.Flags().String("key", "", "")
 			cmd.Flags().String("product-uid", "", "")
 			cmd.Flags().Int("product-id", 0, "")
 			cmd.Flags().Bool("single-use", false, "")
 			cmd.Flags().Bool("active", false, "")
 
-			require.NoError(t, cmd.Flags().Set("key", "test-key-123"))
-			require.NoError(t, cmd.Flags().Set("active", "true"))
+			testutil.SetFlags(t, cmd, map[string]string{
+				"key":    "test-key-123",
+				"active": "true",
+			})
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
-				err = UpdateServiceKey(cmd, []string{}, true)
+				err = cmd.RunE(cmd, []string{})
 			})
 
 			if tt.expectedErr != "" {
@@ -279,26 +262,21 @@ func TestGetServiceKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			originalLoginFunc := config.LoginFunc
-			defer func() {
-				config.LoginFunc = originalLoginFunc
-			}()
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+				c.ServiceKeyService = tt.mockService
+			})
+			defer cleanup()
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				client := &megaport.Client{}
-				client.ServiceKeyService = tt.mockService
-				return client, nil
-			}
-
-			cmd := &cobra.Command{
-				Use: "get",
-			}
+			cmd := testutil.NewCommand("get", testutil.OutputAdapter(GetServiceKey))
+			testutil.SetFlags(t, cmd, map[string]string{
+				"output": tt.outputFormat,
+			})
 
 			defer output.SetOutputFormat("table")
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
-				err = GetServiceKey(cmd, []string{"test-key-id"}, true, tt.outputFormat)
+				err = cmd.RunE(cmd, []string{"test-key-id"})
 			})
 
 			if tt.expectedErr != "" {

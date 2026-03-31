@@ -8,6 +8,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/testutil"
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -19,13 +20,14 @@ var interactive bool
 
 func TestBuyVXC(t *testing.T) {
 	originalResourcePrompt := utils.ResourcePrompt
-	originalLoginFunc := config.LoginFunc
 	originalInteractiveFlag := interactive
 	noColor := true
 
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
 	defer func() {
 		utils.ResourcePrompt = originalResourcePrompt
-		config.LoginFunc = originalLoginFunc
 		buyVXCFunc = originalBuyVXCFunc
 		interactive = originalInteractiveFlag
 	}()
@@ -265,10 +267,7 @@ func TestBuyVXC(t *testing.T) {
 			cmd.Flags().String("json", "", "")
 			cmd.Flags().String("json-file", "", "")
 
-			for flag, value := range tt.flags {
-				err := cmd.Flags().Set(flag, value)
-				assert.NoError(t, err)
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			for flag, value := range tt.flagsInt {
 				err := cmd.Flags().Set(flag, fmt.Sprintf("%d", value))
@@ -295,10 +294,12 @@ func TestBuyVXC(t *testing.T) {
 }
 
 func TestUpdateVXCResourceTagsCmd(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
 	originalResourcePrompt := utils.UpdateResourceTagsPrompt
+
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		utils.UpdateResourceTagsPrompt = originalResourcePrompt
 	}()
 
@@ -501,10 +502,8 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 }
 
 func TestListVXCs(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	testVXCs := []*megaport.VXC{
 		{
@@ -843,12 +842,7 @@ func TestListVXCs(t *testing.T) {
 			cmd.Flags().String("b-end-uid", "", "Filter VXCs by B-End UID")
 			cmd.Flags().Bool("include-inactive", false, "Include inactive VXCs")
 
-			for flagName, flagValue := range tt.flags {
-				err := cmd.Flags().Set(flagName, flagValue)
-				if err != nil {
-					t.Fatalf("Failed to set %s flag: %v", flagName, err)
-				}
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
@@ -908,10 +902,8 @@ func TestListVXCs(t *testing.T) {
 }
 
 func TestGetVXCStatus(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name           string
@@ -1088,10 +1080,7 @@ func TestBuildUpdateVXCRequestFromFlags_NewFields(t *testing.T) {
 			cmd.Flags().Int("a-vnic-index", -1, "")
 			cmd.Flags().Int("b-vnic-index", -1, "")
 
-			for k, v := range tt.flags {
-				err := cmd.Flags().Set(k, v)
-				assert.NoError(t, err)
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			req, err := buildUpdateVXCRequestFromFlags(cmd)
 			assert.NoError(t, err)
@@ -1255,10 +1244,8 @@ func boolPtr(b bool) *bool { return &b }
 func intPtr(i int) *int    { return &i }
 
 func TestGetVXC(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name           string
@@ -1381,15 +1368,16 @@ func TestGetVXC(t *testing.T) {
 }
 
 func TestUpdateVXC(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
 	originalUpdateVXCFunc := updateVXCFunc
 	originalGetVXCFunc := getVXCFunc
 	originalBuildFromFlags := buildUpdateVXCRequestFromFlags
 	originalBuildFromJSON := buildUpdateVXCRequestFromJSON
 	originalBuildFromPrompt := buildUpdateVXCRequestFromPrompt
 
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		updateVXCFunc = originalUpdateVXCFunc
 		getVXCFunc = originalGetVXCFunc
 		buildUpdateVXCRequestFromFlags = originalBuildFromFlags
@@ -1604,10 +1592,7 @@ func TestUpdateVXC(t *testing.T) {
 			cmd.Flags().Int("a-vnic-index", -1, "")
 			cmd.Flags().Int("b-vnic-index", -1, "")
 
-			for flag, value := range tt.flags {
-				err := cmd.Flags().Set(flag, value)
-				assert.NoError(t, err)
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
@@ -1626,12 +1611,13 @@ func TestUpdateVXC(t *testing.T) {
 }
 
 func TestDeleteVXC(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
 	originalDeleteVXCFunc := deleteVXCFunc
 	originalConfirmPrompt := utils.ConfirmPrompt
 
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		deleteVXCFunc = originalDeleteVXCFunc
 		utils.ConfirmPrompt = originalConfirmPrompt
 	}()
@@ -1734,10 +1720,7 @@ func TestDeleteVXC(t *testing.T) {
 			cmd.Flags().Bool("force", false, "")
 			cmd.Flags().Bool("now", false, "")
 
-			for flag, value := range tt.flags {
-				err := cmd.Flags().Set(flag, value)
-				assert.NoError(t, err)
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
@@ -1756,10 +1739,8 @@ func TestDeleteVXC(t *testing.T) {
 }
 
 func TestListVXCResourceTags(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name           string

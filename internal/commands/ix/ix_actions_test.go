@@ -7,23 +7,16 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/testutil"
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
-func testCommandAdapter(fn func(cmd *cobra.Command, args []string, noColor bool) error) func(cmd *cobra.Command, args []string) error {
-	return func(cmd *cobra.Command, args []string) error {
-		return fn(cmd, args, true)
-	}
-}
-
 func TestListIXs(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	testIXs := []*megaport.IX{
 		{
@@ -341,12 +334,7 @@ func TestListIXs(t *testing.T) {
 			cmd.Flags().Int("rate-limit", 0, "Filter IXs by rate limit")
 			cmd.Flags().Bool("include-inactive", false, "Include inactive IXs")
 
-			for flagName, flagValue := range tt.flags {
-				err := cmd.Flags().Set(flagName, flagValue)
-				if err != nil {
-					t.Fatalf("Failed to set %s flag: %v", flagName, err)
-				}
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
@@ -400,11 +388,11 @@ func TestListIXs(t *testing.T) {
 
 func TestBuyIX(t *testing.T) {
 	originalPrompt := utils.ResourcePrompt
-	originalLoginFunc := config.LoginFunc
 	originalBuyIXFunc := buyIXFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer func() {
 		utils.ResourcePrompt = originalPrompt
-		config.LoginFunc = originalLoginFunc
+		cleanup()
 		buyIXFunc = originalBuyIXFunc
 	}()
 
@@ -531,7 +519,7 @@ func TestBuyIX(t *testing.T) {
 
 			cmd := &cobra.Command{
 				Use:  "buy",
-				RunE: testCommandAdapter(BuyIX),
+				RunE: testutil.NoColorAdapter(BuyIX),
 			}
 
 			cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode with prompts")
@@ -553,12 +541,7 @@ func TestBuyIX(t *testing.T) {
 				}
 			}
 
-			for flagName, flagValue := range tt.flags {
-				err := cmd.Flags().Set(flagName, flagValue)
-				if err != nil {
-					t.Fatalf("Failed to set %s flag: %v", flagName, err)
-				}
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
@@ -587,10 +570,8 @@ func TestBuyIX(t *testing.T) {
 }
 
 func TestGetIXStatus(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name           string
@@ -695,10 +676,10 @@ func TestGetIXStatus(t *testing.T) {
 }
 
 func TestDeleteIX(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
 	originalPrompt := utils.ResourcePrompt
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer func() {
-		config.LoginFunc = originalLoginFunc
+		cleanup()
 		utils.ResourcePrompt = originalPrompt
 	}()
 
@@ -803,10 +784,8 @@ func TestDeleteIX(t *testing.T) {
 }
 
 func TestGetIX(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name          string
@@ -937,12 +916,12 @@ func TestGetIX(t *testing.T) {
 
 func TestUpdateIX(t *testing.T) {
 	originalPrompt := utils.ResourcePrompt
-	originalLoginFunc := config.LoginFunc
 	originalUpdateIXFunc := updateIXFunc
 	originalGetIXFunc := getIXFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer func() {
 		utils.ResourcePrompt = originalPrompt
-		config.LoginFunc = originalLoginFunc
+		cleanup()
 		updateIXFunc = originalUpdateIXFunc
 		getIXFunc = originalGetIXFunc
 	}()
@@ -1171,7 +1150,7 @@ func TestUpdateIX(t *testing.T) {
 
 			cmd := &cobra.Command{
 				Use:  "update",
-				RunE: testCommandAdapter(UpdateIX),
+				RunE: testutil.NoColorAdapter(UpdateIX),
 			}
 
 			cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode")
@@ -1197,12 +1176,7 @@ func TestUpdateIX(t *testing.T) {
 				_ = cmd.Flags().Set("json", tt.jsonInput)
 			}
 
-			for flagName, flagValue := range tt.flags {
-				err := cmd.Flags().Set(flagName, flagValue)
-				if err != nil {
-					t.Fatalf("Failed to set %s flag: %v", flagName, err)
-				}
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var args []string
 			if tt.ixUID != "" {
@@ -1277,26 +1251,20 @@ func TestUpdateIXFunc_Error(t *testing.T) {
 }
 
 func TestBuyIX_JSONStringMode(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
-
 	mockService := &MockIXService{
 		buyIXResponse: &megaport.BuyIXResponse{
 			TechnicalServiceUID: "ix-json-abc",
 		},
 	}
 
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{}
-		client.IXService = mockService
-		return client, nil
-	}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.IXService = mockService
+	})
+	defer cleanup()
 
 	cmd := &cobra.Command{
 		Use:  "buy",
-		RunE: testCommandAdapter(BuyIX),
+		RunE: testutil.NoColorAdapter(BuyIX),
 	}
 
 	cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode")
@@ -1336,20 +1304,14 @@ func TestBuyIX_JSONStringMode(t *testing.T) {
 }
 
 func TestBuyIX_InvalidJSON(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
-
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{}
-		client.IXService = &MockIXService{}
-		return client, nil
-	}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.IXService = &MockIXService{}
+	})
+	defer cleanup()
 
 	cmd := &cobra.Command{
 		Use:  "buy",
-		RunE: testCommandAdapter(BuyIX),
+		RunE: testutil.NoColorAdapter(BuyIX),
 	}
 
 	cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode")
@@ -1377,18 +1339,12 @@ func TestBuyIX_InvalidJSON(t *testing.T) {
 }
 
 func TestBuyIX_LoginError(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
-
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		return nil, fmt.Errorf("login failed")
-	}
+	cleanup := testutil.SetupLoginError(fmt.Errorf("login failed"))
+	defer cleanup()
 
 	cmd := &cobra.Command{
 		Use:  "buy",
-		RunE: testCommandAdapter(BuyIX),
+		RunE: testutil.NoColorAdapter(BuyIX),
 	}
 
 	cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode")

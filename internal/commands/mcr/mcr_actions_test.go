@@ -8,23 +8,16 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/testutil"
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
-func testCommandAdapter(fn func(cmd *cobra.Command, args []string, noColor bool) error) func(cmd *cobra.Command, args []string) error {
-	return func(cmd *cobra.Command, args []string) error {
-		return fn(cmd, args, true)
-	}
-}
-
 func TestGetMCRCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name          string
@@ -94,19 +87,12 @@ func TestGetMCRCmd_WithMockClient(t *testing.T) {
 				return client, nil
 			}
 
-			var err error
-			cmd := &cobra.Command{
-				Use: "get-mcr [mcrID]",
-				RunE: func(cmd *cobra.Command, args []string) error {
-					return GetMCR(cmd, args, false, tt.format)
-				},
-			}
+			cmd := testutil.NewCommand("get-mcr [mcrID]", func(cmd *cobra.Command, args []string) error {
+				return GetMCR(cmd, args, false, tt.format)
+			})
+			testutil.SetFlags(t, cmd, map[string]string{"output": tt.format})
 
-			cmd.Flags().StringP("output", "o", "table", "Output format (json, table)")
-			err = cmd.Flags().Set("output", tt.format)
-			if err != nil {
-				t.Fatalf("Failed to set output format: %v", err)
-			}
+			var err error
 
 			output := output.CaptureOutput(func() {
 				err = cmd.RunE(cmd, []string{tt.mcrID})
@@ -126,11 +112,11 @@ func TestGetMCRCmd_WithMockClient(t *testing.T) {
 }
 
 func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	originalPrompt := utils.ResourcePrompt
 	originalConfirmPrompt := utils.ConfirmPrompt
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		utils.ResourcePrompt = originalPrompt
 		utils.ConfirmPrompt = originalConfirmPrompt
 	}()
@@ -255,21 +241,16 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			cmd.Flags().BoolP("force", "f", false, "Force deletion without confirmation")
 			cmd.Flags().Bool("now", false, "Delete MCR immediately instead of at end of billing cycle")
 			cmd.Flags().Bool("safe-delete", false, "Fail if the resource has attached VXCs or other active services")
-			err := cmd.Flags().Set("force", fmt.Sprintf("%v", tt.force))
-			if err != nil {
-				t.Fatalf("Failed to set force flag: %v", err)
-			}
-			err = cmd.Flags().Set("now", fmt.Sprintf("%v", tt.deleteNow))
-			if err != nil {
-				t.Fatalf("Failed to set now flag: %v", err)
+			flags := map[string]string{
+				"force": fmt.Sprintf("%v", tt.force),
+				"now":   fmt.Sprintf("%v", tt.deleteNow),
 			}
 			if tt.safeDelete {
-				err = cmd.Flags().Set("safe-delete", "true")
-				if err != nil {
-					t.Fatalf("Failed to set safe-delete flag: %v", err)
-				}
+				flags["safe-delete"] = "true"
 			}
+			testutil.SetFlags(t, cmd, flags)
 
+			var err error
 			output := output.CaptureOutput(func() {
 				err = cmd.RunE(cmd, []string{tt.mcrID})
 			})
@@ -294,10 +275,8 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 }
 
 func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name          string
@@ -462,10 +441,8 @@ func TestRestoreMCRFunc(t *testing.T) {
 }
 
 func TestListMCRPrefixFilterListsCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name           string
@@ -537,10 +514,8 @@ func TestListMCRPrefixFilterListsCmd_WithMockClient(t *testing.T) {
 }
 
 func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name           string
@@ -608,10 +583,10 @@ func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 }
 
 func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	originalPrompt := utils.ResourcePrompt
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		utils.ResourcePrompt = originalPrompt
 	}()
 
@@ -673,16 +648,13 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 				},
 			}
 			cmd.Flags().BoolP("force", "f", false, "Force deletion without confirmation")
-			err := cmd.Flags().Set("force", fmt.Sprintf("%v", tt.force))
-			if err != nil {
-				t.Fatalf("Failed to set force flag: %v", err)
-			}
 			cmd.Flags().Bool("now", false, "Delete prefix filter list immediately instead of at end of billing cycle")
-			err = cmd.Flags().Set("now", fmt.Sprintf("%v", false))
-			if err != nil {
-				t.Fatalf("Failed to set now flag: %v", err)
-			}
+			testutil.SetFlags(t, cmd, map[string]string{
+				"force": fmt.Sprintf("%v", tt.force),
+				"now":   fmt.Sprintf("%v", false),
+			})
 
+			var err error
 			output := output.CaptureOutput(func() {
 				err = cmd.RunE(cmd, []string{tt.mcrUID, fmt.Sprintf("%d", tt.prefixListID)})
 			})
@@ -700,11 +672,11 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 
 func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 	originalPrompt := utils.ResourcePrompt
-	originalLoginFunc := config.LoginFunc
 	originalBuyMCRFunc := buyMCRFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	defer func() {
 		utils.ResourcePrompt = originalPrompt
-		config.LoginFunc = originalLoginFunc
 		buyMCRFunc = originalBuyMCRFunc
 	}()
 
@@ -843,7 +815,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 
 			cmd := &cobra.Command{
 				Use:  "buy",
-				RunE: testCommandAdapter(BuyMCR),
+				RunE: testutil.NoColorAdapter(BuyMCR),
 			}
 
 			cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode with prompts")
@@ -858,18 +830,14 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			cmd.Flags().String("json", "", "JSON string containing MCR configuration")
 			cmd.Flags().String("json-file", "", "Path to JSON file containing MCR configuration")
 
+			flags := make(map[string]string)
 			if tt.interactive {
-				if err := cmd.Flags().Set("interactive", "true"); err != nil {
-					t.Fatalf("Failed to set interactive flag: %v", err)
-				}
+				flags["interactive"] = "true"
 			}
-
-			for flagName, flagValue := range tt.flags {
-				err := cmd.Flags().Set(flagName, flagValue)
-				if err != nil {
-					t.Fatalf("Failed to set %s flag: %v", flagName, err)
-				}
+			for k, v := range tt.flags {
+				flags[k] = v
 			}
+			testutil.SetFlags(t, cmd, flags)
 
 			var err error
 			output := output.CaptureOutput(func() {
@@ -921,10 +889,8 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 }
 
 func TestGetMCRStatus(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name           string
@@ -1048,10 +1014,8 @@ func TestGetMCRStatus(t *testing.T) {
 }
 
 func TestListMCRsCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	// Sample MCRs for testing
 	testMCRs := []*megaport.MCR{
@@ -1269,12 +1233,7 @@ func TestListMCRsCmd_WithMockClient(t *testing.T) {
 			cmd.Flags().Bool("include-inactive", false, "Include inactive MCRs")
 
 			// Set flag values from test case
-			for flagName, flagValue := range tt.flags {
-				err := cmd.Flags().Set(flagName, flagValue)
-				if err != nil {
-					t.Fatalf("Failed to set %s flag: %v", flagName, err)
-				}
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
@@ -1481,10 +1440,8 @@ func TestFilterMCRs_EdgeCases(t *testing.T) {
 }
 
 func TestListMCRResourceTagsCmd(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name           string
@@ -1560,10 +1517,10 @@ func TestListMCRResourceTagsCmd(t *testing.T) {
 }
 
 func TestUpdateMCRResourceTagsCmd(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	originalResourcePrompt := utils.UpdateResourceTagsPrompt
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		utils.UpdateResourceTagsPrompt = originalResourcePrompt
 	}()
 
@@ -1713,10 +1670,11 @@ func TestUpdateMCRResourceTagsCmd(t *testing.T) {
 
 func TestUpdateMCR(t *testing.T) {
 	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	originalGetMCRFunc := getMCRFunc
 	originalUpdateMCRFunc := updateMCRFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		getMCRFunc = originalGetMCRFunc
 		updateMCRFunc = originalUpdateMCRFunc
 	}()
@@ -1877,7 +1835,7 @@ func TestUpdateMCR(t *testing.T) {
 
 			cmd := &cobra.Command{
 				Use:  "update",
-				RunE: testCommandAdapter(UpdateMCR),
+				RunE: testutil.NoColorAdapter(UpdateMCR),
 			}
 
 			cmd.Flags().Bool("interactive", false, "")
@@ -1888,12 +1846,7 @@ func TestUpdateMCR(t *testing.T) {
 			cmd.Flags().Bool("marketplace-visibility", false, "")
 			cmd.Flags().Int("term", 0, "")
 
-			for flagName, flagValue := range tt.flags {
-				err := cmd.Flags().Set(flagName, flagValue)
-				if err != nil {
-					t.Fatalf("Failed to set %s flag: %v", flagName, err)
-				}
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
@@ -1916,8 +1869,9 @@ func TestUpdateMCR(t *testing.T) {
 func TestCreateMCRPrefixFilterList(t *testing.T) {
 	originalLoginFunc := config.LoginFunc
 	originalCreateFunc := createMCRPrefixFilterListFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		createMCRPrefixFilterListFunc = originalCreateFunc
 	}()
 
@@ -2031,7 +1985,7 @@ func TestCreateMCRPrefixFilterList(t *testing.T) {
 
 			cmd := &cobra.Command{
 				Use:  "create-prefix-filter-list",
-				RunE: testCommandAdapter(CreateMCRPrefixFilterList),
+				RunE: testutil.NoColorAdapter(CreateMCRPrefixFilterList),
 			}
 
 			cmd.Flags().Bool("interactive", false, "")
@@ -2041,12 +1995,7 @@ func TestCreateMCRPrefixFilterList(t *testing.T) {
 			cmd.Flags().String("address-family", "", "")
 			cmd.Flags().String("entries", "", "")
 
-			for flagName, flagValue := range tt.flags {
-				err := cmd.Flags().Set(flagName, flagValue)
-				if err != nil {
-					t.Fatalf("Failed to set %s flag: %v", flagName, err)
-				}
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
@@ -2070,8 +2019,9 @@ func TestUpdateMCRPrefixFilterList(t *testing.T) {
 	originalLoginFunc := config.LoginFunc
 	originalModifyFunc := modifyMCRPrefixFilterListFunc
 	originalGetPrefixFunc := getMCRPrefixFilterListFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		modifyMCRPrefixFilterListFunc = originalModifyFunc
 		getMCRPrefixFilterListFunc = originalGetPrefixFunc
 	}()
@@ -2213,7 +2163,7 @@ func TestUpdateMCRPrefixFilterList(t *testing.T) {
 
 			cmd := &cobra.Command{
 				Use:  "update-prefix-filter-list",
-				RunE: testCommandAdapter(UpdateMCRPrefixFilterList),
+				RunE: testutil.NoColorAdapter(UpdateMCRPrefixFilterList),
 			}
 
 			cmd.Flags().Bool("interactive", false, "")
@@ -2223,12 +2173,7 @@ func TestUpdateMCRPrefixFilterList(t *testing.T) {
 			cmd.Flags().String("address-family", "", "")
 			cmd.Flags().String("entries", "", "")
 
-			for flagName, flagValue := range tt.flags {
-				err := cmd.Flags().Set(flagName, flagValue)
-				if err != nil {
-					t.Fatalf("Failed to set %s flag: %v", flagName, err)
-				}
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {

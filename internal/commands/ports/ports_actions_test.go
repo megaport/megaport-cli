@@ -7,27 +7,16 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/testutil"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func testCommandAdapterOutput(fn func(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error) func(cmd *cobra.Command, args []string) error {
-	return func(cmd *cobra.Command, args []string) error {
-		format, _ := cmd.Flags().GetString("output")
-		if format == "" {
-			format = "table"
-		}
-		return fn(cmd, args, true, format)
-	}
-}
-
 func TestGetPortStatus(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name           string
@@ -134,10 +123,8 @@ func TestGetPortStatus(t *testing.T) {
 }
 
 func TestGetPortCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.Login
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name          string
@@ -199,24 +186,12 @@ func TestGetPortCmd_WithMockClient(t *testing.T) {
 				return client, nil
 			}
 
-			cmd := &cobra.Command{
-				Use:  "get",
-				RunE: testCommandAdapterOutput(GetPort),
-			}
-			cmd.Flags().String("output", "table", "Output format (table, json)")
-			if err := cmd.Flags().Set("output", tt.format); err != nil {
-				t.Fatalf("Failed to set output flag: %v", err)
-			}
+			cmd := testutil.NewCommand("get", testutil.OutputAdapter(GetPort))
+			testutil.SetFlags(t, cmd, map[string]string{"output": tt.format})
 
 			var err error
 			output := output.CaptureOutput(func() {
-				cmdWithFormat := &cobra.Command{}
-				cmdWithFormat.Flags().String("output", "table", "Output format")
-				flagErr := cmdWithFormat.Flags().Set("output", tt.format)
-				if flagErr != nil {
-					t.Fatalf("Failed to set output flag: %v", err)
-				}
-				err = testCommandAdapterOutput(GetPort)(cmd, []string{tt.portID})
+				err = testutil.OutputAdapter(GetPort)(cmd, []string{tt.portID})
 			})
 
 			if tt.expectedError != "" {
@@ -233,10 +208,8 @@ func TestGetPortCmd_WithMockClient(t *testing.T) {
 }
 
 func TestGetPortStatus_NilPort(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	mockService := &MockPortService{ForceNilGetPort: true}
 	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
@@ -256,10 +229,10 @@ func TestGetPortStatus_NilPort(t *testing.T) {
 }
 
 func TestBuyPort_EmptyUIDs(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	originalBuyPortFunc := buyPortFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		buyPortFunc = originalBuyPortFunc
 	}()
 
@@ -302,10 +275,10 @@ func TestBuyPort_EmptyUIDs(t *testing.T) {
 }
 
 func TestBuyLAGPort_EmptyUIDs(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	originalBuyPortFunc := buyPortFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		buyPortFunc = originalBuyPortFunc
 	}()
 
@@ -350,10 +323,8 @@ func TestBuyLAGPort_EmptyUIDs(t *testing.T) {
 }
 
 func TestDeletePort_SafeDeleteFlag(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	mockService := &MockPortService{}
 	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
@@ -385,10 +356,8 @@ func TestDeletePort_SafeDeleteFlag(t *testing.T) {
 }
 
 func TestListPortResourceTagsCmd(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name           string
@@ -464,10 +433,8 @@ func TestListPortResourceTagsCmd(t *testing.T) {
 }
 
 func TestUpdatePortResourceTagsCmd(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name                 string
@@ -624,10 +591,10 @@ func TestUpdatePortResourceTagsCmd(t *testing.T) {
 }
 
 func TestListPorts(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	originalListPortsFunc := listPortsFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		listPortsFunc = originalListPortsFunc
 	}()
 
@@ -768,10 +735,10 @@ func TestListPorts(t *testing.T) {
 }
 
 func TestBuyPort(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	originalBuyPortFunc := buyPortFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		buyPortFunc = originalBuyPortFunc
 	}()
 
@@ -902,10 +869,10 @@ func TestBuyPort(t *testing.T) {
 }
 
 func TestRestorePort(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	originalRestorePortFunc := restorePortFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		restorePortFunc = originalRestorePortFunc
 	}()
 
@@ -985,10 +952,10 @@ func TestRestorePort(t *testing.T) {
 }
 
 func TestLockPort(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	originalLockPortFunc := lockPortFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		lockPortFunc = originalLockPortFunc
 	}()
 
@@ -1068,10 +1035,10 @@ func TestLockPort(t *testing.T) {
 }
 
 func TestUnlockPort(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	originalUnlockPortFunc := unlockPortFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		unlockPortFunc = originalUnlockPortFunc
 	}()
 
@@ -1151,10 +1118,10 @@ func TestUnlockPort(t *testing.T) {
 }
 
 func TestCheckPortVLANAvailability(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	originalCheckFunc := checkPortVLANAvailabilityFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		checkPortVLANAvailabilityFunc = originalCheckFunc
 	}()
 
@@ -1244,11 +1211,11 @@ func TestCheckPortVLANAvailability(t *testing.T) {
 }
 
 func TestUpdatePort(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	originalGetPortFunc := getPortFunc
 	originalUpdatePortFunc := updatePortFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
 		getPortFunc = originalGetPortFunc
 		updatePortFunc = originalUpdatePortFunc
 	}()

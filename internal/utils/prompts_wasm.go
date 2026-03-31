@@ -30,12 +30,12 @@ func wasmPrompt(msg string, noColor bool) (string, error) {
 func wasmConfirmPrompt(question string, noColor bool) bool {
 	// Add [y/N] to the question for clarity
 	fullQuestion := question + " [y/N]"
-	
+
 	response, err := wasm.PromptForInput(fullQuestion, "confirm", "")
 	if err != nil {
 		return false
 	}
-	
+
 	response = strings.ToLower(strings.TrimSpace(response))
 	return response == "y" || response == "yes"
 }
@@ -52,7 +52,7 @@ func wasmResourceTagsPrompt(noColor bool) (map[string]string, error) {
 	}
 
 	tags := make(map[string]string)
-	
+
 	// Inform user how to finish entering tags
 	fmt.Println("Enter tags (key and value). Enter empty key to finish.")
 
@@ -109,7 +109,7 @@ func wasmUpdateResourceTagsPrompt(existingTags map[string]string, noColor bool) 
 
 	// Options for common tag operations
 	tags := make(map[string]string)
-	
+
 	if len(existingTags) > 0 {
 		fmt.Println("\nChoose how you want to update tags:")
 		fmt.Println("1. Start with a clean slate (remove all existing tags)")

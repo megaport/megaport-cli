@@ -203,10 +203,10 @@ func TestWasmResourceTagsPrompt(t *testing.T) {
 		{
 			name: "single tag",
 			mockResponses: []string{
-				"y",        // Add tags
-				"env",      // Tag key
-				"prod",     // Tag value
-				"",         // Empty key to finish
+				"y",    // Add tags
+				"env",  // Tag key
+				"prod", // Tag value
+				"",     // Empty key to finish
 			},
 			expectedTags: map[string]string{
 				"env": "prod",
@@ -289,12 +289,12 @@ func TestWasmUpdateResourceTagsPrompt(t *testing.T) {
 				"env": "prod",
 			},
 			mockResponses: []string{
-				"y",        // Continue
-				"1",        // Clean slate
-				"team",     // New tag key
-				"devops",   // New tag value
-				"",         // Finish
-				"y",        // Apply changes
+				"y",      // Continue
+				"1",      // Clean slate
+				"team",   // New tag key
+				"devops", // New tag value
+				"",       // Finish
+				"y",      // Apply changes
 			},
 			expectedTags: map[string]string{
 				"team": "devops",
@@ -307,14 +307,14 @@ func TestWasmUpdateResourceTagsPrompt(t *testing.T) {
 				"env": "prod",
 			},
 			mockResponses: []string{
-				"y",      // Continue
-				"2",      // Start with existing
-				"env",    // Modify existing key
-				"dev",    // New value
-				"team",   // Add new key
+				"y",       // Continue
+				"2",       // Start with existing
+				"env",     // Modify existing key
+				"dev",     // New value
+				"team",    // Add new key
 				"backend", // New tag value
-				"",       // Finish
-				"y",      // Apply changes
+				"",        // Finish
+				"y",       // Apply changes
 			},
 			expectedTags: map[string]string{
 				"env":  "dev",
@@ -345,11 +345,11 @@ func TestWasmUpdateResourceTagsPrompt(t *testing.T) {
 			name:         "no existing tags - add new",
 			existingTags: map[string]string{},
 			mockResponses: []string{
-				"y",      // Continue
-				"y",      // Add tags (from ResourceTagsPrompt)
-				"env",    // Tag key
-				"prod",   // Tag value
-				"",       // Finish
+				"y",    // Continue
+				"y",    // Add tags (from ResourceTagsPrompt)
+				"env",  // Tag key
+				"prod", // Tag value
+				"",     // Finish
 			},
 			expectedTags: map[string]string{
 				"env": "prod",
@@ -415,13 +415,13 @@ var responseIndex int
 
 func setupMockPromptHandler(t *testing.T, response string) {
 	t.Helper()
-	
+
 	// Register a mock callback - convert js.Func to js.Value
 	callback := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		if len(args) > 0 {
 			promptData := args[0]
 			promptID := promptData.Get("id").String()
-			
+
 			// Automatically respond after a short delay
 			go func() {
 				time.Sleep(10 * time.Millisecond)
@@ -435,16 +435,16 @@ func setupMockPromptHandler(t *testing.T, response string) {
 		}
 		return nil
 	})
-	
+
 	wasm.RegisterPromptCallback(callback.Value)
 }
 
 func setupSequentialMockPromptHandler(t *testing.T, responses []string) {
 	t.Helper()
-	
+
 	responseQueue = responses
 	responseIndex = 0
-	
+
 	// Register a mock callback that returns responses in sequence
 	callback := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		if len(args) > 0 && responseIndex < len(responseQueue) {
@@ -452,7 +452,7 @@ func setupSequentialMockPromptHandler(t *testing.T, responses []string) {
 			promptID := promptData.Get("id").String()
 			response := responseQueue[responseIndex]
 			responseIndex++
-			
+
 			// Automatically respond after a short delay
 			go func() {
 				time.Sleep(10 * time.Millisecond)
@@ -466,7 +466,7 @@ func setupSequentialMockPromptHandler(t *testing.T, responses []string) {
 		}
 		return nil
 	})
-	
+
 	wasm.RegisterPromptCallback(callback.Value)
 }
 
