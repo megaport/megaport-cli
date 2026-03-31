@@ -22,11 +22,6 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithFlag("company-name", "", "Filter partner ports by company name").
 		WithIntFlag("location-id", 0, "Filter partner ports by location ID").
 		WithFlag("diversity-zone", "", "Filter partner ports by diversity zone").
-		WithOptionalFlag("product-name", "Filter partner ports by product name").
-		WithOptionalFlag("connect-type", "Filter partner ports by connect type").
-		WithOptionalFlag("company-name", "Filter partner ports by company name").
-		WithOptionalFlag("location-id", "Filter partner ports by location ID").
-		WithOptionalFlag("diversity-zone", "Filter partner ports by diversity zone").
 		WithExample("list").
 		WithExample("list --product-name \"AWS Partner Port\"").
 		WithExample("list --connect-type \"Dedicated Cloud Connection\"").
