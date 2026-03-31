@@ -15,6 +15,8 @@ import (
 var (
 	noColor      bool
 	outputFormat string
+	quiet        bool
+	verbose      bool
 
 	// rootCmd is the root command for the CLI
 	rootCmd = &cobra.Command{
@@ -73,4 +75,7 @@ func InitializeCommon() {
 		"Output format (table, json, csv, xml)")
 	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable colorful output")
 	rootCmd.PersistentFlags().StringVar(&utils.Env, "env", "", "Environment to use (prod, dev, or staging)")
+	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "Suppress informational output, only show errors and data")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Show additional debug information")
+	rootCmd.MarkFlagsMutuallyExclusive("quiet", "verbose")
 }

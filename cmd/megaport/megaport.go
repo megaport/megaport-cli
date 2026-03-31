@@ -13,6 +13,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/help"
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/wasm"
@@ -27,14 +28,28 @@ func init() {
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		applyDefaultSettings(cmd)
 		format := strings.ToLower(outputFormat)
-		for _, validFormat := range utils.ValidFormats {
-			if format == validFormat {
-				return nil
+		validFmt := false
+		for _, vf := range utils.ValidFormats {
+			if format == vf {
+				validFmt = true
+				break
 			}
 		}
+		if !validFmt {
+			return fmt.Errorf("invalid output format: %s. Must be one of: %s",
+				outputFormat, strings.Join(utils.ValidFormats, ", "))
+		}
 
-		return fmt.Errorf("invalid output format: %s. Must be one of: %s",
-			outputFormat, strings.Join(utils.ValidFormats, ", "))
+		// Set verbosity level based on flags
+		if quiet {
+			output.SetVerbosity("quiet")
+		} else if verbose {
+			output.SetVerbosity("verbose")
+		} else {
+			output.SetVerbosity("normal")
+		}
+
+		return nil
 	}
 
 	// Store the original help function so we can call it when needed
@@ -51,6 +66,8 @@ func init() {
 				"--output":   "Output format (json, yaml, table, csv, xml)",
 				"--help":     "Show help for any command",
 				"--env":      "Environment to use (production, staging, development)",
+				"--quiet":    "Suppress informational output, only show errors and data",
+				"--verbose":  "Show additional debug information",
 			},
 			Examples: []string{
 				"megaport-cli ports list",
@@ -146,6 +163,34 @@ func applyDefaultSettings(cmd *cobra.Command) {
 					log.Printf("Error setting output flag: %v\n", err)
 					return
 				}
+			}
+		}
+	}
+
+	// Apply "quiet" default
+	if !cmd.Flags().Changed("quiet") {
+		if val, exists := manager.GetDefault("quiet"); exists {
+			if boolVal, ok := val.(bool); ok {
+				err := cmd.Flags().Set("quiet", fmt.Sprintf("%t", boolVal))
+				if err != nil {
+					log.Printf("Error setting quiet flag: %v\n", err)
+					return
+				}
+				quiet = boolVal
+			}
+		}
+	}
+
+	// Apply "verbose" default
+	if !cmd.Flags().Changed("verbose") {
+		if val, exists := manager.GetDefault("verbose"); exists {
+			if boolVal, ok := val.(bool); ok {
+				err := cmd.Flags().Set("verbose", fmt.Sprintf("%t", boolVal))
+				if err != nil {
+					log.Printf("Error setting verbose flag: %v\n", err)
+					return
+				}
+				verbose = boolVal
 			}
 		}
 	}

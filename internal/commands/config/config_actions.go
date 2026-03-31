@@ -209,6 +209,22 @@ func SetDefault(cmd *cobra.Command, args []string, noColor bool) error {
 			}
 			return nil, fmt.Errorf("no-color must be true or false")
 		},
+		"quiet": func(v string) (interface{}, error) {
+			if strings.ToLower(v) == "true" {
+				return true, nil
+			} else if strings.ToLower(v) == "false" {
+				return false, nil
+			}
+			return nil, fmt.Errorf("quiet must be true or false")
+		},
+		"verbose": func(v string) (interface{}, error) {
+			if strings.ToLower(v) == "true" {
+				return true, nil
+			} else if strings.ToLower(v) == "false" {
+				return false, nil
+			}
+			return nil, fmt.Errorf("verbose must be true or false")
+		},
 	}
 
 	validator, exists := allowedSettings[key]
