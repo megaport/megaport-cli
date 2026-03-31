@@ -19,18 +19,20 @@ import (
 
 func TestMockSetup(t *testing.T) {
 	mockSvc := new(MockLocationsService)
-	testLocs := []*megaport.Location{
+	testLocs := []*megaport.LocationV3{
 		{
-			ID:      1,
-			Name:    "Test Location 1",
-			Country: "Australia",
-			Metro:   "Sydney",
+			ID:    1,
+			Name:  "Test Location 1",
+			Metro: "Sydney",
+			Address: megaport.LocationV3Address{
+				Country: "Australia",
+			},
 		},
 	}
 
-	mockSvc.On("ListLocations", mock.Anything).Return(testLocs, nil)
+	mockSvc.On("ListLocationsV3", mock.Anything).Return(testLocs, nil)
 
-	locations, err := mockSvc.ListLocations(context.Background())
+	locations, err := mockSvc.ListLocationsV3(context.Background())
 
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(locations))
@@ -47,7 +49,6 @@ func setupTestEnvironment() *MockLocationsService {
 func TestListLocationsFunc(t *testing.T) {
 	mockSvc := setupTestEnvironment()
 
-	// Create corresponding v3 locations for the test
 	testLocationsV3 := []*megaport.LocationV3{
 		{
 			ID:     1,
@@ -118,19 +119,8 @@ func TestListLocationsFunc(t *testing.T) {
 		t.Fatalf("Failed to login: %v", err)
 	}
 
-	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Location, error) {
-		// Use v3 API and convert to legacy format
-		locationsV3, err := client.LocationService.ListLocationsV3(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		var legacyLocations []*megaport.Location
-		for _, v3Loc := range locationsV3 {
-			legacyLocations = append(legacyLocations, v3Loc.ToLegacyLocation())
-		}
-
-		return legacyLocations, nil
+	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
+		return client.LocationService.ListLocationsV3(ctx)
 	}
 
 	locations, err := listLocationsFunc(context.Background(), testClient)
@@ -170,19 +160,8 @@ func TestListLocationsFuncError(t *testing.T) {
 		t.Fatalf("Failed to login: %v", err)
 	}
 
-	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Location, error) {
-		// Use v3 API and convert to legacy format
-		locationsV3, err := client.LocationService.ListLocationsV3(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		var legacyLocations []*megaport.Location
-		for _, v3Loc := range locationsV3 {
-			legacyLocations = append(legacyLocations, v3Loc.ToLegacyLocation())
-		}
-
-		return legacyLocations, nil
+	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
+		return client.LocationService.ListLocationsV3(ctx)
 	}
 
 	locations, err := listLocationsFunc(context.Background(), testClient)
@@ -197,7 +176,6 @@ func TestListLocationsFuncError(t *testing.T) {
 func TestListLocationsCommand(t *testing.T) {
 	mockSvc := setupTestEnvironment()
 
-	// Create corresponding v3 locations for the test
 	testLocationsV3 := []*megaport.LocationV3{
 		{
 			ID:     1,
@@ -264,19 +242,8 @@ func TestListLocationsCommand(t *testing.T) {
 		return testClient, nil
 	}
 
-	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Location, error) {
-		// Use v3 API and convert to legacy format
-		locationsV3, err := client.LocationService.ListLocationsV3(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		var legacyLocations []*megaport.Location
-		for _, v3Loc := range locationsV3 {
-			legacyLocations = append(legacyLocations, v3Loc.ToLegacyLocation())
-		}
-
-		return legacyLocations, nil
+	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
+		return client.LocationService.ListLocationsV3(ctx)
 	}
 
 	t.Run("NoFilters", func(t *testing.T) {
@@ -480,16 +447,8 @@ func TestGetLocation(t *testing.T) {
 				return testClient, nil
 			}
 
-			listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Location, error) {
-				locationsV3, err := client.LocationService.ListLocationsV3(ctx)
-				if err != nil {
-					return nil, err
-				}
-				var legacyLocations []*megaport.Location
-				for _, v3Loc := range locationsV3 {
-					legacyLocations = append(legacyLocations, v3Loc.ToLegacyLocation())
-				}
-				return legacyLocations, nil
+			listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
+				return client.LocationService.ListLocationsV3(ctx)
 			}
 
 			cmd := &cobra.Command{
@@ -765,16 +724,8 @@ func TestSearchLocations(t *testing.T) {
 				return testClient, nil
 			}
 
-			searchLocationsFunc = func(ctx context.Context, client *megaport.Client, search string) ([]*megaport.Location, error) {
-				locationsV3, err := client.LocationService.GetLocationByNameFuzzyV3(ctx, search)
-				if err != nil {
-					return nil, err
-				}
-				var legacyLocations []*megaport.Location
-				for _, v3Loc := range locationsV3 {
-					legacyLocations = append(legacyLocations, v3Loc.ToLegacyLocation())
-				}
-				return legacyLocations, nil
+			searchLocationsFunc = func(ctx context.Context, client *megaport.Client, search string) ([]*megaport.LocationV3, error) {
+				return client.LocationService.GetLocationByNameFuzzyV3(ctx, search)
 			}
 
 			cmd := &cobra.Command{Use: "search"}

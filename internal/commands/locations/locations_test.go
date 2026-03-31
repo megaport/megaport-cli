@@ -10,29 +10,45 @@ import (
 
 var noColor = true
 
-var testLocations = []*megaport.Location{
+var testLocations = []*megaport.LocationV3{
 	{
-		ID:       1,
-		Name:     "Sydney",
-		Country:  "Australia",
-		Metro:    "Sydney",
-		SiteCode: "SYD1",
-		Market:   "APAC",
-		Status:   "ACTIVE",
-		Products: &megaport.LocationProducts{
-			MCR: true,
+		ID:     1,
+		Name:   "Sydney",
+		Metro:  "Sydney",
+		Market: "APAC",
+		Status: "ACTIVE",
+		Address: megaport.LocationV3Address{
+			Country: "Australia",
+		},
+		DiversityZones: &megaport.LocationV3DiversityZones{
+			Red: &megaport.LocationV3DiversityZone{
+				McrSpeedMbps:      []int{1000, 10000},
+				MegaportSpeedMbps: []int{1, 10},
+				MveAvailable:      true,
+			},
+		},
+		DataCentre: megaport.LocationV3DataCentre{
+			ID:   100,
+			Name: "SYD1 Data Centre",
 		},
 	},
 	{
-		ID:       2,
-		Name:     "London",
-		Country:  "United Kingdom",
-		Metro:    "London",
-		SiteCode: "LON1",
-		Market:   "EUROPE",
-		Status:   "ACTIVE",
-		Products: &megaport.LocationProducts{
-			MCR: false,
+		ID:     2,
+		Name:   "London",
+		Metro:  "London",
+		Market: "EUROPE",
+		Status: "ACTIVE",
+		Address: megaport.LocationV3Address{
+			Country: "United Kingdom",
+		},
+		DiversityZones: &megaport.LocationV3DiversityZones{
+			Red: &megaport.LocationV3DiversityZone{
+				MegaportSpeedMbps: []int{1},
+			},
+		},
+		DataCentre: megaport.LocationV3DataCentre{
+			ID:   200,
+			Name: "LON1 Data Centre",
 		},
 	},
 }
@@ -103,8 +119,9 @@ func TestPrintLocations_Table(t *testing.T) {
 	assert.Contains(t, output, "NAME")
 	assert.Contains(t, output, "COUNTRY")
 	assert.Contains(t, output, "METRO")
-	assert.Contains(t, output, "SITE CODE")
 	assert.Contains(t, output, "STATUS")
+	assert.Contains(t, output, "MCR AVAILABLE")
+	assert.Contains(t, output, "MVE AVAILABLE")
 	assert.Contains(t, output, "Sydney")
 	assert.Contains(t, output, "London")
 	assert.Contains(t, output, "Australia")
@@ -124,22 +141,34 @@ func TestPrintLocations_JSON(t *testing.T) {
     "name": "Sydney",
     "country": "Australia",
     "metro": "Sydney",
-    "site_code": "SYD1",
     "market": "APAC",
     "latitude": 0,
     "longitude": 0,
-    "status": "ACTIVE"
+    "status": "ACTIVE",
+    "data_centre_name": "SYD1 Data Centre",
+    "data_centre_id": 100,
+    "mcr_available": true,
+    "mve_available": true,
+    "cross_connect_available": false,
+    "cross_connect_type": "",
+    "ordering_message": ""
   },
   {
     "id": 2,
     "name": "London",
     "country": "United Kingdom",
     "metro": "London",
-    "site_code": "LON1",
     "market": "EUROPE",
     "latitude": 0,
     "longitude": 0,
-    "status": "ACTIVE"
+    "status": "ACTIVE",
+    "data_centre_name": "LON1 Data Centre",
+    "data_centre_id": 200,
+    "mcr_available": false,
+    "mve_available": false,
+    "cross_connect_available": false,
+    "cross_connect_type": "",
+    "ordering_message": ""
   }
 ]`
 	assert.JSONEq(t, expected, output)
@@ -151,9 +180,9 @@ func TestPrintLocations_CSV(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	expected := `id,name,country,metro,site_code,market,latitude,longitude,status
-1,Sydney,Australia,Sydney,SYD1,APAC,0,0,ACTIVE
-2,London,United Kingdom,London,LON1,EUROPE,0,0,ACTIVE
+	expected := `id,name,country,metro,market,latitude,longitude,status,data_centre_name,data_centre_id,mcr_available,mve_available,cross_connect_available,cross_connect_type,ordering_message
+1,Sydney,Australia,Sydney,APAC,0,0,ACTIVE,SYD1 Data Centre,100,true,true,false,,
+2,London,United Kingdom,London,EUROPE,0,0,ACTIVE,LON1 Data Centre,200,false,false,false,,
 `
 	assert.Equal(t, expected, output)
 }
@@ -170,13 +199,13 @@ func TestPrintLocations_Invalid(t *testing.T) {
 }
 
 func TestFilterLocations_EmptySlice(t *testing.T) {
-	var emptyLocations []*megaport.Location
+	var emptyLocations []*megaport.LocationV3
 	result := filterLocations(emptyLocations, map[string]string{})
 	assert.Equal(t, 0, len(result), "Expected no results for empty input")
 }
 
 func TestPrintLocations_EmptySlice(t *testing.T) {
-	var emptyLocations []*megaport.Location
+	var emptyLocations []*megaport.LocationV3
 
 	tableOutput := output.CaptureOutput(func() {
 		err := printLocations(emptyLocations, "table", noColor)
@@ -185,7 +214,8 @@ func TestPrintLocations_EmptySlice(t *testing.T) {
 	assert.Contains(t, tableOutput, "ID")
 	assert.Contains(t, tableOutput, "NAME")
 	assert.Contains(t, tableOutput, "COUNTRY")
-	assert.Contains(t, tableOutput, "SITE CODE")
+	assert.Contains(t, tableOutput, "MCR AVAILABLE")
+	assert.Contains(t, tableOutput, "MVE AVAILABLE")
 	assert.Contains(t, tableOutput, "STATUS")
 	assert.Contains(t, tableOutput, "┌")
 	assert.Contains(t, tableOutput, "┐")
@@ -198,7 +228,7 @@ func TestPrintLocations_EmptySlice(t *testing.T) {
 		err := printLocations(emptyLocations, "csv", noColor)
 		assert.NoError(t, err)
 	})
-	expectedCSV := `id,name,country,metro,site_code,market,latitude,longitude,status
+	expectedCSV := `id,name,country,metro,market,latitude,longitude,status,data_centre_name,data_centre_id,mcr_available,mve_available,cross_connect_available,cross_connect_type,ordering_message
 `
 	assert.Equal(t, expectedCSV, csvOutput)
 

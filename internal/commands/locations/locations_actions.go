@@ -221,7 +221,7 @@ func GetLocation(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 		return fmt.Errorf("error listing locations: %v", err)
 	}
 
-	var targetLocation *megaport.Location
+	var targetLocation *megaport.LocationV3
 	for _, loc := range locations {
 		if loc.ID == locationID {
 			targetLocation = loc
@@ -237,7 +237,7 @@ func GetLocation(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 
 	spinner.StopWithSuccess(fmt.Sprintf("Found location with ID: %d", locationID))
 
-	err = printLocations([]*megaport.Location{targetLocation}, outputFormat, noColor)
+	err = printLocations([]*megaport.LocationV3{targetLocation}, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print location details: %v", noColor, err)
 		return err

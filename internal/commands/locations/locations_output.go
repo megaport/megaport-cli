@@ -7,49 +7,66 @@ import (
 )
 
 type LocationOutput struct {
-	output.Output `json:"-" header:"-"`
-	ID            int     `json:"id" header:"ID"`
-	Name          string  `json:"name" header:"Name"`
-	Country       string  `json:"country" header:"Country"`
-	Metro         string  `json:"metro" header:"Metro"`
-	SiteCode      string  `json:"site_code" header:"Site Code"` // Note: Site code deprecated in v3 API
-	Market        string  `json:"market" header:"Market"`
-	Latitude      float64 `json:"latitude" header:"-"`
-	Longitude     float64 `json:"longitude" header:"-"`
-	Status        string  `json:"status" header:"Status"`
+	output.Output         `json:"-" header:"-"`
+	ID                    int     `json:"id" header:"ID"`
+	Name                  string  `json:"name" header:"Name"`
+	Country               string  `json:"country" header:"Country"`
+	Metro                 string  `json:"metro" header:"Metro"`
+	Market                string  `json:"market" header:"Market"`
+	Latitude              float64 `json:"latitude" header:"-"`
+	Longitude             float64 `json:"longitude" header:"-"`
+	Status                string  `json:"status" header:"Status"`
+	DataCentreName        string  `json:"data_centre_name" header:"-"`
+	DataCentreID          int     `json:"data_centre_id" header:"-"`
+	MCRAvailable          bool    `json:"mcr_available" header:"-"`
+	MVEAvailable          bool    `json:"mve_available" header:"-"`
+	CrossConnectAvailable bool    `json:"cross_connect_available" header:"-"`
+	CrossConnectType      string  `json:"cross_connect_type" header:"-"`
+	OrderingMessage       string  `json:"ordering_message" header:"-"`
 }
 
-func ToLocationOutput(l *megaport.Location) LocationOutput {
-	return LocationOutput{
-		ID:        l.ID,
-		Name:      l.Name,
-		Country:   l.Country,
-		Metro:     l.Metro,
-		SiteCode:  l.SiteCode, // Will be empty for v3-sourced data
-		Market:    l.Market,
-		Latitude:  l.Latitude,
-		Longitude: l.Longitude,
-		Status:    l.Status,
+func ToLocationOutput(l *megaport.LocationV3) LocationOutput {
+	o := LocationOutput{
+		ID:                    l.ID,
+		Name:                  l.Name,
+		Country:               l.Address.Country,
+		Metro:                 l.Metro,
+		Market:                l.Market,
+		Latitude:              l.Latitude,
+		Longitude:             l.Longitude,
+		Status:                l.Status,
+		DataCentreName:        l.GetDataCenterName(),
+		DataCentreID:          l.GetDataCenterID(),
+		MCRAvailable:          l.HasMCRSupport(),
+		MVEAvailable:          l.HasMVESupport(),
+		CrossConnectAvailable: l.HasCrossConnectSupport(),
+		CrossConnectType:      l.GetCrossConnectType(),
 	}
+	if l.OrderingMessage != nil {
+		o.OrderingMessage = *l.OrderingMessage
+	}
+	return o
 }
 
 type LocationTableOutput struct {
-	ID       int    `header:"ID"`
-	Name     string `header:"Name"`
-	Country  string `header:"Country"`
-	Metro    string `header:"Metro"`
-	SiteCode string `header:"Site Code"` // Note: Site code deprecated in v3 API
-	Status   string `header:"Status"`
+	ID           int    `header:"ID"`
+	Name         string `header:"Name"`
+	Country      string `header:"Country"`
+	Metro        string `header:"Metro"`
+	Status       string `header:"Status"`
+	MCRAvailable bool   `header:"MCR Available"`
+	MVEAvailable bool   `header:"MVE Available"`
 }
 
-func ToLocationTableOutput(l *megaport.Location) LocationTableOutput {
+func ToLocationTableOutput(l *megaport.LocationV3) LocationTableOutput {
 	return LocationTableOutput{
-		ID:       l.ID,
-		Name:     l.Name,
-		Country:  l.Country,
-		Metro:    l.Metro,
-		SiteCode: l.SiteCode, // Will be empty for v3-sourced data
-		Status:   l.Status,
+		ID:           l.ID,
+		Name:         l.Name,
+		Country:      l.Address.Country,
+		Metro:        l.Metro,
+		Status:       l.Status,
+		MCRAvailable: l.HasMCRSupport(),
+		MVEAvailable: l.HasMVESupport(),
 	}
 }
 
@@ -89,7 +106,7 @@ func printMarketCodes(marketCodes []string, format string, noColor bool) error {
 	return output.PrintOutput(outputs, format, noColor)
 }
 
-func printLocations(locations []*megaport.Location, format string, noColor bool) error {
+func printLocations(locations []*megaport.LocationV3, format string, noColor bool) error {
 	if format == utils.FormatTable {
 		tableOutputs := make([]LocationTableOutput, 0, len(locations))
 		for _, loc := range locations {
