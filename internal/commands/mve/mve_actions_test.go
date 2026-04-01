@@ -2117,3 +2117,93 @@ func TestValidateMVE(t *testing.T) {
 		})
 	}
 }
+
+func TestListMVEImages_NilResult(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockService := &MockMVEService{}
+	// Force nil return by not setting result and not setting error
+	// The mock returns empty slice by default, so we need to override
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.MVEService = mockService
+		return client, nil
+	}
+
+	mockService.ListMVEImagesErr = fmt.Errorf("API failure")
+
+	cmd := testutil.NewCommand("list-images", testutil.OutputAdapter(ListMVEImages))
+	cmd.Flags().String("vendor", "", "")
+	cmd.Flags().String("product-code", "", "")
+	cmd.Flags().Int("id", 0, "")
+	cmd.Flags().String("version", "", "")
+	cmd.Flags().Bool("release-image", false, "")
+
+	var err error
+	output.CaptureOutput(func() {
+		err = testutil.OutputAdapter(ListMVEImages)(cmd, nil)
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "API failure")
+}
+
+func TestListMVEImages_LoginError(t *testing.T) {
+	cleanup := testutil.SetupLoginError(fmt.Errorf("auth failed"))
+	defer cleanup()
+
+	cmd := testutil.NewCommand("list-images", testutil.OutputAdapter(ListMVEImages))
+	cmd.Flags().String("vendor", "", "")
+	cmd.Flags().String("product-code", "", "")
+	cmd.Flags().Int("id", 0, "")
+	cmd.Flags().String("version", "", "")
+	cmd.Flags().Bool("release-image", false, "")
+
+	var err error
+	output.CaptureOutput(func() {
+		err = testutil.OutputAdapter(ListMVEImages)(cmd, nil)
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "auth failed")
+}
+
+func TestListAvailableMVESizes_Error(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockService := &MockMVEService{}
+	mockService.ListAvailableMVESizesErr = fmt.Errorf("API failure")
+
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.MVEService = mockService
+		return client, nil
+	}
+
+	cmd := testutil.NewCommand("list-sizes", testutil.OutputAdapter(ListAvailableMVESizes))
+
+	var err error
+	output.CaptureOutput(func() {
+		err = testutil.OutputAdapter(ListAvailableMVESizes)(cmd, nil)
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "API failure")
+}
+
+func TestListAvailableMVESizes_LoginError(t *testing.T) {
+	cleanup := testutil.SetupLoginError(fmt.Errorf("auth failed"))
+	defer cleanup()
+
+	cmd := testutil.NewCommand("list-sizes", testutil.OutputAdapter(ListAvailableMVESizes))
+
+	var err error
+	output.CaptureOutput(func() {
+		err = testutil.OutputAdapter(ListAvailableMVESizes)(cmd, nil)
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "auth failed")
+}
