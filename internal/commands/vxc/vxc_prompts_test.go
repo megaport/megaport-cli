@@ -410,7 +410,7 @@ func TestPromptAzureConfig(t *testing.T) {
 	defer cleanup()
 
 	mockSvc := &MockVXCService{
-		listPartnerPortsResponse: &megaport.ListPartnerPortsResponse{
+		ListPartnerPortsResponse: &megaport.ListPartnerPortsResponse{
 			Data: megaport.PartnerLookup{
 				Megaports: []megaport.PartnerLookupItem{
 					{ProductUID: "azure-uid-1", Type: "primary"},
@@ -867,7 +867,7 @@ func TestBuildUpdateVXCRequestFromPrompt(t *testing.T) {
 			defer cleanup()
 
 			mockSvc := &MockVXCService{
-				getVXCResponse: existingVXC,
+				GetVXCResponse: existingVXC,
 			}
 			cleanupLogin := testutil.SetupLogin(func(c *megaport.Client) {
 				c.VXCService = mockSvc
