@@ -2159,6 +2159,7 @@ func TestValidateVXC(t *testing.T) {
 		name             string
 		jsonInput        string
 		setupMock        func(*MockVXCService)
+		loginError       error
 		expectedError    string
 		expectedContains string
 	}{
@@ -2176,6 +2177,18 @@ func TestValidateVXC(t *testing.T) {
 			},
 			expectedError: "invalid VXC configuration",
 		},
+		{
+			name:          "no input provided",
+			setupMock:     func(m *MockVXCService) {},
+			expectedError: "no input provided",
+		},
+		{
+			name:          "login error",
+			jsonInput:     `{"vxcName":"test-vxc","rateLimit":1000,"term":12,"portUid":"port-123","aEndConfiguration":{"vlan":100},"bEndConfiguration":{"productUID":"port-456","vlan":200}}`,
+			setupMock:     func(m *MockVXCService) {},
+			loginError:    fmt.Errorf("authentication failed"),
+			expectedError: "authentication failed",
+		},
 	}
 
 	for _, tt := range tests {
@@ -2185,10 +2198,16 @@ func TestValidateVXC(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				client := &megaport.Client{}
-				client.VXCService = mockService
-				return client, nil
+			if tt.loginError != nil {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, tt.loginError
+				}
+			} else {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.VXCService = mockService
+					return client, nil
+				}
 			}
 
 			cmd := &cobra.Command{Use: "validate"}

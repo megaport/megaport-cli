@@ -2578,6 +2578,7 @@ func TestValidateMCR(t *testing.T) {
 		flags            map[string]string
 		jsonInput        string
 		setupMock        func(*MockMCRService)
+		loginError       error
 		expectedError    string
 		expectedContains string
 	}{
@@ -2613,6 +2614,25 @@ func TestValidateMCR(t *testing.T) {
 			},
 			expectedError: "invalid MCR configuration",
 		},
+		{
+			name:          "no input provided",
+			flags:         map[string]string{},
+			setupMock:     func(m *MockMCRService) {},
+			expectedError: "no input provided",
+		},
+		{
+			name: "login error",
+			flags: map[string]string{
+				"name":                   "test-mcr",
+				"term":                   "12",
+				"port-speed":             "5000",
+				"location-id":            "1",
+				"marketplace-visibility": "true",
+			},
+			setupMock:     func(m *MockMCRService) {},
+			loginError:    fmt.Errorf("authentication failed"),
+			expectedError: "authentication failed",
+		},
 	}
 
 	for _, tt := range tests {
@@ -2622,10 +2642,16 @@ func TestValidateMCR(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				client := &megaport.Client{}
-				client.MCRService = mockService
-				return client, nil
+			if tt.loginError != nil {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, tt.loginError
+				}
+			} else {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = mockService
+					return client, nil
+				}
 			}
 
 			cmd := &cobra.Command{Use: "validate"}

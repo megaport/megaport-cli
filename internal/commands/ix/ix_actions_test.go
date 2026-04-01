@@ -1694,6 +1694,7 @@ func TestValidateIX(t *testing.T) {
 		flags            map[string]string
 		jsonInput        string
 		setupMock        func(*MockIXService)
+		loginError       error
 		expectedError    string
 		expectedContains string
 	}{
@@ -1733,6 +1734,27 @@ func TestValidateIX(t *testing.T) {
 			},
 			expectedError: "invalid IX configuration",
 		},
+		{
+			name:          "no input provided",
+			flags:         map[string]string{},
+			setupMock:     func(m *MockIXService) {},
+			expectedError: "no input provided",
+		},
+		{
+			name: "login error",
+			flags: map[string]string{
+				"name":                 "test-ix",
+				"product-uid":          "port-123",
+				"network-service-type": "Los Angeles IX",
+				"asn":                  "65000",
+				"mac-address":          "00:11:22:33:44:55",
+				"rate-limit":           "1000",
+				"vlan":                 "100",
+			},
+			setupMock:     func(m *MockIXService) {},
+			loginError:    fmt.Errorf("authentication failed"),
+			expectedError: "authentication failed",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1742,10 +1764,16 @@ func TestValidateIX(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				client := &megaport.Client{}
-				client.IXService = mockService
-				return client, nil
+			if tt.loginError != nil {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, tt.loginError
+				}
+			} else {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.IXService = mockService
+					return client, nil
+				}
 			}
 
 			cmd := &cobra.Command{Use: "validate"}

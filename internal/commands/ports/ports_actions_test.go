@@ -1599,6 +1599,7 @@ func TestValidatePort(t *testing.T) {
 		flags            map[string]string
 		jsonInput        string
 		setupMock        func(*MockPortService)
+		loginError       error
 		expectedError    string
 		expectedContains string
 	}{
@@ -1634,6 +1635,25 @@ func TestValidatePort(t *testing.T) {
 			},
 			expectedError: "invalid port configuration",
 		},
+		{
+			name:          "no input provided",
+			flags:         map[string]string{},
+			setupMock:     func(m *MockPortService) {},
+			expectedError: "no input provided",
+		},
+		{
+			name: "login error",
+			flags: map[string]string{
+				"name":                   "test-port",
+				"term":                   "12",
+				"port-speed":             "1000",
+				"location-id":            "1",
+				"marketplace-visibility": "true",
+			},
+			setupMock:     func(m *MockPortService) {},
+			loginError:    fmt.Errorf("authentication failed"),
+			expectedError: "authentication failed",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1643,10 +1663,16 @@ func TestValidatePort(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				client := &megaport.Client{}
-				client.PortService = mockService
-				return client, nil
+			if tt.loginError != nil {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, tt.loginError
+				}
+			} else {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.PortService = mockService
+					return client, nil
+				}
 			}
 
 			cmd := &cobra.Command{Use: "validate"}

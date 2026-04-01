@@ -1986,6 +1986,7 @@ func TestValidateMVE(t *testing.T) {
 		name             string
 		jsonInput        string
 		setupMock        func(*MockMVEService)
+		loginError       error
 		expectedError    string
 		expectedContains string
 	}{
@@ -2003,6 +2004,18 @@ func TestValidateMVE(t *testing.T) {
 			},
 			expectedError: "invalid MVE configuration",
 		},
+		{
+			name:          "no input provided",
+			setupMock:     func(m *MockMVEService) {},
+			expectedError: "no input provided",
+		},
+		{
+			name:          "login error",
+			jsonInput:     `{"name":"test-mve","term":12,"locationId":1,"vendorConfig":{"vendor":"cisco","imageId":1,"productSize":"MEDIUM","mveLabel":"test-label","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA","sshPublicKey":"ssh-rsa AAAA","cloudInit":"#cloud-config","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"reg-key","fmcNatId":"nat-id"},"vnics":[{"description":"Data Plane","vlan":100}]}`,
+			setupMock:     func(m *MockMVEService) {},
+			loginError:    fmt.Errorf("authentication failed"),
+			expectedError: "authentication failed",
+		},
 	}
 
 	for _, tt := range tests {
@@ -2012,10 +2025,16 @@ func TestValidateMVE(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				client := &megaport.Client{}
-				client.MVEService = mockService
-				return client, nil
+			if tt.loginError != nil {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, tt.loginError
+				}
+			} else {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MVEService = mockService
+					return client, nil
+				}
 			}
 
 			cmd := &cobra.Command{Use: "validate"}
