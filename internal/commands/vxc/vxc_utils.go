@@ -50,7 +50,9 @@ var getPartnerPortUID = func(ctx context.Context, svc megaport.VXCService, key, 
 	return res.ProductUID, nil
 }
 
-func filterVXCs(vxcs []*megaport.VXC, name, aEndUID, bEndUID string, rateLimit int) []*megaport.VXC {
+// filterVXCs applies client-side case-insensitive name filtering as a safety
+// net alongside server-side NameContains filtering.
+func filterVXCs(vxcs []*megaport.VXC, name string) []*megaport.VXC {
 	var filtered []*megaport.VXC
 
 	if vxcs == nil {
@@ -62,15 +64,6 @@ func filterVXCs(vxcs []*megaport.VXC, name, aEndUID, bEndUID string, rateLimit i
 			continue
 		}
 		if name != "" && !strings.Contains(strings.ToLower(vxc.Name), strings.ToLower(name)) {
-			continue
-		}
-		if rateLimit > 0 && vxc.RateLimit != rateLimit {
-			continue
-		}
-		if aEndUID != "" && vxc.AEndConfiguration.UID != aEndUID {
-			continue
-		}
-		if bEndUID != "" && vxc.BEndConfiguration.UID != bEndUID {
 			continue
 		}
 		filtered = append(filtered, vxc)

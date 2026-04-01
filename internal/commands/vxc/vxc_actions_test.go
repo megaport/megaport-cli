@@ -716,6 +716,44 @@ func TestListVXCs(t *testing.T) {
 			outputFormat:   "table",
 		},
 		{
+			name: "filter by status",
+			flags: map[string]string{
+				"status":           "LIVE",
+				"include-inactive": "true",
+			},
+			setupMock: func(m *MockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02", "production-vxc"},
+			unexpectedVXCs: []string{"test-vxc-decom", "cancelled-vxc", "decommissioning-vxc"},
+			outputFormat:   "table",
+		},
+		{
+			name: "filter by multiple statuses",
+			flags: map[string]string{
+				"status":           "LIVE,CONFIGURED",
+				"include-inactive": "true",
+			},
+			setupMock: func(m *MockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02", "production-vxc"},
+			unexpectedVXCs: []string{"test-vxc-decom", "cancelled-vxc", "decommissioning-vxc"},
+			outputFormat:   "table",
+		},
+		{
+			name: "filter by name-contains",
+			flags: map[string]string{
+				"name-contains": "demo",
+			},
+			setupMock: func(m *MockVXCService) {
+				m.listVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02"},
+			unexpectedVXCs: []string{"production-vxc", "test-vxc-decom"},
+			outputFormat:   "table",
+		},
+		{
 			name: "include inactive VXCs",
 			flags: map[string]string{
 				"include-inactive": "true",
@@ -837,9 +875,11 @@ func TestListVXCs(t *testing.T) {
 			}
 
 			cmd.Flags().String("name", "", "Filter VXCs by name")
+			cmd.Flags().String("name-contains", "", "Filter VXCs by partial name match")
 			cmd.Flags().Int("rate-limit", 0, "Filter VXCs by rate limit")
 			cmd.Flags().String("a-end-uid", "", "Filter VXCs by A-End UID")
 			cmd.Flags().String("b-end-uid", "", "Filter VXCs by B-End UID")
+			cmd.Flags().String("status", "", "Filter VXCs by status")
 			cmd.Flags().Bool("include-inactive", false, "Include inactive VXCs")
 
 			testutil.SetFlags(t, cmd, tt.flags)
