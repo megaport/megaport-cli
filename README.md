@@ -1,5 +1,7 @@
 # Megaport CLI
 
+[![codecov](https://codecov.io/gh/megaport/megaport-cli/branch/main/graph/badge.svg)](https://codecov.io/gh/megaport/megaport-cli)
+
 > [!CAUTION]
 > The Megaport CLI tool is currently an unsupported alpha, we're excited for feedback but please know that functionality and features may change drastically, and there may be bugs.
 
