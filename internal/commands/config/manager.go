@@ -110,6 +110,14 @@ func (m *ConfigManager) GetCurrentProfile() (*Profile, string, error) {
 	return profile, profileName, nil
 }
 
+func (m *ConfigManager) GetProfile(name string) (*Profile, error) {
+	profile, exists := m.config.Profiles[name]
+	if !exists {
+		return nil, fmt.Errorf("profile %q not found", name)
+	}
+	return profile, nil
+}
+
 func (m *ConfigManager) CreateProfile(name, accessKey, secretKey, environment, description string) error {
 	if name == "" {
 		return fmt.Errorf("profile name cannot be empty")

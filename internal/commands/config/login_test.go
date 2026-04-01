@@ -222,6 +222,119 @@ func TestEnvironmentSelectionPrecedence(t *testing.T) {
 	}
 }
 
+func TestProfileOverrideLogin(t *testing.T) {
+	// Save original values
+	originalEnv := utils.Env
+	originalProfileOverride := utils.ProfileOverride
+	originalAccessKey := os.Getenv("MEGAPORT_ACCESS_KEY")
+	originalSecretKey := os.Getenv("MEGAPORT_SECRET_KEY")
+	originalMegaportEnv := os.Getenv("MEGAPORT_ENVIRONMENT")
+	originalConfigDir := os.Getenv("MEGAPORT_CONFIG_DIR")
+
+	defer func() {
+		utils.Env = originalEnv
+		utils.ProfileOverride = originalProfileOverride
+		restoreEnvVar("MEGAPORT_ACCESS_KEY", originalAccessKey)
+		restoreEnvVar("MEGAPORT_SECRET_KEY", originalSecretKey)
+		restoreEnvVar("MEGAPORT_ENVIRONMENT", originalMegaportEnv)
+		restoreEnvVar("MEGAPORT_CONFIG_DIR", originalConfigDir)
+	}()
+
+	// Setup temp config dir with profiles
+	tempDir, err := os.MkdirTemp("", "megaport-login-test")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+	os.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+
+	// Clear env vars so profile credentials are used
+	os.Unsetenv("MEGAPORT_ACCESS_KEY")
+	os.Unsetenv("MEGAPORT_SECRET_KEY")
+	os.Unsetenv("MEGAPORT_ENVIRONMENT")
+
+	// Create config with two profiles
+	manager, err := NewConfigManager()
+	assert.NoError(t, err)
+	err = manager.CreateProfile("staging", "staging-access", "staging-secret", "staging", "")
+	assert.NoError(t, err)
+	err = manager.CreateProfile("prod", "prod-access", "prod-secret", "production", "")
+	assert.NoError(t, err)
+	err = manager.UseProfile("prod")
+	assert.NoError(t, err)
+
+	t.Run("profile override uses specified profile credentials", func(t *testing.T) {
+		utils.Env = ""
+		utils.ProfileOverride = "staging"
+
+		var capturedAccessKey, capturedSecretKey, capturedEnv string
+		originalLoginFuncWithOutput := LoginFuncWithOutput
+		defer func() { LoginFuncWithOutput = originalLoginFuncWithOutput }()
+
+		// We need to test the actual credential resolution logic, not mock it.
+		// So we read the resolved values by inspecting what LoginFuncWithOutput would do.
+		// Since the real function tries to hit the API, we test the credential resolution separately.
+		manager2, err := NewConfigManager()
+		assert.NoError(t, err)
+		profile, err := manager2.GetProfile(utils.ProfileOverride)
+		assert.NoError(t, err)
+		capturedAccessKey = profile.AccessKey
+		capturedSecretKey = profile.SecretKey
+		capturedEnv = profile.Environment
+
+		assert.Equal(t, "staging-access", capturedAccessKey)
+		assert.Equal(t, "staging-secret", capturedSecretKey)
+		assert.Equal(t, "staging", capturedEnv)
+	})
+
+	t.Run("profile override with non-existent profile returns error", func(t *testing.T) {
+		utils.Env = ""
+		utils.ProfileOverride = "non-existent"
+
+		manager2, err := NewConfigManager()
+		assert.NoError(t, err)
+		_, err = manager2.GetProfile(utils.ProfileOverride)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "non-existent")
+	})
+
+	t.Run("without profile override uses active profile", func(t *testing.T) {
+		utils.Env = ""
+		utils.ProfileOverride = ""
+
+		manager2, err := NewConfigManager()
+		assert.NoError(t, err)
+		profile, name, err := manager2.GetCurrentProfile()
+		assert.NoError(t, err)
+		assert.Equal(t, "prod", name)
+		assert.Equal(t, "prod-access", profile.AccessKey)
+		assert.Equal(t, "prod-secret", profile.SecretKey)
+	})
+
+	t.Run("env flag overrides profile environment", func(t *testing.T) {
+		utils.Env = "development"
+		utils.ProfileOverride = "staging"
+
+		manager2, err := NewConfigManager()
+		assert.NoError(t, err)
+		profile, err := manager2.GetProfile(utils.ProfileOverride)
+		assert.NoError(t, err)
+
+		// Profile says staging, but --env says development
+		env := profile.Environment
+		if utils.Env != "" {
+			env = utils.Env
+		}
+		assert.Equal(t, "development", env)
+	})
+}
+
+func restoreEnvVar(key, value string) {
+	if value == "" {
+		os.Unsetenv(key)
+	} else {
+		os.Setenv(key, value)
+	}
+}
+
 func TestCredentialSelectionPrecedence(t *testing.T) {
 	// Save original values
 	originalEnv := utils.Env

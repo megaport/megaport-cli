@@ -32,66 +32,83 @@ var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 var LoginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megaport.Client, error) {
 	var accessKey, secretKey, env string
 
-	// Environment selection priority: --env flag > profile > env var > default
-	if utils.Env != "" {
-		env = utils.Env
-	} else {
-		// Check profile environment
+	// If --profile flag is set, use that specific profile directly
+	if utils.ProfileOverride != "" {
 		manager, err := NewConfigManager()
-		if err == nil {
-			profile, _, err := manager.GetCurrentProfile()
-			if err == nil && profile.Environment != "" {
-				env = profile.Environment
+		if err != nil {
+			return nil, fmt.Errorf("failed to load config: %w", err)
+		}
+		profile, err := manager.GetProfile(utils.ProfileOverride)
+		if err != nil {
+			return nil, fmt.Errorf("profile %q not found. Use 'megaport config list-profiles' to see available profiles", utils.ProfileOverride)
+		}
+		accessKey = profile.AccessKey
+		secretKey = profile.SecretKey
+		if profile.Environment != "" {
+			env = profile.Environment
+		}
+		// --env flag can still override the profile's environment
+		if utils.Env != "" {
+			env = utils.Env
+		}
+	} else {
+		// Environment selection priority: --env flag > profile > env var > default
+		if utils.Env != "" {
+			env = utils.Env
+		} else {
+			// Check profile environment
+			manager, err := NewConfigManager()
+			if err == nil {
+				profile, _, err := manager.GetCurrentProfile()
+				if err == nil && profile.Environment != "" {
+					env = profile.Environment
+				}
+			}
+
+			// Fall back to environment variable if still not set
+			if env == "" {
+				env = os.Getenv("MEGAPORT_ENVIRONMENT")
 			}
 		}
 
-		// Fall back to environment variable if still not set
-		if env == "" {
-			env = os.Getenv("MEGAPORT_ENVIRONMENT")
-		}
-	}
+		// Credential selection: if --env flag is used, prefer env vars over profile
+		if utils.Env != "" {
+			// --env flag was explicitly set, prioritize environment variables
+			accessKey = os.Getenv("MEGAPORT_ACCESS_KEY")
+			secretKey = os.Getenv("MEGAPORT_SECRET_KEY")
 
-	if env == "" {
-		env = "production"
-	}
-
-	// Credential selection: if --env flag is used, prefer env vars over profile
-	if utils.Env != "" {
-		// --env flag was explicitly set, prioritize environment variables
-		accessKey = os.Getenv("MEGAPORT_ACCESS_KEY")
-		secretKey = os.Getenv("MEGAPORT_SECRET_KEY")
-
-		// If env vars are empty, fall back to profile
-		if accessKey == "" || secretKey == "" {
+			// If env vars are empty, fall back to profile
+			if accessKey == "" || secretKey == "" {
+				manager, err := NewConfigManager()
+				if err == nil {
+					profile, _, err := manager.GetCurrentProfile()
+					if err == nil {
+						if accessKey == "" {
+							accessKey = profile.AccessKey
+						}
+						if secretKey == "" {
+							secretKey = profile.SecretKey
+						}
+					}
+				}
+			}
+		} else {
+			// No --env flag, use original priority: profile > env vars
 			manager, err := NewConfigManager()
 			if err == nil {
 				profile, _, err := manager.GetCurrentProfile()
 				if err == nil {
-					if accessKey == "" {
-						accessKey = profile.AccessKey
-					}
-					if secretKey == "" {
-						secretKey = profile.SecretKey
-					}
+					accessKey = profile.AccessKey
+					secretKey = profile.SecretKey
 				}
 			}
-		}
-	} else {
-		// No --env flag, use original priority: profile > env vars
-		manager, err := NewConfigManager()
-		if err == nil {
-			profile, _, err := manager.GetCurrentProfile()
-			if err == nil {
-				accessKey = profile.AccessKey
-				secretKey = profile.SecretKey
-			}
-		}
 
-		if accessKey == "" {
-			accessKey = os.Getenv("MEGAPORT_ACCESS_KEY")
-		}
-		if secretKey == "" {
-			secretKey = os.Getenv("MEGAPORT_SECRET_KEY")
+			if accessKey == "" {
+				accessKey = os.Getenv("MEGAPORT_ACCESS_KEY")
+			}
+			if secretKey == "" {
+				secretKey = os.Getenv("MEGAPORT_SECRET_KEY")
+			}
 		}
 	}
 

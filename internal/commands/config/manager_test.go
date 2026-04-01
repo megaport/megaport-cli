@@ -171,6 +171,39 @@ func TestGetCurrentProfile(t *testing.T) {
 	assert.Equal(t, "production", profile.Environment)
 }
 
+func TestGetProfile(t *testing.T) {
+	_, cleanup := setupTestConfig(t)
+	defer cleanup()
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+
+	// Create test profiles
+	err = manager.CreateProfile("staging", "staging-access", "staging-secret", "staging", "Staging profile")
+	require.NoError(t, err)
+
+	err = manager.CreateProfile("production", "prod-access", "prod-secret", "production", "Production profile")
+	require.NoError(t, err)
+
+	// Test: get existing profile
+	profile, err := manager.GetProfile("staging")
+	require.NoError(t, err)
+	assert.Equal(t, "staging-access", profile.AccessKey)
+	assert.Equal(t, "staging-secret", profile.SecretKey)
+	assert.Equal(t, "staging", profile.Environment)
+
+	// Test: get another existing profile
+	profile, err = manager.GetProfile("production")
+	require.NoError(t, err)
+	assert.Equal(t, "prod-access", profile.AccessKey)
+
+	// Test: get non-existent profile
+	_, err = manager.GetProfile("non-existent")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "non-existent")
+	assert.Contains(t, err.Error(), "not found")
+}
+
 func TestDefaultSettings(t *testing.T) {
 	_, cleanup := setupTestConfig(t)
 	defer cleanup()
