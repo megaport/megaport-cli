@@ -22,21 +22,21 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	get, buy, update, del, restore, lock, unlock, list, status := buildMCRCommands(rootCmd)
+	get, buy, update, del, restore, lock, unlock, list, status, validate := buildMCRCommands(rootCmd)
 	create, listPFL, getPFL, updatePFL, deletePFL := buildMCRPrefixFilterCommands(rootCmd)
 	listTags, updateTags := buildMCRTagCommands()
 
 	mcrCmd.AddCommand(
 		get, buy, update, del, restore, lock, unlock,
 		create, listPFL, getPFL, updatePFL, deletePFL,
-		list, status,
+		list, status, validate,
 		listTags, updateTags,
 	)
 	rootCmd.AddCommand(mcrCmd)
 }
 
 // buildMCRCommands extracts the get, buy, update, delete, restore, list, and status command definitions.
-func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, lock, unlock, list, status *cobra.Command) {
+func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, lock, unlock, list, status, validate *cobra.Command) {
 	// Create get MCR command
 	get = cmdbuilder.NewCommand("get", "Get details for a single MCR").
 		WithArgs(cobra.ExactArgs(1)).
@@ -183,6 +183,23 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithExample("megaport-cli mcr status mcr-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
 		WithImportantNote("This is a lightweight command that only shows the MCR's status without retrieving all details.").
 		WithRootCmd(rootCmd).
+		Build()
+
+	validate = cmdbuilder.NewCommand("validate", "Validate an MCR order without purchasing").
+		WithColorAwareRunFunc(ValidateMCR).
+		WithMCRCreateFlags().
+		WithStandardInputFlags().
+		WithLongDesc("Validates an MCR configuration against the Megaport API without creating the resource.\n\nUse this for dry-run validation before purchasing, or in CI pipelines to check configurations.").
+		WithDocumentedRequiredFlag("name", "The name of the MCR (1-64 characters)").
+		WithDocumentedRequiredFlag("term", "The term of the MCR (1, 12, 24, or 36 months)").
+		WithDocumentedRequiredFlag("port-speed", "The speed of the MCR (1000, 2500, 5000, 10000, 25000, 50000, or 100000 Mbps)").
+		WithDocumentedRequiredFlag("location-id", "The ID of the location where the MCR will be provisioned").
+		WithDocumentedRequiredFlag("marketplace-visibility", "Whether the MCR should be visible in the marketplace (true or false)").
+		WithExample(`megaport-cli mcr validate --name "My MCR" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility true`).
+		WithExample("megaport-cli mcr validate --json-file ./mcr-config.json").
+		WithImportantNote("This command only validates the configuration — no resources are created and no charges are incurred").
+		WithRootCmd(rootCmd).
+		WithConditionalRequirements("name", "term", "port-speed", "location-id", "marketplace-visibility").
 		Build()
 
 	return

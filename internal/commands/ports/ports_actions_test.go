@@ -1589,3 +1589,98 @@ func TestBuyPort_Confirmation(t *testing.T) {
 		})
 	}
 }
+
+func TestValidatePort(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name             string
+		flags            map[string]string
+		jsonInput        string
+		setupMock        func(*MockPortService)
+		expectedError    string
+		expectedContains string
+	}{
+		{
+			name: "success with flags",
+			flags: map[string]string{
+				"name":                   "test-port",
+				"term":                   "12",
+				"port-speed":             "1000",
+				"location-id":            "1",
+				"marketplace-visibility": "true",
+			},
+			setupMock:        func(m *MockPortService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name:             "success with JSON",
+			jsonInput:        `{"name":"json-port","term":12,"portSpeed":1000,"locationId":1,"marketPlaceVisibility":false}`,
+			setupMock:        func(m *MockPortService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name: "validation error",
+			flags: map[string]string{
+				"name":                   "test-port",
+				"term":                   "12",
+				"port-speed":             "1000",
+				"location-id":            "1",
+				"marketplace-visibility": "true",
+			},
+			setupMock: func(m *MockPortService) {
+				m.ValidatePortOrderErr = fmt.Errorf("invalid port configuration")
+			},
+			expectedError: "invalid port configuration",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockPortService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.PortService = mockService
+				return client, nil
+			}
+
+			cmd := &cobra.Command{Use: "validate"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Bool("marketplace-visibility", false, "")
+			cmd.Flags().String("diversity-zone", "", "")
+
+			if tt.jsonInput != "" {
+				require.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+			for k, v := range tt.flags {
+				require.NoError(t, cmd.Flags().Set(k, v))
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = ValidatePort(cmd, nil, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedContains != "" {
+					assert.Contains(t, capturedOutput, tt.expectedContains)
+				}
+			}
+		})
+	}
+}

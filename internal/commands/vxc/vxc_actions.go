@@ -231,6 +231,65 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
+func ValidateVXC(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx := context.Background()
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	interactive, _ := cmd.Flags().GetBool("interactive")
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
+
+	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("rate-limit") ||
+		cmd.Flags().Changed("term") || cmd.Flags().Changed("a-end-uid") ||
+		cmd.Flags().Changed("a-end-vlan") || cmd.Flags().Changed("b-end-uid") ||
+		cmd.Flags().Changed("b-end-vlan")
+
+	var req *megaport.BuyVXCRequest
+
+	if jsonStr != "" || jsonFile != "" {
+		output.PrintInfo("Using JSON input", noColor)
+		req, err = buildVXCRequestFromJSON(jsonStr, jsonFile)
+		if err != nil {
+			output.PrintError("Failed to process JSON input: %v", noColor, err)
+			return err
+		}
+	} else if flagsProvided {
+		output.PrintInfo("Using flag input", noColor)
+		req, err = buildVXCRequestFromFlags(cmd, ctx, client.VXCService)
+		if err != nil {
+			output.PrintError("Failed to process flag input: %v", noColor, err)
+			return err
+		}
+	} else if interactive {
+		output.PrintInfo("Starting interactive mode", noColor)
+		req, err = buildVXCRequestFromPrompt(ctx, client.VXCService, noColor)
+		if err != nil {
+			output.PrintError("Interactive input failed: %v", noColor, err)
+			return err
+		}
+	} else {
+		output.PrintError("No input provided", noColor)
+		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify VXC details")
+	}
+
+	spinner := output.PrintResourceValidating("VXC", noColor)
+	err = client.VXCService.ValidateVXCOrder(ctx, req)
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to validate VXC order: %v", noColor, err)
+		return err
+	}
+
+	output.PrintSuccess("VXC validation passed", noColor)
+	return nil
+}
+
 func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx := context.Background()
 

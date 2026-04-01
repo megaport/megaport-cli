@@ -1977,3 +1977,79 @@ func TestBuyMVE_Confirmation(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateMVE(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name             string
+		jsonInput        string
+		setupMock        func(*MockMVEService)
+		expectedError    string
+		expectedContains string
+	}{
+		{
+			name:             "success with JSON",
+			jsonInput:        `{"name":"test-mve","term":12,"locationId":1,"vendorConfig":{"vendor":"cisco","imageId":1,"productSize":"MEDIUM","mveLabel":"test-label","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA","sshPublicKey":"ssh-rsa AAAA","cloudInit":"#cloud-config","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"reg-key","fmcNatId":"nat-id"},"vnics":[{"description":"Data Plane","vlan":100}]}`,
+			setupMock:        func(m *MockMVEService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name:      "validation error",
+			jsonInput: `{"name":"test-mve","term":12,"locationId":1,"vendorConfig":{"vendor":"cisco","imageId":1,"productSize":"MEDIUM","mveLabel":"test-label","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA","sshPublicKey":"ssh-rsa AAAA","cloudInit":"#cloud-config","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"reg-key","fmcNatId":"nat-id"},"vnics":[{"description":"Data Plane","vlan":100}]}`,
+			setupMock: func(m *MockMVEService) {
+				m.ValidateMVEOrderErr = fmt.Errorf("invalid MVE configuration")
+			},
+			expectedError: "invalid MVE configuration",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockMVEService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MVEService = mockService
+				return client, nil
+			}
+
+			cmd := &cobra.Command{Use: "validate"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().String("vendor-config", "", "")
+			cmd.Flags().String("vnics", "", "")
+			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().String("promo-code", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().String("resource-tags", "", "")
+
+			if tt.jsonInput != "" {
+				assert.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = ValidateMVE(cmd, nil, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedContains != "" {
+					assert.Contains(t, capturedOutput, tt.expectedContains)
+				}
+			}
+		})
+	}
+}

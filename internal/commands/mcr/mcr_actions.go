@@ -102,6 +102,63 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
+func ValidateMCR(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx := context.Background()
+
+	interactive, _ := cmd.Flags().GetBool("interactive")
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
+
+	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("term") ||
+		cmd.Flags().Changed("port-speed") || cmd.Flags().Changed("location-id") ||
+		cmd.Flags().Changed("mcr-asn")
+
+	var req *megaport.BuyMCRRequest
+	var err error
+
+	if jsonStr != "" || jsonFile != "" {
+		output.PrintInfo("Using JSON input", noColor)
+		req, err = processJSONMCRInput(jsonStr, jsonFile)
+		if err != nil {
+			output.PrintError("Failed to process JSON input: %v", noColor, err)
+			return err
+		}
+	} else if flagsProvided {
+		output.PrintInfo("Using flag input", noColor)
+		req, err = processFlagMCRInput(cmd)
+		if err != nil {
+			output.PrintError("Failed to process flag input: %v", noColor, err)
+			return err
+		}
+	} else if interactive {
+		req, err = promptForMCRDetails(noColor)
+		if err != nil {
+			return err
+		}
+	} else {
+		output.PrintError("No input provided, use --interactive, --json, or flags to specify MCR details", noColor)
+		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify MCR details")
+	}
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Error logging in: %v", noColor, err)
+		return err
+	}
+
+	spinner := output.PrintResourceValidating("MCR", noColor)
+	err = client.MCRService.ValidateMCROrder(ctx, req)
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Error validating MCR order: %v", noColor, err)
+		return err
+	}
+
+	output.PrintSuccess("MCR validation passed", noColor)
+	return nil
+}
+
 func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx := context.Background()
 

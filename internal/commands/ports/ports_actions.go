@@ -107,6 +107,65 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
+func ValidatePort(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx := context.Background()
+
+	interactive, _ := cmd.Flags().GetBool("interactive")
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
+
+	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("term") ||
+		cmd.Flags().Changed("port-speed") || cmd.Flags().Changed("location-id") ||
+		cmd.Flags().Changed("marketplace-visibility")
+
+	var req *megaport.BuyPortRequest
+	var err error
+
+	if jsonStr != "" || jsonFile != "" {
+		output.PrintInfo("Using JSON input", noColor)
+		req, err = processJSONPortInput(jsonStr, jsonFile)
+		if err != nil {
+			output.PrintError("Failed to process JSON input: %v", noColor, err)
+			return err
+		}
+	} else if flagsProvided {
+		output.PrintInfo("Using flag input", noColor)
+		req, err = processFlagPortInput(cmd)
+		if err != nil {
+			output.PrintError("Failed to process flag input: %v", noColor, err)
+			return err
+		}
+	} else if interactive {
+		output.PrintInfo("Starting interactive mode", noColor)
+		req, err = promptForPortDetails(noColor)
+		if err != nil {
+			output.PrintError("Interactive input failed: %v", noColor, err)
+			return err
+		}
+	} else {
+		output.PrintError("No input provided", noColor)
+		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify port details")
+	}
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return err
+	}
+
+	spinner := output.PrintResourceValidating("Port", noColor)
+	err = client.PortService.ValidatePortOrder(ctx, req)
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to validate port request: %v", noColor, err)
+		return err
+	}
+
+	output.PrintSuccess("Port validation passed", noColor)
+	return nil
+}
+
 func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx := context.Background()
 

@@ -1684,3 +1684,105 @@ func TestDeleteIXFunc(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "ix-123", mockService.capturedDeleteIXUID)
 }
+
+func TestValidateIX(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name             string
+		flags            map[string]string
+		jsonInput        string
+		setupMock        func(*MockIXService)
+		expectedError    string
+		expectedContains string
+	}{
+		{
+			name: "success with flags",
+			flags: map[string]string{
+				"name":                 "test-ix",
+				"product-uid":          "port-123",
+				"network-service-type": "Los Angeles IX",
+				"asn":                  "65000",
+				"mac-address":          "00:11:22:33:44:55",
+				"rate-limit":           "1000",
+				"vlan":                 "100",
+			},
+			setupMock:        func(m *MockIXService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name:             "success with JSON",
+			jsonInput:        `{"productUid":"port-123","productName":"test-ix","networkServiceType":"Los Angeles IX","asn":65000,"macAddress":"00:11:22:33:44:55","rateLimit":1000,"vlan":100}`,
+			setupMock:        func(m *MockIXService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name: "validation error",
+			flags: map[string]string{
+				"name":                 "test-ix",
+				"product-uid":          "port-123",
+				"network-service-type": "Los Angeles IX",
+				"asn":                  "65000",
+				"mac-address":          "00:11:22:33:44:55",
+				"rate-limit":           "1000",
+				"vlan":                 "100",
+			},
+			setupMock: func(m *MockIXService) {
+				m.validateIXOrderError = fmt.Errorf("invalid IX configuration")
+			},
+			expectedError: "invalid IX configuration",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockIXService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.IXService = mockService
+				return client, nil
+			}
+
+			cmd := &cobra.Command{Use: "validate"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().String("product-uid", "", "")
+			cmd.Flags().String("network-service-type", "", "")
+			cmd.Flags().Int("asn", 0, "")
+			cmd.Flags().String("mac-address", "", "")
+			cmd.Flags().Int("rate-limit", 0, "")
+			cmd.Flags().Int("vlan", 0, "")
+			cmd.Flags().Bool("shutdown", false, "")
+			cmd.Flags().String("promo-code", "", "")
+
+			if tt.jsonInput != "" {
+				assert.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+			for k, v := range tt.flags {
+				assert.NoError(t, cmd.Flags().Set(k, v))
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = ValidateIX(cmd, nil, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedContains != "" {
+					assert.Contains(t, capturedOutput, tt.expectedContains)
+				}
+			}
+		})
+	}
+}

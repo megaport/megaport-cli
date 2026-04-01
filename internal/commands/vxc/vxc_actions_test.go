@@ -2150,3 +2150,77 @@ func TestBuyVXC_Confirmation(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateVXC(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name             string
+		jsonInput        string
+		setupMock        func(*MockVXCService)
+		expectedError    string
+		expectedContains string
+	}{
+		{
+			name:             "success with JSON",
+			jsonInput:        `{"vxcName":"test-vxc","rateLimit":1000,"term":12,"portUid":"port-123","aEndConfiguration":{"vlan":100},"bEndConfiguration":{"productUID":"port-456","vlan":200}}`,
+			setupMock:        func(m *MockVXCService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name:      "validation error",
+			jsonInput: `{"vxcName":"test-vxc","rateLimit":1000,"term":12,"portUid":"port-123","aEndConfiguration":{"vlan":100},"bEndConfiguration":{"productUID":"port-456","vlan":200}}`,
+			setupMock: func(m *MockVXCService) {
+				m.ValidateVXCOrderError = fmt.Errorf("invalid VXC configuration")
+			},
+			expectedError: "invalid VXC configuration",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockVXCService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.VXCService = mockService
+				return client, nil
+			}
+
+			cmd := &cobra.Command{Use: "validate"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("rate-limit", 0, "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().String("a-end-uid", "", "")
+			cmd.Flags().Int("a-end-vlan", 0, "")
+			cmd.Flags().String("b-end-uid", "", "")
+			cmd.Flags().Int("b-end-vlan", 0, "")
+
+			if tt.jsonInput != "" {
+				assert.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = ValidateVXC(cmd, nil, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedContains != "" {
+					assert.Contains(t, capturedOutput, tt.expectedContains)
+				}
+			}
+		})
+	}
+}

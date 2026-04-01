@@ -2568,3 +2568,102 @@ func TestBuyMCR_Confirmation(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateMCR(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name             string
+		flags            map[string]string
+		jsonInput        string
+		setupMock        func(*MockMCRService)
+		expectedError    string
+		expectedContains string
+	}{
+		{
+			name: "success with flags",
+			flags: map[string]string{
+				"name":                   "test-mcr",
+				"term":                   "12",
+				"port-speed":             "5000",
+				"location-id":            "1",
+				"marketplace-visibility": "true",
+			},
+			setupMock:        func(m *MockMCRService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name:             "success with JSON",
+			jsonInput:        `{"name":"json-mcr","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true}`,
+			setupMock:        func(m *MockMCRService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name: "validation error",
+			flags: map[string]string{
+				"name":                   "test-mcr",
+				"term":                   "12",
+				"port-speed":             "5000",
+				"location-id":            "1",
+				"marketplace-visibility": "true",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ValidateMCROrderErr = fmt.Errorf("invalid MCR configuration")
+			},
+			expectedError: "invalid MCR configuration",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockMCRService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockService
+				return client, nil
+			}
+
+			cmd := &cobra.Command{Use: "validate"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Bool("marketplace-visibility", false, "")
+			cmd.Flags().Int("mcr-asn", 0, "")
+			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().String("promo-code", "", "")
+			cmd.Flags().String("resource-tags", "", "")
+
+			if tt.jsonInput != "" {
+				assert.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+			for k, v := range tt.flags {
+				assert.NoError(t, cmd.Flags().Set(k, v))
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = ValidateMCR(cmd, nil, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedContains != "" {
+					assert.Contains(t, capturedOutput, tt.expectedContains)
+				}
+			}
+		})
+	}
+}

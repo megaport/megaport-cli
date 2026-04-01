@@ -232,6 +232,64 @@ func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
+func ValidateIX(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx := context.Background()
+
+	interactive, _ := cmd.Flags().GetBool("interactive")
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
+
+	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("product-uid") ||
+		cmd.Flags().Changed("network-service-type") || cmd.Flags().Changed("asn") ||
+		cmd.Flags().Changed("mac-address") || cmd.Flags().Changed("rate-limit") ||
+		cmd.Flags().Changed("vlan")
+
+	var req *megaport.BuyIXRequest
+	var err error
+
+	if jsonStr != "" || jsonFile != "" {
+		output.PrintInfo("Using JSON input", noColor)
+		req, err = buildIXRequestFromJSON(jsonStr, jsonFile)
+		if err != nil {
+			output.PrintError("Failed to process JSON input: %v", noColor, err)
+			return err
+		}
+	} else if flagsProvided {
+		output.PrintInfo("Using flag input", noColor)
+		req, err = buildIXRequestFromFlags(cmd)
+		if err != nil {
+			output.PrintError("Failed to process flag input: %v", noColor, err)
+			return err
+		}
+	} else if interactive {
+		req, err = buildIXRequestFromPrompt(ctx, noColor)
+		if err != nil {
+			return err
+		}
+	} else {
+		output.PrintError("No input provided, use --interactive, --json, or flags to specify IX details", noColor)
+		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify IX details")
+	}
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Error logging in: %v", noColor, err)
+		return err
+	}
+
+	spinner := output.PrintResourceValidating("IX", noColor)
+	err = client.IXService.ValidateIXOrder(ctx, req)
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Error validating IX order: %v", noColor, err)
+		return err
+	}
+
+	output.PrintSuccess("IX validation passed", noColor)
+	return nil
+}
+
 func UpdateIX(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx := context.Background()
 
