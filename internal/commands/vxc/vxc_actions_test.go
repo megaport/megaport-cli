@@ -66,7 +66,7 @@ func TestBuyVXC(t *testing.T) {
 			},
 			expectedError: "",
 			setupMock: func(t *testing.T, m *MockVXCService) {
-				m.buyVXCResponse = &megaport.BuyVXCResponse{
+				m.BuyVXCResponse = &megaport.BuyVXCResponse{
 					TechnicalServiceUID: "vxc-sample-uid",
 				}
 
@@ -106,7 +106,7 @@ func TestBuyVXC(t *testing.T) {
 			name:          "successful VXC purchase - flag mode",
 			expectedError: "",
 			setupMock: func(t *testing.T, m *MockVXCService) {
-				m.buyVXCResponse = &megaport.BuyVXCResponse{
+				m.BuyVXCResponse = &megaport.BuyVXCResponse{
 					TechnicalServiceUID: "vxc-sample-uid",
 				}
 
@@ -179,10 +179,10 @@ func TestBuyVXC(t *testing.T) {
 			name:          "API error",
 			expectedError: "API error",
 			setupMock: func(t *testing.T, m *MockVXCService) {
-				m.buyVXCResponse = &megaport.BuyVXCResponse{
+				m.BuyVXCResponse = &megaport.BuyVXCResponse{
 					TechnicalServiceUID: "",
 				}
-				m.buyVXCErr = fmt.Errorf("API error")
+				m.BuyVXCErr = fmt.Errorf("API error")
 
 				buildVXCRequestFromFlagsOrig := buildVXCRequestFromFlags
 				buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc megaport.VXCService) (*megaport.BuyVXCRequest, error) {
@@ -321,7 +321,7 @@ func TestBuyVXC_NoWaitFlag(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockService := &MockVXCService{}
-			mockService.buyVXCResponse = &megaport.BuyVXCResponse{
+			mockService.BuyVXCResponse = &megaport.BuyVXCResponse{
 				TechnicalServiceUID: "vxc-uid-123",
 			}
 
@@ -698,7 +698,7 @@ func TestListVXCs(t *testing.T) {
 		{
 			name: "list all active VXCs",
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02", "production-vxc"},
 			unexpectedVXCs: []string{"test-vxc-decom", "cancelled-vxc", "decommissioning-vxc"},
@@ -707,7 +707,7 @@ func TestListVXCs(t *testing.T) {
 		{
 			name: "excludes CANCELLED status",
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02", "production-vxc"},
 			unexpectedVXCs: []string{"cancelled-vxc", "test-vxc-decom", "decommissioning-vxc"},
@@ -716,7 +716,7 @@ func TestListVXCs(t *testing.T) {
 		{
 			name: "excludes DECOMMISSIONING status",
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02", "production-vxc"},
 			unexpectedVXCs: []string{"decommissioning-vxc", "test-vxc-decom", "cancelled-vxc"},
@@ -728,7 +728,7 @@ func TestListVXCs(t *testing.T) {
 				"name": "vxc-demo-01",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01"},
 			unexpectedVXCs: []string{"vxc-demo-02", "production-vxc", "test-vxc-decom"},
@@ -740,7 +740,7 @@ func TestListVXCs(t *testing.T) {
 				"name": "demo",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02"},
 			unexpectedVXCs: []string{"production-vxc", "test-vxc-decom"},
@@ -752,7 +752,7 @@ func TestListVXCs(t *testing.T) {
 				"name": "PRODUCTION",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"production-vxc"},
 			unexpectedVXCs: []string{"vxc-demo-01", "vxc-demo-02", "test-vxc-decom"},
@@ -764,7 +764,7 @@ func TestListVXCs(t *testing.T) {
 				"rate-limit": "500",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-02"},
 			unexpectedVXCs: []string{"vxc-demo-01", "production-vxc", "test-vxc-decom"},
@@ -776,7 +776,7 @@ func TestListVXCs(t *testing.T) {
 				"a-end-uid": "port-aaa",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01", "production-vxc"},
 			unexpectedVXCs: []string{"vxc-demo-02", "test-vxc-decom"},
@@ -788,7 +788,7 @@ func TestListVXCs(t *testing.T) {
 				"b-end-uid": "port-bbb",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01"},
 			unexpectedVXCs: []string{"vxc-demo-02", "production-vxc", "test-vxc-decom"},
@@ -801,7 +801,7 @@ func TestListVXCs(t *testing.T) {
 				"a-end-uid": "port-aaa",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01"},
 			unexpectedVXCs: []string{"vxc-demo-02", "production-vxc", "test-vxc-decom"},
@@ -814,7 +814,7 @@ func TestListVXCs(t *testing.T) {
 				"b-end-uid":  "port-bbb",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01"},
 			unexpectedVXCs: []string{"vxc-demo-02", "production-vxc"},
@@ -827,7 +827,7 @@ func TestListVXCs(t *testing.T) {
 				"include-inactive": "true",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02", "production-vxc"},
 			unexpectedVXCs: []string{"test-vxc-decom", "cancelled-vxc", "decommissioning-vxc"},
@@ -840,7 +840,7 @@ func TestListVXCs(t *testing.T) {
 				"include-inactive": "true",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02", "production-vxc"},
 			unexpectedVXCs: []string{"test-vxc-decom", "cancelled-vxc", "decommissioning-vxc"},
@@ -852,7 +852,7 @@ func TestListVXCs(t *testing.T) {
 				"name-contains": "demo",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02"},
 			unexpectedVXCs: []string{"production-vxc", "test-vxc-decom"},
@@ -864,7 +864,7 @@ func TestListVXCs(t *testing.T) {
 				"include-inactive": "true",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02", "production-vxc", "test-vxc-decom", "cancelled-vxc", "decommissioning-vxc"},
 			unexpectedVXCs: []string{},
@@ -877,7 +877,7 @@ func TestListVXCs(t *testing.T) {
 				"name":             "decom",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"test-vxc-decom", "decommissioning-vxc"},
 			unexpectedVXCs: []string{"vxc-demo-01", "vxc-demo-02", "production-vxc", "cancelled-vxc"},
@@ -889,7 +889,7 @@ func TestListVXCs(t *testing.T) {
 				"name": "nonexistent-vxc",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{},
 			unexpectedVXCs: []string{"vxc-demo-01", "vxc-demo-02", "production-vxc", "test-vxc-decom"},
@@ -898,7 +898,7 @@ func TestListVXCs(t *testing.T) {
 		{
 			name: "empty API result",
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = []*megaport.VXC{}
+				m.ListVXCResponse = []*megaport.VXC{}
 			},
 			expectedVXCs:   []string{},
 			unexpectedVXCs: []string{},
@@ -907,7 +907,7 @@ func TestListVXCs(t *testing.T) {
 		{
 			name: "nil API result",
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = nil
+				m.ListVXCResponse = nil
 			},
 			expectedVXCs:   []string{},
 			unexpectedVXCs: []string{},
@@ -919,7 +919,7 @@ func TestListVXCs(t *testing.T) {
 				"name": "vxc-demo-01",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01"},
 			unexpectedVXCs: []string{"vxc-demo-02", "production-vxc"},
@@ -931,7 +931,7 @@ func TestListVXCs(t *testing.T) {
 				"name": "vxc-demo-01",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.listVXCResponse = testVXCs
+				m.ListVXCResponse = testVXCs
 			},
 			expectedVXCs:   []string{"vxc-demo-01"},
 			unexpectedVXCs: []string{"vxc-demo-02", "production-vxc"},
@@ -940,7 +940,7 @@ func TestListVXCs(t *testing.T) {
 		{
 			name: "API error",
 			setupMock: func(m *MockVXCService) {
-				m.listVXCErr = fmt.Errorf("API error: service unavailable")
+				m.ListVXCErr = fmt.Errorf("API error: service unavailable")
 			},
 			expectedError: "API error: service unavailable",
 			outputFormat:  "table",
@@ -1062,7 +1062,7 @@ func TestGetVXCStatus(t *testing.T) {
 			name:   "successful status retrieval - table format",
 			vxcUID: "vxc-123abc",
 			setupMock: func(m *MockVXCService) {
-				m.getVXCResponse = &megaport.VXC{
+				m.GetVXCResponse = &megaport.VXC{
 					UID:                "vxc-123abc",
 					Name:               "Test VXC",
 					ProvisioningStatus: "CONFIGURED",
@@ -1082,7 +1082,7 @@ func TestGetVXCStatus(t *testing.T) {
 			name:   "successful status retrieval - json format",
 			vxcUID: "vxc-123abc",
 			setupMock: func(m *MockVXCService) {
-				m.getVXCResponse = &megaport.VXC{
+				m.GetVXCResponse = &megaport.VXC{
 					UID:                "vxc-123abc",
 					Name:               "Test VXC",
 					ProvisioningStatus: "LIVE",
@@ -1102,7 +1102,7 @@ func TestGetVXCStatus(t *testing.T) {
 			name:   "VXC not found",
 			vxcUID: "vxc-notfound",
 			setupMock: func(m *MockVXCService) {
-				m.getVXCError = fmt.Errorf("VXC not found")
+				m.GetVXCError = fmt.Errorf("VXC not found")
 			},
 			expectedError: "error getting VXC status",
 			outputFormat:  "table",
@@ -1111,7 +1111,7 @@ func TestGetVXCStatus(t *testing.T) {
 			name:   "API error",
 			vxcUID: "vxc-error",
 			setupMock: func(m *MockVXCService) {
-				m.getVXCError = fmt.Errorf("API error")
+				m.GetVXCError = fmt.Errorf("API error")
 			},
 			expectedError: "API error",
 			outputFormat:  "table",
@@ -1120,7 +1120,7 @@ func TestGetVXCStatus(t *testing.T) {
 			name:   "nil VXC returned without error",
 			vxcUID: "vxc-nil",
 			setupMock: func(m *MockVXCService) {
-				m.forceNilGetVXC = true
+				m.ForceNilGetVXC = true
 			},
 			expectedError: "no VXC found",
 			outputFormat:  "table",
@@ -1405,7 +1405,7 @@ func TestGetVXC(t *testing.T) {
 			name:   "success table format",
 			vxcUID: "vxc-123",
 			setupMock: func(m *MockVXCService) {
-				m.getVXCResponse = &megaport.VXC{
+				m.GetVXCResponse = &megaport.VXC{
 					UID:  "vxc-123",
 					Name: "Test VXC",
 					AEndConfiguration: megaport.VXCEndConfiguration{
@@ -1425,7 +1425,7 @@ func TestGetVXC(t *testing.T) {
 			name:   "success JSON format",
 			vxcUID: "vxc-456",
 			setupMock: func(m *MockVXCService) {
-				m.getVXCResponse = &megaport.VXC{
+				m.GetVXCResponse = &megaport.VXC{
 					UID:  "vxc-456",
 					Name: "JSON VXC",
 					AEndConfiguration: megaport.VXCEndConfiguration{
@@ -1445,7 +1445,7 @@ func TestGetVXC(t *testing.T) {
 			name:   "API error",
 			vxcUID: "vxc-error",
 			setupMock: func(m *MockVXCService) {
-				m.getVXCError = fmt.Errorf("service unavailable")
+				m.GetVXCError = fmt.Errorf("service unavailable")
 			},
 			outputFormat:  "table",
 			expectedError: "error getting VXC",
@@ -1546,7 +1546,7 @@ func TestUpdateVXC(t *testing.T) {
 				"name": "Updated VXC",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.getVXCResponse = &megaport.VXC{
+				m.GetVXCResponse = &megaport.VXC{
 					UID:                "vxc-update-1",
 					Name:               "Original VXC",
 					ProvisioningStatus: "LIVE",
@@ -1580,7 +1580,7 @@ func TestUpdateVXC(t *testing.T) {
 				"json": `{"name":"JSON Updated VXC"}`,
 			},
 			setupMock: func(m *MockVXCService) {
-				m.getVXCResponse = &megaport.VXC{
+				m.GetVXCResponse = &megaport.VXC{
 					UID:                "vxc-update-2",
 					Name:               "Original VXC",
 					ProvisioningStatus: "LIVE",
@@ -1623,7 +1623,7 @@ func TestUpdateVXC(t *testing.T) {
 				"name": "Updated VXC",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.getVXCError = fmt.Errorf("VXC not found")
+				m.GetVXCError = fmt.Errorf("VXC not found")
 			},
 			expectedError: "failed to retrieve original VXC details",
 		},
@@ -1634,7 +1634,7 @@ func TestUpdateVXC(t *testing.T) {
 				"name": "Updated VXC",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.getVXCResponse = &megaport.VXC{
+				m.GetVXCResponse = &megaport.VXC{
 					UID:                "vxc-update-err",
 					Name:               "Original VXC",
 					ProvisioningStatus: "LIVE",
@@ -1658,7 +1658,7 @@ func TestUpdateVXC(t *testing.T) {
 			vxcUID: "vxc-update-no-fields",
 			flags:  map[string]string{},
 			setupMock: func(m *MockVXCService) {
-				m.getVXCResponse = &megaport.VXC{
+				m.GetVXCResponse = &megaport.VXC{
 					UID:                "vxc-update-no-fields",
 					Name:               "Original VXC",
 					ProvisioningStatus: "LIVE",
@@ -1673,7 +1673,7 @@ func TestUpdateVXC(t *testing.T) {
 				"name": "Updated VXC",
 			},
 			setupMock: func(m *MockVXCService) {
-				m.getVXCResponse = &megaport.VXC{
+				m.GetVXCResponse = &megaport.VXC{
 					UID:                "vxc-build-err",
 					Name:               "Original VXC",
 					ProvisioningStatus: "LIVE",
