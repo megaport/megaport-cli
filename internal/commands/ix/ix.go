@@ -34,6 +34,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	buyIXCmd := cmdbuilder.NewCommand("buy", "Buy an IX through the Megaport API").
 		WithColorAwareRunFunc(BuyIX).
 		WithNoWaitFlag().
+		WithBuyConfirmFlags().
 		WithIXCreateFlags().
 		WithStandardInputFlags().
 		WithLongDesc("Buy an IX through the Megaport API.\n\nThis command allows you to purchase an IX by providing the necessary details.").

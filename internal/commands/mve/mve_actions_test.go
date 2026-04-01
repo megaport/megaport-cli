@@ -586,6 +586,9 @@ func TestBuyMVE(t *testing.T) {
 	defer func() {
 		utils.ResourcePrompt = originalPrompt
 	}()
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
 
 	mockService := &MockMVEService{}
 
@@ -846,6 +849,10 @@ func TestBuyMVE(t *testing.T) {
 }
 
 func TestBuyMVE_NoWaitFlag(t *testing.T) {
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+
 	tests := []struct {
 		name                     string
 		noWait                   bool
@@ -1851,4 +1858,122 @@ func TestRestoreMVECmd_LoginError(t *testing.T) {
 	err := RestoreMVE(cmd, []string{"mve-123"}, false)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "error logging in")
+}
+
+func TestBuyMVE_Confirmation(t *testing.T) {
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+
+	tests := []struct {
+		name                 string
+		flags                map[string]string
+		confirmResult        bool
+		expectBuyCalled      bool
+		expectedOutput       string
+		promptShouldBeCalled bool
+	}{
+		{
+			name: "confirmation accepted",
+			flags: map[string]string{
+				"name":          "Test MVE",
+				"term":          "12",
+				"location-id":   "123",
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
+				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
+			},
+			confirmResult:        true,
+			expectBuyCalled:      true,
+			expectedOutput:       "MVE created",
+			promptShouldBeCalled: true,
+		},
+		{
+			name: "confirmation denied",
+			flags: map[string]string{
+				"name":          "Test MVE",
+				"term":          "12",
+				"location-id":   "123",
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
+				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
+			},
+			confirmResult:        false,
+			expectBuyCalled:      false,
+			expectedOutput:       "Purchase cancelled",
+			promptShouldBeCalled: true,
+		},
+		{
+			name: "yes flag skips confirmation",
+			flags: map[string]string{
+				"name":          "Test MVE",
+				"term":          "12",
+				"location-id":   "123",
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
+				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
+				"yes":           "true",
+			},
+			confirmResult:        false,
+			expectBuyCalled:      true,
+			expectedOutput:       "MVE created",
+			promptShouldBeCalled: false,
+		},
+		{
+			name: "json input skips confirmation",
+			flags: map[string]string{
+				"json": `{"name":"JSON MVE","term":12,"locationId":123,"vendorConfig":{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"},"vnics":[{"description":"VNIC 1","vlan":100}]}`,
+			},
+			confirmResult:        false,
+			expectBuyCalled:      true,
+			expectedOutput:       "MVE created",
+			promptShouldBeCalled: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockMVEService{
+				BuyMVEResult: &megaport.BuyMVEResponse{
+					TechnicalServiceUID: "mve-confirm-123",
+				},
+			}
+
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+				c.MVEService = mockService
+			})
+			defer cleanup()
+
+			promptCalled := false
+			utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
+				promptCalled = true
+				return tt.confirmResult
+			}
+
+			cmd := &cobra.Command{Use: "buy"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().BoolP("yes", "y", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().String("vendor-config", "", "")
+			cmd.Flags().String("vnics", "", "")
+
+			testutil.SetFlags(t, cmd, tt.flags)
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = BuyMVE(cmd, nil, noColor)
+			})
+
+			assert.NoError(t, err)
+			assert.Contains(t, capturedOutput, tt.expectedOutput)
+
+			if tt.expectBuyCalled {
+				assert.NotNil(t, mockService.CapturedBuyMVERequest, "expected BuyMVE to be called")
+			} else {
+				assert.Nil(t, mockService.CapturedBuyMVERequest, "expected BuyMVE not to be called")
+			}
+			assert.Equal(t, tt.promptShouldBeCalled, promptCalled, "BuyConfirmPrompt called expectation mismatch")
+		})
+	}
 }

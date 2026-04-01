@@ -23,6 +23,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithColorAwareRunFunc(BuyMVE).
 		WithInteractiveFlag().
 		WithNoWaitFlag().
+		WithBuyConfirmFlags().
 		WithMVECreateFlags().
 		WithJSONConfigFlags().
 		WithLongDesc("Purchase a new Megaport Virtual Edge (MVE) device through the Megaport API.\n\nThis command allows you to purchase an MVE by providing the necessary details.").

@@ -51,6 +51,7 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 	buy = cmdbuilder.NewCommand("buy", "Buy an MCR through the Megaport API").
 		WithColorAwareRunFunc(BuyMCR).
 		WithNoWaitFlag().
+		WithBuyConfirmFlags().
 		WithMCRCreateFlags().
 		WithStandardInputFlags().
 		WithLongDesc("Buy an MCR through the Megaport API.\n\nThis command allows you to purchase an MCR by providing the necessary details.").
