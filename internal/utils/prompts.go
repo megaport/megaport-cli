@@ -49,6 +49,30 @@ var ConfirmPrompt = func(question string, noColor bool) bool {
 	return response == "y" || response == "yes"
 }
 
+// BuyConfirmDetail represents a key-value detail line in the purchase summary.
+type BuyConfirmDetail struct {
+	Key   string
+	Value string
+}
+
+// BuyConfirmPrompt displays a resource purchase summary and asks for confirmation.
+var BuyConfirmPrompt = func(resourceType string, details []BuyConfirmDetail, noColor bool) bool {
+	fmt.Println()
+	if !noColor {
+		fmt.Println(color.New(color.FgHiWhite, color.Bold).Sprint("Purchase Summary:"))
+	} else {
+		fmt.Println("Purchase Summary:")
+	}
+	fmt.Printf("  Resource Type: %s\n", resourceType)
+	for _, d := range details {
+		if d.Value != "" {
+			fmt.Printf("  %s: %s\n", d.Key, d.Value)
+		}
+	}
+	fmt.Println()
+	return ConfirmPrompt("Proceed with purchase?", noColor)
+}
+
 var ResourcePrompt = func(resourceType string, msg string, noColor bool) (string, error) {
 	// Choose icon based on resource type
 	icon := "❯"

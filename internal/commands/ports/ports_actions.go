@@ -73,6 +73,20 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	yes, _ := cmd.Flags().GetBool("yes")
+	if !yes && jsonStr == "" && jsonFile == "" {
+		details := []utils.BuyConfirmDetail{
+			{Key: "Name", Value: req.Name},
+			{Key: "Term", Value: fmt.Sprintf("%d months", req.Term)},
+			{Key: "Port Speed", Value: fmt.Sprintf("%d Mbps", req.PortSpeed)},
+			{Key: "Location ID", Value: strconv.Itoa(req.LocationId)},
+		}
+		if !utils.BuyConfirmPrompt("Port", details, noColor) {
+			output.PrintInfo("Purchase cancelled", noColor)
+			return nil
+		}
+	}
+
 	spinner := output.PrintResourceCreating("Port", req.Name, noColor)
 
 	resp, err := buyPortFunc(ctx, client, req)
@@ -151,6 +165,21 @@ func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 	if err != nil {
 		output.PrintError("Failed to validate LAG port request: %v", noColor, err)
 		return err
+	}
+
+	yes, _ := cmd.Flags().GetBool("yes")
+	if !yes && jsonStr == "" && jsonFile == "" {
+		details := []utils.BuyConfirmDetail{
+			{Key: "Name", Value: req.Name},
+			{Key: "Term", Value: fmt.Sprintf("%d months", req.Term)},
+			{Key: "Port Speed", Value: fmt.Sprintf("%d Mbps", req.PortSpeed)},
+			{Key: "Location ID", Value: strconv.Itoa(req.LocationId)},
+			{Key: "LAG Count", Value: strconv.Itoa(req.LagCount)},
+		}
+		if !utils.BuyConfirmPrompt("LAG Port", details, noColor) {
+			output.PrintInfo("Purchase cancelled", noColor)
+			return nil
+		}
 	}
 
 	spinner := output.PrintResourceCreating("LAG Port", req.Name, noColor)

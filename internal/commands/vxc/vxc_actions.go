@@ -202,6 +202,20 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	yes, _ := cmd.Flags().GetBool("yes")
+	if !yes && jsonStr == "" && jsonFile == "" {
+		details := []utils.BuyConfirmDetail{
+			{Key: "Name", Value: req.VXCName},
+			{Key: "Term", Value: fmt.Sprintf("%d months", req.Term)},
+			{Key: "Rate Limit", Value: fmt.Sprintf("%d Mbps", req.RateLimit)},
+			{Key: "A-End Port UID", Value: req.PortUID},
+		}
+		if !utils.BuyConfirmPrompt("VXC", details, noColor) {
+			output.PrintInfo("Purchase cancelled", noColor)
+			return nil
+		}
+	}
+
 	spinner := output.PrintResourceCreating("VXC", req.VXCName, noColor)
 
 	resp, err := buyVXCFunc(ctx, client, req)

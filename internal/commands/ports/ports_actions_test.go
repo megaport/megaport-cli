@@ -8,6 +8,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/testutil"
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -235,6 +236,9 @@ func TestBuyPort_EmptyUIDs(t *testing.T) {
 	defer func() {
 		buyPortFunc = originalBuyPortFunc
 	}()
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
 
 	mockService := &MockPortService{}
 	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
@@ -281,6 +285,9 @@ func TestBuyLAGPort_EmptyUIDs(t *testing.T) {
 	defer func() {
 		buyPortFunc = originalBuyPortFunc
 	}()
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
 
 	mockService := &MockPortService{}
 	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
@@ -741,6 +748,9 @@ func TestBuyPort(t *testing.T) {
 	defer func() {
 		buyPortFunc = originalBuyPortFunc
 	}()
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
 
 	tests := []struct {
 		name             string
@@ -875,6 +885,9 @@ func TestBuyPort_NoWaitFlag(t *testing.T) {
 	defer func() {
 		buyPortFunc = originalBuyPortFunc
 	}()
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
 
 	tests := []struct {
 		name                     string
@@ -1437,6 +1450,142 @@ func TestUpdatePort(t *testing.T) {
 					assert.Contains(t, capturedOutput, tt.expectedContains)
 				}
 			}
+		})
+	}
+}
+
+func TestBuyPort_Confirmation(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+	originalBuyPortFunc := buyPortFunc
+	defer func() {
+		buyPortFunc = originalBuyPortFunc
+	}()
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+
+	tests := []struct {
+		name                string
+		flags               map[string]string
+		jsonInput           string
+		yesFlag             bool
+		confirmReturn       bool
+		expectPromptCalled  bool
+		expectedError       string
+		expectedContains    string
+		expectedNotContains string
+	}{
+		{
+			name: "confirmation accepted",
+			flags: map[string]string{
+				"name":                   "test-port",
+				"term":                   "12",
+				"port-speed":             "1000",
+				"location-id":            "1",
+				"marketplace-visibility": "true",
+			},
+			confirmReturn:      true,
+			expectPromptCalled: true,
+			expectedContains:   "new-port-uid-123",
+		},
+		{
+			name: "confirmation denied",
+			flags: map[string]string{
+				"name":                   "test-port",
+				"term":                   "12",
+				"port-speed":             "1000",
+				"location-id":            "1",
+				"marketplace-visibility": "true",
+			},
+			confirmReturn:      false,
+			expectPromptCalled: true,
+			expectedContains:   "Purchase cancelled",
+		},
+		{
+			name: "yes flag skips confirmation",
+			flags: map[string]string{
+				"name":                   "test-port",
+				"term":                   "12",
+				"port-speed":             "1000",
+				"location-id":            "1",
+				"marketplace-visibility": "true",
+			},
+			yesFlag:            true,
+			expectPromptCalled: false,
+			expectedContains:   "new-port-uid-123",
+		},
+		{
+			name:               "json input skips confirmation",
+			jsonInput:          `{"name":"json-port","term":12,"portSpeed":1000,"locationId":1,"marketPlaceVisibility":false}`,
+			expectPromptCalled: false,
+			expectedContains:   "new-port-uid-123",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockPortService{}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.PortService = mockService
+				return client, nil
+			}
+
+			buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
+				return &megaport.BuyPortResponse{
+					TechnicalServiceUIDs: []string{"new-port-uid-123"},
+				}, nil
+			}
+
+			promptCalled := false
+			utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
+				promptCalled = true
+				return tt.confirmReturn
+			}
+
+			cmd := &cobra.Command{Use: "buy"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().Bool("yes", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Bool("marketplace-visibility", false, "")
+			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().Bool("cost-confirm", true, "")
+
+			if tt.jsonInput != "" {
+				require.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+			for k, v := range tt.flags {
+				require.NoError(t, cmd.Flags().Set(k, v))
+			}
+			if tt.yesFlag {
+				require.NoError(t, cmd.Flags().Set("yes", "true"))
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = BuyPort(cmd, nil, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedContains != "" {
+					assert.Contains(t, capturedOutput, tt.expectedContains)
+				}
+				if tt.expectedNotContains != "" {
+					assert.NotContains(t, capturedOutput, tt.expectedNotContains)
+				}
+			}
+			assert.Equal(t, tt.expectPromptCalled, promptCalled, "BuyConfirmPrompt called expectation mismatch")
 		})
 	}
 }

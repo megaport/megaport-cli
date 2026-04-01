@@ -3,6 +3,7 @@ package mve
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -138,6 +139,19 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	output.PrintInfo("Validation successful", noColor)
+
+	yes, _ := cmd.Flags().GetBool("yes")
+	if !yes && jsonStr == "" && jsonFile == "" {
+		details := []utils.BuyConfirmDetail{
+			{Key: "Name", Value: req.Name},
+			{Key: "Term", Value: fmt.Sprintf("%d months", req.Term)},
+			{Key: "Location ID", Value: strconv.Itoa(req.LocationID)},
+		}
+		if !utils.BuyConfirmPrompt("MVE", details, noColor) {
+			output.PrintInfo("Purchase cancelled", noColor)
+			return nil
+		}
+	}
 
 	noWait, _ := cmd.Flags().GetBool("no-wait")
 	if !noWait {

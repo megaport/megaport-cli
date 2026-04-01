@@ -3,6 +3,7 @@ package ix
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -202,6 +203,20 @@ func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
 	if err != nil {
 		output.PrintError("Error validating IX order: %v", noColor, err)
 		return err
+	}
+
+	yes, _ := cmd.Flags().GetBool("yes")
+	if !yes && jsonStr == "" && jsonFile == "" {
+		details := []utils.BuyConfirmDetail{
+			{Key: "Name", Value: req.Name},
+			{Key: "Network Service Type", Value: req.NetworkServiceType},
+			{Key: "Rate Limit", Value: fmt.Sprintf("%d Mbps", req.RateLimit)},
+			{Key: "ASN", Value: strconv.Itoa(req.ASN)},
+		}
+		if !utils.BuyConfirmPrompt("IX", details, noColor) {
+			output.PrintInfo("Purchase cancelled", noColor)
+			return nil
+		}
 	}
 
 	buySpinner := output.PrintResourceCreating("IX", req.Name, noColor)

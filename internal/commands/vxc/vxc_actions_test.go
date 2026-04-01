@@ -23,6 +23,10 @@ func TestBuyVXC(t *testing.T) {
 	originalInteractiveFlag := interactive
 	noColor := true
 
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
 
@@ -295,6 +299,11 @@ func TestBuyVXC(t *testing.T) {
 
 func TestBuyVXC_NoWaitFlag(t *testing.T) {
 	noColor := true
+
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
 	defer func() {
@@ -1961,6 +1970,183 @@ func TestListVXCResourceTags(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Contains(t, capturedOutput, tt.expectedOutput)
 			}
+		})
+	}
+}
+
+func TestBuyVXC_Confirmation(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+
+	tests := []struct {
+		name                string
+		flags               map[string]string
+		flagsInt            map[string]int
+		jsonInput           string
+		yesFlag             bool
+		confirmReturn       bool
+		expectPromptCalled  bool
+		expectedError       string
+		expectedContains    string
+		expectedNotContains string
+	}{
+		{
+			name: "confirmation accepted",
+			flags: map[string]string{
+				"a-end-uid": "dcc-12345",
+				"b-end-uid": "dcc-67890",
+				"name":      "Test VXC",
+			},
+			flagsInt: map[string]int{
+				"rate-limit": 500,
+				"term":       12,
+			},
+			confirmReturn:      true,
+			expectPromptCalled: true,
+			expectedContains:   "vxc-uid-123",
+		},
+		{
+			name: "confirmation denied",
+			flags: map[string]string{
+				"a-end-uid": "dcc-12345",
+				"b-end-uid": "dcc-67890",
+				"name":      "Test VXC",
+			},
+			flagsInt: map[string]int{
+				"rate-limit": 500,
+				"term":       12,
+			},
+			confirmReturn:      false,
+			expectPromptCalled: true,
+			expectedContains:   "Purchase cancelled",
+		},
+		{
+			name: "yes flag skips confirmation",
+			flags: map[string]string{
+				"a-end-uid": "dcc-12345",
+				"b-end-uid": "dcc-67890",
+				"name":      "Test VXC",
+			},
+			flagsInt: map[string]int{
+				"rate-limit": 500,
+				"term":       12,
+			},
+			yesFlag:            true,
+			expectPromptCalled: false,
+			expectedContains:   "vxc-uid-123",
+		},
+		{
+			name:               "json input skips confirmation",
+			jsonInput:          `{"portUid":"dcc-12345","vxcName":"JSON VXC","rateLimit":500,"term":12,"aEndConfiguration":{"vlan":100},"bEndConfiguration":{"productUID":"dcc-67890","vlan":200}}`,
+			expectPromptCalled: false,
+			expectedContains:   "vxc-uid-123",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockVXCService{}
+			mockService.BuyVXCResponse = &megaport.BuyVXCResponse{
+				TechnicalServiceUID: "vxc-uid-123",
+			}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				return &megaport.Client{
+					VXCService: mockService,
+				}, nil
+			}
+
+			buyVXCFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyVXCRequest) (*megaport.BuyVXCResponse, error) {
+				return &megaport.BuyVXCResponse{
+					TechnicalServiceUID: "vxc-uid-123",
+				}, nil
+			}
+			defer func() {
+				buyVXCFunc = originalBuyVXCFunc
+			}()
+
+			buildVXCRequestFromFlagsOrig := buildVXCRequestFromFlags
+			buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc megaport.VXCService) (*megaport.BuyVXCRequest, error) {
+				return &megaport.BuyVXCRequest{
+					PortUID:   "dcc-12345",
+					VXCName:   "Test VXC",
+					RateLimit: 500,
+					Term:      12,
+					AEndConfiguration: megaport.VXCOrderEndpointConfiguration{
+						VLAN: 100,
+					},
+					BEndConfiguration: megaport.VXCOrderEndpointConfiguration{
+						ProductUID: "dcc-67890",
+						VLAN:       200,
+					},
+				}, nil
+			}
+			defer func() {
+				buildVXCRequestFromFlags = buildVXCRequestFromFlagsOrig
+			}()
+
+			promptCalled := false
+			utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
+				promptCalled = true
+				return tt.confirmReturn
+			}
+
+			cmd := &cobra.Command{Use: "buy"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().Bool("yes", false, "")
+			cmd.Flags().String("a-end-uid", "", "")
+			cmd.Flags().String("b-end-uid", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("rate-limit", 0, "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("a-end-vlan", 0, "")
+			cmd.Flags().Int("b-end-vlan", 0, "")
+			cmd.Flags().Int("a-end-inner-vlan", 0, "")
+			cmd.Flags().Int("b-end-inner-vlan", 0, "")
+			cmd.Flags().Int("a-end-vnic-index", 0, "")
+			cmd.Flags().Int("b-end-vnic-index", 0, "")
+			cmd.Flags().String("promo-code", "", "")
+			cmd.Flags().String("service-key", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().String("a-end-partner-config", "", "")
+			cmd.Flags().String("b-end-partner-config", "", "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			if tt.jsonInput != "" {
+				assert.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+			for k, v := range tt.flags {
+				assert.NoError(t, cmd.Flags().Set(k, v))
+			}
+			for flag, value := range tt.flagsInt {
+				assert.NoError(t, cmd.Flags().Set(flag, fmt.Sprintf("%d", value)))
+			}
+			if tt.yesFlag {
+				assert.NoError(t, cmd.Flags().Set("yes", "true"))
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = BuyVXC(cmd, nil, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedContains != "" {
+					assert.Contains(t, capturedOutput, tt.expectedContains)
+				}
+				if tt.expectedNotContains != "" {
+					assert.NotContains(t, capturedOutput, tt.expectedNotContains)
+				}
+			}
+			assert.Equal(t, tt.expectPromptCalled, promptCalled, "BuyConfirmPrompt called expectation mismatch")
 		})
 	}
 }

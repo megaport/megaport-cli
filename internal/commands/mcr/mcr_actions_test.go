@@ -677,6 +677,9 @@ func TestBuyMCR_NoWaitFlag(t *testing.T) {
 	defer func() {
 		buyMCRFunc = originalBuyMCRFunc
 	}()
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
 
 	tests := []struct {
 		name                     string
@@ -719,6 +722,7 @@ func TestBuyMCR_NoWaitFlag(t *testing.T) {
 			cmd := &cobra.Command{Use: "buy"}
 			cmd.Flags().BoolP("interactive", "i", false, "")
 			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().BoolP("yes", "y", false, "")
 			cmd.Flags().String("name", "", "")
 			cmd.Flags().Int("term", 0, "")
 			cmd.Flags().Int("port-speed", 0, "")
@@ -762,6 +766,9 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 		utils.ResourcePrompt = originalPrompt
 		buyMCRFunc = originalBuyMCRFunc
 	}()
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
 
 	tests := []struct {
 		name           string
@@ -902,6 +909,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			}
 
 			cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode with prompts")
+			cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt")
 			cmd.Flags().String("name", "", "MCR name")
 			cmd.Flags().Int("term", 0, "Contract term in months (1, 12, 24, or 36)")
 			cmd.Flags().Int("port-speed", 0, "Port speed in Mbps")
@@ -2416,4 +2424,147 @@ func TestUnlockMCRCmd_LoginError(t *testing.T) {
 	err := UnlockMCR(cmd, []string{"mcr-123"}, false)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "error logging in")
+}
+
+func TestBuyMCR_Confirmation(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	originalBuyMCRFunc := buyMCRFunc
+	defer func() { buyMCRFunc = originalBuyMCRFunc }()
+
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+
+	tests := []struct {
+		name                 string
+		flags                map[string]string
+		jsonInput            string
+		confirmResult        bool
+		expectBuyCalled      bool
+		expectedOutput       string
+		expectedError        string
+		promptShouldBeCalled bool
+	}{
+		{
+			name: "confirmation accepted",
+			flags: map[string]string{
+				"name":        "Test MCR",
+				"term":        "12",
+				"port-speed":  "10000",
+				"location-id": "123",
+				"mcr-asn":     "65000",
+			},
+			confirmResult:        true,
+			expectBuyCalled:      true,
+			expectedOutput:       "MCR created",
+			promptShouldBeCalled: true,
+		},
+		{
+			name: "confirmation denied",
+			flags: map[string]string{
+				"name":        "Test MCR",
+				"term":        "12",
+				"port-speed":  "10000",
+				"location-id": "123",
+				"mcr-asn":     "65000",
+			},
+			confirmResult:        false,
+			expectBuyCalled:      false,
+			expectedOutput:       "Purchase cancelled",
+			promptShouldBeCalled: true,
+		},
+		{
+			name: "yes flag skips confirmation",
+			flags: map[string]string{
+				"name":        "Test MCR",
+				"term":        "12",
+				"port-speed":  "10000",
+				"location-id": "123",
+				"mcr-asn":     "65000",
+				"yes":         "true",
+			},
+			confirmResult:        false,
+			expectBuyCalled:      true,
+			expectedOutput:       "MCR created",
+			promptShouldBeCalled: false,
+		},
+		{
+			name: "json input skips confirmation",
+			flags: map[string]string{
+				"json": `{"name":"JSON MCR","term":12,"portSpeed":10000,"locationId":123,"mcrAsn":65000}`,
+			},
+			confirmResult:        false,
+			expectBuyCalled:      true,
+			expectedOutput:       "MCR created",
+			promptShouldBeCalled: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockMCRService := &MockMCRService{
+				BuyMCRResult: &megaport.BuyMCRResponse{
+					TechnicalServiceUID: "mcr-confirm-123",
+				},
+			}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockMCRService
+				return client, nil
+			}
+
+			buyCalled := false
+			buyMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
+				buyCalled = true
+				return &megaport.BuyMCRResponse{
+					TechnicalServiceUID: "mcr-confirm-123",
+				}, nil
+			}
+
+			promptCalled := false
+			utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
+				promptCalled = true
+				return tt.confirmResult
+			}
+
+			cmd := &cobra.Command{
+				Use:  "buy",
+				RunE: testutil.NoColorAdapter(BuyMCR),
+			}
+
+			cmd.Flags().BoolP("interactive", "i", false, "")
+			cmd.Flags().BoolP("yes", "y", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Int("mcr-asn", 0, "")
+			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().String("promo-code", "", "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			testutil.SetFlags(t, cmd, tt.flags)
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, nil)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+			}
+
+			assert.Equal(t, tt.expectBuyCalled, buyCalled, "buy function called mismatch")
+			assert.Equal(t, tt.promptShouldBeCalled, promptCalled, "confirmation prompt called mismatch")
+		})
+	}
 }

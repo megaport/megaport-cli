@@ -395,6 +395,9 @@ func TestBuyIX(t *testing.T) {
 		cleanup()
 		buyIXFunc = originalBuyIXFunc
 	}()
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
 
 	tests := []struct {
 		name           string
@@ -576,6 +579,9 @@ func TestBuyIX_NoWaitFlag(t *testing.T) {
 		cleanup()
 		buyIXFunc = originalBuyIXFunc
 	}()
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
 
 	tests := []struct {
 		name                     string
@@ -1340,6 +1346,10 @@ func TestUpdateIXFunc_Error(t *testing.T) {
 }
 
 func TestBuyIX_JSONStringMode(t *testing.T) {
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+
 	mockService := &MockIXService{
 		buyIXResponse: &megaport.BuyIXResponse{
 			TechnicalServiceUID: "ix-json-abc",
@@ -1393,6 +1403,10 @@ func TestBuyIX_JSONStringMode(t *testing.T) {
 }
 
 func TestBuyIX_InvalidJSON(t *testing.T) {
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
 		c.IXService = &MockIXService{}
 	})
@@ -1428,6 +1442,10 @@ func TestBuyIX_InvalidJSON(t *testing.T) {
 }
 
 func TestBuyIX_LoginError(t *testing.T) {
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+
 	cleanup := testutil.SetupLoginError(fmt.Errorf("login failed"))
 	defer cleanup()
 
@@ -1458,6 +1476,149 @@ func TestBuyIX_LoginError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "login failed")
+}
+
+func TestBuyIX_Confirmation(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	originalBuyIXFunc := buyIXFunc
+	defer func() { buyIXFunc = originalBuyIXFunc }()
+
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+
+	tests := []struct {
+		name                 string
+		flags                map[string]string
+		jsonInput            string
+		confirmResult        bool
+		expectBuyCalled      bool
+		expectedOutput       string
+		promptShouldBeCalled bool
+	}{
+		{
+			name: "confirmation accepted",
+			flags: map[string]string{
+				"product-uid":          "port-uid-123",
+				"name":                 "Test IX",
+				"network-service-type": "Los Angeles IX",
+				"asn":                  "65000",
+				"mac-address":          "00:11:22:33:44:55",
+				"rate-limit":           "1000",
+				"vlan":                 "100",
+			},
+			confirmResult:        true,
+			expectBuyCalled:      true,
+			expectedOutput:       "IX created",
+			promptShouldBeCalled: true,
+		},
+		{
+			name: "confirmation denied",
+			flags: map[string]string{
+				"product-uid":          "port-uid-123",
+				"name":                 "Test IX",
+				"network-service-type": "Los Angeles IX",
+				"asn":                  "65000",
+				"mac-address":          "00:11:22:33:44:55",
+				"rate-limit":           "1000",
+				"vlan":                 "100",
+			},
+			confirmResult:        false,
+			expectBuyCalled:      false,
+			expectedOutput:       "Purchase cancelled",
+			promptShouldBeCalled: true,
+		},
+		{
+			name: "yes flag skips confirmation",
+			flags: map[string]string{
+				"product-uid":          "port-uid-123",
+				"name":                 "Test IX",
+				"network-service-type": "Los Angeles IX",
+				"asn":                  "65000",
+				"mac-address":          "00:11:22:33:44:55",
+				"rate-limit":           "1000",
+				"vlan":                 "100",
+				"yes":                  "true",
+			},
+			confirmResult:        false,
+			expectBuyCalled:      true,
+			expectedOutput:       "IX created",
+			promptShouldBeCalled: false,
+		},
+		{
+			name: "json input skips confirmation",
+			flags: map[string]string{
+				"json": `{"productUid":"port-uid-123","productName":"Test IX","networkServiceType":"Los Angeles IX","asn":65000,"macAddress":"00:11:22:33:44:55","rateLimit":1000,"vlan":100}`,
+			},
+			confirmResult:        false,
+			expectBuyCalled:      true,
+			expectedOutput:       "IX created",
+			promptShouldBeCalled: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockIXService{
+				buyIXResponse: &megaport.BuyIXResponse{
+					TechnicalServiceUID: "ix-confirm-123",
+				},
+			}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.IXService = mockService
+				return client, nil
+			}
+
+			buyCalled := false
+			buyIXFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyIXRequest) (*megaport.BuyIXResponse, error) {
+				buyCalled = true
+				return &megaport.BuyIXResponse{
+					TechnicalServiceUID: "ix-confirm-123",
+				}, nil
+			}
+
+			promptCalled := false
+			utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
+				promptCalled = true
+				return tt.confirmResult
+			}
+
+			cmd := &cobra.Command{
+				Use:  "buy",
+				RunE: testutil.NoColorAdapter(BuyIX),
+			}
+
+			cmd.Flags().BoolP("interactive", "i", false, "")
+			cmd.Flags().BoolP("yes", "y", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().String("product-uid", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().String("network-service-type", "", "")
+			cmd.Flags().Int("asn", 0, "")
+			cmd.Flags().String("mac-address", "", "")
+			cmd.Flags().Int("rate-limit", 0, "")
+			cmd.Flags().Int("vlan", 0, "")
+			cmd.Flags().Bool("shutdown", false, "")
+			cmd.Flags().String("promo-code", "", "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			testutil.SetFlags(t, cmd, tt.flags)
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, nil)
+			})
+
+			assert.NoError(t, err)
+			assert.Contains(t, capturedOutput, tt.expectedOutput)
+			assert.Equal(t, tt.expectBuyCalled, buyCalled, "buy function called mismatch")
+			assert.Equal(t, tt.promptShouldBeCalled, promptCalled, "BuyConfirmPrompt called expectation mismatch")
+		})
+	}
 }
 
 func TestGetIXFunc(t *testing.T) {

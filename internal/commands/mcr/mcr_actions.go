@@ -72,6 +72,23 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	yes, _ := cmd.Flags().GetBool("yes")
+	if !yes && jsonStr == "" && jsonFile == "" {
+		details := []utils.BuyConfirmDetail{
+			{Key: "Name", Value: req.Name},
+			{Key: "Term", Value: fmt.Sprintf("%d months", req.Term)},
+			{Key: "Port Speed", Value: fmt.Sprintf("%d Mbps", req.PortSpeed)},
+			{Key: "Location ID", Value: strconv.Itoa(req.LocationID)},
+		}
+		if req.MCRAsn != 0 {
+			details = append(details, utils.BuyConfirmDetail{Key: "ASN", Value: strconv.Itoa(req.MCRAsn)})
+		}
+		if !utils.BuyConfirmPrompt("MCR", details, noColor) {
+			output.PrintInfo("Purchase cancelled", noColor)
+			return nil
+		}
+	}
+
 	buySpinner := output.PrintResourceCreating("MCR", req.Name, noColor)
 	resp, err := buyMCRFunc(ctx, client, req)
 	buySpinner.Stop()
