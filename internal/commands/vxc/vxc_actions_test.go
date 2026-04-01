@@ -2189,6 +2189,12 @@ func TestValidateVXC(t *testing.T) {
 			loginError:    fmt.Errorf("authentication failed"),
 			expectedError: "authentication failed",
 		},
+		{
+			name:          "invalid JSON input",
+			jsonInput:     `{invalid json}`,
+			setupMock:     func(m *MockVXCService) {},
+			expectedError: "error parsing JSON",
+		},
 	}
 
 	for _, tt := range tests {

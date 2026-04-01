@@ -2016,6 +2016,18 @@ func TestValidateMVE(t *testing.T) {
 			loginError:    fmt.Errorf("authentication failed"),
 			expectedError: "authentication failed",
 		},
+		{
+			name:          "invalid JSON input",
+			jsonInput:     `{invalid json}`,
+			setupMock:     func(m *MockMVEService) {},
+			expectedError: "error parsing JSON",
+		},
+		{
+			name:          "vendor config validation failure",
+			jsonInput:     `{"name":"test-mve","term":12,"locationId":1,"vendorConfig":{"vendor":"unknown_vendor","imageId":1,"productSize":"MEDIUM"},"vnics":[{"description":"Data Plane","vlan":100}]}`,
+			setupMock:     func(m *MockMVEService) {},
+			expectedError: "unsupported vendor",
+		},
 	}
 
 	for _, tt := range tests {

@@ -1654,6 +1654,12 @@ func TestValidatePort(t *testing.T) {
 			loginError:    fmt.Errorf("authentication failed"),
 			expectedError: "authentication failed",
 		},
+		{
+			name:          "invalid JSON input",
+			jsonInput:     `{invalid json}`,
+			setupMock:     func(m *MockPortService) {},
+			expectedError: "error parsing JSON",
+		},
 	}
 
 	for _, tt := range tests {
