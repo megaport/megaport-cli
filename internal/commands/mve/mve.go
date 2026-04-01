@@ -215,8 +215,27 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
+	validateMVECmd := cmdbuilder.NewCommand("validate", "Validate an MVE order without purchasing").
+		WithColorAwareRunFunc(ValidateMVE).
+		WithInteractiveFlag().
+		WithMVECreateFlags().
+		WithJSONConfigFlags().
+		WithLongDesc("Validates an MVE configuration against the Megaport API without creating the resource.\n\nUse this for dry-run validation before purchasing, or in CI pipelines to check configurations.").
+		WithDocumentedRequiredFlag("name", "The name of the MVE").
+		WithDocumentedRequiredFlag("term", "The term of the MVE (1, 12, 24, or 36 months)").
+		WithDocumentedRequiredFlag("location-id", "The ID of the location where the MVE will be provisioned").
+		WithDocumentedRequiredFlag("vendor-config", "JSON string with vendor-specific configuration").
+		WithDocumentedRequiredFlag("vnics", "JSON array of network interfaces").
+		WithExample(`megaport-cli mve validate --name "My MVE" --term 12 --location-id 123 --vendor-config '{"vendor":"cisco","imageId":123,"productSize":"MEDIUM"}' --vnics '[{"description":"Data Plane","vlan":100}]'`).
+		WithExample("megaport-cli mve validate --json-file ./mve-config.json").
+		WithImportantNote("This command only validates the configuration — no resources are created and no charges are incurred").
+		WithRootCmd(rootCmd).
+		WithConditionalRequirements("name", "term", "location-id", "vendor-config", "vnics").
+		Build()
+
 	mveCmd.AddCommand(
 		buyMVECmd,
+		validateMVECmd,
 		getMVECmd,
 		updateMVECmd,
 		deleteMVECmd,

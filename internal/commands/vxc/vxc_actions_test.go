@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -2147,6 +2148,149 @@ func TestBuyVXC_Confirmation(t *testing.T) {
 				}
 			}
 			assert.Equal(t, tt.expectPromptCalled, promptCalled, "BuyConfirmPrompt called expectation mismatch")
+		})
+	}
+}
+
+func TestValidateVXC(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name             string
+		flags            map[string]string
+		jsonInput        string
+		jsonFileContent  string
+		setupMock        func(*MockVXCService)
+		loginError       error
+		expectedError    string
+		expectedContains string
+	}{
+		{
+			name: "success with flags",
+			flags: map[string]string{
+				"name":       "test-vxc",
+				"rate-limit": "1000",
+				"term":       "12",
+				"a-end-uid":  "port-123",
+				"b-end-uid":  "port-456",
+				"a-end-vlan": "100",
+				"b-end-vlan": "200",
+			},
+			setupMock:        func(m *MockVXCService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name:             "success with JSON",
+			jsonInput:        `{"vxcName":"test-vxc","rateLimit":1000,"term":12,"portUid":"port-123","aEndConfiguration":{"vlan":100},"bEndConfiguration":{"productUID":"port-456","vlan":200}}`,
+			setupMock:        func(m *MockVXCService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name:      "validation error",
+			jsonInput: `{"vxcName":"test-vxc","rateLimit":1000,"term":12,"portUid":"port-123","aEndConfiguration":{"vlan":100},"bEndConfiguration":{"productUID":"port-456","vlan":200}}`,
+			setupMock: func(m *MockVXCService) {
+				m.ValidateVXCOrderError = fmt.Errorf("invalid VXC configuration")
+			},
+			expectedError: "invalid VXC configuration",
+		},
+		{
+			name:          "no input provided",
+			setupMock:     func(m *MockVXCService) {},
+			expectedError: "no input provided",
+		},
+		{
+			name:          "login error",
+			jsonInput:     `{"vxcName":"test-vxc","rateLimit":1000,"term":12,"portUid":"port-123","aEndConfiguration":{"vlan":100},"bEndConfiguration":{"productUID":"port-456","vlan":200}}`,
+			setupMock:     func(m *MockVXCService) {},
+			loginError:    fmt.Errorf("authentication failed"),
+			expectedError: "authentication failed",
+		},
+		{
+			name:          "invalid JSON input",
+			jsonInput:     `{invalid json}`,
+			setupMock:     func(m *MockVXCService) {},
+			expectedError: "error parsing JSON",
+		},
+		{
+			name:             "success with JSON file",
+			jsonFileContent:  `{"vxcName":"file-vxc","rateLimit":1000,"term":12,"portUid":"port-123","aEndConfiguration":{"vlan":100},"bEndConfiguration":{"productUID":"port-456","vlan":200}}`,
+			setupMock:        func(m *MockVXCService) {},
+			expectedContains: "validation passed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockVXCService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			if tt.loginError != nil {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, tt.loginError
+				}
+			} else {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.VXCService = mockService
+					return client, nil
+				}
+			}
+
+			cmd := &cobra.Command{Use: "validate"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("rate-limit", 0, "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().String("a-end-uid", "", "")
+			cmd.Flags().Int("a-end-vlan", 0, "")
+			cmd.Flags().String("b-end-uid", "", "")
+			cmd.Flags().Int("b-end-vlan", 0, "")
+			cmd.Flags().String("a-end-partner-config", "", "")
+			cmd.Flags().String("b-end-partner-config", "", "")
+			cmd.Flags().Int("a-end-inner-vlan", 0, "")
+			cmd.Flags().Int("b-end-inner-vlan", 0, "")
+			cmd.Flags().Int("a-end-vnic-index", 0, "")
+			cmd.Flags().Int("b-end-vnic-index", 0, "")
+			cmd.Flags().String("promo-code", "", "")
+			cmd.Flags().String("service-key", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().String("resource-tags", "", "")
+
+			if tt.jsonInput != "" {
+				assert.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+			if tt.jsonFileContent != "" {
+				tmpFile, tmpErr := os.CreateTemp("", "vxc-validate-*.json")
+				assert.NoError(t, tmpErr)
+				defer os.Remove(tmpFile.Name())
+				_, tmpErr = tmpFile.WriteString(tt.jsonFileContent)
+				assert.NoError(t, tmpErr)
+				tmpFile.Close()
+				assert.NoError(t, cmd.Flags().Set("json-file", tmpFile.Name()))
+			}
+			for k, v := range tt.flags {
+				assert.NoError(t, cmd.Flags().Set(k, v))
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = ValidateVXC(cmd, nil, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedContains != "" {
+					assert.Contains(t, capturedOutput, tt.expectedContains)
+				}
+			}
 		})
 	}
 }

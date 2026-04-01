@@ -132,10 +132,31 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
+	// Create validate IX command
+	validateIXCmd := cmdbuilder.NewCommand("validate", "Validate an IX order without purchasing").
+		WithColorAwareRunFunc(ValidateIX).
+		WithIXCreateFlags().
+		WithStandardInputFlags().
+		WithLongDesc("Validates an IX configuration against the Megaport API without creating the resource.\n\nUse this for dry-run validation before purchasing, or in CI pipelines to check configurations.").
+		WithDocumentedRequiredFlag("product-uid", "The UID of the port to attach the IX to").
+		WithDocumentedRequiredFlag("name", "The name of the IX").
+		WithDocumentedRequiredFlag("network-service-type", "The IX type/network service to connect to").
+		WithDocumentedRequiredFlag("asn", "ASN (Autonomous System Number) for BGP peering").
+		WithDocumentedRequiredFlag("mac-address", "MAC address for the IX interface").
+		WithDocumentedRequiredFlag("rate-limit", "Rate limit in Mbps").
+		WithDocumentedRequiredFlag("vlan", "VLAN ID for the IX connection").
+		WithExample(`megaport-cli ix validate --product-uid port-uid --name "My IX" --network-service-type "Los Angeles IX" --asn 65000 --mac-address "00:11:22:33:44:55" --rate-limit 1000 --vlan 100`).
+		WithExample("megaport-cli ix validate --json-file ./ix-config.json").
+		WithImportantNote("This command only validates the configuration — no resources are created and no charges are incurred").
+		WithRootCmd(rootCmd).
+		WithConditionalRequirements("product-uid", "name", "network-service-type", "asn", "mac-address", "rate-limit", "vlan").
+		Build()
+
 	// Add commands to their parents
 	ixCmd.AddCommand(
 		getIXCmd,
 		buyIXCmd,
+		validateIXCmd,
 		updateIXCmd,
 		deleteIXCmd,
 		listIXsCmd,

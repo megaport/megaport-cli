@@ -74,9 +74,7 @@ func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	return nil
 }
 
-func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
-
+func buildMVERequest(cmd *cobra.Command, noColor bool) (*megaport.BuyMVERequest, error) {
 	interactive, _ := cmd.Flags().GetBool("interactive")
 	jsonStr, _ := cmd.Flags().GetString("json")
 	jsonFile, _ := cmd.Flags().GetString("json-file")
@@ -87,33 +85,41 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		cmd.Flags().Changed("vendor-config") ||
 		cmd.Flags().Changed("vnics")
 
-	var req *megaport.BuyMVERequest
-	var err error
-
 	if jsonStr != "" || jsonFile != "" {
 		output.PrintInfo("Using JSON input", noColor)
-		req, err = processJSONBuyMVEInput(jsonStr, jsonFile)
+		req, err := processJSONBuyMVEInput(jsonStr, jsonFile)
 		if err != nil {
 			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return err
+			return nil, err
 		}
+		return req, nil
 	} else if flagsProvided {
 		output.PrintInfo("Using flag input", noColor)
-		req, err = processFlagBuyMVEInput(cmd)
+		req, err := processFlagBuyMVEInput(cmd)
 		if err != nil {
 			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return err
+			return nil, err
 		}
+		return req, nil
 	} else if interactive {
 		output.PrintInfo("Starting interactive mode", noColor)
-		req, err = promptForBuyMVEDetails(noColor)
+		req, err := promptForBuyMVEDetails(noColor)
 		if err != nil {
 			output.PrintError("Interactive input failed: %v", noColor, err)
-			return err
+			return nil, err
 		}
-	} else {
-		output.PrintError("No input provided, use --interactive, --json, or flags to specify MVE details", noColor)
-		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify MVE details")
+		return req, nil
+	}
+	output.PrintError("No input provided, use --interactive, --json, or flags to specify MVE details", noColor)
+	return nil, fmt.Errorf("no input provided, use --interactive, --json, or flags to specify MVE details")
+}
+
+func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx := context.Background()
+
+	req, err := buildMVERequest(cmd, noColor)
+	if err != nil {
+		return err
 	}
 
 	client, err := config.Login(ctx)
@@ -140,6 +146,8 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 
 	output.PrintInfo("Validation successful", noColor)
 
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
 	yes, _ := cmd.Flags().GetBool("yes")
 	if !yes && jsonStr == "" && jsonFile == "" {
 		details := []utils.BuyConfirmDetail{
@@ -171,6 +179,38 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	output.PrintResourceCreated("MVE", resp.TechnicalServiceUID, noColor)
+	return nil
+}
+
+func ValidateMVE(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx := context.Background()
+
+	req, err := buildMVERequest(cmd, noColor)
+	if err != nil {
+		return err
+	}
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return err
+	}
+
+	if err := validation.ValidateMVEVendorConfig(req.VendorConfig); err != nil {
+		output.PrintError("Validation failed: %v", noColor, err)
+		return fmt.Errorf("validation failed: %v", err)
+	}
+
+	spinner := output.PrintResourceValidating("MVE", noColor)
+	err = client.MVEService.ValidateMVEOrder(ctx, req)
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Validation failed: %v", noColor, err)
+		return fmt.Errorf("validation failed: %v", err)
+	}
+
+	output.PrintSuccess("MVE validation passed", noColor)
 	return nil
 }
 

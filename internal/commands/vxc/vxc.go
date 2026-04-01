@@ -179,12 +179,31 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("All existing tags will be replaced with the provided tags. To clear all tags, provide an empty tag set.").
 		Build()
 
+	// Create validate VXC command
+	validateVXCCmd := cmdbuilder.NewCommand("validate", "Validate a VXC order without purchasing").
+		WithColorAwareRunFunc(ValidateVXC).
+		WithInteractiveFlag().
+		WithVXCCreateFlags().
+		WithJSONConfigFlags().
+		WithLongDesc("Validates a VXC configuration against the Megaport API without creating the resource.\n\nUse this for dry-run validation before purchasing, or in CI pipelines to check configurations.").
+		WithDocumentedRequiredFlag("name", "Name of the VXC").
+		WithDocumentedRequiredFlag("rate-limit", "Bandwidth in Mbps").
+		WithDocumentedRequiredFlag("term", "Contract term in months (1, 12, 24, or 36)").
+		WithDocumentedRequiredFlag("a-end-uid", "UID of the A-End product").
+		WithExample(`megaport-cli vxc validate --name "My VXC" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200`).
+		WithExample("megaport-cli vxc validate --json-file ./vxc-config.json").
+		WithImportantNote("This command only validates the configuration — no resources are created and no charges are incurred").
+		WithRootCmd(rootCmd).
+		WithConditionalRequirements("name", "rate-limit", "term", "a-end-uid").
+		Build()
+
 	// Add commands to their parents
 	vxcCmd.AddCommand(
 		listVXCsCmd,
 		getVXCCmd,
 		statusVXCCmd,
 		buyVXCCmd,
+		validateVXCCmd,
 		updateVXCCmd,
 		deleteVXCCmd,
 		listTagsCmd,

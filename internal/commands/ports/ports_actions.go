@@ -13,9 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
-
+func buildPortRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyPortRequest, error) {
 	interactive, _ := cmd.Flags().GetBool("interactive")
 	jsonStr, _ := cmd.Flags().GetString("json")
 	jsonFile, _ := cmd.Flags().GetString("json-file")
@@ -24,34 +22,81 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 		cmd.Flags().Changed("port-speed") || cmd.Flags().Changed("location-id") ||
 		cmd.Flags().Changed("marketplace-visibility")
 
-	var req *megaport.BuyPortRequest
-	var err error
+	if jsonStr != "" || jsonFile != "" {
+		output.PrintInfo("Using JSON input", noColor)
+		req, err := processJSONPortInput(jsonStr, jsonFile)
+		if err != nil {
+			output.PrintError("Failed to process JSON input: %v", noColor, err)
+			return nil, err
+		}
+		return req, nil
+	} else if flagsProvided {
+		output.PrintInfo("Using flag input", noColor)
+		req, err := processFlagPortInput(cmd)
+		if err != nil {
+			output.PrintError("Failed to process flag input: %v", noColor, err)
+			return nil, err
+		}
+		return req, nil
+	} else if interactive {
+		output.PrintInfo("Starting interactive mode", noColor)
+		req, err := promptForPortDetails(noColor)
+		if err != nil {
+			output.PrintError("Interactive input failed: %v", noColor, err)
+			return nil, err
+		}
+		return req, nil
+	}
+	output.PrintError("No input provided", noColor)
+	return nil, fmt.Errorf("no input provided, use --interactive, --json, or flags to specify port details")
+}
+
+func buildLAGPortRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyPortRequest, error) {
+	interactive, _ := cmd.Flags().GetBool("interactive")
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
+
+	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("term") ||
+		cmd.Flags().Changed("port-speed") || cmd.Flags().Changed("location-id") ||
+		cmd.Flags().Changed("lag-count") || cmd.Flags().Changed("marketplace-visibility")
 
 	if jsonStr != "" || jsonFile != "" {
 		output.PrintInfo("Using JSON input", noColor)
-		req, err = processJSONPortInput(jsonStr, jsonFile)
+		req, err := processJSONPortInput(jsonStr, jsonFile)
 		if err != nil {
 			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return err
+			return nil, err
 		}
+		return req, nil
 	} else if flagsProvided {
 		output.PrintInfo("Using flag input", noColor)
-		req, err = processFlagPortInput(cmd)
+		req, err := processFlagLAGPortInput(cmd)
 		if err != nil {
 			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return err
+			return nil, err
 		}
+		return req, nil
 	} else if interactive {
 		output.PrintInfo("Starting interactive mode", noColor)
-		req, err = promptForPortDetails(noColor)
+		req, err := promptForLAGPortDetails(noColor)
 		if err != nil {
 			output.PrintError("Interactive input failed: %v", noColor, err)
-			return err
+			return nil, err
 		}
-	} else {
-		output.PrintError("No input provided", noColor)
-		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify port details")
+		return req, nil
 	}
+	output.PrintError("No input provided", noColor)
+	return nil, fmt.Errorf("no input provided, use --interactive, --json, or flags to specify port details")
+}
+
+func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx := context.Background()
+
+	req, err := buildPortRequest(cmd, noColor)
+	if err != nil {
+		return err
+	}
+
 	noWait, _ := cmd.Flags().GetBool("no-wait")
 	if !noWait {
 		req.WaitForProvision = true
@@ -73,6 +118,8 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
 	yes, _ := cmd.Flags().GetBool("yes")
 	if !yes && jsonStr == "" && jsonFile == "" {
 		details := []utils.BuyConfirmDetail{
@@ -107,45 +154,68 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
+func ValidatePort(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx := context.Background()
+
+	req, err := buildPortRequest(cmd, noColor)
+	if err != nil {
+		return err
+	}
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return err
+	}
+
+	spinner := output.PrintResourceValidating("Port", noColor)
+	err = client.PortService.ValidatePortOrder(ctx, req)
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to validate port request: %v", noColor, err)
+		return err
+	}
+
+	output.PrintSuccess("Port validation passed", noColor)
+	return nil
+}
+
+func ValidateLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx := context.Background()
+
+	req, err := buildLAGPortRequest(cmd, noColor)
+	if err != nil {
+		return err
+	}
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return err
+	}
+
+	spinner := output.PrintResourceValidating("LAG Port", noColor)
+	err = client.PortService.ValidatePortOrder(ctx, req)
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to validate LAG port request: %v", noColor, err)
+		return err
+	}
+
+	output.PrintSuccess("LAG Port validation passed", noColor)
+	return nil
+}
+
 func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx := context.Background()
 
-	interactive, _ := cmd.Flags().GetBool("interactive")
-	jsonStr, _ := cmd.Flags().GetString("json")
-	jsonFile, _ := cmd.Flags().GetString("json-file")
-
-	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("term") ||
-		cmd.Flags().Changed("port-speed") || cmd.Flags().Changed("location-id") ||
-		cmd.Flags().Changed("lag-count") || cmd.Flags().Changed("marketplace-visibility")
-
-	var req *megaport.BuyPortRequest
-	var err error
-
-	if jsonStr != "" || jsonFile != "" {
-		output.PrintInfo("Using JSON input", noColor)
-		req, err = processJSONPortInput(jsonStr, jsonFile)
-		if err != nil {
-			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return err
-		}
-	} else if flagsProvided {
-		output.PrintInfo("Using flag input", noColor)
-		req, err = processFlagLAGPortInput(cmd)
-		if err != nil {
-			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return err
-		}
-	} else if interactive {
-		output.PrintInfo("Starting interactive mode", noColor)
-		req, err = promptForLAGPortDetails(noColor)
-		if err != nil {
-			output.PrintError("Interactive input failed: %v", noColor, err)
-			return err
-		}
-	} else {
-		output.PrintError("No input provided", noColor)
-		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify port details")
+	req, err := buildLAGPortRequest(cmd, noColor)
+	if err != nil {
+		return err
 	}
+
 	noWait, _ := cmd.Flags().GetBool("no-wait")
 	if !noWait {
 		req.WaitForProvision = true
@@ -167,6 +237,8 @@ func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
 	yes, _ := cmd.Flags().GetBool("yes")
 	if !yes && jsonStr == "" && jsonFile == "" {
 		details := []utils.BuyConfirmDetail{

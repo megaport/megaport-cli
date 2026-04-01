@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -1974,6 +1975,145 @@ func TestBuyMVE_Confirmation(t *testing.T) {
 				assert.Nil(t, mockService.CapturedBuyMVERequest, "expected BuyMVE not to be called")
 			}
 			assert.Equal(t, tt.promptShouldBeCalled, promptCalled, "BuyConfirmPrompt called expectation mismatch")
+		})
+	}
+}
+
+func TestValidateMVE(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name             string
+		flags            map[string]string
+		jsonInput        string
+		jsonFileContent  string
+		setupMock        func(*MockMVEService)
+		loginError       error
+		expectedError    string
+		expectedContains string
+	}{
+		{
+			name: "success with flags",
+			flags: map[string]string{
+				"name":          "test-mve",
+				"term":          "12",
+				"location-id":   "1",
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"MEDIUM","mveLabel":"test-label","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA","sshPublicKey":"ssh-rsa AAAA","cloudInit":"#cloud-config","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"reg-key","fmcNatId":"nat-id"}`,
+				"vnics":         `[{"description":"Data Plane","vlan":100}]`,
+			},
+			setupMock:        func(m *MockMVEService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name:             "success with JSON",
+			jsonInput:        `{"name":"test-mve","term":12,"locationId":1,"vendorConfig":{"vendor":"cisco","imageId":1,"productSize":"MEDIUM","mveLabel":"test-label","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA","sshPublicKey":"ssh-rsa AAAA","cloudInit":"#cloud-config","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"reg-key","fmcNatId":"nat-id"},"vnics":[{"description":"Data Plane","vlan":100}]}`,
+			setupMock:        func(m *MockMVEService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name:      "validation error",
+			jsonInput: `{"name":"test-mve","term":12,"locationId":1,"vendorConfig":{"vendor":"cisco","imageId":1,"productSize":"MEDIUM","mveLabel":"test-label","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA","sshPublicKey":"ssh-rsa AAAA","cloudInit":"#cloud-config","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"reg-key","fmcNatId":"nat-id"},"vnics":[{"description":"Data Plane","vlan":100}]}`,
+			setupMock: func(m *MockMVEService) {
+				m.ValidateMVEOrderErr = fmt.Errorf("invalid MVE configuration")
+			},
+			expectedError: "invalid MVE configuration",
+		},
+		{
+			name:          "no input provided",
+			setupMock:     func(m *MockMVEService) {},
+			expectedError: "no input provided",
+		},
+		{
+			name:          "login error",
+			jsonInput:     `{"name":"test-mve","term":12,"locationId":1,"vendorConfig":{"vendor":"cisco","imageId":1,"productSize":"MEDIUM","mveLabel":"test-label","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA","sshPublicKey":"ssh-rsa AAAA","cloudInit":"#cloud-config","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"reg-key","fmcNatId":"nat-id"},"vnics":[{"description":"Data Plane","vlan":100}]}`,
+			setupMock:     func(m *MockMVEService) {},
+			loginError:    fmt.Errorf("authentication failed"),
+			expectedError: "authentication failed",
+		},
+		{
+			name:          "invalid JSON input",
+			jsonInput:     `{invalid json}`,
+			setupMock:     func(m *MockMVEService) {},
+			expectedError: "error parsing JSON",
+		},
+		{
+			name:          "vendor config validation failure",
+			jsonInput:     `{"name":"test-mve","term":12,"locationId":1,"vendorConfig":{"vendor":"unknown_vendor","imageId":1,"productSize":"MEDIUM"},"vnics":[{"description":"Data Plane","vlan":100}]}`,
+			setupMock:     func(m *MockMVEService) {},
+			expectedError: "unsupported vendor",
+		},
+		{
+			name:             "success with JSON file",
+			jsonFileContent:  `{"name":"file-mve","term":12,"locationId":1,"vendorConfig":{"vendor":"cisco","imageId":1,"productSize":"MEDIUM","mveLabel":"test-label","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA","sshPublicKey":"ssh-rsa AAAA","cloudInit":"#cloud-config","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"reg-key","fmcNatId":"nat-id"},"vnics":[{"description":"Data Plane","vlan":100}]}`,
+			setupMock:        func(m *MockMVEService) {},
+			expectedContains: "validation passed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockMVEService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			if tt.loginError != nil {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, tt.loginError
+				}
+			} else {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MVEService = mockService
+					return client, nil
+				}
+			}
+
+			cmd := &cobra.Command{Use: "validate"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().String("vendor-config", "", "")
+			cmd.Flags().String("vnics", "", "")
+			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().String("promo-code", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().String("resource-tags", "", "")
+
+			if tt.jsonInput != "" {
+				assert.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+			if tt.jsonFileContent != "" {
+				tmpFile, tmpErr := os.CreateTemp("", "mve-validate-*.json")
+				assert.NoError(t, tmpErr)
+				defer os.Remove(tmpFile.Name())
+				_, tmpErr = tmpFile.WriteString(tt.jsonFileContent)
+				assert.NoError(t, tmpErr)
+				tmpFile.Close()
+				assert.NoError(t, cmd.Flags().Set("json-file", tmpFile.Name()))
+			}
+			for k, v := range tt.flags {
+				assert.NoError(t, cmd.Flags().Set(k, v))
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = ValidateMVE(cmd, nil, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedContains != "" {
+					assert.Contains(t, capturedOutput, tt.expectedContains)
+				}
+			}
 		})
 	}
 }

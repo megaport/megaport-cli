@@ -3,6 +3,7 @@ package ports
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -1586,6 +1587,149 @@ func TestBuyPort_Confirmation(t *testing.T) {
 				}
 			}
 			assert.Equal(t, tt.expectPromptCalled, promptCalled, "BuyConfirmPrompt called expectation mismatch")
+		})
+	}
+}
+
+func TestValidatePort(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name             string
+		flags            map[string]string
+		jsonInput        string
+		jsonFileContent  string
+		setupMock        func(*MockPortService)
+		loginError       error
+		expectedError    string
+		expectedContains string
+	}{
+		{
+			name: "success with flags",
+			flags: map[string]string{
+				"name":                   "test-port",
+				"term":                   "12",
+				"port-speed":             "1000",
+				"location-id":            "1",
+				"marketplace-visibility": "true",
+			},
+			setupMock:        func(m *MockPortService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name:             "success with JSON",
+			jsonInput:        `{"name":"json-port","term":12,"portSpeed":1000,"locationId":1,"marketPlaceVisibility":false}`,
+			setupMock:        func(m *MockPortService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name: "validation error",
+			flags: map[string]string{
+				"name":                   "test-port",
+				"term":                   "12",
+				"port-speed":             "1000",
+				"location-id":            "1",
+				"marketplace-visibility": "true",
+			},
+			setupMock: func(m *MockPortService) {
+				m.ValidatePortOrderErr = fmt.Errorf("invalid port configuration")
+			},
+			expectedError: "invalid port configuration",
+		},
+		{
+			name:          "no input provided",
+			flags:         map[string]string{},
+			setupMock:     func(m *MockPortService) {},
+			expectedError: "no input provided",
+		},
+		{
+			name: "login error",
+			flags: map[string]string{
+				"name":                   "test-port",
+				"term":                   "12",
+				"port-speed":             "1000",
+				"location-id":            "1",
+				"marketplace-visibility": "true",
+			},
+			setupMock:     func(m *MockPortService) {},
+			loginError:    fmt.Errorf("authentication failed"),
+			expectedError: "authentication failed",
+		},
+		{
+			name:          "invalid JSON input",
+			jsonInput:     `{invalid json}`,
+			setupMock:     func(m *MockPortService) {},
+			expectedError: "error parsing JSON",
+		},
+		{
+			name:             "success with JSON file",
+			jsonFileContent:  `{"name":"file-port","term":12,"portSpeed":1000,"locationId":1,"marketPlaceVisibility":false}`,
+			setupMock:        func(m *MockPortService) {},
+			expectedContains: "validation passed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockPortService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			if tt.loginError != nil {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, tt.loginError
+				}
+			} else {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.PortService = mockService
+					return client, nil
+				}
+			}
+
+			cmd := &cobra.Command{Use: "validate"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Bool("marketplace-visibility", false, "")
+			cmd.Flags().String("diversity-zone", "", "")
+
+			if tt.jsonInput != "" {
+				require.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+			if tt.jsonFileContent != "" {
+				tmpFile, tmpErr := os.CreateTemp("", "port-validate-*.json")
+				require.NoError(t, tmpErr)
+				defer os.Remove(tmpFile.Name())
+				_, tmpErr = tmpFile.WriteString(tt.jsonFileContent)
+				require.NoError(t, tmpErr)
+				tmpFile.Close()
+				require.NoError(t, cmd.Flags().Set("json-file", tmpFile.Name()))
+			}
+			for k, v := range tt.flags {
+				require.NoError(t, cmd.Flags().Set(k, v))
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = ValidatePort(cmd, nil, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedContains != "" {
+					assert.Contains(t, capturedOutput, tt.expectedContains)
+				}
+			}
 		})
 	}
 }

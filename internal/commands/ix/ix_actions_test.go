@@ -3,6 +3,7 @@ package ix
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -1683,4 +1684,156 @@ func TestDeleteIXFunc(t *testing.T) {
 	err := deleteIXFunc(ctx, client, "ix-123", req)
 	assert.NoError(t, err)
 	assert.Equal(t, "ix-123", mockService.capturedDeleteIXUID)
+}
+
+func TestValidateIX(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name             string
+		flags            map[string]string
+		jsonInput        string
+		jsonFileContent  string
+		setupMock        func(*MockIXService)
+		loginError       error
+		expectedError    string
+		expectedContains string
+	}{
+		{
+			name: "success with flags",
+			flags: map[string]string{
+				"name":                 "test-ix",
+				"product-uid":          "port-123",
+				"network-service-type": "Los Angeles IX",
+				"asn":                  "65000",
+				"mac-address":          "00:11:22:33:44:55",
+				"rate-limit":           "1000",
+				"vlan":                 "100",
+			},
+			setupMock:        func(m *MockIXService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name:             "success with JSON",
+			jsonInput:        `{"productUid":"port-123","productName":"test-ix","networkServiceType":"Los Angeles IX","asn":65000,"macAddress":"00:11:22:33:44:55","rateLimit":1000,"vlan":100}`,
+			setupMock:        func(m *MockIXService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name: "validation error",
+			flags: map[string]string{
+				"name":                 "test-ix",
+				"product-uid":          "port-123",
+				"network-service-type": "Los Angeles IX",
+				"asn":                  "65000",
+				"mac-address":          "00:11:22:33:44:55",
+				"rate-limit":           "1000",
+				"vlan":                 "100",
+			},
+			setupMock: func(m *MockIXService) {
+				m.validateIXOrderError = fmt.Errorf("invalid IX configuration")
+			},
+			expectedError: "invalid IX configuration",
+		},
+		{
+			name:          "no input provided",
+			flags:         map[string]string{},
+			setupMock:     func(m *MockIXService) {},
+			expectedError: "no input provided",
+		},
+		{
+			name: "login error",
+			flags: map[string]string{
+				"name":                 "test-ix",
+				"product-uid":          "port-123",
+				"network-service-type": "Los Angeles IX",
+				"asn":                  "65000",
+				"mac-address":          "00:11:22:33:44:55",
+				"rate-limit":           "1000",
+				"vlan":                 "100",
+			},
+			setupMock:     func(m *MockIXService) {},
+			loginError:    fmt.Errorf("authentication failed"),
+			expectedError: "authentication failed",
+		},
+		{
+			name:          "invalid JSON input",
+			jsonInput:     `{invalid json}`,
+			setupMock:     func(m *MockIXService) {},
+			expectedError: "error parsing JSON",
+		},
+		{
+			name:             "success with JSON file",
+			jsonFileContent:  `{"productUid":"port-123","productName":"file-ix","networkServiceType":"Los Angeles IX","asn":65000,"macAddress":"00:11:22:33:44:55","rateLimit":1000,"vlan":100}`,
+			setupMock:        func(m *MockIXService) {},
+			expectedContains: "validation passed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockIXService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			if tt.loginError != nil {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, tt.loginError
+				}
+			} else {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.IXService = mockService
+					return client, nil
+				}
+			}
+
+			cmd := &cobra.Command{Use: "validate"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().String("product-uid", "", "")
+			cmd.Flags().String("network-service-type", "", "")
+			cmd.Flags().Int("asn", 0, "")
+			cmd.Flags().String("mac-address", "", "")
+			cmd.Flags().Int("rate-limit", 0, "")
+			cmd.Flags().Int("vlan", 0, "")
+			cmd.Flags().Bool("shutdown", false, "")
+			cmd.Flags().String("promo-code", "", "")
+
+			if tt.jsonInput != "" {
+				assert.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+			if tt.jsonFileContent != "" {
+				tmpFile, tmpErr := os.CreateTemp("", "ix-validate-*.json")
+				assert.NoError(t, tmpErr)
+				defer os.Remove(tmpFile.Name())
+				_, tmpErr = tmpFile.WriteString(tt.jsonFileContent)
+				assert.NoError(t, tmpErr)
+				tmpFile.Close()
+				assert.NoError(t, cmd.Flags().Set("json-file", tmpFile.Name()))
+			}
+			for k, v := range tt.flags {
+				assert.NoError(t, cmd.Flags().Set(k, v))
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = ValidateIX(cmd, nil, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedContains != "" {
+					assert.Contains(t, capturedOutput, tt.expectedContains)
+				}
+			}
+		})
+	}
 }
