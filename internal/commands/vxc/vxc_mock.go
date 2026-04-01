@@ -2,6 +2,7 @@ package vxc
 
 import (
 	"context"
+	"strings"
 
 	megaport "github.com/megaport/megaportgo"
 )
@@ -77,7 +78,39 @@ func (m *MockVXCService) ListVXCs(ctx context.Context, req *megaport.ListVXCsReq
 	if m.listVXCErr != nil {
 		return nil, m.listVXCErr
 	}
-	return m.listVXCResponse, nil
+	// Simulate server-side filtering based on request fields
+	var result []*megaport.VXC
+	for _, vxc := range m.listVXCResponse {
+		if vxc == nil {
+			continue
+		}
+		if req.NameContains != "" && !strings.Contains(strings.ToLower(vxc.Name), strings.ToLower(req.NameContains)) {
+			continue
+		}
+		if req.AEndProductUID != "" && vxc.AEndConfiguration.UID != req.AEndProductUID {
+			continue
+		}
+		if req.BEndProductUID != "" && vxc.BEndConfiguration.UID != req.BEndProductUID {
+			continue
+		}
+		if req.RateLimit > 0 && vxc.RateLimit != req.RateLimit {
+			continue
+		}
+		if len(req.Status) > 0 {
+			matched := false
+			for _, s := range req.Status {
+				if vxc.ProvisioningStatus == s {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
+		}
+		result = append(result, vxc)
+	}
+	return result, nil
 }
 
 func (m *MockVXCService) LookupPartnerPorts(ctx context.Context, req *megaport.LookupPartnerPortsRequest) (*megaport.LookupPartnerPortsResponse, error) {

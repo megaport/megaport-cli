@@ -287,9 +287,6 @@ func TestFilterVXCs(t *testing.T) {
 		name         string
 		vxcs         []*megaport.VXC
 		vxcName      string
-		aEndUID      string
-		bEndUID      string
-		rateLimit    int
 		expected     int
 		expectedUIDs []string
 	}{
@@ -314,72 +311,11 @@ func TestFilterVXCs(t *testing.T) {
 			expectedUIDs: []string{"vxc-3"},
 		},
 		{
-			name:         "filter by rate limit",
-			vxcs:         activeVXCs,
-			rateLimit:    500,
-			expected:     2,
-			expectedUIDs: []string{"vxc-2", "vxc-4"},
-		},
-		{
-			name:         "filter by a-end-uid",
-			vxcs:         activeVXCs,
-			aEndUID:      "port-aaa",
-			expected:     2,
-			expectedUIDs: []string{"vxc-1", "vxc-3"},
-		},
-		{
-			name:         "filter by b-end-uid",
-			vxcs:         activeVXCs,
-			bEndUID:      "port-bbb",
-			expected:     2,
-			expectedUIDs: []string{"vxc-1", "vxc-4"},
-		},
-		{
-			name:         "multiple filters (name and rate limit)",
-			vxcs:         activeVXCs,
-			vxcName:      "test",
-			rateLimit:    500,
-			expected:     1,
-			expectedUIDs: []string{"vxc-2"},
-		},
-		{
-			name:         "multiple filters (a-end-uid and b-end-uid)",
-			vxcs:         activeVXCs,
-			aEndUID:      "port-aaa",
-			bEndUID:      "port-bbb",
-			expected:     1,
-			expectedUIDs: []string{"vxc-1"},
-		},
-		{
-			name:         "all four filters combined",
-			vxcs:         activeVXCs,
-			vxcName:      "TestVXC",
-			rateLimit:    500,
-			aEndUID:      "port-ccc",
-			bEndUID:      "port-ddd",
-			expected:     1,
-			expectedUIDs: []string{"vxc-2"},
-		},
-		{
 			name:         "filter by exact name match",
 			vxcs:         activeVXCs,
 			vxcName:      "TestVXC-1",
 			expected:     1,
 			expectedUIDs: []string{"vxc-1"},
-		},
-		{
-			name:         "filter by non-matching a-end-uid",
-			vxcs:         activeVXCs,
-			aEndUID:      "port-nonexistent",
-			expected:     0,
-			expectedUIDs: []string{},
-		},
-		{
-			name:         "filter by non-matching rate limit",
-			vxcs:         activeVXCs,
-			rateLimit:    9999,
-			expected:     0,
-			expectedUIDs: []string{},
 		},
 		{
 			name:         "no matching VXCs",
@@ -410,7 +346,7 @@ func TestFilterVXCs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			filtered := filterVXCs(tt.vxcs, tt.vxcName, tt.aEndUID, tt.bEndUID, tt.rateLimit)
+			filtered := filterVXCs(tt.vxcs, tt.vxcName)
 
 			assert.Equal(t, tt.expected, len(filtered), "Filtered VXC count should match expected")
 

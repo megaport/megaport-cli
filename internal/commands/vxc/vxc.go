@@ -22,15 +22,18 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	listVXCsCmd := cmdbuilder.NewCommand("list", "List all VXCs with optional filters").
 		WithOutputFormatRunFunc(ListVXCs).
 		WithVXCFilterFlags().
-		WithLongDesc("List all VXCs available in the Megaport API.\n\nThis command retrieves all Virtual Cross Connects (VXCs) associated with your account. You can filter results by name, rate limit, A-End UID, or B-End UID.").
+		WithLongDesc("List all VXCs available in the Megaport API.\n\nThis command retrieves all Virtual Cross Connects (VXCs) associated with your account. You can filter results by name, rate limit, A-End UID, B-End UID, or status.").
 		WithOptionalFlag("name", "Filter VXCs by name (partial match)").
+		WithOptionalFlag("name-contains", "Filter VXCs by partial name match (server-side)").
 		WithOptionalFlag("rate-limit", "Filter VXCs by rate limit in Mbps").
 		WithOptionalFlag("a-end-uid", "Filter VXCs by A-End product UID").
 		WithOptionalFlag("b-end-uid", "Filter VXCs by B-End product UID").
+		WithOptionalFlag("status", "Filter VXCs by status (comma-separated, e.g. LIVE,CONFIGURED)").
 		WithOptionalFlag("include-inactive", "Include inactive VXCs in the list").
 		WithExample("megaport-cli vxc list").
 		WithExample("megaport-cli vxc list --name \"My VXC\"").
 		WithExample("megaport-cli vxc list --a-end-uid port-abc123").
+		WithExample("megaport-cli vxc list --status LIVE,CONFIGURED").
 		WithExample("megaport-cli vxc list --include-inactive").
 		WithRootCmd(rootCmd).
 		Build()

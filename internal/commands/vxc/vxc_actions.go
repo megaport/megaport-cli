@@ -3,6 +3,7 @@ package vxc
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -25,13 +26,37 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	}
 
 	name, _ := cmd.Flags().GetString("name")
+	nameContains, _ := cmd.Flags().GetString("name-contains")
 	rateLimit, _ := cmd.Flags().GetInt("rate-limit")
 	aEndUID, _ := cmd.Flags().GetString("a-end-uid")
 	bEndUID, _ := cmd.Flags().GetString("b-end-uid")
 	includeInactive, _ := cmd.Flags().GetBool("include-inactive")
+	statusStr, _ := cmd.Flags().GetString("status")
+
+	// Determine server-side name filter: --name-contains takes precedence, else --name
+	serverNameContains := nameContains
+	if serverNameContains == "" {
+		serverNameContains = name
+	}
+
+	// Parse comma-separated status filter
+	var statusFilter []string
+	if statusStr != "" {
+		for _, s := range strings.Split(statusStr, ",") {
+			s = strings.TrimSpace(s)
+			if s != "" {
+				statusFilter = append(statusFilter, s)
+			}
+		}
+	}
 
 	req := &megaport.ListVXCsRequest{
 		IncludeInactive: includeInactive,
+		NameContains:    serverNameContains,
+		AEndProductUID:  aEndUID,
+		BEndProductUID:  bEndUID,
+		RateLimit:       rateLimit,
+		Status:          statusFilter,
 	}
 
 	spinner := output.PrintResourceListing("VXC", noColor)
@@ -58,7 +83,7 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 		vxcs = activeVXCs
 	}
 
-	filteredVXCs := filterVXCs(vxcs, name, aEndUID, bEndUID, rateLimit)
+	filteredVXCs := filterVXCs(vxcs, name)
 
 	if len(filteredVXCs) == 0 {
 		output.PrintWarning("No VXCs found matching the specified filters", noColor)
