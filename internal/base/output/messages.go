@@ -247,7 +247,7 @@ func (s *Spinner) Start(prefix string) {
 					}
 				}
 
-				if s.outputFormat == "json" {
+				if s.outputFormat == "json" || !IsTerminal() {
 					fmt.Fprintf(os.Stderr, "\r\033[K%s %s", styledFrame, prefix)
 				} else {
 					fmt.Printf("\r\033[K%s %s", styledFrame, prefix)
@@ -278,7 +278,7 @@ func (s *Spinner) Stop() {
 	s.stopped = true
 	s.mu.Unlock()
 	s.stop <- true
-	if s.outputFormat == "json" {
+	if s.outputFormat == "json" || !IsTerminal() {
 		fmt.Fprint(os.Stderr, "\r\033[K")
 	} else {
 		fmt.Print("\r\033[K")

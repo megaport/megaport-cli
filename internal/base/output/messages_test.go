@@ -166,6 +166,9 @@ func TestPrintResourceDeleted(t *testing.T) {
 }
 
 func TestSpinner(t *testing.T) {
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
 	spinner := NewSpinner(true)
 	assert.NotNil(t, spinner)
 	assert.Equal(t, 100*time.Millisecond, spinner.frameRate)
@@ -180,6 +183,9 @@ func TestSpinner(t *testing.T) {
 }
 
 func TestPrintResourceSpinners(t *testing.T) {
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
 	tests := []struct {
 		name         string
 		function     func(string, string, bool) *Spinner
@@ -235,6 +241,9 @@ func TestPrintResourceSpinners(t *testing.T) {
 }
 
 func TestPrintResourceListing(t *testing.T) {
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
 	output := captureOutput(func() {
 		spinner := PrintResourceListing("Port", true)
 		time.Sleep(200 * time.Millisecond)
@@ -463,6 +472,9 @@ func TestOutputFormatConcurrency(t *testing.T) {
 }
 
 func TestSpinnerStopWithSuccess(t *testing.T) {
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
 	output := captureOutput(func() {
 		spinner := NewSpinner(true)
 		spinner.Start("Testing")

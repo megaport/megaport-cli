@@ -13,6 +13,20 @@ import (
 	"golang.org/x/term"
 )
 
+// isTerminalCached stores the TTY detection result, computed once at init.
+// It can be overridden in tests via SetIsTerminal.
+var isTerminalCached = term.IsTerminal(int(os.Stdout.Fd()))
+
+// IsTerminal returns true if stdout is connected to a terminal (not piped).
+func IsTerminal() bool {
+	return isTerminalCached
+}
+
+// SetIsTerminal overrides the cached TTY detection result. Intended for tests.
+func SetIsTerminal(val bool) {
+	isTerminalCached = val
+}
+
 func getTerminalWidth() int {
 	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil || width <= 0 {

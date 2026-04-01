@@ -27,6 +27,13 @@ func init() {
 	// Apply non-WASM specific initialization
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		applyDefaultSettings(cmd)
+
+		// Auto-disable color when stdout is not a TTY (piped output)
+		if !cmd.Flags().Changed("no-color") && !output.IsTerminal() {
+			noColor = true
+			_ = cmd.Flags().Set("no-color", "true")
+		}
+
 		format := strings.ToLower(outputFormat)
 		validFmt := false
 		for _, vf := range utils.ValidFormats {
@@ -103,6 +110,11 @@ func init() {
 
 		// Also check environment
 		if _, exists := os.LookupEnv("NO_COLOR"); exists {
+			isColorDisabled = true
+		}
+
+		// Auto-disable color when stdout is not a TTY
+		if !output.IsTerminal() {
 			isColorDisabled = true
 		}
 
