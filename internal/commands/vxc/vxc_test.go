@@ -361,6 +361,115 @@ func TestFilterVXCs(t *testing.T) {
 	}
 }
 
+func TestDisplayVXCChanges(t *testing.T) {
+	tests := []struct {
+		name             string
+		original         *megaport.VXC
+		updated          *megaport.VXC
+		expectedContains []string
+		expectEmpty      bool
+	}{
+		{
+			name:        "nil original",
+			original:    nil,
+			updated:     &megaport.VXC{},
+			expectEmpty: true,
+		},
+		{
+			name:        "nil updated",
+			original:    &megaport.VXC{},
+			updated:     nil,
+			expectEmpty: true,
+		},
+		{
+			name:             "no changes",
+			original:         &megaport.VXC{Name: "Same", RateLimit: 100},
+			updated:          &megaport.VXC{Name: "Same", RateLimit: 100},
+			expectedContains: []string{"No changes detected"},
+		},
+		{
+			name:             "name change",
+			original:         &megaport.VXC{Name: "Old"},
+			updated:          &megaport.VXC{Name: "New"},
+			expectedContains: []string{"Name:", "Old", "New"},
+		},
+		{
+			name:             "rate limit change",
+			original:         &megaport.VXC{RateLimit: 100},
+			updated:          &megaport.VXC{RateLimit: 500},
+			expectedContains: []string{"Rate Limit:", "100 Mbps", "500 Mbps"},
+		},
+		{
+			name:             "cost centre change from empty",
+			original:         &megaport.VXC{CostCentre: ""},
+			updated:          &megaport.VXC{CostCentre: "CC-123"},
+			expectedContains: []string{"Cost Centre:", "(none)", "CC-123"},
+		},
+		{
+			name:             "term change",
+			original:         &megaport.VXC{ContractTermMonths: 12},
+			updated:          &megaport.VXC{ContractTermMonths: 24},
+			expectedContains: []string{"Contract Term:", "12 months", "24 months"},
+		},
+		{
+			name: "a-end vlan change",
+			original: &megaport.VXC{
+				AEndConfiguration: megaport.VXCEndConfiguration{VLAN: 100},
+			},
+			updated: &megaport.VXC{
+				AEndConfiguration: megaport.VXCEndConfiguration{VLAN: 200},
+			},
+			expectedContains: []string{"A-End VLAN:", "100", "200"},
+		},
+		{
+			name: "b-end vlan change",
+			original: &megaport.VXC{
+				BEndConfiguration: megaport.VXCEndConfiguration{VLAN: 300},
+			},
+			updated: &megaport.VXC{
+				BEndConfiguration: megaport.VXCEndConfiguration{VLAN: 400},
+			},
+			expectedContains: []string{"B-End VLAN:"},
+		},
+		{
+			name:             "locked change",
+			original:         &megaport.VXC{Locked: false},
+			updated:          &megaport.VXC{Locked: true},
+			expectedContains: []string{"Locked:", "No", "Yes"},
+		},
+		{
+			name: "multiple changes",
+			original: &megaport.VXC{
+				Name:      "OldName",
+				RateLimit: 100,
+				Locked:    false,
+			},
+			updated: &megaport.VXC{
+				Name:      "NewName",
+				RateLimit: 500,
+				Locked:    true,
+			},
+			expectedContains: []string{"Name:", "Rate Limit:", "Locked:"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			captured := output.CaptureOutput(func() {
+				displayVXCChanges(tt.original, tt.updated, true)
+			})
+
+			if tt.expectEmpty {
+				assert.Empty(t, captured)
+			} else {
+				for _, expected := range tt.expectedContains {
+					assert.Contains(t, captured, expected)
+				}
+			}
+		})
+	}
+}
+
 func TestToVXCOutput_EdgeCases(t *testing.T) {
 	tests := []struct {
 		name          string
