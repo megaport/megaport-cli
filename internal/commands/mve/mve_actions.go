@@ -507,3 +507,69 @@ func GetMVEStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 	return output.PrintOutput(status, outputFormat, noColor)
 }
+
+func LockMVE(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	mveUID := args[0]
+
+	output.PrintInfo("Locking MVE %s...", noColor, mveUID)
+
+	_, err = lockMVEFunc(ctx, client, mveUID)
+	if err != nil {
+		return fmt.Errorf("error locking MVE: %v", err)
+	}
+
+	output.PrintSuccess("MVE %s locked successfully", noColor, mveUID)
+	return nil
+}
+
+func UnlockMVE(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	mveUID := args[0]
+
+	output.PrintInfo("Unlocking MVE %s...", noColor, mveUID)
+
+	_, err = unlockMVEFunc(ctx, client, mveUID)
+	if err != nil {
+		return fmt.Errorf("error unlocking MVE: %v", err)
+	}
+
+	output.PrintSuccess("MVE %s unlocked successfully", noColor, mveUID)
+	return nil
+}
+
+func RestoreMVE(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	mveUID := args[0]
+
+	output.PrintInfo("Restoring MVE %s...", noColor, mveUID)
+
+	_, err = restoreMVEFunc(ctx, client, mveUID)
+	if err != nil {
+		return fmt.Errorf("error restoring MVE: %v", err)
+	}
+
+	output.PrintSuccess("MVE %s restored successfully", noColor, mveUID)
+	return nil
+}

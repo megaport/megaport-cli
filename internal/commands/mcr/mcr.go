@@ -22,12 +22,12 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	get, buy, update, del, restore, list, status := buildMCRCommands(rootCmd)
+	get, buy, update, del, restore, lock, unlock, list, status := buildMCRCommands(rootCmd)
 	create, listPFL, getPFL, updatePFL, deletePFL := buildMCRPrefixFilterCommands(rootCmd)
 	listTags, updateTags := buildMCRTagCommands()
 
 	mcrCmd.AddCommand(
-		get, buy, update, del, restore,
+		get, buy, update, del, restore, lock, unlock,
 		create, listPFL, getPFL, updatePFL, deletePFL,
 		list, status,
 		listTags, updateTags,
@@ -36,7 +36,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 }
 
 // buildMCRCommands extracts the get, buy, update, delete, restore, list, and status command definitions.
-func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, list, status *cobra.Command) {
+func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, lock, unlock, list, status *cobra.Command) {
 	// Create get MCR command
 	get = cmdbuilder.NewCommand("get", "Get details for a single MCR").
 		WithArgs(cobra.ExactArgs(1)).
@@ -135,6 +135,24 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithColorAwareRunFunc(RestoreMCR).
 		WithLongDesc("Restore a previously deleted MCR.\n\nThis command allows you to restore a previously deleted MCR, provided it has not yet been fully decommissioned.").
 		WithExample("megaport-cli mcr restore [mcrUID]").
+		WithRootCmd(rootCmd).
+		Build()
+
+	// Create lock MCR command
+	lock = cmdbuilder.NewCommand("lock", "Lock an MCR").
+		WithArgs(cobra.ExactArgs(1)).
+		WithColorAwareRunFunc(LockMCR).
+		WithLongDesc("Lock an MCR to prevent modifications.\n\nThis command locks a Megaport Cloud Router (MCR) to prevent any changes from being made to it. Use the unlock command to re-enable modifications.").
+		WithExample("megaport-cli mcr lock [mcrUID]").
+		WithRootCmd(rootCmd).
+		Build()
+
+	// Create unlock MCR command
+	unlock = cmdbuilder.NewCommand("unlock", "Unlock an MCR").
+		WithArgs(cobra.ExactArgs(1)).
+		WithColorAwareRunFunc(UnlockMCR).
+		WithLongDesc("Unlock a previously locked MCR.\n\nThis command unlocks a Megaport Cloud Router (MCR) that was previously locked, allowing modifications to be made again.").
+		WithExample("megaport-cli mcr unlock [mcrUID]").
 		WithRootCmd(rootCmd).
 		Build()
 
