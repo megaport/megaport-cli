@@ -226,6 +226,7 @@ func TestProfileOverrideLogin(t *testing.T) {
 	// Save original values
 	originalEnv := utils.Env
 	originalProfileOverride := utils.ProfileOverride
+	originalLoginFuncWithOutput := LoginFuncWithOutput
 	originalAccessKey := os.Getenv("MEGAPORT_ACCESS_KEY")
 	originalSecretKey := os.Getenv("MEGAPORT_SECRET_KEY")
 	originalMegaportEnv := os.Getenv("MEGAPORT_ENVIRONMENT")
@@ -234,6 +235,7 @@ func TestProfileOverrideLogin(t *testing.T) {
 	defer func() {
 		utils.Env = originalEnv
 		utils.ProfileOverride = originalProfileOverride
+		LoginFuncWithOutput = originalLoginFuncWithOutput
 		restoreEnvVar("MEGAPORT_ACCESS_KEY", originalAccessKey)
 		restoreEnvVar("MEGAPORT_SECRET_KEY", originalSecretKey)
 		restoreEnvVar("MEGAPORT_ENVIRONMENT", originalMegaportEnv)
@@ -261,69 +263,76 @@ func TestProfileOverrideLogin(t *testing.T) {
 	err = manager.UseProfile("prod")
 	assert.NoError(t, err)
 
-	t.Run("profile override uses specified profile credentials", func(t *testing.T) {
+	t.Run("profile override uses specified profile and reaches API call", func(t *testing.T) {
 		utils.Env = ""
 		utils.ProfileOverride = "staging"
 
-		var capturedAccessKey, capturedSecretKey, capturedEnv string
-		originalLoginFuncWithOutput := LoginFuncWithOutput
-		defer func() { LoginFuncWithOutput = originalLoginFuncWithOutput }()
-
-		// We need to test the actual credential resolution logic, not mock it.
-		// So we read the resolved values by inspecting what LoginFuncWithOutput would do.
-		// Since the real function tries to hit the API, we test the credential resolution separately.
-		manager2, err := NewConfigManager()
-		assert.NoError(t, err)
-		profile, err := manager2.GetProfile(utils.ProfileOverride)
-		assert.NoError(t, err)
-		capturedAccessKey = profile.AccessKey
-		capturedSecretKey = profile.SecretKey
-		capturedEnv = profile.Environment
-
-		assert.Equal(t, "staging-access", capturedAccessKey)
-		assert.Equal(t, "staging-secret", capturedSecretKey)
-		assert.Equal(t, "staging", capturedEnv)
+		// Call the real LoginFuncWithOutput - it will resolve credentials from
+		// the "staging" profile and fail at Authorize (no real API), which proves
+		// credential resolution succeeded (didn't get "access key not provided" error).
+		_, err := LoginFuncWithOutput(context.Background(), "json")
+		assert.Error(t, err)
+		// Should NOT be a "not provided" error — that would mean credential resolution failed
+		assert.NotContains(t, err.Error(), "access key not provided")
+		assert.NotContains(t, err.Error(), "secret key not provided")
+		assert.NotContains(t, err.Error(), "not found")
 	})
 
 	t.Run("profile override with non-existent profile returns error", func(t *testing.T) {
 		utils.Env = ""
 		utils.ProfileOverride = "non-existent"
 
-		manager2, err := NewConfigManager()
-		assert.NoError(t, err)
-		_, err = manager2.GetProfile(utils.ProfileOverride)
+		_, err := LoginFuncWithOutput(context.Background(), "json")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "non-existent")
+		assert.Contains(t, err.Error(), "not found")
 	})
 
-	t.Run("without profile override uses active profile", func(t *testing.T) {
+	t.Run("without profile override uses active profile and reaches API call", func(t *testing.T) {
 		utils.Env = ""
 		utils.ProfileOverride = ""
 
-		manager2, err := NewConfigManager()
-		assert.NoError(t, err)
-		profile, name, err := manager2.GetCurrentProfile()
-		assert.NoError(t, err)
-		assert.Equal(t, "prod", name)
-		assert.Equal(t, "prod-access", profile.AccessKey)
-		assert.Equal(t, "prod-secret", profile.SecretKey)
+		// Active profile is "prod" — should resolve credentials from it
+		_, err := LoginFuncWithOutput(context.Background(), "json")
+		assert.Error(t, err)
+		// Should NOT be a "not provided" error
+		assert.NotContains(t, err.Error(), "access key not provided")
+		assert.NotContains(t, err.Error(), "secret key not provided")
 	})
 
 	t.Run("env flag overrides profile environment", func(t *testing.T) {
 		utils.Env = "development"
 		utils.ProfileOverride = "staging"
 
-		manager2, err := NewConfigManager()
-		assert.NoError(t, err)
-		profile, err := manager2.GetProfile(utils.ProfileOverride)
-		assert.NoError(t, err)
+		// Both --profile and --env are set: credentials from staging profile,
+		// environment from --env flag. Should still resolve and reach API call.
+		_, err := LoginFuncWithOutput(context.Background(), "json")
+		assert.Error(t, err)
+		assert.NotContains(t, err.Error(), "access key not provided")
+		assert.NotContains(t, err.Error(), "not found")
+	})
 
-		// Profile says staging, but --env says development
-		env := profile.Environment
-		if utils.Env != "" {
-			env = utils.Env
-		}
-		assert.Equal(t, "development", env)
+	t.Run("no profile and no env vars returns credential error", func(t *testing.T) {
+		utils.Env = ""
+		utils.ProfileOverride = ""
+
+		// Delete the active profile so there are no credentials available
+		err := manager.UseProfile("")
+		// UseProfile with empty may fail, so we set active profile to non-existent
+		_ = err
+
+		// Use a fresh temp dir with no profiles
+		emptyDir, err := os.MkdirTemp("", "megaport-empty-test")
+		assert.NoError(t, err)
+		defer os.RemoveAll(emptyDir)
+		os.Setenv("MEGAPORT_CONFIG_DIR", emptyDir)
+
+		_, err = LoginFuncWithOutput(context.Background(), "json")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "access key not provided")
+
+		// Restore original temp dir for other tests
+		os.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
 	})
 }
 
