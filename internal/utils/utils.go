@@ -17,10 +17,11 @@ const (
 )
 
 var (
-	Env          string
-	OutputFormat string
-	NoColor      bool
-	ValidFormats = []string{FormatTable, FormatJSON, FormatCSV, FormatXML}
+	Env             string
+	ProfileOverride string
+	OutputFormat    string
+	NoColor         bool
+	ValidFormats    = []string{FormatTable, FormatJSON, FormatCSV, FormatXML}
 )
 
 func ShouldDisableColors() bool {
