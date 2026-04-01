@@ -47,6 +47,14 @@ var restoreMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID s
 	return client.MCRService.RestoreMCR(ctx, mcrUID)
 }
 
+var lockMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.ManageProductLockResponse, error) {
+	return client.ProductService.ManageProductLock(ctx, &megaport.ManageProductLockRequest{ProductID: mcrUID, ShouldLock: true})
+}
+
+var unlockMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.ManageProductLockResponse, error) {
+	return client.ProductService.ManageProductLock(ctx, &megaport.ManageProductLockRequest{ProductID: mcrUID, ShouldLock: false})
+}
+
 func filterMCRs(mcrs []*megaport.MCR, locationID, portSpeed int, mcrName string) []*megaport.MCR {
 	var filtered []*megaport.MCR
 

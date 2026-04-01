@@ -190,11 +190,38 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("All existing tags will be replaced with the provided tags. To clear all tags, provide an empty tag set.").
 		Build()
 
+	restoreMVECmd := cmdbuilder.NewCommand("restore", "Restore a deleted MVE").
+		WithArgs(cobra.ExactArgs(1)).
+		WithColorAwareRunFunc(RestoreMVE).
+		WithLongDesc("Restore a previously deleted MVE.\n\nThis command allows you to restore a previously deleted Megaport Virtual Edge (MVE), provided it has not yet been fully decommissioned.").
+		WithExample("megaport-cli mve restore [mveUID]").
+		WithRootCmd(rootCmd).
+		Build()
+
+	lockMVECmd := cmdbuilder.NewCommand("lock", "Lock an MVE").
+		WithArgs(cobra.ExactArgs(1)).
+		WithColorAwareRunFunc(LockMVE).
+		WithLongDesc("Lock an MVE to prevent modifications.\n\nThis command locks a Megaport Virtual Edge (MVE) to prevent any changes from being made to it. Use the unlock command to re-enable modifications.").
+		WithExample("megaport-cli mve lock [mveUID]").
+		WithRootCmd(rootCmd).
+		Build()
+
+	unlockMVECmd := cmdbuilder.NewCommand("unlock", "Unlock an MVE").
+		WithArgs(cobra.ExactArgs(1)).
+		WithColorAwareRunFunc(UnlockMVE).
+		WithLongDesc("Unlock a previously locked MVE.\n\nThis command unlocks a Megaport Virtual Edge (MVE) that was previously locked, allowing modifications to be made again.").
+		WithExample("megaport-cli mve unlock [mveUID]").
+		WithRootCmd(rootCmd).
+		Build()
+
 	mveCmd.AddCommand(
 		buyMVECmd,
 		getMVECmd,
 		updateMVECmd,
 		deleteMVECmd,
+		restoreMVECmd,
+		lockMVECmd,
+		unlockMVECmd,
 		listMVEImagesCmd,
 		listAvailableMVESizesCmd,
 		listMVEsCmd,

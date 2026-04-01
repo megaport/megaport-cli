@@ -57,3 +57,15 @@ func filterMVEs(mves []*megaport.MVE, locationID int, vendor, name string) []*me
 var listMVEResourceTagsFunc = func(ctx context.Context, client *megaport.Client, mveID string) (map[string]string, error) {
 	return client.MVEService.ListMVEResourceTags(ctx, mveID)
 }
+
+var lockMVEFunc = func(ctx context.Context, client *megaport.Client, mveUID string) (*megaport.ManageProductLockResponse, error) {
+	return client.ProductService.ManageProductLock(ctx, &megaport.ManageProductLockRequest{ProductID: mveUID, ShouldLock: true})
+}
+
+var unlockMVEFunc = func(ctx context.Context, client *megaport.Client, mveUID string) (*megaport.ManageProductLockResponse, error) {
+	return client.ProductService.ManageProductLock(ctx, &megaport.ManageProductLockRequest{ProductID: mveUID, ShouldLock: false})
+}
+
+var restoreMVEFunc = func(ctx context.Context, client *megaport.Client, mveUID string) (*megaport.RestoreProductResponse, error) {
+	return client.ProductService.RestoreProduct(ctx, mveUID)
+}

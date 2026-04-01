@@ -2275,3 +2275,145 @@ func TestUpdateMCRPrefixFilterList(t *testing.T) {
 		})
 	}
 }
+
+func TestLockMCRCmd_WithMockClient(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name          string
+		mcrID         string
+		lockErr       error
+		expectedError string
+		expectedOut   string
+	}{
+		{
+			name:        "lock MCR success",
+			mcrID:       "mcr-to-lock",
+			expectedOut: "MCR mcr-to-lock locked successfully",
+		},
+		{
+			name:          "lock MCR error",
+			mcrID:         "mcr-error",
+			lockErr:       fmt.Errorf("error locking MCR"),
+			expectedError: "error locking MCR",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origFunc := lockMCRFunc
+			defer func() { lockMCRFunc = origFunc }()
+
+			lockMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.ManageProductLockResponse, error) {
+				if tt.lockErr != nil {
+					return nil, tt.lockErr
+				}
+				return &megaport.ManageProductLockResponse{}, nil
+			}
+
+			lockMCRCmd := &cobra.Command{
+				Use: "lock [mcrUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return LockMCR(cmd, args, false)
+				},
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = lockMCRCmd.RunE(lockMCRCmd, []string{tt.mcrID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOut)
+			}
+		})
+	}
+}
+
+func TestUnlockMCRCmd_WithMockClient(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name          string
+		mcrID         string
+		unlockErr     error
+		expectedError string
+		expectedOut   string
+	}{
+		{
+			name:        "unlock MCR success",
+			mcrID:       "mcr-to-unlock",
+			expectedOut: "MCR mcr-to-unlock unlocked successfully",
+		},
+		{
+			name:          "unlock MCR error",
+			mcrID:         "mcr-error",
+			unlockErr:     fmt.Errorf("error unlocking MCR"),
+			expectedError: "error unlocking MCR",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origFunc := unlockMCRFunc
+			defer func() { unlockMCRFunc = origFunc }()
+
+			unlockMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.ManageProductLockResponse, error) {
+				if tt.unlockErr != nil {
+					return nil, tt.unlockErr
+				}
+				return &megaport.ManageProductLockResponse{}, nil
+			}
+
+			unlockMCRCmd := &cobra.Command{
+				Use: "unlock [mcrUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return UnlockMCR(cmd, args, false)
+				},
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = unlockMCRCmd.RunE(unlockMCRCmd, []string{tt.mcrID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOut)
+			}
+		})
+	}
+}
+
+func TestLockMCRCmd_LoginError(t *testing.T) {
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		return nil, fmt.Errorf("login failed")
+	}
+	defer func() { config.LoginFunc = nil }()
+
+	cmd := &cobra.Command{}
+	err := LockMCR(cmd, []string{"mcr-123"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "error logging in")
+}
+
+func TestUnlockMCRCmd_LoginError(t *testing.T) {
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		return nil, fmt.Errorf("login failed")
+	}
+	defer func() { config.LoginFunc = nil }()
+
+	cmd := &cobra.Command{}
+	err := UnlockMCR(cmd, []string{"mcr-123"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "error logging in")
+}

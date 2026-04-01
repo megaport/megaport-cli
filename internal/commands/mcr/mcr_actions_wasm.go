@@ -20,6 +20,8 @@ func init() {
 	updateMCRFunc = updateMCRWasmImpl
 	deleteMCRFunc = deleteMCRWasmImpl
 	restoreMCRFunc = restoreMCRWasmImpl
+	lockMCRFunc = lockMCRWasmImpl
+	unlockMCRFunc = unlockMCRWasmImpl
 	createMCRPrefixFilterListFunc = createMCRPrefixFilterListWasmImpl
 	listMCRPrefixFilterListsFunc = listMCRPrefixFilterListsWasmImpl
 	getMCRPrefixFilterListFunc = getMCRPrefixFilterListWasmImpl
@@ -344,5 +346,67 @@ func deleteMCRPrefixFilterListWasmImpl(ctx context.Context, client *megaport.Cli
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK DeleteMCRPrefixFilterList successful")
+	return response, nil
+}
+
+// lockMCRWasmImpl uses the SDK's ProductService.ManageProductLock() method
+func lockMCRWasmImpl(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.ManageProductLockResponse, error) {
+	js.Global().Get("console").Call("log", fmt.Sprintf("🚀 Using SDK ProductService.ManageProductLock() to lock MCR %s", mcrUID))
+
+	if client == nil {
+		var err error
+		client, err = config.Login(ctx)
+		if err != nil {
+			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
+			return nil, fmt.Errorf("error logging in: %v", err)
+		}
+	}
+
+	js.Global().Get("console").Call("log", "📡 Calling SDK ProductService.ManageProductLock()...")
+	response, err := client.ProductService.ManageProductLock(ctx, &megaport.ManageProductLockRequest{ProductID: mcrUID, ShouldLock: true})
+	if err != nil {
+		js.Global().Get("console").Call("error", fmt.Sprintf("❌ SDK ManageProductLock (lock) failed: %v", err))
+
+		if isAuthError(err) {
+			js.Global().Get("console").Call("warn", "🔓 Authentication token expired or invalid, clearing cache")
+			config.ClearCachedToken()
+			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
+		}
+
+		return nil, fmt.Errorf("error locking MCR: %v", err)
+	}
+
+	js.Global().Get("console").Call("log", "✅ SDK ManageProductLock (lock) successful")
+	return response, nil
+}
+
+// unlockMCRWasmImpl uses the SDK's ProductService.ManageProductLock() method
+func unlockMCRWasmImpl(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.ManageProductLockResponse, error) {
+	js.Global().Get("console").Call("log", fmt.Sprintf("🚀 Using SDK ProductService.ManageProductLock() to unlock MCR %s", mcrUID))
+
+	if client == nil {
+		var err error
+		client, err = config.Login(ctx)
+		if err != nil {
+			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
+			return nil, fmt.Errorf("error logging in: %v", err)
+		}
+	}
+
+	js.Global().Get("console").Call("log", "📡 Calling SDK ProductService.ManageProductLock()...")
+	response, err := client.ProductService.ManageProductLock(ctx, &megaport.ManageProductLockRequest{ProductID: mcrUID, ShouldLock: false})
+	if err != nil {
+		js.Global().Get("console").Call("error", fmt.Sprintf("❌ SDK ManageProductLock (unlock) failed: %v", err))
+
+		if isAuthError(err) {
+			js.Global().Get("console").Call("warn", "🔓 Authentication token expired or invalid, clearing cache")
+			config.ClearCachedToken()
+			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
+		}
+
+		return nil, fmt.Errorf("error unlocking MCR: %v", err)
+	}
+
+	js.Global().Get("console").Call("log", "✅ SDK ManageProductLock (unlock) successful")
 	return response, nil
 }

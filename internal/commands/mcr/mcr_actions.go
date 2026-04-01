@@ -414,6 +414,50 @@ func RestoreMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
+func LockMCR(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	mcrUID := args[0]
+
+	output.PrintInfo("Locking MCR %s...", noColor, mcrUID)
+
+	_, err = lockMCRFunc(ctx, client, mcrUID)
+	if err != nil {
+		return fmt.Errorf("error locking MCR: %v", err)
+	}
+
+	output.PrintSuccess("MCR %s locked successfully", noColor, mcrUID)
+	return nil
+}
+
+func UnlockMCR(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	mcrUID := args[0]
+
+	output.PrintInfo("Unlocking MCR %s...", noColor, mcrUID)
+
+	_, err = unlockMCRFunc(ctx, client, mcrUID)
+	if err != nil {
+		return fmt.Errorf("error unlocking MCR: %v", err)
+	}
+
+	output.PrintSuccess("MCR %s unlocked successfully", noColor, mcrUID)
+	return nil
+}
+
 func ListMCRPrefixFilterLists(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	// Set output format for proper JSON mode handling
 	output.SetOutputFormat(outputFormat)

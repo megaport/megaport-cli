@@ -1639,3 +1639,216 @@ func TestGetMVE(t *testing.T) {
 		})
 	}
 }
+
+func TestLockMVECmd_WithMockClient(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name          string
+		mveID         string
+		lockErr       error
+		expectedError string
+		expectedOut   string
+	}{
+		{
+			name:        "lock MVE success",
+			mveID:       "mve-to-lock",
+			expectedOut: "MVE mve-to-lock locked successfully",
+		},
+		{
+			name:          "lock MVE error",
+			mveID:         "mve-error",
+			lockErr:       fmt.Errorf("error locking MVE"),
+			expectedError: "error locking MVE",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origFunc := lockMVEFunc
+			defer func() { lockMVEFunc = origFunc }()
+
+			lockMVEFunc = func(ctx context.Context, client *megaport.Client, mveUID string) (*megaport.ManageProductLockResponse, error) {
+				if tt.lockErr != nil {
+					return nil, tt.lockErr
+				}
+				return &megaport.ManageProductLockResponse{}, nil
+			}
+
+			lockMVECmd := &cobra.Command{
+				Use: "lock [mveUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return LockMVE(cmd, args, false)
+				},
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = lockMVECmd.RunE(lockMVECmd, []string{tt.mveID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOut)
+			}
+		})
+	}
+}
+
+func TestUnlockMVECmd_WithMockClient(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name          string
+		mveID         string
+		unlockErr     error
+		expectedError string
+		expectedOut   string
+	}{
+		{
+			name:        "unlock MVE success",
+			mveID:       "mve-to-unlock",
+			expectedOut: "MVE mve-to-unlock unlocked successfully",
+		},
+		{
+			name:          "unlock MVE error",
+			mveID:         "mve-error",
+			unlockErr:     fmt.Errorf("error unlocking MVE"),
+			expectedError: "error unlocking MVE",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origFunc := unlockMVEFunc
+			defer func() { unlockMVEFunc = origFunc }()
+
+			unlockMVEFunc = func(ctx context.Context, client *megaport.Client, mveUID string) (*megaport.ManageProductLockResponse, error) {
+				if tt.unlockErr != nil {
+					return nil, tt.unlockErr
+				}
+				return &megaport.ManageProductLockResponse{}, nil
+			}
+
+			unlockMVECmd := &cobra.Command{
+				Use: "unlock [mveUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return UnlockMVE(cmd, args, false)
+				},
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = unlockMVECmd.RunE(unlockMVECmd, []string{tt.mveID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOut)
+			}
+		})
+	}
+}
+
+func TestRestoreMVECmd_WithMockClient(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name          string
+		mveID         string
+		restoreErr    error
+		expectedError string
+		expectedOut   string
+	}{
+		{
+			name:        "restore MVE success",
+			mveID:       "mve-to-restore",
+			expectedOut: "MVE mve-to-restore restored successfully",
+		},
+		{
+			name:          "restore MVE error",
+			mveID:         "mve-error",
+			restoreErr:    fmt.Errorf("error restoring MVE"),
+			expectedError: "error restoring MVE",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origFunc := restoreMVEFunc
+			defer func() { restoreMVEFunc = origFunc }()
+
+			restoreMVEFunc = func(ctx context.Context, client *megaport.Client, mveUID string) (*megaport.RestoreProductResponse, error) {
+				if tt.restoreErr != nil {
+					return nil, tt.restoreErr
+				}
+				return &megaport.RestoreProductResponse{}, nil
+			}
+
+			restoreMVECmd := &cobra.Command{
+				Use: "restore [mveUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return RestoreMVE(cmd, args, false)
+				},
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = restoreMVECmd.RunE(restoreMVECmd, []string{tt.mveID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOut)
+			}
+		})
+	}
+}
+
+func TestLockMVECmd_LoginError(t *testing.T) {
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		return nil, fmt.Errorf("login failed")
+	}
+	defer func() { config.LoginFunc = nil }()
+
+	cmd := &cobra.Command{}
+	err := LockMVE(cmd, []string{"mve-123"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "error logging in")
+}
+
+func TestUnlockMVECmd_LoginError(t *testing.T) {
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		return nil, fmt.Errorf("login failed")
+	}
+	defer func() { config.LoginFunc = nil }()
+
+	cmd := &cobra.Command{}
+	err := UnlockMVE(cmd, []string{"mve-123"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "error logging in")
+}
+
+func TestRestoreMVECmd_LoginError(t *testing.T) {
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		return nil, fmt.Errorf("login failed")
+	}
+	defer func() { config.LoginFunc = nil }()
+
+	cmd := &cobra.Command{}
+	err := RestoreMVE(cmd, []string{"mve-123"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "error logging in")
+}
