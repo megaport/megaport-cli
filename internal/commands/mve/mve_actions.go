@@ -139,8 +139,11 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 
 	output.PrintInfo("Validation successful", noColor)
 
-	req.WaitForProvision = true
-	req.WaitForTime = 10 * time.Minute
+	noWait, _ := cmd.Flags().GetBool("no-wait")
+	if !noWait {
+		req.WaitForProvision = true
+		req.WaitForTime = 10 * time.Minute
+	}
 
 	spinner := output.PrintResourceCreating("MVE", req.Name, noColor)
 

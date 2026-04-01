@@ -40,6 +40,7 @@ func buildPortBuyCommands(rootCmd *cobra.Command) (buy, buyLag, update *cobra.Co
 	buy = cmdbuilder.NewCommand("buy", "Buy a port through the Megaport API").
 		WithColorAwareRunFunc(BuyPort).
 		WithInteractiveFlag().
+		WithNoWaitFlag().
 		WithPortCreationFlags().
 		WithJSONConfigFlags().
 		WithLongDesc("Buy a port through the Megaport API.\n\nThis command allows you to purchase a port by providing the necessary details.").
@@ -80,6 +81,7 @@ func buildPortBuyCommands(rootCmd *cobra.Command) (buy, buyLag, update *cobra.Co
 	buyLag = cmdbuilder.NewCommand("buy-lag", "Buy a LAG port through the Megaport API").
 		WithColorAwareRunFunc(BuyLAGPort).
 		WithInteractiveFlag().
+		WithNoWaitFlag().
 		WithPortLAGFlags().
 		WithJSONConfigFlags().
 		WithLongDesc("Buy a LAG port through the Megaport API.\n\nThis command allows you to purchase a LAG port by providing the necessary details.").

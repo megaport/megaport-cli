@@ -50,3 +50,9 @@ func (b *CommandBuilder) WithInteractiveFlag() *CommandBuilder {
 	b.WithBoolFlagP("interactive", "i", false, "Use interactive mode with prompts")
 	return b
 }
+
+// WithNoWaitFlag adds a flag to skip waiting for provisioning
+func (b *CommandBuilder) WithNoWaitFlag() *CommandBuilder {
+	b.WithBoolFlag("no-wait", false, "Do not wait for provisioning to complete")
+	return b
+}

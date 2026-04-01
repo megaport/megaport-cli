@@ -22,6 +22,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	buyMVECmd := cmdbuilder.NewCommand("buy", "Purchase a new Megaport Virtual Edge (MVE) device").
 		WithColorAwareRunFunc(BuyMVE).
 		WithInteractiveFlag().
+		WithNoWaitFlag().
 		WithMVECreateFlags().
 		WithJSONConfigFlags().
 		WithLongDesc("Purchase a new Megaport Virtual Edge (MVE) device through the Megaport API.\n\nThis command allows you to purchase an MVE by providing the necessary details.").

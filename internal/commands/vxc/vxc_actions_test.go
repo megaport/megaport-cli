@@ -293,6 +293,111 @@ func TestBuyVXC(t *testing.T) {
 	}
 }
 
+func TestBuyVXC_NoWaitFlag(t *testing.T) {
+	noColor := true
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+	defer func() {
+		buyVXCFunc = originalBuyVXCFunc
+	}()
+
+	tests := []struct {
+		name                     string
+		noWait                   bool
+		expectedWaitForProvision bool
+	}{
+		{
+			name:                     "default waits for provisioning",
+			noWait:                   false,
+			expectedWaitForProvision: true,
+		},
+		{
+			name:                     "no-wait skips provisioning wait",
+			noWait:                   true,
+			expectedWaitForProvision: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockVXCService{}
+			mockService.buyVXCResponse = &megaport.BuyVXCResponse{
+				TechnicalServiceUID: "vxc-uid-123",
+			}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				return &megaport.Client{
+					VXCService: mockService,
+				}, nil
+			}
+
+			var capturedReq *megaport.BuyVXCRequest
+			buyVXCFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyVXCRequest) (*megaport.BuyVXCResponse, error) {
+				capturedReq = req
+				return &megaport.BuyVXCResponse{
+					TechnicalServiceUID: "vxc-uid-123",
+				}, nil
+			}
+
+			buildVXCRequestFromFlagsOrig := buildVXCRequestFromFlags
+			buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc megaport.VXCService) (*megaport.BuyVXCRequest, error) {
+				return &megaport.BuyVXCRequest{
+					PortUID:   "dcc-12345",
+					VXCName:   "Test VXC",
+					RateLimit: 500,
+					Term:      12,
+					AEndConfiguration: megaport.VXCOrderEndpointConfiguration{
+						VLAN: 100,
+					},
+					BEndConfiguration: megaport.VXCOrderEndpointConfiguration{
+						ProductUID: "dcc-67890",
+						VLAN:       200,
+					},
+				}, nil
+			}
+			defer func() {
+				buildVXCRequestFromFlags = buildVXCRequestFromFlagsOrig
+			}()
+
+			cmd := &cobra.Command{}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().String("a-end-uid", "", "")
+			cmd.Flags().String("b-end-uid", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("rate-limit", 0, "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("a-end-vlan", 0, "")
+			cmd.Flags().Int("b-end-vlan", 0, "")
+			cmd.Flags().Int("a-end-inner-vlan", 0, "")
+			cmd.Flags().Int("b-end-inner-vlan", 0, "")
+			cmd.Flags().Int("a-end-vnic-index", 0, "")
+			cmd.Flags().Int("b-end-vnic-index", 0, "")
+			cmd.Flags().String("promo-code", "", "")
+			cmd.Flags().String("service-key", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().String("a-end-partner-config", "", "")
+			cmd.Flags().String("b-end-partner-config", "", "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			testutil.SetFlags(t, cmd, map[string]string{
+				"a-end-uid": "dcc-12345",
+				"name":      "Test VXC",
+			})
+			if tt.noWait {
+				assert.NoError(t, cmd.Flags().Set("no-wait", "true"))
+			}
+
+			err := BuyVXC(cmd, nil, noColor)
+
+			assert.NoError(t, err)
+			assert.NotNil(t, capturedReq)
+			assert.Equal(t, tt.expectedWaitForProvision, capturedReq.WaitForProvision)
+		})
+	}
+}
+
 func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 	originalResourcePrompt := utils.UpdateResourceTagsPrompt
 

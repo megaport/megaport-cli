@@ -62,6 +62,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	buyVXCCmd := cmdbuilder.NewCommand("buy", "Purchase a new VXC").
 		WithColorAwareRunFunc(BuyVXC).
 		WithInteractiveFlag().
+		WithNoWaitFlag().
 		WithVXCCreateFlags().
 		WithJSONConfigFlags().
 		WithLongDesc("Purchase a new Megaport Virtual Cross Connect (VXC) through the Megaport API.\n\nThis command allows you to create a VXC by providing the necessary details.").

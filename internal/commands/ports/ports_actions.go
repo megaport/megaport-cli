@@ -52,8 +52,11 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("No input provided", noColor)
 		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify port details")
 	}
-	req.WaitForProvision = true
-	req.WaitForTime = 10 * time.Minute
+	noWait, _ := cmd.Flags().GetBool("no-wait")
+	if !noWait {
+		req.WaitForProvision = true
+		req.WaitForTime = 10 * time.Minute
+	}
 
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -129,8 +132,11 @@ func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("No input provided", noColor)
 		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify port details")
 	}
-	req.WaitForProvision = true
-	req.WaitForTime = 10 * time.Minute
+	noWait, _ := cmd.Flags().GetBool("no-wait")
+	if !noWait {
+		req.WaitForProvision = true
+		req.WaitForTime = 10 * time.Minute
+	}
 
 	client, err := config.Login(ctx)
 	if err != nil {
