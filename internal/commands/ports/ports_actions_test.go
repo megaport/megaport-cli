@@ -1733,3 +1733,316 @@ func TestValidatePort(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateLAGPort(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name             string
+		flags            map[string]string
+		jsonInput        string
+		jsonFileContent  string
+		setupMock        func(*MockPortService)
+		loginError       error
+		expectedError    string
+		expectedContains string
+	}{
+		{
+			name: "success with flags",
+			flags: map[string]string{
+				"name":                   "test-lag",
+				"term":                   "12",
+				"port-speed":             "10000",
+				"location-id":            "1",
+				"lag-count":              "2",
+				"marketplace-visibility": "true",
+			},
+			setupMock:        func(m *MockPortService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name:             "success with JSON",
+			jsonInput:        `{"name":"json-lag","term":12,"portSpeed":10000,"locationId":1,"lagCount":2,"marketPlaceVisibility":true}`,
+			setupMock:        func(m *MockPortService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name: "validation error",
+			flags: map[string]string{
+				"name":                   "test-lag",
+				"term":                   "12",
+				"port-speed":             "10000",
+				"location-id":            "1",
+				"lag-count":              "2",
+				"marketplace-visibility": "true",
+			},
+			setupMock: func(m *MockPortService) {
+				m.ValidatePortOrderErr = fmt.Errorf("invalid LAG configuration")
+			},
+			expectedError: "invalid LAG configuration",
+		},
+		{
+			name:          "no input provided",
+			flags:         map[string]string{},
+			setupMock:     func(m *MockPortService) {},
+			expectedError: "no input provided",
+		},
+		{
+			name: "login error",
+			flags: map[string]string{
+				"name":                   "test-lag",
+				"term":                   "12",
+				"port-speed":             "10000",
+				"location-id":            "1",
+				"lag-count":              "2",
+				"marketplace-visibility": "true",
+			},
+			setupMock:     func(m *MockPortService) {},
+			loginError:    fmt.Errorf("authentication failed"),
+			expectedError: "authentication failed",
+		},
+		{
+			name:          "invalid JSON input",
+			jsonInput:     `{invalid json}`,
+			setupMock:     func(m *MockPortService) {},
+			expectedError: "error parsing JSON",
+		},
+		{
+			name:             "success with JSON file",
+			jsonFileContent:  `{"name":"file-lag","term":12,"portSpeed":10000,"locationId":1,"lagCount":2,"marketPlaceVisibility":true}`,
+			setupMock:        func(m *MockPortService) {},
+			expectedContains: "validation passed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockPortService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			if tt.loginError != nil {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					return nil, tt.loginError
+				}
+			} else {
+				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.PortService = mockService
+					return client, nil
+				}
+			}
+
+			cmd := &cobra.Command{Use: "validate-lag"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Int("lag-count", 0, "")
+			cmd.Flags().Bool("marketplace-visibility", false, "")
+			cmd.Flags().String("diversity-zone", "", "")
+
+			if tt.jsonInput != "" {
+				require.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+			if tt.jsonFileContent != "" {
+				tmpFile, tmpErr := os.CreateTemp("", "lag-validate-*.json")
+				require.NoError(t, tmpErr)
+				defer os.Remove(tmpFile.Name())
+				_, tmpErr = tmpFile.WriteString(tt.jsonFileContent)
+				require.NoError(t, tmpErr)
+				tmpFile.Close()
+				require.NoError(t, cmd.Flags().Set("json-file", tmpFile.Name()))
+			}
+			for k, v := range tt.flags {
+				require.NoError(t, cmd.Flags().Set(k, v))
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = ValidateLAGPort(cmd, nil, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedContains != "" {
+					assert.Contains(t, capturedOutput, tt.expectedContains)
+				}
+			}
+		})
+	}
+}
+
+func TestDeletePort_Comprehensive(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	originalDeletePortFunc := deletePortFunc
+	defer func() { deletePortFunc = originalDeletePortFunc }()
+	originalConfirmPrompt := utils.ConfirmPrompt
+	defer func() { utils.ConfirmPrompt = originalConfirmPrompt }()
+
+	tests := []struct {
+		name             string
+		force            bool
+		deleteNow        bool
+		confirmResult    bool
+		deleteErr        error
+		isDeleting       bool
+		expectedError    string
+		expectedContains string
+	}{
+		{
+			name:             "success with force flag",
+			force:            true,
+			isDeleting:       true,
+			expectedContains: "port-123",
+		},
+		{
+			name:             "user cancels confirmation",
+			force:            false,
+			confirmResult:    false,
+			expectedContains: "cancelled",
+		},
+		{
+			name:             "user confirms deletion",
+			force:            false,
+			confirmResult:    true,
+			isDeleting:       true,
+			expectedContains: "port-123",
+		},
+		{
+			name:          "delete API error",
+			force:         true,
+			deleteErr:     fmt.Errorf("API failure"),
+			expectedError: "API failure",
+		},
+		{
+			name:             "delete returns not deleting",
+			force:            true,
+			isDeleting:       false,
+			expectedContains: "not successful",
+		},
+		{
+			name:             "delete now flag",
+			force:            true,
+			deleteNow:        true,
+			isDeleting:       true,
+			expectedContains: "port-123",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockPortService{}
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.PortService = mockService
+				return client, nil
+			}
+
+			utils.ConfirmPrompt = func(_ string, _ bool) bool {
+				return tt.confirmResult
+			}
+
+			deletePortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.DeletePortRequest) (*megaport.DeletePortResponse, error) {
+				if tt.deleteErr != nil {
+					return nil, tt.deleteErr
+				}
+				return &megaport.DeletePortResponse{IsDeleting: tt.isDeleting}, nil
+			}
+
+			cmd := &cobra.Command{Use: "delete"}
+			cmd.Flags().Bool("force", false, "")
+			cmd.Flags().Bool("now", false, "")
+			cmd.Flags().Bool("safe-delete", false, "")
+
+			if tt.force {
+				require.NoError(t, cmd.Flags().Set("force", "true"))
+			}
+			if tt.deleteNow {
+				require.NoError(t, cmd.Flags().Set("now", "true"))
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = DeletePort(cmd, []string{"port-123"}, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedContains != "" {
+					assert.Contains(t, capturedOutput, tt.expectedContains)
+				}
+			}
+		})
+	}
+}
+
+func TestGetPort_NilPort(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockService := &MockPortService{ForceNilGetPort: true}
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.PortService = mockService
+		return client, nil
+	}
+
+	var err error
+	output.CaptureOutput(func() {
+		err = testutil.OutputAdapter(GetPort)(
+			testutil.NewCommand("get", testutil.OutputAdapter(GetPort)),
+			[]string{"port-nil"},
+		)
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no port found")
+}
+
+func TestGetPort_LoginError(t *testing.T) {
+	cleanup := testutil.SetupLoginError(fmt.Errorf("auth failed"))
+	defer cleanup()
+
+	var err error
+	output.CaptureOutput(func() {
+		err = testutil.OutputAdapter(GetPort)(
+			testutil.NewCommand("get", testutil.OutputAdapter(GetPort)),
+			[]string{"port-123"},
+		)
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "auth failed")
+}
+
+func TestListPorts_LoginError(t *testing.T) {
+	cleanup := testutil.SetupLoginError(fmt.Errorf("auth failed"))
+	defer cleanup()
+
+	var err error
+	output.CaptureOutput(func() {
+		cmd := testutil.NewCommand("list", testutil.OutputAdapter(ListPorts))
+		cmd.Flags().Int("location-id", 0, "")
+		cmd.Flags().Int("port-speed", 0, "")
+		cmd.Flags().String("port-name", "", "")
+		cmd.Flags().Bool("include-inactive", false, "")
+		err = testutil.OutputAdapter(ListPorts)(cmd, nil)
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "auth failed")
+}
