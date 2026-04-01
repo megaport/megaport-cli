@@ -23,12 +23,12 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	buy, buyLag, update, validate := buildPortBuyCommands(rootCmd)
+	buy, buyLag, update, validate, validateLag := buildPortBuyCommands(rootCmd)
 	list, get, status, deleteCmd, restore, lock, unlock, checkVLAN := buildPortManagementCommands(rootCmd)
 	listTags, updateTags := buildPortTagCommands()
 
 	portsCmd.AddCommand(
-		buy, buyLag, update, validate,
+		buy, buyLag, update, validate, validateLag,
 		list, get, status, deleteCmd, restore, lock, unlock, checkVLAN,
 		listTags, updateTags,
 	)
@@ -36,7 +36,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 }
 
 // buildPortBuyCommands creates the buy, buy-lag, and update port commands.
-func buildPortBuyCommands(rootCmd *cobra.Command) (buy, buyLag, update, validate *cobra.Command) {
+func buildPortBuyCommands(rootCmd *cobra.Command) (buy, buyLag, update, validate, validateLag *cobra.Command) {
 	buy = cmdbuilder.NewCommand("buy", "Buy a port through the Megaport API").
 		WithColorAwareRunFunc(BuyPort).
 		WithInteractiveFlag().
@@ -155,7 +155,26 @@ func buildPortBuyCommands(rootCmd *cobra.Command) (buy, buyLag, update, validate
 		WithConditionalRequirements("name", "term", "port-speed", "location-id", "marketplace-visibility").
 		Build()
 
-	return buy, buyLag, update, validate
+	validateLag = cmdbuilder.NewCommand("validate-lag", "Validate a LAG port order without purchasing").
+		WithColorAwareRunFunc(ValidateLAGPort).
+		WithInteractiveFlag().
+		WithPortLAGFlags().
+		WithJSONConfigFlags().
+		WithLongDesc("Validates a LAG port configuration against the Megaport API without creating the resource.\n\nUse this for dry-run validation before purchasing, or in CI pipelines to check configurations.").
+		WithDocumentedRequiredFlag("name", "The name of the port (1-64 characters)").
+		WithDocumentedRequiredFlag("term", "The term of the port (1, 12, or 24 months)").
+		WithDocumentedRequiredFlag("port-speed", "The speed of each LAG member port (10000 or 100000 Mbps)").
+		WithDocumentedRequiredFlag("location-id", "The ID of the location where the port will be provisioned").
+		WithDocumentedRequiredFlag("lag-count", "The number of LAG members (between 1 and 8)").
+		WithDocumentedRequiredFlag("marketplace-visibility", "Whether the port should be visible in the marketplace (true or false)").
+		WithExample(`megaport-cli ports validate-lag --name "My LAG Port" --term 12 --port-speed 10000 --location-id 123 --lag-count 2 --marketplace-visibility true`).
+		WithExample("megaport-cli ports validate-lag --json-file ./lag-config.json").
+		WithImportantNote("This command only validates the configuration — no resources are created and no charges are incurred").
+		WithRootCmd(rootCmd).
+		WithConditionalRequirements("name", "term", "port-speed", "location-id", "lag-count", "marketplace-visibility").
+		Build()
+
+	return buy, buyLag, update, validate, validateLag
 }
 
 // buildPortManagementCommands creates the list, get, status, delete, restore, lock, unlock, and check-vlan commands.

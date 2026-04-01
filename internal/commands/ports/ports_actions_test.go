@@ -3,6 +3,7 @@ package ports
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -1598,6 +1599,7 @@ func TestValidatePort(t *testing.T) {
 		name             string
 		flags            map[string]string
 		jsonInput        string
+		jsonFileContent  string
 		setupMock        func(*MockPortService)
 		loginError       error
 		expectedError    string
@@ -1660,6 +1662,12 @@ func TestValidatePort(t *testing.T) {
 			setupMock:     func(m *MockPortService) {},
 			expectedError: "error parsing JSON",
 		},
+		{
+			name:             "success with JSON file",
+			jsonFileContent:  `{"name":"file-port","term":12,"portSpeed":1000,"locationId":1,"marketPlaceVisibility":false}`,
+			setupMock:        func(m *MockPortService) {},
+			expectedContains: "validation passed",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1694,6 +1702,15 @@ func TestValidatePort(t *testing.T) {
 
 			if tt.jsonInput != "" {
 				require.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+			if tt.jsonFileContent != "" {
+				tmpFile, tmpErr := os.CreateTemp("", "port-validate-*.json")
+				require.NoError(t, tmpErr)
+				defer os.Remove(tmpFile.Name())
+				_, tmpErr = tmpFile.WriteString(tt.jsonFileContent)
+				require.NoError(t, tmpErr)
+				tmpFile.Close()
+				require.NoError(t, cmd.Flags().Set("json-file", tmpFile.Name()))
 			}
 			for k, v := range tt.flags {
 				require.NoError(t, cmd.Flags().Set(k, v))

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -1984,12 +1985,26 @@ func TestValidateMVE(t *testing.T) {
 
 	tests := []struct {
 		name             string
+		flags            map[string]string
 		jsonInput        string
+		jsonFileContent  string
 		setupMock        func(*MockMVEService)
 		loginError       error
 		expectedError    string
 		expectedContains string
 	}{
+		{
+			name: "success with flags",
+			flags: map[string]string{
+				"name":          "test-mve",
+				"term":          "12",
+				"location-id":   "1",
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"MEDIUM","mveLabel":"test-label","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA","sshPublicKey":"ssh-rsa AAAA","cloudInit":"#cloud-config","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"reg-key","fmcNatId":"nat-id"}`,
+				"vnics":         `[{"description":"Data Plane","vlan":100}]`,
+			},
+			setupMock:        func(m *MockMVEService) {},
+			expectedContains: "validation passed",
+		},
 		{
 			name:             "success with JSON",
 			jsonInput:        `{"name":"test-mve","term":12,"locationId":1,"vendorConfig":{"vendor":"cisco","imageId":1,"productSize":"MEDIUM","mveLabel":"test-label","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA","sshPublicKey":"ssh-rsa AAAA","cloudInit":"#cloud-config","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"reg-key","fmcNatId":"nat-id"},"vnics":[{"description":"Data Plane","vlan":100}]}`,
@@ -2028,6 +2043,12 @@ func TestValidateMVE(t *testing.T) {
 			setupMock:     func(m *MockMVEService) {},
 			expectedError: "unsupported vendor",
 		},
+		{
+			name:             "success with JSON file",
+			jsonFileContent:  `{"name":"file-mve","term":12,"locationId":1,"vendorConfig":{"vendor":"cisco","imageId":1,"productSize":"MEDIUM","mveLabel":"test-label","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA","sshPublicKey":"ssh-rsa AAAA","cloudInit":"#cloud-config","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"reg-key","fmcNatId":"nat-id"},"vnics":[{"description":"Data Plane","vlan":100}]}`,
+			setupMock:        func(m *MockMVEService) {},
+			expectedContains: "validation passed",
+		},
 	}
 
 	for _, tt := range tests {
@@ -2065,6 +2086,18 @@ func TestValidateMVE(t *testing.T) {
 
 			if tt.jsonInput != "" {
 				assert.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+			if tt.jsonFileContent != "" {
+				tmpFile, tmpErr := os.CreateTemp("", "mve-validate-*.json")
+				assert.NoError(t, tmpErr)
+				defer os.Remove(tmpFile.Name())
+				_, tmpErr = tmpFile.WriteString(tt.jsonFileContent)
+				assert.NoError(t, tmpErr)
+				tmpFile.Close()
+				assert.NoError(t, cmd.Flags().Set("json-file", tmpFile.Name()))
+			}
+			for k, v := range tt.flags {
+				assert.NoError(t, cmd.Flags().Set(k, v))
 			}
 
 			var err error

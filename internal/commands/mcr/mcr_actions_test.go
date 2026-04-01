@@ -3,6 +3,7 @@ package mcr
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -2577,6 +2578,7 @@ func TestValidateMCR(t *testing.T) {
 		name             string
 		flags            map[string]string
 		jsonInput        string
+		jsonFileContent  string
 		setupMock        func(*MockMCRService)
 		loginError       error
 		expectedError    string
@@ -2639,6 +2641,12 @@ func TestValidateMCR(t *testing.T) {
 			setupMock:     func(m *MockMCRService) {},
 			expectedError: "error parsing JSON",
 		},
+		{
+			name:             "success with JSON file",
+			jsonFileContent:  `{"name":"file-mcr","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true}`,
+			setupMock:        func(m *MockMCRService) {},
+			expectedContains: "validation passed",
+		},
 	}
 
 	for _, tt := range tests {
@@ -2677,6 +2685,15 @@ func TestValidateMCR(t *testing.T) {
 
 			if tt.jsonInput != "" {
 				assert.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+			if tt.jsonFileContent != "" {
+				tmpFile, tmpErr := os.CreateTemp("", "mcr-validate-*.json")
+				assert.NoError(t, tmpErr)
+				defer os.Remove(tmpFile.Name())
+				_, tmpErr = tmpFile.WriteString(tt.jsonFileContent)
+				assert.NoError(t, tmpErr)
+				tmpFile.Close()
+				assert.NoError(t, cmd.Flags().Set("json-file", tmpFile.Name()))
 			}
 			for k, v := range tt.flags {
 				assert.NoError(t, cmd.Flags().Set(k, v))

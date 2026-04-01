@@ -3,6 +3,7 @@ package ix
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -1693,6 +1694,7 @@ func TestValidateIX(t *testing.T) {
 		name             string
 		flags            map[string]string
 		jsonInput        string
+		jsonFileContent  string
 		setupMock        func(*MockIXService)
 		loginError       error
 		expectedError    string
@@ -1761,6 +1763,12 @@ func TestValidateIX(t *testing.T) {
 			setupMock:     func(m *MockIXService) {},
 			expectedError: "error parsing JSON",
 		},
+		{
+			name:             "success with JSON file",
+			jsonFileContent:  `{"productUid":"port-123","productName":"file-ix","networkServiceType":"Los Angeles IX","asn":65000,"macAddress":"00:11:22:33:44:55","rateLimit":1000,"vlan":100}`,
+			setupMock:        func(m *MockIXService) {},
+			expectedContains: "validation passed",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1798,6 +1806,15 @@ func TestValidateIX(t *testing.T) {
 
 			if tt.jsonInput != "" {
 				assert.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+			if tt.jsonFileContent != "" {
+				tmpFile, tmpErr := os.CreateTemp("", "ix-validate-*.json")
+				assert.NoError(t, tmpErr)
+				defer os.Remove(tmpFile.Name())
+				_, tmpErr = tmpFile.WriteString(tt.jsonFileContent)
+				assert.NoError(t, tmpErr)
+				tmpFile.Close()
+				assert.NoError(t, cmd.Flags().Set("json-file", tmpFile.Name()))
 			}
 			for k, v := range tt.flags {
 				assert.NoError(t, cmd.Flags().Set(k, v))

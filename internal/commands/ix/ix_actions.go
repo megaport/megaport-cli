@@ -145,9 +145,7 @@ func GetIXStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 	return output.PrintOutput(status, outputFormat, noColor)
 }
 
-func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
-
+func buildIXRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyIXRequest, error) {
 	interactive, _ := cmd.Flags().GetBool("interactive")
 	jsonStr, _ := cmd.Flags().GetString("json")
 	jsonFile, _ := cmd.Flags().GetString("json-file")
@@ -157,31 +155,40 @@ func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
 		cmd.Flags().Changed("mac-address") || cmd.Flags().Changed("rate-limit") ||
 		cmd.Flags().Changed("vlan")
 
-	var req *megaport.BuyIXRequest
-	var err error
-
 	if jsonStr != "" || jsonFile != "" {
 		output.PrintInfo("Using JSON input", noColor)
-		req, err = buildIXRequestFromJSON(jsonStr, jsonFile)
+		req, err := buildIXRequestFromJSON(jsonStr, jsonFile)
 		if err != nil {
 			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return err
+			return nil, err
 		}
+		return req, nil
 	} else if flagsProvided {
 		output.PrintInfo("Using flag input", noColor)
-		req, err = buildIXRequestFromFlags(cmd)
+		req, err := buildIXRequestFromFlags(cmd)
 		if err != nil {
 			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return err
+			return nil, err
 		}
+		return req, nil
 	} else if interactive {
-		req, err = buildIXRequestFromPrompt(ctx, noColor)
+		ctx := context.Background()
+		req, err := buildIXRequestFromPrompt(ctx, noColor)
 		if err != nil {
-			return err
+			return nil, err
 		}
-	} else {
-		output.PrintError("No input provided, use --interactive, --json, or flags to specify IX details", noColor)
-		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify IX details")
+		return req, nil
+	}
+	output.PrintError("No input provided, use --interactive, --json, or flags to specify IX details", noColor)
+	return nil, fmt.Errorf("no input provided, use --interactive, --json, or flags to specify IX details")
+}
+
+func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx := context.Background()
+
+	req, err := buildIXRequest(cmd, noColor)
+	if err != nil {
+		return err
 	}
 
 	noWait, _ := cmd.Flags().GetBool("no-wait")
@@ -205,6 +212,8 @@ func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
 	yes, _ := cmd.Flags().GetBool("yes")
 	if !yes && jsonStr == "" && jsonFile == "" {
 		details := []utils.BuyConfirmDetail{
@@ -235,40 +244,9 @@ func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
 func ValidateIX(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx := context.Background()
 
-	interactive, _ := cmd.Flags().GetBool("interactive")
-	jsonStr, _ := cmd.Flags().GetString("json")
-	jsonFile, _ := cmd.Flags().GetString("json-file")
-
-	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("product-uid") ||
-		cmd.Flags().Changed("network-service-type") || cmd.Flags().Changed("asn") ||
-		cmd.Flags().Changed("mac-address") || cmd.Flags().Changed("rate-limit") ||
-		cmd.Flags().Changed("vlan")
-
-	var req *megaport.BuyIXRequest
-	var err error
-
-	if jsonStr != "" || jsonFile != "" {
-		output.PrintInfo("Using JSON input", noColor)
-		req, err = buildIXRequestFromJSON(jsonStr, jsonFile)
-		if err != nil {
-			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return err
-		}
-	} else if flagsProvided {
-		output.PrintInfo("Using flag input", noColor)
-		req, err = buildIXRequestFromFlags(cmd)
-		if err != nil {
-			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return err
-		}
-	} else if interactive {
-		req, err = buildIXRequestFromPrompt(ctx, noColor)
-		if err != nil {
-			return err
-		}
-	} else {
-		output.PrintError("No input provided, use --interactive, --json, or flags to specify IX details", noColor)
-		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify IX details")
+	req, err := buildIXRequest(cmd, noColor)
+	if err != nil {
+		return err
 	}
 
 	client, err := config.Login(ctx)
