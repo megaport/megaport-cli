@@ -868,6 +868,83 @@ func TestBuyPort(t *testing.T) {
 	}
 }
 
+func TestBuyPort_NoWaitFlag(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+	originalBuyPortFunc := buyPortFunc
+	defer func() {
+		buyPortFunc = originalBuyPortFunc
+	}()
+
+	tests := []struct {
+		name                     string
+		noWait                   bool
+		expectedWaitForProvision bool
+	}{
+		{
+			name:                     "default waits for provisioning",
+			noWait:                   false,
+			expectedWaitForProvision: true,
+		},
+		{
+			name:                     "no-wait skips provisioning wait",
+			noWait:                   true,
+			expectedWaitForProvision: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockPortService{}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.PortService = mockService
+				return client, nil
+			}
+
+			var capturedReq *megaport.BuyPortRequest
+			buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
+				capturedReq = req
+				return &megaport.BuyPortResponse{
+					TechnicalServiceUIDs: []string{"port-uid-123"},
+				}, nil
+			}
+
+			cmd := &cobra.Command{Use: "buy"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Bool("marketplace-visibility", false, "")
+			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().Bool("cost-confirm", true, "")
+
+			require.NoError(t, cmd.Flags().Set("name", "test-port"))
+			require.NoError(t, cmd.Flags().Set("term", "12"))
+			require.NoError(t, cmd.Flags().Set("port-speed", "1000"))
+			require.NoError(t, cmd.Flags().Set("location-id", "1"))
+			require.NoError(t, cmd.Flags().Set("marketplace-visibility", "true"))
+			if tt.noWait {
+				require.NoError(t, cmd.Flags().Set("no-wait", "true"))
+			}
+
+			var err error
+			output.CaptureOutput(func() {
+				err = BuyPort(cmd, nil, true)
+			})
+
+			assert.NoError(t, err)
+			require.NotNil(t, capturedReq)
+			assert.Equal(t, tt.expectedWaitForProvision, capturedReq.WaitForProvision)
+		})
+	}
+}
+
 func TestRestorePort(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()

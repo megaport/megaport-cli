@@ -670,6 +670,89 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 	}
 }
 
+func TestBuyMCR_NoWaitFlag(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+	originalBuyMCRFunc := buyMCRFunc
+	defer func() {
+		buyMCRFunc = originalBuyMCRFunc
+	}()
+
+	tests := []struct {
+		name                     string
+		noWait                   bool
+		expectedWaitForProvision bool
+	}{
+		{
+			name:                     "default waits for provisioning",
+			noWait:                   false,
+			expectedWaitForProvision: true,
+		},
+		{
+			name:                     "no-wait skips provisioning wait",
+			noWait:                   true,
+			expectedWaitForProvision: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockMCRService := &MockMCRService{}
+			mockMCRService.BuyMCRResult = &megaport.BuyMCRResponse{
+				TechnicalServiceUID: "mcr-uid-123",
+			}
+
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockMCRService
+				return client, nil
+			}
+
+			var capturedReq *megaport.BuyMCRRequest
+			buyMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
+				capturedReq = req
+				return &megaport.BuyMCRResponse{
+					TechnicalServiceUID: "mcr-uid-123",
+				}, nil
+			}
+
+			cmd := &cobra.Command{Use: "buy"}
+			cmd.Flags().BoolP("interactive", "i", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Int("mcr-asn", 0, "")
+			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().String("promo-code", "", "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			testutil.SetFlags(t, cmd, map[string]string{
+				"name":        "Test MCR",
+				"term":        "12",
+				"port-speed":  "10000",
+				"location-id": "123",
+				"mcr-asn":     "65000",
+			})
+			if tt.noWait {
+				assert.NoError(t, cmd.Flags().Set("no-wait", "true"))
+			}
+
+			var err error
+			output.CaptureOutput(func() {
+				err = BuyMCR(cmd, nil, true)
+			})
+
+			assert.NoError(t, err)
+			assert.NotNil(t, capturedReq)
+			assert.Equal(t, tt.expectedWaitForProvision, capturedReq.WaitForProvision)
+		})
+	}
+}
+
 func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 	originalPrompt := utils.ResourcePrompt
 	originalBuyMCRFunc := buyMCRFunc
