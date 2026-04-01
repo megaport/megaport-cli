@@ -14,6 +14,19 @@ import (
 	"github.com/jedib0t/go-pretty/v6/text"
 )
 
+// isTerminalCached is always false in WASM (no real terminal).
+var isTerminalCached = false
+
+// IsTerminal returns true if stdout is connected to a terminal. Always false in WASM.
+func IsTerminal() bool {
+	return isTerminalCached
+}
+
+// SetIsTerminal overrides the cached TTY detection result. Intended for tests.
+func SetIsTerminal(val bool) {
+	isTerminalCached = val
+}
+
 // WasmTableWriter is a global buffer for capturing table output in WASM
 var WasmTableWriter = &bytes.Buffer{}
 
