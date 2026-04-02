@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 
@@ -286,6 +287,16 @@ func TestClassifyError(t *testing.T) {
 	}
 }
 
+func TestClassifyError_CLIErrorPassthrough(t *testing.T) {
+	// A CLIError already carrying a code should have that code preserved.
+	inner := exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
+	assert.Equal(t, exitcodes.Cancelled, classifyError(inner))
+
+	// Works through wrapping too.
+	wrapped := fmt.Errorf("outer: %w", inner)
+	assert.Equal(t, exitcodes.Cancelled, classifyError(wrapped))
+}
+
 func TestClassifyError_SDKErrors(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -308,6 +319,35 @@ func TestClassifyError_SDKErrors(t *testing.T) {
 			assert.Equal(t, tt.wantCode, code)
 		})
 	}
+}
+
+func TestWrapRunE_CancelledError(t *testing.T) {
+	// WrapRunE must preserve the Cancelled code when the action function
+	// returns a CLIError that already carries it.
+	wrapped := WrapRunE(func(cmd *cobra.Command, args []string) error {
+		return exitcodes.NewCancelledError(fmt.Errorf("cancelled by user"))
+	})
+	cmd := &cobra.Command{Use: "test"}
+	err := wrapped(cmd, []string{})
+	require.Error(t, err)
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Cancelled, cliErr.Code)
+}
+
+func TestWrapColorAwareRunE_CancelledError(t *testing.T) {
+	wrapped := WrapColorAwareRunE(func(cmd *cobra.Command, args []string, noColor bool) error {
+		return exitcodes.NewCancelledError(fmt.Errorf("cancelled by user"))
+	})
+	cmd := &cobra.Command{Use: "test"}
+	cmd.Flags().Bool("no-color", false, "")
+	err := wrapped(cmd, []string{})
+	require.Error(t, err)
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Cancelled, cliErr.Code)
 }
 
 func TestWrapRunE_AuthError(t *testing.T) {

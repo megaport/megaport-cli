@@ -150,6 +150,12 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 
 // classifyError inspects an error message to determine the appropriate exit code.
 func classifyError(err error) int {
+	// Preserve exit codes already set by action functions
+	var cliErr *exitcodes.CLIError
+	if errors.As(err, &cliErr) {
+		return cliErr.Code
+	}
+
 	// Type-safe SDK error inspection first
 	var apiErr *megaport.ErrorResponse
 	if errors.As(err, &apiErr) {

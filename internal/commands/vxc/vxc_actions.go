@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -225,7 +226,7 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 		if !utils.BuyConfirmPrompt("VXC", details, noColor) {
 			output.PrintInfo("Purchase cancelled", noColor)
-			return nil
+			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 		}
 	}
 
@@ -371,7 +372,7 @@ func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
 		message := fmt.Sprintf("Are you sure you want to delete VXC %s?", formattedUID)
 		if !utils.ConfirmPrompt(message, noColor) {
 			output.PrintInfo("Deletion cancelled", noColor)
-			return nil
+			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 		}
 	}
 

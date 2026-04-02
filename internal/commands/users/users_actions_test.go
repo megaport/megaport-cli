@@ -400,11 +400,11 @@ func TestDeleteUser(t *testing.T) {
 			expectedContains: "deleted successfully",
 		},
 		{
-			name:             "user cancels",
-			force:            false,
-			confirmResult:    false,
-			setupMock:        func(m *MockUserManagementService) {},
-			expectedContains: "cancelled",
+			name:          "user cancels",
+			force:         false,
+			confirmResult: false,
+			setupMock:     func(m *MockUserManagementService) {},
+			expectedError: "cancelled by user",
 		},
 		{
 			name:  "API error",
@@ -477,11 +477,11 @@ func TestDeactivateUser(t *testing.T) {
 			expectedContains: "deactivated successfully",
 		},
 		{
-			name:             "user cancels",
-			force:            false,
-			confirmResult:    false,
-			setupMock:        func(m *MockUserManagementService) {},
-			expectedContains: "cancelled",
+			name:          "user cancels",
+			force:         false,
+			confirmResult: false,
+			setupMock:     func(m *MockUserManagementService) {},
+			expectedError: "cancelled by user",
 		},
 		{
 			name:  "API error",

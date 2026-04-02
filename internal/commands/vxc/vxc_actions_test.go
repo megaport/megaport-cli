@@ -1844,7 +1844,7 @@ func TestDeleteVXC(t *testing.T) {
 					return false
 				}
 			},
-			expectedOutput: "cancelled",
+			expectedError: "cancelled by user",
 		},
 	}
 
@@ -2021,7 +2021,7 @@ func TestBuyVXC_Confirmation(t *testing.T) {
 			},
 			confirmReturn:      false,
 			expectPromptCalled: true,
-			expectedContains:   "Purchase cancelled",
+			expectedError:      "cancelled by user",
 		},
 		{
 			name: "yes flag skips confirmation",

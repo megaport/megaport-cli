@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -130,7 +131,7 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 		if !utils.BuyConfirmPrompt("Port", details, noColor) {
 			output.PrintInfo("Purchase cancelled", noColor)
-			return nil
+			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 		}
 	}
 
@@ -250,7 +251,7 @@ func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 		if !utils.BuyConfirmPrompt("LAG Port", details, noColor) {
 			output.PrintInfo("Purchase cancelled", noColor)
-			return nil
+			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 		}
 	}
 
@@ -512,7 +513,7 @@ func DeletePort(cmd *cobra.Command, args []string, noColor bool) error {
 		confirmMsg := "Are you sure you want to delete port " + portUID + "? "
 		if !utils.ConfirmPrompt(confirmMsg, noColor) {
 			output.PrintInfo("Deletion cancelled", noColor)
-			return nil
+			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 		}
 	}
 

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -245,7 +246,7 @@ func DeleteUser(cmd *cobra.Command, args []string, noColor bool) error {
 		confirmMsg := fmt.Sprintf("Are you sure you want to delete user with employee ID %d? ", employeeID)
 		if !utils.ConfirmPrompt(confirmMsg, noColor) {
 			output.PrintInfo("Deletion cancelled", noColor)
-			return nil
+			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 		}
 	}
 
@@ -284,7 +285,7 @@ func DeactivateUser(cmd *cobra.Command, args []string, noColor bool) error {
 		confirmMsg := fmt.Sprintf("Are you sure you want to deactivate user with employee ID %d? ", employeeID)
 		if !utils.ConfirmPrompt(confirmMsg, noColor) {
 			output.PrintInfo("Deactivation cancelled", noColor)
-			return nil
+			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 		}
 	}
 

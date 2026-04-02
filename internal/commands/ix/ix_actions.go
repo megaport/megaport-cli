@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -228,7 +229,7 @@ func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 		if !utils.BuyConfirmPrompt("IX", details, noColor) {
 			output.PrintInfo("Purchase cancelled", noColor)
-			return nil
+			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 		}
 	}
 
@@ -379,7 +380,7 @@ func DeleteIX(cmd *cobra.Command, args []string, noColor bool) error {
 
 		if confirmation != "y" && confirmation != "Y" {
 			output.PrintInfo("Deletion cancelled", noColor)
-			return nil
+			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 		}
 	}
 

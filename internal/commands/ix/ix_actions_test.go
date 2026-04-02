@@ -813,7 +813,7 @@ func TestDeleteIX(t *testing.T) {
 			force:          false,
 			promptResponse: "n",
 			setupMock:      func(m *MockIXService) {},
-			expectedOutput: "Deletion cancelled",
+			expectedError:  "cancelled by user",
 			expectDeleted:  false,
 		},
 		{
@@ -1496,6 +1496,7 @@ func TestBuyIX_Confirmation(t *testing.T) {
 		confirmResult        bool
 		expectBuyCalled      bool
 		expectedOutput       string
+		expectedError        string
 		promptShouldBeCalled bool
 	}{
 		{
@@ -1527,7 +1528,7 @@ func TestBuyIX_Confirmation(t *testing.T) {
 			},
 			confirmResult:        false,
 			expectBuyCalled:      false,
-			expectedOutput:       "Purchase cancelled",
+			expectedError:        "cancelled by user",
 			promptShouldBeCalled: true,
 		},
 		{
@@ -1614,8 +1615,13 @@ func TestBuyIX_Confirmation(t *testing.T) {
 				err = cmd.RunE(cmd, nil)
 			})
 
-			assert.NoError(t, err)
-			assert.Contains(t, capturedOutput, tt.expectedOutput)
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+			}
 			assert.Equal(t, tt.expectBuyCalled, buyCalled, "buy function called mismatch")
 			assert.Equal(t, tt.promptShouldBeCalled, promptCalled, "BuyConfirmPrompt called expectation mismatch")
 		})

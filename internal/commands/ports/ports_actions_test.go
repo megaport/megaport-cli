@@ -1500,7 +1500,7 @@ func TestBuyPort_Confirmation(t *testing.T) {
 			},
 			confirmReturn:      false,
 			expectPromptCalled: true,
-			expectedContains:   "Purchase cancelled",
+			expectedError:      "cancelled by user",
 		},
 		{
 			name: "yes flag skips confirmation",
@@ -1589,6 +1589,46 @@ func TestBuyPort_Confirmation(t *testing.T) {
 			assert.Equal(t, tt.expectPromptCalled, promptCalled, "BuyConfirmPrompt called expectation mismatch")
 		})
 	}
+}
+
+func TestBuyLAGPort_ConfirmationDenied(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.PortService = &MockPortService{}
+	})
+	defer cleanup()
+
+	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
+	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return false }
+
+	cmd := &cobra.Command{Use: "buy-lag"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().Bool("no-wait", false, "")
+	cmd.Flags().Bool("yes", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().Int("term", 0, "")
+	cmd.Flags().Int("port-speed", 0, "")
+	cmd.Flags().Int("location-id", 0, "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
+	cmd.Flags().String("diversity-zone", "", "")
+	cmd.Flags().Bool("cost-confirm", true, "")
+	cmd.Flags().Int("lag-count", 0, "")
+
+	require.NoError(t, cmd.Flags().Set("name", "test-lag"))
+	require.NoError(t, cmd.Flags().Set("term", "12"))
+	require.NoError(t, cmd.Flags().Set("port-speed", "10000"))
+	require.NoError(t, cmd.Flags().Set("location-id", "1"))
+	require.NoError(t, cmd.Flags().Set("lag-count", "2"))
+
+	var err error
+	capturedOutput := output.CaptureOutput(func() {
+		err = BuyLAGPort(cmd, nil, true)
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cancelled by user")
+	assert.Contains(t, capturedOutput, "Purchase cancelled")
 }
 
 func TestValidatePort(t *testing.T) {
@@ -1907,10 +1947,10 @@ func TestDeletePort_Comprehensive(t *testing.T) {
 			expectedContains: "port-123",
 		},
 		{
-			name:             "user cancels confirmation",
-			force:            false,
-			confirmResult:    false,
-			expectedContains: "cancelled",
+			name:          "user cancels confirmation",
+			force:         false,
+			confirmResult: false,
+			expectedError: "cancelled by user",
 		},
 		{
 			name:             "user confirms deletion",

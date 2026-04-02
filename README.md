@@ -16,6 +16,7 @@
 - [Shell Completion](#shell-completion)
 - [Architecture](#architecture)
 - [Available Commands](#available-commands)
+- [Exit Codes](#exit-codes)
 - [Troubleshooting](#troubleshooting)
 - [Additional Documentation](#additional-documentation)
 - [Contributing](#contributing)
@@ -574,6 +575,17 @@ megaport-cli managed-account create --json '{"accountName":"Acme Corp","accountR
 # Update a managed account
 megaport-cli managed-account update COMPANY_UID --account-name "New Name"
 ```
+
+## Exit Codes
+
+| Exit Code | Meaning |
+|-----------|---------|
+| 0 | Success |
+| 1 | General error |
+| 2 | Usage / validation error |
+| 3 | Authentication error |
+| 4 | API error |
+| 5 | Cancelled by user |
 
 ## Troubleshooting
 
