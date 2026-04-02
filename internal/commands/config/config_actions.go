@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/spf13/cobra"
@@ -109,7 +110,7 @@ func DeleteProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	confirmed := utils.ConfirmPrompt(fmt.Sprintf("Are you sure you want to delete profile '%s'? (y/n): ", profileName), noColor)
 	if !confirmed {
 		output.PrintInfo("Profile deletion cancelled", noColor)
-		return nil
+		return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 	}
 
 	if err := manager.DeleteProfile(profileName); err != nil {
@@ -332,7 +333,7 @@ func ImportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 	confirmed := utils.ConfirmPrompt("This will overwrite any existing profiles with the same names. Continue? (y/n): ", noColor)
 	if !confirmed {
 		output.PrintInfo("Import cancelled", noColor)
-		return nil
+		return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 	}
 
 	manager, err := NewConfigManager()
@@ -435,7 +436,7 @@ func ClearDefaults(cmd *cobra.Command, args []string, noColor bool) error {
 	confirmed := utils.ConfirmPrompt("Are you sure you want to clear all default settings? (y/n): ", noColor)
 	if !confirmed {
 		output.PrintInfo("Operation cancelled", noColor)
-		return nil
+		return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 	}
 
 	if err := manager.ClearDefaults(); err != nil {

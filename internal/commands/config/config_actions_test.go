@@ -777,7 +777,8 @@ func TestClearDefaults(t *testing.T) {
 		outputText, err := captureOutputFromAction(func() error {
 			return ClearDefaults(cmd, nil, false)
 		})
-		require.NoError(t, err)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cancelled by user")
 		assert.Contains(t, outputText, "Operation cancelled")
 
 		// Verify defaults are still present

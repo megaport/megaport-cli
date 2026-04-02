@@ -510,8 +510,8 @@ func TestDeleteMVE(t *testing.T) {
 			name: "deletion cancelled",
 			mockSetup: func(m *MockMVEService) {
 			},
-			confirmDelete:  false,
-			expectedOutput: "Deletion cancelled",
+			confirmDelete: false,
+			expectedError: "cancelled by user",
 		},
 		{
 			name: "force deletion",
@@ -1871,6 +1871,7 @@ func TestBuyMVE_Confirmation(t *testing.T) {
 		confirmResult        bool
 		expectBuyCalled      bool
 		expectedOutput       string
+		expectedError        string
 		promptShouldBeCalled bool
 	}{
 		{
@@ -1898,7 +1899,7 @@ func TestBuyMVE_Confirmation(t *testing.T) {
 			},
 			confirmResult:        false,
 			expectBuyCalled:      false,
-			expectedOutput:       "Purchase cancelled",
+			expectedError:        "cancelled by user",
 			promptShouldBeCalled: true,
 		},
 		{
@@ -1966,8 +1967,13 @@ func TestBuyMVE_Confirmation(t *testing.T) {
 				err = BuyMVE(cmd, nil, noColor)
 			})
 
-			assert.NoError(t, err)
-			assert.Contains(t, capturedOutput, tt.expectedOutput)
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+			}
 
 			if tt.expectBuyCalled {
 				assert.NotNil(t, mockService.CapturedBuyMVERequest, "expected BuyMVE to be called")

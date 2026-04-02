@@ -1500,7 +1500,7 @@ func TestBuyPort_Confirmation(t *testing.T) {
 			},
 			confirmReturn:      false,
 			expectPromptCalled: true,
-			expectedContains:   "Purchase cancelled",
+			expectedError:      "cancelled by user",
 		},
 		{
 			name: "yes flag skips confirmation",
@@ -1907,10 +1907,10 @@ func TestDeletePort_Comprehensive(t *testing.T) {
 			expectedContains: "port-123",
 		},
 		{
-			name:             "user cancels confirmation",
-			force:            false,
-			confirmResult:    false,
-			expectedContains: "cancelled",
+			name:          "user cancels confirmation",
+			force:         false,
+			confirmResult: false,
+			expectedError: "cancelled by user",
 		},
 		{
 			name:             "user confirms deletion",

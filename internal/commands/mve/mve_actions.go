@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -159,7 +160,7 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 		if !utils.BuyConfirmPrompt("MVE", details, noColor) {
 			output.PrintInfo("Purchase cancelled", noColor)
-			return nil
+			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 		}
 	}
 
@@ -446,7 +447,7 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		confirmMsg := "Are you sure you want to delete MVE " + mveUID + "? "
 		if !utils.ConfirmPrompt(confirmMsg, noColor) {
 			output.PrintInfo("Deletion cancelled", noColor)
-			return nil
+			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 		}
 	}
 

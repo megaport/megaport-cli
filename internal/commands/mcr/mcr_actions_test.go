@@ -196,7 +196,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			force:          false,
 			promptResponse: "n",
 			setupMock:      func(m *MockMCRService) {},
-			expectedOutput: "Deletion cancelled",
+			expectedError:  "cancelled by user",
 			expectDeleted:  false,
 		},
 		{
@@ -2472,7 +2472,7 @@ func TestBuyMCR_Confirmation(t *testing.T) {
 			},
 			confirmResult:        false,
 			expectBuyCalled:      false,
-			expectedOutput:       "Purchase cancelled",
+			expectedError:        "cancelled by user",
 			promptShouldBeCalled: true,
 		},
 		{
