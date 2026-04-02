@@ -9,6 +9,7 @@ on:
 # Permissions for creating releases
 permissions:
   contents: write
+  packages: write
 
 jobs:
   goreleaser:
