@@ -521,6 +521,33 @@ func TestStartWithElapsed(t *testing.T) {
 		spinner.stopped = true
 		assert.NotPanics(t, func() { spinner.StartWithElapsed("test") })
 	})
+
+	t.Run("wasm style uses wasm chars", func(t *testing.T) {
+		spinner := NewSpinner(true)
+		spinner.style = "wasm"
+		output := captureOutput(func() {
+			spinner.StartWithElapsed("Provisioning...")
+			time.Sleep(200 * time.Millisecond)
+			spinner.Stop()
+		})
+		assert.Contains(t, output, "elapsed")
+	})
+
+	t.Run("json output format writes to stderr", func(t *testing.T) {
+		spinner := NewSpinnerWithOutput(true, "json")
+		// Capture stderr by redirecting os.Stderr
+		r, w, _ := os.Pipe()
+		oldStderr := os.Stderr
+		os.Stderr = w
+		spinner.StartWithElapsed("Provisioning...")
+		time.Sleep(200 * time.Millisecond)
+		spinner.Stop()
+		w.Close()
+		os.Stderr = oldStderr
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, r)
+		assert.Contains(t, buf.String(), "elapsed")
+	})
 }
 
 func TestSpinnerStopWithSuccess(t *testing.T) {
