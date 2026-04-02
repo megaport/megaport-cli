@@ -340,8 +340,9 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 	spinner.Stop()
 
 	if err != nil {
+		err = utils.WrapAPIError(err, "Port", portUID)
 		output.PrintError("Failed to get port: %v", noColor, err)
-		return fmt.Errorf("error getting port: %v", err)
+		return fmt.Errorf("error getting port: %w", err)
 	}
 
 	if port == nil {
@@ -377,8 +378,9 @@ func GetPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	spinner.Stop()
 
 	if err != nil {
+		err = utils.WrapAPIError(err, "Port", portUID)
 		output.PrintError("Failed to get Port status: %v", noColor, err)
-		return fmt.Errorf("error getting Port status: %v", err)
+		return fmt.Errorf("error getting Port status: %w", err)
 	}
 
 	if port == nil {
@@ -536,6 +538,7 @@ func DeletePort(cmd *cobra.Command, args []string, noColor bool) error {
 	spinner.Stop()
 
 	if err != nil {
+		err = utils.WrapAPIError(err, "Port", portUID)
 		output.PrintError("Failed to delete port: %v", noColor, err)
 		return err
 	}

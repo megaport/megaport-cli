@@ -1,11 +1,13 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
+	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
 
@@ -148,6 +150,17 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 
 // classifyError inspects an error message to determine the appropriate exit code.
 func classifyError(err error) int {
+	// Type-safe SDK error inspection first
+	var apiErr *megaport.ErrorResponse
+	if errors.As(err, &apiErr) {
+		switch apiErr.Response.StatusCode {
+		case 401, 403:
+			return exitcodes.Authentication
+		case 404, 422, 429, 500, 502, 503:
+			return exitcodes.API
+		}
+	}
+
 	msg := err.Error()
 
 	// Authentication errors

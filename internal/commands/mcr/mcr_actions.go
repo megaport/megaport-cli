@@ -369,8 +369,9 @@ func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	spinner.Stop()
 
 	if err != nil {
+		err = utils.WrapAPIError(err, "MCR", mcrUID)
 		output.PrintError("Error getting MCR: %v", noColor, err)
-		return fmt.Errorf("error getting MCR: %v", err)
+		return fmt.Errorf("error getting MCR: %w", err)
 	}
 
 	err = printMCRs([]*megaport.MCR{mcr}, outputFormat, noColor)
@@ -427,7 +428,8 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	spinner.Stop()
 
 	if err != nil {
-		return fmt.Errorf("error deleting MCR: %v", err)
+		err = utils.WrapAPIError(err, "MCR", mcrUID)
+		return fmt.Errorf("error deleting MCR: %w", err)
 	}
 
 	if resp.IsDeleting {

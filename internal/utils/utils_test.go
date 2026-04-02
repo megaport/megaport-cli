@@ -286,6 +286,30 @@ func TestClassifyError(t *testing.T) {
 	}
 }
 
+func TestClassifyError_SDKErrors(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		wantCode   int
+	}{
+		{"401 -> Authentication", 401, exitcodes.Authentication},
+		{"403 -> Authentication", 403, exitcodes.Authentication},
+		{"404 -> API", 404, exitcodes.API},
+		{"422 -> API", 422, exitcodes.API},
+		{"429 -> API", 429, exitcodes.API},
+		{"500 -> API", 500, exitcodes.API},
+		{"502 -> API", 502, exitcodes.API},
+		{"503 -> API", 503, exitcodes.API},
+		{"200 -> General (no match)", 200, exitcodes.General},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			code := classifyError(makeAPIError(tt.statusCode, ""))
+			assert.Equal(t, tt.wantCode, code)
+		})
+	}
+}
+
 func TestWrapRunE_AuthError(t *testing.T) {
 	wrapped := WrapRunE(func(cmd *cobra.Command, args []string) error {
 		return errors.New("error logging in: invalid credentials")
