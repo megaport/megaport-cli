@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -287,6 +288,32 @@ func TestColorizeValue(t *testing.T) {
 		_ = colorizeValue("Important", "name", noColor)
 		_ = colorizeValue("12.50", "price", noColor)
 	})
+}
+
+func TestColorizeStatus(t *testing.T) {
+	green := color.New(color.FgHiWhite, color.BgGreen, color.Bold).Sprintf(" %s ", "LIVE")
+	yellow := color.New(color.FgBlack, color.BgYellow, color.Bold).Sprintf(" %s ", "CONFIGURED")
+	orange := color.New(color.FgHiWhite, color.BgHiRed, color.Bold).Sprintf(" %s ", "DECOMMISSIONING")
+
+	// noColor=true returns plain text
+	assert.Equal(t, "LIVE", colorizeStatus("LIVE", true))
+	assert.Equal(t, "CONFIGURED", colorizeStatus("CONFIGURED", true))
+
+	// Green group: LIVE, ACTIVE, UP, AVAILABLE
+	assert.Equal(t, green, colorizeStatus("live", false))
+	assert.Equal(t, color.New(color.FgHiWhite, color.BgGreen, color.Bold).Sprintf(" %s ", "ACTIVE"), colorizeStatus("ACTIVE", false))
+
+	// Yellow group: CONFIGURED, DEPLOYABLE, PENDING, PROVISIONING
+	assert.Equal(t, yellow, colorizeStatus("configured", false))
+	assert.Equal(t, color.New(color.FgBlack, color.BgYellow, color.Bold).Sprintf(" %s ", "DEPLOYABLE"), colorizeStatus("DEPLOYABLE", false))
+	assert.Equal(t, color.New(color.FgBlack, color.BgYellow, color.Bold).Sprintf(" %s ", "PENDING"), colorizeStatus("PENDING", false))
+
+	// Orange group: DECOMMISSIONING, DECOMMISSIONED, CANCELLED, DELETED, DOWN, INACTIVE
+	assert.Equal(t, orange, colorizeStatus("decommissioning", false))
+	assert.Equal(t, color.New(color.FgHiWhite, color.BgHiRed, color.Bold).Sprintf(" %s ", "CANCELLED"), colorizeStatus("CANCELLED", false))
+
+	// Default: DESIGN and unknown values → blue badge
+	assert.Equal(t, color.New(color.FgHiWhite, color.BgBlue, color.Bold).Sprintf(" %s ", "DESIGN"), colorizeStatus("DESIGN", false))
 }
 
 func TestExtractFieldInfo(t *testing.T) {
