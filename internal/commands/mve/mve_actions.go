@@ -170,7 +170,12 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		req.WaitForTime = 10 * time.Minute
 	}
 
-	spinner := output.PrintResourceCreating("MVE", req.Name, noColor)
+	var spinner *output.Spinner
+	if req.WaitForProvision {
+		spinner = output.PrintResourceProvisioning("MVE", req.Name, noColor)
+	} else {
+		spinner = output.PrintResourceCreating("MVE", req.Name, noColor)
+	}
 
 	resp, err := client.MVEService.BuyMVE(ctx, req)
 

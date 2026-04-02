@@ -230,7 +230,12 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 	}
 
-	spinner := output.PrintResourceCreating("VXC", req.VXCName, noColor)
+	var spinner *output.Spinner
+	if req.WaitForProvision {
+		spinner = output.PrintResourceProvisioning("VXC", req.VXCName, noColor)
+	} else {
+		spinner = output.PrintResourceCreating("VXC", req.VXCName, noColor)
+	}
 
 	resp, err := buyVXCFunc(ctx, client, req)
 

@@ -135,7 +135,12 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 	}
 
-	spinner := output.PrintResourceCreating("Port", req.Name, noColor)
+	var spinner *output.Spinner
+	if req.WaitForProvision {
+		spinner = output.PrintResourceProvisioning("Port", req.Name, noColor)
+	} else {
+		spinner = output.PrintResourceCreating("Port", req.Name, noColor)
+	}
 
 	resp, err := buyPortFunc(ctx, client, req)
 
@@ -255,7 +260,12 @@ func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 	}
 
-	spinner := output.PrintResourceCreating("LAG Port", req.Name, noColor)
+	var spinner *output.Spinner
+	if req.WaitForProvision {
+		spinner = output.PrintResourceProvisioning("LAG Port", req.Name, noColor)
+	} else {
+		spinner = output.PrintResourceCreating("LAG Port", req.Name, noColor)
+	}
 
 	resp, err := buyPortFunc(ctx, client, req)
 

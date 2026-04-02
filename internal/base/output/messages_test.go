@@ -471,6 +471,85 @@ func TestOutputFormatConcurrency(t *testing.T) {
 	wg.Wait()
 }
 
+func TestPrintResourceProvisioning(t *testing.T) {
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
+	t.Run("shows provisioning message with elapsed time", func(t *testing.T) {
+		output := captureOutput(func() {
+			spinner := PrintResourceProvisioning("Port", "port-123", true)
+			time.Sleep(200 * time.Millisecond)
+			spinner.Stop()
+		})
+		assert.Contains(t, output, "Provisioning Port port-123...")
+		assert.Contains(t, output, "elapsed")
+	})
+
+	t.Run("quiet mode returns no-op spinner", func(t *testing.T) {
+		SetVerbosity("quiet")
+		defer SetVerbosity("normal")
+		spinner := PrintResourceProvisioning("Port", "port-123", true)
+		assert.NotNil(t, spinner)
+		assert.True(t, spinner.stopped)
+	})
+}
+
+func TestStartWithElapsed(t *testing.T) {
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
+	t.Run("appends elapsed time to message", func(t *testing.T) {
+		spinner := NewSpinner(true)
+		output := captureOutput(func() {
+			spinner.StartWithElapsed("Provisioning Port...")
+			time.Sleep(1100 * time.Millisecond)
+			spinner.Stop()
+		})
+		assert.Contains(t, output, "Provisioning Port...")
+		assert.Contains(t, output, "elapsed")
+	})
+
+	t.Run("stop does not panic", func(t *testing.T) {
+		spinner := NewSpinner(true)
+		spinner.StartWithElapsed("Provisioning...")
+		time.Sleep(50 * time.Millisecond)
+		assert.NotPanics(t, spinner.Stop)
+	})
+
+	t.Run("already stopped spinner is a no-op", func(t *testing.T) {
+		spinner := NewSpinner(true)
+		spinner.stopped = true
+		assert.NotPanics(t, func() { spinner.StartWithElapsed("test") })
+	})
+
+	t.Run("wasm style uses wasm chars", func(t *testing.T) {
+		spinner := NewSpinner(true)
+		spinner.style = "wasm"
+		output := captureOutput(func() {
+			spinner.StartWithElapsed("Provisioning...")
+			time.Sleep(200 * time.Millisecond)
+			spinner.Stop()
+		})
+		assert.Contains(t, output, "elapsed")
+	})
+
+	t.Run("json output format writes to stderr", func(t *testing.T) {
+		spinner := NewSpinnerWithOutput(true, "json")
+		// Capture stderr by redirecting os.Stderr
+		r, w, _ := os.Pipe()
+		oldStderr := os.Stderr
+		os.Stderr = w
+		spinner.StartWithElapsed("Provisioning...")
+		time.Sleep(200 * time.Millisecond)
+		spinner.Stop()
+		w.Close()
+		os.Stderr = oldStderr
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, r)
+		assert.Contains(t, buf.String(), "elapsed")
+	})
+}
+
 func TestSpinnerStopWithSuccess(t *testing.T) {
 	SetIsTerminal(true)
 	defer SetIsTerminal(false)

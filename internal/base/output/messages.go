@@ -259,6 +259,79 @@ func (s *Spinner) Start(prefix string) {
 	}()
 }
 
+// StartWithElapsed starts the spinner, appending "(Xs elapsed)" to the prefix each animation tick.
+func (s *Spinner) StartWithElapsed(prefix string) {
+	s.mu.Lock()
+	if s.stopped {
+		s.mu.Unlock()
+		return
+	}
+
+	if s.wasmSpinner != nil {
+		s.mu.Unlock()
+		s.wasmSpinner.Start(prefix)
+		return
+	}
+	s.mu.Unlock()
+
+	start := time.Now()
+	go func() {
+		for i := 0; ; i++ {
+			select {
+			case <-s.stop:
+				return
+			default:
+				s.mu.Lock()
+				if s.stopped {
+					s.mu.Unlock()
+					return
+				}
+
+				var chars []string
+				switch s.style {
+				case "wasm":
+					chars = spinnerCharsWasm
+				case "fancy":
+					chars = spinnerCharsFancy
+				default:
+					chars = spinnerChars
+				}
+
+				frame := chars[i%len(chars)]
+
+				var styledFrame string
+				if s.noColor {
+					styledFrame = frame
+				} else {
+					if s.style == "fancy" || s.style == "wasm" {
+						colors := []func(...interface{}) string{
+							color.New(color.FgHiCyan, color.Bold).SprintFunc(),
+							color.New(color.FgHiBlue, color.Bold).SprintFunc(),
+							color.New(color.FgHiMagenta, color.Bold).SprintFunc(),
+							color.New(color.FgHiGreen, color.Bold).SprintFunc(),
+						}
+						colorFunc := colors[(i/len(chars))%len(colors)]
+						styledFrame = colorFunc(frame)
+					} else {
+						styledFrame = color.CyanString(frame)
+					}
+				}
+
+				elapsed := time.Since(start).Truncate(time.Second)
+				msg := fmt.Sprintf("%s (%s elapsed)", prefix, elapsed)
+
+				if s.outputFormat == "json" || !IsTerminal() {
+					fmt.Fprintf(os.Stderr, "\r\033[K%s %s", styledFrame, msg)
+				} else {
+					fmt.Printf("\r\033[K%s %s", styledFrame, msg)
+				}
+				s.mu.Unlock()
+				time.Sleep(s.frameRate)
+			}
+		}
+	}()
+}
+
 func (s *Spinner) Stop() {
 	s.mu.Lock()
 
@@ -315,6 +388,17 @@ func PrintResourceCreating(resourceType, uid string, noColor bool) *Spinner {
 	msg := fmt.Sprintf("Creating %s %s...", resourceType, uidFormatted)
 	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
 	spinner.Start(msg)
+	return spinner
+}
+
+func PrintResourceProvisioning(resourceType, uid string, noColor bool) *Spinner {
+	if IsQuiet() {
+		return newNoOpSpinner()
+	}
+	uidFormatted := FormatUID(uid, noColor)
+	msg := fmt.Sprintf("Provisioning %s %s...", resourceType, uidFormatted)
+	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
+	spinner.StartWithElapsed(msg)
 	return spinner
 }
 
