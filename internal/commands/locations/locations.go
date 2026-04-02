@@ -8,8 +8,8 @@ import (
 func AddCommandsTo(rootCmd *cobra.Command) {
 	locationsCmd := cmdbuilder.NewCommand("locations", "Manage locations in the Megaport API").
 		WithLongDesc("Manage locations in the Megaport API.\n\nThis command groups all operations related to locations. You can use its subcommands to list and get details for specific locations.").
-		WithExample("locations list").
-		WithExample("locations get [locationID]").WithRootCmd(rootCmd).Build()
+		WithExample("megaport-cli locations list").
+		WithExample("megaport-cli locations get [locationID]").WithRootCmd(rootCmd).Build()
 
 	listLocationsCmd := cmdbuilder.NewCommand("list", "List all locations").
 		WithLongDesc("List all locations available in the Megaport API.\n\nThis command fetches and displays a list of all available locations with details such as location ID, name, country, and metro. You can also filter the locations based on specific criteria.").

@@ -32,6 +32,7 @@ megaport-cli mcr delete [flags]
 |------|-----------|---------|-------------|----------|
 | `--force` | `-f` | `false` | Skip confirmation prompt | false |
 | `--now` |  | `false` | Delete resource immediately instead of at end of billing cycle | false |
+| `--safe-delete` |  | `false` | Fail if the resource has attached VXCs or other active services | false |
 
 ## Subcommands
 * [docs](megaport-cli_mcr_delete_docs.md)

@@ -83,12 +83,14 @@ megaport-cli vxc buy [flags]
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 | `--name` |  |  | Name of the VXC | true |
+| `--no-wait` |  | `false` | Do not wait for provisioning to complete | false |
 | `--promo-code` |  |  | Promotional code | false |
 | `--rate-limit` |  | `0` | Bandwidth in Mbps | true |
 | `--resource-tags` |  |  | Resource tags as a JSON string (e.g. {"key1":"value1","key2":"value2"}) | false |
 | `--resource-tags-file` |  |  | Path to JSON file containing resource tags | false |
 | `--service-key` |  |  | Service key | false |
 | `--term` |  | `0` | Contract term in months (1, 12, 24, or 36) | true |
+| `--yes` | `-y` | `false` | Skip confirmation prompt for purchase | false |
 
 ## Subcommands
 * [docs](megaport-cli_vxc_buy_docs.md)
