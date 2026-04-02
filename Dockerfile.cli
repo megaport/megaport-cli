@@ -1,0 +1,13 @@
+# Minimal runtime image for the Megaport CLI native binary.
+#
+# This Dockerfile is used by GoReleaser — it copies the pre-compiled binary
+# from the GoReleaser build context rather than building from source.
+# For local testing, build the binary first:
+#
+#   go build -o megaport-cli .
+#   docker build -f Dockerfile.cli -t megaport-cli .
+#
+FROM alpine:3
+RUN apk --no-cache add ca-certificates tzdata
+COPY megaport-cli /usr/local/bin/megaport-cli
+ENTRYPOINT ["megaport-cli"]

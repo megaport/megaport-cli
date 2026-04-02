@@ -54,6 +54,37 @@ go install github.com/megaport/megaport-cli@latest
 megaport-cli version
 ```
 
+## Docker
+
+Pre-built images are published to the GitHub Container Registry for `linux/amd64` and `linux/arm64` on every release:
+
+```sh
+# Run with the latest release
+docker run --rm \
+  -e MEGAPORT_ACCESS_KEY=your_access_key \
+  -e MEGAPORT_SECRET_KEY=your_secret_key \
+  ghcr.io/megaport/megaport-cli:latest ports list
+
+# Pin to a specific version
+docker run --rm \
+  -e MEGAPORT_ACCESS_KEY=your_access_key \
+  -e MEGAPORT_SECRET_KEY=your_secret_key \
+  ghcr.io/megaport/megaport-cli:v0.4.7 locations list --metro "Sydney"
+```
+
+### CI/CD (GitHub Actions)
+
+```yaml
+- name: List Megaport ports
+  run: |
+    docker run --rm \
+      -e MEGAPORT_ACCESS_KEY=${{ secrets.MEGAPORT_ACCESS_KEY }} \
+      -e MEGAPORT_SECRET_KEY=${{ secrets.MEGAPORT_SECRET_KEY }} \
+      ghcr.io/megaport/megaport-cli:latest ports list -o json
+```
+
+> **Note:** This image runs the native CLI. For the browser-based interactive terminal, see [WASM_README.md](WASM_README.md).
+
 ## Getting Started
 
 To quickly begin using the Megaport CLI:

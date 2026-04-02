@@ -1,5 +1,7 @@
 # Visit https://goreleaser.com for documentation on how to customize this
 # behavior.
+version: 2
+
 before:
   hooks:
     # this is just an example and not a requirement for provider building/publishing
@@ -47,8 +49,38 @@ signs:
       - '${signature}'
       - '--detach-sign'
       - '${artifact}'
+dockers:
+  - image_templates:
+      - "ghcr.io/megaport/megaport-cli:{{ .Tag }}-amd64"
+      - "ghcr.io/megaport/megaport-cli:latest-amd64"
+    dockerfile: Dockerfile.cli
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+    goos: linux
+    goarch: amd64
+  - image_templates:
+      - "ghcr.io/megaport/megaport-cli:{{ .Tag }}-arm64"
+      - "ghcr.io/megaport/megaport-cli:latest-arm64"
+    dockerfile: Dockerfile.cli
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/arm64"
+    goos: linux
+    goarch: arm64
+
+docker_manifests:
+  - name_template: "ghcr.io/megaport/megaport-cli:{{ .Tag }}"
+    image_templates:
+      - "ghcr.io/megaport/megaport-cli:{{ .Tag }}-amd64"
+      - "ghcr.io/megaport/megaport-cli:{{ .Tag }}-arm64"
+  - name_template: "ghcr.io/megaport/megaport-cli:latest"
+    image_templates:
+      - "ghcr.io/megaport/megaport-cli:latest-amd64"
+      - "ghcr.io/megaport/megaport-cli:latest-arm64"
+
 release:
   # If you want to manually examine the release before its live, uncomment this line:
   draft: true
 changelog:
-  skip: true
+  disable: true
