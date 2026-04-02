@@ -321,6 +321,35 @@ func TestClassifyError_SDKErrors(t *testing.T) {
 	}
 }
 
+func TestWrapRunE_CancelledError(t *testing.T) {
+	// WrapRunE must preserve the Cancelled code when the action function
+	// returns a CLIError that already carries it.
+	wrapped := WrapRunE(func(cmd *cobra.Command, args []string) error {
+		return exitcodes.NewCancelledError(fmt.Errorf("cancelled by user"))
+	})
+	cmd := &cobra.Command{Use: "test"}
+	err := wrapped(cmd, []string{})
+	require.Error(t, err)
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Cancelled, cliErr.Code)
+}
+
+func TestWrapColorAwareRunE_CancelledError(t *testing.T) {
+	wrapped := WrapColorAwareRunE(func(cmd *cobra.Command, args []string, noColor bool) error {
+		return exitcodes.NewCancelledError(fmt.Errorf("cancelled by user"))
+	})
+	cmd := &cobra.Command{Use: "test"}
+	cmd.Flags().Bool("no-color", false, "")
+	err := wrapped(cmd, []string{})
+	require.Error(t, err)
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Cancelled, cliErr.Code)
+}
+
 func TestWrapRunE_AuthError(t *testing.T) {
 	wrapped := WrapRunE(func(cmd *cobra.Command, args []string) error {
 		return errors.New("error logging in: invalid credentials")

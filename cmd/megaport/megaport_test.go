@@ -22,6 +22,7 @@ func TestExitCodeFromError(t *testing.T) {
 		{"CLIError usage", exitcodes.NewUsageError(errors.New("bad flag")), exitcodes.Usage},
 		{"CLIError auth", exitcodes.NewAuthError(errors.New("no creds")), exitcodes.Authentication},
 		{"CLIError api", exitcodes.NewAPIError(errors.New("500")), exitcodes.API},
+		{"CLIError cancelled", exitcodes.NewCancelledError(errors.New("cancelled by user")), exitcodes.Cancelled},
 
 		// Cobra-style errors
 		{"cobra unknown command", errors.New(`unknown command "foo" for "megaport-cli"`), exitcodes.Usage},
