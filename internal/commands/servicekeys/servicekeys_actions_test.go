@@ -291,3 +291,55 @@ func TestGetServiceKey(t *testing.T) {
 		})
 	}
 }
+
+func TestListServiceKeys_EmptyResult(t *testing.T) {
+	tests := []struct {
+		name           string
+		outputFormat   string
+		expectedOutput string
+		notExpected    string
+	}{
+		{
+			name:           "table format shows info message",
+			outputFormat:   "table",
+			expectedOutput: "No service keys found.",
+		},
+		{
+			name:         "json format returns empty array without message",
+			outputFormat: "json",
+			notExpected:  "No service keys found.",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockServiceKeyService{
+				ListServiceKeysResult: &megaport.ListServiceKeysResponse{
+					ServiceKeys: []*megaport.ServiceKey{},
+				},
+			}
+			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.ServiceKeyService = mockService
+				return client, nil
+			}
+
+			cmd := testutil.NewCommand("list", testutil.OutputAdapter(ListServiceKeys))
+			cmd.Flags().String("product-uid", "", "")
+			if tt.outputFormat != "" && tt.outputFormat != "table" {
+				testutil.SetFlags(t, cmd, map[string]string{"output": tt.outputFormat})
+			}
+
+			capturedOutput := output.CaptureOutput(func() {
+				_ = cmd.RunE(cmd, []string{})
+			})
+
+			if tt.expectedOutput != "" {
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+			}
+			if tt.notExpected != "" {
+				assert.NotContains(t, capturedOutput, tt.notExpected)
+			}
+		})
+	}
+}
