@@ -175,8 +175,13 @@ Key architectural components:
 - `mcr`: Manage Megaport Cloud Routers
 - `mve`: Manage Megaport Virtual Edge instances
 - `vxc`: Manage Virtual Cross Connects
+- `ix`: Manage Internet Exchange connections
 - `partners`: List and search partner ports
 - `servicekeys`: Manage service keys
+- `users`: Manage company users
+- `managed-account`: Manage partner managed accounts (sub-companies)
+- `billing-market`: View and configure billing market details
+- `status`: Show a dashboard of all resources
 
 ### Output Formats
 
@@ -185,6 +190,7 @@ All commands support multiple output formats:
 - `--output table` (default)
 - `--output json`
 - `--output csv`
+- `--output xml`
 
 ### Examples
 
@@ -433,6 +439,104 @@ megaport-cli servicekeys create --product-uid PRODUCT_UID --description "My Serv
 megaport-cli servicekeys update SERVICE_KEY_UID --description "Updated Description"
 ```
 
+#### IX (Internet Exchange)
+
+```sh
+# List all IXs
+megaport-cli ix list
+
+# Get details for a specific IX
+megaport-cli ix get IX_UID --output json
+
+# Buy a new IX
+megaport-cli ix buy --interactive
+megaport-cli ix buy --product-uid PORT_UID --name "My IX" --network-service-type "Los Angeles IX" --asn 65000 --mac-address "00:11:22:33:44:55" --rate-limit 1000 --vlan 100
+megaport-cli ix buy --json '{"productUid":"PORT_UID","productName":"My IX","networkServiceType":"Los Angeles IX","asn":65000,"macAddress":"00:11:22:33:44:55","rateLimit":1000,"vlan":100}'
+megaport-cli ix buy --json-file ./ix-config.json
+
+# Update an existing IX
+megaport-cli ix update IX_UID --interactive
+megaport-cli ix update IX_UID --name "Updated IX" --rate-limit 2000
+
+# Delete an IX
+megaport-cli ix delete IX_UID
+```
+
+#### Users
+
+```sh
+# List all users in your company
+megaport-cli users list
+megaport-cli users list --active-only
+megaport-cli users list --position "Technical Admin"
+
+# Get details for a specific user
+megaport-cli users get EMPLOYEE_ID
+
+# Create a new user
+megaport-cli users create --interactive
+megaport-cli users create --first-name "John" --last-name "Doe" --email "john@example.com" --position "Technical Admin"
+megaport-cli users create --json '{"firstName":"John","lastName":"Doe","email":"john@example.com","position":"Technical Admin"}'
+
+# Update a user
+megaport-cli users update EMPLOYEE_ID --interactive
+megaport-cli users update EMPLOYEE_ID --first-name "Jane"
+
+# Deactivate or delete a user
+megaport-cli users deactivate EMPLOYEE_ID
+megaport-cli users delete EMPLOYEE_ID --force
+
+# View user activity
+megaport-cli users activity
+```
+
+#### Status Dashboard
+
+```sh
+# Show a dashboard of all active resources
+megaport-cli status
+
+# Include inactive/decommissioned resources
+megaport-cli status --include-inactive
+
+# Output as JSON
+megaport-cli status -o json
+```
+
+#### Billing Market
+
+```sh
+# Get current billing market configuration
+megaport-cli billing-market get
+megaport-cli billing-market get -o json
+
+# Set billing market configuration
+megaport-cli billing-market set --currency USD --language en \
+  --billing-contact-name "John Doe" --billing-contact-phone "+1234567890" \
+  --billing-contact-email "john@example.com" \
+  --address1 "123 Main St" --city "New York" --state "NY" \
+  --postcode "10001" --country US --first-party-id 1558
+```
+
+#### Managed Accounts
+
+```sh
+# List all managed accounts linked to your partner account
+megaport-cli managed-account list
+megaport-cli managed-account list --account-name "Acme"
+
+# Get details for a specific managed account
+megaport-cli managed-account get COMPANY_UID ACCOUNT_NAME
+
+# Create a new managed account
+megaport-cli managed-account create --interactive
+megaport-cli managed-account create --account-name "Acme Corp" --account-ref "REF-001"
+megaport-cli managed-account create --json '{"accountName":"Acme Corp","accountRef":"REF-001"}'
+
+# Update a managed account
+megaport-cli managed-account update COMPANY_UID --account-name "New Name"
+```
+
 ## Troubleshooting
 
 Common issues and their solutions:
@@ -475,8 +579,13 @@ The CLI includes comprehensive generated documentation in the `docs` folder:
   - VXC - Virtual cross connects between endpoints
   - MCR - Megaport Cloud Router management
   - MVE - Megaport Virtual Edge devices
+  - IX - Internet Exchange connections
   - Partners - Cloud service provider connections
   - Service Keys - Manage service keys for connections
+  - Users - Manage company users
+  - Managed Accounts - Partner sub-account management
+  - Billing Market - Billing contact and currency configuration
+  - Status - Resource dashboard
 
 Each command page includes:
 

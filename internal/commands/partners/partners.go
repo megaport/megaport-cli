@@ -8,9 +8,9 @@ import (
 func AddCommandsTo(rootCmd *cobra.Command) {
 	partnersCmd := cmdbuilder.NewCommand("partners", "Manage partner ports in the Megaport API").
 		WithLongDesc("Manage partner ports in the Megaport API.\n\nThis command groups all operations related to partner ports. You can use its subcommands to list and filter available partner ports based on specific criteria.").
-		WithExample("partners find").
-		WithExample("partners list").
-		WithExample("partners list --product-name \"AWS Partner Port\" --company-name \"AWS\" --location-id 1").
+		WithExample("megaport-cli partners find").
+		WithExample("megaport-cli partners list").
+		WithExample("megaport-cli partners list --product-name \"AWS Partner Port\" --company-name \"AWS\" --location-id 1").
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -22,12 +22,12 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithFlag("company-name", "", "Filter partner ports by company name").
 		WithIntFlag("location-id", 0, "Filter partner ports by location ID").
 		WithFlag("diversity-zone", "", "Filter partner ports by diversity zone").
-		WithExample("list").
-		WithExample("list --product-name \"AWS Partner Port\"").
-		WithExample("list --connect-type \"Dedicated Cloud Connection\"").
-		WithExample("list --company-name \"Amazon Web Services\"").
-		WithExample("list --location-id 1").
-		WithExample("list --diversity-zone \"blue\"").
+		WithExample("megaport-cli partners list").
+		WithExample("megaport-cli partners list --product-name \"AWS Partner Port\"").
+		WithExample("megaport-cli partners list --connect-type \"Dedicated Cloud Connection\"").
+		WithExample("megaport-cli partners list --company-name \"Amazon Web Services\"").
+		WithExample("megaport-cli partners list --location-id 1").
+		WithExample("megaport-cli partners list --diversity-zone \"blue\"").
 		WithImportantNote("The list can be filtered by multiple criteria at once").
 		WithImportantNote("Filtering is case-insensitive and partial matches are supported").
 		WithRootCmd(rootCmd).

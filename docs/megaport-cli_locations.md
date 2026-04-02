@@ -11,8 +11,8 @@ This command groups all operations related to locations. You can use its subcomm
 ### Example Usage
 
 ```sh
-  locations list
-  locations get [locationID]
+  megaport-cli locations list
+  megaport-cli locations get [locationID]
 ```
 
 ## Usage
@@ -31,4 +31,7 @@ megaport-cli locations [flags]
 * [docs](megaport-cli_locations_docs.md)
 * [get](megaport-cli_locations_get.md)
 * [list](megaport-cli_locations_list.md)
+* [list-countries](megaport-cli_locations_list-countries.md)
+* [list-market-codes](megaport-cli_locations_list-market-codes.md)
+* [search](megaport-cli_locations_search.md)
 

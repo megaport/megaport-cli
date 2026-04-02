@@ -10,6 +10,8 @@ This command fetches and displays a list of all available locations with details
 
 ### Optional Fields
   - `country`: Filter locations by country
+  - `market-code`: Filter locations by market code
+  - `mcr-available`: Filter locations that support MCR
   - `metro`: Filter locations by metro area
   - `name`: Filter locations by name
 
@@ -37,6 +39,8 @@ megaport-cli locations list [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 | `--country` |  |  | Filter locations by country | false |
+| `--market-code` |  |  | Filter locations by market code | false |
+| `--mcr-available` |  | `false` | Filter locations that support MCR | false |
 | `--metro` |  |  | Filter locations by metro area | false |
 | `--name` |  |  | Filter locations by name | false |
 
