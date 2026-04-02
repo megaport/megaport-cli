@@ -118,8 +118,9 @@ func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	spinner.Stop()
 
 	if err != nil {
+		err = utils.WrapAPIError(err, "VXC", vxcUID)
 		output.PrintError("Failed to get VXC: %v", noColor, err)
-		return fmt.Errorf("error getting VXC: %v", err)
+		return fmt.Errorf("error getting VXC: %w", err)
 	}
 
 	err = printVXCs([]*megaport.VXC{vxc}, outputFormat, noColor)
@@ -388,6 +389,7 @@ func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	spinner.Stop()
 
 	if err != nil {
+		err = utils.WrapAPIError(err, "VXC", vxcUID)
 		output.PrintError("Failed to delete VXC: %v", noColor, err)
 		return err
 	}

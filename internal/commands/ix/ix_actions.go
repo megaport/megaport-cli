@@ -93,8 +93,9 @@ func GetIX(cmd *cobra.Command, args []string, noColor bool, outputFormat string)
 	spinner.Stop()
 
 	if err != nil {
+		err = utils.WrapAPIError(err, "IX", ixUID)
 		output.PrintError("Error getting IX: %v", noColor, err)
-		return fmt.Errorf("error getting IX: %v", err)
+		return fmt.Errorf("error getting IX: %w", err)
 	}
 
 	err = printIXs([]*megaport.IX{ix}, outputFormat, noColor)
@@ -390,7 +391,8 @@ func DeleteIX(cmd *cobra.Command, args []string, noColor bool) error {
 	spinner.Stop()
 
 	if err != nil {
-		return fmt.Errorf("error deleting IX: %v", err)
+		err = utils.WrapAPIError(err, "IX", ixUID)
+		return fmt.Errorf("error deleting IX: %w", err)
 	}
 
 	output.PrintResourceDeleted("IX", ixUID, deleteNow, noColor)

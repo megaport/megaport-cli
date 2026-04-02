@@ -334,8 +334,9 @@ func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	spinner.Stop()
 
 	if err != nil {
+		err = utils.WrapAPIError(err, "MVE", mveUID)
 		output.PrintError("Failed to get MVE: %v", noColor, err)
-		return fmt.Errorf("error getting MVE: %v", err)
+		return fmt.Errorf("error getting MVE: %w", err)
 	}
 
 	if mve == nil {
@@ -470,8 +471,9 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	spinner.Stop()
 
 	if err != nil {
+		err = utils.WrapAPIError(err, "MVE", mveUID)
 		output.PrintError("Failed to delete MVE: %v", noColor, err)
-		return fmt.Errorf("error deleting MVE: %v", err)
+		return fmt.Errorf("error deleting MVE: %w", err)
 	}
 
 	if resp.IsDeleted {
