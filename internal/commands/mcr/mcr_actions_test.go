@@ -1366,7 +1366,7 @@ func TestListMCRsCmd_WithMockClient(t *testing.T) {
 
 				// Check warning message when no results found
 				if len(tt.expectedMCRs) == 0 && tt.expectedError == "" {
-					assert.Contains(t, capturedOutput, "No MCRs found matching the specified filters")
+					assert.Contains(t, capturedOutput, "No MCRs found. Create one with 'megaport mcr buy'.")
 				}
 			}
 

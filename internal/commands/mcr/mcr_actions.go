@@ -661,7 +661,10 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	filteredMCRs := filterMCRs(mcrs, locationID, portSpeed, mcrName)
 
 	if len(filteredMCRs) == 0 {
-		output.PrintWarning("No MCRs found matching the specified filters", noColor)
+		if outputFormat == utils.FormatTable {
+			output.PrintInfo("No MCRs found. Create one with 'megaport mcr buy'.", noColor)
+		}
+		return nil
 	}
 
 	err = printMCRs(filteredMCRs, outputFormat, noColor)

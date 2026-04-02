@@ -1038,7 +1038,7 @@ func TestListVXCs(t *testing.T) {
 				}
 
 				if len(tt.expectedVXCs) == 0 && tt.expectedError == "" {
-					assert.Contains(t, capturedOutput, "No VXCs found matching the specified filters")
+					assert.Contains(t, capturedOutput, "No VXCs found. Create one with 'megaport vxc buy'.")
 				}
 			}
 

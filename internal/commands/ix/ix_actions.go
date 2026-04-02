@@ -63,7 +63,10 @@ func ListIXs(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 	filteredIXs := filterIXs(ixs, name, networkServiceType, asn, vlan, locationID, rateLimit)
 
 	if len(filteredIXs) == 0 {
-		output.PrintWarning("No IXs found matching the specified filters", noColor)
+		if outputFormat == utils.FormatTable {
+			output.PrintInfo("No IX connections found. Create one with 'megaport ix buy'.", noColor)
+		}
+		return nil
 	}
 
 	err = printIXs(filteredIXs, outputFormat, noColor)

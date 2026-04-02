@@ -1033,7 +1033,7 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 			setupMock: func(m *MockMVEService) {
 				m.ListMVEsResult = mves
 			},
-			expectedOutput:   []string{"No MVEs found matching the specified filters"},
+			expectedOutput:   []string{"No MVEs found. Create one with 'megaport mve buy'."},
 			unexpectedOutput: []string{"mve-1", "mve-2", "mve-3"},
 		},
 		{
@@ -1050,7 +1050,7 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 			setupMock: func(m *MockMVEService) {
 				m.ListMVEsResult = []*megaport.MVE{}
 			},
-			expectedOutput: []string{"No MVEs found matching the specified filters"},
+			expectedOutput: []string{"No MVEs found. Create one with 'megaport mve buy'."},
 		},
 	}
 

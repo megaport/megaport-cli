@@ -219,7 +219,7 @@ func TestListManagedAccounts(t *testing.T) {
 				}
 
 				if len(tt.expectedAccounts) == 0 && tt.expectedError == "" {
-					assert.Contains(t, capturedOutput, "No managed accounts found matching the specified filters")
+					assert.Contains(t, capturedOutput, "No managed accounts found.")
 				}
 			}
 		})
