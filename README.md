@@ -175,12 +175,19 @@ Settings are applied in this order (highest to lowest precedence):
 
 ### Environment Variables
 
-For CI/CD pipelines or temporary usage:
+| Variable | Description | Default |
+|---|---|---|
+| `MEGAPORT_ACCESS_KEY` | API access key (overrides active profile) | — |
+| `MEGAPORT_SECRET_KEY` | API secret key (overrides active profile) | — |
+| `MEGAPORT_ENVIRONMENT` | API environment: `production`, `staging`, `development` | `production` |
+| `MEGAPORT_CONFIG_DIR` | Override config file directory (default: `~/.megaport/`) | — |
+
+For CI/CD pipelines or temporary usage, set these before running any command:
 
 ```sh
-export MEGAPORT_ACCESS_KEY=<your-access-key>
-export MEGAPORT_SECRET_KEY=<your-secret-key>
-export MEGAPORT_ENVIRONMENT=<environment>  # production, staging, or development
+export MEGAPORT_ACCESS_KEY=your_access_key
+export MEGAPORT_SECRET_KEY=your_secret_key
+export MEGAPORT_ENVIRONMENT=production
 ```
 
 For complete documentation on configuration options, profile management, import/export functionality, and troubleshooting, see the [Configuration Guide](internal/commands/config/config.md).
@@ -570,12 +577,27 @@ megaport-cli managed-account update COMPANY_UID --account-name "New Name"
 
 ## Troubleshooting
 
-Common issues and their solutions:
+### Authentication Errors
+If you see "401 Unauthorized", check:
+- Your API credentials are correct: `megaport config view`
+- Your active profile is set: `megaport config list-profiles`
+- Environment variables aren't overriding your profile (unset `MEGAPORT_ACCESS_KEY` / `MEGAPORT_SECRET_KEY` to use the profile)
 
-- **Authentication errors**: Ensure your access key and secret key are correctly set and have the necessary permissions
-- **Rate limiting**: The Megaport API has rate limits; if you encounter 429 errors, add delays between requests
-- **Output formatting issues**: Use the `--no-color` flag if terminal colors are causing display problems
-- **Missing resources**: Resources may take time to provision; use appropriate wait times in automation scripts
+### Command Not Found
+Ensure the binary is in your `PATH`:
+- **Go install**: Add `$(go env GOPATH)/bin` to your shell's `PATH`
+- **Manual install**: Add the directory containing the binary to `PATH`
+
+### Rate Limiting
+If you see 429 errors, the Megaport API rate limit has been hit. Add delays between requests in automation scripts.
+
+### Slow Commands / Large Accounts
+List operations fetch all resources. Use filters to narrow results:
+- `megaport ports list --port-name "Sydney"`
+- `megaport vxc list --a-end-uid <portUID>`
+
+### Display Issues
+Use `--no-color` if terminal colors cause display problems, or pipe output to a file.
 
 ### Workflow Example: Set up a Cloud Connection
 
