@@ -224,6 +224,31 @@ func TestBuyVXC(t *testing.T) {
 			},
 			skipRequest: true,
 		},
+		{
+			name:          "invalid JSON returns error",
+			expectedError: "error parsing JSON",
+			flags: map[string]string{
+				"json": `{bad json}`,
+			},
+		},
+		{
+			name: "JSON takes precedence over interactive flag",
+			setupMock: func(t *testing.T, m *MockVXCService) {
+				buyVXCFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyVXCRequest) (*megaport.BuyVXCResponse, error) {
+					return &megaport.BuyVXCResponse{
+						TechnicalServiceUID: "vxc-json-wins",
+					}, nil
+				}
+			},
+			flags: map[string]string{
+				"json": `{"portUid":"port-aaa-111","vxcName":"JSON VXC","rateLimit":500,"term":12,"bEndConfiguration":{"productUID":"port-bbb-222"}}`,
+			},
+			flagsBool: map[string]bool{
+				"interactive": true,
+			},
+			skipRequest:    true,
+			expectedOutput: "VXC created vxc-json-wins",
+		},
 	}
 
 	for _, tt := range tests {

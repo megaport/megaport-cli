@@ -877,6 +877,19 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			name:          "no input provided",
 			expectedError: "no input provided",
 		},
+		{
+			name:        "JSON takes precedence over interactive flag",
+			interactive: true,
+			flags: map[string]string{
+				"json": `{"name":"JSON MCR","term":24,"portSpeed":10000,"locationId":123,"mcrAsn":65000,"diversityZone":"green","costCentre":"cost-789","promoCode":"JSONPROMO"}`,
+			},
+			setupMock: func(m *MockMCRService) {
+				m.BuyMCRResult = &megaport.BuyMCRResponse{
+					TechnicalServiceUID: "mcr-json-wins",
+				}
+			},
+			expectedOutput: "MCR created",
+		},
 	}
 
 	for _, tt := range tests {

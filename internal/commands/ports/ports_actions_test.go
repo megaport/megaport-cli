@@ -819,6 +819,26 @@ func TestBuyPort(t *testing.T) {
 			},
 			expectedError: "invalid port configuration",
 		},
+		{
+			name:          "invalid JSON returns error",
+			jsonInput:     `{bad json}`,
+			setupMock:     func(m *MockPortService) {},
+			expectedError: "error parsing JSON",
+		},
+		{
+			name:      "JSON takes precedence over interactive flag",
+			jsonInput: `{"name":"json-port","term":12,"portSpeed":1000,"locationId":1,"marketPlaceVisibility":false}`,
+			flags: map[string]string{
+				"interactive": "true",
+			},
+			setupMock: func(m *MockPortService) {},
+			buyPortOverride: func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
+				return &megaport.BuyPortResponse{
+					TechnicalServiceUIDs: []string{"json-over-interactive-uid"},
+				}, nil
+			},
+			expectedContains: "json-over-interactive-uid",
+		},
 	}
 
 	for _, tt := range tests {
