@@ -494,6 +494,22 @@ func TestBuyIX(t *testing.T) {
 			name:          "no input provided",
 			expectedError: "no input provided",
 		},
+		{
+			name:        "JSON takes precedence over interactive flag",
+			interactive: true,
+			flags: map[string]string{
+				"json":                 `{"productUid":"port-uid-123","productName":"JSON IX","networkServiceType":"Los Angeles IX","asn":65000,"macAddress":"00:11:22:33:44:55","rateLimit":1000,"vlan":100}`,
+				"product-uid":          "port-uid-123",
+				"name":                 "JSON IX",
+				"network-service-type": "Los Angeles IX",
+			},
+			setupMock: func(m *MockIXService) {
+				m.buyIXResponse = &megaport.BuyIXResponse{
+					TechnicalServiceUID: "ix-json-wins",
+				}
+			},
+			expectedOutput: "IX created",
+		},
 	}
 
 	for _, tt := range tests {

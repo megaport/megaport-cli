@@ -798,6 +798,45 @@ func TestBuyMVE(t *testing.T) {
 			},
 			expectedError: "purchase failed",
 		},
+		{
+			name: "invalid JSON returns error",
+			flags: map[string]string{
+				"json": `{bad json}`,
+			},
+			expectedError: "error parsing JSON",
+		},
+		{
+			name:        "JSON takes precedence over interactive flag",
+			interactive: true,
+			flags: map[string]string{
+				"json": `{
+					"name": "JSON MVE",
+					"term": 12,
+					"locationId": 123,
+					"vendorConfig": {
+						"vendor": "cisco",
+						"imageId": 1,
+						"productSize": "LARGE",
+						"mveLabel": "json-label",
+						"manageLocally": true,
+						"adminSshPublicKey": "admin-ssh",
+						"sshPublicKey": "ssh-key",
+						"cloudInit": "cloud-init",
+						"fmcIpAddress": "fmc-ip",
+						"fmcRegistrationKey": "fmc-key",
+						"fmcNatId": "fmc-nat"
+					},
+					"vnics": [{"description": "JSON VNIC", "vlan": 200}]
+				}`,
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.ValidateMVEOrderErr = nil
+				m.BuyMVEResult = &megaport.BuyMVEResponse{
+					TechnicalServiceUID: "mve-json-wins",
+				}
+			},
+			expectedOutput: "MVE created mve-json-wins",
+		},
 	}
 
 	for _, tt := range tests {
