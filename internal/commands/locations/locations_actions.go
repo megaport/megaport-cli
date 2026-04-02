@@ -8,6 +8,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -67,9 +68,10 @@ func ListLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	filteredLocations := filterLocations(locations, filters)
 
 	if len(filteredLocations) == 0 {
-		output.PrintWarning("No locations found matching the specified filters", noColor)
-	} else {
-		output.PrintInfo("Found %d locations", noColor, len(filteredLocations))
+		if outputFormat == utils.FormatTable {
+			output.PrintInfo("No locations found matching your filters.", noColor)
+		}
+		return nil
 	}
 
 	err = printLocations(filteredLocations, outputFormat, noColor)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -145,7 +146,10 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 	}
 
 	if len(resp.ServiceKeys) == 0 {
-		output.PrintWarning("No service keys found", noColor)
+		if outputFormat == utils.FormatTable {
+			output.PrintInfo("No service keys found.", noColor)
+		}
+		return nil
 	}
 
 	outputs := make([]ServiceKeyOutput, 0, len(resp.ServiceKeys))

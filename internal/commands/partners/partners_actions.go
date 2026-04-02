@@ -40,9 +40,10 @@ func ListPartners(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	filteredPartners := filterPartners(partners, productName, connectType, companyName, locationID, diversityZone)
 
 	if len(filteredPartners) == 0 {
-		output.PrintWarning("No partner ports found matching the specified filters", noColor)
-	} else {
-		output.PrintInfo("Found %d partner ports matching the specified filters", noColor, len(filteredPartners))
+		if outputFormat == utils.FormatTable {
+			output.PrintInfo("No partner ports found matching your filters.", noColor)
+		}
+		return nil
 	}
 
 	err = printPartnersFunc(filteredPartners, outputFormat, noColor)

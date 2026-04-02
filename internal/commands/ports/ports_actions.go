@@ -309,7 +309,10 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 	filteredPorts := filterPorts(ports, locationID, portSpeed, portName, includeInactive)
 
 	if len(filteredPorts) == 0 {
-		output.PrintWarning("No ports found matching the specified filters", noColor)
+		if outputFormat == utils.FormatTable {
+			output.PrintInfo("No ports found. Create one with 'megaport ports buy'.", noColor)
+		}
+		return nil
 	}
 
 	err = printPorts(filteredPorts, outputFormat, noColor)

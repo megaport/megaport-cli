@@ -372,7 +372,7 @@ func TestListIXs(t *testing.T) {
 				}
 
 				if len(tt.expectedIXs) == 0 && tt.expectedError == "" {
-					assert.Contains(t, capturedOutput, "No IXs found matching the specified filters")
+					assert.Contains(t, capturedOutput, "No IX connections found. Create one with 'megaport ix buy'.")
 				}
 			}
 

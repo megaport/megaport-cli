@@ -7,6 +7,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -39,7 +40,10 @@ func ListManagedAccounts(cmd *cobra.Command, args []string, noColor bool, output
 	filteredAccounts := filterManagedAccounts(accounts, accountName, accountRef)
 
 	if len(filteredAccounts) == 0 {
-		output.PrintWarning("No managed accounts found matching the specified filters", noColor)
+		if outputFormat == utils.FormatTable {
+			output.PrintInfo("No managed accounts found.", noColor)
+		}
+		return nil
 	}
 
 	err = printManagedAccounts(filteredAccounts, outputFormat, noColor)

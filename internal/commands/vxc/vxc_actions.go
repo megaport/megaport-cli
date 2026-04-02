@@ -86,7 +86,10 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	filteredVXCs := filterVXCs(vxcs, name)
 
 	if len(filteredVXCs) == 0 {
-		output.PrintWarning("No VXCs found matching the specified filters", noColor)
+		if outputFormat == utils.FormatTable {
+			output.PrintInfo("No VXCs found. Create one with 'megaport vxc buy'.", noColor)
+		}
+		return nil
 	}
 
 	err = printVXCs(filteredVXCs, outputFormat, noColor)

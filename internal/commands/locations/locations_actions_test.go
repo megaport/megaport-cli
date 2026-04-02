@@ -273,7 +273,7 @@ func TestListLocationsCommand(t *testing.T) {
 			assert.NoError(t, err)
 		})
 
-		assert.Contains(t, output, "No locations found matching the specified filters")
+		assert.Contains(t, output, "No locations found matching your filters.")
 	})
 }
 
