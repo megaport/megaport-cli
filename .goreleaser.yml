@@ -45,7 +45,7 @@ builds:
       - arm64
     binary: megaport-cli
 archives:
-  - ids:
+  - builds:
       - release
     format: zip
     name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
