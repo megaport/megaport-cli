@@ -126,3 +126,7 @@ func (m *MockLocationsService) ListMarketCodes(ctx context.Context) ([]string, e
 func (m *MockLocationsService) IsValidMarketCode(ctx context.Context, marketCode string) (bool, error) {
 	return m.IsValidMarketCodeResult, m.IsValidMarketCodeErr
 }
+
+func (m *MockLocationsService) GetRoundTripTimes(_ context.Context, _, _, _ int) ([]*megaport.RoundTripTime, error) {
+	return nil, nil
+}
