@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 
@@ -284,6 +285,16 @@ func TestClassifyError(t *testing.T) {
 			assert.Equal(t, tt.wantCode, code)
 		})
 	}
+}
+
+func TestClassifyError_CLIErrorPassthrough(t *testing.T) {
+	// A CLIError already carrying a code should have that code preserved.
+	inner := exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
+	assert.Equal(t, exitcodes.Cancelled, classifyError(inner))
+
+	// Works through wrapping too.
+	wrapped := fmt.Errorf("outer: %w", inner)
+	assert.Equal(t, exitcodes.Cancelled, classifyError(wrapped))
 }
 
 func TestClassifyError_SDKErrors(t *testing.T) {

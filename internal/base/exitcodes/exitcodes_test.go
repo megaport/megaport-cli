@@ -52,6 +52,7 @@ func TestConstructors(t *testing.T) {
 		{"NewUsageError", NewUsageError(errors.New("bad flag")), Usage},
 		{"NewAuthError", NewAuthError(errors.New("no creds")), Authentication},
 		{"NewAPIError", NewAPIError(errors.New("500")), API},
+		{"NewCancelledError", NewCancelledError(errors.New("cancelled by user")), Cancelled},
 		{"New with General", New(General, errors.New("unknown")), General},
 	}
 

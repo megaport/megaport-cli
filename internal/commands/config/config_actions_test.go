@@ -808,3 +808,48 @@ func TestClearDefaults(t *testing.T) {
 		assert.Contains(t, outputText, "All default settings cleared")
 	})
 }
+
+func TestDeleteProfile_Cancelled(t *testing.T) {
+	_, cleanup := setupTestConfigEnv(t)
+	defer cleanup()
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+	require.NoError(t, manager.CreateProfile("to-keep", "access", "secret", "production", ""))
+
+	oldConfirmPrompt := utils.ConfirmPrompt
+	utils.ConfirmPrompt = func(_ string, _ bool) bool { return false }
+	defer func() { utils.ConfirmPrompt = oldConfirmPrompt }()
+
+	cmd, _ := setupTestCmd()
+	outputText, err := captureOutputFromAction(func() error {
+		return DeleteProfile(cmd, []string{"to-keep"}, false)
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cancelled by user")
+	assert.Contains(t, outputText, "Profile deletion cancelled")
+}
+
+func TestImportConfig_Cancelled(t *testing.T) {
+	configDir, cleanup := setupTestConfigEnv(t)
+	defer cleanup()
+
+	// Create a minimal export file to import from.
+	importPath := filepath.Join(configDir, "import.json")
+	require.NoError(t, os.WriteFile(importPath, []byte(`{"version":1,"profiles":{}}`), 0600))
+
+	oldConfirmPrompt := utils.ConfirmPrompt
+	utils.ConfirmPrompt = func(_ string, _ bool) bool { return false }
+	defer func() { utils.ConfirmPrompt = oldConfirmPrompt }()
+
+	cmd, _ := setupTestCmd()
+	cmd.Flags().String("file", importPath, "")
+	require.NoError(t, cmd.ParseFlags([]string{"--file=" + importPath}))
+
+	outputText, err := captureOutputFromAction(func() error {
+		return ImportConfig(cmd, nil, false)
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cancelled by user")
+	assert.Contains(t, outputText, "Import cancelled")
+}
