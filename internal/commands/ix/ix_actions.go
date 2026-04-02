@@ -233,7 +233,12 @@ func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 	}
 
-	buySpinner := output.PrintResourceCreating("IX", req.Name, noColor)
+	var buySpinner *output.Spinner
+	if req.WaitForProvision {
+		buySpinner = output.PrintResourceProvisioning("IX", req.Name, noColor)
+	} else {
+		buySpinner = output.PrintResourceCreating("IX", req.Name, noColor)
+	}
 	resp, err := buyIXFunc(ctx, client, req)
 	buySpinner.Stop()
 

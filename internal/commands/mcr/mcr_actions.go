@@ -98,7 +98,12 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 	}
 
-	buySpinner := output.PrintResourceCreating("MCR", req.Name, noColor)
+	var buySpinner *output.Spinner
+	if req.WaitForProvision {
+		buySpinner = output.PrintResourceProvisioning("MCR", req.Name, noColor)
+	} else {
+		buySpinner = output.PrintResourceCreating("MCR", req.Name, noColor)
+	}
 	resp, err := buyMCRFunc(ctx, client, req)
 	buySpinner.Stop()
 
