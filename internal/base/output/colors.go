@@ -80,14 +80,14 @@ func colorizeStatus(status string, noColor bool) string {
 	// Format: [ STATUS ] with colored background and borders
 
 	if strings.Contains(status, "ACTIVE") || strings.Contains(status, "LIVE") ||
-		strings.Contains(status, "CONFIGURED") || status == "UP" || status == "AVAILABLE" {
+		status == "UP" || status == "AVAILABLE" {
 		// Green badge with bright background
 		return color.New(color.FgHiWhite, color.BgGreen, color.Bold).Sprintf(" %s ", status)
 	}
 	if strings.Contains(status, "PENDING") || strings.Contains(status, "PROVISIONING") ||
 		strings.Contains(status, "WAITING") || strings.Contains(status, "REQUESTED") ||
-		strings.Contains(status, "DEPLOYABLE") {
-		// Yellow badge for in-progress states
+		strings.Contains(status, "DEPLOYABLE") || strings.Contains(status, "CONFIGURED") {
+		// Yellow badge for in-progress/configured-but-not-live states
 		return color.New(color.FgBlack, color.BgYellow, color.Bold).Sprintf(" %s ", status)
 	}
 	if strings.Contains(status, "ERROR") || strings.Contains(status, "FAILED") {
