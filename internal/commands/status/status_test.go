@@ -330,6 +330,129 @@ func TestStatusDashboard_MultipleServiceErrors(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// TestStatusDashboard_XMLOutput verifies the XML output path is exercised.
+func TestStatusDashboard_XMLOutput(t *testing.T) {
+	cleanup := setupMocks(
+		&MockPortService{ListPortsResult: []*megaport.Port{
+			{UID: "port-1", Name: "P1", ProvisioningStatus: "LIVE", PortSpeed: 1000, LocationID: 1},
+		}},
+		&MockMCRService{},
+		&MockMVEService{},
+		&MockVXCService{},
+		&MockIXService{},
+	)
+	defer cleanup()
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	cmd := newStatusCmd()
+	err := StatusDashboard(cmd, nil, true, "xml")
+
+	w.Close()
+	os.Stdout = old
+
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+
+	assert.NoError(t, err)
+	assert.Contains(t, buf.String(), "<dashboard>")
+	assert.Contains(t, buf.String(), "port-1")
+}
+
+// TestStatusDashboard_CSVOutput verifies the CSV output path is exercised.
+func TestStatusDashboard_CSVOutput(t *testing.T) {
+	cleanup := setupMocks(
+		&MockPortService{ListPortsResult: []*megaport.Port{
+			{UID: "port-1", Name: "P1", ProvisioningStatus: "LIVE", PortSpeed: 1000, LocationID: 1},
+		}},
+		&MockMCRService{},
+		&MockMVEService{},
+		&MockVXCService{},
+		&MockIXService{},
+	)
+	defer cleanup()
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	cmd := newStatusCmd()
+	err := StatusDashboard(cmd, nil, true, "csv")
+
+	w.Close()
+	os.Stdout = old
+
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+
+	assert.NoError(t, err)
+	assert.Contains(t, buf.String(), "# PORTS")
+	assert.Contains(t, buf.String(), "port-1")
+}
+
+// TestBuildDashboard_NilPort verifies buildDashboard returns an error for a nil port.
+func TestBuildDashboard_NilPort(t *testing.T) {
+	_, err := buildDashboard([]*megaport.Port{nil}, nil, nil, nil, nil)
+	assert.Error(t, err)
+}
+
+// TestBuildDashboard_NilMCR verifies buildDashboard returns an error for a nil MCR.
+func TestBuildDashboard_NilMCR(t *testing.T) {
+	_, err := buildDashboard(nil, []*megaport.MCR{nil}, nil, nil, nil)
+	assert.Error(t, err)
+}
+
+// TestBuildDashboard_NilMVE verifies buildDashboard returns an error for a nil MVE.
+func TestBuildDashboard_NilMVE(t *testing.T) {
+	_, err := buildDashboard(nil, nil, []*megaport.MVE{nil}, nil, nil)
+	assert.Error(t, err)
+}
+
+// TestBuildDashboard_NilVXC verifies buildDashboard returns an error for a nil VXC.
+func TestBuildDashboard_NilVXC(t *testing.T) {
+	_, err := buildDashboard(nil, nil, nil, []*megaport.VXC{nil}, nil)
+	assert.Error(t, err)
+}
+
+// TestBuildDashboard_NilIX verifies buildDashboard returns an error for a nil IX.
+func TestBuildDashboard_NilIX(t *testing.T) {
+	_, err := buildDashboard(nil, nil, nil, nil, []*megaport.IX{nil})
+	assert.Error(t, err)
+}
+
+// TestAddCommandsTo verifies the status command is registered on the root command.
+func TestAddCommandsTo(t *testing.T) {
+	root := &cobra.Command{Use: "megaport-cli"}
+	AddCommandsTo(root)
+	found := false
+	for _, cmd := range root.Commands() {
+		if cmd.Use == "status" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "status command should be registered")
+}
+
+// TestModule verifies the module metadata.
+func TestModule(t *testing.T) {
+	m := NewModule()
+	assert.Equal(t, "status", m.Name())
+
+	root := &cobra.Command{Use: "megaport-cli"}
+	m.RegisterCommands(root)
+	found := false
+	for _, cmd := range root.Commands() {
+		if cmd.Use == "status" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found)
+}
+
 func init() {
 	// Suppress output during tests.
 	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
