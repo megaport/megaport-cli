@@ -29,6 +29,10 @@ megaport-cli users delete [flags]
 ## Parent Command
 
 * [megaport-cli users](megaport-cli_users.md)
+
+## Aliases
+
+* rm
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

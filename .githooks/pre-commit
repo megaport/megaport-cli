@@ -1,0 +1,38 @@
+#!/bin/bash
+#
+# Pre-commit hook to regenerate documentation if command files have changed
+# Install this hook with: git config core.hooksPath .githooks
+#
+
+set -e
+
+# Get the list of files being committed
+staged_files=$(git diff --cached --name-only)
+
+# Check if any command builder files are being changed
+command_files_changed=false
+if echo "$staged_files" | grep -qE "(internal/commands/.*/.*\.go|internal/base/cmdbuilder/builder\.go)"; then
+    # Only regenerate if it's not just test files
+    if echo "$staged_files" | grep -qE "(internal/commands/[^/]*/[^_].*\.go|internal/base/cmdbuilder/builder\.go)" | grep -v "_test.go"; then
+        command_files_changed=true
+    fi
+fi
+
+if [ "$command_files_changed" = true ]; then
+    echo "⚙️  Command files changed - regenerating documentation..."
+    
+    # Check if the binary exists
+    if [ ! -f "./megaport-cli" ]; then
+        echo "📦 Building megaport-cli..."
+        go build -v
+    fi
+    
+    # Regenerate docs
+    ./megaport-cli generate-docs ./docs
+    
+    # Add the regenerated docs to the commit
+    git add docs/
+    echo "✓ Documentation regenerated and staged"
+fi
+
+exit 0

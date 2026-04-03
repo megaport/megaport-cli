@@ -263,6 +263,12 @@ func (b *CommandBuilder) WithFlagCompletionFunc(flagName string, f func(cmd *cob
 	return b
 }
 
+// WithAliases sets command aliases for shorthand access
+func (b *CommandBuilder) WithAliases(aliases []string) *CommandBuilder {
+	b.cmd.Aliases = aliases
+	return b
+}
+
 // Build constructs and returns the final command
 func (b *CommandBuilder) Build() *cobra.Command {
 	// Generate help text if root command is available

@@ -26,6 +26,10 @@ megaport-cli ix delete [flags]
 ## Parent Command
 
 * [megaport-cli ix](megaport-cli_ix.md)
+
+## Aliases
+
+* rm
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

@@ -24,6 +24,10 @@ megaport-cli users get [flags]
 ## Parent Command
 
 * [megaport-cli users](megaport-cli_users.md)
+
+## Aliases
+
+* show
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

@@ -37,6 +37,10 @@ megaport-cli ix list [flags]
 ## Parent Command
 
 * [megaport-cli ix](megaport-cli_ix.md)
+
+## Aliases
+
+* ls
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

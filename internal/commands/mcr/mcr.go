@@ -47,6 +47,7 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithExample("megaport-cli mcr get a1b2c3d4-e5f6-7890-1234-567890abcdef --export").
 		WithImportantNote("The output includes the MCR's UID, name, location ID, port speed, and provisioning status").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"show"}).
 		Build()
 
 	// Create buy MCR command
@@ -130,6 +131,7 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithExample("megaport-cli mcr delete [mcrUID] --now").
 		WithExample("megaport-cli mcr delete [mcrUID] --now --force").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"rm"}).
 		Build()
 
 	// Create restore MCR command
@@ -176,6 +178,7 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithExample("megaport-cli mcr list --location-id 1 --port-speed 10000 --name \"My MCR\"").
 		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"ls"}).
 		Build()
 
 	// Create status MCR command
@@ -186,6 +189,7 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithExample("megaport-cli mcr status mcr-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
 		WithImportantNote("This is a lightweight command that only shows the MCR's status without retrieving all details.").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"st"}).
 		Build()
 
 	validate = cmdbuilder.NewCommand("validate", "Validate an MCR order without purchasing").

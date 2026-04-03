@@ -15,6 +15,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli status --output json").
 		WithExample("megaport-cli status --include-inactive").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"st"}).
 		Build()
 
 	rootCmd.AddCommand(statusCmd)

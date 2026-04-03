@@ -199,6 +199,7 @@ func buildPortManagementCommands(rootCmd *cobra.Command) (list, get, status, del
 		WithExample("megaport-cli ports list --location-id 1 --port-speed 10000 --port-name \"Data Center Primary\"").
 		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"ls"}).
 		Build()
 
 	get = cmdbuilder.NewCommand("get", "Get details for a single port").
@@ -210,6 +211,7 @@ func buildPortManagementCommands(rootCmd *cobra.Command) (list, get, status, del
 		WithExample("megaport-cli ports get 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
 		WithExample("megaport-cli ports get port-abc123 --export").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"show"}).
 		Build()
 
 	status = cmdbuilder.NewCommand("status", "Check the provisioning status of a port").
@@ -219,6 +221,7 @@ func buildPortManagementCommands(rootCmd *cobra.Command) (list, get, status, del
 		WithExample("megaport-cli ports status port-abc123").
 		WithImportantNote("This is a lightweight command that only shows the port's status without retrieving all details.").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"st"}).
 		Build()
 
 	deleteCmd = cmdbuilder.NewCommand("delete", "Delete a port from your account").
@@ -235,6 +238,7 @@ func buildPortManagementCommands(rootCmd *cobra.Command) (list, get, status, del
 		WithExample("megaport-cli ports delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now").
 		WithExample("megaport-cli ports delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now --force").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"rm"}).
 		Build()
 
 	restore = cmdbuilder.NewCommand("restore", "Restore a deleted port").

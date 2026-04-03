@@ -84,6 +84,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli mve get a1b2c3d4-e5f6-7890-1234-567890abcdef --export").
 		WithImportantNote("The output includes the MVE's UID, name, vendor, version, status, and connectivity details").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"show"}).
 		Build()
 
 	updateMVECmd := cmdbuilder.NewCommand("update", "Update an existing MVE").
@@ -125,6 +126,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("Billing for the MVE stops at the end of the current billing period unless --now is specified").
 		WithImportantNote("All associated VXCs will be automatically terminated").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"rm"}).
 		Build()
 
 	listMVEImagesCmd := cmdbuilder.NewCommand("list-images", "List all available MVE images").
@@ -165,6 +167,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli mve list --location-id 123 --vendor \"Cisco\" --name \"Edge\"").
 		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"ls"}).
 		Build()
 
 	statusMVECmd := cmdbuilder.NewCommand("status", "Check the provisioning status of an MVE").
@@ -174,6 +177,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli mve status mve-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
 		WithImportantNote("This is a lightweight command that only shows the MVE's status without retrieving all details.").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"st"}).
 		Build()
 
 	listTagsCmd := cmdbuilder.NewCommand("list-tags", "List resource tags on a specific MVE").

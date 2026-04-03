@@ -35,6 +35,10 @@ megaport-cli ports delete [flags]
 ## Parent Command
 
 * [megaport-cli ports](megaport-cli_ports.md)
+
+## Aliases
+
+* rm
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

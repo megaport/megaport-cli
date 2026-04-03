@@ -37,6 +37,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli vxc list --include-inactive").
 		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"ls"}).
 		Build()
 
 	// Create get VXC command
@@ -49,6 +50,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli vxc get vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --export").
 		WithImportantNote("The output includes the VXC's UID, name, rate limit, A-End and B-End details, status, and cost centre.").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"show"}).
 		Build()
 
 	// Create status VXC command
@@ -59,6 +61,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli vxc status vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
 		WithImportantNote("This is a lightweight command that only shows the VXC's status without retrieving all details.").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"st"}).
 		Build()
 
 	// Create buy VXC command
@@ -160,6 +163,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("Billing for the VXC stops at the end of the current billing period").
 		WithImportantNote("The VXC is immediately disconnected upon deletion").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"rm"}).
 		Build()
 
 	// Add list-tags command

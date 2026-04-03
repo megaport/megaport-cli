@@ -27,6 +27,10 @@ megaport-cli vxc status [flags]
 ## Parent Command
 
 * [megaport-cli vxc](megaport-cli_vxc.md)
+
+## Aliases
+
+* st
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

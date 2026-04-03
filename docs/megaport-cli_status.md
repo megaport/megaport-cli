@@ -23,6 +23,10 @@ megaport-cli status [flags]
 ```
 
 
+
+## Aliases
+
+* st
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

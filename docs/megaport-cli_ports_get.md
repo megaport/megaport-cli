@@ -26,6 +26,10 @@ megaport-cli ports get [flags]
 ## Parent Command
 
 * [megaport-cli ports](megaport-cli_ports.md)
+
+## Aliases
+
+* show
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

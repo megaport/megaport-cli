@@ -29,6 +29,10 @@ megaport-cli mve list [flags]
 ## Parent Command
 
 * [megaport-cli mve](megaport-cli_mve.md)
+
+## Aliases
+
+* ls
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

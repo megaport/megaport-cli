@@ -28,6 +28,10 @@ megaport-cli vxc get [flags]
 ## Parent Command
 
 * [megaport-cli vxc](megaport-cli_vxc.md)
+
+## Aliases
+
+* show
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

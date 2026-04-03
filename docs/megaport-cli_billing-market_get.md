@@ -25,6 +25,10 @@ megaport-cli billing-market get [flags]
 ## Parent Command
 
 * [megaport-cli billing-market](megaport-cli_billing-market.md)
+
+## Aliases
+
+* show
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
