@@ -2,6 +2,7 @@ package ix
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
@@ -1706,6 +1707,71 @@ func TestDeleteIXFunc(t *testing.T) {
 	err := deleteIXFunc(ctx, client, "ix-123", req)
 	assert.NoError(t, err)
 	assert.Equal(t, "ix-123", mockService.capturedDeleteIXUID)
+}
+
+func TestExportIXConfig(t *testing.T) {
+	ix := &megaport.IX{
+		ProductUID:         "ix-should-not-appear",
+		ProductName:        "My IX",
+		NetworkServiceType: "Los Angeles IX",
+		RateLimit:          1000,
+		VLAN:               100,
+		ASN:                65000,
+		MACAddress:         "00:11:22:33:44:55",
+		ProvisioningStatus: "LIVE",
+	}
+	m := exportIXConfig(ix)
+
+	assert.Equal(t, "My IX", m["productName"])
+	assert.Equal(t, "Los Angeles IX", m["networkServiceType"])
+	assert.Equal(t, 1000, m["rateLimit"])
+	assert.Equal(t, 100, m["vlan"])
+	assert.Equal(t, 65000, m["asn"])
+	assert.Equal(t, "00:11:22:33:44:55", m["macAddress"])
+
+	_, hasUID := m["productUid"]
+	assert.False(t, hasUID, "export should not include productUid (parent port UID)")
+	_, hasStatus := m["provisioningStatus"]
+	assert.False(t, hasStatus, "export should not include provisioningStatus")
+}
+
+func TestGetIX_Export(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockService := &MockIXService{
+		getIXResponse: &megaport.IX{
+			ProductUID:         "ix-export-123",
+			ProductName:        "Export IX",
+			NetworkServiceType: "Sydney IX",
+			RateLimit:          500,
+			VLAN:               200,
+			ASN:                65001,
+			ProvisioningStatus: "LIVE",
+		},
+	}
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.IXService = mockService
+		return client, nil
+	}
+
+	cmd := &cobra.Command{Use: "get"}
+	cmd.Flags().Bool("export", false, "")
+	assert.NoError(t, cmd.Flags().Set("export", "true"))
+
+	var err error
+	capturedOutput := output.CaptureOutput(func() {
+		err = GetIX(cmd, []string{"ix-export-123"}, true, "table")
+	})
+
+	assert.NoError(t, err)
+	var parsed map[string]interface{}
+	assert.NoError(t, json.Unmarshal([]byte(capturedOutput), &parsed), "export output must be valid JSON")
+	assert.Equal(t, "Export IX", parsed["productName"])
+	assert.Equal(t, float64(200), parsed["vlan"])
+	_, hasUID := parsed["productUid"]
+	assert.False(t, hasUID, "export should not include productUid")
 }
 
 func TestValidateIX(t *testing.T) {

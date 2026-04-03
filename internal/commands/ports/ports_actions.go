@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -13,6 +14,23 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
+
+func exportPortConfig(port *megaport.Port) map[string]interface{} {
+	m := map[string]interface{}{
+		"name":                  port.Name,
+		"term":                  port.ContractTermMonths,
+		"portSpeed":             port.PortSpeed,
+		"locationId":            port.LocationID,
+		"marketPlaceVisibility": port.MarketplaceVisibility,
+	}
+	if port.DiversityZone != "" {
+		m["diversityZone"] = port.DiversityZone
+	}
+	if port.CostCentre != "" {
+		m["costCentre"] = port.CostCentre
+	}
+	return m
+}
 
 func buildPortRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyPortRequest, error) {
 	interactive, _ := cmd.Flags().GetBool("interactive")
@@ -362,6 +380,17 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 	if port == nil {
 		output.PrintError("No port found with UID: %s", noColor, portUID)
 		return fmt.Errorf("no port found with UID: %s", portUID)
+	}
+
+	export, _ := cmd.Flags().GetBool("export")
+	if export {
+		cfg := exportPortConfig(port)
+		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
+		if err != nil {
+			return fmt.Errorf("error marshaling export config: %v", err)
+		}
+		fmt.Println(string(jsonBytes))
+		return nil
 	}
 
 	err = printPorts([]*megaport.Port{port}, outputFormat, noColor)

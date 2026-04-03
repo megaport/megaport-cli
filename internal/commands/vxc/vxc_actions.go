@@ -2,6 +2,7 @@ package vxc
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -13,6 +14,42 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
+
+func exportVXCConfig(vxc *megaport.VXC) map[string]interface{} {
+	m := map[string]interface{}{
+		"portUid":   vxc.AEndConfiguration.UID,
+		"vxcName":   vxc.Name,
+		"rateLimit": vxc.RateLimit,
+		"term":      vxc.ContractTermMonths,
+	}
+	if vxc.CostCentre != "" {
+		m["costCentre"] = vxc.CostCentre
+	}
+
+	aEnd := map[string]interface{}{}
+	if vxc.AEndConfiguration.VLAN != 0 {
+		aEnd["vlan"] = vxc.AEndConfiguration.VLAN
+	}
+	if vxc.AEndConfiguration.InnerVLAN != 0 {
+		aEnd["innerVlan"] = vxc.AEndConfiguration.InnerVLAN
+	}
+	if len(aEnd) > 0 {
+		m["aEndConfiguration"] = aEnd
+	}
+
+	bEnd := map[string]interface{}{
+		"productUID": vxc.BEndConfiguration.UID,
+	}
+	if vxc.BEndConfiguration.VLAN != 0 {
+		bEnd["vlan"] = vxc.BEndConfiguration.VLAN
+	}
+	if vxc.BEndConfiguration.InnerVLAN != 0 {
+		bEnd["innerVlan"] = vxc.BEndConfiguration.InnerVLAN
+	}
+	m["bEndConfiguration"] = bEnd
+
+	return m
+}
 
 func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
@@ -125,6 +162,17 @@ func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 		err = utils.WrapAPIError(err, "VXC", vxcUID)
 		output.PrintError("Failed to get VXC: %v", noColor, err)
 		return fmt.Errorf("error getting VXC: %w", err)
+	}
+
+	export, _ := cmd.Flags().GetBool("export")
+	if export {
+		cfg := exportVXCConfig(vxc)
+		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
+		if err != nil {
+			return fmt.Errorf("error marshaling export config: %v", err)
+		}
+		fmt.Println(string(jsonBytes))
+		return nil
 	}
 
 	err = printVXCs([]*megaport.VXC{vxc}, outputFormat, noColor)

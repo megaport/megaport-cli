@@ -42,8 +42,10 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	getVXCCmd := cmdbuilder.NewCommand("get", "Get details for a single VXC").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetVXC).
+		WithBoolFlag("export", false, "Output recreatable JSON config for use with buy --json (excludes read-only fields; partner configs not available from API)").
 		WithLongDesc("Get details for a single VXC through the Megaport API.\n\nThis command retrieves detailed information for a single Virtual Cross Connect (VXC). You must provide the unique identifier (UID) of the VXC you wish to retrieve.").
 		WithExample("megaport-cli vxc get vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
+		WithExample("megaport-cli vxc get vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --export").
 		WithImportantNote("The output includes the VXC's UID, name, rate limit, A-End and B-End details, status, and cost centre.").
 		WithRootCmd(rootCmd).
 		Build()

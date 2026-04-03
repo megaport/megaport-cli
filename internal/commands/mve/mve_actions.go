@@ -2,6 +2,7 @@ package mve
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -14,6 +15,34 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
+
+func exportMVEConfig(mve *megaport.MVE) map[string]interface{} {
+	m := map[string]interface{}{
+		"name":       mve.Name,
+		"term":       mve.ContractTermMonths,
+		"locationId": mve.LocationID,
+	}
+	if mve.DiversityZone != "" {
+		m["diversityZone"] = mve.DiversityZone
+	}
+	if mve.CostCentre != "" {
+		m["costCentre"] = mve.CostCentre
+	}
+	if len(mve.NetworkInterfaces) > 0 {
+		vnics := make([]map[string]interface{}, 0, len(mve.NetworkInterfaces))
+		for _, ni := range mve.NetworkInterfaces {
+			vnic := map[string]interface{}{
+				"description": ni.Description,
+			}
+			if ni.VLAN != 0 {
+				vnic["vlan"] = ni.VLAN
+			}
+			vnics = append(vnics, vnic)
+		}
+		m["vnics"] = vnics
+	}
+	return m
+}
 
 func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
@@ -350,6 +379,17 @@ func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	if mve == nil {
 		output.PrintError("No MVE found with UID: %s", noColor, mveUID)
 		return fmt.Errorf("no MVE found with UID: %s", mveUID)
+	}
+
+	export, _ := cmd.Flags().GetBool("export")
+	if export {
+		cfg := exportMVEConfig(mve)
+		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
+		if err != nil {
+			return fmt.Errorf("error marshaling export config: %v", err)
+		}
+		fmt.Println(string(jsonBytes))
+		return nil
 	}
 
 	err = printMVEs([]*megaport.MVE{mve}, outputFormat, noColor)

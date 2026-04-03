@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
@@ -2184,4 +2185,72 @@ func TestListPorts_LoginError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "auth failed")
+}
+
+func TestExportPortConfig(t *testing.T) {
+	port := &megaport.Port{
+		Name:                  "My Port",
+		ContractTermMonths:    12,
+		PortSpeed:             10000,
+		LocationID:            123,
+		MarketplaceVisibility: true,
+		DiversityZone:         "blue",
+		CostCentre:            "IT Dept",
+		UID:                   "port-should-not-appear",
+		ProvisioningStatus:    "LIVE",
+	}
+	m := exportPortConfig(port)
+
+	assert.Equal(t, "My Port", m["name"])
+	assert.Equal(t, 12, m["term"])
+	assert.Equal(t, 10000, m["portSpeed"])
+	assert.Equal(t, 123, m["locationId"])
+	assert.Equal(t, true, m["marketPlaceVisibility"])
+	assert.Equal(t, "blue", m["diversityZone"])
+	assert.Equal(t, "IT Dept", m["costCentre"])
+
+	_, hasUID := m["productUid"]
+	assert.False(t, hasUID, "export should not include productUid")
+	_, hasStatus := m["provisioningStatus"]
+	assert.False(t, hasStatus, "export should not include provisioningStatus")
+}
+
+func TestGetPort_Export(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockService := &MockPortService{
+		GetPortResult: &megaport.Port{
+			UID:                   "port-export-123",
+			Name:                  "Export Port",
+			ContractTermMonths:    12,
+			PortSpeed:             10000,
+			LocationID:            42,
+			MarketplaceVisibility: true,
+			ProvisioningStatus:    "LIVE",
+		},
+	}
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.PortService = mockService
+		return client, nil
+	}
+
+	cmd := testutil.NewCommand("get", testutil.OutputAdapter(GetPort))
+	cmd.Flags().Bool("export", false, "")
+	require.NoError(t, cmd.Flags().Set("export", "true"))
+
+	var err error
+	capturedOutput := output.CaptureOutput(func() {
+		err = testutil.OutputAdapter(GetPort)(cmd, []string{"port-export-123"})
+	})
+
+	assert.NoError(t, err)
+	var parsed map[string]interface{}
+	assert.NoError(t, json.Unmarshal([]byte(capturedOutput), &parsed), "export output must be valid JSON")
+	assert.Equal(t, "Export Port", parsed["name"])
+	assert.Equal(t, float64(12), parsed["term"])
+	assert.Equal(t, float64(10000), parsed["portSpeed"])
+	_, hasUID := parsed["productUid"]
+	assert.False(t, hasUID, "export should not include productUid")
 }

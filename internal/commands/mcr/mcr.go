@@ -41,8 +41,10 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 	get = cmdbuilder.NewCommand("get", "Get details for a single MCR").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetMCR).
+		WithBoolFlag("export", false, "Output recreatable JSON config for use with buy --json (excludes read-only fields)").
 		WithLongDesc("Get details for a single MCR.\n\nThis command retrieves and displays detailed information for a single Megaport Cloud Router (MCR). You must provide the unique identifier (UID) of the MCR you wish to retrieve.").
 		WithExample("megaport-cli mcr get a1b2c3d4-e5f6-7890-1234-567890abcdef").
+		WithExample("megaport-cli mcr get a1b2c3d4-e5f6-7890-1234-567890abcdef --export").
 		WithImportantNote("The output includes the MCR's UID, name, location ID, port speed, and provisioning status").
 		WithRootCmd(rootCmd).
 		Build()

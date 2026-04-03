@@ -203,9 +203,11 @@ func buildPortManagementCommands(rootCmd *cobra.Command) (list, get, status, del
 	get = cmdbuilder.NewCommand("get", "Get details for a single port").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetPort).
+		WithBoolFlag("export", false, "Output recreatable JSON config for use with buy --json (excludes read-only fields)").
 		WithLongDesc("Get details for a single port from the Megaport API.\n\nThis command fetches and displays detailed information about a specific port. You need to provide the UID of the port as an argument.").
 		WithExample("megaport-cli ports get port-abc123").
 		WithExample("megaport-cli ports get 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
+		WithExample("megaport-cli ports get port-abc123 --export").
 		WithRootCmd(rootCmd).
 		Build()
 
