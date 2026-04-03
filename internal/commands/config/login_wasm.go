@@ -87,33 +87,36 @@ var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		}
 	}
 
-	// PRIORITY 2: Check for API Key/Secret credentials (uses OAuth flow)
-	// First, try to get credentials from JavaScript global (set by browser login)
+	// PRIORITY 2: Check for API Key/Secret credentials (uses OAuth flow).
+	// setAuthCredentials() stores credentials in Go env vars and exposes only
+	// the non-secret environment name in window.megaportCredentials, so always
+	// read accessKey/secretKey from env vars rather than the JS global.
+	accessKey = os.Getenv("MEGAPORT_ACCESS_KEY")
+	secretKey = os.Getenv("MEGAPORT_SECRET_KEY")
+	env = os.Getenv("MEGAPORT_ENVIRONMENT")
+
+	if accessKey != "" {
+		js.Global().Get("console").Call("log", "Using access key from environment variable")
+		js.Global().Get("console").Call("log", "Access Key: "+maskCredential(accessKey))
+	}
+	if secretKey != "" {
+		js.Global().Get("console").Call("log", "Using secret key from environment variable")
+	}
+
+	// Allow the megaportCredentials JS global's environment field to override
+	// the env var (the UI may set it before calling setAuthCredentials).
 	megaportCredsGlobal := js.Global().Get("megaportCredentials")
 	if !megaportCredsGlobal.IsUndefined() && !megaportCredsGlobal.IsNull() {
-		js.Global().Get("console").Call("log", "✅ Found credentials from browser login")
-		accessKey = megaportCredsGlobal.Get("accessKey").String()
-		secretKey = megaportCredsGlobal.Get("secretKey").String()
-		env = megaportCredsGlobal.Get("environment").String()
-		js.Global().Get("console").Call("log", "Access Key: "+maskCredential(accessKey))
+		envVal := megaportCredsGlobal.Get("environment")
+		if envVal.Type() == js.TypeString {
+			if s := envVal.String(); s != "" {
+				env = s
+			}
+		}
+	}
+
+	if env != "" {
 		js.Global().Get("console").Call("log", "Environment: "+env)
-	} else {
-		// Fallback to environment variables
-		accessKey = os.Getenv("MEGAPORT_ACCESS_KEY")
-		if accessKey != "" {
-			js.Global().Get("console").Call("log", "Using access key from environment variable")
-			js.Global().Get("console").Call("log", "Access Key: "+maskCredential(accessKey))
-		}
-
-		secretKey = os.Getenv("MEGAPORT_SECRET_KEY")
-		if secretKey != "" {
-			js.Global().Get("console").Call("log", "Using secret key from environment variable")
-		}
-
-		env = os.Getenv("MEGAPORT_ENVIRONMENT")
-		if env != "" {
-			js.Global().Get("console").Call("log", "Using environment from environment variable: "+env)
-		}
 	}
 
 	// Validate credentials

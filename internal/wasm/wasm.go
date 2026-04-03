@@ -248,6 +248,7 @@ func ResetOutputBuffers() {
 	js.Global().Delete("wasmJSONOutput")
 	js.Global().Delete("wasmCSVOutput")
 	js.Global().Delete("wasmTableOutput")
+	js.Global().Delete("wasmXMLOutput")
 
 	if debugMode {
 		js.Global().Get("console").Call("log", "Output buffers reset (including all structured output globals)")
@@ -279,8 +280,12 @@ func GetCapturedOutput() string {
 	if v := js.Global().Get("wasmTableOutput"); !v.IsUndefined() && !v.IsNull() {
 		tableOutput = v.String()
 	}
+	xmlOutput := ""
+	if v := js.Global().Get("wasmXMLOutput"); !v.IsUndefined() && !v.IsNull() {
+		xmlOutput = v.String()
+	}
 
-	// Priority order: JSON > CSV > table > direct > stdout/stderr combined.
+	// Priority order: JSON > CSV > XML > table > direct > stdout/stderr combined.
 	var finalOutput, outputSource string
 	switch {
 	case jsonOutput != "":
@@ -289,6 +294,9 @@ func GetCapturedOutput() string {
 	case csvOutput != "":
 		finalOutput = csvOutput
 		outputSource = "CSV buffer"
+	case xmlOutput != "":
+		finalOutput = xmlOutput
+		outputSource = "XML buffer"
 	case tableOutput != "":
 		finalOutput = tableOutput
 		outputSource = "table buffer"
@@ -307,6 +315,7 @@ func GetCapturedOutput() string {
 		js.Global().Get("console").Call("log", fmt.Sprintf("direct buffer: [%d bytes]", len(direct)))
 		js.Global().Get("console").Call("log", fmt.Sprintf("JSON buffer: [%d bytes]", len(jsonOutput)))
 		js.Global().Get("console").Call("log", fmt.Sprintf("CSV buffer: [%d bytes]", len(csvOutput)))
+		js.Global().Get("console").Call("log", fmt.Sprintf("XML buffer: [%d bytes]", len(xmlOutput)))
 		js.Global().Get("console").Call("log", fmt.Sprintf("table buffer: [%d bytes]", len(tableOutput)))
 		js.Global().Get("console").Call("log", fmt.Sprintf("Using %s for output (%d bytes)", outputSource, len(finalOutput)))
 		js.Global().Get("console").Call("groupEnd")
@@ -357,6 +366,20 @@ func CaptureOutput(fn func()) string {
 	rOut, wOut, errOut := os.Pipe()
 	rErr, wErr, errErr := os.Pipe()
 	if errOut != nil || errErr != nil {
+		// Close any pipe endpoints that were successfully created before the
+		// failure to avoid leaking file descriptors.
+		if rOut != nil {
+			_ = rOut.Close()
+		}
+		if wOut != nil {
+			_ = wOut.Close()
+		}
+		if rErr != nil {
+			_ = rErr.Close()
+		}
+		if wErr != nil {
+			_ = wErr.Close()
+		}
 		fn()
 		return WasmOutputBuffer.String()
 	}

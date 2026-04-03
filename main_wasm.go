@@ -19,6 +19,10 @@ import (
 //go:embed docs/*.md
 var embeddedDocs embed.FS
 
+// asyncCommandMu prevents concurrent async command executions from corrupting
+// the shared global output buffers.
+var asyncCommandMu sync.Mutex
+
 // executeMegaportCommand runs CLI commands from JavaScript (LEGACY SYNC VERSION)
 // This is kept for backwards compatibility but may not work with async operations
 func executeMegaportCommand(this js.Value, args []js.Value) interface{} {
@@ -80,7 +84,17 @@ func executeMegaportCommandAsync(this js.Value, args []js.Value) interface{} {
 	// and the normal completion path race.
 	var once sync.Once
 
+	// asyncCommandMu serializes async command executions so that concurrent calls
+	// do not corrupt the shared global output buffers (ResetOutputBuffers /
+	// WasmOutputBuffer / JS globals), which are not safe for concurrent use.
+	//
+	// commandDone is closed when the goroutine exits (normally or via panic) so
+	// that the timeout timer can be stopped promptly rather than expiring after
+	// up to asyncCommandTimeout even when the command finishes quickly.
+	commandDone := make(chan struct{})
+
 	go func() {
+		defer close(commandDone)
 		defer func() {
 			if r := recover(); r != nil {
 				once.Do(func() {
@@ -90,6 +104,9 @@ func executeMegaportCommandAsync(this js.Value, args []js.Value) interface{} {
 				})
 			}
 		}()
+
+		asyncCommandMu.Lock()
+		defer asyncCommandMu.Unlock()
 
 		// Reset all output buffers
 		wasm.ResetOutputBuffers()
@@ -117,13 +134,20 @@ func executeMegaportCommandAsync(this js.Value, args []js.Value) interface{} {
 	}()
 
 	// Fire a timeout so the callback is always invoked within asyncCommandTimeout.
-	time.AfterFunc(asyncCommandTimeout, func() {
+	t := time.AfterFunc(asyncCommandTimeout, func() {
 		once.Do(func() {
 			callback.Invoke(map[string]interface{}{
 				"error": "command timed out",
 			})
 		})
 	})
+
+	// Stop the timer once the goroutine finishes so it is not kept alive for the
+	// full asyncCommandTimeout duration when the command completes quickly.
+	go func() {
+		<-commandDone
+		t.Stop()
+	}()
 
 	return nil
 }
