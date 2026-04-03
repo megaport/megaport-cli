@@ -50,6 +50,7 @@ megaport-cli [flags]
 | `--verbose` | `-v` | `false` | Show additional debug information | false |
 
 ## Subcommands
+* [apply](megaport-cli_apply.md)
 * [billing-market](megaport-cli_billing-market.md)
 * [completion](megaport-cli_completion.md)
 * [config](megaport-cli_config.md)
@@ -63,6 +64,7 @@ megaport-cli [flags]
 * [ports](megaport-cli_ports.md)
 * [servicekeys](megaport-cli_servicekeys.md)
 * [status](megaport-cli_status.md)
+* [topology](megaport-cli_topology.md)
 * [users](megaport-cli_users.md)
 * [version](megaport-cli_version.md)
 * [vxc](megaport-cli_vxc.md)

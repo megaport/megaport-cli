@@ -300,3 +300,164 @@ func TestGetProductType(t *testing.T) {
 		})
 	}
 }
+
+func TestAddCommandsTo(t *testing.T) {
+	rootCmd := &cobra.Command{Use: "test-cli"}
+	AddCommandsTo(rootCmd)
+
+	productCmd, _, err := rootCmd.Find([]string{"product"})
+	assert.NoError(t, err)
+	assert.NotNil(t, productCmd)
+	assert.Equal(t, "product", productCmd.Use)
+
+	listCmd, _, err := rootCmd.Find([]string{"product", "list"})
+	assert.NoError(t, err)
+	assert.NotNil(t, listCmd)
+	assert.Equal(t, "list", listCmd.Use)
+
+	getTypeCmd, _, err := rootCmd.Find([]string{"product", "get-type"})
+	assert.NoError(t, err)
+	assert.NotNil(t, getTypeCmd)
+	assert.Equal(t, "get-type", getTypeCmd.Use)
+}
+
+func TestProductModule(t *testing.T) {
+	module := NewModule()
+	assert.Equal(t, "product", module.Name())
+
+	rootCmd := &cobra.Command{Use: "test-cli"}
+	module.RegisterCommands(rootCmd)
+
+	productCmd, _, err := rootCmd.Find([]string{"product"})
+	assert.NoError(t, err)
+	assert.NotNil(t, productCmd)
+}
+
+func TestListProductsLoginError(t *testing.T) {
+	cleanup := testutil.SetupLoginError(fmt.Errorf("login failed"))
+	defer cleanup()
+
+	cmd := &cobra.Command{Use: "list"}
+	cmd.Flags().Bool("include-inactive", false, "")
+	cmd.Flags().Int("limit", 0, "")
+	cmd.Flags().StringP("output", "o", "table", "")
+
+	var err error
+	output.CaptureOutput(func() {
+		err = ListProducts(cmd, []string{}, true, "table")
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "error logging in")
+}
+
+func TestGetProductTypeLoginError(t *testing.T) {
+	cleanup := testutil.SetupLoginError(fmt.Errorf("login failed"))
+	defer cleanup()
+
+	cmd := &cobra.Command{Use: "get-type"}
+	cmd.Flags().StringP("output", "o", "table", "")
+
+	var err error
+	output.CaptureOutput(func() {
+		err = GetProductType(cmd, []string{"some-uid"}, true, "table")
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "error logging in")
+}
+
+func TestListProductsEmptyListJsonFormat(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockService := &MockProductService{
+		ListProductsResult: []megaport.Product{},
+	}
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.ProductService = mockService
+		return client, nil
+	}
+
+	cmd := &cobra.Command{Use: "list"}
+	cmd.Flags().Bool("include-inactive", false, "")
+	cmd.Flags().Int("limit", 0, "")
+	cmd.Flags().StringP("output", "o", "json", "")
+
+	var err error
+	output.CaptureOutput(func() {
+		err = ListProducts(cmd, []string{}, true, "json")
+	})
+	assert.NoError(t, err)
+}
+
+func TestFilterProductsEdgeCases(t *testing.T) {
+	tests := []struct {
+		name            string
+		products        []megaport.Product
+		includeInactive bool
+		expectedCount   int
+	}{
+		{
+			name:            "nil products in list",
+			products:        []megaport.Product{nil, &megaport.Port{UID: "port-1", ProvisioningStatus: "LIVE"}},
+			includeInactive: false,
+			expectedCount:   1,
+		},
+		{
+			name: "filters DECOMMISSIONED",
+			products: []megaport.Product{
+				&megaport.Port{UID: "port-1", ProvisioningStatus: "DECOMMISSIONED"},
+				&megaport.Port{UID: "port-2", ProvisioningStatus: "LIVE"},
+			},
+			includeInactive: false,
+			expectedCount:   1,
+		},
+		{
+			name: "filters DECOMMISSIONING",
+			products: []megaport.Product{
+				&megaport.Port{UID: "port-1", ProvisioningStatus: "DECOMMISSIONING"},
+				&megaport.Port{UID: "port-2", ProvisioningStatus: "LIVE"},
+			},
+			includeInactive: false,
+			expectedCount:   1,
+		},
+		{
+			name:            "nil input list",
+			products:        nil,
+			includeInactive: false,
+			expectedCount:   0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := filterProducts(tt.products, tt.includeInactive)
+			assert.Equal(t, tt.expectedCount, len(result))
+		})
+	}
+}
+
+func TestToProductOutput(t *testing.T) {
+	t.Run("nil product", func(t *testing.T) {
+		_, err := toProductOutput(nil)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "nil value")
+	})
+
+	t.Run("MCR product", func(t *testing.T) {
+		mcr := &megaport.MCR{
+			UID:                "mcr-uid-1",
+			Name:               "Test MCR",
+			Type:               "MCR2",
+			ProvisioningStatus: "LIVE",
+			PortSpeed:          5000,
+			LocationID:         2,
+		}
+		o, err := toProductOutput(mcr)
+		assert.NoError(t, err)
+		assert.Equal(t, "mcr-uid-1", o.UID)
+		assert.Equal(t, "Test MCR", o.Name)
+		assert.Equal(t, 5000, o.Speed)
+		assert.Equal(t, 2, o.LocationID)
+	})
+}

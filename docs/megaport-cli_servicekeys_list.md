@@ -29,6 +29,7 @@ megaport-cli servicekeys list [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
+| `--limit` |  | `0` | Maximum number of results to display (0 = unlimited) | false |
 | `--product-uid` |  |  | Filter service keys by product UID | false |
 
 ## Subcommands

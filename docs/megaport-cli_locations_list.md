@@ -39,6 +39,7 @@ megaport-cli locations list [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 | `--country` |  |  | Filter locations by country | false |
+| `--limit` |  | `0` | Maximum number of results to display (0 = unlimited) | false |
 | `--market-code` |  |  | Filter locations by market code | false |
 | `--mcr-available` |  | `false` | Filter locations that support MCR | false |
 | `--metro` |  |  | Filter locations by metro area | false |

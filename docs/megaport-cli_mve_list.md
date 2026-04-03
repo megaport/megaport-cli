@@ -34,6 +34,7 @@ megaport-cli mve list [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 | `--include-inactive` |  | `false` | Include inactive MVEs in the list | false |
+| `--limit` |  | `0` | Maximum number of results to display (0 = unlimited) | false |
 | `--location-id` |  | `0` | Filter MVEs by location ID | false |
 | `--name` |  |  | Filter MVEs by name | false |
 | `--vendor` |  |  | Filter MVEs by vendor | false |
