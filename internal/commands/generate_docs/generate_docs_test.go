@@ -3,10 +3,12 @@ package generate_docs
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerateCommandDoc(t *testing.T) {
@@ -501,14 +503,10 @@ func TestGenerateManPages(t *testing.T) {
 	outputDir := t.TempDir()
 
 	err := generateManPages(rootCmd, outputDir)
-	if err != nil {
-		t.Fatalf("generateManPages failed: %v", err)
-	}
+	assert.NoError(t, err)
 
 	entries, err := os.ReadDir(outputDir)
-	if err != nil {
-		t.Fatalf("failed to read output dir: %v", err)
-	}
+	assert.NoError(t, err)
 
 	var manFiles []string
 	for _, e := range entries {
@@ -517,19 +515,13 @@ func TestGenerateManPages(t *testing.T) {
 		}
 	}
 
-	if len(manFiles) == 0 {
-		t.Fatal("expected at least one .1 man page file, got none")
-	}
+	assert.NotEmpty(t, manFiles, "expected at least one .1 man page file")
 
-	mainPage := outputDir + "/megaport-cli.1"
+	mainPage := filepath.Join(outputDir, "megaport-cli.1")
 	content, err := os.ReadFile(mainPage)
-	if err != nil {
-		t.Fatalf("megaport-cli.1 not found: %v", err)
-	}
+	assert.NoError(t, err)
 
 	for _, want := range []string{"MEGAPORT-CLI", "Megaport CLI"} {
-		if !strings.Contains(string(content), want) {
-			t.Errorf("megaport-cli.1 missing expected string %q", want)
-		}
+		assert.Contains(t, string(content), want)
 	}
 }

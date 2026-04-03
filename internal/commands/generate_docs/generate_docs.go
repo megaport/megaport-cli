@@ -571,8 +571,12 @@ func getCommandTemplate() string {
 }
 
 func generateManPages(rootCmd *cobra.Command, outputDir string) error {
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return fmt.Errorf("failed to create output directory: %v", err)
+	absDir, err := filepath.Abs(outputDir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve output directory: %w", err)
+	}
+	if err := os.MkdirAll(absDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 	header := &doc.GenManHeader{
 		Title:   "MEGAPORT-CLI",
@@ -580,7 +584,7 @@ func generateManPages(rootCmd *cobra.Command, outputDir string) error {
 		Source:  "Megaport CLI",
 		Manual:  "Megaport CLI Manual",
 	}
-	return doc.GenManTree(rootCmd, header, outputDir)
+	return doc.GenManTree(rootCmd, header, absDir)
 }
 
 func AddCommandsTo(rootCmd *cobra.Command) {
@@ -588,12 +592,17 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithArgs(cobra.ExactArgs(1)).
 		WithFlag("format", "markdown", "Output format: markdown or man").
 		WithRunFunc(func(cmd *cobra.Command, args []string) error {
-			format, _ := cmd.Flags().GetString("format")
+			format, err := cmd.Flags().GetString("format")
+			if err != nil {
+				return fmt.Errorf("failed to read --format flag: %w", err)
+			}
 			switch format {
 			case "man":
 				return generateManPages(rootCmd, args[0])
-			default:
+			case "markdown":
 				return generateDocs(rootCmd, args)
+			default:
+				return fmt.Errorf("unsupported format %q: must be one of: markdown, man", format)
 			}
 		}).
 		WithExample("megaport-cli generate-docs ./docs").
@@ -601,7 +610,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("The output directory will be created if it doesn't exist").
 		WithImportantNote("Existing files in the output directory may be overwritten").
 		WithImportantNote("Hidden commands and 'help' commands are excluded from the documentation").
-		WithImportantNote("Man pages can be viewed with: man ./man/megaport-cli.1").
+		WithImportantNote("Man pages can be viewed with: man <outputDir>/megaport-cli.1").
 		WithLongDesc(
 			"Generate documentation for the Megaport CLI.\n\n" +
 				"By default (--format markdown) this command extracts all command metadata, " +
