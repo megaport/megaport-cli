@@ -155,7 +155,7 @@ func buildMVERequest(cmd *cobra.Command, noColor bool) (*megaport.BuyMVERequest,
 }
 
 func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmd(cmd)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
 	defer cancel()
 
 	req, err := buildMVERequest(cmd, noColor)
@@ -262,7 +262,7 @@ func ValidateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmd(cmd)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
 	defer cancel()
 	mveUID := args[0]
 	formattedUID := output.FormatUID(mveUID, noColor)

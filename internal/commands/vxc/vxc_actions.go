@@ -241,7 +241,7 @@ func buildVXCRequest(cmd *cobra.Command, ctx context.Context, client *megaport.C
 }
 
 func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmd(cmd)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -336,7 +336,7 @@ func ValidateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmd(cmd)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
 	defer cancel()
 
 	vxcUID := args[0]

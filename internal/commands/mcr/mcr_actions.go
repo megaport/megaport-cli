@@ -71,7 +71,7 @@ func buildMCRRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyMCRRequest,
 }
 
 func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmd(cmd)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
 	defer cancel()
 
 	req, err := buildMCRRequest(cmd, noColor)
@@ -166,7 +166,7 @@ func ValidateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmd(cmd)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
 	defer cancel()
 
 	if len(args) == 0 {

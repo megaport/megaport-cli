@@ -109,7 +109,7 @@ func buildLAGPortRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyPortReq
 }
 
 func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmd(cmd)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
 	defer cancel()
 
 	req, err := buildPortRequest(cmd, noColor)
@@ -236,7 +236,7 @@ func ValidateLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmd(cmd)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
 	defer cancel()
 
 	req, err := buildLAGPortRequest(cmd, noColor)
@@ -457,7 +457,7 @@ func GetPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat
 }
 
 func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmd(cmd)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
 	defer cancel()
 	client, err := config.Login(ctx)
 	if err != nil {

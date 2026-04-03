@@ -224,7 +224,7 @@ func buildIXRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyIXRequest, e
 }
 
 func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmd(cmd)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
 	defer cancel()
 
 	req, err := buildIXRequest(cmd, noColor)
@@ -316,7 +316,7 @@ func ValidateIX(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UpdateIX(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmd(cmd)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
 	defer cancel()
 
 	if len(args) == 0 {

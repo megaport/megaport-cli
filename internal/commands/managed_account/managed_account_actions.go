@@ -1,7 +1,6 @@
 package managed_account
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -93,7 +92,8 @@ func GetManagedAccount(cmd *cobra.Command, args []string, noColor bool, outputFo
 }
 
 func CreateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 
 	interactive, _ := cmd.Flags().GetBool("interactive")
 	jsonStr, _ := cmd.Flags().GetString("json")
@@ -148,7 +148,8 @@ func CreateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 }
 
 func UpdateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 
 	if len(args) == 0 {
 		return fmt.Errorf("company UID is required")
