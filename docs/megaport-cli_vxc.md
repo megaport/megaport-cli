@@ -11,7 +11,6 @@ This command groups all operations related to Virtual Cross Connects (VXCs). VXC
 ### Example Usage
 
 ```sh
-  megaport-cli vxc list
   megaport-cli vxc get [vxcUID]
   megaport-cli vxc buy
   megaport-cli vxc update [vxcUID]
@@ -35,10 +34,8 @@ megaport-cli vxc [flags]
 * [delete](megaport-cli_vxc_delete.md)
 * [docs](megaport-cli_vxc_docs.md)
 * [get](megaport-cli_vxc_get.md)
-* [list](megaport-cli_vxc_list.md)
 * [list-tags](megaport-cli_vxc_list-tags.md)
 * [status](megaport-cli_vxc_status.md)
 * [update](megaport-cli_vxc_update.md)
 * [update-tags](megaport-cli_vxc_update-tags.md)
-* [validate](megaport-cli_vxc_validate.md)
 

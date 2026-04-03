@@ -77,13 +77,11 @@ megaport-cli ports buy [flags]
 | `--location-id` |  | `0` | The ID of the location where the port will be provisioned | true |
 | `--marketplace-visibility` |  | `false` | Whether the port should be visible in the marketplace (true or false) | true |
 | `--name` |  |  | The name of the port (1-64 characters) | true |
-| `--no-wait` |  | `false` | Do not wait for provisioning to complete | false |
 | `--port-speed` |  | `0` | The speed of the port (1000, 10000, or 100000 Mbps) | true |
 | `--promo-code` |  |  | Promotional code for discounts | false |
 | `--resource-tags` |  |  | Resource tags as a JSON string (e.g. {"key1":"value1","key2":"value2"}) | false |
 | `--resource-tags-file` |  |  | Path to JSON file containing resource tags | false |
 | `--term` |  | `0` | The term of the port (1, 12, 24, or 36 months) | true |
-| `--yes` | `-y` | `false` | Skip confirmation prompt for purchase | false |
 
 ## Subcommands
 * [docs](megaport-cli_ports_buy_docs.md)

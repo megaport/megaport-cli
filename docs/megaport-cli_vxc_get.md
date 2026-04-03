@@ -15,7 +15,6 @@ This command retrieves detailed information for a single Virtual Cross Connect (
 
 ```sh
   megaport-cli vxc get vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-  megaport-cli vxc get vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --export
 ```
 
 ## Usage
@@ -32,7 +31,6 @@ megaport-cli vxc get [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| `--export` |  | `false` | Output recreatable JSON config for use with buy --json (excludes read-only fields; partner configs not available from API) | false |
 
 ## Subcommands
 * [docs](megaport-cli_vxc_get_docs.md)
