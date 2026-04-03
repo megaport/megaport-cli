@@ -584,7 +584,10 @@ func generateManPages(rootCmd *cobra.Command, outputDir string) error {
 		Source:  "Megaport CLI",
 		Manual:  "Megaport CLI Manual",
 	}
-	return doc.GenManTree(rootCmd, header, absDir)
+	if err := doc.GenManTree(rootCmd, header, absDir); err != nil {
+		return fmt.Errorf("failed to generate man pages in %q: %w", absDir, err)
+	}
+	return nil
 }
 
 func AddCommandsTo(rootCmd *cobra.Command) {
@@ -609,7 +612,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli generate-docs --format man ./man/").
 		WithImportantNote("The output directory will be created if it doesn't exist").
 		WithImportantNote("Existing files in the output directory may be overwritten").
-		WithImportantNote("Hidden commands and 'help' commands are excluded from the documentation").
+		WithImportantNote("Hidden commands are excluded from both formats").
+		WithImportantNote("The help command is excluded from markdown output; man format includes it via cobra/doc").
 		WithImportantNote("Man pages can be viewed with: man <outputDir>/megaport-cli.1").
 		WithLongDesc(
 			"Generate documentation for the Megaport CLI.\n\n" +

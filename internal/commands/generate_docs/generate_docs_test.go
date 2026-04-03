@@ -526,7 +526,7 @@ func TestGenerateManPages(t *testing.T) {
 	}
 }
 
-func TestGenerateManPagesUnwriteableDir(t *testing.T) {
+func TestGenerateManPagesUnwritableDir(t *testing.T) {
 	parent := t.TempDir()
 	// Create a regular file where we want a directory so MkdirAll fails.
 	blocker := filepath.Join(parent, "notadir")
