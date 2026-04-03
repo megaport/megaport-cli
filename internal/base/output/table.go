@@ -48,8 +48,8 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 	if err != nil {
 		return err
 	}
-	if len(outputFields) > 0 {
-		headers, _, fieldIndices, err = filterByFields(headers, jsonNames, fieldIndices, outputFields)
+	if tableFields := getOutputFields(); len(tableFields) > 0 {
+		headers, _, fieldIndices, err = filterByFields(headers, jsonNames, fieldIndices, tableFields)
 		if err != nil {
 			return err
 		}

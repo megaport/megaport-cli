@@ -5,16 +5,29 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 )
 
 // outputFields holds the user-selected fields from --fields flag.
-// nil means all fields are shown.
-var outputFields []string
+// nil means all fields are shown. Protected by outputFieldsMu.
+var (
+	outputFields   []string
+	outputFieldsMu sync.RWMutex
+)
 
 // SetOutputFields sets the fields to include in output. Pass nil to restore all fields.
 func SetOutputFields(fields []string) {
+	outputFieldsMu.Lock()
+	defer outputFieldsMu.Unlock()
 	outputFields = fields
+}
+
+// getOutputFields returns the current field filter under a read lock.
+func getOutputFields() []string {
+	outputFieldsMu.RLock()
+	defer outputFieldsMu.RUnlock()
+	return outputFields
 }
 
 // Output is a marker interface for output types
@@ -135,30 +148,42 @@ func extractFieldInfo(itemType reflect.Type) (headers, jsonNames []string, field
 }
 
 // filterByFields filters (headers, jsonNames, indices) to only the user-selected fields.
-// Matching is case-insensitive against both json names and header names.
-// Returns an error listing available json names if any selected field is unknown.
+// Matching is case-insensitive: json names are tried first, then header names.
+// Duplicate selections are silently deduplicated. Returns an error listing available
+// json names if any selected field is unknown.
 func filterByFields(headers, jsonNames []string, indices []int, selected []string) ([]string, []string, []int, error) {
 	if len(selected) == 0 {
 		return headers, jsonNames, indices, nil
 	}
-	// Build lookup: lowercase(jsonName) → position, lowercase(header) → position
-	pos := make(map[string]int, len(jsonNames))
+	// Two separate maps avoids the collision that occurs when a header name
+	// happens to match a json name of a different field.
+	byJSON := make(map[string]int, len(jsonNames))
 	for i, jn := range jsonNames {
-		pos[strings.ToLower(jn)] = i
+		byJSON[strings.ToLower(jn)] = i
 	}
+	byHeader := make(map[string]int, len(headers))
 	for i, h := range headers {
-		pos[strings.ToLower(h)] = i
+		byHeader[strings.ToLower(h)] = i
 	}
 
+	seen := make(map[int]bool, len(selected))
 	var outHeaders, outJSONNames []string
 	var outIndices []int
 	for _, sel := range selected {
 		key := strings.ToLower(strings.TrimSpace(sel))
-		i, ok := pos[key]
+		// Prefer json name match; fall back to header display name.
+		i, ok := byJSON[key]
+		if !ok {
+			i, ok = byHeader[key]
+		}
 		if !ok {
 			return nil, nil, nil, fmt.Errorf("unknown field %q, available fields: %s", sel, strings.Join(jsonNames, ", "))
 		}
-		if i < len(headers) {
+		if seen[i] {
+			continue // deduplicate repeated field selections
+		}
+		seen[i] = true
+		if len(headers) > 0 {
 			outHeaders = append(outHeaders, headers[i])
 		}
 		outJSONNames = append(outJSONNames, jsonNames[i])

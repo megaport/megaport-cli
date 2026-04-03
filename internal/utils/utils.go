@@ -130,7 +130,10 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 		}
 
 		// Apply --fields filter to the output package.
-		fieldsStr, _ := cmd.Root().PersistentFlags().GetString("fields")
+		fieldsStr, err := cmd.Root().PersistentFlags().GetString("fields")
+		if err != nil {
+			fieldsStr = ""
+		}
 		if fieldsStr != "" {
 			var fields []string
 			for _, f := range strings.Split(fieldsStr, ",") {

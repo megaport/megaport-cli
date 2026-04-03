@@ -21,12 +21,13 @@ func printJSON[T OutputFields](data []T) error {
 	}
 
 	// When --fields is set, build filtered maps so only selected keys appear.
-	if len(outputFields) > 0 && len(data) > 0 {
-		_, jsonNames, indices, err := getStructTypeInfo(data)
+	fields := getOutputFields()
+	if len(fields) > 0 && len(data) > 0 {
+		headers, jsonNames, indices, err := getStructTypeInfo(data)
 		if err != nil {
 			return err
 		}
-		_, jsonNames, indices, err = filterByFields(nil, jsonNames, indices, outputFields)
+		_, jsonNames, indices, err = filterByFields(headers, jsonNames, indices, fields)
 		if err != nil {
 			return err
 		}
@@ -44,6 +45,9 @@ func printJSON[T OutputFields](data []T) error {
 			}
 			m := make(map[string]interface{}, len(indices))
 			for i, idx := range indices {
+				if idx >= v.NumField() {
+					continue
+				}
 				m[jsonNames[i]] = v.Field(idx).Interface()
 			}
 			rows = append(rows, m)
@@ -137,9 +141,9 @@ func printCSV[T OutputFields](data []T) error {
 		fields = append(fields, field.Name)
 		fieldIndices = append(fieldIndices, i)
 	}
-	if len(outputFields) > 0 {
+	if csvFields := getOutputFields(); len(csvFields) > 0 {
 		var err error
-		headers, jsonNames, fieldIndices, err = filterByFields(headers, jsonNames, fieldIndices, outputFields)
+		headers, _, fieldIndices, err = filterByFields(headers, jsonNames, fieldIndices, csvFields)
 		if err != nil {
 			return err
 		}
@@ -149,7 +153,6 @@ func printCSV[T OutputFields](data []T) error {
 			fields[i] = t.Field(idx).Name
 		}
 	}
-	_ = jsonNames // used only for filtering
 	if len(headers) == 0 {
 		return nil
 	}
@@ -266,7 +269,7 @@ func printXML[T OutputFields](data []T) error {
 		}
 		fields = append(fields, xmlField{name: name, index: i})
 	}
-	if len(outputFields) > 0 {
+	if xmlFields := getOutputFields(); len(xmlFields) > 0 {
 		// Build parallel slices so filterByFields can operate on them.
 		xmlHeaders := make([]string, len(fields))
 		xmlJSONNames := make([]string, len(fields))
@@ -276,20 +279,16 @@ func printXML[T OutputFields](data []T) error {
 			xmlJSONNames[i] = f.name
 			xmlIndices[i] = f.index
 		}
-		_, _, xmlIndices, err := filterByFields(xmlHeaders, xmlJSONNames, xmlIndices, outputFields)
+		_, _, xmlIndices, err := filterByFields(xmlHeaders, xmlJSONNames, xmlIndices, xmlFields)
 		if err != nil {
 			return err
-		}
-		// Rebuild fields from filtered indices.
-		filtered := make([]xmlField, len(xmlIndices))
-		for i, idx := range xmlIndices {
-			filtered[i] = xmlField{name: xmlHeaders[i], index: idx}
 		}
 		// Re-derive names from original fields map by index lookup.
 		nameByIndex := make(map[int]string, len(fields))
 		for _, f := range fields {
 			nameByIndex[f.index] = f.name
 		}
+		filtered := make([]xmlField, len(xmlIndices))
 		for i, idx := range xmlIndices {
 			filtered[i] = xmlField{name: nameByIndex[idx], index: idx}
 		}
