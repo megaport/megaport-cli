@@ -3,7 +3,6 @@ package product
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
@@ -22,7 +21,7 @@ var getProductTypeFunc = func(ctx context.Context, client *megaport.Client, prod
 
 func ListProducts(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -70,7 +69,7 @@ func ListProducts(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 func GetProductType(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)

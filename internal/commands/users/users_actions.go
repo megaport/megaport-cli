@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -92,7 +91,7 @@ func buildUpdateUserRequest(cmd *cobra.Command, noColor bool) (*megaport.UpdateU
 
 func ListUsers(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -123,7 +122,7 @@ func ListUsers(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 
 func GetUser(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	employeeID, err := strconv.Atoi(args[0])
@@ -312,7 +311,7 @@ func DeactivateUser(cmd *cobra.Command, args []string, noColor bool) error {
 
 func GetUserActivity(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)

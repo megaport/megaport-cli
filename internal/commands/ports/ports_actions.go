@@ -310,7 +310,7 @@ var listPortsFunc = func(ctx context.Context, client *megaport.Client) ([]*megap
 
 func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -362,7 +362,7 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 
 func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -411,7 +411,7 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 
 func GetPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -603,7 +603,7 @@ func DeletePort(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func RestorePort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	portUID := args[0]
@@ -635,7 +635,7 @@ func RestorePort(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func LockPort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	portUID := args[0]
@@ -667,7 +667,7 @@ func LockPort(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UnlockPort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	portUID := args[0]
@@ -699,7 +699,7 @@ func UnlockPort(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func CheckPortVLANAvailability(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	portUID := args[0]

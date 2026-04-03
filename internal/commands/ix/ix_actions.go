@@ -32,7 +32,7 @@ func exportIXConfig(ix *megaport.IX) map[string]interface{} {
 
 func ListIXs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -104,7 +104,7 @@ func ListIXs(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 
 func GetIX(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -146,7 +146,7 @@ func GetIX(cmd *cobra.Command, args []string, noColor bool, outputFormat string)
 
 func GetIXStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -391,7 +391,7 @@ func UpdateIX(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func DeleteIX(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)
