@@ -24,6 +24,10 @@ megaport-cli servicekeys get [flags]
 ## Parent Command
 
 * [megaport-cli servicekeys](megaport-cli_servicekeys.md)
+
+## Aliases
+
+* show
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

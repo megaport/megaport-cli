@@ -27,6 +27,10 @@ megaport-cli ix status [flags]
 ## Parent Command
 
 * [megaport-cli ix](megaport-cli_ix.md)
+
+## Aliases
+
+* st
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

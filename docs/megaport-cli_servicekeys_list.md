@@ -25,6 +25,10 @@ megaport-cli servicekeys list [flags]
 ## Parent Command
 
 * [megaport-cli servicekeys](megaport-cli_servicekeys.md)
+
+## Aliases
+
+* ls
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

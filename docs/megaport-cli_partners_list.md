@@ -33,6 +33,10 @@ megaport-cli partners list [flags]
 ## Parent Command
 
 * [megaport-cli partners](megaport-cli_partners.md)
+
+## Aliases
+
+* ls
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

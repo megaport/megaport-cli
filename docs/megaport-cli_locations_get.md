@@ -24,6 +24,10 @@ megaport-cli locations get [flags]
 ## Parent Command
 
 * [megaport-cli locations](megaport-cli_locations.md)
+
+## Aliases
+
+* show
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

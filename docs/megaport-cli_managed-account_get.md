@@ -27,6 +27,10 @@ megaport-cli managed-account get [flags]
 ## Parent Command
 
 * [megaport-cli managed-account](megaport-cli_managed-account.md)
+
+## Aliases
+
+* show
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

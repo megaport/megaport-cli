@@ -26,6 +26,10 @@ megaport-cli mcr delete [flags]
 ## Parent Command
 
 * [megaport-cli mcr](megaport-cli_mcr.md)
+
+## Aliases
+
+* rm
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

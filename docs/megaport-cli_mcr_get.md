@@ -28,6 +28,10 @@ megaport-cli mcr get [flags]
 ## Parent Command
 
 * [megaport-cli mcr](megaport-cli_mcr.md)
+
+## Aliases
+
+* show
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
