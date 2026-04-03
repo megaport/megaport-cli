@@ -39,6 +39,11 @@ func ListManagedAccounts(cmd *cobra.Command, args []string, noColor bool, output
 
 	filteredAccounts := filterManagedAccounts(accounts, accountName, accountRef)
 
+	limit, _ := cmd.Flags().GetInt("limit")
+	if limit > 0 && len(filteredAccounts) > limit {
+		filteredAccounts = filteredAccounts[:limit]
+	}
+
 	if len(filteredAccounts) == 0 {
 		if outputFormat == utils.FormatTable {
 			output.PrintInfo("No managed accounts found.", noColor)

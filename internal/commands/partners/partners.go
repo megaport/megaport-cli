@@ -30,6 +30,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli partners list --diversity-zone \"blue\"").
 		WithImportantNote("The list can be filtered by multiple criteria at once").
 		WithImportantNote("Filtering is case-insensitive and partial matches are supported").
+		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
 		Build()
 

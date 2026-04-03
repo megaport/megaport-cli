@@ -91,6 +91,11 @@ func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 
 	filteredMVEs := filterMVEs(mves, locationID, vendor, name)
 
+	limit, _ := cmd.Flags().GetInt("limit")
+	if limit > 0 && len(filteredMVEs) > limit {
+		filteredMVEs = filteredMVEs[:limit]
+	}
+
 	if len(filteredMVEs) == 0 {
 		if outputFormat == utils.FormatTable {
 			output.PrintInfo("No MVEs found. Create one with 'megaport mve buy'.", noColor)

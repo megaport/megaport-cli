@@ -145,15 +145,22 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 		return fmt.Errorf("error listing service keys: %v", err)
 	}
 
-	if len(resp.ServiceKeys) == 0 {
+	serviceKeys := resp.ServiceKeys
+
+	limit, _ := cmd.Flags().GetInt("limit")
+	if limit > 0 && len(serviceKeys) > limit {
+		serviceKeys = serviceKeys[:limit]
+	}
+
+	if len(serviceKeys) == 0 {
 		if outputFormat == utils.FormatTable {
 			output.PrintInfo("No service keys found.", noColor)
 		}
 		return nil
 	}
 
-	outputs := make([]ServiceKeyOutput, 0, len(resp.ServiceKeys))
-	for _, sk := range resp.ServiceKeys {
+	outputs := make([]ServiceKeyOutput, 0, len(serviceKeys))
+	for _, sk := range serviceKeys {
 		op, err := ToServiceKeyOutput(sk)
 		if err != nil {
 			output.PrintError("Failed to convert service key: %v", noColor, err)

@@ -29,6 +29,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli managed-account list").
 		WithExample("megaport-cli managed-account list --account-name \"Acme\"").
 		WithExample("megaport-cli managed-account list --account-ref \"REF-001\"").
+		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
 		Build()
 
