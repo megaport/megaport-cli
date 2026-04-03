@@ -39,6 +39,8 @@ type TopologyVXC struct {
 
 // ShowTopology is the cobra run function for the topology command.
 func ShowTopology(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
@@ -50,6 +52,12 @@ func ShowTopology(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 	includeInactive, _ := cmd.Flags().GetBool("include-inactive")
 	typeFilter, _ := cmd.Flags().GetString("type")
+	typeFilter = strings.ToLower(strings.TrimSpace(typeFilter))
+	switch typeFilter {
+	case "", "port", "mcr", "mve":
+	default:
+		return fmt.Errorf("invalid value for --type: %q (must be one of: port, mcr, mve)", typeFilter)
+	}
 
 	// Fetch ports, MCRs, and MVEs in parallel.
 	var (
@@ -78,12 +86,15 @@ func ShowTopology(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	wg.Wait()
 
 	if portsErr != nil {
+		output.PrintError("Failed to list ports: %v", noColor, portsErr)
 		return fmt.Errorf("error listing ports: %v", portsErr)
 	}
 	if mcrsErr != nil {
+		output.PrintError("Failed to list MCRs: %v", noColor, mcrsErr)
 		return fmt.Errorf("error listing MCRs: %v", mcrsErr)
 	}
 	if mvesErr != nil {
+		output.PrintError("Failed to list MVEs: %v", noColor, mvesErr)
 		return fmt.Errorf("error listing MVEs: %v", mvesErr)
 	}
 
