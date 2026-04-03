@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -56,27 +57,19 @@ var unlockMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID st
 }
 
 func filterMCRs(mcrs []*megaport.MCR, locationID, portSpeed int, mcrName string) []*megaport.MCR {
-	var filtered []*megaport.MCR
-
-	if mcrs == nil {
-		return filtered
-	}
-
-	for _, mcr := range mcrs {
+	return utils.Filter(mcrs, func(mcr *megaport.MCR) bool {
 		if mcr == nil {
-			continue
+			return false
 		}
 		if locationID > 0 && mcr.LocationID != locationID {
-			continue
+			return false
 		}
 		if portSpeed > 0 && mcr.PortSpeed != portSpeed {
-			continue
+			return false
 		}
 		if mcrName != "" && !strings.Contains(strings.ToLower(mcr.Name), strings.ToLower(mcrName)) {
-			continue
+			return false
 		}
-		filtered = append(filtered, mcr)
-	}
-
-	return filtered
+		return true
+	})
 }

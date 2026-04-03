@@ -381,20 +381,23 @@ func CaptureOutput(f func()) string {
 
 func CaptureOutputErr(f func() error) (string, error) {
 	old := os.Stdout
-	r, w, _ := os.Pipe()
+	r, w, err := os.Pipe()
+	if err != nil {
+		runErr := f()
+		return "", runErr
+	}
 	os.Stdout = w
 	defer func() {
 		os.Stdout = old
 	}()
-	err := f()
+	runErr := f()
 	w.Close()
-	if err != nil {
-		return "", err
-	}
 	var buf strings.Builder
 	_, copyErr := io.Copy(&buf, r)
 	if copyErr != nil {
 		return "", copyErr
 	}
-	return buf.String(), nil
+	// Return captured output even when f returned an error so callers can
+	// inspect partial output for diagnostics.
+	return buf.String(), runErr
 }

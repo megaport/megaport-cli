@@ -685,6 +685,16 @@ func TestCaptureOutputErr_RestoresStdoutOnError(t *testing.T) {
 	assert.Equal(t, originalStdout, os.Stdout, "os.Stdout should be restored after f() returns an error")
 }
 
+func TestCaptureOutputErr_ReturnsPartialOutputOnError(t *testing.T) {
+	out, err := CaptureOutputErr(func() error {
+		fmt.Print("partial output")
+		return errors.New("simulated error")
+	})
+
+	assert.Error(t, err)
+	assert.Equal(t, "partial output", out, "partial stdout should be returned even when f() errors")
+}
+
 func TestCaptureOutputErr_RestoresStdoutOnSuccess(t *testing.T) {
 	originalStdout := os.Stdout
 

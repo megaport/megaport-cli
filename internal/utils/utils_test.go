@@ -315,10 +315,13 @@ func TestWrapOutputFormatRunE(t *testing.T) {
 		root.PersistentFlags().Bool("no-color", false, "")
 		root.PersistentFlags().String("query", "", "")
 		root.PersistentFlags().String("fields", "", "")
+		// --output is registered as a local flag on the child to match production
+		// usage (WrapOutputFormatRunE reads it via cmd.Flags(), not PersistentFlags).
 		child := &cobra.Command{Use: "list"}
 		child.Flags().String("output", "table", "")
 		root.AddCommand(child)
 		require.NoError(t, root.PersistentFlags().Set("query", "[*].uid"))
+		// output is "table" (the default set above); guard should reject it.
 
 		err := wrapped(child, []string{})
 		require.Error(t, err)

@@ -103,7 +103,7 @@ brews:
       - release
     repository:
       owner: megaport
-      name: homebrew-megaport-cli
+      name: homebrew-tap
     directory: Formula
     homepage: "https://github.com/megaport/megaport-cli"
     description: "CLI tool for managing Megaport network infrastructure"

@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -24,36 +25,28 @@ var deleteIXFunc = func(ctx context.Context, client *megaport.Client, ixUID stri
 }
 
 func filterIXs(ixs []*megaport.IX, name, networkServiceType string, asn, vlan, locationID, rateLimit int) []*megaport.IX {
-	var filtered []*megaport.IX
-
-	if ixs == nil {
-		return filtered
-	}
-
-	for _, ix := range ixs {
+	return utils.Filter(ixs, func(ix *megaport.IX) bool {
 		if ix == nil {
-			continue
+			return false
 		}
 		if name != "" && !strings.Contains(strings.ToLower(ix.ProductName), strings.ToLower(name)) {
-			continue
+			return false
 		}
 		if networkServiceType != "" && !strings.Contains(strings.ToLower(ix.NetworkServiceType), strings.ToLower(networkServiceType)) {
-			continue
+			return false
 		}
 		if asn > 0 && ix.ASN != asn {
-			continue
+			return false
 		}
 		if vlan > 0 && ix.VLAN != vlan {
-			continue
+			return false
 		}
 		if locationID > 0 && ix.LocationID != locationID {
-			continue
+			return false
 		}
 		if rateLimit > 0 && ix.RateLimit != rateLimit {
-			continue
+			return false
 		}
-		filtered = append(filtered, ix)
-	}
-
-	return filtered
+		return true
+	})
 }
