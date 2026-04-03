@@ -44,6 +44,7 @@ megaport-cli vxc list [flags]
 | `--a-end-uid` |  |  | Filter VXCs by A-End product UID | false |
 | `--b-end-uid` |  |  | Filter VXCs by B-End product UID | false |
 | `--include-inactive` |  | `false` | Include inactive VXCs in the list | false |
+| `--limit` |  | `0` | Maximum number of results to display (0 = unlimited) | false |
 | `--name` |  |  | Filter VXCs by name (partial match) | false |
 | `--name-contains` |  |  | Filter VXCs by partial name match (server-side) | false |
 | `--rate-limit` |  | `0` | Filter VXCs by rate limit in Mbps | false |

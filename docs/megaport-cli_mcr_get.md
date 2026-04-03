@@ -15,6 +15,7 @@ This command retrieves and displays detailed information for a single Megaport C
 
 ```sh
   megaport-cli mcr get a1b2c3d4-e5f6-7890-1234-567890abcdef
+  megaport-cli mcr get a1b2c3d4-e5f6-7890-1234-567890abcdef --export
 ```
 
 ## Usage
@@ -31,6 +32,7 @@ megaport-cli mcr get [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
+| `--export` |  | `false` | Output recreatable JSON config for use with buy --json (excludes read-only fields) | false |
 
 ## Subcommands
 * [docs](megaport-cli_mcr_get_docs.md)

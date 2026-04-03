@@ -17,6 +17,14 @@ This command allows you to update the details of an existing port by providing t
 ### Important Notes
   - At least one update flag must be provided when not using --interactive, --json, or --json-file
 
+### Example Usage
+
+```sh
+  megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive
+  megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --name "Updated Port" --marketplace-visibility true --cost-centre "Finance"
+  megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{"name":"Updated Port","marketplaceVisibility":true,"costCentre":"Finance"}'
+  megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json-file ./update-port-config.json
+```
 
 ## Usage
 

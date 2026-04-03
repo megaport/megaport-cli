@@ -44,7 +44,11 @@ megaport-cli mve [flags]
 * [list-images](megaport-cli_mve_list-images.md)
 * [list-sizes](megaport-cli_mve_list-sizes.md)
 * [list-tags](megaport-cli_mve_list-tags.md)
+* [lock](megaport-cli_mve_lock.md)
+* [restore](megaport-cli_mve_restore.md)
 * [status](megaport-cli_mve_status.md)
+* [unlock](megaport-cli_mve_unlock.md)
 * [update](megaport-cli_mve_update.md)
 * [update-tags](megaport-cli_mve_update-tags.md)
+* [validate](megaport-cli_mve_validate.md)
 

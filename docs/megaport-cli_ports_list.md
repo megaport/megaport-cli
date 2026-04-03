@@ -10,7 +10,6 @@ This command fetches and displays a list of ports with details such as port ID, 
 
 ### Optional Fields
   - `include-inactive`: Include ports in CANCELLED, DECOMMISSIONED, or DECOMMISSIONING states
-  - `lag-only`: Show only LAG ports
   - `location-id`: Filter ports by location ID
   - `port-name`: Filter ports by port name
   - `port-speed`: Filter ports by port speed
@@ -41,6 +40,7 @@ megaport-cli ports list [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 | `--include-inactive` |  | `false` | Include inactive ports in the list | false |
+| `--limit` |  | `0` | Maximum number of results to display (0 = unlimited) | false |
 | `--location-id` |  | `0` | Filter ports by location ID | false |
 | `--port-name` |  |  | Filter ports by port name | false |
 | `--port-speed` |  | `0` | Filter ports by port speed | false |

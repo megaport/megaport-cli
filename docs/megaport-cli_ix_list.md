@@ -43,6 +43,7 @@ megaport-cli ix list [flags]
 |------|-----------|---------|-------------|----------|
 | `--asn` |  | `0` | Filter IXs by ASN | false |
 | `--include-inactive` |  | `false` | Include inactive IXs in the list | false |
+| `--limit` |  | `0` | Maximum number of results to display (0 = unlimited) | false |
 | `--location-id` |  | `0` | Filter IXs by location ID | false |
 | `--name` |  |  | Filter IXs by name (partial match) | false |
 | `--network-service-type` |  |  | Filter IXs by network service type | false |
