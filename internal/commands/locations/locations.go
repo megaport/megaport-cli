@@ -20,7 +20,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli locations list --country \"US\"").
 		WithExample("megaport-cli locations list --name \"Equinix SY1\"").
 		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
-		WithRootCmd(rootCmd).Build()
+		WithRootCmd(rootCmd).
+		WithAliases([]string{"ls"}).Build()
 
 	getLocationCmd := cmdbuilder.NewCommand("get", "Get details for a specific location by ID").
 		WithArgs(cobra.ExactArgs(1)).
@@ -28,6 +29,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOutputFormatRunFunc(GetLocation).
 		WithExample("megaport-cli locations get 67").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"show"}).
 		Build()
 
 	listCountriesCmd := cmdbuilder.NewCommand("list-countries", "List all countries with Megaport locations").

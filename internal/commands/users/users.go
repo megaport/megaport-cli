@@ -30,6 +30,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli users list --active-only").
 		WithExample("megaport-cli users list --position \"Technical Admin\"").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"ls"}).
 		Build()
 
 	getCmd := cmdbuilder.NewCommand("get", "Get details for a specific user").
@@ -38,6 +39,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithLongDesc("Get details for a specific user by employee ID.\n\nThis command retrieves and displays detailed information about a specific user.").
 		WithExample("megaport-cli users get 12345").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"show"}).
 		Build()
 
 	createCmd := cmdbuilder.NewCommand("create", "Create a new user").
@@ -98,6 +100,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("Only users with pending invitations can be deleted").
 		WithImportantNote("To remove access for active users, use the 'deactivate' command instead").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"rm"}).
 		Build()
 
 	deactivateCmd := cmdbuilder.NewCommand("deactivate", "Deactivate a user").

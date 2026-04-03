@@ -19,6 +19,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli billing-market get").
 		WithExample("megaport-cli billing-market get -o json").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"show"}).
 		Build()
 
 	setBillingMarketCmd := cmdbuilder.NewCommand("set", "Set billing market configuration").

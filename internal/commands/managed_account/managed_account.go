@@ -31,6 +31,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli managed-account list --account-ref \"REF-001\"").
 		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"ls"}).
 		Build()
 
 	// Create get managed account command
@@ -41,6 +42,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli managed-account get [companyUID] [accountName]").
 		WithImportantNote("The first argument is the company UID and the second is the account name").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"show"}).
 		Build()
 
 	// Create create managed account command

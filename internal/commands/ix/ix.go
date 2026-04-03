@@ -30,6 +30,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli ix get a1b2c3d4-e5f6-7890-1234-567890abcdef --export").
 		WithImportantNote("The output includes the IX's UID, name, network service type, ASN, rate limit, VLAN, MAC address, and provisioning status").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"show"}).
 		Build()
 
 	// Create buy IX command
@@ -102,6 +103,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli ix delete [ixUID] --now").
 		WithExample("megaport-cli ix delete [ixUID] --now --force").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"rm"}).
 		Build()
 
 	// Create list IXs command
@@ -123,6 +125,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli ix list --include-inactive").
 		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"ls"}).
 		Build()
 
 	// Create status IX command
@@ -133,6 +136,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli ix status ix-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
 		WithImportantNote("This is a lightweight command that only shows the IX's status without retrieving all details.").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"st"}).
 		Build()
 
 	// Create validate IX command

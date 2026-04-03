@@ -32,6 +32,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("Filtering is case-insensitive and partial matches are supported").
 		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"ls"}).
 		Build()
 
 	findPartnersCmd := cmdbuilder.NewCommand("find", "Find partner ports interactively").
