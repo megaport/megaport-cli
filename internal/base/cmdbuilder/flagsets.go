@@ -1,5 +1,14 @@
 package cmdbuilder
 
+import "time"
+
+// WithWatchFlags adds flags for continuous status monitoring
+func (b *CommandBuilder) WithWatchFlags() *CommandBuilder {
+	b.WithBoolFlagP("watch", "w", false, "Continuously poll and display resource status (Ctrl+C to stop)")
+	b.WithDurationFlag("interval", 5*time.Second, "Polling interval for --watch mode (e.g. 5s, 1m)")
+	return b
+}
+
 // AddStandardInputFlags adds interactive, json and json-file flags
 func (b *CommandBuilder) WithStandardInputFlags() *CommandBuilder {
 	b.WithBoolFlagP("interactive", "i", false, "Use interactive mode with prompts")

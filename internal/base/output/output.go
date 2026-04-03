@@ -15,62 +15,13 @@ import (
 )
 
 func printJSON[T OutputFields](data []T) error {
-	// Handle nil slices by ensuring we output an empty array instead of null
 	if data == nil {
 		data = []T{}
 	}
 
-	fields := getOutputFields()
-	query := getOutputQuery()
-
-	// Determine what to encode — fields-filtered maps or raw typed data.
-	var toEncode interface{}
-	if len(fields) > 0 {
-		// When --fields is set, validate field names (even on empty data) and build
-		// filtered maps so only selected keys appear in the JSON output.
-		headers, jsonNames, indices, err := getStructTypeInfo(data)
-		if err != nil {
-			return err
-		}
-		_, jsonNames, indices, err = filterByFields(headers, jsonNames, indices, fields)
-		if err != nil {
-			return err
-		}
-		rows := make([]interface{}, 0, len(data))
-		for _, item := range data {
-			v := reflect.ValueOf(item)
-			if v.Kind() == reflect.Ptr {
-				if v.IsNil() {
-					rows = append(rows, nil)
-					continue
-				}
-				v = v.Elem()
-			}
-			if !v.IsValid() || v.Kind() != reflect.Struct {
-				rows = append(rows, nil)
-				continue
-			}
-			m := make(map[string]interface{}, len(indices))
-			for i, idx := range indices {
-				if idx >= v.NumField() {
-					continue
-				}
-				m[jsonNames[i]] = v.Field(idx).Interface()
-			}
-			rows = append(rows, m)
-		}
-		toEncode = rows
-	} else {
-		toEncode = data
-	}
-
-	// Apply JMESPath query if set.
-	if query != "" {
-		var err error
-		toEncode, err = applyJMESPath(query, toEncode)
-		if err != nil {
-			return err
-		}
+	toEncode, err := prepareJSONData(data)
+	if err != nil {
+		return err
 	}
 
 	encoder := json.NewEncoder(os.Stdout)

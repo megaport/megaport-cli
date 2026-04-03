@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/help"
@@ -99,6 +100,18 @@ func (b *CommandBuilder) WithBoolFlag(name string, defaultVal bool, usage string
 // WithBoolFlag adds a boolean flag to the command
 func (b *CommandBuilder) WithBoolFlagP(name, shorthand string, defaultVal bool, usage string) *CommandBuilder {
 	b.cmd.Flags().BoolP(name, shorthand, defaultVal, usage)
+	return b
+}
+
+// WithDurationFlag adds a duration flag to the command
+func (b *CommandBuilder) WithDurationFlag(name string, defaultVal time.Duration, usage string) *CommandBuilder {
+	b.cmd.Flags().Duration(name, defaultVal, usage)
+	return b
+}
+
+// WithDurationFlagP adds a duration flag with a shorthand to the command
+func (b *CommandBuilder) WithDurationFlagP(name, shorthand string, defaultVal time.Duration, usage string) *CommandBuilder {
+	b.cmd.Flags().DurationP(name, shorthand, defaultVal, usage)
 	return b
 }
 

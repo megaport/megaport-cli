@@ -66,8 +66,9 @@ func getOutputQuery() string {
 
 // applyJMESPath applies a JMESPath query to v and returns the result.
 // v must be a JSON-compatible value (e.g. []T or []map[string]interface{}).
-// The marshal→unmarshal round-trip converts typed Go values to the interface{}
-// tree that go-jmespath requires. Returns an error if the query is invalid.
+// The marshal→unmarshal round-trip is intentional: go-jmespath operates on an
+// interface{} tree, so typed Go structs must be converted first. This doubles
+// memory momentarily but is necessary for correct JMESPath evaluation.
 func applyJMESPath(query string, v interface{}) (interface{}, error) {
 	raw, err := json.Marshal(v)
 	if err != nil {
@@ -82,6 +83,62 @@ func applyJMESPath(query string, v interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("invalid JMESPath query %q: %w", query, err)
 	}
 	return result, nil
+}
+
+// prepareJSONData applies --fields filtering and --query (JMESPath) to data,
+// returning the value ready for JSON encoding. This shared logic is used by
+// both native and WASM printJSON implementations.
+func prepareJSONData[T OutputFields](data []T) (interface{}, error) {
+	fields := getOutputFields()
+	query := getOutputQuery()
+
+	var toEncode interface{}
+	if len(fields) > 0 {
+		headers, jsonNames, indices, err := getStructTypeInfo(data)
+		if err != nil {
+			return nil, err
+		}
+		_, jsonNames, indices, err = filterByFields(headers, jsonNames, indices, fields)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]interface{}, 0, len(data))
+		for _, item := range data {
+			v := reflect.ValueOf(item)
+			if v.Kind() == reflect.Ptr {
+				if v.IsNil() {
+					rows = append(rows, nil)
+					continue
+				}
+				v = v.Elem()
+			}
+			if !v.IsValid() || v.Kind() != reflect.Struct {
+				rows = append(rows, nil)
+				continue
+			}
+			m := make(map[string]interface{}, len(indices))
+			for i, idx := range indices {
+				if idx >= v.NumField() {
+					continue
+				}
+				m[jsonNames[i]] = v.Field(idx).Interface()
+			}
+			rows = append(rows, m)
+		}
+		toEncode = rows
+	} else {
+		toEncode = data
+	}
+
+	if query != "" {
+		var err error
+		toEncode, err = applyJMESPath(query, toEncode)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return toEncode, nil
 }
 
 // Output is a marker interface for output types

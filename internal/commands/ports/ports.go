@@ -206,10 +206,13 @@ func buildPortManagementCommands(rootCmd *cobra.Command) (list, get, status, del
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetPort).
 		WithBoolFlag("export", false, "Output recreatable JSON config for use with buy --json (excludes read-only fields)").
+		WithWatchFlags().
 		WithLongDesc("Get details for a single port from the Megaport API.\n\nThis command fetches and displays detailed information about a specific port. You need to provide the UID of the port as an argument.").
 		WithExample("megaport-cli ports get port-abc123").
 		WithExample("megaport-cli ports get 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
 		WithExample("megaport-cli ports get port-abc123 --export").
+		WithExample("megaport-cli ports get port-abc123 --watch").
+		WithExample("megaport-cli ports get port-abc123 --watch --interval 10s").
 		WithRootCmd(rootCmd).
 		WithAliases([]string{"show"}).
 		Build()
@@ -217,8 +220,11 @@ func buildPortManagementCommands(rootCmd *cobra.Command) (list, get, status, del
 	status = cmdbuilder.NewCommand("status", "Check the provisioning status of a port").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetPortStatus).
+		WithWatchFlags().
 		WithLongDesc("Check the provisioning status of a port through the Megaport API.\n\nThis command retrieves only the essential status information for a port without all the details. It's useful for monitoring ongoing provisioning.").
 		WithExample("megaport-cli ports status port-abc123").
+		WithExample("megaport-cli ports status port-abc123 --watch").
+		WithExample("megaport-cli ports status port-abc123 --watch --interval 10s").
 		WithImportantNote("This is a lightweight command that only shows the port's status without retrieving all details.").
 		WithRootCmd(rootCmd).
 		WithAliases([]string{"st"}).

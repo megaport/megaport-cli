@@ -96,3 +96,8 @@ func PrintInfo(format string, noColor bool, args ...interface{}) {
 		}
 	}
 }
+
+// ClearScreen clears the terminal screen using ANSI escape codes.
+func ClearScreen() {
+	fmt.Print("\033[H\033[2J")
+}

@@ -383,6 +383,12 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 
 func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
+
+	watch, _ := cmd.Flags().GetBool("watch")
+	if watch {
+		return watchGetMCR(cmd, args, noColor, outputFormat)
+	}
+
 	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
@@ -421,6 +427,34 @@ func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 		return fmt.Errorf("error printing MCRs: %v", err)
 	}
 	return nil
+}
+
+func watchGetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	interval, _ := cmd.Flags().GetDuration("interval")
+
+	ctx := context.Background()
+	client, err := config.Login(ctx)
+	if err != nil {
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	mcrUID := args[0]
+	cfg := utils.WatchConfig{
+		Interval:     interval,
+		NoColor:      noColor,
+		OutputFormat: outputFormat,
+		ResourceType: "MCR",
+		ResourceUID:  mcrUID,
+	}
+
+	return utils.WatchLoop(ctx, cfg, func(pollCtx context.Context) (string, error) {
+		mcr, err := getMCRFunc(pollCtx, client, mcrUID)
+		if err != nil {
+			return "", err
+		}
+		err = printMCRs([]*megaport.MCR{mcr}, outputFormat, noColor)
+		return mcr.ProvisioningStatus, err
+	})
 }
 
 func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
@@ -766,6 +800,12 @@ func UpdateMCRResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 
 func GetMCRStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
+
+	watch, _ := cmd.Flags().GetBool("watch")
+	if watch {
+		return watchMCRStatus(cmd, args, noColor, outputFormat)
+	}
+
 	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
@@ -804,4 +844,45 @@ func GetMCRStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	}
 
 	return output.PrintOutput(status, outputFormat, noColor)
+}
+
+func watchMCRStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	interval, _ := cmd.Flags().GetDuration("interval")
+
+	ctx := context.Background()
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	mcrUID := args[0]
+	cfg := utils.WatchConfig{
+		Interval:     interval,
+		NoColor:      noColor,
+		OutputFormat: outputFormat,
+		ResourceType: "MCR",
+		ResourceUID:  mcrUID,
+	}
+
+	return utils.WatchLoop(ctx, cfg, func(pollCtx context.Context) (string, error) {
+		mcr, err := client.MCRService.GetMCR(pollCtx, mcrUID)
+		if err != nil {
+			return "", err
+		}
+		if mcr == nil {
+			return "", fmt.Errorf("no MCR found with UID: %s", mcrUID)
+		}
+		status := []MCRStatus{
+			{
+				UID:    mcr.UID,
+				Name:   mcr.Name,
+				Status: mcr.ProvisioningStatus,
+				ASN:    mcr.Resources.VirtualRouter.ASN,
+				Speed:  mcr.PortSpeed,
+			},
+		}
+		err = output.PrintOutput(status, outputFormat, noColor)
+		return mcr.ProvisioningStatus, err
+	})
 }

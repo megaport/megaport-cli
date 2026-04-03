@@ -42,9 +42,12 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetMCR).
 		WithBoolFlag("export", false, "Output recreatable JSON config for use with buy --json (excludes read-only fields)").
+		WithWatchFlags().
 		WithLongDesc("Get details for a single MCR.\n\nThis command retrieves and displays detailed information for a single Megaport Cloud Router (MCR). You must provide the unique identifier (UID) of the MCR you wish to retrieve.").
 		WithExample("megaport-cli mcr get a1b2c3d4-e5f6-7890-1234-567890abcdef").
 		WithExample("megaport-cli mcr get a1b2c3d4-e5f6-7890-1234-567890abcdef --export").
+		WithExample("megaport-cli mcr get a1b2c3d4-e5f6-7890-1234-567890abcdef --watch").
+		WithExample("megaport-cli mcr get a1b2c3d4-e5f6-7890-1234-567890abcdef --watch --interval 10s").
 		WithImportantNote("The output includes the MCR's UID, name, location ID, port speed, and provisioning status").
 		WithRootCmd(rootCmd).
 		WithAliases([]string{"show"}).
@@ -185,8 +188,11 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 	status = cmdbuilder.NewCommand("status", "Check the provisioning status of an MCR").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetMCRStatus).
+		WithWatchFlags().
 		WithLongDesc("Check the provisioning status of an MCR through the Megaport API.\n\nThis command retrieves only the essential status information for a Megaport Cloud Router (MCR) without all the details. It's useful for monitoring ongoing provisioning.").
 		WithExample("megaport-cli mcr status mcr-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
+		WithExample("megaport-cli mcr status mcr-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --watch").
+		WithExample("megaport-cli mcr status mcr-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --watch --interval 10s").
 		WithImportantNote("This is a lightweight command that only shows the MCR's status without retrieving all details.").
 		WithRootCmd(rootCmd).
 		WithAliases([]string{"st"}).
