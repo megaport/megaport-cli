@@ -159,6 +159,17 @@ func TestListManagedAccounts(t *testing.T) {
 			outputFormat:     "table",
 		},
 		{
+			name: "negative limit returns error",
+			flags: map[string]string{
+				"limit": "-1",
+			},
+			setupMock: func(m *MockManagedAccountService) {
+				m.listResult = testAccounts
+			},
+			expectedError: "--limit must be a non-negative integer",
+			outputFormat:  "table",
+		},
+		{
 			name: "invalid output format",
 			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = testAccounts

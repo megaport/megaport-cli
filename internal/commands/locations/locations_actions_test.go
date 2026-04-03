@@ -289,6 +289,14 @@ func TestListLocationsCommand(t *testing.T) {
 		assert.Contains(t, out, "London Data Center")
 		assert.NotContains(t, out, "New York Data Center")
 	})
+
+	t.Run("NegativeLimitReturnsError", func(t *testing.T) {
+		cmd := newListCmd()
+		testutil.SetFlags(t, cmd, map[string]string{"limit": "-1"})
+		err := ListLocations(cmd, []string{}, true, "table")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "--limit must be a non-negative integer")
+	})
 }
 
 func TestGetLocation(t *testing.T) {

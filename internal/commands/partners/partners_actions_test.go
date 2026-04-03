@@ -246,6 +246,12 @@ func TestListPartners(t *testing.T) {
 			flags:         map[string]string{"limit": "2"},
 			expectedCount: 2,
 		},
+		{
+			name:        "negative limit returns error",
+			partners:    testPartners,
+			flags:       map[string]string{"limit": "-1"},
+			expectedErr: "--limit must be a non-negative integer",
+		},
 	}
 
 	for _, tt := range tests {

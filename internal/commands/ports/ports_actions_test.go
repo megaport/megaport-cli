@@ -683,6 +683,12 @@ func TestListPorts(t *testing.T) {
 			expectedOutputs: []string{"port-1", "port-2"},
 			notExpected:     []string{"port-3"},
 		},
+		{
+			name:          "negative limit returns error",
+			limit:         -1,
+			ports:         allPorts,
+			expectedError: "--limit must be a non-negative integer",
+		},
 	}
 
 	for _, tt := range tests {
@@ -730,7 +736,7 @@ func TestListPorts(t *testing.T) {
 			if tt.includeInactive {
 				require.NoError(t, cmd.Flags().Set("include-inactive", "true"))
 			}
-			if tt.limit > 0 {
+			if tt.limit != 0 {
 				require.NoError(t, cmd.Flags().Set("limit", fmt.Sprintf("%d", tt.limit)))
 			}
 

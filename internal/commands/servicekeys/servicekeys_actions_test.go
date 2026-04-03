@@ -377,3 +377,30 @@ func TestListServiceKeys_Limit(t *testing.T) {
 	assert.Contains(t, capturedOutput, "key-2")
 	assert.NotContains(t, capturedOutput, "key-3")
 }
+
+func TestListServiceKeys_NegativeLimit(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockService := &MockServiceKeyService{
+		ListServiceKeysResult: &megaport.ListServiceKeysResponse{
+			ServiceKeys: []*megaport.ServiceKey{
+				{Key: "key-1", ProductName: "Product A", ProductUID: "prod-1"},
+			},
+		},
+	}
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.ServiceKeyService = mockService
+		return client, nil
+	}
+
+	cmd := testutil.NewCommand("list", testutil.OutputAdapter(ListServiceKeys))
+	cmd.Flags().String("product-uid", "", "")
+	cmd.Flags().Int("limit", 0, "")
+	testutil.SetFlags(t, cmd, map[string]string{"limit": "-1"})
+
+	err := cmd.RunE(cmd, []string{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "--limit must be a non-negative integer")
+}

@@ -312,6 +312,17 @@ func TestListIXs(t *testing.T) {
 			unexpectedIXs: []string{"production-ix"},
 			outputFormat:  "table",
 		},
+		{
+			name: "negative limit returns error",
+			flags: map[string]string{
+				"limit": "-1",
+			},
+			setupMock: func(m *MockIXService) {
+				m.listIXResponse = testIXs
+			},
+			expectedError: "--limit must be a non-negative integer",
+			outputFormat:  "table",
+		},
 	}
 
 	for _, tt := range tests {

@@ -148,6 +148,9 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 	serviceKeys := resp.ServiceKeys
 
 	limit, _ := cmd.Flags().GetInt("limit")
+	if limit < 0 {
+		return fmt.Errorf("--limit must be a non-negative integer")
+	}
 	if limit > 0 && len(serviceKeys) > limit {
 		serviceKeys = serviceKeys[:limit]
 	}

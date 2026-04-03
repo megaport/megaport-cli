@@ -80,6 +80,9 @@ func ListIXs(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 	filteredIXs := filterIXs(ixs, name, networkServiceType, asn, vlan, locationID, rateLimit)
 
 	limit, _ := cmd.Flags().GetInt("limit")
+	if limit < 0 {
+		return fmt.Errorf("--limit must be a non-negative integer")
+	}
 	if limit > 0 && len(filteredIXs) > limit {
 		filteredIXs = filteredIXs[:limit]
 	}

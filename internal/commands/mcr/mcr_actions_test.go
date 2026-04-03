@@ -1322,6 +1322,17 @@ func TestListMCRsCmd_WithMockClient(t *testing.T) {
 			unexpectedMCRs: []string{"production-mcr"},
 			outputFormat:   "table",
 		},
+		{
+			name: "negative limit returns error",
+			flags: map[string]string{
+				"limit": "-1",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = testMCRs
+			},
+			expectedError: "--limit must be a non-negative integer",
+			outputFormat:  "table",
+		},
 	}
 
 	for _, tt := range tests {

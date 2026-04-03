@@ -698,6 +698,9 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	filteredMCRs := filterMCRs(mcrs, locationID, portSpeed, mcrName)
 
 	limit, _ := cmd.Flags().GetInt("limit")
+	if limit < 0 {
+		return fmt.Errorf("--limit must be a non-negative integer")
+	}
 	if limit > 0 && len(filteredMCRs) > limit {
 		filteredMCRs = filteredMCRs[:limit]
 	}

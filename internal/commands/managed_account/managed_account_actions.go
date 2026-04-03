@@ -40,6 +40,9 @@ func ListManagedAccounts(cmd *cobra.Command, args []string, noColor bool, output
 	filteredAccounts := filterManagedAccounts(accounts, accountName, accountRef)
 
 	limit, _ := cmd.Flags().GetInt("limit")
+	if limit < 0 {
+		return fmt.Errorf("--limit must be a non-negative integer")
+	}
 	if limit > 0 && len(filteredAccounts) > limit {
 		filteredAccounts = filteredAccounts[:limit]
 	}
