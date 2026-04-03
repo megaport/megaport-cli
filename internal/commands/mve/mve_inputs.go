@@ -58,7 +58,7 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 	}
 
 	if vendorConfigMap, ok := jsonData["vendorConfig"].(map[string]interface{}); ok {
-		vendorConfig, err := parseVendorConfig(vendorConfigMap)
+		vendorConfig, err := ParseVendorConfig(vendorConfigMap)
 		if err != nil {
 			return nil, err
 		}
@@ -109,7 +109,7 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing vendor-config JSON string: %v", err)
 		}
-		vendorConfig, err = parseVendorConfig(vendorConfigMap)
+		vendorConfig, err = ParseVendorConfig(vendorConfigMap)
 		if err != nil {
 			return nil, err
 		}
@@ -159,7 +159,9 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 	return req, nil
 }
 
-func parseVendorConfig(vendorConfigMap map[string]interface{}) (megaport.VendorConfig, error) {
+// ParseVendorConfig converts a vendor config map (e.g. decoded from YAML/JSON) into
+// the appropriate typed VendorConfig based on the "vendor" key.
+func ParseVendorConfig(vendorConfigMap map[string]interface{}) (megaport.VendorConfig, error) {
 	vendor, ok := vendorConfigMap["vendor"].(string)
 	if !ok {
 		return nil, fmt.Errorf("vendor field is required in vendor config")
