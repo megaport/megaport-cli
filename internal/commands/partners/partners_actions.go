@@ -39,6 +39,14 @@ func ListPartners(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 	filteredPartners := filterPartners(partners, productName, connectType, companyName, locationID, diversityZone)
 
+	limit, _ := cmd.Flags().GetInt("limit")
+	if limit < 0 {
+		return fmt.Errorf("--limit must be a non-negative integer")
+	}
+	if limit > 0 && len(filteredPartners) > limit {
+		filteredPartners = filteredPartners[:limit]
+	}
+
 	if len(filteredPartners) == 0 {
 		if outputFormat == utils.FormatTable {
 			output.PrintInfo("No partner ports found matching your filters.", noColor)

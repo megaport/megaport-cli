@@ -1091,6 +1091,25 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 			},
 			expectedOutput: []string{"No MVEs found. Create one with 'megaport mve buy'."},
 		},
+		{
+			name:         "limit results",
+			flags:        map[string]string{"limit": "1"},
+			outputFormat: "table",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEsResult = mves
+			},
+			expectedOutput:   []string{"mve-1", "TestMVE-1"},
+			unexpectedOutput: []string{"mve-2", "TestMVE-2"},
+		},
+		{
+			name:         "negative limit returns error",
+			flags:        map[string]string{"limit": "-1"},
+			outputFormat: "table",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEsResult = mves
+			},
+			expectedError: "--limit must be a non-negative integer",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1111,6 +1130,7 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 			cmd.Flags().Int("location-id", 0, "")
 			cmd.Flags().String("vendor", "", "")
 			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("limit", 0, "")
 			cmd.Flags().String("output", tt.outputFormat, "")
 
 			testutil.SetFlags(t, cmd, tt.flags)

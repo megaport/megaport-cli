@@ -42,6 +42,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithServiceKeyListFlags().
 		WithExample("megaport-cli servicekeys list").
 		WithExample("megaport-cli servicekeys list --product-uid \"product-uid\"").
+		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
 		Build()
 

@@ -147,6 +147,29 @@ func TestListManagedAccounts(t *testing.T) {
 			outputFormat:  "table",
 		},
 		{
+			name: "limit results",
+			flags: map[string]string{
+				"limit": "2",
+			},
+			setupMock: func(m *MockManagedAccountService) {
+				m.listResult = testAccounts
+			},
+			expectedAccounts: []string{"Acme Corp", "Beta Inc"},
+			unexpectedAccts:  []string{"Acme Subsidiary"},
+			outputFormat:     "table",
+		},
+		{
+			name: "negative limit returns error",
+			flags: map[string]string{
+				"limit": "-1",
+			},
+			setupMock: func(m *MockManagedAccountService) {
+				m.listResult = testAccounts
+			},
+			expectedError: "--limit must be a non-negative integer",
+			outputFormat:  "table",
+		},
+		{
 			name: "invalid output format",
 			setupMock: func(m *MockManagedAccountService) {
 				m.listResult = testAccounts
@@ -181,6 +204,7 @@ func TestListManagedAccounts(t *testing.T) {
 
 			cmd.Flags().String("account-name", "", "Filter by account name")
 			cmd.Flags().String("account-ref", "", "Filter by account ref")
+			cmd.Flags().Int("limit", 0, "Maximum number of results to display")
 
 			testutil.SetFlags(t, cmd, tt.flags)
 

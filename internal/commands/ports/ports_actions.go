@@ -337,6 +337,14 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 
 	filteredPorts := filterPorts(ports, locationID, portSpeed, portName, includeInactive)
 
+	limit, _ := cmd.Flags().GetInt("limit")
+	if limit < 0 {
+		return fmt.Errorf("--limit must be a non-negative integer")
+	}
+	if limit > 0 && len(filteredPorts) > limit {
+		filteredPorts = filteredPorts[:limit]
+	}
+
 	if len(filteredPorts) == 0 {
 		if outputFormat == utils.FormatTable {
 			output.PrintInfo("No ports found. Create one with 'megaport ports buy'.", noColor)

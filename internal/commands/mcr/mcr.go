@@ -174,6 +174,7 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithExample("megaport-cli mcr list --name \"My MCR\"").
 		WithExample("megaport-cli mcr list --include-inactive").
 		WithExample("megaport-cli mcr list --location-id 1 --port-speed 10000 --name \"My MCR\"").
+		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
 		Build()
 

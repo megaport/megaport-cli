@@ -211,6 +211,7 @@ func TestListLocationsCommand(t *testing.T) {
 		cmd.Flags().String("metro", "", "Filter by metro")
 		cmd.Flags().String("country", "", "Filter by country")
 		cmd.Flags().String("name", "", "Filter by name")
+		cmd.Flags().Int("limit", 0, "Maximum number of results to display")
 		return cmd
 	}
 
@@ -274,6 +275,27 @@ func TestListLocationsCommand(t *testing.T) {
 		})
 
 		assert.Contains(t, output, "No locations found matching your filters.")
+	})
+
+	t.Run("LimitResults", func(t *testing.T) {
+		out := output.CaptureOutput(func() {
+			cmd := newListCmd()
+			testutil.SetFlags(t, cmd, map[string]string{"limit": "2"})
+			err := ListLocations(cmd, []string{}, true, "json")
+			assert.NoError(t, err)
+		})
+
+		assert.Contains(t, out, "Sydney Data Center")
+		assert.Contains(t, out, "London Data Center")
+		assert.NotContains(t, out, "New York Data Center")
+	})
+
+	t.Run("NegativeLimitReturnsError", func(t *testing.T) {
+		cmd := newListCmd()
+		testutil.SetFlags(t, cmd, map[string]string{"limit": "-1"})
+		err := ListLocations(cmd, []string{}, true, "table")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "--limit must be a non-negative integer")
 	})
 }
 

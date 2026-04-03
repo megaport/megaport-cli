@@ -121,6 +121,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli ix list --asn 65000").
 		WithExample("megaport-cli ix list --network-service-type \"Los Angeles IX\"").
 		WithExample("megaport-cli ix list --include-inactive").
+		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
 		Build()
 

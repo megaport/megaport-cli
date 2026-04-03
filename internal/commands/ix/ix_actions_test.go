@@ -300,6 +300,29 @@ func TestListIXs(t *testing.T) {
 			expectedError: "login failed",
 			outputFormat:  "table",
 		},
+		{
+			name: "limit results",
+			flags: map[string]string{
+				"limit": "2",
+			},
+			setupMock: func(m *MockIXService) {
+				m.listIXResponse = testIXs
+			},
+			expectedIXs:   []string{"ix-demo-01", "ix-demo-02"},
+			unexpectedIXs: []string{"production-ix"},
+			outputFormat:  "table",
+		},
+		{
+			name: "negative limit returns error",
+			flags: map[string]string{
+				"limit": "-1",
+			},
+			setupMock: func(m *MockIXService) {
+				m.listIXResponse = testIXs
+			},
+			expectedError: "--limit must be a non-negative integer",
+			outputFormat:  "table",
+		},
 	}
 
 	for _, tt := range tests {
@@ -335,6 +358,7 @@ func TestListIXs(t *testing.T) {
 			cmd.Flags().Int("location-id", 0, "Filter IXs by location ID")
 			cmd.Flags().Int("rate-limit", 0, "Filter IXs by rate limit")
 			cmd.Flags().Bool("include-inactive", false, "Include inactive IXs")
+			cmd.Flags().Int("limit", 0, "Maximum number of results to display")
 
 			testutil.SetFlags(t, cmd, tt.flags)
 

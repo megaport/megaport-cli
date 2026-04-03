@@ -197,6 +197,7 @@ func buildPortManagementCommands(rootCmd *cobra.Command) (list, get, status, del
 		WithExample("megaport-cli ports list --port-name \"Data Center Primary\"").
 		WithExample("megaport-cli ports list --include-inactive").
 		WithExample("megaport-cli ports list --location-id 1 --port-speed 10000 --port-name \"Data Center Primary\"").
+		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
 		Build()
 

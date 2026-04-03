@@ -67,6 +67,14 @@ func ListLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat
 
 	filteredLocations := filterLocations(locations, filters)
 
+	limit, _ := cmd.Flags().GetInt("limit")
+	if limit < 0 {
+		return fmt.Errorf("--limit must be a non-negative integer")
+	}
+	if limit > 0 && len(filteredLocations) > limit {
+		filteredLocations = filteredLocations[:limit]
+	}
+
 	if len(filteredLocations) == 0 {
 		if outputFormat == utils.FormatTable {
 			output.PrintInfo("No locations found matching your filters.", noColor)

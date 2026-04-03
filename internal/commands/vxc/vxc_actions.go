@@ -123,6 +123,14 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 
 	filteredVXCs := filterVXCs(vxcs, name)
 
+	limit, _ := cmd.Flags().GetInt("limit")
+	if limit < 0 {
+		return fmt.Errorf("--limit must be a non-negative integer")
+	}
+	if limit > 0 && len(filteredVXCs) > limit {
+		filteredVXCs = filteredVXCs[:limit]
+	}
+
 	if len(filteredVXCs) == 0 {
 		if outputFormat == utils.FormatTable {
 			output.PrintInfo("No VXCs found. Create one with 'megaport vxc buy'.", noColor)
