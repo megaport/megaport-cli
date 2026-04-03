@@ -308,6 +308,61 @@ func TestApplyConfig_JSONFormat(t *testing.T) {
 	assert.Equal(t, "JSON-Port", mockPort.CapturedPortRequest.Name)
 }
 
+func TestApplyConfig_MVEWithYAMLIntegerVendorConfig(t *testing.T) {
+	// YAML decodes integer scalars as int (not float64 like JSON).
+	// normalizeVendorConfigMap must convert them so ParseVendorConfig works.
+	mockMVE := &MockMVEService{}
+	defer setupMockClient(&MockPortService{}, &MockMCRService{}, mockMVE, &MockVXCService{})()
+
+	yaml := `
+mves:
+  - name: Test-MVE
+    location_id: 1
+    term: 1
+    vendor_config:
+      vendor: 6wind
+      imageId: 42
+      productSize: SMALL
+      sshPublicKey: "ssh-rsa AAAA"
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+	// Should not fail due to YAML int → float64 type mismatch in ParseVendorConfig
+	require.NoError(t, err)
+}
+
+func TestApplyConfig_DryRunUnknownTemplateRef(t *testing.T) {
+	defer setupMockClient(&MockPortService{}, &MockMCRService{}, &MockMVEService{}, &MockVXCService{})()
+
+	// VXC references a port that is not declared in the config — dry-run should catch it.
+	yaml := `
+vxcs:
+  - name: Orphan-VXC
+    rate_limit: 100
+    term: 12
+    a_end:
+      product_uid: "{{.port.Undeclared}}"
+    b_end:
+      product_uid: some-uid
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, true, false)
+
+	var err error
+	captured := output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+
+	require.NoError(t, err) // dry-run reports invalid, does not return error
+	assert.Contains(t, captured, "invalid")
+	assert.Contains(t, captured, "Undeclared")
+}
+
 func TestApplyConfig_MCRAPIError(t *testing.T) {
 	mockMCR := &MockMCRService{BuyMCRErr: fmt.Errorf("MCR unavailable")}
 	defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, &MockVXCService{})()
@@ -479,13 +534,26 @@ func TestResolveTemplates_UnknownType(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestResolveOrPlaceholder_NoTemplate(t *testing.T) {
-	assert.Equal(t, "real-uid", resolveOrPlaceholder("real-uid"))
+func TestNormalizeVendorConfigMap_IntToFloat64(t *testing.T) {
+	// YAML decodes integers as int; normalizeVendorConfigMap converts them to float64
+	// so that ParseVendorConfig (which uses float64 type assertions) works correctly.
+	input := map[string]interface{}{
+		"vendor":      "cisco",
+		"imageId":     42, // int from YAML
+		"productSize": "SMALL",
+	}
+	out, err := normalizeVendorConfigMap(input)
+	require.NoError(t, err)
+	// After round-trip through JSON, integers become float64
+	assert.IsType(t, float64(0), out["imageId"])
+	assert.Equal(t, float64(42), out["imageId"])
+	assert.Equal(t, "cisco", out["vendor"])
 }
 
-func TestResolveOrPlaceholder_WithTemplate(t *testing.T) {
-	result := resolveOrPlaceholder("{{.port.Sydney}}")
-	assert.Equal(t, "00000000-0000-0000-0000-000000000000", result)
+func TestNormalizeVendorConfigMap_Nil(t *testing.T) {
+	out, err := normalizeVendorConfigMap(nil)
+	require.NoError(t, err)
+	assert.Nil(t, out)
 }
 
 func TestParseConfigFile_YAML(t *testing.T) {

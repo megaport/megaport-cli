@@ -187,7 +187,13 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 
 	// 3. MVEs
 	for _, mv := range cfg.MVEs {
-		vendorCfg, err := mve.ParseVendorConfig(mv.VendorConfig)
+		normalizedVC, err := normalizeVendorConfigMap(mv.VendorConfig)
+		if err != nil {
+			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
+			return printResultsAndError(results, outputFormat, noColor,
+				fmt.Errorf("invalid vendor_config for MVE %q: %w", mv.Name, err))
+		}
+		vendorCfg, err := mve.ParseVendorConfig(normalizedVC)
 		if err != nil {
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
 			return printResultsAndError(results, outputFormat, noColor,
@@ -204,7 +210,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			WaitForProvision: true,
 			WaitForTime:      defaultWaitTime,
 		}
-		if err := validation.ValidateMVERequest(req.Name, req.Term, req.LocationID); err != nil {
+		if err := validation.ValidateBuyMVERequest(req); err != nil {
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
 			return printResultsAndError(results, outputFormat, noColor,
 				fmt.Errorf("validation failed for MVE %q: %w", mv.Name, err))
@@ -353,7 +359,12 @@ func validateAll(ctx context.Context, client *megaport.Client, cfg *InfraConfig,
 	}
 
 	for _, mv := range cfg.MVEs {
-		vendorCfg, vcErr := mve.ParseVendorConfig(mv.VendorConfig)
+		normalizedVC, vcErr := normalizeVendorConfigMap(mv.VendorConfig)
+		if vcErr != nil {
+			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: "invalid: " + vcErr.Error()})
+			continue
+		}
+		vendorCfg, vcErr := mve.ParseVendorConfig(normalizedVC)
 		if vcErr != nil {
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: "invalid: " + vcErr.Error()})
 			continue
@@ -367,6 +378,10 @@ func validateAll(ctx context.Context, client *megaport.Client, cfg *InfraConfig,
 			CostCentre:    mv.CostCentre,
 			ResourceTags:  mv.ResourceTags,
 		}
+		if err := validation.ValidateBuyMVERequest(req); err != nil {
+			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: "invalid: " + err.Error()})
+			continue
+		}
 		err := client.MVEService.ValidateMVEOrder(ctx, req)
 		status := "valid"
 		if err != nil {
@@ -375,10 +390,37 @@ func validateAll(ctx context.Context, client *megaport.Client, cfg *InfraConfig,
 		results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: status})
 	}
 
+	// Build a dry-run UID map from declared resources so template references
+	// are resolved against known names — typos produce an "invalid" result
+	// rather than silently passing with a generic placeholder.
+	dryRunUIDs := map[string]map[string]string{
+		"port": {},
+		"mcr":  {},
+		"mve":  {},
+	}
+	const dryRunPlaceholder = "00000000-0000-0000-0000-000000000000"
+	for _, p := range cfg.Ports {
+		dryRunUIDs["port"][p.Name] = dryRunPlaceholder
+	}
+	for _, m := range cfg.MCRs {
+		dryRunUIDs["mcr"][m.Name] = dryRunPlaceholder
+	}
+	for _, mv := range cfg.MVEs {
+		dryRunUIDs["mve"][mv.Name] = dryRunPlaceholder
+	}
+
 	for _, v := range cfg.VXCs {
-		// Dry-run: substitute placeholders for unresolved templates.
-		aUID := resolveOrPlaceholder(v.AEnd.ProductUID)
-		bUID := resolveOrPlaceholder(v.BEnd.ProductUID)
+		// Resolve templates against declared resources; literal UIDs pass through.
+		aUID, aErr := resolveTemplates(v.AEnd.ProductUID, dryRunUIDs)
+		bUID, bErr := resolveTemplates(v.BEnd.ProductUID, dryRunUIDs)
+		if aErr != nil {
+			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: "invalid: " + aErr.Error()})
+			continue
+		}
+		if bErr != nil {
+			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: "invalid: " + bErr.Error()})
+			continue
+		}
 		req := &megaport.BuyVXCRequest{
 			PortUID:   aUID,
 			VXCName:   v.Name,
@@ -450,13 +492,21 @@ func resolveTemplates(s string, uids map[string]map[string]string) (string, erro
 	return result, resolveErr
 }
 
-// resolveOrPlaceholder returns the string unchanged if it contains no template,
-// or a placeholder UUID if it does (for dry-run validation).
-func resolveOrPlaceholder(s string) string {
-	if templateRe.MatchString(s) {
-		return "00000000-0000-0000-0000-000000000000"
+// normalizeVendorConfigMap round-trips a vendor config map through JSON so that
+// YAML-decoded integers (int) become float64, matching what ParseVendorConfig expects.
+func normalizeVendorConfigMap(m map[string]interface{}) (map[string]interface{}, error) {
+	if m == nil {
+		return nil, nil
 	}
-	return s
+	b, err := json.Marshal(m)
+	if err != nil {
+		return nil, fmt.Errorf("normalizing vendor config: %w", err)
+	}
+	var out map[string]interface{}
+	if err := json.Unmarshal(b, &out); err != nil {
+		return nil, fmt.Errorf("normalizing vendor config: %w", err)
+	}
+	return out, nil
 }
 
 // printResultsAndError prints the partial results table then returns err.
