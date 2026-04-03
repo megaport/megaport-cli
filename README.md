@@ -640,6 +640,7 @@ The CLI includes comprehensive generated documentation in the `docs` folder:
 - **[Index of all commands](docs/index.md)** - Complete listing of all available commands
 - **Guides:**
   - [AWS Direct Connect](docs/guides/aws-direct-connect.md) — step-by-step walkthrough for setting up AWS Direct Connect
+  - [Multi-Cloud Connectivity](docs/guides/multi-cloud-connectivity.md) — connect AWS, Azure, and GCP through a Megaport Cloud Router
 - **Command References:**
   - Locations - Find and explore Megaport locations
   - Ports - Manage physical ports
