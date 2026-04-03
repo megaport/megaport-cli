@@ -61,13 +61,14 @@ func applyQueryFilter(cmd *cobra.Command) string {
 }
 
 // enforceQueryFormatGuard returns a usage error if --query is set and the
-// resolved output format is not json. Reads --output from the root persistent
-// flags so the lookup is consistent with applyQueryFilter and applyFieldsFilter.
-func enforceQueryFormatGuard(cmd *cobra.Command, queryStr string) error {
+// resolved output format is not json. The caller must pass in the already-
+// resolved format so this function does not re-derive it; this avoids a
+// discrepancy when a subcommand defines a local --output flag that shadows
+// the root persistent flag.
+func enforceQueryFormatGuard(cmd *cobra.Command, queryStr, format string) error {
 	if queryStr == "" {
 		return nil
 	}
-	format, _ := cmd.Root().PersistentFlags().GetString("output")
 	if format != FormatJSON {
 		cmd.SilenceUsage = true
 		cmd.SilenceErrors = true
@@ -100,7 +101,8 @@ func applyFieldsFilter(cmd *cobra.Command) {
 func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		applyFieldsFilter(cmd)
-		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd)); err != nil {
+		format, _ := cmd.Root().PersistentFlags().GetString("output")
+		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
 			return err
 		}
 		err := runE(cmd, args)
@@ -124,7 +126,8 @@ func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobr
 func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		applyFieldsFilter(cmd)
-		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd)); err != nil {
+		format, _ := cmd.Root().PersistentFlags().GetString("output")
+		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
 			return err
 		}
 		// Get noColor value from root command
@@ -185,7 +188,10 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 		}
 
 		applyFieldsFilter(cmd)
-		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd)); err != nil {
+		// Pass the already-resolved format so enforceQueryFormatGuard does not
+		// re-read --output from the root persistent flags (which could differ
+		// if the subcommand defines its own local --output override).
+		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
 			return err
 		}
 

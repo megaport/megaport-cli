@@ -433,8 +433,7 @@ func CaptureOutputErr(f func() error) (string, error) {
 	io.Copy(&buf, r) //nolint:errcheck // reading from an in-process pipe is always safe
 	r.Close()
 
-	if runErr != nil {
-		return "", runErr
-	}
-	return buf.String(), nil
+	// Return captured output even when f returned an error so callers can
+	// inspect partial output for diagnostics.
+	return buf.String(), runErr
 }

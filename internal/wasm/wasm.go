@@ -177,7 +177,13 @@ func RegisterJSFunctions() {
 	// Export file system operations
 	js.Global().Set("readConfigFile", js.FuncOf(readConfigFile))
 	js.Global().Set("writeConfigFile", js.FuncOf(writeConfigFile))
-	js.Global().Set("debugAuthInfo", js.FuncOf(debugAuthInfo))
+
+	// debugAuthInfo reveals which auth method and environment are configured.
+	// Register it only when debug mode is enabled so that production deployments
+	// do not expose an information-disclosure endpoint to arbitrary page scripts.
+	if debugMode {
+		js.Global().Set("debugAuthInfo", js.FuncOf(debugAuthInfo))
+	}
 
 	// Export storage operations
 	js.Global().Set("saveToLocalStorage", js.FuncOf(saveToLocalStorage))
@@ -233,18 +239,21 @@ func RegisterOutputStateReset(fn func()) {
 // ResetOutputBuffers clears the output buffers and resets output package state.
 // Must be called between WASM command invocations to prevent flag state bleed.
 func ResetOutputBuffers() {
+	// Reset Go-side buffers under the lock.
 	bufferMutex.Lock()
-	defer bufferMutex.Unlock()
-
 	stdoutBuffer.Reset()
 	stderrBuffer.Reset()
 	WasmOutputBuffer.Reset()
+	bufferMutex.Unlock()
 
-	// Reset output package flag state so --fields and --query don't bleed
-	// across successive WASM command invocations.
+	// Reset output package flag state (--fields, --query, format, verbosity)
+	// OUTSIDE bufferMutex: the callback acquires its own locks in the output
+	// package, so holding bufferMutex here would be a lock-ordering violation
+	// if any output-package path ever tried to acquire bufferMutex too.
 	outputStateReset()
 
-	// CRITICAL: Also clear all the global output variables
+	// Clear all JS-side output globals. These are safe to touch without the
+	// Go mutex because WASM runs on a single OS thread.
 	js.Global().Delete("wasmJSONOutput")
 	js.Global().Delete("wasmCSVOutput")
 	js.Global().Delete("wasmTableOutput")
@@ -600,6 +609,10 @@ func saveToLocalStorage(this js.Value, args []js.Value) interface{} {
 	}
 
 	key := args[0].String()
+	if !isValidConfigFilename(key) {
+		return false
+	}
+
 	value := args[1].String()
 
 	js.Global().Get("localStorage").Call("setItem", key, value)
@@ -612,6 +625,9 @@ func loadFromLocalStorage(this js.Value, args []js.Value) interface{} {
 	}
 
 	key := args[0].String()
+	if !isValidConfigFilename(key) {
+		return ""
+	}
 	return js.Global().Get("localStorage").Call("getItem", key)
 }
 
