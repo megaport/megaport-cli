@@ -21,8 +21,9 @@ func printJSON[T OutputFields](data []T) error {
 	}
 
 	// When --fields is set, build filtered maps so only selected keys appear.
+	// Validate field names even when data is empty so unknown fields always error.
 	fields := getOutputFields()
-	if len(fields) > 0 && len(data) > 0 {
+	if len(fields) > 0 {
 		headers, jsonNames, indices, err := getStructTypeInfo(data)
 		if err != nil {
 			return err
@@ -31,16 +32,18 @@ func printJSON[T OutputFields](data []T) error {
 		if err != nil {
 			return err
 		}
-		rows := make([]map[string]interface{}, 0, len(data))
+		rows := make([]interface{}, 0, len(data))
 		for _, item := range data {
 			v := reflect.ValueOf(item)
 			if v.Kind() == reflect.Ptr {
 				if v.IsNil() {
+					rows = append(rows, nil)
 					continue
 				}
 				v = v.Elem()
 			}
 			if !v.IsValid() || v.Kind() != reflect.Struct {
+				rows = append(rows, nil)
 				continue
 			}
 			m := make(map[string]interface{}, len(indices))

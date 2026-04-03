@@ -177,7 +177,16 @@ func filterByFields(headers, jsonNames []string, indices []int, selected []strin
 			i, ok = byHeader[key]
 		}
 		if !ok {
-			return nil, nil, nil, fmt.Errorf("unknown field %q, available fields: %s", sel, strings.Join(jsonNames, ", "))
+			// Build a de-duplicated list showing json names and, where different, the header alias.
+			available := make([]string, 0, len(jsonNames))
+			for i, jn := range jsonNames {
+				if i < len(headers) && !strings.EqualFold(headers[i], jn) {
+					available = append(available, fmt.Sprintf("%s (or %q)", jn, headers[i]))
+				} else {
+					available = append(available, jn)
+				}
+			}
+			return nil, nil, nil, fmt.Errorf("unknown field %q, available fields: %s", sel, strings.Join(available, ", "))
 		}
 		if seen[i] {
 			continue // deduplicate repeated field selections
