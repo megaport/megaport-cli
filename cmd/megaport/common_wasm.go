@@ -77,5 +77,7 @@ func InitializeCommon() {
 	rootCmd.PersistentFlags().StringVar(&utils.Env, "env", "", "Environment to use (prod, dev, or staging)")
 	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "Suppress informational output, only show errors and data")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Show additional debug information")
+	rootCmd.PersistentFlags().String("fields", "", "Comma-separated list of fields to include in output (e.g., uid,name,status); use an unknown name to list available fields")
+	rootCmd.PersistentFlags().String("query", "", "JMESPath query to filter JSON output (requires --output json)")
 	rootCmd.MarkFlagsMutuallyExclusive("quiet", "verbose")
 }

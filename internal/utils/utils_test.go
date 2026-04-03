@@ -120,6 +120,7 @@ func TestWrapRunE(t *testing.T) {
 		root := &cobra.Command{Use: "root"}
 		root.PersistentFlags().String("query", "", "")
 		root.PersistentFlags().String("fields", "", "")
+		root.PersistentFlags().String("output", "table", "")
 		child := &cobra.Command{Use: "version"}
 		root.AddCommand(child)
 		require.NoError(t, root.PersistentFlags().Set("query", "[*].uid"))
@@ -131,6 +132,26 @@ func TestWrapRunE(t *testing.T) {
 		var cliErr *exitcodes.CLIError
 		require.True(t, errors.As(err, &cliErr))
 		assert.Equal(t, exitcodes.Usage, cliErr.Code)
+	})
+
+	t.Run("query flag with json output passes format guard", func(t *testing.T) {
+		called := false
+		wrapped := WrapRunE(func(cmd *cobra.Command, args []string) error {
+			called = true
+			return nil
+		})
+		root := &cobra.Command{Use: "root"}
+		root.PersistentFlags().String("query", "", "")
+		root.PersistentFlags().String("fields", "", "")
+		root.PersistentFlags().String("output", "table", "")
+		child := &cobra.Command{Use: "version"}
+		root.AddCommand(child)
+		require.NoError(t, root.PersistentFlags().Set("query", "[*].uid"))
+		require.NoError(t, root.PersistentFlags().Set("output", "json"))
+
+		err := wrapped(child, []string{})
+		assert.NoError(t, err)
+		assert.True(t, called)
 	})
 }
 
@@ -191,6 +212,7 @@ func TestWrapColorAwareRunE(t *testing.T) {
 		root.PersistentFlags().Bool("no-color", false, "")
 		root.PersistentFlags().String("query", "", "")
 		root.PersistentFlags().String("fields", "", "")
+		root.PersistentFlags().String("output", "table", "")
 		child := &cobra.Command{Use: "status"}
 		root.AddCommand(child)
 		require.NoError(t, root.PersistentFlags().Set("query", "[*].uid"))
@@ -202,6 +224,27 @@ func TestWrapColorAwareRunE(t *testing.T) {
 		var cliErr *exitcodes.CLIError
 		require.True(t, errors.As(err, &cliErr))
 		assert.Equal(t, exitcodes.Usage, cliErr.Code)
+	})
+
+	t.Run("query flag with json output passes format guard", func(t *testing.T) {
+		called := false
+		wrapped := WrapColorAwareRunE(func(cmd *cobra.Command, args []string, noColor bool) error {
+			called = true
+			return nil
+		})
+		root := &cobra.Command{Use: "root"}
+		root.PersistentFlags().Bool("no-color", false, "")
+		root.PersistentFlags().String("query", "", "")
+		root.PersistentFlags().String("fields", "", "")
+		root.PersistentFlags().String("output", "table", "")
+		child := &cobra.Command{Use: "status"}
+		root.AddCommand(child)
+		require.NoError(t, root.PersistentFlags().Set("query", "[*].uid"))
+		require.NoError(t, root.PersistentFlags().Set("output", "json"))
+
+		err := wrapped(child, []string{})
+		assert.NoError(t, err)
+		assert.True(t, called)
 	})
 }
 

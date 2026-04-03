@@ -227,7 +227,10 @@ func RegisterJSFunctions() {
 // RegisterOutputStateReset registers the function that resets --fields and
 // --query flag state between WASM invocations. Called from main_wasm.go to
 // avoid an import cycle between this package and internal/base/output.
+// Protected by bufferMutex to prevent a data race with ResetOutputBuffers.
 func RegisterOutputStateReset(fn func()) {
+	bufferMutex.Lock()
+	defer bufferMutex.Unlock()
 	outputStateReset = fn
 }
 
