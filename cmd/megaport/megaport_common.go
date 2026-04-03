@@ -17,6 +17,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/commands/mve"
 	"github.com/megaport/megaport-cli/internal/commands/partners"
 	"github.com/megaport/megaport-cli/internal/commands/ports"
+	"github.com/megaport/megaport-cli/internal/commands/product"
 	"github.com/megaport/megaport-cli/internal/commands/servicekeys"
 	"github.com/megaport/megaport-cli/internal/commands/status"
 	"github.com/megaport/megaport-cli/internal/commands/topology"
@@ -55,6 +56,7 @@ func registerModules() {
 	moduleRegistry.Register(mve.NewModule())
 	moduleRegistry.Register(locations.NewModule())
 	moduleRegistry.Register(partners.NewModule())
+	moduleRegistry.Register(product.NewModule())
 	moduleRegistry.Register(servicekeys.NewModule())
 	moduleRegistry.Register(generate_docs.NewModule())
 	moduleRegistry.Register(completion.NewModule())
