@@ -44,9 +44,15 @@ func calculateDynamicWidth(termWidth int, minWidth, maxPercentage int) int {
 }
 
 func printTable[T OutputFields](data []T, noColor bool) error {
-	headers, fieldIndices, err := getStructTypeInfo(data)
+	headers, jsonNames, fieldIndices, err := getStructTypeInfo(data)
 	if err != nil {
 		return err
+	}
+	if len(outputFields) > 0 {
+		headers, _, fieldIndices, err = filterByFields(headers, jsonNames, fieldIndices, outputFields)
+		if err != nil {
+			return err
+		}
 	}
 	if len(headers) == 0 {
 		return nil

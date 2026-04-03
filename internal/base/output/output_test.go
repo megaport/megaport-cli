@@ -323,7 +323,7 @@ func TestExtractFieldInfo(t *testing.T) {
 		Internal string `json:"-" csv:"-" header:"-"`
 	}
 
-	headers, indices := extractFieldInfo(reflect.TypeOf(TestStruct{}))
+	headers, _, indices := extractFieldInfo(reflect.TypeOf(TestStruct{}))
 
 	assert.Equal(t, 2, len(headers))
 	assert.Contains(t, headers, "Custom ID")
@@ -973,4 +973,150 @@ func TestPrintXML_Parseable(t *testing.T) {
 		}
 	}
 	assert.Equal(t, len(data), itemCount, "XML item count should match input data length")
+}
+
+// ---- --fields flag tests ----
+
+type fieldsTestStruct struct {
+	UID    string `json:"uid" header:"UID"`
+	Name   string `json:"name" header:"Name"`
+	Status string `json:"status" header:"Status"`
+	Speed  int    `json:"port_speed" header:"Port Speed"`
+}
+
+func (fieldsTestStruct) isOuput() {}
+
+func fieldsTestData() []fieldsTestStruct {
+	return []fieldsTestStruct{
+		{UID: "aaa-111", Name: "Port A", Status: "LIVE", Speed: 1000},
+		{UID: "bbb-222", Name: "Port B", Status: "INACTIVE", Speed: 10000},
+	}
+}
+
+func TestSetOutputFields_Table(t *testing.T) {
+	defer SetOutputFields(nil)
+	SetOutputFields([]string{"uid", "name"})
+	SetIsTerminal(false)
+
+	out := CaptureOutput(func() {
+		err := PrintOutput(fieldsTestData(), "table", true)
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, out, "UID")
+	assert.Contains(t, out, "NAME")
+	assert.Contains(t, out, "aaa-111")
+	assert.Contains(t, out, "Port A")
+	assert.NotContains(t, out, "STATUS")
+	assert.NotContains(t, out, "PORT SPEED")
+}
+
+func TestSetOutputFields_CSV(t *testing.T) {
+	defer SetOutputFields(nil)
+	SetOutputFields([]string{"uid", "status"})
+
+	out := CaptureOutput(func() {
+		err := PrintOutput(fieldsTestData(), "csv", true)
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, out, "uid")
+	assert.Contains(t, out, "status")
+	assert.Contains(t, out, "aaa-111")
+	assert.Contains(t, out, "LIVE")
+	assert.NotContains(t, out, "name")
+	assert.NotContains(t, out, "port_speed")
+}
+
+func TestSetOutputFields_JSON(t *testing.T) {
+	defer SetOutputFields(nil)
+	SetOutputFields([]string{"uid", "name"})
+
+	out := CaptureOutput(func() {
+		err := PrintOutput(fieldsTestData(), "json", true)
+		assert.NoError(t, err)
+	})
+
+	var rows []map[string]interface{}
+	assert.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(out)), &rows))
+	assert.Len(t, rows, 2)
+	assert.Equal(t, "aaa-111", rows[0]["uid"])
+	assert.Equal(t, "Port A", rows[0]["name"])
+	_, hasStatus := rows[0]["status"]
+	assert.False(t, hasStatus, "status should not appear in filtered JSON")
+}
+
+func TestSetOutputFields_XML(t *testing.T) {
+	defer SetOutputFields(nil)
+	SetOutputFields([]string{"uid", "name"})
+
+	out := CaptureOutput(func() {
+		err := PrintOutput(fieldsTestData(), "xml", true)
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, out, "<uid>aaa-111</uid>")
+	assert.Contains(t, out, "<name>Port A</name>")
+	assert.NotContains(t, out, "<status>")
+	assert.NotContains(t, out, "<port_speed>")
+}
+
+func TestSetOutputFields_CaseInsensitive(t *testing.T) {
+	defer SetOutputFields(nil)
+	SetOutputFields([]string{"UID", "NAME"}) // uppercase
+	SetIsTerminal(false)
+
+	out := CaptureOutput(func() {
+		err := PrintOutput(fieldsTestData(), "table", true)
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, out, "aaa-111")
+	assert.Contains(t, out, "Port A")
+	assert.NotContains(t, out, "LIVE")
+}
+
+func TestSetOutputFields_HeaderNameAlias(t *testing.T) {
+	defer SetOutputFields(nil)
+	// Match by header name "Port Speed" (has a space)
+	SetOutputFields([]string{"Port Speed"})
+	SetIsTerminal(false)
+
+	out := CaptureOutput(func() {
+		err := PrintOutput(fieldsTestData(), "table", true)
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, out, "PORT SPEED")
+	assert.Contains(t, out, "1000")
+	assert.NotContains(t, out, "UID")
+}
+
+func TestSetOutputFields_UnknownField(t *testing.T) {
+	defer SetOutputFields(nil)
+	SetOutputFields([]string{"uid", "nonexistent"})
+	SetIsTerminal(false)
+
+	err := PrintOutput(fieldsTestData(), "table", true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown field")
+	assert.Contains(t, err.Error(), "nonexistent")
+	assert.Contains(t, err.Error(), "available fields")
+}
+
+func TestSetOutputFields_Nil_RestoresAll(t *testing.T) {
+	SetIsTerminal(false)
+
+	SetOutputFields([]string{"uid"})
+	out1 := CaptureOutput(func() {
+		_ = PrintOutput(fieldsTestData(), "table", true)
+	})
+
+	SetOutputFields(nil)
+	out2 := CaptureOutput(func() {
+		_ = PrintOutput(fieldsTestData(), "table", true)
+	})
+
+	assert.NotContains(t, out1, "STATUS")
+	assert.Contains(t, out2, "STATUS")
 }

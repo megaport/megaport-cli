@@ -8,6 +8,15 @@ import (
 	"time"
 )
 
+// outputFields holds the user-selected fields from --fields flag.
+// nil means all fields are shown.
+var outputFields []string
+
+// SetOutputFields sets the fields to include in output. Pass nil to restore all fields.
+func SetOutputFields(fields []string) {
+	outputFields = fields
+}
+
 // Output is a marker interface for output types
 type Output interface {
 	isOuput()
@@ -47,8 +56,9 @@ func PrintOutput[T OutputFields](data []T, format string, noColor bool) error {
 	}
 }
 
-// getStructTypeInfo extracts header names and field indices from a struct type
-func getStructTypeInfo[T OutputFields](data []T) ([]string, []int, error) {
+// getStructTypeInfo extracts header names, json names, and field indices from a struct type.
+// jsonNames are the json tag values (used for --fields matching); headers are the display names.
+func getStructTypeInfo[T OutputFields](data []T) (headers, jsonNames []string, fieldIndices []int, err error) {
 	var sample T
 	if len(data) > 0 {
 		sample = data[0]
@@ -56,13 +66,13 @@ func getStructTypeInfo[T OutputFields](data []T) ([]string, []int, error) {
 	sampleVal := reflect.ValueOf(sample)
 	if !sampleVal.IsValid() {
 		fmt.Println("")
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 	itemType := sampleVal.Type()
 	if itemType.Kind() == reflect.Ptr {
 		if sampleVal.IsNil() {
 			if itemType.Elem().Kind() != reflect.Struct {
-				return nil, nil, nil
+				return nil, nil, nil, nil
 			}
 			itemType = itemType.Elem()
 		} else {
@@ -71,16 +81,15 @@ func getStructTypeInfo[T OutputFields](data []T) ([]string, []int, error) {
 		}
 	}
 	if itemType.Kind() != reflect.Struct {
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
-	headers, fieldIndices := extractFieldInfo(itemType)
-	return headers, fieldIndices, nil
+	headers, jsonNames, fieldIndices = extractFieldInfo(itemType)
+	return headers, jsonNames, fieldIndices, nil
 }
 
-// extractFieldInfo extracts field information from a struct type
-func extractFieldInfo(itemType reflect.Type) ([]string, []int) {
-	var headers []string
-	var fieldIndices []int
+// extractFieldInfo extracts field information from a struct type.
+// Returns headers (display names), jsonNames (json tag names for --fields matching), and field indices.
+func extractFieldInfo(itemType reflect.Type) (headers, jsonNames []string, fieldIndices []int) {
 	for i := 0; i < itemType.NumField(); i++ {
 		field := itemType.Field(i)
 		if field.PkgPath != "" {
@@ -108,10 +117,54 @@ func extractFieldInfo(itemType reflect.Type) ([]string, []int) {
 		if headerTag == "" {
 			headerTag = strings.ToUpper(field.Name)
 		}
+
+		// Derive the json name for --fields matching.
+		jsonName := field.Tag.Get("json")
+		if idx := strings.Index(jsonName, ","); idx != -1 {
+			jsonName = jsonName[:idx]
+		}
+		if jsonName == "" || jsonName == "-" {
+			jsonName = strings.ToLower(field.Name)
+		}
+
 		headers = append(headers, headerTag)
+		jsonNames = append(jsonNames, jsonName)
 		fieldIndices = append(fieldIndices, i)
 	}
-	return headers, fieldIndices
+	return headers, jsonNames, fieldIndices
+}
+
+// filterByFields filters (headers, jsonNames, indices) to only the user-selected fields.
+// Matching is case-insensitive against both json names and header names.
+// Returns an error listing available json names if any selected field is unknown.
+func filterByFields(headers, jsonNames []string, indices []int, selected []string) ([]string, []string, []int, error) {
+	if len(selected) == 0 {
+		return headers, jsonNames, indices, nil
+	}
+	// Build lookup: lowercase(jsonName) → position, lowercase(header) → position
+	pos := make(map[string]int, len(jsonNames))
+	for i, jn := range jsonNames {
+		pos[strings.ToLower(jn)] = i
+	}
+	for i, h := range headers {
+		pos[strings.ToLower(h)] = i
+	}
+
+	var outHeaders, outJSONNames []string
+	var outIndices []int
+	for _, sel := range selected {
+		key := strings.ToLower(strings.TrimSpace(sel))
+		i, ok := pos[key]
+		if !ok {
+			return nil, nil, nil, fmt.Errorf("unknown field %q, available fields: %s", sel, strings.Join(jsonNames, ", "))
+		}
+		if i < len(headers) {
+			outHeaders = append(outHeaders, headers[i])
+		}
+		outJSONNames = append(outJSONNames, jsonNames[i])
+		outIndices = append(outIndices, indices[i])
+	}
+	return outHeaders, outJSONNames, outIndices, nil
 }
 
 // isOutputCompatibleType checks if a type can be output

@@ -20,6 +20,39 @@ func printJSON[T OutputFields](data []T) error {
 		data = []T{}
 	}
 
+	// When --fields is set, build filtered maps so only selected keys appear.
+	if len(outputFields) > 0 && len(data) > 0 {
+		_, jsonNames, indices, err := getStructTypeInfo(data)
+		if err != nil {
+			return err
+		}
+		_, jsonNames, indices, err = filterByFields(nil, jsonNames, indices, outputFields)
+		if err != nil {
+			return err
+		}
+		rows := make([]map[string]interface{}, 0, len(data))
+		for _, item := range data {
+			v := reflect.ValueOf(item)
+			if v.Kind() == reflect.Ptr {
+				if v.IsNil() {
+					continue
+				}
+				v = v.Elem()
+			}
+			if !v.IsValid() || v.Kind() != reflect.Struct {
+				continue
+			}
+			m := make(map[string]interface{}, len(indices))
+			for i, idx := range indices {
+				m[jsonNames[i]] = v.Field(idx).Interface()
+			}
+			rows = append(rows, m)
+		}
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(rows)
+	}
+
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(data)
@@ -69,6 +102,7 @@ func printCSV[T OutputFields](data []T) error {
 		return nil
 	}
 	var headers []string
+	var jsonNames []string
 	var fields []string
 	var fieldIndices []int
 	for i := 0; i < t.NumField(); i++ {
@@ -83,16 +117,39 @@ func printCSV[T OutputFields](data []T) error {
 		if csvTag == "-" {
 			continue
 		}
+		jsonTag := field.Tag.Get("json")
 		if csvTag == "" {
-			csvTag = field.Tag.Get("json")
-			if csvTag == "" || csvTag == "-" {
+			if jsonTag == "" || jsonTag == "-" {
 				continue
 			}
+			csvTag = jsonTag
+		}
+		// Derive the json name for --fields matching (strip options).
+		jn := jsonTag
+		if idx := strings.Index(jn, ","); idx != -1 {
+			jn = jn[:idx]
+		}
+		if jn == "" || jn == "-" {
+			jn = strings.ToLower(field.Name)
 		}
 		headers = append(headers, csvTag)
+		jsonNames = append(jsonNames, jn)
 		fields = append(fields, field.Name)
 		fieldIndices = append(fieldIndices, i)
 	}
+	if len(outputFields) > 0 {
+		var err error
+		headers, jsonNames, fieldIndices, err = filterByFields(headers, jsonNames, fieldIndices, outputFields)
+		if err != nil {
+			return err
+		}
+		// Rebuild fields slice to match the filtered indices.
+		fields = make([]string, len(fieldIndices))
+		for i, idx := range fieldIndices {
+			fields[i] = t.Field(idx).Name
+		}
+	}
+	_ = jsonNames // used only for filtering
 	if len(headers) == 0 {
 		return nil
 	}
@@ -208,6 +265,35 @@ func printXML[T OutputFields](data []T) error {
 			name = name[:idx]
 		}
 		fields = append(fields, xmlField{name: name, index: i})
+	}
+	if len(outputFields) > 0 {
+		// Build parallel slices so filterByFields can operate on them.
+		xmlHeaders := make([]string, len(fields))
+		xmlJSONNames := make([]string, len(fields))
+		xmlIndices := make([]int, len(fields))
+		for i, f := range fields {
+			xmlHeaders[i] = f.name
+			xmlJSONNames[i] = f.name
+			xmlIndices[i] = f.index
+		}
+		_, _, xmlIndices, err := filterByFields(xmlHeaders, xmlJSONNames, xmlIndices, outputFields)
+		if err != nil {
+			return err
+		}
+		// Rebuild fields from filtered indices.
+		filtered := make([]xmlField, len(xmlIndices))
+		for i, idx := range xmlIndices {
+			filtered[i] = xmlField{name: xmlHeaders[i], index: idx}
+		}
+		// Re-derive names from original fields map by index lookup.
+		nameByIndex := make(map[int]string, len(fields))
+		for _, f := range fields {
+			nameByIndex[f.index] = f.name
+		}
+		for i, idx := range xmlIndices {
+			filtered[i] = xmlField{name: nameByIndex[idx], index: idx}
+		}
+		fields = filtered
 	}
 
 	encoder := xml.NewEncoder(os.Stdout)

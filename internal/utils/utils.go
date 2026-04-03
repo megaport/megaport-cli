@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
+	"github.com/megaport/megaport-cli/internal/base/output"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -126,6 +127,20 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 			cmd.SilenceUsage = true
 			cmd.SilenceErrors = true
 			return exitcodes.NewUsageError(fmt.Errorf("invalid output format: %s. Must be one of: %v", format, ValidFormats))
+		}
+
+		// Apply --fields filter to the output package.
+		fieldsStr, _ := cmd.Root().PersistentFlags().GetString("fields")
+		if fieldsStr != "" {
+			var fields []string
+			for _, f := range strings.Split(fieldsStr, ",") {
+				if f = strings.TrimSpace(f); f != "" {
+					fields = append(fields, f)
+				}
+			}
+			output.SetOutputFields(fields)
+		} else {
+			output.SetOutputFields(nil)
 		}
 
 		// Call the function with both parameters
