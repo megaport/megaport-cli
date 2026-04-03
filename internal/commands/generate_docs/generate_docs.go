@@ -13,6 +13,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/version"
 	"github.com/spf13/cobra"
+	"github.com/spf13/cobra/doc"
 	"github.com/spf13/pflag"
 )
 
@@ -569,22 +570,59 @@ func getCommandTemplate() string {
 `
 }
 
+func generateManPages(rootCmd *cobra.Command, outputDir string) error {
+	absDir, err := filepath.Abs(outputDir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve output directory: %w", err)
+	}
+	if err := os.MkdirAll(absDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+	header := &doc.GenManHeader{
+		Title:   "MEGAPORT-CLI",
+		Section: "1",
+		Source:  "Megaport CLI",
+		Manual:  "Megaport CLI Manual",
+	}
+	if err := doc.GenManTree(rootCmd, header, absDir); err != nil {
+		return fmt.Errorf("failed to generate man pages in %q: %w", absDir, err)
+	}
+	return nil
+}
+
 func AddCommandsTo(rootCmd *cobra.Command) {
-	genDocsCmd := cmdbuilder.NewCommand("generate-docs", "Generate markdown documentation for the CLI").
+	genDocsCmd := cmdbuilder.NewCommand("generate-docs", "Generate documentation for the CLI").
 		WithArgs(cobra.ExactArgs(1)).
+		WithFlag("format", "markdown", "Output format: markdown or man").
 		WithRunFunc(func(cmd *cobra.Command, args []string) error {
-			return generateDocs(rootCmd, args)
+			format, err := cmd.Flags().GetString("format")
+			if err != nil {
+				return fmt.Errorf("failed to read --format flag: %w", err)
+			}
+			switch format {
+			case "man":
+				return generateManPages(rootCmd, args[0])
+			case "markdown":
+				return generateDocs(rootCmd, args)
+			default:
+				return fmt.Errorf("unsupported format %q: must be one of: markdown, man", format)
+			}
 		}).
 		WithExample("megaport-cli generate-docs ./docs").
+		WithExample("megaport-cli generate-docs --format man ./man/").
 		WithImportantNote("The output directory will be created if it doesn't exist").
 		WithImportantNote("Existing files in the output directory may be overwritten").
-		WithImportantNote("Hidden commands and 'help' commands are excluded from the documentation").
+		WithImportantNote("Hidden commands are excluded from both formats").
+		WithImportantNote("The help command is excluded from markdown output; man format includes it via cobra/doc").
+		WithImportantNote("Man pages can be viewed with: man <outputDir>/megaport-cli.1").
 		WithLongDesc(
-			"Generate comprehensive markdown documentation for the Megaport CLI.\n\n" +
-				"This command will extract all command metadata, examples, and annotations to " +
-				"create a set of markdown files that document the entire CLI interface.\n\n" +
+			"Generate documentation for the Megaport CLI.\n\n" +
+				"By default (--format markdown) this command extracts all command metadata, " +
+				"examples, and annotations to create a set of markdown files that document the " +
+				"entire CLI interface.\n\n" +
+				"Use --format man to generate Unix man pages for all commands instead.\n\n" +
 				"The documentation is organized by command hierarchy, with each command generating " +
-				"its own markdown file containing:\n" +
+				"its own file containing:\n" +
 				"- Command description\n" +
 				"- Usage examples\n" +
 				"- Available flags\n" +
