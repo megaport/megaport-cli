@@ -97,17 +97,19 @@ megaport-cli partners list \
   --location-id 15
 ```
 
-Note the **Product UID** for each cloud — these are the B-End targets for your VXCs.
+Note the **Product UID** for each cloud:
+- **AWS**: you will pass this UID as `--b-end-uid` in the `vxc buy` command.
+- **Azure / GCP**: the CLI auto-discovers the B-End UID from the partner config (service key or pairing key); you do not need to pass `--b-end-uid`.
 
 > **Tip:** Use `--output json` with `--query` to extract just the UIDs:
 > ```sh
 > megaport-cli partners list --company-name "Amazon Web Services" \
->   --location-id 15 --output json --query "[].{name:productName,uid:productUid}"
+>   --location-id 15 --output json --query "[].{name:product_name,uid:uid}"
 > ```
 
 ## 5. Create VXC to AWS Direct Connect
 
-Connect the MCR to AWS using VLAN 100. The `--b-end-partner-config` flag passes your AWS account details:
+Connect the MCR to AWS using VLAN 100. Use the AWS partner port UID from Step 4 as `--b-end-uid`, and pass your AWS account details via `--b-end-partner-config`:
 
 ```sh
 megaport-cli vxc buy \
@@ -116,6 +118,7 @@ megaport-cli vxc buy \
   --term 12 \
   --a-end-uid mcr-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   --a-end-vlan 100 \
+  --b-end-uid aws-partner-port-uid \
   --b-end-partner-config '{"connectType":"AWS","ownerAccount":"123456789012"}'
 ```
 
@@ -128,6 +131,7 @@ megaport-cli vxc buy \
   --term 12 \
   --a-end-uid mcr-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   --a-end-vlan 100 \
+  --b-end-uid aws-partner-port-uid \
   --b-end-partner-config '{
     "connectType": "AWS",
     "ownerAccount": "123456789012",
@@ -166,7 +170,7 @@ megaport-cli vxc buy \
   --term 12 \
   --a-end-uid mcr-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   --a-end-vlan 200 \
-  --b-end-partner-config '{"serviceKey":"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}'
+  --b-end-partner-config '{"connectType":"AZURE","serviceKey":"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}'
 ```
 
 For a connection with BGP peering configured:
@@ -179,6 +183,7 @@ megaport-cli vxc buy \
   --a-end-uid mcr-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   --a-end-vlan 200 \
   --b-end-partner-config '{
+    "connectType": "AZURE",
     "serviceKey": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
     "peers": [
       {
@@ -196,6 +201,7 @@ megaport-cli vxc buy \
 
 | Field | Required | Description |
 |---|---|---|
+| `connectType` | Yes | Must be `"AZURE"` |
 | `serviceKey` | Yes | Azure ExpressRoute circuit Service Key (UUID) |
 | `peers[].type` | No | Peering type: `"private"` or `"microsoft"` |
 | `peers[].peerASN` | No | Your BGP ASN (as a string) |
@@ -243,7 +249,7 @@ Or list all VXCs attached to the MCR in one command:
 
 ```sh
 megaport-cli vxc list --output json \
-  --query "[?aEnd.uid=='mcr-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'].{name:name,status:provisioningStatus}"
+  --query "[?a_end_uid=='mcr-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'].{name:name,status:status}"
 ```
 
 Get full MCR details to confirm all connections are visible:
@@ -252,7 +258,7 @@ Get full MCR details to confirm all connections are visible:
 megaport-cli mcr get mcr-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
-All three VXCs should show `provisioningStatus: LIVE` before completing cloud-side configuration.
+All three VXCs should show `status: LIVE` before completing cloud-side configuration.
 
 ## 9. Complete Cloud-Side Setup
 
