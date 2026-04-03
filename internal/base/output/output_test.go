@@ -1208,3 +1208,9 @@ func TestSetOutputQuery_Reset(t *testing.T) {
 	assert.True(t, hasUID)
 	assert.True(t, hasStatus)
 }
+
+func TestApplyJMESPath_MarshalError(t *testing.T) {
+	// Channels cannot be marshalled to JSON — exercises the marshal error path.
+	_, err := applyJMESPath("[*]", make(chan int))
+	assert.Error(t, err)
+}
