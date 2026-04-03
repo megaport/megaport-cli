@@ -23,7 +23,6 @@ import (
 
 const (
 	defaultWaitTime = 10 * time.Minute
-	statusOK        = "ok"
 	statusError     = "error"
 )
 
@@ -103,23 +102,38 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			WaitForTime:           defaultWaitTime,
 		}
 		if err := validation.ValidatePortRequest(req); err != nil {
-			results = append(results, ApplyResult{Type: "port", Name: p.Name, Status: statusError + ": " + err.Error()})
+			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
 			return printResultsAndError(results, outputFormat, noColor,
 				fmt.Errorf("validation failed for port %q: %w", p.Name, err))
 		}
-		spinner := output.PrintResourceCreating("port", p.Name, noColor)
+		validateSpinner := output.PrintResourceValidating("Port", noColor)
+		if err := client.PortService.ValidatePortOrder(ctx, req); err != nil {
+			validateSpinner.Stop()
+			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
+			return printResultsAndError(results, outputFormat, noColor,
+				fmt.Errorf("server-side validation failed for port %q: %w", p.Name, err))
+		}
+		validateSpinner.Stop()
+
+		createSpinner := output.PrintResourceCreating("Port", p.Name, noColor)
 		resp, err := client.PortService.BuyPort(ctx, req)
 		if err != nil {
-			spinner.Stop()
-			results = append(results, ApplyResult{Type: "port", Name: p.Name, Status: statusError + ": " + err.Error()})
+			createSpinner.Stop()
+			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
 			return printResultsAndError(results, outputFormat, noColor,
 				fmt.Errorf("failed to provision port %q: %w", p.Name, err))
 		}
-		spinner.Stop()
+		createSpinner.Stop()
+		if len(resp.TechnicalServiceUIDs) == 0 {
+			err := fmt.Errorf("API returned no UID")
+			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
+			return printResultsAndError(results, outputFormat, noColor,
+				fmt.Errorf("failed to provision port %q: %w", p.Name, err))
+		}
 		uid := resp.TechnicalServiceUIDs[0]
 		uids["port"][p.Name] = uid
-		results = append(results, ApplyResult{Type: "port", Name: p.Name, UID: uid, Status: "provisioned"})
-		output.PrintResourceCreated("port", uid, noColor)
+		results = append(results, ApplyResult{Type: "Port", Name: p.Name, UID: uid, Status: "provisioned"})
+		output.PrintResourceCreated("Port", uid, noColor)
 	}
 
 	// 2. MCRs
@@ -137,30 +151,45 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			WaitForTime:      defaultWaitTime,
 		}
 		if err := validation.ValidateMCRRequest(req); err != nil {
-			results = append(results, ApplyResult{Type: "mcr", Name: m.Name, Status: statusError + ": " + err.Error()})
+			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
 			return printResultsAndError(results, outputFormat, noColor,
 				fmt.Errorf("validation failed for MCR %q: %w", m.Name, err))
 		}
-		spinner := output.PrintResourceCreating("mcr", m.Name, noColor)
+		validateSpinner := output.PrintResourceValidating("MCR", noColor)
+		if err := client.MCRService.ValidateMCROrder(ctx, req); err != nil {
+			validateSpinner.Stop()
+			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
+			return printResultsAndError(results, outputFormat, noColor,
+				fmt.Errorf("server-side validation failed for MCR %q: %w", m.Name, err))
+		}
+		validateSpinner.Stop()
+
+		createSpinner := output.PrintResourceCreating("MCR", m.Name, noColor)
 		resp, err := client.MCRService.BuyMCR(ctx, req)
 		if err != nil {
-			spinner.Stop()
-			results = append(results, ApplyResult{Type: "mcr", Name: m.Name, Status: statusError + ": " + err.Error()})
+			createSpinner.Stop()
+			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
 			return printResultsAndError(results, outputFormat, noColor,
 				fmt.Errorf("failed to provision MCR %q: %w", m.Name, err))
 		}
-		spinner.Stop()
-		uid := resp.TechnicalServiceUID
+		createSpinner.Stop()
+		uid := strings.TrimSpace(resp.TechnicalServiceUID)
+		if uid == "" {
+			err := fmt.Errorf("API returned empty UID")
+			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
+			return printResultsAndError(results, outputFormat, noColor,
+				fmt.Errorf("failed to provision MCR %q: %w", m.Name, err))
+		}
 		uids["mcr"][m.Name] = uid
-		results = append(results, ApplyResult{Type: "mcr", Name: m.Name, UID: uid, Status: "provisioned"})
-		output.PrintResourceCreated("mcr", uid, noColor)
+		results = append(results, ApplyResult{Type: "MCR", Name: m.Name, UID: uid, Status: "provisioned"})
+		output.PrintResourceCreated("MCR", uid, noColor)
 	}
 
 	// 3. MVEs
 	for _, mv := range cfg.MVEs {
 		vendorCfg, err := mve.ParseVendorConfig(mv.VendorConfig)
 		if err != nil {
-			results = append(results, ApplyResult{Type: "mve", Name: mv.Name, Status: statusError + ": " + err.Error()})
+			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
 			return printResultsAndError(results, outputFormat, noColor,
 				fmt.Errorf("invalid vendor_config for MVE %q: %w", mv.Name, err))
 		}
@@ -176,36 +205,51 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			WaitForTime:      defaultWaitTime,
 		}
 		if err := validation.ValidateMVERequest(req.Name, req.Term, req.LocationID); err != nil {
-			results = append(results, ApplyResult{Type: "mve", Name: mv.Name, Status: statusError + ": " + err.Error()})
+			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
 			return printResultsAndError(results, outputFormat, noColor,
 				fmt.Errorf("validation failed for MVE %q: %w", mv.Name, err))
 		}
-		spinner := output.PrintResourceCreating("mve", mv.Name, noColor)
+		validateSpinner := output.PrintResourceValidating("MVE", noColor)
+		if err := client.MVEService.ValidateMVEOrder(ctx, req); err != nil {
+			validateSpinner.Stop()
+			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
+			return printResultsAndError(results, outputFormat, noColor,
+				fmt.Errorf("server-side validation failed for MVE %q: %w", mv.Name, err))
+		}
+		validateSpinner.Stop()
+
+		createSpinner := output.PrintResourceCreating("MVE", mv.Name, noColor)
 		resp, err := client.MVEService.BuyMVE(ctx, req)
 		if err != nil {
-			spinner.Stop()
-			results = append(results, ApplyResult{Type: "mve", Name: mv.Name, Status: statusError + ": " + err.Error()})
+			createSpinner.Stop()
+			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
 			return printResultsAndError(results, outputFormat, noColor,
 				fmt.Errorf("failed to provision MVE %q: %w", mv.Name, err))
 		}
-		spinner.Stop()
-		uid := resp.TechnicalServiceUID
+		createSpinner.Stop()
+		uid := strings.TrimSpace(resp.TechnicalServiceUID)
+		if uid == "" {
+			err := fmt.Errorf("API returned empty UID")
+			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
+			return printResultsAndError(results, outputFormat, noColor,
+				fmt.Errorf("failed to provision MVE %q: %w", mv.Name, err))
+		}
 		uids["mve"][mv.Name] = uid
-		results = append(results, ApplyResult{Type: "mve", Name: mv.Name, UID: uid, Status: "provisioned"})
-		output.PrintResourceCreated("mve", uid, noColor)
+		results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, UID: uid, Status: "provisioned"})
+		output.PrintResourceCreated("MVE", uid, noColor)
 	}
 
 	// 4. VXCs — resolve {{.type.name}} templates before provisioning
 	for _, v := range cfg.VXCs {
 		aUID, err := resolveTemplates(v.AEnd.ProductUID, uids)
 		if err != nil {
-			results = append(results, ApplyResult{Type: "vxc", Name: v.Name, Status: statusError + ": " + err.Error()})
+			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
 			return printResultsAndError(results, outputFormat, noColor,
 				fmt.Errorf("unresolved template in VXC %q a_end: %w", v.Name, err))
 		}
 		bUID, err := resolveTemplates(v.BEnd.ProductUID, uids)
 		if err != nil {
-			results = append(results, ApplyResult{Type: "vxc", Name: v.Name, Status: statusError + ": " + err.Error()})
+			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
 			return printResultsAndError(results, outputFormat, noColor,
 				fmt.Errorf("unresolved template in VXC %q b_end: %w", v.Name, err))
 		}
@@ -228,29 +272,45 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			WaitForTime:      defaultWaitTime,
 		}
 		if err := validation.ValidateVXCRequest(req); err != nil {
-			results = append(results, ApplyResult{Type: "vxc", Name: v.Name, Status: statusError + ": " + err.Error()})
+			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
 			return printResultsAndError(results, outputFormat, noColor,
 				fmt.Errorf("validation failed for VXC %q: %w", v.Name, err))
 		}
-		spinner := output.PrintResourceCreating("vxc", v.Name, noColor)
+		validateSpinner := output.PrintResourceValidating("VXC", noColor)
+		if err := client.VXCService.ValidateVXCOrder(ctx, req); err != nil {
+			validateSpinner.Stop()
+			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
+			return printResultsAndError(results, outputFormat, noColor,
+				fmt.Errorf("server-side validation failed for VXC %q: %w", v.Name, err))
+		}
+		validateSpinner.Stop()
+
+		createSpinner := output.PrintResourceCreating("VXC", v.Name, noColor)
 		resp, err := client.VXCService.BuyVXC(ctx, req)
 		if err != nil {
-			spinner.Stop()
-			results = append(results, ApplyResult{Type: "vxc", Name: v.Name, Status: statusError + ": " + err.Error()})
+			createSpinner.Stop()
+			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
 			return printResultsAndError(results, outputFormat, noColor,
 				fmt.Errorf("failed to provision VXC %q: %w", v.Name, err))
 		}
-		spinner.Stop()
-		uid := resp.TechnicalServiceUID
+		createSpinner.Stop()
+		uid := strings.TrimSpace(resp.TechnicalServiceUID)
+		if uid == "" {
+			err := fmt.Errorf("API returned empty UID")
+			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
+			return printResultsAndError(results, outputFormat, noColor,
+				fmt.Errorf("failed to provision VXC %q: %w", v.Name, err))
+		}
 		uids["vxc"][v.Name] = uid
-		results = append(results, ApplyResult{Type: "vxc", Name: v.Name, UID: uid, Status: "provisioned"})
-		output.PrintResourceCreated("vxc", uid, noColor)
+		results = append(results, ApplyResult{Type: "VXC", Name: v.Name, UID: uid, Status: "provisioned"})
+		output.PrintResourceCreated("VXC", uid, noColor)
 	}
 
 	return output.PrintOutput(results, outputFormat, noColor)
 }
 
 // validateAll runs SDK-level validation for every resource without provisioning.
+// Requests mirror provisioning exactly (minus WaitForProvision/WaitForTime).
 func validateAll(ctx context.Context, client *megaport.Client, cfg *InfraConfig, noColor bool, outputFormat string) error {
 	var results []ApplyResult
 
@@ -263,53 +323,60 @@ func validateAll(ctx context.Context, client *megaport.Client, cfg *InfraConfig,
 			MarketPlaceVisibility: p.MarketplaceVisibility,
 			DiversityZone:         p.DiversityZone,
 			CostCentre:            p.CostCentre,
+			ResourceTags:          p.ResourceTags,
 		}
 		err := client.PortService.ValidatePortOrder(ctx, req)
 		status := "valid"
 		if err != nil {
 			status = "invalid: " + err.Error()
 		}
-		results = append(results, ApplyResult{Type: "port", Name: p.Name, Status: status})
+		results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: status})
 	}
 
 	for _, m := range cfg.MCRs {
 		req := &megaport.BuyMCRRequest{
-			Name:       m.Name,
-			LocationID: m.LocationID,
-			PortSpeed:  m.Speed,
-			Term:       m.Term,
-			MCRAsn:     m.ASN,
+			Name:          m.Name,
+			LocationID:    m.LocationID,
+			PortSpeed:     m.Speed,
+			Term:          m.Term,
+			MCRAsn:        m.ASN,
+			DiversityZone: m.DiversityZone,
+			CostCentre:    m.CostCentre,
+			ResourceTags:  m.ResourceTags,
 		}
 		err := client.MCRService.ValidateMCROrder(ctx, req)
 		status := "valid"
 		if err != nil {
 			status = "invalid: " + err.Error()
 		}
-		results = append(results, ApplyResult{Type: "mcr", Name: m.Name, Status: status})
+		results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: status})
 	}
 
 	for _, mv := range cfg.MVEs {
 		vendorCfg, vcErr := mve.ParseVendorConfig(mv.VendorConfig)
 		if vcErr != nil {
-			results = append(results, ApplyResult{Type: "mve", Name: mv.Name, Status: "invalid: " + vcErr.Error()})
+			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: "invalid: " + vcErr.Error()})
 			continue
 		}
 		req := &megaport.BuyMVERequest{
-			Name:         mv.Name,
-			LocationID:   mv.LocationID,
-			Term:         mv.Term,
-			VendorConfig: vendorCfg,
+			Name:          mv.Name,
+			LocationID:    mv.LocationID,
+			Term:          mv.Term,
+			VendorConfig:  vendorCfg,
+			DiversityZone: mv.DiversityZone,
+			CostCentre:    mv.CostCentre,
+			ResourceTags:  mv.ResourceTags,
 		}
 		err := client.MVEService.ValidateMVEOrder(ctx, req)
 		status := "valid"
 		if err != nil {
 			status = "invalid: " + err.Error()
 		}
-		results = append(results, ApplyResult{Type: "mve", Name: mv.Name, Status: status})
+		results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: status})
 	}
 
 	for _, v := range cfg.VXCs {
-		// Dry-run: use placeholder UIDs for unresolved templates.
+		// Dry-run: substitute placeholders for unresolved templates.
 		aUID := resolveOrPlaceholder(v.AEnd.ProductUID)
 		bUID := resolveOrPlaceholder(v.BEnd.ProductUID)
 		req := &megaport.BuyVXCRequest{
@@ -325,13 +392,15 @@ func validateAll(ctx context.Context, client *megaport.Client, cfg *InfraConfig,
 				ProductUID: bUID,
 				VLAN:       v.BEnd.VLAN,
 			},
+			CostCentre:   v.CostCentre,
+			ResourceTags: v.ResourceTags,
 		}
 		err := client.VXCService.ValidateVXCOrder(ctx, req)
 		status := "valid"
 		if err != nil {
 			status = "invalid: " + err.Error()
 		}
-		results = append(results, ApplyResult{Type: "vxc", Name: v.Name, Status: status})
+		results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: status})
 	}
 
 	output.PrintInfo("Dry-run: validation results", noColor)
@@ -382,7 +451,7 @@ func resolveTemplates(s string, uids map[string]map[string]string) (string, erro
 }
 
 // resolveOrPlaceholder returns the string unchanged if it contains no template,
-// or a placeholder string if it does (for dry-run validation).
+// or a placeholder UUID if it does (for dry-run validation).
 func resolveOrPlaceholder(s string) string {
 	if templateRe.MatchString(s) {
 		return "00000000-0000-0000-0000-000000000000"
