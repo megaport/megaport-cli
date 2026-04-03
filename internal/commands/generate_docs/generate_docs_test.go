@@ -493,3 +493,43 @@ JSON format example:
 		}
 	}
 }
+
+func TestGenerateManPages(t *testing.T) {
+	rootCmd := &cobra.Command{Use: "megaport-cli", Short: "Megaport CLI"}
+	rootCmd.AddCommand(&cobra.Command{Use: "ports", Short: "Manage ports"})
+
+	outputDir := t.TempDir()
+
+	err := generateManPages(rootCmd, outputDir)
+	if err != nil {
+		t.Fatalf("generateManPages failed: %v", err)
+	}
+
+	entries, err := os.ReadDir(outputDir)
+	if err != nil {
+		t.Fatalf("failed to read output dir: %v", err)
+	}
+
+	var manFiles []string
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".1") {
+			manFiles = append(manFiles, e.Name())
+		}
+	}
+
+	if len(manFiles) == 0 {
+		t.Fatal("expected at least one .1 man page file, got none")
+	}
+
+	mainPage := outputDir + "/megaport-cli.1"
+	content, err := os.ReadFile(mainPage)
+	if err != nil {
+		t.Fatalf("megaport-cli.1 not found: %v", err)
+	}
+
+	for _, want := range []string{"MEGAPORT-CLI", "Megaport CLI"} {
+		if !strings.Contains(string(content), want) {
+			t.Errorf("megaport-cli.1 missing expected string %q", want)
+		}
+	}
+}
