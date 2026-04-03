@@ -1310,6 +1310,18 @@ func TestListMCRsCmd_WithMockClient(t *testing.T) {
 			expectedError: "API error: service unavailable",
 			outputFormat:  "table",
 		},
+		{
+			name: "limit results",
+			flags: map[string]string{
+				"limit": "2",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = testMCRs
+			},
+			expectedMCRs:   []string{"mcr-demo-01", "mcr-demo0-01"},
+			unexpectedMCRs: []string{"production-mcr"},
+			outputFormat:   "table",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1337,6 +1349,7 @@ func TestListMCRsCmd_WithMockClient(t *testing.T) {
 			cmd.Flags().Int("location-id", 0, "Filter MCRs by location ID")
 			cmd.Flags().Int("port-speed", 0, "Filter MCRs by port speed")
 			cmd.Flags().Bool("include-inactive", false, "Include inactive MCRs")
+			cmd.Flags().Int("limit", 0, "Maximum number of results to display")
 
 			// Set flag values from test case
 			testutil.SetFlags(t, cmd, tt.flags)

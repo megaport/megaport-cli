@@ -620,6 +620,7 @@ func TestListPorts(t *testing.T) {
 		portSpeed       int
 		portName        string
 		includeInactive bool
+		limit           int
 		ports           []*megaport.Port
 		listErr         error
 		loginErr        error
@@ -675,6 +676,13 @@ func TestListPorts(t *testing.T) {
 			loginErr:      fmt.Errorf("invalid credentials"),
 			expectedError: "error logging in",
 		},
+		{
+			name:            "limit results",
+			limit:           2,
+			ports:           allPorts,
+			expectedOutputs: []string{"port-1", "port-2"},
+			notExpected:     []string{"port-3"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -708,6 +716,7 @@ func TestListPorts(t *testing.T) {
 			cmd.Flags().Int("port-speed", 0, "")
 			cmd.Flags().String("port-name", "", "")
 			cmd.Flags().Bool("include-inactive", false, "")
+			cmd.Flags().Int("limit", 0, "")
 
 			if tt.locationID > 0 {
 				require.NoError(t, cmd.Flags().Set("location-id", fmt.Sprintf("%d", tt.locationID)))
@@ -720,6 +729,9 @@ func TestListPorts(t *testing.T) {
 			}
 			if tt.includeInactive {
 				require.NoError(t, cmd.Flags().Set("include-inactive", "true"))
+			}
+			if tt.limit > 0 {
+				require.NoError(t, cmd.Flags().Set("limit", fmt.Sprintf("%d", tt.limit)))
 			}
 
 			var err error

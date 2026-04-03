@@ -240,6 +240,12 @@ func TestListPartners(t *testing.T) {
 			loginErr:    fmt.Errorf("login failure"),
 			expectedErr: "error logging in",
 		},
+		{
+			name:          "limit results",
+			partners:      testPartners,
+			flags:         map[string]string{"limit": "2"},
+			expectedCount: 2,
+		},
 	}
 
 	for _, tt := range tests {
@@ -276,6 +282,7 @@ func TestListPartners(t *testing.T) {
 			cmd.Flags().String("company-name", "", "")
 			cmd.Flags().Int("location-id", 0, "")
 			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().Int("limit", 0, "")
 
 			testutil.SetFlags(t, cmd, tt.flags)
 

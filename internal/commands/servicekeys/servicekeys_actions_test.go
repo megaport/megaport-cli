@@ -343,3 +343,37 @@ func TestListServiceKeys_EmptyResult(t *testing.T) {
 		})
 	}
 }
+
+func TestListServiceKeys_Limit(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockService := &MockServiceKeyService{
+		ListServiceKeysResult: &megaport.ListServiceKeysResponse{
+			ServiceKeys: []*megaport.ServiceKey{
+				{Key: "key-1", ProductName: "Product A", ProductUID: "prod-1", Description: "First key"},
+				{Key: "key-2", ProductName: "Product B", ProductUID: "prod-2", Description: "Second key"},
+				{Key: "key-3", ProductName: "Product C", ProductUID: "prod-3", Description: "Third key"},
+			},
+		},
+	}
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.ServiceKeyService = mockService
+		return client, nil
+	}
+
+	cmd := testutil.NewCommand("list", testutil.OutputAdapter(ListServiceKeys))
+	cmd.Flags().String("product-uid", "", "")
+	cmd.Flags().Int("limit", 0, "")
+	testutil.SetFlags(t, cmd, map[string]string{"limit": "2"})
+
+	capturedOutput := output.CaptureOutput(func() {
+		err := cmd.RunE(cmd, []string{})
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, capturedOutput, "key-1")
+	assert.Contains(t, capturedOutput, "key-2")
+	assert.NotContains(t, capturedOutput, "key-3")
+}

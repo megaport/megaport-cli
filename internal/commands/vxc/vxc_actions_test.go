@@ -986,6 +986,18 @@ func TestListVXCs(t *testing.T) {
 			expectedError: "error logging in",
 			outputFormat:  "table",
 		},
+		{
+			name: "limit results",
+			flags: map[string]string{
+				"limit": "2",
+			},
+			setupMock: func(m *MockVXCService) {
+				m.ListVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02"},
+			unexpectedVXCs: []string{"production-vxc"},
+			outputFormat:   "table",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1021,6 +1033,7 @@ func TestListVXCs(t *testing.T) {
 			cmd.Flags().String("b-end-uid", "", "Filter VXCs by B-End UID")
 			cmd.Flags().String("status", "", "Filter VXCs by status")
 			cmd.Flags().Bool("include-inactive", false, "Include inactive VXCs")
+			cmd.Flags().Int("limit", 0, "Maximum number of results to display")
 
 			testutil.SetFlags(t, cmd, tt.flags)
 
