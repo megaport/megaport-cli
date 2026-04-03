@@ -12,12 +12,14 @@ Thank you for your interest in contributing to megaport-cli! This guide will hel
 ### Initial Setup
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/megaport/megaport-cli.git
 cd megaport-cli
 ```
 
 2. **Enable Git hooks for automatic documentation generation:**
+
 ```bash
 git config core.hooksPath .githooks
 ```
@@ -65,11 +67,13 @@ Documentation is auto-generated from command definitions. When you add or modify
 
 1. The pre-commit hook will automatically regenerate docs when you commit command changes
 2. Or manually regenerate docs with:
+
 ```bash
 ./megaport-cli generate-docs ./docs
 ```
 
 The generated markdown files include:
+
 - Command descriptions and usage
 - Flags and options
 - **Command aliases** (e.g., `list → ls`, `get → show`, `delete → rm`)
@@ -78,6 +82,7 @@ The generated markdown files include:
 ## Commit Messages
 
 Follow conventional commit format:
+
 - `feat:` for new features
 - `fix:` for bug fixes
 - `docs:` for documentation
@@ -85,6 +90,7 @@ Follow conventional commit format:
 - `chore:` for maintenance
 
 Examples:
+
 - `feat: add shorthand aliases for common commands`
 - `fix: correct port deletion error handling`
 - `docs: regenerate with latest changes`
@@ -102,18 +108,19 @@ Examples:
 
 We support convenient shorthand aliases for frequently-used commands:
 
-| Full Command | Alias | Example |
-|-------------|-------|---------|
-| list       | ls    | `megaport ports ls` |
-| get        | show  | `megaport vxc show <id>` |
-| delete     | rm    | `megaport mcr rm <id>` |
-| status     | st    | `megaport st` |
+| Full Command | Alias | Example                  |
+| ------------ | ----- | ------------------------ |
+| list         | ls    | `megaport ports ls`      |
+| get          | show  | `megaport vxc show <id>` |
+| delete       | rm    | `megaport mcr rm <id>`   |
+| status       | st    | `megaport st`            |
 
 When adding new commands, consider adding aliases if appropriate.
 
 ## Architecture
 
 See [CLAUDE.md](./CLAUDE.md) for detailed architecture documentation, including:
+
 - Module registry pattern
 - Command builder pattern
 - Three input modes (interactive, CLI flags, JSON)
