@@ -12,6 +12,8 @@ import (
 	"os"
 	"reflect"
 	"strings"
+
+	"github.com/jmespath/go-jmespath"
 )
 
 func printJSON[T OutputFields](data []T) error {
@@ -20,10 +22,14 @@ func printJSON[T OutputFields](data []T) error {
 		data = []T{}
 	}
 
-	// When --fields is set, build filtered maps so only selected keys appear.
-	// Validate field names even when data is empty so unknown fields always error.
 	fields := getOutputFields()
+	query := getOutputQuery()
+
+	// Determine what to encode — fields-filtered maps or raw typed data.
+	var toEncode interface{}
 	if len(fields) > 0 {
+		// When --fields is set, validate field names (even on empty data) and build
+		// filtered maps so only selected keys appear in the JSON output.
 		headers, jsonNames, indices, err := getStructTypeInfo(data)
 		if err != nil {
 			return err
@@ -55,14 +61,32 @@ func printJSON[T OutputFields](data []T) error {
 			}
 			rows = append(rows, m)
 		}
-		encoder := json.NewEncoder(os.Stdout)
-		encoder.SetIndent("", "  ")
-		return encoder.Encode(rows)
+		toEncode = rows
+	} else {
+		toEncode = data
+	}
+
+	// Apply JMESPath query if set. The marshal→unmarshal round-trip converts the
+	// typed Go value to the interface{} tree that go-jmespath expects.
+	if query != "" {
+		raw, err := json.Marshal(toEncode)
+		if err != nil {
+			return err
+		}
+		var parsed interface{}
+		if err := json.Unmarshal(raw, &parsed); err != nil {
+			return err
+		}
+		result, err := jmespath.Search(query, parsed)
+		if err != nil {
+			return fmt.Errorf("invalid JMESPath query %q: %w", query, err)
+		}
+		toEncode = result
 	}
 
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
-	return encoder.Encode(data)
+	return encoder.Encode(toEncode)
 }
 
 func calculateColumnWidths(rows [][]string) []int {

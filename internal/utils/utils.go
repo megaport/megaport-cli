@@ -49,6 +49,17 @@ func GetCurrentEnv() string {
 	return Env
 }
 
+// applyQueryFilter reads the --query persistent flag and calls output.SetOutputQuery.
+// Returns the query string so WrapOutputFormatRunE can validate it against the output format.
+func applyQueryFilter(cmd *cobra.Command) string {
+	queryStr, err := cmd.Root().PersistentFlags().GetString("query")
+	if err != nil {
+		queryStr = ""
+	}
+	output.SetOutputQuery(queryStr)
+	return queryStr
+}
+
 // applyFieldsFilter reads the --fields persistent flag and calls output.SetOutputFields.
 // Called by all RunE wrappers so the filter is always consistent regardless of wrapper used.
 func applyFieldsFilter(cmd *cobra.Command) {
@@ -73,6 +84,7 @@ func applyFieldsFilter(cmd *cobra.Command) {
 func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		applyFieldsFilter(cmd)
+		applyQueryFilter(cmd)
 		err := runE(cmd, args)
 		if err != nil {
 			// Prevent usage output if an error occurs
@@ -94,6 +106,7 @@ func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobr
 func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		applyFieldsFilter(cmd)
+		applyQueryFilter(cmd)
 		// Get noColor value from root command
 		noColor, err := cmd.Root().PersistentFlags().GetBool("no-color")
 		if err != nil {
@@ -152,6 +165,12 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 		}
 
 		applyFieldsFilter(cmd)
+		queryStr := applyQueryFilter(cmd)
+		if queryStr != "" && format != FormatJSON {
+			cmd.SilenceUsage = true
+			cmd.SilenceErrors = true
+			return exitcodes.NewUsageError(fmt.Errorf("--query flag requires --output json"))
+		}
 
 		// Call the function with both parameters
 		err = fn(cmd, args, noColor, format)

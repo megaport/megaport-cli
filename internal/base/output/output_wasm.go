@@ -14,6 +14,8 @@ import (
 	"reflect"
 	"strings"
 	"syscall/js"
+
+	"github.com/jmespath/go-jmespath"
 )
 
 // WasmJSONWriter is a global buffer for capturing JSON output in WASM
@@ -27,34 +29,81 @@ var WasmXMLWriter = &bytes.Buffer{}
 
 // printJSON is the WASM-specific implementation that properly captures JSON output
 func printJSON[T OutputFields](data []T) error {
-	// Reset the buffer to ensure clean output
 	WasmJSONWriter.Reset()
 
-	js.Global().Get("console").Call("log", "📝 JSON will write to WasmJSONWriter")
+	if data == nil {
+		data = []T{}
+	}
 
-	// Create JSON encoder that writes to our buffer
+	fields := getOutputFields()
+	query := getOutputQuery()
+
+	// Determine what to encode — fields-filtered maps or raw typed data.
+	var toEncode interface{}
+	if len(fields) > 0 {
+		headers, jsonNames, indices, err := getStructTypeInfo(data)
+		if err != nil {
+			return err
+		}
+		_, jsonNames, indices, err = filterByFields(headers, jsonNames, indices, fields)
+		if err != nil {
+			return err
+		}
+		rows := make([]interface{}, 0, len(data))
+		for _, item := range data {
+			v := reflect.ValueOf(item)
+			if v.Kind() == reflect.Ptr {
+				if v.IsNil() {
+					rows = append(rows, nil)
+					continue
+				}
+				v = v.Elem()
+			}
+			if !v.IsValid() || v.Kind() != reflect.Struct {
+				rows = append(rows, nil)
+				continue
+			}
+			m := make(map[string]interface{}, len(indices))
+			for i, idx := range indices {
+				if idx >= v.NumField() {
+					continue
+				}
+				m[jsonNames[i]] = v.Field(idx).Interface()
+			}
+			rows = append(rows, m)
+		}
+		toEncode = rows
+	} else {
+		toEncode = data
+	}
+
+	// Apply JMESPath query if set.
+	if query != "" {
+		raw, err := json.Marshal(toEncode)
+		if err != nil {
+			return err
+		}
+		var parsed interface{}
+		if err := json.Unmarshal(raw, &parsed); err != nil {
+			return err
+		}
+		result, err := jmespath.Search(query, parsed)
+		if err != nil {
+			return fmt.Errorf("invalid JMESPath query %q: %w", query, err)
+		}
+		toEncode = result
+	}
+
 	encoder := json.NewEncoder(WasmJSONWriter)
 	encoder.SetIndent("", "  ")
-
-	// Encode the data
-	err := encoder.Encode(data)
-	if err != nil {
+	if err := encoder.Encode(toEncode); err != nil {
 		js.Global().Get("console").Call("error", "Failed to encode JSON:", err.Error())
 		return err
 	}
 
-	// Get the JSON output
 	jsonOutput := WasmJSONWriter.String()
-	js.Global().Get("console").Call("log", fmt.Sprintf("✅ JSON encoded, buffer size: %d bytes", len(jsonOutput)))
-
-	// Write the JSON output to stdout so it can be captured by wasm buffers
-	// This is critical for the output capture to work
 	fmt.Print(jsonOutput)
-
-	// Also write to a JavaScript-accessible global variable for direct access
 	js.Global().Set("wasmJSONOutput", jsonOutput)
-	js.Global().Get("console").Call("log", "📝 JSON output also stored in wasmJSONOutput global")
-
 	return nil
 }
 

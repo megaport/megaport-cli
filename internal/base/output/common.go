@@ -39,6 +39,29 @@ func getOutputFields() []string {
 	return cp
 }
 
+// outputQuery holds the JMESPath expression from --query flag.
+// Empty string means no query. Protected by outputQueryMu.
+var (
+	outputQuery   string
+	outputQueryMu sync.RWMutex
+)
+
+// SetOutputQuery sets the JMESPath query applied by printJSON.
+// Pass "" to disable. This function is goroutine-safe.
+// Tests should call defer SetOutputQuery("") to reset state between test cases.
+func SetOutputQuery(query string) {
+	outputQueryMu.Lock()
+	defer outputQueryMu.Unlock()
+	outputQuery = query
+}
+
+// getOutputQuery returns the current JMESPath query under a read lock.
+func getOutputQuery() string {
+	outputQueryMu.RLock()
+	defer outputQueryMu.RUnlock()
+	return outputQuery
+}
+
 // Output is a marker interface for output types
 type Output interface {
 	isOuput()

@@ -88,5 +88,6 @@ func InitializeCommon() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Show additional debug information")
 	rootCmd.PersistentFlags().Duration("timeout", 0, "Request timeout duration (e.g., 30s, 2m, 5m); 0 uses the internal default of 90s")
 	rootCmd.PersistentFlags().String("fields", "", "Comma-separated list of fields to include in output (e.g., uid,name,status); use an unknown name to list available fields")
+	rootCmd.PersistentFlags().String("query", "", "JMESPath query to filter JSON output (requires --output json)")
 	rootCmd.MarkFlagsMutuallyExclusive("quiet", "verbose")
 }
