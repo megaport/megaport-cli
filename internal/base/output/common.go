@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/jmespath/go-jmespath"
 )
 
 // outputFields holds the user-selected fields from --fields flag.
@@ -37,6 +39,49 @@ func getOutputFields() []string {
 	cp := make([]string, len(outputFields))
 	copy(cp, outputFields)
 	return cp
+}
+
+// outputQuery holds the JMESPath expression from --query flag.
+// Empty string means no query. Protected by outputQueryMu.
+var (
+	outputQuery   string
+	outputQueryMu sync.RWMutex
+)
+
+// SetOutputQuery sets the JMESPath query applied by printJSON.
+// Pass "" to disable. This function is goroutine-safe.
+// Tests should call defer SetOutputQuery("") to reset state between test cases.
+func SetOutputQuery(query string) {
+	outputQueryMu.Lock()
+	defer outputQueryMu.Unlock()
+	outputQuery = query
+}
+
+// getOutputQuery returns the current JMESPath query under a read lock.
+func getOutputQuery() string {
+	outputQueryMu.RLock()
+	defer outputQueryMu.RUnlock()
+	return outputQuery
+}
+
+// applyJMESPath applies a JMESPath query to v and returns the result.
+// v must be a JSON-compatible value (e.g. []T or []map[string]interface{}).
+// The marshal→unmarshal round-trip converts typed Go values to the interface{}
+// tree that go-jmespath requires. Returns an error if the query is invalid.
+func applyJMESPath(query string, v interface{}) (interface{}, error) {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var parsed interface{}
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return nil, err
+	}
+	result, err := jmespath.Search(query, parsed)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JMESPath query %q: %w", query, err)
+	}
+	return result, nil
 }
 
 // Output is a marker interface for output types

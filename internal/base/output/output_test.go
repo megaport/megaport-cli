@@ -1120,3 +1120,97 @@ func TestSetOutputFields_Nil_RestoresAll(t *testing.T) {
 	assert.NotContains(t, out1, "STATUS")
 	assert.Contains(t, out2, "STATUS")
 }
+
+// ---- --query flag tests ----
+
+func TestSetOutputQuery_FilterArray(t *testing.T) {
+	defer SetOutputQuery("")
+	SetOutputQuery("[?status=='LIVE']")
+
+	out, err := CaptureOutputErr(func() error {
+		return PrintOutput(fieldsTestData(), "json", true)
+	})
+	assert.NoError(t, err)
+
+	var rows []map[string]interface{}
+	assert.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(out)), &rows))
+	assert.Len(t, rows, 1)
+	assert.Equal(t, "aaa-111", rows[0]["uid"])
+	assert.Equal(t, "LIVE", rows[0]["status"])
+}
+
+func TestSetOutputQuery_ExtractField(t *testing.T) {
+	defer SetOutputQuery("")
+	SetOutputQuery("[*].name")
+
+	out, err := CaptureOutputErr(func() error {
+		return PrintOutput(fieldsTestData(), "json", true)
+	})
+	assert.NoError(t, err)
+
+	var names []string
+	assert.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(out)), &names))
+	assert.Equal(t, []string{"Port A", "Port B"}, names)
+}
+
+func TestSetOutputQuery_WithFields(t *testing.T) {
+	defer SetOutputFields(nil)
+	defer SetOutputQuery("")
+	SetOutputFields([]string{"uid", "name"})
+	SetOutputQuery("[*].uid")
+
+	out, err := CaptureOutputErr(func() error {
+		return PrintOutput(fieldsTestData(), "json", true)
+	})
+	assert.NoError(t, err)
+
+	var uids []string
+	assert.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(out)), &uids))
+	assert.Equal(t, []string{"aaa-111", "bbb-222"}, uids)
+}
+
+func TestSetOutputQuery_InvalidQuery(t *testing.T) {
+	defer SetOutputQuery("")
+	SetOutputQuery("INVALID[[")
+
+	err := PrintOutput(fieldsTestData(), "json", true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid JMESPath query")
+}
+
+func TestSetOutputQuery_EmptyData(t *testing.T) {
+	defer SetOutputQuery("")
+	SetOutputQuery("[*].uid")
+
+	out, err := CaptureOutputErr(func() error {
+		return PrintOutput([]fieldsTestStruct{}, "json", true)
+	})
+	assert.NoError(t, err)
+	// JMESPath [*].uid on an empty array returns an empty array, not null
+	assert.Contains(t, strings.TrimSpace(out), "[]")
+}
+
+func TestSetOutputQuery_Reset(t *testing.T) {
+	SetOutputQuery("[*].uid")
+	SetOutputQuery("") // reset
+
+	out, err := CaptureOutputErr(func() error {
+		return PrintOutput(fieldsTestData(), "json", true)
+	})
+	assert.NoError(t, err)
+
+	var rows []map[string]interface{}
+	assert.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(out)), &rows))
+	assert.Len(t, rows, 2)
+	// Full output restored — all fields present
+	_, hasUID := rows[0]["uid"]
+	_, hasStatus := rows[0]["status"]
+	assert.True(t, hasUID)
+	assert.True(t, hasStatus)
+}
+
+func TestApplyJMESPath_MarshalError(t *testing.T) {
+	// Channels cannot be marshalled to JSON — exercises the marshal error path.
+	_, err := applyJMESPath("[*]", make(chan int))
+	assert.Error(t, err)
+}

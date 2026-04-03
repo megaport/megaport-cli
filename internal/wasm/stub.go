@@ -30,9 +30,10 @@ func (d *StubBuffer) Reset() {
 }
 
 // No-op function stubs for non-WASM environments
-func ResetOutputBuffers()       {}
-func GetCapturedOutput() string { return "" }
-func SetupIO()                  {}
+func ResetOutputBuffers()               {}
+func RegisterOutputStateReset(_ func()) {}
+func GetCapturedOutput() string         { return "" }
+func SetupIO()                          {}
 func CaptureOutput(fn func()) string {
 	fn()
 	return ""

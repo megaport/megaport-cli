@@ -20,10 +20,14 @@ func printJSON[T OutputFields](data []T) error {
 		data = []T{}
 	}
 
-	// When --fields is set, build filtered maps so only selected keys appear.
-	// Validate field names even when data is empty so unknown fields always error.
 	fields := getOutputFields()
+	query := getOutputQuery()
+
+	// Determine what to encode — fields-filtered maps or raw typed data.
+	var toEncode interface{}
 	if len(fields) > 0 {
+		// When --fields is set, validate field names (even on empty data) and build
+		// filtered maps so only selected keys appear in the JSON output.
 		headers, jsonNames, indices, err := getStructTypeInfo(data)
 		if err != nil {
 			return err
@@ -55,14 +59,23 @@ func printJSON[T OutputFields](data []T) error {
 			}
 			rows = append(rows, m)
 		}
-		encoder := json.NewEncoder(os.Stdout)
-		encoder.SetIndent("", "  ")
-		return encoder.Encode(rows)
+		toEncode = rows
+	} else {
+		toEncode = data
+	}
+
+	// Apply JMESPath query if set.
+	if query != "" {
+		var err error
+		toEncode, err = applyJMESPath(query, toEncode)
+		if err != nil {
+			return err
+		}
 	}
 
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
-	return encoder.Encode(data)
+	return encoder.Encode(toEncode)
 }
 
 func calculateColumnWidths(rows [][]string) []int {
