@@ -70,15 +70,12 @@ megaport-cli vxc update [flags]
 | `--a-end-partner-config` |  |  | JSON string with A-End partner configuration | false |
 | `--a-end-uid` |  |  | UID of the A-End product | false |
 | `--a-end-vlan` |  | `0` | VLAN for A-End (0-4093, except 1) | false |
-| `--a-vnic-index` |  | `-1` | New A-End vNIC index when moving a VXC on an MVE | false |
 | `--b-end-inner-vlan` |  | `0` | Inner VLAN for B-End (-1 or higher) | false |
 | `--b-end-partner-config` |  |  | JSON string with B-End partner configuration | false |
 | `--b-end-uid` |  |  | UID of the B-End product | false |
 | `--b-end-vlan` |  | `0` | VLAN for B-End (0-4093, except 1) | false |
-| `--b-vnic-index` |  | `-1` | New B-End vNIC index when moving a VXC on an MVE | false |
 | `--cost-centre` |  |  | Cost centre for billing | false |
 | `--interactive` |  | `false` | Use interactive mode | false |
-| `--is-approved` |  | `false` | Approve or reject a VXC via the Megaport Marketplace | false |
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 | `--name` |  |  | Name of the VXC | false |

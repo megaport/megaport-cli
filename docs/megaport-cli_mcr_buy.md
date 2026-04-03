@@ -84,13 +84,11 @@ megaport-cli mcr buy [flags]
 | `--marketplace-visibility` |  |  | Whether the MCR should be visible in the marketplace (true or false) | true |
 | `--mcr-asn` |  | `0` | The ASN for the MCR (64512-65534 for private ASN, or a public ASN) | false |
 | `--name` |  |  | The name of the MCR (1-64 characters) | true |
-| `--no-wait` |  | `false` | Do not wait for provisioning to complete | false |
 | `--port-speed` |  | `0` | The speed of the MCR (1000, 2500, 5000, 10000, 25000, 50000, or 100000 Mbps) | true |
 | `--promo-code` |  |  | A promotional code for discounts | false |
 | `--resource-tags` |  |  | Resource tags as a JSON string (e.g. {"key1":"value1","key2":"value2"}) | false |
 | `--resource-tags-file` |  |  | Path to JSON file containing resource tags | false |
 | `--term` |  | `0` | The term of the MCR (1, 12, 24, or 36 months) | true |
-| `--yes` | `-y` | `false` | Skip confirmation prompt for purchase | false |
 
 ## Subcommands
 * [docs](megaport-cli_mcr_buy_docs.md)
