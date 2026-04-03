@@ -2177,6 +2177,90 @@ func TestBuyVXC_Confirmation(t *testing.T) {
 	}
 }
 
+func TestExportVXCConfig(t *testing.T) {
+	vxc := &megaport.VXC{
+		UID:                "vxc-should-not-appear",
+		Name:               "My VXC",
+		RateLimit:          1000,
+		ContractTermMonths: 12,
+		CostCentre:         "IT",
+		AEndConfiguration: megaport.VXCEndConfiguration{
+			UID:  "port-aaa",
+			VLAN: 100,
+		},
+		BEndConfiguration: megaport.VXCEndConfiguration{
+			UID:  "port-bbb",
+			VLAN: 200,
+		},
+		ProvisioningStatus: "LIVE",
+	}
+	m := exportVXCConfig(vxc)
+
+	assert.Equal(t, "port-aaa", m["portUid"])
+	assert.Equal(t, "My VXC", m["vxcName"])
+	assert.Equal(t, 1000, m["rateLimit"])
+	assert.Equal(t, 12, m["term"])
+	assert.Equal(t, "IT", m["costCentre"])
+
+	aEnd, ok := m["aEndConfiguration"].(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, 100, aEnd["vlan"])
+
+	bEnd, ok := m["bEndConfiguration"].(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, "port-bbb", bEnd["productUID"])
+	assert.Equal(t, 200, bEnd["vlan"])
+
+	_, hasUID := m["uid"]
+	assert.False(t, hasUID, "export should not include uid")
+	_, hasStatus := m["provisioningStatus"]
+	assert.False(t, hasStatus, "export should not include provisioningStatus")
+}
+
+func TestGetVXC_Export(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockService := &MockVXCService{
+		GetVXCResponse: &megaport.VXC{
+			UID:                "vxc-export-123",
+			Name:               "Export VXC",
+			RateLimit:          500,
+			ContractTermMonths: 12,
+			AEndConfiguration: megaport.VXCEndConfiguration{
+				UID:  "port-aaa",
+				VLAN: 100,
+			},
+			BEndConfiguration: megaport.VXCEndConfiguration{
+				UID:  "port-bbb",
+				VLAN: 200,
+			},
+		},
+	}
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.VXCService = mockService
+		return client, nil
+	}
+
+	cmd := &cobra.Command{Use: "get"}
+	cmd.Flags().Bool("export", false, "")
+	assert.NoError(t, cmd.Flags().Set("export", "true"))
+
+	var err error
+	capturedOutput := output.CaptureOutput(func() {
+		err = GetVXC(cmd, []string{"vxc-export-123"}, true, "table")
+	})
+
+	assert.NoError(t, err)
+	var parsed map[string]interface{}
+	assert.NoError(t, json.Unmarshal([]byte(capturedOutput), &parsed), "export output must be valid JSON")
+	assert.Equal(t, "Export VXC", parsed["vxcName"])
+	assert.Equal(t, "port-aaa", parsed["portUid"])
+	_, hasUID := parsed["uid"]
+	assert.False(t, hasUID, "export should not include uid")
+}
+
 func TestValidateVXC(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()

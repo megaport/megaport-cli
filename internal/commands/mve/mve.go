@@ -78,8 +78,10 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	getMVECmd := cmdbuilder.NewCommand("get", "Get details for a single MVE").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetMVE).
+		WithBoolFlag("export", false, "Output recreatable JSON config for use with buy --json (excludes read-only fields; vendorConfig not available from API)").
 		WithLongDesc("Get details for a single MVE from the Megaport API.\n\nThis command retrieves and displays detailed information for a single Megaport Virtual Edge (MVE). You must provide the unique identifier (UID) of the MVE you wish to retrieve.").
 		WithExample("megaport-cli mve get a1b2c3d4-e5f6-7890-1234-567890abcdef").
+		WithExample("megaport-cli mve get a1b2c3d4-e5f6-7890-1234-567890abcdef --export").
 		WithImportantNote("The output includes the MVE's UID, name, vendor, version, status, and connectivity details").
 		WithRootCmd(rootCmd).
 		Build()

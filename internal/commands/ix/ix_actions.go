@@ -2,6 +2,7 @@ package ix
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -13,6 +14,21 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
+
+func exportIXConfig(ix *megaport.IX) map[string]interface{} {
+	m := map[string]interface{}{
+		"productName":        ix.ProductName,
+		"networkServiceType": ix.NetworkServiceType,
+		"rateLimit":          ix.RateLimit,
+		"vlan":               ix.VLAN,
+		"asn":                ix.ASN,
+	}
+	if ix.MACAddress != "" {
+		m["macAddress"] = ix.MACAddress
+	}
+	// productUid (parent port UID) is not stored on the IX struct — must be added manually
+	return m
+}
 
 func ListIXs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
@@ -100,6 +116,17 @@ func GetIX(cmd *cobra.Command, args []string, noColor bool, outputFormat string)
 		err = utils.WrapAPIError(err, "IX", ixUID)
 		output.PrintError("Error getting IX: %v", noColor, err)
 		return fmt.Errorf("error getting IX: %w", err)
+	}
+
+	export, _ := cmd.Flags().GetBool("export")
+	if export {
+		cfg := exportIXConfig(ix)
+		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
+		if err != nil {
+			return fmt.Errorf("error marshaling export config: %v", err)
+		}
+		fmt.Println(string(jsonBytes))
+		return nil
 	}
 
 	err = printIXs([]*megaport.IX{ix}, outputFormat, noColor)

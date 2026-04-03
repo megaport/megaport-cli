@@ -2,6 +2,7 @@ package mcr
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
@@ -2581,6 +2582,76 @@ func TestBuyMCR_Confirmation(t *testing.T) {
 			assert.Equal(t, tt.promptShouldBeCalled, promptCalled, "confirmation prompt called mismatch")
 		})
 	}
+}
+
+func TestExportMCRConfig(t *testing.T) {
+	mcr := &megaport.MCR{
+		UID:                "mcr-should-not-appear",
+		Name:               "My MCR",
+		ContractTermMonths: 12,
+		PortSpeed:          1000,
+		LocationID:         99,
+		DiversityZone:      "red",
+		CostCentre:         "NetOps",
+		ProvisioningStatus: "LIVE",
+		Resources: megaport.MCRResources{
+			VirtualRouter: megaport.MCRVirtualRouter{
+				ASN: 65000,
+			},
+		},
+	}
+	m := exportMCRConfig(mcr)
+
+	assert.Equal(t, "My MCR", m["name"])
+	assert.Equal(t, 12, m["term"])
+	assert.Equal(t, 1000, m["portSpeed"])
+	assert.Equal(t, 99, m["locationId"])
+	assert.Equal(t, "red", m["diversityZone"])
+	assert.Equal(t, "NetOps", m["costCentre"])
+	assert.Equal(t, 65000, m["mcrAsn"])
+
+	_, hasUID := m["productUid"]
+	assert.False(t, hasUID, "export should not include productUid")
+	_, hasStatus := m["provisioningStatus"]
+	assert.False(t, hasStatus, "export should not include provisioningStatus")
+}
+
+func TestGetMCR_Export(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockService := &MockMCRService{
+		GetMCRResult: &megaport.MCR{
+			UID:                "mcr-export-123",
+			Name:               "Export MCR",
+			ContractTermMonths: 12,
+			PortSpeed:          1000,
+			LocationID:         42,
+			ProvisioningStatus: "LIVE",
+		},
+	}
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.MCRService = mockService
+		return client, nil
+	}
+
+	cmd := &cobra.Command{Use: "get"}
+	cmd.Flags().Bool("export", false, "")
+	assert.NoError(t, cmd.Flags().Set("export", "true"))
+
+	var err error
+	capturedOutput := output.CaptureOutput(func() {
+		err = GetMCR(cmd, []string{"mcr-export-123"}, true, "table")
+	})
+
+	assert.NoError(t, err)
+	var parsed map[string]interface{}
+	assert.NoError(t, json.Unmarshal([]byte(capturedOutput), &parsed), "export output must be valid JSON")
+	assert.Equal(t, "Export MCR", parsed["name"])
+	assert.Equal(t, float64(42), parsed["locationId"])
+	_, hasUID := parsed["productUid"]
+	assert.False(t, hasUID, "export should not include productUid")
 }
 
 func TestValidateMCR(t *testing.T) {

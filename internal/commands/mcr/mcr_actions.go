@@ -2,6 +2,7 @@ package mcr
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -13,6 +14,25 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
+
+func exportMCRConfig(mcr *megaport.MCR) map[string]interface{} {
+	m := map[string]interface{}{
+		"name":       mcr.Name,
+		"term":       mcr.ContractTermMonths,
+		"portSpeed":  mcr.PortSpeed,
+		"locationId": mcr.LocationID,
+	}
+	if mcr.Resources.VirtualRouter.ASN != 0 {
+		m["mcrAsn"] = mcr.Resources.VirtualRouter.ASN
+	}
+	if mcr.DiversityZone != "" {
+		m["diversityZone"] = mcr.DiversityZone
+	}
+	if mcr.CostCentre != "" {
+		m["costCentre"] = mcr.CostCentre
+	}
+	return m
+}
 
 func buildMCRRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyMCRRequest, error) {
 	interactive, _ := cmd.Flags().GetBool("interactive")
@@ -378,6 +398,17 @@ func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 		err = utils.WrapAPIError(err, "MCR", mcrUID)
 		output.PrintError("Error getting MCR: %v", noColor, err)
 		return fmt.Errorf("error getting MCR: %w", err)
+	}
+
+	export, _ := cmd.Flags().GetBool("export")
+	if export {
+		cfg := exportMCRConfig(mcr)
+		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
+		if err != nil {
+			return fmt.Errorf("error marshaling export config: %v", err)
+		}
+		fmt.Println(string(jsonBytes))
+		return nil
 	}
 
 	err = printMCRs([]*megaport.MCR{mcr}, outputFormat, noColor)

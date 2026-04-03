@@ -24,8 +24,10 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	getIXCmd := cmdbuilder.NewCommand("get", "Get details for a single IX").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetIX).
+		WithBoolFlag("export", false, "Output recreatable JSON config for use with buy --json (excludes read-only fields; productUid not available from API)").
 		WithLongDesc("Get details for a single IX.\n\nThis command retrieves and displays detailed information for a single Internet Exchange (IX). You must provide the unique identifier (UID) of the IX you wish to retrieve.").
 		WithExample("megaport-cli ix get a1b2c3d4-e5f6-7890-1234-567890abcdef").
+		WithExample("megaport-cli ix get a1b2c3d4-e5f6-7890-1234-567890abcdef --export").
 		WithImportantNote("The output includes the IX's UID, name, network service type, ASN, rate limit, VLAN, MAC address, and provisioning status").
 		WithRootCmd(rootCmd).
 		Build()

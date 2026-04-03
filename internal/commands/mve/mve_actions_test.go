@@ -2238,6 +2238,83 @@ func TestListAvailableMVESizes_Error(t *testing.T) {
 	assert.Contains(t, err.Error(), "API failure")
 }
 
+func TestExportMVEConfig(t *testing.T) {
+	mve := &megaport.MVE{
+		UID:                "mve-should-not-appear",
+		Name:               "My MVE",
+		ContractTermMonths: 12,
+		LocationID:         55,
+		DiversityZone:      "green",
+		CostCentre:         "EdgeOps",
+		ProvisioningStatus: "LIVE",
+		NetworkInterfaces: []*megaport.MVENetworkInterface{
+			{Description: "eth0", VLAN: 100},
+			{Description: "eth1"},
+		},
+	}
+	m := exportMVEConfig(mve)
+
+	assert.Equal(t, "My MVE", m["name"])
+	assert.Equal(t, 12, m["term"])
+	assert.Equal(t, 55, m["locationId"])
+	assert.Equal(t, "green", m["diversityZone"])
+	assert.Equal(t, "EdgeOps", m["costCentre"])
+
+	vnics, ok := m["vnics"].([]map[string]interface{})
+	assert.True(t, ok)
+	assert.Len(t, vnics, 2)
+	assert.Equal(t, "eth0", vnics[0]["description"])
+	assert.Equal(t, 100, vnics[0]["vlan"])
+	assert.Equal(t, "eth1", vnics[1]["description"])
+	_, hasVLAN := vnics[1]["vlan"]
+	assert.False(t, hasVLAN, "zero VLAN should be omitted")
+
+	_, hasUID := m["productUid"]
+	assert.False(t, hasUID, "export should not include productUid")
+	_, hasVendor := m["vendorConfig"]
+	assert.False(t, hasVendor, "vendorConfig is not available from API")
+}
+
+func TestGetMVE_Export(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockService := &MockMVEService{
+		GetMVEResult: &megaport.MVE{
+			UID:                "mve-export-123",
+			Name:               "Export MVE",
+			ContractTermMonths: 12,
+			LocationID:         55,
+			ProvisioningStatus: "LIVE",
+			NetworkInterfaces: []*megaport.MVENetworkInterface{
+				{Description: "Data"},
+			},
+		},
+	}
+	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.MVEService = mockService
+		return client, nil
+	}
+
+	cmd := &cobra.Command{Use: "get"}
+	cmd.Flags().Bool("export", false, "")
+	assert.NoError(t, cmd.Flags().Set("export", "true"))
+
+	var err error
+	capturedOutput := output.CaptureOutput(func() {
+		err = GetMVE(cmd, []string{"mve-export-123"}, true, "table")
+	})
+
+	assert.NoError(t, err)
+	var parsed map[string]interface{}
+	assert.NoError(t, json.Unmarshal([]byte(capturedOutput), &parsed), "export output must be valid JSON")
+	assert.Equal(t, "Export MVE", parsed["name"])
+	assert.Equal(t, float64(55), parsed["locationId"])
+	_, hasUID := parsed["productUid"]
+	assert.False(t, hasUID, "export should not include productUid")
+}
+
 func TestListAvailableMVESizes_LoginError(t *testing.T) {
 	cleanup := testutil.SetupLoginError(fmt.Errorf("auth failed"))
 	defer cleanup()
