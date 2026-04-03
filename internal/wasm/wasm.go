@@ -345,14 +345,21 @@ func (cw *customWriter) Write(p []byte) (n int, err error) {
 	return cw.writer.Write(p)
 }
 
-// CaptureOutput runs a function and captures its stdout/stderr output
+// CaptureOutput runs a function and captures its stdout/stderr output.
+// If os.Pipe() is unavailable (as it is in the js/wasm target), fn is executed
+// normally and the direct buffer is used for output capture instead.
 func CaptureOutput(fn func()) string {
 	// Reset buffers before capture
 	ResetOutputBuffers()
 
-	// Create pipes for output capture
-	rOut, wOut, _ := os.Pipe()
-	rErr, wErr, _ := os.Pipe()
+	// Create pipes for output capture. On js/wasm os.Pipe() is not implemented
+	// and will return an error; in that case fall through to the direct buffer.
+	rOut, wOut, errOut := os.Pipe()
+	rErr, wErr, errErr := os.Pipe()
+	if errOut != nil || errErr != nil {
+		fn()
+		return WasmOutputBuffer.String()
+	}
 
 	// Save original stdout/stderr
 	oldStdout := os.Stdout
@@ -482,6 +489,22 @@ func SplitArgs(cmd string) []string {
 	return cleanedArgs
 }
 
+// isValidConfigFilename reports whether filename is safe to use as a localStorage key
+// suffix. Only alphanumeric characters, dots, hyphens, and underscores are permitted,
+// and the length is limited to prevent denial-of-service via enormous keys.
+func isValidConfigFilename(filename string) bool {
+	if filename == "" || len(filename) > 64 {
+		return false
+	}
+	for _, c := range filename {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+			c == '.' || c == '_' || c == '-') {
+			return false
+		}
+	}
+	return true
+}
+
 func readConfigFile(this js.Value, args []js.Value) interface{} {
 	if len(args) < 1 {
 		return map[string]interface{}{
@@ -490,6 +513,12 @@ func readConfigFile(this js.Value, args []js.Value) interface{} {
 	}
 
 	filename := args[0].String()
+
+	if !isValidConfigFilename(filename) {
+		return map[string]interface{}{
+			"error": "Invalid filename",
+		}
+	}
 
 	// Get from localStorage
 	content := js.Global().Get("localStorage").Call("getItem", "megaport_fs_"+filename)
@@ -526,6 +555,12 @@ func writeConfigFile(this js.Value, args []js.Value) interface{} {
 
 	filename := args[0].String()
 	content := args[1].String()
+
+	if !isValidConfigFilename(filename) {
+		return map[string]interface{}{
+			"error": "Invalid filename",
+		}
+	}
 
 	// Save to localStorage
 	js.Global().Get("localStorage").Call("setItem", "megaport_fs_"+filename, content)
@@ -575,19 +610,18 @@ func setAuthCredentials(this js.Value, args []js.Value) interface{} {
 	secretKey := args[1].String()
 	environment := args[2].String()
 
-	// Set environment variables for Go code
+	// Store credentials only in Go-side environment variables.
+	// Do NOT mirror them into JS globals — any script on the page can read those.
 	os.Setenv("MEGAPORT_ACCESS_KEY", accessKey)
 	os.Setenv("MEGAPORT_SECRET_KEY", secretKey)
 	os.Setenv("MEGAPORT_ENVIRONMENT", environment)
 
-	// Also set the megaportCredentials global object that login_wasm.go checks
+	// Expose only the non-secret environment name so the UI can reflect it.
 	credentialsObj := js.Global().Get("Object").New()
-	credentialsObj.Set("accessKey", accessKey)
-	credentialsObj.Set("secretKey", secretKey)
 	credentialsObj.Set("environment", environment)
 	js.Global().Set("megaportCredentials", credentialsObj)
 
-	js.Global().Get("console").Call("log", "🔐 Credentials set securely (in-memory only)")
+	js.Global().Get("console").Call("log", "🔐 Credentials set (in-memory only)")
 
 	return map[string]interface{}{
 		"success": true,
@@ -658,9 +692,9 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 	os.Setenv("MEGAPORT_ACCESS_KEY", "")
 	os.Setenv("MEGAPORT_SECRET_KEY", "")
 
-	// Set the megaportToken global object for login_wasm.go to use
+	// Expose only metadata (not the raw token) in the JS global so the UI can
+	// reflect the current session state without re-exposing the bearer token.
 	tokenObj := js.Global().Get("Object").New()
-	tokenObj.Set("token", token)
 	tokenObj.Set("environment", environment)
 	tokenObj.Set("hostname", hostname)
 	tokenObj.Set("apiURL", apiURL)
@@ -712,15 +746,24 @@ func hostnameToEnvironment(hostname string) string {
 	return "production"
 }
 
-// hostnameToAPIURL maps a hostname to the appropriate API base URL
-// This allows the WASM client to auto-detect the correct API endpoint
-// based on the portal hostname, enabling new environments to work automatically
-// Note: This function expects portal hostnames (e.g., portal.megaport.com) but also
-// handles api-* hostnames by returning them as-is (already an API URL)
+// megaportAPIURL constructs a Megaport API URL from apiHost, returning the
+// production fallback if the derived host does not end with .megaport.com.
+// This prevents hostname injection: an attacker-controlled hostname (e.g.
+// "portal-staging.attacker.com") cannot redirect API traffic to a third-party server.
+func megaportAPIURL(apiHost string) string {
+	if strings.HasSuffix(apiHost, ".megaport.com") {
+		return "https://" + apiHost + "/"
+	}
+	return "https://api.megaport.com/"
+}
+
+// hostnameToAPIURL maps a portal hostname to the corresponding Megaport API base URL.
+// Only hostnames that resolve to a *.megaport.com API host are accepted; all others
+// fall back to the production API to prevent open-redirect attacks.
 func hostnameToAPIURL(hostname string) string {
 	hostname = strings.ToLower(hostname)
 
-	// Production patterns -> production API
+	// Explicit production patterns.
 	if hostname == "portal.megaport.com" ||
 		hostname == "api.megaport.com" ||
 		hostname == "megaport.com" ||
@@ -728,43 +771,12 @@ func hostnameToAPIURL(hostname string) string {
 		return "https://api.megaport.com/"
 	}
 
-	// If hostname is already an api-* subdomain, return it as-is
-	// e.g., api-qa.megaport.com -> https://api-qa.megaport.com/
+	// Hostname is already an api-* subdomain within megaport.com.
 	if strings.HasPrefix(hostname, "api-") && strings.HasSuffix(hostname, ".megaport.com") {
 		return "https://" + hostname + "/"
 	}
 
-	// Staging patterns -> staging API
-	if strings.Contains(hostname, "staging") {
-		// Try to derive API URL from portal hostname pattern
-		// e.g., portal-staging.megaport.com -> api-staging.megaport.com
-		if strings.HasPrefix(hostname, "portal-") {
-			apiHost := strings.Replace(hostname, "portal-", "api-", 1)
-			return "https://" + apiHost + "/"
-		}
-		return "https://api-staging.megaport.com/"
-	}
-
-	// QA/UAT/Dev patterns - try to derive API URL from hostname
-	if strings.Contains(hostname, "qa") ||
-		strings.Contains(hostname, "uat") ||
-		strings.Contains(hostname, "dev") {
-		// Try to derive API URL from portal hostname pattern
-		// e.g., portal-qa.megaport.com -> api-qa.megaport.com
-		if strings.HasPrefix(hostname, "portal-") {
-			apiHost := strings.Replace(hostname, "portal-", "api-", 1)
-			return "https://" + apiHost + "/"
-		}
-		if strings.HasPrefix(hostname, "portal.") {
-			// portal.qa.megaport.com -> api.qa.megaport.com
-			apiHost := strings.Replace(hostname, "portal.", "api.", 1)
-			return "https://" + apiHost + "/"
-		}
-		// Fallback to development API
-		return "https://api-mpone-dev.megaport.com/"
-	}
-
-	// Localhost/IP patterns -> staging API (used for local development against staging)
+	// Localhost/IP patterns — used for local development against staging.
 	if hostname == "localhost" ||
 		strings.HasPrefix(hostname, "127.") ||
 		strings.HasPrefix(hostname, "192.168.") ||
@@ -772,20 +784,32 @@ func hostnameToAPIURL(hostname string) string {
 		return "https://api-staging.megaport.com/"
 	}
 
-	// Unknown .megaport.com subdomain - try to derive API URL
-	if strings.HasSuffix(hostname, ".megaport.com") {
-		// Try portal- to api- substitution
-		if strings.HasPrefix(hostname, "portal-") {
-			apiHost := strings.Replace(hostname, "portal-", "api-", 1)
-			return "https://" + apiHost + "/"
-		}
-		if strings.HasPrefix(hostname, "portal.") {
-			apiHost := strings.Replace(hostname, "portal.", "api.", 1)
-			return "https://" + apiHost + "/"
-		}
+	// Only derive API URLs for recognised *.megaport.com portal hostnames.
+	if !strings.HasSuffix(hostname, ".megaport.com") {
+		return "https://api.megaport.com/"
 	}
 
-	// Default to production API for unknown hostnames
+	// portal-<env>.megaport.com -> api-<env>.megaport.com
+	if strings.HasPrefix(hostname, "portal-") {
+		apiHost := strings.Replace(hostname, "portal-", "api-", 1)
+		return megaportAPIURL(apiHost)
+	}
+
+	// portal.<env>.megaport.com -> api.<env>.megaport.com
+	if strings.HasPrefix(hostname, "portal.") {
+		apiHost := strings.Replace(hostname, "portal.", "api.", 1)
+		return megaportAPIURL(apiHost)
+	}
+
+	// Known non-production environment keywords with hardcoded fallbacks.
+	switch {
+	case strings.Contains(hostname, "staging"):
+		return "https://api-staging.megaport.com/"
+	case strings.Contains(hostname, "dev") || strings.Contains(hostname, "uat") || strings.Contains(hostname, "qa"):
+		return "https://api-mpone-dev.megaport.com/"
+	}
+
+	// Default to production for unknown .megaport.com subdomains.
 	return "https://api.megaport.com/"
 }
 

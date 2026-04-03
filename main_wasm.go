@@ -6,7 +6,9 @@ package main
 import (
 	"embed"
 	"fmt"
+	"sync"
 	"syscall/js"
+	"time"
 
 	"github.com/megaport/megaport-cli/cmd/megaport"
 	"github.com/megaport/megaport-cli/internal/base/cmdbuilder"
@@ -44,25 +46,10 @@ func executeMegaportCommand(this js.Value, args []js.Value) interface{} {
 	// Ensure Cobra gets all our commands
 	megaport.EnsureRootCommandOutput(wasm.WasmOutputBuffer)
 
-	// Execute with console timing
-	js.Global().Get("console").Call("time", "Command execution")
 	megaport.ExecuteWithArgs(originalArgs)
-	js.Global().Get("console").Call("timeEnd", "Command execution")
-
-	// Get output and return
-	output := wasm.GetCapturedOutput()
-
-	// Log the final output that's being returned to the terminal
-	if len(output) > 1000 {
-		js.Global().Get("console").Call("log", fmt.Sprintf("📋 Returning output: [first 1000 bytes of %d]:\n%s...",
-			len(output), output[:1000]))
-	} else {
-		js.Global().Get("console").Call("log", fmt.Sprintf("📋 Returning output [%d bytes]:\n%s",
-			len(output), output))
-	}
 
 	return map[string]interface{}{
-		"output": output,
+		"output": wasm.GetCapturedOutput(),
 	}
 }
 
@@ -83,15 +70,23 @@ func executeMegaportCommandAsync(this js.Value, args []js.Value) interface{} {
 		return nil
 	}
 
-	js.Global().Get("console").Call("log", fmt.Sprintf("🚀 Starting async command: %s", cmdString))
+	// asyncCommandTimeout is the maximum time an async command may run before
+	// the callback is invoked with a timeout error. The inner goroutine may still
+	// be running after the timeout (Go goroutines cannot be forcibly cancelled),
+	// but the JS caller will not be left waiting indefinitely.
+	const asyncCommandTimeout = 10 * time.Minute
 
-	// Run the command in a goroutine to allow async operations
+	// once ensures the callback is invoked exactly once even if both the timeout
+	// and the normal completion path race.
+	var once sync.Once
+
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				js.Global().Get("console").Call("error", "Panic in async command:", r)
-				callback.Invoke(map[string]interface{}{
-					"error": fmt.Sprintf("Command panicked: %v", r),
+				once.Do(func() {
+					callback.Invoke(map[string]interface{}{
+						"error": fmt.Sprintf("Command panicked: %v", r),
+					})
 				})
 			}
 		}()
@@ -105,37 +100,31 @@ func executeMegaportCommandAsync(this js.Value, args []js.Value) interface{} {
 		// Create a new slice with the program name
 		originalArgs := append([]string{"megaport-cli"}, cmdArgs...)
 
-		// Use our new tracing function
+		// Use our tracing function (no-op when debug mode is off)
 		wasm.TraceCommand(cmdString, originalArgs)
 
 		// Ensure Cobra gets all our commands
 		megaport.EnsureRootCommandOutput(wasm.WasmOutputBuffer)
 
-		// Execute with console timing
-		js.Global().Get("console").Call("time", "Async command execution")
 		megaport.ExecuteWithArgs(originalArgs)
-		js.Global().Get("console").Call("timeEnd", "Async command execution")
 
-		// Get output
-		output := wasm.GetCapturedOutput()
-
-		// Log the output
-		if len(output) > 1000 {
-			js.Global().Get("console").Call("log", fmt.Sprintf("📋 Async output ready: [first 1000 bytes of %d]:\n%s...",
-				len(output), output[:1000]))
-		} else {
-			js.Global().Get("console").Call("log", fmt.Sprintf("📋 Async output ready [%d bytes]:\n%s",
-				len(output), output))
-		}
-
-		// Call the callback with the result
-		callback.Invoke(map[string]interface{}{
-			"output": output,
+		result := wasm.GetCapturedOutput()
+		once.Do(func() {
+			callback.Invoke(map[string]interface{}{
+				"output": result,
+			})
 		})
 	}()
 
-	// Return immediately - the callback will be called when done
-	js.Global().Get("console").Call("log", "✅ Async command started, returning immediately")
+	// Fire a timeout so the callback is always invoked within asyncCommandTimeout.
+	time.AfterFunc(asyncCommandTimeout, func() {
+		once.Do(func() {
+			callback.Invoke(map[string]interface{}{
+				"error": "command timed out",
+			})
+		})
+	})
+
 	return nil
 }
 
@@ -152,11 +141,11 @@ func main() {
 	// Register the embedded documentation with the cmdbuilder package
 	cmdbuilder.RegisterEmbeddedDocs(embeddedDocs)
 
-	// Enable debug mode by default for WASM
-	wasm.EnableDebugMode()
-
-	// Log WASM initialization
-	js.Global().Get("console").Call("log", "🚀 Megaport CLI WASM initialized with enhanced logging")
+	// Enable debug mode only when explicitly requested by the host page.
+	// Set window.wasmDebugMode = true before the WASM module loads to opt in.
+	if js.Global().Get("wasmDebugMode").Truthy() {
+		wasm.EnableDebugMode()
+	}
 
 	// Register JavaScript functions
 	wasm.RegisterJSFunctions()
@@ -170,8 +159,6 @@ func main() {
 	// Export both sync (legacy) and async (preferred) versions
 	js.Global().Set("executeMegaportCommand", js.FuncOf(executeMegaportCommand))
 	js.Global().Set("executeMegaportCommandAsync", js.FuncOf(executeMegaportCommandAsync))
-
-	js.Global().Get("console").Call("log", "✅ Registered executeMegaportCommand (sync) and executeMegaportCommandAsync (async)")
 
 	// Prevent Go WASM from exiting after main finishes
 	<-make(chan bool)
