@@ -5,8 +5,39 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 )
+
+// outputFields holds the user-selected fields from --fields flag.
+// nil means all fields are shown. Protected by outputFieldsMu.
+var (
+	outputFields   []string
+	outputFieldsMu sync.RWMutex
+)
+
+// SetOutputFields sets the field filter applied by all PrintOutput calls.
+// Only fields whose json tag name or header display name (case-insensitive) appears
+// in fields will be included in output. Pass nil to restore full output (all fields).
+// This function is goroutine-safe. Tests should call defer SetOutputFields(nil) to
+// reset state between test cases.
+func SetOutputFields(fields []string) {
+	outputFieldsMu.Lock()
+	defer outputFieldsMu.Unlock()
+	outputFields = fields
+}
+
+// getOutputFields returns a copy of the current field filter under a read lock.
+func getOutputFields() []string {
+	outputFieldsMu.RLock()
+	defer outputFieldsMu.RUnlock()
+	if outputFields == nil {
+		return nil
+	}
+	cp := make([]string, len(outputFields))
+	copy(cp, outputFields)
+	return cp
+}
 
 // Output is a marker interface for output types
 type Output interface {
@@ -47,22 +78,22 @@ func PrintOutput[T OutputFields](data []T, format string, noColor bool) error {
 	}
 }
 
-// getStructTypeInfo extracts header names and field indices from a struct type
-func getStructTypeInfo[T OutputFields](data []T) ([]string, []int, error) {
+// getStructTypeInfo extracts header names, json names, and field indices from a struct type.
+// jsonNames are the json tag values (used for --fields matching); headers are the display names.
+func getStructTypeInfo[T OutputFields](data []T) (headers, jsonNames []string, fieldIndices []int, err error) {
 	var sample T
 	if len(data) > 0 {
 		sample = data[0]
 	}
 	sampleVal := reflect.ValueOf(sample)
 	if !sampleVal.IsValid() {
-		fmt.Println("")
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 	itemType := sampleVal.Type()
 	if itemType.Kind() == reflect.Ptr {
 		if sampleVal.IsNil() {
 			if itemType.Elem().Kind() != reflect.Struct {
-				return nil, nil, nil
+				return nil, nil, nil, nil
 			}
 			itemType = itemType.Elem()
 		} else {
@@ -71,16 +102,15 @@ func getStructTypeInfo[T OutputFields](data []T) ([]string, []int, error) {
 		}
 	}
 	if itemType.Kind() != reflect.Struct {
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
-	headers, fieldIndices := extractFieldInfo(itemType)
-	return headers, fieldIndices, nil
+	headers, jsonNames, fieldIndices = extractFieldInfo(itemType)
+	return headers, jsonNames, fieldIndices, nil
 }
 
-// extractFieldInfo extracts field information from a struct type
-func extractFieldInfo(itemType reflect.Type) ([]string, []int) {
-	var headers []string
-	var fieldIndices []int
+// extractFieldInfo extracts field information from a struct type.
+// Returns headers (display names), jsonNames (json tag names for --fields matching), and field indices.
+func extractFieldInfo(itemType reflect.Type) (headers, jsonNames []string, fieldIndices []int) {
 	for i := 0; i < itemType.NumField(); i++ {
 		field := itemType.Field(i)
 		if field.PkgPath != "" {
@@ -108,10 +138,77 @@ func extractFieldInfo(itemType reflect.Type) ([]string, []int) {
 		if headerTag == "" {
 			headerTag = strings.ToUpper(field.Name)
 		}
+
+		// Derive the json name for --fields matching.
+		jsonName := field.Tag.Get("json")
+		if idx := strings.Index(jsonName, ","); idx != -1 {
+			jsonName = jsonName[:idx]
+		}
+		if jsonName == "" || jsonName == "-" {
+			jsonName = strings.ToLower(field.Name)
+		}
+
 		headers = append(headers, headerTag)
+		jsonNames = append(jsonNames, jsonName)
 		fieldIndices = append(fieldIndices, i)
 	}
-	return headers, fieldIndices
+	return headers, jsonNames, fieldIndices
+}
+
+// filterByFields filters (headers, jsonNames, indices) to only the user-selected fields.
+// Matching is case-insensitive: json names are tried first, then header names.
+// Duplicate selections are silently deduplicated. Returns an error listing available
+// json names if any selected field is unknown.
+func filterByFields(headers, jsonNames []string, indices []int, selected []string) ([]string, []string, []int, error) {
+	if len(selected) == 0 {
+		return headers, jsonNames, indices, nil
+	}
+	// Two separate maps avoids the collision that occurs when a header name
+	// happens to match a json name of a different field.
+	byJSON := make(map[string]int, len(jsonNames))
+	for i, jn := range jsonNames {
+		byJSON[strings.ToLower(jn)] = i
+	}
+	byHeader := make(map[string]int, len(headers))
+	for i, h := range headers {
+		byHeader[strings.ToLower(h)] = i
+	}
+
+	// Pre-build the available-fields string once so it is not rebuilt on every error.
+	available := make([]string, 0, len(jsonNames))
+	for j, jn := range jsonNames {
+		if j < len(headers) && !strings.EqualFold(headers[j], jn) {
+			available = append(available, fmt.Sprintf("%s (or %q)", jn, headers[j]))
+		} else {
+			available = append(available, jn)
+		}
+	}
+	availableStr := strings.Join(available, ", ")
+
+	seen := make(map[int]bool, len(selected))
+	var outHeaders, outJSONNames []string
+	var outIndices []int
+	for _, sel := range selected {
+		key := strings.ToLower(strings.TrimSpace(sel))
+		// Prefer json name match; fall back to header display name.
+		i, ok := byJSON[key]
+		if !ok {
+			i, ok = byHeader[key]
+		}
+		if !ok {
+			return nil, nil, nil, fmt.Errorf("unknown field %q, available fields: %s", sel, availableStr)
+		}
+		if seen[i] {
+			continue // deduplicate repeated field selections
+		}
+		seen[i] = true
+		if len(headers) > 0 {
+			outHeaders = append(outHeaders, headers[i])
+		}
+		outJSONNames = append(outJSONNames, jsonNames[i])
+		outIndices = append(outIndices, indices[i])
+	}
+	return outHeaders, outJSONNames, outIndices, nil
 }
 
 // isOutputCompatibleType checks if a type can be output
