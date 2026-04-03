@@ -3,19 +3,11 @@
 
 package wasm
 
-import (
-	"bytes"
-)
-
 // WasmOutputBuffer is a stub for non-WASM builds
-var WasmOutputBuffer = &StubBuffer{
-	buffer: &bytes.Buffer{},
-}
+var WasmOutputBuffer = &StubBuffer{}
 
 // StubBuffer provides a no-op implementation for non-WASM builds
-type StubBuffer struct {
-	buffer *bytes.Buffer
-}
+type StubBuffer struct{}
 
 func (d *StubBuffer) Write(p []byte) (n int, err error) {
 	return len(p), nil

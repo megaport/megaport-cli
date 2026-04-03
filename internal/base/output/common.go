@@ -86,7 +86,7 @@ func applyJMESPath(query string, v interface{}) (interface{}, error) {
 
 // Output is a marker interface for output types
 type Output interface {
-	isOuput()
+	isOutput()
 }
 
 // OutputFields is a constraint for types that can be output

@@ -984,7 +984,7 @@ type fieldsTestStruct struct {
 	Speed  int    `json:"port_speed" header:"Port Speed"`
 }
 
-func (fieldsTestStruct) isOuput() {}
+func (fieldsTestStruct) isOutput() {}
 
 func fieldsTestData() []fieldsTestStruct {
 	return []fieldsTestStruct{
