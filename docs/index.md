@@ -1,12 +1,14 @@
 # Megaport CLI Documentation
 
-> Generated on April 2, 2026 for version v0.5.4
+> Generated on April 3, 2026 for version v0.5.6
 
 ## Available Commands
 
 | Command | Description |
 |---------|-------------|
 | [megaport-cli](megaport-cli.md) | A CLI tool to interact with the Megaport API |
+| [megaport-cli apply](megaport-cli_apply.md) | Provision multiple resources from a config file |
+| [megaport-cli apply docs](megaport-cli_apply_docs.md) | Show documentation for this command |
 | [megaport-cli billing-market](megaport-cli_billing-market.md) | Manage billing markets for the Megaport API |
 | [megaport-cli billing-market docs](megaport-cli_billing-market_docs.md) | Show documentation for this command |
 | [megaport-cli billing-market get](megaport-cli_billing-market_get.md) | Get billing market configurations |
@@ -185,6 +187,12 @@
 | [megaport-cli ports validate docs](megaport-cli_ports_validate_docs.md) | Show documentation for this command |
 | [megaport-cli ports validate-lag](megaport-cli_ports_validate-lag.md) | Validate a LAG port order without purchasing |
 | [megaport-cli ports validate-lag docs](megaport-cli_ports_validate-lag_docs.md) | Show documentation for this command |
+| [megaport-cli product](megaport-cli_product.md) | Manage products in the Megaport API |
+| [megaport-cli product docs](megaport-cli_product_docs.md) | Show documentation for this command |
+| [megaport-cli product get-type](megaport-cli_product_get-type.md) | Get the type of a product by UID |
+| [megaport-cli product get-type docs](megaport-cli_product_get-type_docs.md) | Show documentation for this command |
+| [megaport-cli product list](megaport-cli_product_list.md) | List all products with optional filters |
+| [megaport-cli product list docs](megaport-cli_product_list_docs.md) | Show documentation for this command |
 | [megaport-cli servicekeys](megaport-cli_servicekeys.md) | Manage service keys for the Megaport API |
 | [megaport-cli servicekeys create](megaport-cli_servicekeys_create.md) | Create a new service key |
 | [megaport-cli servicekeys create docs](megaport-cli_servicekeys_create_docs.md) | Show documentation for this command |
@@ -197,6 +205,8 @@
 | [megaport-cli servicekeys update docs](megaport-cli_servicekeys_update_docs.md) | Show documentation for this command |
 | [megaport-cli status](megaport-cli_status.md) | Show a dashboard of all Megaport resources |
 | [megaport-cli status docs](megaport-cli_status_docs.md) | Show documentation for this command |
+| [megaport-cli topology](megaport-cli_topology.md) | Show resource relationship tree |
+| [megaport-cli topology docs](megaport-cli_topology_docs.md) | Show documentation for this command |
 | [megaport-cli users](megaport-cli_users.md) | Manage users in the Megaport API |
 | [megaport-cli users activity](megaport-cli_users_activity.md) | View user activity logs |
 | [megaport-cli users activity docs](megaport-cli_users_activity_docs.md) | Show documentation for this command |

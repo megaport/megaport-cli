@@ -40,6 +40,7 @@ megaport-cli mcr list [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 | `--include-inactive` |  | `false` | Include inactive MCRs in the list | false |
+| `--limit` |  | `0` | Maximum number of results to display (0 = unlimited) | false |
 | `--location-id` |  | `0` | Filter MCRs by location ID | false |
 | `--name` |  |  | Filter MCRs by name | false |
 | `--port-speed` |  | `0` | Filter MCRs by port speed | false |
