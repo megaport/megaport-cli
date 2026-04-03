@@ -241,7 +241,8 @@ func buildVXCRequest(cmd *cobra.Command, ctx context.Context, client *megaport.C
 }
 
 func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	defer cancel()
 
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -307,7 +308,8 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func ValidateVXC(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -334,7 +336,8 @@ func ValidateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	defer cancel()
 
 	vxcUID := args[0]
 	formattedUID := output.FormatUID(vxcUID, noColor)
@@ -420,7 +423,7 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 5*time.Minute)
 	defer cancel()
 
 	vxcUID := args[0]

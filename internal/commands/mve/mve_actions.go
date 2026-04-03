@@ -155,7 +155,8 @@ func buildMVERequest(cmd *cobra.Command, noColor bool) (*megaport.BuyMVERequest,
 }
 
 func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	defer cancel()
 
 	req, err := buildMVERequest(cmd, noColor)
 	if err != nil {
@@ -228,7 +229,8 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func ValidateMVE(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 
 	req, err := buildMVERequest(cmd, noColor)
 	if err != nil {
@@ -260,7 +262,8 @@ func ValidateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	defer cancel()
 	mveUID := args[0]
 	formattedUID := output.FormatUID(mveUID, noColor)
 
@@ -487,7 +490,8 @@ func ListAvailableMVESizes(cmd *cobra.Command, args []string, noColor bool, outp
 }
 
 func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 	mveUID := args[0]
 
 	force, err := cmd.Flags().GetBool("force")

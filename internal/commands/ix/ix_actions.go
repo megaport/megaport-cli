@@ -1,7 +1,6 @@
 package ix
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -212,7 +211,8 @@ func buildIXRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyIXRequest, e
 		}
 		return req, nil
 	} else if interactive {
-		ctx := context.Background()
+		ctx, cancel := utils.ContextFromCmd(cmd)
+		defer cancel()
 		req, err := buildIXRequestFromPrompt(ctx, noColor)
 		if err != nil {
 			return nil, err
@@ -224,7 +224,8 @@ func buildIXRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyIXRequest, e
 }
 
 func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	defer cancel()
 
 	req, err := buildIXRequest(cmd, noColor)
 	if err != nil {
@@ -287,7 +288,8 @@ func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func ValidateIX(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 
 	req, err := buildIXRequest(cmd, noColor)
 	if err != nil {
@@ -314,7 +316,8 @@ func ValidateIX(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UpdateIX(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	defer cancel()
 
 	if len(args) == 0 {
 		return fmt.Errorf("IX UID is required")

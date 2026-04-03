@@ -1,7 +1,7 @@
 package completion
 
 import (
-	"os"
+	"fmt"
 
 	"github.com/megaport/megaport-cli/internal/base/cmdbuilder"
 	"github.com/spf13/cobra"
@@ -29,14 +29,14 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 func RunCompletion(cmd *cobra.Command, args []string) error {
 	switch args[0] {
 	case "bash":
-		return cmd.Root().GenBashCompletion(os.Stdout)
+		return cmd.Root().GenBashCompletion(cmd.OutOrStdout())
 	case "zsh":
-		return cmd.Root().GenZshCompletion(os.Stdout)
+		return cmd.Root().GenZshCompletion(cmd.OutOrStdout())
 	case "fish":
-		return cmd.Root().GenFishCompletion(os.Stdout, true)
+		return cmd.Root().GenFishCompletion(cmd.OutOrStdout(), true)
 	case "powershell":
-		return cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout)
+		return cmd.Root().GenPowerShellCompletionWithDesc(cmd.OutOrStdout())
 	default:
-		return cmd.Help()
+		return fmt.Errorf("invalid shell type %q", args[0])
 	}
 }
