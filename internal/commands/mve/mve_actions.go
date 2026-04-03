@@ -47,7 +47,7 @@ func exportMVEConfig(mve *megaport.MVE) map[string]interface{} {
 func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -356,7 +356,7 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -410,7 +410,7 @@ func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 
 func ListMVEImages(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -453,7 +453,7 @@ func ListMVEImages(cmd *cobra.Command, args []string, noColor bool, outputFormat
 
 func ListAvailableMVESizes(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -580,7 +580,7 @@ func UpdateMVEResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 func GetMVEStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -621,7 +621,7 @@ func GetMVEStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 }
 
 func LockMVE(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -643,7 +643,7 @@ func LockMVE(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UnlockMVE(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -665,7 +665,7 @@ func UnlockMVE(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func RestoreMVE(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)

@@ -1,7 +1,6 @@
 package servicekeys
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -14,7 +13,7 @@ import (
 )
 
 func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 	productUID, _ := cmd.Flags().GetString("product-uid")
 	productID, _ := cmd.Flags().GetInt("product-id")
@@ -77,7 +76,7 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 	key, _ := cmd.Flags().GetString("key")
 	productUID, _ := cmd.Flags().GetString("product-uid")
@@ -121,7 +120,7 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -178,7 +177,7 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 func GetServiceKey(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 	client, err := config.Login(ctx)
 	if err != nil {
