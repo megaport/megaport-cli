@@ -222,6 +222,29 @@ func TestWrapOutputFormatRunE(t *testing.T) {
 		assert.Equal(t, exitcodes.Usage, cliErr.Code)
 	})
 
+	t.Run("query flag with non-json format returns usage error", func(t *testing.T) {
+		wrapped := WrapOutputFormatRunE(func(cmd *cobra.Command, args []string, noColor bool, format string) error {
+			return nil
+		})
+
+		root := &cobra.Command{Use: "root"}
+		root.PersistentFlags().Bool("no-color", false, "")
+		root.PersistentFlags().String("query", "", "")
+		root.PersistentFlags().String("fields", "", "")
+		child := &cobra.Command{Use: "list"}
+		child.Flags().String("output", "table", "")
+		root.AddCommand(child)
+		require.NoError(t, root.PersistentFlags().Set("query", "[*].uid"))
+
+		err := wrapped(child, []string{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--query flag requires --output json")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
+	})
+
 	t.Run("function error is formatted", func(t *testing.T) {
 		wrapped := WrapOutputFormatRunE(func(cmd *cobra.Command, args []string, noColor bool, format string) error {
 			return errors.New("inner failure")

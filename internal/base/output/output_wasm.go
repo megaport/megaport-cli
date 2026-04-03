@@ -14,8 +14,6 @@ import (
 	"reflect"
 	"strings"
 	"syscall/js"
-
-	"github.com/jmespath/go-jmespath"
 )
 
 // WasmJSONWriter is a global buffer for capturing JSON output in WASM
@@ -79,19 +77,11 @@ func printJSON[T OutputFields](data []T) error {
 
 	// Apply JMESPath query if set.
 	if query != "" {
-		raw, err := json.Marshal(toEncode)
+		var err error
+		toEncode, err = applyJMESPath(query, toEncode)
 		if err != nil {
 			return err
 		}
-		var parsed interface{}
-		if err := json.Unmarshal(raw, &parsed); err != nil {
-			return err
-		}
-		result, err := jmespath.Search(query, parsed)
-		if err != nil {
-			return fmt.Errorf("invalid JMESPath query %q: %w", query, err)
-		}
-		toEncode = result
 	}
 
 	encoder := json.NewEncoder(WasmJSONWriter)

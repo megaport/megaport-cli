@@ -24,6 +24,11 @@ var (
 
 	// Debug flag
 	debugMode = false
+
+	// outputStateReset is called by ResetOutputBuffers to clear --fields and
+	// --query flag state between WASM invocations. Registered from main_wasm.go
+	// to break the import cycle between this package and internal/base/output.
+	outputStateReset func() = func() {}
 )
 
 // maskSensitiveValue masks a sensitive value for logging/display purposes
@@ -219,7 +224,15 @@ func RegisterJSFunctions() {
 	}))
 }
 
-// ResetOutputBuffers clears the output buffers
+// RegisterOutputStateReset registers the function that resets --fields and
+// --query flag state between WASM invocations. Called from main_wasm.go to
+// avoid an import cycle between this package and internal/base/output.
+func RegisterOutputStateReset(fn func()) {
+	outputStateReset = fn
+}
+
+// ResetOutputBuffers clears the output buffers and resets output package state.
+// Must be called between WASM command invocations to prevent flag state bleed.
 func ResetOutputBuffers() {
 	bufferMutex.Lock()
 	defer bufferMutex.Unlock()
@@ -227,6 +240,10 @@ func ResetOutputBuffers() {
 	stdoutBuffer.Reset()
 	stderrBuffer.Reset()
 	WasmOutputBuffer.Reset()
+
+	// Reset output package flag state so --fields and --query don't bleed
+	// across successive WASM command invocations.
+	outputStateReset()
 
 	// CRITICAL: Also clear all the global output variables
 	js.Global().Delete("wasmJSONOutput")

@@ -10,6 +10,7 @@ import (
 
 	"github.com/megaport/megaport-cli/cmd/megaport"
 	"github.com/megaport/megaport-cli/internal/base/cmdbuilder"
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/wasm"
 )
 
@@ -139,6 +140,13 @@ func executeMegaportCommandAsync(this js.Value, args []js.Value) interface{} {
 }
 
 func main() {
+	// Wire output state reset into the wasm package. Done here (rather than in
+	// internal/wasm) to break the import cycle between wasm and output packages.
+	wasm.RegisterOutputStateReset(func() {
+		output.SetOutputFields(nil)
+		output.SetOutputQuery("")
+	})
+
 	// Register the embedded documentation with the cmdbuilder package
 	cmdbuilder.RegisterEmbeddedDocs(embeddedDocs)
 

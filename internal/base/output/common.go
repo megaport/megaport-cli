@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/jmespath/go-jmespath"
 )
 
 // outputFields holds the user-selected fields from --fields flag.
@@ -60,6 +62,26 @@ func getOutputQuery() string {
 	outputQueryMu.RLock()
 	defer outputQueryMu.RUnlock()
 	return outputQuery
+}
+
+// applyJMESPath applies a JMESPath query to v and returns the result.
+// v must be a JSON-compatible value (e.g. []T or []map[string]interface{}).
+// The marshal→unmarshal round-trip converts typed Go values to the interface{}
+// tree that go-jmespath requires. Returns an error if the query is invalid.
+func applyJMESPath(query string, v interface{}) (interface{}, error) {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var parsed interface{}
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return nil, err
+	}
+	result, err := jmespath.Search(query, parsed)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JMESPath query %q: %w", query, err)
+	}
+	return result, nil
 }
 
 // Output is a marker interface for output types

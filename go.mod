@@ -6,6 +6,7 @@ require (
 	github.com/charmbracelet/glamour v1.0.0
 	github.com/fatih/color v1.19.0
 	github.com/jedib0t/go-pretty/v6 v6.7.9
+	github.com/jmespath/go-jmespath v0.4.0
 	github.com/megaport/megaportgo v1.5.0
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d
 	github.com/spf13/cobra v1.10.2
@@ -37,7 +38,6 @@ require (
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/lithammer/fuzzysearch v1.1.5 // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
