@@ -525,3 +525,66 @@ func TestGenerateManPages(t *testing.T) {
 		assert.Contains(t, string(content), want)
 	}
 }
+
+func TestGenerateManPagesUnwriteableDir(t *testing.T) {
+	parent := t.TempDir()
+	// Create a regular file where we want a directory so MkdirAll fails.
+	blocker := filepath.Join(parent, "notadir")
+	err := os.WriteFile(blocker, []byte("block"), 0644)
+	assert.NoError(t, err)
+
+	rootCmd := &cobra.Command{Use: "megaport-cli", Short: "Megaport CLI"}
+	err = generateManPages(rootCmd, filepath.Join(blocker, "subdir"))
+	assert.Error(t, err)
+}
+
+func TestFormatFlagDispatch(t *testing.T) {
+	t.Run("man format generates man pages", func(t *testing.T) {
+		rootCmd := &cobra.Command{Use: "megaport-cli", Short: "Megaport CLI"}
+		AddCommandsTo(rootCmd)
+		outputDir := t.TempDir()
+
+		rootCmd.SetArgs([]string{"generate-docs", "--format", "man", outputDir})
+		err := rootCmd.Execute()
+		assert.NoError(t, err)
+
+		entries, err := os.ReadDir(outputDir)
+		assert.NoError(t, err)
+
+		var manFiles []string
+		for _, e := range entries {
+			if strings.HasSuffix(e.Name(), ".1") {
+				manFiles = append(manFiles, e.Name())
+			}
+		}
+		assert.NotEmpty(t, manFiles, "expected .1 man page files")
+	})
+
+	t.Run("markdown format generates markdown docs", func(t *testing.T) {
+		rootCmd := &cobra.Command{Use: "megaport-cli", Short: "Megaport CLI"}
+		AddCommandsTo(rootCmd)
+		outputDir := t.TempDir()
+
+		rootCmd.SetArgs([]string{"generate-docs", "--format", "markdown", outputDir})
+		err := rootCmd.Execute()
+		assert.NoError(t, err)
+
+		entries, err := os.ReadDir(outputDir)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, entries, "expected markdown files")
+	})
+
+	t.Run("invalid format returns error", func(t *testing.T) {
+		rootCmd := &cobra.Command{Use: "megaport-cli", Short: "Megaport CLI"}
+		// Suppress cobra's default error printing.
+		rootCmd.SilenceErrors = true
+		rootCmd.SilenceUsage = true
+		AddCommandsTo(rootCmd)
+		outputDir := t.TempDir()
+
+		rootCmd.SetArgs([]string{"generate-docs", "--format", "html", outputDir})
+		err := rootCmd.Execute()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported format")
+	})
+}
