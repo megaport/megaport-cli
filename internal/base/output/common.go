@@ -16,18 +16,27 @@ var (
 	outputFieldsMu sync.RWMutex
 )
 
-// SetOutputFields sets the fields to include in output. Pass nil to restore all fields.
+// SetOutputFields sets the field filter applied by all PrintOutput calls.
+// Only fields whose json tag name or header display name (case-insensitive) appears
+// in fields will be included in output. Pass nil to restore full output (all fields).
+// This function is goroutine-safe. Tests should call defer SetOutputFields(nil) to
+// reset state between test cases.
 func SetOutputFields(fields []string) {
 	outputFieldsMu.Lock()
 	defer outputFieldsMu.Unlock()
 	outputFields = fields
 }
 
-// getOutputFields returns the current field filter under a read lock.
+// getOutputFields returns a copy of the current field filter under a read lock.
 func getOutputFields() []string {
 	outputFieldsMu.RLock()
 	defer outputFieldsMu.RUnlock()
-	return outputFields
+	if outputFields == nil {
+		return nil
+	}
+	cp := make([]string, len(outputFields))
+	copy(cp, outputFields)
+	return cp
 }
 
 // Output is a marker interface for output types
@@ -78,7 +87,6 @@ func getStructTypeInfo[T OutputFields](data []T) (headers, jsonNames []string, f
 	}
 	sampleVal := reflect.ValueOf(sample)
 	if !sampleVal.IsValid() {
-		fmt.Println("")
 		return nil, nil, nil, nil
 	}
 	itemType := sampleVal.Type()
@@ -166,6 +174,17 @@ func filterByFields(headers, jsonNames []string, indices []int, selected []strin
 		byHeader[strings.ToLower(h)] = i
 	}
 
+	// Pre-build the available-fields string once so it is not rebuilt on every error.
+	available := make([]string, 0, len(jsonNames))
+	for j, jn := range jsonNames {
+		if j < len(headers) && !strings.EqualFold(headers[j], jn) {
+			available = append(available, fmt.Sprintf("%s (or %q)", jn, headers[j]))
+		} else {
+			available = append(available, jn)
+		}
+	}
+	availableStr := strings.Join(available, ", ")
+
 	seen := make(map[int]bool, len(selected))
 	var outHeaders, outJSONNames []string
 	var outIndices []int
@@ -177,16 +196,7 @@ func filterByFields(headers, jsonNames []string, indices []int, selected []strin
 			i, ok = byHeader[key]
 		}
 		if !ok {
-			// Build a de-duplicated list showing json names and, where different, the header alias.
-			available := make([]string, 0, len(jsonNames))
-			for i, jn := range jsonNames {
-				if i < len(headers) && !strings.EqualFold(headers[i], jn) {
-					available = append(available, fmt.Sprintf("%s (or %q)", jn, headers[i]))
-				} else {
-					available = append(available, jn)
-				}
-			}
-			return nil, nil, nil, fmt.Errorf("unknown field %q, available fields: %s", sel, strings.Join(available, ", "))
+			return nil, nil, nil, fmt.Errorf("unknown field %q, available fields: %s", sel, availableStr)
 		}
 		if seen[i] {
 			continue // deduplicate repeated field selections

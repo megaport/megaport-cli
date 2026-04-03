@@ -41,9 +41,15 @@ func calculateDynamicWidth(termWidth int, minWidth, maxPercentage int) int {
 
 // printTable is the WASM-specific implementation that properly captures table output
 func printTable[T OutputFields](data []T, noColor bool) error {
-	headers, _, fieldIndices, err := getStructTypeInfo(data)
+	headers, jsonNames, fieldIndices, err := getStructTypeInfo(data)
 	if err != nil {
 		return err
+	}
+	if wasmFields := getOutputFields(); len(wasmFields) > 0 {
+		headers, _, fieldIndices, err = filterByFields(headers, jsonNames, fieldIndices, wasmFields)
+		if err != nil {
+			return err
+		}
 	}
 	if len(headers) == 0 {
 		return nil

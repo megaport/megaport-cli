@@ -49,9 +49,30 @@ func GetCurrentEnv() string {
 	return Env
 }
 
+// applyFieldsFilter reads the --fields persistent flag and calls output.SetOutputFields.
+// Called by all RunE wrappers so the filter is always consistent regardless of wrapper used.
+func applyFieldsFilter(cmd *cobra.Command) {
+	fieldsStr, err := cmd.Root().PersistentFlags().GetString("fields")
+	if err != nil {
+		fieldsStr = ""
+	}
+	if fieldsStr != "" {
+		var fields []string
+		for _, f := range strings.Split(fieldsStr, ",") {
+			if f = strings.TrimSpace(f); f != "" {
+				fields = append(fields, f)
+			}
+		}
+		output.SetOutputFields(fields)
+	} else {
+		output.SetOutputFields(nil)
+	}
+}
+
 // WrapRunE wraps a RunE function to set SilenceUsage to true if an error occurs and formats the error message.
 func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
+		applyFieldsFilter(cmd)
 		err := runE(cmd, args)
 		if err != nil {
 			// Prevent usage output if an error occurs
@@ -72,6 +93,7 @@ func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobr
 // and passing the noColor flag to command functions.
 func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
+		applyFieldsFilter(cmd)
 		// Get noColor value from root command
 		noColor, err := cmd.Root().PersistentFlags().GetBool("no-color")
 		if err != nil {
@@ -129,22 +151,7 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 			return exitcodes.NewUsageError(fmt.Errorf("invalid output format: %s. Must be one of: %v", format, ValidFormats))
 		}
 
-		// Apply --fields filter to the output package.
-		fieldsStr, err := cmd.Root().PersistentFlags().GetString("fields")
-		if err != nil {
-			fieldsStr = ""
-		}
-		if fieldsStr != "" {
-			var fields []string
-			for _, f := range strings.Split(fieldsStr, ",") {
-				if f = strings.TrimSpace(f); f != "" {
-					fields = append(fields, f)
-				}
-			}
-			output.SetOutputFields(fields)
-		} else {
-			output.SetOutputFields(nil)
-		}
+		applyFieldsFilter(cmd)
 
 		// Call the function with both parameters
 		err = fn(cmd, args, noColor, format)

@@ -99,7 +99,6 @@ func printCSV[T OutputFields](data []T) error {
 				return nil
 			}
 			t = t.Elem()
-			_ = reflect.New(t).Elem()
 		} else {
 			sampleVal = sampleVal.Elem()
 			t = sampleVal.Type()
@@ -110,7 +109,6 @@ func printCSV[T OutputFields](data []T) error {
 	}
 	var headers []string
 	var jsonNames []string
-	var fields []string
 	var fieldIndices []int
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
@@ -141,7 +139,6 @@ func printCSV[T OutputFields](data []T) error {
 		}
 		headers = append(headers, csvTag)
 		jsonNames = append(jsonNames, jn)
-		fields = append(fields, field.Name)
 		fieldIndices = append(fieldIndices, i)
 	}
 	if csvFields := getOutputFields(); len(csvFields) > 0 {
@@ -149,11 +146,6 @@ func printCSV[T OutputFields](data []T) error {
 		headers, _, fieldIndices, err = filterByFields(headers, jsonNames, fieldIndices, csvFields)
 		if err != nil {
 			return err
-		}
-		// Rebuild fields slice to match the filtered indices.
-		fields = make([]string, len(fieldIndices))
-		for i, idx := range fieldIndices {
-			fields[i] = t.Field(idx).Name
 		}
 	}
 	if len(headers) == 0 {
@@ -176,28 +168,18 @@ func printCSV[T OutputFields](data []T) error {
 		if v.Kind() != reflect.Struct {
 			continue
 		}
-		var row []string
-		for i, field := range fields {
-			var fieldVal reflect.Value
-			if i < len(fieldIndices) && fieldIndices[i] < v.NumField() {
-				fieldVal = v.Field(fieldIndices[i])
-			} else {
-				fieldVal = v.FieldByName(field)
-			}
-			if !fieldVal.IsValid() {
+		row := make([]string, 0, len(fieldIndices))
+		for _, idx := range fieldIndices {
+			if idx >= v.NumField() {
 				row = append(row, "")
 				continue
 			}
-			valueStr := ""
-			if fieldVal.CanInterface() {
-				if fieldVal.Kind() == reflect.Ptr && fieldVal.IsNil() {
-					row = append(row, "")
-					continue
-				}
-				val := formatFieldValue(fieldVal)
-				valueStr = fmt.Sprintf("%v", val)
+			fieldVal := v.Field(idx)
+			if !fieldVal.IsValid() || (fieldVal.Kind() == reflect.Ptr && fieldVal.IsNil()) {
+				row = append(row, "")
+				continue
 			}
-			row = append(row, valueStr)
+			row = append(row, fmt.Sprintf("%v", formatFieldValue(fieldVal)))
 		}
 		if err := w.Write(row); err != nil {
 			return err
@@ -239,10 +221,12 @@ func printXML[T OutputFields](data []T) error {
 		return nil
 	}
 
-	// Build field names and indices using json tags
+	// Build field names and indices using json tags.
+	// displayName holds the header: tag value for --fields alias matching.
 	type xmlField struct {
-		name  string
-		index int
+		name        string // json tag name (used as XML element name)
+		displayName string // header: tag value (used for --fields header-alias matching)
+		index       int
 	}
 	var fields []xmlField
 	for i := 0; i < t.NumField(); i++ {
@@ -270,15 +254,20 @@ func printXML[T OutputFields](data []T) error {
 		if idx := strings.Index(name, ","); idx != -1 {
 			name = name[:idx]
 		}
-		fields = append(fields, xmlField{name: name, index: i})
+		displayName := field.Tag.Get("header")
+		if displayName == "" || displayName == "-" {
+			displayName = name
+		}
+		fields = append(fields, xmlField{name: name, displayName: displayName, index: i})
 	}
 	if xmlFields := getOutputFields(); len(xmlFields) > 0 {
 		// Build parallel slices so filterByFields can operate on them.
+		// xmlHeaders uses displayName so header-alias matching works (e.g. "Port Speed").
 		xmlHeaders := make([]string, len(fields))
 		xmlJSONNames := make([]string, len(fields))
 		xmlIndices := make([]int, len(fields))
 		for i, f := range fields {
-			xmlHeaders[i] = f.name
+			xmlHeaders[i] = f.displayName
 			xmlJSONNames[i] = f.name
 			xmlIndices[i] = f.index
 		}
