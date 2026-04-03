@@ -33,55 +33,9 @@ func printJSON[T OutputFields](data []T) error {
 		data = []T{}
 	}
 
-	fields := getOutputFields()
-	query := getOutputQuery()
-
-	// Determine what to encode — fields-filtered maps or raw typed data.
-	var toEncode interface{}
-	if len(fields) > 0 {
-		headers, jsonNames, indices, err := getStructTypeInfo(data)
-		if err != nil {
-			return err
-		}
-		_, jsonNames, indices, err = filterByFields(headers, jsonNames, indices, fields)
-		if err != nil {
-			return err
-		}
-		rows := make([]interface{}, 0, len(data))
-		for _, item := range data {
-			v := reflect.ValueOf(item)
-			if v.Kind() == reflect.Ptr {
-				if v.IsNil() {
-					rows = append(rows, nil)
-					continue
-				}
-				v = v.Elem()
-			}
-			if !v.IsValid() || v.Kind() != reflect.Struct {
-				rows = append(rows, nil)
-				continue
-			}
-			m := make(map[string]interface{}, len(indices))
-			for i, idx := range indices {
-				if idx >= v.NumField() {
-					continue
-				}
-				m[jsonNames[i]] = v.Field(idx).Interface()
-			}
-			rows = append(rows, m)
-		}
-		toEncode = rows
-	} else {
-		toEncode = data
-	}
-
-	// Apply JMESPath query if set.
-	if query != "" {
-		var err error
-		toEncode, err = applyJMESPath(query, toEncode)
-		if err != nil {
-			return err
-		}
+	toEncode, err := prepareJSONData(data)
+	if err != nil {
+		return err
 	}
 
 	encoder := json.NewEncoder(WasmJSONWriter)
@@ -102,6 +56,7 @@ func printCSV[T OutputFields](data []T) error {
 	WasmCSVWriter.Reset()
 
 	w := csv.NewWriter(WasmCSVWriter)
+	defer w.Flush()
 
 	var sample T
 	if len(data) > 0 {

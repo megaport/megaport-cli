@@ -33,9 +33,11 @@ var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	js.Global().Get("console").Call("info", "ℹ️  Config profiles are not supported - please use the login form in the UI")
 
 	// PRIORITY 1: Check for external token from portal (bypasses OAuth flow)
+	// Token is stored in env var (set by setAuthToken in wasm.go) rather than JS globals
+	// to avoid exposing credentials in the browser's window object.
 	megaportTokenGlobal := js.Global().Get("megaportToken")
 	if !megaportTokenGlobal.IsUndefined() && !megaportTokenGlobal.IsNull() {
-		token := megaportTokenGlobal.Get("token").String()
+		token := os.Getenv("MEGAPORT_ACCESS_TOKEN")
 		tokenEnv := megaportTokenGlobal.Get("environment").String()
 		apiURL := megaportTokenGlobal.Get("apiURL").String()
 
@@ -221,6 +223,9 @@ var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 
 // Helper function to mask credentials for logging
 func maskCredential(cred string) string {
+	if len(cred) < 4 {
+		return "****"
+	}
 	if len(cred) <= 8 {
 		return cred[:2] + "..." + cred[len(cred)-2:]
 	}

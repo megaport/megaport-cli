@@ -79,9 +79,12 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetMVE).
 		WithBoolFlag("export", false, "Output recreatable JSON config for use with buy --json (excludes read-only fields; vendorConfig not available from API)").
+		WithWatchFlags().
 		WithLongDesc("Get details for a single MVE from the Megaport API.\n\nThis command retrieves and displays detailed information for a single Megaport Virtual Edge (MVE). You must provide the unique identifier (UID) of the MVE you wish to retrieve.").
 		WithExample("megaport-cli mve get a1b2c3d4-e5f6-7890-1234-567890abcdef").
 		WithExample("megaport-cli mve get a1b2c3d4-e5f6-7890-1234-567890abcdef --export").
+		WithExample("megaport-cli mve get a1b2c3d4-e5f6-7890-1234-567890abcdef --watch").
+		WithExample("megaport-cli mve get a1b2c3d4-e5f6-7890-1234-567890abcdef --watch --interval 10s").
 		WithImportantNote("The output includes the MVE's UID, name, vendor, version, status, and connectivity details").
 		WithRootCmd(rootCmd).
 		WithAliases([]string{"show"}).
@@ -173,8 +176,11 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	statusMVECmd := cmdbuilder.NewCommand("status", "Check the provisioning status of an MVE").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetMVEStatus).
+		WithWatchFlags().
 		WithLongDesc("Check the provisioning status of an MVE through the Megaport API.\n\nThis command retrieves only the essential status information for a Megaport Virtual Edge (MVE) without all the details. It's useful for monitoring ongoing provisioning.").
 		WithExample("megaport-cli mve status mve-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
+		WithExample("megaport-cli mve status mve-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --watch").
+		WithExample("megaport-cli mve status mve-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --watch --interval 10s").
 		WithImportantNote("This is a lightweight command that only shows the MVE's status without retrieving all details.").
 		WithRootCmd(rootCmd).
 		WithAliases([]string{"st"}).

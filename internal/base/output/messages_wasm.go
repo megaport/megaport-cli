@@ -250,3 +250,6 @@ func PrintInfo(format string, noColor bool, args ...interface{}) {
 	}
 	wasm.WasmOutputBuffer.Write([]byte(output))
 }
+
+// ClearScreen is a no-op in the WASM environment.
+func ClearScreen() {}

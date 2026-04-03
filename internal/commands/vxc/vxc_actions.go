@@ -149,6 +149,11 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
 
+	watch, _ := cmd.Flags().GetBool("watch")
+	if watch {
+		return watchGetVXC(cmd, args, noColor, outputFormat)
+	}
+
 	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
@@ -189,6 +194,35 @@ func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 		return fmt.Errorf("error printing VXCs: %v", err)
 	}
 	return nil
+}
+
+func watchGetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	interval, _ := cmd.Flags().GetDuration("interval")
+
+	ctx := context.Background()
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	vxcUID := args[0]
+	cfg := utils.WatchConfig{
+		Interval:     interval,
+		NoColor:      noColor,
+		OutputFormat: outputFormat,
+		ResourceType: "VXC",
+		ResourceUID:  vxcUID,
+	}
+
+	return utils.WatchLoop(ctx, cfg, func(pollCtx context.Context) (string, error) {
+		vxc, err := client.VXCService.GetVXC(pollCtx, vxcUID)
+		if err != nil {
+			return "", err
+		}
+		err = printVXCs([]*megaport.VXC{vxc}, outputFormat, noColor)
+		return vxc.ProvisioningStatus, err
+	})
 }
 
 var hasUpdateVXCNonInteractiveFlags = func(cmd *cobra.Command) bool {
@@ -504,6 +538,12 @@ func UpdateVXCResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 
 func GetVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
+
+	watch, _ := cmd.Flags().GetBool("watch")
+	if watch {
+		return watchVXCStatus(cmd, args, noColor, outputFormat)
+	}
+
 	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
@@ -541,4 +581,44 @@ func GetVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	}
 
 	return output.PrintOutput(status, outputFormat, noColor)
+}
+
+func watchVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	interval, _ := cmd.Flags().GetDuration("interval")
+
+	ctx := context.Background()
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return fmt.Errorf("error logging in: %v", err)
+	}
+
+	vxcUID := args[0]
+	cfg := utils.WatchConfig{
+		Interval:     interval,
+		NoColor:      noColor,
+		OutputFormat: outputFormat,
+		ResourceType: "VXC",
+		ResourceUID:  vxcUID,
+	}
+
+	return utils.WatchLoop(ctx, cfg, func(pollCtx context.Context) (string, error) {
+		vxc, err := client.VXCService.GetVXC(pollCtx, vxcUID)
+		if err != nil {
+			return "", err
+		}
+		if vxc == nil {
+			return "", fmt.Errorf("no VXC found with UID: %s", vxcUID)
+		}
+		status := []VXCStatus{
+			{
+				UID:    vxc.UID,
+				Name:   vxc.Name,
+				Status: vxc.ProvisioningStatus,
+				Type:   vxc.Type,
+			},
+		}
+		err = output.PrintOutput(status, outputFormat, noColor)
+		return vxc.ProvisioningStatus, err
+	})
 }
