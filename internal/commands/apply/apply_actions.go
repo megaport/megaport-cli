@@ -39,7 +39,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 
 	if filePath == "" {
 		output.PrintError("--file is required", noColor)
-		return fmt.Errorf("--file is required")
+		return exitcodes.NewUsageError(fmt.Errorf("--file is required"))
 	}
 
 	cfg, err := parseConfigFile(filePath)
@@ -331,6 +331,10 @@ func validateAll(ctx context.Context, client *megaport.Client, cfg *InfraConfig,
 			CostCentre:            p.CostCentre,
 			ResourceTags:          p.ResourceTags,
 		}
+		if err := validation.ValidatePortRequest(req); err != nil {
+			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: "invalid: " + err.Error()})
+			continue
+		}
 		err := client.PortService.ValidatePortOrder(ctx, req)
 		status := "valid"
 		if err != nil {
@@ -349,6 +353,10 @@ func validateAll(ctx context.Context, client *megaport.Client, cfg *InfraConfig,
 			DiversityZone: m.DiversityZone,
 			CostCentre:    m.CostCentre,
 			ResourceTags:  m.ResourceTags,
+		}
+		if err := validation.ValidateMCRRequest(req); err != nil {
+			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: "invalid: " + err.Error()})
+			continue
 		}
 		err := client.MCRService.ValidateMCROrder(ctx, req)
 		status := "valid"
@@ -436,6 +444,16 @@ func validateAll(ctx context.Context, client *megaport.Client, cfg *InfraConfig,
 			},
 			CostCentre:   v.CostCentre,
 			ResourceTags: v.ResourceTags,
+		}
+		if err := validation.ValidateVXCRequest(req); err != nil {
+			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: "invalid: " + err.Error()})
+			continue
+		}
+		// Skip server-side validation when either endpoint came from a template
+		// (placeholder UID) — the real UID only exists after provisioning.
+		if aUID == dryRunPlaceholder || bUID == dryRunPlaceholder {
+			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: "skipped: requires provisioning"})
+			continue
 		}
 		err := client.VXCService.ValidateVXCOrder(ctx, req)
 		status := "valid"

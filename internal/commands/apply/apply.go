@@ -11,6 +11,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithLongDesc("Provision multiple Megaport resources (ports, MCRs, MVEs, VXCs) from a declarative YAML or JSON config file.\n\nResources are provisioned sequentially in dependency order: ports and MCRs first, then MVEs, then VXCs. VXC endpoints can reference previously provisioned resources using {{.type.name}} template syntax.").
 		WithOutputFormatRunFunc(ApplyConfig).
 		WithFlagP("file", "f", "", "Path to config file (YAML or JSON)").
+		WithRequiredFlag("file", "Path to config file (YAML or JSON)").
 		WithBoolFlag("dry-run", false, "Validate all orders without provisioning").
 		WithBoolFlagP("yes", "y", false, "Skip confirmation prompt").
 		WithExample(`megaport apply -f infrastructure.yaml`).
