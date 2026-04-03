@@ -13,9 +13,6 @@ import (
 )
 
 func ExecuteWithArgs(args []string) {
-	// Debug
-	fmt.Printf("WASM ExecuteWithArgs: args=%v\n", args)
-
 	// Direct output to our WASM buffer
 	rootCmd.SetOut(wasm.WasmOutputBuffer)
 	rootCmd.SetErr(wasm.WasmOutputBuffer)
@@ -33,9 +30,6 @@ func ExecuteWithArgs(args []string) {
 		argsToUse = args[1:]
 	}
 
-	// Debug the actual args we're using
-	fmt.Printf("WASM using args for command: %v\n", argsToUse)
-
 	// Disable automatic usage on errors so we can control the output
 	rootCmd.SilenceUsage = true
 
@@ -45,20 +39,12 @@ func ExecuteWithArgs(args []string) {
 	// Execute and capture errors
 	err := rootCmd.Execute()
 
-	// Log to JS console for debugging
-	fmt.Printf("WASM Execute returned error: %v\n", err)
-
-	// Debug the command result - only report errors
-	// The command output is already in WasmOutputBuffer
 	if err != nil {
-		fmt.Printf("WASM: Error detected, clearing buffer and showing error\n")
 		// Clear the buffer if help was shown automatically
 		wasm.ResetOutputBuffers()
 
 		fmt.Fprintf(wasm.WasmOutputBuffer, "Error: %v\n\n", err)
 		fmt.Fprintf(wasm.WasmOutputBuffer, "Run 'megaport-cli --help' to see the list of available commands.\n")
-	} else {
-		fmt.Printf("WASM: No error returned from Execute()\n")
 	}
 }
 

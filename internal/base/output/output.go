@@ -360,13 +360,21 @@ func printXML[T OutputFields](data []T) error {
 	return nil
 }
 
+// osPipe is a variable so tests can replace it to simulate pipe failures.
+var osPipe = os.Pipe
+
 func CaptureOutput(f func()) string {
 	old := os.Stdout
-	r, w, _ := os.Pipe()
+	r, w, err := osPipe()
+	if err != nil {
+		f()
+		return ""
+	}
 	os.Stdout = w
 	f()
 	w.Close()
 	out, _ := io.ReadAll(r)
+	r.Close()
 	os.Stdout = old
 	return string(out)
 }

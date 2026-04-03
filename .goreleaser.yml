@@ -98,6 +98,26 @@ docker_manifests:
       - "ghcr.io/megaport/megaport-cli:latest-amd64"
       - "ghcr.io/megaport/megaport-cli:latest-arm64"
 
+brews:
+  - ids:
+      - release
+    repository:
+      owner: megaport
+      name: homebrew-megaport-cli
+    directory: Formula
+    homepage: "https://github.com/megaport/megaport-cli"
+    description: "CLI tool for managing Megaport network infrastructure"
+    license: "MPL-2.0"
+    install: |
+      if File.exist?("megaport-cli_v#{version}")
+        bin.install "megaport-cli_v#{version}" => "megaport-cli"
+      else
+        bin.install "megaport-cli"
+      end
+    test: |
+      assert_match "Megaport CLI Version", shell_output("#{bin}/megaport-cli version")
+    skip_upload: auto
+
 release:
   # If you want to manually examine the release before its live, uncomment this line:
   draft: true

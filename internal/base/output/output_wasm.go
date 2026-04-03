@@ -99,16 +99,10 @@ func printJSON[T OutputFields](data []T) error {
 
 // printCSV is the WASM-specific implementation that properly captures CSV output
 func printCSV[T OutputFields](data []T) error {
-	// Reset the buffer to ensure clean output
 	WasmCSVWriter.Reset()
 
-	js.Global().Get("console").Call("log", "📊 CSV will write to WasmCSVWriter")
-
-	// Create CSV writer that writes to our buffer
 	w := csv.NewWriter(WasmCSVWriter)
-	defer w.Flush()
 
-	// Get the first sample to determine fields
 	var sample T
 	if len(data) > 0 {
 		sample = data[0]
@@ -124,7 +118,6 @@ func printCSV[T OutputFields](data []T) error {
 				return nil
 			}
 			t = t.Elem()
-			_ = reflect.New(t).Elem()
 		} else {
 			sampleVal = sampleVal.Elem()
 			t = sampleVal.Type()
@@ -134,9 +127,9 @@ func printCSV[T OutputFields](data []T) error {
 		return nil
 	}
 
-	// Build headers and field indices using the same logic as the regular version
+	// Build headers, json names, and field indices — json names are needed for --fields matching.
 	var headers []string
-	var fields []string
+	var jsonNames []string
 	var fieldIndices []int
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
@@ -150,27 +143,42 @@ func printCSV[T OutputFields](data []T) error {
 		if csvTag == "-" {
 			continue
 		}
+		jsonTag := field.Tag.Get("json")
 		if csvTag == "" {
-			csvTag = field.Tag.Get("json")
-			if csvTag == "" || csvTag == "-" {
+			if jsonTag == "" || jsonTag == "-" {
 				continue
 			}
+			csvTag = jsonTag
+		}
+		// Derive the json name for --fields matching (strip options like omitempty).
+		jn := jsonTag
+		if idx := strings.Index(jn, ","); idx != -1 {
+			jn = jn[:idx]
+		}
+		if jn == "" || jn == "-" {
+			jn = strings.ToLower(field.Name)
 		}
 		headers = append(headers, csvTag)
-		fields = append(fields, field.Name)
+		jsonNames = append(jsonNames, jn)
 		fieldIndices = append(fieldIndices, i)
+	}
+
+	// Apply --fields filter if set.
+	if csvFields := getOutputFields(); len(csvFields) > 0 {
+		var err error
+		headers, _, fieldIndices, err = filterByFields(headers, jsonNames, fieldIndices, csvFields)
+		if err != nil {
+			return err
+		}
 	}
 	if len(headers) == 0 {
 		return nil
 	}
 
-	// Write header row
 	if err := w.Write(headers); err != nil {
-		js.Global().Get("console").Call("error", "Failed to write CSV header:", err.Error())
 		return err
 	}
 
-	// Write data rows
 	for _, item := range data {
 		v := reflect.ValueOf(item)
 		if !v.IsValid() {
@@ -185,49 +193,29 @@ func printCSV[T OutputFields](data []T) error {
 		if v.Kind() != reflect.Struct {
 			continue
 		}
-		var row []string
-		for i, field := range fields {
-			var fieldVal reflect.Value
-			if i < len(fieldIndices) && fieldIndices[i] < v.NumField() {
-				fieldVal = v.Field(fieldIndices[i])
-			} else {
-				fieldVal = v.FieldByName(field)
-			}
-			if !fieldVal.IsValid() {
+		row := make([]string, 0, len(fieldIndices))
+		for _, idx := range fieldIndices {
+			if idx >= v.NumField() {
 				row = append(row, "")
 				continue
 			}
-			valueStr := ""
-			if fieldVal.CanInterface() {
-				if fieldVal.Kind() == reflect.Ptr && fieldVal.IsNil() {
-					row = append(row, "")
-					continue
-				}
-				val := formatFieldValue(fieldVal)
-				valueStr = fmt.Sprintf("%v", val)
+			fieldVal := v.Field(idx)
+			if !fieldVal.IsValid() || (fieldVal.Kind() == reflect.Ptr && fieldVal.IsNil()) {
+				row = append(row, "")
+				continue
 			}
-			row = append(row, valueStr)
+			row = append(row, fmt.Sprintf("%v", formatFieldValue(fieldVal)))
 		}
 		if err := w.Write(row); err != nil {
-			js.Global().Get("console").Call("error", "Failed to write CSV row:", err.Error())
 			return err
 		}
 	}
 
-	// Flush the CSV writer to ensure all data is written to the buffer
 	w.Flush()
 
-	// Get the CSV output
 	csvOutput := WasmCSVWriter.String()
-	js.Global().Get("console").Call("log", fmt.Sprintf("✅ CSV encoded, buffer size: %d bytes", len(csvOutput)))
-
-	// Write the CSV output to stdout so it can be captured by wasm buffers
 	fmt.Print(csvOutput)
-
-	// Also write to a JavaScript-accessible global variable for direct access
 	js.Global().Set("wasmCSVOutput", csvOutput)
-	js.Global().Get("console").Call("log", "📝 CSV output also stored in wasmCSVOutput global")
-
 	return nil
 }
 
@@ -235,10 +223,16 @@ func printCSV[T OutputFields](data []T) error {
 func printXML[T OutputFields](data []T) error {
 	WasmXMLWriter.Reset()
 
-	js.Global().Get("console").Call("log", "📄 XML will write to WasmXMLWriter")
-
 	if data == nil {
 		data = []T{}
+	}
+
+	writeEmpty := func() error {
+		WasmXMLWriter.WriteString(xml.Header + "<items></items>\n")
+		xmlOutput := WasmXMLWriter.String()
+		fmt.Print(xmlOutput)
+		js.Global().Set("wasmXMLOutput", xmlOutput)
+		return nil
 	}
 
 	var sample T
@@ -247,21 +241,13 @@ func printXML[T OutputFields](data []T) error {
 	}
 	sampleVal := reflect.ValueOf(sample)
 	if !sampleVal.IsValid() {
-		WasmXMLWriter.WriteString(xml.Header + "<items></items>\n")
-		xmlOutput := WasmXMLWriter.String()
-		fmt.Print(xmlOutput)
-		js.Global().Set("wasmXMLOutput", xmlOutput)
-		return nil
+		return writeEmpty()
 	}
 	t := sampleVal.Type()
 	if t.Kind() == reflect.Ptr {
 		if sampleVal.IsNil() {
 			if t.Elem().Kind() != reflect.Struct {
-				WasmXMLWriter.WriteString(xml.Header + "<items></items>\n")
-				xmlOutput := WasmXMLWriter.String()
-				fmt.Print(xmlOutput)
-				js.Global().Set("wasmXMLOutput", xmlOutput)
-				return nil
+				return writeEmpty()
 			}
 			t = t.Elem()
 		} else {
@@ -270,16 +256,13 @@ func printXML[T OutputFields](data []T) error {
 		}
 	}
 	if t.Kind() != reflect.Struct {
-		WasmXMLWriter.WriteString(xml.Header + "<items></items>\n")
-		xmlOutput := WasmXMLWriter.String()
-		fmt.Print(xmlOutput)
-		js.Global().Set("wasmXMLOutput", xmlOutput)
-		return nil
+		return writeEmpty()
 	}
 
 	type xmlField struct {
-		name  string
-		index int
+		name        string // json tag name (used as XML element name)
+		displayName string // header tag (used for --fields alias matching)
+		index       int
 	}
 	var fields []xmlField
 	for i := 0; i < t.NumField(); i++ {
@@ -306,7 +289,36 @@ func printXML[T OutputFields](data []T) error {
 		if idx := strings.Index(name, ","); idx != -1 {
 			name = name[:idx]
 		}
-		fields = append(fields, xmlField{name: name, index: i})
+		displayName := field.Tag.Get("header")
+		if displayName == "" || displayName == "-" {
+			displayName = name
+		}
+		fields = append(fields, xmlField{name: name, displayName: displayName, index: i})
+	}
+
+	// Apply --fields filter if set.
+	if xmlFields := getOutputFields(); len(xmlFields) > 0 {
+		xmlHeaders := make([]string, len(fields))
+		xmlJSONNames := make([]string, len(fields))
+		xmlIndices := make([]int, len(fields))
+		for i, f := range fields {
+			xmlHeaders[i] = f.displayName
+			xmlJSONNames[i] = f.name
+			xmlIndices[i] = f.index
+		}
+		_, _, xmlIndices, err := filterByFields(xmlHeaders, xmlJSONNames, xmlIndices, xmlFields)
+		if err != nil {
+			return err
+		}
+		nameByIndex := make(map[int]string, len(fields))
+		for _, f := range fields {
+			nameByIndex[f.index] = f.name
+		}
+		filtered := make([]xmlField, len(xmlIndices))
+		for i, idx := range xmlIndices {
+			filtered[i] = xmlField{name: nameByIndex[idx], index: idx}
+		}
+		fields = filtered
 	}
 
 	encoder := xml.NewEncoder(WasmXMLWriter)
@@ -368,11 +380,8 @@ func printXML[T OutputFields](data []T) error {
 	WasmXMLWriter.WriteString("\n")
 
 	xmlOutput := WasmXMLWriter.String()
-	js.Global().Get("console").Call("log", fmt.Sprintf("✅ XML encoded, buffer size: %d bytes", len(xmlOutput)))
 	fmt.Print(xmlOutput)
 	js.Global().Set("wasmXMLOutput", xmlOutput)
-	js.Global().Get("console").Call("log", "📝 XML output also stored in wasmXMLOutput global")
-
 	return nil
 }
 
@@ -405,19 +414,27 @@ func CaptureOutput(f func()) string {
 	return string(out)
 }
 
-// CaptureOutputErr runs a function and captures its stdout output, also returning any error
+// CaptureOutputErr runs a function and captures its stdout output, also returning any error.
 func CaptureOutputErr(f func() error) (string, error) {
 	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-	err := f()
+	r, w, err := os.Pipe()
 	if err != nil {
-		os.Stdout = old
 		return "", err
 	}
+	os.Stdout = w
+
+	runErr := f()
+
+	// Close the write end before reading so io.Copy sees EOF rather than blocking.
 	w.Close()
-	var buf strings.Builder
-	io.Copy(&buf, r)
 	os.Stdout = old
+
+	var buf strings.Builder
+	io.Copy(&buf, r) //nolint:errcheck // reading from an in-process pipe is always safe
+	r.Close()
+
+	if runErr != nil {
+		return "", runErr
+	}
 	return buf.String(), nil
 }
