@@ -15,15 +15,15 @@ func TestRunCompletion(t *testing.T) {
 		shell    string
 		contains string
 	}{
-		{name: "bash", shell: "bash", contains: "__start_megaport"},
-		{name: "zsh", shell: "zsh", contains: "#compdef"},
-		{name: "fish", shell: "fish", contains: "complete -c megaport"},
+		{name: "bash", shell: "bash", contains: "__start_megaport-cli"},
+		{name: "zsh", shell: "zsh", contains: "#compdef megaport-cli"},
+		{name: "fish", shell: "fish", contains: "complete -c megaport-cli"},
 		{name: "powershell", shell: "powershell", contains: "Register-ArgumentCompleter"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rootCmd := &cobra.Command{Use: "megaport"}
+			rootCmd := &cobra.Command{Use: "megaport-cli"}
 			buf := new(bytes.Buffer)
 			rootCmd.SetOut(buf)
 			AddCommandsTo(rootCmd)
@@ -51,7 +51,7 @@ func TestRunCompletion_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rootCmd := &cobra.Command{Use: "megaport", SilenceUsage: true, SilenceErrors: true}
+			rootCmd := &cobra.Command{Use: "megaport-cli", SilenceUsage: true, SilenceErrors: true}
 			buf := new(bytes.Buffer)
 			rootCmd.SetOut(buf)
 			rootCmd.SetErr(buf)
@@ -70,7 +70,7 @@ func TestModule(t *testing.T) {
 	m := NewModule()
 	assert.Equal(t, "completion", m.Name())
 
-	rootCmd := &cobra.Command{Use: "megaport"}
+	rootCmd := &cobra.Command{Use: "megaport-cli"}
 	m.RegisterCommands(rootCmd)
 
 	var found bool

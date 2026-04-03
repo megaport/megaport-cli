@@ -423,7 +423,7 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmd(cmd)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 5*time.Minute)
 	defer cancel()
 
 	vxcUID := args[0]

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -40,7 +41,7 @@ type TopologyVXC struct {
 func ShowTopology(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
 
-	ctx, cancel := utils.ContextFromCmd(cmd)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 120*time.Second)
 	defer cancel()
 
 	client, err := config.Login(ctx)
