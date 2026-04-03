@@ -1,0 +1,20 @@
+name: integration-tests
+on:
+  schedule:
+    - cron: '0 2 * * 1'  # Weekly, Monday 02:00 UTC
+  workflow_dispatch:       # Allow manual trigger from GitHub UI
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - name: Run integration tests
+        run: go test -tags integration -v -timeout 5m ./internal/commands/locations/... ./internal/commands/partners/...
+        env:
+          MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
+          MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}
+          MEGAPORT_ENVIRONMENT: staging
