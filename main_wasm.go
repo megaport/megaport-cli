@@ -145,6 +145,8 @@ func main() {
 	wasm.RegisterOutputStateReset(func() {
 		output.SetOutputFields(nil)
 		output.SetOutputQuery("")
+		output.SetOutputFormat("table")
+		output.SetVerbosity("normal")
 	})
 
 	// Register the embedded documentation with the cmdbuilder package

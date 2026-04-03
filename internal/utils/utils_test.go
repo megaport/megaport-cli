@@ -112,6 +112,26 @@ func TestWrapRunE(t *testing.T) {
 		assert.Contains(t, err.Error(), "Command: deploy")
 		assert.Contains(t, err.Error(), "[a b]")
 	})
+
+	t.Run("query flag without json output returns usage error", func(t *testing.T) {
+		wrapped := WrapRunE(func(cmd *cobra.Command, args []string) error {
+			return nil
+		})
+		root := &cobra.Command{Use: "root"}
+		root.PersistentFlags().String("query", "", "")
+		root.PersistentFlags().String("fields", "", "")
+		child := &cobra.Command{Use: "version"}
+		root.AddCommand(child)
+		require.NoError(t, root.PersistentFlags().Set("query", "[*].uid"))
+
+		err := wrapped(child, []string{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--query flag requires --output json")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
+	})
 }
 
 func TestWrapColorAwareRunE(t *testing.T) {
@@ -161,6 +181,27 @@ func TestWrapColorAwareRunE(t *testing.T) {
 		assert.Contains(t, err.Error(), "error running child command")
 		assert.Contains(t, err.Error(), "color error")
 		assert.True(t, child.SilenceUsage)
+	})
+
+	t.Run("query flag without json output returns usage error", func(t *testing.T) {
+		wrapped := WrapColorAwareRunE(func(cmd *cobra.Command, args []string, noColor bool) error {
+			return nil
+		})
+		root := &cobra.Command{Use: "root"}
+		root.PersistentFlags().Bool("no-color", false, "")
+		root.PersistentFlags().String("query", "", "")
+		root.PersistentFlags().String("fields", "", "")
+		child := &cobra.Command{Use: "status"}
+		root.AddCommand(child)
+		require.NoError(t, root.PersistentFlags().Set("query", "[*].uid"))
+
+		err := wrapped(child, []string{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--query flag requires --output json")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
 	})
 }
 
