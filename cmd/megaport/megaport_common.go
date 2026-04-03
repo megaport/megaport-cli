@@ -86,6 +86,6 @@ func InitializeCommon() {
 	rootCmd.PersistentFlags().StringVar(&utils.ProfileOverride, "profile", "", "Use a specific config profile for this command")
 	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "Suppress informational output, only show errors and data")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Show additional debug information")
-	rootCmd.PersistentFlags().Duration("timeout", 0, "Request timeout duration (e.g., 30s, 2m, 5m); defaults to 90s")
+	rootCmd.PersistentFlags().Duration("timeout", 0, "Request timeout duration (e.g., 30s, 2m, 5m); 0 uses the internal default of 90s")
 	rootCmd.MarkFlagsMutuallyExclusive("quiet", "verbose")
 }
