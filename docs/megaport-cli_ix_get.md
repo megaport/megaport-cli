@@ -15,7 +15,6 @@ This command retrieves and displays detailed information for a single Internet E
 
 ```sh
   megaport-cli ix get a1b2c3d4-e5f6-7890-1234-567890abcdef
-  megaport-cli ix get a1b2c3d4-e5f6-7890-1234-567890abcdef --export
 ```
 
 ## Usage
@@ -32,7 +31,6 @@ megaport-cli ix get [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| `--export` |  | `false` | Output recreatable JSON config for use with buy --json (excludes read-only fields; productUid not available from API) | false |
 
 ## Subcommands
 * [docs](megaport-cli_ix_get_docs.md)

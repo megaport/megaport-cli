@@ -30,13 +30,16 @@ megaport-cli servicekeys create [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
+| `--active` |  | `false` | Make the service key available immediately | false |
 | `--description` |  |  | Description for the service key | false |
 | `--end-date` |  |  | End date (YYYY-MM-DD) | false |
 | `--max-speed` |  | `0` | Maximum speed for the service key | false |
+| `--pre-approved` |  | `false` | Pre-approve the service key for use | false |
 | `--product-id` |  | `0` | Product ID for the service key | false |
 | `--product-uid` |  |  | Product UID for the service key | false |
 | `--single-use` |  | `false` | Single-use service key | false |
 | `--start-date` |  |  | Start date (YYYY-MM-DD) | false |
+| `--vlan` |  | `0` | VLAN ID for the service key (required for single-use keys) | false |
 
 ## Subcommands
 * [docs](megaport-cli_servicekeys_create_docs.md)
