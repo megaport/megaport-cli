@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRunCompletion(t *testing.T) {
@@ -50,7 +51,7 @@ func TestRunCompletion_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rootCmd := &cobra.Command{Use: "megaport", SilenceUsage: true}
+			rootCmd := &cobra.Command{Use: "megaport", SilenceUsage: true, SilenceErrors: true}
 			buf := new(bytes.Buffer)
 			rootCmd.SetOut(buf)
 			rootCmd.SetErr(buf)
@@ -59,7 +60,7 @@ func TestRunCompletion_EdgeCases(t *testing.T) {
 			rootCmd.SetArgs(tt.args)
 			err := rootCmd.Execute()
 
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.errMsg)
 		})
 	}

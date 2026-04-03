@@ -71,7 +71,8 @@ func buildMCRRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyMCRRequest,
 }
 
 func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 
 	req, err := buildMCRRequest(cmd, noColor)
 	if err != nil {
@@ -137,7 +138,8 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func ValidateMCR(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 
 	req, err := buildMCRRequest(cmd, noColor)
 	if err != nil {
@@ -164,7 +166,8 @@ func ValidateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 
 	if len(args) == 0 {
 		return fmt.Errorf("mcr UID is required")
@@ -249,7 +252,8 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func CreateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 
 	if len(args) == 0 {
 		return fmt.Errorf("mcr UID is required")
@@ -309,7 +313,8 @@ func CreateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 }
 
 func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 
 	if len(args) < 2 {
 		return fmt.Errorf("mcr UID and prefix filter list ID are required")
@@ -553,7 +558,8 @@ func ListMCRPrefixFilterLists(cmd *cobra.Command, args []string, noColor bool, o
 	// Set output format for proper JSON mode handling
 	output.SetOutputFormat(outputFormat)
 
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -583,7 +589,8 @@ func GetMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool, out
 	// Set output format for proper JSON mode handling
 	output.SetOutputFormat(outputFormat)
 
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -619,7 +626,8 @@ func GetMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool, out
 }
 
 func DeleteMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 
 	client, err := config.Login(ctx)
 	if err != nil {

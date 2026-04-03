@@ -13,7 +13,7 @@ func ContextFromCmd(cmd *cobra.Command) (context.Context, context.CancelFunc) {
 	timeout := 90 * time.Second
 
 	// Try to read the timeout flag
-	if cmd != nil && cmd.Flags() != nil {
+	if cmd != nil {
 		if val, err := cmd.Flags().GetDuration("timeout"); err == nil && val > 0 {
 			timeout = val
 		}

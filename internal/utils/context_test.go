@@ -81,6 +81,20 @@ func TestContextFromCmd(t *testing.T) {
 		assertDeadlineWithin(t, deadline, start, 2*time.Minute)
 	})
 
+	t.Run("uses default timeout when timeout flag is negative", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "test"}
+		cmd.Flags().Duration("timeout", 0, "")
+		require.NoError(t, cmd.Flags().Set("timeout", "-5s"))
+
+		start := time.Now()
+		ctx, cancel := ContextFromCmd(cmd)
+		defer cancel()
+
+		deadline, ok := ctx.Deadline()
+		require.True(t, ok)
+		assertDeadlineWithin(t, deadline, start, 90*time.Second)
+	})
+
 	t.Run("uses default timeout when timeout flag exists with wrong type", func(t *testing.T) {
 		cmd := &cobra.Command{Use: "test"}
 		cmd.Flags().String("timeout", "", "")

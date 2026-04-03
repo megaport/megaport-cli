@@ -1,7 +1,6 @@
 package users
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 
@@ -157,7 +156,8 @@ func GetUser(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 }
 
 func CreateUser(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 
 	req, err := buildCreateUserRequest(cmd, noColor)
 	if err != nil {
@@ -186,7 +186,8 @@ func CreateUser(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UpdateUser(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 
 	employeeID, err := strconv.Atoi(args[0])
 	if err != nil {
@@ -232,7 +233,8 @@ func UpdateUser(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func DeleteUser(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 
 	employeeID, err := strconv.Atoi(args[0])
 	if err != nil {
@@ -271,7 +273,8 @@ func DeleteUser(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func DeactivateUser(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 
 	employeeID, err := strconv.Atoi(args[0])
 	if err != nil {
