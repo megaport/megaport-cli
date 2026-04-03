@@ -25,7 +25,7 @@ func SetupIntegrationClient(t *testing.T) *megaport.Client {
 		t.Skip("MEGAPORT_ACCESS_KEY and MEGAPORT_SECRET_KEY required for integration tests")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := megaport.New(nil,

@@ -5,6 +5,7 @@ package partners
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -62,9 +63,14 @@ func TestIntegration_ListPartners_FilterByConnectType(t *testing.T) {
 
 	require.NoError(t, err)
 
+	// ListPartners emits no output for an empty filtered result (see partners_actions.go).
+	// Treat empty captured output as an empty JSON array so the test always passes
+	// regardless of whether AWS partners exist on staging.
+	if strings.TrimSpace(captured) == "" {
+		captured = "[]"
+	}
+
 	var partners []map[string]interface{}
 	require.NoError(t, json.Unmarshal([]byte(captured), &partners))
-	// AWS partners should be available on staging; if not, the test still
-	// validates that the filtered call succeeds without error.
 	t.Logf("found %d AWS partner megaports on staging", len(partners))
 }
