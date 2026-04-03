@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -44,31 +45,26 @@ var listPortResourceTagsFunc = func(ctx context.Context, client *megaport.Client
 }
 
 func filterPorts(ports []*megaport.Port, locationID, portSpeed int, portName string, includeInactive bool) []*megaport.Port {
-	var filtered []*megaport.Port
-	if ports == nil {
-		return filtered
-	}
-	for _, port := range ports {
+	return utils.Filter(ports, func(port *megaport.Port) bool {
 		if port == nil {
-			continue
+			return false
 		}
 		if !includeInactive {
 			if port.ProvisioningStatus == megaport.STATUS_CANCELLED ||
 				port.ProvisioningStatus == megaport.STATUS_DECOMMISSIONED ||
 				port.ProvisioningStatus == "DECOMMISSIONING" {
-				continue
+				return false
 			}
 		}
 		if locationID > 0 && port.LocationID != locationID {
-			continue
+			return false
 		}
 		if portSpeed > 0 && port.PortSpeed != portSpeed {
-			continue
+			return false
 		}
 		if portName != "" && !strings.Contains(strings.ToLower(port.Name), strings.ToLower(portName)) {
-			continue
+			return false
 		}
-		filtered = append(filtered, port)
-	}
-	return filtered
+		return true
+	})
 }

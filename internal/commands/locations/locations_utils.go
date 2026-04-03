@@ -3,30 +3,29 @@ package locations
 import (
 	"context"
 
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 )
 
 func filterLocations(locations []*megaport.LocationV3, filters map[string]string) []*megaport.LocationV3 {
-	var filtered []*megaport.LocationV3
-	for _, loc := range locations {
+	return utils.Filter(locations, func(loc *megaport.LocationV3) bool {
 		if metro, ok := filters["metro"]; ok && loc.Metro != metro {
-			continue
+			return false
 		}
 		if country, ok := filters["country"]; ok && loc.Address.Country != country {
-			continue
+			return false
 		}
 		if name, ok := filters["name"]; ok && loc.Name != name {
-			continue
+			return false
 		}
 		if market, ok := filters["market"]; ok && loc.Market != market {
-			continue
+			return false
 		}
 		if val, ok := filters["mcrAvailable"]; ok && val == "true" && !loc.HasMCRSupport() {
-			continue
+			return false
 		}
-		filtered = append(filtered, loc)
-	}
-	return filtered
+		return true
+	})
 }
 
 var listCountriesFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Country, error) {

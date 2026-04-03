@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -20,24 +21,16 @@ var getManagedAccountFunc = func(ctx context.Context, client *megaport.Client, c
 }
 
 func filterManagedAccounts(accounts []*megaport.ManagedAccount, accountName, accountRef string) []*megaport.ManagedAccount {
-	var filtered []*megaport.ManagedAccount
-
-	if accounts == nil {
-		return filtered
-	}
-
-	for _, account := range accounts {
+	return utils.Filter(accounts, func(account *megaport.ManagedAccount) bool {
 		if account == nil {
-			continue
+			return false
 		}
 		if accountName != "" && !strings.Contains(strings.ToLower(account.AccountName), strings.ToLower(accountName)) {
-			continue
+			return false
 		}
 		if accountRef != "" && !strings.Contains(strings.ToLower(account.AccountRef), strings.ToLower(accountRef)) {
-			continue
+			return false
 		}
-		filtered = append(filtered, account)
-	}
-
-	return filtered
+		return true
+	})
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -53,21 +54,13 @@ var getPartnerPortUID = func(ctx context.Context, svc megaport.VXCService, key, 
 // filterVXCs applies client-side case-insensitive name filtering as a safety
 // net alongside server-side NameContains filtering.
 func filterVXCs(vxcs []*megaport.VXC, name string) []*megaport.VXC {
-	var filtered []*megaport.VXC
-
-	if vxcs == nil {
-		return filtered
-	}
-
-	for _, vxc := range vxcs {
+	return utils.Filter(vxcs, func(vxc *megaport.VXC) bool {
 		if vxc == nil {
-			continue
+			return false
 		}
 		if name != "" && !strings.Contains(strings.ToLower(vxc.Name), strings.ToLower(name)) {
-			continue
+			return false
 		}
-		filtered = append(filtered, vxc)
-	}
-
-	return filtered
+		return true
+	})
 }
