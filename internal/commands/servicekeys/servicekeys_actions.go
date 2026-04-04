@@ -30,8 +30,14 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 
 	var validFor *megaport.ValidFor
 	if startDate != "" && endDate != "" {
-		startTime, _ := time.Parse("2006-01-02", startDate)
-		endTime, _ := time.Parse("2006-01-02", endDate)
+		startTime, err := time.Parse("2006-01-02", startDate)
+		if err != nil {
+			return fmt.Errorf("invalid start date %q: %w", startDate, err)
+		}
+		endTime, err := time.Parse("2006-01-02", endDate)
+		if err != nil {
+			return fmt.Errorf("invalid end date %q: %w", endDate, err)
+		}
 		validFor = &megaport.ValidFor{
 			StartTime: &megaport.Time{Time: startTime},
 			EndTime:   &megaport.Time{Time: endTime},
@@ -78,7 +84,7 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
-	key, _ := cmd.Flags().GetString("key")
+	key := args[0]
 	productUID, _ := cmd.Flags().GetString("product-uid")
 	productID, _ := cmd.Flags().GetInt("product-id")
 	singleUse, _ := cmd.Flags().GetBool("single-use")

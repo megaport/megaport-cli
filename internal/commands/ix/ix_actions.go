@@ -125,6 +125,11 @@ func GetIX(cmd *cobra.Command, args []string, noColor bool, outputFormat string)
 		return fmt.Errorf("error getting IX: %w", err)
 	}
 
+	if ix == nil {
+		output.PrintError("No IX found with UID: %s", noColor, ixUID)
+		return fmt.Errorf("no IX found with UID: %s", ixUID)
+	}
+
 	export, _ := cmd.Flags().GetBool("export")
 	if export {
 		cfg := exportIXConfig(ix)
@@ -319,10 +324,6 @@ func UpdateIX(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
 	defer cancel()
 
-	if len(args) == 0 {
-		return fmt.Errorf("IX UID is required")
-	}
-
 	ixUID := args[0]
 
 	interactive, _ := cmd.Flags().GetBool("interactive")
@@ -415,13 +416,8 @@ func DeleteIX(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	if !force {
-		confirmMsg := "Are you sure you want to delete IX " + ixUID + "? (y/n): "
-		confirmation, err := utils.ResourcePrompt("ix", confirmMsg, noColor)
-		if err != nil {
-			return err
-		}
-
-		if confirmation != "y" && confirmation != "Y" {
+		confirmMsg := "Are you sure you want to delete IX " + ixUID + "? "
+		if !utils.ConfirmPrompt(confirmMsg, noColor) {
 			output.PrintInfo("Deletion cancelled", noColor)
 			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 		}

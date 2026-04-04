@@ -880,8 +880,10 @@ func TestDeleteIX(t *testing.T) {
 				return client, nil
 			}
 
-			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
-				return tt.promptResponse, nil
+			originalConfirmPrompt := utils.ConfirmPrompt
+			defer func() { utils.ConfirmPrompt = originalConfirmPrompt }()
+			utils.ConfirmPrompt = func(_ string, _ bool) bool {
+				return tt.promptResponse == "y"
 			}
 
 			cmd := &cobra.Command{
@@ -985,6 +987,15 @@ func TestGetIX(t *testing.T) {
 				}
 			},
 			expectedOut: []string{"ix-123", "Test IX", "Los Angeles IX"},
+		},
+		{
+			name:   "get IX nil response",
+			ixUID:  "ix-nil",
+			format: "table",
+			setupMock: func(m *MockIXService) {
+				m.forceNilGetIX = true
+			},
+			expectedError: "no IX found with UID: ix-nil",
 		},
 		{
 			name:   "get IX API error",
@@ -1201,15 +1212,6 @@ func TestUpdateIX(t *testing.T) {
 			ixUID:         "ix-123",
 			setupMock:     func(m *MockIXService) {},
 			expectedError: "at least one field must be updated",
-		},
-		{
-			name:  "no args",
-			ixUID: "",
-			flags: map[string]string{
-				"name": "Test",
-			},
-			setupMock:     func(m *MockIXService) {},
-			expectedError: "IX UID is required",
 		},
 		{
 			name:  "API error during update",

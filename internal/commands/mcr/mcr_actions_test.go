@@ -68,6 +68,15 @@ func TestGetMCRCmd_WithMockClient(t *testing.T) {
 			expectedOut: []string{`"uid": "mcr-123"`, `"name": "Test MCR"`, `"location_id": 123`},
 		},
 		{
+			name:   "get MCR nil response",
+			mcrID:  "mcr-nil",
+			format: "table",
+			setupMock: func(m *MockMCRService) {
+				m.ForceNilGetMCR = true
+			},
+			expectedError: "no MCR found with UID: mcr-nil",
+		},
+		{
 			name:   "get MCR error",
 			mcrID:  "mcr-invalid",
 			format: "table",
@@ -1878,11 +1887,6 @@ func TestUpdateMCR(t *testing.T) {
 			expectedOutput: "MCR updated mcr-456",
 		},
 		{
-			name:          "missing UID",
-			args:          []string{},
-			expectedError: "mcr UID is required",
-		},
-		{
 			name: "login error",
 			args: []string{"mcr-123"},
 			flags: map[string]string{
@@ -2057,11 +2061,6 @@ func TestCreateMCRPrefixFilterList(t *testing.T) {
 			expectedOutput: "Prefix filter list created successfully",
 		},
 		{
-			name:          "missing UID",
-			args:          []string{},
-			expectedError: "mcr UID is required",
-		},
-		{
 			name: "login error",
 			args: []string{"mcr-123"},
 			flags: map[string]string{
@@ -2229,11 +2228,6 @@ func TestUpdateMCRPrefixFilterList(t *testing.T) {
 				}
 			},
 			expectedOutput: "Prefix filter list updated successfully",
-		},
-		{
-			name:          "missing args",
-			args:          []string{"mcr-123"},
-			expectedError: "mcr UID and prefix filter list ID are required",
 		},
 		{
 			name:          "invalid prefix filter list ID",

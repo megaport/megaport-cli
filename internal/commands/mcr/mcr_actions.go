@@ -169,10 +169,6 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
 	defer cancel()
 
-	if len(args) == 0 {
-		return fmt.Errorf("mcr UID is required")
-	}
-
 	mcrUID := args[0]
 
 	interactive, _ := cmd.Flags().GetBool("interactive")
@@ -255,10 +251,6 @@ func CreateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
-	if len(args) == 0 {
-		return fmt.Errorf("mcr UID is required")
-	}
-
 	mcrUID := args[0]
 
 	interactive, _ := cmd.Flags().GetBool("interactive")
@@ -315,10 +307,6 @@ func CreateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
-
-	if len(args) < 2 {
-		return fmt.Errorf("mcr UID and prefix filter list ID are required")
-	}
 
 	mcrUID := args[0]
 	prefixFilterListID, err := strconv.Atoi(args[1])
@@ -411,6 +399,11 @@ func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 		return fmt.Errorf("error getting MCR: %w", err)
 	}
 
+	if mcr == nil {
+		output.PrintError("No MCR found with UID: %s", noColor, mcrUID)
+		return fmt.Errorf("no MCR found with UID: %s", mcrUID)
+	}
+
 	export, _ := cmd.Flags().GetBool("export")
 	if export {
 		cfg := exportMCRConfig(mcr)
@@ -451,6 +444,9 @@ func watchGetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 		mcr, err := getMCRFunc(pollCtx, client, mcrUID)
 		if err != nil {
 			return "", err
+		}
+		if mcr == nil {
+			return "", fmt.Errorf("no MCR found with UID: %s", mcrUID)
 		}
 		err = printMCRs([]*megaport.MCR{mcr}, outputFormat, noColor)
 		return mcr.ProvisioningStatus, err

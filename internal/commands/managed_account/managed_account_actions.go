@@ -151,10 +151,6 @@ func UpdateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
-	if len(args) == 0 {
-		return fmt.Errorf("company UID is required")
-	}
-
 	companyUID := args[0]
 
 	interactive, _ := cmd.Flags().GetBool("interactive")

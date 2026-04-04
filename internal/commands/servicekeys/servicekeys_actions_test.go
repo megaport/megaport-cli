@@ -62,6 +62,61 @@ func TestCreateServiceKey_FlagsPropagated(t *testing.T) {
 	assert.Equal(t, 100, req.VLAN)
 }
 
+func TestCreateServiceKey_InvalidDateParsing(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name          string
+		startDate     string
+		endDate       string
+		expectedError string
+	}{
+		{
+			name:          "invalid start date",
+			startDate:     "not-a-date",
+			endDate:       "2025-12-31",
+			expectedError: "Invalid start-date",
+		},
+		{
+			name:          "invalid end date",
+			startDate:     "2025-01-01",
+			endDate:       "not-a-date",
+			expectedError: "Invalid end-date",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := testutil.NewCommand("create", testutil.NoColorAdapter(CreateServiceKey))
+			cmd.Flags().String("product-uid", "", "")
+			cmd.Flags().Int("product-id", 0, "")
+			cmd.Flags().Bool("single-use", false, "")
+			cmd.Flags().Int("max-speed", 0, "")
+			cmd.Flags().String("description", "", "")
+			cmd.Flags().String("start-date", "", "")
+			cmd.Flags().String("end-date", "", "")
+			cmd.Flags().Bool("active", false, "")
+			cmd.Flags().Bool("pre-approved", false, "")
+			cmd.Flags().Int("vlan", 0, "")
+
+			testutil.SetFlags(t, cmd, map[string]string{
+				"product-uid": "prod-123",
+				"start-date":  tt.startDate,
+				"end-date":    tt.endDate,
+			})
+
+			var err error
+			output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{})
+			})
+
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), tt.expectedError)
+		})
+	}
+}
+
 func TestListServiceKeys_ProductUIDFilter(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
@@ -179,20 +234,18 @@ func TestUpdateServiceKey(t *testing.T) {
 			}
 
 			cmd := testutil.NewCommand("update", testutil.NoColorAdapter(UpdateServiceKey))
-			cmd.Flags().String("key", "", "")
 			cmd.Flags().String("product-uid", "", "")
 			cmd.Flags().Int("product-id", 0, "")
 			cmd.Flags().Bool("single-use", false, "")
 			cmd.Flags().Bool("active", false, "")
 
 			testutil.SetFlags(t, cmd, map[string]string{
-				"key":    "test-key-123",
 				"active": "true",
 			})
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, []string{})
+				err = cmd.RunE(cmd, []string{"test-key-123"})
 			})
 
 			if tt.expectedErr != "" {
