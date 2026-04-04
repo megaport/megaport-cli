@@ -38,10 +38,10 @@ func listLocationsWasmImpl(ctx context.Context, client *megaport.Client) ([]*meg
 
 	if client == nil {
 		var err error
-		client, err = config.Login(ctx)
+		client, err = config.NewUnauthenticatedClient()
 		if err != nil {
-			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("error logging in: %v", err)
+			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Failed to create API client: %v", err))
+			return nil, fmt.Errorf("error creating API client: %v", err)
 		}
 	}
 

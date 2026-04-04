@@ -76,10 +76,14 @@ func TestListLocationsFunc(t *testing.T) {
 
 	mockSvc.ListLocationsV3Result = testLocationsV3
 
-	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
-		c.LocationService = mockSvc
-	})
-	defer cleanup()
+	originalFunc := config.NewUnauthenticatedClientFunc
+	defer func() { config.NewUnauthenticatedClientFunc = originalFunc }()
+
+	testClient := &megaport.Client{}
+	testClient.LocationService = mockSvc
+	config.NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
+		return testClient, nil
+	}
 
 	originalListLocationsFunc := listLocationsFunc
 	defer func() {
@@ -88,11 +92,6 @@ func TestListLocationsFunc(t *testing.T) {
 
 	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
 		return client.LocationService.ListLocationsV3(ctx)
-	}
-
-	testClient, err := config.LoginFunc(context.Background())
-	if err != nil {
-		t.Fatalf("Failed to login: %v", err)
 	}
 
 	locations, err := listLocationsFunc(context.Background(), testClient)
@@ -111,10 +110,14 @@ func TestListLocationsFuncError(t *testing.T) {
 
 	mockSvc.ListLocationsV3Err = expectedError
 
-	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
-		c.LocationService = mockSvc
-	})
-	defer cleanup()
+	originalFunc := config.NewUnauthenticatedClientFunc
+	defer func() { config.NewUnauthenticatedClientFunc = originalFunc }()
+
+	testClient := &megaport.Client{}
+	testClient.LocationService = mockSvc
+	config.NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
+		return testClient, nil
+	}
 
 	originalListLocationsFunc := listLocationsFunc
 	defer func() {
@@ -123,11 +126,6 @@ func TestListLocationsFuncError(t *testing.T) {
 
 	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
 		return client.LocationService.ListLocationsV3(ctx)
-	}
-
-	testClient, err := config.LoginFunc(context.Background())
-	if err != nil {
-		t.Fatalf("Failed to login: %v", err)
 	}
 
 	locations, err := listLocationsFunc(context.Background(), testClient)
@@ -192,10 +190,14 @@ func TestListLocationsCommand(t *testing.T) {
 
 	mockSvc.ListLocationsV3Result = testLocationsV3
 
-	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
-		c.LocationService = mockSvc
-	})
-	defer cleanup()
+	originalFunc := config.NewUnauthenticatedClientFunc
+	defer func() { config.NewUnauthenticatedClientFunc = originalFunc }()
+
+	testClient := &megaport.Client{}
+	testClient.LocationService = mockSvc
+	config.NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
+		return testClient, nil
+	}
 
 	originalListLocationsFunc := listLocationsFunc
 	defer func() {
@@ -338,7 +340,6 @@ func TestGetLocation(t *testing.T) {
 		name           string
 		args           []string
 		setupMock      func(*MockLocationsService)
-		loginErr       error
 		expectedErr    string
 		expectedOutput string
 	}{
@@ -379,18 +380,15 @@ func TestGetLocation(t *testing.T) {
 			mockSvc := setupTestEnvironment()
 			tt.setupMock(mockSvc)
 
-			cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
-			defer cleanup()
+			originalFunc := config.NewUnauthenticatedClientFunc
+			defer func() { config.NewUnauthenticatedClientFunc = originalFunc }()
 
 			originalListLocationsFunc := listLocationsFunc
 			defer func() {
 				listLocationsFunc = originalListLocationsFunc
 			}()
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				if tt.loginErr != nil {
-					return nil, tt.loginErr
-				}
+			config.NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 				testClient := &megaport.Client{}
 				testClient.LocationService = mockSvc
 				return testClient, nil
@@ -434,7 +432,6 @@ func TestListCountries(t *testing.T) {
 	tests := []struct {
 		name           string
 		setupMock      func(*MockLocationsService)
-		loginErr       error
 		expectedErr    string
 		expectedOutput string
 	}{
@@ -466,18 +463,15 @@ func TestListCountries(t *testing.T) {
 			mockSvc := setupTestEnvironment()
 			tt.setupMock(mockSvc)
 
-			cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
-			defer cleanup()
+			originalFunc := config.NewUnauthenticatedClientFunc
+			defer func() { config.NewUnauthenticatedClientFunc = originalFunc }()
 
 			originalListCountriesFunc := listCountriesFunc
 			defer func() {
 				listCountriesFunc = originalListCountriesFunc
 			}()
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				if tt.loginErr != nil {
-					return nil, tt.loginErr
-				}
+			config.NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 				testClient := &megaport.Client{}
 				testClient.LocationService = mockSvc
 				return testClient, nil
@@ -512,7 +506,6 @@ func TestListMarketCodes(t *testing.T) {
 	tests := []struct {
 		name           string
 		setupMock      func(*MockLocationsService)
-		loginErr       error
 		expectedErr    string
 		expectedOutput string
 	}{
@@ -544,18 +537,15 @@ func TestListMarketCodes(t *testing.T) {
 			mockSvc := setupTestEnvironment()
 			tt.setupMock(mockSvc)
 
-			cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
-			defer cleanup()
+			originalFunc := config.NewUnauthenticatedClientFunc
+			defer func() { config.NewUnauthenticatedClientFunc = originalFunc }()
 
 			originalListMarketCodesFunc := listMarketCodesFunc
 			defer func() {
 				listMarketCodesFunc = originalListMarketCodesFunc
 			}()
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				if tt.loginErr != nil {
-					return nil, tt.loginErr
-				}
+			config.NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 				testClient := &megaport.Client{}
 				testClient.LocationService = mockSvc
 				return testClient, nil
@@ -622,7 +612,6 @@ func TestSearchLocations(t *testing.T) {
 		name           string
 		args           []string
 		setupMock      func(*MockLocationsService)
-		loginErr       error
 		expectedErr    string
 		expectedOutput string
 	}{
@@ -657,18 +646,15 @@ func TestSearchLocations(t *testing.T) {
 			mockSvc := setupTestEnvironment()
 			tt.setupMock(mockSvc)
 
-			cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
-			defer cleanup()
+			originalFunc := config.NewUnauthenticatedClientFunc
+			defer func() { config.NewUnauthenticatedClientFunc = originalFunc }()
 
 			originalSearchLocationsFunc := searchLocationsFunc
 			defer func() {
 				searchLocationsFunc = originalSearchLocationsFunc
 			}()
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				if tt.loginErr != nil {
-					return nil, tt.loginErr
-				}
+			config.NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 				testClient := &megaport.Client{}
 				testClient.LocationService = mockSvc
 				return testClient, nil

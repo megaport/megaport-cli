@@ -17,10 +17,10 @@ func ListLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
-	client, err := config.Login(ctx)
+	client, err := config.NewUnauthenticatedClient()
 	if err != nil {
-		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		output.PrintError("Failed to create API client: %v", noColor, err)
+		return fmt.Errorf("error creating API client: %v", err)
 	}
 
 	spinner := output.PrintResourceListing("Location", noColor)
@@ -94,10 +94,10 @@ func ListCountries(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
-	client, err := config.Login(ctx)
+	client, err := config.NewUnauthenticatedClient()
 	if err != nil {
-		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		output.PrintError("Failed to create API client: %v", noColor, err)
+		return fmt.Errorf("error creating API client: %v", err)
 	}
 
 	spinner := output.PrintResourceListing("Country", noColor)
@@ -131,10 +131,10 @@ func ListMarketCodes(cmd *cobra.Command, args []string, noColor bool, outputForm
 	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
-	client, err := config.Login(ctx)
+	client, err := config.NewUnauthenticatedClient()
 	if err != nil {
-		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		output.PrintError("Failed to create API client: %v", noColor, err)
+		return fmt.Errorf("error creating API client: %v", err)
 	}
 
 	spinner := output.PrintResourceListing("Market Code", noColor)
@@ -168,10 +168,10 @@ func SearchLocations(cmd *cobra.Command, args []string, noColor bool, outputForm
 	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
-	client, err := config.Login(ctx)
+	client, err := config.NewUnauthenticatedClient()
 	if err != nil {
-		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		output.PrintError("Failed to create API client: %v", noColor, err)
+		return fmt.Errorf("error creating API client: %v", err)
 	}
 
 	search := args[0]
@@ -207,10 +207,10 @@ func GetLocation(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
-	client, err := config.Login(ctx)
+	client, err := config.NewUnauthenticatedClient()
 	if err != nil {
-		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		output.PrintError("Failed to create API client: %v", noColor, err)
+		return fmt.Errorf("error creating API client: %v", err)
 	}
 
 	locationID, err := strconv.Atoi(args[0])

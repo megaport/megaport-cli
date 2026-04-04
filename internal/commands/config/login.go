@@ -155,3 +155,59 @@ var LoginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 
 	return megaportClient, nil
 }
+
+// NewUnauthenticatedClientFunc creates a Megaport API client without authentication.
+// Used for public API endpoints (e.g., locations) that don't require credentials.
+var NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
+	var env string
+
+	// Resolve environment using the same priority as Login:
+	// --profile env > --env flag > profile config > env var > default
+	if utils.ProfileOverride != "" {
+		manager, err := NewConfigManager()
+		if err == nil {
+			profile, err := manager.GetProfile(utils.ProfileOverride)
+			if err == nil && profile.Environment != "" {
+				env = profile.Environment
+			}
+		}
+		if utils.Env != "" {
+			env = utils.Env
+		}
+	} else {
+		if utils.Env != "" {
+			env = utils.Env
+		} else {
+			manager, err := NewConfigManager()
+			if err == nil {
+				profile, _, err := manager.GetCurrentProfile()
+				if err == nil && profile.Environment != "" {
+					env = profile.Environment
+				}
+			}
+			if env == "" {
+				env = os.Getenv("MEGAPORT_ENVIRONMENT")
+			}
+		}
+	}
+
+	var envOpt megaport.ClientOpt
+	switch env {
+	case "production":
+		envOpt = megaport.WithEnvironment(megaport.EnvironmentProduction)
+	case "staging":
+		envOpt = megaport.WithEnvironment(megaport.EnvironmentStaging)
+	case "development":
+		envOpt = megaport.WithEnvironment(megaport.EnvironmentDevelopment)
+	default:
+		envOpt = megaport.WithEnvironment(megaport.EnvironmentProduction)
+	}
+
+	httpClient := &http.Client{}
+	return megaport.New(httpClient, envOpt)
+}
+
+// NewUnauthenticatedClient creates an unauthenticated Megaport API client.
+func NewUnauthenticatedClient() (*megaport.Client, error) {
+	return NewUnauthenticatedClientFunc()
+}
