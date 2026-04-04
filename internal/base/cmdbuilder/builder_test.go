@@ -294,7 +294,7 @@ func TestWithRequiredFlag(t *testing.T) {
 		assert.Contains(t, f.Usage, "[required]")
 		assert.Equal(t, "Name of the resource [required]", f.Usage)
 		assert.NotNil(t, f.Annotations)
-		assert.Equal(t, []string{"true"}, f.Annotations["cobra_annotation_bash_completion_one_required_flag"])
+		assert.Equal(t, []string{"true"}, f.Annotations[cobra.BashCompOneRequiredFlag])
 	})
 
 	t.Run("non-existing flag does not panic", func(t *testing.T) {
