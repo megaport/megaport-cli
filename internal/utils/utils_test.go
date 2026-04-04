@@ -13,12 +13,9 @@ import (
 )
 
 func TestShouldDisableColors(t *testing.T) {
-	// Save original state and restore after each subtest.
-	origNoColor := NoColor
 	origArgs := os.Args
 	origNoColorEnv, origNoColorEnvSet := os.LookupEnv("NO_COLOR")
 	defer func() {
-		NoColor = origNoColor
 		os.Args = origArgs
 		if origNoColorEnvSet {
 			os.Setenv("NO_COLOR", origNoColorEnv)
@@ -28,30 +25,19 @@ func TestShouldDisableColors(t *testing.T) {
 	}()
 
 	t.Run("returns true when NO_COLOR env is set", func(t *testing.T) {
-		NoColor = false
-		os.Args = origArgs
+		os.Args = []string{"cmd"}
 		t.Setenv("NO_COLOR", "1")
 		assert.True(t, ShouldDisableColors())
 	})
 
-	t.Run("returns true when NoColor global var is set", func(t *testing.T) {
-		os.Unsetenv("NO_COLOR")
-		os.Args = []string{"cmd"}
-		NoColor = true
-		assert.True(t, ShouldDisableColors())
-		NoColor = false
-	})
-
 	t.Run("returns true when --no-color arg is present", func(t *testing.T) {
 		os.Unsetenv("NO_COLOR")
-		NoColor = false
 		os.Args = []string{"cmd", "--no-color"}
 		assert.True(t, ShouldDisableColors())
 	})
 
 	t.Run("returns false when neither is set", func(t *testing.T) {
 		os.Unsetenv("NO_COLOR")
-		NoColor = false
 		os.Args = []string{"cmd"}
 		assert.False(t, ShouldDisableColors())
 	})
