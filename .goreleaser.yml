@@ -105,6 +105,7 @@ brews:
     repository:
       owner: megaport
       name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TOKEN }}"
     directory: Formula
     homepage: "https://github.com/megaport/megaport-cli"
     description: "CLI tool for managing Megaport network infrastructure"
