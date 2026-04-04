@@ -362,16 +362,16 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 		restoreEnvVar("MEGAPORT_SECRET_KEY", originalSecretKey)
 	}()
 
+	// Default empty config dir for all subtests (subtests that need profiles override this)
+	defaultEmptyDir, err := os.MkdirTemp("", "megaport-unauth-default")
+	assert.NoError(t, err)
+	defer os.RemoveAll(defaultEmptyDir)
+	os.Setenv("MEGAPORT_CONFIG_DIR", defaultEmptyDir)
+
 	t.Run("defaults to production when no env configured", func(t *testing.T) {
 		utils.Env = ""
 		utils.ProfileOverride = ""
 		os.Unsetenv("MEGAPORT_ENVIRONMENT")
-
-		// Use empty config dir so no profiles are found
-		emptyDir, err := os.MkdirTemp("", "megaport-unauth-test")
-		assert.NoError(t, err)
-		defer os.RemoveAll(emptyDir)
-		os.Setenv("MEGAPORT_CONFIG_DIR", emptyDir)
 
 		client, err := NewUnauthenticatedClient()
 		assert.NoError(t, err)
@@ -394,12 +394,6 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 		utils.Env = ""
 		utils.ProfileOverride = ""
 		os.Setenv("MEGAPORT_ENVIRONMENT", "staging")
-
-		// Use empty config dir so no profiles are found
-		emptyDir, err := os.MkdirTemp("", "megaport-unauth-test")
-		assert.NoError(t, err)
-		defer os.RemoveAll(emptyDir)
-		os.Setenv("MEGAPORT_CONFIG_DIR", emptyDir)
 
 		client, err := NewUnauthenticatedClient()
 		assert.NoError(t, err)

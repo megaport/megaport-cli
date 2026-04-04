@@ -70,36 +70,6 @@ func resolveEnvironment(requireProfile bool) (string, error) {
 	return normalizeEnvironment(env), nil
 }
 
-// normalizeEnvironment maps short aliases and normalizes the environment string
-// to a canonical name. Accepts "prod"/"production", "dev"/"development",
-// "staging". Unknown values default to "production".
-func normalizeEnvironment(env string) string {
-	switch strings.ToLower(strings.TrimSpace(env)) {
-	case "production", "prod":
-		return "production"
-	case "staging":
-		return "staging"
-	case "development", "dev":
-		return "development"
-	default:
-		return "production"
-	}
-}
-
-// environmentOption returns the megaport.ClientOpt for the given environment string.
-func environmentOption(env string) megaport.ClientOpt {
-	switch env {
-	case "production":
-		return megaport.WithEnvironment(megaport.EnvironmentProduction)
-	case "staging":
-		return megaport.WithEnvironment(megaport.EnvironmentStaging)
-	case "development":
-		return megaport.WithEnvironment(megaport.EnvironmentDevelopment)
-	default:
-		return megaport.WithEnvironment(megaport.EnvironmentProduction)
-	}
-}
-
 func Login(ctx context.Context) (*megaport.Client, error) {
 	return LoginFunc(ctx)
 }

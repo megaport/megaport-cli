@@ -402,20 +402,7 @@ var NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 		if env == "" {
 			env = os.Getenv("MEGAPORT_ENVIRONMENT")
 		}
-		if env == "" {
-			env = "production"
-		}
-
-		switch env {
-		case "production":
-			clientOpts = append(clientOpts, megaport.WithEnvironment(megaport.EnvironmentProduction))
-		case "staging":
-			clientOpts = append(clientOpts, megaport.WithEnvironment(megaport.EnvironmentStaging))
-		case "development":
-			clientOpts = append(clientOpts, megaport.WithEnvironment(megaport.EnvironmentDevelopment))
-		default:
-			clientOpts = append(clientOpts, megaport.WithEnvironment(megaport.EnvironmentProduction))
-		}
+		clientOpts = append(clientOpts, environmentOption(normalizeEnvironment(env)))
 	}
 
 	httpClient := wasmhttp.NewWasmHTTPClient()
