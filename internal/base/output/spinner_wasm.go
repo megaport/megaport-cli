@@ -5,6 +5,7 @@ package output
 
 import (
 	"fmt"
+	"sync"
 	"syscall/js"
 	"time"
 
@@ -16,10 +17,10 @@ import (
 type WasmSpinner struct {
 	message      string
 	noColor      bool
-	stopped      bool
 	stopChan     chan bool
 	jsSpinnerID  js.Value
 	outputFormat string
+	stopOnce     sync.Once
 }
 
 // NewWasmSpinner creates a spinner that works in the WASM environment
@@ -27,7 +28,6 @@ func NewWasmSpinner(message string, noColor bool, outputFormat string) *WasmSpin
 	return &WasmSpinner{
 		message:      message,
 		noColor:      noColor,
-		stopped:      false,
 		stopChan:     make(chan bool, 1),
 		outputFormat: outputFormat,
 	}
@@ -52,22 +52,16 @@ func (s *WasmSpinner) Start(message string) {
 	js.Global().Get("console").Call("log", "🔄 WASM Spinner started (ID: "+s.jsSpinnerID.String()+"): "+message)
 }
 
-// Stop stops the spinner
-// This implements SpinnerInterface.Stop()
+// Stop stops the spinner. Safe to call from multiple goroutines.
 func (s *WasmSpinner) Stop() {
-	if s.stopped {
-		return
-	}
-	s.stopped = true
-
-	// Stop the JavaScript spinner
-	if !s.jsSpinnerID.IsUndefined() && !s.jsSpinnerID.IsNull() {
-		if !js.Global().Get("wasmStopSpinner").IsUndefined() {
-			js.Global().Call("wasmStopSpinner", s.jsSpinnerID)
+	s.stopOnce.Do(func() {
+		// Stop the JavaScript spinner
+		if !s.jsSpinnerID.IsUndefined() && !s.jsSpinnerID.IsNull() {
+			if !js.Global().Get("wasmStopSpinner").IsUndefined() {
+				js.Global().Call("wasmStopSpinner", s.jsSpinnerID)
+			}
 		}
-	}
-
-	js.Global().Get("console").Call("log", "⏹️ WASM Spinner stopped: "+s.message)
+	})
 }
 
 // StopWithSuccess stops the spinner and shows a success message

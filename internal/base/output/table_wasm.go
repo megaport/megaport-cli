@@ -43,6 +43,8 @@ func calculateDynamicWidth(termWidth int, minWidth, maxPercentage int) int {
 
 // printTable is the WASM-specific implementation that properly captures table output
 func printTable[T OutputFields](data []T, noColor bool) error {
+	wasmBufMu.Lock()
+	defer wasmBufMu.Unlock()
 	headers, jsonNames, fieldIndices, err := getStructTypeInfo(data)
 	if err != nil {
 		return err
@@ -65,7 +67,6 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 	WasmTableWriter.Reset() // Clear previous content
 	t.SetOutputMirror(WasmTableWriter)
 
-	js.Global().Get("console").Call("log", "📊 Table will write to WasmTableWriter")
 
 	// WASM-specific table configuration with improved column widths
 	// This ensures consistent, readable column distribution in the browser
@@ -187,12 +188,10 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 		t.AppendRow(row)
 	}
 
-	js.Global().Get("console").Call("log", "🎨 About to render table...")
 	t.Render()
 
 	// Get the rendered table output
 	tableOutput := WasmTableWriter.String()
-	js.Global().Get("console").Call("log", fmt.Sprintf("✅ Table rendered, buffer size: %d bytes", len(tableOutput)))
 
 	// Write the table output to stdout so it can be captured by wasm buffers
 	// This is the key: write the buffered content to stdout
@@ -200,7 +199,6 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 
 	// Also write to a JavaScript-accessible global variable
 	js.Global().Set("wasmTableOutput", tableOutput)
-	js.Global().Get("console").Call("log", "📝 Table output also stored in wasmTableOutput global")
 
 	return nil
 }
