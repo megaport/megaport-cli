@@ -9,11 +9,45 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/server"
 )
+
+// isAllowedProxyHost validates that the proxy target is a Megaport API host.
+func isAllowedProxyHost(host string) bool {
+	host = strings.ToLower(strings.TrimSpace(host))
+	return host == "api.megaport.com" ||
+		host == "api-staging.megaport.com" ||
+		host == "api-mpone-dev.megaport.com" ||
+		strings.HasSuffix(host, ".megaport.com")
+}
+
+// isAllowedOrigin checks whether the CORS origin is from localhost.
+func isAllowedOrigin(origin string) bool {
+	if origin == "" {
+		return false
+	}
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	hostname := u.Hostname()
+	return hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1"
+}
+
+// setCORSHeaders sets CORS headers only for allowed origins.
+func setCORSHeaders(w http.ResponseWriter, r *http.Request, allowedHeaders string) {
+	origin := r.Header.Get("Origin")
+	if isAllowedOrigin(origin) {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Vary", "Origin")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
+	}
+}
 
 // Optimized HTTP client with connection pooling
 var optimizedHTTPClient = &http.Client{
@@ -128,7 +162,8 @@ func authenticatedProxyHandler(w http.ResponseWriter, r *http.Request, srv *serv
 	// Create proxy request
 	proxyReq, err := http.NewRequest(r.Method, targetURL, r.Body)
 	if err != nil {
-		http.Error(w, "Failed to create proxy request: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Failed to create proxy request: %v", err)
+		http.Error(w, "Failed to create proxy request", http.StatusInternalServerError)
 		return
 	}
 
@@ -153,7 +188,7 @@ func authenticatedProxyHandler(w http.ResponseWriter, r *http.Request, srv *serv
 	resp, err := optimizedHTTPClient.Do(proxyReq)
 	if err != nil {
 		log.Printf("Proxy request failed: %v", err)
-		http.Error(w, "Proxy request failed: "+err.Error(), http.StatusBadGateway)
+		http.Error(w, "Proxy request failed", http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()
@@ -170,9 +205,7 @@ func authenticatedProxyHandler(w http.ResponseWriter, r *http.Request, srv *serv
 	}
 
 	// Add CORS headers
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Session-Token")
+	setCORSHeaders(w, r, "Content-Type, Authorization, X-Session-Token")
 
 	// Write response
 	w.WriteHeader(resp.StatusCode)
@@ -186,6 +219,13 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	targetHost := r.URL.Query().Get("base")
 	if targetHost == "" {
 		http.Error(w, "Missing 'base' query parameter", http.StatusBadRequest)
+		return
+	}
+
+	// Validate target host against allowlist to prevent SSRF
+	if !isAllowedProxyHost(targetHost) {
+		log.Printf("Rejected proxy request to disallowed host: %s", targetHost)
+		http.Error(w, "Forbidden: proxy target must be a *.megaport.com host", http.StatusForbidden)
 		return
 	}
 
@@ -207,7 +247,8 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	// Create new request
 	proxyReq, err := http.NewRequest(r.Method, targetURL, r.Body)
 	if err != nil {
-		http.Error(w, "Failed to create proxy request: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Failed to create proxy request for %s %s: %v", r.Method, targetURL, err)
+		http.Error(w, "Failed to create proxy request", http.StatusInternalServerError)
 		return
 	}
 
@@ -225,42 +266,16 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		proxyReq.Header.Set("Content-Type", "application/json")
 	}
 
-	// Debug logging
-	authHeader := proxyReq.Header.Get("Authorization")
-	authPreview := authHeader
-	if len(authHeader) > 20 {
-		authPreview = authHeader[:20] + "..." + authHeader[len(authHeader)-8:]
-	}
-	log.Printf("Request headers: Content-Type=%s, Authorization=%s",
-		proxyReq.Header.Get("Content-Type"),
-		authPreview)
-
-	// Log all headers for debugging
-	log.Printf("All request headers:")
-	for key, values := range proxyReq.Header {
-		for _, value := range values {
-			valuePreview := value
-			if key == "Authorization" && len(value) > 20 {
-				valuePreview = value[:20] + "..." + value[len(value)-8:]
-			}
-			log.Printf("  %s: %s", key, valuePreview)
-		}
-	}
-
 	// Make the request using optimized client with connection pooling
 	resp, err := optimizedHTTPClient.Do(proxyReq)
 	if err != nil {
 		log.Printf("Proxy request failed: %v", err)
-		http.Error(w, "Proxy request failed: "+err.Error(), http.StatusBadGateway)
+		http.Error(w, "Proxy request failed", http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()
 
-	// Read response body for debugging
-	respBody, _ := io.ReadAll(resp.Body)
-	log.Printf("Proxy response status: %d, body: %s", resp.StatusCode, string(respBody))
-
-	// Copy response headers
+	// Copy response headers before writing status
 	for key, values := range resp.Header {
 		for _, value := range values {
 			w.Header().Add(key, value)
@@ -268,18 +283,17 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add CORS headers
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	setCORSHeaders(w, r, "Content-Type, Authorization")
 
 	// Write status code
 	w.WriteHeader(resp.StatusCode)
 
-	// Write response body (already read for logging)
-	_, err = w.Write(respBody)
+	// Stream response body to client, counting bytes for logging
+	bytesCopied, err := io.Copy(w, resp.Body)
 	if err != nil {
-		log.Printf("Error writing response body: %v", err)
+		log.Printf("Error streaming response body: %v", err)
 	}
+	log.Printf("Proxy response status: %d, body size: %d bytes", resp.StatusCode, bytesCopied)
 }
 
 func addCorsHeaders(fs http.Handler) http.HandlerFunc {
@@ -294,9 +308,7 @@ func addCorsHeaders(fs http.Handler) http.HandlerFunc {
 		}
 
 		// CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Session-Token")
+		setCORSHeaders(w, r, "Content-Type, Authorization, X-Session-Token")
 
 		// Handle preflight
 		if r.Method == "OPTIONS" {
