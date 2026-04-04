@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync/atomic"
 
 	prettytable "github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
@@ -14,17 +15,22 @@ import (
 )
 
 // isTerminalCached stores the TTY detection result, computed once at init.
-// It can be overridden in tests via SetIsTerminal.
-var isTerminalCached = term.IsTerminal(int(os.Stdout.Fd()))
+// It can be overridden in tests via SetIsTerminal. Uses atomic.Bool for
+// goroutine safety (spinner goroutines read this concurrently).
+var isTerminalCached atomic.Bool
+
+func init() {
+	isTerminalCached.Store(term.IsTerminal(int(os.Stdout.Fd())))
+}
 
 // IsTerminal returns true if stdout is connected to a terminal (not piped).
 func IsTerminal() bool {
-	return isTerminalCached
+	return isTerminalCached.Load()
 }
 
 // SetIsTerminal overrides the cached TTY detection result. Intended for tests.
 func SetIsTerminal(val bool) {
-	isTerminalCached = val
+	isTerminalCached.Store(val)
 }
 
 func getTerminalWidth() int {
@@ -123,7 +129,8 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 	}
 	t.AppendHeader(headerRow)
 	for _, item := range data {
-		if reflect.ValueOf(item).IsZero() {
+		v := reflect.ValueOf(item)
+		if !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil()) {
 			continue
 		}
 		values := extractRowData(item, fieldIndices)

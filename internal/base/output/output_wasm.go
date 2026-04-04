@@ -357,32 +357,47 @@ func calculateColumnWidths(rows [][]string) []int {
 	return colWidths
 }
 
-// CaptureOutput runs a function and captures its stdout output
+// CaptureOutput runs a function and captures its stdout output.
+// Must not be called reentrantly (the global stdoutMu is not reentrant).
 func CaptureOutput(f func()) string {
+	stdoutMu.Lock()
+	defer stdoutMu.Unlock()
+
 	old := os.Stdout
-	r, w, _ := os.Pipe()
+	r, w, err := os.Pipe()
+	if err != nil {
+		f()
+		return ""
+	}
 	os.Stdout = w
+	defer func() { os.Stdout = old }()
+	defer r.Close()
+	defer w.Close()
 	f()
 	w.Close()
 	out, _ := io.ReadAll(r)
-	os.Stdout = old
 	return string(out)
 }
 
 // CaptureOutputErr runs a function and captures its stdout output, also returning any error.
+// Must not be called reentrantly (the global stdoutMu is not reentrant).
 func CaptureOutputErr(f func() error) (string, error) {
+	stdoutMu.Lock()
+	defer stdoutMu.Unlock()
+
 	old := os.Stdout
 	r, w, err := os.Pipe()
 	if err != nil {
-		return "", err
+		runErr := f()
+		return "", runErr
 	}
 	os.Stdout = w
+	defer func() { os.Stdout = old }()
 
 	runErr := f()
 
 	// Close the write end before reading so io.Copy sees EOF rather than blocking.
 	w.Close()
-	os.Stdout = old
 
 	var buf strings.Builder
 	io.Copy(&buf, r) //nolint:errcheck // reading from an in-process pipe is always safe

@@ -11,6 +11,10 @@ import (
 	"github.com/jmespath/go-jmespath"
 )
 
+// stdoutMu protects os.Stdout during CaptureOutput/CaptureOutputErr calls.
+// Both native and WASM builds use this mutex.
+var stdoutMu sync.Mutex
+
 // outputFields holds the user-selected fields from --fields flag.
 // nil means all fields are shown. Protected by outputFieldsMu.
 var (
@@ -141,7 +145,7 @@ func prepareJSONData[T OutputFields](data []T) (interface{}, error) {
 	return toEncode, nil
 }
 
-// Output is a marker interface for output types
+// Output is a marker interface embedded by output structs.
 type Output interface {
 	isOutput()
 }
@@ -439,6 +443,9 @@ func formatFieldValue(fieldVal reflect.Value) string {
 	case reflect.Float32, reflect.Float64:
 		return fmt.Sprintf("%g", fieldVal.Float())
 	default:
+		if !fieldVal.CanInterface() {
+			return ""
+		}
 		val := fieldVal.Interface()
 		if val == nil {
 			return ""

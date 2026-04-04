@@ -12,6 +12,25 @@ import (
 	"github.com/fatih/color"
 )
 
+// Spinner style constants.
+const (
+	SpinnerStyleDefault = "default"
+	SpinnerStyleWASM    = "wasm"
+	SpinnerStyleFancy   = "fancy"
+)
+
+// ansiColorRe is a pre-compiled regex for stripping ANSI color codes.
+var ansiColorRe = regexp.MustCompile("\x1b\\[[0-9;]*m")
+
+// spinnerColors is a pre-allocated slice of color functions for spinner animation.
+// Allocated once to avoid per-frame allocation in the spinner goroutine loop.
+var spinnerColors = []func(...interface{}) string{
+	color.New(color.FgHiCyan, color.Bold).SprintFunc(),
+	color.New(color.FgHiBlue, color.Bold).SprintFunc(),
+	color.New(color.FgHiMagenta, color.Bold).SprintFunc(),
+	color.New(color.FgHiGreen, color.Bold).SprintFunc(),
+}
+
 // currentOutputFormat stores the output format atomically to avoid data races
 // between spinner goroutines and Print* calls on the main goroutine.
 var currentOutputFormat atomic.Value
@@ -171,11 +190,11 @@ type SpinnerInterface interface {
 
 func NewSpinner(noColor bool) *Spinner {
 	return &Spinner{
-		stop:         make(chan bool),
+		stop:         make(chan bool, 1),
 		frameRate:    100 * time.Millisecond,
 		noColor:      noColor,
 		outputFormat: "table", // default to table format for backward compatibility
-		style:        "default",
+		style:        SpinnerStyleDefault,
 	}
 }
 
@@ -188,79 +207,42 @@ func NewSpinnerWithOutput(noColor bool, outputFormat string) *Spinner {
 // NewSpinnerWasm is defined in spinner_wasm.go (WASM) or spinner_native.go (non-WASM)
 
 func (s *Spinner) Start(prefix string) {
-	s.mu.Lock()
-	if s.stopped {
-		s.mu.Unlock()
-		return
-	}
-
-	// If WASM spinner is available, delegate to it
-	if s.wasmSpinner != nil {
-		s.mu.Unlock()
-		s.wasmSpinner.Start(prefix)
-		return
-	}
-	s.mu.Unlock()
-
-	go func() {
-		for i := 0; ; i++ {
-			select {
-			case <-s.stop:
-				return
-			default:
-				s.mu.Lock()
-				if s.stopped {
-					s.mu.Unlock()
-					return
-				}
-
-				// Select spinner characters based on style
-				var chars []string
-				switch s.style {
-				case "wasm":
-					chars = spinnerCharsWasm
-				case "fancy":
-					chars = spinnerCharsFancy
-				default:
-					chars = spinnerChars
-				}
-
-				frame := chars[i%len(chars)]
-
-				// Enhanced styling for fancy/wasm spinners
-				var styledFrame string
-				if s.noColor {
-					styledFrame = frame
-				} else {
-					if s.style == "fancy" || s.style == "wasm" {
-						// Cycle through colors for more visual appeal
-						colors := []func(...interface{}) string{
-							color.New(color.FgHiCyan, color.Bold).SprintFunc(),
-							color.New(color.FgHiBlue, color.Bold).SprintFunc(),
-							color.New(color.FgHiMagenta, color.Bold).SprintFunc(),
-							color.New(color.FgHiGreen, color.Bold).SprintFunc(),
-						}
-						colorFunc := colors[(i/len(chars))%len(colors)]
-						styledFrame = colorFunc(frame)
-					} else {
-						styledFrame = color.CyanString(frame)
-					}
-				}
-
-				if s.outputFormat == "json" || !IsTerminal() {
-					fmt.Fprintf(os.Stderr, "\r\033[K%s %s", styledFrame, prefix)
-				} else {
-					fmt.Printf("\r\033[K%s %s", styledFrame, prefix)
-				}
-				s.mu.Unlock()
-				time.Sleep(s.frameRate)
-			}
-		}
-	}()
+	s.runLoop(prefix, nil)
 }
 
 // StartWithElapsed starts the spinner, appending "(Xs elapsed)" to the prefix each animation tick.
 func (s *Spinner) StartWithElapsed(prefix string) {
+	start := time.Now()
+	s.runLoop(prefix, &start)
+}
+
+// renderFrame returns the styled spinner character for frame index i.
+func (s *Spinner) renderFrame(i int) string {
+	var chars []string
+	switch s.style {
+	case SpinnerStyleWASM:
+		chars = spinnerCharsWasm
+	case SpinnerStyleFancy:
+		chars = spinnerCharsFancy
+	default:
+		chars = spinnerChars
+	}
+
+	frame := chars[i%len(chars)]
+
+	if s.noColor {
+		return frame
+	}
+	if s.style == SpinnerStyleFancy || s.style == SpinnerStyleWASM {
+		colorFunc := spinnerColors[(i/len(chars))%len(spinnerColors)]
+		return colorFunc(frame)
+	}
+	return color.CyanString(frame)
+}
+
+// runLoop is the shared spinner goroutine logic. If startTime is non-nil,
+// an elapsed duration is appended to the message on each tick.
+func (s *Spinner) runLoop(prefix string, startTime *time.Time) {
 	s.mu.Lock()
 	if s.stopped {
 		s.mu.Unlock()
@@ -274,7 +256,6 @@ func (s *Spinner) StartWithElapsed(prefix string) {
 	}
 	s.mu.Unlock()
 
-	start := time.Now()
 	go func() {
 		for i := 0; ; i++ {
 			select {
@@ -287,38 +268,13 @@ func (s *Spinner) StartWithElapsed(prefix string) {
 					return
 				}
 
-				var chars []string
-				switch s.style {
-				case "wasm":
-					chars = spinnerCharsWasm
-				case "fancy":
-					chars = spinnerCharsFancy
-				default:
-					chars = spinnerChars
+				styledFrame := s.renderFrame(i)
+
+				msg := prefix
+				if startTime != nil {
+					elapsed := time.Since(*startTime).Truncate(time.Second)
+					msg = fmt.Sprintf("%s (%s elapsed)", prefix, elapsed)
 				}
-
-				frame := chars[i%len(chars)]
-
-				var styledFrame string
-				if s.noColor {
-					styledFrame = frame
-				} else {
-					if s.style == "fancy" || s.style == "wasm" {
-						colors := []func(...interface{}) string{
-							color.New(color.FgHiCyan, color.Bold).SprintFunc(),
-							color.New(color.FgHiBlue, color.Bold).SprintFunc(),
-							color.New(color.FgHiMagenta, color.Bold).SprintFunc(),
-							color.New(color.FgHiGreen, color.Bold).SprintFunc(),
-						}
-						colorFunc := colors[(i/len(chars))%len(colors)]
-						styledFrame = colorFunc(frame)
-					} else {
-						styledFrame = color.CyanString(frame)
-					}
-				}
-
-				elapsed := time.Since(start).Truncate(time.Second)
-				msg := fmt.Sprintf("%s (%s elapsed)", prefix, elapsed)
 
 				if s.outputFormat == "json" || !IsTerminal() {
 					fmt.Fprintf(os.Stderr, "\r\033[K%s %s", styledFrame, msg)
@@ -595,8 +551,7 @@ func FormatUID(uid string, noColor bool) string {
 }
 
 func StripANSIColors(s string) string {
-	re := regexp.MustCompile("\x1b\\[[0-9;]*m")
-	return re.ReplaceAllString(s, "")
+	return ansiColorRe.ReplaceAllString(s, "")
 }
 
 func FormatOldValue(value string, noColor bool) string {
