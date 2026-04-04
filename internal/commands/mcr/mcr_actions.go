@@ -313,12 +313,6 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 		return fmt.Errorf("invalid prefix filter list ID: %w", err)
 	}
 
-	client, err := config.Login(ctx)
-	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
-		return err
-	}
-
 	interactive, _ := cmd.Flags().GetBool("interactive")
 	jsonStr, _ := cmd.Flags().GetString("json")
 	jsonFile, _ := cmd.Flags().GetString("json-file")
@@ -344,12 +338,27 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 			return getErr
 		}
 	} else if interactive {
-		prefixFilterList, getErr = promptForUpdatePrefixFilterListDetails(ctx, client, mcrUID, prefixFilterListID, noColor)
+		// Login early for interactive mode since the prompt needs the client.
+		// Use context.Background for prompts so user think-time doesn't consume
+		// the timeout budget.
+		client, loginErr := config.Login(ctx)
+		if loginErr != nil {
+			output.PrintError("Error logging in: %v", noColor, loginErr)
+			return loginErr
+		}
+		prefixFilterList, getErr = promptForUpdatePrefixFilterListDetails(context.Background(), client, mcrUID, prefixFilterListID, noColor)
 		if getErr != nil {
 			return getErr
 		}
 	} else {
 		return fmt.Errorf("at least one field must be updated")
+	}
+
+	// Login for non-interactive paths (interactive path already logged in above).
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Error logging in: %v", noColor, err)
+		return err
 	}
 
 	spinner := output.PrintResourceUpdating("Prefix Filter List", fmt.Sprintf("%d", prefixFilterListID), noColor)
