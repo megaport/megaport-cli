@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -71,7 +70,7 @@ func buildMCRRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyMCRRequest,
 }
 
 func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
 	defer cancel()
 
 	req, err := buildMCRRequest(cmd, noColor)
@@ -82,7 +81,7 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	noWait, _ := cmd.Flags().GetBool("no-wait")
 	if !noWait {
 		req.WaitForProvision = true
-		req.WaitForTime = 10 * time.Minute
+		req.WaitForTime = utils.DefaultProvisionTimeout
 	}
 
 	client, err := config.Login(ctx)
@@ -166,7 +165,7 @@ func ValidateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
 	defer cancel()
 
 	mcrUID := args[0]
@@ -206,7 +205,7 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	req.WaitForUpdate = true
-	req.WaitForTime = 10 * time.Minute
+	req.WaitForTime = utils.DefaultProvisionTimeout
 
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -314,6 +313,12 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 		return fmt.Errorf("invalid prefix filter list ID: %w", err)
 	}
 
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Error logging in: %v", noColor, err)
+		return err
+	}
+
 	interactive, _ := cmd.Flags().GetBool("interactive")
 	jsonStr, _ := cmd.Flags().GetString("json")
 	jsonFile, _ := cmd.Flags().GetString("json-file")
@@ -339,7 +344,7 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 			return getErr
 		}
 	} else if interactive {
-		prefixFilterList, getErr = promptForUpdatePrefixFilterListDetails(mcrUID, prefixFilterListID, noColor)
+		prefixFilterList, getErr = promptForUpdatePrefixFilterListDetails(ctx, client, mcrUID, prefixFilterListID, noColor)
 		if getErr != nil {
 			return getErr
 		}
@@ -347,11 +352,6 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 		return fmt.Errorf("at least one field must be updated")
 	}
 
-	client, err := config.Login(ctx)
-	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
-		return err
-	}
 	spinner := output.PrintResourceUpdating("Prefix Filter List", fmt.Sprintf("%d", prefixFilterListID), noColor)
 	resp, err := modifyMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID, prefixFilterList)
 	spinner.Stop()

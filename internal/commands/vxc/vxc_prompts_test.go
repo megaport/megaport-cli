@@ -880,7 +880,7 @@ func TestBuildUpdateVXCRequestFromPrompt(t *testing.T) {
 			}
 			defer func() { getVXCFunc = originalGetVXC }()
 
-			req, err := buildUpdateVXCRequestFromPrompt("vxc-uid-123", true)
+			req, err := buildUpdateVXCRequestFromPrompt(context.Background(), &megaport.Client{VXCService: &MockVXCService{}}, "vxc-uid-123", true)
 			assert.NoError(t, err)
 			assert.NotNil(t, req)
 			tc.verify(t, req)

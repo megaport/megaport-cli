@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -109,7 +108,7 @@ func buildLAGPortRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyPortReq
 }
 
 func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
 	defer cancel()
 
 	req, err := buildPortRequest(cmd, noColor)
@@ -120,7 +119,7 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 	noWait, _ := cmd.Flags().GetBool("no-wait")
 	if !noWait {
 		req.WaitForProvision = true
-		req.WaitForTime = 10 * time.Minute
+		req.WaitForTime = utils.DefaultProvisionTimeout
 	}
 
 	client, err := config.Login(ctx)
@@ -236,7 +235,7 @@ func ValidateLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
 	defer cancel()
 
 	req, err := buildLAGPortRequest(cmd, noColor)
@@ -247,7 +246,7 @@ func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 	noWait, _ := cmd.Flags().GetBool("no-wait")
 	if !noWait {
 		req.WaitForProvision = true
-		req.WaitForTime = 10 * time.Minute
+		req.WaitForTime = utils.DefaultProvisionTimeout
 	}
 
 	client, err := config.Login(ctx)
@@ -542,7 +541,7 @@ func watchPortStatus(cmd *cobra.Command, args []string, noColor bool, outputForm
 }
 
 func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
 	defer cancel()
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -593,7 +592,7 @@ func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	req.WaitForUpdate = true
-	req.WaitForTime = 10 * time.Minute
+	req.WaitForTime = utils.DefaultProvisionTimeout
 
 	updateSpinner := output.PrintResourceUpdating("Port", portUID, noColor)
 

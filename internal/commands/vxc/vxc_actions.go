@@ -283,7 +283,7 @@ func buildVXCRequest(cmd *cobra.Command, ctx context.Context, client *megaport.C
 }
 
 func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
 	defer cancel()
 
 	client, err := config.Login(ctx)
@@ -300,7 +300,7 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	noWait, _ := cmd.Flags().GetBool("no-wait")
 	if !noWait {
 		req.WaitForProvision = true
-		req.WaitForTime = 10 * time.Minute
+		req.WaitForTime = utils.DefaultProvisionTimeout
 	}
 
 	validateSpinner := output.PrintResourceValidating("VXC", noColor)
@@ -378,7 +378,7 @@ func ValidateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
 	defer cancel()
 
 	vxcUID := args[0]
@@ -416,7 +416,7 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 		req, buildErr = buildUpdateVXCRequestFromFlags(cmd)
 	} else if interactive {
 		output.PrintInfo("Starting interactive mode for VXC %s", noColor, formattedUID)
-		req, buildErr = buildUpdateVXCRequestFromPrompt(vxcUID, noColor)
+		req, buildErr = buildUpdateVXCRequestFromPrompt(ctx, client, vxcUID, noColor)
 	} else {
 		return fmt.Errorf("at least one field must be updated")
 	}
@@ -432,7 +432,7 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	req.WaitForUpdate = true
-	req.WaitForTime = 10 * time.Minute
+	req.WaitForTime = utils.DefaultProvisionTimeout
 
 	updateSpinner := output.PrintResourceUpdating("VXC", vxcUID, noColor)
 

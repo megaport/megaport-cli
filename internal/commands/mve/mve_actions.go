@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -155,7 +154,7 @@ func buildMVERequest(cmd *cobra.Command, noColor bool) (*megaport.BuyMVERequest,
 }
 
 func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
 	defer cancel()
 
 	req, err := buildMVERequest(cmd, noColor)
@@ -205,7 +204,7 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	noWait, _ := cmd.Flags().GetBool("no-wait")
 	if !noWait {
 		req.WaitForProvision = true
-		req.WaitForTime = 10 * time.Minute
+		req.WaitForTime = utils.DefaultProvisionTimeout
 	}
 
 	var spinner *output.Spinner
@@ -262,7 +261,7 @@ func ValidateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
 	defer cancel()
 	mveUID := args[0]
 	formattedUID := output.FormatUID(mveUID, noColor)
@@ -319,7 +318,7 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	req.WaitForUpdate = true
-	req.WaitForTime = 10 * time.Minute
+	req.WaitForTime = utils.DefaultProvisionTimeout
 
 	updateSpinner := output.PrintResourceUpdating("MVE", mveUID, noColor)
 

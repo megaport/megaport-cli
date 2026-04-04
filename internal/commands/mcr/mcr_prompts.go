@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
@@ -364,13 +363,7 @@ func promptForPrefixFilterListDetails(mcrUID string, noColor bool) (*megaport.Cr
 	return req, nil
 }
 
-func promptForUpdatePrefixFilterListDetails(mcrUID string, prefixFilterListID int, noColor bool) (*megaport.MCRPrefixFilterList, error) {
-	ctx := context.Background()
-	client, err := config.Login(ctx)
-	if err != nil {
-		return nil, err
-	}
-
+func promptForUpdatePrefixFilterListDetails(ctx context.Context, client *megaport.Client, mcrUID string, prefixFilterListID int, noColor bool) (*megaport.MCRPrefixFilterList, error) {
 	currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
