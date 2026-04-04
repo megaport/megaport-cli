@@ -369,3 +369,49 @@ func Logout() {
 	ClearCachedToken()
 	js.Global().Get("console").Call("log", "User logged out and tokens cleared")
 }
+
+// NewUnauthenticatedClientFunc creates a Megaport API client without authentication.
+// Used for public API endpoints (e.g., locations) that don't require credentials.
+var NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
+	var clientOpts []megaport.ClientOpt
+
+	// Prefer hostname-derived API URL (auto-works for non-standard environments)
+	var apiURL string
+	megaportTokenGlobal := js.Global().Get("megaportToken")
+	if !megaportTokenGlobal.IsUndefined() && !megaportTokenGlobal.IsNull() {
+		urlVal := megaportTokenGlobal.Get("apiURL")
+		if urlVal.Type() == js.TypeString {
+			apiURL = urlVal.String()
+		}
+	}
+
+	if apiURL != "" {
+		clientOpts = append(clientOpts, megaport.WithBaseURL(apiURL))
+	} else {
+		// Fall back to environment-based URL selection
+		var env string
+		megaportCredsGlobal := js.Global().Get("megaportCredentials")
+		if !megaportCredsGlobal.IsUndefined() && !megaportCredsGlobal.IsNull() {
+			envVal := megaportCredsGlobal.Get("environment")
+			if envVal.Type() == js.TypeString {
+				if s := envVal.String(); s != "" {
+					env = s
+				}
+			}
+		}
+		if env == "" {
+			env = os.Getenv("MEGAPORT_ENVIRONMENT")
+		}
+		clientOpts = append(clientOpts, environmentOption(normalizeEnvironment(env)))
+	}
+
+	httpClient := wasmhttp.NewWasmHTTPClient()
+	httpClient.Timeout = 45 * time.Second
+
+	return megaport.New(httpClient, clientOpts...)
+}
+
+// NewUnauthenticatedClient creates an unauthenticated Megaport API client.
+func NewUnauthenticatedClient() (*megaport.Client, error) {
+	return NewUnauthenticatedClientFunc()
+}

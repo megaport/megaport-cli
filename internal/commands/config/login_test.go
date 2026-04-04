@@ -344,6 +344,153 @@ func restoreEnvVar(key, value string) {
 	}
 }
 
+func TestNewUnauthenticatedClient(t *testing.T) {
+	// Save original values
+	originalEnv := utils.Env
+	originalProfileOverride := utils.ProfileOverride
+	originalMegaportEnv := os.Getenv("MEGAPORT_ENVIRONMENT")
+	originalConfigDir := os.Getenv("MEGAPORT_CONFIG_DIR")
+	originalAccessKey := os.Getenv("MEGAPORT_ACCESS_KEY")
+	originalSecretKey := os.Getenv("MEGAPORT_SECRET_KEY")
+
+	defer func() {
+		utils.Env = originalEnv
+		utils.ProfileOverride = originalProfileOverride
+		restoreEnvVar("MEGAPORT_ENVIRONMENT", originalMegaportEnv)
+		restoreEnvVar("MEGAPORT_CONFIG_DIR", originalConfigDir)
+		restoreEnvVar("MEGAPORT_ACCESS_KEY", originalAccessKey)
+		restoreEnvVar("MEGAPORT_SECRET_KEY", originalSecretKey)
+	}()
+
+	// Default empty config dir for all subtests (subtests that need profiles override this)
+	defaultEmptyDir, err := os.MkdirTemp("", "megaport-unauth-default")
+	assert.NoError(t, err)
+	defer os.RemoveAll(defaultEmptyDir)
+	os.Setenv("MEGAPORT_CONFIG_DIR", defaultEmptyDir)
+
+	t.Run("defaults to production when no env configured", func(t *testing.T) {
+		utils.Env = ""
+		utils.ProfileOverride = ""
+		os.Unsetenv("MEGAPORT_ENVIRONMENT")
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "api.megaport.com")
+	})
+
+	t.Run("respects env flag", func(t *testing.T) {
+		utils.Env = "staging"
+		utils.ProfileOverride = ""
+		os.Unsetenv("MEGAPORT_ENVIRONMENT")
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "api-staging.megaport.com")
+	})
+
+	t.Run("respects MEGAPORT_ENVIRONMENT env var", func(t *testing.T) {
+		utils.Env = ""
+		utils.ProfileOverride = ""
+		os.Setenv("MEGAPORT_ENVIRONMENT", "staging")
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "api-staging.megaport.com")
+	})
+
+	t.Run("profile override with valid profile uses profile env", func(t *testing.T) {
+		tempDir, err := os.MkdirTemp("", "megaport-unauth-test")
+		assert.NoError(t, err)
+		defer os.RemoveAll(tempDir)
+		os.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+
+		manager, err := NewConfigManager()
+		assert.NoError(t, err)
+		err = manager.CreateProfile("staging-profile", "key", "secret", "staging", "")
+		assert.NoError(t, err)
+
+		utils.Env = ""
+		utils.ProfileOverride = "staging-profile"
+		os.Unsetenv("MEGAPORT_ENVIRONMENT")
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "api-staging.megaport.com")
+	})
+
+	t.Run("profile override with non-existent profile returns error", func(t *testing.T) {
+		tempDir, err := os.MkdirTemp("", "megaport-unauth-test")
+		assert.NoError(t, err)
+		defer os.RemoveAll(tempDir)
+		os.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+
+		utils.Env = ""
+		utils.ProfileOverride = "non-existent"
+
+		client, err := NewUnauthenticatedClient()
+		assert.Error(t, err)
+		assert.Nil(t, client)
+		assert.Contains(t, err.Error(), "non-existent")
+	})
+
+	t.Run("env flag overrides profile environment", func(t *testing.T) {
+		tempDir, err := os.MkdirTemp("", "megaport-unauth-test")
+		assert.NoError(t, err)
+		defer os.RemoveAll(tempDir)
+		os.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+
+		manager, err := NewConfigManager()
+		assert.NoError(t, err)
+		err = manager.CreateProfile("staging-profile", "key", "secret", "staging", "")
+		assert.NoError(t, err)
+
+		utils.Env = "production"
+		utils.ProfileOverride = "staging-profile"
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "api.megaport.com")
+	})
+
+	t.Run("does not require credentials", func(t *testing.T) {
+		utils.Env = "production"
+		utils.ProfileOverride = ""
+		os.Unsetenv("MEGAPORT_ACCESS_KEY")
+		os.Unsetenv("MEGAPORT_SECRET_KEY")
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Empty(t, client.AccessKey)
+		assert.Empty(t, client.SecretKey)
+	})
+
+	t.Run("accepts short alias prod", func(t *testing.T) {
+		utils.Env = "prod"
+		utils.ProfileOverride = ""
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "api.megaport.com")
+	})
+
+	t.Run("accepts short alias dev", func(t *testing.T) {
+		utils.Env = "dev"
+		utils.ProfileOverride = ""
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "api-mpone-dev.megaport.com")
+	})
+}
+
 func TestCredentialSelectionPrecedence(t *testing.T) {
 	// Save original values
 	originalEnv := utils.Env
