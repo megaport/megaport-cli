@@ -20,7 +20,7 @@ const (
 )
 
 // ansiColorRe is a pre-compiled regex for stripping ANSI color codes.
-var ansiColorRe = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+var ansiColorRe = regexp.MustCompile("\x1b\\[[0-9;]*m")
 
 // spinnerColors is a pre-allocated slice of color functions for spinner animation.
 // Allocated once to avoid per-frame allocation in the spinner goroutine loop.

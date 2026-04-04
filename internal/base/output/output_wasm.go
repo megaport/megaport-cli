@@ -371,10 +371,11 @@ func CaptureOutput(f func()) string {
 	}
 	os.Stdout = w
 	defer func() { os.Stdout = old }()
+	defer r.Close()
+	defer w.Close()
 	f()
 	w.Close()
 	out, _ := io.ReadAll(r)
-	r.Close()
 	return string(out)
 }
 
