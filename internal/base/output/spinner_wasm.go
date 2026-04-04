@@ -28,7 +28,7 @@ func NewWasmSpinner(message string, noColor bool, outputFormat string) *WasmSpin
 		message:      message,
 		noColor:      noColor,
 		stopped:      false,
-		stopChan:     make(chan bool),
+		stopChan:     make(chan bool, 1),
 		outputFormat: outputFormat,
 	}
 }
@@ -92,11 +92,11 @@ func NewSpinnerWasm(noColor bool, outputFormat string) *Spinner {
 	wasmSpinner := NewWasmSpinner("", noColor, outputFormat)
 
 	return &Spinner{
-		stop:         make(chan bool),
+		stop:         make(chan bool, 1),
 		frameRate:    150 * time.Millisecond,
 		noColor:      noColor,
 		outputFormat: outputFormat,
-		style:        "wasm",
+		style:        SpinnerStyleWASM,
 		wasmSpinner:  wasmSpinner, // Inject the WASM spinner
 	}
 }
