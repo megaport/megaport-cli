@@ -315,6 +315,9 @@ func printXML[T OutputFields](data []T) error {
 var osPipe = os.Pipe
 
 func CaptureOutput(f func()) string {
+	stdoutMu.Lock()
+	defer stdoutMu.Unlock()
+
 	old := os.Stdout
 	r, w, err := osPipe()
 	if err != nil {
@@ -331,6 +334,9 @@ func CaptureOutput(f func()) string {
 }
 
 func CaptureOutputErr(f func() error) (string, error) {
+	stdoutMu.Lock()
+	defer stdoutMu.Unlock()
+
 	old := os.Stdout
 	r, w, err := os.Pipe()
 	if err != nil {

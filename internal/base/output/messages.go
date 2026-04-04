@@ -12,6 +12,25 @@ import (
 	"github.com/fatih/color"
 )
 
+// Spinner style constants.
+const (
+	SpinnerStyleDefault = "default"
+	SpinnerStyleWASM    = "wasm"
+	SpinnerStyleFancy   = "fancy"
+)
+
+// ansiColorRe is a pre-compiled regex for stripping ANSI color codes.
+var ansiColorRe = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+// spinnerColors is a pre-allocated slice of color functions for spinner animation.
+// Allocated once to avoid per-frame allocation in the spinner goroutine loop.
+var spinnerColors = []func(...interface{}) string{
+	color.New(color.FgHiCyan, color.Bold).SprintFunc(),
+	color.New(color.FgHiBlue, color.Bold).SprintFunc(),
+	color.New(color.FgHiMagenta, color.Bold).SprintFunc(),
+	color.New(color.FgHiGreen, color.Bold).SprintFunc(),
+}
+
 // currentOutputFormat stores the output format atomically to avoid data races
 // between spinner goroutines and Print* calls on the main goroutine.
 var currentOutputFormat atomic.Value
@@ -171,11 +190,11 @@ type SpinnerInterface interface {
 
 func NewSpinner(noColor bool) *Spinner {
 	return &Spinner{
-		stop:         make(chan bool),
+		stop:         make(chan bool, 1),
 		frameRate:    100 * time.Millisecond,
 		noColor:      noColor,
 		outputFormat: "table", // default to table format for backward compatibility
-		style:        "default",
+		style:        SpinnerStyleDefault,
 	}
 }
 
@@ -217,9 +236,9 @@ func (s *Spinner) Start(prefix string) {
 				// Select spinner characters based on style
 				var chars []string
 				switch s.style {
-				case "wasm":
+				case SpinnerStyleWASM:
 					chars = spinnerCharsWasm
-				case "fancy":
+				case SpinnerStyleFancy:
 					chars = spinnerCharsFancy
 				default:
 					chars = spinnerChars
@@ -232,15 +251,8 @@ func (s *Spinner) Start(prefix string) {
 				if s.noColor {
 					styledFrame = frame
 				} else {
-					if s.style == "fancy" || s.style == "wasm" {
-						// Cycle through colors for more visual appeal
-						colors := []func(...interface{}) string{
-							color.New(color.FgHiCyan, color.Bold).SprintFunc(),
-							color.New(color.FgHiBlue, color.Bold).SprintFunc(),
-							color.New(color.FgHiMagenta, color.Bold).SprintFunc(),
-							color.New(color.FgHiGreen, color.Bold).SprintFunc(),
-						}
-						colorFunc := colors[(i/len(chars))%len(colors)]
+					if s.style == SpinnerStyleFancy || s.style == SpinnerStyleWASM {
+						colorFunc := spinnerColors[(i/len(chars))%len(spinnerColors)]
 						styledFrame = colorFunc(frame)
 					} else {
 						styledFrame = color.CyanString(frame)
@@ -289,9 +301,9 @@ func (s *Spinner) StartWithElapsed(prefix string) {
 
 				var chars []string
 				switch s.style {
-				case "wasm":
+				case SpinnerStyleWASM:
 					chars = spinnerCharsWasm
-				case "fancy":
+				case SpinnerStyleFancy:
 					chars = spinnerCharsFancy
 				default:
 					chars = spinnerChars
@@ -303,14 +315,8 @@ func (s *Spinner) StartWithElapsed(prefix string) {
 				if s.noColor {
 					styledFrame = frame
 				} else {
-					if s.style == "fancy" || s.style == "wasm" {
-						colors := []func(...interface{}) string{
-							color.New(color.FgHiCyan, color.Bold).SprintFunc(),
-							color.New(color.FgHiBlue, color.Bold).SprintFunc(),
-							color.New(color.FgHiMagenta, color.Bold).SprintFunc(),
-							color.New(color.FgHiGreen, color.Bold).SprintFunc(),
-						}
-						colorFunc := colors[(i/len(chars))%len(colors)]
+					if s.style == SpinnerStyleFancy || s.style == SpinnerStyleWASM {
+						colorFunc := spinnerColors[(i/len(chars))%len(spinnerColors)]
 						styledFrame = colorFunc(frame)
 					} else {
 						styledFrame = color.CyanString(frame)
@@ -595,8 +601,7 @@ func FormatUID(uid string, noColor bool) string {
 }
 
 func StripANSIColors(s string) string {
-	re := regexp.MustCompile("\x1b\\[[0-9;]*m")
-	return re.ReplaceAllString(s, "")
+	return ansiColorRe.ReplaceAllString(s, "")
 }
 
 func FormatOldValue(value string, noColor bool) string {

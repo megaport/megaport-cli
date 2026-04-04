@@ -359,8 +359,15 @@ func calculateColumnWidths(rows [][]string) []int {
 
 // CaptureOutput runs a function and captures its stdout output
 func CaptureOutput(f func()) string {
+	stdoutMu.Lock()
+	defer stdoutMu.Unlock()
+
 	old := os.Stdout
-	r, w, _ := os.Pipe()
+	r, w, err := os.Pipe()
+	if err != nil {
+		f()
+		return ""
+	}
 	os.Stdout = w
 	f()
 	w.Close()
@@ -371,6 +378,9 @@ func CaptureOutput(f func()) string {
 
 // CaptureOutputErr runs a function and captures its stdout output, also returning any error.
 func CaptureOutputErr(f func() error) (string, error) {
+	stdoutMu.Lock()
+	defer stdoutMu.Unlock()
+
 	old := os.Stdout
 	r, w, err := os.Pipe()
 	if err != nil {

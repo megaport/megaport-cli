@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"syscall/js"
 
 	prettytable "github.com/jedib0t/go-pretty/v6/table"
@@ -15,16 +16,17 @@ import (
 )
 
 // isTerminalCached is always false in WASM (no real terminal).
-var isTerminalCached = false
+// Uses atomic.Bool for goroutine safety.
+var isTerminalCached atomic.Bool
 
 // IsTerminal returns true if stdout is connected to a terminal. Always false in WASM.
 func IsTerminal() bool {
-	return isTerminalCached
+	return isTerminalCached.Load()
 }
 
 // SetIsTerminal overrides the cached TTY detection result. Intended for tests.
 func SetIsTerminal(val bool) {
-	isTerminalCached = val
+	isTerminalCached.Store(val)
 }
 
 // WasmTableWriter is a global buffer for capturing table output in WASM
@@ -170,7 +172,8 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 	t.AppendHeader(headerRow)
 
 	for _, item := range data {
-		if reflect.ValueOf(item).IsZero() {
+		v := reflect.ValueOf(item)
+		if !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil()) {
 			continue
 		}
 		values := extractRowData(item, fieldIndices)
