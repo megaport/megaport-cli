@@ -304,9 +304,6 @@ func CreateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 }
 
 func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmd(cmd)
-	defer cancel()
-
 	mcrUID := args[0]
 	prefixFilterListID, err := strconv.Atoi(args[1])
 	if err != nil {
@@ -338,10 +335,11 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 			return getErr
 		}
 	} else if interactive {
-		// Login early for interactive mode since the prompt needs the client.
-		// Use context.Background for prompts so user think-time doesn't consume
-		// the timeout budget.
-		client, loginErr := config.Login(ctx)
+		// Login with a non-deadline context for prompts so user think-time
+		// doesn't consume the timeout budget for the subsequent API call.
+		loginCtx, loginCancel := utils.ContextFromCmd(cmd)
+		defer loginCancel()
+		client, loginErr := config.Login(loginCtx)
 		if loginErr != nil {
 			output.PrintError("Error logging in: %v", noColor, loginErr)
 			return loginErr
@@ -354,7 +352,10 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 		return fmt.Errorf("at least one field must be updated")
 	}
 
-	// Login for non-interactive paths (interactive path already logged in above).
+	// Create a fresh timed context for the API mutation (not consumed by prompt time).
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
+
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Error logging in: %v", noColor, err)
