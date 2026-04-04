@@ -5,26 +5,23 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // assertFlagExists verifies a flag exists on the command with the expected default value.
 func assertFlagExists(t *testing.T, cmd *cobra.Command, name, expectedDefault string) {
 	t.Helper()
 	f := cmd.Flags().Lookup(name)
-	assert.NotNil(t, f, "flag %q should exist", name)
-	if f != nil {
-		assert.Equal(t, expectedDefault, f.DefValue, "flag %q default", name)
-	}
+	require.NotNil(t, f, "flag %q should exist", name)
+	assert.Equal(t, expectedDefault, f.DefValue, "flag %q default", name)
 }
 
 // assertFlagType verifies a flag exists with the expected type.
 func assertFlagType(t *testing.T, cmd *cobra.Command, name, expectedType string) {
 	t.Helper()
 	f := cmd.Flags().Lookup(name)
-	assert.NotNil(t, f, "flag %q should exist", name)
-	if f != nil {
-		assert.Equal(t, expectedType, f.Value.Type(), "flag %q type", name)
-	}
+	require.NotNil(t, f, "flag %q should exist", name)
+	assert.Equal(t, expectedType, f.Value.Type(), "flag %q type", name)
 }
 
 func TestWithWatchFlags(t *testing.T) {

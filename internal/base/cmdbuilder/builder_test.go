@@ -44,8 +44,8 @@ func TestNewCommand(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := NewCommand(tt.use, tt.short)
-			assert.NotNil(t, b)
-			assert.NotNil(t, b.cmd)
+			require.NotNil(t, b)
+			require.NotNil(t, b.cmd)
 			assert.Equal(t, tt.wantUse, b.cmd.Use)
 			assert.Equal(t, tt.wantShort, b.cmd.Short)
 			assert.NotNil(t, b.requiredFlags)
