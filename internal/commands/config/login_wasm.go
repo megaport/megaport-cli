@@ -373,42 +373,55 @@ func Logout() {
 // NewUnauthenticatedClientFunc creates a Megaport API client without authentication.
 // Used for public API endpoints (e.g., locations) that don't require credentials.
 var NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
-	var env string
+	var clientOpts []megaport.ClientOpt
 
-	// Check environment from JS globals
-	megaportCredsGlobal := js.Global().Get("megaportCredentials")
-	if !megaportCredsGlobal.IsUndefined() && !megaportCredsGlobal.IsNull() {
-		envVal := megaportCredsGlobal.Get("environment")
-		if envVal.Type() == js.TypeString {
-			if s := envVal.String(); s != "" {
-				env = s
-			}
+	// Prefer hostname-derived API URL (auto-works for non-standard environments)
+	var apiURL string
+	megaportTokenGlobal := js.Global().Get("megaportToken")
+	if !megaportTokenGlobal.IsUndefined() && !megaportTokenGlobal.IsNull() {
+		urlVal := megaportTokenGlobal.Get("apiURL")
+		if urlVal.Type() == js.TypeString {
+			apiURL = urlVal.String()
 		}
 	}
 
-	if env == "" {
-		env = os.Getenv("MEGAPORT_ENVIRONMENT")
-	}
-	if env == "" {
-		env = "production"
-	}
+	if apiURL != "" {
+		clientOpts = append(clientOpts, megaport.WithBaseURL(apiURL))
+	} else {
+		// Fall back to environment-based URL selection
+		var env string
+		megaportCredsGlobal := js.Global().Get("megaportCredentials")
+		if !megaportCredsGlobal.IsUndefined() && !megaportCredsGlobal.IsNull() {
+			envVal := megaportCredsGlobal.Get("environment")
+			if envVal.Type() == js.TypeString {
+				if s := envVal.String(); s != "" {
+					env = s
+				}
+			}
+		}
+		if env == "" {
+			env = os.Getenv("MEGAPORT_ENVIRONMENT")
+		}
+		if env == "" {
+			env = "production"
+		}
 
-	var envOpt megaport.ClientOpt
-	switch env {
-	case "production":
-		envOpt = megaport.WithEnvironment(megaport.EnvironmentProduction)
-	case "staging":
-		envOpt = megaport.WithEnvironment(megaport.EnvironmentStaging)
-	case "development":
-		envOpt = megaport.WithEnvironment(megaport.EnvironmentDevelopment)
-	default:
-		envOpt = megaport.WithEnvironment(megaport.EnvironmentProduction)
+		switch env {
+		case "production":
+			clientOpts = append(clientOpts, megaport.WithEnvironment(megaport.EnvironmentProduction))
+		case "staging":
+			clientOpts = append(clientOpts, megaport.WithEnvironment(megaport.EnvironmentStaging))
+		case "development":
+			clientOpts = append(clientOpts, megaport.WithEnvironment(megaport.EnvironmentDevelopment))
+		default:
+			clientOpts = append(clientOpts, megaport.WithEnvironment(megaport.EnvironmentProduction))
+		}
 	}
 
 	httpClient := wasmhttp.NewWasmHTTPClient()
 	httpClient.Timeout = 45 * time.Second
 
-	return megaport.New(httpClient, envOpt)
+	return megaport.New(httpClient, clientOpts...)
 }
 
 // NewUnauthenticatedClient creates an unauthenticated Megaport API client.

@@ -350,12 +350,16 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 	originalProfileOverride := utils.ProfileOverride
 	originalMegaportEnv := os.Getenv("MEGAPORT_ENVIRONMENT")
 	originalConfigDir := os.Getenv("MEGAPORT_CONFIG_DIR")
+	originalAccessKey := os.Getenv("MEGAPORT_ACCESS_KEY")
+	originalSecretKey := os.Getenv("MEGAPORT_SECRET_KEY")
 
 	defer func() {
 		utils.Env = originalEnv
 		utils.ProfileOverride = originalProfileOverride
 		restoreEnvVar("MEGAPORT_ENVIRONMENT", originalMegaportEnv)
 		restoreEnvVar("MEGAPORT_CONFIG_DIR", originalConfigDir)
+		restoreEnvVar("MEGAPORT_ACCESS_KEY", originalAccessKey)
+		restoreEnvVar("MEGAPORT_SECRET_KEY", originalSecretKey)
 	}()
 
 	t.Run("defaults to production when no env configured", func(t *testing.T) {
