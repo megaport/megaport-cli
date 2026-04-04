@@ -669,11 +669,11 @@ func setAuthCredentials(this js.Value, args []js.Value) interface{} {
 
 // clearAuthCredentials removes authentication credentials from memory
 func clearAuthCredentials(this js.Value, args []js.Value) interface{} {
-	os.Setenv("MEGAPORT_ACCESS_KEY", "")
-	os.Setenv("MEGAPORT_SECRET_KEY", "")
-	os.Setenv("MEGAPORT_ENVIRONMENT", "")
-	os.Setenv("MEGAPORT_ACCESS_TOKEN", "")
-	os.Setenv("MEGAPORT_API_URL", "")
+	os.Unsetenv("MEGAPORT_ACCESS_KEY")
+	os.Unsetenv("MEGAPORT_SECRET_KEY")
+	os.Unsetenv("MEGAPORT_ENVIRONMENT")
+	os.Unsetenv("MEGAPORT_ACCESS_TOKEN")
+	os.Unsetenv("MEGAPORT_API_URL")
 
 	js.Global().Delete("megaportCredentials")
 	js.Global().Delete("megaportToken")
