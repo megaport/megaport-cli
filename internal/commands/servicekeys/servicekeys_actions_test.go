@@ -179,20 +179,18 @@ func TestUpdateServiceKey(t *testing.T) {
 			}
 
 			cmd := testutil.NewCommand("update", testutil.NoColorAdapter(UpdateServiceKey))
-			cmd.Flags().String("key", "", "")
 			cmd.Flags().String("product-uid", "", "")
 			cmd.Flags().Int("product-id", 0, "")
 			cmd.Flags().Bool("single-use", false, "")
 			cmd.Flags().Bool("active", false, "")
 
 			testutil.SetFlags(t, cmd, map[string]string{
-				"key":    "test-key-123",
 				"active": "true",
 			})
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, []string{})
+				err = cmd.RunE(cmd, []string{"test-key-123"})
 			})
 
 			if tt.expectedErr != "" {

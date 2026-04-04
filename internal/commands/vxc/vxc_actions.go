@@ -177,6 +177,11 @@ func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 		return fmt.Errorf("error getting VXC: %w", err)
 	}
 
+	if vxc == nil {
+		output.PrintError("No VXC found with UID: %s", noColor, vxcUID)
+		return fmt.Errorf("no VXC found with UID: %s", vxcUID)
+	}
+
 	export, _ := cmd.Flags().GetBool("export")
 	if export {
 		cfg := exportVXCConfig(vxc)
@@ -219,6 +224,9 @@ func watchGetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 		vxc, err := client.VXCService.GetVXC(pollCtx, vxcUID)
 		if err != nil {
 			return "", err
+		}
+		if vxc == nil {
+			return "", fmt.Errorf("no VXC found with UID: %s", vxcUID)
 		}
 		err = printVXCs([]*megaport.VXC{vxc}, outputFormat, noColor)
 		return vxc.ProvisioningStatus, err

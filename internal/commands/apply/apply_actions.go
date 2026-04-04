@@ -48,7 +48,8 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		return err
 	}
 
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, defaultWaitTime)
+	defer cancel()
 
 	spinner := output.PrintLoggingInWithOutput(noColor, outputFormat)
 	client, err := config.LoginFunc(ctx)
