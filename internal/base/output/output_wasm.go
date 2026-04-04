@@ -13,8 +13,12 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 	"syscall/js"
 )
+
+// wasmBufMu protects the global WASM output buffers from concurrent access.
+var wasmBufMu sync.Mutex
 
 // WasmJSONWriter is a global buffer for capturing JSON output in WASM
 var WasmJSONWriter = &bytes.Buffer{}
@@ -27,6 +31,8 @@ var WasmXMLWriter = &bytes.Buffer{}
 
 // printJSON is the WASM-specific implementation that properly captures JSON output
 func printJSON[T OutputFields](data []T) error {
+	wasmBufMu.Lock()
+	defer wasmBufMu.Unlock()
 	WasmJSONWriter.Reset()
 
 	if data == nil {
@@ -53,6 +59,8 @@ func printJSON[T OutputFields](data []T) error {
 
 // printCSV is the WASM-specific implementation that properly captures CSV output
 func printCSV[T OutputFields](data []T) error {
+	wasmBufMu.Lock()
+	defer wasmBufMu.Unlock()
 	WasmCSVWriter.Reset()
 
 	w := csv.NewWriter(WasmCSVWriter)
@@ -176,6 +184,8 @@ func printCSV[T OutputFields](data []T) error {
 
 // printXML is the WASM-specific implementation that properly captures XML output
 func printXML[T OutputFields](data []T) error {
+	wasmBufMu.Lock()
+	defer wasmBufMu.Unlock()
 	WasmXMLWriter.Reset()
 
 	if data == nil {

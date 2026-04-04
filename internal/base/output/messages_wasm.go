@@ -18,11 +18,12 @@ import (
 func createBox(text string, borderColor *color.Color, textColor *color.Color, width int) string {
 	lines := strings.Split(text, "\n")
 
-	// Calculate box width
+	// Calculate box width using stripped length to ignore ANSI escape codes
 	maxLen := 0
 	for _, line := range lines {
-		if len(line) > maxLen {
-			maxLen = len(line)
+		stripped := StripANSIColors(line)
+		if len(stripped) > maxLen {
+			maxLen = len(stripped)
 		}
 	}
 	if width > maxLen {
@@ -48,7 +49,8 @@ func createBox(text string, borderColor *color.Color, textColor *color.Color, wi
 
 	// Content lines
 	for _, line := range lines {
-		padding := maxLen - len(line)
+		stripped := StripANSIColors(line)
+		padding := maxLen - len(stripped)
 		result.WriteString(borderColor.Sprint(vertical))
 		result.WriteString(" ")
 		result.WriteString(textColor.Sprint(line))
