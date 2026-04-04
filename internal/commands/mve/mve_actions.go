@@ -573,9 +573,10 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("error deleting MVE: %w", err)
 	}
 
-	deleteNow, _ := cmd.Flags().GetBool("now")
+	// MVEs always delete immediately (SDK hardcodes DeleteNow: true), so the
+	// --now flag has no API effect. Always report as immediate deletion.
 	if resp.IsDeleted {
-		output.PrintResourceDeleted("MVE", mveUID, deleteNow, noColor)
+		output.PrintResourceDeleted("MVE", mveUID, true, noColor)
 	} else {
 		output.PrintWarning("MVE delete failed", noColor)
 	}
