@@ -20,8 +20,8 @@ func TestIsAllowedProxyHost(t *testing.T) {
 		{"api-staging.megaport.com", true},
 		{"api-mpone-dev.megaport.com", true},
 		{"custom.megaport.com", true},
-		{"API.MEGAPORT.COM", true},           // case insensitive
-		{" api.megaport.com ", true},          // trimmed
+		{"API.MEGAPORT.COM", true},   // case insensitive
+		{" api.megaport.com ", true}, // trimmed
 		{"evil.com", false},
 		{"megaport.com.evil.com", false},
 		{"api.megaport.com.evil.com", false},
@@ -73,6 +73,7 @@ func TestSetCORSHeaders(t *testing.T) {
 		setCORSHeaders(w, r, "Content-Type, Authorization")
 
 		assert.Equal(t, "http://localhost:8080", w.Header().Get("Access-Control-Allow-Origin"))
+		assert.Equal(t, "Origin", w.Header().Get("Vary"))
 		assert.Equal(t, "GET, POST, PUT, DELETE, OPTIONS", w.Header().Get("Access-Control-Allow-Methods"))
 		assert.Equal(t, "Content-Type, Authorization", w.Header().Get("Access-Control-Allow-Headers"))
 	})

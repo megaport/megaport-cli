@@ -43,6 +43,7 @@ func setCORSHeaders(w http.ResponseWriter, r *http.Request, allowedHeaders strin
 	origin := r.Header.Get("Origin")
 	if isAllowedOrigin(origin) {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
 	}
@@ -246,6 +247,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	// Create new request
 	proxyReq, err := http.NewRequest(r.Method, targetURL, r.Body)
 	if err != nil {
+		log.Printf("Failed to create proxy request for %s %s: %v", r.Method, targetURL, err)
 		http.Error(w, "Failed to create proxy request", http.StatusInternalServerError)
 		return
 	}
@@ -273,11 +275,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	// Read response body — log only status and size, not content (may contain tokens/PII)
-	respBody, _ := io.ReadAll(resp.Body)
-	log.Printf("Proxy response status: %d, body size: %d bytes", resp.StatusCode, len(respBody))
-
-	// Copy response headers
+	// Copy response headers before writing status
 	for key, values := range resp.Header {
 		for _, value := range values {
 			w.Header().Add(key, value)
@@ -290,11 +288,12 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	// Write status code
 	w.WriteHeader(resp.StatusCode)
 
-	// Write response body
-	_, err = w.Write(respBody)
+	// Stream response body to client, counting bytes for logging
+	bytesCopied, err := io.Copy(w, resp.Body)
 	if err != nil {
-		log.Printf("Error writing response body: %v", err)
+		log.Printf("Error streaming response body: %v", err)
 	}
+	log.Printf("Proxy response status: %d, body size: %d bytes", resp.StatusCode, bytesCopied)
 }
 
 func addCorsHeaders(fs http.Handler) http.HandlerFunc {
