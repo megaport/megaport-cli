@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -229,7 +228,7 @@ func buildIXRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyIXRequest, e
 }
 
 func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
 	defer cancel()
 
 	req, err := buildIXRequest(cmd, noColor)
@@ -240,7 +239,7 @@ func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
 	noWait, _ := cmd.Flags().GetBool("no-wait")
 	if !noWait {
 		req.WaitForProvision = true
-		req.WaitForTime = 10 * time.Minute
+		req.WaitForTime = utils.DefaultProvisionTimeout
 	}
 
 	client, err := config.Login(ctx)
@@ -321,7 +320,7 @@ func ValidateIX(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UpdateIX(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
 	defer cancel()
 
 	ixUID := args[0]
@@ -364,7 +363,7 @@ func UpdateIX(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	req.WaitForUpdate = true
-	req.WaitForTime = 10 * time.Minute
+	req.WaitForTime = utils.DefaultProvisionTimeout
 
 	client, err := config.Login(ctx)
 	if err != nil {

@@ -13,16 +13,15 @@ func MarkFlagsRequired(cmd *cobra.Command, flags []string) error {
 	return nil
 }
 
-// AddCommonBuyFlags adds common flags for buy commands
-func AddCommonBuyFlags(cmd *cobra.Command) {
+// addCommonMutationFlags adds common flags shared by buy and update commands.
+func addCommonMutationFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode with prompts")
 	cmd.Flags().String("json", "", "JSON string containing configuration")
 	cmd.Flags().String("json-file", "", "Path to JSON file containing configuration")
 }
 
-// AddCommonUpdateFlags adds common flags for update commands
-func AddCommonUpdateFlags(cmd *cobra.Command) {
-	cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode with prompts")
-	cmd.Flags().String("json", "", "JSON string containing configuration")
-	cmd.Flags().String("json-file", "", "Path to JSON file containing configuration")
-}
+// AddCommonBuyFlags adds common flags for buy commands.
+func AddCommonBuyFlags(cmd *cobra.Command) { addCommonMutationFlags(cmd) }
+
+// AddCommonUpdateFlags adds common flags for update commands.
+func AddCommonUpdateFlags(cmd *cobra.Command) { addCommonMutationFlags(cmd) }

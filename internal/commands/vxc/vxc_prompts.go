@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
@@ -235,16 +233,9 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 	return req, nil
 }
 
-var buildUpdateVXCRequestFromPrompt = func(vxcUID string, noColor bool) (*megaport.UpdateVXCRequest, error) {
+var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport.Client, vxcUID string, noColor bool) (*megaport.UpdateVXCRequest, error) {
 	req := &megaport.UpdateVXCRequest{
 		WaitForUpdate: true,
-		WaitForTime:   5 * time.Minute,
-	}
-
-	ctx := context.Background()
-	client, err := config.Login(ctx)
-	if err != nil {
-		return nil, err
 	}
 
 	fmt.Println("Fetching current VXC details...")

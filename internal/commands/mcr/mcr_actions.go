@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -71,7 +70,7 @@ func buildMCRRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyMCRRequest,
 }
 
 func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
 	defer cancel()
 
 	req, err := buildMCRRequest(cmd, noColor)
@@ -82,7 +81,7 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	noWait, _ := cmd.Flags().GetBool("no-wait")
 	if !noWait {
 		req.WaitForProvision = true
-		req.WaitForTime = 10 * time.Minute
+		req.WaitForTime = utils.DefaultProvisionTimeout
 	}
 
 	client, err := config.Login(ctx)
@@ -166,7 +165,7 @@ func ValidateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 15*time.Minute)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
 	defer cancel()
 
 	mcrUID := args[0]
@@ -206,7 +205,7 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	req.WaitForUpdate = true
-	req.WaitForTime = 10 * time.Minute
+	req.WaitForTime = utils.DefaultProvisionTimeout
 
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -305,9 +304,6 @@ func CreateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 }
 
 func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmd(cmd)
-	defer cancel()
-
 	mcrUID := args[0]
 	prefixFilterListID, err := strconv.Atoi(args[1])
 	if err != nil {
@@ -320,6 +316,20 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 
 	flagsProvided := cmd.Flags().Changed("description") || cmd.Flags().Changed("address-family") ||
 		cmd.Flags().Changed("entries")
+
+	// Validate input mode before logging in.
+	if jsonStr == "" && jsonFile == "" && !flagsProvided && !interactive {
+		return fmt.Errorf("at least one field must be updated")
+	}
+
+	// Login once — the client is reused for both prompts and the API mutation.
+	loginCtx, loginCancel := utils.ContextFromCmd(cmd)
+	defer loginCancel()
+	client, err := config.Login(loginCtx)
+	if err != nil {
+		output.PrintError("Error logging in: %v", noColor, err)
+		return err
+	}
 
 	var prefixFilterList *megaport.MCRPrefixFilterList
 	var getErr error
@@ -339,19 +349,19 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 			return getErr
 		}
 	} else if interactive {
-		prefixFilterList, getErr = promptForUpdatePrefixFilterListDetails(mcrUID, prefixFilterListID, noColor)
+		// Use cmd.Context() for API work during interactive input so it
+		// remains cancellable. A fresh timed context is created below for
+		// the mutation so user think-time doesn't consume the update timeout.
+		prefixFilterList, getErr = promptForUpdatePrefixFilterListDetails(cmd.Context(), client, mcrUID, prefixFilterListID, noColor)
 		if getErr != nil {
 			return getErr
 		}
-	} else {
-		return fmt.Errorf("at least one field must be updated")
 	}
 
-	client, err := config.Login(ctx)
-	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
-		return err
-	}
+	// Fresh timed context for the API mutation (not consumed by prompt time).
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
+
 	spinner := output.PrintResourceUpdating("Prefix Filter List", fmt.Sprintf("%d", prefixFilterListID), noColor)
 	resp, err := modifyMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID, prefixFilterList)
 	spinner.Stop()

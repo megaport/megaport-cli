@@ -7,6 +7,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	// DefaultProvisionTimeout is the default wait time for provisioning operations
+	// (buy, update commands that wait for the resource to become ready).
+	DefaultProvisionTimeout = 10 * time.Minute
+
+	// DefaultMutationTimeout is the default context timeout for buy/update/delete
+	// commands that may take longer than the standard request timeout.
+	DefaultMutationTimeout = 15 * time.Minute
+)
+
 // ContextFromCmd creates a context with timeout from the command's --timeout flag.
 // If no timeout flag is set or the duration is zero or negative, defaults to 90 seconds.
 func ContextFromCmd(cmd *cobra.Command) (context.Context, context.CancelFunc) {

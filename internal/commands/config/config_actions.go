@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
@@ -144,8 +145,15 @@ func ListProfiles(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	}
 	activeProfile := manager.config.ActiveProfile
 
-	var profileOutputs []ProfileOutput
-	for name, profile := range profiles {
+	names := make([]string, 0, len(profiles))
+	for name := range profiles {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	profileOutputs := make([]ProfileOutput, 0, len(profiles))
+	for _, name := range names {
+		profile := profiles[name]
 		profileOutputs = append(profileOutputs, ProfileOutput{
 			Name:        name,
 			AccessKey:   maskAccessKey(profile.AccessKey),

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/megaport/megaport-cli/internal/testutil"
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -825,7 +824,7 @@ func TestBuildUpdateVXCRequestFromPrompt(t *testing.T) {
 				assert.Nil(t, req.AEndProductUID)
 				assert.Nil(t, req.BEndProductUID)
 				assert.True(t, req.WaitForUpdate)
-				assert.Equal(t, 5*time.Minute, req.WaitForTime)
+				// WaitForTime is set by the caller (UpdateVXC), not the prompt builder
 			},
 		},
 		{
@@ -856,7 +855,7 @@ func TestBuildUpdateVXCRequestFromPrompt(t *testing.T) {
 				assert.Nil(t, req.CostCentre)
 				assert.Nil(t, req.Shutdown)
 				assert.True(t, req.WaitForUpdate)
-				assert.Equal(t, 5*time.Minute, req.WaitForTime)
+				// WaitForTime is set by the caller (UpdateVXC), not the prompt builder
 			},
 		},
 	}
@@ -869,18 +868,9 @@ func TestBuildUpdateVXCRequestFromPrompt(t *testing.T) {
 			mockSvc := &MockVXCService{
 				GetVXCResponse: existingVXC,
 			}
-			cleanupLogin := testutil.SetupLogin(func(c *megaport.Client) {
-				c.VXCService = mockSvc
-			})
-			defer cleanupLogin()
+			mockClient := &megaport.Client{VXCService: mockSvc}
 
-			originalGetVXC := getVXCFunc
-			getVXCFunc = func(_ context.Context, _ *megaport.Client, _ string) (*megaport.VXC, error) {
-				return existingVXC, nil
-			}
-			defer func() { getVXCFunc = originalGetVXC }()
-
-			req, err := buildUpdateVXCRequestFromPrompt("vxc-uid-123", true)
+			req, err := buildUpdateVXCRequestFromPrompt(context.Background(), mockClient, "vxc-uid-123", true)
 			assert.NoError(t, err)
 			assert.NotNil(t, req)
 			tc.verify(t, req)
