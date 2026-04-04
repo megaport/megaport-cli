@@ -989,6 +989,15 @@ func TestGetIX(t *testing.T) {
 			expectedOut: []string{"ix-123", "Test IX", "Los Angeles IX"},
 		},
 		{
+			name:   "get IX nil response",
+			ixUID:  "ix-nil",
+			format: "table",
+			setupMock: func(m *MockIXService) {
+				m.forceNilGetIX = true
+			},
+			expectedError: "no IX found with UID: ix-nil",
+		},
+		{
 			name:   "get IX API error",
 			ixUID:  "ix-invalid",
 			format: "table",

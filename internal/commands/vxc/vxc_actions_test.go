@@ -1501,6 +1501,15 @@ func TestGetVXC(t *testing.T) {
 			expectedOutput: "vxc-456",
 		},
 		{
+			name:   "nil response",
+			vxcUID: "vxc-nil",
+			setupMock: func(m *MockVXCService) {
+				m.ForceNilGetVXC = true
+			},
+			outputFormat:  "table",
+			expectedError: "no VXC found with UID: vxc-nil",
+		},
+		{
 			name:   "API error",
 			vxcUID: "vxc-error",
 			setupMock: func(m *MockVXCService) {

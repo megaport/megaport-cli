@@ -68,6 +68,15 @@ func TestGetMCRCmd_WithMockClient(t *testing.T) {
 			expectedOut: []string{`"uid": "mcr-123"`, `"name": "Test MCR"`, `"location_id": 123`},
 		},
 		{
+			name:   "get MCR nil response",
+			mcrID:  "mcr-nil",
+			format: "table",
+			setupMock: func(m *MockMCRService) {
+				m.ForceNilGetMCR = true
+			},
+			expectedError: "no MCR found with UID: mcr-nil",
+		},
+		{
 			name:   "get MCR error",
 			mcrID:  "mcr-invalid",
 			format: "table",
