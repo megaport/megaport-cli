@@ -6,7 +6,6 @@ package locations
 import (
 	"context"
 	"fmt"
-	"strings"
 	"syscall/js"
 
 	"github.com/megaport/megaport-cli/internal/commands/config"
@@ -17,18 +16,6 @@ import (
 // These now use the SDK directly via the WASM HTTP transport!
 func init() {
 	listLocationsFunc = listLocationsWasmImpl
-}
-
-// isAuthError checks if an error is a 401 authentication error
-func isAuthError(err error) bool {
-	if err == nil {
-		return false
-	}
-	errStr := err.Error()
-	return strings.Contains(errStr, "401") ||
-		strings.Contains(errStr, "Bad session token") ||
-		strings.Contains(errStr, "Unauthorized") ||
-		strings.Contains(errStr, "authentication failed")
 }
 
 // listLocationsWasmImpl uses the SDK's LocationService.ListLocations() method
@@ -49,14 +36,6 @@ func listLocationsWasmImpl(ctx context.Context, client *megaport.Client) ([]*meg
 	locations, err := client.LocationService.ListLocationsV3(ctx)
 	if err != nil {
 		js.Global().Get("console").Call("error", fmt.Sprintf("❌ SDK ListLocations failed: %v", err))
-
-		// Check if this is a 401 error and clear the cached token
-		if isAuthError(err) {
-			js.Global().Get("console").Call("warn", "🔓 Authentication token expired or invalid, clearing cache")
-			config.ClearCachedToken()
-			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
-		}
-
 		return nil, fmt.Errorf("error listing locations: %v", err)
 	}
 

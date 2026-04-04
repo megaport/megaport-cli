@@ -76,14 +76,8 @@ func TestListLocationsFunc(t *testing.T) {
 
 	mockSvc.ListLocationsV3Result = testLocationsV3
 
-	originalFunc := config.NewUnauthenticatedClientFunc
-	defer func() { config.NewUnauthenticatedClientFunc = originalFunc }()
-
 	testClient := &megaport.Client{}
 	testClient.LocationService = mockSvc
-	config.NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
-		return testClient, nil
-	}
 
 	originalListLocationsFunc := listLocationsFunc
 	defer func() {
@@ -110,14 +104,8 @@ func TestListLocationsFuncError(t *testing.T) {
 
 	mockSvc.ListLocationsV3Err = expectedError
 
-	originalFunc := config.NewUnauthenticatedClientFunc
-	defer func() { config.NewUnauthenticatedClientFunc = originalFunc }()
-
 	testClient := &megaport.Client{}
 	testClient.LocationService = mockSvc
-	config.NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
-		return testClient, nil
-	}
 
 	originalListLocationsFunc := listLocationsFunc
 	defer func() {
@@ -340,6 +328,7 @@ func TestGetLocation(t *testing.T) {
 		name           string
 		args           []string
 		setupMock      func(*MockLocationsService)
+		clientErr      error
 		expectedErr    string
 		expectedOutput string
 	}{
@@ -373,6 +362,13 @@ func TestGetLocation(t *testing.T) {
 			},
 			expectedErr: "error listing locations",
 		},
+		{
+			name:        "client creation error",
+			args:        []string{"1"},
+			setupMock:   func(m *MockLocationsService) {},
+			clientErr:   fmt.Errorf("config error"),
+			expectedErr: "error creating API client",
+		},
 	}
 
 	for _, tt := range tests {
@@ -389,6 +385,9 @@ func TestGetLocation(t *testing.T) {
 			}()
 
 			config.NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
+				if tt.clientErr != nil {
+					return nil, tt.clientErr
+				}
 				testClient := &megaport.Client{}
 				testClient.LocationService = mockSvc
 				return testClient, nil
@@ -432,6 +431,7 @@ func TestListCountries(t *testing.T) {
 	tests := []struct {
 		name           string
 		setupMock      func(*MockLocationsService)
+		clientErr      error
 		expectedErr    string
 		expectedOutput string
 	}{
@@ -456,6 +456,12 @@ func TestListCountries(t *testing.T) {
 			},
 			expectedOutput: "[]",
 		},
+		{
+			name:        "client creation error",
+			setupMock:   func(m *MockLocationsService) {},
+			clientErr:   fmt.Errorf("config error"),
+			expectedErr: "error creating API client",
+		},
 	}
 
 	for _, tt := range tests {
@@ -472,6 +478,9 @@ func TestListCountries(t *testing.T) {
 			}()
 
 			config.NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
+				if tt.clientErr != nil {
+					return nil, tt.clientErr
+				}
 				testClient := &megaport.Client{}
 				testClient.LocationService = mockSvc
 				return testClient, nil
@@ -506,6 +515,7 @@ func TestListMarketCodes(t *testing.T) {
 	tests := []struct {
 		name           string
 		setupMock      func(*MockLocationsService)
+		clientErr      error
 		expectedErr    string
 		expectedOutput string
 	}{
@@ -530,6 +540,12 @@ func TestListMarketCodes(t *testing.T) {
 			},
 			expectedOutput: "[]",
 		},
+		{
+			name:        "client creation error",
+			setupMock:   func(m *MockLocationsService) {},
+			clientErr:   fmt.Errorf("config error"),
+			expectedErr: "error creating API client",
+		},
 	}
 
 	for _, tt := range tests {
@@ -546,6 +562,9 @@ func TestListMarketCodes(t *testing.T) {
 			}()
 
 			config.NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
+				if tt.clientErr != nil {
+					return nil, tt.clientErr
+				}
 				testClient := &megaport.Client{}
 				testClient.LocationService = mockSvc
 				return testClient, nil
@@ -612,6 +631,7 @@ func TestSearchLocations(t *testing.T) {
 		name           string
 		args           []string
 		setupMock      func(*MockLocationsService)
+		clientErr      error
 		expectedErr    string
 		expectedOutput string
 	}{
@@ -639,6 +659,13 @@ func TestSearchLocations(t *testing.T) {
 			},
 			expectedErr: "error searching locations",
 		},
+		{
+			name:        "client creation error",
+			args:        []string{"Equinix"},
+			setupMock:   func(m *MockLocationsService) {},
+			clientErr:   fmt.Errorf("config error"),
+			expectedErr: "error creating API client",
+		},
 	}
 
 	for _, tt := range tests {
@@ -655,6 +682,9 @@ func TestSearchLocations(t *testing.T) {
 			}()
 
 			config.NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
+				if tt.clientErr != nil {
+					return nil, tt.clientErr
+				}
 				testClient := &megaport.Client{}
 				testClient.LocationService = mockSvc
 				return testClient, nil

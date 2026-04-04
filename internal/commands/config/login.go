@@ -161,18 +161,28 @@ var LoginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 var NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 	var env string
 
-	// Resolve environment using the same priority as Login:
-	// --profile env > --env flag > profile config > env var > default
+	// Resolve environment priority: --env flag > profile config > env var > default.
+	// When --profile is set, the profile's environment is used as a base,
+	// but --env flag still overrides it.
 	if utils.ProfileOverride != "" {
 		manager, err := NewConfigManager()
-		if err == nil {
-			profile, err := manager.GetProfile(utils.ProfileOverride)
-			if err == nil && profile.Environment != "" {
-				env = profile.Environment
-			}
+		if err != nil {
+			return nil, fmt.Errorf("failed to load config for profile %q: %w", utils.ProfileOverride, err)
 		}
+		profile, err := manager.GetProfile(utils.ProfileOverride)
+		if err != nil {
+			return nil, fmt.Errorf("profile %q not found. Use 'megaport config list-profiles' to see available profiles", utils.ProfileOverride)
+		}
+		if profile.Environment != "" {
+			env = profile.Environment
+		}
+		// --env flag overrides the profile's environment
 		if utils.Env != "" {
 			env = utils.Env
+		}
+		// Fall back to env var if still not set
+		if env == "" {
+			env = os.Getenv("MEGAPORT_ENVIRONMENT")
 		}
 	} else {
 		if utils.Env != "" {
