@@ -20,11 +20,16 @@ const (
 )
 
 var (
-	Env             string
+	// Env is the target environment (prod, dev, staging). Set once via flag
+	// binding before command execution; read during login. Not protected by
+	// a mutex because cobra flag parsing and command execution are sequential
+	// on the main goroutine.
+	Env string
+
+	// ProfileOverride is the config profile name. Same set-once semantics as Env.
 	ProfileOverride string
-	OutputFormat    string
-	NoColor         bool
-	ValidFormats    = []string{FormatTable, FormatJSON, FormatCSV, FormatXML}
+
+	ValidFormats = []string{FormatTable, FormatJSON, FormatCSV, FormatXML}
 )
 
 func ShouldDisableColors() bool {
@@ -38,8 +43,7 @@ func ShouldDisableColors() bool {
 		}
 	}
 
-	// Finally check the global variable
-	return NoColor || noColorEnv
+	return noColorEnv
 }
 
 func GetCurrentEnv() string {

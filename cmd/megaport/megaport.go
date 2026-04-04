@@ -210,29 +210,19 @@ func applyDefaultSettings(cmd *cobra.Command) {
 
 // ExecuteWithArgs adds all child commands to the root command and executes with given args.
 func ExecuteWithArgs(args []string) {
-	// Save original args
-	originalArgs := os.Args
-
-	// Set new args for this execution
-	os.Args = args
-
 	// Direct output to our WASM buffer
 	rootCmd.SetOut(wasm.WasmOutputBuffer)
 	rootCmd.SetErr(wasm.WasmOutputBuffer)
 
-	// IMPORTANT: When executing in WASM, set this to ensure args are processed properly
+	// Use cobra's SetArgs instead of mutating the global os.Args
 	rootCmd.SetArgs(args[1:]) // Skip program name (args[0])
 
 	// Execute and capture errors
 	err := rootCmd.Execute()
 
-	// Debug the command result
 	if err != nil {
 		fmt.Fprintf(wasm.WasmOutputBuffer, "Error executing command: %v\n", err)
 	}
-
-	// Restore original args
-	os.Args = originalArgs
 }
 
 func EnsureRootCommandOutput(writer io.Writer) {
