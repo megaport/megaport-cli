@@ -13,6 +13,12 @@ import (
 )
 
 func ExecuteWithArgs(args []string) {
+	// Reset all flags on the command tree so that flag values from a previous
+	// execution don't leak into the current one. Cobra marks flags as "Changed"
+	// after parsing, and this state persists when the same command tree is reused
+	// across multiple WASM invocations.
+	resetAllFlags(rootCmd)
+
 	// Direct output to our WASM buffer
 	rootCmd.SetOut(wasm.WasmOutputBuffer)
 	rootCmd.SetErr(wasm.WasmOutputBuffer)
@@ -45,16 +51,6 @@ func ExecuteWithArgs(args []string) {
 
 		fmt.Fprintf(wasm.WasmOutputBuffer, "Error: %v\n\n", err)
 		fmt.Fprintf(wasm.WasmOutputBuffer, "Run 'megaport-cli --help' to see the list of available commands.\n")
-	}
-}
-
-// New helper function to enable traversal on all commands
-func enableTraversalForAllCommands(cmd *cobra.Command) {
-	cmd.TraverseChildren = true
-	cmd.Flags().ParseErrorsWhitelist.UnknownFlags = true
-
-	for _, subCmd := range cmd.Commands() {
-		enableTraversalForAllCommands(subCmd)
 	}
 }
 
