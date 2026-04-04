@@ -643,9 +643,11 @@ func TestWithFlagCompletionFunc(t *testing.T) {
 }
 
 func TestBuilderChaining(t *testing.T) {
-	// Verify every builder method returns the same builder for chaining
+	// Verify all fluent builder methods return the same builder for chaining.
 	b := NewCommand("test", "test")
+	assert.Equal(t, b, b.WithArgs(cobra.NoArgs))
 	assert.Equal(t, b, b.WithLongDesc("desc"))
+	assert.Equal(t, b, b.WithRunFunc(func(*cobra.Command, []string) error { return nil }))
 	assert.Equal(t, b, b.WithFlag("f1", "", ""))
 	assert.Equal(t, b, b.WithFlagP("f2", "x", "", ""))
 	assert.Equal(t, b, b.WithIntFlag("f3", 0, ""))
@@ -654,11 +656,21 @@ func TestBuilderChaining(t *testing.T) {
 	assert.Equal(t, b, b.WithBoolFlagP("f6", "z", false, ""))
 	assert.Equal(t, b, b.WithDurationFlag("f7", time.Second, ""))
 	assert.Equal(t, b, b.WithDurationFlagP("f8", "d", time.Second, ""))
+	assert.Equal(t, b, b.WithRequiredFlag("f1", "required flag"))
+	assert.Equal(t, b, b.WithDocumentedRequiredFlag("f2", "documented flag"))
+	assert.Equal(t, b, b.WithConditionalRequirements("f1"))
+	assert.Equal(t, b, b.ReflagCmd("f1"))
 	assert.Equal(t, b, b.WithExample("example"))
 	assert.Equal(t, b, b.WithImportantNote("note"))
 	assert.Equal(t, b, b.WithJSONExample("{}"))
 	assert.Equal(t, b, b.WithOptionalFlag("opt", "desc"))
 	assert.Equal(t, b, b.WithValidArgs([]string{"a"}))
+	assert.Equal(t, b, b.WithValidArgsFunction(func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}))
+	assert.Equal(t, b, b.WithFlagCompletionFunc("f1", func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}))
 	assert.Equal(t, b, b.WithRootCmd(&cobra.Command{}))
 	assert.Equal(t, b, b.WithAliases([]string{"t"}))
 }
