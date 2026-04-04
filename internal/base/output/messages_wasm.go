@@ -49,7 +49,8 @@ func createBox(text string, borderColor *color.Color, textColor *color.Color, wi
 
 	// Content lines
 	for _, line := range lines {
-		padding := maxLen - len(line)
+		stripped := StripANSIColors(line)
+		padding := maxLen - len(stripped)
 		result.WriteString(borderColor.Sprint(vertical))
 		result.WriteString(" ")
 		result.WriteString(textColor.Sprint(line))
