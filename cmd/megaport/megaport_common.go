@@ -39,7 +39,7 @@ var (
 	rootCmd = &cobra.Command{
 		Use:           "megaport-cli",
 		Short:         "A CLI tool to interact with the Megaport API",
-		SilenceErrors: true, // Errors are formatted by action functions via output.PrintError
+		SilenceErrors: false, // Allow Cobra to print returned errors so failures are always visible
 		// Long will be set by the help builder later
 	}
 
