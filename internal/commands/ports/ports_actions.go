@@ -320,7 +320,7 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	spinner := output.PrintResourceListing("Port", noColor)
@@ -331,7 +331,7 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 
 	if err != nil {
 		output.PrintError("Failed to list ports: %v", noColor, err)
-		return fmt.Errorf("error listing ports: %v", err)
+		return fmt.Errorf("error listing ports: %w", err)
 	}
 
 	locationID, _ := cmd.Flags().GetInt("location-id")
@@ -359,7 +359,7 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 	err = printPorts(filteredPorts, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print ports: %v", noColor, err)
-		return fmt.Errorf("error printing ports: %v", err)
+		return fmt.Errorf("error printing ports: %w", err)
 	}
 	return nil
 }
@@ -378,7 +378,7 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	portUID := args[0]
@@ -405,7 +405,7 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 		cfg := exportPortConfig(port)
 		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
-			return fmt.Errorf("error marshaling export config: %v", err)
+			return fmt.Errorf("error marshaling export config: %w", err)
 		}
 		fmt.Println(string(jsonBytes))
 		return nil
@@ -414,7 +414,7 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 	err = printPorts([]*megaport.Port{port}, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print ports: %v", noColor, err)
-		return fmt.Errorf("error printing ports: %v", err)
+		return fmt.Errorf("error printing ports: %w", err)
 	}
 	return nil
 }
@@ -426,7 +426,7 @@ func watchGetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	portUID := args[0]
@@ -465,7 +465,7 @@ func GetPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	portUID := args[0]
@@ -507,7 +507,7 @@ func watchPortStatus(cmd *cobra.Command, args []string, noColor bool, outputForm
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	portUID := args[0]
@@ -589,7 +589,7 @@ func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to process input: %v", err)
+		return fmt.Errorf("failed to process input: %w", err)
 	}
 
 	req.WaitForUpdate = true

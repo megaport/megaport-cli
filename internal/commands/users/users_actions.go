@@ -96,7 +96,7 @@ func ListUsers(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	spinner := output.PrintResourceListing("user", noColor)
@@ -107,7 +107,7 @@ func ListUsers(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 
 	if err != nil {
 		output.PrintError("Failed to list users: %v", noColor, err)
-		return fmt.Errorf("error listing users: %v", err)
+		return fmt.Errorf("error listing users: %w", err)
 	}
 
 	position, _ := cmd.Flags().GetString("position")
@@ -127,13 +127,13 @@ func GetUser(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 	employeeID, err := strconv.Atoi(args[0])
 	if err != nil {
 		output.PrintError("Invalid employee ID: %v", noColor, err)
-		return fmt.Errorf("invalid employee ID: %v", err)
+		return fmt.Errorf("invalid employee ID: %w", err)
 	}
 
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	spinner := output.PrintResourceGetting("User", args[0], noColor)
@@ -144,7 +144,7 @@ func GetUser(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 
 	if err != nil {
 		output.PrintError("Failed to get user: %v", noColor, err)
-		return fmt.Errorf("error getting user: %v", err)
+		return fmt.Errorf("error getting user: %w", err)
 	}
 
 	if user == nil {
@@ -192,7 +192,7 @@ func UpdateUser(cmd *cobra.Command, args []string, noColor bool) error {
 	employeeID, err := strconv.Atoi(args[0])
 	if err != nil {
 		output.PrintError("Invalid employee ID: %v", noColor, err)
-		return fmt.Errorf("invalid employee ID: %v", err)
+		return fmt.Errorf("invalid employee ID: %w", err)
 	}
 
 	req, err := buildUpdateUserRequest(cmd, noColor)
@@ -209,7 +209,7 @@ func UpdateUser(cmd *cobra.Command, args []string, noColor bool) error {
 	originalUser, err := getUserFunc(ctx, client, employeeID)
 	if err != nil {
 		output.PrintError("Failed to get current user: %v", noColor, err)
-		return fmt.Errorf("error getting current user: %v", err)
+		return fmt.Errorf("error getting current user: %w", err)
 	}
 
 	spinner := output.PrintResourceUpdating("User", args[0], noColor)
@@ -239,7 +239,7 @@ func DeleteUser(cmd *cobra.Command, args []string, noColor bool) error {
 	employeeID, err := strconv.Atoi(args[0])
 	if err != nil {
 		output.PrintError("Invalid employee ID: %v", noColor, err)
-		return fmt.Errorf("invalid employee ID: %v", err)
+		return fmt.Errorf("invalid employee ID: %w", err)
 	}
 
 	force, _ := cmd.Flags().GetBool("force")
@@ -279,7 +279,7 @@ func DeactivateUser(cmd *cobra.Command, args []string, noColor bool) error {
 	employeeID, err := strconv.Atoi(args[0])
 	if err != nil {
 		output.PrintError("Invalid employee ID: %v", noColor, err)
-		return fmt.Errorf("invalid employee ID: %v", err)
+		return fmt.Errorf("invalid employee ID: %w", err)
 	}
 
 	force, _ := cmd.Flags().GetBool("force")
@@ -320,7 +320,7 @@ func GetUserActivity(cmd *cobra.Command, args []string, noColor bool, outputForm
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	req := &megaport.GetUserActivityRequest{}
@@ -338,7 +338,7 @@ func GetUserActivity(cmd *cobra.Command, args []string, noColor bool, outputForm
 
 	if err != nil {
 		output.PrintError("Failed to get user activity: %v", noColor, err)
-		return fmt.Errorf("error getting user activity: %v", err)
+		return fmt.Errorf("error getting user activity: %w", err)
 	}
 
 	return printUserActivities(activities, outputFormat, noColor)

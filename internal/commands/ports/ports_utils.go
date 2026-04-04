@@ -52,7 +52,7 @@ func filterPorts(ports []*megaport.Port, locationID, portSpeed int, portName str
 		if !includeInactive {
 			if port.ProvisioningStatus == megaport.STATUS_CANCELLED ||
 				port.ProvisioningStatus == megaport.STATUS_DECOMMISSIONED ||
-				port.ProvisioningStatus == "DECOMMISSIONING" {
+				port.ProvisioningStatus == utils.StatusDecommissioning {
 				return false
 			}
 		}

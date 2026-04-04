@@ -311,7 +311,7 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	mcrUID := args[0]
 	prefixFilterListID, err := strconv.Atoi(args[1])
 	if err != nil {
-		return fmt.Errorf("invalid prefix filter list ID: %v", err)
+		return fmt.Errorf("invalid prefix filter list ID: %w", err)
 	}
 
 	interactive, _ := cmd.Flags().GetBool("interactive")
@@ -382,7 +382,7 @@ func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	mcrUID := args[0]
@@ -409,7 +409,7 @@ func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 		cfg := exportMCRConfig(mcr)
 		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
-			return fmt.Errorf("error marshaling export config: %v", err)
+			return fmt.Errorf("error marshaling export config: %w", err)
 		}
 		fmt.Println(string(jsonBytes))
 		return nil
@@ -417,7 +417,7 @@ func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 
 	err = printMCRs([]*megaport.MCR{mcr}, outputFormat, noColor)
 	if err != nil {
-		return fmt.Errorf("error printing MCRs: %v", err)
+		return fmt.Errorf("error printing MCRs: %w", err)
 	}
 	return nil
 }
@@ -428,7 +428,7 @@ func watchGetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 	ctx := context.Background()
 	client, err := config.Login(ctx)
 	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	mcrUID := args[0]
@@ -459,7 +459,7 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	mcrUID := args[0]
@@ -519,7 +519,7 @@ func RestoreMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	mcrUID := args[0]
@@ -528,7 +528,7 @@ func RestoreMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	resp, err := restoreMCRFunc(ctx, client, mcrUID)
 	if err != nil {
-		return fmt.Errorf("error restoring MCR: %v", err)
+		return fmt.Errorf("error restoring MCR: %w", err)
 	}
 
 	if resp.IsRestored {
@@ -546,7 +546,7 @@ func LockMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	mcrUID := args[0]
@@ -555,7 +555,7 @@ func LockMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	_, err = lockMCRFunc(ctx, client, mcrUID)
 	if err != nil {
-		return fmt.Errorf("error locking MCR: %v", err)
+		return fmt.Errorf("error locking MCR: %w", err)
 	}
 
 	output.PrintSuccess("MCR %s locked successfully", noColor, mcrUID)
@@ -568,7 +568,7 @@ func UnlockMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	mcrUID := args[0]
@@ -577,7 +577,7 @@ func UnlockMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	_, err = unlockMCRFunc(ctx, client, mcrUID)
 	if err != nil {
-		return fmt.Errorf("error unlocking MCR: %v", err)
+		return fmt.Errorf("error unlocking MCR: %w", err)
 	}
 
 	output.PrintSuccess("MCR %s unlocked successfully", noColor, mcrUID)
@@ -593,7 +593,7 @@ func ListMCRPrefixFilterLists(cmd *cobra.Command, args []string, noColor bool, o
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	mcrUID := args[0]
@@ -605,12 +605,12 @@ func ListMCRPrefixFilterLists(cmd *cobra.Command, args []string, noColor bool, o
 	spinner.Stop()
 
 	if err != nil {
-		return fmt.Errorf("error listing prefix filter lists: %v", err)
+		return fmt.Errorf("error listing prefix filter lists: %w", err)
 	}
 
 	err = output.PrintOutput(prefixFilterLists, outputFormat, noColor)
 	if err != nil {
-		return fmt.Errorf("error printing prefix filter lists: %v", err)
+		return fmt.Errorf("error printing prefix filter lists: %w", err)
 	}
 	return nil
 }
@@ -624,13 +624,13 @@ func GetMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool, out
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	mcrUID := args[0]
 	prefixFilterListID, err := strconv.Atoi(args[1])
 	if err != nil {
-		return fmt.Errorf("invalid prefix filter list ID: %v", err)
+		return fmt.Errorf("invalid prefix filter list ID: %w", err)
 	}
 
 	spinner := output.PrintResourceGetting("Prefix filter list", fmt.Sprintf("%d", prefixFilterListID), noColor)
@@ -640,17 +640,17 @@ func GetMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool, out
 	spinner.Stop()
 
 	if err != nil {
-		return fmt.Errorf("error getting prefix filter list: %v", err)
+		return fmt.Errorf("error getting prefix filter list: %w", err)
 	}
 
 	op, err := ToPrefixFilterListOutput(prefixFilterList)
 	if err != nil {
-		return fmt.Errorf("error converting prefix filter list: %v", err)
+		return fmt.Errorf("error converting prefix filter list: %w", err)
 	}
 
 	err = output.PrintOutput([]PrefixFilterListOutput{op}, outputFormat, noColor)
 	if err != nil {
-		return fmt.Errorf("error printing prefix filter list: %v", err)
+		return fmt.Errorf("error printing prefix filter list: %w", err)
 	}
 	return nil
 }
@@ -661,13 +661,13 @@ func DeleteMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	mcrUID := args[0]
 	prefixFilterListID, err := strconv.Atoi(args[1])
 	if err != nil {
-		return fmt.Errorf("invalid prefix filter list ID: %v", err)
+		return fmt.Errorf("invalid prefix filter list ID: %w", err)
 	}
 
 	spinner := output.PrintResourceDeleting("Prefix filter list", fmt.Sprintf("%d", prefixFilterListID), noColor)
@@ -677,7 +677,7 @@ func DeleteMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	spinner.Stop()
 
 	if err != nil {
-		return fmt.Errorf("error deleting prefix filter list: %v", err)
+		return fmt.Errorf("error deleting prefix filter list: %w", err)
 	}
 
 	if resp.IsDeleted {
@@ -697,7 +697,7 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	locationID, _ := cmd.Flags().GetInt("location-id")
@@ -717,16 +717,16 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 
 	if err != nil {
 		output.PrintError("Failed to list MCRs: %v", noColor, err)
-		return fmt.Errorf("error listing MCRs: %v", err)
+		return fmt.Errorf("error listing MCRs: %w", err)
 	}
 
 	var activeMCRs []*megaport.MCR
 	if !includeInactive {
 		for _, mcr := range mcrs {
 			if mcr != nil &&
-				mcr.ProvisioningStatus != "DECOMMISSIONED" &&
-				mcr.ProvisioningStatus != "CANCELLED" &&
-				mcr.ProvisioningStatus != "DECOMMISSIONING" {
+				mcr.ProvisioningStatus != megaport.STATUS_DECOMMISSIONED &&
+				mcr.ProvisioningStatus != megaport.STATUS_CANCELLED &&
+				mcr.ProvisioningStatus != utils.StatusDecommissioning {
 				activeMCRs = append(activeMCRs, mcr)
 			}
 		}
@@ -753,7 +753,7 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	err = printMCRs(filteredMCRs, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print MCRs: %v", noColor, err)
-		return fmt.Errorf("error printing MCRs: %v", err)
+		return fmt.Errorf("error printing MCRs: %w", err)
 	}
 	return nil
 }
@@ -808,7 +808,7 @@ func GetMCRStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	mcrUID := args[0]
@@ -821,7 +821,7 @@ func GetMCRStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 	if err != nil {
 		output.PrintError("Failed to get MCR status: %v", noColor, err)
-		return fmt.Errorf("error getting MCR status: %v", err)
+		return fmt.Errorf("error getting MCR status: %w", err)
 	}
 
 	if mcr == nil {
@@ -849,7 +849,7 @@ func watchMCRStatus(cmd *cobra.Command, args []string, noColor bool, outputForma
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	mcrUID := args[0]

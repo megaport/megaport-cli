@@ -47,7 +47,7 @@ func ShowTopology(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	includeInactive, _ := cmd.Flags().GetBool("include-inactive")
@@ -87,15 +87,15 @@ func ShowTopology(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 	if portsErr != nil {
 		output.PrintError("Failed to list ports: %v", noColor, portsErr)
-		return fmt.Errorf("error listing ports: %v", portsErr)
+		return fmt.Errorf("error listing ports: %w", portsErr)
 	}
 	if mcrsErr != nil {
 		output.PrintError("Failed to list MCRs: %v", noColor, mcrsErr)
-		return fmt.Errorf("error listing MCRs: %v", mcrsErr)
+		return fmt.Errorf("error listing MCRs: %w", mcrsErr)
 	}
 	if mvesErr != nil {
 		output.PrintError("Failed to list MVEs: %v", noColor, mvesErr)
-		return fmt.Errorf("error listing MVEs: %v", mvesErr)
+		return fmt.Errorf("error listing MVEs: %w", mvesErr)
 	}
 
 	nodes := buildTopologyNodes(ports, mcrs, mves, typeFilter, includeInactive)
@@ -104,7 +104,7 @@ func ShowTopology(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	case "json":
 		jsonBytes, err := json.MarshalIndent(nodes, "", "  ")
 		if err != nil {
-			return fmt.Errorf("error marshaling topology: %v", err)
+			return fmt.Errorf("error marshaling topology: %w", err)
 		}
 		fmt.Println(string(jsonBytes))
 	case "csv", "xml":
@@ -232,7 +232,7 @@ func vxcToTopology(vxc *megaport.VXC) TopologyVXC {
 // isInactive returns true for statuses that represent decommissioned or deleted resources.
 func isInactive(status string) bool {
 	s := strings.ToUpper(status)
-	return s == "DECOMMISSIONED" || s == "CANCELLED" || s == "DELETED"
+	return s == megaport.STATUS_DECOMMISSIONED || s == megaport.STATUS_CANCELLED || s == "DELETED"
 }
 
 // formatSpeed converts Mbps to a human-readable string.

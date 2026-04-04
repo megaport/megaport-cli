@@ -37,8 +37,9 @@ var (
 
 	// rootCmd is the root command for the CLI
 	rootCmd = &cobra.Command{
-		Use:   "megaport-cli",
-		Short: "A CLI tool to interact with the Megaport API",
+		Use:           "megaport-cli",
+		Short:         "A CLI tool to interact with the Megaport API",
+		SilenceErrors: true, // Errors are formatted by action functions via output.PrintError
 		// Long will be set by the help builder later
 	}
 

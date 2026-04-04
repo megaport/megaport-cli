@@ -1,6 +1,7 @@
 package product
 
 import (
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -14,7 +15,7 @@ func filterProducts(products []megaport.Product, includeInactive bool) []megapor
 			status := p.GetProvisioningStatus()
 			if status == megaport.STATUS_CANCELLED ||
 				status == megaport.STATUS_DECOMMISSIONED ||
-				status == "DECOMMISSIONING" {
+				status == utils.StatusDecommissioning {
 				continue
 			}
 		}

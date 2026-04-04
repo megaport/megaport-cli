@@ -18,7 +18,7 @@ func ListManagedAccounts(cmd *cobra.Command, args []string, noColor bool, output
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	accountName, _ := cmd.Flags().GetString("account-name")
@@ -32,7 +32,7 @@ func ListManagedAccounts(cmd *cobra.Command, args []string, noColor bool, output
 
 	if err != nil {
 		output.PrintError("Failed to list managed accounts: %v", noColor, err)
-		return fmt.Errorf("error listing managed accounts: %v", err)
+		return fmt.Errorf("error listing managed accounts: %w", err)
 	}
 
 	filteredAccounts := filterManagedAccounts(accounts, accountName, accountRef)
@@ -55,7 +55,7 @@ func ListManagedAccounts(cmd *cobra.Command, args []string, noColor bool, output
 	err = printManagedAccounts(filteredAccounts, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print managed accounts: %v", noColor, err)
-		return fmt.Errorf("error printing managed accounts: %v", err)
+		return fmt.Errorf("error printing managed accounts: %w", err)
 	}
 	return nil
 }
@@ -67,7 +67,7 @@ func GetManagedAccount(cmd *cobra.Command, args []string, noColor bool, outputFo
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	companyUID := args[0]
@@ -81,12 +81,12 @@ func GetManagedAccount(cmd *cobra.Command, args []string, noColor bool, outputFo
 
 	if err != nil {
 		output.PrintError("Error getting managed account: %v", noColor, err)
-		return fmt.Errorf("error getting managed account: %v", err)
+		return fmt.Errorf("error getting managed account: %w", err)
 	}
 
 	err = printManagedAccounts([]*megaport.ManagedAccount{account}, outputFormat, noColor)
 	if err != nil {
-		return fmt.Errorf("error printing managed accounts: %v", err)
+		return fmt.Errorf("error printing managed accounts: %w", err)
 	}
 	return nil
 }
