@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
@@ -237,7 +236,6 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport.Client, vxcUID string, noColor bool) (*megaport.UpdateVXCRequest, error) {
 	req := &megaport.UpdateVXCRequest{
 		WaitForUpdate: true,
-		WaitForTime:   5 * time.Minute,
 	}
 
 	fmt.Println("Fetching current VXC details...")

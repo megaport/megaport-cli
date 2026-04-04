@@ -317,6 +317,20 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	flagsProvided := cmd.Flags().Changed("description") || cmd.Flags().Changed("address-family") ||
 		cmd.Flags().Changed("entries")
 
+	// Validate input mode before logging in.
+	if jsonStr == "" && jsonFile == "" && !flagsProvided && !interactive {
+		return fmt.Errorf("at least one field must be updated")
+	}
+
+	// Login once — the client is reused for both prompts and the API mutation.
+	loginCtx, loginCancel := utils.ContextFromCmd(cmd)
+	defer loginCancel()
+	client, err := config.Login(loginCtx)
+	if err != nil {
+		output.PrintError("Error logging in: %v", noColor, err)
+		return err
+	}
+
 	var prefixFilterList *megaport.MCRPrefixFilterList
 	var getErr error
 
@@ -335,32 +349,17 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 			return getErr
 		}
 	} else if interactive {
-		// Login with a non-deadline context for prompts so user think-time
-		// doesn't consume the timeout budget for the subsequent API call.
-		loginCtx, loginCancel := utils.ContextFromCmd(cmd)
-		defer loginCancel()
-		client, loginErr := config.Login(loginCtx)
-		if loginErr != nil {
-			output.PrintError("Error logging in: %v", noColor, loginErr)
-			return loginErr
-		}
+		// Use context.Background for prompts so user think-time doesn't
+		// consume the timeout budget for the subsequent API call.
 		prefixFilterList, getErr = promptForUpdatePrefixFilterListDetails(context.Background(), client, mcrUID, prefixFilterListID, noColor)
 		if getErr != nil {
 			return getErr
 		}
-	} else {
-		return fmt.Errorf("at least one field must be updated")
 	}
 
-	// Create a fresh timed context for the API mutation (not consumed by prompt time).
+	// Fresh timed context for the API mutation (not consumed by prompt time).
 	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
-
-	client, err := config.Login(ctx)
-	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
-		return err
-	}
 
 	spinner := output.PrintResourceUpdating("Prefix Filter List", fmt.Sprintf("%d", prefixFilterListID), noColor)
 	resp, err := modifyMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID, prefixFilterList)
