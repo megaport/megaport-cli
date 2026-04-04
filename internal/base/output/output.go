@@ -347,9 +347,9 @@ func CaptureOutputErr(f func() error) (string, error) {
 		return "", runErr
 	}
 	os.Stdout = w
-	defer func() {
-		os.Stdout = old
-	}()
+	defer func() { os.Stdout = old }()
+	defer r.Close()
+	defer w.Close()
 	runErr := f()
 	w.Close()
 	var buf strings.Builder
