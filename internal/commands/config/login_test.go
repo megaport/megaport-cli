@@ -471,6 +471,26 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 		assert.Empty(t, client.AccessKey)
 		assert.Empty(t, client.SecretKey)
 	})
+
+	t.Run("accepts short alias prod", func(t *testing.T) {
+		utils.Env = "prod"
+		utils.ProfileOverride = ""
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "api.megaport.com")
+	})
+
+	t.Run("accepts short alias dev", func(t *testing.T) {
+		utils.Env = "dev"
+		utils.ProfileOverride = ""
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "api-mpone-dev.megaport.com")
+	})
 }
 
 func TestCredentialSelectionPrecedence(t *testing.T) {

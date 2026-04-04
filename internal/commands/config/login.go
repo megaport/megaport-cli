@@ -22,6 +22,7 @@ import (
 // but --env flag still overrides it.
 // If requireProfile is true, errors are returned when --profile is set but the
 // profile cannot be loaded; otherwise profile errors are silently ignored.
+// The returned value is always a canonical name: "production", "staging", or "development".
 func resolveEnvironment(requireProfile bool) (string, error) {
 	var env string
 
@@ -66,7 +67,23 @@ func resolveEnvironment(requireProfile bool) (string, error) {
 		}
 	}
 
-	return env, nil
+	return normalizeEnvironment(env), nil
+}
+
+// normalizeEnvironment maps short aliases and normalizes the environment string
+// to a canonical name. Accepts "prod"/"production", "dev"/"development",
+// "staging". Unknown values default to "production".
+func normalizeEnvironment(env string) string {
+	switch strings.ToLower(strings.TrimSpace(env)) {
+	case "production", "prod":
+		return "production"
+	case "staging":
+		return "staging"
+	case "development", "dev":
+		return "development"
+	default:
+		return "production"
+	}
 }
 
 // environmentOption returns the megaport.ClientOpt for the given environment string.
@@ -167,7 +184,7 @@ var LoginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 	}
 
 	envOpt := environmentOption(env)
-	httpClient := &http.Client{}
+	httpClient := &http.Client{Timeout: 30 * time.Second}
 
 	megaportClient, err := megaport.New(httpClient, megaport.WithCredentials(accessKey, secretKey), envOpt)
 	if err != nil {
