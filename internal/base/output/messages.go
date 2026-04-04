@@ -207,72 +207,42 @@ func NewSpinnerWithOutput(noColor bool, outputFormat string) *Spinner {
 // NewSpinnerWasm is defined in spinner_wasm.go (WASM) or spinner_native.go (non-WASM)
 
 func (s *Spinner) Start(prefix string) {
-	s.mu.Lock()
-	if s.stopped {
-		s.mu.Unlock()
-		return
-	}
-
-	// If WASM spinner is available, delegate to it
-	if s.wasmSpinner != nil {
-		s.mu.Unlock()
-		s.wasmSpinner.Start(prefix)
-		return
-	}
-	s.mu.Unlock()
-
-	go func() {
-		for i := 0; ; i++ {
-			select {
-			case <-s.stop:
-				return
-			default:
-				s.mu.Lock()
-				if s.stopped {
-					s.mu.Unlock()
-					return
-				}
-
-				// Select spinner characters based on style
-				var chars []string
-				switch s.style {
-				case SpinnerStyleWASM:
-					chars = spinnerCharsWasm
-				case SpinnerStyleFancy:
-					chars = spinnerCharsFancy
-				default:
-					chars = spinnerChars
-				}
-
-				frame := chars[i%len(chars)]
-
-				// Enhanced styling for fancy/wasm spinners
-				var styledFrame string
-				if s.noColor {
-					styledFrame = frame
-				} else {
-					if s.style == SpinnerStyleFancy || s.style == SpinnerStyleWASM {
-						colorFunc := spinnerColors[(i/len(chars))%len(spinnerColors)]
-						styledFrame = colorFunc(frame)
-					} else {
-						styledFrame = color.CyanString(frame)
-					}
-				}
-
-				if s.outputFormat == "json" || !IsTerminal() {
-					fmt.Fprintf(os.Stderr, "\r\033[K%s %s", styledFrame, prefix)
-				} else {
-					fmt.Printf("\r\033[K%s %s", styledFrame, prefix)
-				}
-				s.mu.Unlock()
-				time.Sleep(s.frameRate)
-			}
-		}
-	}()
+	s.runLoop(prefix, nil)
 }
 
 // StartWithElapsed starts the spinner, appending "(Xs elapsed)" to the prefix each animation tick.
 func (s *Spinner) StartWithElapsed(prefix string) {
+	start := time.Now()
+	s.runLoop(prefix, &start)
+}
+
+// renderFrame returns the styled spinner character for frame index i.
+func (s *Spinner) renderFrame(i int) string {
+	var chars []string
+	switch s.style {
+	case SpinnerStyleWASM:
+		chars = spinnerCharsWasm
+	case SpinnerStyleFancy:
+		chars = spinnerCharsFancy
+	default:
+		chars = spinnerChars
+	}
+
+	frame := chars[i%len(chars)]
+
+	if s.noColor {
+		return frame
+	}
+	if s.style == SpinnerStyleFancy || s.style == SpinnerStyleWASM {
+		colorFunc := spinnerColors[(i/len(chars))%len(spinnerColors)]
+		return colorFunc(frame)
+	}
+	return color.CyanString(frame)
+}
+
+// runLoop is the shared spinner goroutine logic. If startTime is non-nil,
+// an elapsed duration is appended to the message on each tick.
+func (s *Spinner) runLoop(prefix string, startTime *time.Time) {
 	s.mu.Lock()
 	if s.stopped {
 		s.mu.Unlock()
@@ -286,7 +256,6 @@ func (s *Spinner) StartWithElapsed(prefix string) {
 	}
 	s.mu.Unlock()
 
-	start := time.Now()
 	go func() {
 		for i := 0; ; i++ {
 			select {
@@ -299,32 +268,13 @@ func (s *Spinner) StartWithElapsed(prefix string) {
 					return
 				}
 
-				var chars []string
-				switch s.style {
-				case SpinnerStyleWASM:
-					chars = spinnerCharsWasm
-				case SpinnerStyleFancy:
-					chars = spinnerCharsFancy
-				default:
-					chars = spinnerChars
+				styledFrame := s.renderFrame(i)
+
+				msg := prefix
+				if startTime != nil {
+					elapsed := time.Since(*startTime).Truncate(time.Second)
+					msg = fmt.Sprintf("%s (%s elapsed)", prefix, elapsed)
 				}
-
-				frame := chars[i%len(chars)]
-
-				var styledFrame string
-				if s.noColor {
-					styledFrame = frame
-				} else {
-					if s.style == SpinnerStyleFancy || s.style == SpinnerStyleWASM {
-						colorFunc := spinnerColors[(i/len(chars))%len(spinnerColors)]
-						styledFrame = colorFunc(frame)
-					} else {
-						styledFrame = color.CyanString(frame)
-					}
-				}
-
-				elapsed := time.Since(start).Truncate(time.Second)
-				msg := fmt.Sprintf("%s (%s elapsed)", prefix, elapsed)
 
 				if s.outputFormat == "json" || !IsTerminal() {
 					fmt.Fprintf(os.Stderr, "\r\033[K%s %s", styledFrame, msg)

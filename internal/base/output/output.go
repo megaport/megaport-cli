@@ -314,6 +314,8 @@ func printXML[T OutputFields](data []T) error {
 // osPipe is a variable so tests can replace it to simulate pipe failures.
 var osPipe = os.Pipe
 
+// CaptureOutput runs f and returns everything it writes to stdout.
+// Must not be called reentrantly (the global stdoutMu is not reentrant).
 func CaptureOutput(f func()) string {
 	stdoutMu.Lock()
 	defer stdoutMu.Unlock()
@@ -325,11 +327,11 @@ func CaptureOutput(f func()) string {
 		return ""
 	}
 	os.Stdout = w
+	defer func() { os.Stdout = old }()
 	f()
 	w.Close()
 	out, _ := io.ReadAll(r)
 	r.Close()
-	os.Stdout = old
 	return string(out)
 }
 
