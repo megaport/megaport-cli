@@ -47,7 +47,7 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	active, _ := cmd.Flags().GetBool("active")
@@ -74,7 +74,7 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		output.PrintError("Failed to create service key: %v", noColor, err)
-		return fmt.Errorf("error creating service key: %v", err)
+		return fmt.Errorf("error creating service key: %w", err)
 	}
 
 	output.PrintResourceCreated("Service Key", resp.ServiceKeyUID, noColor)
@@ -93,7 +93,7 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	req := &megaport.UpdateServiceKeyRequest{
@@ -112,7 +112,7 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		output.PrintError("Failed to update service key: %v", noColor, err)
-		return fmt.Errorf("error updating service key: %v", err)
+		return fmt.Errorf("error updating service key: %w", err)
 	}
 
 	if resp.IsUpdated {
@@ -131,7 +131,7 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	spinner := output.PrintResourceListing("Service Key", noColor)
@@ -147,7 +147,7 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 
 	if err != nil {
 		output.PrintError("Failed to list service keys: %v", noColor, err)
-		return fmt.Errorf("error listing service keys: %v", err)
+		return fmt.Errorf("error listing service keys: %w", err)
 	}
 
 	serviceKeys := resp.ServiceKeys
@@ -172,7 +172,7 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 		op, err := ToServiceKeyOutput(sk)
 		if err != nil {
 			output.PrintError("Failed to convert service key: %v", noColor, err)
-			return fmt.Errorf("error converting service key: %v", err)
+			return fmt.Errorf("error converting service key: %w", err)
 		}
 		outputs = append(outputs, op)
 	}
@@ -188,7 +188,7 @@ func GetServiceKey(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	keyID := args[0]
@@ -201,13 +201,13 @@ func GetServiceKey(cmd *cobra.Command, args []string, noColor bool, outputFormat
 
 	if err != nil {
 		output.PrintError("Failed to get service key: %v", noColor, err)
-		return fmt.Errorf("error getting service key: %v", err)
+		return fmt.Errorf("error getting service key: %w", err)
 	}
 
 	op, err := ToServiceKeyOutput(resp)
 	if err != nil {
 		output.PrintError("Failed to convert service key: %v", noColor, err)
-		return fmt.Errorf("error converting service key: %v", err)
+		return fmt.Errorf("error converting service key: %w", err)
 	}
 	return output.PrintOutput([]ServiceKeyOutput{op}, outputFormat, noColor)
 }

@@ -37,7 +37,7 @@ func ListIXs(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	name, _ := cmd.Flags().GetString("name")
@@ -60,7 +60,7 @@ func ListIXs(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 
 	if err != nil {
 		output.PrintError("Failed to list IXs: %v", noColor, err)
-		return fmt.Errorf("error listing IXs: %v", err)
+		return fmt.Errorf("error listing IXs: %w", err)
 	}
 
 	if !includeInactive {
@@ -69,7 +69,7 @@ func ListIXs(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 			if ix != nil &&
 				ix.ProvisioningStatus != megaport.STATUS_DECOMMISSIONED &&
 				ix.ProvisioningStatus != megaport.STATUS_CANCELLED &&
-				ix.ProvisioningStatus != "DECOMMISSIONING" {
+				ix.ProvisioningStatus != utils.StatusDecommissioning {
 				activeIXs = append(activeIXs, ix)
 			}
 		}
@@ -96,7 +96,7 @@ func ListIXs(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 	err = printIXs(filteredIXs, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print IXs: %v", noColor, err)
-		return fmt.Errorf("error printing IXs: %v", err)
+		return fmt.Errorf("error printing IXs: %w", err)
 	}
 	return nil
 }
@@ -108,7 +108,7 @@ func GetIX(cmd *cobra.Command, args []string, noColor bool, outputFormat string)
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	ixUID := args[0]
@@ -135,7 +135,7 @@ func GetIX(cmd *cobra.Command, args []string, noColor bool, outputFormat string)
 		cfg := exportIXConfig(ix)
 		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
-			return fmt.Errorf("error marshaling export config: %v", err)
+			return fmt.Errorf("error marshaling export config: %w", err)
 		}
 		fmt.Println(string(jsonBytes))
 		return nil
@@ -143,7 +143,7 @@ func GetIX(cmd *cobra.Command, args []string, noColor bool, outputFormat string)
 
 	err = printIXs([]*megaport.IX{ix}, outputFormat, noColor)
 	if err != nil {
-		return fmt.Errorf("error printing IXs: %v", err)
+		return fmt.Errorf("error printing IXs: %w", err)
 	}
 	return nil
 }
@@ -156,7 +156,7 @@ func GetIXStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	ixUID := args[0]
@@ -169,7 +169,7 @@ func GetIXStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 
 	if err != nil {
 		output.PrintError("Failed to get IX status: %v", noColor, err)
-		return fmt.Errorf("error getting IX status: %v", err)
+		return fmt.Errorf("error getting IX status: %w", err)
 	}
 
 	if ix == nil {
@@ -400,7 +400,7 @@ func DeleteIX(cmd *cobra.Command, args []string, noColor bool) error {
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	ixUID := args[0]

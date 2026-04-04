@@ -17,6 +17,10 @@ const (
 	FormatJSON  = "json"
 	FormatCSV   = "csv"
 	FormatXML   = "xml"
+
+	// StatusDecommissioning is used for filtering inactive resources. The SDK
+	// exports STATUS_CANCELLED and STATUS_DECOMMISSIONED but not this one.
+	StatusDecommissioning = "DECOMMISSIONING"
 )
 
 var (

@@ -41,7 +41,7 @@ func StatusDashboard(cmd *cobra.Command, args []string, noColor bool, outputForm
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	includeInactive, _ := cmd.Flags().GetBool("include-inactive")
@@ -67,7 +67,7 @@ func StatusDashboard(cmd *cobra.Command, args []string, noColor bool, outputForm
 		mu.Lock()
 		defer mu.Unlock()
 		if fetchErr != nil {
-			errs = append(errs, fmt.Errorf("ports: %v", fetchErr))
+			errs = append(errs, fmt.Errorf("ports: %w", fetchErr))
 		} else {
 			ports = result
 		}
@@ -79,7 +79,7 @@ func StatusDashboard(cmd *cobra.Command, args []string, noColor bool, outputForm
 		mu.Lock()
 		defer mu.Unlock()
 		if fetchErr != nil {
-			errs = append(errs, fmt.Errorf("MCRs: %v", fetchErr))
+			errs = append(errs, fmt.Errorf("MCRs: %w", fetchErr))
 		} else {
 			mcrs = result
 		}
@@ -91,7 +91,7 @@ func StatusDashboard(cmd *cobra.Command, args []string, noColor bool, outputForm
 		mu.Lock()
 		defer mu.Unlock()
 		if fetchErr != nil {
-			errs = append(errs, fmt.Errorf("MVEs: %v", fetchErr))
+			errs = append(errs, fmt.Errorf("MVEs: %w", fetchErr))
 		} else {
 			mves = result
 		}
@@ -103,7 +103,7 @@ func StatusDashboard(cmd *cobra.Command, args []string, noColor bool, outputForm
 		mu.Lock()
 		defer mu.Unlock()
 		if fetchErr != nil {
-			errs = append(errs, fmt.Errorf("VXCs: %v", fetchErr))
+			errs = append(errs, fmt.Errorf("VXCs: %w", fetchErr))
 		} else {
 			vxcs = result
 		}
@@ -115,7 +115,7 @@ func StatusDashboard(cmd *cobra.Command, args []string, noColor bool, outputForm
 		mu.Lock()
 		defer mu.Unlock()
 		if fetchErr != nil {
-			errs = append(errs, fmt.Errorf("IXs: %v", fetchErr))
+			errs = append(errs, fmt.Errorf("IXs: %w", fetchErr))
 		} else {
 			ixs = result
 		}
@@ -138,7 +138,7 @@ func StatusDashboard(cmd *cobra.Command, args []string, noColor bool, outputForm
 			if p != nil &&
 				p.ProvisioningStatus != megaport.STATUS_DECOMMISSIONED &&
 				p.ProvisioningStatus != megaport.STATUS_CANCELLED &&
-				p.ProvisioningStatus != "DECOMMISSIONING" {
+				p.ProvisioningStatus != utils.StatusDecommissioning {
 				activePorts = append(activePorts, p)
 			}
 		}
@@ -148,12 +148,12 @@ func StatusDashboard(cmd *cobra.Command, args []string, noColor bool, outputForm
 	dashboard, err := buildDashboard(ports, mcrs, mves, vxcs, ixs)
 	if err != nil {
 		output.PrintError("Failed to build dashboard: %v", noColor, err)
-		return fmt.Errorf("error building dashboard: %v", err)
+		return fmt.Errorf("error building dashboard: %w", err)
 	}
 
 	if err := printDashboard(dashboard, outputFormat, noColor); err != nil {
 		output.PrintError("Failed to print dashboard: %v", noColor, err)
-		return fmt.Errorf("error printing dashboard: %v", err)
+		return fmt.Errorf("error printing dashboard: %w", err)
 	}
 
 	return nil

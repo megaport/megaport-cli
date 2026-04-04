@@ -60,7 +60,7 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	name, _ := cmd.Flags().GetString("name")
@@ -105,7 +105,7 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 
 	if err != nil {
 		output.PrintError("Failed to list VXCs: %v", noColor, err)
-		return fmt.Errorf("error listing VXCs: %v", err)
+		return fmt.Errorf("error listing VXCs: %w", err)
 	}
 
 	var activeVXCs []*megaport.VXC
@@ -114,7 +114,7 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 			if vxc != nil &&
 				vxc.ProvisioningStatus != megaport.STATUS_DECOMMISSIONED &&
 				vxc.ProvisioningStatus != megaport.STATUS_CANCELLED &&
-				vxc.ProvisioningStatus != "DECOMMISSIONING" {
+				vxc.ProvisioningStatus != utils.StatusDecommissioning {
 				activeVXCs = append(activeVXCs, vxc)
 			}
 		}
@@ -141,7 +141,7 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	err = printVXCs(filteredVXCs, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print VXCs: %v", noColor, err)
-		return fmt.Errorf("error printing VXCs: %v", err)
+		return fmt.Errorf("error printing VXCs: %w", err)
 	}
 	return nil
 }
@@ -160,7 +160,7 @@ func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	vxcUID := args[0]
@@ -187,7 +187,7 @@ func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 		cfg := exportVXCConfig(vxc)
 		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
-			return fmt.Errorf("error marshaling export config: %v", err)
+			return fmt.Errorf("error marshaling export config: %w", err)
 		}
 		fmt.Println(string(jsonBytes))
 		return nil
@@ -196,7 +196,7 @@ func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	err = printVXCs([]*megaport.VXC{vxc}, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print VXCs: %v", noColor, err)
-		return fmt.Errorf("error printing VXCs: %v", err)
+		return fmt.Errorf("error printing VXCs: %w", err)
 	}
 	return nil
 }
@@ -208,7 +208,7 @@ func watchGetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	vxcUID := args[0]
@@ -289,7 +289,7 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	req, err := buildVXCRequest(cmd, ctx, client, noColor)
@@ -356,7 +356,7 @@ func ValidateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	req, err := buildVXCRequest(cmd, ctx, client, noColor)
@@ -398,7 +398,7 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		output.PrintError("Failed to retrieve original VXC details: %v", noColor, err)
-		return fmt.Errorf("failed to retrieve original VXC details: %v", err)
+		return fmt.Errorf("failed to retrieve original VXC details: %w", err)
 	}
 
 	var req *megaport.UpdateVXCRequest
@@ -442,7 +442,7 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		output.PrintError("Failed to update VXC: %v", noColor, err)
-		return fmt.Errorf("failed to update VXC: %v", err)
+		return fmt.Errorf("failed to update VXC: %w", err)
 	}
 
 	getUpdatedSpinner := output.PrintResourceGetting("VXC", vxcUID, noColor)
@@ -558,7 +558,7 @@ func GetVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	vxcUID := args[0]
@@ -571,7 +571,7 @@ func GetVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 	if err != nil {
 		output.PrintError("Failed to get VXC status: %v", noColor, err)
-		return fmt.Errorf("error getting VXC status: %v", err)
+		return fmt.Errorf("error getting VXC status: %w", err)
 	}
 
 	if vxc == nil {
@@ -598,7 +598,7 @@ func watchVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputForma
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("error logging in: %w", err)
 	}
 
 	vxcUID := args[0]
