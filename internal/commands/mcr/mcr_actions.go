@@ -349,9 +349,10 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 			return getErr
 		}
 	} else if interactive {
-		// Use context.Background for prompts so user think-time doesn't
-		// consume the timeout budget for the subsequent API call.
-		prefixFilterList, getErr = promptForUpdatePrefixFilterListDetails(context.Background(), client, mcrUID, prefixFilterListID, noColor)
+		// Use cmd.Context() for API work during interactive input so it
+		// remains cancellable. A fresh timed context is created below for
+		// the mutation so user think-time doesn't consume the update timeout.
+		prefixFilterList, getErr = promptForUpdatePrefixFilterListDetails(cmd.Context(), client, mcrUID, prefixFilterListID, noColor)
 		if getErr != nil {
 			return getErr
 		}

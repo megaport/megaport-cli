@@ -868,18 +868,9 @@ func TestBuildUpdateVXCRequestFromPrompt(t *testing.T) {
 			mockSvc := &MockVXCService{
 				GetVXCResponse: existingVXC,
 			}
-			cleanupLogin := testutil.SetupLogin(func(c *megaport.Client) {
-				c.VXCService = mockSvc
-			})
-			defer cleanupLogin()
+			mockClient := &megaport.Client{VXCService: mockSvc}
 
-			originalGetVXC := getVXCFunc
-			getVXCFunc = func(_ context.Context, _ *megaport.Client, _ string) (*megaport.VXC, error) {
-				return existingVXC, nil
-			}
-			defer func() { getVXCFunc = originalGetVXC }()
-
-			req, err := buildUpdateVXCRequestFromPrompt(context.Background(), &megaport.Client{VXCService: &MockVXCService{}}, "vxc-uid-123", true)
+			req, err := buildUpdateVXCRequestFromPrompt(context.Background(), mockClient, "vxc-uid-123", true)
 			assert.NoError(t, err)
 			assert.NotNil(t, req)
 			tc.verify(t, req)
