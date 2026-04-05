@@ -230,6 +230,70 @@ func TestRetryAfterDelay(t *testing.T) {
 	t.Run("429 without header", func(t *testing.T) {
 		assert.Equal(t, time.Duration(0), retryAfterDelay(apiError(429, "")))
 	})
+	t.Run("429 with HTTP-date in future", func(t *testing.T) {
+		future := time.Now().Add(10 * time.Second).UTC().Format(http.TimeFormat)
+		d := retryAfterDelay(apiError(429, future))
+		assert.Greater(t, d, 5*time.Second, "should parse future HTTP-date")
+		assert.LessOrEqual(t, d, 11*time.Second)
+	})
+	t.Run("429 with HTTP-date in past", func(t *testing.T) {
+		past := time.Now().Add(-10 * time.Second).UTC().Format(http.TimeFormat)
+		assert.Equal(t, time.Duration(0), retryAfterDelay(apiError(429, past)))
+	})
+	t.Run("429 with invalid value", func(t *testing.T) {
+		assert.Equal(t, time.Duration(0), retryAfterDelay(apiError(429, "not-a-number")))
+	})
+}
+
+func TestRetryWithBackoff_RetryAfterCappedAtMaxDelay(t *testing.T) {
+	calls := 0
+	start := time.Now()
+	opts := RetryOpts{
+		MaxRetries:        1,
+		InitialDelay:      1 * time.Millisecond,
+		MaxDelay:          500 * time.Millisecond,
+		BackoffMultiplier: 2.0,
+	}
+	err := RetryWithBackoff(context.Background(), opts, func(ctx context.Context) error {
+		calls++
+		if calls == 1 {
+			return apiError(429, "60") // Server says wait 60s
+		}
+		return nil
+	})
+	elapsed := time.Since(start)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, calls)
+	// Should have waited ~500ms (MaxDelay cap), not 60s
+	assert.Less(t, elapsed, 2*time.Second)
+}
+
+func TestLogRetry_VerboseMode(t *testing.T) {
+	oldVerbose := Verbose
+	defer func() { Verbose = oldVerbose }()
+
+	Verbose = true
+	// Should not panic; just exercises the verbose branch
+	logRetry(1, 3, 100*time.Millisecond, fmt.Errorf("test error"))
+}
+
+func TestLogRetry_NonVerboseEarlyAttempt(t *testing.T) {
+	oldVerbose := Verbose
+	defer func() { Verbose = oldVerbose }()
+
+	Verbose = false
+	// Early attempt, non-verbose: should not log (exercises the skip branch)
+	logRetry(1, 3, 100*time.Millisecond, fmt.Errorf("test error"))
+}
+
+func TestIsVerboseMode(t *testing.T) {
+	oldVerbose := Verbose
+	defer func() { Verbose = oldVerbose }()
+
+	Verbose = false
+	assert.False(t, isVerboseMode())
+	Verbose = true
+	assert.True(t, isVerboseMode())
 }
 
 // fastOpts returns retry options with minimal delays for fast tests.
