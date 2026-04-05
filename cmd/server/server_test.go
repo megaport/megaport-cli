@@ -255,7 +255,6 @@ func TestAuthenticatedProxyHandler_ValidSessionWithQueryParams(t *testing.T) {
 func TestAuthenticatedProxyHandler_StagingHost(t *testing.T) {
 	var receivedHost string
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedHost = r.Host
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer backend.Close()
@@ -268,7 +267,7 @@ func TestAuthenticatedProxyHandler_StagingHost(t *testing.T) {
 
 	origClient := optimizedHTTPClient
 	defer func() { optimizedHTTPClient = origClient }()
-	// Capture the original URL host before redirect
+	// Capture the original URL host before redirect rewrites it
 	optimizedHTTPClient = &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			receivedHost = req.URL.Host
@@ -452,24 +451,23 @@ func TestProxyHandler_NoQueryParamsExceptBase(t *testing.T) {
 }
 
 func TestProxyHandler_ForwardsQueryParams(t *testing.T) {
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest("GET", "/proxy/v2/products?base=api.megaport.com&limit=10", nil)
-
-	// Override client so the request doesn't fail connecting to api.megaport.com
-	origClient := optimizedHTTPClient
-	defer func() { optimizedHTTPClient = origClient }()
-
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "10", r.URL.Query().Get("limit"))
+		assert.Empty(t, r.URL.Query().Get("base"))
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer backend.Close()
+
+	origClient := optimizedHTTPClient
+	defer func() { optimizedHTTPClient = origClient }()
 	optimizedHTTPClient = redirectClientTo(backend)
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest("GET", "/proxy/v2/products?base=api.megaport.com&limit=10", nil)
 
 	proxyHandler(w, r)
 
-	// Should NOT be 403 (SSRF rejection) — the host is allowed.
-	assert.NotEqual(t, http.StatusForbidden, w.Code)
-	assert.NotEqual(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestAddCorsHeaders_OptionsPreflightReturns200(t *testing.T) {
@@ -514,6 +512,9 @@ func TestAddCorsHeaders_SetsMIMETypes(t *testing.T) {
 			r.Header.Set("Origin", "http://localhost:8080")
 
 			handler.ServeHTTP(w, r)
+
+			// Guard: ensure inner handler was actually called
+			assert.Equal(t, http.StatusOK, w.Code)
 		})
 	}
 }
