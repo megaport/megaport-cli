@@ -48,13 +48,18 @@ func init() {
 		}
 
 		// Set verbosity level based on flags
+		utils.Verbose = verbose
 		if quiet {
 			output.SetVerbosity("quiet")
 		} else if verbose {
 			output.SetVerbosity("verbose")
-			utils.Verbose = true
 		} else {
 			output.SetVerbosity("normal")
+		}
+
+		// Validate retry flags
+		if utils.MaxRetries < 0 {
+			return fmt.Errorf("--max-retries must be >= 0, got %d", utils.MaxRetries)
 		}
 
 		return nil

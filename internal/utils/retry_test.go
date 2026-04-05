@@ -97,7 +97,7 @@ func TestRetryWithBackoff_RetryableStatusCodes(t *testing.T) {
 				calls++
 				return apiError(code, "")
 			})
-			assert.Equal(t, 4, calls, "retryable status %d should exhaust all retries", code)
+			assert.Equalf(t, 4, calls, "retryable status %d should exhaust all retries", code)
 		})
 	}
 }

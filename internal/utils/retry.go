@@ -73,6 +73,10 @@ func RetryWithBackoff(ctx context.Context, opts RetryOpts, fn func(ctx context.C
 		if wait == 0 {
 			wait = addJitter(delay)
 		}
+		// Ensure jittered wait also respects the hard cap.
+		if wait > opts.MaxDelay {
+			wait = opts.MaxDelay
+		}
 
 		logRetry(attempt+1, opts.MaxRetries, wait, err)
 
@@ -139,7 +143,7 @@ func retryAfterDelay(err error) time.Duration {
 	if apiErr.Response.StatusCode != http.StatusTooManyRequests {
 		return 0
 	}
-	ra := apiErr.Response.Header.Get("Retry-After")
+	ra := strings.TrimSpace(apiErr.Response.Header.Get("Retry-After"))
 	if ra == "" {
 		return 0
 	}
@@ -164,16 +168,18 @@ func addJitter(d time.Duration) time.Duration {
 }
 
 // logRetry prints a retry message to stderr when verbose mode is active.
+// attempt is 1-based (retry number), totalAttempts includes the initial call.
 func logRetry(attempt, maxRetries int, wait time.Duration, err error) {
+	totalAttempts := maxRetries + 1
+	currentAttempt := attempt + 1 // +1 because attempt is retry index, display is overall attempt
 	// Always log on the final retry attempt regardless of verbosity.
 	if attempt == maxRetries {
-		fmt.Fprintf(os.Stderr, "Retrying in %s (attempt %d/%d): %v\n", wait.Round(time.Millisecond), attempt, maxRetries, err)
+		fmt.Fprintf(os.Stderr, "Retrying in %s (attempt %d/%d): %v\n", wait.Round(time.Millisecond), currentAttempt, totalAttempts, err)
 		return
 	}
 	// For earlier attempts, only log in verbose mode.
-	// Avoid importing output package to prevent circular deps — check env hint.
 	if isVerboseMode() {
-		fmt.Fprintf(os.Stderr, "Retrying in %s (attempt %d/%d): %v\n", wait.Round(time.Millisecond), attempt, maxRetries, err)
+		fmt.Fprintf(os.Stderr, "Retrying in %s (attempt %d/%d): %v\n", wait.Round(time.Millisecond), currentAttempt, totalAttempts, err)
 	}
 }
 
