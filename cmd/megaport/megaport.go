@@ -48,7 +48,6 @@ func init() {
 		}
 
 		// Set verbosity level based on flags
-		utils.Verbose = verbose
 		if quiet {
 			output.SetVerbosity("quiet")
 		} else if verbose {

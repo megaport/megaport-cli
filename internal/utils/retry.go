@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/output"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -80,10 +81,14 @@ func RetryWithBackoff(ctx context.Context, opts RetryOpts, fn func(ctx context.C
 
 		logRetry(attempt+1, opts.MaxRetries, wait, err)
 
+		timer := time.NewTimer(wait)
 		select {
 		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
+			}
 			return ctx.Err()
-		case <-time.After(wait):
+		case <-timer.C:
 		}
 
 		// Increase delay for next attempt.
@@ -113,7 +118,7 @@ func isRetryable(err error) bool {
 	// Check for transient network errors.
 	var netErr net.Error
 	if errors.As(err, &netErr) {
-		return netErr.Timeout()
+		return netErr.Timeout() || netErr.Temporary() //nolint:staticcheck // Temporary is deprecated but still useful for transient network errors
 	}
 
 	// Check for common transient error strings (connection reset, etc.).
@@ -178,17 +183,8 @@ func logRetry(attempt, maxRetries int, wait time.Duration, err error) {
 		return
 	}
 	// For earlier attempts, only log in verbose mode.
-	if isVerboseMode() {
+	if output.IsVerbose() {
 		fmt.Fprintf(os.Stderr, "Retrying in %s (attempt %d/%d): %v\n", wait.Round(time.Millisecond), currentAttempt, totalAttempts, err)
 	}
 }
 
-// isVerboseMode checks whether verbose mode is active. We duplicate a minimal
-// check here rather than importing the output package, which would create a
-// circular dependency (output -> utils -> output).
-func isVerboseMode() bool {
-	// The output package stores verbosity in an atomic.Value. We can't read
-	// that from here, so we fall back to checking whether --verbose was set
-	// via a package-level variable that the root command populates.
-	return Verbose
-}

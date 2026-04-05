@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/output"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -269,31 +270,18 @@ func TestRetryWithBackoff_RetryAfterCappedAtMaxDelay(t *testing.T) {
 }
 
 func TestLogRetry_VerboseMode(t *testing.T) {
-	oldVerbose := Verbose
-	defer func() { Verbose = oldVerbose }()
+	output.SetVerbosity("verbose")
+	defer output.SetVerbosity("normal")
 
-	Verbose = true
 	// Should not panic; just exercises the verbose branch
 	logRetry(1, 3, 100*time.Millisecond, fmt.Errorf("test error"))
 }
 
 func TestLogRetry_NonVerboseEarlyAttempt(t *testing.T) {
-	oldVerbose := Verbose
-	defer func() { Verbose = oldVerbose }()
+	output.SetVerbosity("normal")
 
-	Verbose = false
 	// Early attempt, non-verbose: should not log (exercises the skip branch)
 	logRetry(1, 3, 100*time.Millisecond, fmt.Errorf("test error"))
-}
-
-func TestIsVerboseMode(t *testing.T) {
-	oldVerbose := Verbose
-	defer func() { Verbose = oldVerbose }()
-
-	Verbose = false
-	assert.False(t, isVerboseMode())
-	Verbose = true
-	assert.True(t, isVerboseMode())
 }
 
 // fastOpts returns retry options with minimal delays for fast tests.
