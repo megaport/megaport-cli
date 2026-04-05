@@ -32,79 +32,35 @@ func exportPortConfig(port *megaport.Port) map[string]interface{} {
 }
 
 func buildPortRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyPortRequest, error) {
-	interactive, _ := cmd.Flags().GetBool("interactive")
-	jsonStr, _ := cmd.Flags().GetString("json")
-	jsonFile, _ := cmd.Flags().GetString("json-file")
-
-	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("term") ||
-		cmd.Flags().Changed("port-speed") || cmd.Flags().Changed("location-id") ||
-		cmd.Flags().Changed("marketplace-visibility")
-
-	if jsonStr != "" || jsonFile != "" {
-		output.PrintInfo("Using JSON input", noColor)
-		req, err := processJSONPortInput(jsonStr, jsonFile)
-		if err != nil {
-			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return nil, err
-		}
-		return req, nil
-	} else if flagsProvided {
-		output.PrintInfo("Using flag input", noColor)
-		req, err := processFlagPortInput(cmd)
-		if err != nil {
-			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return nil, err
-		}
-		return req, nil
-	} else if interactive {
-		output.PrintInfo("Starting interactive mode", noColor)
-		req, err := promptForPortDetails(noColor)
-		if err != nil {
-			output.PrintError("Interactive input failed: %v", noColor, err)
-			return nil, err
-		}
-		return req, nil
-	}
-	output.PrintError("No input provided", noColor)
-	return nil, fmt.Errorf("no input provided, use --interactive, --json, or flags to specify port details")
+	return utils.ResolveInput(utils.InputConfig[*megaport.BuyPortRequest]{
+		ResourceName: "port",
+		Cmd:          cmd,
+		NoColor:      noColor,
+		FlagsProvided: func() bool {
+			return cmd.Flags().Changed("name") || cmd.Flags().Changed("term") ||
+				cmd.Flags().Changed("port-speed") || cmd.Flags().Changed("location-id") ||
+				cmd.Flags().Changed("marketplace-visibility")
+		},
+		FromJSON:   processJSONPortInput,
+		FromFlags:  func() (*megaport.BuyPortRequest, error) { return processFlagPortInput(cmd) },
+		FromPrompt: func() (*megaport.BuyPortRequest, error) { return promptForPortDetails(noColor) },
+	})
 }
 
 func buildLAGPortRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyPortRequest, error) {
-	interactive, _ := cmd.Flags().GetBool("interactive")
-	jsonStr, _ := cmd.Flags().GetString("json")
-	jsonFile, _ := cmd.Flags().GetString("json-file")
-
-	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("term") ||
-		cmd.Flags().Changed("port-speed") || cmd.Flags().Changed("location-id") ||
-		cmd.Flags().Changed("lag-count") || cmd.Flags().Changed("marketplace-visibility")
-
-	if jsonStr != "" || jsonFile != "" {
-		output.PrintInfo("Using JSON input", noColor)
-		req, err := processJSONPortInput(jsonStr, jsonFile)
-		if err != nil {
-			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return nil, err
-		}
-		return req, nil
-	} else if flagsProvided {
-		output.PrintInfo("Using flag input", noColor)
-		req, err := processFlagLAGPortInput(cmd)
-		if err != nil {
-			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return nil, err
-		}
-		return req, nil
-	} else if interactive {
-		output.PrintInfo("Starting interactive mode", noColor)
-		req, err := promptForLAGPortDetails(noColor)
-		if err != nil {
-			output.PrintError("Interactive input failed: %v", noColor, err)
-			return nil, err
-		}
-		return req, nil
-	}
-	output.PrintError("No input provided", noColor)
-	return nil, fmt.Errorf("no input provided, use --interactive, --json, or flags to specify port details")
+	return utils.ResolveInput(utils.InputConfig[*megaport.BuyPortRequest]{
+		ResourceName: "port",
+		Cmd:          cmd,
+		NoColor:      noColor,
+		FlagsProvided: func() bool {
+			return cmd.Flags().Changed("name") || cmd.Flags().Changed("term") ||
+				cmd.Flags().Changed("port-speed") || cmd.Flags().Changed("location-id") ||
+				cmd.Flags().Changed("lag-count") || cmd.Flags().Changed("marketplace-visibility")
+		},
+		FromJSON:   processJSONPortInput,
+		FromFlags:  func() (*megaport.BuyPortRequest, error) { return processFlagLAGPortInput(cmd) },
+		FromPrompt: func() (*megaport.BuyPortRequest, error) { return promptForLAGPortDetails(noColor) },
+	})
 }
 
 func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
@@ -341,26 +297,8 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 	filteredPorts := filterPorts(ports, locationID, portSpeed, portName, includeInactive)
 
 	limit, _ := cmd.Flags().GetInt("limit")
-	if limit < 0 {
-		return fmt.Errorf("--limit must be a non-negative integer")
-	}
-	if limit > 0 && len(filteredPorts) > limit {
-		filteredPorts = filteredPorts[:limit]
-	}
-
-	if len(filteredPorts) == 0 {
-		if outputFormat == utils.FormatTable {
-			output.PrintInfo("No ports found. Create one with 'megaport ports buy'.", noColor)
-		}
-		return nil
-	}
-
-	err = printPorts(filteredPorts, outputFormat, noColor)
-	if err != nil {
-		output.PrintError("Failed to print ports: %v", noColor, err)
-		return fmt.Errorf("error printing ports: %w", err)
-	}
-	return nil
+	return utils.ApplyLimitAndPrint(filteredPorts, limit, outputFormat, noColor,
+		"No ports found. Create one with 'megaport ports buy'.", printPorts)
 }
 
 func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {

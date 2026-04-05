@@ -91,66 +91,24 @@ func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	filteredMVEs := filterMVEs(mves, locationID, vendor, name)
 
 	limit, _ := cmd.Flags().GetInt("limit")
-	if limit < 0 {
-		return fmt.Errorf("--limit must be a non-negative integer")
-	}
-	if limit > 0 && len(filteredMVEs) > limit {
-		filteredMVEs = filteredMVEs[:limit]
-	}
-
-	if len(filteredMVEs) == 0 {
-		if outputFormat == utils.FormatTable {
-			output.PrintInfo("No MVEs found. Create one with 'megaport mve buy'.", noColor)
-		}
-		return nil
-	}
-
-	err = printMVEs(filteredMVEs, outputFormat, noColor)
-	if err != nil {
-		output.PrintError("Failed to print MVEs: %v", noColor, err)
-		return fmt.Errorf("error printing MVEs: %w", err)
-	}
-	return nil
+	return utils.ApplyLimitAndPrint(filteredMVEs, limit, outputFormat, noColor,
+		"No MVEs found. Create one with 'megaport mve buy'.", printMVEs)
 }
 
 func buildMVERequest(cmd *cobra.Command, noColor bool) (*megaport.BuyMVERequest, error) {
-	interactive, _ := cmd.Flags().GetBool("interactive")
-	jsonStr, _ := cmd.Flags().GetString("json")
-	jsonFile, _ := cmd.Flags().GetString("json-file")
-
-	flagsProvided := cmd.Flags().Changed("name") ||
-		cmd.Flags().Changed("term") ||
-		cmd.Flags().Changed("location-id") ||
-		cmd.Flags().Changed("vendor-config") ||
-		cmd.Flags().Changed("vnics")
-
-	if jsonStr != "" || jsonFile != "" {
-		output.PrintInfo("Using JSON input", noColor)
-		req, err := processJSONBuyMVEInput(jsonStr, jsonFile)
-		if err != nil {
-			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return nil, err
-		}
-		return req, nil
-	} else if flagsProvided {
-		output.PrintInfo("Using flag input", noColor)
-		req, err := processFlagBuyMVEInput(cmd)
-		if err != nil {
-			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return nil, err
-		}
-		return req, nil
-	} else if interactive {
-		output.PrintInfo("Starting interactive mode", noColor)
-		req, err := promptForBuyMVEDetails(noColor)
-		if err != nil {
-			output.PrintError("Interactive input failed: %v", noColor, err)
-			return nil, err
-		}
-		return req, nil
-	}
-	output.PrintError("No input provided, use --interactive, --json, or flags to specify MVE details", noColor)
-	return nil, fmt.Errorf("no input provided, use --interactive, --json, or flags to specify MVE details")
+	return utils.ResolveInput(utils.InputConfig[*megaport.BuyMVERequest]{
+		ResourceName: "MVE",
+		Cmd:          cmd,
+		NoColor:      noColor,
+		FlagsProvided: func() bool {
+			return cmd.Flags().Changed("name") || cmd.Flags().Changed("term") ||
+				cmd.Flags().Changed("location-id") || cmd.Flags().Changed("vendor-config") ||
+				cmd.Flags().Changed("vnics")
+		},
+		FromJSON:   processJSONBuyMVEInput,
+		FromFlags:  func() (*megaport.BuyMVERequest, error) { return processFlagBuyMVEInput(cmd) },
+		FromPrompt: func() (*megaport.BuyMVERequest, error) { return promptForBuyMVEDetails(noColor) },
+	})
 }
 
 func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {

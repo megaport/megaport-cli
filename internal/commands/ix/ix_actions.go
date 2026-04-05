@@ -78,26 +78,8 @@ func ListIXs(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 	filteredIXs := filterIXs(ixs, name, networkServiceType, asn, vlan, locationID, rateLimit)
 
 	limit, _ := cmd.Flags().GetInt("limit")
-	if limit < 0 {
-		return fmt.Errorf("--limit must be a non-negative integer")
-	}
-	if limit > 0 && len(filteredIXs) > limit {
-		filteredIXs = filteredIXs[:limit]
-	}
-
-	if len(filteredIXs) == 0 {
-		if outputFormat == utils.FormatTable {
-			output.PrintInfo("No IX connections found. Create one with 'megaport ix buy'.", noColor)
-		}
-		return nil
-	}
-
-	err = printIXs(filteredIXs, outputFormat, noColor)
-	if err != nil {
-		output.PrintError("Failed to print IXs: %v", noColor, err)
-		return fmt.Errorf("error printing IXs: %w", err)
-	}
-	return nil
+	return utils.ApplyLimitAndPrint(filteredIXs, limit, outputFormat, noColor,
+		"No IX connections found. Create one with 'megaport ix buy'.", printIXs)
 }
 
 func GetIX(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
@@ -189,42 +171,24 @@ func GetIXStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 }
 
 func buildIXRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyIXRequest, error) {
-	interactive, _ := cmd.Flags().GetBool("interactive")
-	jsonStr, _ := cmd.Flags().GetString("json")
-	jsonFile, _ := cmd.Flags().GetString("json-file")
-
-	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("product-uid") ||
-		cmd.Flags().Changed("network-service-type") || cmd.Flags().Changed("asn") ||
-		cmd.Flags().Changed("mac-address") || cmd.Flags().Changed("rate-limit") ||
-		cmd.Flags().Changed("vlan")
-
-	if jsonStr != "" || jsonFile != "" {
-		output.PrintInfo("Using JSON input", noColor)
-		req, err := buildIXRequestFromJSON(jsonStr, jsonFile)
-		if err != nil {
-			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return nil, err
-		}
-		return req, nil
-	} else if flagsProvided {
-		output.PrintInfo("Using flag input", noColor)
-		req, err := buildIXRequestFromFlags(cmd)
-		if err != nil {
-			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return nil, err
-		}
-		return req, nil
-	} else if interactive {
-		ctx, cancel := utils.ContextFromCmd(cmd)
-		defer cancel()
-		req, err := buildIXRequestFromPrompt(ctx, noColor)
-		if err != nil {
-			return nil, err
-		}
-		return req, nil
-	}
-	output.PrintError("No input provided, use --interactive, --json, or flags to specify IX details", noColor)
-	return nil, fmt.Errorf("no input provided, use --interactive, --json, or flags to specify IX details")
+	return utils.ResolveInput(utils.InputConfig[*megaport.BuyIXRequest]{
+		ResourceName: "IX",
+		Cmd:          cmd,
+		NoColor:      noColor,
+		FlagsProvided: func() bool {
+			return cmd.Flags().Changed("name") || cmd.Flags().Changed("product-uid") ||
+				cmd.Flags().Changed("network-service-type") || cmd.Flags().Changed("asn") ||
+				cmd.Flags().Changed("mac-address") || cmd.Flags().Changed("rate-limit") ||
+				cmd.Flags().Changed("vlan")
+		},
+		FromJSON:  buildIXRequestFromJSON,
+		FromFlags: func() (*megaport.BuyIXRequest, error) { return buildIXRequestFromFlags(cmd) },
+		FromPrompt: func() (*megaport.BuyIXRequest, error) {
+			ctx, cancel := utils.ContextFromCmd(cmd)
+			defer cancel()
+			return buildIXRequestFromPrompt(ctx, noColor)
+		},
+	})
 }
 
 func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {

@@ -2275,9 +2275,9 @@ func TestGetPort_Export(t *testing.T) {
 
 func TestMockPortServiceReset(t *testing.T) {
 	m := &MockPortService{
-		GetPortErr:    fmt.Errorf("test"),
-		ListPortsErr:  fmt.Errorf("test"),
-		BuyPortErr:    fmt.Errorf("test"),
+		GetPortErr:      fmt.Errorf("test"),
+		ListPortsErr:    fmt.Errorf("test"),
+		BuyPortErr:      fmt.Errorf("test"),
 		ForceNilGetPort: true,
 	}
 	m.Reset()

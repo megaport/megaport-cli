@@ -54,70 +54,13 @@ func displayPortChanges(original, updated *megaport.Port, noColor bool) {
 		return
 	}
 
-	fmt.Println()
-	output.PrintInfo("Changes applied:", noColor)
-	changesFound := false
-
-	if original.Name != updated.Name {
-		changesFound = true
-		oldName := output.FormatOldValue(original.Name, noColor)
-		newName := output.FormatNewValue(updated.Name, noColor)
-		fmt.Printf("  • Name: %s → %s\n", oldName, newName)
+	changes := []output.FieldChange{
+		{Label: "Name", OldValue: original.Name, NewValue: updated.Name},
+		{Label: "Cost Centre", OldValue: output.FormatOptionalString(original.CostCentre), NewValue: output.FormatOptionalString(updated.CostCentre)},
+		{Label: "Contract Term", OldValue: fmt.Sprintf("%d months", original.ContractTermMonths), NewValue: fmt.Sprintf("%d months", updated.ContractTermMonths)},
+		{Label: "Marketplace Visibility", OldValue: output.FormatBool(original.MarketplaceVisibility), NewValue: output.FormatBool(updated.MarketplaceVisibility)},
+		{Label: "Locked", OldValue: output.FormatBool(original.AdminLocked), NewValue: output.FormatBool(updated.AdminLocked)},
 	}
 
-	if original.CostCentre != updated.CostCentre {
-		changesFound = true
-		oldCostCentre := original.CostCentre
-		if oldCostCentre == "" {
-			oldCostCentre = "(none)"
-		}
-		newCostCentre := updated.CostCentre
-		if newCostCentre == "" {
-			newCostCentre = "(none)"
-		}
-		fmt.Printf("  • Cost Centre: %s → %s\n",
-			output.FormatOldValue(oldCostCentre, noColor),
-			output.FormatNewValue(newCostCentre, noColor))
-	}
-
-	if original.ContractTermMonths != updated.ContractTermMonths {
-		changesFound = true
-		oldTerm := output.FormatOldValue(fmt.Sprintf("%d months", original.ContractTermMonths), noColor)
-		newTerm := output.FormatNewValue(fmt.Sprintf("%d months", updated.ContractTermMonths), noColor)
-		fmt.Printf("  • Contract Term: %s → %s\n", oldTerm, newTerm)
-	}
-
-	if original.MarketplaceVisibility != updated.MarketplaceVisibility {
-		changesFound = true
-		oldVisibility := "No"
-		if original.MarketplaceVisibility {
-			oldVisibility = "Yes"
-		}
-		newVisibility := "No"
-		if updated.MarketplaceVisibility {
-			newVisibility = "Yes"
-		}
-		fmt.Printf("  • Marketplace Visibility: %s → %s\n",
-			output.FormatOldValue(oldVisibility, noColor),
-			output.FormatNewValue(newVisibility, noColor))
-	}
-
-	if original.AdminLocked != updated.AdminLocked {
-		changesFound = true
-		oldLocked := "No"
-		if original.AdminLocked {
-			oldLocked = "Yes"
-		}
-		newLocked := "No"
-		if updated.AdminLocked {
-			newLocked = "Yes"
-		}
-		fmt.Printf("  • Locked: %s → %s\n",
-			output.FormatOldValue(oldLocked, noColor),
-			output.FormatNewValue(newLocked, noColor))
-	}
-
-	if !changesFound {
-		fmt.Println("  No changes detected")
-	}
+	output.DisplayChanges(changes, noColor)
 }

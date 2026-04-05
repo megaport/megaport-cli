@@ -66,47 +66,12 @@ func displayIXChanges(original, updated *megaport.IX, noColor bool) {
 		return
 	}
 
-	fmt.Println()
-	output.PrintInfo("Changes applied:", noColor)
-
-	changesFound := false
-
-	if original.ProductName != updated.ProductName {
-		changesFound = true
-		fmt.Printf("  • Name: %s → %s\n",
-			output.FormatOldValue(original.ProductName, noColor),
-			output.FormatNewValue(updated.ProductName, noColor))
+	changes := []output.FieldChange{
+		{Label: "Name", OldValue: original.ProductName, NewValue: updated.ProductName},
+		{Label: "Rate Limit", OldValue: fmt.Sprintf("%d Mbps", original.RateLimit), NewValue: fmt.Sprintf("%d Mbps", updated.RateLimit)},
+		{Label: "VLAN", OldValue: fmt.Sprintf("%d", original.VLAN), NewValue: fmt.Sprintf("%d", updated.VLAN)},
+		{Label: "MAC Address", OldValue: original.MACAddress, NewValue: updated.MACAddress},
+		{Label: "ASN", OldValue: fmt.Sprintf("%d", original.ASN), NewValue: fmt.Sprintf("%d", updated.ASN)},
 	}
-
-	if original.RateLimit != updated.RateLimit {
-		changesFound = true
-		fmt.Printf("  • Rate Limit: %s → %s\n",
-			output.FormatOldValue(fmt.Sprintf("%d Mbps", original.RateLimit), noColor),
-			output.FormatNewValue(fmt.Sprintf("%d Mbps", updated.RateLimit), noColor))
-	}
-
-	if original.VLAN != updated.VLAN {
-		changesFound = true
-		fmt.Printf("  • VLAN: %s → %s\n",
-			output.FormatOldValue(fmt.Sprintf("%d", original.VLAN), noColor),
-			output.FormatNewValue(fmt.Sprintf("%d", updated.VLAN), noColor))
-	}
-
-	if original.MACAddress != updated.MACAddress {
-		changesFound = true
-		fmt.Printf("  • MAC Address: %s → %s\n",
-			output.FormatOldValue(original.MACAddress, noColor),
-			output.FormatNewValue(updated.MACAddress, noColor))
-	}
-
-	if original.ASN != updated.ASN {
-		changesFound = true
-		fmt.Printf("  • ASN: %s → %s\n",
-			output.FormatOldValue(fmt.Sprintf("%d", original.ASN), noColor),
-			output.FormatNewValue(fmt.Sprintf("%d", updated.ASN), noColor))
-	}
-
-	if !changesFound {
-		fmt.Println("  No changes detected")
-	}
+	output.DisplayChanges(changes, noColor)
 }
