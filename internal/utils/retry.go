@@ -24,13 +24,10 @@ type RetryOpts struct {
 }
 
 // DefaultRetryOpts returns sensible defaults for API retry behaviour.
+// MaxRetries is taken from the --max-retries flag (default 3, set by cobra).
 func DefaultRetryOpts() RetryOpts {
-	maxRetries := 3
-	if MaxRetries > 0 {
-		maxRetries = MaxRetries
-	}
 	return RetryOpts{
-		MaxRetries:        maxRetries,
+		MaxRetries:        MaxRetries,
 		InitialDelay:      1 * time.Second,
 		MaxDelay:          30 * time.Second,
 		BackoffMultiplier: 2.0,
@@ -67,7 +64,12 @@ func RetryWithBackoff(ctx context.Context, opts RetryOpts, fn func(ctx context.C
 		}
 
 		// Use Retry-After header if present, otherwise exponential backoff.
+		// Cap Retry-After at MaxDelay to prevent a misbehaving server from
+		// stalling the CLI indefinitely.
 		wait := retryAfterDelay(err)
+		if wait > opts.MaxDelay {
+			wait = opts.MaxDelay
+		}
 		if wait == 0 {
 			wait = addJitter(delay)
 		}
