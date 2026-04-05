@@ -22,6 +22,9 @@ type RetryOpts struct {
 	InitialDelay      time.Duration
 	MaxDelay          time.Duration
 	BackoffMultiplier float64
+	// RetryNetworkErrors enables retrying on ambiguous network failures
+	// (connection reset, EOF, timeout). Only set this for idempotent operations.
+	RetryNetworkErrors bool
 }
 
 // DefaultRetryOpts returns sensible defaults for API retry behaviour.
@@ -35,13 +38,32 @@ func DefaultRetryOpts() RetryOpts {
 	}
 }
 
-// WithRetry wraps fn with the default retry policy. If --no-retry was set
-// globally, fn is called exactly once.
+// WithRetry wraps fn with the default retry policy, only retrying on
+// server-confirmed errors (HTTP status codes like 429, 502, 503, 504).
+// Network-level errors (connection reset, EOF, timeout) are NOT retried
+// because it is unsafe for non-idempotent operations — the server may
+// have processed the request despite the client-side failure.
+// Use WithIdempotentRetry for read-only or otherwise idempotent operations
+// where retrying network errors is safe.
+// If --no-retry was set globally, fn is called exactly once.
 func WithRetry(ctx context.Context, fn func(ctx context.Context) error) error {
 	if NoRetry {
 		return fn(ctx)
 	}
 	return RetryWithBackoff(ctx, DefaultRetryOpts(), fn)
+}
+
+// WithIdempotentRetry wraps fn with the default retry policy including
+// network-level error retries. Use this for read-only or idempotent
+// operations where retrying after an ambiguous network failure is safe.
+// If --no-retry was set globally, fn is called exactly once.
+func WithIdempotentRetry(ctx context.Context, fn func(ctx context.Context) error) error {
+	if NoRetry {
+		return fn(ctx)
+	}
+	opts := DefaultRetryOpts()
+	opts.RetryNetworkErrors = true
+	return RetryWithBackoff(ctx, opts, fn)
 }
 
 // RetryWithBackoff calls fn up to opts.MaxRetries+1 times with exponential
@@ -60,7 +82,7 @@ func RetryWithBackoff(ctx context.Context, opts RetryOpts, fn func(ctx context.C
 			return err
 		}
 
-		if !isRetryable(err) {
+		if !isRetryable(err, opts.RetryNetworkErrors) {
 			return err
 		}
 
@@ -108,11 +130,18 @@ var retryableStatusCodes = map[int]bool{
 }
 
 // isRetryable returns true if err represents a transient failure.
-func isRetryable(err error) bool {
+// When retryNetworkErrors is false, only server-confirmed errors (HTTP status
+// codes) are considered retryable — ambiguous network failures are not.
+func isRetryable(err error, retryNetworkErrors bool) bool {
 	// Check for megaport API errors with retryable status codes.
 	var apiErr *megaport.ErrorResponse
 	if errors.As(err, &apiErr) && apiErr.Response != nil {
 		return retryableStatusCodes[apiErr.Response.StatusCode]
+	}
+
+	// Network-level errors are only retried for idempotent operations.
+	if !retryNetworkErrors {
+		return false
 	}
 
 	// Check for transient network errors.
@@ -175,6 +204,10 @@ func addJitter(d time.Duration) time.Duration {
 // logRetry prints a retry message to stderr when verbose mode is active.
 // attempt is 1-based (retry number), totalAttempts includes the initial call.
 func logRetry(attempt, maxRetries int, wait time.Duration, err error) {
+	// Suppress all retry logs in quiet mode.
+	if output.IsQuiet() {
+		return
+	}
 	totalAttempts := maxRetries + 1
 	currentAttempt := attempt + 1 // +1 because attempt is retry index, display is overall attempt
 	// Always log on the final retry attempt regardless of verbosity.
@@ -187,4 +220,3 @@ func logRetry(attempt, maxRetries int, wait time.Duration, err error) {
 		fmt.Fprintf(os.Stderr, "Retrying in %s (attempt %d/%d): %v\n", wait.Round(time.Millisecond), currentAttempt, totalAttempts, err)
 	}
 }
-

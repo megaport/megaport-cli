@@ -162,9 +162,22 @@ func TestRetryWithBackoff_TransientNetworkErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.retryable, isRetryable(tt.err))
+			// Network errors are retryable only when retryNetworkErrors is true (idempotent operations).
+			assert.Equal(t, tt.retryable, isRetryable(tt.err, true))
 		})
 	}
+}
+
+func TestIsRetryable_MutationMode(t *testing.T) {
+	// With retryNetworkErrors=false, network errors should NOT be retryable.
+	assert.False(t, isRetryable(&net.DNSError{IsTimeout: true}, false), "network timeout should not be retryable for mutations")
+	assert.False(t, isRetryable(fmt.Errorf("connection reset"), false), "connection reset should not be retryable for mutations")
+	assert.False(t, isRetryable(fmt.Errorf("unexpected EOF"), false), "EOF should not be retryable for mutations")
+
+	// API status code errors should still be retryable regardless of mode.
+	assert.True(t, isRetryable(apiError(503, ""), false), "503 should be retryable even for mutations")
+	assert.True(t, isRetryable(apiError(429, ""), false), "429 should be retryable even for mutations")
+	assert.False(t, isRetryable(apiError(400, ""), false), "400 should not be retryable")
 }
 
 func TestRetryWithBackoff_PlainErrorNotRetried(t *testing.T) {
@@ -207,6 +220,56 @@ func TestWithRetry_MaxRetriesOverride(t *testing.T) {
 		return apiError(503, "")
 	})
 	assert.Equal(t, 2, calls, "MaxRetries=1 should allow 1 initial + 1 retry")
+}
+
+func TestWithIdempotentRetry_RetriesNetworkErrors(t *testing.T) {
+	oldMaxRetries := MaxRetries
+	oldNoRetry := NoRetry
+	defer func() {
+		MaxRetries = oldMaxRetries
+		NoRetry = oldNoRetry
+	}()
+
+	NoRetry = false
+	MaxRetries = 2
+	calls := 0
+	_ = WithIdempotentRetry(context.Background(), func(ctx context.Context) error {
+		calls++
+		return fmt.Errorf("connection reset by peer")
+	})
+	assert.Equal(t, 3, calls, "WithIdempotentRetry should retry network errors (1 initial + 2 retries)")
+}
+
+func TestWithRetry_DoesNotRetryNetworkErrors(t *testing.T) {
+	oldMaxRetries := MaxRetries
+	oldNoRetry := NoRetry
+	defer func() {
+		MaxRetries = oldMaxRetries
+		NoRetry = oldNoRetry
+	}()
+
+	NoRetry = false
+	MaxRetries = 2
+	calls := 0
+	_ = WithRetry(context.Background(), func(ctx context.Context) error {
+		calls++
+		return fmt.Errorf("connection reset by peer")
+	})
+	assert.Equal(t, 1, calls, "WithRetry should NOT retry network errors for mutation safety")
+}
+
+func TestWithIdempotentRetry_NoRetryFlag(t *testing.T) {
+	oldNoRetry := NoRetry
+	defer func() { NoRetry = oldNoRetry }()
+
+	NoRetry = true
+	calls := 0
+	err := WithIdempotentRetry(context.Background(), func(ctx context.Context) error {
+		calls++
+		return apiError(503, "")
+	})
+	assert.Error(t, err)
+	assert.Equal(t, 1, calls, "--no-retry should disable retries for WithIdempotentRetry too")
 }
 
 func TestAddJitter(t *testing.T) {
@@ -267,6 +330,15 @@ func TestRetryWithBackoff_RetryAfterCappedAtMaxDelay(t *testing.T) {
 	assert.Equal(t, 2, calls)
 	// Should have waited ~500ms (MaxDelay cap), not 60s
 	assert.Less(t, elapsed, 2*time.Second)
+}
+
+func TestLogRetry_QuietMode(t *testing.T) {
+	output.SetVerbosity("quiet")
+	defer output.SetVerbosity("normal")
+
+	// Should not panic and should not produce output; exercises the quiet branch
+	logRetry(1, 3, 100*time.Millisecond, fmt.Errorf("test error"))
+	logRetry(3, 3, 100*time.Millisecond, fmt.Errorf("final retry error"))
 }
 
 func TestLogRetry_VerboseMode(t *testing.T) {

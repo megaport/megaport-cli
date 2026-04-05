@@ -11,11 +11,11 @@ import (
 // when the user did not supply them.
 func resetAllFlags(cmd *cobra.Command) {
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
-		f.Value.Set(f.DefValue)
+		_ = f.Value.Set(f.DefValue)
 		f.Changed = false
 	})
 	cmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
-		f.Value.Set(f.DefValue)
+		_ = f.Value.Set(f.DefValue)
 		f.Changed = false
 	})
 	for _, subCmd := range cmd.Commands() {
@@ -27,7 +27,7 @@ func resetAllFlags(cmd *cobra.Command) {
 // in the tree recursively.
 func enableTraversalForAllCommands(cmd *cobra.Command) {
 	cmd.TraverseChildren = true
-	cmd.Flags().ParseErrorsWhitelist.UnknownFlags = true
+	cmd.Flags().ParseErrorsAllowlist.UnknownFlags = true
 
 	for _, subCmd := range cmd.Commands() {
 		enableTraversalForAllCommands(subCmd)
