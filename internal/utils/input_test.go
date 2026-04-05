@@ -115,3 +115,96 @@ func TestResolveInput_JSONError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "parse error")
 }
+
+func TestResolveInput_FlagsError(t *testing.T) {
+	cmd := newTestCmd()
+	cmd.Flags().String("name", "", "")
+	require.NoError(t, cmd.Flags().Set("name", "test"))
+
+	_, err := ResolveInput(InputConfig[string]{
+		ResourceName:  "port",
+		Cmd:           cmd,
+		NoColor:       true,
+		FlagsProvided: func() bool { return true },
+		FromJSON:      func(jsonStr, jsonFile string) (string, error) { return "", nil },
+		FromFlags:     func() (string, error) { return "", fmt.Errorf("flag validation failed") },
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "flag validation failed")
+}
+
+func TestResolveInput_PromptError(t *testing.T) {
+	cmd := newTestCmd()
+	require.NoError(t, cmd.Flags().Set("interactive", "true"))
+
+	_, err := ResolveInput(InputConfig[string]{
+		ResourceName: "port",
+		Cmd:          cmd,
+		NoColor:      true,
+		FromJSON:     func(jsonStr, jsonFile string) (string, error) { return "", nil },
+		FromPrompt:   func() (string, error) { return "", fmt.Errorf("prompt cancelled") },
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "prompt cancelled")
+}
+
+func TestResolveInput_JSONFile(t *testing.T) {
+	cmd := newTestCmd()
+	require.NoError(t, cmd.Flags().Set("json-file", "/tmp/test.json"))
+
+	result, err := ResolveInput(InputConfig[string]{
+		ResourceName: "port",
+		Cmd:          cmd,
+		NoColor:      true,
+		FromJSON: func(jsonStr, jsonFile string) (string, error) {
+			assert.Equal(t, "/tmp/test.json", jsonFile)
+			return "from-json-file", nil
+		},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "from-json-file", result)
+}
+
+func TestResolveInput_NilFromPromptFallsToError(t *testing.T) {
+	cmd := newTestCmd()
+	require.NoError(t, cmd.Flags().Set("interactive", "true"))
+
+	_, err := ResolveInput(InputConfig[string]{
+		ResourceName: "MCR",
+		Cmd:          cmd,
+		NoColor:      true,
+		FromJSON:     func(jsonStr, jsonFile string) (string, error) { return "", nil },
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no input provided")
+	assert.Contains(t, err.Error(), "MCR")
+}
+
+func TestResolveInput_NilFromJSON(t *testing.T) {
+	cmd := newTestCmd()
+	require.NoError(t, cmd.Flags().Set("json", `{}`))
+
+	_, err := ResolveInput(InputConfig[string]{
+		ResourceName: "port",
+		Cmd:          cmd,
+		NoColor:      true,
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no JSON handler configured")
+}
+
+func TestResolveInput_NilFromFlags(t *testing.T) {
+	cmd := newTestCmd()
+	cmd.Flags().String("name", "", "")
+	require.NoError(t, cmd.Flags().Set("name", "test"))
+
+	_, err := ResolveInput(InputConfig[string]{
+		ResourceName:  "port",
+		Cmd:           cmd,
+		NoColor:       true,
+		FlagsProvided: func() bool { return true },
+		FromJSON:      func(jsonStr, jsonFile string) (string, error) { return "", nil },
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no flag handler configured")
+}

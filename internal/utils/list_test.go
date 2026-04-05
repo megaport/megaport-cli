@@ -48,12 +48,29 @@ func TestApplyLimitAndPrint(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("propagates print error", func(t *testing.T) {
+	t.Run("propagates print error with wrapping", func(t *testing.T) {
 		err := ApplyLimitAndPrint([]string{"a"}, 0, FormatTable, true, "none",
 			func(items []string, format string, noColor bool) error {
 				return fmt.Errorf("print failed")
 			})
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "error printing output")
 		assert.Contains(t, err.Error(), "print failed")
+	})
+
+	t.Run("limit greater than items returns all", func(t *testing.T) {
+		var printed []string
+		err := ApplyLimitAndPrint([]string{"a", "b"}, 10, FormatTable, true, "none",
+			func(items []string, format string, noColor bool) error {
+				printed = items
+				return nil
+			})
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"a", "b"}, printed)
+	})
+
+	t.Run("nil slice behaves like empty", func(t *testing.T) {
+		err := ApplyLimitAndPrint[string](nil, 0, FormatTable, true, "No items.", noop)
+		assert.NoError(t, err)
 	})
 }

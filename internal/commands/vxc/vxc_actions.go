@@ -236,9 +236,7 @@ func buildVXCRequest(cmd *cobra.Command, ctx context.Context, client *megaport.C
 				cmd.Flags().Changed("a-end-vlan") || cmd.Flags().Changed("b-end-uid") ||
 				cmd.Flags().Changed("b-end-vlan")
 		},
-		FromJSON: func(jsonStr, jsonFile string) (*megaport.BuyVXCRequest, error) {
-			return buildVXCRequestFromJSON(jsonStr, jsonFile)
-		},
+		FromJSON: buildVXCRequestFromJSON,
 		FromFlags: func() (*megaport.BuyVXCRequest, error) {
 			return buildVXCRequestFromFlags(cmd, ctx, client.VXCService)
 		},

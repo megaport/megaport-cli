@@ -47,6 +47,9 @@ func ResolveInput[T any](cfg InputConfig[T]) (T, error) {
 
 	switch {
 	case jsonStr != "" || jsonFile != "":
+		if cfg.FromJSON == nil {
+			return zero, fmt.Errorf("JSON input provided but no JSON handler configured for %s", cfg.ResourceName)
+		}
 		output.PrintInfo("Using JSON input", cfg.NoColor)
 		result, err := cfg.FromJSON(jsonStr, jsonFile)
 		if err != nil {
@@ -56,6 +59,9 @@ func ResolveInput[T any](cfg InputConfig[T]) (T, error) {
 		return result, nil
 
 	case cfg.FlagsProvided != nil && cfg.FlagsProvided():
+		if cfg.FromFlags == nil {
+			return zero, fmt.Errorf("flag input provided but no flag handler configured for %s", cfg.ResourceName)
+		}
 		output.PrintInfo("Using flag input", cfg.NoColor)
 		result, err := cfg.FromFlags()
 		if err != nil {

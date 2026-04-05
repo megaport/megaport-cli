@@ -33,5 +33,9 @@ func ApplyLimitAndPrint[T any](
 		return nil
 	}
 
-	return printFunc(items, outputFormat, noColor)
+	if err := printFunc(items, outputFormat, noColor); err != nil {
+		output.PrintError("Failed to print output: %v", noColor, err)
+		return fmt.Errorf("error printing output: %w", err)
+	}
+	return nil
 }
