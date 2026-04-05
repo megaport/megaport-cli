@@ -2272,3 +2272,17 @@ func TestGetPort_Export(t *testing.T) {
 	_, hasUID := parsed["productUid"]
 	assert.False(t, hasUID, "export should not include productUid")
 }
+
+func TestMockPortServiceReset(t *testing.T) {
+	m := &MockPortService{
+		GetPortErr:    fmt.Errorf("test"),
+		ListPortsErr:  fmt.Errorf("test"),
+		BuyPortErr:    fmt.Errorf("test"),
+		ForceNilGetPort: true,
+	}
+	m.Reset()
+	assert.Nil(t, m.GetPortErr)
+	assert.Nil(t, m.ListPortsErr)
+	assert.Nil(t, m.BuyPortErr)
+	assert.False(t, m.ForceNilGetPort)
+}

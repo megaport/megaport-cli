@@ -2436,10 +2436,11 @@ func TestUnlockMCRCmd_WithMockClient(t *testing.T) {
 }
 
 func TestLockMCRCmd_LoginError(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() { config.LoginFunc = originalLoginFunc }()
 	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		return nil, fmt.Errorf("login failed")
 	}
-	defer func() { config.LoginFunc = nil }()
 
 	cmd := &cobra.Command{}
 	err := LockMCR(cmd, []string{"mcr-123"}, false)
@@ -2448,10 +2449,11 @@ func TestLockMCRCmd_LoginError(t *testing.T) {
 }
 
 func TestUnlockMCRCmd_LoginError(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() { config.LoginFunc = originalLoginFunc }()
 	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		return nil, fmt.Errorf("login failed")
 	}
-	defer func() { config.LoginFunc = nil }()
 
 	cmd := &cobra.Command{}
 	err := UnlockMCR(cmd, []string{"mcr-123"}, false)

@@ -196,3 +196,49 @@ func (m *MockPortService) UpdatePortResourceTags(ctx context.Context, portID str
 	}
 	return m.UpdatePortResourceTagsErr
 }
+
+// Reset clears all configured results, errors, and captured requests.
+func (m *MockPortService) Reset() {
+	m.GetPortErr = nil
+	m.GetPortResult = nil
+	m.ListPortsErr = nil
+	m.ListPortsResult = nil
+	m.BuyPortErr = nil
+	m.BuyPortResult = nil
+	m.CapturedRequest = nil
+	m.CheckPortVLANAvailabilityErr = nil
+	m.CheckPortVLANAvailabilityResult = false
+	m.CapturedVLANRequest = struct {
+		PortID string
+		VLANID int
+	}{}
+	m.DeletePortErr = nil
+	m.DeletePortResult = nil
+	m.CapturedDeletePortUID = ""
+	m.CapturedDeletePortRequest = nil
+	m.ListPortResourceTagsErr = nil
+	m.ListPortResourceTagsResult = nil
+	m.CapturedResourceTagPortUID = ""
+	m.CapturedResourceTags = nil
+	m.ValidatePortOrderErr = nil
+	m.ModifyPortErr = nil
+	m.ModifyPortResult = nil
+	m.CapturedModifyPortRequest = nil
+	m.RestorePortErr = nil
+	m.RestorePortResult = nil
+	m.CapturedRestorePortUID = ""
+	m.LockPortErr = nil
+	m.LockPortResult = nil
+	m.CapturedLockPortUID = ""
+	m.UnlockPortErr = nil
+	m.UnlockPortResult = nil
+	m.CapturedUnlockPortUID = ""
+	m.UpdatePortResourceTagsErr = nil
+	m.CapturedUpdateTagsRequest = struct {
+		PortID string
+		Tags   map[string]string
+	}{}
+	m.UpdatePortErr = nil
+	m.UpdatePortResult = nil
+	m.ForceNilGetPort = false
+}

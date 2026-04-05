@@ -3,6 +3,7 @@ package locations
 
 import (
 	"context"
+	"fmt"
 
 	megaport "github.com/megaport/megaportgo"
 )
@@ -128,5 +129,5 @@ func (m *MockLocationsService) IsValidMarketCode(ctx context.Context, marketCode
 }
 
 func (m *MockLocationsService) GetRoundTripTimes(_ context.Context, _, _, _ int) ([]*megaport.RoundTripTime, error) {
-	return nil, nil
+	return nil, fmt.Errorf("mock: GetRoundTripTimes not configured")
 }

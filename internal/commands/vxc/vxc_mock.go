@@ -132,3 +132,31 @@ func (m *MockVXCService) UpdateVXCResourceTags(ctx context.Context, vxcID string
 	m.CapturedUpdateVXCResourceTagsRequest = tags
 	return m.UpdateVXCResourceTagsErr
 }
+
+// Reset clears all configured results, errors, and captured requests.
+func (m *MockVXCService) Reset() {
+	m.BuyVXCResponse = nil
+	m.BuyVXCError = nil
+	m.ValidateVXCOrderError = nil
+	m.GetVXCResponse = nil
+	m.GetVXCError = nil
+	m.DeleteVXCError = nil
+	m.UpdateVXCError = nil
+	m.LookupPartnerPortsResponse = nil
+	m.LookupPartnerPortsError = nil
+	m.ListPartnerPortsResponse = nil
+	m.ListPartnerPortsError = nil
+	m.CapturedUpdateVXCRequest = nil
+	m.UpdateVXCResponse = nil
+	m.ListVXCResponse = nil
+	m.BuyVXCErr = nil
+	m.ListVXCErr = nil
+	m.CapturedListVXCsRequest = nil
+	m.OnBuyVXC = nil
+	m.ListVXCResourceTagsErr = nil
+	m.ListVXCResourceTagsResult = nil
+	m.CapturedUpdateVXCResourceTagsRequest = nil
+	m.CapturedListVXCResourceTagsUID = ""
+	m.UpdateVXCResourceTagsErr = nil
+	m.ForceNilGetVXC = false
+}

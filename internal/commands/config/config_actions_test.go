@@ -35,23 +35,19 @@ func setupTestCmd() (*cobra.Command, *bytes.Buffer) {
 	return cmd, outBuf
 }
 
-func setupTestConfigEnv(t *testing.T) (string, func()) {
+func setupTestConfigEnv(t *testing.T) string {
 	t.Helper()
 	tempDir, err := os.MkdirTemp("", "megaport-config-actions-test")
 	require.NoError(t, err)
 
-	oldEnv := os.Getenv("MEGAPORT_CONFIG_DIR")
-	os.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+	t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
 
-	return tempDir, func() {
-		os.Setenv("MEGAPORT_CONFIG_DIR", oldEnv)
-		os.RemoveAll(tempDir)
-	}
+	return tempDir
 }
 
 func TestUpdateProfile_CMD(t *testing.T) {
-	_, cleanup := setupTestConfigEnv(t)
-	defer cleanup()
+	setupTestConfigEnv(t)
 
 	// Create a profile first
 	manager, err := NewConfigManager()
@@ -111,8 +107,7 @@ func TestUpdateProfile_CMD(t *testing.T) {
 }
 
 func TestUseProfile_CMD(t *testing.T) {
-	_, cleanup := setupTestConfigEnv(t)
-	defer cleanup()
+	setupTestConfigEnv(t)
 
 	// Create some profiles first
 	manager, err := NewConfigManager()
@@ -166,8 +161,7 @@ func TestUseProfile_CMD(t *testing.T) {
 }
 
 func TestViewConfig(t *testing.T) {
-	_, cleanup := setupTestConfigEnv(t)
-	defer cleanup()
+	setupTestConfigEnv(t)
 
 	// Create a profile and set defaults
 	manager, err := NewConfigManager()
@@ -226,8 +220,7 @@ func TestMaskAccessKey(t *testing.T) {
 }
 
 func TestViewConfig_MasksAccessKey(t *testing.T) {
-	_, cleanup := setupTestConfigEnv(t)
-	defer cleanup()
+	setupTestConfigEnv(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -246,8 +239,7 @@ func TestViewConfig_MasksAccessKey(t *testing.T) {
 }
 
 func TestListProfiles_MasksAccessKey(t *testing.T) {
-	_, cleanup := setupTestConfigEnv(t)
-	defer cleanup()
+	setupTestConfigEnv(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -265,8 +257,7 @@ func TestListProfiles_MasksAccessKey(t *testing.T) {
 }
 
 func TestDeleteProfile_CMD(t *testing.T) {
-	_, cleanup := setupTestConfigEnv(t)
-	defer cleanup()
+	setupTestConfigEnv(t)
 
 	// Setup utility function to automatically confirm deletion
 	oldConfirmPrompt := utils.ConfirmPrompt
@@ -314,8 +305,7 @@ func TestDeleteProfile_CMD(t *testing.T) {
 }
 
 func TestExportImportConfig(t *testing.T) {
-	configDir, cleanup := setupTestConfigEnv(t)
-	defer cleanup()
+	configDir := setupTestConfigEnv(t)
 
 	// Create a profile first
 	manager, err := NewConfigManager()
@@ -385,8 +375,7 @@ func TestExportImportConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	// *** Important: Create a completely new config directory ***
-	_, newCleanup := setupTestConfigEnv(t)
-	defer newCleanup()
+	setupTestConfigEnv(t)
 
 	// Import to the new environment using the manual export file
 	cmd, _ = setupTestCmd()
@@ -436,8 +425,7 @@ func TestExportImportConfig(t *testing.T) {
 
 func TestCreateProfile_CMD(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		_, cleanup := setupTestConfigEnv(t)
-		defer cleanup()
+		setupTestConfigEnv(t)
 
 		cmd, _ := setupTestCmd()
 		cmd.Flags().String("access-key", "", "")
@@ -472,8 +460,7 @@ func TestCreateProfile_CMD(t *testing.T) {
 	})
 
 	t.Run("invalid environment", func(t *testing.T) {
-		_, cleanup := setupTestConfigEnv(t)
-		defer cleanup()
+		setupTestConfigEnv(t)
 
 		cmd, _ := setupTestCmd()
 		cmd.Flags().String("access-key", "", "")
@@ -495,8 +482,7 @@ func TestCreateProfile_CMD(t *testing.T) {
 	})
 
 	t.Run("empty name", func(t *testing.T) {
-		_, cleanup := setupTestConfigEnv(t)
-		defer cleanup()
+		setupTestConfigEnv(t)
 
 		cmd, _ := setupTestCmd()
 		cmd.Flags().String("access-key", "", "")
@@ -518,8 +504,7 @@ func TestCreateProfile_CMD(t *testing.T) {
 	})
 
 	t.Run("duplicate profile", func(t *testing.T) {
-		_, cleanup := setupTestConfigEnv(t)
-		defer cleanup()
+		setupTestConfigEnv(t)
 
 		cmd, _ := setupTestCmd()
 		cmd.Flags().String("access-key", "", "")
@@ -573,8 +558,7 @@ func TestCreateProfile_CMD(t *testing.T) {
 
 func TestSetDefault(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		_, cleanup := setupTestConfigEnv(t)
-		defer cleanup()
+		setupTestConfigEnv(t)
 
 		cmd, _ := setupTestCmd()
 		outputText, err := captureOutputFromAction(func() error {
@@ -585,8 +569,7 @@ func TestSetDefault(t *testing.T) {
 	})
 
 	t.Run("invalid setting name", func(t *testing.T) {
-		_, cleanup := setupTestConfigEnv(t)
-		defer cleanup()
+		setupTestConfigEnv(t)
 
 		cmd, _ := setupTestCmd()
 		_, err := captureOutputFromAction(func() error {
@@ -597,8 +580,7 @@ func TestSetDefault(t *testing.T) {
 	})
 
 	t.Run("empty value", func(t *testing.T) {
-		_, cleanup := setupTestConfigEnv(t)
-		defer cleanup()
+		setupTestConfigEnv(t)
 
 		cmd, _ := setupTestCmd()
 		_, err := captureOutputFromAction(func() error {
@@ -609,8 +591,7 @@ func TestSetDefault(t *testing.T) {
 	})
 
 	t.Run("verify persistence", func(t *testing.T) {
-		_, cleanup := setupTestConfigEnv(t)
-		defer cleanup()
+		setupTestConfigEnv(t)
 
 		cmd, _ := setupTestCmd()
 		_, err := captureOutputFromAction(func() error {
@@ -629,8 +610,7 @@ func TestSetDefault(t *testing.T) {
 
 func TestGetDefault(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		_, cleanup := setupTestConfigEnv(t)
-		defer cleanup()
+		setupTestConfigEnv(t)
 
 		// Set a default first
 		setCmd, _ := setupTestCmd()
@@ -647,8 +627,7 @@ func TestGetDefault(t *testing.T) {
 	})
 
 	t.Run("non-existent setting", func(t *testing.T) {
-		_, cleanup := setupTestConfigEnv(t)
-		defer cleanup()
+		setupTestConfigEnv(t)
 
 		cmd, _ := setupTestCmd()
 		err := GetDefault(cmd, []string{"nonexistent"}, false)
@@ -657,8 +636,7 @@ func TestGetDefault(t *testing.T) {
 	})
 
 	t.Run("empty setting name", func(t *testing.T) {
-		_, cleanup := setupTestConfigEnv(t)
-		defer cleanup()
+		setupTestConfigEnv(t)
 
 		cmd, _ := setupTestCmd()
 		err := GetDefault(cmd, []string{""}, false)
@@ -669,8 +647,7 @@ func TestGetDefault(t *testing.T) {
 
 func TestRemoveDefault(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		_, cleanup := setupTestConfigEnv(t)
-		defer cleanup()
+		setupTestConfigEnv(t)
 
 		// Set a default first
 		setCmd, _ := setupTestCmd()
@@ -695,8 +672,7 @@ func TestRemoveDefault(t *testing.T) {
 	})
 
 	t.Run("non-existent setting", func(t *testing.T) {
-		_, cleanup := setupTestConfigEnv(t)
-		defer cleanup()
+		setupTestConfigEnv(t)
 
 		cmd, _ := setupTestCmd()
 		outputText, err := captureOutputFromAction(func() error {
@@ -708,8 +684,7 @@ func TestRemoveDefault(t *testing.T) {
 	})
 
 	t.Run("empty setting name", func(t *testing.T) {
-		_, cleanup := setupTestConfigEnv(t)
-		defer cleanup()
+		setupTestConfigEnv(t)
 
 		cmd, _ := setupTestCmd()
 		outputText, err := captureOutputFromAction(func() error {
@@ -722,8 +697,7 @@ func TestRemoveDefault(t *testing.T) {
 
 func TestClearDefaults(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		_, cleanup := setupTestConfigEnv(t)
-		defer cleanup()
+		setupTestConfigEnv(t)
 
 		// Set multiple defaults
 		manager, err := NewConfigManager()
@@ -757,8 +731,7 @@ func TestClearDefaults(t *testing.T) {
 	})
 
 	t.Run("cancelled", func(t *testing.T) {
-		_, cleanup := setupTestConfigEnv(t)
-		defer cleanup()
+		setupTestConfigEnv(t)
 
 		// Set a default so there's something to clear
 		manager, err := NewConfigManager()
@@ -790,8 +763,7 @@ func TestClearDefaults(t *testing.T) {
 	})
 
 	t.Run("nothing to clear", func(t *testing.T) {
-		_, cleanup := setupTestConfigEnv(t)
-		defer cleanup()
+		setupTestConfigEnv(t)
 
 		// Mock confirmation
 		oldConfirmPrompt := utils.ConfirmPrompt
@@ -810,8 +782,7 @@ func TestClearDefaults(t *testing.T) {
 }
 
 func TestDeleteProfile_Cancelled(t *testing.T) {
-	_, cleanup := setupTestConfigEnv(t)
-	defer cleanup()
+	setupTestConfigEnv(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -831,8 +802,7 @@ func TestDeleteProfile_Cancelled(t *testing.T) {
 }
 
 func TestImportConfig_Cancelled(t *testing.T) {
-	configDir, cleanup := setupTestConfigEnv(t)
-	defer cleanup()
+	configDir := setupTestConfigEnv(t)
 
 	// Create a minimal export file to import from.
 	importPath := filepath.Join(configDir, "import.json")

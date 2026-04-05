@@ -16,12 +16,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var originalBuyVXCFunc = buyVXCFunc
-var interactive bool
-
 func TestBuyVXC(t *testing.T) {
 	originalResourcePrompt := utils.ResourcePrompt
-	originalInteractiveFlag := interactive
+	originalBuyVXCFunc := buyVXCFunc
 	noColor := true
 
 	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
@@ -34,7 +31,6 @@ func TestBuyVXC(t *testing.T) {
 	defer func() {
 		utils.ResourcePrompt = originalResourcePrompt
 		buyVXCFunc = originalBuyVXCFunc
-		interactive = originalInteractiveFlag
 	}()
 
 	tests := []struct {
@@ -74,8 +70,6 @@ func TestBuyVXC(t *testing.T) {
 				m.BuyVXCResponse = &megaport.BuyVXCResponse{
 					TechnicalServiceUID: "vxc-sample-uid",
 				}
-
-				interactive = true
 
 				buildVXCRequestFromPromptOrig := buildVXCRequestFromPrompt
 				buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCService, noColor bool) (*megaport.BuyVXCRequest, error) {
@@ -325,6 +319,7 @@ func TestBuyVXC(t *testing.T) {
 
 func TestBuyVXC_NoWaitFlag(t *testing.T) {
 	noColor := true
+	originalBuyVXCFunc := buyVXCFunc
 
 	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
 	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
@@ -2036,6 +2031,7 @@ func TestListVXCResourceTags(t *testing.T) {
 func TestBuyVXC_Confirmation(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
+	originalBuyVXCFunc := buyVXCFunc
 	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
 	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
 
@@ -2435,4 +2431,18 @@ func TestValidateVXC(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMockVXCServiceReset(t *testing.T) {
+	m := &MockVXCService{
+		BuyVXCError:    fmt.Errorf("test"),
+		GetVXCError:    fmt.Errorf("test"),
+		DeleteVXCError: fmt.Errorf("test"),
+		ForceNilGetVXC: true,
+	}
+	m.Reset()
+	assert.Nil(t, m.BuyVXCError)
+	assert.Nil(t, m.GetVXCError)
+	assert.Nil(t, m.DeleteVXCError)
+	assert.False(t, m.ForceNilGetVXC)
 }

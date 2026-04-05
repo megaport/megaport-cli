@@ -80,3 +80,24 @@ func (m *MockIXService) ListIXs(ctx context.Context, req *megaport.ListIXsReques
 	}
 	return []*megaport.IX{}, nil
 }
+
+// Reset clears all configured results, errors, and captured requests.
+func (m *MockIXService) Reset() {
+	m.buyIXResponse = nil
+	m.buyIXError = nil
+	m.capturedBuyIXRequest = nil
+	m.validateIXOrderError = nil
+	m.getIXResponse = nil
+	m.getIXError = nil
+	m.deleteIXError = nil
+	m.capturedDeleteIXUID = ""
+	m.capturedDeleteIXReq = nil
+	m.updateIXResponse = nil
+	m.updateIXError = nil
+	m.capturedUpdateIXUID = ""
+	m.capturedUpdateIXReq = nil
+	m.listIXResponse = nil
+	m.listIXErr = nil
+	m.CapturedListIXsRequest = nil
+	m.forceNilGetIX = false
+}

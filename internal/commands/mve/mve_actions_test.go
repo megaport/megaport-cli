@@ -1885,10 +1885,11 @@ func TestRestoreMVECmd_WithMockClient(t *testing.T) {
 }
 
 func TestLockMVECmd_LoginError(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() { config.LoginFunc = originalLoginFunc }()
 	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		return nil, fmt.Errorf("login failed")
 	}
-	defer func() { config.LoginFunc = nil }()
 
 	cmd := &cobra.Command{}
 	err := LockMVE(cmd, []string{"mve-123"}, false)
@@ -1897,10 +1898,11 @@ func TestLockMVECmd_LoginError(t *testing.T) {
 }
 
 func TestUnlockMVECmd_LoginError(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() { config.LoginFunc = originalLoginFunc }()
 	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		return nil, fmt.Errorf("login failed")
 	}
-	defer func() { config.LoginFunc = nil }()
 
 	cmd := &cobra.Command{}
 	err := UnlockMVE(cmd, []string{"mve-123"}, false)
@@ -1909,10 +1911,11 @@ func TestUnlockMVECmd_LoginError(t *testing.T) {
 }
 
 func TestRestoreMVECmd_LoginError(t *testing.T) {
+	originalLoginFunc := config.LoginFunc
+	defer func() { config.LoginFunc = originalLoginFunc }()
 	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		return nil, fmt.Errorf("login failed")
 	}
-	defer func() { config.LoginFunc = nil }()
 
 	cmd := &cobra.Command{}
 	err := RestoreMVE(cmd, []string{"mve-123"}, false)
