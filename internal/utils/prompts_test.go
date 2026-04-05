@@ -370,6 +370,50 @@ func TestResourcePrompt(t *testing.T) {
 	}
 }
 
+// TestAccessors verifies that every Get/Set accessor pair round-trips correctly
+// and that the call-through wrappers delegate to the underlying function pointer.
+func TestAccessors(t *testing.T) {
+	t.Run("BuyConfirmPrompt", func(t *testing.T) {
+		original := GetBuyConfirmPrompt()
+		defer SetBuyConfirmPrompt(original)
+
+		called := false
+		SetBuyConfirmPrompt(func(_ string, _ []BuyConfirmDetail, _ bool) bool {
+			called = true
+			return true
+		})
+		result := BuyConfirmPrompt("port", nil, true)
+		assert.True(t, called)
+		assert.True(t, result)
+	})
+
+	t.Run("ResourceTagsPrompt", func(t *testing.T) {
+		original := GetResourceTagsPrompt()
+		defer SetResourceTagsPrompt(original)
+
+		SetResourceTagsPrompt(func(_ bool) (map[string]string, error) {
+			return map[string]string{"k": "v"}, nil
+		})
+		tags, err := ResourceTagsPrompt(true)
+		assert.NoError(t, err)
+		assert.Equal(t, map[string]string{"k": "v"}, tags)
+	})
+
+	t.Run("UpdateResourceTagsPrompt", func(t *testing.T) {
+		original := GetUpdateResourceTagsPrompt()
+		defer SetUpdateResourceTagsPrompt(original)
+
+		SetUpdateResourceTagsPrompt(func(existing map[string]string, _ bool) (map[string]string, error) {
+			existing["new"] = "tag"
+			return existing, nil
+		})
+		tags, err := UpdateResourceTagsPrompt(map[string]string{"old": "tag"}, true)
+		assert.NoError(t, err)
+		assert.Equal(t, "tag", tags["new"])
+		assert.Equal(t, "tag", tags["old"])
+	})
+}
+
 // Integration test that actually runs the real functions
 func TestPromptsIntegration(t *testing.T) {
 	// Skip in CI environments

@@ -591,3 +591,37 @@ func TestCredentialSelectionPrecedence(t *testing.T) {
 		})
 	}
 }
+
+func TestLoginFuncAccessors(t *testing.T) {
+	t.Run("SetLoginFuncWithOutput round-trips", func(t *testing.T) {
+		original := GetLoginFuncWithOutput()
+		defer SetLoginFuncWithOutput(original)
+
+		called := false
+		SetLoginFuncWithOutput(func(_ context.Context, _ string) (*megaport.Client, error) {
+			called = true
+			return &megaport.Client{}, nil
+		})
+		fn := GetLoginFuncWithOutput()
+		client, err := fn(context.Background(), "json")
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.True(t, called)
+	})
+
+	t.Run("SetNewUnauthenticatedClientFunc round-trips", func(t *testing.T) {
+		original := GetNewUnauthenticatedClientFunc()
+		defer SetNewUnauthenticatedClientFunc(original)
+
+		called := false
+		SetNewUnauthenticatedClientFunc(func() (*megaport.Client, error) {
+			called = true
+			return &megaport.Client{}, nil
+		})
+		fn := GetNewUnauthenticatedClientFunc()
+		client, err := fn()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.True(t, called)
+	})
+}
