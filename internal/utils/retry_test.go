@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
+	"syscall"
 	"testing"
 	"time"
 
@@ -153,10 +155,17 @@ func TestRetryWithBackoff_TransientNetworkErrors(t *testing.T) {
 		retryable bool
 	}{
 		{"timeout error", &net.DNSError{IsTimeout: true}, true},
-		{"connection reset", fmt.Errorf("read tcp: connection reset by peer"), true},
-		{"connection refused", fmt.Errorf("dial tcp: connection refused"), true},
-		{"EOF", fmt.Errorf("unexpected EOF"), true},
-		{"i/o timeout", fmt.Errorf("i/o timeout"), true},
+		{"connection reset (string)", fmt.Errorf("read tcp: connection reset by peer"), true},
+		{"connection refused (string)", fmt.Errorf("dial tcp: connection refused"), true},
+		{"io.EOF", io.EOF, true},
+		{"io.ErrUnexpectedEOF", io.ErrUnexpectedEOF, true},
+		{"wrapped io.EOF", fmt.Errorf("read failed: %w", io.EOF), true},
+		{"i/o timeout (string)", fmt.Errorf("i/o timeout"), true},
+		{"context.DeadlineExceeded", context.DeadlineExceeded, true},
+		{"wrapped DeadlineExceeded", fmt.Errorf("request failed: %w", context.DeadlineExceeded), true},
+		{"syscall ECONNRESET", fmt.Errorf("write: %w", syscall.ECONNRESET), true},
+		{"syscall ECONNREFUSED", fmt.Errorf("dial: %w", syscall.ECONNREFUSED), true},
+		{"syscall EPIPE", fmt.Errorf("write: %w", syscall.EPIPE), true},
 		{"plain error", fmt.Errorf("something went wrong"), false},
 	}
 
@@ -283,29 +292,47 @@ func TestAddJitter(t *testing.T) {
 
 func TestRetryAfterDelay(t *testing.T) {
 	t.Run("no API error", func(t *testing.T) {
-		assert.Equal(t, time.Duration(0), retryAfterDelay(fmt.Errorf("plain")))
+		d, ok := retryAfterDelay(fmt.Errorf("plain"))
+		assert.Equal(t, time.Duration(0), d)
+		assert.False(t, ok)
 	})
 	t.Run("non-429", func(t *testing.T) {
-		assert.Equal(t, time.Duration(0), retryAfterDelay(apiError(503, "5")))
+		d, ok := retryAfterDelay(apiError(503, "5"))
+		assert.Equal(t, time.Duration(0), d)
+		assert.False(t, ok)
 	})
 	t.Run("429 with seconds", func(t *testing.T) {
-		assert.Equal(t, 5*time.Second, retryAfterDelay(apiError(429, "5")))
+		d, ok := retryAfterDelay(apiError(429, "5"))
+		assert.Equal(t, 5*time.Second, d)
+		assert.True(t, ok)
+	})
+	t.Run("429 with zero seconds", func(t *testing.T) {
+		d, ok := retryAfterDelay(apiError(429, "0"))
+		assert.Equal(t, time.Duration(0), d)
+		assert.True(t, ok, "Retry-After: 0 is valid and means retry immediately")
 	})
 	t.Run("429 without header", func(t *testing.T) {
-		assert.Equal(t, time.Duration(0), retryAfterDelay(apiError(429, "")))
+		d, ok := retryAfterDelay(apiError(429, ""))
+		assert.Equal(t, time.Duration(0), d)
+		assert.False(t, ok)
 	})
 	t.Run("429 with HTTP-date in future", func(t *testing.T) {
 		future := time.Now().Add(10 * time.Second).UTC().Format(http.TimeFormat)
-		d := retryAfterDelay(apiError(429, future))
+		d, ok := retryAfterDelay(apiError(429, future))
+		assert.True(t, ok)
 		assert.Greater(t, d, 5*time.Second, "should parse future HTTP-date")
 		assert.LessOrEqual(t, d, 11*time.Second)
 	})
 	t.Run("429 with HTTP-date in past", func(t *testing.T) {
 		past := time.Now().Add(-10 * time.Second).UTC().Format(http.TimeFormat)
-		assert.Equal(t, time.Duration(0), retryAfterDelay(apiError(429, past)))
+		d, ok := retryAfterDelay(apiError(429, past))
+		assert.Equal(t, time.Duration(0), d)
+		assert.True(t, ok, "past HTTP-date is valid, means retry immediately")
 	})
 	t.Run("429 with invalid value", func(t *testing.T) {
-		assert.Equal(t, time.Duration(0), retryAfterDelay(apiError(429, "not-a-number")))
+		d, ok := retryAfterDelay(apiError(429, "not-a-number"))
+		assert.Equal(t, time.Duration(0), d)
+		assert.False(t, ok)
 	})
 }
 

@@ -24,7 +24,7 @@ func ExecuteWithArgs(args []string) {
 	rootCmd.SetErr(wasm.WasmOutputBuffer)
 
 	// Enable traversal for subcommand flags
-	rootCmd.PersistentFlags().ParseErrorsWhitelist.UnknownFlags = true
+	rootCmd.PersistentFlags().ParseErrorsAllowlist.UnknownFlags = true
 	rootCmd.TraverseChildren = true
 
 	// Enable subcommand traversal for ALL commands, not just root

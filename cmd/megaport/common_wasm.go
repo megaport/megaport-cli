@@ -83,4 +83,16 @@ func InitializeCommon() {
 	rootCmd.PersistentFlags().BoolVar(&utils.NoRetry, "no-retry", false, "Disable automatic retry on transient API failures")
 	rootCmd.PersistentFlags().IntVar(&utils.MaxRetries, "max-retries", 3, "Maximum number of retries for transient API failures")
 	rootCmd.MarkFlagsMutuallyExclusive("quiet", "verbose")
+
+	// Validate retry flags in WASM builds too.
+	existingPreRunE := rootCmd.PersistentPreRunE
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		if utils.MaxRetries < 0 {
+			return fmt.Errorf("--max-retries must be >= 0, got %d", utils.MaxRetries)
+		}
+		if existingPreRunE != nil {
+			return existingPreRunE(cmd, args)
+		}
+		return nil
+	}
 }

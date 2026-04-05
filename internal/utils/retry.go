@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand/v2"
 	"net"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -89,11 +91,11 @@ func RetryWithBackoff(ctx context.Context, opts RetryOpts, fn func(ctx context.C
 		// Use Retry-After header if present, otherwise exponential backoff.
 		// Cap Retry-After at MaxDelay to prevent a misbehaving server from
 		// stalling the CLI indefinitely.
-		wait := retryAfterDelay(err)
+		wait, hasRetryAfter := retryAfterDelay(err)
 		if wait > opts.MaxDelay {
 			wait = opts.MaxDelay
 		}
-		if wait == 0 {
+		if !hasRetryAfter {
 			wait = addJitter(delay)
 		}
 		// Ensure jittered wait also respects the hard cap.
@@ -144,19 +146,30 @@ func isRetryable(err error, retryNetworkErrors bool) bool {
 		return false
 	}
 
-	// Check for transient network errors.
+	// Structured sentinel/type checks first.
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		return true
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	// syscall-level transient errors (ECONNRESET, ECONNREFUSED, EPIPE).
+	if errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.EPIPE) {
+		return true
+	}
+
+	// Check for transient network errors via the net.Error interface.
 	var netErr net.Error
 	if errors.As(err, &netErr) {
 		return netErr.Timeout() || netErr.Temporary() //nolint:staticcheck // Temporary is deprecated but still useful for transient network errors
 	}
 
-	// Check for common transient error strings (connection reset, etc.).
-	msg := err.Error()
+	// Last-resort substring matching for errors that don't expose structured types.
+	msg := strings.ToLower(err.Error())
 	for _, s := range []string{
 		"connection reset",
 		"connection refused",
 		"broken pipe",
-		"EOF",
 		"i/o timeout",
 	} {
 		if strings.Contains(msg, s) {
@@ -168,30 +181,32 @@ func isRetryable(err error, retryNetworkErrors bool) bool {
 }
 
 // retryAfterDelay extracts the Retry-After header from a 429 response and
-// returns the corresponding duration. Returns 0 if not applicable.
-func retryAfterDelay(err error) time.Duration {
+// returns the corresponding duration and whether a valid header was found.
+// A Retry-After value of "0" is valid and means retry immediately.
+func retryAfterDelay(err error) (time.Duration, bool) {
 	var apiErr *megaport.ErrorResponse
 	if !errors.As(err, &apiErr) || apiErr.Response == nil {
-		return 0
+		return 0, false
 	}
 	if apiErr.Response.StatusCode != http.StatusTooManyRequests {
-		return 0
+		return 0, false
 	}
 	ra := strings.TrimSpace(apiErr.Response.Header.Get("Retry-After"))
 	if ra == "" {
-		return 0
+		return 0, false
 	}
 	// Try parsing as seconds first (most common for APIs).
-	if secs, err := strconv.Atoi(ra); err == nil && secs > 0 {
-		return time.Duration(secs) * time.Second
+	if secs, err := strconv.Atoi(ra); err == nil && secs >= 0 {
+		return time.Duration(secs) * time.Second, true
 	}
 	// Try parsing as HTTP-date.
 	if t, err := http.ParseTime(ra); err == nil {
 		if d := time.Until(t); d > 0 {
-			return d
+			return d, true
 		}
+		return 0, true
 	}
-	return 0
+	return 0, false
 }
 
 // addJitter adds 10-25% random jitter to a duration.
@@ -201,22 +216,22 @@ func addJitter(d time.Duration) time.Duration {
 	return d + jitter
 }
 
-// logRetry prints a retry message to stderr when verbose mode is active.
-// attempt is 1-based (retry number), totalAttempts includes the initial call.
+// logRetry prints a retry message to stderr.
+// attempt is the 1-based retry number; the displayed attempt count includes the initial call.
 func logRetry(attempt, maxRetries int, wait time.Duration, err error) {
 	// Suppress all retry logs in quiet mode.
 	if output.IsQuiet() {
 		return
 	}
 	totalAttempts := maxRetries + 1
-	currentAttempt := attempt + 1 // +1 because attempt is retry index, display is overall attempt
+	overallAttempt := attempt + 1 // retry #1 happens after the initial call, so it is overall attempt #2
 	// Always log on the final retry attempt regardless of verbosity.
 	if attempt == maxRetries {
-		fmt.Fprintf(os.Stderr, "Retrying in %s (attempt %d/%d): %v\n", wait.Round(time.Millisecond), currentAttempt, totalAttempts, err)
+		fmt.Fprintf(os.Stderr, "Retrying in %s (attempt %d/%d): %v\n", wait.Round(time.Millisecond), overallAttempt, totalAttempts, err)
 		return
 	}
 	// For earlier attempts, only log in verbose mode.
 	if output.IsVerbose() {
-		fmt.Fprintf(os.Stderr, "Retrying in %s (attempt %d/%d): %v\n", wait.Round(time.Millisecond), currentAttempt, totalAttempts, err)
+		fmt.Fprintf(os.Stderr, "Retrying in %s (attempt %d/%d): %v\n", wait.Round(time.Millisecond), overallAttempt, totalAttempts, err)
 	}
 }

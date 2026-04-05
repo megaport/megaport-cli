@@ -58,7 +58,7 @@ func init() {
 
 		// Validate retry flags
 		if utils.MaxRetries < 0 {
-			return fmt.Errorf("--max-retries must be >= 0, got %d", utils.MaxRetries)
+			return exitcodes.NewUsageError(fmt.Errorf("--max-retries must be >= 0, got %d", utils.MaxRetries))
 		}
 
 		return nil
@@ -74,12 +74,14 @@ func init() {
 			ShortDesc:   "A CLI tool to interact with the Megaport API",
 			LongDesc:    "Megaport CLI provides a command line interface to interact with the Megaport API.\n\nThe CLI allows you to manage Megaport resources such as ports, VXCs, MCRs, MVEs, service keys, and more.",
 			OptionalFlags: map[string]string{
-				"--no-color": "Disable colored output",
-				"--output":   "Output format (json, yaml, table, csv, xml)",
-				"--help":     "Show help for any command",
-				"--env":      "Environment to use (production, staging, development)",
-				"--quiet":    "Suppress informational output, only show errors and data",
-				"--verbose":  "Show additional debug information",
+				"--no-color":    "Disable colored output",
+				"--output":      "Output format (json, yaml, table, csv, xml)",
+				"--help":        "Show help for any command",
+				"--env":         "Environment to use (production, staging, development)",
+				"--quiet":       "Suppress informational output, only show errors and data",
+				"--verbose":     "Show additional debug information",
+				"--no-retry":    "Disable automatic retry on transient API failures",
+				"--max-retries": "Maximum number of retries for transient API failures (default 3)",
 			},
 			Examples: []string{
 				"megaport-cli ports list",
