@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"syscall/js"
 	"time"
 
@@ -17,14 +18,67 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-func Login(ctx context.Context) (*megaport.Client, error) {
-	return LoginFunc(ctx)
+// loginFuncMu guards loginFunc and newUnauthenticatedClientFunc.
+var loginFuncMu sync.RWMutex
+
+// GetLoginFunc returns the current login function in a thread-safe manner.
+func GetLoginFunc() func(context.Context) (*megaport.Client, error) {
+	loginFuncMu.RLock()
+	defer loginFuncMu.RUnlock()
+	return loginFunc
 }
 
-// LoginFunc overrides the standard login for WASM environments
+// SetLoginFunc replaces the login function in a thread-safe manner.
+func SetLoginFunc(fn func(context.Context) (*megaport.Client, error)) {
+	loginFuncMu.Lock()
+	defer loginFuncMu.Unlock()
+	loginFunc = fn
+}
+
+// GetLoginFuncWithOutput is not used in WASM but provided for API compatibility with testutil.
+func GetLoginFuncWithOutput() func(context.Context, string) (*megaport.Client, error) {
+	loginFuncMu.RLock()
+	defer loginFuncMu.RUnlock()
+	return func(ctx context.Context, _ string) (*megaport.Client, error) {
+		return loginFunc(ctx)
+	}
+}
+
+// SetLoginFuncWithOutput is not used in WASM but provided for API compatibility with testutil.
+func SetLoginFuncWithOutput(fn func(context.Context, string) (*megaport.Client, error)) {
+	loginFuncMu.Lock()
+	defer loginFuncMu.Unlock()
+	loginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		return fn(ctx, "")
+	}
+}
+
+// GetNewUnauthenticatedClientFunc returns the current unauthenticated client factory in a thread-safe manner.
+func GetNewUnauthenticatedClientFunc() func() (*megaport.Client, error) {
+	loginFuncMu.RLock()
+	defer loginFuncMu.RUnlock()
+	return newUnauthenticatedClientFunc
+}
+
+// SetNewUnauthenticatedClientFunc replaces the unauthenticated client factory in a thread-safe manner.
+func SetNewUnauthenticatedClientFunc(fn func() (*megaport.Client, error)) {
+	loginFuncMu.Lock()
+	defer loginFuncMu.Unlock()
+	newUnauthenticatedClientFunc = fn
+}
+
+func Login(ctx context.Context) (*megaport.Client, error) {
+	return GetLoginFunc()(ctx)
+}
+
+func LoginWithOutput(ctx context.Context, outputFormat string) (*megaport.Client, error) {
+	return GetLoginFunc()(ctx)
+}
+
+// loginFunc overrides the standard login for WASM environments.
 // Note: WASM version uses session-based authentication managed by the browser UI.
 // Config profiles are not supported in the WASM version.
-var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	var accessKey, secretKey, env string
 
 	// Add console logging for debugging
@@ -370,9 +424,9 @@ func Logout() {
 	js.Global().Get("console").Call("log", "User logged out and tokens cleared")
 }
 
-// NewUnauthenticatedClientFunc creates a Megaport API client without authentication.
+// newUnauthenticatedClientFunc creates a Megaport API client without authentication.
 // Used for public API endpoints (e.g., locations) that don't require credentials.
-var NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
+var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 	var clientOpts []megaport.ClientOpt
 
 	// Prefer hostname-derived API URL (auto-works for non-standard environments)
@@ -413,5 +467,5 @@ var NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 
 // NewUnauthenticatedClient creates an unauthenticated Megaport API client.
 func NewUnauthenticatedClient() (*megaport.Client, error) {
-	return NewUnauthenticatedClientFunc()
+	return GetNewUnauthenticatedClientFunc()()
 }
