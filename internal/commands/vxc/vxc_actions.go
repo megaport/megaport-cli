@@ -300,7 +300,12 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 		spinner = output.PrintResourceCreating("VXC", req.VXCName, noColor)
 	}
 
-	resp, err := buyVXCFunc(ctx, client, req)
+	var resp *megaport.BuyVXCResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = buyVXCFunc(ctx, client, req)
+		return e
+	})
 
 	spinner.Stop()
 
@@ -400,7 +405,9 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 
 	updateSpinner := output.PrintResourceUpdating("VXC", vxcUID, noColor)
 
-	err = updateVXCFunc(ctx, client, vxcUID, req)
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		return updateVXCFunc(ctx, client, vxcUID, req)
+	})
 
 	updateSpinner.Stop()
 
@@ -458,7 +465,9 @@ func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
 
 	spinner := output.PrintResourceDeleting("VXC", vxcUID, noColor)
 
-	err = deleteVXCFunc(ctx, client, vxcUID, req)
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		return deleteVXCFunc(ctx, client, vxcUID, req)
+	})
 
 	spinner.Stop()
 

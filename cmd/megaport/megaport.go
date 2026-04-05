@@ -52,6 +52,7 @@ func init() {
 			output.SetVerbosity("quiet")
 		} else if verbose {
 			output.SetVerbosity("verbose")
+			utils.Verbose = true
 		} else {
 			output.SetVerbosity("normal")
 		}

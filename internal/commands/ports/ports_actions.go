@@ -116,7 +116,12 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 		spinner = output.PrintResourceCreating("Port", req.Name, noColor)
 	}
 
-	resp, err := buyPortFunc(ctx, client, req)
+	var resp *megaport.BuyPortResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = buyPortFunc(ctx, client, req)
+		return e
+	})
 
 	spinner.Stop()
 
@@ -534,7 +539,12 @@ func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
 
 	updateSpinner := output.PrintResourceUpdating("Port", portUID, noColor)
 
-	resp, err := updatePortFunc(ctx, client, req)
+	var resp *megaport.ModifyPortResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = updatePortFunc(ctx, client, req)
+		return e
+	})
 
 	updateSpinner.Stop()
 
@@ -612,7 +622,12 @@ func DeletePort(cmd *cobra.Command, args []string, noColor bool) error {
 
 	spinner := output.PrintResourceDeleting("Port", portUID, noColor)
 
-	resp, err := deletePortFunc(ctx, client, deleteRequest)
+	var resp *megaport.DeletePortResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = deletePortFunc(ctx, client, deleteRequest)
+		return e
+	})
 
 	spinner.Stop()
 
@@ -645,7 +660,12 @@ func RestorePort(cmd *cobra.Command, args []string, noColor bool) error {
 
 	spinner := output.PrintResourceUpdating("Port", portUID, noColor)
 
-	resp, err := restorePortFunc(ctx, client, portUID)
+	var resp *megaport.RestorePortResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = restorePortFunc(ctx, client, portUID)
+		return e
+	})
 
 	spinner.Stop()
 
@@ -677,7 +697,12 @@ func LockPort(cmd *cobra.Command, args []string, noColor bool) error {
 
 	spinner := output.PrintResourceUpdating("Port", portUID, noColor)
 
-	resp, err := lockPortFunc(ctx, client, portUID)
+	var resp *megaport.LockPortResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = lockPortFunc(ctx, client, portUID)
+		return e
+	})
 
 	spinner.Stop()
 
@@ -709,7 +734,12 @@ func UnlockPort(cmd *cobra.Command, args []string, noColor bool) error {
 
 	spinner := output.PrintResourceUpdating("Port", portUID, noColor)
 
-	resp, err := unlockPortFunc(ctx, client, portUID)
+	var resp *megaport.UnlockPortResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = unlockPortFunc(ctx, client, portUID)
+		return e
+	})
 
 	spinner.Stop()
 
