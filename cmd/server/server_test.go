@@ -270,6 +270,7 @@ func TestAuthenticatedProxyHandler_StagingHost(t *testing.T) {
 	defer func() { optimizedHTTPClient = origClient }()
 	// Capture the original URL host before redirect rewrites it
 	optimizedHTTPClient = &http.Client{
+		Timeout: 10 * time.Second,
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			receivedHost = req.URL.Host
 			req.URL.Scheme = "http"
