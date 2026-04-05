@@ -89,12 +89,14 @@ func TestLogin(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Unsetenv("MEGAPORT_ACCESS_KEY")
-			os.Unsetenv("MEGAPORT_SECRET_KEY")
-			os.Unsetenv("MEGAPORT_ENVIRONMENT")
+			// Clear all env vars first, then set the ones specified in the test case.
+			// t.Setenv auto-restores when the subtest finishes.
+			t.Setenv("MEGAPORT_ACCESS_KEY", "")
+			t.Setenv("MEGAPORT_SECRET_KEY", "")
+			t.Setenv("MEGAPORT_ENVIRONMENT", "")
 
 			for key, value := range tt.envVars {
-				os.Setenv(key, value)
+				t.Setenv(key, value)
 			}
 
 			if tt.envFlag != "" {
@@ -146,18 +148,10 @@ func TestLogin(t *testing.T) {
 }
 
 func TestEnvironmentSelectionPrecedence(t *testing.T) {
-	// Save original values
+	// Save and restore non-env-var globals
 	originalEnv := utils.Env
-	originalMegaportEnv := os.Getenv("MEGAPORT_ENVIRONMENT")
-
 	defer func() {
-		// Restore original values
 		utils.Env = originalEnv
-		if originalMegaportEnv == "" {
-			os.Unsetenv("MEGAPORT_ENVIRONMENT")
-		} else {
-			os.Setenv("MEGAPORT_ENVIRONMENT", originalMegaportEnv)
-		}
 	}()
 
 	tests := []struct {
@@ -196,11 +190,7 @@ func TestEnvironmentSelectionPrecedence(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup test environment
 			utils.Env = tt.globalFlag
-			if tt.envVar != "" {
-				os.Setenv("MEGAPORT_ENVIRONMENT", tt.envVar)
-			} else {
-				os.Unsetenv("MEGAPORT_ENVIRONMENT")
-			}
+			t.Setenv("MEGAPORT_ENVIRONMENT", tt.envVar)
 
 			// Test the environment selection logic by examining the values
 			// that would be read in the login function
@@ -223,35 +213,27 @@ func TestEnvironmentSelectionPrecedence(t *testing.T) {
 }
 
 func TestProfileOverrideLogin(t *testing.T) {
-	// Save original values
+	// Save and restore non-env-var globals
 	originalEnv := utils.Env
 	originalProfileOverride := utils.ProfileOverride
 	originalLoginFuncWithOutput := LoginFuncWithOutput
-	originalAccessKey := os.Getenv("MEGAPORT_ACCESS_KEY")
-	originalSecretKey := os.Getenv("MEGAPORT_SECRET_KEY")
-	originalMegaportEnv := os.Getenv("MEGAPORT_ENVIRONMENT")
-	originalConfigDir := os.Getenv("MEGAPORT_CONFIG_DIR")
 
 	defer func() {
 		utils.Env = originalEnv
 		utils.ProfileOverride = originalProfileOverride
 		LoginFuncWithOutput = originalLoginFuncWithOutput
-		restoreEnvVar("MEGAPORT_ACCESS_KEY", originalAccessKey)
-		restoreEnvVar("MEGAPORT_SECRET_KEY", originalSecretKey)
-		restoreEnvVar("MEGAPORT_ENVIRONMENT", originalMegaportEnv)
-		restoreEnvVar("MEGAPORT_CONFIG_DIR", originalConfigDir)
 	}()
 
 	// Setup temp config dir with profiles
 	tempDir, err := os.MkdirTemp("", "megaport-login-test")
 	assert.NoError(t, err)
 	defer os.RemoveAll(tempDir)
-	os.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+	t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
 
 	// Clear env vars so profile credentials are used
-	os.Unsetenv("MEGAPORT_ACCESS_KEY")
-	os.Unsetenv("MEGAPORT_SECRET_KEY")
-	os.Unsetenv("MEGAPORT_ENVIRONMENT")
+	t.Setenv("MEGAPORT_ACCESS_KEY", "")
+	t.Setenv("MEGAPORT_SECRET_KEY", "")
+	t.Setenv("MEGAPORT_ENVIRONMENT", "")
 
 	// Create config with two profiles
 	manager, err := NewConfigManager()
@@ -325,53 +307,34 @@ func TestProfileOverrideLogin(t *testing.T) {
 		emptyDir, err := os.MkdirTemp("", "megaport-empty-test")
 		assert.NoError(t, err)
 		defer os.RemoveAll(emptyDir)
-		os.Setenv("MEGAPORT_CONFIG_DIR", emptyDir)
+		t.Setenv("MEGAPORT_CONFIG_DIR", emptyDir)
 
 		_, err = LoginFuncWithOutput(context.Background(), "json")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "access key not provided")
-
-		// Restore original temp dir for other tests
-		os.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
 	})
 }
 
-func restoreEnvVar(key, value string) {
-	if value == "" {
-		os.Unsetenv(key)
-	} else {
-		os.Setenv(key, value)
-	}
-}
-
 func TestNewUnauthenticatedClient(t *testing.T) {
-	// Save original values
+	// Save and restore non-env-var globals
 	originalEnv := utils.Env
 	originalProfileOverride := utils.ProfileOverride
-	originalMegaportEnv := os.Getenv("MEGAPORT_ENVIRONMENT")
-	originalConfigDir := os.Getenv("MEGAPORT_CONFIG_DIR")
-	originalAccessKey := os.Getenv("MEGAPORT_ACCESS_KEY")
-	originalSecretKey := os.Getenv("MEGAPORT_SECRET_KEY")
 
 	defer func() {
 		utils.Env = originalEnv
 		utils.ProfileOverride = originalProfileOverride
-		restoreEnvVar("MEGAPORT_ENVIRONMENT", originalMegaportEnv)
-		restoreEnvVar("MEGAPORT_CONFIG_DIR", originalConfigDir)
-		restoreEnvVar("MEGAPORT_ACCESS_KEY", originalAccessKey)
-		restoreEnvVar("MEGAPORT_SECRET_KEY", originalSecretKey)
 	}()
 
 	// Default empty config dir for all subtests (subtests that need profiles override this)
 	defaultEmptyDir, err := os.MkdirTemp("", "megaport-unauth-default")
 	assert.NoError(t, err)
 	defer os.RemoveAll(defaultEmptyDir)
-	os.Setenv("MEGAPORT_CONFIG_DIR", defaultEmptyDir)
+	t.Setenv("MEGAPORT_CONFIG_DIR", defaultEmptyDir)
 
 	t.Run("defaults to production when no env configured", func(t *testing.T) {
 		utils.Env = ""
 		utils.ProfileOverride = ""
-		os.Unsetenv("MEGAPORT_ENVIRONMENT")
+		t.Setenv("MEGAPORT_ENVIRONMENT", "")
 
 		client, err := NewUnauthenticatedClient()
 		assert.NoError(t, err)
@@ -382,7 +345,7 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 	t.Run("respects env flag", func(t *testing.T) {
 		utils.Env = "staging"
 		utils.ProfileOverride = ""
-		os.Unsetenv("MEGAPORT_ENVIRONMENT")
+		t.Setenv("MEGAPORT_ENVIRONMENT", "")
 
 		client, err := NewUnauthenticatedClient()
 		assert.NoError(t, err)
@@ -393,7 +356,7 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 	t.Run("respects MEGAPORT_ENVIRONMENT env var", func(t *testing.T) {
 		utils.Env = ""
 		utils.ProfileOverride = ""
-		os.Setenv("MEGAPORT_ENVIRONMENT", "staging")
+		t.Setenv("MEGAPORT_ENVIRONMENT", "staging")
 
 		client, err := NewUnauthenticatedClient()
 		assert.NoError(t, err)
@@ -405,7 +368,7 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "megaport-unauth-test")
 		assert.NoError(t, err)
 		defer os.RemoveAll(tempDir)
-		os.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+		t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
 
 		manager, err := NewConfigManager()
 		assert.NoError(t, err)
@@ -414,7 +377,7 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 
 		utils.Env = ""
 		utils.ProfileOverride = "staging-profile"
-		os.Unsetenv("MEGAPORT_ENVIRONMENT")
+		t.Setenv("MEGAPORT_ENVIRONMENT", "")
 
 		client, err := NewUnauthenticatedClient()
 		assert.NoError(t, err)
@@ -426,7 +389,7 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "megaport-unauth-test")
 		assert.NoError(t, err)
 		defer os.RemoveAll(tempDir)
-		os.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+		t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
 
 		utils.Env = ""
 		utils.ProfileOverride = "non-existent"
@@ -441,7 +404,7 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "megaport-unauth-test")
 		assert.NoError(t, err)
 		defer os.RemoveAll(tempDir)
-		os.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+		t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
 
 		manager, err := NewConfigManager()
 		assert.NoError(t, err)
@@ -460,8 +423,8 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 	t.Run("does not require credentials", func(t *testing.T) {
 		utils.Env = "production"
 		utils.ProfileOverride = ""
-		os.Unsetenv("MEGAPORT_ACCESS_KEY")
-		os.Unsetenv("MEGAPORT_SECRET_KEY")
+		t.Setenv("MEGAPORT_ACCESS_KEY", "")
+		t.Setenv("MEGAPORT_SECRET_KEY", "")
 
 		client, err := NewUnauthenticatedClient()
 		assert.NoError(t, err)
@@ -492,24 +455,10 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 }
 
 func TestCredentialSelectionPrecedence(t *testing.T) {
-	// Save original values
+	// Save and restore non-env-var globals
 	originalEnv := utils.Env
-	originalAccessKey := os.Getenv("MEGAPORT_ACCESS_KEY")
-	originalSecretKey := os.Getenv("MEGAPORT_SECRET_KEY")
-
 	defer func() {
-		// Restore original values
 		utils.Env = originalEnv
-		if originalAccessKey == "" {
-			os.Unsetenv("MEGAPORT_ACCESS_KEY")
-		} else {
-			os.Setenv("MEGAPORT_ACCESS_KEY", originalAccessKey)
-		}
-		if originalSecretKey == "" {
-			os.Unsetenv("MEGAPORT_SECRET_KEY")
-		} else {
-			os.Setenv("MEGAPORT_SECRET_KEY", originalSecretKey)
-		}
 	}()
 
 	tests := []struct {
@@ -539,8 +488,8 @@ func TestCredentialSelectionPrecedence(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup test environment
 			utils.Env = tt.globalFlag
-			os.Setenv("MEGAPORT_ACCESS_KEY", tt.envAccessKey)
-			os.Setenv("MEGAPORT_SECRET_KEY", tt.envSecretKey)
+			t.Setenv("MEGAPORT_ACCESS_KEY", tt.envAccessKey)
+			t.Setenv("MEGAPORT_SECRET_KEY", tt.envSecretKey)
 
 			// Test credential selection logic
 			var accessKey, secretKey string
