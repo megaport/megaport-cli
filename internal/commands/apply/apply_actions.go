@@ -117,7 +117,12 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		validateSpinner.Stop()
 
 		createSpinner := output.PrintResourceCreating("Port", p.Name, noColor)
-		resp, err := client.PortService.BuyPort(ctx, req)
+		var resp *megaport.BuyPortResponse
+		err = utils.WithRetry(ctx, func(ctx context.Context) error {
+			var e error
+			resp, e = client.PortService.BuyPort(ctx, req)
+			return e
+		})
 		if err != nil {
 			createSpinner.Stop()
 			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
@@ -166,7 +171,12 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		validateSpinner.Stop()
 
 		createSpinner := output.PrintResourceCreating("MCR", m.Name, noColor)
-		resp, err := client.MCRService.BuyMCR(ctx, req)
+		var resp *megaport.BuyMCRResponse
+		err = utils.WithRetry(ctx, func(ctx context.Context) error {
+			var e error
+			resp, e = client.MCRService.BuyMCR(ctx, req)
+			return e
+		})
 		if err != nil {
 			createSpinner.Stop()
 			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
@@ -226,7 +236,12 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		validateSpinner.Stop()
 
 		createSpinner := output.PrintResourceCreating("MVE", mv.Name, noColor)
-		resp, err := client.MVEService.BuyMVE(ctx, req)
+		var resp *megaport.BuyMVEResponse
+		err = utils.WithRetry(ctx, func(ctx context.Context) error {
+			var e error
+			resp, e = client.MVEService.BuyMVE(ctx, req)
+			return e
+		})
 		if err != nil {
 			createSpinner.Stop()
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
@@ -293,7 +308,12 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		validateSpinner.Stop()
 
 		createSpinner := output.PrintResourceCreating("VXC", v.Name, noColor)
-		resp, err := client.VXCService.BuyVXC(ctx, req)
+		var resp *megaport.BuyVXCResponse
+		err = utils.WithRetry(ctx, func(ctx context.Context) error {
+			var e error
+			resp, e = client.VXCService.BuyVXC(ctx, req)
+			return e
+		})
 		if err != nil {
 			createSpinner.Stop()
 			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})

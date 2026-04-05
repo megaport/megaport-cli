@@ -172,7 +172,12 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		spinner = output.PrintResourceCreating("MVE", req.Name, noColor)
 	}
 
-	resp, err := client.MVEService.BuyMVE(ctx, req)
+	var resp *megaport.BuyMVEResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = client.MVEService.BuyMVE(ctx, req)
+		return e
+	})
 
 	spinner.Stop()
 
@@ -280,7 +285,12 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 
 	updateSpinner := output.PrintResourceUpdating("MVE", mveUID, noColor)
 
-	resp, err := client.MVEService.ModifyMVE(ctx, req)
+	var resp *megaport.ModifyMVEResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = client.MVEService.ModifyMVE(ctx, req)
+		return e
+	})
 
 	updateSpinner.Stop()
 
@@ -520,7 +530,12 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		MVEID:      mveUID,
 		SafeDelete: safeDelete,
 	}
-	resp, err := client.MVEService.DeleteMVE(ctx, req)
+	var resp *megaport.DeleteMVEResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = client.MVEService.DeleteMVE(ctx, req)
+		return e
+	})
 
 	spinner.Stop()
 
@@ -679,7 +694,10 @@ func LockMVE(cmd *cobra.Command, args []string, noColor bool) error {
 
 	output.PrintInfo("Locking MVE %s...", noColor, mveUID)
 
-	_, err = lockMVEFunc(ctx, client, mveUID)
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		_, e := lockMVEFunc(ctx, client, mveUID)
+		return e
+	})
 	if err != nil {
 		return fmt.Errorf("error locking MVE: %w", err)
 	}
@@ -701,7 +719,10 @@ func UnlockMVE(cmd *cobra.Command, args []string, noColor bool) error {
 
 	output.PrintInfo("Unlocking MVE %s...", noColor, mveUID)
 
-	_, err = unlockMVEFunc(ctx, client, mveUID)
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		_, e := unlockMVEFunc(ctx, client, mveUID)
+		return e
+	})
 	if err != nil {
 		return fmt.Errorf("error unlocking MVE: %w", err)
 	}
@@ -723,7 +744,10 @@ func RestoreMVE(cmd *cobra.Command, args []string, noColor bool) error {
 
 	output.PrintInfo("Restoring MVE %s...", noColor, mveUID)
 
-	_, err = restoreMVEFunc(ctx, client, mveUID)
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		_, e := restoreMVEFunc(ctx, client, mveUID)
+		return e
+	})
 	if err != nil {
 		return fmt.Errorf("error restoring MVE: %w", err)
 	}

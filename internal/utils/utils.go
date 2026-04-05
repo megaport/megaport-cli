@@ -33,6 +33,12 @@ var (
 	// ProfileOverride is the config profile name. Same set-once semantics as Env.
 	ProfileOverride string
 
+	// NoRetry disables automatic retry on transient API failures. Set via --no-retry flag.
+	NoRetry bool
+
+	// MaxRetries overrides the default retry count. Set via --max-retries flag.
+	MaxRetries int
+
 	ValidFormats = []string{FormatTable, FormatJSON, FormatCSV, FormatXML}
 )
 

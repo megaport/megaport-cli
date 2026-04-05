@@ -104,7 +104,12 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	} else {
 		buySpinner = output.PrintResourceCreating("MCR", req.Name, noColor)
 	}
-	resp, err := buyMCRFunc(ctx, client, req)
+	var resp *megaport.BuyMCRResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = buyMCRFunc(ctx, client, req)
+		return e
+	})
 	buySpinner.Stop()
 
 	if err != nil {
@@ -199,7 +204,12 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 	updateSpinner := output.PrintResourceUpdating("MCR", mcrUID, noColor)
-	resp, err := updateMCRFunc(ctx, client, req)
+	var resp *megaport.ModifyMCRResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = updateMCRFunc(ctx, client, req)
+		return e
+	})
 	updateSpinner.Stop()
 
 	if err != nil {
@@ -271,7 +281,12 @@ func CreateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 		return err
 	}
 	spinner := output.PrintResourceCreating("Prefix Filter List", req.PrefixFilterList.Description, noColor)
-	resp, err := createMCRPrefixFilterListFunc(ctx, client, req)
+	var resp *megaport.CreateMCRPrefixFilterListResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = createMCRPrefixFilterListFunc(ctx, client, req)
+		return e
+	})
 	spinner.Stop()
 
 	if err != nil {
@@ -343,7 +358,12 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	defer cancel()
 
 	spinner := output.PrintResourceUpdating("Prefix Filter List", fmt.Sprintf("%d", prefixFilterListID), noColor)
-	resp, err := modifyMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID, prefixFilterList)
+	var resp *megaport.ModifyMCRPrefixFilterListResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = modifyMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID, prefixFilterList)
+		return e
+	})
 	spinner.Stop()
 
 	if err != nil {
@@ -485,7 +505,12 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	spinner := output.PrintResourceDeleting("MCR", mcrUID, noColor)
 
-	resp, err := deleteMCRFunc(ctx, client, deleteRequest)
+	var resp *megaport.DeleteMCRResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = deleteMCRFunc(ctx, client, deleteRequest)
+		return e
+	})
 
 	spinner.Stop()
 
@@ -516,7 +541,12 @@ func RestoreMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	output.PrintInfo("Restoring MCR %s...", noColor, mcrUID)
 
-	resp, err := restoreMCRFunc(ctx, client, mcrUID)
+	var resp *megaport.RestoreMCRResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = restoreMCRFunc(ctx, client, mcrUID)
+		return e
+	})
 	if err != nil {
 		return fmt.Errorf("error restoring MCR: %w", err)
 	}
@@ -543,7 +573,10 @@ func LockMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	output.PrintInfo("Locking MCR %s...", noColor, mcrUID)
 
-	_, err = lockMCRFunc(ctx, client, mcrUID)
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		_, e := lockMCRFunc(ctx, client, mcrUID)
+		return e
+	})
 	if err != nil {
 		return fmt.Errorf("error locking MCR: %w", err)
 	}
@@ -565,7 +598,10 @@ func UnlockMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	output.PrintInfo("Unlocking MCR %s...", noColor, mcrUID)
 
-	_, err = unlockMCRFunc(ctx, client, mcrUID)
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		_, e := unlockMCRFunc(ctx, client, mcrUID)
+		return e
+	})
 	if err != nil {
 		return fmt.Errorf("error unlocking MCR: %w", err)
 	}
@@ -662,7 +698,12 @@ func DeleteMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 
 	spinner := output.PrintResourceDeleting("Prefix filter list", fmt.Sprintf("%d", prefixFilterListID), noColor)
 
-	resp, err := deleteMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
+	var resp *megaport.DeleteMCRPrefixFilterListResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = deleteMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
+		return e
+	})
 
 	spinner.Stop()
 
