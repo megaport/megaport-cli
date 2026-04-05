@@ -38,9 +38,10 @@ func SetLoginFunc(fn func(context.Context) (*megaport.Client, error)) {
 // GetLoginFuncWithOutput is not used in WASM but provided for API compatibility with testutil.
 func GetLoginFuncWithOutput() func(context.Context, string) (*megaport.Client, error) {
 	loginFuncMu.RLock()
-	defer loginFuncMu.RUnlock()
+	currentLoginFunc := loginFunc
+	loginFuncMu.RUnlock()
 	return func(ctx context.Context, _ string) (*megaport.Client, error) {
-		return loginFunc(ctx)
+		return currentLoginFunc(ctx)
 	}
 }
 
