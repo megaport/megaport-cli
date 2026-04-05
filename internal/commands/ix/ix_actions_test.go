@@ -333,15 +333,15 @@ func TestListIXs(t *testing.T) {
 			}
 
 			if tt.name == "login error" {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, fmt.Errorf("login failed")
-				}
+				})
 			} else {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.IXService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			cmd := &cobra.Command{
@@ -413,17 +413,17 @@ func TestListIXs(t *testing.T) {
 }
 
 func TestBuyIX(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
+	originalPrompt := utils.GetResourcePrompt()
 	originalBuyIXFunc := buyIXFunc
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer func() {
-		utils.ResourcePrompt = originalPrompt
+		utils.SetResourcePrompt(originalPrompt)
 		cleanup()
 		buyIXFunc = originalBuyIXFunc
 	}()
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
-	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	tests := []struct {
 		name           string
@@ -541,14 +541,14 @@ func TestBuyIX(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if len(tt.prompts) > 0 {
 				promptIndex := 0
-				utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+				utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
 					if promptIndex < len(tt.prompts) {
 						response := tt.prompts[promptIndex]
 						promptIndex++
 						return response, nil
 					}
 					return "", fmt.Errorf("unexpected prompt call")
-				}
+				})
 			}
 
 			mockService := &MockIXService{}
@@ -556,11 +556,11 @@ func TestBuyIX(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.IXService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use:  "buy",
@@ -621,9 +621,9 @@ func TestBuyIX_NoWaitFlag(t *testing.T) {
 		cleanup()
 		buyIXFunc = originalBuyIXFunc
 	}()
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
-	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	tests := []struct {
 		name                     string
@@ -649,11 +649,11 @@ func TestBuyIX_NoWaitFlag(t *testing.T) {
 				TechnicalServiceUID: "ix-uid-123",
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.IXService = mockService
 				return client, nil
-			}
+			})
 
 			var capturedReq *megaport.BuyIXRequest
 			buyIXFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyIXRequest) (*megaport.BuyIXResponse, error) {
@@ -773,11 +773,11 @@ func TestGetIXStatus(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.IXService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "status [ixUID]",
@@ -813,11 +813,11 @@ func TestGetIXStatus(t *testing.T) {
 }
 
 func TestDeleteIX(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
+	originalPrompt := utils.GetResourcePrompt()
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer func() {
 		cleanup()
-		utils.ResourcePrompt = originalPrompt
+		utils.SetResourcePrompt(originalPrompt)
 	}()
 
 	tests := []struct {
@@ -874,17 +874,17 @@ func TestDeleteIX(t *testing.T) {
 			mockService := &MockIXService{}
 			tt.setupMock(mockService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.IXService = mockService
 				return client, nil
-			}
+			})
 
-			originalConfirmPrompt := utils.ConfirmPrompt
-			defer func() { utils.ConfirmPrompt = originalConfirmPrompt }()
-			utils.ConfirmPrompt = func(_ string, _ bool) bool {
+			originalConfirmPrompt := utils.GetConfirmPrompt()
+			defer func() { utils.SetConfirmPrompt(originalConfirmPrompt) }()
+			utils.SetConfirmPrompt(func(_ string, _ bool) bool {
 				return tt.promptResponse == "y"
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "delete [ixUID]",
@@ -1023,15 +1023,15 @@ func TestGetIX(t *testing.T) {
 			tt.setupMock(mockService)
 
 			if tt.name == "get IX login error" {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, fmt.Errorf("login failed")
-				}
+				})
 			} else {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.IXService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			var err error
@@ -1063,12 +1063,12 @@ func TestGetIX(t *testing.T) {
 }
 
 func TestUpdateIX(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
+	originalPrompt := utils.GetResourcePrompt()
 	originalUpdateIXFunc := updateIXFunc
 	originalGetIXFunc := getIXFunc
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer func() {
-		utils.ResourcePrompt = originalPrompt
+		utils.SetResourcePrompt(originalPrompt)
 		cleanup()
 		updateIXFunc = originalUpdateIXFunc
 		getIXFunc = originalGetIXFunc
@@ -1262,29 +1262,29 @@ func TestUpdateIX(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if len(tt.prompts) > 0 {
 				promptIndex := 0
-				utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+				utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
 					if promptIndex < len(tt.prompts) {
 						response := tt.prompts[promptIndex]
 						promptIndex++
 						return response, nil
 					}
 					return "", fmt.Errorf("unexpected prompt call")
-				}
+				})
 			}
 
 			mockService := &MockIXService{}
 			tt.setupMock(mockService)
 
 			if tt.name == "login error" {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, fmt.Errorf("login failed")
-				}
+				})
 			} else {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.IXService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			cmd := &cobra.Command{
@@ -1390,9 +1390,9 @@ func TestUpdateIXFunc_Error(t *testing.T) {
 }
 
 func TestBuyIX_JSONStringMode(t *testing.T) {
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
-	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	mockService := &MockIXService{
 		buyIXResponse: &megaport.BuyIXResponse{
@@ -1447,9 +1447,9 @@ func TestBuyIX_JSONStringMode(t *testing.T) {
 }
 
 func TestBuyIX_InvalidJSON(t *testing.T) {
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
-	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
 		c.IXService = &MockIXService{}
@@ -1486,9 +1486,9 @@ func TestBuyIX_InvalidJSON(t *testing.T) {
 }
 
 func TestBuyIX_LoginError(t *testing.T) {
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
-	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	cleanup := testutil.SetupLoginError(fmt.Errorf("login failed"))
 	defer cleanup()
@@ -1529,8 +1529,8 @@ func TestBuyIX_Confirmation(t *testing.T) {
 	originalBuyIXFunc := buyIXFunc
 	defer func() { buyIXFunc = originalBuyIXFunc }()
 
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
 
 	tests := []struct {
 		name                 string
@@ -1611,11 +1611,11 @@ func TestBuyIX_Confirmation(t *testing.T) {
 				},
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.IXService = mockService
 				return client, nil
-			}
+			})
 
 			buyCalled := false
 			buyIXFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyIXRequest) (*megaport.BuyIXResponse, error) {
@@ -1626,10 +1626,10 @@ func TestBuyIX_Confirmation(t *testing.T) {
 			}
 
 			promptCalled := false
-			utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
+			utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
 				promptCalled = true
 				return tt.confirmResult
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use:  "buy",
@@ -1776,11 +1776,11 @@ func TestGetIX_Export(t *testing.T) {
 			ProvisioningStatus: "LIVE",
 		},
 	}
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.IXService = mockService
 		return client, nil
-	}
+	})
 
 	cmd := &cobra.Command{Use: "get"}
 	cmd.Flags().Bool("export", false, "")
@@ -1893,15 +1893,15 @@ func TestValidateIX(t *testing.T) {
 			}
 
 			if tt.loginError != nil {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, tt.loginError
-				}
+				})
 			} else {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.IXService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			cmd := &cobra.Command{Use: "validate"}

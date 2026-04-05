@@ -676,9 +676,9 @@ func TestBuildUpdateManagedAccountRequestFromJSON(t *testing.T) {
 }
 
 func TestBuildManagedAccountRequestFromPrompt(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
+	originalPrompt := utils.GetResourcePrompt()
 	defer func() {
-		utils.ResourcePrompt = originalPrompt
+		utils.SetResourcePrompt(originalPrompt)
 	}()
 
 	tests := []struct {
@@ -725,7 +725,7 @@ func TestBuildManagedAccountRequestFromPrompt(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			promptIndex := 0
-			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+			utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
 				if promptIndex < len(tt.prompts) {
 					response := tt.prompts[promptIndex]
 					promptIndex++
@@ -735,7 +735,7 @@ func TestBuildManagedAccountRequestFromPrompt(t *testing.T) {
 					return response, nil
 				}
 				return "", fmt.Errorf("unexpected prompt call")
-			}
+			})
 
 			req, err := buildManagedAccountRequestFromPrompt(true)
 
@@ -752,9 +752,9 @@ func TestBuildManagedAccountRequestFromPrompt(t *testing.T) {
 }
 
 func TestBuildUpdateManagedAccountRequestFromPrompt(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
+	originalPrompt := utils.GetResourcePrompt()
 	defer func() {
-		utils.ResourcePrompt = originalPrompt
+		utils.SetResourcePrompt(originalPrompt)
 	}()
 
 	tests := []struct {
@@ -816,7 +816,7 @@ func TestBuildUpdateManagedAccountRequestFromPrompt(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			promptIndex := 0
-			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+			utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
 				if promptIndex < len(tt.prompts) {
 					response := tt.prompts[promptIndex]
 					promptIndex++
@@ -826,7 +826,7 @@ func TestBuildUpdateManagedAccountRequestFromPrompt(t *testing.T) {
 					return response, nil
 				}
 				return "", fmt.Errorf("unexpected prompt call")
-			}
+			})
 
 			req, err := buildUpdateManagedAccountRequestFromPrompt(true)
 

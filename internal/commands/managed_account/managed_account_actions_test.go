@@ -187,15 +187,15 @@ func TestListManagedAccounts(t *testing.T) {
 			}
 
 			if tt.name == "login error" {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, fmt.Errorf("login failed")
-				}
+				})
 			} else {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.ManagedAccountService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			cmd := testutil.NewCommand("list", func(cmd *cobra.Command, args []string) error {
@@ -363,15 +363,15 @@ func TestGetManagedAccount(t *testing.T) {
 			}
 
 			if tt.name == "login error" {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, fmt.Errorf("login failed")
-				}
+				})
 			} else {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.ManagedAccountService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			getManagedAccountFunc = func(ctx context.Context, client *megaport.Client, companyUID string, name string) (*megaport.ManagedAccount, error) {
@@ -412,10 +412,10 @@ func TestCreateManagedAccount(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
 	originalCreateFunc := createManagedAccountFunc
-	originalPrompt := utils.ResourcePrompt
+	originalPrompt := utils.GetResourcePrompt()
 	defer func() {
 		createManagedAccountFunc = originalCreateFunc
-		utils.ResourcePrompt = originalPrompt
+		utils.SetResourcePrompt(originalPrompt)
 	}()
 
 	tests := []struct {
@@ -512,11 +512,11 @@ func TestCreateManagedAccount(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.ManagedAccountService = mockService
 				return client, nil
-			}
+			})
 
 			createManagedAccountFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ManagedAccountRequest) (*megaport.ManagedAccount, error) {
 				return mockService.CreateManagedAccount(ctx, req)
@@ -524,14 +524,14 @@ func TestCreateManagedAccount(t *testing.T) {
 
 			if tt.prompts != nil {
 				promptIndex := 0
-				utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+				utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
 					if promptIndex < len(tt.prompts) {
 						response := tt.prompts[promptIndex]
 						promptIndex++
 						return response, nil
 					}
 					return "", fmt.Errorf("unexpected prompt call")
-				}
+				})
 			}
 
 			cmd := testutil.NewCommand("create", testutil.NoColorAdapter(CreateManagedAccount))
@@ -625,10 +625,10 @@ func TestUpdateManagedAccount(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
 	originalUpdateFunc := updateManagedAccountFunc
-	originalPrompt := utils.ResourcePrompt
+	originalPrompt := utils.GetResourcePrompt()
 	defer func() {
 		updateManagedAccountFunc = originalUpdateFunc
-		utils.ResourcePrompt = originalPrompt
+		utils.SetResourcePrompt(originalPrompt)
 	}()
 
 	tests := []struct {
@@ -863,15 +863,15 @@ func TestUpdateManagedAccount(t *testing.T) {
 			}
 
 			if tt.name == "login error" {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, fmt.Errorf("login failed")
-				}
+				})
 			} else {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.ManagedAccountService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			updateManagedAccountFunc = func(ctx context.Context, client *megaport.Client, companyUID string, req *megaport.ManagedAccountRequest) (*megaport.ManagedAccount, error) {
@@ -880,14 +880,14 @@ func TestUpdateManagedAccount(t *testing.T) {
 
 			if tt.prompts != nil {
 				promptIndex := 0
-				utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+				utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
 					if promptIndex < len(tt.prompts) {
 						response := tt.prompts[promptIndex]
 						promptIndex++
 						return response, nil
 					}
 					return "", fmt.Errorf("unexpected prompt call")
-				}
+				})
 			}
 
 			cmd := testutil.NewCommand("update", testutil.NoColorAdapter(UpdateManagedAccount))

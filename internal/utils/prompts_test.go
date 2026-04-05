@@ -55,8 +55,8 @@ func withMockedIO(input string, fn func()) string {
 // Test the Prompt function
 func TestPrompt(t *testing.T) {
 	// Save original prompt function and restore after test
-	originalPrompt := Prompt
-	defer func() { Prompt = originalPrompt }()
+	originalPrompt := GetPrompt()
+	defer func() { SetPrompt(originalPrompt) }()
 
 	tests := []struct {
 		name          string
@@ -114,7 +114,7 @@ func TestPrompt(t *testing.T) {
 				return strings.TrimSpace(tt.input), nil
 			}
 
-			Prompt = mockPrompt
+			SetPrompt(mockPrompt)
 
 			// Capture output
 			output := withMockedIO(tt.input, func() {
@@ -137,8 +137,8 @@ func TestPrompt(t *testing.T) {
 // Test the ConfirmPrompt function
 func TestConfirmPrompt(t *testing.T) {
 	// Save original function and restore after test
-	originalConfirmPrompt := ConfirmPrompt
-	defer func() { ConfirmPrompt = originalConfirmPrompt }()
+	originalConfirmPrompt := GetConfirmPrompt()
+	defer func() { SetConfirmPrompt(originalConfirmPrompt) }()
 
 	tests := []struct {
 		name     string
@@ -226,7 +226,7 @@ func TestConfirmPrompt(t *testing.T) {
 				return input == "y" || input == "yes"
 			}
 
-			ConfirmPrompt = mockConfirmPrompt
+			SetConfirmPrompt(mockConfirmPrompt)
 
 			// Capture output
 			output := withMockedIO(tt.input, func() {
@@ -244,8 +244,8 @@ func TestConfirmPrompt(t *testing.T) {
 // Test the ResourcePrompt function
 func TestResourcePrompt(t *testing.T) {
 	// Save original function and restore after test
-	originalResourcePrompt := ResourcePrompt
-	defer func() { ResourcePrompt = originalResourcePrompt }()
+	originalResourcePrompt := GetResourcePrompt()
+	defer func() { SetResourcePrompt(originalResourcePrompt) }()
 
 	tests := []struct {
 		name         string
@@ -354,7 +354,7 @@ func TestResourcePrompt(t *testing.T) {
 				return strings.TrimSpace(tt.input), nil
 			}
 
-			ResourcePrompt = mockResourcePrompt
+			SetResourcePrompt(mockResourcePrompt)
 
 			// Capture output
 			output := withMockedIO(tt.input, func() {
@@ -388,7 +388,7 @@ func TestPromptsIntegration(t *testing.T) {
 				return "test input\n"
 			},
 			testFn: func(input string) {
-				originalPrompt := Prompt // Use real function
+				originalPrompt := GetPrompt() // Use real function
 				output := withMockedIO(input, func() {
 					result, err := originalPrompt("Test prompt:", true)
 					assert.NoError(t, err)
@@ -403,7 +403,7 @@ func TestPromptsIntegration(t *testing.T) {
 				return "resource input\n"
 			},
 			testFn: func(input string) {
-				originalResourcePrompt := ResourcePrompt // Use real function
+				originalResourcePrompt := GetResourcePrompt() // Use real function
 				output := withMockedIO(input, func() {
 					result, err := originalResourcePrompt("port", "Port name:", true)
 					assert.NoError(t, err)

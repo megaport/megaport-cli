@@ -52,7 +52,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 	defer cancel()
 
 	spinner := output.PrintLoggingInWithOutput(noColor, outputFormat)
-	client, err := config.LoginFunc(ctx)
+	client, err := config.Login(ctx)
 	if err != nil {
 		spinner.Stop()
 		output.PrintError("Failed to log in: %v", noColor, err)

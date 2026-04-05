@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/fatih/color"
 )
 
-var Prompt = func(msg string, noColor bool) (string, error) {
+// promptFuncMu guards all prompt function pointers.
+var promptFuncMu sync.RWMutex
+
+var promptFn = func(msg string, noColor bool) (string, error) {
 	if !noColor {
 		// Add contextual icon and use Megaport's red
 		fmt.Print(color.New(color.FgHiRed, color.Bold).Sprint("❯ " + msg + " "))
@@ -25,7 +29,7 @@ var Prompt = func(msg string, noColor bool) (string, error) {
 	return strings.TrimSpace(input), nil
 }
 
-var ConfirmPrompt = func(question string, noColor bool) bool {
+var confirmPromptFn = func(question string, noColor bool) bool {
 	var response string
 
 	if !noColor {
@@ -56,7 +60,7 @@ type BuyConfirmDetail struct {
 }
 
 // BuyConfirmPrompt displays a resource purchase summary and asks for confirmation.
-var BuyConfirmPrompt = func(resourceType string, details []BuyConfirmDetail, noColor bool) bool {
+var buyConfirmPromptFn = func(resourceType string, details []BuyConfirmDetail, noColor bool) bool {
 	fmt.Println()
 	if !noColor {
 		fmt.Println(color.New(color.FgHiWhite, color.Bold).Sprint("Purchase Summary:"))
@@ -73,7 +77,7 @@ var BuyConfirmPrompt = func(resourceType string, details []BuyConfirmDetail, noC
 	return ConfirmPrompt("Proceed with purchase?", noColor)
 }
 
-var ResourcePrompt = func(resourceType string, msg string, noColor bool) (string, error) {
+var resourcePromptFn = func(resourceType string, msg string, noColor bool) (string, error) {
 	// Choose icon based on resource type
 	icon := "❯"
 	switch strings.ToLower(resourceType) {
@@ -103,7 +107,7 @@ var ResourcePrompt = func(resourceType string, msg string, noColor bool) (string
 	return strings.TrimSpace(input), nil
 }
 
-var ResourceTagsPrompt = func(noColor bool) (map[string]string, error) {
+var resourceTagsPromptFn = func(noColor bool) (map[string]string, error) {
 	addTags := ConfirmPrompt("Would you like to add resource tags?", noColor)
 	if !addTags {
 		return nil, nil
@@ -143,7 +147,7 @@ var ResourceTagsPrompt = func(noColor bool) (map[string]string, error) {
 	return tags, nil
 }
 
-var UpdateResourceTagsPrompt = func(existingTags map[string]string, noColor bool) (map[string]string, error) {
+var updateResourceTagsPromptFn = func(existingTags map[string]string, noColor bool) (map[string]string, error) {
 	// Display warning about replacing tags
 	if !noColor {
 		fmt.Println(color.New(color.FgHiYellow).Sprint("⚠️  Warning: This operation will replace all existing tags with the new set of tags you define."))
@@ -243,4 +247,130 @@ var UpdateResourceTagsPrompt = func(existingTags map[string]string, noColor bool
 		// No existing tags, just use the normal tag prompt
 		return ResourceTagsPrompt(noColor)
 	}
+}
+
+// Thread-safe call-through functions. Production code uses these unchanged.
+
+// Prompt asks the user for text input.
+func Prompt(msg string, noColor bool) (string, error) {
+	promptFuncMu.RLock()
+	fn := promptFn
+	promptFuncMu.RUnlock()
+	return fn(msg, noColor)
+}
+
+// ConfirmPrompt asks the user a yes/no question.
+func ConfirmPrompt(question string, noColor bool) bool {
+	promptFuncMu.RLock()
+	fn := confirmPromptFn
+	promptFuncMu.RUnlock()
+	return fn(question, noColor)
+}
+
+// BuyConfirmPrompt displays a purchase summary and asks for confirmation.
+func BuyConfirmPrompt(resourceType string, details []BuyConfirmDetail, noColor bool) bool {
+	promptFuncMu.RLock()
+	fn := buyConfirmPromptFn
+	promptFuncMu.RUnlock()
+	return fn(resourceType, details, noColor)
+}
+
+// ResourcePrompt asks the user for resource-specific input.
+func ResourcePrompt(resourceType string, msg string, noColor bool) (string, error) {
+	promptFuncMu.RLock()
+	fn := resourcePromptFn
+	promptFuncMu.RUnlock()
+	return fn(resourceType, msg, noColor)
+}
+
+// ResourceTagsPrompt asks the user to enter resource tags.
+func ResourceTagsPrompt(noColor bool) (map[string]string, error) {
+	promptFuncMu.RLock()
+	fn := resourceTagsPromptFn
+	promptFuncMu.RUnlock()
+	return fn(noColor)
+}
+
+// UpdateResourceTagsPrompt asks the user to update existing resource tags.
+func UpdateResourceTagsPrompt(existingTags map[string]string, noColor bool) (map[string]string, error) {
+	promptFuncMu.RLock()
+	fn := updateResourceTagsPromptFn
+	promptFuncMu.RUnlock()
+	return fn(existingTags, noColor)
+}
+
+// Getters — used by tests that need to save/restore.
+
+func GetPrompt() func(string, bool) (string, error) {
+	promptFuncMu.RLock()
+	defer promptFuncMu.RUnlock()
+	return promptFn
+}
+
+func GetConfirmPrompt() func(string, bool) bool {
+	promptFuncMu.RLock()
+	defer promptFuncMu.RUnlock()
+	return confirmPromptFn
+}
+
+func GetBuyConfirmPrompt() func(string, []BuyConfirmDetail, bool) bool {
+	promptFuncMu.RLock()
+	defer promptFuncMu.RUnlock()
+	return buyConfirmPromptFn
+}
+
+func GetResourcePrompt() func(string, string, bool) (string, error) {
+	promptFuncMu.RLock()
+	defer promptFuncMu.RUnlock()
+	return resourcePromptFn
+}
+
+func GetResourceTagsPrompt() func(bool) (map[string]string, error) {
+	promptFuncMu.RLock()
+	defer promptFuncMu.RUnlock()
+	return resourceTagsPromptFn
+}
+
+func GetUpdateResourceTagsPrompt() func(map[string]string, bool) (map[string]string, error) {
+	promptFuncMu.RLock()
+	defer promptFuncMu.RUnlock()
+	return updateResourceTagsPromptFn
+}
+
+// Setters — used by tests to override prompt behavior.
+
+func SetPrompt(fn func(string, bool) (string, error)) {
+	promptFuncMu.Lock()
+	defer promptFuncMu.Unlock()
+	promptFn = fn
+}
+
+func SetConfirmPrompt(fn func(string, bool) bool) {
+	promptFuncMu.Lock()
+	defer promptFuncMu.Unlock()
+	confirmPromptFn = fn
+}
+
+func SetBuyConfirmPrompt(fn func(string, []BuyConfirmDetail, bool) bool) {
+	promptFuncMu.Lock()
+	defer promptFuncMu.Unlock()
+	buyConfirmPromptFn = fn
+}
+
+func SetResourcePrompt(fn func(string, string, bool) (string, error)) {
+	promptFuncMu.Lock()
+	defer promptFuncMu.Unlock()
+	resourcePromptFn = fn
+}
+
+func SetResourceTagsPrompt(fn func(bool) (map[string]string, error)) {
+	promptFuncMu.Lock()
+	defer promptFuncMu.Unlock()
+	resourceTagsPromptFn = fn
+}
+
+func SetUpdateResourceTagsPrompt(fn func(map[string]string, bool) (map[string]string, error)) {
+	promptFuncMu.Lock()
+	defer promptFuncMu.Unlock()
+	updateResourceTagsPromptFn = fn
 }

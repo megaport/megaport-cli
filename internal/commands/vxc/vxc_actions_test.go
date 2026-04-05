@@ -17,19 +17,19 @@ import (
 )
 
 func TestBuyVXC(t *testing.T) {
-	originalResourcePrompt := utils.ResourcePrompt
+	originalResourcePrompt := utils.GetResourcePrompt()
 	originalBuyVXCFunc := buyVXCFunc
 	noColor := true
 
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
-	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
 
 	defer func() {
-		utils.ResourcePrompt = originalResourcePrompt
+		utils.SetResourcePrompt(originalResourcePrompt)
 		buyVXCFunc = originalBuyVXCFunc
 	}()
 
@@ -252,23 +252,23 @@ func TestBuyVXC(t *testing.T) {
 				tt.setupMock(t, mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				return &megaport.Client{
 					VXCService: mockService,
 				}, nil
-			}
+			})
 
 			promptIndex := 0
 			promptResponses := tt.prompts
 
-			utils.ResourcePrompt = func(_, _ string, _ bool) (string, error) {
+			utils.SetResourcePrompt(func(_, _ string, _ bool) (string, error) {
 				if promptIndex < len(promptResponses) {
 					resp := promptResponses[promptIndex]
 					promptIndex++
 					return resp, nil
 				}
 				return "", fmt.Errorf("unexpected additional prompt")
-			}
+			})
 
 			cmd := &cobra.Command{}
 			cmd.Flags().Bool("interactive", false, "")
@@ -321,9 +321,9 @@ func TestBuyVXC_NoWaitFlag(t *testing.T) {
 	noColor := true
 	originalBuyVXCFunc := buyVXCFunc
 
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
-	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
@@ -355,11 +355,11 @@ func TestBuyVXC_NoWaitFlag(t *testing.T) {
 				TechnicalServiceUID: "vxc-uid-123",
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				return &megaport.Client{
 					VXCService: mockService,
 				}, nil
-			}
+			})
 
 			var capturedReq *megaport.BuyVXCRequest
 			buyVXCFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyVXCRequest) (*megaport.BuyVXCResponse, error) {
@@ -429,13 +429,13 @@ func TestBuyVXC_NoWaitFlag(t *testing.T) {
 }
 
 func TestUpdateVXCResourceTagsCmd(t *testing.T) {
-	originalResourcePrompt := utils.UpdateResourceTagsPrompt
+	originalResourcePrompt := utils.GetUpdateResourceTagsPrompt()
 
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
 
 	defer func() {
-		utils.UpdateResourceTagsPrompt = originalResourcePrompt
+		utils.SetUpdateResourceTagsPrompt(originalResourcePrompt)
 	}()
 
 	tests := []struct {
@@ -580,15 +580,15 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.VXCService = mockService
 				return client, nil
-			}
+			})
 
-			utils.UpdateResourceTagsPrompt = func(existingTags map[string]string, noColor bool) (map[string]string, error) {
+			utils.SetUpdateResourceTagsPrompt(func(existingTags map[string]string, noColor bool) (map[string]string, error) {
 				return tt.promptResult, tt.promptError
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "update-tags [vxcUID]",
@@ -1014,15 +1014,15 @@ func TestListVXCs(t *testing.T) {
 			}
 
 			if tt.loginError {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, fmt.Errorf("authentication failed")
-				}
+				})
 			} else {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.VXCService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			cmd := &cobra.Command{
@@ -1188,11 +1188,11 @@ func TestGetVXCStatus(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.VXCService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "status [vxcUID]",
@@ -1530,15 +1530,15 @@ func TestGetVXC(t *testing.T) {
 			}
 
 			if tt.loginError {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, fmt.Errorf("authentication failed")
-				}
+				})
 			} else {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.VXCService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			cmd := &cobra.Command{
@@ -1765,15 +1765,15 @@ func TestUpdateVXC(t *testing.T) {
 			}
 
 			if tt.loginError {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, fmt.Errorf("authentication failed")
-				}
+				})
 			} else {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.VXCService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			cmd := &cobra.Command{Use: "update [vxcUID]"}
@@ -1820,14 +1820,14 @@ func TestUpdateVXC(t *testing.T) {
 
 func TestDeleteVXC(t *testing.T) {
 	originalDeleteVXCFunc := deleteVXCFunc
-	originalConfirmPrompt := utils.ConfirmPrompt
+	originalConfirmPrompt := utils.GetConfirmPrompt()
 
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
 
 	defer func() {
 		deleteVXCFunc = originalDeleteVXCFunc
-		utils.ConfirmPrompt = originalConfirmPrompt
+		utils.SetConfirmPrompt(originalConfirmPrompt)
 	}()
 
 	tests := []struct {
@@ -1893,9 +1893,9 @@ func TestDeleteVXC(t *testing.T) {
 			name:   "cancelled by user",
 			vxcUID: "vxc-del-cancel",
 			setupMock: func() {
-				utils.ConfirmPrompt = func(message string, noColor bool) bool {
+				utils.SetConfirmPrompt(func(message string, noColor bool) bool {
 					return false
-				}
+				})
 			},
 			expectedError: "cancelled by user",
 		},
@@ -1905,23 +1905,23 @@ func TestDeleteVXC(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset overrides per test
 			deleteVXCFunc = originalDeleteVXCFunc
-			utils.ConfirmPrompt = originalConfirmPrompt
+			utils.SetConfirmPrompt(originalConfirmPrompt)
 
 			if tt.setupMock != nil {
 				tt.setupMock()
 			}
 
 			if tt.loginError {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, fmt.Errorf("authentication failed")
-				}
+				})
 			} else {
 				mockService := &MockVXCService{}
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.VXCService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			cmd := &cobra.Command{Use: "delete [vxcUID]"}
@@ -1997,15 +1997,15 @@ func TestListVXCResourceTags(t *testing.T) {
 			}
 
 			if tt.loginError {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, fmt.Errorf("authentication failed")
-				}
+				})
 			} else {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.VXCService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			cmd := &cobra.Command{
@@ -2032,8 +2032,8 @@ func TestBuyVXC_Confirmation(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
 	originalBuyVXCFunc := buyVXCFunc
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
 
 	tests := []struct {
 		name                string
@@ -2107,11 +2107,11 @@ func TestBuyVXC_Confirmation(t *testing.T) {
 				TechnicalServiceUID: "vxc-uid-123",
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				return &megaport.Client{
 					VXCService: mockService,
 				}, nil
-			}
+			})
 
 			buyVXCFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyVXCRequest) (*megaport.BuyVXCResponse, error) {
 				return &megaport.BuyVXCResponse{
@@ -2143,10 +2143,10 @@ func TestBuyVXC_Confirmation(t *testing.T) {
 			}()
 
 			promptCalled := false
-			utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
+			utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
 				promptCalled = true
 				return tt.confirmReturn
-			}
+			})
 
 			cmd := &cobra.Command{Use: "buy"}
 			cmd.Flags().Bool("interactive", false, "")
@@ -2266,11 +2266,11 @@ func TestGetVXC_Export(t *testing.T) {
 			},
 		},
 	}
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.VXCService = mockService
 		return client, nil
-	}
+	})
 
 	cmd := &cobra.Command{Use: "get"}
 	cmd.Flags().Bool("export", false, "")
@@ -2366,15 +2366,15 @@ func TestValidateVXC(t *testing.T) {
 			}
 
 			if tt.loginError != nil {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, tt.loginError
-				}
+				})
 			} else {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.VXCService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			cmd := &cobra.Command{Use: "validate"}

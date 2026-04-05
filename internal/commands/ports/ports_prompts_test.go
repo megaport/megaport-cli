@@ -22,15 +22,15 @@ func mockPromptSequence(responses []string) func(string, string, bool) (string, 
 }
 
 func TestPromptForPortDetails_Success(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	originalTagsPrompt := utils.ResourceTagsPrompt
+	originalPrompt := utils.GetResourcePrompt()
+	originalTagsPrompt := utils.GetResourceTagsPrompt()
 	defer func() {
-		utils.ResourcePrompt = originalPrompt
-		utils.ResourceTagsPrompt = originalTagsPrompt
+		utils.SetResourcePrompt(originalPrompt)
+		utils.SetResourceTagsPrompt(originalTagsPrompt)
 	}()
 
 	// Prompts: name, term, portSpeed, locationID, marketplaceVisibility, diversityZone, costCentre, promoCode
-	utils.ResourcePrompt = mockPromptSequence([]string{
+	utils.SetResourcePrompt(mockPromptSequence([]string{
 		"Test Port", // name
 		"12",        // term
 		"10000",     // portSpeed
@@ -39,10 +39,10 @@ func TestPromptForPortDetails_Success(t *testing.T) {
 		"blue",      // diversityZone
 		"IT-2024",   // costCentre
 		"PROMO123",  // promoCode
-	})
-	utils.ResourceTagsPrompt = func(noColor bool) (map[string]string, error) {
+	}))
+	utils.SetResourceTagsPrompt(func(noColor bool) (map[string]string, error) {
 		return map[string]string{"env": "test"}, nil
-	}
+	})
 
 	req, err := promptForPortDetails(true)
 	assert.NoError(t, err)
@@ -58,10 +58,10 @@ func TestPromptForPortDetails_Success(t *testing.T) {
 }
 
 func TestPromptForPortDetails_EmptyName(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{""})
+	utils.SetResourcePrompt(mockPromptSequence([]string{""}))
 
 	_, err := promptForPortDetails(true)
 	assert.Error(t, err)
@@ -69,10 +69,10 @@ func TestPromptForPortDetails_EmptyName(t *testing.T) {
 }
 
 func TestPromptForPortDetails_InvalidTerm(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"Port", "abc"})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"Port", "abc"}))
 
 	_, err := promptForPortDetails(true)
 	assert.Error(t, err)
@@ -80,10 +80,10 @@ func TestPromptForPortDetails_InvalidTerm(t *testing.T) {
 }
 
 func TestPromptForPortDetails_InvalidPortSpeed(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"Port", "12", "999"})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"Port", "12", "999"}))
 
 	_, err := promptForPortDetails(true)
 	assert.Error(t, err)
@@ -91,10 +91,10 @@ func TestPromptForPortDetails_InvalidPortSpeed(t *testing.T) {
 }
 
 func TestPromptForPortDetails_InvalidLocationID(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"Port", "12", "10000", "abc"})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"Port", "12", "10000", "abc"}))
 
 	_, err := promptForPortDetails(true)
 	assert.Error(t, err)
@@ -102,10 +102,10 @@ func TestPromptForPortDetails_InvalidLocationID(t *testing.T) {
 }
 
 func TestPromptForPortDetails_InvalidMarketplaceVisibility(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"Port", "12", "10000", "1", "maybe"})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"Port", "12", "10000", "1", "maybe"}))
 
 	_, err := promptForPortDetails(true)
 	assert.Error(t, err)
@@ -113,15 +113,15 @@ func TestPromptForPortDetails_InvalidMarketplaceVisibility(t *testing.T) {
 }
 
 func TestPromptForLAGPortDetails_Success(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	originalTagsPrompt := utils.ResourceTagsPrompt
+	originalPrompt := utils.GetResourcePrompt()
+	originalTagsPrompt := utils.GetResourceTagsPrompt()
 	defer func() {
-		utils.ResourcePrompt = originalPrompt
-		utils.ResourceTagsPrompt = originalTagsPrompt
+		utils.SetResourcePrompt(originalPrompt)
+		utils.SetResourceTagsPrompt(originalTagsPrompt)
 	}()
 
 	// Prompts: name, term, portSpeed, locationID, lagCount, marketplaceVisibility, diversityZone, costCentre, promoCode
-	utils.ResourcePrompt = mockPromptSequence([]string{
+	utils.SetResourcePrompt(mockPromptSequence([]string{
 		"LAG Port", // name
 		"12",       // term
 		"10000",    // portSpeed
@@ -131,10 +131,10 @@ func TestPromptForLAGPortDetails_Success(t *testing.T) {
 		"red",      // diversityZone
 		"IT-LAG",   // costCentre
 		"",         // promoCode
-	})
-	utils.ResourceTagsPrompt = func(noColor bool) (map[string]string, error) {
+	}))
+	utils.SetResourceTagsPrompt(func(noColor bool) (map[string]string, error) {
 		return nil, nil
-	}
+	})
 
 	req, err := promptForLAGPortDetails(true)
 	assert.NoError(t, err)
@@ -147,10 +147,10 @@ func TestPromptForLAGPortDetails_Success(t *testing.T) {
 }
 
 func TestPromptForLAGPortDetails_InvalidLAGCount(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"LAG", "12", "10000", "1", "abc"})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"LAG", "12", "10000", "1", "abc"}))
 
 	_, err := promptForLAGPortDetails(true)
 	assert.Error(t, err)
@@ -158,10 +158,10 @@ func TestPromptForLAGPortDetails_InvalidLAGCount(t *testing.T) {
 }
 
 func TestPromptForLAGPortDetails_LAGCountOutOfRange(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"LAG", "12", "10000", "1", "9"})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"LAG", "12", "10000", "1", "9"}))
 
 	_, err := promptForLAGPortDetails(true)
 	assert.Error(t, err)
@@ -169,10 +169,10 @@ func TestPromptForLAGPortDetails_LAGCountOutOfRange(t *testing.T) {
 }
 
 func TestPromptForLAGPortDetails_InvalidPortSpeed(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"LAG", "12", "1000"})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"LAG", "12", "1000"}))
 
 	_, err := promptForLAGPortDetails(true)
 	assert.Error(t, err)
@@ -180,16 +180,16 @@ func TestPromptForLAGPortDetails_InvalidPortSpeed(t *testing.T) {
 }
 
 func TestPromptForUpdatePortDetails_Success(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
 	// Prompts: name, marketplaceVisibility, costCentre, term
-	utils.ResourcePrompt = mockPromptSequence([]string{
+	utils.SetResourcePrompt(mockPromptSequence([]string{
 		"Updated Name", // name
 		"true",         // marketplaceVisibility
 		"IT-Updated",   // costCentre
 		"24",           // term
-	})
+	}))
 
 	req, err := promptForUpdatePortDetails("port-123", true)
 	assert.NoError(t, err)
@@ -199,10 +199,10 @@ func TestPromptForUpdatePortDetails_Success(t *testing.T) {
 }
 
 func TestPromptForUpdatePortDetails_NoChanges(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"", "", "", ""})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", "", ""}))
 
 	_, err := promptForUpdatePortDetails("port-123", true)
 	assert.Error(t, err)

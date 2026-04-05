@@ -145,11 +145,11 @@ func TestListServiceKeys_ProductUIDFilter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockService := &MockServiceKeyService{}
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.ServiceKeyService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := testutil.NewCommand("list", testutil.OutputAdapter(ListServiceKeys))
 			cmd.Flags().String("product-uid", "", "")
@@ -224,14 +224,14 @@ func TestUpdateServiceKey(t *testing.T) {
 			cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 			defer cleanup()
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				if tt.loginErr != nil {
 					return nil, tt.loginErr
 				}
 				client := &megaport.Client{}
 				client.ServiceKeyService = tt.mockService
 				return client, nil
-			}
+			})
 
 			cmd := testutil.NewCommand("update", testutil.NoColorAdapter(UpdateServiceKey))
 			cmd.Flags().String("product-uid", "", "")
@@ -371,11 +371,11 @@ func TestListServiceKeys_EmptyResult(t *testing.T) {
 					ServiceKeys: []*megaport.ServiceKey{},
 				},
 			}
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.ServiceKeyService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := testutil.NewCommand("list", testutil.OutputAdapter(ListServiceKeys))
 			cmd.Flags().String("product-uid", "", "")
@@ -410,11 +410,11 @@ func TestListServiceKeys_Limit(t *testing.T) {
 			},
 		},
 	}
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.ServiceKeyService = mockService
 		return client, nil
-	}
+	})
 
 	cmd := testutil.NewCommand("list", testutil.OutputAdapter(ListServiceKeys))
 	cmd.Flags().String("product-uid", "", "")
@@ -442,11 +442,11 @@ func TestListServiceKeys_NegativeLimit(t *testing.T) {
 			},
 		},
 	}
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.ServiceKeyService = mockService
 		return client, nil
-	}
+	})
 
 	cmd := testutil.NewCommand("list", testutil.OutputAdapter(ListServiceKeys))
 	cmd.Flags().String("product-uid", "", "")

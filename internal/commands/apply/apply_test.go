@@ -33,16 +33,16 @@ func applyCmd(file string, dryRun, yes bool) *cobra.Command {
 
 // setupMockClient overrides config.LoginFunc with mock services and returns cleanup.
 func setupMockClient(port *MockPortService, mcr *MockMCRService, mve *MockMVEService, vxc *MockVXCService) func() {
-	original := config.LoginFunc
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	original := config.GetLoginFunc()
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.PortService = port
 		client.MCRService = mcr
 		client.MVEService = mve
 		client.VXCService = vxc
 		return client, nil
-	}
-	return func() { config.LoginFunc = original }
+	})
+	return func() { config.SetLoginFunc(original) }
 }
 
 func TestApplyConfig_EmptyConfig(t *testing.T) {
@@ -273,11 +273,11 @@ func TestApplyConfig_MissingFile(t *testing.T) {
 }
 
 func TestApplyConfig_LoginError(t *testing.T) {
-	original := config.LoginFunc
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	original := config.GetLoginFunc()
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		return nil, fmt.Errorf("auth failed")
-	}
-	defer func() { config.LoginFunc = original }()
+	})
+	defer func() { config.SetLoginFunc(original) }()
 
 	f := writeTempFile(t, "empty.yaml", "")
 	cmd := applyCmd(f, false, true)

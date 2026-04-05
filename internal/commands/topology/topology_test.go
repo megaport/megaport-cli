@@ -197,15 +197,15 @@ func TestFormatSpeed(t *testing.T) {
 // ── ShowTopology integration ──────────────────────────────────────────────────
 
 func setupTopologyMocks(portSvc *MockPortService, mcrSvc *MockMCRService, mveSvc *MockMVEService) func() {
-	original := config.LoginFunc
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	original := config.GetLoginFunc()
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.PortService = portSvc
 		client.MCRService = mcrSvc
 		client.MVEService = mveSvc
 		return client, nil
-	}
-	return func() { config.LoginFunc = original }
+	})
+	return func() { config.SetLoginFunc(original) }
 }
 
 func TestShowTopology_TreeOutput(t *testing.T) {
@@ -301,11 +301,11 @@ func TestShowTopology_UnsupportedFormat(t *testing.T) {
 }
 
 func TestShowTopology_LoginError(t *testing.T) {
-	original := config.LoginFunc
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	original := config.GetLoginFunc()
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		return nil, fmt.Errorf("auth failed")
-	}
-	defer func() { config.LoginFunc = original }()
+	})
+	defer func() { config.SetLoginFunc(original) }()
 
 	cmd := &cobra.Command{Use: "topology"}
 	cmd.Flags().Bool("include-inactive", false, "")

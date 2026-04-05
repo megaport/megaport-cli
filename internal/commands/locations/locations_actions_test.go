@@ -178,14 +178,14 @@ func TestListLocationsCommand(t *testing.T) {
 
 	mockSvc.ListLocationsV3Result = testLocationsV3
 
-	originalFunc := config.NewUnauthenticatedClientFunc
-	defer func() { config.NewUnauthenticatedClientFunc = originalFunc }()
+	originalFunc := config.GetNewUnauthenticatedClientFunc()
+	defer func() { config.SetNewUnauthenticatedClientFunc(originalFunc) }()
 
 	testClient := &megaport.Client{}
 	testClient.LocationService = mockSvc
-	config.NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
+	config.SetNewUnauthenticatedClientFunc(func() (*megaport.Client, error) {
 		return testClient, nil
-	}
+	})
 
 	originalListLocationsFunc := listLocationsFunc
 	defer func() {
@@ -376,22 +376,22 @@ func TestGetLocation(t *testing.T) {
 			mockSvc := setupTestEnvironment()
 			tt.setupMock(mockSvc)
 
-			originalFunc := config.NewUnauthenticatedClientFunc
-			defer func() { config.NewUnauthenticatedClientFunc = originalFunc }()
+			originalFunc := config.GetNewUnauthenticatedClientFunc()
+			defer func() { config.SetNewUnauthenticatedClientFunc(originalFunc) }()
 
 			originalListLocationsFunc := listLocationsFunc
 			defer func() {
 				listLocationsFunc = originalListLocationsFunc
 			}()
 
-			config.NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
+			config.SetNewUnauthenticatedClientFunc(func() (*megaport.Client, error) {
 				if tt.clientErr != nil {
 					return nil, tt.clientErr
 				}
 				testClient := &megaport.Client{}
 				testClient.LocationService = mockSvc
 				return testClient, nil
-			}
+			})
 
 			listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
 				return client.LocationService.ListLocationsV3(ctx)
@@ -469,22 +469,22 @@ func TestListCountries(t *testing.T) {
 			mockSvc := setupTestEnvironment()
 			tt.setupMock(mockSvc)
 
-			originalFunc := config.NewUnauthenticatedClientFunc
-			defer func() { config.NewUnauthenticatedClientFunc = originalFunc }()
+			originalFunc := config.GetNewUnauthenticatedClientFunc()
+			defer func() { config.SetNewUnauthenticatedClientFunc(originalFunc) }()
 
 			originalListCountriesFunc := listCountriesFunc
 			defer func() {
 				listCountriesFunc = originalListCountriesFunc
 			}()
 
-			config.NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
+			config.SetNewUnauthenticatedClientFunc(func() (*megaport.Client, error) {
 				if tt.clientErr != nil {
 					return nil, tt.clientErr
 				}
 				testClient := &megaport.Client{}
 				testClient.LocationService = mockSvc
 				return testClient, nil
-			}
+			})
 
 			listCountriesFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Country, error) {
 				return client.LocationService.ListCountries(ctx)
@@ -553,22 +553,22 @@ func TestListMarketCodes(t *testing.T) {
 			mockSvc := setupTestEnvironment()
 			tt.setupMock(mockSvc)
 
-			originalFunc := config.NewUnauthenticatedClientFunc
-			defer func() { config.NewUnauthenticatedClientFunc = originalFunc }()
+			originalFunc := config.GetNewUnauthenticatedClientFunc()
+			defer func() { config.SetNewUnauthenticatedClientFunc(originalFunc) }()
 
 			originalListMarketCodesFunc := listMarketCodesFunc
 			defer func() {
 				listMarketCodesFunc = originalListMarketCodesFunc
 			}()
 
-			config.NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
+			config.SetNewUnauthenticatedClientFunc(func() (*megaport.Client, error) {
 				if tt.clientErr != nil {
 					return nil, tt.clientErr
 				}
 				testClient := &megaport.Client{}
 				testClient.LocationService = mockSvc
 				return testClient, nil
-			}
+			})
 
 			listMarketCodesFunc = func(ctx context.Context, client *megaport.Client) ([]string, error) {
 				return client.LocationService.ListMarketCodes(ctx)
@@ -673,22 +673,22 @@ func TestSearchLocations(t *testing.T) {
 			mockSvc := setupTestEnvironment()
 			tt.setupMock(mockSvc)
 
-			originalFunc := config.NewUnauthenticatedClientFunc
-			defer func() { config.NewUnauthenticatedClientFunc = originalFunc }()
+			originalFunc := config.GetNewUnauthenticatedClientFunc()
+			defer func() { config.SetNewUnauthenticatedClientFunc(originalFunc) }()
 
 			originalSearchLocationsFunc := searchLocationsFunc
 			defer func() {
 				searchLocationsFunc = originalSearchLocationsFunc
 			}()
 
-			config.NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
+			config.SetNewUnauthenticatedClientFunc(func() (*megaport.Client, error) {
 				if tt.clientErr != nil {
 					return nil, tt.clientErr
 				}
 				testClient := &megaport.Client{}
 				testClient.LocationService = mockSvc
 				return testClient, nil
-			}
+			})
 
 			searchLocationsFunc = func(ctx context.Context, client *megaport.Client, search string) ([]*megaport.LocationV3, error) {
 				return client.LocationService.GetLocationByNameFuzzyV3(ctx, search)

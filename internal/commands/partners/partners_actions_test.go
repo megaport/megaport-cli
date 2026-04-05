@@ -16,12 +16,12 @@ import (
 
 func TestFindPartners(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
-	originalPrompt := utils.Prompt
+	originalPrompt := utils.GetPrompt()
 	origPrintPartnersFunc := printPartnersFunc
 
 	defer func() {
 		printPartnersFunc = origPrintPartnersFunc
-		utils.Prompt = originalPrompt
+		utils.SetPrompt(originalPrompt)
 		cleanup()
 	}()
 
@@ -135,24 +135,24 @@ func TestFindPartners(t *testing.T) {
 				tt.setupMock(t, mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				if tt.expectedError == "error logging in" {
 					return nil, fmt.Errorf("login failure")
 				}
 				return &megaport.Client{
 					PartnerService: mockService,
 				}, nil
-			}
+			})
 
 			promptIndex := 0
-			utils.Prompt = func(message string, noColor bool) (string, error) {
+			utils.SetPrompt(func(message string, noColor bool) (string, error) {
 				if promptIndex >= len(tt.prompts) {
 					return "", fmt.Errorf("unexpected additional prompt: %s", message)
 				}
 				response := tt.prompts[promptIndex]
 				promptIndex++
 				return response, nil
-			}
+			})
 
 			var capturedPartners []*megaport.PartnerMegaport
 			printPartnersFunc = func(partners []*megaport.PartnerMegaport, format string, noColor bool) error {
@@ -271,9 +271,9 @@ func TestListPartners(t *testing.T) {
 			}()
 
 			if tt.loginErr != nil {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, tt.loginErr
-				}
+				})
 			}
 
 			var capturedPartners []*megaport.PartnerMegaport

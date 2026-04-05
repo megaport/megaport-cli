@@ -9,12 +9,58 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 )
+
+// loginFuncMu guards loginFunc, loginFuncWithOutput, and newUnauthenticatedClientFunc.
+var loginFuncMu sync.RWMutex
+
+// GetLoginFunc returns the current login function in a thread-safe manner.
+func GetLoginFunc() func(context.Context) (*megaport.Client, error) {
+	loginFuncMu.RLock()
+	defer loginFuncMu.RUnlock()
+	return loginFunc
+}
+
+// SetLoginFunc replaces the login function in a thread-safe manner.
+func SetLoginFunc(fn func(context.Context) (*megaport.Client, error)) {
+	loginFuncMu.Lock()
+	defer loginFuncMu.Unlock()
+	loginFunc = fn
+}
+
+// GetLoginFuncWithOutput returns the current output-aware login function in a thread-safe manner.
+func GetLoginFuncWithOutput() func(context.Context, string) (*megaport.Client, error) {
+	loginFuncMu.RLock()
+	defer loginFuncMu.RUnlock()
+	return loginFuncWithOutput
+}
+
+// SetLoginFuncWithOutput replaces the output-aware login function in a thread-safe manner.
+func SetLoginFuncWithOutput(fn func(context.Context, string) (*megaport.Client, error)) {
+	loginFuncMu.Lock()
+	defer loginFuncMu.Unlock()
+	loginFuncWithOutput = fn
+}
+
+// GetNewUnauthenticatedClientFunc returns the current unauthenticated client factory in a thread-safe manner.
+func GetNewUnauthenticatedClientFunc() func() (*megaport.Client, error) {
+	loginFuncMu.RLock()
+	defer loginFuncMu.RUnlock()
+	return newUnauthenticatedClientFunc
+}
+
+// SetNewUnauthenticatedClientFunc replaces the unauthenticated client factory in a thread-safe manner.
+func SetNewUnauthenticatedClientFunc(fn func() (*megaport.Client, error)) {
+	loginFuncMu.Lock()
+	defer loginFuncMu.Unlock()
+	newUnauthenticatedClientFunc = fn
+}
 
 // resolveEnvironment determines the target API environment using the following
 // priority: --env flag > profile config > MEGAPORT_ENVIRONMENT env var > default (production).
@@ -71,20 +117,20 @@ func resolveEnvironment(requireProfile bool) (string, error) {
 }
 
 func Login(ctx context.Context) (*megaport.Client, error) {
-	return LoginFunc(ctx)
+	return GetLoginFunc()(ctx)
 }
 
 func LoginWithOutput(ctx context.Context, outputFormat string) (*megaport.Client, error) {
-	return LoginFuncWithOutput(ctx, outputFormat)
+	return GetLoginFuncWithOutput()(ctx, outputFormat)
 }
 
-// LoginFunc logs into the Megaport API using the current profile or environment variables.
-var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-	return LoginFuncWithOutput(ctx, "")
+// loginFunc logs into the Megaport API using the current profile or environment variables.
+var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	return GetLoginFuncWithOutput()(ctx, "")
 }
 
-// LoginFuncWithOutput logs into the Megaport API using the current profile or environment variables.
-var LoginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megaport.Client, error) {
+// loginFuncWithOutput logs into the Megaport API using the current profile or environment variables.
+var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megaport.Client, error) {
 	var accessKey, secretKey string
 
 	env, err := resolveEnvironment(false)
@@ -179,9 +225,9 @@ var LoginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 	return megaportClient, nil
 }
 
-// NewUnauthenticatedClientFunc creates a Megaport API client without authentication.
+// newUnauthenticatedClientFunc creates a Megaport API client without authentication.
 // Used for public API endpoints (e.g., locations) that don't require credentials.
-var NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
+var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 	env, err := resolveEnvironment(true)
 	if err != nil {
 		return nil, err
@@ -194,5 +240,5 @@ var NewUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 
 // NewUnauthenticatedClient creates an unauthenticated Megaport API client.
 func NewUnauthenticatedClient() (*megaport.Client, error) {
-	return NewUnauthenticatedClientFunc()
+	return GetNewUnauthenticatedClientFunc()()
 }

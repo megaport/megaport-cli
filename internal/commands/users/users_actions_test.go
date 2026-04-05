@@ -48,11 +48,11 @@ func TestListUsers(t *testing.T) {
 			mockService := &MockUserManagementService{}
 			tt.setupMock(mockService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.UserManagementService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := testutil.NewCommand("list", testutil.OutputAdapter(ListUsers))
 			cmd.Flags().String("position", "", "")
@@ -128,11 +128,11 @@ func TestGetUser(t *testing.T) {
 			mockService := &MockUserManagementService{}
 			tt.setupMock(mockService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.UserManagementService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := testutil.NewCommand("get", testutil.OutputAdapter(GetUser))
 
@@ -233,15 +233,15 @@ func TestCreateUser(t *testing.T) {
 			tt.setupMock(mockService)
 
 			if tt.loginError != nil {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, tt.loginError
-				}
+				})
 			} else {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.UserManagementService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			cmd := &cobra.Command{Use: "create"}
@@ -328,11 +328,11 @@ func TestUpdateUser(t *testing.T) {
 			mockService := &MockUserManagementService{}
 			tt.setupMock(mockService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.UserManagementService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{Use: "update"}
 			cmd.Flags().Bool("interactive", false, "")
@@ -375,8 +375,8 @@ func TestDeleteUser(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
 
-	originalConfirmPrompt := utils.ConfirmPrompt
-	defer func() { utils.ConfirmPrompt = originalConfirmPrompt }()
+	originalConfirmPrompt := utils.GetConfirmPrompt()
+	defer func() { utils.SetConfirmPrompt(originalConfirmPrompt) }()
 
 	tests := []struct {
 		name             string
@@ -421,15 +421,15 @@ func TestDeleteUser(t *testing.T) {
 			mockService := &MockUserManagementService{}
 			tt.setupMock(mockService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.UserManagementService = mockService
 				return client, nil
-			}
+			})
 
-			utils.ConfirmPrompt = func(_ string, _ bool) bool {
+			utils.SetConfirmPrompt(func(_ string, _ bool) bool {
 				return tt.confirmResult
-			}
+			})
 
 			cmd := &cobra.Command{Use: "delete"}
 			cmd.Flags().Bool("force", false, "")
@@ -459,8 +459,8 @@ func TestDeactivateUser(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
 
-	originalConfirmPrompt := utils.ConfirmPrompt
-	defer func() { utils.ConfirmPrompt = originalConfirmPrompt }()
+	originalConfirmPrompt := utils.GetConfirmPrompt()
+	defer func() { utils.SetConfirmPrompt(originalConfirmPrompt) }()
 
 	tests := []struct {
 		name             string
@@ -498,15 +498,15 @@ func TestDeactivateUser(t *testing.T) {
 			mockService := &MockUserManagementService{}
 			tt.setupMock(mockService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.UserManagementService = mockService
 				return client, nil
-			}
+			})
 
-			utils.ConfirmPrompt = func(_ string, _ bool) bool {
+			utils.SetConfirmPrompt(func(_ string, _ bool) bool {
 				return tt.confirmResult
-			}
+			})
 
 			cmd := &cobra.Command{Use: "deactivate"}
 			cmd.Flags().Bool("force", false, "")
@@ -565,11 +565,11 @@ func TestGetUserActivity(t *testing.T) {
 			mockService := &MockUserManagementService{}
 			tt.setupMock(mockService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.UserManagementService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := testutil.NewCommand("activity", testutil.OutputAdapter(GetUserActivity))
 			cmd.Flags().String("employee-id", "", "")
