@@ -226,7 +226,7 @@ func TestEnableDebugMode(t *testing.T) {
 	EnableDebugMode()
 
 	// Verify debug mode is enabled
-	assert.True(t, debugMode)
+	assert.True(t, debugMode.Load())
 
 	// Verify JS function is registered
 	wasmDebugFunc := js.Global().Get("wasmDebug")
@@ -420,19 +420,19 @@ func TestToggleWasmDebug_JSFunction(t *testing.T) {
 
 	// Get initial state
 	toggleFunc := js.Global().Get("toggleWasmDebug")
-	initialState := debugMode
+	initialState := debugMode.Load()
 
 	// Toggle
 	result := toggleFunc.Invoke()
 
 	// Should return opposite state
 	assert.Equal(t, !initialState, result.Bool())
-	assert.Equal(t, !initialState, debugMode)
+	assert.Equal(t, !initialState, debugMode.Load())
 
 	// Toggle again
 	result = toggleFunc.Invoke()
 	assert.Equal(t, initialState, result.Bool())
-	assert.Equal(t, initialState, debugMode)
+	assert.Equal(t, initialState, debugMode.Load())
 }
 
 // TestCaptureOutput verifies output capture functionality
