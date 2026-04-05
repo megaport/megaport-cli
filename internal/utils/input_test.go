@@ -1,0 +1,117 @@
+package utils
+
+import (
+	"fmt"
+	"testing"
+
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func newTestCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "test"}
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().Bool("interactive", false, "")
+	return cmd
+}
+
+func TestResolveInput_JSON(t *testing.T) {
+	cmd := newTestCmd()
+	require.NoError(t, cmd.Flags().Set("json", `{"name":"test"}`))
+
+	result, err := ResolveInput(InputConfig[string]{
+		ResourceName: "port",
+		Cmd:          cmd,
+		NoColor:      true,
+		FromJSON: func(jsonStr, jsonFile string) (string, error) {
+			return "from-json", nil
+		},
+		FromFlags:  func() (string, error) { return "", fmt.Errorf("should not be called") },
+		FromPrompt: func() (string, error) { return "", fmt.Errorf("should not be called") },
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "from-json", result)
+}
+
+func TestResolveInput_Flags(t *testing.T) {
+	cmd := newTestCmd()
+	cmd.Flags().String("name", "", "")
+	require.NoError(t, cmd.Flags().Set("name", "test"))
+
+	result, err := ResolveInput(InputConfig[string]{
+		ResourceName:  "port",
+		Cmd:           cmd,
+		NoColor:       true,
+		FlagsProvided: func() bool { return cmd.Flags().Changed("name") },
+		FromJSON:      func(jsonStr, jsonFile string) (string, error) { return "", fmt.Errorf("should not be called") },
+		FromFlags:     func() (string, error) { return "from-flags", nil },
+		FromPrompt:    func() (string, error) { return "", fmt.Errorf("should not be called") },
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "from-flags", result)
+}
+
+func TestResolveInput_Interactive(t *testing.T) {
+	cmd := newTestCmd()
+	require.NoError(t, cmd.Flags().Set("interactive", "true"))
+
+	result, err := ResolveInput(InputConfig[string]{
+		ResourceName: "port",
+		Cmd:          cmd,
+		NoColor:      true,
+		FromJSON:     func(jsonStr, jsonFile string) (string, error) { return "", fmt.Errorf("should not be called") },
+		FromFlags:    func() (string, error) { return "", fmt.Errorf("should not be called") },
+		FromPrompt:   func() (string, error) { return "from-prompt", nil },
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "from-prompt", result)
+}
+
+func TestResolveInput_NoInput(t *testing.T) {
+	cmd := newTestCmd()
+
+	_, err := ResolveInput(InputConfig[string]{
+		ResourceName: "port",
+		Cmd:          cmd,
+		NoColor:      true,
+		FromJSON:     func(jsonStr, jsonFile string) (string, error) { return "", nil },
+		FromFlags:    func() (string, error) { return "", nil },
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no input provided")
+	assert.Contains(t, err.Error(), "port")
+}
+
+func TestResolveInput_JSONPrecedenceOverFlags(t *testing.T) {
+	cmd := newTestCmd()
+	cmd.Flags().String("name", "", "")
+	require.NoError(t, cmd.Flags().Set("json", `{}`))
+	require.NoError(t, cmd.Flags().Set("name", "test"))
+
+	result, err := ResolveInput(InputConfig[string]{
+		ResourceName:  "port",
+		Cmd:           cmd,
+		NoColor:       true,
+		FlagsProvided: func() bool { return cmd.Flags().Changed("name") },
+		FromJSON:      func(jsonStr, jsonFile string) (string, error) { return "from-json", nil },
+		FromFlags:     func() (string, error) { return "from-flags", nil },
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "from-json", result)
+}
+
+func TestResolveInput_JSONError(t *testing.T) {
+	cmd := newTestCmd()
+	require.NoError(t, cmd.Flags().Set("json", `invalid`))
+
+	_, err := ResolveInput(InputConfig[string]{
+		ResourceName: "port",
+		Cmd:          cmd,
+		NoColor:      true,
+		FromJSON:     func(jsonStr, jsonFile string) (string, error) { return "", fmt.Errorf("parse error") },
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "parse error")
+}

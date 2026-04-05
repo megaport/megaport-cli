@@ -34,39 +34,19 @@ func exportMCRConfig(mcr *megaport.MCR) map[string]interface{} {
 }
 
 func buildMCRRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyMCRRequest, error) {
-	interactive, _ := cmd.Flags().GetBool("interactive")
-	jsonStr, _ := cmd.Flags().GetString("json")
-	jsonFile, _ := cmd.Flags().GetString("json-file")
-
-	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("term") ||
-		cmd.Flags().Changed("port-speed") || cmd.Flags().Changed("location-id") ||
-		cmd.Flags().Changed("mcr-asn")
-
-	if jsonStr != "" || jsonFile != "" {
-		output.PrintInfo("Using JSON input", noColor)
-		req, err := processJSONMCRInput(jsonStr, jsonFile)
-		if err != nil {
-			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return nil, err
-		}
-		return req, nil
-	} else if flagsProvided {
-		output.PrintInfo("Using flag input", noColor)
-		req, err := processFlagMCRInput(cmd)
-		if err != nil {
-			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return nil, err
-		}
-		return req, nil
-	} else if interactive {
-		req, err := promptForMCRDetails(noColor)
-		if err != nil {
-			return nil, err
-		}
-		return req, nil
-	}
-	output.PrintError("No input provided, use --interactive, --json, or flags to specify MCR details", noColor)
-	return nil, fmt.Errorf("no input provided, use --interactive, --json, or flags to specify MCR details")
+	return utils.ResolveInput(utils.InputConfig[*megaport.BuyMCRRequest]{
+		ResourceName: "MCR",
+		Cmd:          cmd,
+		NoColor:      noColor,
+		FlagsProvided: func() bool {
+			return cmd.Flags().Changed("name") || cmd.Flags().Changed("term") ||
+				cmd.Flags().Changed("port-speed") || cmd.Flags().Changed("location-id") ||
+				cmd.Flags().Changed("mcr-asn")
+		},
+		FromJSON:   processJSONMCRInput,
+		FromFlags:  func() (*megaport.BuyMCRRequest, error) { return processFlagMCRInput(cmd) },
+		FromPrompt: func() (*megaport.BuyMCRRequest, error) { return promptForMCRDetails(noColor) },
+	})
 }
 
 func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
@@ -746,26 +726,8 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	filteredMCRs := filterMCRs(mcrs, locationID, portSpeed, mcrName)
 
 	limit, _ := cmd.Flags().GetInt("limit")
-	if limit < 0 {
-		return fmt.Errorf("--limit must be a non-negative integer")
-	}
-	if limit > 0 && len(filteredMCRs) > limit {
-		filteredMCRs = filteredMCRs[:limit]
-	}
-
-	if len(filteredMCRs) == 0 {
-		if outputFormat == utils.FormatTable {
-			output.PrintInfo("No MCRs found. Create one with 'megaport mcr buy'.", noColor)
-		}
-		return nil
-	}
-
-	err = printMCRs(filteredMCRs, outputFormat, noColor)
-	if err != nil {
-		output.PrintError("Failed to print MCRs: %v", noColor, err)
-		return fmt.Errorf("error printing MCRs: %w", err)
-	}
-	return nil
+	return utils.ApplyLimitAndPrint(filteredMCRs, limit, outputFormat, noColor,
+		"No MCRs found. Create one with 'megaport mcr buy'.", printMCRs)
 }
 
 func ListMCRResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {

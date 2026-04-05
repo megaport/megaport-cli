@@ -47,26 +47,9 @@ func displayManagedAccountChanges(original, updated *megaport.ManagedAccount, no
 		return
 	}
 
-	fmt.Println()
-	output.PrintInfo("Changes applied:", noColor)
-
-	changesFound := false
-
-	if original.AccountName != updated.AccountName {
-		changesFound = true
-		fmt.Printf("  • Account Name: %s → %s\n",
-			output.FormatOldValue(original.AccountName, noColor),
-			output.FormatNewValue(updated.AccountName, noColor))
+	changes := []output.FieldChange{
+		{Label: "Account Name", OldValue: original.AccountName, NewValue: updated.AccountName},
+		{Label: "Account Ref", OldValue: original.AccountRef, NewValue: updated.AccountRef},
 	}
-
-	if original.AccountRef != updated.AccountRef {
-		changesFound = true
-		fmt.Printf("  • Account Ref: %s → %s\n",
-			output.FormatOldValue(original.AccountRef, noColor),
-			output.FormatNewValue(updated.AccountRef, noColor))
-	}
-
-	if !changesFound {
-		fmt.Println("  No changes detected")
-	}
+	output.DisplayChanges(changes, noColor)
 }
