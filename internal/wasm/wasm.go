@@ -207,7 +207,10 @@ func RegisterJSFunctions() {
 
 	InstallCommandHooks()
 
-	// Add a debug mode toggle function
+	// Add a debug mode toggle function.
+	// NOTE: The Load+Store is not a single atomic operation, but WASM is
+	// single-threaded so concurrent toggles cannot interleave. The atomic
+	// type is used to satisfy the Go race detector, not for true concurrency.
 	js.Global().Set("toggleWasmDebug", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		newVal := !debugMode.Load()
 		debugMode.Store(newVal)
