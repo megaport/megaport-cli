@@ -40,7 +40,7 @@ func SetupIntegrationClient(t *testing.T) *megaport.Client {
 	return client
 }
 
-// LoginWithClient overrides config.LoginFunc to return the given client for the
+// LoginWithClient overrides the login function to return the given client for the
 // duration of the test. Returns a cleanup function that restores the original.
 func LoginWithClient(t *testing.T, client *megaport.Client) func() {
 	t.Helper()

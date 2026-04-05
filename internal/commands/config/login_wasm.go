@@ -73,7 +73,7 @@ func Login(ctx context.Context) (*megaport.Client, error) {
 }
 
 func LoginWithOutput(ctx context.Context, outputFormat string) (*megaport.Client, error) {
-	return GetLoginFunc()(ctx)
+	return GetLoginFuncWithOutput()(ctx, outputFormat)
 }
 
 // loginFunc overrides the standard login for WASM environments.

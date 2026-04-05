@@ -31,7 +31,7 @@ func applyCmd(file string, dryRun, yes bool) *cobra.Command {
 	return cmd
 }
 
-// setupMockClient overrides config.LoginFunc with mock services and returns cleanup.
+// setupMockClient overrides the login function with mock services and returns cleanup.
 func setupMockClient(port *MockPortService, mcr *MockMCRService, mve *MockMVEService, vxc *MockVXCService) func() {
 	original := config.GetLoginFunc()
 	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
