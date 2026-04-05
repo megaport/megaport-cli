@@ -4,10 +4,10 @@
 package main
 
 import (
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -27,6 +27,7 @@ func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { retu
 // that hardcode external hostnames (e.g. api.megaport.com).
 func redirectClientTo(backend *httptest.Server) *http.Client {
 	return &http.Client{
+		Timeout: 10 * time.Second,
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			req.URL.Scheme = "http"
 			req.URL.Host = backend.Listener.Addr().String()
@@ -155,7 +156,7 @@ func TestProxyHandler_SSRFProtection(t *testing.T) {
 
 // newTestServer creates a server.Server for testing with a 1-hour session duration.
 func newTestServer() *server.Server {
-	return server.NewServer(1*time.Hour, log.New(os.Stderr, "", 0))
+	return server.NewServer(1*time.Hour, log.New(io.Discard, "", 0))
 }
 
 func TestAuthenticatedProxyHandler_MissingToken(t *testing.T) {
@@ -339,14 +340,14 @@ func TestAuthenticatedProxyHandler_TokenNearExpiry(t *testing.T) {
 }
 
 func TestAuthenticatedProxyHandler_ExpiredSession(t *testing.T) {
-	// Create server with very short session duration
-	srv := server.NewServer(1*time.Millisecond, log.New(os.Stderr, "", 0))
+	// Create server with a short-but-stable session duration
+	srv := server.NewServer(100*time.Millisecond, log.New(io.Discard, "", 0))
 
 	session, err := srv.GetSessionManager().CreateSession("key", "secret")
 	require.NoError(t, err)
 
-	// Wait for session to expire
-	time.Sleep(10 * time.Millisecond)
+	// Wait long enough for the session to expire without relying on millisecond-level scheduling
+	time.Sleep(500 * time.Millisecond)
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/api/v2/products", nil)
@@ -500,7 +501,9 @@ func TestAddCorsHeaders_SetsMIMETypes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
+			innerCalled := false
 			inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				innerCalled = true
 				// Verify content-type was set before inner handler runs
 				assert.Equal(t, tt.contentType, w.Header().Get("Content-Type"))
 			})
@@ -513,8 +516,7 @@ func TestAddCorsHeaders_SetsMIMETypes(t *testing.T) {
 
 			handler.ServeHTTP(w, r)
 
-			// Guard: ensure inner handler was actually called
-			assert.Equal(t, http.StatusOK, w.Code)
+			assert.True(t, innerCalled, "inner handler should be called for GET %s", tt.path)
 		})
 	}
 }
