@@ -187,7 +187,7 @@ func TestSpinner(t *testing.T) {
 
 func TestPrintResourceSpinners(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping timing-sensitive spinner test")
+		t.Skip("skipping timing-sensitive resource spinner test")
 	}
 	SetIsTerminal(true)
 	defer SetIsTerminal(false)
@@ -248,7 +248,7 @@ func TestPrintResourceSpinners(t *testing.T) {
 
 func TestPrintResourceListing(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping timing-sensitive spinner test")
+		t.Skip("skipping timing-sensitive resource listing test")
 	}
 	SetIsTerminal(true)
 	defer SetIsTerminal(false)
@@ -482,7 +482,7 @@ func TestOutputFormatConcurrency(t *testing.T) {
 
 func TestPrintResourceProvisioning(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping timing-sensitive spinner test")
+		t.Skip("skipping timing-sensitive provisioning test")
 	}
 	SetIsTerminal(true)
 	defer SetIsTerminal(false)
@@ -508,7 +508,7 @@ func TestPrintResourceProvisioning(t *testing.T) {
 
 func TestStartWithElapsed(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping timing-sensitive spinner test")
+		t.Skip("skipping timing-sensitive elapsed timer test")
 	}
 	SetIsTerminal(true)
 	defer SetIsTerminal(false)
@@ -567,7 +567,7 @@ func TestStartWithElapsed(t *testing.T) {
 
 func TestSpinnerStopWithSuccess(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping timing-sensitive spinner test")
+		t.Skip("skipping timing-sensitive spinner stop test")
 	}
 	SetIsTerminal(true)
 	defer SetIsTerminal(false)

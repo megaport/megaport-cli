@@ -91,7 +91,7 @@ func TestLogin(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clear all env vars first, then set the ones specified in the test case.
 			// t.Setenv auto-restores when the subtest finishes.
-			t.Setenv("MEGAPORT_ACCESS_KEY", "")
+			t.Setenv("MEGAPORT_ACCESS_KEY", "") // empty string is equivalent to unset for os.Getenv callers
 			t.Setenv("MEGAPORT_SECRET_KEY", "")
 			t.Setenv("MEGAPORT_ENVIRONMENT", "")
 
@@ -188,6 +188,9 @@ func TestEnvironmentSelectionPrecedence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			origEnv := utils.Env
+			defer func() { utils.Env = origEnv }()
+
 			// Setup test environment
 			utils.Env = tt.globalFlag
 			t.Setenv("MEGAPORT_ENVIRONMENT", tt.envVar)
@@ -227,7 +230,7 @@ func TestProfileOverrideLogin(t *testing.T) {
 	// Setup temp config dir with profiles
 	tempDir, err := os.MkdirTemp("", "megaport-login-test")
 	assert.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
 	t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
 
 	// Clear env vars so profile credentials are used
@@ -246,6 +249,11 @@ func TestProfileOverrideLogin(t *testing.T) {
 	assert.NoError(t, err)
 
 	t.Run("profile override uses specified profile and reaches API call", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
 		utils.Env = ""
 		utils.ProfileOverride = "staging"
 
@@ -261,6 +269,11 @@ func TestProfileOverrideLogin(t *testing.T) {
 	})
 
 	t.Run("profile override with non-existent profile returns error", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
 		utils.Env = ""
 		utils.ProfileOverride = "non-existent"
 
@@ -271,6 +284,11 @@ func TestProfileOverrideLogin(t *testing.T) {
 	})
 
 	t.Run("without profile override uses active profile and reaches API call", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
 		utils.Env = ""
 		utils.ProfileOverride = ""
 
@@ -283,6 +301,11 @@ func TestProfileOverrideLogin(t *testing.T) {
 	})
 
 	t.Run("env flag overrides profile environment", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
 		utils.Env = "development"
 		utils.ProfileOverride = "staging"
 
@@ -295,6 +318,11 @@ func TestProfileOverrideLogin(t *testing.T) {
 	})
 
 	t.Run("no profile and no env vars returns credential error", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
 		utils.Env = ""
 		utils.ProfileOverride = ""
 
@@ -306,7 +334,7 @@ func TestProfileOverrideLogin(t *testing.T) {
 		// Use a fresh temp dir with no profiles
 		emptyDir, err := os.MkdirTemp("", "megaport-empty-test")
 		assert.NoError(t, err)
-		defer os.RemoveAll(emptyDir)
+		t.Cleanup(func() { os.RemoveAll(emptyDir) })
 		t.Setenv("MEGAPORT_CONFIG_DIR", emptyDir)
 
 		_, err = LoginFuncWithOutput(context.Background(), "json")
@@ -328,10 +356,15 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 	// Default empty config dir for all subtests (subtests that need profiles override this)
 	defaultEmptyDir, err := os.MkdirTemp("", "megaport-unauth-default")
 	assert.NoError(t, err)
-	defer os.RemoveAll(defaultEmptyDir)
+	t.Cleanup(func() { os.RemoveAll(defaultEmptyDir) })
 	t.Setenv("MEGAPORT_CONFIG_DIR", defaultEmptyDir)
 
 	t.Run("defaults to production when no env configured", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
 		utils.Env = ""
 		utils.ProfileOverride = ""
 		t.Setenv("MEGAPORT_ENVIRONMENT", "")
@@ -343,6 +376,11 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 	})
 
 	t.Run("respects env flag", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
 		utils.Env = "staging"
 		utils.ProfileOverride = ""
 		t.Setenv("MEGAPORT_ENVIRONMENT", "")
@@ -354,6 +392,11 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 	})
 
 	t.Run("respects MEGAPORT_ENVIRONMENT env var", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
 		utils.Env = ""
 		utils.ProfileOverride = ""
 		t.Setenv("MEGAPORT_ENVIRONMENT", "staging")
@@ -365,9 +408,14 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 	})
 
 	t.Run("profile override with valid profile uses profile env", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
 		tempDir, err := os.MkdirTemp("", "megaport-unauth-test")
 		assert.NoError(t, err)
-		defer os.RemoveAll(tempDir)
+		t.Cleanup(func() { os.RemoveAll(tempDir) })
 		t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
 
 		manager, err := NewConfigManager()
@@ -386,9 +434,14 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 	})
 
 	t.Run("profile override with non-existent profile returns error", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
 		tempDir, err := os.MkdirTemp("", "megaport-unauth-test")
 		assert.NoError(t, err)
-		defer os.RemoveAll(tempDir)
+		t.Cleanup(func() { os.RemoveAll(tempDir) })
 		t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
 
 		utils.Env = ""
@@ -401,9 +454,14 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 	})
 
 	t.Run("env flag overrides profile environment", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
 		tempDir, err := os.MkdirTemp("", "megaport-unauth-test")
 		assert.NoError(t, err)
-		defer os.RemoveAll(tempDir)
+		t.Cleanup(func() { os.RemoveAll(tempDir) })
 		t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
 
 		manager, err := NewConfigManager()
@@ -421,6 +479,11 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 	})
 
 	t.Run("does not require credentials", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
 		utils.Env = "production"
 		utils.ProfileOverride = ""
 		t.Setenv("MEGAPORT_ACCESS_KEY", "")
@@ -434,6 +497,11 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 	})
 
 	t.Run("accepts short alias prod", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
 		utils.Env = "prod"
 		utils.ProfileOverride = ""
 
@@ -444,6 +512,11 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 	})
 
 	t.Run("accepts short alias dev", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
 		utils.Env = "dev"
 		utils.ProfileOverride = ""
 
@@ -486,6 +559,9 @@ func TestCredentialSelectionPrecedence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			origEnv := utils.Env
+			defer func() { utils.Env = origEnv }()
+
 			// Setup test environment
 			utils.Env = tt.globalFlag
 			t.Setenv("MEGAPORT_ACCESS_KEY", tt.envAccessKey)

@@ -2432,3 +2432,17 @@ func TestValidateVXC(t *testing.T) {
 		})
 	}
 }
+
+func TestMockVXCServiceReset(t *testing.T) {
+	m := &MockVXCService{
+		BuyVXCError:    fmt.Errorf("test"),
+		GetVXCError:    fmt.Errorf("test"),
+		DeleteVXCError: fmt.Errorf("test"),
+		ForceNilGetVXC: true,
+	}
+	m.Reset()
+	assert.Nil(t, m.BuyVXCError)
+	assert.Nil(t, m.GetVXCError)
+	assert.Nil(t, m.DeleteVXCError)
+	assert.False(t, m.ForceNilGetVXC)
+}

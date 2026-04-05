@@ -1951,3 +1951,17 @@ func TestValidateIX(t *testing.T) {
 		})
 	}
 }
+
+func TestMockIXServiceReset(t *testing.T) {
+	m := &MockIXService{
+		buyIXError:    fmt.Errorf("test"),
+		getIXError:    fmt.Errorf("test"),
+		deleteIXError: fmt.Errorf("test"),
+		forceNilGetIX: true,
+	}
+	m.Reset()
+	assert.Nil(t, m.buyIXError)
+	assert.Nil(t, m.getIXError)
+	assert.Nil(t, m.deleteIXError)
+	assert.False(t, m.forceNilGetIX)
+}
