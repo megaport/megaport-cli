@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/megaport/megaport-cli/internal/base/output"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -360,8 +359,9 @@ func TestRetryWithBackoff_RetryAfterCappedAtMaxDelay(t *testing.T) {
 }
 
 func TestLogRetry_QuietMode(t *testing.T) {
-	output.SetVerbosity("quiet")
-	defer output.SetVerbosity("normal")
+	oldQuiet := isQuietFunc
+	defer func() { isQuietFunc = oldQuiet }()
+	isQuietFunc = func() bool { return true }
 
 	// Should not panic and should not produce output; exercises the quiet branch
 	logRetry(1, 3, 100*time.Millisecond, fmt.Errorf("test error"))
@@ -369,15 +369,19 @@ func TestLogRetry_QuietMode(t *testing.T) {
 }
 
 func TestLogRetry_VerboseMode(t *testing.T) {
-	output.SetVerbosity("verbose")
-	defer output.SetVerbosity("normal")
+	oldVerbose := isVerboseFunc
+	defer func() { isVerboseFunc = oldVerbose }()
+	isVerboseFunc = func() bool { return true }
 
 	// Should not panic; just exercises the verbose branch
 	logRetry(1, 3, 100*time.Millisecond, fmt.Errorf("test error"))
 }
 
 func TestLogRetry_NonVerboseEarlyAttempt(t *testing.T) {
-	output.SetVerbosity("normal")
+	oldQuiet, oldVerbose := isQuietFunc, isVerboseFunc
+	defer func() { isQuietFunc = oldQuiet; isVerboseFunc = oldVerbose }()
+	isQuietFunc = func() bool { return false }
+	isVerboseFunc = func() bool { return false }
 
 	// Early attempt, non-verbose: should not log (exercises the skip branch)
 	logRetry(1, 3, 100*time.Millisecond, fmt.Errorf("test error"))

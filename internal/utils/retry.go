@@ -18,6 +18,13 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
+// Verbosity check functions, defaulting to the output package. Tests can
+// replace these to avoid mutating global verbosity state.
+var (
+	isQuietFunc   = output.IsQuiet
+	isVerboseFunc = output.IsVerbose
+)
+
 // RetryOpts configures the retry behaviour of RetryWithBackoff.
 type RetryOpts struct {
 	MaxRetries        int
@@ -220,7 +227,7 @@ func addJitter(d time.Duration) time.Duration {
 // attempt is the 1-based retry number; the displayed attempt count includes the initial call.
 func logRetry(attempt, maxRetries int, wait time.Duration, err error) {
 	// Suppress all retry logs in quiet mode.
-	if output.IsQuiet() {
+	if isQuietFunc() {
 		return
 	}
 	totalAttempts := maxRetries + 1
@@ -231,7 +238,7 @@ func logRetry(attempt, maxRetries int, wait time.Duration, err error) {
 		return
 	}
 	// For earlier attempts, only log in verbose mode.
-	if output.IsVerbose() {
+	if isVerboseFunc() {
 		fmt.Fprintf(os.Stderr, "Retrying in %s (attempt %d/%d): %v\n", wait.Round(time.Millisecond), overallAttempt, totalAttempts, err)
 	}
 }
