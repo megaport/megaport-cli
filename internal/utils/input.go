@@ -41,9 +41,22 @@ type InputConfig[T any] struct {
 func ResolveInput[T any](cfg InputConfig[T]) (T, error) {
 	var zero T
 
-	jsonStr, _ := cfg.Cmd.Flags().GetString("json")
-	jsonFile, _ := cfg.Cmd.Flags().GetString("json-file")
-	interactive, _ := cfg.Cmd.Flags().GetBool("interactive")
+	if cfg.Cmd == nil {
+		return zero, fmt.Errorf("no command configured for %s input resolution", cfg.ResourceName)
+	}
+
+	jsonStr, err := cfg.Cmd.Flags().GetString("json")
+	if err != nil {
+		return zero, fmt.Errorf("failed to read --json flag: %w", err)
+	}
+	jsonFile, err := cfg.Cmd.Flags().GetString("json-file")
+	if err != nil {
+		return zero, fmt.Errorf("failed to read --json-file flag: %w", err)
+	}
+	interactive, err := cfg.Cmd.Flags().GetBool("interactive")
+	if err != nil {
+		return zero, fmt.Errorf("failed to read --interactive flag: %w", err)
+	}
 
 	switch {
 	case jsonStr != "" || jsonFile != "":

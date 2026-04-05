@@ -208,3 +208,11 @@ func TestResolveInput_NilFromFlags(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no flag handler configured")
 }
+
+func TestResolveInput_NilCmd(t *testing.T) {
+	_, err := ResolveInput(InputConfig[string]{
+		ResourceName: "port",
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no command configured")
+}

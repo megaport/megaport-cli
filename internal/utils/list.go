@@ -9,8 +9,8 @@ import (
 // ApplyLimitAndPrint handles the common post-filter pipeline for all List
 // commands: validate and apply --limit, check for empty results, and print.
 //
-// Returns nil (no error) when items is empty and outputFormat is table,
-// after printing an informational message.
+// Returns nil (no error) when items is empty. If outputFormat is table,
+// it also prints an informational message.
 func ApplyLimitAndPrint[T any](
 	items []T,
 	limit int,
@@ -33,9 +33,5 @@ func ApplyLimitAndPrint[T any](
 		return nil
 	}
 
-	if err := printFunc(items, outputFormat, noColor); err != nil {
-		output.PrintError("Failed to print output: %v", noColor, err)
-		return fmt.Errorf("error printing output: %w", err)
-	}
-	return nil
+	return printFunc(items, outputFormat, noColor)
 }

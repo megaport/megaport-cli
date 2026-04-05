@@ -48,13 +48,12 @@ func TestApplyLimitAndPrint(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("propagates print error with wrapping", func(t *testing.T) {
+	t.Run("propagates print error", func(t *testing.T) {
 		err := ApplyLimitAndPrint([]string{"a"}, 0, FormatTable, true, "none",
 			func(items []string, format string, noColor bool) error {
 				return fmt.Errorf("print failed")
 			})
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "error printing output")
 		assert.Contains(t, err.Error(), "print failed")
 	})
 
