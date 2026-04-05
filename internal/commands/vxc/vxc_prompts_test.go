@@ -12,17 +12,17 @@ import (
 )
 
 func mockPrompts(responses []string) func() {
-	original := utils.ResourcePrompt
+	original := utils.GetResourcePrompt()
 	idx := 0
-	utils.ResourcePrompt = func(_, _ string, _ bool) (string, error) {
+	utils.SetResourcePrompt(func(_, _ string, _ bool) (string, error) {
 		if idx < len(responses) {
 			r := responses[idx]
 			idx++
 			return r, nil
 		}
 		return "", fmt.Errorf("unexpected prompt call at index %d", idx)
-	}
-	return func() { utils.ResourcePrompt = original }
+	})
+	return func() { utils.SetResourcePrompt(original) }
 }
 
 func TestPromptAWSConfig(t *testing.T) {

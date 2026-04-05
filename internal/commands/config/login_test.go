@@ -19,9 +19,9 @@ var (
 )
 
 func TestLogin(t *testing.T) {
-	originalLoginFunc := LoginFunc
+	originalLoginFunc := GetLoginFunc()
 	defer func() {
-		LoginFunc = originalLoginFunc
+		SetLoginFunc(originalLoginFunc)
 	}()
 
 	tests := []struct {
@@ -107,7 +107,7 @@ func TestLogin(t *testing.T) {
 
 			var capturedAccessKey, capturedSecretKey, capturedEnv string
 
-			LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				capturedAccessKey = os.Getenv(accessKeyEnvVar)
 				capturedSecretKey = os.Getenv(secretKeyEnvVar)
 				capturedEnv = env
@@ -121,7 +121,7 @@ func TestLogin(t *testing.T) {
 
 				client := &megaport.Client{}
 				return client, nil
-			}
+			})
 
 			client, err := Login(context.Background())
 
@@ -219,12 +219,12 @@ func TestProfileOverrideLogin(t *testing.T) {
 	// Save and restore non-env-var globals
 	originalEnv := utils.Env
 	originalProfileOverride := utils.ProfileOverride
-	originalLoginFuncWithOutput := LoginFuncWithOutput
+	originalLoginFuncWithOutput := GetLoginFuncWithOutput()
 
 	defer func() {
 		utils.Env = originalEnv
 		utils.ProfileOverride = originalProfileOverride
-		LoginFuncWithOutput = originalLoginFuncWithOutput
+		SetLoginFuncWithOutput(originalLoginFuncWithOutput)
 	}()
 
 	// Setup temp config dir with profiles
@@ -260,7 +260,7 @@ func TestProfileOverrideLogin(t *testing.T) {
 		// Call the real LoginFuncWithOutput - it will resolve credentials from
 		// the "staging" profile and fail at Authorize (no real API), which proves
 		// credential resolution succeeded (didn't get "access key not provided" error).
-		_, err := LoginFuncWithOutput(context.Background(), "json")
+		_, err := LoginWithOutput(context.Background(), "json")
 		assert.Error(t, err)
 		// Should NOT be a "not provided" error — that would mean credential resolution failed
 		assert.NotContains(t, err.Error(), "access key not provided")
@@ -277,7 +277,7 @@ func TestProfileOverrideLogin(t *testing.T) {
 		utils.Env = ""
 		utils.ProfileOverride = "non-existent"
 
-		_, err := LoginFuncWithOutput(context.Background(), "json")
+		_, err := LoginWithOutput(context.Background(), "json")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "non-existent")
 		assert.Contains(t, err.Error(), "not found")
@@ -293,7 +293,7 @@ func TestProfileOverrideLogin(t *testing.T) {
 		utils.ProfileOverride = ""
 
 		// Active profile is "prod" — should resolve credentials from it
-		_, err := LoginFuncWithOutput(context.Background(), "json")
+		_, err := LoginWithOutput(context.Background(), "json")
 		assert.Error(t, err)
 		// Should NOT be a "not provided" error
 		assert.NotContains(t, err.Error(), "access key not provided")
@@ -311,7 +311,7 @@ func TestProfileOverrideLogin(t *testing.T) {
 
 		// Both --profile and --env are set: credentials from staging profile,
 		// environment from --env flag. Should still resolve and reach API call.
-		_, err := LoginFuncWithOutput(context.Background(), "json")
+		_, err := LoginWithOutput(context.Background(), "json")
 		assert.Error(t, err)
 		assert.NotContains(t, err.Error(), "access key not provided")
 		assert.NotContains(t, err.Error(), "not found")
@@ -337,7 +337,7 @@ func TestProfileOverrideLogin(t *testing.T) {
 		t.Cleanup(func() { os.RemoveAll(emptyDir) })
 		t.Setenv("MEGAPORT_CONFIG_DIR", emptyDir)
 
-		_, err = LoginFuncWithOutput(context.Background(), "json")
+		_, err = LoginWithOutput(context.Background(), "json")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "access key not provided")
 	})
@@ -590,4 +590,38 @@ func TestCredentialSelectionPrecedence(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLoginFuncAccessors(t *testing.T) {
+	t.Run("SetLoginFuncWithOutput round-trips", func(t *testing.T) {
+		original := GetLoginFuncWithOutput()
+		defer SetLoginFuncWithOutput(original)
+
+		called := false
+		SetLoginFuncWithOutput(func(_ context.Context, _ string) (*megaport.Client, error) {
+			called = true
+			return &megaport.Client{}, nil
+		})
+		fn := GetLoginFuncWithOutput()
+		client, err := fn(context.Background(), "json")
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.True(t, called)
+	})
+
+	t.Run("SetNewUnauthenticatedClientFunc round-trips", func(t *testing.T) {
+		original := GetNewUnauthenticatedClientFunc()
+		defer SetNewUnauthenticatedClientFunc(original)
+
+		called := false
+		SetNewUnauthenticatedClientFunc(func() (*megaport.Client, error) {
+			called = true
+			return &megaport.Client{}, nil
+		})
+		fn := GetNewUnauthenticatedClientFunc()
+		client, err := fn()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.True(t, called)
+	})
 }

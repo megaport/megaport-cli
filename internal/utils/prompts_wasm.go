@@ -15,11 +15,11 @@ import (
 
 func init() {
 	// Override the default prompt functions with WASM-specific ones
-	Prompt = wasmPrompt
-	ConfirmPrompt = wasmConfirmPrompt
-	ResourcePrompt = wasmResourcePrompt
-	ResourceTagsPrompt = wasmResourceTagsPrompt
-	UpdateResourceTagsPrompt = wasmUpdateResourceTagsPrompt
+	SetPrompt(wasmPrompt)
+	SetConfirmPrompt(wasmConfirmPrompt)
+	SetResourcePrompt(wasmResourcePrompt)
+	SetResourceTagsPrompt(wasmResourceTagsPrompt)
+	SetUpdateResourceTagsPrompt(wasmUpdateResourceTagsPrompt)
 }
 
 func wasmPrompt(msg string, noColor bool) (string, error) {

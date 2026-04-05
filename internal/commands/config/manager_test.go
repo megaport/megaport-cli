@@ -667,11 +667,11 @@ func TestImportWithMissingFields(t *testing.T) {
 	require.NoError(t, err)
 
 	// Mock confirmation
-	oldConfirmPrompt := utils.ConfirmPrompt
-	utils.ConfirmPrompt = func(message string, noColor bool) bool {
+	oldConfirmPrompt := utils.GetConfirmPrompt()
+	utils.SetConfirmPrompt(func(message string, noColor bool) bool {
 		return true
-	}
-	defer func() { utils.ConfirmPrompt = oldConfirmPrompt }()
+	})
+	defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
 
 	_, err = captureOutputFromAction(func() error {
 		return ImportConfig(cmd, nil, false)

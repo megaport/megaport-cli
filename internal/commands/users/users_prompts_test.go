@@ -21,13 +21,13 @@ func mockPromptSequence(responses []string) func(string, string, bool) (string, 
 }
 
 func TestPromptForCreateUserDetails_Success(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
 	// firstName, lastName, email, position, phone
-	utils.ResourcePrompt = mockPromptSequence([]string{
+	utils.SetResourcePrompt(mockPromptSequence([]string{
 		"John", "Doe", "john@example.com", "Technical Admin", "+61412345678",
-	})
+	}))
 
 	req, err := promptForCreateUserDetails(true)
 	assert.NoError(t, err)
@@ -40,10 +40,10 @@ func TestPromptForCreateUserDetails_Success(t *testing.T) {
 }
 
 func TestPromptForCreateUserDetails_EmptyFirstName(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{""})
+	utils.SetResourcePrompt(mockPromptSequence([]string{""}))
 
 	_, err := promptForCreateUserDetails(true)
 	assert.Error(t, err)
@@ -51,10 +51,10 @@ func TestPromptForCreateUserDetails_EmptyFirstName(t *testing.T) {
 }
 
 func TestPromptForCreateUserDetails_EmptyLastName(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"John", ""})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"John", ""}))
 
 	_, err := promptForCreateUserDetails(true)
 	assert.Error(t, err)
@@ -62,10 +62,10 @@ func TestPromptForCreateUserDetails_EmptyLastName(t *testing.T) {
 }
 
 func TestPromptForCreateUserDetails_EmptyEmail(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"John", "Doe", ""})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"John", "Doe", ""}))
 
 	_, err := promptForCreateUserDetails(true)
 	assert.Error(t, err)
@@ -73,10 +73,10 @@ func TestPromptForCreateUserDetails_EmptyEmail(t *testing.T) {
 }
 
 func TestPromptForCreateUserDetails_EmptyPosition(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"John", "Doe", "john@example.com", ""})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"John", "Doe", "john@example.com", ""}))
 
 	_, err := promptForCreateUserDetails(true)
 	assert.Error(t, err)
@@ -84,10 +84,10 @@ func TestPromptForCreateUserDetails_EmptyPosition(t *testing.T) {
 }
 
 func TestPromptForCreateUserDetails_InvalidPosition(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"John", "Doe", "john@example.com", "Super Admin"})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"John", "Doe", "john@example.com", "Super Admin"}))
 
 	_, err := promptForCreateUserDetails(true)
 	assert.Error(t, err)
@@ -95,13 +95,13 @@ func TestPromptForCreateUserDetails_InvalidPosition(t *testing.T) {
 }
 
 func TestPromptForUpdateUserDetails_Success(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
 	// firstName, lastName, email, position, phone
-	utils.ResourcePrompt = mockPromptSequence([]string{
+	utils.SetResourcePrompt(mockPromptSequence([]string{
 		"Jane", "Smith", "jane@example.com", "Finance", "+61400000000",
-	})
+	}))
 
 	req, err := promptForUpdateUserDetails(true)
 	assert.NoError(t, err)
@@ -118,13 +118,13 @@ func TestPromptForUpdateUserDetails_Success(t *testing.T) {
 }
 
 func TestPromptForUpdateUserDetails_PartialUpdate(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
 	// Only update firstName, skip the rest
-	utils.ResourcePrompt = mockPromptSequence([]string{
+	utils.SetResourcePrompt(mockPromptSequence([]string{
 		"NewFirst", "", "", "", "",
-	})
+	}))
 
 	req, err := promptForUpdateUserDetails(true)
 	assert.NoError(t, err)
@@ -137,10 +137,10 @@ func TestPromptForUpdateUserDetails_PartialUpdate(t *testing.T) {
 }
 
 func TestPromptForUpdateUserDetails_NoChanges(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"", "", "", "", ""})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", "", "", ""}))
 
 	_, err := promptForUpdateUserDetails(true)
 	assert.Error(t, err)

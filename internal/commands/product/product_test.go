@@ -179,11 +179,11 @@ func TestListProducts(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.ProductService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{Use: "list"}
 			cmd.Flags().Bool("include-inactive", false, "")
@@ -274,11 +274,11 @@ func TestGetProductType(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.ProductService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{Use: "get-type"}
 			cmd.Flags().StringP("output", "o", "table", "")
@@ -372,11 +372,11 @@ func TestListProductsEmptyListJsonFormat(t *testing.T) {
 	mockService := &MockProductService{
 		ListProductsResult: []megaport.Product{},
 	}
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.ProductService = mockService
 		return client, nil
-	}
+	})
 
 	cmd := &cobra.Command{Use: "list"}
 	cmd.Flags().Bool("include-inactive", false, "")

@@ -6,20 +6,23 @@ package wasm
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"syscall/js"
 	"time"
 )
 
 var (
-	// promptCallback is the JavaScript function to call when prompting for input
-	promptCallback js.Value
+	// promptCallback is the JavaScript function to call when prompting for input.
+	// Protected by promptCallbackMu.
+	promptCallback   js.Value
+	promptCallbackMu sync.RWMutex
 
 	// pendingPrompts tracks prompts waiting for responses
 	pendingPrompts = make(map[string]*PromptRequest)
 	pendingMutex   sync.Mutex
 
 	// promptCounter generates unique IDs for each prompt
-	promptCounter int
+	promptCounter atomic.Int64
 )
 
 // PromptRequest represents a pending prompt waiting for user input
@@ -40,22 +43,25 @@ func RegisterPromptCallback(callback js.Value) {
 		return
 	}
 
+	promptCallbackMu.Lock()
 	promptCallback = callback
+	promptCallbackMu.Unlock()
 	js.Global().Get("console").Call("log", "✅ Prompt callback registered")
 }
 
 // PromptForInput requests input from the user via JavaScript
 // This function blocks until the JavaScript side provides a response
 func PromptForInput(message string, promptType string, resourceType string) (string, error) {
-	if promptCallback.IsUndefined() {
+	promptCallbackMu.RLock()
+	cb := promptCallback
+	promptCallbackMu.RUnlock()
+
+	if cb.IsUndefined() {
 		return "", fmt.Errorf("prompt callback not registered - interactive mode requires JavaScript integration")
 	}
 
 	// Create a unique ID for this prompt
-	pendingMutex.Lock()
-	promptCounter++
-	promptID := fmt.Sprintf("prompt_%d_%d", promptCounter, time.Now().UnixNano())
-	pendingMutex.Unlock()
+	promptID := fmt.Sprintf("prompt_%d_%d", promptCounter.Add(1), time.Now().UnixNano())
 
 	// Create channels for the response
 	responseChan := make(chan string, 1)
@@ -80,7 +86,7 @@ func PromptForInput(message string, promptType string, resourceType string) (str
 		promptID, promptType, message))
 
 	// Call the JavaScript callback with the prompt details
-	promptCallback.Invoke(map[string]interface{}{
+	cb.Invoke(map[string]interface{}{
 		"id":           promptID,
 		"message":      message,
 		"type":         promptType,

@@ -171,7 +171,7 @@ func TestListMVEImages(t *testing.T) {
 				Use: "list-images",
 				RunE: func(cmd *cobra.Command, args []string) error {
 					ctx := context.Background()
-					client, err := config.LoginFunc(ctx)
+					client, err := config.Login(ctx)
 					if err != nil {
 						return err
 					}
@@ -238,7 +238,7 @@ func TestListAvailableMVESizes(t *testing.T) {
 		Use: "list-sizes",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
-			client, err := config.LoginFunc(ctx)
+			client, err := config.Login(ctx)
 			if err != nil {
 				return err
 			}
@@ -271,9 +271,9 @@ func TestListAvailableMVESizes(t *testing.T) {
 }
 
 func TestUpdateMVE(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
+	originalPrompt := utils.GetResourcePrompt()
 	defer func() {
-		utils.ResourcePrompt = originalPrompt
+		utils.SetResourcePrompt(originalPrompt)
 	}()
 
 	mockService := &MockMVEService{
@@ -421,14 +421,14 @@ func TestUpdateMVE(t *testing.T) {
 			}
 
 			promptIndex := 0
-			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+			utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
 				if promptIndex < len(tt.prompts) {
 					response := tt.prompts[promptIndex]
 					promptIndex++
 					return response, nil
 				}
 				return "", fmt.Errorf("unexpected prompt call")
-			}
+			})
 
 			cmd := &cobra.Command{Use: "update"}
 			cmd.Flags().Bool("interactive", tt.interactive, "")
@@ -461,11 +461,11 @@ func TestUpdateMVE(t *testing.T) {
 }
 
 func TestDeleteMVE(t *testing.T) {
-	originalConfirmPrompt := utils.ConfirmPrompt
+	originalConfirmPrompt := utils.GetConfirmPrompt()
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer func() {
 		cleanup()
-		utils.ConfirmPrompt = originalConfirmPrompt
+		utils.SetConfirmPrompt(originalConfirmPrompt)
 	}()
 
 	tests := []struct {
@@ -537,16 +537,16 @@ func TestDeleteMVE(t *testing.T) {
 			mockService := &MockMVEService{}
 			tt.mockSetup(mockService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{
 					MVEService: mockService,
 				}
 				return client, nil
-			}
+			})
 
-			utils.ConfirmPrompt = func(question string, _ bool) bool {
+			utils.SetConfirmPrompt(func(question string, _ bool) bool {
 				return tt.confirmDelete
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "delete",
@@ -583,13 +583,13 @@ func TestDeleteMVE(t *testing.T) {
 }
 
 func TestBuyMVE(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
+	originalPrompt := utils.GetResourcePrompt()
 	defer func() {
-		utils.ResourcePrompt = originalPrompt
+		utils.SetResourcePrompt(originalPrompt)
 	}()
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
-	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	mockService := &MockMVEService{}
 
@@ -847,14 +847,14 @@ func TestBuyMVE(t *testing.T) {
 			}
 
 			promptIndex := 0
-			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+			utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
 				if promptIndex < len(tt.prompts) {
 					response := tt.prompts[promptIndex]
 					promptIndex++
 					return response, nil
 				}
 				return "", fmt.Errorf("unexpected prompt call")
-			}
+			})
 
 			cmd := &cobra.Command{Use: "buy"}
 			cmd.Flags().Bool("interactive", tt.interactive, "")
@@ -889,9 +889,9 @@ func TestBuyMVE(t *testing.T) {
 }
 
 func TestBuyMVE_NoWaitFlag(t *testing.T) {
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
-	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	tests := []struct {
 		name                     string
@@ -1119,11 +1119,11 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 				tt.setupMock(mockMVEService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				return &megaport.Client{
 					MVEService: mockMVEService,
 				}, nil
-			}
+			})
 
 			cmd := &cobra.Command{}
 			cmd.Flags().Bool("include-inactive", false, "")
@@ -1228,11 +1228,11 @@ func TestListMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 			mockMVEService := &MockMVEService{}
 			tt.setupMock(mockMVEService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MVEService = mockMVEService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "list-tags [mveUID]",
@@ -1272,11 +1272,11 @@ func TestListMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 }
 
 func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
-	originalResourcePrompt := utils.UpdateResourceTagsPrompt
+	originalResourcePrompt := utils.GetUpdateResourceTagsPrompt()
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer func() {
 		cleanup()
-		utils.UpdateResourceTagsPrompt = originalResourcePrompt
+		utils.SetUpdateResourceTagsPrompt(originalResourcePrompt)
 	}()
 
 	tests := []struct {
@@ -1422,15 +1422,15 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 				tt.setupMock(mockMVEService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MVEService = mockMVEService
 				return client, nil
-			}
+			})
 
-			utils.UpdateResourceTagsPrompt = func(existingTags map[string]string, noColor bool) (map[string]string, error) {
+			utils.SetUpdateResourceTagsPrompt(func(existingTags map[string]string, noColor bool) (map[string]string, error) {
 				return tt.promptResult, tt.promptError
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "update-tags [mveUID]",
@@ -1563,11 +1563,11 @@ func TestGetMVEStatus(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MVEService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "status [mveUID]",
@@ -1671,11 +1671,11 @@ func TestGetMVE(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MVEService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "get [mveUID]",
@@ -1885,11 +1885,11 @@ func TestRestoreMVECmd_WithMockClient(t *testing.T) {
 }
 
 func TestLockMVECmd_LoginError(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() { config.LoginFunc = originalLoginFunc }()
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	originalLoginFunc := config.GetLoginFunc()
+	defer func() { config.SetLoginFunc(originalLoginFunc) }()
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		return nil, fmt.Errorf("login failed")
-	}
+	})
 
 	cmd := &cobra.Command{}
 	err := LockMVE(cmd, []string{"mve-123"}, false)
@@ -1898,11 +1898,11 @@ func TestLockMVECmd_LoginError(t *testing.T) {
 }
 
 func TestUnlockMVECmd_LoginError(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() { config.LoginFunc = originalLoginFunc }()
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	originalLoginFunc := config.GetLoginFunc()
+	defer func() { config.SetLoginFunc(originalLoginFunc) }()
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		return nil, fmt.Errorf("login failed")
-	}
+	})
 
 	cmd := &cobra.Command{}
 	err := UnlockMVE(cmd, []string{"mve-123"}, false)
@@ -1911,11 +1911,11 @@ func TestUnlockMVECmd_LoginError(t *testing.T) {
 }
 
 func TestRestoreMVECmd_LoginError(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() { config.LoginFunc = originalLoginFunc }()
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	originalLoginFunc := config.GetLoginFunc()
+	defer func() { config.SetLoginFunc(originalLoginFunc) }()
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		return nil, fmt.Errorf("login failed")
-	}
+	})
 
 	cmd := &cobra.Command{}
 	err := RestoreMVE(cmd, []string{"mve-123"}, false)
@@ -1924,8 +1924,8 @@ func TestRestoreMVECmd_LoginError(t *testing.T) {
 }
 
 func TestBuyMVE_Confirmation(t *testing.T) {
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
 
 	tests := []struct {
 		name                 string
@@ -2005,10 +2005,10 @@ func TestBuyMVE_Confirmation(t *testing.T) {
 			defer cleanup()
 
 			promptCalled := false
-			utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
+			utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
 				promptCalled = true
 				return tt.confirmResult
-			}
+			})
 
 			cmd := &cobra.Command{Use: "buy"}
 			cmd.Flags().Bool("interactive", false, "")
@@ -2127,15 +2127,15 @@ func TestValidateMVE(t *testing.T) {
 			}
 
 			if tt.loginError != nil {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, tt.loginError
-				}
+				})
 			} else {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.MVEService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			cmd := &cobra.Command{Use: "validate"}
@@ -2193,11 +2193,11 @@ func TestListMVEImages_NilResult(t *testing.T) {
 	mockService := &MockMVEService{}
 	// Force nil return by not setting result and not setting error
 	// The mock returns empty slice by default, so we need to override
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.MVEService = mockService
 		return client, nil
-	}
+	})
 
 	mockService.ListMVEImagesErr = fmt.Errorf("API failure")
 
@@ -2244,11 +2244,11 @@ func TestListAvailableMVESizes_Error(t *testing.T) {
 	mockService := &MockMVEService{}
 	mockService.ListAvailableMVESizesErr = fmt.Errorf("API failure")
 
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.MVEService = mockService
 		return client, nil
-	}
+	})
 
 	cmd := testutil.NewCommand("list-sizes", testutil.OutputAdapter(ListAvailableMVESizes))
 
@@ -2314,11 +2314,11 @@ func TestGetMVE_Export(t *testing.T) {
 			},
 		},
 	}
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.MVEService = mockService
 		return client, nil
-	}
+	})
 
 	cmd := &cobra.Command{Use: "get"}
 	cmd.Flags().Bool("export", false, "")

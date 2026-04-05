@@ -260,11 +260,11 @@ func TestDeleteProfile_CMD(t *testing.T) {
 	setupTestConfigEnv(t)
 
 	// Setup utility function to automatically confirm deletion
-	oldConfirmPrompt := utils.ConfirmPrompt
-	utils.ConfirmPrompt = func(message string, noColor bool) bool {
+	oldConfirmPrompt := utils.GetConfirmPrompt()
+	utils.SetConfirmPrompt(func(message string, noColor bool) bool {
 		return true // Auto-confirm
-	}
-	defer func() { utils.ConfirmPrompt = oldConfirmPrompt }()
+	})
+	defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
 
 	// Create profiles
 	manager, err := NewConfigManager()
@@ -386,11 +386,11 @@ func TestExportImportConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	// Mock confirmation
-	oldConfirmPrompt := utils.ConfirmPrompt
-	utils.ConfirmPrompt = func(message string, noColor bool) bool {
+	oldConfirmPrompt := utils.GetConfirmPrompt()
+	utils.SetConfirmPrompt(func(message string, noColor bool) bool {
 		return true // Auto-confirm
-	}
-	defer func() { utils.ConfirmPrompt = oldConfirmPrompt }()
+	})
+	defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
 
 	outputText, err = captureOutputFromAction(func() error {
 		return ImportConfig(cmd, nil, false)
@@ -708,11 +708,11 @@ func TestClearDefaults(t *testing.T) {
 		require.NoError(t, err)
 
 		// Mock confirmation
-		oldConfirmPrompt := utils.ConfirmPrompt
-		utils.ConfirmPrompt = func(message string, noColor bool) bool {
+		oldConfirmPrompt := utils.GetConfirmPrompt()
+		utils.SetConfirmPrompt(func(message string, noColor bool) bool {
 			return true
-		}
-		defer func() { utils.ConfirmPrompt = oldConfirmPrompt }()
+		})
+		defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
 
 		cmd, _ := setupTestCmd()
 		outputText, err := captureOutputFromAction(func() error {
@@ -740,11 +740,11 @@ func TestClearDefaults(t *testing.T) {
 		require.NoError(t, err)
 
 		// Mock confirmation to return false
-		oldConfirmPrompt := utils.ConfirmPrompt
-		utils.ConfirmPrompt = func(message string, noColor bool) bool {
+		oldConfirmPrompt := utils.GetConfirmPrompt()
+		utils.SetConfirmPrompt(func(message string, noColor bool) bool {
 			return false
-		}
-		defer func() { utils.ConfirmPrompt = oldConfirmPrompt }()
+		})
+		defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
 
 		cmd, _ := setupTestCmd()
 		outputText, err := captureOutputFromAction(func() error {
@@ -766,11 +766,11 @@ func TestClearDefaults(t *testing.T) {
 		setupTestConfigEnv(t)
 
 		// Mock confirmation
-		oldConfirmPrompt := utils.ConfirmPrompt
-		utils.ConfirmPrompt = func(message string, noColor bool) bool {
+		oldConfirmPrompt := utils.GetConfirmPrompt()
+		utils.SetConfirmPrompt(func(message string, noColor bool) bool {
 			return true
-		}
-		defer func() { utils.ConfirmPrompt = oldConfirmPrompt }()
+		})
+		defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
 
 		cmd, _ := setupTestCmd()
 		outputText, err := captureOutputFromAction(func() error {
@@ -788,9 +788,9 @@ func TestDeleteProfile_Cancelled(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, manager.CreateProfile("to-keep", "access", "secret", "production", ""))
 
-	oldConfirmPrompt := utils.ConfirmPrompt
-	utils.ConfirmPrompt = func(_ string, _ bool) bool { return false }
-	defer func() { utils.ConfirmPrompt = oldConfirmPrompt }()
+	oldConfirmPrompt := utils.GetConfirmPrompt()
+	utils.SetConfirmPrompt(func(_ string, _ bool) bool { return false })
+	defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
 
 	cmd, _ := setupTestCmd()
 	outputText, err := captureOutputFromAction(func() error {
@@ -808,9 +808,9 @@ func TestImportConfig_Cancelled(t *testing.T) {
 	importPath := filepath.Join(configDir, "import.json")
 	require.NoError(t, os.WriteFile(importPath, []byte(`{"version":1,"profiles":{}}`), 0600))
 
-	oldConfirmPrompt := utils.ConfirmPrompt
-	utils.ConfirmPrompt = func(_ string, _ bool) bool { return false }
-	defer func() { utils.ConfirmPrompt = oldConfirmPrompt }()
+	oldConfirmPrompt := utils.GetConfirmPrompt()
+	utils.SetConfirmPrompt(func(_ string, _ bool) bool { return false })
+	defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
 
 	cmd, _ := setupTestCmd()
 	cmd.Flags().String("file", importPath, "")

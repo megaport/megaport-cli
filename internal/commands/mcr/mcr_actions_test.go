@@ -92,11 +92,11 @@ func TestGetMCRCmd_WithMockClient(t *testing.T) {
 			mockMCRService := &MockMCRService{}
 			tt.setupMock(mockMCRService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
-			}
+			})
 
 			cmd := testutil.NewCommand("get-mcr [mcrID]", func(cmd *cobra.Command, args []string) error {
 				return GetMCR(cmd, args, false, tt.format)
@@ -125,11 +125,11 @@ func TestGetMCRCmd_WithMockClient(t *testing.T) {
 func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
-	originalPrompt := utils.ResourcePrompt
-	originalConfirmPrompt := utils.ConfirmPrompt
+	originalPrompt := utils.GetResourcePrompt()
+	originalConfirmPrompt := utils.GetConfirmPrompt()
 	defer func() {
-		utils.ResourcePrompt = originalPrompt
-		utils.ConfirmPrompt = originalConfirmPrompt
+		utils.SetResourcePrompt(originalPrompt)
+		utils.SetConfirmPrompt(originalConfirmPrompt)
 	}()
 
 	tests := []struct {
@@ -227,21 +227,21 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			mockMCRService := &MockMCRService{}
 			tt.setupMock(mockMCRService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
-			}
+			})
 
-			utils.ConfirmPrompt = func(message string, _ bool) bool {
+			utils.SetConfirmPrompt(func(message string, _ bool) bool {
 				assert.Contains(t, message, fmt.Sprintf("Are you sure you want to delete MCR %s?", tt.mcrID))
 				return tt.promptResponse == "y"
-			}
+			})
 
-			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+			utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
 				assert.Contains(t, msg, fmt.Sprintf("Are you sure you want to delete MCR %s?", tt.mcrID))
 				return tt.promptResponse, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "delete-mcr [mcrID]",
@@ -331,11 +331,11 @@ func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
 			mockMCRService := &MockMCRService{}
 			tt.setupMock(mockMCRService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
-			}
+			})
 
 			restoreMCRCmd := &cobra.Command{
 				Use: "restore-mcr [mcrID]",
@@ -494,11 +494,11 @@ func TestListMCRPrefixFilterListsCmd_WithMockClient(t *testing.T) {
 			mockMCRService := &MockMCRService{}
 			tt.setupMock(mockMCRService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
-			}
+			})
 
 			listMCRPrefixFilterListsCmd := &cobra.Command{
 				Use: "list-mcr-prefix-filter-lists [mcrUID]",
@@ -564,11 +564,11 @@ func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 			mockMCRService := &MockMCRService{}
 			tt.setupMock(mockMCRService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use:  "get-mcr-prefix-filter-list [mcrUID] [prefixListID]",
@@ -596,9 +596,9 @@ func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
-	originalPrompt := utils.ResourcePrompt
+	originalPrompt := utils.GetResourcePrompt()
 	defer func() {
-		utils.ResourcePrompt = originalPrompt
+		utils.SetResourcePrompt(originalPrompt)
 	}()
 
 	tests := []struct {
@@ -642,15 +642,15 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 			mockMCRService := &MockMCRService{}
 			tt.setupMock(mockMCRService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
-			}
+			})
 
-			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+			utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
 				return tt.promptResponse, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "delete-mcr-prefix-filter-list [mcrUID] [prefixListID]",
@@ -688,9 +688,9 @@ func TestBuyMCR_NoWaitFlag(t *testing.T) {
 	defer func() {
 		buyMCRFunc = originalBuyMCRFunc
 	}()
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
-	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	tests := []struct {
 		name                     string
@@ -716,11 +716,11 @@ func TestBuyMCR_NoWaitFlag(t *testing.T) {
 				TechnicalServiceUID: "mcr-uid-123",
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
-			}
+			})
 
 			var capturedReq *megaport.BuyMCRRequest
 			buyMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
@@ -769,17 +769,17 @@ func TestBuyMCR_NoWaitFlag(t *testing.T) {
 }
 
 func TestBuyMCRCmd_WithMockClient(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
+	originalPrompt := utils.GetResourcePrompt()
 	originalBuyMCRFunc := buyMCRFunc
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
 	defer func() {
-		utils.ResourcePrompt = originalPrompt
+		utils.SetResourcePrompt(originalPrompt)
 		buyMCRFunc = originalBuyMCRFunc
 	}()
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
-	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	tests := []struct {
 		name           string
@@ -906,14 +906,14 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if len(tt.prompts) > 0 {
 				promptIndex := 0
-				utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+				utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
 					if promptIndex < len(tt.prompts) {
 						response := tt.prompts[promptIndex]
 						promptIndex++
 						return response, nil
 					}
 					return "", fmt.Errorf("unexpected prompt call")
-				}
+				})
 			}
 
 			mockMCRService := &MockMCRService{}
@@ -921,11 +921,11 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 				tt.setupMock(mockMCRService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use:  "buy",
@@ -1089,11 +1089,11 @@ func TestGetMCRStatus(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "status [mcrUID]",
@@ -1351,11 +1351,11 @@ func TestListMCRsCmd_WithMockClient(t *testing.T) {
 				tt.setupMock(mockMCRService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "list",
@@ -1624,11 +1624,11 @@ func TestListMCRResourceTagsCmd(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "list-tags [mcrUID]",
@@ -1658,9 +1658,9 @@ func TestListMCRResourceTagsCmd(t *testing.T) {
 func TestUpdateMCRResourceTagsCmd(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
-	originalResourcePrompt := utils.UpdateResourceTagsPrompt
+	originalResourcePrompt := utils.GetUpdateResourceTagsPrompt()
 	defer func() {
-		utils.UpdateResourceTagsPrompt = originalResourcePrompt
+		utils.SetUpdateResourceTagsPrompt(originalResourcePrompt)
 	}()
 
 	tests := []struct {
@@ -1756,15 +1756,15 @@ func TestUpdateMCRResourceTagsCmd(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockService
 				return client, nil
-			}
+			})
 
-			utils.UpdateResourceTagsPrompt = func(existingTags map[string]string, noColor bool) (map[string]string, error) {
+			utils.SetUpdateResourceTagsPrompt(func(existingTags map[string]string, noColor bool) (map[string]string, error) {
 				return tt.promptResult, tt.promptError
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "update-tags [mcrUID]",
@@ -1808,7 +1808,7 @@ func TestUpdateMCRResourceTagsCmd(t *testing.T) {
 }
 
 func TestUpdateMCR(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	originalLoginFunc := config.GetLoginFunc()
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
 	originalGetMCRFunc := getMCRFunc
@@ -1835,11 +1835,11 @@ func TestUpdateMCR(t *testing.T) {
 				"name": "Updated MCR",
 			},
 			setupLogin: func() {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.MCRService = &MockMCRService{}
 					return client, nil
-				}
+				})
 			},
 			setupGetMCR: func() {
 				getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
@@ -1864,11 +1864,11 @@ func TestUpdateMCR(t *testing.T) {
 				"json": `{"name":"JSON Updated MCR"}`,
 			},
 			setupLogin: func() {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.MCRService = &MockMCRService{}
 					return client, nil
-				}
+				})
 			},
 			setupGetMCR: func() {
 				getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
@@ -1893,9 +1893,9 @@ func TestUpdateMCR(t *testing.T) {
 				"name": "Updated MCR",
 			},
 			setupLogin: func() {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, fmt.Errorf("authentication failed")
-				}
+				})
 			},
 			expectedError: "authentication failed",
 		},
@@ -1906,11 +1906,11 @@ func TestUpdateMCR(t *testing.T) {
 				"name": "Updated MCR",
 			},
 			setupLogin: func() {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.MCRService = &MockMCRService{}
 					return client, nil
-				}
+				})
 			},
 			setupGetMCR: func() {
 				getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
@@ -1926,11 +1926,11 @@ func TestUpdateMCR(t *testing.T) {
 				"name": "Updated MCR",
 			},
 			setupLogin: func() {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.MCRService = &MockMCRService{}
 					return client, nil
-				}
+				})
 			},
 			setupGetMCR: func() {
 				getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
@@ -1955,7 +1955,7 @@ func TestUpdateMCR(t *testing.T) {
 			// Reset to defaults
 			getMCRFunc = originalGetMCRFunc
 			updateMCRFunc = originalUpdateMCRFunc
-			config.LoginFunc = originalLoginFunc
+			config.SetLoginFunc(originalLoginFunc)
 
 			if tt.setupLogin != nil {
 				tt.setupLogin()
@@ -2001,7 +2001,7 @@ func TestUpdateMCR(t *testing.T) {
 }
 
 func TestCreateMCRPrefixFilterList(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	originalLoginFunc := config.GetLoginFunc()
 	originalCreateFunc := createMCRPrefixFilterListFunc
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
@@ -2027,11 +2027,11 @@ func TestCreateMCRPrefixFilterList(t *testing.T) {
 				"entries":        `[{"action":"permit","prefix":"10.0.0.0/8"}]`,
 			},
 			setupLogin: func() {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.MCRService = &MockMCRService{}
 					return client, nil
-				}
+				})
 			},
 			setupCreate: func() {
 				createMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, req *megaport.CreateMCRPrefixFilterListRequest) (*megaport.CreateMCRPrefixFilterListResponse, error) {
@@ -2047,11 +2047,11 @@ func TestCreateMCRPrefixFilterList(t *testing.T) {
 				"json": `{"description":"JSON Prefix List","addressFamily":"IPv4","entries":[{"action":"deny","prefix":"192.168.0.0/16"}]}`,
 			},
 			setupLogin: func() {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.MCRService = &MockMCRService{}
 					return client, nil
-				}
+				})
 			},
 			setupCreate: func() {
 				createMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, req *megaport.CreateMCRPrefixFilterListRequest) (*megaport.CreateMCRPrefixFilterListResponse, error) {
@@ -2069,9 +2069,9 @@ func TestCreateMCRPrefixFilterList(t *testing.T) {
 				"entries":        `[{"action":"permit","prefix":"10.0.0.0/8"}]`,
 			},
 			setupLogin: func() {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, fmt.Errorf("authentication failed")
-				}
+				})
 			},
 			expectedError: "authentication failed",
 		},
@@ -2084,11 +2084,11 @@ func TestCreateMCRPrefixFilterList(t *testing.T) {
 				"entries":        `[{"action":"permit","prefix":"10.0.0.0/8"}]`,
 			},
 			setupLogin: func() {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.MCRService = &MockMCRService{}
 					return client, nil
-				}
+				})
 			},
 			setupCreate: func() {
 				createMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, req *megaport.CreateMCRPrefixFilterListRequest) (*megaport.CreateMCRPrefixFilterListResponse, error) {
@@ -2102,7 +2102,7 @@ func TestCreateMCRPrefixFilterList(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset to defaults
-			config.LoginFunc = originalLoginFunc
+			config.SetLoginFunc(originalLoginFunc)
 			createMCRPrefixFilterListFunc = originalCreateFunc
 
 			if tt.setupLogin != nil {
@@ -2145,7 +2145,7 @@ func TestCreateMCRPrefixFilterList(t *testing.T) {
 }
 
 func TestUpdateMCRPrefixFilterList(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
+	originalLoginFunc := config.GetLoginFunc()
 	originalModifyFunc := modifyMCRPrefixFilterListFunc
 	originalGetPrefixFunc := getMCRPrefixFilterListFunc
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
@@ -2172,11 +2172,11 @@ func TestUpdateMCRPrefixFilterList(t *testing.T) {
 				"description": "Updated Prefix List",
 			},
 			setupLogin: func() {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.MCRService = &MockMCRService{}
 					return client, nil
-				}
+				})
 			},
 			setupGetPrefixFL: func() {
 				getMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrUID string, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
@@ -2204,11 +2204,11 @@ func TestUpdateMCRPrefixFilterList(t *testing.T) {
 				"json": `{"description":"JSON Updated Prefix List","entries":[{"action":"deny","prefix":"172.16.0.0/12"}]}`,
 			},
 			setupLogin: func() {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.MCRService = &MockMCRService{}
 					return client, nil
-				}
+				})
 			},
 			setupGetPrefixFL: func() {
 				getMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrUID string, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
@@ -2241,11 +2241,11 @@ func TestUpdateMCRPrefixFilterList(t *testing.T) {
 				"description": "Updated Prefix List",
 			},
 			setupLogin: func() {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.MCRService = &MockMCRService{}
 					return client, nil
-				}
+				})
 			},
 			setupGetPrefixFL: func() {
 				getMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrUID string, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
@@ -2271,7 +2271,7 @@ func TestUpdateMCRPrefixFilterList(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset to defaults
-			config.LoginFunc = originalLoginFunc
+			config.SetLoginFunc(originalLoginFunc)
 			modifyMCRPrefixFilterListFunc = originalModifyFunc
 			getMCRPrefixFilterListFunc = originalGetPrefixFunc
 
@@ -2436,11 +2436,11 @@ func TestUnlockMCRCmd_WithMockClient(t *testing.T) {
 }
 
 func TestLockMCRCmd_LoginError(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() { config.LoginFunc = originalLoginFunc }()
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	originalLoginFunc := config.GetLoginFunc()
+	defer func() { config.SetLoginFunc(originalLoginFunc) }()
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		return nil, fmt.Errorf("login failed")
-	}
+	})
 
 	cmd := &cobra.Command{}
 	err := LockMCR(cmd, []string{"mcr-123"}, false)
@@ -2449,11 +2449,11 @@ func TestLockMCRCmd_LoginError(t *testing.T) {
 }
 
 func TestUnlockMCRCmd_LoginError(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() { config.LoginFunc = originalLoginFunc }()
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	originalLoginFunc := config.GetLoginFunc()
+	defer func() { config.SetLoginFunc(originalLoginFunc) }()
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		return nil, fmt.Errorf("login failed")
-	}
+	})
 
 	cmd := &cobra.Command{}
 	err := UnlockMCR(cmd, []string{"mcr-123"}, false)
@@ -2468,8 +2468,8 @@ func TestBuyMCR_Confirmation(t *testing.T) {
 	originalBuyMCRFunc := buyMCRFunc
 	defer func() { buyMCRFunc = originalBuyMCRFunc }()
 
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
 
 	tests := []struct {
 		name                 string
@@ -2544,11 +2544,11 @@ func TestBuyMCR_Confirmation(t *testing.T) {
 				},
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
-			}
+			})
 
 			buyCalled := false
 			buyMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
@@ -2559,10 +2559,10 @@ func TestBuyMCR_Confirmation(t *testing.T) {
 			}
 
 			promptCalled := false
-			utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
+			utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
 				promptCalled = true
 				return tt.confirmResult
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use:  "buy",
@@ -2650,11 +2650,11 @@ func TestGetMCR_Export(t *testing.T) {
 			ProvisioningStatus: "LIVE",
 		},
 	}
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.MCRService = mockService
 		return client, nil
-	}
+	})
 
 	cmd := &cobra.Command{Use: "get"}
 	cmd.Flags().Bool("export", false, "")
@@ -2761,15 +2761,15 @@ func TestValidateMCR(t *testing.T) {
 			}
 
 			if tt.loginError != nil {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, tt.loginError
-				}
+				})
 			} else {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.MCRService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			cmd := &cobra.Command{Use: "validate"}

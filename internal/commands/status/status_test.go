@@ -455,7 +455,7 @@ func TestModule(t *testing.T) {
 
 func init() {
 	// Suppress output during tests.
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		return &megaport.Client{}, nil
-	}
+	})
 }

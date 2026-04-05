@@ -733,7 +733,7 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 func ListMCRResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	mcrUID := args[0]
 	return utils.ListResourceTags("MCR", mcrUID, noColor, outputFormat, func(ctx context.Context, uid string) (map[string]string, error) {
-		client, err := config.LoginFunc(ctx)
+		client, err := config.Login(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -746,7 +746,7 @@ func UpdateMCRResourceTags(cmd *cobra.Command, args []string, noColor bool) erro
 	var client *megaport.Client
 	login := func(ctx context.Context) error {
 		var err error
-		client, err = config.LoginFunc(ctx)
+		client, err = config.Login(ctx)
 		return err
 	}
 	return utils.UpdateResourceTags(utils.UpdateTagsOptions{

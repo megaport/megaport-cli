@@ -22,20 +22,20 @@ func mockPromptSequence(responses []string) func(string, string, bool) (string, 
 }
 
 func TestPromptForMCRDetails_Success(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	originalTagsPrompt := utils.ResourceTagsPrompt
+	originalPrompt := utils.GetResourcePrompt()
+	originalTagsPrompt := utils.GetResourceTagsPrompt()
 	defer func() {
-		utils.ResourcePrompt = originalPrompt
-		utils.ResourceTagsPrompt = originalTagsPrompt
+		utils.SetResourcePrompt(originalPrompt)
+		utils.SetResourceTagsPrompt(originalTagsPrompt)
 	}()
 
 	// name, term, portSpeed, locationID, asn, diversityZone, costCentre, promoCode
-	utils.ResourcePrompt = mockPromptSequence([]string{
+	utils.SetResourcePrompt(mockPromptSequence([]string{
 		"Test MCR", "12", "5000", "1", "65000", "blue", "IT-2024", "PROMO",
-	})
-	utils.ResourceTagsPrompt = func(noColor bool) (map[string]string, error) {
+	}))
+	utils.SetResourceTagsPrompt(func(noColor bool) (map[string]string, error) {
 		return map[string]string{"env": "test"}, nil
-	}
+	})
 
 	req, err := promptForMCRDetails(true)
 	assert.NoError(t, err)
@@ -50,10 +50,10 @@ func TestPromptForMCRDetails_Success(t *testing.T) {
 }
 
 func TestPromptForMCRDetails_EmptyName(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{""})
+	utils.SetResourcePrompt(mockPromptSequence([]string{""}))
 
 	_, err := promptForMCRDetails(true)
 	assert.Error(t, err)
@@ -61,10 +61,10 @@ func TestPromptForMCRDetails_EmptyName(t *testing.T) {
 }
 
 func TestPromptForMCRDetails_InvalidTerm(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"MCR", "abc"})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"MCR", "abc"}))
 
 	_, err := promptForMCRDetails(true)
 	assert.Error(t, err)
@@ -72,20 +72,20 @@ func TestPromptForMCRDetails_InvalidTerm(t *testing.T) {
 }
 
 func TestPromptForMCRDetails_InvalidPortSpeed(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"MCR", "12", "999"})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"MCR", "12", "999"}))
 
 	_, err := promptForMCRDetails(true)
 	assert.Error(t, err)
 }
 
 func TestPromptForMCRDetails_InvalidLocationID(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"MCR", "12", "5000", "abc"})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"MCR", "12", "5000", "abc"}))
 
 	_, err := promptForMCRDetails(true)
 	assert.Error(t, err)
@@ -93,13 +93,13 @@ func TestPromptForMCRDetails_InvalidLocationID(t *testing.T) {
 }
 
 func TestPromptForUpdateMCRDetails_Success(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
 	// name, costCentre, marketplaceVisibility(yes/no), visibilityValue, term
-	utils.ResourcePrompt = mockPromptSequence([]string{
+	utils.SetResourcePrompt(mockPromptSequence([]string{
 		"Updated MCR", "IT-New", "yes", "true", "24",
-	})
+	}))
 
 	req, err := promptForUpdateMCRDetails("mcr-123", true)
 	assert.NoError(t, err)
@@ -112,10 +112,10 @@ func TestPromptForUpdateMCRDetails_Success(t *testing.T) {
 }
 
 func TestPromptForUpdateMCRDetails_NoChanges(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"", "", "", ""})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", "", ""}))
 
 	_, err := promptForUpdateMCRDetails("mcr-123", true)
 	assert.Error(t, err)
@@ -123,22 +123,22 @@ func TestPromptForUpdateMCRDetails_NoChanges(t *testing.T) {
 }
 
 func TestPromptForUpdateMCRDetails_InvalidTerm(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"", "", "", "99"})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", "", "99"}))
 
 	_, err := promptForUpdateMCRDetails("mcr-123", true)
 	assert.Error(t, err)
 }
 
 func TestPromptPrefixFilterEntry_Success(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{
+	utils.SetResourcePrompt(mockPromptSequence([]string{
 		"192.168.0.0/24", "permit", "16", "24",
-	})
+	}))
 
 	entry, err := promptPrefixFilterEntry(true)
 	assert.NoError(t, err)
@@ -150,10 +150,10 @@ func TestPromptPrefixFilterEntry_Success(t *testing.T) {
 }
 
 func TestPromptPrefixFilterEntry_EmptyPrefix(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{""})
+	utils.SetResourcePrompt(mockPromptSequence([]string{""}))
 
 	entry, err := promptPrefixFilterEntry(true)
 	assert.NoError(t, err)
@@ -161,10 +161,10 @@ func TestPromptPrefixFilterEntry_EmptyPrefix(t *testing.T) {
 }
 
 func TestPromptPrefixFilterEntry_InvalidAction(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"10.0.0.0/8", "allow"})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"10.0.0.0/8", "allow"}))
 
 	_, err := promptPrefixFilterEntry(true)
 	assert.Error(t, err)
@@ -172,10 +172,10 @@ func TestPromptPrefixFilterEntry_InvalidAction(t *testing.T) {
 }
 
 func TestPromptPrefixFilterEntry_InvalidGE(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"10.0.0.0/8", "permit", "abc"})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"10.0.0.0/8", "permit", "abc"}))
 
 	_, err := promptPrefixFilterEntry(true)
 	assert.Error(t, err)
@@ -183,14 +183,14 @@ func TestPromptPrefixFilterEntry_InvalidGE(t *testing.T) {
 }
 
 func TestPromptAddNewPrefixEntries_Success(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
 	// First entry, then empty prefix to stop
-	utils.ResourcePrompt = mockPromptSequence([]string{
+	utils.SetResourcePrompt(mockPromptSequence([]string{
 		"10.0.0.0/8", "permit", "", "",
 		"", // empty prefix to stop
-	})
+	}))
 
 	entries, err := promptAddNewPrefixEntries(true)
 	assert.NoError(t, err)
@@ -198,15 +198,15 @@ func TestPromptAddNewPrefixEntries_Success(t *testing.T) {
 }
 
 func TestPromptForPrefixFilterListDetails_Success(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
 	// description, addressFamily, then one entry + empty to stop
-	utils.ResourcePrompt = mockPromptSequence([]string{
+	utils.SetResourcePrompt(mockPromptSequence([]string{
 		"My PFL", "IPv4",
 		"10.0.0.0/8", "permit", "", "",
 		"", // stop adding entries
-	})
+	}))
 
 	req, err := promptForPrefixFilterListDetails("mcr-123", true)
 	assert.NoError(t, err)
@@ -216,10 +216,10 @@ func TestPromptForPrefixFilterListDetails_Success(t *testing.T) {
 }
 
 func TestPromptForPrefixFilterListDetails_EmptyDescription(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{""})
+	utils.SetResourcePrompt(mockPromptSequence([]string{""}))
 
 	_, err := promptForPrefixFilterListDetails("mcr-123", true)
 	assert.Error(t, err)
@@ -227,10 +227,10 @@ func TestPromptForPrefixFilterListDetails_EmptyDescription(t *testing.T) {
 }
 
 func TestPromptForPrefixFilterListDetails_InvalidAddressFamily(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{"My PFL", "IPv5"})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"My PFL", "IPv5"}))
 
 	_, err := promptForPrefixFilterListDetails("mcr-123", true)
 	assert.Error(t, err)
@@ -238,13 +238,13 @@ func TestPromptForPrefixFilterListDetails_InvalidAddressFamily(t *testing.T) {
 }
 
 func TestPromptForPrefixFilterListDetails_NoEntries(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.ResourcePrompt = mockPromptSequence([]string{
+	utils.SetResourcePrompt(mockPromptSequence([]string{
 		"My PFL", "IPv4",
 		"", // empty prefix immediately = no entries
-	})
+	}))
 
 	_, err := promptForPrefixFilterListDetails("mcr-123", true)
 	assert.Error(t, err)
@@ -252,15 +252,15 @@ func TestPromptForPrefixFilterListDetails_NoEntries(t *testing.T) {
 }
 
 func TestPromptUpdateExistingEntries_KeepUnmodified(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
 	current := []*megaport.MCRPrefixListEntry{
 		{Prefix: "10.0.0.0/8", Action: "permit", Ge: 16, Le: 24},
 	}
 
 	// keep=yes, modify=no
-	utils.ResourcePrompt = mockPromptSequence([]string{"yes", "no"})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"yes", "no"}))
 
 	entries, err := promptUpdateExistingEntries(current, true)
 	assert.NoError(t, err)
@@ -269,17 +269,17 @@ func TestPromptUpdateExistingEntries_KeepUnmodified(t *testing.T) {
 }
 
 func TestPromptUpdateExistingEntries_ModifyEntry(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
 	current := []*megaport.MCRPrefixListEntry{
 		{Prefix: "10.0.0.0/8", Action: "permit", Ge: 16, Le: 24},
 	}
 
 	// keep=yes, modify=yes, new prefix, new action, new ge, new le
-	utils.ResourcePrompt = mockPromptSequence([]string{
+	utils.SetResourcePrompt(mockPromptSequence([]string{
 		"yes", "yes", "192.168.0.0/16", "deny", "20", "28",
-	})
+	}))
 
 	entries, err := promptUpdateExistingEntries(current, true)
 	assert.NoError(t, err)
@@ -291,15 +291,15 @@ func TestPromptUpdateExistingEntries_ModifyEntry(t *testing.T) {
 }
 
 func TestPromptUpdateExistingEntries_DeleteEntry(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	defer func() { utils.ResourcePrompt = originalPrompt }()
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
 	current := []*megaport.MCRPrefixListEntry{
 		{Prefix: "10.0.0.0/8", Action: "permit"},
 	}
 
 	// keep=no (delete)
-	utils.ResourcePrompt = mockPromptSequence([]string{"no"})
+	utils.SetResourcePrompt(mockPromptSequence([]string{"no"}))
 
 	entries, err := promptUpdateExistingEntries(current, true)
 	assert.NoError(t, err)

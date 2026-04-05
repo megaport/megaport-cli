@@ -86,11 +86,11 @@ func TestGetPortStatus(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.PortService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "status [portUID]",
@@ -183,11 +183,11 @@ func TestGetPortCmd_WithMockClient(t *testing.T) {
 			mockPortService := &MockPortService{}
 			tt.setupMock(mockPortService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.PortService = mockPortService
 				return client, nil
-			}
+			})
 
 			cmd := testutil.NewCommand("get", testutil.OutputAdapter(GetPort))
 			testutil.SetFlags(t, cmd, map[string]string{"output": tt.format})
@@ -215,11 +215,11 @@ func TestGetPortStatus_NilPort(t *testing.T) {
 	defer cleanup()
 
 	mockService := &MockPortService{ForceNilGetPort: true}
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.PortService = mockService
 		return client, nil
-	}
+	})
 
 	cmd := &cobra.Command{Use: "status"}
 	var err error
@@ -238,16 +238,16 @@ func TestBuyPort_EmptyUIDs(t *testing.T) {
 	defer func() {
 		buyPortFunc = originalBuyPortFunc
 	}()
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
-	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	mockService := &MockPortService{}
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.PortService = mockService
 		return client, nil
-	}
+	})
 	buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
 		return &megaport.BuyPortResponse{
 			TechnicalServiceUIDs: []string{},
@@ -287,16 +287,16 @@ func TestBuyLAGPort_EmptyUIDs(t *testing.T) {
 	defer func() {
 		buyPortFunc = originalBuyPortFunc
 	}()
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
-	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	mockService := &MockPortService{}
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.PortService = mockService
 		return client, nil
-	}
+	})
 	buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
 		return &megaport.BuyPortResponse{
 			TechnicalServiceUIDs: []string{},
@@ -336,11 +336,11 @@ func TestDeletePort_SafeDeleteFlag(t *testing.T) {
 	defer cleanup()
 
 	mockService := &MockPortService{}
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.PortService = mockService
 		return client, nil
-	}
+	})
 
 	cmd := &cobra.Command{
 		Use: "delete",
@@ -410,11 +410,11 @@ func TestListPortResourceTagsCmd(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.PortService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "list-tags [portUID]",
@@ -545,11 +545,11 @@ func TestUpdatePortResourceTagsCmd(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.PortService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "update-tags [portUID]",
@@ -696,15 +696,15 @@ func TestListPorts(t *testing.T) {
 			mockService := &MockPortService{}
 
 			if tt.loginErr != nil {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, tt.loginErr
-				}
+				})
 			} else {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.PortService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			if tt.listErr != nil {
@@ -768,9 +768,9 @@ func TestBuyPort(t *testing.T) {
 	defer func() {
 		buyPortFunc = originalBuyPortFunc
 	}()
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
-	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	tests := []struct {
 		name             string
@@ -867,11 +867,11 @@ func TestBuyPort(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.PortService = mockService
 				return client, nil
-			}
+			})
 
 			if tt.buyPortOverride != nil {
 				buyPortFunc = tt.buyPortOverride
@@ -925,9 +925,9 @@ func TestBuyPort_NoWaitFlag(t *testing.T) {
 	defer func() {
 		buyPortFunc = originalBuyPortFunc
 	}()
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
-	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	tests := []struct {
 		name                     string
@@ -950,11 +950,11 @@ func TestBuyPort_NoWaitFlag(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockService := &MockPortService{}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.PortService = mockService
 				return client, nil
-			}
+			})
 
 			var capturedReq *megaport.BuyPortRequest
 			buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
@@ -1038,16 +1038,16 @@ func TestRestorePort(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.loginErr != nil {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, tt.loginErr
-				}
+				})
 			} else {
 				mockService := &MockPortService{}
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.PortService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			if tt.restoreErr != nil {
@@ -1121,16 +1121,16 @@ func TestLockPort(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.loginErr != nil {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, tt.loginErr
-				}
+				})
 			} else {
 				mockService := &MockPortService{}
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.PortService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			if tt.lockErr != nil {
@@ -1204,16 +1204,16 @@ func TestUnlockPort(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.loginErr != nil {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, tt.loginErr
-				}
+				})
 			} else {
 				mockService := &MockPortService{}
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.PortService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			if tt.unlockErr != nil {
@@ -1297,16 +1297,16 @@ func TestCheckPortVLANAvailability(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.loginErr != nil {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, tt.loginErr
-				}
+				})
 			} else {
 				mockService := &MockPortService{}
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.PortService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			if tt.checkErr != nil {
@@ -1420,11 +1420,11 @@ func TestUpdatePort(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockService := &MockPortService{}
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.PortService = mockService
 				return client, nil
-			}
+			})
 
 			getCallCount := 0
 			if tt.getPortErr != nil {
@@ -1501,8 +1501,8 @@ func TestBuyPort_Confirmation(t *testing.T) {
 	defer func() {
 		buyPortFunc = originalBuyPortFunc
 	}()
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
 
 	tests := []struct {
 		name                string
@@ -1566,11 +1566,11 @@ func TestBuyPort_Confirmation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockService := &MockPortService{}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.PortService = mockService
 				return client, nil
-			}
+			})
 
 			buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
 				return &megaport.BuyPortResponse{
@@ -1579,10 +1579,10 @@ func TestBuyPort_Confirmation(t *testing.T) {
 			}
 
 			promptCalled := false
-			utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
+			utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
 				promptCalled = true
 				return tt.confirmReturn
-			}
+			})
 
 			cmd := &cobra.Command{Use: "buy"}
 			cmd.Flags().Bool("interactive", false, "")
@@ -1637,9 +1637,9 @@ func TestBuyLAGPort_NoWaitFlag(t *testing.T) {
 	defer func() {
 		buyPortFunc = originalBuyPortFunc
 	}()
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
-	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true }
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	tests := []struct {
 		name                     string
@@ -1660,11 +1660,11 @@ func TestBuyLAGPort_NoWaitFlag(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.PortService = &MockPortService{}
 				return client, nil
-			}
+			})
 
 			var capturedReq *megaport.BuyPortRequest
 			buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
@@ -1715,9 +1715,9 @@ func TestBuyLAGPort_ConfirmationDenied(t *testing.T) {
 	})
 	defer cleanup()
 
-	originalBuyConfirmPrompt := utils.BuyConfirmPrompt
-	defer func() { utils.BuyConfirmPrompt = originalBuyConfirmPrompt }()
-	utils.BuyConfirmPrompt = func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return false }
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return false })
 
 	cmd := &cobra.Command{Use: "buy-lag"}
 	cmd.Flags().Bool("interactive", false, "")
@@ -1836,15 +1836,15 @@ func TestValidatePort(t *testing.T) {
 			}
 
 			if tt.loginError != nil {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, tt.loginError
-				}
+				})
 			} else {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.PortService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			cmd := &cobra.Command{Use: "validate"}
@@ -1982,15 +1982,15 @@ func TestValidateLAGPort(t *testing.T) {
 			}
 
 			if tt.loginError != nil {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					return nil, tt.loginError
-				}
+				})
 			} else {
-				config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 					client := &megaport.Client{}
 					client.PortService = mockService
 					return client, nil
-				}
+				})
 			}
 
 			cmd := &cobra.Command{Use: "validate-lag"}
@@ -2045,8 +2045,8 @@ func TestDeletePort_Comprehensive(t *testing.T) {
 
 	originalDeletePortFunc := deletePortFunc
 	defer func() { deletePortFunc = originalDeletePortFunc }()
-	originalConfirmPrompt := utils.ConfirmPrompt
-	defer func() { utils.ConfirmPrompt = originalConfirmPrompt }()
+	originalConfirmPrompt := utils.GetConfirmPrompt()
+	defer func() { utils.SetConfirmPrompt(originalConfirmPrompt) }()
 
 	tests := []struct {
 		name             string
@@ -2101,15 +2101,15 @@ func TestDeletePort_Comprehensive(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockService := &MockPortService{}
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.PortService = mockService
 				return client, nil
-			}
+			})
 
-			utils.ConfirmPrompt = func(_ string, _ bool) bool {
+			utils.SetConfirmPrompt(func(_ string, _ bool) bool {
 				return tt.confirmResult
-			}
+			})
 
 			deletePortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.DeletePortRequest) (*megaport.DeletePortResponse, error) {
 				if tt.deleteErr != nil {
@@ -2153,11 +2153,11 @@ func TestGetPort_NilPort(t *testing.T) {
 	defer cleanup()
 
 	mockService := &MockPortService{ForceNilGetPort: true}
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.PortService = mockService
 		return client, nil
-	}
+	})
 
 	var err error
 	output.CaptureOutput(func() {
@@ -2248,11 +2248,11 @@ func TestGetPort_Export(t *testing.T) {
 			ProvisioningStatus:    "LIVE",
 		},
 	}
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.PortService = mockService
 		return client, nil
-	}
+	})
 
 	cmd := testutil.NewCommand("get", testutil.OutputAdapter(GetPort))
 	cmd.Flags().Bool("export", false, "")

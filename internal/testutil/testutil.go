@@ -30,30 +30,30 @@ func OutputAdapter(fn func(cmd *cobra.Command, args []string, noColor bool, outp
 	}
 }
 
-// SetupLogin saves the current config.LoginFunc, replaces it with one that
+// SetupLogin saves the current login function, replaces it with one that
 // returns a client configured by setupFn, and returns a cleanup function
 // that restores the original.
 func SetupLogin(setupFn func(*megaport.Client)) func() {
-	original := config.LoginFunc
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	original := config.GetLoginFunc()
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		client := &megaport.Client{}
 		setupFn(client)
 		return client, nil
-	}
+	})
 	return func() {
-		config.LoginFunc = original
+		config.SetLoginFunc(original)
 	}
 }
 
-// SetupLoginError saves the current config.LoginFunc, replaces it with one
+// SetupLoginError saves the current login function, replaces it with one
 // that returns the given error, and returns a cleanup function.
 func SetupLoginError(err error) func() {
-	original := config.LoginFunc
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	original := config.GetLoginFunc()
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		return nil, err
-	}
+	})
 	return func() {
-		config.LoginFunc = original
+		config.SetLoginFunc(original)
 	}
 }
 

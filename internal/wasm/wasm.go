@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall/js"
 
 	"github.com/spf13/cobra"
@@ -22,8 +23,8 @@ var (
 	stderrBuffer bytes.Buffer
 	bufferMutex  sync.Mutex
 
-	// Debug flag
-	debugMode = false
+	// Debug flag — accessed from multiple goroutines, so use atomic.Bool.
+	debugMode atomic.Bool
 
 	// outputStateReset is called by ResetOutputBuffers to clear --fields and
 	// --query flag state between WASM invocations. Registered from main_wasm.go
@@ -60,7 +61,7 @@ func (d *DirectOutputBuffer) Write(p []byte) (n int, err error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	if debugMode {
+	if debugMode.Load() {
 		content := string(p)
 		js.Global().Get("console").Call("log", fmt.Sprintf("📝 BUFFER WRITE [%d bytes]:", len(p)))
 		lines := strings.Split(content, "\n")
@@ -77,7 +78,7 @@ func (d *DirectOutputBuffer) Write(p []byte) (n int, err error) {
 
 // TraceCommandExecution logs the command hierarchy and available subcommands when debugMode is on.
 func TraceCommandExecution(cmd *cobra.Command, args []string) {
-	if !debugMode {
+	if !debugMode.Load() {
 		return
 	}
 	js.Global().Get("console").Call("group", "⚡ COMMAND TRAVERSAL")
@@ -105,7 +106,7 @@ func TraceCommandExecution(cmd *cobra.Command, args []string) {
 
 // TraceCommand logs the command string, parsed args, and auth status when debugMode is on.
 func TraceCommand(command string, args []string) {
-	if !debugMode {
+	if !debugMode.Load() {
 		return
 	}
 	js.Global().Get("console").Call("group", fmt.Sprintf("🔍 COMMAND: %s", command))
@@ -135,9 +136,9 @@ func (d *DirectOutputBuffer) Reset() {
 
 // EnableDebugMode turns on additional debugging
 func EnableDebugMode() {
-	debugMode = true
+	debugMode.Store(true)
 	js.Global().Set("wasmDebug", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		return debugMode
+		return debugMode.Load()
 	}))
 }
 
@@ -181,7 +182,7 @@ func RegisterJSFunctions() {
 	// debugAuthInfo reveals which auth method and environment are configured.
 	// Register it only when debug mode is enabled so that production deployments
 	// do not expose an information-disclosure endpoint to arbitrary page scripts.
-	if debugMode {
+	if debugMode.Load() {
 		js.Global().Set("debugAuthInfo", js.FuncOf(debugAuthInfo))
 	}
 
@@ -206,10 +207,14 @@ func RegisterJSFunctions() {
 
 	InstallCommandHooks()
 
-	// Add a debug mode toggle function
+	// Add a debug mode toggle function.
+	// NOTE: The Load+Store is not a single atomic operation, but WASM is
+	// single-threaded so concurrent toggles cannot interleave. The atomic
+	// type is used to satisfy the Go race detector, not for true concurrency.
 	js.Global().Set("toggleWasmDebug", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		debugMode = !debugMode
-		return debugMode
+		newVal := !debugMode.Load()
+		debugMode.Store(newVal)
+		return newVal
 	}))
 
 	// Add a function to dump the full buffer contents for debugging
@@ -259,7 +264,7 @@ func ResetOutputBuffers() {
 	js.Global().Delete("wasmTableOutput")
 	js.Global().Delete("wasmXMLOutput")
 
-	if debugMode {
+	if debugMode.Load() {
 		js.Global().Get("console").Call("log", "Output buffers reset (including all structured output globals)")
 	}
 }
@@ -317,7 +322,7 @@ func GetCapturedOutput() string {
 		outputSource = "combined stdout/stderr"
 	}
 
-	if debugMode {
+	if debugMode.Load() {
 		js.Global().Get("console").Call("group", "📤 OUTPUT CAPTURE RESULTS")
 		js.Global().Get("console").Call("log", fmt.Sprintf("stdout buffer: [%d bytes]", len(out)))
 		js.Global().Get("console").Call("log", fmt.Sprintf("stderr buffer: [%d bytes]", len(errStr)))
@@ -347,7 +352,7 @@ func SetupIO() {
 	// - Table output via WasmTableWriter -> wasmTableOutput global
 	// - These are collected in GetCapturedOutput()
 
-	if debugMode {
+	if debugMode.Load() {
 		js.Global().Get("console").Call("log", "✅ WASM IO setup complete (using WasmOutputBuffer)")
 	}
 }
@@ -463,7 +468,7 @@ func SplitArgs(cmd string) []string {
 	// Trim any leading/trailing whitespace
 	cmd = strings.TrimSpace(cmd)
 
-	if debugMode {
+	if debugMode.Load() {
 		js.Global().Get("console").Call("log", fmt.Sprintf("SplitArgs: parsing command: %q", cmd))
 	}
 
@@ -514,7 +519,7 @@ func SplitArgs(cmd string) []string {
 		cleanedArgs = append(cleanedArgs, arg)
 	}
 
-	if debugMode {
+	if debugMode.Load() {
 		js.Global().Get("console").Call("log", fmt.Sprintf("SplitArgs: original=%v cleaned=%v", args, cleanedArgs))
 	}
 

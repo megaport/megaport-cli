@@ -306,15 +306,15 @@ func TestProcessFlagPrefixFilterListInput(t *testing.T) {
 func TestProcessFlagUpdatePrefixFilterListInput(t *testing.T) {
 	// Setup mock for getMCRPrefixFilterListFunc
 	originalGetPFL := getMCRPrefixFilterListFunc
-	originalLogin := config.LoginFunc
+	originalLogin := config.GetLoginFunc()
 	defer func() {
 		getMCRPrefixFilterListFunc = originalGetPFL
-		config.LoginFunc = originalLogin
+		config.SetLoginFunc(originalLogin)
 	}()
 
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		return &megaport.Client{}, nil
-	}
+	})
 	getMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrUID string, pflID int) (*megaport.MCRPrefixFilterList, error) {
 		return &megaport.MCRPrefixFilterList{
 			ID:            1,
