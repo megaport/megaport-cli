@@ -127,7 +127,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	authResp, err := authenticateWithMegaport(loginReq.AccessKey, loginReq.SecretKey, loginReq.Environment)
 	if err != nil {
 		s.logger.Printf("Authentication failed: %v", err)
-		http.Error(w, "Authentication failed: "+err.Error(), http.StatusUnauthorized)
+		http.Error(w, "Authentication failed", http.StatusUnauthorized)
 		return
 	}
 

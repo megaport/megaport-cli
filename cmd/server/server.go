@@ -54,7 +54,7 @@ func setCORSHeaders(w http.ResponseWriter, r *http.Request, allowedHeaders strin
 func setSecurityHeaders(w http.ResponseWriter) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("X-Frame-Options", "DENY")
-	w.Header().Set("Content-Security-Policy", "default-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://*.megaport.com")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://*.megaport.com")
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 }
 
@@ -92,7 +92,7 @@ func (rl *rateLimiter) Allow(key string) bool {
 	cutoff := now.Add(-rl.window)
 
 	// Filter to only recent attempts
-	recent := rl.attempts[key][:0]
+	var recent []time.Time
 	for _, t := range rl.attempts[key] {
 		if t.After(cutoff) {
 			recent = append(recent, t)
@@ -106,6 +106,38 @@ func (rl *rateLimiter) Allow(key string) bool {
 
 	rl.attempts[key] = append(recent, now)
 	return true
+}
+
+// cleanup removes stale entries from the rate limiter map.
+func (rl *rateLimiter) cleanup() {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	cutoff := time.Now().Add(-rl.window)
+	for key, attempts := range rl.attempts {
+		var recent []time.Time
+		for _, t := range attempts {
+			if t.After(cutoff) {
+				recent = append(recent, t)
+			}
+		}
+		if len(recent) == 0 {
+			delete(rl.attempts, key)
+		} else {
+			rl.attempts[key] = recent
+		}
+	}
+}
+
+// startCleanup runs periodic cleanup of stale rate limiter entries.
+func (rl *rateLimiter) startCleanup(interval time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for range ticker.C {
+			rl.cleanup()
+		}
+	}()
 }
 
 // Optimized HTTP client with connection pooling
@@ -147,6 +179,7 @@ func main() {
 
 	// Rate limiter for login endpoint: 10 attempts per minute per IP
 	loginLimiter := newRateLimiter(10, 1*time.Minute)
+	loginLimiter.startCleanup(5 * time.Minute)
 
 	// Authentication endpoints
 	http.HandleFunc("/auth/login", withSecurityHeaders(func(w http.ResponseWriter, r *http.Request) {
