@@ -186,7 +186,8 @@ func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 func watchGetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	interval, _ := cmd.Flags().GetDuration("interval")
 
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultWatchTimeout)
+	defer cancel()
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
@@ -567,7 +568,8 @@ func GetVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 func watchVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	interval, _ := cmd.Flags().GetDuration("interval")
 
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultWatchTimeout)
+	defer cancel()
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
