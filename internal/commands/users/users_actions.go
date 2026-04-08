@@ -107,7 +107,7 @@ func ListUsers(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 
 	if err != nil {
 		output.PrintError("Failed to list users: %v", noColor, err)
-		return fmt.Errorf("error listing users: %w", err)
+		return fmt.Errorf("failed to list users: %w", err)
 	}
 
 	position, _ := cmd.Flags().GetString("position")
@@ -143,7 +143,7 @@ func GetUser(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 
 	if err != nil {
 		output.PrintError("Failed to get user: %v", noColor, err)
-		return fmt.Errorf("error getting user: %w", err)
+		return fmt.Errorf("failed to get user: %w", err)
 	}
 
 	if user == nil {
@@ -206,7 +206,7 @@ func UpdateUser(cmd *cobra.Command, args []string, noColor bool) error {
 	originalUser, err := getUserFunc(ctx, client, employeeID)
 	if err != nil {
 		output.PrintError("Failed to get current user: %v", noColor, err)
-		return fmt.Errorf("error getting current user: %w", err)
+		return fmt.Errorf("failed to get current user: %w", err)
 	}
 
 	spinner := output.PrintResourceUpdating("User", args[0], noColor)
@@ -333,7 +333,7 @@ func GetUserActivity(cmd *cobra.Command, args []string, noColor bool, outputForm
 
 	if err != nil {
 		output.PrintError("Failed to get user activity: %v", noColor, err)
-		return fmt.Errorf("error getting user activity: %w", err)
+		return fmt.Errorf("failed to get user activity: %w", err)
 	}
 
 	return printUserActivities(activities, outputFormat, noColor)

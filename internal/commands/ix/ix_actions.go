@@ -59,7 +59,7 @@ func ListIXs(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 
 	if err != nil {
 		output.PrintError("Failed to list IXs: %v", noColor, err)
-		return fmt.Errorf("error listing IXs: %w", err)
+		return fmt.Errorf("failed to list IXs: %w", err)
 	}
 
 	if !includeInactive {
@@ -102,7 +102,7 @@ func GetIX(cmd *cobra.Command, args []string, noColor bool, outputFormat string)
 	if err != nil {
 		err = utils.WrapAPIError(err, "IX", ixUID)
 		output.PrintError("Failed to get IX: %v", noColor, err)
-		return fmt.Errorf("error getting IX: %w", err)
+		return fmt.Errorf("failed to get IX: %w", err)
 	}
 
 	if ix == nil {
@@ -115,7 +115,7 @@ func GetIX(cmd *cobra.Command, args []string, noColor bool, outputFormat string)
 		cfg := exportIXConfig(ix)
 		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
-			return fmt.Errorf("error marshaling export config: %w", err)
+			return fmt.Errorf("failed to marshal export config: %w", err)
 		}
 		fmt.Println(string(jsonBytes))
 		return nil
@@ -123,7 +123,7 @@ func GetIX(cmd *cobra.Command, args []string, noColor bool, outputFormat string)
 
 	err = printIXs([]*megaport.IX{ix}, outputFormat, noColor)
 	if err != nil {
-		return fmt.Errorf("error printing IXs: %w", err)
+		return fmt.Errorf("failed to print IXs: %w", err)
 	}
 	return nil
 }
@@ -147,7 +147,7 @@ func GetIXStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 
 	if err != nil {
 		output.PrintError("Failed to get IX status: %v", noColor, err)
-		return fmt.Errorf("error getting IX status: %w", err)
+		return fmt.Errorf("failed to get IX status: %w", err)
 	}
 
 	if ix == nil {
@@ -396,7 +396,7 @@ func DeleteIX(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		err = utils.WrapAPIError(err, "IX", ixUID)
-		return fmt.Errorf("error deleting IX: %w", err)
+		return fmt.Errorf("failed to delete IX: %w", err)
 	}
 
 	output.PrintResourceDeleted("IX", ixUID, deleteNow, noColor)

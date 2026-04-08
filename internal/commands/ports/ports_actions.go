@@ -291,7 +291,7 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 
 	if err != nil {
 		output.PrintError("Failed to list ports: %v", noColor, err)
-		return fmt.Errorf("error listing ports: %w", err)
+		return fmt.Errorf("failed to list ports: %w", err)
 	}
 
 	locationID, _ := cmd.Flags().GetInt("location-id")
@@ -332,7 +332,7 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 	if err != nil {
 		err = utils.WrapAPIError(err, "Port", portUID)
 		output.PrintError("Failed to get port: %v", noColor, err)
-		return fmt.Errorf("error getting port: %w", err)
+		return fmt.Errorf("failed to get port: %w", err)
 	}
 
 	if port == nil {
@@ -345,7 +345,7 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 		cfg := exportPortConfig(port)
 		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
-			return fmt.Errorf("error marshaling export config: %w", err)
+			return fmt.Errorf("failed to marshal export config: %w", err)
 		}
 		fmt.Println(string(jsonBytes))
 		return nil
@@ -354,7 +354,7 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 	err = printPorts([]*megaport.Port{port}, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print ports: %v", noColor, err)
-		return fmt.Errorf("error printing ports: %w", err)
+		return fmt.Errorf("failed to print ports: %w", err)
 	}
 	return nil
 }
@@ -401,7 +401,7 @@ func GetPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	if err != nil {
 		err = utils.WrapAPIError(err, "Port", portUID)
 		output.PrintError("Failed to get Port status: %v", noColor, err)
-		return fmt.Errorf("error getting Port status: %w", err)
+		return fmt.Errorf("failed to get Port status: %w", err)
 	}
 
 	if port == nil {

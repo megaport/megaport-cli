@@ -360,14 +360,14 @@ func TestGetLocation(t *testing.T) {
 			setupMock: func(m *MockLocationsService) {
 				m.ListLocationsV3Err = fmt.Errorf("API failure")
 			},
-			expectedErr: "error listing locations",
+			expectedErr: "failed to list locations",
 		},
 		{
 			name:        "client creation error",
 			args:        []string{"1"},
 			setupMock:   func(m *MockLocationsService) {},
 			clientErr:   fmt.Errorf("config error"),
-			expectedErr: "error creating API client",
+			expectedErr: "failed to create API client",
 		},
 	}
 
@@ -447,7 +447,7 @@ func TestListCountries(t *testing.T) {
 			setupMock: func(m *MockLocationsService) {
 				m.ListCountriesErr = fmt.Errorf("API failure")
 			},
-			expectedErr: "error listing countries",
+			expectedErr: "failed to list countries",
 		},
 		{
 			name: "empty result",
@@ -460,7 +460,7 @@ func TestListCountries(t *testing.T) {
 			name:        "client creation error",
 			setupMock:   func(m *MockLocationsService) {},
 			clientErr:   fmt.Errorf("config error"),
-			expectedErr: "error creating API client",
+			expectedErr: "failed to create API client",
 		},
 	}
 
@@ -531,7 +531,7 @@ func TestListMarketCodes(t *testing.T) {
 			setupMock: func(m *MockLocationsService) {
 				m.ListMarketCodesErr = fmt.Errorf("API failure")
 			},
-			expectedErr: "error listing market codes",
+			expectedErr: "failed to list market codes",
 		},
 		{
 			name: "empty result",
@@ -544,7 +544,7 @@ func TestListMarketCodes(t *testing.T) {
 			name:        "client creation error",
 			setupMock:   func(m *MockLocationsService) {},
 			clientErr:   fmt.Errorf("config error"),
-			expectedErr: "error creating API client",
+			expectedErr: "failed to create API client",
 		},
 	}
 
@@ -657,14 +657,14 @@ func TestSearchLocations(t *testing.T) {
 			setupMock: func(m *MockLocationsService) {
 				m.GetLocationByNameFuzzyV3Err = fmt.Errorf("API failure")
 			},
-			expectedErr: "error searching locations",
+			expectedErr: "failed to search locations",
 		},
 		{
 			name:        "client creation error",
 			args:        []string{"Equinix"},
 			setupMock:   func(m *MockLocationsService) {},
 			clientErr:   fmt.Errorf("config error"),
-			expectedErr: "error creating API client",
+			expectedErr: "failed to create API client",
 		},
 	}
 

@@ -220,7 +220,7 @@ func TestBuyVXC(t *testing.T) {
 		},
 		{
 			name:          "invalid JSON returns error",
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 			flags: map[string]string{
 				"json": `{bad json}`,
 			},
@@ -506,7 +506,7 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 			setupMock: func(m *MockVXCService) {
 				m.ListVXCResourceTagsResult = map[string]string{}
 			},
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:        "error in interactive mode",
@@ -978,7 +978,7 @@ func TestListVXCs(t *testing.T) {
 		{
 			name:          "login error",
 			loginError:    true,
-			expectedError: "error logging in",
+			expectedError: "failed to log in",
 			outputFormat:  "table",
 		},
 		{
@@ -1158,7 +1158,7 @@ func TestGetVXCStatus(t *testing.T) {
 			setupMock: func(m *MockVXCService) {
 				m.GetVXCError = fmt.Errorf("VXC not found")
 			},
-			expectedError: "error getting VXC status",
+			expectedError: "failed to get VXC status",
 			outputFormat:  "table",
 		},
 		{
@@ -1511,14 +1511,14 @@ func TestGetVXC(t *testing.T) {
 				m.GetVXCError = fmt.Errorf("service unavailable")
 			},
 			outputFormat:  "table",
-			expectedError: "error getting VXC",
+			expectedError: "failed to get VXC",
 		},
 		{
 			name:          "login error",
 			vxcUID:        "vxc-login-err",
 			loginError:    true,
 			outputFormat:  "table",
-			expectedError: "error logging in",
+			expectedError: "failed to log in",
 		},
 	}
 
@@ -2348,7 +2348,7 @@ func TestValidateVXC(t *testing.T) {
 			name:          "invalid JSON input",
 			jsonInput:     `{invalid json}`,
 			setupMock:     func(m *MockVXCService) {},
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:             "success with JSON file",

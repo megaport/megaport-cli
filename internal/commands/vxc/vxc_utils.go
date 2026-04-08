@@ -41,7 +41,7 @@ var getPartnerPortUID = func(ctx context.Context, svc megaport.VXCService, key, 
 	}
 
 	if err != nil {
-		return "", fmt.Errorf("error looking up partner port: %v", err)
+		return "", fmt.Errorf("failed to look up partner port: %v", err)
 	}
 
 	if res.ProductUID == "" {

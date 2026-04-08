@@ -32,7 +32,7 @@ func ListManagedAccounts(cmd *cobra.Command, args []string, noColor bool, output
 
 	if err != nil {
 		output.PrintError("Failed to list managed accounts: %v", noColor, err)
-		return fmt.Errorf("error listing managed accounts: %w", err)
+		return fmt.Errorf("failed to list managed accounts: %w", err)
 	}
 
 	filteredAccounts := filterManagedAccounts(accounts, accountName, accountRef)
@@ -55,7 +55,7 @@ func ListManagedAccounts(cmd *cobra.Command, args []string, noColor bool, output
 	err = printManagedAccounts(filteredAccounts, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print managed accounts: %v", noColor, err)
-		return fmt.Errorf("error printing managed accounts: %w", err)
+		return fmt.Errorf("failed to print managed accounts: %w", err)
 	}
 	return nil
 }
@@ -80,12 +80,12 @@ func GetManagedAccount(cmd *cobra.Command, args []string, noColor bool, outputFo
 
 	if err != nil {
 		output.PrintError("Failed to get managed account: %v", noColor, err)
-		return fmt.Errorf("error getting managed account: %w", err)
+		return fmt.Errorf("failed to get managed account: %w", err)
 	}
 
 	err = printManagedAccounts([]*megaport.ManagedAccount{account}, outputFormat, noColor)
 	if err != nil {
-		return fmt.Errorf("error printing managed accounts: %w", err)
+		return fmt.Errorf("failed to print managed accounts: %w", err)
 	}
 	return nil
 }

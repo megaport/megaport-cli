@@ -803,7 +803,7 @@ func TestBuyMVE(t *testing.T) {
 			flags: map[string]string{
 				"json": `{bad json}`,
 			},
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:        "JSON takes precedence over interactive flag",
@@ -1081,7 +1081,7 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 			setupMock: func(m *MockMVEService) {
 				m.ListMVEsErr = fmt.Errorf("API error: service unavailable")
 			},
-			expectedError: "error listing MVEs",
+			expectedError: "failed to list MVEs",
 		},
 		{
 			name:         "empty result",
@@ -1212,14 +1212,14 @@ func TestListMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 			expectedOut: []string{`"key": "environment"`, `"value": "staging"`, `"key": "cost-center"`, `"value": "cc-123"`},
 		},
 		{
-			name:         "error fetching tags",
+			name:         "failed to fetch tags",
 			mveUID:       "mve-error",
 			outputFormat: "table",
 			setupMock: func(m *MockMVEService) {
 				m.ListMVEResourceTagsResult = make(map[string]string)
 				m.ListMVEResourceTagsErr = fmt.Errorf("API error: not found")
 			},
-			expectedError: "error getting resource tags",
+			expectedError: "failed to get resource tags",
 		},
 	}
 
@@ -1344,7 +1344,7 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 				m.ListMVEResourceTagsResult = map[string]string{}
 				m.CapturedUpdateMVEResourceTagsRequest = make(map[string]string)
 			},
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:        "error in interactive mode",
@@ -1533,7 +1533,7 @@ func TestGetMVEStatus(t *testing.T) {
 			setupMock: func(m *MockMVEService) {
 				m.GetMVEErr = fmt.Errorf("MVE not found")
 			},
-			expectedError: "error getting MVE status",
+			expectedError: "failed to get MVE status",
 			outputFormat:  "table",
 		},
 		{
@@ -1651,7 +1651,7 @@ func TestGetMVE(t *testing.T) {
 				m.GetMVEErr = fmt.Errorf("API failure")
 			},
 			outputFormat:  "table",
-			expectedError: "error getting MVE",
+			expectedError: "failed to get MVE",
 		},
 		{
 			name:   "nil MVE",
@@ -1726,8 +1726,8 @@ func TestLockMVECmd_WithMockClient(t *testing.T) {
 		{
 			name:          "lock MVE error",
 			mveID:         "mve-error",
-			lockErr:       fmt.Errorf("error locking MVE"),
-			expectedError: "error locking MVE",
+			lockErr:       fmt.Errorf("failed to lock MVE"),
+			expectedError: "failed to lock MVE",
 		},
 	}
 
@@ -1785,8 +1785,8 @@ func TestUnlockMVECmd_WithMockClient(t *testing.T) {
 		{
 			name:          "unlock MVE error",
 			mveID:         "mve-error",
-			unlockErr:     fmt.Errorf("error unlocking MVE"),
-			expectedError: "error unlocking MVE",
+			unlockErr:     fmt.Errorf("failed to unlock MVE"),
+			expectedError: "failed to unlock MVE",
 		},
 	}
 
@@ -1844,8 +1844,8 @@ func TestRestoreMVECmd_WithMockClient(t *testing.T) {
 		{
 			name:          "restore MVE error",
 			mveID:         "mve-error",
-			restoreErr:    fmt.Errorf("error restoring MVE"),
-			expectedError: "error restoring MVE",
+			restoreErr:    fmt.Errorf("failed to restore MVE"),
+			expectedError: "failed to restore MVE",
 		},
 	}
 
@@ -1894,7 +1894,7 @@ func TestLockMVECmd_LoginError(t *testing.T) {
 	cmd := &cobra.Command{}
 	err := LockMVE(cmd, []string{"mve-123"}, false)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error logging in")
+	assert.Contains(t, err.Error(), "failed to log in")
 }
 
 func TestUnlockMVECmd_LoginError(t *testing.T) {
@@ -1907,7 +1907,7 @@ func TestUnlockMVECmd_LoginError(t *testing.T) {
 	cmd := &cobra.Command{}
 	err := UnlockMVE(cmd, []string{"mve-123"}, false)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error logging in")
+	assert.Contains(t, err.Error(), "failed to log in")
 }
 
 func TestRestoreMVECmd_LoginError(t *testing.T) {
@@ -1920,7 +1920,7 @@ func TestRestoreMVECmd_LoginError(t *testing.T) {
 	cmd := &cobra.Command{}
 	err := RestoreMVE(cmd, []string{"mve-123"}, false)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error logging in")
+	assert.Contains(t, err.Error(), "failed to log in")
 }
 
 func TestBuyMVE_Confirmation(t *testing.T) {
@@ -2103,7 +2103,7 @@ func TestValidateMVE(t *testing.T) {
 			name:          "invalid JSON input",
 			jsonInput:     `{invalid json}`,
 			setupMock:     func(m *MockMVEService) {},
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:          "vendor config validation failure",

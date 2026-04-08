@@ -41,7 +41,7 @@ func StatusDashboard(cmd *cobra.Command, args []string, noColor bool, outputForm
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return fmt.Errorf("failed to log in: %w", err)
 	}
 
 	// Flag read errors are intentionally ignored — flags are registered by the command builder.
@@ -149,12 +149,12 @@ func StatusDashboard(cmd *cobra.Command, args []string, noColor bool, outputForm
 	dashboard, err := buildDashboard(ports, mcrs, mves, vxcs, ixs)
 	if err != nil {
 		output.PrintError("Failed to build dashboard: %v", noColor, err)
-		return fmt.Errorf("error building dashboard: %w", err)
+		return fmt.Errorf("failed to build dashboard: %w", err)
 	}
 
 	if err := printDashboard(dashboard, outputFormat, noColor); err != nil {
 		output.PrintError("Failed to print dashboard: %v", noColor, err)
-		return fmt.Errorf("error printing dashboard: %w", err)
+		return fmt.Errorf("failed to print dashboard: %w", err)
 	}
 
 	return nil

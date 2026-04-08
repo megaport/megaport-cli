@@ -104,7 +104,7 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 
 	if err != nil {
 		output.PrintError("Failed to list VXCs: %v", noColor, err)
-		return fmt.Errorf("error listing VXCs: %w", err)
+		return fmt.Errorf("failed to list VXCs: %w", err)
 	}
 
 	var activeVXCs []*megaport.VXC
@@ -153,7 +153,7 @@ func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	if err != nil {
 		err = utils.WrapAPIError(err, "VXC", vxcUID)
 		output.PrintError("Failed to get VXC: %v", noColor, err)
-		return fmt.Errorf("error getting VXC: %w", err)
+		return fmt.Errorf("failed to get VXC: %w", err)
 	}
 
 	if vxc == nil {
@@ -166,7 +166,7 @@ func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 		cfg := exportVXCConfig(vxc)
 		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
-			return fmt.Errorf("error marshaling export config: %w", err)
+			return fmt.Errorf("failed to marshal export config: %w", err)
 		}
 		fmt.Println(string(jsonBytes))
 		return nil
@@ -175,7 +175,7 @@ func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	err = printVXCs([]*megaport.VXC{vxc}, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print VXCs: %v", noColor, err)
-		return fmt.Errorf("error printing VXCs: %w", err)
+		return fmt.Errorf("failed to print VXCs: %w", err)
 	}
 	return nil
 }
@@ -519,7 +519,7 @@ func GetVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 	if err != nil {
 		output.PrintError("Failed to get VXC status: %v", noColor, err)
-		return fmt.Errorf("error getting VXC status: %w", err)
+		return fmt.Errorf("failed to get VXC status: %w", err)
 	}
 
 	if vxc == nil {

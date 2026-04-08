@@ -25,7 +25,7 @@ func processFlagLAGPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, erro
 	var resourceTags map[string]string
 	if resourceTagsStr != "" {
 		if err := json.Unmarshal([]byte(resourceTagsStr), &resourceTags); err != nil {
-			return nil, fmt.Errorf("error parsing resource tags JSON: %v", err)
+			return nil, fmt.Errorf("failed to parse resource tags JSON: %v", err)
 		}
 	}
 
@@ -57,7 +57,7 @@ func processJSONUpdatePortInput(jsonStr, jsonFile string) (*megaport.ModifyPortR
 
 	req := &megaport.ModifyPortRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %v", err)
 	}
 
 	if req.ContractTermMonths != nil {
@@ -133,7 +133,7 @@ func processFlagPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, error) 
 	var resourceTags map[string]string
 	if resourceTagsStr != "" {
 		if err := json.Unmarshal([]byte(resourceTagsStr), &resourceTags); err != nil {
-			return nil, fmt.Errorf("error parsing resource tags JSON: %v", err)
+			return nil, fmt.Errorf("failed to parse resource tags JSON: %v", err)
 		}
 	}
 
@@ -164,7 +164,7 @@ func processJSONPortInput(jsonStr, jsonFile string) (*megaport.BuyPortRequest, e
 
 	req := &megaport.BuyPortRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %v", err)
 	}
 
 	if err := validation.ValidatePortRequest(req); err != nil {

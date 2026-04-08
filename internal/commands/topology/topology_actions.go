@@ -47,7 +47,7 @@ func ShowTopology(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return fmt.Errorf("failed to log in: %w", err)
 	}
 
 	// Flag read errors are intentionally ignored — flags are registered by the command builder.
@@ -88,15 +88,15 @@ func ShowTopology(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 	if portsErr != nil {
 		output.PrintError("Failed to list ports: %v", noColor, portsErr)
-		return fmt.Errorf("error listing ports: %w", portsErr)
+		return fmt.Errorf("failed to list ports: %w", portsErr)
 	}
 	if mcrsErr != nil {
 		output.PrintError("Failed to list MCRs: %v", noColor, mcrsErr)
-		return fmt.Errorf("error listing MCRs: %w", mcrsErr)
+		return fmt.Errorf("failed to list MCRs: %w", mcrsErr)
 	}
 	if mvesErr != nil {
 		output.PrintError("Failed to list MVEs: %v", noColor, mvesErr)
-		return fmt.Errorf("error listing MVEs: %w", mvesErr)
+		return fmt.Errorf("failed to list MVEs: %w", mvesErr)
 	}
 
 	nodes := buildTopologyNodes(ports, mcrs, mves, typeFilter, includeInactive)
@@ -105,7 +105,7 @@ func ShowTopology(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	case "json":
 		jsonBytes, err := json.MarshalIndent(nodes, "", "  ")
 		if err != nil {
-			return fmt.Errorf("error marshaling topology: %w", err)
+			return fmt.Errorf("failed to marshal topology: %w", err)
 		}
 		fmt.Println(string(jsonBytes))
 	case "csv", "xml":

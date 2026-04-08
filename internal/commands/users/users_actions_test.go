@@ -223,7 +223,7 @@ func TestCreateUser(t *testing.T) {
 			name:          "invalid JSON",
 			jsonInput:     `{invalid}`,
 			setupMock:     func(m *MockUserManagementService) {},
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 	}
 

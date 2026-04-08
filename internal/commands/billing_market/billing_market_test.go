@@ -198,7 +198,7 @@ func TestGetBillingMarketsAction_Error(t *testing.T) {
 
 	err := GetBillingMarkets(cmd, []string{}, true, "json")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error getting billing markets")
+	assert.Contains(t, err.Error(), "failed to get billing markets")
 }
 
 func TestGetBillingMarketsAction_Empty(t *testing.T) {
@@ -402,5 +402,5 @@ func TestSetBillingMarketAction_Error(t *testing.T) {
 
 	err := SetBillingMarket(cmd, []string{}, true)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error setting billing market")
+	assert.Contains(t, err.Error(), "failed to set billing market")
 }

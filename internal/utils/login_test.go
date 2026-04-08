@@ -43,7 +43,7 @@ func TestLoginClient_LoginError(t *testing.T) {
 	ctx, cancel, client, err := LoginClient(cmd, 90*time.Second, login)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error logging in")
+	assert.Contains(t, err.Error(), "failed to log in")
 	assert.Contains(t, err.Error(), "auth failed")
 	assert.Nil(t, ctx)
 	assert.Nil(t, cancel)

@@ -20,7 +20,7 @@ func ListLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	client, err := config.NewUnauthenticatedClient()
 	if err != nil {
 		output.PrintError("Failed to create API client: %v", noColor, err)
-		return fmt.Errorf("error creating API client: %w", err)
+		return fmt.Errorf("failed to create API client: %w", err)
 	}
 
 	spinner := output.PrintResourceListing("Location", noColor)
@@ -31,7 +31,7 @@ func ListLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat
 
 	if err != nil {
 		output.PrintError("Failed to retrieve locations: %v", noColor, err)
-		return fmt.Errorf("error listing locations: %w", err)
+		return fmt.Errorf("failed to list locations: %w", err)
 	}
 
 	filters := map[string]string{}
@@ -84,7 +84,7 @@ func ListLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	err = printLocations(filteredLocations, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print locations: %v", noColor, err)
-		return fmt.Errorf("error printing locations: %w", err)
+		return fmt.Errorf("failed to print locations: %w", err)
 	}
 	return nil
 }
@@ -98,7 +98,7 @@ func ListCountries(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	client, err := config.NewUnauthenticatedClient()
 	if err != nil {
 		output.PrintError("Failed to create API client: %v", noColor, err)
-		return fmt.Errorf("error creating API client: %w", err)
+		return fmt.Errorf("failed to create API client: %w", err)
 	}
 
 	spinner := output.PrintResourceListing("Country", noColor)
@@ -109,7 +109,7 @@ func ListCountries(cmd *cobra.Command, args []string, noColor bool, outputFormat
 
 	if err != nil {
 		output.PrintError("Failed to retrieve countries: %v", noColor, err)
-		return fmt.Errorf("error listing countries: %w", err)
+		return fmt.Errorf("failed to list countries: %w", err)
 	}
 
 	if len(countries) == 0 {
@@ -121,7 +121,7 @@ func ListCountries(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	err = printCountries(countries, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print countries: %v", noColor, err)
-		return fmt.Errorf("error printing countries: %w", err)
+		return fmt.Errorf("failed to print countries: %w", err)
 	}
 	return nil
 }
@@ -135,7 +135,7 @@ func ListMarketCodes(cmd *cobra.Command, args []string, noColor bool, outputForm
 	client, err := config.NewUnauthenticatedClient()
 	if err != nil {
 		output.PrintError("Failed to create API client: %v", noColor, err)
-		return fmt.Errorf("error creating API client: %w", err)
+		return fmt.Errorf("failed to create API client: %w", err)
 	}
 
 	spinner := output.PrintResourceListing("Market Code", noColor)
@@ -146,7 +146,7 @@ func ListMarketCodes(cmd *cobra.Command, args []string, noColor bool, outputForm
 
 	if err != nil {
 		output.PrintError("Failed to retrieve market codes: %v", noColor, err)
-		return fmt.Errorf("error listing market codes: %w", err)
+		return fmt.Errorf("failed to list market codes: %w", err)
 	}
 
 	if len(marketCodes) == 0 {
@@ -158,7 +158,7 @@ func ListMarketCodes(cmd *cobra.Command, args []string, noColor bool, outputForm
 	err = printMarketCodes(marketCodes, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print market codes: %v", noColor, err)
-		return fmt.Errorf("error printing market codes: %w", err)
+		return fmt.Errorf("failed to print market codes: %w", err)
 	}
 	return nil
 }
@@ -172,7 +172,7 @@ func SearchLocations(cmd *cobra.Command, args []string, noColor bool, outputForm
 	client, err := config.NewUnauthenticatedClient()
 	if err != nil {
 		output.PrintError("Failed to create API client: %v", noColor, err)
-		return fmt.Errorf("error creating API client: %w", err)
+		return fmt.Errorf("failed to create API client: %w", err)
 	}
 
 	search := args[0]
@@ -185,7 +185,7 @@ func SearchLocations(cmd *cobra.Command, args []string, noColor bool, outputForm
 
 	if err != nil {
 		output.PrintError("Failed to search locations: %v", noColor, err)
-		return fmt.Errorf("error searching locations: %w", err)
+		return fmt.Errorf("failed to search locations: %w", err)
 	}
 
 	if len(locations) == 0 {
@@ -197,7 +197,7 @@ func SearchLocations(cmd *cobra.Command, args []string, noColor bool, outputForm
 	err = printLocations(locations, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print locations: %v", noColor, err)
-		return fmt.Errorf("error printing locations: %w", err)
+		return fmt.Errorf("failed to print locations: %w", err)
 	}
 	return nil
 }
@@ -211,7 +211,7 @@ func GetLocation(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 	client, err := config.NewUnauthenticatedClient()
 	if err != nil {
 		output.PrintError("Failed to create API client: %v", noColor, err)
-		return fmt.Errorf("error creating API client: %w", err)
+		return fmt.Errorf("failed to create API client: %w", err)
 	}
 
 	locationID, err := strconv.Atoi(args[0])
@@ -227,7 +227,7 @@ func GetLocation(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 	if err != nil {
 		spinner.Stop()
 		output.PrintError("Failed to retrieve locations: %v", noColor, err)
-		return fmt.Errorf("error listing locations: %w", err)
+		return fmt.Errorf("failed to list locations: %w", err)
 	}
 
 	var targetLocation *megaport.LocationV3

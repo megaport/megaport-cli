@@ -692,7 +692,7 @@ func TestBuildVXCRequestFromJSON(t *testing.T) {
 		{
 			name:          "invalid JSON",
 			jsonStr:       `{bad}`,
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:          "empty inputs",

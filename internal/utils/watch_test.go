@@ -162,7 +162,7 @@ func TestWatchResource(t *testing.T) {
 				return nil, fmt.Errorf("auth failed")
 			},
 			wantErr:     true,
-			errContains: "error logging in",
+			errContains: "failed to log in",
 		},
 	}
 

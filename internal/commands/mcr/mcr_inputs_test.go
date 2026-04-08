@@ -27,12 +27,12 @@ func TestProcessJSONMCRInput(t *testing.T) {
 		{
 			name:          "invalid JSON",
 			jsonStr:       `{invalid}`,
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:          "file not found",
 			jsonFile:      "/nonexistent/path.json",
-			expectedError: "error reading JSON file",
+			expectedError: "failed to read JSON file",
 		},
 		{
 			name:      "valid JSON file",
@@ -80,7 +80,7 @@ func TestProcessJSONUpdateMCRInput(t *testing.T) {
 		{
 			name:          "invalid JSON",
 			jsonStr:       `{invalid}`,
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:          "no fields updated",
@@ -100,7 +100,7 @@ func TestProcessJSONUpdateMCRInput(t *testing.T) {
 		{
 			name:          "file not found",
 			jsonFile:      "/nonexistent/path.json",
-			expectedError: "error reading JSON file",
+			expectedError: "failed to read JSON file",
 		},
 		{
 			name:      "valid JSON file",
@@ -216,12 +216,12 @@ func TestProcessJSONPrefixFilterListInput(t *testing.T) {
 		{
 			name:          "invalid JSON",
 			jsonStr:       `{invalid}`,
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:          "file not found",
 			jsonFile:      "/nonexistent/path.json",
-			expectedError: "error reading JSON file",
+			expectedError: "failed to read JSON file",
 		},
 		{
 			name:      "valid JSON file",
@@ -276,7 +276,7 @@ func TestProcessFlagPrefixFilterListInput(t *testing.T) {
 				"address-family": "IPv4",
 				"entries":        `{invalid}`,
 			},
-			expectedError: "error parsing entries JSON",
+			expectedError: "failed to parse entries JSON",
 		},
 	}
 
@@ -401,7 +401,7 @@ func TestProcessFlagMCRInput_ResourceTags(t *testing.T) {
 				"marketplace-visibility": "true",
 				"resource-tags":          `{invalid}`,
 			},
-			expectedError: "error parsing resource tags JSON",
+			expectedError: "failed to parse resource tags JSON",
 		},
 	}
 

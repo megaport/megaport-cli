@@ -366,7 +366,7 @@ func promptForPrefixFilterListDetails(mcrUID string, noColor bool) (*megaport.Cr
 func promptForUpdatePrefixFilterListDetails(ctx context.Context, client *megaport.Client, mcrUID string, prefixFilterListID int, noColor bool) (*megaport.MCRPrefixFilterList, error) {
 	currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
+		return nil, fmt.Errorf("failed to retrieve current prefix filter list: %v", err)
 	}
 
 	fmt.Printf("Current description: %s\n", currentPrefixFilterList.Description)

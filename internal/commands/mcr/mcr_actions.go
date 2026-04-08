@@ -406,7 +406,7 @@ func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	if err != nil {
 		err = utils.WrapAPIError(err, "MCR", mcrUID)
 		output.PrintError("Failed to get MCR: %v", noColor, err)
-		return fmt.Errorf("error getting MCR: %w", err)
+		return fmt.Errorf("failed to get MCR: %w", err)
 	}
 
 	if mcr == nil {
@@ -419,7 +419,7 @@ func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 		cfg := exportMCRConfig(mcr)
 		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
-			return fmt.Errorf("error marshaling export config: %w", err)
+			return fmt.Errorf("failed to marshal export config: %w", err)
 		}
 		fmt.Println(string(jsonBytes))
 		return nil
@@ -427,7 +427,7 @@ func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 
 	err = printMCRs([]*megaport.MCR{mcr}, outputFormat, noColor)
 	if err != nil {
-		return fmt.Errorf("error printing MCRs: %w", err)
+		return fmt.Errorf("failed to print MCRs: %w", err)
 	}
 	return nil
 }
@@ -500,7 +500,7 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		err = utils.WrapAPIError(err, "MCR", mcrUID)
-		return fmt.Errorf("error deleting MCR: %w", err)
+		return fmt.Errorf("failed to delete MCR: %w", err)
 	}
 
 	if resp.IsDeleting {
@@ -531,7 +531,7 @@ func RestoreMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return e
 	})
 	if err != nil {
-		return fmt.Errorf("error restoring MCR: %w", err)
+		return fmt.Errorf("failed to restore MCR: %w", err)
 	}
 
 	if resp.IsRestored {
@@ -560,7 +560,7 @@ func LockMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return e
 	})
 	if err != nil {
-		return fmt.Errorf("error locking MCR: %w", err)
+		return fmt.Errorf("failed to lock MCR: %w", err)
 	}
 
 	output.PrintSuccess("MCR %s locked successfully", noColor, mcrUID)
@@ -584,7 +584,7 @@ func UnlockMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return e
 	})
 	if err != nil {
-		return fmt.Errorf("error unlocking MCR: %w", err)
+		return fmt.Errorf("failed to unlock MCR: %w", err)
 	}
 
 	output.PrintSuccess("MCR %s unlocked successfully", noColor, mcrUID)
@@ -611,12 +611,12 @@ func ListMCRPrefixFilterLists(cmd *cobra.Command, args []string, noColor bool, o
 	spinner.Stop()
 
 	if err != nil {
-		return fmt.Errorf("error listing prefix filter lists: %w", err)
+		return fmt.Errorf("failed to list prefix filter lists: %w", err)
 	}
 
 	err = output.PrintOutput(prefixFilterLists, outputFormat, noColor)
 	if err != nil {
-		return fmt.Errorf("error printing prefix filter lists: %w", err)
+		return fmt.Errorf("failed to print prefix filter lists: %w", err)
 	}
 	return nil
 }
@@ -645,17 +645,17 @@ func GetMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool, out
 	spinner.Stop()
 
 	if err != nil {
-		return fmt.Errorf("error getting prefix filter list: %w", err)
+		return fmt.Errorf("failed to get prefix filter list: %w", err)
 	}
 
 	op, err := toPrefixFilterListOutput(prefixFilterList)
 	if err != nil {
-		return fmt.Errorf("error converting prefix filter list: %w", err)
+		return fmt.Errorf("failed to convert prefix filter list: %w", err)
 	}
 
 	err = output.PrintOutput([]prefixFilterListOutput{op}, outputFormat, noColor)
 	if err != nil {
-		return fmt.Errorf("error printing prefix filter list: %w", err)
+		return fmt.Errorf("failed to print prefix filter list: %w", err)
 	}
 	return nil
 }
@@ -686,7 +686,7 @@ func DeleteMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	spinner.Stop()
 
 	if err != nil {
-		return fmt.Errorf("error deleting prefix filter list: %w", err)
+		return fmt.Errorf("failed to delete prefix filter list: %w", err)
 	}
 
 	if resp.IsDeleted {
@@ -724,7 +724,7 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 
 	if err != nil {
 		output.PrintError("Failed to list MCRs: %v", noColor, err)
-		return fmt.Errorf("error listing MCRs: %w", err)
+		return fmt.Errorf("failed to list MCRs: %w", err)
 	}
 
 	var activeMCRs []*megaport.MCR
@@ -808,7 +808,7 @@ func GetMCRStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 	if err != nil {
 		output.PrintError("Failed to get MCR status: %v", noColor, err)
-		return fmt.Errorf("error getting MCR status: %w", err)
+		return fmt.Errorf("failed to get MCR status: %w", err)
 	}
 
 	if mcr == nil {

@@ -670,7 +670,7 @@ func TestBuildIXRequestFromJSON(t *testing.T) {
 		{
 			name:          "invalid JSON syntax",
 			jsonStr:       `{invalid json}`,
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:    "empty JSON object",
@@ -698,7 +698,7 @@ func TestBuildIXRequestFromJSON(t *testing.T) {
 		{
 			name:          "JSON file not found",
 			jsonFile:      "/nonexistent/path/ix.json",
-			expectedError: "error reading JSON file",
+			expectedError: "failed to read JSON file",
 		},
 	}
 
@@ -950,7 +950,7 @@ func TestBuildUpdateIXRequestFromJSON(t *testing.T) {
 		{
 			name:          "invalid JSON syntax",
 			jsonStr:       `{invalid}`,
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:    "empty JSON object",
@@ -979,7 +979,7 @@ func TestBuildUpdateIXRequestFromJSON(t *testing.T) {
 		{
 			name:          "JSON file not found",
 			jsonFile:      "/nonexistent/path/update.json",
-			expectedError: "error reading JSON file",
+			expectedError: "failed to read JSON file",
 		},
 	}
 

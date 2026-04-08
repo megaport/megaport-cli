@@ -113,7 +113,7 @@ func MakeDirectFetch(url string, token string) (*FetchResponse, error) {
 			}
 
 			console.Call("error", fmt.Sprintf("❌ Error reading body: %s", errMsg))
-			errorChan <- fmt.Errorf("error reading response body: %s", errMsg)
+			errorChan <- fmt.Errorf("failed to read response body: %s", errMsg)
 			return nil
 		})
 

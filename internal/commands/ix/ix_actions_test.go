@@ -862,9 +862,9 @@ func TestDeleteIX(t *testing.T) {
 			ixUID: "ix-error",
 			force: true,
 			setupMock: func(m *MockIXService) {
-				m.deleteIXError = fmt.Errorf("error deleting IX")
+				m.deleteIXError = fmt.Errorf("failed to delete IX")
 			},
-			expectedError: "error deleting IX",
+			expectedError: "failed to delete IX",
 			expectDeleted: false,
 		},
 	}
@@ -1230,7 +1230,7 @@ func TestUpdateIX(t *testing.T) {
 			expectedError: "API error: update failed",
 		},
 		{
-			name:  "error getting original IX",
+			name:  "failed to get original IX",
 			ixUID: "ix-123",
 			flags: map[string]string{
 				"name": "Updated IX",
@@ -1254,7 +1254,7 @@ func TestUpdateIX(t *testing.T) {
 			ixUID:         "ix-123",
 			jsonInput:     `{invalid json`,
 			setupMock:     func(m *MockIXService) {},
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 	}
 
@@ -1482,7 +1482,7 @@ func TestBuyIX_InvalidJSON(t *testing.T) {
 	})
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error parsing JSON")
+	assert.Contains(t, err.Error(), "failed to parse JSON")
 }
 
 func TestBuyIX_LoginError(t *testing.T) {
@@ -1875,7 +1875,7 @@ func TestValidateIX(t *testing.T) {
 			name:          "invalid JSON input",
 			jsonInput:     `{invalid json}`,
 			setupMock:     func(m *MockIXService) {},
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:             "success with JSON file",

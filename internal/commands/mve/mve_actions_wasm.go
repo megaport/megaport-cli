@@ -39,7 +39,7 @@ func listMVEResourceTagsWasmImpl(ctx context.Context, client *megaport.Client, m
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("error logging in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %v", err)
 		}
 	}
 
@@ -54,7 +54,7 @@ func listMVEResourceTagsWasmImpl(ctx context.Context, client *megaport.Client, m
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("error listing MVE resource tags: %v", err)
+		return nil, fmt.Errorf("failed to list MVE resource tags: %v", err)
 	}
 
 	js.Global().Get("console").Call("log", fmt.Sprintf("✅ SDK returned %d resource tags successfully", len(tags)))
@@ -70,7 +70,7 @@ func lockMVEWasmImpl(ctx context.Context, client *megaport.Client, mveUID string
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("error logging in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %v", err)
 		}
 	}
 
@@ -85,7 +85,7 @@ func lockMVEWasmImpl(ctx context.Context, client *megaport.Client, mveUID string
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("error locking MVE: %v", err)
+		return nil, fmt.Errorf("failed to lock MVE: %v", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK ManageProductLock (lock) successful")
@@ -101,7 +101,7 @@ func unlockMVEWasmImpl(ctx context.Context, client *megaport.Client, mveUID stri
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("error logging in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %v", err)
 		}
 	}
 
@@ -116,7 +116,7 @@ func unlockMVEWasmImpl(ctx context.Context, client *megaport.Client, mveUID stri
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("error unlocking MVE: %v", err)
+		return nil, fmt.Errorf("failed to unlock MVE: %v", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK ManageProductLock (unlock) successful")
@@ -132,7 +132,7 @@ func restoreMVEWasmImpl(ctx context.Context, client *megaport.Client, mveUID str
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("error logging in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %v", err)
 		}
 	}
 
@@ -147,7 +147,7 @@ func restoreMVEWasmImpl(ctx context.Context, client *megaport.Client, mveUID str
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("error restoring MVE: %v", err)
+		return nil, fmt.Errorf("failed to restore MVE: %v", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK RestoreProduct successful")

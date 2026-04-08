@@ -65,7 +65,7 @@ func TestGetPortStatus(t *testing.T) {
 			setupMock: func(m *MockPortService) {
 				m.GetPortErr = fmt.Errorf("Port not found")
 			},
-			expectedError: "error getting Port status",
+			expectedError: "failed to get Port status",
 			outputFormat:  "table",
 		},
 		{
@@ -399,7 +399,7 @@ func TestListPortResourceTagsCmd(t *testing.T) {
 			setupMock: func(m *MockPortService) {
 				m.ListPortResourceTagsErr = fmt.Errorf("API error: not found")
 			},
-			expectedError: "error getting resource tags",
+			expectedError: "failed to get resource tags",
 		},
 	}
 
@@ -497,7 +497,7 @@ func TestUpdatePortResourceTagsCmd(t *testing.T) {
 			setupMock: func(m *MockPortService) {
 				m.ListPortResourceTagsResult = map[string]string{}
 			},
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:      "error with API tag listing",
@@ -669,12 +669,12 @@ func TestListPorts(t *testing.T) {
 		{
 			name:          "API error",
 			listErr:       fmt.Errorf("service unavailable"),
-			expectedError: "error listing ports",
+			expectedError: "failed to list ports",
 		},
 		{
 			name:          "login error",
 			loginErr:      fmt.Errorf("invalid credentials"),
-			expectedError: "error logging in",
+			expectedError: "failed to log in",
 		},
 		{
 			name:            "limit results",
@@ -842,7 +842,7 @@ func TestBuyPort(t *testing.T) {
 			name:          "invalid JSON returns error",
 			jsonInput:     `{bad json}`,
 			setupMock:     func(m *MockPortService) {},
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:      "JSON takes precedence over interactive flag",
@@ -1818,7 +1818,7 @@ func TestValidatePort(t *testing.T) {
 			name:          "invalid JSON input",
 			jsonInput:     `{invalid json}`,
 			setupMock:     func(m *MockPortService) {},
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:             "success with JSON file",
@@ -1964,7 +1964,7 @@ func TestValidateLAGPort(t *testing.T) {
 			name:          "invalid JSON input",
 			jsonInput:     `{invalid json}`,
 			setupMock:     func(m *MockPortService) {},
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:             "success with JSON file",

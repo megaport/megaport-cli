@@ -241,7 +241,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 	fmt.Println("Fetching current VXC details...")
 	vxc, err := client.VXCService.GetVXC(ctx, vxcUID)
 	if err != nil {
-		return nil, fmt.Errorf("error fetching VXC details: %v", err)
+		return nil, fmt.Errorf("failed to fetch VXC details: %v", err)
 	}
 
 	fmt.Printf("Current name: %s\n", vxc.Name)
@@ -1141,7 +1141,7 @@ func promptAzureConfig(ctx context.Context, svc megaport.VXCService, noColor boo
 		Partner: "AZURE",
 	})
 	if err != nil {
-		return nil, "", fmt.Errorf("error looking up partner ports: %v", err)
+		return nil, "", fmt.Errorf("failed to look up partner ports: %v", err)
 	}
 	var uid string
 	for _, port := range partnerPortRes.Data.Megaports {

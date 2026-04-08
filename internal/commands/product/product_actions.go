@@ -27,7 +27,7 @@ func ListProducts(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return fmt.Errorf("failed to log in: %w", err)
 	}
 
 	spinner := output.PrintResourceListing("Product", noColor)
@@ -38,7 +38,7 @@ func ListProducts(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 	if err != nil {
 		output.PrintError("Failed to list products: %v", noColor, err)
-		return fmt.Errorf("error listing products: %w", err)
+		return fmt.Errorf("failed to list products: %w", err)
 	}
 
 	// Flag read errors are intentionally ignored — flags are registered by the command builder.
@@ -63,7 +63,7 @@ func ListProducts(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	err = printProducts(filtered, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print products: %v", noColor, err)
-		return fmt.Errorf("error printing products: %w", err)
+		return fmt.Errorf("failed to print products: %w", err)
 	}
 	return nil
 }
@@ -76,7 +76,7 @@ func GetProductType(cmd *cobra.Command, args []string, noColor bool, outputForma
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return fmt.Errorf("failed to log in: %w", err)
 	}
 
 	productUID := args[0]
@@ -89,7 +89,7 @@ func GetProductType(cmd *cobra.Command, args []string, noColor bool, outputForma
 
 	if err != nil {
 		output.PrintError("Failed to get product type: %v", noColor, err)
-		return fmt.Errorf("error getting product type: %w", err)
+		return fmt.Errorf("failed to get product type: %w", err)
 	}
 
 	outputs := []productTypeOutput{
@@ -102,7 +102,7 @@ func GetProductType(cmd *cobra.Command, args []string, noColor bool, outputForma
 	err = output.PrintOutput(outputs, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print product type: %v", noColor, err)
-		return fmt.Errorf("error printing product type: %w", err)
+		return fmt.Errorf("failed to print product type: %w", err)
 	}
 	return nil
 }

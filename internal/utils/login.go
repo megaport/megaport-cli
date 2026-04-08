@@ -20,7 +20,7 @@ func LoginClient(cmd *cobra.Command, defaultTimeout time.Duration, login LoginFu
 	client, err := login(ctx)
 	if err != nil {
 		cancel()
-		return nil, nil, nil, fmt.Errorf("error logging in: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to log in: %w", err)
 	}
 	return ctx, cancel, client, nil
 }

@@ -209,7 +209,7 @@ func TestUpdateServiceKey(t *testing.T) {
 			mockService: &MockServiceKeyService{
 				UpdateServiceKeyError: fmt.Errorf("API failure"),
 			},
-			expectedErr: "error updating service key",
+			expectedErr: "failed to update service key",
 		},
 		{
 			name:        "login error",
@@ -309,7 +309,7 @@ func TestGetServiceKey(t *testing.T) {
 				GetServiceKeyError: fmt.Errorf("service key not found"),
 			},
 			outputFormat: "table",
-			expectedErr:  "error getting service key",
+			expectedErr:  "failed to get service key",
 		},
 	}
 

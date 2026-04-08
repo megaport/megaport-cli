@@ -24,12 +24,12 @@ func TestProcessJSONCreateUserInput(t *testing.T) {
 		{
 			name:          "invalid JSON",
 			jsonStr:       `{invalid}`,
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:          "file not found",
 			jsonFile:      "/nonexistent/path.json",
-			expectedError: "error reading JSON file",
+			expectedError: "failed to read JSON file",
 		},
 		{
 			name:      "valid JSON file",
@@ -77,12 +77,12 @@ func TestProcessJSONUpdateUserInput(t *testing.T) {
 		{
 			name:          "invalid JSON",
 			jsonStr:       `{invalid}`,
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:          "file not found",
 			jsonFile:      "/nonexistent/path.json",
-			expectedError: "error reading JSON file",
+			expectedError: "failed to read JSON file",
 		},
 		{
 			name:      "valid JSON file",

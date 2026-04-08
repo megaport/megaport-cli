@@ -74,7 +74,7 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		output.PrintError("Failed to create service key: %v", noColor, err)
-		return fmt.Errorf("error creating service key: %w", err)
+		return fmt.Errorf("failed to create service key: %w", err)
 	}
 
 	output.PrintResourceCreated("Service Key", resp.ServiceKeyUID, noColor)
@@ -111,7 +111,7 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		output.PrintError("Failed to update service key: %v", noColor, err)
-		return fmt.Errorf("error updating service key: %w", err)
+		return fmt.Errorf("failed to update service key: %w", err)
 	}
 
 	if resp.IsUpdated {
@@ -145,7 +145,7 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 
 	if err != nil {
 		output.PrintError("Failed to list service keys: %v", noColor, err)
-		return fmt.Errorf("error listing service keys: %w", err)
+		return fmt.Errorf("failed to list service keys: %w", err)
 	}
 
 	serviceKeys := resp.ServiceKeys
@@ -170,7 +170,7 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 		op, err := toServiceKeyOutput(sk)
 		if err != nil {
 			output.PrintError("Failed to convert service key: %v", noColor, err)
-			return fmt.Errorf("error converting service key: %w", err)
+			return fmt.Errorf("failed to convert service key: %w", err)
 		}
 		outputs = append(outputs, op)
 	}
@@ -198,13 +198,13 @@ func GetServiceKey(cmd *cobra.Command, args []string, noColor bool, outputFormat
 
 	if err != nil {
 		output.PrintError("Failed to get service key: %v", noColor, err)
-		return fmt.Errorf("error getting service key: %w", err)
+		return fmt.Errorf("failed to get service key: %w", err)
 	}
 
 	op, err := toServiceKeyOutput(resp)
 	if err != nil {
 		output.PrintError("Failed to convert service key: %v", noColor, err)
-		return fmt.Errorf("error converting service key: %w", err)
+		return fmt.Errorf("failed to convert service key: %w", err)
 	}
 	return output.PrintOutput([]serviceKeyOutput{op}, outputFormat, noColor)
 }

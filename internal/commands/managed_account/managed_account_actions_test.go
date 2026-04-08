@@ -592,7 +592,7 @@ func TestCreateManagedAccount_InvalidJSON(t *testing.T) {
 	})
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error parsing JSON")
+	assert.Contains(t, err.Error(), "failed to parse JSON")
 }
 
 func TestCreateManagedAccount_LoginError(t *testing.T) {
@@ -948,7 +948,7 @@ func TestUpdateManagedAccount_InvalidJSON(t *testing.T) {
 	})
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error parsing JSON")
+	assert.Contains(t, err.Error(), "failed to parse JSON")
 }
 
 // Function variable tests - success cases
