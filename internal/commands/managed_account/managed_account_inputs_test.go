@@ -33,7 +33,7 @@ func TestBuildManagedAccountRequestFromJSON_Variants(t *testing.T) {
 		{
 			name:          "empty JSON string with no file",
 			jsonStr:       "",
-			expectedError: "", // ReadJSONInput returns error for empty input
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:         "valid JSON file",
@@ -65,9 +65,6 @@ func TestBuildManagedAccountRequestFromJSON_Variants(t *testing.T) {
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
-			} else if tt.jsonStr == "" && tt.writeFile == "" {
-				// empty JSON string with no file — ReadJSONInput returns error
-				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, req)
