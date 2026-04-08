@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -84,6 +85,12 @@ func authenticateWithMegaport(accessKey, secretKey, environment string) (*Megapo
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		// Log truncated response body server-side for debugging; do not return it to callers
+		if len(body) > 512 {
+			log.Printf("Auth failure response body (truncated): %s", string(body[:512]))
+		} else if len(body) > 0 {
+			log.Printf("Auth failure response body: %s", string(body))
+		}
 		return nil, fmt.Errorf("authentication failed with status %d", resp.StatusCode)
 	}
 

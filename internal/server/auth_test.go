@@ -239,15 +239,15 @@ func TestHandleLogin_SanitizedErrorMessage(t *testing.T) {
 
 	server.HandleLogin(w, req)
 
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+
 	// The response should not contain raw API response body details
 	responseBody := w.Body.String()
 	assert.NotContains(t, responseBody, "access_token")
 	assert.NotContains(t, responseBody, "error_description")
 	assert.NotContains(t, responseBody, "{\"error\"")
-	// Should contain only the generic status-code-based message
-	if w.Code == http.StatusUnauthorized {
-		assert.Contains(t, responseBody, "Authentication failed")
-	}
+	// Should contain only the generic message
+	assert.Contains(t, responseBody, "Authentication failed")
 }
 
 func TestLoginRequest_DefaultEnvironment(t *testing.T) {
