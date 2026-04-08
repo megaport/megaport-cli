@@ -41,6 +41,7 @@ func ListProducts(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 		return fmt.Errorf("error listing products: %w", err)
 	}
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	includeInactive, _ := cmd.Flags().GetBool("include-inactive")
 	filtered := filterProducts(products, includeInactive)
 

@@ -36,6 +36,7 @@ func ListLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat
 
 	filters := map[string]string{}
 	if cmd.Flags().Changed("metro") {
+		// Flag read errors are intentionally ignored — flags are registered by the command builder.
 		metro, _ := cmd.Flags().GetString("metro")
 		filters["metro"] = metro
 		output.PrintInfo("Filtering by metro: %s", noColor, metro)

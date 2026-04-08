@@ -24,6 +24,7 @@ func processJSONCreateUserInput(jsonStr, jsonFile string) (*megaport.CreateUserR
 }
 
 func processFlagCreateUserInput(cmd *cobra.Command) (*megaport.CreateUserRequest, error) {
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	firstName, _ := cmd.Flags().GetString("first-name")
 	lastName, _ := cmd.Flags().GetString("last-name")
 	email, _ := cmd.Flags().GetString("email")

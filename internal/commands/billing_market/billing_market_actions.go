@@ -76,6 +76,7 @@ func SetBillingMarket(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func buildSetBillingMarketRequest(cmd *cobra.Command) (*megaport.SetBillingMarketRequest, error) {
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	currency, _ := cmd.Flags().GetString("currency")
 	language, _ := cmd.Flags().GetString("language")
 	contactName, _ := cmd.Flags().GetString("billing-contact-name")

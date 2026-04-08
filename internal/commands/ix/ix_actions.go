@@ -38,6 +38,7 @@ func ListIXs(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 	}
 	defer cancel()
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	name, _ := cmd.Flags().GetString("name")
 	asn, _ := cmd.Flags().GetInt("asn")
 	vlan, _ := cmd.Flags().GetInt("vlan")

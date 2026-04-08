@@ -61,6 +61,7 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	}
 	defer cancel()
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	name, _ := cmd.Flags().GetString("name")
 	nameContains, _ := cmd.Flags().GetString("name-contains")
 	rateLimit, _ := cmd.Flags().GetInt("rate-limit")

@@ -50,6 +50,7 @@ func ShowTopology(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 		return fmt.Errorf("error logging in: %w", err)
 	}
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	includeInactive, _ := cmd.Flags().GetBool("include-inactive")
 	typeFilter, _ := cmd.Flags().GetString("type")
 	typeFilter = strings.ToLower(strings.TrimSpace(typeFilter))

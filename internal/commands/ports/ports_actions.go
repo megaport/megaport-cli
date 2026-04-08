@@ -73,6 +73,7 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	noWait, _ := cmd.Flags().GetBool("no-wait")
 	if !noWait {
 		req.WaitForProvision = true

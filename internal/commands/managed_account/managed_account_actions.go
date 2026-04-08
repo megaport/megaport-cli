@@ -20,6 +20,7 @@ func ListManagedAccounts(cmd *cobra.Command, args []string, noColor bool, output
 	}
 	defer cancel()
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	accountName, _ := cmd.Flags().GetString("account-name")
 	accountRef, _ := cmd.Flags().GetString("account-ref")
 

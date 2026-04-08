@@ -84,6 +84,7 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 }
 
 func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error) {
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	name, _ := cmd.Flags().GetString("name")
 	term, _ := cmd.Flags().GetInt("term")
 	locationID, _ := cmd.Flags().GetInt("location-id")

@@ -54,6 +54,7 @@ func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	}
 	defer cancel()
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	locationID, _ := cmd.Flags().GetInt("location-id")
 	vendor, _ := cmd.Flags().GetString("vendor")
 	name, _ := cmd.Flags().GetString("name")

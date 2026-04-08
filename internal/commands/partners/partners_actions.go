@@ -29,6 +29,7 @@ func ListPartners(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 		return fmt.Errorf("error listing partners: %w", err)
 	}
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	productName, _ := cmd.Flags().GetString("product-name")
 	connectType, _ := cmd.Flags().GetString("connect-type")
 	companyName, _ := cmd.Flags().GetString("company-name")

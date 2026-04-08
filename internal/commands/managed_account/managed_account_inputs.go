@@ -24,6 +24,7 @@ func parseManagedAccountRequestJSON(jsonStr, jsonFile string) (*megaport.Managed
 }
 
 func buildManagedAccountRequestFromFlags(cmd *cobra.Command) (*megaport.ManagedAccountRequest, error) { //nolint:unparam
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	accountName, _ := cmd.Flags().GetString("account-name")
 	accountRef, _ := cmd.Flags().GetString("account-ref")
 

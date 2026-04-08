@@ -15,6 +15,7 @@ import (
 )
 
 var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc megaport.VXCService) (*megaport.BuyVXCRequest, error) {
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	aEndUID, _ := cmd.Flags().GetString("a-end-uid")
 
 	name, _ := cmd.Flags().GetString("name")

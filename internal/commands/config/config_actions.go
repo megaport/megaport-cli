@@ -29,6 +29,7 @@ func maskAccessKey(key string) string {
 
 func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	profileName := args[0]
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	accessKey, _ := cmd.Flags().GetString("access-key")
 	secretKey, _ := cmd.Flags().GetString("secret-key")
 	environment, _ := cmd.Flags().GetString("environment")

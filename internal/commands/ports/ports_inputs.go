@@ -11,6 +11,7 @@ import (
 )
 
 func processFlagLAGPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, error) {
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	name, _ := cmd.Flags().GetString("name")
 	term, _ := cmd.Flags().GetInt("term")
 	portSpeed, _ := cmd.Flags().GetInt("port-speed")

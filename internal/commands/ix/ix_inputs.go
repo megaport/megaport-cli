@@ -10,6 +10,7 @@ import (
 )
 
 func buildIXRequestFromFlags(cmd *cobra.Command) (*megaport.BuyIXRequest, error) { //nolint:unparam
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	productUID, _ := cmd.Flags().GetString("product-uid")
 	name, _ := cmd.Flags().GetString("name")
 	networkServiceType, _ := cmd.Flags().GetString("network-service-type")

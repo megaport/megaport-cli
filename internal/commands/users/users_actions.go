@@ -14,6 +14,7 @@ import (
 )
 
 func buildCreateUserRequest(cmd *cobra.Command, noColor bool) (*megaport.CreateUserRequest, error) {
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	interactive, _ := cmd.Flags().GetBool("interactive")
 	jsonStr, _ := cmd.Flags().GetString("json")
 	jsonFile, _ := cmd.Flags().GetString("json-file")

@@ -13,6 +13,7 @@ import (
 )
 
 func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	productUID, _ := cmd.Flags().GetString("product-uid")
 	productID, _ := cmd.Flags().GetInt("product-id")
 	singleUse, _ := cmd.Flags().GetBool("single-use")

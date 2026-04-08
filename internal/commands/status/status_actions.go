@@ -44,6 +44,7 @@ func StatusDashboard(cmd *cobra.Command, args []string, noColor bool, outputForm
 		return fmt.Errorf("error logging in: %w", err)
 	}
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	includeInactive, _ := cmd.Flags().GetBool("include-inactive")
 
 	spinner := output.PrintResourceListing("resource", noColor)
