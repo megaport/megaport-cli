@@ -221,6 +221,35 @@ func TestHandleSessionCheck_MissingToken(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
+func TestHandleLogin_SanitizedErrorMessage(t *testing.T) {
+	server := createTestServer()
+
+	loginReq := LoginRequest{
+		AccessKey:   "invalid-access-key",
+		SecretKey:   "invalid-secret-key",
+		Environment: "production",
+	}
+
+	body, err := json.Marshal(loginReq)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	server.HandleLogin(w, req)
+
+	// The response should not contain raw API response body details
+	responseBody := w.Body.String()
+	assert.NotContains(t, responseBody, "access_token")
+	assert.NotContains(t, responseBody, "error_description")
+	assert.NotContains(t, responseBody, "{\"error\"")
+	// Should contain only the generic status-code-based message
+	if w.Code == http.StatusUnauthorized {
+		assert.Contains(t, responseBody, "Authentication failed")
+	}
+}
+
 func TestLoginRequest_DefaultEnvironment(t *testing.T) {
 	server := createTestServer()
 

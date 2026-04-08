@@ -84,7 +84,7 @@ func authenticateWithMegaport(accessKey, secretKey, environment string) (*Megapo
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("authentication failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("authentication failed with status %d", resp.StatusCode)
 	}
 
 	// Parse response
