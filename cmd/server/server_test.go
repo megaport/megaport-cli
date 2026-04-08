@@ -6,6 +6,7 @@ package main
 import (
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -571,4 +572,123 @@ func TestAddCorsHeaders_GETPassesThroughToInner(t *testing.T) {
 	handler.ServeHTTP(w, r)
 
 	assert.True(t, innerCalled, "inner handler should be called for GET requests")
+}
+
+func TestSetSecurityHeaders(t *testing.T) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Security headers are applied via withSecurityHeaders wrapping addCorsHeaders,
+	// matching the production route: withSecurityHeaders(addCorsHeaders(fs))
+	handler := withSecurityHeaders(addCorsHeaders(inner))
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest("GET", "/index.html", nil)
+	r.Header.Set("Origin", "http://localhost:8080")
+
+	handler.ServeHTTP(w, r)
+
+	assert.Equal(t, "nosniff", w.Header().Get("X-Content-Type-Options"))
+	assert.Equal(t, "DENY", w.Header().Get("X-Frame-Options"))
+	assert.Equal(t, "strict-origin-when-cross-origin", w.Header().Get("Referrer-Policy"))
+	assert.Contains(t, w.Header().Get("Content-Security-Policy"), "default-src 'self'")
+}
+
+func TestWithSecurityHeaders(t *testing.T) {
+	innerCalled := false
+	handler := withSecurityHeaders(func(w http.ResponseWriter, r *http.Request) {
+		innerCalled = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest("GET", "/test", nil)
+
+	handler.ServeHTTP(w, r)
+
+	assert.True(t, innerCalled)
+	assert.Equal(t, "nosniff", w.Header().Get("X-Content-Type-Options"))
+	assert.Equal(t, "DENY", w.Header().Get("X-Frame-Options"))
+}
+
+func TestRateLimiter_AllowsUnderLimit(t *testing.T) {
+	rl := newRateLimiter(10, 1*time.Minute)
+
+	for i := 0; i < 10; i++ {
+		assert.True(t, rl.Allow("127.0.0.1"), "request %d should be allowed", i+1)
+	}
+}
+
+func TestRateLimiter_BlocksOverLimit(t *testing.T) {
+	rl := newRateLimiter(5, 1*time.Minute)
+
+	for i := 0; i < 5; i++ {
+		assert.True(t, rl.Allow("127.0.0.1"))
+	}
+
+	assert.False(t, rl.Allow("127.0.0.1"), "6th request should be blocked")
+}
+
+func TestRateLimiter_SeparateKeysAreIndependent(t *testing.T) {
+	rl := newRateLimiter(2, 1*time.Minute)
+
+	assert.True(t, rl.Allow("ip1"))
+	assert.True(t, rl.Allow("ip1"))
+	assert.False(t, rl.Allow("ip1"))
+
+	// Different key should still be allowed
+	assert.True(t, rl.Allow("ip2"))
+}
+
+func TestRateLimiter_ResetsAfterWindow(t *testing.T) {
+	rl := newRateLimiter(2, 50*time.Millisecond)
+
+	assert.True(t, rl.Allow("key"))
+	assert.True(t, rl.Allow("key"))
+	assert.False(t, rl.Allow("key"))
+
+	// Wait for window to expire
+	time.Sleep(100 * time.Millisecond)
+
+	assert.True(t, rl.Allow("key"), "should be allowed after window expires")
+}
+
+func TestLoginRateLimiting(t *testing.T) {
+	srv := newTestServer()
+
+	loginLimiter := newRateLimiter(3, 1*time.Minute)
+
+	handler := withSecurityHeaders(func(w http.ResponseWriter, r *http.Request) {
+		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+		if ip == "" {
+			ip = r.RemoteAddr
+		}
+		if !loginLimiter.Allow(ip) {
+			w.Header().Set("Retry-After", "60")
+			http.Error(w, "Too many login attempts, please try again later", http.StatusTooManyRequests)
+			return
+		}
+		srv.HandleLogin(w, r)
+	})
+
+	// First 3 requests should pass through (will fail auth but not be rate limited)
+	for i := 0; i < 3; i++ {
+		w := httptest.NewRecorder()
+		body := strings.NewReader(`{"accessKey":"k","secretKey":"s"}`)
+		r := httptest.NewRequest("POST", "/auth/login", body)
+		r.RemoteAddr = "127.0.0.1:12345"
+		handler.ServeHTTP(w, r)
+		assert.NotEqual(t, http.StatusTooManyRequests, w.Code, "request %d should not be rate limited", i+1)
+	}
+
+	// 4th request should be rate limited
+	w := httptest.NewRecorder()
+	body := strings.NewReader(`{"accessKey":"k","secretKey":"s"}`)
+	r := httptest.NewRequest("POST", "/auth/login", body)
+	r.RemoteAddr = "127.0.0.1:12345"
+	handler.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusTooManyRequests, w.Code)
+	assert.Equal(t, "60", w.Header().Get("Retry-After"))
+	assert.Contains(t, w.Body.String(), "Too many login attempts")
 }

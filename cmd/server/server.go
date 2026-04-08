@@ -5,12 +5,14 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/server"
@@ -47,6 +49,96 @@ func setCORSHeaders(w http.ResponseWriter, r *http.Request, allowedHeaders strin
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
 	}
+}
+
+// setSecurityHeaders sets defense-in-depth security headers on all responses.
+func setSecurityHeaders(w http.ResponseWriter) {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://*.megaport.com")
+	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+}
+
+// withSecurityHeaders wraps an http.HandlerFunc to add security headers.
+func withSecurityHeaders(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		setSecurityHeaders(w)
+		next(w, r)
+	}
+}
+
+// rateLimiter implements a simple sliding window rate limiter.
+type rateLimiter struct {
+	mu       sync.Mutex
+	attempts map[string][]time.Time
+	limit    int
+	window   time.Duration
+}
+
+// newRateLimiter creates a rate limiter that allows limit requests per window.
+func newRateLimiter(limit int, window time.Duration) *rateLimiter {
+	return &rateLimiter{
+		attempts: make(map[string][]time.Time),
+		limit:    limit,
+		window:   window,
+	}
+}
+
+// Allow returns true if the key is within the rate limit.
+func (rl *rateLimiter) Allow(key string) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	now := time.Now()
+	cutoff := now.Add(-rl.window)
+
+	// Filter to only recent attempts
+	var recent []time.Time
+	for _, t := range rl.attempts[key] {
+		if t.After(cutoff) {
+			recent = append(recent, t)
+		}
+	}
+
+	if len(recent) >= rl.limit {
+		rl.attempts[key] = recent
+		return false
+	}
+
+	rl.attempts[key] = append(recent, now)
+	return true
+}
+
+// cleanup removes stale entries from the rate limiter map.
+func (rl *rateLimiter) cleanup() {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	cutoff := time.Now().Add(-rl.window)
+	for key, attempts := range rl.attempts {
+		var recent []time.Time
+		for _, t := range attempts {
+			if t.After(cutoff) {
+				recent = append(recent, t)
+			}
+		}
+		if len(recent) == 0 {
+			delete(rl.attempts, key)
+		} else {
+			rl.attempts[key] = recent
+		}
+	}
+}
+
+// startCleanup runs periodic cleanup of stale rate limiter entries.
+func (rl *rateLimiter) startCleanup(interval time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for range ticker.C {
+			rl.cleanup()
+		}
+	}()
 }
 
 // Optimized HTTP client with connection pooling
@@ -86,22 +178,37 @@ func main() {
 	// Create server with session management
 	srv := server.NewServer(*sessionDuration, log.Default())
 
+	// Rate limiter for login endpoint: 10 attempts per minute per IP
+	loginLimiter := newRateLimiter(10, 1*time.Minute)
+	loginLimiter.startCleanup(5 * time.Minute)
+
 	// Authentication endpoints
-	http.HandleFunc("/auth/login", srv.HandleLogin)
-	http.HandleFunc("/auth/logout", srv.HandleLogout)
-	http.HandleFunc("/auth/check", srv.HandleSessionCheck)
+	http.HandleFunc("/auth/login", withSecurityHeaders(func(w http.ResponseWriter, r *http.Request) {
+		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+		if ip == "" {
+			ip = r.RemoteAddr
+		}
+		if !loginLimiter.Allow(ip) {
+			w.Header().Set("Retry-After", fmt.Sprintf("%d", int(loginLimiter.window.Seconds())))
+			http.Error(w, "Too many login attempts, please try again later", http.StatusTooManyRequests)
+			return
+		}
+		srv.HandleLogin(w, r)
+	}))
+	http.HandleFunc("/auth/logout", withSecurityHeaders(srv.HandleLogout))
+	http.HandleFunc("/auth/check", withSecurityHeaders(srv.HandleSessionCheck))
 
 	// Authenticated API proxy
-	http.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/", withSecurityHeaders(func(w http.ResponseWriter, r *http.Request) {
 		authenticatedProxyHandler(w, r, srv)
-	})
+	}))
 
 	// Legacy proxy handler (backward compatible)
-	http.HandleFunc("/proxy/", proxyHandler)
+	http.HandleFunc("/proxy/", withSecurityHeaders(proxyHandler))
 
 	// Static file server for everything else
 	fs := http.FileServer(http.Dir(*webDir))
-	http.Handle("/", addCorsHeaders(fs))
+	http.Handle("/", withSecurityHeaders(addCorsHeaders(fs)))
 
 	log.Printf("Starting Megaport CLI WASM Server on http://localhost:%s", *port)
 	log.Printf("Serving files from: %s", *webDir)
@@ -204,8 +311,10 @@ func authenticatedProxyHandler(w http.ResponseWriter, r *http.Request, srv *serv
 		}
 	}
 
-	// Add CORS headers
+	// Add CORS headers and re-apply security headers after upstream header copy
+	// to ensure upstream cannot override our security policy
 	setCORSHeaders(w, r, "Content-Type, Authorization, X-Session-Token")
+	setSecurityHeaders(w)
 
 	// Write response
 	w.WriteHeader(resp.StatusCode)
@@ -282,8 +391,10 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Add CORS headers
+	// Add CORS headers and re-apply security headers after upstream header copy
+	// to ensure upstream cannot override our security policy
 	setCORSHeaders(w, r, "Content-Type, Authorization")
+	setSecurityHeaders(w)
 
 	// Write status code
 	w.WriteHeader(resp.StatusCode)
