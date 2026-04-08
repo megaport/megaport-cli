@@ -389,7 +389,7 @@ func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -449,7 +449,7 @@ func watchGetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -512,7 +512,7 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 func RestoreMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -542,7 +542,7 @@ func RestoreMCR(cmd *cobra.Command, args []string, noColor bool) error {
 func LockMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -565,7 +565,7 @@ func LockMCR(cmd *cobra.Command, args []string, noColor bool) error {
 func UnlockMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -591,7 +591,7 @@ func ListMCRPrefixFilterLists(cmd *cobra.Command, args []string, noColor bool, o
 
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -620,7 +620,7 @@ func GetMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool, out
 
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -655,7 +655,7 @@ func GetMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool, out
 func DeleteMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -694,7 +694,7 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -785,7 +785,7 @@ func GetMCRStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 

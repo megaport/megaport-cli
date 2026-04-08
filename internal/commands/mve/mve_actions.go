@@ -50,7 +50,7 @@ func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -333,7 +333,7 @@ func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -401,7 +401,7 @@ func ListMVEImages(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -442,7 +442,7 @@ func ListAvailableMVESizes(cmd *cobra.Command, args []string, noColor bool, outp
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -580,7 +580,7 @@ func GetMVEStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -643,7 +643,7 @@ func watchMVEStatus(cmd *cobra.Command, args []string, noColor bool, outputForma
 func LockMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -666,7 +666,7 @@ func LockMVE(cmd *cobra.Command, args []string, noColor bool) error {
 func UnlockMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -689,7 +689,7 @@ func UnlockMVE(cmd *cobra.Command, args []string, noColor bool) error {
 func RestoreMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 

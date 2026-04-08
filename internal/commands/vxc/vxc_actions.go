@@ -57,7 +57,7 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -137,7 +137,7 @@ func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -230,7 +230,7 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel, client, err := utils.LoginClient(cmd, utils.DefaultMutationTimeout, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -300,7 +300,7 @@ func ValidateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
@@ -504,7 +504,7 @@ func GetVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 	defer cancel()
 
