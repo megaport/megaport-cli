@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	megaport "github.com/megaport/megaportgo"
@@ -29,7 +30,13 @@ func WatchResource(
 	login LoginFunc,
 	pollFn func(ctx context.Context, client *megaport.Client) (string, error),
 ) error {
-	interval, _ := cmd.Flags().GetDuration("interval")
+	interval, err := cmd.Flags().GetDuration("interval")
+	if err != nil {
+		return fmt.Errorf("invalid --interval flag: %w", err)
+	}
+	if interval <= 0 {
+		return fmt.Errorf("--interval must be greater than 0")
+	}
 
 	ctx, cancel, client, err := LoginClient(cmd, DefaultWatchTimeout, login)
 	if err != nil {
