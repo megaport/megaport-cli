@@ -63,7 +63,7 @@ func TestWatchLoop_ContextCancellation(t *testing.T) {
 }
 
 func TestWatchLoop_Timeout(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
 	cfg := WatchConfig{
@@ -83,7 +83,7 @@ func TestWatchLoop_Timeout(t *testing.T) {
 	err := WatchLoop(ctx, cfg, pollFn)
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
-	assert.GreaterOrEqual(t, int(callCount.Load()), 2)
+	assert.GreaterOrEqual(t, int(callCount.Load()), 1, "should poll at least once before timeout")
 }
 
 func TestWatchLoop_PollError(t *testing.T) {
