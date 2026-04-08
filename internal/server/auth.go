@@ -144,7 +144,7 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		var ae *authError
 		if errors.As(err, &ae) && ae.ResponseBody != "" {
-			s.logger.Printf("Authentication failed: %v, response body: %s", err, ae.ResponseBody)
+			s.logger.Printf("Authentication failed: %v, response body: %q", err, ae.ResponseBody)
 		} else {
 			s.logger.Printf("Authentication failed: %v", err)
 		}
