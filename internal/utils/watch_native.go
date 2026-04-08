@@ -34,8 +34,8 @@ func WatchLoop(ctx context.Context, cfg WatchConfig, pollFn func(ctx context.Con
 			case <-ctx.Done():
 				fmt.Println()
 				if ctx.Err() == context.DeadlineExceeded {
-					output.PrintError("Watch timed out. Use --timeout <duration> to extend (e.g., --timeout 1h).", cfg.NoColor)
-					return fmt.Errorf("watch timed out for %s %s: %w", cfg.ResourceType, cfg.ResourceUID, ctx.Err())
+					return fmt.Errorf("watch timed out for %s %s — use --timeout <duration> to extend (e.g., --timeout 1h): %w",
+						cfg.ResourceType, cfg.ResourceUID, ctx.Err())
 				}
 				output.PrintInfo("Watch stopped.", cfg.NoColor)
 				return nil
