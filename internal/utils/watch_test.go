@@ -62,6 +62,30 @@ func TestWatchLoop_ContextCancellation(t *testing.T) {
 	assert.GreaterOrEqual(t, int(callCount.Load()), 2)
 }
 
+func TestWatchLoop_Timeout(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+
+	cfg := WatchConfig{
+		Interval:     50 * time.Millisecond,
+		NoColor:      true,
+		OutputFormat: "json",
+		ResourceType: "Port",
+		ResourceUID:  "test-uid",
+	}
+
+	var callCount atomic.Int32
+	pollFn := func(_ context.Context) (string, error) {
+		callCount.Add(1)
+		return "CONFIGURED", nil
+	}
+
+	err := WatchLoop(ctx, cfg, pollFn)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.GreaterOrEqual(t, int(callCount.Load()), 1, "should poll at least once before timeout")
+}
+
 func TestWatchLoop_PollError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 

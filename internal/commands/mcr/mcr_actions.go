@@ -435,7 +435,8 @@ func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 func watchGetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	interval, _ := cmd.Flags().GetDuration("interval")
 
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultWatchTimeout)
+	defer cancel()
 	client, err := config.Login(ctx)
 	if err != nil {
 		return fmt.Errorf("error logging in: %w", err)
@@ -858,7 +859,8 @@ func GetMCRStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 func watchMCRStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	interval, _ := cmd.Flags().GetDuration("interval")
 
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultWatchTimeout)
+	defer cancel()
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
