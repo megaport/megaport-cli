@@ -311,8 +311,10 @@ func authenticatedProxyHandler(w http.ResponseWriter, r *http.Request, srv *serv
 		}
 	}
 
-	// Add CORS headers
+	// Add CORS headers and re-apply security headers after upstream header copy
+	// to ensure upstream cannot override our security policy
 	setCORSHeaders(w, r, "Content-Type, Authorization, X-Session-Token")
+	setSecurityHeaders(w)
 
 	// Write response
 	w.WriteHeader(resp.StatusCode)
@@ -389,8 +391,10 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Add CORS headers
+	// Add CORS headers and re-apply security headers after upstream header copy
+	// to ensure upstream cannot override our security policy
 	setCORSHeaders(w, r, "Content-Type, Authorization")
+	setSecurityHeaders(w)
 
 	// Write status code
 	w.WriteHeader(resp.StatusCode)
