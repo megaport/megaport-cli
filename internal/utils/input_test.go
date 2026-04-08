@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -215,4 +216,34 @@ func TestResolveInput_NilCmd(t *testing.T) {
 	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no command configured")
+}
+
+func TestReadJSONInput_FromString(t *testing.T) {
+	data, err := ReadJSONInput(`{"name":"test"}`, "")
+	require.NoError(t, err)
+	assert.Equal(t, `{"name":"test"}`, string(data))
+}
+
+func TestReadJSONInput_FromFile(t *testing.T) {
+	tmpFile := t.TempDir() + "/test.json"
+	require.NoError(t, os.WriteFile(tmpFile, []byte(`{"key":"value"}`), 0644))
+
+	data, err := ReadJSONInput("", tmpFile)
+	require.NoError(t, err)
+	assert.Equal(t, `{"key":"value"}`, string(data))
+}
+
+func TestReadJSONInput_FileNotFound(t *testing.T) {
+	_, err := ReadJSONInput("", "/nonexistent/path.json")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "error reading JSON file")
+}
+
+func TestReadJSONInput_FileOverridesString(t *testing.T) {
+	tmpFile := t.TempDir() + "/test.json"
+	require.NoError(t, os.WriteFile(tmpFile, []byte(`{"from":"file"}`), 0644))
+
+	data, err := ReadJSONInput(`{"from":"string"}`, tmpFile)
+	require.NoError(t, err)
+	assert.Equal(t, `{"from":"file"}`, string(data))
 }

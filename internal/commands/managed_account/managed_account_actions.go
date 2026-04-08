@@ -2,6 +2,7 @@ package managed_account
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
@@ -12,14 +13,12 @@ import (
 
 func ListManagedAccounts(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := utils.ContextFromCmd(cmd)
-	defer cancel()
-
-	client, err := config.Login(ctx)
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
+	defer cancel()
 
 	accountName, _ := cmd.Flags().GetString("account-name")
 	accountRef, _ := cmd.Flags().GetString("account-ref")
@@ -62,13 +61,11 @@ func ListManagedAccounts(cmd *cobra.Command, args []string, noColor bool, output
 
 func GetManagedAccount(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := utils.ContextFromCmd(cmd)
-	defer cancel()
-
-	client, err := config.Login(ctx)
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
+	defer cancel()
 
 	companyUID := args[0]
 	accountName := args[1]

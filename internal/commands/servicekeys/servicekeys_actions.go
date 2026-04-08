@@ -126,13 +126,12 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
 
-	ctx, cancel := utils.ContextFromCmd(cmd)
-	defer cancel()
-	client, err := config.Login(ctx)
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
+	defer cancel()
 
 	spinner := output.PrintResourceListing("Service Key", noColor)
 
@@ -183,13 +182,12 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 func GetServiceKey(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
 
-	ctx, cancel := utils.ContextFromCmd(cmd)
-	defer cancel()
-	client, err := config.Login(ctx)
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
+	defer cancel()
 
 	keyID := args[0]
 

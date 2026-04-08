@@ -3,23 +3,16 @@ package managed_account
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
 
 func parseManagedAccountRequestJSON(jsonStr, jsonFile string) (*megaport.ManagedAccountRequest, error) {
-	var jsonData []byte
-	var err error
-
-	if jsonFile != "" {
-		jsonData, err = os.ReadFile(jsonFile)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-	} else {
-		jsonData = []byte(jsonStr)
+	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
+	if err != nil {
+		return nil, err
 	}
 
 	req := &megaport.ManagedAccountRequest{}

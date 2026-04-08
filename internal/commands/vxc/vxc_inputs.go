@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"os"
 	"strings"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -717,24 +717,14 @@ func parseVXCEndpointConfig(endConfigRaw map[string]interface{}, endLabel string
 }
 
 func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.BuyVXCRequest, error) {
-	var jsonData string
-
-	if jsonStr != "" {
-		jsonData = jsonStr
-	} else if jsonFilePath != "" {
-		// Read JSON from file
-		data, err := os.ReadFile(jsonFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-		jsonData = string(data)
-	} else {
-		return nil, fmt.Errorf("either json or json-file must be provided")
+	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFilePath)
+	if err != nil {
+		return nil, err
 	}
 
 	// Parse raw JSON first to handle partner configs correctly
 	var rawData map[string]interface{}
-	if err := json.Unmarshal([]byte(jsonData), &rawData); err != nil {
+	if err := json.Unmarshal(jsonData, &rawData); err != nil {
 		return nil, fmt.Errorf("error parsing JSON: %v", err)
 	}
 
@@ -950,24 +940,14 @@ var buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateV
 }
 
 var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*megaport.UpdateVXCRequest, error) {
-	var jsonData string
-
-	if jsonStr != "" {
-		jsonData = jsonStr
-	} else if jsonFilePath != "" {
-		// Read JSON from file
-		data, err := os.ReadFile(jsonFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-		jsonData = string(data)
-	} else {
-		return nil, fmt.Errorf("either json or json-file must be provided")
+	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFilePath)
+	if err != nil {
+		return nil, err
 	}
 
 	// Parse raw JSON first to handle partner configs
 	var rawData map[string]interface{}
-	if err := json.Unmarshal([]byte(jsonData), &rawData); err != nil {
+	if err := json.Unmarshal(jsonData, &rawData); err != nil {
 		return nil, fmt.Errorf("error parsing JSON: %v", err)
 	}
 
