@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/output"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -40,6 +41,7 @@ func WatchResource(
 
 	ctx, cancel, client, err := LoginClient(cmd, DefaultWatchTimeout, login)
 	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 	defer cancel()

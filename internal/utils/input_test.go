@@ -239,11 +239,11 @@ func TestReadJSONInput_FileNotFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "error reading JSON file")
 }
 
-func TestReadJSONInput_FileOverridesString(t *testing.T) {
+func TestReadJSONInput_StringOverridesFile(t *testing.T) {
 	tmpFile := t.TempDir() + "/test.json"
 	require.NoError(t, os.WriteFile(tmpFile, []byte(`{"from":"file"}`), 0644))
 
 	data, err := ReadJSONInput(`{"from":"string"}`, tmpFile)
 	require.NoError(t, err)
-	assert.Equal(t, `{"from":"file"}`, string(data))
+	assert.Equal(t, `{"from":"string"}`, string(data))
 }

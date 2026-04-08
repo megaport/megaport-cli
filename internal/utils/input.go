@@ -8,9 +8,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// ReadJSONInput reads JSON data from either a file path or a raw string.
-// If jsonFile is non-empty, reads from that file; otherwise uses jsonStr.
+// ReadJSONInput reads JSON data from either a raw string or a file path.
+// If jsonStr is non-empty, it takes precedence; otherwise reads from jsonFile.
 func ReadJSONInput(jsonStr, jsonFile string) ([]byte, error) {
+	if jsonStr != "" {
+		return []byte(jsonStr), nil
+	}
 	if jsonFile != "" {
 		data, err := os.ReadFile(jsonFile)
 		if err != nil {
@@ -18,7 +21,7 @@ func ReadJSONInput(jsonStr, jsonFile string) ([]byte, error) {
 		}
 		return data, nil
 	}
-	return []byte(jsonStr), nil
+	return nil, nil
 }
 
 // InputConfig configures how ResolveInput resolves the request object from

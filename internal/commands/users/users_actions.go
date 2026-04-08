@@ -120,8 +120,6 @@ func ListUsers(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 
 func GetUser(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := utils.ContextFromCmd(cmd)
-	defer cancel()
 
 	employeeID, err := strconv.Atoi(args[0])
 	if err != nil {
@@ -129,11 +127,12 @@ func GetUser(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 		return fmt.Errorf("invalid employee ID: %w", err)
 	}
 
-	client, err := config.Login(ctx)
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
+	defer cancel()
 
 	spinner := output.PrintResourceGetting("User", args[0], noColor)
 
