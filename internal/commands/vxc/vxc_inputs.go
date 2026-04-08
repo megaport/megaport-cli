@@ -690,7 +690,7 @@ func parseVXCEndpointConfig(endConfigRaw map[string]interface{}, endLabel string
 	if partnerConfigRaw, ok := endConfigRaw["partnerConfig"].(map[string]interface{}); ok {
 		partnerConfig, err := parsePartnerConfigFromMap(partnerConfigRaw)
 		if err != nil {
-			return config, fmt.Errorf("failed to parse %s partner config: %v", endLabel, err)
+			return config, fmt.Errorf("failed to parse %s partner config: %w", endLabel, err)
 		}
 
 		config.PartnerConfig = partnerConfig
