@@ -24,7 +24,7 @@ func ListManagedAccounts(cmd *cobra.Command, args []string, noColor bool, output
 	accountName, _ := cmd.Flags().GetString("account-name")
 	accountRef, _ := cmd.Flags().GetString("account-ref")
 
-	spinner := output.PrintResourceListing("managed account", noColor)
+	spinner := output.PrintResourceListing("Managed Account", noColor)
 
 	accounts, err := client.ManagedAccountService.ListManagedAccounts(ctx)
 
@@ -72,7 +72,7 @@ func GetManagedAccount(cmd *cobra.Command, args []string, noColor bool, outputFo
 	companyUID := args[0]
 	accountName := args[1]
 
-	spinner := output.PrintResourceGetting("managed account", accountName, noColor)
+	spinner := output.PrintResourceGetting("Managed Account", accountName, noColor)
 
 	account, err := getManagedAccountFunc(ctx, client, companyUID, accountName)
 
@@ -133,7 +133,7 @@ func CreateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 		return err
 	}
 
-	spinner := output.PrintResourceCreating("managed account", req.AccountName, noColor)
+	spinner := output.PrintResourceCreating("Managed Account", req.AccountName, noColor)
 	account, err := createManagedAccountFunc(ctx, client, req)
 	spinner.Stop()
 
@@ -142,7 +142,7 @@ func CreateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 		return err
 	}
 
-	output.PrintResourceCreated("managed account", account.CompanyUID, noColor)
+	output.PrintResourceCreated("Managed Account", account.CompanyUID, noColor)
 	return nil
 }
 
@@ -202,7 +202,7 @@ func UpdateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 		}
 	}
 
-	updateSpinner := output.PrintResourceUpdating("managed account", companyUID, noColor)
+	updateSpinner := output.PrintResourceUpdating("Managed Account", companyUID, noColor)
 	updatedAccount, err := updateManagedAccountFunc(ctx, client, companyUID, req)
 	updateSpinner.Stop()
 
@@ -211,7 +211,7 @@ func UpdateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 		return err
 	}
 
-	output.PrintResourceUpdated("managed account", companyUID, noColor)
+	output.PrintResourceUpdated("Managed Account", companyUID, noColor)
 
 	displayManagedAccountChanges(originalAccount, updatedAccount, noColor)
 

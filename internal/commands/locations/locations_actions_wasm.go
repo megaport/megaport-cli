@@ -28,7 +28,7 @@ func listLocationsWasmImpl(ctx context.Context, client *megaport.Client) ([]*meg
 		client, err = config.NewUnauthenticatedClient()
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Failed to create API client: %v", err))
-			return nil, fmt.Errorf("failed to create API client: %v", err)
+			return nil, fmt.Errorf("failed to create API client: %w", err)
 		}
 	}
 
@@ -36,7 +36,7 @@ func listLocationsWasmImpl(ctx context.Context, client *megaport.Client) ([]*meg
 	locations, err := client.LocationService.ListLocationsV3(ctx)
 	if err != nil {
 		js.Global().Get("console").Call("error", fmt.Sprintf("❌ SDK ListLocations failed: %v", err))
-		return nil, fmt.Errorf("failed to list locations: %v", err)
+		return nil, fmt.Errorf("failed to list locations: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", fmt.Sprintf("✅ SDK returned %d locations successfully", len(locations)))

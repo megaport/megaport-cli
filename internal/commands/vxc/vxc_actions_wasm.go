@@ -39,7 +39,7 @@ func deleteVXCWasmImpl(ctx context.Context, client *megaport.Client, vxcUID stri
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return fmt.Errorf("failed to log in: %v", err)
+			return fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -54,7 +54,7 @@ func deleteVXCWasmImpl(ctx context.Context, client *megaport.Client, vxcUID stri
 			return fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return fmt.Errorf("failed to delete VXC: %v", err)
+		return fmt.Errorf("failed to delete VXC: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK DeleteVXC successful")
@@ -70,7 +70,7 @@ func buyVXCWasmImpl(ctx context.Context, client *megaport.Client, req *megaport.
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("failed to log in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -85,7 +85,7 @@ func buyVXCWasmImpl(ctx context.Context, client *megaport.Client, req *megaport.
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("failed to buy VXC: %v", err)
+		return nil, fmt.Errorf("failed to buy VXC: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK BuyVXC successful")
@@ -101,7 +101,7 @@ func updateVXCWasmImpl(ctx context.Context, client *megaport.Client, vxcUID stri
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return fmt.Errorf("failed to log in: %v", err)
+			return fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -116,7 +116,7 @@ func updateVXCWasmImpl(ctx context.Context, client *megaport.Client, vxcUID stri
 			return fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return fmt.Errorf("failed to update VXC: %v", err)
+		return fmt.Errorf("failed to update VXC: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK UpdateVXC successful")
@@ -132,7 +132,7 @@ func getVXCWasmImpl(ctx context.Context, client *megaport.Client, vxcUID string)
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("failed to log in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -147,7 +147,7 @@ func getVXCWasmImpl(ctx context.Context, client *megaport.Client, vxcUID string)
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("failed to get VXC: %v", err)
+		return nil, fmt.Errorf("failed to get VXC: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK GetVXC successful")

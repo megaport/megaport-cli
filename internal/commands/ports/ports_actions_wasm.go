@@ -50,7 +50,7 @@ func listPortsWasmImpl(ctx context.Context, client *megaport.Client) ([]*megapor
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("failed to log in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -66,7 +66,7 @@ func listPortsWasmImpl(ctx context.Context, client *megaport.Client) ([]*megapor
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("failed to list ports: %v", err)
+		return nil, fmt.Errorf("failed to list ports: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", fmt.Sprintf("✅ SDK returned %d ports successfully", len(ports)))
@@ -83,7 +83,7 @@ func getPortWasmImpl(ctx context.Context, client *megaport.Client, portID string
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("failed to log in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -99,7 +99,7 @@ func getPortWasmImpl(ctx context.Context, client *megaport.Client, portID string
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("failed to get port: %v", err)
+		return nil, fmt.Errorf("failed to get port: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", fmt.Sprintf("✅ SDK returned port: %s", port.Name))
@@ -115,7 +115,7 @@ func updatePortWasmImpl(ctx context.Context, client *megaport.Client, req *megap
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("failed to log in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -130,7 +130,7 @@ func updatePortWasmImpl(ctx context.Context, client *megaport.Client, req *megap
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("failed to modify port: %v", err)
+		return nil, fmt.Errorf("failed to modify port: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK ModifyPort successful")
@@ -146,7 +146,7 @@ func deletePortWasmImpl(ctx context.Context, client *megaport.Client, req *megap
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("failed to log in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -161,7 +161,7 @@ func deletePortWasmImpl(ctx context.Context, client *megaport.Client, req *megap
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("failed to delete port: %v", err)
+		return nil, fmt.Errorf("failed to delete port: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK DeletePort successful")
@@ -177,7 +177,7 @@ func restorePortWasmImpl(ctx context.Context, client *megaport.Client, portUID s
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("failed to log in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -192,7 +192,7 @@ func restorePortWasmImpl(ctx context.Context, client *megaport.Client, portUID s
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("failed to restore port: %v", err)
+		return nil, fmt.Errorf("failed to restore port: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK RestorePort successful")
@@ -208,7 +208,7 @@ func lockPortWasmImpl(ctx context.Context, client *megaport.Client, portUID stri
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("failed to log in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -223,7 +223,7 @@ func lockPortWasmImpl(ctx context.Context, client *megaport.Client, portUID stri
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("failed to lock port: %v", err)
+		return nil, fmt.Errorf("failed to lock port: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK LockPort successful")
@@ -239,7 +239,7 @@ func unlockPortWasmImpl(ctx context.Context, client *megaport.Client, portUID st
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("failed to log in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -254,7 +254,7 @@ func unlockPortWasmImpl(ctx context.Context, client *megaport.Client, portUID st
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("failed to unlock port: %v", err)
+		return nil, fmt.Errorf("failed to unlock port: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK UnlockPort successful")
@@ -270,7 +270,7 @@ func checkPortVLANAvailabilityWasmImpl(ctx context.Context, client *megaport.Cli
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return false, fmt.Errorf("failed to log in: %v", err)
+			return false, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -285,7 +285,7 @@ func checkPortVLANAvailabilityWasmImpl(ctx context.Context, client *megaport.Cli
 			return false, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return false, fmt.Errorf("failed to check VLAN availability: %v", err)
+		return false, fmt.Errorf("failed to check VLAN availability: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", fmt.Sprintf("✅ SDK CheckPortVLANAvailability result: %v", available))
@@ -301,7 +301,7 @@ func buyPortWasmImpl(ctx context.Context, client *megaport.Client, req *megaport
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("failed to log in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -316,7 +316,7 @@ func buyPortWasmImpl(ctx context.Context, client *megaport.Client, req *megaport
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("failed to buy port: %v", err)
+		return nil, fmt.Errorf("failed to buy port: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK BuyPort successful")
@@ -332,7 +332,7 @@ func listPortResourceTagsWasmImpl(ctx context.Context, client *megaport.Client, 
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("failed to log in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -347,7 +347,7 @@ func listPortResourceTagsWasmImpl(ctx context.Context, client *megaport.Client, 
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("failed to list port resource tags: %v", err)
+		return nil, fmt.Errorf("failed to list port resource tags: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", fmt.Sprintf("✅ SDK returned %d resource tags successfully", len(tags)))
