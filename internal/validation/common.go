@@ -54,6 +54,9 @@ func FormatIntSlice(vals []int) string {
 	if len(strs) == 1 {
 		return strs[0]
 	}
+	if len(strs) == 2 {
+		return strs[0] + " or " + strs[1]
+	}
 	return strings.Join(strs[:len(strs)-1], ", ") + ", or " + strs[len(strs)-1]
 }
 

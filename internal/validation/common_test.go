@@ -244,7 +244,7 @@ func TestFormatIntSlice(t *testing.T) {
 	}{
 		{"empty", nil, ""},
 		{"single", []int{1}, "1"},
-		{"two", []int{1, 12}, "1, or 12"},
+		{"two", []int{1, 12}, "1 or 12"},
 		{"three", []int{1, 12, 24}, "1, 12, or 24"},
 		{"four", []int{1, 12, 24, 36}, "1, 12, 24, or 36"},
 		{"port speeds", []int{1000, 10000, 100000}, "1000, 10000, or 100000"},
