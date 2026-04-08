@@ -5,6 +5,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -188,7 +189,7 @@ func main() {
 			ip = r.RemoteAddr
 		}
 		if !loginLimiter.Allow(ip) {
-			w.Header().Set("Retry-After", "60")
+			w.Header().Set("Retry-After", fmt.Sprintf("%d", int(loginLimiter.window.Seconds())))
 			http.Error(w, "Too many login attempts, please try again later", http.StatusTooManyRequests)
 			return
 		}

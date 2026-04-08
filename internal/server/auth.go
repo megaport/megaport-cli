@@ -5,9 +5,9 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -52,6 +52,17 @@ func getTokenURL(environment string) string {
 	}
 }
 
+// authError is returned when authentication fails with a non-200 status.
+// It carries the upstream response body for server-side logging without exposing it to callers.
+type authError struct {
+	StatusCode   int
+	ResponseBody string
+}
+
+func (e *authError) Error() string {
+	return fmt.Sprintf("authentication failed with status %d", e.StatusCode)
+}
+
 // authenticateWithMegaport authenticates with Megaport API and returns a token
 func authenticateWithMegaport(accessKey, secretKey, environment string) (*MegaportAuthResponse, error) {
 	tokenURL := getTokenURL(environment)
@@ -85,13 +96,11 @@ func authenticateWithMegaport(accessKey, secretKey, environment string) (*Megapo
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		// Log truncated response body server-side for debugging; do not return it to callers
-		if len(body) > 512 {
-			log.Printf("Auth failure response body (truncated): %s", string(body[:512]))
-		} else if len(body) > 0 {
-			log.Printf("Auth failure response body: %s", string(body))
+		respBody := string(body)
+		if len(respBody) > 512 {
+			respBody = respBody[:512]
 		}
-		return nil, fmt.Errorf("authentication failed with status %d", resp.StatusCode)
+		return nil, &authError{StatusCode: resp.StatusCode, ResponseBody: respBody}
 	}
 
 	// Parse response
@@ -133,7 +142,12 @@ func (s *Server) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	// Authenticate with Megaport API
 	authResp, err := authenticateWithMegaport(loginReq.AccessKey, loginReq.SecretKey, loginReq.Environment)
 	if err != nil {
-		s.logger.Printf("Authentication failed: %v", err)
+		var ae *authError
+		if errors.As(err, &ae) && ae.ResponseBody != "" {
+			s.logger.Printf("Authentication failed: %v, response body: %s", err, ae.ResponseBody)
+		} else {
+			s.logger.Printf("Authentication failed: %v", err)
+		}
 		http.Error(w, "Authentication failed", http.StatusUnauthorized)
 		return
 	}
