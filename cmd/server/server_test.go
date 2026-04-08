@@ -579,7 +579,9 @@ func TestSetSecurityHeaders(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	handler := addCorsHeaders(inner)
+	// Security headers are applied via withSecurityHeaders wrapping addCorsHeaders,
+	// matching the production route: withSecurityHeaders(addCorsHeaders(fs))
+	handler := withSecurityHeaders(addCorsHeaders(inner))
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/index.html", nil)

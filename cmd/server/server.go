@@ -198,16 +198,16 @@ func main() {
 	http.HandleFunc("/auth/check", withSecurityHeaders(srv.HandleSessionCheck))
 
 	// Authenticated API proxy
-	http.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/", withSecurityHeaders(func(w http.ResponseWriter, r *http.Request) {
 		authenticatedProxyHandler(w, r, srv)
-	})
+	}))
 
 	// Legacy proxy handler (backward compatible)
-	http.HandleFunc("/proxy/", proxyHandler)
+	http.HandleFunc("/proxy/", withSecurityHeaders(proxyHandler))
 
 	// Static file server for everything else
 	fs := http.FileServer(http.Dir(*webDir))
-	http.Handle("/", addCorsHeaders(fs))
+	http.Handle("/", withSecurityHeaders(addCorsHeaders(fs)))
 
 	log.Printf("Starting Megaport CLI WASM Server on http://localhost:%s", *port)
 	log.Printf("Serving files from: %s", *webDir)
@@ -310,9 +310,8 @@ func authenticatedProxyHandler(w http.ResponseWriter, r *http.Request, srv *serv
 		}
 	}
 
-	// Add CORS and security headers
+	// Add CORS headers
 	setCORSHeaders(w, r, "Content-Type, Authorization, X-Session-Token")
-	setSecurityHeaders(w)
 
 	// Write response
 	w.WriteHeader(resp.StatusCode)
@@ -389,9 +388,8 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Add CORS and security headers
+	// Add CORS headers
 	setCORSHeaders(w, r, "Content-Type, Authorization")
-	setSecurityHeaders(w)
 
 	// Write status code
 	w.WriteHeader(resp.StatusCode)
@@ -415,9 +413,8 @@ func addCorsHeaders(fs http.Handler) http.HandlerFunc {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		}
 
-		// CORS and security headers
+		// CORS headers
 		setCORSHeaders(w, r, "Content-Type, Authorization, X-Session-Token")
-		setSecurityHeaders(w)
 
 		// Handle preflight
 		if r.Method == "OPTIONS" {
