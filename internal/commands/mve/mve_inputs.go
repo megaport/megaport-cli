@@ -19,7 +19,7 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 		return nil, err
 	}
 	if err := json.Unmarshal(rawBytes, &jsonData); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	req := &megaport.BuyMVERequest{}
@@ -84,6 +84,7 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 }
 
 func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error) {
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	name, _ := cmd.Flags().GetString("name")
 	term, _ := cmd.Flags().GetInt("term")
 	locationID, _ := cmd.Flags().GetInt("location-id")
@@ -98,7 +99,7 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 		var vendorConfigMap map[string]interface{}
 		err := json.Unmarshal([]byte(vendorConfigStr), &vendorConfigMap)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing vendor-config JSON string: %v", err)
+			return nil, fmt.Errorf("failed to parse vendor-config JSON string: %w", err)
 		}
 		vendorConfig, err = ParseVendorConfig(vendorConfigMap)
 		if err != nil {
@@ -111,7 +112,7 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 		var vnicsData []interface{}
 		err := json.Unmarshal([]byte(vnicsStr), &vnicsData)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing vnics JSON string: %v", err)
+			return nil, fmt.Errorf("failed to parse vnics JSON string: %w", err)
 		}
 
 		vnics = make([]megaport.MVENetworkInterface, 0, len(vnicsData))
@@ -619,7 +620,7 @@ func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.
 		return nil, err
 	}
 	if err := json.Unmarshal(rawBytes, &jsonData); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	req := &megaport.ModifyMVERequest{

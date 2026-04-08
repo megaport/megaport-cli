@@ -20,10 +20,11 @@ func ListManagedAccounts(cmd *cobra.Command, args []string, noColor bool, output
 	}
 	defer cancel()
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	accountName, _ := cmd.Flags().GetString("account-name")
 	accountRef, _ := cmd.Flags().GetString("account-ref")
 
-	spinner := output.PrintResourceListing("managed account", noColor)
+	spinner := output.PrintResourceListing("Managed Account", noColor)
 
 	accounts, err := client.ManagedAccountService.ListManagedAccounts(ctx)
 
@@ -31,7 +32,7 @@ func ListManagedAccounts(cmd *cobra.Command, args []string, noColor bool, output
 
 	if err != nil {
 		output.PrintError("Failed to list managed accounts: %v", noColor, err)
-		return fmt.Errorf("error listing managed accounts: %w", err)
+		return fmt.Errorf("failed to list managed accounts: %w", err)
 	}
 
 	filteredAccounts := filterManagedAccounts(accounts, accountName, accountRef)
@@ -54,7 +55,7 @@ func ListManagedAccounts(cmd *cobra.Command, args []string, noColor bool, output
 	err = printManagedAccounts(filteredAccounts, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print managed accounts: %v", noColor, err)
-		return fmt.Errorf("error printing managed accounts: %w", err)
+		return fmt.Errorf("failed to print managed accounts: %w", err)
 	}
 	return nil
 }
@@ -71,20 +72,20 @@ func GetManagedAccount(cmd *cobra.Command, args []string, noColor bool, outputFo
 	companyUID := args[0]
 	accountName := args[1]
 
-	spinner := output.PrintResourceGetting("managed account", accountName, noColor)
+	spinner := output.PrintResourceGetting("Managed Account", accountName, noColor)
 
 	account, err := getManagedAccountFunc(ctx, client, companyUID, accountName)
 
 	spinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error getting managed account: %v", noColor, err)
-		return fmt.Errorf("error getting managed account: %w", err)
+		output.PrintError("Failed to get managed account: %v", noColor, err)
+		return fmt.Errorf("failed to get managed account: %w", err)
 	}
 
 	err = printManagedAccounts([]*megaport.ManagedAccount{account}, outputFormat, noColor)
 	if err != nil {
-		return fmt.Errorf("error printing managed accounts: %w", err)
+		return fmt.Errorf("failed to print managed accounts: %w", err)
 	}
 	return nil
 }
@@ -128,20 +129,20 @@ func CreateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 
-	spinner := output.PrintResourceCreating("managed account", req.AccountName, noColor)
+	spinner := output.PrintResourceCreating("Managed Account", req.AccountName, noColor)
 	account, err := createManagedAccountFunc(ctx, client, req)
 	spinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error creating managed account: %v", noColor, err)
+		output.PrintError("Failed to create managed account: %v", noColor, err)
 		return err
 	}
 
-	output.PrintSuccess("Managed account created successfully - Company UID: %s", noColor, account.CompanyUID)
+	output.PrintResourceCreated("Managed Account", account.CompanyUID, noColor)
 	return nil
 }
 
@@ -185,7 +186,7 @@ func UpdateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 
@@ -201,16 +202,16 @@ func UpdateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 		}
 	}
 
-	updateSpinner := output.PrintResourceUpdating("managed account", companyUID, noColor)
+	updateSpinner := output.PrintResourceUpdating("Managed Account", companyUID, noColor)
 	updatedAccount, err := updateManagedAccountFunc(ctx, client, companyUID, req)
 	updateSpinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error updating managed account: %v", noColor, err)
+		output.PrintError("Failed to update managed account: %v", noColor, err)
 		return err
 	}
 
-	output.PrintResourceUpdated("managed account", companyUID, noColor)
+	output.PrintResourceUpdated("Managed Account", companyUID, noColor)
 
 	displayManagedAccountChanges(originalAccount, updatedAccount, noColor)
 

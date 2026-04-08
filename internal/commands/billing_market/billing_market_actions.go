@@ -18,7 +18,7 @@ func GetBillingMarkets(cmd *cobra.Command, args []string, noColor bool, outputFo
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return fmt.Errorf("failed to log in: %w", err)
 	}
 
 	spinner := output.PrintResourceListing("billing market", noColor)
@@ -29,16 +29,16 @@ func GetBillingMarkets(cmd *cobra.Command, args []string, noColor bool, outputFo
 
 	if err != nil {
 		output.PrintError("Failed to get billing markets: %v", noColor, err)
-		return fmt.Errorf("error getting billing markets: %w", err)
+		return fmt.Errorf("failed to get billing markets: %w", err)
 	}
 
 	if len(markets) == 0 {
 		output.PrintWarning("No billing markets found", noColor)
 	}
 
-	outputs := make([]BillingMarketOutput, 0, len(markets))
+	outputs := make([]billingMarketOutput, 0, len(markets))
 	for _, m := range markets {
-		outputs = append(outputs, ToBillingMarketOutput(m))
+		outputs = append(outputs, toBillingMarketOutput(m))
 	}
 
 	return output.PrintOutput(outputs, outputFormat, noColor)
@@ -51,13 +51,13 @@ func SetBillingMarket(cmd *cobra.Command, args []string, noColor bool) error {
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return fmt.Errorf("failed to log in: %w", err)
 	}
 
 	req, err := buildSetBillingMarketRequest(cmd)
 	if err != nil {
 		output.PrintError("Invalid input: %v", noColor, err)
-		return fmt.Errorf("error building request: %w", err)
+		return fmt.Errorf("failed to build request: %w", err)
 	}
 
 	spinner := output.PrintCustomSpinner("Setting billing market", fmt.Sprintf("%s/%s", req.Country, req.CurrencyEnum), noColor)
@@ -68,7 +68,7 @@ func SetBillingMarket(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		output.PrintError("Failed to set billing market: %v", noColor, err)
-		return fmt.Errorf("error setting billing market: %w", err)
+		return fmt.Errorf("failed to set billing market: %w", err)
 	}
 
 	output.PrintSuccess("Billing market set successfully (Supply ID: %d)", noColor, resp.SupplyID)
@@ -76,6 +76,7 @@ func SetBillingMarket(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func buildSetBillingMarketRequest(cmd *cobra.Command) (*megaport.SetBillingMarketRequest, error) {
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	currency, _ := cmd.Flags().GetString("currency")
 	language, _ := cmd.Flags().GetString("language")
 	contactName, _ := cmd.Flags().GetString("billing-contact-name")

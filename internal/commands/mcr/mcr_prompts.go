@@ -3,7 +3,6 @@ package mcr
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -57,7 +56,7 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 		fieldsUpdated = true
 	}
 
-	termPrompt := "Enter new term (1, 12, 24, or 36 months, leave empty to skip): "
+	termPrompt := fmt.Sprintf("Enter new term (%s months, leave empty to skip): ", validation.FormatIntSlice(validation.ValidContractTerms))
 	termStr, err := utils.ResourcePrompt("mcr", termPrompt, noColor)
 	if err != nil {
 		return nil, err
@@ -65,7 +64,7 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 	if termStr != "" {
 		term, err := strconv.Atoi(termStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid term: %v", err)
+			return nil, fmt.Errorf("invalid term: %w", err)
 		}
 
 		if err := validation.ValidateContractTerm(term); err != nil {
@@ -95,25 +94,25 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 		return nil, fmt.Errorf("name is required")
 	}
 
-	termStr, err := utils.ResourcePrompt("mcr", "Enter term (1, 12, 24, or 36 months) (required): ", noColor)
+	termStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter term (%s months) (required): ", validation.FormatIntSlice(validation.ValidContractTerms)), noColor)
 	if err != nil {
 		return nil, err
 	}
 	term, err := strconv.Atoi(termStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid term: %v", err)
+		return nil, fmt.Errorf("invalid term: %w", err)
 	}
 
-	portSpeedStr, err := utils.ResourcePrompt("mcr", "Enter port speed - valid port speeds are 1000, 2500, 5000, 10000, 25000, 50000, and 100000 MB per second (required): ", noColor)
+	portSpeedStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter port speed - valid port speeds are %s Mbps (required): ", validation.FormatIntSlice(validation.ValidMCRPortSpeeds)), noColor)
 	if err != nil {
 		return nil, err
 	}
 	portSpeed, err := strconv.Atoi(portSpeedStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid port speed: %v", err)
+		return nil, fmt.Errorf("invalid port speed: %w", err)
 	}
-	if !slices.Contains(megaport.VALID_MCR_PORT_SPEEDS, portSpeed) {
-		return nil, megaport.ErrMCRInvalidPortSpeed
+	if err := validation.ValidateMCRPortSpeed(portSpeed); err != nil {
+		return nil, err
 	}
 	locationIDStr, err := utils.ResourcePrompt("mcr", "Enter location ID (required): ", noColor)
 	if err != nil {
@@ -121,7 +120,7 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 	}
 	locationID, err := strconv.Atoi(locationIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid location ID: %v", err)
+		return nil, fmt.Errorf("invalid location ID: %w", err)
 	}
 
 	asnStr, err := utils.ResourcePrompt("mcr", "Enter MCR ASN (optional): ", noColor)
@@ -133,7 +132,7 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 	if asnStr != "" {
 		asnValue, err := strconv.Atoi(asnStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid ASN: %v", err)
+			return nil, fmt.Errorf("invalid ASN: %w", err)
 		}
 		asn = asnValue
 	}
@@ -366,7 +365,7 @@ func promptForPrefixFilterListDetails(mcrUID string, noColor bool) (*megaport.Cr
 func promptForUpdatePrefixFilterListDetails(ctx context.Context, client *megaport.Client, mcrUID string, prefixFilterListID int, noColor bool) (*megaport.MCRPrefixFilterList, error) {
 	currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
+		return nil, fmt.Errorf("failed to retrieve current prefix filter list: %w", err)
 	}
 
 	fmt.Printf("Current description: %s\n", currentPrefixFilterList.Description)

@@ -119,7 +119,7 @@ func TestFindPartners(t *testing.T) {
 				"",
 				"",
 			},
-			expectedError: "error listing partners",
+			expectedError: "failed to list partners",
 			setupMock: func(t *testing.T, m *MockPartnerService) {
 				m.listPartnersResponse = nil
 				m.listPartnersErr = fmt.Errorf("API connection failure")
@@ -136,7 +136,7 @@ func TestFindPartners(t *testing.T) {
 			}
 
 			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
-				if tt.expectedError == "error logging in" {
+				if tt.expectedError == "failed to log in" {
 					return nil, fmt.Errorf("login failure")
 				}
 				return &megaport.Client{
@@ -233,12 +233,12 @@ func TestListPartners(t *testing.T) {
 			name:        "API error",
 			partners:    nil,
 			partnersErr: fmt.Errorf("API connection failure"),
-			expectedErr: "error listing partners",
+			expectedErr: "failed to list partners",
 		},
 		{
 			name:        "login error",
 			loginErr:    fmt.Errorf("login failure"),
-			expectedErr: "error logging in",
+			expectedErr: "failed to log in",
 		},
 		{
 			name:          "limit results",

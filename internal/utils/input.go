@@ -17,7 +17,7 @@ func ReadJSONInput(jsonStr, jsonFile string) ([]byte, error) {
 	if jsonFile != "" {
 		data, err := os.ReadFile(jsonFile)
 		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %w", err)
+			return nil, fmt.Errorf("failed to read JSON file: %w", err)
 		}
 		return data, nil
 	}

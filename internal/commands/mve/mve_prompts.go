@@ -47,13 +47,13 @@ func promptMVEBaseDetails(noColor bool) (*megaport.BuyMVERequest, string, int, s
 	}
 	req.Name = name
 
-	termStr, err := utils.ResourcePrompt("mve", "Enter term (1, 12, 24, or 36 months) (required): ", noColor)
+	termStr, err := utils.ResourcePrompt("mve", fmt.Sprintf("Enter term (%s months) (required): ", validation.FormatIntSlice(validation.ValidContractTerms)), noColor)
 	if err != nil {
 		return nil, "", 0, "", "", err
 	}
 	term, err := strconv.Atoi(termStr)
 	if err != nil {
-		return nil, "", 0, "", "", fmt.Errorf("invalid term: %v", err)
+		return nil, "", 0, "", "", fmt.Errorf("invalid term: %w", err)
 	}
 	req.Term = term
 
@@ -63,7 +63,7 @@ func promptMVEBaseDetails(noColor bool) (*megaport.BuyMVERequest, string, int, s
 	}
 	locationID, err := strconv.Atoi(locationIDStr)
 	if err != nil {
-		return nil, "", 0, "", "", fmt.Errorf("invalid location ID: %v", err)
+		return nil, "", 0, "", "", fmt.Errorf("invalid location ID: %w", err)
 	}
 	req.LocationID = locationID
 
@@ -99,7 +99,7 @@ func promptMVEBaseDetails(noColor bool) (*megaport.BuyMVERequest, string, int, s
 	}
 	imageID, err := strconv.Atoi(imageIDStr)
 	if err != nil {
-		return nil, "", 0, "", "", fmt.Errorf("invalid image ID: %v", err)
+		return nil, "", 0, "", "", fmt.Errorf("invalid image ID: %w", err)
 	}
 
 	productSize, err := utils.ResourcePrompt("mve", "Enter product size (required): ", noColor)
@@ -367,7 +367,7 @@ func promptMVEVnics(noColor bool) ([]megaport.MVENetworkInterface, error) {
 		if vlanStr != "" {
 			vlan, err = strconv.Atoi(vlanStr)
 			if err != nil {
-				return nil, fmt.Errorf("invalid VLAN ID: %v", err)
+				return nil, fmt.Errorf("invalid VLAN ID: %w", err)
 			}
 		}
 
@@ -405,14 +405,14 @@ func promptForUpdateMVEDetails(mveUID string, noColor bool) (*megaport.ModifyMVE
 		req.CostCentre = costCentre
 	}
 
-	contractTermStr, err := utils.ResourcePrompt("mve", "Enter new contract term (1, 12, 24, or 36 months, leave empty to keep current): ", noColor)
+	contractTermStr, err := utils.ResourcePrompt("mve", fmt.Sprintf("Enter new contract term (%s months, leave empty to keep current): ", validation.FormatIntSlice(validation.ValidContractTerms)), noColor)
 	if err != nil {
 		return nil, err
 	}
 	if contractTermStr != "" {
 		contractTerm, err := strconv.Atoi(contractTermStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid contract term: %v", err)
+			return nil, fmt.Errorf("invalid contract term: %w", err)
 		}
 		req.ContractTermMonths = &contractTerm
 	}

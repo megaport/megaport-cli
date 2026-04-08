@@ -1,5 +1,11 @@
 package cmdbuilder
 
+import (
+	"fmt"
+
+	"github.com/megaport/megaport-cli/internal/validation"
+)
+
 // WithMVECommonFlags adds common flags for MVE operations
 func (b *CommandBuilder) WithMVECommonFlags() *CommandBuilder {
 	b.WithFlag("name", "", "MVE name")
@@ -10,7 +16,7 @@ func (b *CommandBuilder) WithMVECommonFlags() *CommandBuilder {
 // WithMVECreateFlags adds flags needed for MVE creation
 func (b *CommandBuilder) WithMVECreateFlags() *CommandBuilder {
 	b.WithFlag("name", "", "The name of the MVE")
-	b.WithIntFlag("term", 0, "The term of the MVE (1, 12, 24, or 36 months)")
+	b.WithIntFlag("term", 0, fmt.Sprintf("The term of the MVE (%s months)", validation.FormatIntSlice(validation.ValidContractTerms)))
 	b.WithIntFlag("location-id", 0, "The ID of the location where the MVE will be provisioned")
 	b.WithFlag("vendor-config", "", "JSON string with vendor-specific configuration (for flag mode)")
 	b.WithFlag("vnics", "", "JSON array of network interfaces (for flag mode)")
@@ -27,7 +33,7 @@ func (b *CommandBuilder) WithMVEUpdateFlags() *CommandBuilder {
 	// All update flags are optional
 	b.WithFlag("name", "", "The new name of the MVE (1-64 characters)")
 	b.WithFlag("cost-centre", "", "The new cost centre for billing purposes")
-	b.WithIntFlag("term", 0, "New contract term in months (1, 12, 24, or 36)")
+	b.WithIntFlag("term", 0, fmt.Sprintf("New contract term in months (%s)", validation.FormatIntSlice(validation.ValidContractTerms)))
 	return b
 }
 

@@ -343,7 +343,7 @@ func TestClassifyError(t *testing.T) {
 		wantCode int
 	}{
 		// Auth patterns
-		{"auth - error logging in", "error logging in: bad creds", exitcodes.Authentication},
+		{"auth - error logging in", "failed to log in: bad creds", exitcodes.Authentication},
 		{"auth - access key not provided", "access key not provided", exitcodes.Authentication},
 		{"auth - secret key not provided", "secret key not provided", exitcodes.Authentication},
 		{"auth - authentication failed", "authentication failed for user", exitcodes.Authentication},
@@ -359,13 +359,13 @@ func TestClassifyError(t *testing.T) {
 		{"usage - invalid ID combo", "invalid port ID provided", exitcodes.Usage},
 
 		// API patterns
-		{"api - error listing", "error listing ports", exitcodes.API},
-		{"api - error getting", "error getting VXC details", exitcodes.API},
-		{"api - error creating", "error creating MCR", exitcodes.API},
-		{"api - error updating", "error updating port name", exitcodes.API},
-		{"api - error deleting", "error deleting service", exitcodes.API},
-		{"api - error buying", "error buying port", exitcodes.API},
-		{"api - error modifying", "error modifying VXC", exitcodes.API},
+		{"api - error listing", "failed to list ports", exitcodes.API},
+		{"api - error getting", "failed to get VXC details", exitcodes.API},
+		{"api - error creating", "failed to create MCR", exitcodes.API},
+		{"api - error updating", "failed to update port name", exitcodes.API},
+		{"api - error deleting", "failed to delete service", exitcodes.API},
+		{"api - error buying", "failed to buy port", exitcodes.API},
+		{"api - error modifying", "failed to modify VXC", exitcodes.API},
 		{"api - failed to retrieve", "failed to retrieve port info", exitcodes.API},
 		{"api - failed to buy", "failed to buy VXC", exitcodes.API},
 		{"api - failed to validate", "failed to validate order", exitcodes.API},
@@ -448,7 +448,7 @@ func TestWrapColorAwareRunE_CancelledError(t *testing.T) {
 
 func TestWrapRunE_AuthError(t *testing.T) {
 	wrapped := WrapRunE(func(cmd *cobra.Command, args []string) error {
-		return errors.New("error logging in: invalid credentials")
+		return errors.New("failed to log in: invalid credentials")
 	})
 	cmd := &cobra.Command{Use: "test"}
 	err := wrapped(cmd, []string{})
@@ -461,7 +461,7 @@ func TestWrapRunE_AuthError(t *testing.T) {
 
 func TestWrapRunE_APIError(t *testing.T) {
 	wrapped := WrapRunE(func(cmd *cobra.Command, args []string) error {
-		return errors.New("error listing ports: connection refused")
+		return errors.New("failed to list ports: connection refused")
 	})
 	cmd := &cobra.Command{Use: "test"}
 	err := wrapped(cmd, []string{})

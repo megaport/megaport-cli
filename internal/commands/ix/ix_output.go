@@ -7,8 +7,8 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// IXOutput represents the desired fields for JSON output of IX details.
-type IXOutput struct {
+// ixOutput represents the desired fields for JSON output of IX details.
+type ixOutput struct {
 	output.Output      `json:"-" header:"-"`
 	UID                string `json:"uid" header:"UID"`
 	Name               string `json:"name" header:"Name"`
@@ -29,13 +29,13 @@ type IXStatus struct {
 	Type          string `json:"type" header:"Type"`
 }
 
-// ToIXOutput converts a *megaport.IX to our IXOutput struct.
-func ToIXOutput(ix *megaport.IX) (IXOutput, error) {
+// toIXOutput converts a *megaport.IX to our ixOutput struct.
+func toIXOutput(ix *megaport.IX) (ixOutput, error) {
 	if ix == nil {
-		return IXOutput{}, fmt.Errorf("invalid IX: nil value")
+		return ixOutput{}, fmt.Errorf("invalid IX: nil value")
 	}
 
-	return IXOutput{
+	return ixOutput{
 		UID:                ix.ProductUID,
 		Name:               ix.ProductName,
 		NetworkServiceType: ix.NetworkServiceType,
@@ -49,9 +49,9 @@ func ToIXOutput(ix *megaport.IX) (IXOutput, error) {
 
 // printIXs prints a list of IXs in the specified format.
 func printIXs(ixs []*megaport.IX, format string, noColor bool) error {
-	outputs := make([]IXOutput, 0, len(ixs))
+	outputs := make([]ixOutput, 0, len(ixs))
 	for _, ix := range ixs {
-		o, err := ToIXOutput(ix)
+		o, err := toIXOutput(ix)
 		if err != nil {
 			return err
 		}

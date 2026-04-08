@@ -476,7 +476,7 @@ func TestToVXCOutput_EdgeCases(t *testing.T) {
 		vxc           *megaport.VXC
 		shouldError   bool
 		errorContains string
-		validateFunc  func(*testing.T, VXCOutput)
+		validateFunc  func(*testing.T, vxcOutput)
 	}{
 		{
 			name:          "nil vxc",
@@ -487,7 +487,7 @@ func TestToVXCOutput_EdgeCases(t *testing.T) {
 		{
 			name: "zero values",
 			vxc:  &megaport.VXC{},
-			validateFunc: func(t *testing.T, output VXCOutput) {
+			validateFunc: func(t *testing.T, output vxcOutput) {
 				assert.Empty(t, output.UID)
 				assert.Empty(t, output.Name)
 				assert.Empty(t, output.AEndUID)
@@ -506,7 +506,7 @@ func TestToVXCOutput_EdgeCases(t *testing.T) {
 				RateLimit:          75,
 				ProvisioningStatus: "CONFIGURED",
 			},
-			validateFunc: func(t *testing.T, output VXCOutput) {
+			validateFunc: func(t *testing.T, output vxcOutput) {
 				assert.Equal(t, "vxc-1", output.UID)
 				assert.Equal(t, "TestVXC", output.Name)
 				assert.Empty(t, output.AEndUID)
@@ -521,7 +521,7 @@ func TestToVXCOutput_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output, err := ToVXCOutput(tt.vxc)
+			output, err := toVXCOutput(tt.vxc)
 
 			if tt.shouldError {
 				assert.Error(t, err)

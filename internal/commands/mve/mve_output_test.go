@@ -9,7 +9,7 @@ import (
 )
 
 func TestToMVEOutput_NilMVE(t *testing.T) {
-	_, err := ToMVEOutput(nil)
+	_, err := toMVEOutput(nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "nil value")
 }
@@ -24,7 +24,7 @@ func TestToMVEOutput_Valid(t *testing.T) {
 		Size:               "MEDIUM",
 	}
 
-	out, err := ToMVEOutput(mve)
+	out, err := toMVEOutput(mve)
 	assert.NoError(t, err)
 	assert.Equal(t, "mve-123", out.UID)
 	assert.Equal(t, "Test MVE", out.Name)

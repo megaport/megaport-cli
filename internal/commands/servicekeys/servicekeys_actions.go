@@ -13,6 +13,7 @@ import (
 )
 
 func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	productUID, _ := cmd.Flags().GetString("product-uid")
 	productID, _ := cmd.Flags().GetInt("product-id")
 	singleUse, _ := cmd.Flags().GetBool("single-use")
@@ -22,7 +23,7 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 	endDate, _ := cmd.Flags().GetString("end-date")
 
 	if err := validation.ValidateDateRange(startDate, endDate); err != nil {
-		output.PrintError(fmt.Sprintf("%v", err), noColor)
+		output.PrintError("Failed to validate date range: %v", noColor, err)
 		return err
 	}
 
@@ -73,7 +74,7 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		output.PrintError("Failed to create service key: %v", noColor, err)
-		return fmt.Errorf("error creating service key: %w", err)
+		return fmt.Errorf("failed to create service key: %w", err)
 	}
 
 	output.PrintResourceCreated("Service Key", resp.ServiceKeyUID, noColor)
@@ -110,7 +111,7 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		output.PrintError("Failed to update service key: %v", noColor, err)
-		return fmt.Errorf("error updating service key: %w", err)
+		return fmt.Errorf("failed to update service key: %w", err)
 	}
 
 	if resp.IsUpdated {
@@ -144,7 +145,7 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 
 	if err != nil {
 		output.PrintError("Failed to list service keys: %v", noColor, err)
-		return fmt.Errorf("error listing service keys: %w", err)
+		return fmt.Errorf("failed to list service keys: %w", err)
 	}
 
 	serviceKeys := resp.ServiceKeys
@@ -164,12 +165,12 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 		return nil
 	}
 
-	outputs := make([]ServiceKeyOutput, 0, len(serviceKeys))
+	outputs := make([]serviceKeyOutput, 0, len(serviceKeys))
 	for _, sk := range serviceKeys {
-		op, err := ToServiceKeyOutput(sk)
+		op, err := toServiceKeyOutput(sk)
 		if err != nil {
 			output.PrintError("Failed to convert service key: %v", noColor, err)
-			return fmt.Errorf("error converting service key: %w", err)
+			return fmt.Errorf("failed to convert service key: %w", err)
 		}
 		outputs = append(outputs, op)
 	}
@@ -197,13 +198,13 @@ func GetServiceKey(cmd *cobra.Command, args []string, noColor bool, outputFormat
 
 	if err != nil {
 		output.PrintError("Failed to get service key: %v", noColor, err)
-		return fmt.Errorf("error getting service key: %w", err)
+		return fmt.Errorf("failed to get service key: %w", err)
 	}
 
-	op, err := ToServiceKeyOutput(resp)
+	op, err := toServiceKeyOutput(resp)
 	if err != nil {
 		output.PrintError("Failed to convert service key: %v", noColor, err)
-		return fmt.Errorf("error converting service key: %w", err)
+		return fmt.Errorf("failed to convert service key: %w", err)
 	}
-	return output.PrintOutput([]ServiceKeyOutput{op}, outputFormat, noColor)
+	return output.PrintOutput([]serviceKeyOutput{op}, outputFormat, noColor)
 }

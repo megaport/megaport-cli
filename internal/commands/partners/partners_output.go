@@ -5,7 +5,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-type PartnerOutput struct {
+type partnerOutput struct {
 	output.Output `json:"-" header:"-"`
 	ProductName   string `json:"product_name" header:"Name"`
 	UID           string `json:"uid" header:"UID"`
@@ -16,8 +16,8 @@ type PartnerOutput struct {
 	VXCPermitted  bool   `json:"vxc_permitted" header:"VXC Permitted"`
 }
 
-func ToPartnerOutput(p *megaport.PartnerMegaport) PartnerOutput {
-	return PartnerOutput{
+func toPartnerOutput(p *megaport.PartnerMegaport) partnerOutput {
+	return partnerOutput{
 		ProductName:   p.ProductName,
 		UID:           p.ProductUID,
 		ConnectType:   p.ConnectType,
@@ -29,9 +29,9 @@ func ToPartnerOutput(p *megaport.PartnerMegaport) PartnerOutput {
 }
 
 var printPartnersFunc = func(partners []*megaport.PartnerMegaport, format string, noColor bool) error {
-	outputs := make([]PartnerOutput, 0, len(partners))
+	outputs := make([]partnerOutput, 0, len(partners))
 	for _, partner := range partners {
-		outputs = append(outputs, ToPartnerOutput(partner))
+		outputs = append(outputs, toPartnerOutput(partner))
 	}
 	return output.PrintOutput(outputs, format, noColor)
 }

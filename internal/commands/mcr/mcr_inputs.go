@@ -23,7 +23,7 @@ func processJSONMCRInput(jsonStr, jsonFile string) (*megaport.BuyMCRRequest, err
 
 	req := &megaport.BuyMCRRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	if err := validation.ValidateMCRRequest(req); err != nil {
@@ -34,6 +34,7 @@ func processJSONMCRInput(jsonStr, jsonFile string) (*megaport.BuyMCRRequest, err
 }
 
 func processFlagMCRInput(cmd *cobra.Command) (*megaport.BuyMCRRequest, error) {
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	name, _ := cmd.Flags().GetString("name")
 	term, _ := cmd.Flags().GetInt("term")
 	portSpeed, _ := cmd.Flags().GetInt("port-speed")
@@ -48,7 +49,7 @@ func processFlagMCRInput(cmd *cobra.Command) (*megaport.BuyMCRRequest, error) {
 	var resourceTags map[string]string
 	if resourceTagsStr != "" {
 		if err := json.Unmarshal([]byte(resourceTagsStr), &resourceTags); err != nil {
-			return nil, fmt.Errorf("error parsing resource tags JSON: %v", err)
+			return nil, fmt.Errorf("failed to parse resource tags JSON: %w", err)
 		}
 	}
 
@@ -82,7 +83,7 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 
 	var jsonMap map[string]interface{}
 	if err := json.Unmarshal(jsonData, &jsonMap); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	updateFields := []string{"name", "costCentre", "marketplaceVisibility", "contractTermMonths"}
@@ -100,7 +101,7 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 
 	req := &megaport.ModifyMCRRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	if _, nameProvided := jsonMap["name"]; nameProvided && req.Name == "" {
@@ -193,7 +194,7 @@ func processJSONPrefixFilterListInput(jsonStr, jsonFile string, mcrUID string) (
 	}
 
 	if err := json.Unmarshal(jsonData, &tempData); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	entries := make([]*megaport.MCRPrefixListEntry, len(tempData.Entries))
@@ -246,7 +247,7 @@ func processFlagPrefixFilterListInput(cmd *cobra.Command, mcrUID string) (*megap
 
 	if entriesJSON != "" {
 		if err := json.Unmarshal([]byte(entriesJSON), &entriesData); err != nil {
-			return nil, fmt.Errorf("error parsing entries JSON: %v", err)
+			return nil, fmt.Errorf("failed to parse entries JSON: %w", err)
 		}
 	}
 
@@ -307,7 +308,7 @@ func processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile string, mcrUID str
 	}
 
 	if err := json.Unmarshal(jsonData, &tempData); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	descriptionProvided := tempData.Description != ""
@@ -325,7 +326,7 @@ func processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile string, mcrUID str
 
 	currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
+		return nil, fmt.Errorf("failed to retrieve current prefix filter list: %w", err)
 	}
 
 	if tempData.AddressFamily != "" {
@@ -398,7 +399,7 @@ func processFlagUpdatePrefixFilterListInput(cmd *cobra.Command, mcrUID string, p
 
 	currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
+		return nil, fmt.Errorf("failed to retrieve current prefix filter list: %w", err)
 	}
 
 	if cmd.Flags().Changed("address-family") {
@@ -423,7 +424,7 @@ func processFlagUpdatePrefixFilterListInput(cmd *cobra.Command, mcrUID string, p
 		}
 
 		if err := json.Unmarshal([]byte(entriesJSON), &entriesData); err != nil {
-			return nil, fmt.Errorf("error parsing entries JSON: %v", err)
+			return nil, fmt.Errorf("failed to parse entries JSON: %w", err)
 		}
 
 		entries = make([]*megaport.MCRPrefixListEntry, len(entriesData))

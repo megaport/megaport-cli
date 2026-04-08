@@ -236,7 +236,7 @@ func TestReadJSONInput_FromFile(t *testing.T) {
 func TestReadJSONInput_FileNotFound(t *testing.T) {
 	_, err := ReadJSONInput("", "/nonexistent/path.json")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error reading JSON file")
+	assert.Contains(t, err.Error(), "failed to read JSON file")
 }
 
 func TestReadJSONInput_StringOverridesFile(t *testing.T) {

@@ -33,6 +33,7 @@ var templateRe = regexp.MustCompile(`\{\{\.(\w+)\.([^}]+)\}\}`)
 func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	filePath, _ := cmd.Flags().GetString("file")
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 	yes, _ := cmd.Flags().GetBool("yes")

@@ -5,6 +5,7 @@ package validation
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -39,6 +40,25 @@ const (
 	// ReservedVLAN identifies a VLAN ID that is reserved and cannot be used.
 	ReservedVLAN = 1
 )
+
+// FormatIntSlice formats a slice of ints as a human-readable string.
+// Example: []int{1, 12, 24, 36} → "1, 12, 24, or 36"
+func FormatIntSlice(vals []int) string {
+	if len(vals) == 0 {
+		return ""
+	}
+	strs := make([]string, len(vals))
+	for i, v := range vals {
+		strs[i] = fmt.Sprintf("%d", v)
+	}
+	if len(strs) == 1 {
+		return strs[0]
+	}
+	if len(strs) == 2 {
+		return strs[0] + " or " + strs[1]
+	}
+	return strings.Join(strs[:len(strs)-1], ", ") + ", or " + strs[len(strs)-1]
+}
 
 // ValidateContractTerm validates if a contract term is one of the allowed values.
 // Contract terms define the duration of the service commitment in months.

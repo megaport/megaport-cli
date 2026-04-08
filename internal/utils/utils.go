@@ -252,7 +252,7 @@ func classifyError(err error) int {
 
 	// Authentication errors
 	authPatterns := []string{
-		"error logging in",
+		"failed to log in",
 		"access key not provided",
 		"secret key not provided",
 		"authentication",
@@ -285,16 +285,24 @@ func classifyError(err error) int {
 
 	// API errors
 	apiPatterns := []string{
-		"error listing",
-		"error getting",
-		"error creating",
-		"error updating",
-		"error deleting",
-		"error buying",
-		"error modifying",
-		"failed to retrieve",
+		"failed to list",
+		"failed to get",
+		"failed to create",
+		"failed to update",
+		"failed to delete",
 		"failed to buy",
+		"failed to modify",
+		"failed to retrieve",
 		"failed to validate",
+		"failed to restore",
+		"failed to lock",
+		"failed to unlock",
+		"failed to set",
+		"failed to print",
+		"failed to build",
+		"failed to marshal",
+		"failed to parse",
+		"failed to read",
 		"API failure",
 	}
 	for _, p := range apiPatterns {

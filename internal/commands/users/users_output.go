@@ -7,7 +7,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-type UserOutput struct {
+type userOutput struct {
 	output.Output `json:"-" header:"-"`
 	EmployeeID    int    `json:"employee_id" header:"Employee ID"`
 	FirstName     string `json:"first_name" header:"First Name"`
@@ -17,7 +17,7 @@ type UserOutput struct {
 	Active        bool   `json:"active" header:"Active"`
 }
 
-type UserActivityOutput struct {
+type userActivityOutput struct {
 	output.Output `json:"-" header:"-"`
 	LoginName     string `json:"login_name" header:"Login Name"`
 	Description   string `json:"description" header:"Description"`
@@ -26,9 +26,9 @@ type UserActivityOutput struct {
 	UserType      string `json:"user_type" header:"User Type"`
 }
 
-func ToUserOutput(user *megaport.User) (UserOutput, error) {
+func toUserOutput(user *megaport.User) (userOutput, error) {
 	if user == nil {
-		return UserOutput{}, fmt.Errorf("invalid user: nil value")
+		return userOutput{}, fmt.Errorf("invalid user: nil value")
 	}
 
 	employeeID := user.PartyId
@@ -36,7 +36,7 @@ func ToUserOutput(user *megaport.User) (UserOutput, error) {
 		employeeID = user.PersonId
 	}
 
-	return UserOutput{
+	return userOutput{
 		EmployeeID: employeeID,
 		FirstName:  user.FirstName,
 		LastName:   user.LastName,
@@ -47,9 +47,9 @@ func ToUserOutput(user *megaport.User) (UserOutput, error) {
 }
 
 func printUsers(users []*megaport.User, format string, noColor bool) error {
-	outputs := make([]UserOutput, 0, len(users))
+	outputs := make([]userOutput, 0, len(users))
 	for _, user := range users {
-		out, err := ToUserOutput(user)
+		out, err := toUserOutput(user)
 		if err != nil {
 			return err
 		}
@@ -59,12 +59,12 @@ func printUsers(users []*megaport.User, format string, noColor bool) error {
 }
 
 func printUserActivities(activities []*megaport.UserActivity, format string, noColor bool) error {
-	outputs := make([]UserActivityOutput, 0, len(activities))
+	outputs := make([]userActivityOutput, 0, len(activities))
 	for _, activity := range activities {
 		if activity == nil {
 			continue
 		}
-		outputs = append(outputs, UserActivityOutput{
+		outputs = append(outputs, userActivityOutput{
 			LoginName:   activity.LoginName,
 			Description: activity.Description,
 			Name:        activity.Name,

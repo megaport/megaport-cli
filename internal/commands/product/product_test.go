@@ -125,7 +125,7 @@ func TestListProducts(t *testing.T) {
 				m.ListProductsErr = fmt.Errorf("API error")
 			},
 			outputFormat:  "table",
-			expectedError: "error listing products",
+			expectedError: "failed to list products",
 		},
 		{
 			name: "empty list",
@@ -254,7 +254,7 @@ func TestGetProductType(t *testing.T) {
 				m.GetProductTypeErr = fmt.Errorf("product not found")
 			},
 			outputFormat:  "table",
-			expectedError: "error getting product type",
+			expectedError: "failed to get product type",
 		},
 		{
 			name:       "API error",
@@ -347,7 +347,7 @@ func TestListProductsLoginError(t *testing.T) {
 		err = ListProducts(cmd, []string{}, true, "table")
 	})
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error logging in")
+	assert.Contains(t, err.Error(), "failed to log in")
 }
 
 func TestGetProductTypeLoginError(t *testing.T) {
@@ -362,7 +362,7 @@ func TestGetProductTypeLoginError(t *testing.T) {
 		err = GetProductType(cmd, []string{"some-uid"}, true, "table")
 	})
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error logging in")
+	assert.Contains(t, err.Error(), "failed to log in")
 }
 
 func TestListProductsEmptyListJsonFormat(t *testing.T) {

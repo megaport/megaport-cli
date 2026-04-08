@@ -59,6 +59,7 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	noWait, _ := cmd.Flags().GetBool("no-wait")
 	if !noWait {
 		req.WaitForProvision = true
@@ -67,7 +68,7 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 
@@ -76,7 +77,7 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	spinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error validating MCR order: %v", noColor, err)
+		output.PrintError("Failed to validate MCR order: %v", noColor, err)
 		return err
 	}
 
@@ -114,11 +115,11 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	buySpinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error buying MCR: %v", noColor, err)
+		output.PrintError("Failed to buy MCR: %v", noColor, err)
 		return err
 	}
 
-	output.PrintSuccess("MCR created %s", noColor, resp.TechnicalServiceUID)
+	output.PrintResourceCreated("MCR", resp.TechnicalServiceUID, noColor)
 	return nil
 }
 
@@ -133,7 +134,7 @@ func ValidateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 
@@ -142,7 +143,7 @@ func ValidateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	spinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error validating MCR order: %v", noColor, err)
+		output.PrintError("Failed to validate MCR order: %v", noColor, err)
 		return err
 	}
 
@@ -195,13 +196,13 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 
 	originalMCR, err := getMCRFunc(ctx, client, mcrUID)
 	if err != nil {
-		output.PrintError("Error getting original MCR: %v", noColor, err)
+		output.PrintError("Failed to get original MCR: %v", noColor, err)
 		return err
 	}
 	updateSpinner := output.PrintResourceUpdating("MCR", mcrUID, noColor)
@@ -214,7 +215,7 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	updateSpinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error updating MCR: %v", noColor, err)
+		output.PrintError("Failed to update MCR: %v", noColor, err)
 		return err
 	}
 
@@ -278,7 +279,7 @@ func CreateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 	spinner := output.PrintResourceCreating("Prefix Filter List", req.PrefixFilterList.Description, noColor)
@@ -291,7 +292,7 @@ func CreateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	spinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error creating prefix filter list: %v", noColor, err)
+		output.PrintError("Failed to create prefix filter list: %v", noColor, err)
 		return err
 	}
 
@@ -321,7 +322,7 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	// Login once — the client is reused for both prompts and the API mutation.
 	_, loginCancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 	loginCancel()
@@ -367,7 +368,7 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	spinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error updating prefix filter list: %v", noColor, err)
+		output.PrintError("Failed to update prefix filter list: %v", noColor, err)
 		return err
 	}
 
@@ -404,8 +405,8 @@ func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 
 	if err != nil {
 		err = utils.WrapAPIError(err, "MCR", mcrUID)
-		output.PrintError("Error getting MCR: %v", noColor, err)
-		return fmt.Errorf("error getting MCR: %w", err)
+		output.PrintError("Failed to get MCR: %v", noColor, err)
+		return fmt.Errorf("failed to get MCR: %w", err)
 	}
 
 	if mcr == nil {
@@ -418,7 +419,7 @@ func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 		cfg := exportMCRConfig(mcr)
 		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
-			return fmt.Errorf("error marshaling export config: %w", err)
+			return fmt.Errorf("failed to marshal export config: %w", err)
 		}
 		fmt.Println(string(jsonBytes))
 		return nil
@@ -426,7 +427,7 @@ func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 
 	err = printMCRs([]*megaport.MCR{mcr}, outputFormat, noColor)
 	if err != nil {
-		return fmt.Errorf("error printing MCRs: %w", err)
+		return fmt.Errorf("failed to print MCRs: %w", err)
 	}
 	return nil
 }
@@ -499,7 +500,7 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		err = utils.WrapAPIError(err, "MCR", mcrUID)
-		return fmt.Errorf("error deleting MCR: %w", err)
+		return fmt.Errorf("failed to delete MCR: %w", err)
 	}
 
 	if resp.IsDeleting {
@@ -530,7 +531,7 @@ func RestoreMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return e
 	})
 	if err != nil {
-		return fmt.Errorf("error restoring MCR: %w", err)
+		return fmt.Errorf("failed to restore MCR: %w", err)
 	}
 
 	if resp.IsRestored {
@@ -559,7 +560,7 @@ func LockMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return e
 	})
 	if err != nil {
-		return fmt.Errorf("error locking MCR: %w", err)
+		return fmt.Errorf("failed to lock MCR: %w", err)
 	}
 
 	output.PrintSuccess("MCR %s locked successfully", noColor, mcrUID)
@@ -583,7 +584,7 @@ func UnlockMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return e
 	})
 	if err != nil {
-		return fmt.Errorf("error unlocking MCR: %w", err)
+		return fmt.Errorf("failed to unlock MCR: %w", err)
 	}
 
 	output.PrintSuccess("MCR %s unlocked successfully", noColor, mcrUID)
@@ -610,12 +611,12 @@ func ListMCRPrefixFilterLists(cmd *cobra.Command, args []string, noColor bool, o
 	spinner.Stop()
 
 	if err != nil {
-		return fmt.Errorf("error listing prefix filter lists: %w", err)
+		return fmt.Errorf("failed to list prefix filter lists: %w", err)
 	}
 
 	err = output.PrintOutput(prefixFilterLists, outputFormat, noColor)
 	if err != nil {
-		return fmt.Errorf("error printing prefix filter lists: %w", err)
+		return fmt.Errorf("failed to print prefix filter lists: %w", err)
 	}
 	return nil
 }
@@ -644,17 +645,17 @@ func GetMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool, out
 	spinner.Stop()
 
 	if err != nil {
-		return fmt.Errorf("error getting prefix filter list: %w", err)
+		return fmt.Errorf("failed to get prefix filter list: %w", err)
 	}
 
-	op, err := ToPrefixFilterListOutput(prefixFilterList)
+	op, err := toPrefixFilterListOutput(prefixFilterList)
 	if err != nil {
-		return fmt.Errorf("error converting prefix filter list: %w", err)
+		return fmt.Errorf("failed to convert prefix filter list: %w", err)
 	}
 
-	err = output.PrintOutput([]PrefixFilterListOutput{op}, outputFormat, noColor)
+	err = output.PrintOutput([]prefixFilterListOutput{op}, outputFormat, noColor)
 	if err != nil {
-		return fmt.Errorf("error printing prefix filter list: %w", err)
+		return fmt.Errorf("failed to print prefix filter list: %w", err)
 	}
 	return nil
 }
@@ -685,7 +686,7 @@ func DeleteMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	spinner.Stop()
 
 	if err != nil {
-		return fmt.Errorf("error deleting prefix filter list: %w", err)
+		return fmt.Errorf("failed to delete prefix filter list: %w", err)
 	}
 
 	if resp.IsDeleted {
@@ -723,7 +724,7 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 
 	if err != nil {
 		output.PrintError("Failed to list MCRs: %v", noColor, err)
-		return fmt.Errorf("error listing MCRs: %w", err)
+		return fmt.Errorf("failed to list MCRs: %w", err)
 	}
 
 	var activeMCRs []*megaport.MCR
@@ -807,7 +808,7 @@ func GetMCRStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 	if err != nil {
 		output.PrintError("Failed to get MCR status: %v", noColor, err)
-		return fmt.Errorf("error getting MCR status: %w", err)
+		return fmt.Errorf("failed to get MCR status: %w", err)
 	}
 
 	if mcr == nil {

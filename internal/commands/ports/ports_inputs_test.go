@@ -46,7 +46,7 @@ func TestProcessFlagPortInput(t *testing.T) {
 				"marketplace-visibility": "true",
 				"resource-tags":          `{invalid}`,
 			},
-			expectedError: "error parsing resource tags JSON",
+			expectedError: "failed to parse resource tags JSON",
 		},
 	}
 
@@ -107,7 +107,7 @@ func TestProcessFlagLAGPortInput(t *testing.T) {
 				"marketplace-visibility": "true",
 				"resource-tags":          `{bad json}`,
 			},
-			expectedError: "error parsing resource tags JSON",
+			expectedError: "failed to parse resource tags JSON",
 		},
 	}
 
@@ -156,12 +156,12 @@ func TestProcessJSONPortInput(t *testing.T) {
 		{
 			name:          "invalid JSON string",
 			jsonStr:       `{invalid}`,
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:          "file not found",
 			jsonFile:      "/nonexistent/path/config.json",
-			expectedError: "error reading JSON file",
+			expectedError: "failed to read JSON file",
 		},
 		{
 			name:      "valid JSON file",
@@ -209,7 +209,7 @@ func TestProcessJSONUpdatePortInput(t *testing.T) {
 		{
 			name:          "invalid JSON",
 			jsonStr:       `{invalid}`,
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:          "no fields updated",
@@ -224,7 +224,7 @@ func TestProcessJSONUpdatePortInput(t *testing.T) {
 		{
 			name:          "file not found",
 			jsonFile:      "/nonexistent/path/config.json",
-			expectedError: "error reading JSON file",
+			expectedError: "failed to read JSON file",
 		},
 		{
 			name:      "valid JSON file",

@@ -17,13 +17,14 @@ func parseManagedAccountRequestJSON(jsonStr, jsonFile string) (*megaport.Managed
 
 	req := &megaport.ManagedAccountRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	return req, nil
 }
 
 func buildManagedAccountRequestFromFlags(cmd *cobra.Command) (*megaport.ManagedAccountRequest, error) { //nolint:unparam
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	accountName, _ := cmd.Flags().GetString("account-name")
 	accountRef, _ := cmd.Flags().GetString("account-ref")
 

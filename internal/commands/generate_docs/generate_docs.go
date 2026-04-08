@@ -61,7 +61,7 @@ func generateDocs(rootCmd *cobra.Command, args []string) error {
 	outputDir := args[0]
 
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return fmt.Errorf("failed to create output directory: %v", err)
+		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
 	spinner := output.NewSpinner(false)
@@ -69,12 +69,12 @@ func generateDocs(rootCmd *cobra.Command, args []string) error {
 
 	if err := generateIndex(rootCmd, outputDir); err != nil {
 		spinner.Stop()
-		return fmt.Errorf("failed to generate index: %v", err)
+		return fmt.Errorf("failed to generate index: %w", err)
 	}
 
 	if err := generateCommandDocs(rootCmd, outputDir, ""); err != nil {
 		spinner.Stop()
-		return fmt.Errorf("failed to generate command docs: %v", err)
+		return fmt.Errorf("failed to generate command docs: %w", err)
 	}
 
 	spinner.StopWithSuccess(fmt.Sprintf("Documentation successfully generated in %s", outputDir))

@@ -39,7 +39,7 @@ var mockServiceKeys = []*megaport.ServiceKey{
 	},
 }
 
-func toServiceKeyOutput(k *megaport.ServiceKey) map[string]interface{} {
+func serviceKeyToMap(k *megaport.ServiceKey) map[string]interface{} {
 	return map[string]interface{}{
 		"key":         k.Key,
 		"description": k.Description,
@@ -51,7 +51,7 @@ func toServiceKeyOutput(k *megaport.ServiceKey) map[string]interface{} {
 
 func TestToServiceKeyOutput(t *testing.T) {
 	sk := mockServiceKeys[0]
-	output := toServiceKeyOutput(sk)
+	output := serviceKeyToMap(sk)
 
 	assert.Equal(t, sk.Key, output["key"])
 	assert.Equal(t, sk.Description, output["description"])
@@ -130,9 +130,9 @@ func TestFilterServiceKeys(t *testing.T) {
 }
 
 func TestServiceKeyOutput_Table(t *testing.T) {
-	outputs := make([]ServiceKeyOutput, 0, len(mockServiceKeys))
+	outputs := make([]serviceKeyOutput, 0, len(mockServiceKeys))
 	for _, sk := range mockServiceKeys {
-		skOutput, err := ToServiceKeyOutput(sk)
+		skOutput, err := toServiceKeyOutput(sk)
 		assert.NoError(t, err)
 		outputs = append(outputs, skOutput)
 	}
@@ -175,9 +175,9 @@ func TestServiceKeyOutput_Table(t *testing.T) {
 }
 
 func TestServiceKeyOutput_JSON(t *testing.T) {
-	outputs := make([]ServiceKeyOutput, 0, len(mockServiceKeys))
+	outputs := make([]serviceKeyOutput, 0, len(mockServiceKeys))
 	for _, sk := range mockServiceKeys {
-		skOutput, err := ToServiceKeyOutput(sk)
+		skOutput, err := toServiceKeyOutput(sk)
 		assert.NoError(t, err)
 		outputs = append(outputs, skOutput)
 	}
@@ -207,9 +207,9 @@ func TestServiceKeyOutput_JSON(t *testing.T) {
 }
 
 func TestServiceKeyOutput_CSV(t *testing.T) {
-	outputs := make([]ServiceKeyOutput, 0, len(mockServiceKeys))
+	outputs := make([]serviceKeyOutput, 0, len(mockServiceKeys))
 	for _, sk := range mockServiceKeys {
-		skOutput, err := ToServiceKeyOutput(sk)
+		skOutput, err := toServiceKeyOutput(sk)
 		assert.NoError(t, err)
 		outputs = append(outputs, skOutput)
 	}
@@ -311,7 +311,7 @@ func TestToServiceKeyOutput_EdgeCases(t *testing.T) {
 		key           *megaport.ServiceKey
 		shouldError   bool
 		errorContains string
-		validateFunc  func(*testing.T, ServiceKeyOutput)
+		validateFunc  func(*testing.T, serviceKeyOutput)
 	}{
 		{
 			name:          "nil service key",
@@ -322,7 +322,7 @@ func TestToServiceKeyOutput_EdgeCases(t *testing.T) {
 		{
 			name: "zero values",
 			key:  &megaport.ServiceKey{},
-			validateFunc: func(t *testing.T, output ServiceKeyOutput) {
+			validateFunc: func(t *testing.T, output serviceKeyOutput) {
 				assert.Empty(t, output.KeyUID)
 				assert.Empty(t, output.ProductName)
 				assert.Empty(t, output.ProductUID)
@@ -339,7 +339,7 @@ func TestToServiceKeyOutput_EdgeCases(t *testing.T) {
 				Description: "Test Description",
 				CreateDate:  nil,
 			},
-			validateFunc: func(t *testing.T, output ServiceKeyOutput) {
+			validateFunc: func(t *testing.T, output serviceKeyOutput) {
 				assert.Equal(t, "test-key", output.KeyUID)
 				assert.Equal(t, "Test Product", output.ProductName)
 				assert.Equal(t, "prod-123", output.ProductUID)
@@ -351,7 +351,7 @@ func TestToServiceKeyOutput_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output, err := ToServiceKeyOutput(tt.key)
+			output, err := toServiceKeyOutput(tt.key)
 
 			if tt.shouldError {
 				assert.Error(t, err)

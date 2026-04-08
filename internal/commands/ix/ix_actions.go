@@ -38,6 +38,7 @@ func ListIXs(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 	}
 	defer cancel()
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	name, _ := cmd.Flags().GetString("name")
 	asn, _ := cmd.Flags().GetInt("asn")
 	vlan, _ := cmd.Flags().GetInt("vlan")
@@ -58,7 +59,7 @@ func ListIXs(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 
 	if err != nil {
 		output.PrintError("Failed to list IXs: %v", noColor, err)
-		return fmt.Errorf("error listing IXs: %w", err)
+		return fmt.Errorf("failed to list IXs: %w", err)
 	}
 
 	if !includeInactive {
@@ -100,8 +101,8 @@ func GetIX(cmd *cobra.Command, args []string, noColor bool, outputFormat string)
 
 	if err != nil {
 		err = utils.WrapAPIError(err, "IX", ixUID)
-		output.PrintError("Error getting IX: %v", noColor, err)
-		return fmt.Errorf("error getting IX: %w", err)
+		output.PrintError("Failed to get IX: %v", noColor, err)
+		return fmt.Errorf("failed to get IX: %w", err)
 	}
 
 	if ix == nil {
@@ -114,7 +115,7 @@ func GetIX(cmd *cobra.Command, args []string, noColor bool, outputFormat string)
 		cfg := exportIXConfig(ix)
 		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
-			return fmt.Errorf("error marshaling export config: %w", err)
+			return fmt.Errorf("failed to marshal export config: %w", err)
 		}
 		fmt.Println(string(jsonBytes))
 		return nil
@@ -122,7 +123,7 @@ func GetIX(cmd *cobra.Command, args []string, noColor bool, outputFormat string)
 
 	err = printIXs([]*megaport.IX{ix}, outputFormat, noColor)
 	if err != nil {
-		return fmt.Errorf("error printing IXs: %w", err)
+		return fmt.Errorf("failed to print IXs: %w", err)
 	}
 	return nil
 }
@@ -146,7 +147,7 @@ func GetIXStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 
 	if err != nil {
 		output.PrintError("Failed to get IX status: %v", noColor, err)
-		return fmt.Errorf("error getting IX status: %w", err)
+		return fmt.Errorf("failed to get IX status: %w", err)
 	}
 
 	if ix == nil {
@@ -204,7 +205,7 @@ func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 
@@ -213,7 +214,7 @@ func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
 	spinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error validating IX order: %v", noColor, err)
+		output.PrintError("Failed to validate IX order: %v", noColor, err)
 		return err
 	}
 
@@ -243,11 +244,11 @@ func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
 	buySpinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error buying IX: %v", noColor, err)
+		output.PrintError("Failed to buy IX: %v", noColor, err)
 		return err
 	}
 
-	output.PrintSuccess("IX created %s", noColor, resp.TechnicalServiceUID)
+	output.PrintResourceCreated("IX", resp.TechnicalServiceUID, noColor)
 	return nil
 }
 
@@ -262,7 +263,7 @@ func ValidateIX(cmd *cobra.Command, args []string, noColor bool) error {
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 
@@ -271,7 +272,7 @@ func ValidateIX(cmd *cobra.Command, args []string, noColor bool) error {
 	spinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error validating IX order: %v", noColor, err)
+		output.PrintError("Failed to validate IX order: %v", noColor, err)
 		return err
 	}
 
@@ -327,13 +328,13 @@ func UpdateIX(cmd *cobra.Command, args []string, noColor bool) error {
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 
 	originalIX, err := getIXFunc(ctx, client, ixUID)
 	if err != nil {
-		output.PrintError("Error getting original IX: %v", noColor, err)
+		output.PrintError("Failed to get original IX: %v", noColor, err)
 		return err
 	}
 
@@ -342,7 +343,7 @@ func UpdateIX(cmd *cobra.Command, args []string, noColor bool) error {
 	updateSpinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error updating IX: %v", noColor, err)
+		output.PrintError("Failed to update IX: %v", noColor, err)
 		return err
 	}
 
@@ -395,7 +396,7 @@ func DeleteIX(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		err = utils.WrapAPIError(err, "IX", ixUID)
-		return fmt.Errorf("error deleting IX: %w", err)
+		return fmt.Errorf("failed to delete IX: %w", err)
 	}
 
 	output.PrintResourceDeleted("IX", ixUID, deleteNow, noColor)

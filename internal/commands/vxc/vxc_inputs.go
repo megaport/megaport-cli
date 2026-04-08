@@ -15,6 +15,7 @@ import (
 )
 
 var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc megaport.VXCService) (*megaport.BuyVXCRequest, error) {
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	aEndUID, _ := cmd.Flags().GetString("a-end-uid")
 
 	name, _ := cmd.Flags().GetString("name")
@@ -71,7 +72,7 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 	if aEndPartnerConfigStr != "" {
 		aEndPartnerConfig, err := parsePartnerConfigFromJSON(aEndPartnerConfigStr)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing a-end-partner-config: %v", err)
+			return nil, fmt.Errorf("failed to parse a-end-partner-config: %w", err)
 		}
 		// If the A End UID is not provided, attempt to look it up from the partner port key
 		if aEndUID == "" {
@@ -82,7 +83,7 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 				}
 				uid, err := getPartnerPortUID(ctx, svc, aEndPartnerConfig.ServiceKey, "AZURE")
 				if err != nil {
-					return nil, fmt.Errorf("error looking up Azure Partner Port: %v", err)
+					return nil, fmt.Errorf("failed to look up Azure Partner Port: %w", err)
 				}
 				aEndUID = uid
 			case *megaport.VXCPartnerConfigGoogle:
@@ -91,7 +92,7 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 				}
 				uid, err := getPartnerPortUID(ctx, svc, aEndPartnerConfig.PairingKey, "GOOGLE")
 				if err != nil {
-					return nil, fmt.Errorf("error looking up Google Partner Port: %v", err)
+					return nil, fmt.Errorf("failed to look up Google Partner Port: %w", err)
 				}
 				aEndUID = uid
 			case *megaport.VXCPartnerConfigOracle:
@@ -100,7 +101,7 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 				}
 				uid, err := getPartnerPortUID(ctx, svc, aEndPartnerConfig.VirtualCircuitId, "ORACLE")
 				if err != nil {
-					return nil, fmt.Errorf("error looking up Oracle Partner Port: %v", err)
+					return nil, fmt.Errorf("failed to look up Oracle Partner Port: %w", err)
 				}
 				aEndUID = uid
 				aEndConfig.PartnerConfig = aEndPartnerConfig
@@ -124,7 +125,7 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 	if bEndPartnerConfigStr != "" {
 		bEndPartnerConfig, err := parsePartnerConfigFromJSON(bEndPartnerConfigStr)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing b-end-partner-config: %v", err)
+			return nil, fmt.Errorf("failed to parse b-end-partner-config: %w", err)
 		}
 		bEndConfig.PartnerConfig = bEndPartnerConfig
 	}
@@ -140,7 +141,7 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 			}
 			uid, err := getPartnerPortUID(ctx, svc, bEndPartnerConfig.ServiceKey, "AZURE")
 			if err != nil {
-				return nil, fmt.Errorf("error looking up Azure Partner Port: %v", err)
+				return nil, fmt.Errorf("failed to look up Azure Partner Port: %w", err)
 			}
 			bEndUID = uid
 		case *megaport.VXCPartnerConfigGoogle:
@@ -149,7 +150,7 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 			}
 			uid, err := getPartnerPortUID(ctx, svc, bEndPartnerConfig.PairingKey, "GOOGLE")
 			if err != nil {
-				return nil, fmt.Errorf("error looking up Google Partner Port: %v", err)
+				return nil, fmt.Errorf("failed to look up Google Partner Port: %w", err)
 			}
 			bEndUID = uid
 		case *megaport.VXCPartnerConfigOracle:
@@ -158,7 +159,7 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 			}
 			uid, err := getPartnerPortUID(ctx, svc, bEndPartnerConfig.VirtualCircuitId, "ORACLE")
 			if err != nil {
-				return nil, fmt.Errorf("error looking up Oracle Partner Port: %v", err)
+				return nil, fmt.Errorf("failed to look up Oracle Partner Port: %w", err)
 			}
 			bEndUID = uid
 		}
@@ -689,7 +690,7 @@ func parseVXCEndpointConfig(endConfigRaw map[string]interface{}, endLabel string
 	if partnerConfigRaw, ok := endConfigRaw["partnerConfig"].(map[string]interface{}); ok {
 		partnerConfig, err := parsePartnerConfigFromMap(partnerConfigRaw)
 		if err != nil {
-			return config, fmt.Errorf("error parsing %s partner config: %v", endLabel, err)
+			return config, fmt.Errorf("failed to parse %s partner config: %w", endLabel, err)
 		}
 
 		config.PartnerConfig = partnerConfig
@@ -729,7 +730,7 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.Buy
 	// Parse raw JSON first to handle partner configs correctly
 	var rawData map[string]interface{}
 	if err := json.Unmarshal(jsonData, &rawData); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	portUID, ok := rawData["portUid"].(string)
@@ -913,7 +914,7 @@ var buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateV
 		if aEndPartnerConfigStr != "" {
 			aEndPartnerConfig, err := parsePartnerConfigFromJSON(aEndPartnerConfigStr)
 			if err != nil {
-				return nil, fmt.Errorf("error parsing a-end-partner-config: %v", err)
+				return nil, fmt.Errorf("failed to parse a-end-partner-config: %w", err)
 			}
 
 			// Verify it's a VRouter config which is the only updatable partner config
@@ -929,7 +930,7 @@ var buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateV
 		if bEndPartnerConfigStr != "" {
 			bEndPartnerConfig, err := parsePartnerConfigFromJSON(bEndPartnerConfigStr)
 			if err != nil {
-				return nil, fmt.Errorf("error parsing b-end-partner-config: %v", err)
+				return nil, fmt.Errorf("failed to parse b-end-partner-config: %w", err)
 			}
 
 			// Verify it's a VRouter config which is the only updatable partner config
@@ -956,7 +957,7 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	// Parse raw JSON first to handle partner configs
 	var rawData map[string]interface{}
 	if err := json.Unmarshal(jsonData, &rawData); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	req := &megaport.UpdateVXCRequest{}
@@ -1064,7 +1065,7 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 		if connectType, ok := aEndPartnerConfigRaw["connectType"].(string); ok && strings.ToUpper(connectType) == "VROUTER" {
 			aEndPartnerConfig, err := parsePartnerConfigFromMap(aEndPartnerConfigRaw)
 			if err != nil {
-				return nil, fmt.Errorf("error parsing A-End partner config: %v", err)
+				return nil, fmt.Errorf("failed to parse A-End partner config: %w", err)
 			}
 
 			req.AEndPartnerConfig = aEndPartnerConfig
@@ -1077,7 +1078,7 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 		if connectType, ok := bEndPartnerConfigRaw["connectType"].(string); ok && strings.ToUpper(connectType) == "VROUTER" {
 			bEndPartnerConfig, err := parsePartnerConfigFromMap(bEndPartnerConfigRaw)
 			if err != nil {
-				return nil, fmt.Errorf("error parsing B-End partner config: %v", err)
+				return nil, fmt.Errorf("failed to parse B-End partner config: %w", err)
 			}
 
 			req.BEndPartnerConfig = bEndPartnerConfig

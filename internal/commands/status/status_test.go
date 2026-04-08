@@ -175,7 +175,7 @@ func TestStatusDashboard_InactivePortsFiltered(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	var dashboard DashboardOutput
+	var dashboard dashboardOutput
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &dashboard))
 	assert.Len(t, dashboard.Ports, 1)
 	assert.Equal(t, "port-live", dashboard.Ports[0].UID)

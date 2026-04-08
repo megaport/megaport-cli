@@ -9,7 +9,7 @@ import (
 )
 
 func TestToMCROutput_NilMCR(t *testing.T) {
-	_, err := ToMCROutput(nil)
+	_, err := toMCROutput(nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "nil value")
 }
@@ -24,7 +24,7 @@ func TestToMCROutput_Valid(t *testing.T) {
 	}
 	mcr.Resources.VirtualRouter.ASN = 65000
 
-	out, err := ToMCROutput(mcr)
+	out, err := toMCROutput(mcr)
 	assert.NoError(t, err)
 	assert.Equal(t, "mcr-123", out.UID)
 	assert.Equal(t, "Test MCR", out.Name)
@@ -33,7 +33,7 @@ func TestToMCROutput_Valid(t *testing.T) {
 }
 
 func TestToPrefixFilterListOutput_NilPFL(t *testing.T) {
-	_, err := ToPrefixFilterListOutput(nil)
+	_, err := toPrefixFilterListOutput(nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "nil value")
 }
@@ -48,7 +48,7 @@ func TestToPrefixFilterListOutput_Valid(t *testing.T) {
 		},
 	}
 
-	out, err := ToPrefixFilterListOutput(pfl)
+	out, err := toPrefixFilterListOutput(pfl)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, out.ID)
 	assert.Equal(t, "Test PFL", out.Description)

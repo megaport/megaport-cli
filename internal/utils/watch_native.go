@@ -54,7 +54,7 @@ func WatchLoop(ctx context.Context, cfg WatchConfig, pollFn func(ctx context.Con
 
 		currentStatus, err := pollFn(ctx)
 		if err != nil {
-			output.PrintError("Error polling %s %s: %v", cfg.NoColor, cfg.ResourceType, cfg.ResourceUID, err)
+			output.PrintError("Failed to poll %s %s: %v", cfg.NoColor, cfg.ResourceType, cfg.ResourceUID, err)
 		} else if lastStatus != "" && currentStatus != lastStatus {
 			fmt.Println()
 			output.PrintSuccess("Status changed: %s → %s", cfg.NoColor, lastStatus, currentStatus)

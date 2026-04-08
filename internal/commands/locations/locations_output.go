@@ -6,7 +6,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-type LocationOutput struct {
+type locationOutput struct {
 	output.Output         `json:"-" header:"-"`
 	ID                    int     `json:"id" header:"ID"`
 	Name                  string  `json:"name" header:"Name"`
@@ -25,8 +25,8 @@ type LocationOutput struct {
 	OrderingMessage       string  `json:"ordering_message" header:"-"`
 }
 
-func ToLocationOutput(l *megaport.LocationV3) LocationOutput {
-	o := LocationOutput{
+func toLocationOutput(l *megaport.LocationV3) locationOutput {
+	o := locationOutput{
 		ID:                    l.ID,
 		Name:                  l.Name,
 		Country:               l.Address.Country,
@@ -48,7 +48,7 @@ func ToLocationOutput(l *megaport.LocationV3) LocationOutput {
 	return o
 }
 
-type LocationTableOutput struct {
+type locationTableOutput struct {
 	ID           int    `header:"ID"`
 	Name         string `header:"Name"`
 	Country      string `header:"Country"`
@@ -58,8 +58,8 @@ type LocationTableOutput struct {
 	MVEAvailable bool   `header:"MVE Available"`
 }
 
-func ToLocationTableOutput(l *megaport.LocationV3) LocationTableOutput {
-	return LocationTableOutput{
+func toLocationTableOutput(l *megaport.LocationV3) locationTableOutput {
+	return locationTableOutput{
 		ID:           l.ID,
 		Name:         l.Name,
 		Country:      l.Address.Country,
@@ -70,7 +70,7 @@ func ToLocationTableOutput(l *megaport.LocationV3) LocationTableOutput {
 	}
 }
 
-type CountryOutput struct {
+type countryOutput struct {
 	output.Output `json:"-" header:"-"`
 	Code          string `json:"code" header:"Code"`
 	Name          string `json:"name" header:"Name"`
@@ -78,15 +78,15 @@ type CountryOutput struct {
 	SiteCount     int    `json:"site_count" header:"Site Count"`
 }
 
-type MarketCodeOutput struct {
+type marketCodeOutput struct {
 	output.Output `json:"-" header:"-"`
 	MarketCode    string `json:"market_code" header:"Market Code"`
 }
 
 func printCountries(countries []*megaport.Country, format string, noColor bool) error {
-	outputs := make([]CountryOutput, 0, len(countries))
+	outputs := make([]countryOutput, 0, len(countries))
 	for _, c := range countries {
-		outputs = append(outputs, CountryOutput{
+		outputs = append(outputs, countryOutput{
 			Code:      c.Code,
 			Name:      c.Name,
 			Prefix:    c.Prefix,
@@ -97,9 +97,9 @@ func printCountries(countries []*megaport.Country, format string, noColor bool) 
 }
 
 func printMarketCodes(marketCodes []string, format string, noColor bool) error {
-	outputs := make([]MarketCodeOutput, 0, len(marketCodes))
+	outputs := make([]marketCodeOutput, 0, len(marketCodes))
 	for _, mc := range marketCodes {
-		outputs = append(outputs, MarketCodeOutput{
+		outputs = append(outputs, marketCodeOutput{
 			MarketCode: mc,
 		})
 	}
@@ -108,16 +108,16 @@ func printMarketCodes(marketCodes []string, format string, noColor bool) error {
 
 func printLocations(locations []*megaport.LocationV3, format string, noColor bool) error {
 	if format == utils.FormatTable {
-		tableOutputs := make([]LocationTableOutput, 0, len(locations))
+		tableOutputs := make([]locationTableOutput, 0, len(locations))
 		for _, loc := range locations {
-			tableOutputs = append(tableOutputs, ToLocationTableOutput(loc))
+			tableOutputs = append(tableOutputs, toLocationTableOutput(loc))
 		}
 		return output.PrintOutput(tableOutputs, format, noColor)
 	}
 
-	outputs := make([]LocationOutput, 0, len(locations))
+	outputs := make([]locationOutput, 0, len(locations))
 	for _, loc := range locations {
-		outputs = append(outputs, ToLocationOutput(loc))
+		outputs = append(outputs, toLocationOutput(loc))
 	}
 	return output.PrintOutput(outputs, format, noColor)
 }

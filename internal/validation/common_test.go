@@ -235,3 +235,23 @@ func TestValidationError(t *testing.T) {
 	}
 	assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
 }
+
+func TestFormatIntSlice(t *testing.T) {
+	tests := []struct {
+		name string
+		vals []int
+		want string
+	}{
+		{"empty", nil, ""},
+		{"single", []int{1}, "1"},
+		{"two", []int{1, 12}, "1 or 12"},
+		{"three", []int{1, 12, 24}, "1, 12, or 24"},
+		{"four", []int{1, 12, 24, 36}, "1, 12, 24, or 36"},
+		{"port speeds", []int{1000, 10000, 100000}, "1000, 10000, or 100000"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, FormatIntSlice(tt.vals))
+		})
+	}
+}

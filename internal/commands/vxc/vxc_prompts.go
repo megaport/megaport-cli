@@ -32,7 +32,7 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		return nil, err
 	}
 
-	termStr, err := utils.ResourcePrompt("vxc", "Enter term in months (1, 12, 24, or 36, required): ", noColor)
+	termStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("Enter term in months (%s, required): ", validation.FormatIntSlice(validation.ValidContractTerms)), noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +241,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 	fmt.Println("Fetching current VXC details...")
 	vxc, err := client.VXCService.GetVXC(ctx, vxcUID)
 	if err != nil {
-		return nil, fmt.Errorf("error fetching VXC details: %v", err)
+		return nil, fmt.Errorf("failed to fetch VXC details: %w", err)
 	}
 
 	fmt.Printf("Current name: %s\n", vxc.Name)
@@ -283,7 +283,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		return nil, err
 	}
 	if strings.ToLower(updateTerm) == "yes" {
-		termStr, err := utils.ResourcePrompt("vxc", "Enter new term in months (0, 1, 12, 24, or 36): ", noColor)
+		termStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("Enter new term in months (0, %s): ", validation.FormatIntSlice(validation.ValidContractTerms)), noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -1141,7 +1141,7 @@ func promptAzureConfig(ctx context.Context, svc megaport.VXCService, noColor boo
 		Partner: "AZURE",
 	})
 	if err != nil {
-		return nil, "", fmt.Errorf("error looking up partner ports: %v", err)
+		return nil, "", fmt.Errorf("failed to look up partner ports: %w", err)
 	}
 	var uid string
 	for _, port := range partnerPortRes.Data.Megaports {

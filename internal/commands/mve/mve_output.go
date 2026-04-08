@@ -7,7 +7,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-type MVEOutput struct {
+type mveOutput struct {
 	output.Output `json:"-" header:"-"`
 	UID           string `json:"uid" header:"UID"`
 	Name          string `json:"name" header:"Name"`
@@ -25,11 +25,11 @@ type MVEStatus struct {
 	Size   string `json:"size" header:"Size"`
 }
 
-func ToMVEOutput(m *megaport.MVE) (MVEOutput, error) {
+func toMVEOutput(m *megaport.MVE) (mveOutput, error) {
 	if m == nil {
-		return MVEOutput{}, fmt.Errorf("invalid MVE: nil value")
+		return mveOutput{}, fmt.Errorf("invalid MVE: nil value")
 	}
-	output := MVEOutput{
+	output := mveOutput{
 		UID:        m.UID,
 		Name:       m.Name,
 		LocationID: m.LocationID,
@@ -53,9 +53,9 @@ func printMVEs(mves []*megaport.MVE, format string, noColor bool) error {
 	if mves == nil {
 		mves = []*megaport.MVE{}
 	}
-	outputs := make([]MVEOutput, 0, len(mves))
+	outputs := make([]mveOutput, 0, len(mves))
 	for _, mve := range mves {
-		output, err := ToMVEOutput(mve)
+		output, err := toMVEOutput(mve)
 		if err != nil {
 			return err
 		}

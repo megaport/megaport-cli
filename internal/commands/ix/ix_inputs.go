@@ -10,6 +10,7 @@ import (
 )
 
 func buildIXRequestFromFlags(cmd *cobra.Command) (*megaport.BuyIXRequest, error) { //nolint:unparam
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	productUID, _ := cmd.Flags().GetString("product-uid")
 	name, _ := cmd.Flags().GetString("name")
 	networkServiceType, _ := cmd.Flags().GetString("network-service-type")
@@ -43,7 +44,7 @@ func buildIXRequestFromJSON(jsonStr, jsonFile string) (*megaport.BuyIXRequest, e
 
 	req := &megaport.BuyIXRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	return req, nil
@@ -118,7 +119,7 @@ func buildUpdateIXRequestFromJSON(jsonStr, jsonFile string) (*megaport.UpdateIXR
 
 	req := &megaport.UpdateIXRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	return req, nil

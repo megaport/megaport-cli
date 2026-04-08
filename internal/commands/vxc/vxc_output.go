@@ -7,8 +7,8 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// VXCOutput represents the desired fields for output.
-type VXCOutput struct {
+// vxcOutput represents the desired fields for output.
+type vxcOutput struct {
 	output.Output `json:"-" header:"-"`
 	UID           string `json:"uid" header:"UID"`
 	Name          string `json:"name" header:"Name"`
@@ -20,10 +20,10 @@ type VXCOutput struct {
 	Status        string `json:"status" header:"Status"`
 }
 
-// ToVXCOutput converts a VXC to a VXCOutput.
-func ToVXCOutput(v *megaport.VXC) (VXCOutput, error) {
+// toVXCOutput converts a VXC to a vxcOutput.
+func toVXCOutput(v *megaport.VXC) (vxcOutput, error) {
 	if v == nil {
-		return VXCOutput{}, fmt.Errorf("invalid VXC: nil value")
+		return vxcOutput{}, fmt.Errorf("invalid VXC: nil value")
 	}
 
 	aEndVLAN := v.AEndConfiguration.VLAN
@@ -33,7 +33,7 @@ func ToVXCOutput(v *megaport.VXC) (VXCOutput, error) {
 
 	status := v.ProvisioningStatus
 
-	return VXCOutput{
+	return vxcOutput{
 		UID:       v.UID,
 		Name:      v.Name,
 		AEndUID:   aEndUID,
@@ -51,9 +51,9 @@ func printVXCs(vxcs []*megaport.VXC, format string, noColor bool) error {
 		vxcs = []*megaport.VXC{}
 	}
 
-	outputs := make([]VXCOutput, 0, len(vxcs))
+	outputs := make([]vxcOutput, 0, len(vxcs))
 	for _, vxc := range vxcs {
-		output, err := ToVXCOutput(vxc)
+		output, err := toVXCOutput(vxc)
 		if err != nil {
 			return err
 		}

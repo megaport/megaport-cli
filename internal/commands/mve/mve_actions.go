@@ -54,6 +54,7 @@ func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	}
 	defer cancel()
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	locationID, _ := cmd.Flags().GetInt("location-id")
 	vendor, _ := cmd.Flags().GetString("vendor")
 	name, _ := cmd.Flags().GetString("name")
@@ -71,7 +72,7 @@ func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 
 	if err != nil {
 		output.PrintError("Failed to list MVEs: %v", noColor, err)
-		return fmt.Errorf("error listing MVEs: %w", err)
+		return fmt.Errorf("failed to list MVEs: %w", err)
 	}
 
 	var activeMVEs []*megaport.MVE
@@ -242,7 +243,7 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		output.PrintError("Failed to get original MVE details: %v", noColor, err)
-		return fmt.Errorf("error getting MVE details: %w", err)
+		return fmt.Errorf("failed to get MVE details: %w", err)
 	}
 
 	interactive, _ := cmd.Flags().GetBool("interactive")
@@ -259,20 +260,20 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		req, err = processJSONUpdateMVEInput(jsonStr, jsonFile, mveUID)
 		if err != nil {
 			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return fmt.Errorf("error processing JSON input: %w", err)
+			return fmt.Errorf("failed to process JSON input: %w", err)
 		}
 	} else if flagsProvided {
 		req, err = processFlagUpdateMVEInput(cmd, mveUID)
 		if err != nil {
 			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return fmt.Errorf("error processing flag input: %w", err)
+			return fmt.Errorf("failed to process flag input: %w", err)
 		}
 	} else if interactive {
 		output.PrintInfo("Starting interactive mode for MVE %s", noColor, formattedUID)
 		req, err = promptForUpdateMVEDetails(mveUID, noColor)
 		if err != nil {
 			output.PrintError("Failed to get MVE details interactively: %v", noColor, err)
-			return fmt.Errorf("error getting MVE details interactively: %w", err)
+			return fmt.Errorf("failed to get MVE details interactively: %w", err)
 		}
 	} else {
 		output.PrintError("No input provided", noColor)
@@ -353,7 +354,7 @@ func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	if err != nil {
 		err = utils.WrapAPIError(err, "MVE", mveUID)
 		output.PrintError("Failed to get MVE: %v", noColor, err)
-		return fmt.Errorf("error getting MVE: %w", err)
+		return fmt.Errorf("failed to get MVE: %w", err)
 	}
 
 	if mve == nil {
@@ -366,7 +367,7 @@ func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 		cfg := exportMVEConfig(mve)
 		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
-			return fmt.Errorf("error marshaling export config: %w", err)
+			return fmt.Errorf("failed to marshal export config: %w", err)
 		}
 		fmt.Println(string(jsonBytes))
 		return nil
@@ -375,7 +376,7 @@ func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	err = printMVEs([]*megaport.MVE{mve}, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print MVEs: %v", noColor, err)
-		return fmt.Errorf("error printing MVEs: %w", err)
+		return fmt.Errorf("failed to print MVEs: %w", err)
 	}
 	return nil
 }
@@ -413,7 +414,7 @@ func ListMVEImages(cmd *cobra.Command, args []string, noColor bool, outputFormat
 
 	if err != nil {
 		output.PrintError("Failed to list MVE images: %v", noColor, err)
-		return fmt.Errorf("error listing MVE images: %w", err)
+		return fmt.Errorf("failed to list MVE images: %w", err)
 	}
 
 	if images == nil {
@@ -432,7 +433,7 @@ func ListMVEImages(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	err = output.PrintOutput(filteredImages, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print MVE images: %v", noColor, err)
-		return fmt.Errorf("error printing MVE images: %w", err)
+		return fmt.Errorf("failed to print MVE images: %w", err)
 	}
 	return nil
 }
@@ -454,7 +455,7 @@ func ListAvailableMVESizes(cmd *cobra.Command, args []string, noColor bool, outp
 
 	if err != nil {
 		output.PrintError("Failed to list MVE sizes: %v", noColor, err)
-		return fmt.Errorf("error listing MVE sizes: %w", err)
+		return fmt.Errorf("failed to list MVE sizes: %w", err)
 	}
 
 	if sizes == nil {
@@ -465,7 +466,7 @@ func ListAvailableMVESizes(cmd *cobra.Command, args []string, noColor bool, outp
 	err = output.PrintOutput(sizes, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print MVE sizes: %v", noColor, err)
-		return fmt.Errorf("error printing MVE sizes: %w", err)
+		return fmt.Errorf("failed to print MVE sizes: %w", err)
 	}
 	return nil
 }
@@ -519,7 +520,7 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	if err != nil {
 		err = utils.WrapAPIError(err, "MVE", mveUID)
 		output.PrintError("Failed to delete MVE: %v", noColor, err)
-		return fmt.Errorf("error deleting MVE: %w", err)
+		return fmt.Errorf("failed to delete MVE: %w", err)
 	}
 
 	// MVEs always delete immediately (SDK hardcodes DeleteNow: true), so the
@@ -594,7 +595,7 @@ func GetMVEStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 	if err != nil {
 		output.PrintError("Failed to get MVE status: %v", noColor, err)
-		return fmt.Errorf("error getting MVE status: %w", err)
+		return fmt.Errorf("failed to get MVE status: %w", err)
 	}
 
 	if mve == nil {
@@ -657,7 +658,7 @@ func LockMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		return e
 	})
 	if err != nil {
-		return fmt.Errorf("error locking MVE: %w", err)
+		return fmt.Errorf("failed to lock MVE: %w", err)
 	}
 
 	output.PrintSuccess("MVE %s locked successfully", noColor, mveUID)
@@ -681,7 +682,7 @@ func UnlockMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		return e
 	})
 	if err != nil {
-		return fmt.Errorf("error unlocking MVE: %w", err)
+		return fmt.Errorf("failed to unlock MVE: %w", err)
 	}
 
 	output.PrintSuccess("MVE %s unlocked successfully", noColor, mveUID)
@@ -705,7 +706,7 @@ func RestoreMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		return e
 	})
 	if err != nil {
-		return fmt.Errorf("error restoring MVE: %w", err)
+		return fmt.Errorf("failed to restore MVE: %w", err)
 	}
 
 	output.PrintSuccess("MVE %s restored successfully", noColor, mveUID)

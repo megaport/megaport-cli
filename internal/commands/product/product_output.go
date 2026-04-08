@@ -7,7 +7,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-type ProductOutput struct {
+type productOutput struct {
 	output.Output      `json:"-" header:"-"`
 	UID                string `json:"uid" header:"UID"`
 	Name               string `json:"name" header:"Name"`
@@ -17,17 +17,17 @@ type ProductOutput struct {
 	LocationID         int    `json:"location_id" header:"Location ID"`
 }
 
-type ProductTypeOutput struct {
+type productTypeOutput struct {
 	output.Output `json:"-" header:"-"`
 	UID           string `json:"uid" header:"UID"`
 	Type          string `json:"type" header:"Type"`
 }
 
-func toProductOutput(p megaport.Product) (ProductOutput, error) {
+func toProductOutput(p megaport.Product) (productOutput, error) {
 	if p == nil {
-		return ProductOutput{}, fmt.Errorf("invalid product: nil value")
+		return productOutput{}, fmt.Errorf("invalid product: nil value")
 	}
-	o := ProductOutput{
+	o := productOutput{
 		UID:                p.GetUID(),
 		Type:               p.GetType(),
 		ProvisioningStatus: p.GetProvisioningStatus(),
@@ -49,7 +49,7 @@ func toProductOutput(p megaport.Product) (ProductOutput, error) {
 }
 
 func printProducts(products []megaport.Product, format string, noColor bool) error {
-	outputs := make([]ProductOutput, 0, len(products))
+	outputs := make([]productOutput, 0, len(products))
 	for _, p := range products {
 		o, err := toProductOutput(p)
 		if err != nil {

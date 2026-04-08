@@ -215,9 +215,9 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			force:          false,
 			promptResponse: "y",
 			setupMock: func(m *MockMCRService) {
-				m.DeleteMCRErr = fmt.Errorf("error deleting MCR")
+				m.DeleteMCRErr = fmt.Errorf("failed to delete MCR")
 			},
-			expectedError: "error deleting MCR",
+			expectedError: "failed to delete MCR",
 			expectDeleted: false,
 		},
 	}
@@ -310,9 +310,9 @@ func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
 			name:  "restore MCR error",
 			mcrID: "mcr-error",
 			setupMock: func(m *MockMCRService) {
-				m.RestoreMCRErr = fmt.Errorf("error restoring MCR")
+				m.RestoreMCRErr = fmt.Errorf("failed to restore MCR")
 			},
-			expectedError: "error restoring MCR",
+			expectedError: "failed to restore MCR",
 		},
 		{
 			name:  "restore MCR unsuccessful",
@@ -867,7 +867,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			flags: map[string]string{
 				"json": `{"name":"Test MCR","term":"invalid"}`,
 			},
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name: "API error",
@@ -1059,7 +1059,7 @@ func TestGetMCRStatus(t *testing.T) {
 			setupMock: func(m *MockMCRService) {
 				m.GetMCRErr = fmt.Errorf("MCR not found")
 			},
-			expectedError: "error getting MCR status",
+			expectedError: "failed to get MCR status",
 			outputFormat:  "table",
 		},
 		{
@@ -1613,7 +1613,7 @@ func TestListMCRResourceTagsCmd(t *testing.T) {
 			setupMock: func(m *MockMCRService) {
 				m.ListMCRResourceTagsErr = fmt.Errorf("API error: not found")
 			},
-			expectedError: "error getting resource tags",
+			expectedError: "failed to get resource tags",
 		},
 	}
 
@@ -1708,7 +1708,7 @@ func TestUpdateMCRResourceTagsCmd(t *testing.T) {
 			setupMock: func(m *MockMCRService) {
 				m.ListMCRResourceTagsResult = map[string]string{}
 			},
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:      "error with API tag listing",
@@ -1717,7 +1717,7 @@ func TestUpdateMCRResourceTagsCmd(t *testing.T) {
 			setupMock: func(m *MockMCRService) {
 				m.ListMCRResourceTagsErr = fmt.Errorf("API error: resource not found")
 			},
-			expectedError: "failed to login or list existing resource tags",
+			expectedError: "failed to log in or list existing resource tags",
 		},
 		{
 			name:      "error with API update",
@@ -2336,8 +2336,8 @@ func TestLockMCRCmd_WithMockClient(t *testing.T) {
 		{
 			name:          "lock MCR error",
 			mcrID:         "mcr-error",
-			lockErr:       fmt.Errorf("error locking MCR"),
-			expectedError: "error locking MCR",
+			lockErr:       fmt.Errorf("failed to lock MCR"),
+			expectedError: "failed to lock MCR",
 		},
 	}
 
@@ -2395,8 +2395,8 @@ func TestUnlockMCRCmd_WithMockClient(t *testing.T) {
 		{
 			name:          "unlock MCR error",
 			mcrID:         "mcr-error",
-			unlockErr:     fmt.Errorf("error unlocking MCR"),
-			expectedError: "error unlocking MCR",
+			unlockErr:     fmt.Errorf("failed to unlock MCR"),
+			expectedError: "failed to unlock MCR",
 		},
 	}
 
@@ -2445,7 +2445,7 @@ func TestLockMCRCmd_LoginError(t *testing.T) {
 	cmd := &cobra.Command{}
 	err := LockMCR(cmd, []string{"mcr-123"}, false)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error logging in")
+	assert.Contains(t, err.Error(), "failed to log in")
 }
 
 func TestUnlockMCRCmd_LoginError(t *testing.T) {
@@ -2458,7 +2458,7 @@ func TestUnlockMCRCmd_LoginError(t *testing.T) {
 	cmd := &cobra.Command{}
 	err := UnlockMCR(cmd, []string{"mcr-123"}, false)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error logging in")
+	assert.Contains(t, err.Error(), "failed to log in")
 }
 
 func TestBuyMCR_Confirmation(t *testing.T) {
@@ -2743,7 +2743,7 @@ func TestValidateMCR(t *testing.T) {
 			name:          "invalid JSON input",
 			jsonInput:     `{invalid json}`,
 			setupMock:     func(m *MockMCRService) {},
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:             "success with JSON file",

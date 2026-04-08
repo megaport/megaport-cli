@@ -17,13 +17,14 @@ func processJSONCreateUserInput(jsonStr, jsonFile string) (*megaport.CreateUserR
 
 	req := &megaport.CreateUserRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	return req, nil
 }
 
 func processFlagCreateUserInput(cmd *cobra.Command) (*megaport.CreateUserRequest, error) {
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	firstName, _ := cmd.Flags().GetString("first-name")
 	lastName, _ := cmd.Flags().GetString("last-name")
 	email, _ := cmd.Flags().GetString("email")
@@ -55,7 +56,7 @@ func processJSONUpdateUserInput(jsonStr, jsonFile string) (*megaport.UpdateUserR
 
 	req := &megaport.UpdateUserRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	return req, nil

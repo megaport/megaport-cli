@@ -7,7 +7,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-type PortOutput struct {
+type portOutput struct {
 	output.Output      `json:"-" header:"-"`
 	UID                string `json:"uid" header:"UID"`
 	Name               string `json:"name" header:"Name"`
@@ -16,11 +16,11 @@ type PortOutput struct {
 	ProvisioningStatus string `json:"provisioning_status" header:"Status"`
 }
 
-func ToPortOutput(port *megaport.Port) (PortOutput, error) {
+func toPortOutput(port *megaport.Port) (portOutput, error) {
 	if port == nil {
-		return PortOutput{}, fmt.Errorf("invalid port: nil value")
+		return portOutput{}, fmt.Errorf("invalid port: nil value")
 	}
-	return PortOutput{
+	return portOutput{
 		UID:                port.UID,
 		Name:               port.Name,
 		LocationID:         port.LocationID,
@@ -30,9 +30,9 @@ func ToPortOutput(port *megaport.Port) (PortOutput, error) {
 }
 
 func printPorts(ports []*megaport.Port, format string, noColor bool) error {
-	outputs := make([]PortOutput, 0, len(ports))
+	outputs := make([]portOutput, 0, len(ports))
 	for _, port := range ports {
-		output, err := ToPortOutput(port)
+		output, err := toPortOutput(port)
 		if err != nil {
 			return err
 		}

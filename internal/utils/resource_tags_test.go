@@ -42,7 +42,7 @@ func TestParseResourceTagsInput(t *testing.T) {
 		{
 			name:        "invalid JSON string",
 			flags:       map[string]string{"json": `not-json`},
-			expectError: "error parsing JSON",
+			expectError: "failed to parse JSON",
 		},
 		{
 			name:     "empty JSON object",
@@ -91,7 +91,7 @@ func TestParseResourceTagsInput(t *testing.T) {
 		cmd := newCmdWithFlags(t, map[string]string{"json-file": "/nonexistent/file.json"})
 		_, err := ParseResourceTagsInput(cmd)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "error reading JSON file")
+		assert.Contains(t, err.Error(), "failed to read JSON file")
 	})
 
 	t.Run("invalid JSON file content", func(t *testing.T) {
@@ -103,7 +103,7 @@ func TestParseResourceTagsInput(t *testing.T) {
 		cmd := newCmdWithFlags(t, map[string]string{"json-file": path})
 		_, err = ParseResourceTagsInput(cmd)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "error parsing JSON file")
+		assert.Contains(t, err.Error(), "failed to parse JSON file")
 	})
 
 	t.Run("json takes precedence over json-file", func(t *testing.T) {
@@ -142,12 +142,12 @@ func TestParseResourceTagsInputExtended(t *testing.T) {
 		{
 			name:        "invalid tags flag",
 			flags:       map[string]string{"tags": `bad`},
-			expectError: "error parsing tags JSON",
+			expectError: "failed to parse tags JSON",
 		},
 		{
 			name:        "invalid resource-tags flag",
 			flags:       map[string]string{"resource-tags": `bad`},
-			expectError: "error parsing resource-tags JSON",
+			expectError: "failed to parse resource-tags JSON",
 		},
 		{
 			name:        "no input",
@@ -196,7 +196,7 @@ func TestParseResourceTagsInputExtended(t *testing.T) {
 		cmd := newCmdWithFlags(t, map[string]string{"tags-file": "/nonexistent/file.json"})
 		_, err := parseResourceTagsInputExtended(cmd)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "error reading tags file")
+		assert.Contains(t, err.Error(), "failed to read tags file")
 	})
 }
 
@@ -227,7 +227,7 @@ func TestListResourceTags(t *testing.T) {
 		}
 		err := ListResourceTags("mcr", "uid-2", true, "table", listFunc)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "error getting resource tags for mcr uid-2")
+		assert.Contains(t, err.Error(), "failed to get resource tags for mcr uid-2")
 		assert.Contains(t, err.Error(), "API failure")
 	})
 }
@@ -268,7 +268,7 @@ func TestUpdateResourceTags(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("error parsing JSON", func(t *testing.T) {
+	t.Run("failed to parse JSON", func(t *testing.T) {
 		cmd := newUpdateCmd(t, map[string]string{"json": `not-json`})
 		err := UpdateResourceTags(UpdateTagsOptions{
 			ResourceType: "port",
@@ -279,7 +279,7 @@ func TestUpdateResourceTags(t *testing.T) {
 			UpdateFunc:   successUpdateFunc,
 		})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "error parsing JSON")
+		assert.Contains(t, err.Error(), "failed to parse JSON")
 	})
 
 	t.Run("API list error", func(t *testing.T) {
@@ -296,7 +296,7 @@ func TestUpdateResourceTags(t *testing.T) {
 			UpdateFunc:   successUpdateFunc,
 		})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to login or list existing resource tags")
+		assert.Contains(t, err.Error(), "failed to log in or list existing resource tags")
 	})
 
 	t.Run("API update error", func(t *testing.T) {

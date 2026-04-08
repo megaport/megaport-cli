@@ -50,7 +50,7 @@ var mockBillingMarkets = []*megaport.BillingMarket{
 
 func TestToBillingMarketOutput(t *testing.T) {
 	bm := mockBillingMarkets[0]
-	out := ToBillingMarketOutput(bm)
+	out := toBillingMarketOutput(bm)
 
 	assert.Equal(t, bm.ID, out.ID)
 	assert.Equal(t, bm.SupplierName, out.SupplierName)
@@ -63,9 +63,9 @@ func TestToBillingMarketOutput(t *testing.T) {
 }
 
 func TestBillingMarketOutput_Table(t *testing.T) {
-	outputs := make([]BillingMarketOutput, 0, len(mockBillingMarkets))
+	outputs := make([]billingMarketOutput, 0, len(mockBillingMarkets))
 	for _, bm := range mockBillingMarkets {
-		outputs = append(outputs, ToBillingMarketOutput(bm))
+		outputs = append(outputs, toBillingMarketOutput(bm))
 	}
 
 	out := output.CaptureOutput(func() {
@@ -86,9 +86,9 @@ func TestBillingMarketOutput_Table(t *testing.T) {
 }
 
 func TestBillingMarketOutput_JSON(t *testing.T) {
-	outputs := make([]BillingMarketOutput, 0, len(mockBillingMarkets))
+	outputs := make([]billingMarketOutput, 0, len(mockBillingMarkets))
 	for _, bm := range mockBillingMarkets {
-		outputs = append(outputs, ToBillingMarketOutput(bm))
+		outputs = append(outputs, toBillingMarketOutput(bm))
 	}
 
 	out := output.CaptureOutput(func() {
@@ -144,9 +144,9 @@ func TestBillingMarketOutput_JSON(t *testing.T) {
 }
 
 func TestBillingMarketOutput_CSV(t *testing.T) {
-	outputs := make([]BillingMarketOutput, 0, len(mockBillingMarkets))
+	outputs := make([]billingMarketOutput, 0, len(mockBillingMarkets))
 	for _, bm := range mockBillingMarkets {
-		outputs = append(outputs, ToBillingMarketOutput(bm))
+		outputs = append(outputs, toBillingMarketOutput(bm))
 	}
 
 	out := output.CaptureOutput(func() {
@@ -198,7 +198,7 @@ func TestGetBillingMarketsAction_Error(t *testing.T) {
 
 	err := GetBillingMarkets(cmd, []string{}, true, "json")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error getting billing markets")
+	assert.Contains(t, err.Error(), "failed to get billing markets")
 }
 
 func TestGetBillingMarketsAction_Empty(t *testing.T) {
@@ -402,5 +402,5 @@ func TestSetBillingMarketAction_Error(t *testing.T) {
 
 	err := SetBillingMarket(cmd, []string{}, true)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error setting billing market")
+	assert.Contains(t, err.Error(), "failed to set billing market")
 }

@@ -17,7 +17,7 @@ func ListPartners(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return fmt.Errorf("failed to log in: %w", err)
 	}
 
 	spinner := output.PrintResourceListing("partner", noColor)
@@ -26,9 +26,10 @@ func ListPartners(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 	if err != nil {
 		output.PrintError("Failed to list partner ports: %v", noColor, err)
-		return fmt.Errorf("error listing partners: %w", err)
+		return fmt.Errorf("failed to list partners: %w", err)
 	}
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	productName, _ := cmd.Flags().GetString("product-name")
 	connectType, _ := cmd.Flags().GetString("connect-type")
 	companyName, _ := cmd.Flags().GetString("company-name")
@@ -55,7 +56,7 @@ func ListPartners(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	err = printPartnersFunc(filteredPartners, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print partner ports: %v", noColor, err)
-		return fmt.Errorf("error printing partners: %w", err)
+		return fmt.Errorf("failed to print partners: %w", err)
 	}
 	return nil
 }
@@ -69,7 +70,7 @@ func FindPartners(cmd *cobra.Command, args []string, noColor bool) error {
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return fmt.Errorf("failed to log in: %w", err)
 	}
 
 	spinner := output.PrintResourceListing("partner", noColor)
@@ -78,7 +79,7 @@ func FindPartners(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		output.PrintError("Failed to list partner ports: %v", noColor, err)
-		return fmt.Errorf("error listing partners: %w", err)
+		return fmt.Errorf("failed to list partners: %w", err)
 	}
 
 	output.PrintInfo("Filter partner ports - press Enter to skip any filter", noColor)
@@ -139,7 +140,7 @@ func FindPartners(cmd *cobra.Command, args []string, noColor bool) error {
 	err = printPartnersFunc(filteredPartners, selectedFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print partner ports: %v", noColor, err)
-		return fmt.Errorf("error printing partners: %w", err)
+		return fmt.Errorf("failed to print partners: %w", err)
 	}
 	return nil
 }

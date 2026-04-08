@@ -31,8 +31,8 @@ func ListResourceTags(resourceType, uid string, noColor bool, outputFormat strin
 
 	tagsMap, err := listFunc(ctx, uid)
 	if err != nil {
-		output.PrintError("Error getting resource tags for %s %s: %v", noColor, resourceType, uid, err)
-		return fmt.Errorf("error getting resource tags for %s %s: %v", resourceType, uid, err)
+		output.PrintError("Failed to get resource tags for %s %s: %v", noColor, resourceType, uid, err)
+		return fmt.Errorf("failed to get resource tags for %s %s: %w", resourceType, uid, err)
 	}
 
 	tags := make([]output.ResourceTag, 0, len(tagsMap))
@@ -69,8 +69,8 @@ func UpdateResourceTags(opts UpdateTagsOptions) error {
 	existingTags, err := opts.ListFunc(listCtx, opts.UID)
 	listCancel()
 	if err != nil {
-		output.PrintError("Failed to login or list existing resource tags: %v", opts.NoColor, err)
-		return fmt.Errorf("failed to login or list existing resource tags: %v", err)
+		output.PrintError("Failed to log in or list existing resource tags: %v", opts.NoColor, err)
+		return fmt.Errorf("failed to log in or list existing resource tags: %w", err)
 	}
 
 	interactive, _ := opts.Cmd.Flags().GetBool("interactive")
@@ -119,7 +119,7 @@ func UpdateResourceTags(opts UpdateTagsOptions) error {
 
 	if err != nil {
 		output.PrintError("Failed to update resource tags: %v", opts.NoColor, err)
-		return fmt.Errorf("failed to update resource tags: %v", err)
+		return fmt.Errorf("failed to update resource tags: %w", err)
 	}
 
 	output.PrintSuccess("Resource tags updated for %s %s", opts.NoColor, opts.ResourceType, opts.UID)
@@ -135,15 +135,15 @@ func ParseResourceTagsInput(cmd *cobra.Command) (map[string]string, error) {
 
 	if jsonStr != "" {
 		if err := json.Unmarshal([]byte(jsonStr), &resourceTags); err != nil {
-			return nil, fmt.Errorf("error parsing JSON: %v", err)
+			return nil, fmt.Errorf("failed to parse JSON: %w", err)
 		}
 	} else if jsonFile != "" {
 		jsonData, err := os.ReadFile(jsonFile)
 		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
+			return nil, fmt.Errorf("failed to read JSON file: %w", err)
 		}
 		if err := json.Unmarshal(jsonData, &resourceTags); err != nil {
-			return nil, fmt.Errorf("error parsing JSON file: %v", err)
+			return nil, fmt.Errorf("failed to parse JSON file: %w", err)
 		}
 	} else {
 		return nil, fmt.Errorf("no input provided, use --interactive, --json, or --json-file to specify resource tags")
@@ -166,31 +166,31 @@ func parseResourceTagsInputExtended(cmd *cobra.Command) (map[string]string, erro
 	switch {
 	case jsonStr != "":
 		if err := json.Unmarshal([]byte(jsonStr), &resourceTags); err != nil {
-			return nil, fmt.Errorf("error parsing JSON: %v", err)
+			return nil, fmt.Errorf("failed to parse JSON: %w", err)
 		}
 	case jsonFile != "":
 		jsonData, err := os.ReadFile(jsonFile)
 		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
+			return nil, fmt.Errorf("failed to read JSON file: %w", err)
 		}
 		if err := json.Unmarshal(jsonData, &resourceTags); err != nil {
-			return nil, fmt.Errorf("error parsing JSON file: %v", err)
+			return nil, fmt.Errorf("failed to parse JSON file: %w", err)
 		}
 	case tagsStr != "":
 		if err := json.Unmarshal([]byte(tagsStr), &resourceTags); err != nil {
-			return nil, fmt.Errorf("error parsing tags JSON: %v", err)
+			return nil, fmt.Errorf("failed to parse tags JSON: %w", err)
 		}
 	case resourceTagsStr != "":
 		if err := json.Unmarshal([]byte(resourceTagsStr), &resourceTags); err != nil {
-			return nil, fmt.Errorf("error parsing resource-tags JSON: %v", err)
+			return nil, fmt.Errorf("failed to parse resource-tags JSON: %w", err)
 		}
 	case tagsFile != "":
 		tagData, err := os.ReadFile(tagsFile)
 		if err != nil {
-			return nil, fmt.Errorf("error reading tags file: %v", err)
+			return nil, fmt.Errorf("failed to read tags file: %w", err)
 		}
 		if err := json.Unmarshal(tagData, &resourceTags); err != nil {
-			return nil, fmt.Errorf("error parsing tags file JSON: %v", err)
+			return nil, fmt.Errorf("failed to parse tags file JSON: %w", err)
 		}
 	default:
 		return nil, fmt.Errorf("no input provided, use --interactive, --json, --json-file, --tags, --resource-tags, or --tags-file to specify resource tags")

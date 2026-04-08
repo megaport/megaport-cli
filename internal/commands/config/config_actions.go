@@ -29,6 +29,7 @@ func maskAccessKey(key string) string {
 
 func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	profileName := args[0]
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	accessKey, _ := cmd.Flags().GetString("access-key")
 	secretKey, _ := cmd.Flags().GetString("secret-key")
 	environment, _ := cmd.Flags().GetString("environment")
@@ -122,7 +123,7 @@ func DeleteProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
-type ProfileOutput struct {
+type profileOutput struct {
 	output.Output `json:"-" header:"-"`
 	Name          string `json:"name" header:"Name"`
 	AccessKey     string `json:"access_key" header:"Access Key"`
@@ -151,10 +152,10 @@ func ListProfiles(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	}
 	sort.Strings(names)
 
-	profileOutputs := make([]ProfileOutput, 0, len(profiles))
+	profileOutputs := make([]profileOutput, 0, len(profiles))
 	for _, name := range names {
 		profile := profiles[name]
-		profileOutputs = append(profileOutputs, ProfileOutput{
+		profileOutputs = append(profileOutputs, profileOutput{
 			Name:        name,
 			AccessKey:   maskAccessKey(profile.AccessKey),
 			Environment: profile.Environment,
