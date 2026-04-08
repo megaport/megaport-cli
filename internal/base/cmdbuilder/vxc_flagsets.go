@@ -1,10 +1,16 @@
 package cmdbuilder
 
+import (
+	"fmt"
+
+	"github.com/megaport/megaport-cli/internal/validation"
+)
+
 // WithVXCCommonFlags adds common flags for VXC operations
 func (b *CommandBuilder) WithVXCCommonFlags() *CommandBuilder {
 	b.WithFlag("name", "", "Name of the VXC")
 	b.WithIntFlag("rate-limit", 0, "Bandwidth in Mbps")
-	b.WithIntFlag("term", 0, "Contract term in months (1, 12, 24, or 36)")
+	b.WithIntFlag("term", 0, fmt.Sprintf("Contract term in months (%s)", validation.FormatIntSlice(validation.ValidContractTerms)))
 	b.WithFlag("cost-centre", "", "Cost centre for billing")
 	return b
 }

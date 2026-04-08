@@ -32,7 +32,7 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		return nil, err
 	}
 
-	termStr, err := utils.ResourcePrompt("vxc", "Enter term in months (1, 12, 24, or 36, required): ", noColor)
+	termStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("Enter term in months (%s, required): ", validation.FormatIntSlice(validation.ValidContractTerms)), noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -283,7 +283,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		return nil, err
 	}
 	if strings.ToLower(updateTerm) == "yes" {
-		termStr, err := utils.ResourcePrompt("vxc", "Enter new term in months (0, 1, 12, 24, or 36): ", noColor)
+		termStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("Enter new term in months (0, %s): ", validation.FormatIntSlice(validation.ValidContractTerms)), noColor)
 		if err != nil {
 			return nil, err
 		}

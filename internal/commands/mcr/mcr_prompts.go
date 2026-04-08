@@ -57,7 +57,7 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 		fieldsUpdated = true
 	}
 
-	termPrompt := "Enter new term (1, 12, 24, or 36 months, leave empty to skip): "
+	termPrompt := fmt.Sprintf("Enter new term (%s months, leave empty to skip): ", validation.FormatIntSlice(validation.ValidContractTerms))
 	termStr, err := utils.ResourcePrompt("mcr", termPrompt, noColor)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 		return nil, fmt.Errorf("name is required")
 	}
 
-	termStr, err := utils.ResourcePrompt("mcr", "Enter term (1, 12, 24, or 36 months) (required): ", noColor)
+	termStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter term (%s months) (required): ", validation.FormatIntSlice(validation.ValidContractTerms)), noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 		return nil, fmt.Errorf("invalid term: %v", err)
 	}
 
-	portSpeedStr, err := utils.ResourcePrompt("mcr", "Enter port speed - valid port speeds are 1000, 2500, 5000, 10000, 25000, 50000, and 100000 MB per second (required): ", noColor)
+	portSpeedStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter port speed - valid port speeds are %s Mbps (required): ", validation.FormatIntSlice(validation.ValidMCRPortSpeeds)), noColor)
 	if err != nil {
 		return nil, err
 	}

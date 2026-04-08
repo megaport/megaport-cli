@@ -47,7 +47,7 @@ func promptMVEBaseDetails(noColor bool) (*megaport.BuyMVERequest, string, int, s
 	}
 	req.Name = name
 
-	termStr, err := utils.ResourcePrompt("mve", "Enter term (1, 12, 24, or 36 months) (required): ", noColor)
+	termStr, err := utils.ResourcePrompt("mve", fmt.Sprintf("Enter term (%s months) (required): ", validation.FormatIntSlice(validation.ValidContractTerms)), noColor)
 	if err != nil {
 		return nil, "", 0, "", "", err
 	}
@@ -405,7 +405,7 @@ func promptForUpdateMVEDetails(mveUID string, noColor bool) (*megaport.ModifyMVE
 		req.CostCentre = costCentre
 	}
 
-	contractTermStr, err := utils.ResourcePrompt("mve", "Enter new contract term (1, 12, 24, or 36 months, leave empty to keep current): ", noColor)
+	contractTermStr, err := utils.ResourcePrompt("mve", fmt.Sprintf("Enter new contract term (%s months, leave empty to keep current): ", validation.FormatIntSlice(validation.ValidContractTerms)), noColor)
 	if err != nil {
 		return nil, err
 	}
