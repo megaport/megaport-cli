@@ -10,8 +10,8 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// StatusPortOutput represents a port in the status dashboard.
-type StatusPortOutput struct {
+// statusPortOutput represents a port in the status dashboard.
+type statusPortOutput struct {
 	output.Output `json:"-" header:"-"`
 	UID           string `json:"uid" header:"UID"`
 	Name          string `json:"name" header:"Name"`
@@ -20,8 +20,8 @@ type StatusPortOutput struct {
 	LocationID    int    `json:"location_id" header:"Location ID"`
 }
 
-// StatusMCROutput represents an MCR in the status dashboard.
-type StatusMCROutput struct {
+// statusMCROutput represents an MCR in the status dashboard.
+type statusMCROutput struct {
 	output.Output `json:"-" header:"-"`
 	UID           string `json:"uid" header:"UID"`
 	Name          string `json:"name" header:"Name"`
@@ -30,8 +30,8 @@ type StatusMCROutput struct {
 	ASN           int    `json:"asn" header:"ASN"`
 }
 
-// StatusMVEOutput represents an MVE in the status dashboard.
-type StatusMVEOutput struct {
+// statusMVEOutput represents an MVE in the status dashboard.
+type statusMVEOutput struct {
 	output.Output `json:"-" header:"-"`
 	UID           string `json:"uid" header:"UID"`
 	Name          string `json:"name" header:"Name"`
@@ -40,8 +40,8 @@ type StatusMVEOutput struct {
 	Size          string `json:"size" header:"Size"`
 }
 
-// StatusVXCOutput represents a VXC in the status dashboard.
-type StatusVXCOutput struct {
+// statusVXCOutput represents a VXC in the status dashboard.
+type statusVXCOutput struct {
 	output.Output `json:"-" header:"-"`
 	UID           string `json:"uid" header:"UID"`
 	Name          string `json:"name" header:"Name"`
@@ -51,8 +51,8 @@ type StatusVXCOutput struct {
 	BEndUID       string `json:"b_end_uid" header:"B-End UID"`
 }
 
-// StatusIXOutput represents an IX in the status dashboard.
-type StatusIXOutput struct {
+// statusIXOutput represents an IX in the status dashboard.
+type statusIXOutput struct {
 	output.Output `json:"-" header:"-"`
 	UID           string `json:"uid" header:"UID"`
 	Name          string `json:"name" header:"Name"`
@@ -61,8 +61,8 @@ type StatusIXOutput struct {
 	RateLimit     int    `json:"rate_limit" header:"Rate Limit"`
 }
 
-// DashboardSummary holds resource counts.
-type DashboardSummary struct {
+// dashboardSummary holds resource counts.
+type dashboardSummary struct {
 	Ports int `json:"ports" xml:"ports"`
 	MCRs  int `json:"mcrs" xml:"mcrs"`
 	MVEs  int `json:"mves" xml:"mves"`
@@ -70,22 +70,22 @@ type DashboardSummary struct {
 	IXs   int `json:"ixs" xml:"ixs"`
 }
 
-// DashboardOutput is the combined output for non-table formats.
-type DashboardOutput struct {
-	Ports   []StatusPortOutput `json:"ports" xml:"ports>port"`
-	MCRs    []StatusMCROutput  `json:"mcrs" xml:"mcrs>mcr"`
-	MVEs    []StatusMVEOutput  `json:"mves" xml:"mves>mve"`
-	VXCs    []StatusVXCOutput  `json:"vxcs" xml:"vxcs>vxc"`
-	IXs     []StatusIXOutput   `json:"ixs" xml:"ixs>ix"`
-	Summary DashboardSummary   `json:"summary" xml:"summary"`
+// dashboardOutput is the combined output for non-table formats.
+type dashboardOutput struct {
+	Ports   []statusPortOutput `json:"ports" xml:"ports>port"`
+	MCRs    []statusMCROutput  `json:"mcrs" xml:"mcrs>mcr"`
+	MVEs    []statusMVEOutput  `json:"mves" xml:"mves>mve"`
+	VXCs    []statusVXCOutput  `json:"vxcs" xml:"vxcs>vxc"`
+	IXs     []statusIXOutput   `json:"ixs" xml:"ixs>ix"`
+	Summary dashboardSummary   `json:"summary" xml:"summary"`
 }
 
-// toStatusPortOutput converts a megaport.Port to StatusPortOutput.
-func toStatusPortOutput(p *megaport.Port) (StatusPortOutput, error) {
+// toStatusPortOutput converts a megaport.Port to statusPortOutput.
+func toStatusPortOutput(p *megaport.Port) (statusPortOutput, error) {
 	if p == nil {
-		return StatusPortOutput{}, fmt.Errorf("invalid port: nil value")
+		return statusPortOutput{}, fmt.Errorf("invalid port: nil value")
 	}
-	return StatusPortOutput{
+	return statusPortOutput{
 		UID:        p.UID,
 		Name:       p.Name,
 		Status:     p.ProvisioningStatus,
@@ -94,12 +94,12 @@ func toStatusPortOutput(p *megaport.Port) (StatusPortOutput, error) {
 	}, nil
 }
 
-// toStatusMCROutput converts a megaport.MCR to StatusMCROutput.
-func toStatusMCROutput(m *megaport.MCR) (StatusMCROutput, error) {
+// toStatusMCROutput converts a megaport.MCR to statusMCROutput.
+func toStatusMCROutput(m *megaport.MCR) (statusMCROutput, error) {
 	if m == nil {
-		return StatusMCROutput{}, fmt.Errorf("invalid MCR: nil value")
+		return statusMCROutput{}, fmt.Errorf("invalid MCR: nil value")
 	}
-	return StatusMCROutput{
+	return statusMCROutput{
 		UID:    m.UID,
 		Name:   m.Name,
 		Status: m.ProvisioningStatus,
@@ -108,12 +108,12 @@ func toStatusMCROutput(m *megaport.MCR) (StatusMCROutput, error) {
 	}, nil
 }
 
-// toStatusMVEOutput converts a megaport.MVE to StatusMVEOutput.
-func toStatusMVEOutput(m *megaport.MVE) (StatusMVEOutput, error) {
+// toStatusMVEOutput converts a megaport.MVE to statusMVEOutput.
+func toStatusMVEOutput(m *megaport.MVE) (statusMVEOutput, error) {
 	if m == nil {
-		return StatusMVEOutput{}, fmt.Errorf("invalid MVE: nil value")
+		return statusMVEOutput{}, fmt.Errorf("invalid MVE: nil value")
 	}
-	return StatusMVEOutput{
+	return statusMVEOutput{
 		UID:    m.UID,
 		Name:   m.Name,
 		Status: m.ProvisioningStatus,
@@ -122,12 +122,12 @@ func toStatusMVEOutput(m *megaport.MVE) (StatusMVEOutput, error) {
 	}, nil
 }
 
-// toStatusVXCOutput converts a megaport.VXC to StatusVXCOutput.
-func toStatusVXCOutput(v *megaport.VXC) (StatusVXCOutput, error) {
+// toStatusVXCOutput converts a megaport.VXC to statusVXCOutput.
+func toStatusVXCOutput(v *megaport.VXC) (statusVXCOutput, error) {
 	if v == nil {
-		return StatusVXCOutput{}, fmt.Errorf("invalid VXC: nil value")
+		return statusVXCOutput{}, fmt.Errorf("invalid VXC: nil value")
 	}
-	return StatusVXCOutput{
+	return statusVXCOutput{
 		UID:       v.UID,
 		Name:      v.Name,
 		Status:    v.ProvisioningStatus,
@@ -137,12 +137,12 @@ func toStatusVXCOutput(v *megaport.VXC) (StatusVXCOutput, error) {
 	}, nil
 }
 
-// toStatusIXOutput converts a megaport.IX to StatusIXOutput.
-func toStatusIXOutput(i *megaport.IX) (StatusIXOutput, error) {
+// toStatusIXOutput converts a megaport.IX to statusIXOutput.
+func toStatusIXOutput(i *megaport.IX) (statusIXOutput, error) {
 	if i == nil {
-		return StatusIXOutput{}, fmt.Errorf("invalid IX: nil value")
+		return statusIXOutput{}, fmt.Errorf("invalid IX: nil value")
 	}
-	return StatusIXOutput{
+	return statusIXOutput{
 		UID:       i.ProductUID,
 		Name:      i.ProductName,
 		Status:    i.ProvisioningStatus,
@@ -151,59 +151,59 @@ func toStatusIXOutput(i *megaport.IX) (StatusIXOutput, error) {
 	}, nil
 }
 
-// buildDashboard converts raw resource slices into a DashboardOutput.
+// buildDashboard converts raw resource slices into a dashboardOutput.
 func buildDashboard(
 	ports []*megaport.Port,
 	mcrs []*megaport.MCR,
 	mves []*megaport.MVE,
 	vxcs []*megaport.VXC,
 	ixs []*megaport.IX,
-) (DashboardOutput, error) {
-	dashboard := DashboardOutput{
-		Ports: make([]StatusPortOutput, 0, len(ports)),
-		MCRs:  make([]StatusMCROutput, 0, len(mcrs)),
-		MVEs:  make([]StatusMVEOutput, 0, len(mves)),
-		VXCs:  make([]StatusVXCOutput, 0, len(vxcs)),
-		IXs:   make([]StatusIXOutput, 0, len(ixs)),
+) (dashboardOutput, error) {
+	dashboard := dashboardOutput{
+		Ports: make([]statusPortOutput, 0, len(ports)),
+		MCRs:  make([]statusMCROutput, 0, len(mcrs)),
+		MVEs:  make([]statusMVEOutput, 0, len(mves)),
+		VXCs:  make([]statusVXCOutput, 0, len(vxcs)),
+		IXs:   make([]statusIXOutput, 0, len(ixs)),
 	}
 
 	for _, p := range ports {
 		o, err := toStatusPortOutput(p)
 		if err != nil {
-			return DashboardOutput{}, err
+			return dashboardOutput{}, err
 		}
 		dashboard.Ports = append(dashboard.Ports, o)
 	}
 	for _, m := range mcrs {
 		o, err := toStatusMCROutput(m)
 		if err != nil {
-			return DashboardOutput{}, err
+			return dashboardOutput{}, err
 		}
 		dashboard.MCRs = append(dashboard.MCRs, o)
 	}
 	for _, m := range mves {
 		o, err := toStatusMVEOutput(m)
 		if err != nil {
-			return DashboardOutput{}, err
+			return dashboardOutput{}, err
 		}
 		dashboard.MVEs = append(dashboard.MVEs, o)
 	}
 	for _, v := range vxcs {
 		o, err := toStatusVXCOutput(v)
 		if err != nil {
-			return DashboardOutput{}, err
+			return dashboardOutput{}, err
 		}
 		dashboard.VXCs = append(dashboard.VXCs, o)
 	}
 	for _, i := range ixs {
 		o, err := toStatusIXOutput(i)
 		if err != nil {
-			return DashboardOutput{}, err
+			return dashboardOutput{}, err
 		}
 		dashboard.IXs = append(dashboard.IXs, o)
 	}
 
-	dashboard.Summary = DashboardSummary{
+	dashboard.Summary = dashboardSummary{
 		Ports: len(dashboard.Ports),
 		MCRs:  len(dashboard.MCRs),
 		MVEs:  len(dashboard.MVEs),
@@ -215,7 +215,7 @@ func buildDashboard(
 }
 
 // printDashboard dispatches to the appropriate format printer.
-func printDashboard(dashboard DashboardOutput, format string, noColor bool) error {
+func printDashboard(dashboard dashboardOutput, format string, noColor bool) error {
 	switch format {
 	case "json":
 		return printDashboardJSON(dashboard)
@@ -228,7 +228,7 @@ func printDashboard(dashboard DashboardOutput, format string, noColor bool) erro
 	}
 }
 
-func printDashboardTable(dashboard DashboardOutput, noColor bool) error {
+func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	// PORTS
 	fmt.Printf("\nPORTS (%d)\n", len(dashboard.Ports))
 	if len(dashboard.Ports) == 0 {
@@ -286,21 +286,21 @@ func printDashboardTable(dashboard DashboardOutput, noColor bool) error {
 	return nil
 }
 
-func printDashboardJSON(dashboard DashboardOutput) error {
+func printDashboardJSON(dashboard dashboardOutput) error {
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(dashboard)
 }
 
-func printDashboardXML(dashboard DashboardOutput) error {
+func printDashboardXML(dashboard dashboardOutput) error {
 	type xmlDashboard struct {
 		XMLName xml.Name           `xml:"dashboard"`
-		Ports   []StatusPortOutput `xml:"ports>port"`
-		MCRs    []StatusMCROutput  `xml:"mcrs>mcr"`
-		MVEs    []StatusMVEOutput  `xml:"mves>mve"`
-		VXCs    []StatusVXCOutput  `xml:"vxcs>vxc"`
-		IXs     []StatusIXOutput   `xml:"ixs>ix"`
-		Summary DashboardSummary   `xml:"summary"`
+		Ports   []statusPortOutput `xml:"ports>port"`
+		MCRs    []statusMCROutput  `xml:"mcrs>mcr"`
+		MVEs    []statusMVEOutput  `xml:"mves>mve"`
+		VXCs    []statusVXCOutput  `xml:"vxcs>vxc"`
+		IXs     []statusIXOutput   `xml:"ixs>ix"`
+		Summary dashboardSummary   `xml:"summary"`
 	}
 	out := xmlDashboard{
 		Ports:   dashboard.Ports,
@@ -319,7 +319,7 @@ func printDashboardXML(dashboard DashboardOutput) error {
 	return nil
 }
 
-func printDashboardCSV(dashboard DashboardOutput, noColor bool) error {
+func printDashboardCSV(dashboard dashboardOutput, noColor bool) error {
 	sections := []struct {
 		name string
 		fn   func() error

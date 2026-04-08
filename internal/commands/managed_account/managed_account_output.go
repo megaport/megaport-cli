@@ -7,21 +7,21 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// ManagedAccountOutput represents the desired fields for output of managed account details.
-type ManagedAccountOutput struct {
+// managedAccountOutput represents the desired fields for output of managed account details.
+type managedAccountOutput struct {
 	output.Output `json:"-" header:"-"`
 	AccountName   string `json:"account_name" header:"Account Name"`
 	AccountRef    string `json:"account_ref" header:"Account Ref"`
 	CompanyUID    string `json:"company_uid" header:"Company UID"`
 }
 
-// ToManagedAccountOutput converts a *megaport.ManagedAccount to our ManagedAccountOutput struct.
-func ToManagedAccountOutput(account *megaport.ManagedAccount) (ManagedAccountOutput, error) {
+// toManagedAccountOutput converts a *megaport.ManagedAccount to our managedAccountOutput struct.
+func toManagedAccountOutput(account *megaport.ManagedAccount) (managedAccountOutput, error) {
 	if account == nil {
-		return ManagedAccountOutput{}, fmt.Errorf("invalid managed account: nil value")
+		return managedAccountOutput{}, fmt.Errorf("invalid managed account: nil value")
 	}
 
-	return ManagedAccountOutput{
+	return managedAccountOutput{
 		AccountName: account.AccountName,
 		AccountRef:  account.AccountRef,
 		CompanyUID:  account.CompanyUID,
@@ -30,9 +30,9 @@ func ToManagedAccountOutput(account *megaport.ManagedAccount) (ManagedAccountOut
 
 // printManagedAccounts prints a list of managed accounts in the specified format.
 func printManagedAccounts(accounts []*megaport.ManagedAccount, format string, noColor bool) error {
-	outputs := make([]ManagedAccountOutput, 0, len(accounts))
+	outputs := make([]managedAccountOutput, 0, len(accounts))
 	for _, account := range accounts {
-		o, err := ToManagedAccountOutput(account)
+		o, err := toManagedAccountOutput(account)
 		if err != nil {
 			return err
 		}

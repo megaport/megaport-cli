@@ -91,7 +91,7 @@ func GetProductType(cmd *cobra.Command, args []string, noColor bool, outputForma
 		return fmt.Errorf("error getting product type: %w", err)
 	}
 
-	outputs := []ProductTypeOutput{
+	outputs := []productTypeOutput{
 		{
 			UID:  productUID,
 			Type: productType,

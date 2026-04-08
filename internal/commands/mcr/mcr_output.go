@@ -7,8 +7,8 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// MCROutput represents the desired fields for JSON output of MCR details.
-type MCROutput struct {
+// mcrOutput represents the desired fields for JSON output of MCR details.
+type mcrOutput struct {
 	output.Output      `json:"-" header:"-"`
 	UID                string `json:"uid" header:"UID"`
 	Name               string `json:"name" header:"Name"`
@@ -18,13 +18,13 @@ type MCROutput struct {
 	Speed              int    `json:"speed" header:"Speed"`
 }
 
-// ToMCROutput converts a *megaport.MCR to our MCROutput struct.
-func ToMCROutput(mcr *megaport.MCR) (MCROutput, error) {
+// toMCROutput converts a *megaport.MCR to our mcrOutput struct.
+func toMCROutput(mcr *megaport.MCR) (mcrOutput, error) {
 	if mcr == nil {
-		return MCROutput{}, fmt.Errorf("invalid MCR: nil value")
+		return mcrOutput{}, fmt.Errorf("invalid MCR: nil value")
 	}
 
-	output := MCROutput{
+	output := mcrOutput{
 		UID:                mcr.UID,
 		Name:               mcr.Name,
 		LocationID:         mcr.LocationID,
@@ -39,9 +39,9 @@ func ToMCROutput(mcr *megaport.MCR) (MCROutput, error) {
 
 // printMCRs prints a list of MCRs in the specified format.
 func printMCRs(mcrs []*megaport.MCR, format string, noColor bool) error {
-	outputs := make([]MCROutput, 0, len(mcrs))
+	outputs := make([]mcrOutput, 0, len(mcrs))
 	for _, mcr := range mcrs {
-		output, err := ToMCROutput(mcr)
+		output, err := toMCROutput(mcr)
 		if err != nil {
 			return err
 		}
@@ -76,15 +76,15 @@ func displayMCRChanges(original, updated *megaport.MCR, noColor bool) {
 	output.DisplayChanges(changes, noColor)
 }
 
-type PrefixFilterListOutput struct {
+type prefixFilterListOutput struct {
 	output.Output `json:"-" header:"-"`
 	ID            int                           `json:"id"`
 	Description   string                        `json:"description"`
 	AddressFamily string                        `json:"address_family"`
-	Entries       []PrefixFilterListEntryOutput `json:"entries"`
+	Entries       []prefixFilterListEntryOutput `json:"entries"`
 }
 
-type PrefixFilterListEntryOutput struct {
+type prefixFilterListEntryOutput struct {
 	output.Output `json:"-" header:"-"`
 	Action        string `json:"action"`
 	Prefix        string `json:"prefix"`
@@ -92,14 +92,14 @@ type PrefixFilterListEntryOutput struct {
 	Le            int    `json:"le,omitempty"`
 }
 
-func ToPrefixFilterListOutput(prefixFilterList *megaport.MCRPrefixFilterList) (PrefixFilterListOutput, error) {
+func toPrefixFilterListOutput(prefixFilterList *megaport.MCRPrefixFilterList) (prefixFilterListOutput, error) {
 	if prefixFilterList == nil {
-		return PrefixFilterListOutput{}, fmt.Errorf("invalid prefix filter list: nil value")
+		return prefixFilterListOutput{}, fmt.Errorf("invalid prefix filter list: nil value")
 	}
 
-	entries := make([]PrefixFilterListEntryOutput, len(prefixFilterList.Entries))
+	entries := make([]prefixFilterListEntryOutput, len(prefixFilterList.Entries))
 	for i, entry := range prefixFilterList.Entries {
-		entries[i] = PrefixFilterListEntryOutput{
+		entries[i] = prefixFilterListEntryOutput{
 			Action: entry.Action,
 			Prefix: entry.Prefix,
 			Ge:     entry.Ge,
@@ -107,7 +107,7 @@ func ToPrefixFilterListOutput(prefixFilterList *megaport.MCRPrefixFilterList) (P
 		}
 	}
 
-	return PrefixFilterListOutput{
+	return prefixFilterListOutput{
 		ID:            prefixFilterList.ID,
 		Description:   prefixFilterList.Description,
 		AddressFamily: prefixFilterList.AddressFamily,

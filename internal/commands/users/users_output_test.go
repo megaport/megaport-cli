@@ -9,7 +9,7 @@ import (
 )
 
 func TestToUserOutput_NilUser(t *testing.T) {
-	_, err := ToUserOutput(nil)
+	_, err := toUserOutput(nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "nil value")
 }
@@ -24,7 +24,7 @@ func TestToUserOutput_Valid(t *testing.T) {
 		Active:    true,
 	}
 
-	out, err := ToUserOutput(user)
+	out, err := toUserOutput(user)
 	assert.NoError(t, err)
 	assert.Equal(t, 12345, out.EmployeeID)
 	assert.Equal(t, "John", out.FirstName)
@@ -40,7 +40,7 @@ func TestToUserOutput_UsesPersonIdFallback(t *testing.T) {
 		PersonId: 67890,
 	}
 
-	out, err := ToUserOutput(user)
+	out, err := toUserOutput(user)
 	assert.NoError(t, err)
 	assert.Equal(t, 67890, out.EmployeeID)
 }

@@ -214,7 +214,7 @@ func TestToMVEOutput_EdgeCases(t *testing.T) {
 		mve           *megaport.MVE
 		shouldError   bool
 		errorContains string
-		validateFunc  func(*testing.T, MVEOutput)
+		validateFunc  func(*testing.T, mveOutput)
 	}{
 		{
 			name:          "nil mve",
@@ -225,7 +225,7 @@ func TestToMVEOutput_EdgeCases(t *testing.T) {
 		{
 			name: "zero values",
 			mve:  &megaport.MVE{},
-			validateFunc: func(t *testing.T, output MVEOutput) {
+			validateFunc: func(t *testing.T, output mveOutput) {
 				assert.Empty(t, output.UID)
 				assert.Empty(t, output.Name)
 				assert.Zero(t, output.LocationID)
@@ -244,7 +244,7 @@ func TestToMVEOutput_EdgeCases(t *testing.T) {
 				Vendor:             "   ",
 				Size:               "   ",
 			},
-			validateFunc: func(t *testing.T, output MVEOutput) {
+			validateFunc: func(t *testing.T, output mveOutput) {
 				assert.Equal(t, "   ", output.UID)
 				assert.Equal(t, "   ", output.Name)
 				assert.Zero(t, output.LocationID)
@@ -263,7 +263,7 @@ func TestToMVEOutput_EdgeCases(t *testing.T) {
 				Vendor:             "fortinet",
 				Size:               "large",
 			},
-			validateFunc: func(t *testing.T, output MVEOutput) {
+			validateFunc: func(t *testing.T, output mveOutput) {
 				assert.Equal(t, "mve-test", output.UID)
 				assert.Equal(t, "Test MVE", output.Name)
 				assert.Equal(t, 10, output.LocationID)
@@ -276,7 +276,7 @@ func TestToMVEOutput_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output, err := ToMVEOutput(tt.mve)
+			output, err := toMVEOutput(tt.mve)
 
 			if tt.shouldError {
 				assert.Error(t, err)

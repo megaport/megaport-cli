@@ -36,9 +36,9 @@ func GetBillingMarkets(cmd *cobra.Command, args []string, noColor bool, outputFo
 		output.PrintWarning("No billing markets found", noColor)
 	}
 
-	outputs := make([]BillingMarketOutput, 0, len(markets))
+	outputs := make([]billingMarketOutput, 0, len(markets))
 	for _, m := range markets {
-		outputs = append(outputs, ToBillingMarketOutput(m))
+		outputs = append(outputs, toBillingMarketOutput(m))
 	}
 
 	return output.PrintOutput(outputs, outputFormat, noColor)

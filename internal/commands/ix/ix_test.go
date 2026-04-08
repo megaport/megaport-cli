@@ -207,14 +207,14 @@ func TestPrintIXs_EdgeCases(t *testing.T) {
 
 func TestToIXOutput_EdgeCases(t *testing.T) {
 	t.Run("nil IX", func(t *testing.T) {
-		_, err := ToIXOutput(nil)
+		_, err := toIXOutput(nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid IX: nil value")
 	})
 
 	t.Run("zero value IX", func(t *testing.T) {
 		ix := &megaport.IX{}
-		out, err := ToIXOutput(ix)
+		out, err := toIXOutput(ix)
 		assert.NoError(t, err)
 		assert.Equal(t, "", out.UID)
 		assert.Equal(t, "", out.Name)
@@ -413,7 +413,7 @@ func TestToIXOutput_FullIX(t *testing.T) {
 		ProvisioningStatus: "LIVE",
 	}
 
-	out, err := ToIXOutput(ix)
+	out, err := toIXOutput(ix)
 	assert.NoError(t, err)
 	assert.Equal(t, "ix-full-123", out.UID)
 	assert.Equal(t, "Full Test IX", out.Name)

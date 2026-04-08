@@ -169,14 +169,14 @@ func TestPrintManagedAccounts_EdgeCases(t *testing.T) {
 
 func TestToManagedAccountOutput_EdgeCases(t *testing.T) {
 	t.Run("nil account", func(t *testing.T) {
-		_, err := ToManagedAccountOutput(nil)
+		_, err := toManagedAccountOutput(nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid managed account: nil value")
 	})
 
 	t.Run("zero value account", func(t *testing.T) {
 		account := &megaport.ManagedAccount{}
-		out, err := ToManagedAccountOutput(account)
+		out, err := toManagedAccountOutput(account)
 		assert.NoError(t, err)
 		assert.Equal(t, "", out.AccountName)
 		assert.Equal(t, "", out.AccountRef)
@@ -189,7 +189,7 @@ func TestToManagedAccountOutput_EdgeCases(t *testing.T) {
 			AccountRef:  "REF-123",
 			CompanyUID:  "uid-456",
 		}
-		out, err := ToManagedAccountOutput(account)
+		out, err := toManagedAccountOutput(account)
 		assert.NoError(t, err)
 		assert.Equal(t, "Test Account", out.AccountName)
 		assert.Equal(t, "REF-123", out.AccountRef)

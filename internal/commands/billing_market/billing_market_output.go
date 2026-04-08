@@ -5,7 +5,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-type BillingMarketOutput struct {
+type billingMarketOutput struct {
 	output.Output       `json:"-" header:"-"`
 	ID                  int     `json:"id" header:"ID"`
 	SupplierName        string  `json:"supplier_name" header:"Supplier Name"`
@@ -28,8 +28,8 @@ type BillingMarketOutput struct {
 	VATExempt           bool    `json:"vat_exempt" header:"-"`
 }
 
-func ToBillingMarketOutput(m *megaport.BillingMarket) BillingMarketOutput {
-	return BillingMarketOutput{
+func toBillingMarketOutput(m *megaport.BillingMarket) billingMarketOutput {
+	return billingMarketOutput{
 		ID:                  m.ID,
 		SupplierName:        m.SupplierName,
 		CurrencyEnum:        m.CurrencyEnum,

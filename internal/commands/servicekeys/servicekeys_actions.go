@@ -164,9 +164,9 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 		return nil
 	}
 
-	outputs := make([]ServiceKeyOutput, 0, len(serviceKeys))
+	outputs := make([]serviceKeyOutput, 0, len(serviceKeys))
 	for _, sk := range serviceKeys {
-		op, err := ToServiceKeyOutput(sk)
+		op, err := toServiceKeyOutput(sk)
 		if err != nil {
 			output.PrintError("Failed to convert service key: %v", noColor, err)
 			return fmt.Errorf("error converting service key: %w", err)
@@ -200,10 +200,10 @@ func GetServiceKey(cmd *cobra.Command, args []string, noColor bool, outputFormat
 		return fmt.Errorf("error getting service key: %w", err)
 	}
 
-	op, err := ToServiceKeyOutput(resp)
+	op, err := toServiceKeyOutput(resp)
 	if err != nil {
 		output.PrintError("Failed to convert service key: %v", noColor, err)
 		return fmt.Errorf("error converting service key: %w", err)
 	}
-	return output.PrintOutput([]ServiceKeyOutput{op}, outputFormat, noColor)
+	return output.PrintOutput([]serviceKeyOutput{op}, outputFormat, noColor)
 }

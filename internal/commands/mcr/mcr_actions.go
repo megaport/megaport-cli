@@ -647,12 +647,12 @@ func GetMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool, out
 		return fmt.Errorf("error getting prefix filter list: %w", err)
 	}
 
-	op, err := ToPrefixFilterListOutput(prefixFilterList)
+	op, err := toPrefixFilterListOutput(prefixFilterList)
 	if err != nil {
 		return fmt.Errorf("error converting prefix filter list: %w", err)
 	}
 
-	err = output.PrintOutput([]PrefixFilterListOutput{op}, outputFormat, noColor)
+	err = output.PrintOutput([]prefixFilterListOutput{op}, outputFormat, noColor)
 	if err != nil {
 		return fmt.Errorf("error printing prefix filter list: %w", err)
 	}
