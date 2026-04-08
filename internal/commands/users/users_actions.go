@@ -219,7 +219,7 @@ func UpdateUser(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	output.PrintSuccess("User updated successfully (employee ID: %s)", noColor, args[0])
+	output.PrintResourceUpdated("User", args[0], noColor)
 
 	updatedUser, getErr := getUserFunc(ctx, client, employeeID)
 	if getErr == nil && updatedUser != nil {
@@ -264,7 +264,7 @@ func DeleteUser(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	output.PrintSuccess("User deleted successfully (employee ID: %s)", noColor, args[0])
+	output.PrintResourceDeleted("User", args[0], false, noColor)
 	return nil
 }
 

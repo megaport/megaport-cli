@@ -300,7 +300,7 @@ func TestUpdateUser(t *testing.T) {
 					Email: "test@example.com", Active: true,
 				}
 			},
-			expectedContains: "updated successfully",
+			expectedContains: "User updated",
 		},
 		{
 			name:      "success with JSON",
@@ -311,7 +311,7 @@ func TestUpdateUser(t *testing.T) {
 					Email: "test@example.com", Active: true,
 				}
 			},
-			expectedContains: "updated successfully",
+			expectedContains: "User updated",
 		},
 		{
 			name:  "API error",
@@ -390,14 +390,14 @@ func TestDeleteUser(t *testing.T) {
 			name:             "success with force",
 			force:            true,
 			setupMock:        func(m *MockUserManagementService) {},
-			expectedContains: "deleted successfully",
+			expectedContains: "User deleted",
 		},
 		{
 			name:             "user confirms",
 			force:            false,
 			confirmResult:    true,
 			setupMock:        func(m *MockUserManagementService) {},
-			expectedContains: "deleted successfully",
+			expectedContains: "User deleted",
 		},
 		{
 			name:          "user cancels",

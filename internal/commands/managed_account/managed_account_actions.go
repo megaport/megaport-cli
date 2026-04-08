@@ -78,7 +78,7 @@ func GetManagedAccount(cmd *cobra.Command, args []string, noColor bool, outputFo
 	spinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error getting managed account: %v", noColor, err)
+		output.PrintError("Failed to get managed account: %v", noColor, err)
 		return fmt.Errorf("error getting managed account: %w", err)
 	}
 
@@ -128,7 +128,7 @@ func CreateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 
@@ -137,11 +137,11 @@ func CreateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 	spinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error creating managed account: %v", noColor, err)
+		output.PrintError("Failed to create managed account: %v", noColor, err)
 		return err
 	}
 
-	output.PrintSuccess("Managed account created successfully - Company UID: %s", noColor, account.CompanyUID)
+	output.PrintResourceCreated("managed account", account.CompanyUID, noColor)
 	return nil
 }
 
@@ -185,7 +185,7 @@ func UpdateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 
@@ -206,7 +206,7 @@ func UpdateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 	updateSpinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error updating managed account: %v", noColor, err)
+		output.PrintError("Failed to update managed account: %v", noColor, err)
 		return err
 	}
 

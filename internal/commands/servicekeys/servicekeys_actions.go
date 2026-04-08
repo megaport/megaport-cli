@@ -22,7 +22,7 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 	endDate, _ := cmd.Flags().GetString("end-date")
 
 	if err := validation.ValidateDateRange(startDate, endDate); err != nil {
-		output.PrintError(fmt.Sprintf("%v", err), noColor)
+		output.PrintError("Failed to validate date range: %v", noColor, err)
 		return err
 	}
 

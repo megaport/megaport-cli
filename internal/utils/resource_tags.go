@@ -31,7 +31,7 @@ func ListResourceTags(resourceType, uid string, noColor bool, outputFormat strin
 
 	tagsMap, err := listFunc(ctx, uid)
 	if err != nil {
-		output.PrintError("Error getting resource tags for %s %s: %v", noColor, resourceType, uid, err)
+		output.PrintError("Failed to get resource tags for %s %s: %v", noColor, resourceType, uid, err)
 		return fmt.Errorf("error getting resource tags for %s %s: %v", resourceType, uid, err)
 	}
 
