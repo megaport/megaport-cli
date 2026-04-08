@@ -44,7 +44,7 @@ func buildIXRequestFromJSON(jsonStr, jsonFile string) (*megaport.BuyIXRequest, e
 
 	req := &megaport.BuyIXRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	return req, nil
@@ -119,7 +119,7 @@ func buildUpdateIXRequestFromJSON(jsonStr, jsonFile string) (*megaport.UpdateIXR
 
 	req := &megaport.UpdateIXRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	return req, nil

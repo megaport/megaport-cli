@@ -17,7 +17,7 @@ func processJSONCreateUserInput(jsonStr, jsonFile string) (*megaport.CreateUserR
 
 	req := &megaport.CreateUserRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	return req, nil
@@ -56,7 +56,7 @@ func processJSONUpdateUserInput(jsonStr, jsonFile string) (*megaport.UpdateUserR
 
 	req := &megaport.UpdateUserRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	return req, nil

@@ -3,7 +3,6 @@ package mcr
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -112,8 +111,8 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid port speed: %w", err)
 	}
-	if !slices.Contains(megaport.VALID_MCR_PORT_SPEEDS, portSpeed) {
-		return nil, megaport.ErrMCRInvalidPortSpeed
+	if err := validation.ValidateMCRPortSpeed(portSpeed); err != nil {
+		return nil, err
 	}
 	locationIDStr, err := utils.ResourcePrompt("mcr", "Enter location ID (required): ", noColor)
 	if err != nil {

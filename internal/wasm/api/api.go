@@ -160,7 +160,7 @@ func MakeDirectFetchJSON(url string, token string, target interface{}) error {
 	}
 
 	if err := json.Unmarshal(response.Body, target); err != nil {
-		return fmt.Errorf("failed to parse JSON response: %v", err)
+		return fmt.Errorf("failed to parse JSON response: %w", err)
 	}
 
 	return nil

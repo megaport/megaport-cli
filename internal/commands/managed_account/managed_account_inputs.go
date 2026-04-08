@@ -17,7 +17,7 @@ func parseManagedAccountRequestJSON(jsonStr, jsonFile string) (*megaport.Managed
 
 	req := &megaport.ManagedAccountRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	return req, nil

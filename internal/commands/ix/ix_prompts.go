@@ -40,7 +40,7 @@ func buildIXRequestFromPrompt(_ context.Context, noColor bool) (*megaport.BuyIXR
 	}
 	asn, err := strconv.Atoi(asnStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid ASN: %v", err)
+		return nil, fmt.Errorf("invalid ASN: %w", err)
 	}
 
 	macAddress, err := utils.ResourcePrompt("ix", "Enter MAC address (required): ", noColor)
@@ -57,7 +57,7 @@ func buildIXRequestFromPrompt(_ context.Context, noColor bool) (*megaport.BuyIXR
 	}
 	rateLimit, err := strconv.Atoi(rateLimitStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid rate limit: %v", err)
+		return nil, fmt.Errorf("invalid rate limit: %w", err)
 	}
 
 	vlanStr, err := utils.ResourcePrompt("ix", "Enter VLAN ID (required): ", noColor)
@@ -66,7 +66,7 @@ func buildIXRequestFromPrompt(_ context.Context, noColor bool) (*megaport.BuyIXR
 	}
 	vlan, err := strconv.Atoi(vlanStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid VLAN: %v", err)
+		return nil, fmt.Errorf("invalid VLAN: %w", err)
 	}
 
 	promoCode, err := utils.ResourcePrompt("ix", "Enter promo code (optional, leave empty to skip): ", noColor)
@@ -108,7 +108,7 @@ func buildUpdateIXRequestFromPrompt(_ string, noColor bool) (*megaport.UpdateIXR
 	if rateLimitStr != "" {
 		rateLimit, err := strconv.Atoi(rateLimitStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid rate limit: %v", err)
+			return nil, fmt.Errorf("invalid rate limit: %w", err)
 		}
 		req.RateLimit = &rateLimit
 		fieldsUpdated = true
@@ -130,7 +130,7 @@ func buildUpdateIXRequestFromPrompt(_ string, noColor bool) (*megaport.UpdateIXR
 	if vlanStr != "" {
 		vlan, err := strconv.Atoi(vlanStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid VLAN: %v", err)
+			return nil, fmt.Errorf("invalid VLAN: %w", err)
 		}
 		req.VLAN = &vlan
 		fieldsUpdated = true
@@ -152,7 +152,7 @@ func buildUpdateIXRequestFromPrompt(_ string, noColor bool) (*megaport.UpdateIXR
 	if asnStr != "" {
 		asn, err := strconv.Atoi(asnStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid ASN: %v", err)
+			return nil, fmt.Errorf("invalid ASN: %w", err)
 		}
 		req.ASN = &asn
 		fieldsUpdated = true

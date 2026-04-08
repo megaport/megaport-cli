@@ -53,7 +53,7 @@ func promptMVEBaseDetails(noColor bool) (*megaport.BuyMVERequest, string, int, s
 	}
 	term, err := strconv.Atoi(termStr)
 	if err != nil {
-		return nil, "", 0, "", "", fmt.Errorf("invalid term: %v", err)
+		return nil, "", 0, "", "", fmt.Errorf("invalid term: %w", err)
 	}
 	req.Term = term
 
@@ -63,7 +63,7 @@ func promptMVEBaseDetails(noColor bool) (*megaport.BuyMVERequest, string, int, s
 	}
 	locationID, err := strconv.Atoi(locationIDStr)
 	if err != nil {
-		return nil, "", 0, "", "", fmt.Errorf("invalid location ID: %v", err)
+		return nil, "", 0, "", "", fmt.Errorf("invalid location ID: %w", err)
 	}
 	req.LocationID = locationID
 
@@ -99,7 +99,7 @@ func promptMVEBaseDetails(noColor bool) (*megaport.BuyMVERequest, string, int, s
 	}
 	imageID, err := strconv.Atoi(imageIDStr)
 	if err != nil {
-		return nil, "", 0, "", "", fmt.Errorf("invalid image ID: %v", err)
+		return nil, "", 0, "", "", fmt.Errorf("invalid image ID: %w", err)
 	}
 
 	productSize, err := utils.ResourcePrompt("mve", "Enter product size (required): ", noColor)
@@ -367,7 +367,7 @@ func promptMVEVnics(noColor bool) ([]megaport.MVENetworkInterface, error) {
 		if vlanStr != "" {
 			vlan, err = strconv.Atoi(vlanStr)
 			if err != nil {
-				return nil, fmt.Errorf("invalid VLAN ID: %v", err)
+				return nil, fmt.Errorf("invalid VLAN ID: %w", err)
 			}
 		}
 
@@ -412,7 +412,7 @@ func promptForUpdateMVEDetails(mveUID string, noColor bool) (*megaport.ModifyMVE
 	if contractTermStr != "" {
 		contractTerm, err := strconv.Atoi(contractTermStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid contract term: %v", err)
+			return nil, fmt.Errorf("invalid contract term: %w", err)
 		}
 		req.ContractTermMonths = &contractTerm
 	}
