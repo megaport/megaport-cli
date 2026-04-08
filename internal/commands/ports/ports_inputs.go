@@ -3,8 +3,8 @@ package ports
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
+	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -49,16 +49,9 @@ func processFlagLAGPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, erro
 }
 
 func processJSONUpdatePortInput(jsonStr, jsonFile string) (*megaport.ModifyPortRequest, error) {
-	var jsonData []byte
-	var err error
-
-	if jsonFile != "" {
-		jsonData, err = os.ReadFile(jsonFile)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-	} else {
-		jsonData = []byte(jsonStr)
+	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
+	if err != nil {
+		return nil, err
 	}
 
 	req := &megaport.ModifyPortRequest{}
@@ -163,16 +156,9 @@ func processFlagPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, error) 
 }
 
 func processJSONPortInput(jsonStr, jsonFile string) (*megaport.BuyPortRequest, error) {
-	var jsonData []byte
-	var err error
-
-	if jsonFile != "" {
-		jsonData, err = os.ReadFile(jsonFile)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-	} else {
-		jsonData = []byte(jsonStr)
+	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
+	if err != nil {
+		return nil, err
 	}
 
 	req := &megaport.BuyPortRequest{}

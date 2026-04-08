@@ -215,7 +215,7 @@ func TestUpdateServiceKey(t *testing.T) {
 			name:        "login error",
 			mockService: &MockServiceKeyService{},
 			loginErr:    fmt.Errorf("login failure"),
-			expectedErr: "error logging in",
+			expectedErr: "login failure",
 		},
 	}
 

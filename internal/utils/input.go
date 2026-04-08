@@ -2,10 +2,27 @@ package utils
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/spf13/cobra"
 )
+
+// ReadJSONInput reads JSON data from either a raw string or a file path.
+// If jsonStr is non-empty, it takes precedence; otherwise reads from jsonFile.
+func ReadJSONInput(jsonStr, jsonFile string) ([]byte, error) {
+	if jsonStr != "" {
+		return []byte(jsonStr), nil
+	}
+	if jsonFile != "" {
+		data, err := os.ReadFile(jsonFile)
+		if err != nil {
+			return nil, fmt.Errorf("error reading JSON file: %w", err)
+		}
+		return data, nil
+	}
+	return nil, nil
+}
 
 // InputConfig configures how ResolveInput resolves the request object from
 // one of the three input modes (JSON, flags, interactive prompts).

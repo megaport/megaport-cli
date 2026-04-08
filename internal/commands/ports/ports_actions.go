@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -274,14 +275,12 @@ var listPortsFunc = func(ctx context.Context, client *megaport.Client) ([]*megap
 
 func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := utils.ContextFromCmd(cmd)
-	defer cancel()
-
-	client, err := config.Login(ctx)
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
+	defer cancel()
 
 	spinner := output.PrintResourceListing("Port", noColor)
 
@@ -314,14 +313,12 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 		return watchGetPort(cmd, args, noColor, outputFormat)
 	}
 
-	ctx, cancel := utils.ContextFromCmd(cmd)
-	defer cancel()
-
-	client, err := config.Login(ctx)
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
+	defer cancel()
 
 	portUID := args[0]
 
@@ -362,36 +359,19 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 }
 
 func watchGetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	interval, _ := cmd.Flags().GetDuration("interval")
-
-	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultWatchTimeout)
-	defer cancel()
-	client, err := config.Login(ctx)
-	if err != nil {
-		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
-	}
-
 	portUID := args[0]
-	cfg := utils.WatchConfig{
-		Interval:     interval,
-		NoColor:      noColor,
-		OutputFormat: outputFormat,
-		ResourceType: "Port",
-		ResourceUID:  portUID,
-	}
-
-	return utils.WatchLoop(ctx, cfg, func(pollCtx context.Context) (string, error) {
-		port, err := getPortFunc(pollCtx, client, portUID)
-		if err != nil {
-			return "", err
-		}
-		if port == nil {
-			return "", fmt.Errorf("no port found with UID: %s", portUID)
-		}
-		err = printPorts([]*megaport.Port{port}, outputFormat, noColor)
-		return port.ProvisioningStatus, err
-	})
+	return utils.WatchResource(cmd, "Port", portUID, noColor, outputFormat, config.Login,
+		func(pollCtx context.Context, client *megaport.Client) (string, error) {
+			port, err := getPortFunc(pollCtx, client, portUID)
+			if err != nil {
+				return "", err
+			}
+			if port == nil {
+				return "", fmt.Errorf("no port found with UID: %s", portUID)
+			}
+			err = printPorts([]*megaport.Port{port}, outputFormat, noColor)
+			return port.ProvisioningStatus, err
+		})
 }
 
 func GetPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
@@ -402,14 +382,12 @@ func GetPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat
 		return watchPortStatus(cmd, args, noColor, outputFormat)
 	}
 
-	ctx, cancel := utils.ContextFromCmd(cmd)
-	defer cancel()
-
-	client, err := config.Login(ctx)
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
+	defer cancel()
 
 	portUID := args[0]
 
@@ -444,54 +422,37 @@ func GetPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat
 }
 
 func watchPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	interval, _ := cmd.Flags().GetDuration("interval")
-
-	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultWatchTimeout)
-	defer cancel()
-	client, err := config.Login(ctx)
-	if err != nil {
-		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
-	}
-
 	portUID := args[0]
-	cfg := utils.WatchConfig{
-		Interval:     interval,
-		NoColor:      noColor,
-		OutputFormat: outputFormat,
-		ResourceType: "Port",
-		ResourceUID:  portUID,
-	}
-
-	return utils.WatchLoop(ctx, cfg, func(pollCtx context.Context) (string, error) {
-		port, err := getPortFunc(pollCtx, client, portUID)
-		if err != nil {
-			return "", err
-		}
-		if port == nil {
-			return "", fmt.Errorf("no port found with UID: %s", portUID)
-		}
-		status := []PortStatus{
-			{
-				UID:    port.UID,
-				Name:   port.Name,
-				Status: port.ProvisioningStatus,
-				Type:   port.Type,
-				Speed:  port.PortSpeed,
-			},
-		}
-		err = output.PrintOutput(status, outputFormat, noColor)
-		return port.ProvisioningStatus, err
-	})
+	return utils.WatchResource(cmd, "Port", portUID, noColor, outputFormat, config.Login,
+		func(pollCtx context.Context, client *megaport.Client) (string, error) {
+			port, err := getPortFunc(pollCtx, client, portUID)
+			if err != nil {
+				return "", err
+			}
+			if port == nil {
+				return "", fmt.Errorf("no port found with UID: %s", portUID)
+			}
+			status := []PortStatus{
+				{
+					UID:    port.UID,
+					Name:   port.Name,
+					Status: port.ProvisioningStatus,
+					Type:   port.Type,
+					Speed:  port.PortSpeed,
+				},
+			}
+			err = output.PrintOutput(status, outputFormat, noColor)
+			return port.ProvisioningStatus, err
+		})
 }
 
 func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
-	defer cancel()
-	client, err := config.Login(ctx)
+	ctx, cancel, client, err := utils.LoginClient(cmd, utils.DefaultMutationTimeout, config.Login)
 	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
+	defer cancel()
 
 	portUID := args[0]
 
@@ -648,17 +609,15 @@ func DeletePort(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func RestorePort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmd(cmd)
-	defer cancel()
-
 	portUID := args[0]
 	formattedUID := output.FormatUID(portUID, noColor)
 
-	client, err := config.Login(ctx)
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
+	defer cancel()
 
 	spinner := output.PrintResourceUpdating("Port", portUID, noColor)
 
@@ -685,17 +644,15 @@ func RestorePort(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func LockPort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmd(cmd)
-	defer cancel()
-
 	portUID := args[0]
 	formattedUID := output.FormatUID(portUID, noColor)
 
-	client, err := config.Login(ctx)
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
+	defer cancel()
 
 	spinner := output.PrintResourceUpdating("Port", portUID, noColor)
 
@@ -722,17 +679,15 @@ func LockPort(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func UnlockPort(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmd(cmd)
-	defer cancel()
-
 	portUID := args[0]
 	formattedUID := output.FormatUID(portUID, noColor)
 
-	client, err := config.Login(ctx)
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
+	defer cancel()
 
 	spinner := output.PrintResourceUpdating("Port", portUID, noColor)
 

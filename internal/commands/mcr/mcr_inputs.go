@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -16,13 +16,9 @@ func processJSONMCRInput(jsonStr, jsonFile string) (*megaport.BuyMCRRequest, err
 	var jsonData []byte
 	var err error
 
-	if jsonFile != "" {
-		jsonData, err = os.ReadFile(jsonFile)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-	} else {
-		jsonData = []byte(jsonStr)
+	jsonData, err = utils.ReadJSONInput(jsonStr, jsonFile)
+	if err != nil {
+		return nil, err
 	}
 
 	req := &megaport.BuyMCRRequest{}
@@ -79,13 +75,9 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 	var jsonData []byte
 	var err error
 
-	if jsonFile != "" {
-		jsonData, err = os.ReadFile(jsonFile)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-	} else {
-		jsonData = []byte(jsonStr)
+	jsonData, err = utils.ReadJSONInput(jsonStr, jsonFile)
+	if err != nil {
+		return nil, err
 	}
 
 	var jsonMap map[string]interface{}
@@ -184,13 +176,9 @@ func processJSONPrefixFilterListInput(jsonStr, jsonFile string, mcrUID string) (
 	var jsonData []byte
 	var err error
 
-	if jsonFile != "" {
-		jsonData, err = os.ReadFile(jsonFile)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-	} else {
-		jsonData = []byte(jsonStr)
+	jsonData, err = utils.ReadJSONInput(jsonStr, jsonFile)
+	if err != nil {
+		return nil, err
 	}
 
 	var tempData struct {
@@ -302,13 +290,9 @@ func processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile string, mcrUID str
 	var jsonData []byte
 	var err error
 
-	if jsonFile != "" {
-		jsonData, err = os.ReadFile(jsonFile)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-	} else {
-		jsonData = []byte(jsonStr)
+	jsonData, err = utils.ReadJSONInput(jsonStr, jsonFile)
+	if err != nil {
+		return nil, err
 	}
 
 	var tempData struct {

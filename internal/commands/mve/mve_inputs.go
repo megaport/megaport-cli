@@ -3,9 +3,9 @@ package mve
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -13,22 +13,13 @@ import (
 
 func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVERequest, error) {
 	var jsonData map[string]interface{}
-	var err error
 
-	if jsonStr != "" {
-		err = json.Unmarshal([]byte(jsonStr), &jsonData)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing JSON string: %v", err)
-		}
-	} else if jsonFilePath != "" {
-		jsonBytes, err := os.ReadFile(jsonFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-		err = json.Unmarshal(jsonBytes, &jsonData)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing JSON from file: %v", err)
-		}
+	rawBytes, err := utils.ReadJSONInput(jsonStr, jsonFilePath)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(rawBytes, &jsonData); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %v", err)
 	}
 
 	req := &megaport.BuyMVERequest{}
@@ -622,22 +613,13 @@ func getBoolFromMap(m map[string]interface{}, key string) (bool, bool) {
 
 func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.ModifyMVERequest, error) {
 	var jsonData map[string]interface{}
-	var err error
 
-	if jsonStr != "" {
-		err = json.Unmarshal([]byte(jsonStr), &jsonData)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing JSON string: %v", err)
-		}
-	} else if jsonFilePath != "" {
-		jsonBytes, err := os.ReadFile(jsonFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-		err = json.Unmarshal(jsonBytes, &jsonData)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing JSON from file: %v", err)
-		}
+	rawBytes, err := utils.ReadJSONInput(jsonStr, jsonFilePath)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(rawBytes, &jsonData); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %v", err)
 	}
 
 	req := &megaport.ModifyMVERequest{

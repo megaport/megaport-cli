@@ -3,6 +3,7 @@ package users
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -90,14 +91,12 @@ func buildUpdateUserRequest(cmd *cobra.Command, noColor bool) (*megaport.UpdateU
 
 func ListUsers(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := utils.ContextFromCmd(cmd)
-	defer cancel()
-
-	client, err := config.Login(ctx)
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
+	defer cancel()
 
 	spinner := output.PrintResourceListing("user", noColor)
 
@@ -121,8 +120,6 @@ func ListUsers(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 
 func GetUser(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := utils.ContextFromCmd(cmd)
-	defer cancel()
 
 	employeeID, err := strconv.Atoi(args[0])
 	if err != nil {
@@ -130,11 +127,12 @@ func GetUser(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 		return fmt.Errorf("invalid employee ID: %w", err)
 	}
 
-	client, err := config.Login(ctx)
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
+	defer cancel()
 
 	spinner := output.PrintResourceGetting("User", args[0], noColor)
 
@@ -156,19 +154,17 @@ func GetUser(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 }
 
 func CreateUser(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := utils.ContextFromCmd(cmd)
-	defer cancel()
-
 	req, err := buildCreateUserRequest(cmd, noColor)
 	if err != nil {
 		return err
 	}
 
-	client, err := config.Login(ctx)
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
+	defer cancel()
 
 	spinner := output.PrintResourceCreating("User", req.FirstName+" "+req.LastName, noColor)
 
@@ -314,14 +310,12 @@ func DeactivateUser(cmd *cobra.Command, args []string, noColor bool) error {
 
 func GetUserActivity(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
-	ctx, cancel := utils.ContextFromCmd(cmd)
-	defer cancel()
-
-	client, err := config.Login(ctx)
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
+	defer cancel()
 
 	req := &megaport.GetUserActivityRequest{}
 
