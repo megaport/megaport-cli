@@ -69,8 +69,8 @@ func UpdateResourceTags(opts UpdateTagsOptions) error {
 	existingTags, err := opts.ListFunc(listCtx, opts.UID)
 	listCancel()
 	if err != nil {
-		output.PrintError("Failed to login or list existing resource tags: %v", opts.NoColor, err)
-		return fmt.Errorf("failed to login or list existing resource tags: %w", err)
+		output.PrintError("Failed to log in or list existing resource tags: %v", opts.NoColor, err)
+		return fmt.Errorf("failed to log in or list existing resource tags: %w", err)
 	}
 
 	interactive, _ := opts.Cmd.Flags().GetBool("interactive")

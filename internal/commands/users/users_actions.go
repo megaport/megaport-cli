@@ -265,7 +265,7 @@ func DeleteUser(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	output.PrintResourceDeleted("User", args[0], false, noColor)
+	output.PrintResourceDeleted("User", args[0], true, noColor)
 	return nil
 }
 

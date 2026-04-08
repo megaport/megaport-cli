@@ -65,7 +65,7 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 	if termStr != "" {
 		term, err := strconv.Atoi(termStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid term: %v", err)
+			return nil, fmt.Errorf("invalid term: %w", err)
 		}
 
 		if err := validation.ValidateContractTerm(term); err != nil {
@@ -101,7 +101,7 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 	}
 	term, err := strconv.Atoi(termStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid term: %v", err)
+		return nil, fmt.Errorf("invalid term: %w", err)
 	}
 
 	portSpeedStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter port speed - valid port speeds are %s Mbps (required): ", validation.FormatIntSlice(validation.ValidMCRPortSpeeds)), noColor)
@@ -110,7 +110,7 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 	}
 	portSpeed, err := strconv.Atoi(portSpeedStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid port speed: %v", err)
+		return nil, fmt.Errorf("invalid port speed: %w", err)
 	}
 	if !slices.Contains(megaport.VALID_MCR_PORT_SPEEDS, portSpeed) {
 		return nil, megaport.ErrMCRInvalidPortSpeed
@@ -121,7 +121,7 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 	}
 	locationID, err := strconv.Atoi(locationIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid location ID: %v", err)
+		return nil, fmt.Errorf("invalid location ID: %w", err)
 	}
 
 	asnStr, err := utils.ResourcePrompt("mcr", "Enter MCR ASN (optional): ", noColor)
@@ -133,7 +133,7 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 	if asnStr != "" {
 		asnValue, err := strconv.Atoi(asnStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid ASN: %v", err)
+			return nil, fmt.Errorf("invalid ASN: %w", err)
 		}
 		asn = asnValue
 	}
@@ -366,7 +366,7 @@ func promptForPrefixFilterListDetails(mcrUID string, noColor bool) (*megaport.Cr
 func promptForUpdatePrefixFilterListDetails(ctx context.Context, client *megaport.Client, mcrUID string, prefixFilterListID int, noColor bool) (*megaport.MCRPrefixFilterList, error) {
 	currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve current prefix filter list: %v", err)
+		return nil, fmt.Errorf("failed to retrieve current prefix filter list: %w", err)
 	}
 
 	fmt.Printf("Current description: %s\n", currentPrefixFilterList.Description)

@@ -296,7 +296,7 @@ func TestUpdateResourceTags(t *testing.T) {
 			UpdateFunc:   successUpdateFunc,
 		})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to login or list existing resource tags")
+		assert.Contains(t, err.Error(), "failed to log in or list existing resource tags")
 	})
 
 	t.Run("API update error", func(t *testing.T) {

@@ -1717,7 +1717,7 @@ func TestUpdateMCRResourceTagsCmd(t *testing.T) {
 			setupMock: func(m *MockMCRService) {
 				m.ListMCRResourceTagsErr = fmt.Errorf("API error: resource not found")
 			},
-			expectedError: "failed to login or list existing resource tags",
+			expectedError: "failed to log in or list existing resource tags",
 		},
 		{
 			name:      "error with API update",
