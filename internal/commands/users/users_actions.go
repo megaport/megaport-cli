@@ -132,7 +132,7 @@ func GetUser(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 
 	spinner := output.PrintResourceGetting("User", args[0], noColor)

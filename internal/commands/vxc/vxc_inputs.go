@@ -717,6 +717,10 @@ func parseVXCEndpointConfig(endConfigRaw map[string]interface{}, endLabel string
 }
 
 func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.BuyVXCRequest, error) {
+	if jsonStr == "" && jsonFilePath == "" {
+		return nil, fmt.Errorf("either json or json-file must be provided")
+	}
+
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFilePath)
 	if err != nil {
 		return nil, err
@@ -940,6 +944,10 @@ var buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateV
 }
 
 var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*megaport.UpdateVXCRequest, error) {
+	if jsonStr == "" && jsonFilePath == "" {
+		return nil, fmt.Errorf("either json or json-file must be provided")
+	}
+
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFilePath)
 	if err != nil {
 		return nil, err

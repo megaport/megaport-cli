@@ -698,7 +698,7 @@ func TestBuildVXCRequestFromJSON(t *testing.T) {
 			name:          "empty inputs",
 			jsonStr:       "",
 			jsonFilePath:  "",
-			expectedError: "error parsing JSON",
+			expectedError: "either json or json-file must be provided",
 		},
 	}
 

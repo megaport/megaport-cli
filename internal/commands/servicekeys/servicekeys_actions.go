@@ -47,7 +47,7 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 
 	active, _ := cmd.Flags().GetBool("active")
@@ -93,7 +93,7 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 
 	req := &megaport.UpdateServiceKeyRequest{

@@ -277,6 +277,7 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 	output.SetOutputFormat(outputFormat)
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 	defer cancel()
@@ -314,6 +315,7 @@ func GetPort(cmd *cobra.Command, args []string, noColor bool, outputFormat strin
 
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 	defer cancel()
@@ -382,6 +384,7 @@ func GetPortStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat
 
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 	defer cancel()
@@ -446,6 +449,7 @@ func watchPortStatus(cmd *cobra.Command, args []string, noColor bool, outputForm
 func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel, client, err := utils.LoginClient(cmd, utils.DefaultMutationTimeout, config.Login)
 	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 	defer cancel()
@@ -610,6 +614,7 @@ func RestorePort(cmd *cobra.Command, args []string, noColor bool) error {
 
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 	defer cancel()
@@ -644,6 +649,7 @@ func LockPort(cmd *cobra.Command, args []string, noColor bool) error {
 
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 	defer cancel()
@@ -678,6 +684,7 @@ func UnlockPort(cmd *cobra.Command, args []string, noColor bool) error {
 
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 	defer cancel()

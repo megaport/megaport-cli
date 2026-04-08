@@ -63,6 +63,7 @@ func GetManagedAccount(cmd *cobra.Command, args []string, noColor bool, outputFo
 	output.SetOutputFormat(outputFormat)
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 	defer cancel()

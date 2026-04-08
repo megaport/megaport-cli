@@ -231,7 +231,7 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 
 	getSpinner := output.PrintResourceGetting("MVE", mveUID, noColor)
@@ -492,7 +492,7 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %w", err)
+		return err
 	}
 
 	safeDelete, err := cmd.Flags().GetBool("safe-delete")
@@ -643,6 +643,7 @@ func watchMVEStatus(cmd *cobra.Command, args []string, noColor bool, outputForma
 func LockMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 	defer cancel()
@@ -666,6 +667,7 @@ func LockMVE(cmd *cobra.Command, args []string, noColor bool) error {
 func UnlockMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 	defer cancel()
@@ -689,6 +691,7 @@ func UnlockMVE(cmd *cobra.Command, args []string, noColor bool) error {
 func RestoreMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 	defer cancel()
