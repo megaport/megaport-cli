@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"strings"
 
 	megaport "github.com/megaport/megaportgo"
 )
@@ -20,10 +21,15 @@ func ValidateIPSecTunnelCount(count int, allowZeroDisable bool) error {
 			return nil
 		}
 	}
-	if allowZeroDisable {
-		return fmt.Errorf("invalid IPSec tunnel count %d: must be 10, 20, 30, or 0 to disable", count)
+	counts := make([]string, len(megaport.ValidIPsecTunnelCounts))
+	for i, v := range megaport.ValidIPsecTunnelCounts {
+		counts[i] = fmt.Sprintf("%d", v)
 	}
-	return fmt.Errorf("invalid IPSec tunnel count %d: must be 10, 20, or 30 (0 uses the API default of 10)", count)
+	validStr := strings.Join(counts, ", ")
+	if allowZeroDisable {
+		return fmt.Errorf("invalid IPSec tunnel count %d: must be %s, or 0 to disable", count, validStr)
+	}
+	return fmt.Errorf("invalid IPSec tunnel count %d: must be %s (0 uses the API default of 10)", count, validStr)
 }
 
 // ValidateMCRRequest validates a request to buy/provision a new MCR (Megaport Cloud Router).

@@ -24,7 +24,7 @@ func TestValidateIPSecTunnelCount(t *testing.T) {
 		{"valid 30 update mode", 30, true, false, ""},
 		{"zero disable update mode", 0, true, false, ""},
 		{"zero add mode is invalid", 0, false, true, "0 uses the API default of 10"},
-		{"invalid count add mode", 5, false, true, "must be 10, 20, or 30"},
+		{"invalid count add mode", 5, false, true, "must be 10, 20, 30"},
 		{"invalid count update mode", 5, true, true, "must be 10, 20, 30, or 0 to disable"},
 		{"negative count", -1, false, true, "must be 10, 20, or 30"},
 	}
