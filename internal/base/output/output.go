@@ -329,11 +329,26 @@ func CaptureOutput(f func()) string {
 	os.Stdout = w
 	defer func() { os.Stdout = old }()
 	defer r.Close()
-	defer w.Close()
+
+	// Read from the pipe concurrently to avoid deadlocking when f()
+	// produces more output than the OS pipe buffer can hold.
+	type readResult struct {
+		data []byte
+		err  error
+	}
+	ch := make(chan readResult, 1)
+	go func() {
+		out, err := io.ReadAll(r)
+		ch <- readResult{out, err}
+	}()
+
 	f()
 	w.Close()
-	out, _ := io.ReadAll(r)
-	return string(out)
+
+	res := <-ch
+	// Read errors are intentionally ignored: the only realistic failure is
+	// a closed pipe, and we still want to return whatever was captured.
+	return string(res.data)
 }
 
 func CaptureOutputErr(f func() error) (string, error) {
@@ -341,7 +356,7 @@ func CaptureOutputErr(f func() error) (string, error) {
 	defer stdoutMu.Unlock()
 
 	old := os.Stdout
-	r, w, err := os.Pipe()
+	r, w, err := osPipe()
 	if err != nil {
 		runErr := f()
 		return "", runErr
@@ -349,15 +364,28 @@ func CaptureOutputErr(f func() error) (string, error) {
 	os.Stdout = w
 	defer func() { os.Stdout = old }()
 	defer r.Close()
-	defer w.Close()
+
+	// Read from the pipe concurrently to avoid deadlocking when f()
+	// produces more output than the OS pipe buffer can hold.
+	type readResult struct {
+		data string
+		err  error
+	}
+	ch := make(chan readResult, 1)
+	go func() {
+		var buf strings.Builder
+		_, copyErr := io.Copy(&buf, r)
+		ch <- readResult{buf.String(), copyErr}
+	}()
+
 	runErr := f()
 	w.Close()
-	var buf strings.Builder
-	_, copyErr := io.Copy(&buf, r)
-	if copyErr != nil {
-		return "", copyErr
+
+	res := <-ch
+	if res.err != nil {
+		return "", res.err
 	}
 	// Return captured output even when f returned an error so callers can
 	// inspect partial output for diagnostics.
-	return buf.String(), runErr
+	return res.data, runErr
 }
