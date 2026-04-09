@@ -254,16 +254,19 @@ func extractCSVFieldInfo[T OutputFields](data []T) (headers, jsonNames []string,
 			continue
 		}
 		jsonTag := field.Tag.Get("json")
+		// Strip json tag options (e.g. "name,omitempty" -> "name") before
+		// using as a fallback header or for --fields matching.
+		jsonName := jsonTag
+		if idx := strings.Index(jsonName, ","); idx != -1 {
+			jsonName = jsonName[:idx]
+		}
 		if csvTag == "" {
-			if jsonTag == "" || jsonTag == "-" {
+			if jsonName == "" || jsonName == "-" {
 				continue
 			}
-			csvTag = jsonTag
+			csvTag = jsonName
 		}
-		jn := jsonTag
-		if idx := strings.Index(jn, ","); idx != -1 {
-			jn = jn[:idx]
-		}
+		jn := jsonName
 		if jn == "" || jn == "-" {
 			jn = strings.ToLower(field.Name)
 		}
