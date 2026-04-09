@@ -331,6 +331,7 @@ func CaptureOutput(f func()) string {
 		return ""
 	}
 	defer os.Remove(tmp.Name())
+	defer tmp.Close()
 
 	os.Stdout = tmp
 	defer func() { os.Stdout = old }()
@@ -339,11 +340,9 @@ func CaptureOutput(f func()) string {
 
 	// Read back captured output.
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
-		tmp.Close()
 		return ""
 	}
 	data, _ := io.ReadAll(tmp)
-	tmp.Close()
 	return string(data)
 }
 
@@ -358,6 +357,7 @@ func CaptureOutputErr(f func() error) (string, error) {
 		return "", runErr
 	}
 	defer os.Remove(tmp.Name())
+	defer tmp.Close()
 
 	os.Stdout = tmp
 	defer func() { os.Stdout = old }()
@@ -366,11 +366,9 @@ func CaptureOutputErr(f func() error) (string, error) {
 
 	// Read back captured output.
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
-		tmp.Close()
 		return "", err
 	}
 	data, readErr := io.ReadAll(tmp)
-	tmp.Close()
 	if readErr != nil {
 		return "", readErr
 	}
