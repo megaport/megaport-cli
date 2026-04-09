@@ -216,8 +216,8 @@ func getStructTypeInfo[T OutputFields](data []T) (headers, jsonNames []string, f
 
 // extractCSVFieldInfo extracts CSV-specific field metadata from the first element of data.
 // CSV uses the csv tag as the header name (falling back to json tag), and skips fields
-// that have neither a csv nor json tag. This differs from extractFieldInfo which uses the
-// header tag and never skips fields.
+// that have neither a csv nor json tag. This differs from extractFieldInfo, which does
+// not require csv/json tags and instead falls back to header/csv/output tags or the field name.
 func extractCSVFieldInfo[T OutputFields](data []T) (headers, jsonNames []string, fieldIndices []int, err error) {
 	var sample T
 	if len(data) > 0 {

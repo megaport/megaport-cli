@@ -2,6 +2,7 @@ package output
 
 import (
 	"fmt"
+	"os"
 	"testing"
 )
 
@@ -25,15 +26,30 @@ func makeBenchData(n int) []benchStruct { //nolint:unparam // n is parameterized
 	return data
 }
 
+// redirectStdout replaces os.Stdout with /dev/null for the duration of the
+// benchmark, avoiding the filesystem overhead of CaptureOutput. Returns a
+// cleanup function that restores the original stdout.
+func redirectStdout(b *testing.B) func() {
+	b.Helper()
+	old := os.Stdout
+	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	if err != nil {
+		b.Fatal(err)
+	}
+	os.Stdout = devNull
+	return func() {
+		os.Stdout = old
+		devNull.Close()
+	}
+}
+
 func BenchmarkPrintTable(b *testing.B) {
 	data := makeBenchData(1000)
+	cleanup := redirectStdout(b)
+	defer cleanup()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var err error
-		_ = CaptureOutput(func() {
-			err = printTable(data, true)
-		})
-		if err != nil {
+		if err := printTable(data, true); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -41,13 +57,11 @@ func BenchmarkPrintTable(b *testing.B) {
 
 func BenchmarkPrintJSON(b *testing.B) {
 	data := makeBenchData(1000)
+	cleanup := redirectStdout(b)
+	defer cleanup()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var err error
-		_ = CaptureOutput(func() {
-			err = printJSON(data)
-		})
-		if err != nil {
+		if err := printJSON(data); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -55,13 +69,11 @@ func BenchmarkPrintJSON(b *testing.B) {
 
 func BenchmarkPrintCSV(b *testing.B) {
 	data := makeBenchData(1000)
+	cleanup := redirectStdout(b)
+	defer cleanup()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var err error
-		_ = CaptureOutput(func() {
-			err = printCSV(data)
-		})
-		if err != nil {
+		if err := printCSV(data); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -69,13 +81,11 @@ func BenchmarkPrintCSV(b *testing.B) {
 
 func BenchmarkPrintXML(b *testing.B) {
 	data := makeBenchData(1000)
+	cleanup := redirectStdout(b)
+	defer cleanup()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var err error
-		_ = CaptureOutput(func() {
-			err = printXML(data)
-		})
-		if err != nil {
+		if err := printXML(data); err != nil {
 			b.Fatal(err)
 		}
 	}
