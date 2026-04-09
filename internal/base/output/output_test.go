@@ -133,6 +133,38 @@ func TestPrintCSV_NilSlice(t *testing.T) {
 	})
 }
 
+func TestPrintCSV_PointerStruct(t *testing.T) {
+	s1 := &SimpleStruct{ID: 1, Name: "First", Active: true}
+	s2 := &SimpleStruct{ID: 2, Name: "Second", Active: false}
+	var s3 *SimpleStruct // nil pointer
+
+	data := []*SimpleStruct{s1, s2, s3}
+
+	output := CaptureOutput(func() {
+		err := printCSV(data)
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, output, "id,name,active")
+	assert.Contains(t, output, "1,First,true")
+	assert.Contains(t, output, "2,Second,false")
+	// nil pointer should produce empty fields, not crash
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	assert.Equal(t, 4, len(lines), "header + 3 data rows (including nil)")
+}
+
+func TestPrintCSV_NoTagStruct(t *testing.T) {
+	data := []NoTagStruct{{ID: 1, Name: "Test"}}
+
+	output := CaptureOutput(func() {
+		err := printCSV(data)
+		assert.NoError(t, err)
+	})
+
+	// NoTagStruct has no csv or json tags, so CSV should produce no output
+	assert.Empty(t, output)
+}
+
 func TestPrintJSON(t *testing.T) {
 	data := []SimpleStruct{
 		{ID: 1, Name: "Item 1", Active: true},
