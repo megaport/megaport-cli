@@ -43,12 +43,13 @@ func processJSONMCRInput(jsonStr, jsonFile string) (*megaport.BuyMCRRequest, err
 			if err := validation.ValidateIPSecTunnelCount(*extras.TunnelCount, false); err != nil {
 				return nil, err
 			}
-			req.AddOns = append(req.AddOns, &megaport.MCRAddOnIPsecConfig{
-				AddOnType:   megaport.AddOnTypeIPsec,
-				TunnelCount: *extras.TunnelCount,
-			})
 		}
-		// tunnelCount == 0 means "use API default of 10"; no add-on entry needed
+		// Always include the add-on config when the key is present:
+		// tunnelCount == 0 tells the API to use its default of 10 tunnels.
+		req.AddOns = append(req.AddOns, &megaport.MCRAddOnIPsecConfig{
+			AddOnType:   megaport.AddOnTypeIPsec,
+			TunnelCount: *extras.TunnelCount,
+		})
 	}
 
 	if err := validation.ValidateMCRRequest(req); err != nil {
@@ -99,12 +100,13 @@ func processFlagMCRInput(cmd *cobra.Command) (*megaport.BuyMCRRequest, error) {
 			if err := validation.ValidateIPSecTunnelCount(ipsecTunnelCount, false); err != nil {
 				return nil, err
 			}
-			req.AddOns = append(req.AddOns, &megaport.MCRAddOnIPsecConfig{
-				AddOnType:   megaport.AddOnTypeIPsec,
-				TunnelCount: ipsecTunnelCount,
-			})
 		}
-		// ipsecTunnelCount == 0 means "use API default of 10"; no add-on entry needed
+		// Always include the add-on when the flag is explicitly set:
+		// ipsecTunnelCount == 0 tells the API to use its default of 10 tunnels.
+		req.AddOns = append(req.AddOns, &megaport.MCRAddOnIPsecConfig{
+			AddOnType:   megaport.AddOnTypeIPsec,
+			TunnelCount: ipsecTunnelCount,
+		})
 	}
 
 	if err := validation.ValidateMCRRequest(req); err != nil {

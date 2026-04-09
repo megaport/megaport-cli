@@ -74,7 +74,7 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithOptionalFlag("promo-code", "A promotional code for the MCR").
 		WithOptionalFlag("resource-tags", "JSON string of key-value pairs for resource tagging").
 		WithIntFlag("ipsec-tunnel-count", 0, "IPSec tunnel count for an add-on (10, 20, or 30)").
-		WithOptionalFlag("ipsec-tunnel-count", "IPSec tunnel count for an add-on (10, 20, or 30); omit or set to 0 for API default").
+		WithOptionalFlag("ipsec-tunnel-count", "IPSec tunnel count for an add-on (10, 20, or 30); omit to skip IPSec; set to 0 to include with API default (10)").
 		WithExample("megaport-cli mcr buy --interactive").
 		WithExample("megaport-cli mcr buy --name \"My MCR\" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility true --mcr-asn 65000").
 		WithExample("megaport-cli mcr buy --name \"My MCR\" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility true --resource-tags '{\"env\":\"prod\",\"owner\":\"network-team\"}'").

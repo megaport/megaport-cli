@@ -389,9 +389,10 @@ func TestProcessJSONMCRInput_WithTunnelCount(t *testing.T) {
 			expectedCount: 10,
 		},
 		{
-			name:         "tunnelCount 0 does not populate AddOns",
-			jsonStr:      `{"name":"test","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true,"tunnelCount":0}`,
-			expectAddOns: false,
+			name:          "tunnelCount 0 includes add-on with API default",
+			jsonStr:       `{"name":"test","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true,"tunnelCount":0}`,
+			expectAddOns:  true,
+			expectedCount: 0,
 		},
 		{
 			name:         "no tunnelCount field",
@@ -458,12 +459,15 @@ func TestProcessFlagMCRInput_IPSec(t *testing.T) {
 		assert.Empty(t, req.AddOns)
 	})
 
-	t.Run("ipsec-tunnel-count zero does not add addon", func(t *testing.T) {
+	t.Run("ipsec-tunnel-count zero includes add-on with API default", func(t *testing.T) {
 		cmd := newCmd()
 		require.NoError(t, cmd.Flags().Set("ipsec-tunnel-count", "0"))
 		req, err := processFlagMCRInput(cmd)
 		assert.NoError(t, err)
-		assert.Empty(t, req.AddOns)
+		assert.Len(t, req.AddOns, 1)
+		addon, ok := req.AddOns[0].(*megaport.MCRAddOnIPsecConfig)
+		assert.True(t, ok)
+		assert.Equal(t, 0, addon.TunnelCount)
 	})
 
 	t.Run("invalid ipsec-tunnel-count rejected", func(t *testing.T) {

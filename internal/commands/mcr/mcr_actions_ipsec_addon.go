@@ -50,7 +50,8 @@ func AddMCRIPSecAddOn(cmd *cobra.Command, args []string, noColor bool) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("no input provided, use --interactive, --json, --json-file, or --tunnel-count to specify IPSec add-on details")
+		output.PrintInfo("No tunnel count specified, using API default (10 tunnels)", noColor)
+		// tunnelCount stays 0; the API will apply its default of 10
 	}
 
 	// allowZeroDisable=false: for add, 0 means "use API default of 10", not disable

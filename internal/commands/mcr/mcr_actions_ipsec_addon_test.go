@@ -128,15 +128,32 @@ func TestAddMCRIPSecAddOn_JSON(t *testing.T) {
 }
 
 func TestAddMCRIPSecAddOn_NoInput(t *testing.T) {
+	// With no tunnel-count/json/interactive provided, add-ipsec-addon proceeds
+	// with tunnelCount=0 (API will apply its default of 10 tunnels).
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockSvc := &MockMCRService{}
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.MCRService = mockSvc
+		return client, nil
+	})
+
 	cmd := &cobra.Command{Use: "add-ipsec-addon [mcrUID]"}
 	cmd.Flags().Bool("interactive", false, "")
 	cmd.Flags().String("json", "", "")
 	cmd.Flags().String("json-file", "", "")
 	cmd.Flags().Int("tunnel-count", 0, "")
 
-	err := AddMCRIPSecAddOn(cmd, []string{"mcr-abc"}, false)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no input provided")
+	out := output.CaptureOutput(func() {
+		_ = AddMCRIPSecAddOn(cmd, []string{"mcr-abc"}, false)
+	})
+	assert.Contains(t, out, "API default")
+	assert.Equal(t, "mcr-abc", mockSvc.CapturedUpdateMCRWithAddOnMCRID)
+	addon, ok := mockSvc.CapturedUpdateMCRWithAddOnReq.AddOn.(*megaport.MCRAddOnIPsecConfig)
+	assert.True(t, ok)
+	assert.Equal(t, 0, addon.TunnelCount)
 }
 
 func TestUpdateMCRIPSecAddOn_Flags(t *testing.T) {
