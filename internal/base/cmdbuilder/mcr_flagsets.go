@@ -44,6 +44,16 @@ func (b *CommandBuilder) WithMCRPrefixFilterListFlags() *CommandBuilder {
 	return b
 }
 
+// WithMCRIPSecAddOnFlags adds flags for adding an IPSec add-on to an MCR.
+func (b *CommandBuilder) WithMCRIPSecAddOnFlags() *CommandBuilder {
+	return b.WithIntFlag("tunnel-count", 0, "IPSec tunnel count (10, 20, or 30; omit or use 0 to let the API apply its default of 10)")
+}
+
+// WithMCRUpdateIPSecAddOnFlags adds flags for updating an IPSec add-on on an MCR.
+func (b *CommandBuilder) WithMCRUpdateIPSecAddOnFlags() *CommandBuilder {
+	return b.WithIntFlag("tunnel-count", 0, "New tunnel count (10, 20, or 30); set to 0 to disable IPSec")
+}
+
 // WithMCRFilterFlags adds flags for filtering MCR lists
 func (b *CommandBuilder) WithMCRFilterFlags() *CommandBuilder {
 	b.WithIntFlag("location-id", 0, "Filter MCRs by location ID")

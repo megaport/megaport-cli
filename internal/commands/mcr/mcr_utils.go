@@ -56,6 +56,14 @@ var unlockMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID st
 	return client.ProductService.ManageProductLock(ctx, &megaport.ManageProductLockRequest{ProductID: mcrUID, ShouldLock: false})
 }
 
+var updateMCRWithAddOnFunc = func(ctx context.Context, client *megaport.Client, mcrID string, req megaport.MCRAddOnRequest) error {
+	return client.MCRService.UpdateMCRWithAddOn(ctx, mcrID, req)
+}
+
+var updateMCRIPsecAddOnFunc = func(ctx context.Context, client *megaport.Client, mcrID, addOnUID string, tunnelCount int) error {
+	return client.MCRService.UpdateMCRIPsecAddOn(ctx, mcrID, addOnUID, tunnelCount)
+}
+
 func filterMCRs(mcrs []*megaport.MCR, locationID, portSpeed int, mcrName string) []*megaport.MCR {
 	return utils.Filter(mcrs, func(mcr *megaport.MCR) bool {
 		if mcr == nil {

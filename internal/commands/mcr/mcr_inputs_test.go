@@ -374,6 +374,143 @@ func TestProcessFlagUpdatePrefixFilterListInput(t *testing.T) {
 	}
 }
 
+func TestProcessJSONMCRInput_WithTunnelCount(t *testing.T) {
+	tests := []struct {
+		name            string
+		jsonStr         string
+		expectAddOns    bool
+		expectedCount   int
+		expectedError   string
+	}{
+		{
+			name:          "tunnelCount 10 populates AddOns",
+			jsonStr:       `{"name":"test","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true,"tunnelCount":10}`,
+			expectAddOns:  true,
+			expectedCount: 10,
+		},
+		{
+			name:          "tunnelCount 0 includes add-on with API default",
+			jsonStr:       `{"name":"test","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true,"tunnelCount":0}`,
+			expectAddOns:  true,
+			expectedCount: 0,
+		},
+		{
+			name:         "no tunnelCount field",
+			jsonStr:      `{"name":"test","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true}`,
+			expectAddOns: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := processJSONMCRInput(tt.jsonStr, "")
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+				return
+			}
+			assert.NoError(t, err)
+			assert.NotNil(t, req)
+			if tt.expectAddOns {
+				assert.Len(t, req.AddOns, 1)
+				addon, ok := req.AddOns[0].(*megaport.MCRAddOnIPsecConfig)
+				assert.True(t, ok)
+				assert.Equal(t, tt.expectedCount, addon.TunnelCount)
+			} else {
+				assert.Empty(t, req.AddOns)
+			}
+		})
+	}
+}
+
+func TestProcessFlagMCRInput_IPSec(t *testing.T) {
+	newCmd := func() *cobra.Command {
+		cmd := &cobra.Command{Use: "test"}
+		cmd.Flags().String("name", "test-mcr", "")
+		cmd.Flags().Int("term", 12, "")
+		cmd.Flags().Int("port-speed", 5000, "")
+		cmd.Flags().Int("location-id", 1, "")
+		cmd.Flags().Int("mcr-asn", 0, "")
+		cmd.Flags().Bool("marketplace-visibility", false, "")
+		cmd.Flags().String("cost-centre", "", "")
+		cmd.Flags().String("promo-code", "", "")
+		cmd.Flags().String("diversity-zone", "", "")
+		cmd.Flags().String("resource-tags", "", "")
+		cmd.Flags().Int("ipsec-tunnel-count", 0, "")
+		return cmd
+	}
+
+	t.Run("ipsec-tunnel-count flag set", func(t *testing.T) {
+		cmd := newCmd()
+		require.NoError(t, cmd.Flags().Set("ipsec-tunnel-count", "20"))
+
+		req, err := processFlagMCRInput(cmd)
+		assert.NoError(t, err)
+		assert.Len(t, req.AddOns, 1)
+		addon, ok := req.AddOns[0].(*megaport.MCRAddOnIPsecConfig)
+		assert.True(t, ok)
+		assert.Equal(t, 20, addon.TunnelCount)
+	})
+
+	t.Run("ipsec-tunnel-count flag not set", func(t *testing.T) {
+		cmd := newCmd()
+		req, err := processFlagMCRInput(cmd)
+		assert.NoError(t, err)
+		assert.Empty(t, req.AddOns)
+	})
+
+	t.Run("ipsec-tunnel-count zero includes add-on with API default", func(t *testing.T) {
+		cmd := newCmd()
+		require.NoError(t, cmd.Flags().Set("ipsec-tunnel-count", "0"))
+		req, err := processFlagMCRInput(cmd)
+		assert.NoError(t, err)
+		assert.Len(t, req.AddOns, 1)
+		addon, ok := req.AddOns[0].(*megaport.MCRAddOnIPsecConfig)
+		assert.True(t, ok)
+		assert.Equal(t, 0, addon.TunnelCount)
+	})
+
+	t.Run("invalid ipsec-tunnel-count rejected", func(t *testing.T) {
+		cmd := newCmd()
+		require.NoError(t, cmd.Flags().Set("ipsec-tunnel-count", "5"))
+		_, err := processFlagMCRInput(cmd)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid IPSec tunnel count")
+	})
+}
+
+func TestProcessJSONMCRInput_InvalidTunnelCount(t *testing.T) {
+	_, err := processJSONMCRInput(`{"name":"test","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true,"tunnelCount":5}`, "")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid IPSec tunnel count")
+}
+
+func TestProcessJSONMCRInput_NegativeTunnelCount(t *testing.T) {
+	_, err := processJSONMCRInput(`{"name":"test","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true,"tunnelCount":-1}`, "")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "tunnelCount must be")
+}
+
+func TestProcessFlagMCRInput_NegativeIPSecTunnelCount(t *testing.T) {
+	cmd := &cobra.Command{Use: "test"}
+	cmd.Flags().String("name", "test-mcr", "")
+	cmd.Flags().Int("term", 12, "")
+	cmd.Flags().Int("port-speed", 5000, "")
+	cmd.Flags().Int("location-id", 1, "")
+	cmd.Flags().Int("mcr-asn", 0, "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
+	cmd.Flags().String("cost-centre", "", "")
+	cmd.Flags().String("promo-code", "", "")
+	cmd.Flags().String("diversity-zone", "", "")
+	cmd.Flags().String("resource-tags", "", "")
+	cmd.Flags().Int("ipsec-tunnel-count", 0, "")
+	require.NoError(t, cmd.Flags().Set("ipsec-tunnel-count", "-1"))
+
+	_, err := processFlagMCRInput(cmd)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "ipsec-tunnel-count must be")
+}
+
 func TestProcessFlagMCRInput_ResourceTags(t *testing.T) {
 	tests := []struct {
 		name          string

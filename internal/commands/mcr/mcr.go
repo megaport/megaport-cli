@@ -25,12 +25,14 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	get, buy, update, del, restore, lock, unlock, list, status, validate := buildMCRCommands(rootCmd)
 	create, listPFL, getPFL, updatePFL, deletePFL := buildMCRPrefixFilterCommands(rootCmd)
 	listTags, updateTags := buildMCRTagCommands()
+	addIPSec, updateIPSec := buildMCRIPSecCommands(rootCmd)
 
 	mcrCmd.AddCommand(
 		get, buy, update, del, restore, lock, unlock,
 		create, listPFL, getPFL, updatePFL, deletePFL,
 		list, status, validate,
 		listTags, updateTags,
+		addIPSec, updateIPSec,
 	)
 	rootCmd.AddCommand(mcrCmd)
 }
@@ -71,6 +73,8 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithOptionalFlag("cost-centre", "The cost centre for the MCR").
 		WithOptionalFlag("promo-code", "A promotional code for the MCR").
 		WithOptionalFlag("resource-tags", "JSON string of key-value pairs for resource tagging").
+		WithIntFlag("ipsec-tunnel-count", 0, "IPSec tunnel count for an add-on (10, 20, or 30)").
+		WithOptionalFlag("ipsec-tunnel-count", "IPSec tunnel count for an add-on (10, 20, or 30); omit to skip IPSec; set to 0 to include with API default (10)").
 		WithExample("megaport-cli mcr buy --interactive").
 		WithExample("megaport-cli mcr buy --name \"My MCR\" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility true --mcr-asn 65000").
 		WithExample("megaport-cli mcr buy --name \"My MCR\" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility true --resource-tags '{\"env\":\"prod\",\"owner\":\"network-team\"}'").
@@ -86,6 +90,7 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
   "diversityZone": "blue",
   "costCentre": "IT-Networking",
   "promoCode": "SUMMER2024",
+  "tunnelCount": 10,
   "resourceTags": {
     "environment": "production",
     "department": "networking",
@@ -98,6 +103,7 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithImportantNote("If mcr_asn is not provided, a private ASN will be automatically assigned").
 		WithImportantNote("Resource tags allow you to categorize resources for organization and billing purposes").
 		WithImportantNote("Required flags (name, term, port-speed, location-id, marketplace-visibility) can be skipped when using --interactive, --json, or --json-file").
+		WithImportantNote("IPSec add-on (--ipsec-tunnel-count) is not prompted in interactive mode; use --ipsec-tunnel-count flag or include 'tunnelCount' in the JSON input").
 		WithRootCmd(rootCmd).
 		WithConditionalRequirements("name", "term", "port-speed", "location-id", "marketplace-visibility").
 		Build()
@@ -337,6 +343,50 @@ func buildMCRTagCommands() (listTags, updateTags *cobra.Command) {
 		WithExample("megaport-cli mcr update-tags mcr-abc123 --json '{\"env\":\"production\",\"team\":\"network\"}'").
 		WithExample("megaport-cli mcr update-tags mcr-abc123 --json-file ./tags.json").
 		WithImportantNote("All existing tags will be replaced with the provided tags. To clear all tags, provide an empty tag set.").
+		Build()
+
+	return
+}
+
+// buildMCRIPSecCommands extracts the IPSec add-on command definitions.
+func buildMCRIPSecCommands(rootCmd *cobra.Command) (addIPSec, updateIPSec *cobra.Command) {
+	addIPSec = cmdbuilder.NewCommand("add-ipsec-addon", "Add an IPSec add-on to an existing MCR").
+		WithArgs(cobra.ExactArgs(1)).
+		WithColorAwareRunFunc(AddMCRIPSecAddOn).
+		WithStandardInputFlags().
+		WithMCRIPSecAddOnFlags().
+		WithLongDesc("Add an IPSec add-on to an existing MCR.\n\nThis command provisions an IPSec add-on on the specified MCR. IPSec add-ons enable encrypted tunnel termination on the MCR.").
+		WithOptionalFlag("tunnel-count", "Number of IPSec tunnels (10, 20, or 30); omit or set to 0 to use the API default of 10").
+		WithExample("megaport-cli mcr add-ipsec-addon [mcrUID] --tunnel-count 10").
+		WithExample("megaport-cli mcr add-ipsec-addon [mcrUID] --tunnel-count 20").
+		WithExample("megaport-cli mcr add-ipsec-addon [mcrUID] --json '{\"tunnelCount\":10}'").
+		WithExample("megaport-cli mcr add-ipsec-addon [mcrUID] --interactive").
+		WithJSONExample(`{
+  "tunnelCount": 10
+}`).
+		WithImportantNote("Valid tunnel counts are 10, 20, or 30. Omit --tunnel-count or set to 0 to use the API default (10).").
+		WithImportantNote("You must provide one of: --tunnel-count, --interactive, --json, or --json-file").
+		WithRootCmd(rootCmd).
+		Build()
+
+	updateIPSec = cmdbuilder.NewCommand("update-ipsec-addon", "Update or disable an IPSec add-on on an MCR").
+		WithArgs(cobra.ExactArgs(2)).
+		WithColorAwareRunFunc(UpdateMCRIPSecAddOn).
+		WithStandardInputFlags().
+		WithMCRUpdateIPSecAddOnFlags().
+		WithLongDesc("Update or disable an existing IPSec add-on on an MCR.\n\nThis command updates the tunnel count on an existing IPSec add-on. Set tunnel-count to 0 to disable the IPSec add-on.").
+		WithDocumentedRequiredFlag("tunnel-count", "New tunnel count (10, 20, or 30); set to 0 to disable IPSec").
+		WithExample("megaport-cli mcr update-ipsec-addon [mcrUID] [addOnUID] --tunnel-count 20").
+		WithExample("megaport-cli mcr update-ipsec-addon [mcrUID] [addOnUID] --tunnel-count 0").
+		WithExample("megaport-cli mcr update-ipsec-addon [mcrUID] [addOnUID] --json '{\"tunnelCount\":30}'").
+		WithExample("megaport-cli mcr update-ipsec-addon [mcrUID] [addOnUID] --interactive").
+		WithJSONExample(`{
+  "tunnelCount": 30
+}`).
+		WithImportantNote("Valid tunnel counts are 10, 20, or 30. Set to 0 to disable the IPSec add-on.").
+		WithImportantNote("--tunnel-count can be skipped when using --interactive, --json, or --json-file").
+		WithRootCmd(rootCmd).
+		WithConditionalRequirements("tunnel-count").
 		Build()
 
 	return

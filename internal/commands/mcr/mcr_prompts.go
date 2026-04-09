@@ -12,6 +12,43 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
+// promptForIPSecTunnelCount prompts the user to select a tunnel count for a new IPSec add-on.
+// Valid values are 10, 20, or 30 (0 means default to 10).
+func promptForIPSecTunnelCount(noColor bool) (int, error) {
+	prompt := "Enter IPSec tunnel count (10, 20, or 30; leave empty for default of 10): "
+	input, err := utils.ResourcePrompt("mcr", prompt, noColor)
+	if err != nil {
+		return 0, err
+	}
+	if input == "" {
+		return 0, nil
+	}
+	count, err := strconv.Atoi(strings.TrimSpace(input))
+	if err != nil {
+		return 0, fmt.Errorf("invalid tunnel count: %w", err)
+	}
+	return count, nil
+}
+
+// promptForIPSecTunnelCountUpdate prompts the user to select a tunnel count for updating an IPSec add-on.
+// Valid values are 10, 20, or 30. Enter 0 to disable IPSec.
+func promptForIPSecTunnelCountUpdate(noColor bool) (int, error) {
+	prompt := "Enter new IPSec tunnel count (10, 20, or 30; enter 0 to disable IPSec): "
+	input, err := utils.ResourcePrompt("mcr", prompt, noColor)
+	if err != nil {
+		return 0, err
+	}
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return 0, fmt.Errorf("tunnel count is required for update (use 0 to disable IPSec)")
+	}
+	count, err := strconv.Atoi(input)
+	if err != nil {
+		return 0, fmt.Errorf("invalid tunnel count: %w", err)
+	}
+	return count, nil
+}
+
 func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCRRequest, error) {
 	req := &megaport.ModifyMCRRequest{
 		MCRID: mcrUID,

@@ -251,6 +251,75 @@ func TestPromptForPrefixFilterListDetails_NoEntries(t *testing.T) {
 	assert.Contains(t, err.Error(), "at least one entry is required")
 }
 
+func TestPromptForIPSecTunnelCount(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    int
+		wantErr     bool
+		errContains string
+	}{
+		{"empty input uses default", "", 0, false, ""},
+		{"valid count 10", "10", 10, false, ""},
+		{"valid count 20", "20", 20, false, ""},
+		{"valid count 30", "30", 30, false, ""},
+		{"non-numeric input", "abc", 0, true, "invalid tunnel count"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			originalPrompt := utils.GetResourcePrompt()
+			defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+			utils.SetResourcePrompt(mockPromptSequence([]string{tt.input}))
+
+			count, err := promptForIPSecTunnelCount(true)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContains)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, count)
+			}
+		})
+	}
+}
+
+func TestPromptForIPSecTunnelCountUpdate(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    int
+		wantErr     bool
+		errContains string
+	}{
+		{"valid count 10", "10", 10, false, ""},
+		{"valid count 20", "20", 20, false, ""},
+		{"valid count 30", "30", 30, false, ""},
+		{"zero disables IPSec", "0", 0, false, ""},
+		{"empty input requires value", "", 0, true, "tunnel count is required"},
+		{"non-numeric input", "abc", 0, true, "invalid tunnel count"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			originalPrompt := utils.GetResourcePrompt()
+			defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+			utils.SetResourcePrompt(mockPromptSequence([]string{tt.input}))
+
+			count, err := promptForIPSecTunnelCountUpdate(true)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContains)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, count)
+			}
+		})
+	}
+}
+
 func TestPromptUpdateExistingEntries_KeepUnmodified(t *testing.T) {
 	originalPrompt := utils.GetResourcePrompt()
 	defer func() { utils.SetResourcePrompt(originalPrompt) }()

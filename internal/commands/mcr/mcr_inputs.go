@@ -26,6 +26,32 @@ func processJSONMCRInput(jsonStr, jsonFile string) (*megaport.BuyMCRRequest, err
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
+	// BuyMCRRequest.AddOns is []MCRAddOn (interface) and cannot be directly
+	// unmarshaled by the standard library. Read tunnelCount separately using a
+	// pointer so we can distinguish "key absent" from an explicit value.
+	var extras struct {
+		TunnelCount *int `json:"tunnelCount"`
+	}
+	if err := json.Unmarshal(jsonData, &extras); err != nil {
+		return nil, fmt.Errorf("failed to parse tunnelCount: %w", err)
+	}
+	if extras.TunnelCount != nil {
+		if *extras.TunnelCount < 0 {
+			return nil, fmt.Errorf("tunnelCount must be 0 or a positive value (10, 20, or 30)")
+		}
+		if *extras.TunnelCount > 0 {
+			if err := validation.ValidateIPSecTunnelCount(*extras.TunnelCount, false); err != nil {
+				return nil, err
+			}
+		}
+		// Always include the add-on config when the key is present:
+		// tunnelCount == 0 tells the API to use its default of 10 tunnels.
+		req.AddOns = append(req.AddOns, &megaport.MCRAddOnIPsecConfig{
+			AddOnType:   megaport.AddOnTypeIPsec,
+			TunnelCount: *extras.TunnelCount,
+		})
+	}
+
 	if err := validation.ValidateMCRRequest(req); err != nil {
 		return nil, err
 	}
@@ -63,6 +89,24 @@ func processFlagMCRInput(cmd *cobra.Command) (*megaport.BuyMCRRequest, error) {
 		PromoCode:     promoCode,
 		DiversityZone: diversityZone,
 		ResourceTags:  resourceTags,
+	}
+
+	if cmd.Flags().Changed("ipsec-tunnel-count") {
+		ipsecTunnelCount, _ := cmd.Flags().GetInt("ipsec-tunnel-count")
+		if ipsecTunnelCount < 0 {
+			return nil, fmt.Errorf("ipsec-tunnel-count must be 0 or a positive value (10, 20, or 30)")
+		}
+		if ipsecTunnelCount > 0 {
+			if err := validation.ValidateIPSecTunnelCount(ipsecTunnelCount, false); err != nil {
+				return nil, err
+			}
+		}
+		// Always include the add-on when the flag is explicitly set:
+		// ipsecTunnelCount == 0 tells the API to use its default of 10 tunnels.
+		req.AddOns = append(req.AddOns, &megaport.MCRAddOnIPsecConfig{
+			AddOnType:   megaport.AddOnTypeIPsec,
+			TunnelCount: ipsecTunnelCount,
+		})
 	}
 
 	if err := validation.ValidateMCRRequest(req); err != nil {

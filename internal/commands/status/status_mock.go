@@ -141,6 +141,14 @@ func (m *MockMCRService) GetMCRPrefixFilterLists(_ context.Context, _ string) ([
 	return nil, fmt.Errorf("mock: GetMCRPrefixFilterLists not configured")
 }
 
+func (m *MockMCRService) UpdateMCRWithAddOn(_ context.Context, _ string, _ megaport.MCRAddOnRequest) error {
+	return fmt.Errorf("mock: UpdateMCRWithAddOn not configured")
+}
+
+func (m *MockMCRService) UpdateMCRIPsecAddOn(_ context.Context, _ string, _ string, _ int) error {
+	return fmt.Errorf("mock: UpdateMCRIPsecAddOn not configured")
+}
+
 // MockMVEService is a minimal mock for testing the status dashboard.
 type MockMVEService struct {
 	ListMVEsResult          []*megaport.MVE

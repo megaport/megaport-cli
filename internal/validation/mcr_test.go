@@ -8,6 +8,40 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestValidateIPSecTunnelCount(t *testing.T) {
+	tests := []struct {
+		name             string
+		count            int
+		allowZeroDisable bool
+		wantErr          bool
+		errContains      string
+	}{
+		{"valid 10 add mode", 10, false, false, ""},
+		{"valid 20 add mode", 20, false, false, ""},
+		{"valid 30 add mode", 30, false, false, ""},
+		{"valid 10 update mode", 10, true, false, ""},
+		{"valid 20 update mode", 20, true, false, ""},
+		{"valid 30 update mode", 30, true, false, ""},
+		{"zero disable update mode", 0, true, false, ""},
+		{"zero add mode is invalid", 0, false, true, "0 uses the API default of 10"},
+		{"invalid count add mode", 5, false, true, "must be 10, 20, 30"},
+		{"invalid count update mode", 5, true, true, "must be 10, 20, 30, or 0 to disable"},
+		{"negative count", -1, false, true, "must be 10, 20, 30"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateIPSecTunnelCount(tt.count, tt.allowZeroDisable)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContains)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestValidateMCRRequest(t *testing.T) {
 	tests := []struct {
 		name    string
