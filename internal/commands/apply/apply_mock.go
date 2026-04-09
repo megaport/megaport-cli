@@ -124,6 +124,14 @@ func (m *MockMCRService) GetMCRPrefixFilterLists(ctx context.Context, mcrId stri
 	return nil, fmt.Errorf("mock: GetMCRPrefixFilterLists not configured")
 }
 
+func (m *MockMCRService) UpdateMCRWithAddOn(ctx context.Context, mcrID string, req megaport.MCRAddOnRequest) error {
+	return fmt.Errorf("mock: UpdateMCRWithAddOn not configured")
+}
+
+func (m *MockMCRService) UpdateMCRIPsecAddOn(ctx context.Context, mcrID string, addOnUID string, tunnelCount int) error {
+	return fmt.Errorf("mock: UpdateMCRIPsecAddOn not configured")
+}
+
 // MockMVEService implements megaport.MVEService for testing.
 type MockMVEService struct {
 	BuyMVEResult        *megaport.BuyMVEResponse

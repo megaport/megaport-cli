@@ -104,6 +104,14 @@ func (m *MockMCRService) UpdateMCRResourceTags(ctx context.Context, mcrID string
 	return fmt.Errorf("mock: UpdateMCRResourceTags not configured")
 }
 
+func (m *MockMCRService) UpdateMCRWithAddOn(ctx context.Context, mcrID string, req megaport.MCRAddOnRequest) error {
+	return fmt.Errorf("mock: UpdateMCRWithAddOn not configured")
+}
+
+func (m *MockMCRService) UpdateMCRIPsecAddOn(ctx context.Context, mcrID string, addOnUID string, tunnelCount int) error {
+	return fmt.Errorf("mock: UpdateMCRIPsecAddOn not configured")
+}
+
 // MockMVEService satisfies megaport.MVEService for testing.
 type MockMVEService struct {
 	ListMVEsResult []*megaport.MVE

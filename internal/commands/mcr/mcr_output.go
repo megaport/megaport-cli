@@ -10,12 +10,20 @@ import (
 // mcrOutput represents the desired fields for JSON output of MCR details.
 type mcrOutput struct {
 	output.Output      `json:"-" header:"-"`
-	UID                string `json:"uid" header:"UID"`
-	Name               string `json:"name" header:"Name"`
-	LocationID         int    `json:"location_id" header:"Location ID"`
-	ProvisioningStatus string `json:"provisioning_status" header:"Status"`
-	ASN                int    `json:"asn" header:"ASN"`
-	Speed              int    `json:"speed" header:"Speed"`
+	UID                string             `json:"uid" header:"UID"`
+	Name               string             `json:"name" header:"Name"`
+	LocationID         int                `json:"location_id" header:"Location ID"`
+	ProvisioningStatus string             `json:"provisioning_status" header:"Status"`
+	ASN                int                `json:"asn" header:"ASN"`
+	Speed              int                `json:"speed" header:"Speed"`
+	AddOns             []mcrAddOnOutput `json:"add_ons,omitempty" header:"-" csv:"-"`
+}
+
+// mcrAddOnOutput represents an add-on attached to an MCR.
+type mcrAddOnOutput struct {
+	AddOnUID    string `json:"add_on_uid"`
+	AddOnType   string `json:"add_on_type"`
+	TunnelCount int    `json:"tunnel_count"`
 }
 
 // toMCROutput converts a *megaport.MCR to our mcrOutput struct.
@@ -24,7 +32,7 @@ func toMCROutput(mcr *megaport.MCR) (mcrOutput, error) {
 		return mcrOutput{}, fmt.Errorf("invalid MCR: nil value")
 	}
 
-	output := mcrOutput{
+	o := mcrOutput{
 		UID:                mcr.UID,
 		Name:               mcr.Name,
 		LocationID:         mcr.LocationID,
@@ -32,9 +40,20 @@ func toMCROutput(mcr *megaport.MCR) (mcrOutput, error) {
 		Speed:              mcr.PortSpeed,
 	}
 
-	output.ASN = mcr.Resources.VirtualRouter.ASN
+	o.ASN = mcr.Resources.VirtualRouter.ASN
 
-	return output, nil
+	for _, addon := range mcr.AddOns {
+		if addon == nil {
+			continue
+		}
+		o.AddOns = append(o.AddOns, mcrAddOnOutput{
+			AddOnUID:    addon.AddOnUID,
+			AddOnType:   addon.AddOnType,
+			TunnelCount: addon.TunnelCount,
+		})
+	}
+
+	return o, nil
 }
 
 // printMCRs prints a list of MCRs in the specified format.
