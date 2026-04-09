@@ -131,6 +131,20 @@ func TestWithJSONConfigFlags(t *testing.T) {
 	assertFlagType(t, cmd, "json-file", "string")
 }
 
+func TestWithMCRIPSecAddOnFlags(t *testing.T) {
+	cmd := NewCommand("test", "test").WithMCRIPSecAddOnFlags().Build()
+
+	assertFlagExists(t, cmd, "tunnel-count", "0")
+	assertFlagType(t, cmd, "tunnel-count", "int")
+}
+
+func TestWithMCRUpdateIPSecAddOnFlags(t *testing.T) {
+	cmd := NewCommand("test", "test").WithMCRUpdateIPSecAddOnFlags().Build()
+
+	assertFlagExists(t, cmd, "tunnel-count", "0")
+	assertFlagType(t, cmd, "tunnel-count", "int")
+}
+
 // Resource-specific flagset tests
 
 func TestWithPortCreationFlags(t *testing.T) {

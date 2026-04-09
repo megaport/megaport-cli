@@ -74,6 +74,7 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithOptionalFlag("promo-code", "A promotional code for the MCR").
 		WithOptionalFlag("resource-tags", "JSON string of key-value pairs for resource tagging").
 		WithIntFlag("ipsec-tunnel-count", 0, "IPSec tunnel count for an add-on (10, 20, or 30)").
+		WithOptionalFlag("ipsec-tunnel-count", "IPSec tunnel count for an add-on (10, 20, or 30); omit or set to 0 for API default").
 		WithExample("megaport-cli mcr buy --interactive").
 		WithExample("megaport-cli mcr buy --name \"My MCR\" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility true --mcr-asn 65000").
 		WithExample("megaport-cli mcr buy --name \"My MCR\" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility true --resource-tags '{\"env\":\"prod\",\"owner\":\"network-team\"}'").
@@ -355,7 +356,7 @@ func buildMCRIPSecCommands(rootCmd *cobra.Command) (addIPSec, updateIPSec *cobra
 		WithStandardInputFlags().
 		WithMCRIPSecAddOnFlags().
 		WithLongDesc("Add an IPSec add-on to an existing MCR.\n\nThis command provisions an IPSec add-on on the specified MCR. IPSec add-ons enable encrypted tunnel termination on the MCR.").
-		WithDocumentedRequiredFlag("tunnel-count", "Number of IPSec tunnels (10, 20, or 30); omit to use the API default of 10").
+		WithOptionalFlag("tunnel-count", "Number of IPSec tunnels (10, 20, or 30); omit or set to 0 to use the API default of 10").
 		WithExample("megaport-cli mcr add-ipsec-addon [mcrUID] --tunnel-count 10").
 		WithExample("megaport-cli mcr add-ipsec-addon [mcrUID] --tunnel-count 20").
 		WithExample("megaport-cli mcr add-ipsec-addon [mcrUID] --json '{\"tunnelCount\":10}'").
@@ -363,10 +364,9 @@ func buildMCRIPSecCommands(rootCmd *cobra.Command) (addIPSec, updateIPSec *cobra
 		WithJSONExample(`{
   "tunnelCount": 10
 }`).
-		WithImportantNote("Valid tunnel counts are 10, 20, or 30. --tunnel-count is required in flag mode.").
-		WithImportantNote("--tunnel-count can be skipped when using --interactive, --json, or --json-file").
+		WithImportantNote("Valid tunnel counts are 10, 20, or 30. Omit --tunnel-count or set to 0 to use the API default (10).").
+		WithImportantNote("You must provide one of: --tunnel-count, --interactive, --json, or --json-file").
 		WithRootCmd(rootCmd).
-		WithConditionalRequirements("tunnel-count").
 		Build()
 
 	updateIPSec = cmdbuilder.NewCommand("update-ipsec-addon", "Update or disable an IPSec add-on on an MCR").

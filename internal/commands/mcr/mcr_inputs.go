@@ -27,21 +27,28 @@ func processJSONMCRInput(jsonStr, jsonFile string) (*megaport.BuyMCRRequest, err
 	}
 
 	// BuyMCRRequest.AddOns is []MCRAddOn (interface) and cannot be directly
-	// unmarshaled by the standard library. Read tunnelCount separately.
+	// unmarshaled by the standard library. Read tunnelCount separately using a
+	// pointer so we can distinguish "key absent" from an explicit value.
 	var extras struct {
-		TunnelCount int `json:"tunnelCount"`
+		TunnelCount *int `json:"tunnelCount"`
 	}
 	if err := json.Unmarshal(jsonData, &extras); err != nil {
 		return nil, fmt.Errorf("failed to parse tunnelCount: %w", err)
 	}
-	if extras.TunnelCount > 0 {
-		if err := validation.ValidateIPSecTunnelCount(extras.TunnelCount, false); err != nil {
-			return nil, err
+	if extras.TunnelCount != nil {
+		if *extras.TunnelCount < 0 {
+			return nil, fmt.Errorf("tunnelCount must be 0 or a positive value (10, 20, or 30)")
 		}
-		req.AddOns = append(req.AddOns, &megaport.MCRAddOnIPsecConfig{
-			AddOnType:   megaport.AddOnTypeIPsec,
-			TunnelCount: extras.TunnelCount,
-		})
+		if *extras.TunnelCount > 0 {
+			if err := validation.ValidateIPSecTunnelCount(*extras.TunnelCount, false); err != nil {
+				return nil, err
+			}
+			req.AddOns = append(req.AddOns, &megaport.MCRAddOnIPsecConfig{
+				AddOnType:   megaport.AddOnTypeIPsec,
+				TunnelCount: *extras.TunnelCount,
+			})
+		}
+		// tunnelCount == 0 means "use API default of 10"; no add-on entry needed
 	}
 
 	if err := validation.ValidateMCRRequest(req); err != nil {
@@ -85,6 +92,9 @@ func processFlagMCRInput(cmd *cobra.Command) (*megaport.BuyMCRRequest, error) {
 
 	if cmd.Flags().Changed("ipsec-tunnel-count") {
 		ipsecTunnelCount, _ := cmd.Flags().GetInt("ipsec-tunnel-count")
+		if ipsecTunnelCount < 0 {
+			return nil, fmt.Errorf("ipsec-tunnel-count must be 0 or a positive value (10, 20, or 30)")
+		}
 		if ipsecTunnelCount > 0 {
 			if err := validation.ValidateIPSecTunnelCount(ipsecTunnelCount, false); err != nil {
 				return nil, err
@@ -94,6 +104,7 @@ func processFlagMCRInput(cmd *cobra.Command) (*megaport.BuyMCRRequest, error) {
 				TunnelCount: ipsecTunnelCount,
 			})
 		}
+		// ipsecTunnelCount == 0 means "use API default of 10"; no add-on entry needed
 	}
 
 	if err := validation.ValidateMCRRequest(req); err != nil {

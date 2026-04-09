@@ -481,6 +481,32 @@ func TestProcessJSONMCRInput_InvalidTunnelCount(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid IPSec tunnel count")
 }
 
+func TestProcessJSONMCRInput_NegativeTunnelCount(t *testing.T) {
+	_, err := processJSONMCRInput(`{"name":"test","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true,"tunnelCount":-1}`, "")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "tunnelCount must be")
+}
+
+func TestProcessFlagMCRInput_NegativeIPSecTunnelCount(t *testing.T) {
+	cmd := &cobra.Command{Use: "test"}
+	cmd.Flags().String("name", "test-mcr", "")
+	cmd.Flags().Int("term", 12, "")
+	cmd.Flags().Int("port-speed", 5000, "")
+	cmd.Flags().Int("location-id", 1, "")
+	cmd.Flags().Int("mcr-asn", 0, "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
+	cmd.Flags().String("cost-centre", "", "")
+	cmd.Flags().String("promo-code", "", "")
+	cmd.Flags().String("diversity-zone", "", "")
+	cmd.Flags().String("resource-tags", "", "")
+	cmd.Flags().Int("ipsec-tunnel-count", 0, "")
+	require.NoError(t, cmd.Flags().Set("ipsec-tunnel-count", "-1"))
+
+	_, err := processFlagMCRInput(cmd)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "ipsec-tunnel-count must be")
+}
+
 func TestProcessFlagMCRInput_ResourceTags(t *testing.T) {
 	tests := []struct {
 		name          string
