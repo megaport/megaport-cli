@@ -214,6 +214,66 @@ func getStructTypeInfo[T OutputFields](data []T) (headers, jsonNames []string, f
 	return headers, jsonNames, fieldIndices, nil
 }
 
+// extractCSVFieldInfo extracts CSV-specific field metadata from the first element of data.
+// CSV uses the csv tag as the header name (falling back to json tag), and skips fields
+// that have neither a csv nor json tag. This differs from extractFieldInfo which uses the
+// header tag and never skips fields.
+func extractCSVFieldInfo[T OutputFields](data []T) (headers, jsonNames []string, fieldIndices []int, err error) {
+	var sample T
+	if len(data) > 0 {
+		sample = data[0]
+	}
+	sampleVal := reflect.ValueOf(sample)
+	if !sampleVal.IsValid() {
+		return nil, nil, nil, nil
+	}
+	t := sampleVal.Type()
+	if t.Kind() == reflect.Ptr {
+		if sampleVal.IsNil() {
+			if t.Elem().Kind() != reflect.Struct {
+				return nil, nil, nil, nil
+			}
+			t = t.Elem()
+		} else {
+			t = sampleVal.Elem().Type()
+		}
+	}
+	if t.Kind() != reflect.Struct {
+		return nil, nil, nil, nil
+	}
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		if field.PkgPath != "" {
+			continue
+		}
+		if !isOutputCompatibleType(field.Type) {
+			continue
+		}
+		csvTag := field.Tag.Get("csv")
+		if csvTag == "-" {
+			continue
+		}
+		jsonTag := field.Tag.Get("json")
+		if csvTag == "" {
+			if jsonTag == "" || jsonTag == "-" {
+				continue
+			}
+			csvTag = jsonTag
+		}
+		jn := jsonTag
+		if idx := strings.Index(jn, ","); idx != -1 {
+			jn = jn[:idx]
+		}
+		if jn == "" || jn == "-" {
+			jn = strings.ToLower(field.Name)
+		}
+		headers = append(headers, csvTag)
+		jsonNames = append(jsonNames, jn)
+		fieldIndices = append(fieldIndices, i)
+	}
+	return headers, jsonNames, fieldIndices, nil
+}
+
 // extractFieldInfo extracts field information from a struct type.
 // Returns headers (display names), jsonNames (json tag names for --fields matching), and field indices.
 func extractFieldInfo(itemType reflect.Type) (headers, jsonNames []string, fieldIndices []int) {
@@ -346,6 +406,12 @@ func isOutputCompatibleType(t reflect.Type) bool {
 		// All primitive types are compatible
 		return true
 	}
+}
+
+// isNilOrInvalid returns true if item is a nil pointer or an invalid reflect value.
+func isNilOrInvalid(item interface{}) bool {
+	v := reflect.ValueOf(item)
+	return !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil())
 }
 
 // extractRowData extracts field values from a struct for table/CSV output
