@@ -11,6 +11,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -57,6 +58,26 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	req, err := buildMCRRequest(cmd, noColor)
 	if err != nil {
 		return err
+	}
+
+	// If --ipsec-tunnel-count was explicitly set and the resolved request has no
+	// add-ons yet (i.e. the interactive path was used, which doesn't process this
+	// flag), apply it now. JSON and flag paths already populate req.AddOns, so the
+	// len check prevents double-application.
+	if cmd.Flags().Changed("ipsec-tunnel-count") && len(req.AddOns) == 0 {
+		ipsecTunnelCount, _ := cmd.Flags().GetInt("ipsec-tunnel-count")
+		if ipsecTunnelCount < 0 {
+			return fmt.Errorf("ipsec-tunnel-count must be 0 or a positive value (10, 20, or 30)")
+		}
+		if ipsecTunnelCount > 0 {
+			if err := validation.ValidateIPSecTunnelCount(ipsecTunnelCount, false); err != nil {
+				return err
+			}
+		}
+		req.AddOns = append(req.AddOns, &megaport.MCRAddOnIPsecConfig{
+			AddOnType:   megaport.AddOnTypeIPsec,
+			TunnelCount: ipsecTunnelCount,
+		})
 	}
 
 	// Flag read errors are intentionally ignored — flags are registered by the command builder.
