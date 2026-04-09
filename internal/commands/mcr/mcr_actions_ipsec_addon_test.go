@@ -146,9 +146,11 @@ func TestAddMCRIPSecAddOn_NoInput(t *testing.T) {
 	cmd.Flags().String("json-file", "", "")
 	cmd.Flags().Int("tunnel-count", 0, "")
 
+	var err error
 	out := output.CaptureOutput(func() {
-		_ = AddMCRIPSecAddOn(cmd, []string{"mcr-abc"}, false)
+		err = AddMCRIPSecAddOn(cmd, []string{"mcr-abc"}, false)
 	})
+	assert.NoError(t, err)
 	assert.Contains(t, out, "API default")
 	assert.Equal(t, "mcr-abc", mockSvc.CapturedUpdateMCRWithAddOnMCRID)
 	addon, ok := mockSvc.CapturedUpdateMCRWithAddOnReq.AddOn.(*megaport.MCRAddOnIPsecConfig)

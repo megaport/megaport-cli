@@ -46,7 +46,7 @@ func (b *CommandBuilder) WithMCRPrefixFilterListFlags() *CommandBuilder {
 
 // WithMCRIPSecAddOnFlags adds flags for adding an IPSec add-on to an MCR.
 func (b *CommandBuilder) WithMCRIPSecAddOnFlags() *CommandBuilder {
-	return b.WithIntFlag("tunnel-count", 0, "IPSec tunnel count (10, 20, or 30; defaults to 10 if unset)")
+	return b.WithIntFlag("tunnel-count", 0, "IPSec tunnel count (10, 20, or 30; omit or use 0 to let the API apply its default of 10)")
 }
 
 // WithMCRUpdateIPSecAddOnFlags adds flags for updating an IPSec add-on on an MCR.
