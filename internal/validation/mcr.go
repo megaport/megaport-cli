@@ -7,8 +7,10 @@ import (
 )
 
 // ValidateIPSecTunnelCount validates a tunnel count for an IPSec add-on.
-// For the add operation, valid values are 10, 20, 30 (0 means use the API default of 10).
-// For the update operation, 0 is also valid and means disable IPSec.
+// Valid non-zero values are always 10, 20, or 30.
+// When allowZeroDisable is true (update mode), 0 is also accepted to disable IPSec.
+// When allowZeroDisable is false (add mode), 0 is rejected; callers that wish to
+// use the API default should skip calling this function when count is 0.
 func ValidateIPSecTunnelCount(count int, allowZeroDisable bool) error {
 	if count == 0 && allowZeroDisable {
 		return nil

@@ -35,6 +35,9 @@ func processJSONMCRInput(jsonStr, jsonFile string) (*megaport.BuyMCRRequest, err
 		return nil, fmt.Errorf("failed to parse tunnelCount: %w", err)
 	}
 	if extras.TunnelCount > 0 {
+		if err := validation.ValidateIPSecTunnelCount(extras.TunnelCount, false); err != nil {
+			return nil, err
+		}
 		req.AddOns = append(req.AddOns, &megaport.MCRAddOnIPsecConfig{
 			AddOnType:   megaport.AddOnTypeIPsec,
 			TunnelCount: extras.TunnelCount,
@@ -83,6 +86,9 @@ func processFlagMCRInput(cmd *cobra.Command) (*megaport.BuyMCRRequest, error) {
 	if cmd.Flags().Changed("ipsec-tunnel-count") {
 		ipsecTunnelCount, _ := cmd.Flags().GetInt("ipsec-tunnel-count")
 		if ipsecTunnelCount > 0 {
+			if err := validation.ValidateIPSecTunnelCount(ipsecTunnelCount, false); err != nil {
+				return nil, err
+			}
 			req.AddOns = append(req.AddOns, &megaport.MCRAddOnIPsecConfig{
 				AddOnType:   megaport.AddOnTypeIPsec,
 				TunnelCount: ipsecTunnelCount,

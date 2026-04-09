@@ -30,11 +30,15 @@ func AddMCRIPSecAddOn(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if jsonStr != "" || jsonFile != "" {
 		output.PrintInfo("Using JSON input", noColor)
-		tunnelCount, err = parseIPSecTunnelCountFromJSON(jsonStr, jsonFile)
-		if err != nil {
-			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return err
+		countPtr, parseErr := parseIPSecTunnelCountFromJSON(jsonStr, jsonFile)
+		if parseErr != nil {
+			output.PrintError("Failed to process JSON input: %v", noColor, parseErr)
+			return parseErr
 		}
+		if countPtr != nil {
+			tunnelCount = *countPtr
+		}
+		// nil means key absent → tunnelCount stays 0 (API will use its default of 10)
 	} else if flagsProvided {
 		output.PrintInfo("Using flag input", noColor)
 		if tunnelCount, err = cmd.Flags().GetInt("tunnel-count"); err != nil {
@@ -46,7 +50,7 @@ func AddMCRIPSecAddOn(cmd *cobra.Command, args []string, noColor bool) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("no input provided, use --interactive, --json, or --tunnel-count to specify IPSec add-on details")
+		return fmt.Errorf("no input provided, use --interactive, --json, --json-file, or --tunnel-count to specify IPSec add-on details")
 	}
 
 	// allowZeroDisable=false: for add, 0 means "use API default of 10", not disable
@@ -103,11 +107,15 @@ func UpdateMCRIPSecAddOn(cmd *cobra.Command, args []string, noColor bool) error 
 
 	if jsonStr != "" || jsonFile != "" {
 		output.PrintInfo("Using JSON input", noColor)
-		tunnelCount, err = parseIPSecTunnelCountFromJSON(jsonStr, jsonFile)
-		if err != nil {
-			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return err
+		countPtr, parseErr := parseIPSecTunnelCountFromJSON(jsonStr, jsonFile)
+		if parseErr != nil {
+			output.PrintError("Failed to process JSON input: %v", noColor, parseErr)
+			return parseErr
 		}
+		if countPtr == nil {
+			return fmt.Errorf("tunnelCount is required in JSON input for update (use 0 to disable IPSec)")
+		}
+		tunnelCount = *countPtr
 	} else if flagsProvided {
 		output.PrintInfo("Using flag input", noColor)
 		if tunnelCount, err = cmd.Flags().GetInt("tunnel-count"); err != nil {
@@ -119,7 +127,7 @@ func UpdateMCRIPSecAddOn(cmd *cobra.Command, args []string, noColor bool) error 
 			return err
 		}
 	} else {
-		return fmt.Errorf("no input provided, use --interactive, --json, or --tunnel-count to specify tunnel count")
+		return fmt.Errorf("no input provided, use --interactive, --json, --json-file, or --tunnel-count to specify tunnel count")
 	}
 
 	// allowZeroDisable=true: for update, 0 means disable IPSec
@@ -153,17 +161,18 @@ func UpdateMCRIPSecAddOn(cmd *cobra.Command, args []string, noColor bool) error 
 }
 
 // parseIPSecTunnelCountFromJSON parses a tunnel count from JSON input.
-// Expects {"tunnelCount": N}.
-func parseIPSecTunnelCountFromJSON(jsonStr, jsonFile string) (int, error) {
+// Returns nil if the "tunnelCount" key is absent from the JSON, allowing
+// callers to distinguish between "not provided" and an explicit 0.
+func parseIPSecTunnelCountFromJSON(jsonStr, jsonFile string) (*int, error) {
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	var data struct {
-		TunnelCount int `json:"tunnelCount"`
+		TunnelCount *int `json:"tunnelCount"`
 	}
 	if err := json.Unmarshal(jsonData, &data); err != nil {
-		return 0, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 	return data.TunnelCount, nil
 }

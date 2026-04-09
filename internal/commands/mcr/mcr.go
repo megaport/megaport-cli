@@ -355,7 +355,7 @@ func buildMCRIPSecCommands(rootCmd *cobra.Command) (addIPSec, updateIPSec *cobra
 		WithStandardInputFlags().
 		WithMCRIPSecAddOnFlags().
 		WithLongDesc("Add an IPSec add-on to an existing MCR.\n\nThis command provisions an IPSec add-on on the specified MCR. IPSec add-ons enable encrypted tunnel termination on the MCR.").
-		WithDocumentedRequiredFlag("tunnel-count", "Number of IPSec tunnels (10, 20, or 30; defaults to 10 if unset)").
+		WithDocumentedRequiredFlag("tunnel-count", "Number of IPSec tunnels (10, 20, or 30); omit to use the API default of 10").
 		WithExample("megaport-cli mcr add-ipsec-addon [mcrUID] --tunnel-count 10").
 		WithExample("megaport-cli mcr add-ipsec-addon [mcrUID] --tunnel-count 20").
 		WithExample("megaport-cli mcr add-ipsec-addon [mcrUID] --json '{\"tunnelCount\":10}'").
@@ -363,8 +363,8 @@ func buildMCRIPSecCommands(rootCmd *cobra.Command) (addIPSec, updateIPSec *cobra
 		WithJSONExample(`{
   "tunnelCount": 10
 }`).
-		WithImportantNote("Valid tunnel counts are 10, 20, or 30. Omitting --tunnel-count defaults to 10.").
-		WithImportantNote("Required flag (tunnel-count) can be skipped when using --interactive or --json").
+		WithImportantNote("Valid tunnel counts are 10, 20, or 30. --tunnel-count is required in flag mode.").
+		WithImportantNote("--tunnel-count can be skipped when using --interactive, --json, or --json-file").
 		WithRootCmd(rootCmd).
 		WithConditionalRequirements("tunnel-count").
 		Build()
@@ -384,7 +384,7 @@ func buildMCRIPSecCommands(rootCmd *cobra.Command) (addIPSec, updateIPSec *cobra
   "tunnelCount": 30
 }`).
 		WithImportantNote("Valid tunnel counts are 10, 20, or 30. Set to 0 to disable the IPSec add-on.").
-		WithImportantNote("Required flag (tunnel-count) can be skipped when using --interactive or --json").
+		WithImportantNote("--tunnel-count can be skipped when using --interactive, --json, or --json-file").
 		WithRootCmd(rootCmd).
 		WithConditionalRequirements("tunnel-count").
 		Build()

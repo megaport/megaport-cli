@@ -331,28 +331,47 @@ func TestParseIPSecTunnelCountFromJSON(t *testing.T) {
 	tests := []struct {
 		name        string
 		jsonStr     string
+		expectNil   bool
 		expected    int
 		wantErr     bool
 		errContains string
 	}{
-		{"valid tunnelCount", `{"tunnelCount":20}`, 20, false, ""},
-		{"zero tunnelCount", `{"tunnelCount":0}`, 0, false, ""},
-		{"missing field returns zero", `{}`, 0, false, ""},
-		{"invalid JSON", `{bad}`, 0, true, "failed to parse JSON"},
+		{"valid tunnelCount 20", `{"tunnelCount":20}`, false, 20, false, ""},
+		{"explicit zero", `{"tunnelCount":0}`, false, 0, false, ""},
+		{"missing field returns nil", `{}`, true, 0, false, ""},
+		{"invalid JSON", `{bad}`, false, 0, true, "failed to parse JSON"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			count, err := parseIPSecTunnelCountFromJSON(tt.jsonStr, "")
+			ptr, err := parseIPSecTunnelCountFromJSON(tt.jsonStr, "")
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errContains)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tt.expected, count)
+				if tt.expectNil {
+					assert.Nil(t, ptr)
+				} else {
+					assert.NotNil(t, ptr)
+					assert.Equal(t, tt.expected, *ptr)
+				}
 			}
 		})
 	}
+}
+
+func TestUpdateMCRIPSecAddOn_MissingJSONKey(t *testing.T) {
+	// {} has no tunnelCount key → should error rather than silently disable
+	cmd := &cobra.Command{Use: "update-ipsec-addon [mcrUID] [addOnUID]"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", `{}`, "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().Int("tunnel-count", 0, "")
+
+	err := UpdateMCRIPSecAddOn(cmd, []string{"mcr-abc", "addon-abc"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "tunnelCount is required")
 }
 
 func TestAddMCRIPSecAddOn_BadJSON(t *testing.T) {

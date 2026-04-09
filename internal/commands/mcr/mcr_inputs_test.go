@@ -465,6 +465,20 @@ func TestProcessFlagMCRInput_IPSec(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Empty(t, req.AddOns)
 	})
+
+	t.Run("invalid ipsec-tunnel-count rejected", func(t *testing.T) {
+		cmd := newCmd()
+		require.NoError(t, cmd.Flags().Set("ipsec-tunnel-count", "5"))
+		_, err := processFlagMCRInput(cmd)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid IPSec tunnel count")
+	})
+}
+
+func TestProcessJSONMCRInput_InvalidTunnelCount(t *testing.T) {
+	_, err := processJSONMCRInput(`{"name":"test","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true,"tunnelCount":5}`, "")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid IPSec tunnel count")
 }
 
 func TestProcessFlagMCRInput_ResourceTags(t *testing.T) {
