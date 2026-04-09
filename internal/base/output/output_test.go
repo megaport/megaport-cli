@@ -660,18 +660,18 @@ func TestJSONOutput_NoTrailingNewlines(t *testing.T) {
 	assert.False(t, strings.HasSuffix(output, "]\n\n"), "JSON should not have multiple trailing newlines")
 }
 
-func TestCaptureOutput_PipeFailure(t *testing.T) {
-	orig := osPipe
-	osPipe = func() (*os.File, *os.File, error) {
-		return nil, nil, errors.New("pipe unavailable")
+func TestCaptureOutput_TempFileFailure(t *testing.T) {
+	orig := createTempFile
+	createTempFile = func() (*os.File, error) {
+		return nil, errors.New("temp file unavailable")
 	}
-	defer func() { osPipe = orig }()
+	defer func() { createTempFile = orig }()
 
 	called := false
 	result := CaptureOutput(func() { called = true })
 
-	assert.True(t, called, "f should still be called when pipe creation fails")
-	assert.Empty(t, result, "result should be empty when pipe creation fails")
+	assert.True(t, called, "f should still be called when temp file creation fails")
+	assert.Empty(t, result, "result should be empty when temp file creation fails")
 }
 
 func TestCaptureOutputErr_RestoresStdoutOnError(t *testing.T) {
