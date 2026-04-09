@@ -311,44 +311,39 @@ func printXML[T OutputFields](data []T) error {
 	return nil
 }
 
-// osPipe is a variable so tests can replace it to simulate pipe failures.
-var osPipe = os.Pipe
+// createTempFile is a variable so tests can replace it to simulate failures.
+var createTempFile = func() (*os.File, error) {
+	return os.CreateTemp("", "capture-stdout-*")
+}
 
 // CaptureOutput runs f and returns everything it writes to stdout.
+// Uses a temporary file instead of an OS pipe to avoid deadlocking when
+// f() produces more output than the pipe buffer can hold.
 // Must not be called reentrantly (the global stdoutMu is not reentrant).
 func CaptureOutput(f func()) string {
 	stdoutMu.Lock()
 	defer stdoutMu.Unlock()
 
 	old := os.Stdout
-	r, w, err := osPipe()
+	tmp, err := createTempFile()
 	if err != nil {
 		f()
 		return ""
 	}
-	os.Stdout = w
-	defer func() { os.Stdout = old }()
-	defer r.Close()
+	defer os.Remove(tmp.Name())
+	defer tmp.Close()
 
-	// Read from the pipe concurrently to avoid deadlocking when f()
-	// produces more output than the OS pipe buffer can hold.
-	type readResult struct {
-		data []byte
-		err  error
-	}
-	ch := make(chan readResult, 1)
-	go func() {
-		out, err := io.ReadAll(r)
-		ch <- readResult{out, err}
-	}()
+	os.Stdout = tmp
+	defer func() { os.Stdout = old }()
 
 	f()
-	w.Close()
 
-	res := <-ch
-	// Read errors are intentionally ignored: the only realistic failure is
-	// a closed pipe, and we still want to return whatever was captured.
-	return string(res.data)
+	// Read back captured output.
+	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
+		return ""
+	}
+	data, _ := io.ReadAll(tmp)
+	return string(data)
 }
 
 func CaptureOutputErr(f func() error) (string, error) {
@@ -356,36 +351,28 @@ func CaptureOutputErr(f func() error) (string, error) {
 	defer stdoutMu.Unlock()
 
 	old := os.Stdout
-	r, w, err := osPipe()
+	tmp, err := createTempFile()
 	if err != nil {
 		runErr := f()
 		return "", runErr
 	}
-	os.Stdout = w
-	defer func() { os.Stdout = old }()
-	defer r.Close()
+	defer os.Remove(tmp.Name())
+	defer tmp.Close()
 
-	// Read from the pipe concurrently to avoid deadlocking when f()
-	// produces more output than the OS pipe buffer can hold.
-	type readResult struct {
-		data string
-		err  error
-	}
-	ch := make(chan readResult, 1)
-	go func() {
-		var buf strings.Builder
-		_, copyErr := io.Copy(&buf, r)
-		ch <- readResult{buf.String(), copyErr}
-	}()
+	os.Stdout = tmp
+	defer func() { os.Stdout = old }()
 
 	runErr := f()
-	w.Close()
 
-	res := <-ch
-	if res.err != nil {
-		return "", res.err
+	// Read back captured output.
+	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
+		return "", err
+	}
+	data, readErr := io.ReadAll(tmp)
+	if readErr != nil {
+		return "", readErr
 	}
 	// Return captured output even when f returned an error so callers can
 	// inspect partial output for diagnostics.
-	return res.data, runErr
+	return string(data), runErr
 }
