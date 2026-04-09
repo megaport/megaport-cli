@@ -260,3 +260,121 @@ func TestUpdateMCRIPSecAddOn_NoInput(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no input provided")
 }
+
+func TestAddMCRIPSecAddOn_InvalidTunnelCount(t *testing.T) {
+	cmd := &cobra.Command{Use: "add-ipsec-addon [mcrUID]"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().Int("tunnel-count", 0, "")
+	_ = cmd.Flags().Set("tunnel-count", "5") // not 10, 20, or 30
+
+	err := AddMCRIPSecAddOn(cmd, []string{"mcr-abc"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid IPSec tunnel count")
+}
+
+func TestUpdateMCRIPSecAddOn_InvalidTunnelCount(t *testing.T) {
+	cmd := &cobra.Command{Use: "update-ipsec-addon [mcrUID] [addOnUID]"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().Int("tunnel-count", 0, "")
+	_ = cmd.Flags().Set("tunnel-count", "15") // not 0, 10, 20, or 30
+
+	err := UpdateMCRIPSecAddOn(cmd, []string{"mcr-abc", "addon-abc"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid IPSec tunnel count")
+}
+
+func TestAddMCRIPSecAddOn_LoginError(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		return nil, fmt.Errorf("auth failed")
+	})
+
+	cmd := &cobra.Command{Use: "add-ipsec-addon [mcrUID]"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().Int("tunnel-count", 0, "")
+	_ = cmd.Flags().Set("tunnel-count", "10")
+
+	err := AddMCRIPSecAddOn(cmd, []string{"mcr-abc"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "auth failed")
+}
+
+func TestUpdateMCRIPSecAddOn_LoginError(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		return nil, fmt.Errorf("auth failed")
+	})
+
+	cmd := &cobra.Command{Use: "update-ipsec-addon [mcrUID] [addOnUID]"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().Int("tunnel-count", 0, "")
+	_ = cmd.Flags().Set("tunnel-count", "10")
+
+	err := UpdateMCRIPSecAddOn(cmd, []string{"mcr-abc", "addon-abc"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "auth failed")
+}
+
+func TestParseIPSecTunnelCountFromJSON(t *testing.T) {
+	tests := []struct {
+		name        string
+		jsonStr     string
+		expected    int
+		wantErr     bool
+		errContains string
+	}{
+		{"valid tunnelCount", `{"tunnelCount":20}`, 20, false, ""},
+		{"zero tunnelCount", `{"tunnelCount":0}`, 0, false, ""},
+		{"missing field returns zero", `{}`, 0, false, ""},
+		{"invalid JSON", `{bad}`, 0, true, "failed to parse JSON"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			count, err := parseIPSecTunnelCountFromJSON(tt.jsonStr, "")
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContains)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, count)
+			}
+		})
+	}
+}
+
+func TestAddMCRIPSecAddOn_BadJSON(t *testing.T) {
+	cmd := &cobra.Command{Use: "add-ipsec-addon [mcrUID]"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", `{bad json}`, "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().Int("tunnel-count", 0, "")
+
+	err := AddMCRIPSecAddOn(cmd, []string{"mcr-abc"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse JSON")
+}
+
+func TestUpdateMCRIPSecAddOn_BadJSON(t *testing.T) {
+	cmd := &cobra.Command{Use: "update-ipsec-addon [mcrUID] [addOnUID]"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", `{bad json}`, "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().Int("tunnel-count", 0, "")
+
+	err := UpdateMCRIPSecAddOn(cmd, []string{"mcr-abc", "addon-abc"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse JSON")
+}

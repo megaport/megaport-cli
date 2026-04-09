@@ -57,6 +57,27 @@ func TestToPrefixFilterListOutput_Valid(t *testing.T) {
 	assert.Equal(t, "permit", out.Entries[0].Action)
 }
 
+func TestToMCROutput_WithAddOns(t *testing.T) {
+	mcr := &megaport.MCR{
+		UID:                "mcr-123",
+		Name:               "Test MCR",
+		LocationID:         1,
+		ProvisioningStatus: "LIVE",
+		PortSpeed:          5000,
+		AddOns: []*megaport.MCRAddOnIPsecConfig{
+			{AddOnUID: "addon-1", AddOnType: "IP_SEC", TunnelCount: 10},
+			nil, // nil entries should be skipped
+		},
+	}
+
+	out, err := toMCROutput(mcr)
+	assert.NoError(t, err)
+	assert.Len(t, out.AddOns, 1)
+	assert.Equal(t, "addon-1", out.AddOns[0].AddOnUID)
+	assert.Equal(t, "IP_SEC", out.AddOns[0].AddOnType)
+	assert.Equal(t, 10, out.AddOns[0].TunnelCount)
+}
+
 func TestDisplayMCRChanges(t *testing.T) {
 	tests := []struct {
 		name             string
