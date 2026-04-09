@@ -29,9 +29,13 @@ func BenchmarkPrintTable(b *testing.B) {
 	data := makeBenchData(1000)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		var err error
 		_ = CaptureOutput(func() {
-			_ = printTable(data, true)
+			err = printTable(data, true)
 		})
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -39,9 +43,13 @@ func BenchmarkPrintJSON(b *testing.B) {
 	data := makeBenchData(1000)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		var err error
 		_ = CaptureOutput(func() {
-			_ = printJSON(data)
+			err = printJSON(data)
 		})
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -49,9 +57,13 @@ func BenchmarkPrintCSV(b *testing.B) {
 	data := makeBenchData(1000)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		var err error
 		_ = CaptureOutput(func() {
-			_ = printCSV(data)
+			err = printCSV(data)
 		})
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -59,8 +71,12 @@ func BenchmarkPrintXML(b *testing.B) {
 	data := makeBenchData(1000)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		var err error
 		_ = CaptureOutput(func() {
-			_ = printXML(data)
+			err = printXML(data)
 		})
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }

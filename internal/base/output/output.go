@@ -64,10 +64,10 @@ func printCSV[T OutputFields](data []T) error {
 		return err
 	}
 	for _, item := range data {
-		values := extractRowData(item, fieldIndices)
-		if values == nil {
+		if isNilOrInvalid(item) {
 			continue
 		}
+		values := extractRowData(item, fieldIndices)
 		if err := w.Write(values); err != nil {
 			return err
 		}
@@ -112,6 +112,9 @@ func printXML[T OutputFields](data []T) error {
 			continue
 		}
 		values := extractRowData(item, fieldIndices)
+		if values == nil {
+			continue
+		}
 
 		itemStart := xml.StartElement{Name: xml.Name{Local: "item"}}
 		if err := encoder.EncodeToken(itemStart); err != nil {

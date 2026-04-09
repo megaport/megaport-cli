@@ -148,9 +148,9 @@ func TestPrintCSV_PointerStruct(t *testing.T) {
 	assert.Contains(t, output, "id,name,active")
 	assert.Contains(t, output, "1,First,true")
 	assert.Contains(t, output, "2,Second,false")
-	// nil pointer should produce empty fields, not crash
+	// nil pointer should be skipped
 	lines := strings.Split(strings.TrimSpace(output), "\n")
-	assert.Equal(t, 4, len(lines), "header + 3 data rows (including nil)")
+	assert.Equal(t, 3, len(lines), "header + 2 data rows (nil pointer skipped)")
 }
 
 func TestPrintCSV_NoTagStruct(t *testing.T) {
