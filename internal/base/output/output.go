@@ -92,7 +92,7 @@ func printXML[T OutputFields](data []T) error {
 	}
 
 	if xmlFields := getOutputFields(); len(xmlFields) > 0 {
-		headers, jsonNames, fieldIndices, err = filterByFields(headers, jsonNames, fieldIndices, xmlFields)
+		_, jsonNames, fieldIndices, err = filterByFields(headers, jsonNames, fieldIndices, xmlFields)
 		if err != nil {
 			return err
 		}
@@ -106,8 +106,6 @@ func printXML[T OutputFields](data []T) error {
 	if err := encoder.EncodeToken(start); err != nil {
 		return err
 	}
-
-	_ = headers // used only for --fields filtering above
 
 	for _, item := range data {
 		if isNilOrInvalid(item) {
