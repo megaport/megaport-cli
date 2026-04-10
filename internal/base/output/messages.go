@@ -418,7 +418,9 @@ func PrintResourceGetting(resourceType, uid string, noColor bool) *Spinner {
 
 func PrintResourceGettingWithOutput(resourceType, uid string, noColor bool, outputFormat string) *Spinner {
 	if shouldSuppressSpinnerForFormat(outputFormat) {
-		return newNoOpSpinner()
+		s := newNoOpSpinner()
+		s.outputFormat = outputFormat
+		return s
 	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Getting %s %s details...", resourceType, uidFormatted)
