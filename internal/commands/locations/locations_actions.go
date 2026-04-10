@@ -202,6 +202,70 @@ func SearchLocations(cmd *cobra.Command, args []string, noColor bool, outputForm
 	return nil
 }
 
+func GetRoundTripTimes(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
+
+	client, err := config.NewUnauthenticatedClient()
+	if err != nil {
+		output.PrintError("Failed to create API client: %v", noColor, err)
+		return fmt.Errorf("failed to create API client: %w", err)
+	}
+
+	srcLocation, _ := cmd.Flags().GetInt("src-location")
+	if srcLocation <= 0 {
+		output.PrintError("--src-location is required and must be a positive integer", noColor)
+		return fmt.Errorf("--src-location is required and must be a positive integer")
+	}
+
+	year, _ := cmd.Flags().GetInt("year")
+	month, _ := cmd.Flags().GetInt("month")
+
+	if year == 0 || month == 0 {
+		now := timeNow()
+		if year == 0 {
+			year = now.Year()
+		}
+		if month == 0 {
+			month = int(now.Month())
+		}
+	}
+
+	spinner := output.PrintResourceListing("round-trip time", noColor)
+
+	rtts, err := getRoundTripTimesFunc(ctx, client, srcLocation, year, month)
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to retrieve round-trip times: %v", noColor, err)
+		return fmt.Errorf("failed to get round-trip times: %w", err)
+	}
+
+	// Filter by destination location if specified
+	if cmd.Flags().Changed("dst-location") {
+		dstLocation, _ := cmd.Flags().GetInt("dst-location")
+		var filtered []*megaport.RoundTripTime
+		for _, rtt := range rtts {
+			if rtt != nil && rtt.DstLocation == dstLocation {
+				filtered = append(filtered, rtt)
+			}
+		}
+		rtts = filtered
+	}
+
+	if len(rtts) == 0 {
+		if outputFormat == utils.FormatTable {
+			output.PrintInfo("No round-trip time data found.", noColor)
+		}
+		return nil
+	}
+
+	output.PrintInfo("Found %d round-trip time entries", noColor, len(rtts))
+	return printRoundTripTimes(rtts, outputFormat, noColor)
+}
+
 func GetLocation(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
 
