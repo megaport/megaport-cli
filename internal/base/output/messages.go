@@ -73,6 +73,7 @@ func newNoOpSpinner() *Spinner {
 		stop:         make(chan bool, 1),
 		stopped:      true,
 		outputFormat: getOutputFormat(),
+		noColor:      color.NoColor,
 	}
 }
 
@@ -88,13 +89,13 @@ func getOutputFormat() string {
 }
 
 // shouldSuppressSpinner returns true when spinner output should be suppressed
-// to avoid corrupting machine-readable output formats (csv, xml, json).
+// to avoid corrupting machine-readable output formats (csv, xml, json, yaml, etc.).
 func shouldSuppressSpinner() bool {
 	return shouldSuppressSpinnerForFormat(getOutputFormat())
 }
 
-// shouldSuppressSpinnerForFormat checks a specific format string, used when the
-// output format is passed explicitly rather than read from the global setting.
+// shouldSuppressSpinnerForFormat checks a specific format string. Spinners are
+// suppressed for any non-table format to avoid corrupting machine-readable output.
 func shouldSuppressSpinnerForFormat(format string) bool {
 	return IsQuiet() || (format != "" && format != "table")
 }
