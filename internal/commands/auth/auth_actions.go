@@ -99,25 +99,21 @@ func resolveProfileInfo() (profileName, environment string) {
 		profileName = utils.ProfileOverride
 	}
 
+	// Try to load profile config for environment and profile name
 	manager, err := config.NewConfigManager()
-	if err != nil {
-		return profileName, environment
+	if err == nil {
+		profile, name, err := manager.GetCurrentProfile()
+		if err == nil {
+			if utils.ProfileOverride == "" {
+				profileName = name
+			}
+			if profile.Environment != "" {
+				environment = profile.Environment
+			}
+		}
 	}
 
-	profile, name, err := manager.GetCurrentProfile()
-	if err != nil {
-		return profileName, environment
-	}
-
-	if utils.ProfileOverride == "" {
-		profileName = name
-	}
-
-	if profile.Environment != "" {
-		environment = profile.Environment
-	}
-
-	// --env flag overrides
+	// --env flag always overrides regardless of config state
 	if utils.Env != "" {
 		environment = utils.Env
 	}

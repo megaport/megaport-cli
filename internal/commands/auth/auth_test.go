@@ -9,9 +9,24 @@ import (
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/testutil"
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
+
+// helper to create a mock login func returning a client with the given mock service
+func setupMockLogin(mock *MockUserManagementService) {
+	baseURL, _ := url.Parse("https://api.megaport.com/")
+	config.SetLoginFunc(func(_ context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{BaseURL: baseURL}
+		client.UserManagementService = mock
+		return client, nil
+	})
+	listCompanyUsersFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.User, error) {
+		return client.UserManagementService.ListCompanyUsers(ctx)
+	}
+}
 
 func TestAuthStatus(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
@@ -26,73 +41,90 @@ func TestAuthStatus(t *testing.T) {
 		{
 			name: "success with user info",
 			setupMock: func() {
-				baseURL, _ := url.Parse("https://api.megaport.com/")
-				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
-					client := &megaport.Client{BaseURL: baseURL}
-					client.UserManagementService = &MockUserManagementService{
-						ListUsersResult: []*megaport.User{
-							{
-								PartyId:       12345,
-								FirstName:     "Jane",
-								LastName:      "Smith",
-								Email:         "jane@example.com",
-								Position:      "Company Admin",
-								Active:        true,
-								CompanyName:   "Acme Corp",
-								SecurityRoles: []string{"companyAdmin"},
-							},
+				setupMockLogin(&MockUserManagementService{
+					ListUsersResult: []*megaport.User{
+						{
+							PartyId:       12345,
+							FirstName:     "Jane",
+							LastName:      "Smith",
+							Email:         "jane@example.com",
+							Position:      "Company Admin",
+							Active:        true,
+							CompanyName:   "Acme Corp",
+							SecurityRoles: []string{"companyAdmin"},
 						},
-					}
-					return client, nil
+					},
 				})
-				listCompanyUsersFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.User, error) {
-					return client.UserManagementService.ListCompanyUsers(ctx)
-				}
 			},
 			expectedOut: "Jane",
 		},
 		{
-			name: "success with multiple users",
+			name: "success with multiple users picks admin",
 			setupMock: func() {
-				baseURL, _ := url.Parse("https://api.megaport.com/")
-				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
-					client := &megaport.Client{BaseURL: baseURL}
-					client.UserManagementService = &MockUserManagementService{
-						ListUsersResult: []*megaport.User{
-							{
-								PartyId:       1,
-								FirstName:     "Read",
-								LastName:      "Only",
-								Email:         "readonly@example.com",
-								Position:      "Read Only",
-								Active:        true,
-								CompanyName:   "Acme Corp",
-								SecurityRoles: []string{"readOnly"},
-							},
-							{
-								PartyId:       2,
-								FirstName:     "Admin",
-								LastName:      "User",
-								Email:         "admin@example.com",
-								Position:      "Company Admin",
-								Active:        true,
-								CompanyName:   "Acme Corp",
-								SecurityRoles: []string{"companyAdmin"},
-							},
+				setupMockLogin(&MockUserManagementService{
+					ListUsersResult: []*megaport.User{
+						{
+							PartyId:       1,
+							FirstName:     "Read",
+							LastName:      "Only",
+							Email:         "readonly@example.com",
+							Position:      "Read Only",
+							Active:        true,
+							CompanyName:   "Acme Corp",
+							SecurityRoles: []string{"readOnly"},
 						},
-					}
-					return client, nil
+						{
+							PartyId:       2,
+							FirstName:     "Admin",
+							LastName:      "User",
+							Email:         "admin@example.com",
+							Position:      "Company Admin",
+							Active:        true,
+							CompanyName:   "Acme Corp",
+							SecurityRoles: []string{"companyAdmin"},
+						},
+					},
 				})
-				listCompanyUsersFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.User, error) {
-					return client.UserManagementService.ListCompanyUsers(ctx)
-				}
 			},
 			expectedOut: "Admin",
 		},
 		{
+			name: "success shows company name from first user",
+			setupMock: func() {
+				setupMockLogin(&MockUserManagementService{
+					ListUsersResult: []*megaport.User{
+						{
+							PartyId:     1,
+							FirstName:   "Test",
+							LastName:    "User",
+							Active:      true,
+							CompanyName: "Megaport Pty Ltd",
+						},
+					},
+				})
+			},
+			expectedOut: "Megaport Pty Ltd",
+		},
+		{
+			name: "success with user that has no company name falls back",
+			setupMock: func() {
+				setupMockLogin(&MockUserManagementService{
+					ListUsersResult: []*megaport.User{
+						{
+							PartyId:   1,
+							FirstName: "Test",
+							LastName:  "User",
+							Active:    true,
+						},
+					},
+				})
+			},
+			expectedOut: "Test",
+		},
+		{
 			name: "auth failure",
 			setupMock: func() {
-				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				config.SetLoginFunc(func(_ context.Context) (*megaport.Client, error) {
 					return nil, fmt.Errorf("invalid credentials")
 				})
 			},
@@ -101,34 +133,18 @@ func TestAuthStatus(t *testing.T) {
 		{
 			name: "API error listing users",
 			setupMock: func() {
-				baseURL, _ := url.Parse("https://api.megaport.com/")
-				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
-					client := &megaport.Client{BaseURL: baseURL}
-					client.UserManagementService = &MockUserManagementService{
-						ListUsersErr: fmt.Errorf("API failure"),
-					}
-					return client, nil
+				setupMockLogin(&MockUserManagementService{
+					ListUsersErr: fmt.Errorf("API failure"),
 				})
-				listCompanyUsersFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.User, error) {
-					return client.UserManagementService.ListCompanyUsers(ctx)
-				}
 			},
 			expectedError: "API failure",
 		},
 		{
-			name: "empty user list",
+			name: "empty user list shows endpoint",
 			setupMock: func() {
-				baseURL, _ := url.Parse("https://api.megaport.com/")
-				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
-					client := &megaport.Client{BaseURL: baseURL}
-					client.UserManagementService = &MockUserManagementService{
-						ListUsersResult: []*megaport.User{},
-					}
-					return client, nil
+				setupMockLogin(&MockUserManagementService{
+					ListUsersResult: []*megaport.User{},
 				})
-				listCompanyUsersFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.User, error) {
-					return client.UserManagementService.ListCompanyUsers(ctx)
-				}
 			},
 			expectedOut: "api.megaport.com",
 		},
@@ -162,28 +178,20 @@ func TestAuthStatusJSONOutput(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
 
-	baseURL, _ := url.Parse("https://api.megaport.com/")
-	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{BaseURL: baseURL}
-		client.UserManagementService = &MockUserManagementService{
-			ListUsersResult: []*megaport.User{
-				{
-					PartyId:       1,
-					FirstName:     "Test",
-					LastName:      "User",
-					Email:         "test@example.com",
-					Position:      "Technical Admin",
-					Active:        true,
-					CompanyName:   "Test Co",
-					SecurityRoles: []string{"companyAdmin"},
-				},
+	setupMockLogin(&MockUserManagementService{
+		ListUsersResult: []*megaport.User{
+			{
+				PartyId:       1,
+				FirstName:     "Test",
+				LastName:      "User",
+				Email:         "test@example.com",
+				Position:      "Technical Admin",
+				Active:        true,
+				CompanyName:   "Test Co",
+				SecurityRoles: []string{"companyAdmin"},
 			},
-		}
-		return client, nil
+		},
 	})
-	listCompanyUsersFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.User, error) {
-		return client.UserManagementService.ListCompanyUsers(ctx)
-	}
 
 	cmd := testutil.NewCommand("status", testutil.OutputAdapter(AuthStatus))
 	_ = cmd.Flags().Set("output", "json")
@@ -197,6 +205,38 @@ func TestAuthStatusJSONOutput(t *testing.T) {
 	assert.Contains(t, capturedOutput, "test@example.com")
 	assert.Contains(t, capturedOutput, "first_name")
 	assert.Contains(t, capturedOutput, "api_endpoint")
+	assert.Contains(t, capturedOutput, "environment")
+	assert.Contains(t, capturedOutput, "profile")
+}
+
+func TestAuthStatusCSVOutput(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	setupMockLogin(&MockUserManagementService{
+		ListUsersResult: []*megaport.User{
+			{
+				PartyId:       1,
+				FirstName:     "CSV",
+				LastName:      "Test",
+				Email:         "csv@example.com",
+				Active:        true,
+				CompanyName:   "CSV Co",
+				SecurityRoles: []string{"companyAdmin"},
+			},
+		},
+	})
+
+	cmd := testutil.NewCommand("status", testutil.OutputAdapter(AuthStatus))
+	_ = cmd.Flags().Set("output", "csv")
+
+	var err error
+	capturedOutput := output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, nil)
+	})
+
+	assert.NoError(t, err)
+	assert.Contains(t, capturedOutput, "csv@example.com")
 }
 
 func TestFindCurrentUser(t *testing.T) {
@@ -223,7 +263,7 @@ func TestFindCurrentUser(t *testing.T) {
 			expected: "Only",
 		},
 		{
-			name: "prefers admin",
+			name: "prefers active admin over non-admin",
 			users: []*megaport.User{
 				{FirstName: "ReadOnly", Active: true, SecurityRoles: []string{"readOnly"}},
 				{FirstName: "Admin", Active: true, SecurityRoles: []string{"companyAdmin"}},
@@ -231,12 +271,36 @@ func TestFindCurrentUser(t *testing.T) {
 			expected: "Admin",
 		},
 		{
-			name: "skips inactive admin",
+			name: "skips inactive admin falls back to active user",
 			users: []*megaport.User{
 				{FirstName: "InactiveAdmin", Active: false, SecurityRoles: []string{"companyAdmin"}},
 				{FirstName: "ActiveUser", Active: true, SecurityRoles: []string{"readOnly"}},
 			},
 			expected: "ActiveUser",
+		},
+		{
+			name: "all inactive falls back to first user",
+			users: []*megaport.User{
+				{FirstName: "Inactive1", Active: false},
+				{FirstName: "Inactive2", Active: false},
+			},
+			expected: "Inactive1",
+		},
+		{
+			name: "nil users in list are skipped",
+			users: []*megaport.User{
+				nil,
+				{FirstName: "Valid", Active: true, SecurityRoles: []string{"companyAdmin"}},
+			},
+			expected: "Valid",
+		},
+		{
+			name: "user with multiple roles including admin",
+			users: []*megaport.User{
+				{FirstName: "NonAdmin", Active: true, SecurityRoles: []string{"readOnly"}},
+				{FirstName: "MultiRole", Active: true, SecurityRoles: []string{"technicalAdmin", "companyAdmin"}},
+			},
+			expected: "MultiRole",
 		},
 	}
 
@@ -256,6 +320,182 @@ func TestFindCurrentUser(t *testing.T) {
 func TestCapitalizeFirst(t *testing.T) {
 	assert.Equal(t, "Production", capitalizeFirst("production"))
 	assert.Equal(t, "Staging", capitalizeFirst("staging"))
+	assert.Equal(t, "Development", capitalizeFirst("development"))
 	assert.Equal(t, "", capitalizeFirst(""))
 	assert.Equal(t, "A", capitalizeFirst("a"))
+	assert.Equal(t, "ALREADY", capitalizeFirst("ALREADY"))
+}
+
+func TestResolveProfileInfo(t *testing.T) {
+	tests := []struct {
+		name            string
+		profileOverride string
+		envOverride     string
+		expectedProfile string
+		expectedEnv     string
+	}{
+		{
+			name:            "defaults when no config exists",
+			profileOverride: "",
+			envOverride:     "",
+			expectedProfile: "(env vars)",
+			expectedEnv:     "production",
+		},
+		{
+			name:            "profile override sets profile name",
+			profileOverride: "my-profile",
+			envOverride:     "",
+			expectedProfile: "my-profile",
+			expectedEnv:     "production",
+		},
+		{
+			name:            "env override sets environment",
+			profileOverride: "",
+			envOverride:     "staging",
+			expectedProfile: "(env vars)",
+			expectedEnv:     "staging",
+		},
+		{
+			name:            "both overrides",
+			profileOverride: "prod-profile",
+			envOverride:     "development",
+			expectedProfile: "prod-profile",
+			expectedEnv:     "development",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origProfile := utils.ProfileOverride
+			origEnv := utils.Env
+			defer func() {
+				utils.ProfileOverride = origProfile
+				utils.Env = origEnv
+			}()
+
+			utils.ProfileOverride = tt.profileOverride
+			utils.Env = tt.envOverride
+
+			profileName, environment := resolveProfileInfo()
+
+			if tt.profileOverride != "" {
+				assert.Equal(t, tt.expectedProfile, profileName)
+			}
+			if tt.envOverride != "" {
+				assert.Equal(t, tt.expectedEnv, environment)
+			}
+			// When no override, the function falls back to config or defaults
+			if tt.profileOverride == "" && tt.envOverride == "" {
+				assert.NotEmpty(t, profileName)
+				assert.NotEmpty(t, environment)
+			}
+		})
+	}
+}
+
+func TestAddCommandsTo(t *testing.T) {
+	root := &cobra.Command{Use: "megaport-cli"}
+	AddCommandsTo(root)
+
+	// Check auth command is registered
+	authFound := false
+	whoamiFound := false
+	for _, cmd := range root.Commands() {
+		switch cmd.Use {
+		case "auth":
+			authFound = true
+			// Check status subcommand exists under auth
+			statusFound := false
+			for _, sub := range cmd.Commands() {
+				if sub.Use == "status" {
+					statusFound = true
+				}
+			}
+			assert.True(t, statusFound, "auth should have a status subcommand")
+		case "whoami":
+			whoamiFound = true
+		}
+	}
+	assert.True(t, authFound, "auth command should be registered")
+	assert.True(t, whoamiFound, "whoami command should be registered at root level")
+}
+
+func TestModule(t *testing.T) {
+	m := NewModule()
+	assert.Equal(t, "auth", m.Name())
+
+	root := &cobra.Command{Use: "megaport-cli"}
+	m.RegisterCommands(root)
+
+	found := false
+	for _, cmd := range root.Commands() {
+		if cmd.Use == "auth" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "RegisterCommands should add auth command")
+}
+
+func TestToAuthStatusOutput(t *testing.T) {
+	t.Run("with user", func(t *testing.T) {
+		user := &megaport.User{
+			FirstName:   "John",
+			LastName:    "Doe",
+			Email:       "john@example.com",
+			Position:    "Technical Admin",
+			Active:      true,
+			CompanyName: "Test Corp",
+		}
+		out := toAuthStatusOutput(user, "default", "production", "https://api.megaport.com/", "Fallback Corp")
+
+		assert.Equal(t, "John", out.FirstName)
+		assert.Equal(t, "Doe", out.LastName)
+		assert.Equal(t, "john@example.com", out.Email)
+		assert.Equal(t, "Technical Admin", out.Position)
+		assert.True(t, out.Active)
+		assert.Equal(t, "Test Corp", out.CompanyName) // User's company overrides fallback
+		assert.Equal(t, "default", out.Profile)
+		assert.Equal(t, "Production", out.Environment)
+		assert.Equal(t, "https://api.megaport.com/", out.APIEndpoint)
+	})
+
+	t.Run("without user", func(t *testing.T) {
+		out := toAuthStatusOutput(nil, "my-profile", "staging", "https://api-staging.megaport.com/", "Company Inc")
+
+		assert.Equal(t, "", out.FirstName)
+		assert.Equal(t, "", out.Email)
+		assert.False(t, out.Active)
+		assert.Equal(t, "Company Inc", out.CompanyName) // Fallback used when no user
+		assert.Equal(t, "my-profile", out.Profile)
+		assert.Equal(t, "Staging", out.Environment)
+	})
+
+	t.Run("user with empty company name uses fallback", func(t *testing.T) {
+		user := &megaport.User{
+			FirstName:   "Jane",
+			CompanyName: "",
+		}
+		out := toAuthStatusOutput(user, "p", "production", "https://api.megaport.com/", "Fallback Corp")
+
+		assert.Equal(t, "Fallback Corp", out.CompanyName)
+	})
+}
+
+func TestPrintAuthStatus(t *testing.T) {
+	user := &megaport.User{
+		FirstName:   "Test",
+		LastName:    "User",
+		Email:       "test@example.com",
+		Active:      true,
+		CompanyName: "Co",
+	}
+
+	capturedOutput := output.CaptureOutput(func() {
+		err := printAuthStatus(user, "profile", "production", "https://api.megaport.com/", "Co", "table", true)
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, capturedOutput, "Test")
+	assert.Contains(t, capturedOutput, "test@example.com")
 }
