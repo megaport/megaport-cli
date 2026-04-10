@@ -55,6 +55,27 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	locationsCmd.AddCommand(listLocationsCmd, getLocationCmd, listCountriesCmd, listMarketCodesCmd, searchCmd)
+	rttCmd := cmdbuilder.NewCommand("rtt", "Query round-trip times between locations").
+		WithOutputFormatRunFunc(GetRoundTripTimes).
+		WithLongDesc("Query median round-trip times (RTT) between Megaport locations.\n\n"+
+			"This command retrieves latency data between a source location and all other "+
+			"Megaport locations for a given month. Use this for network planning — choosing "+
+			"MCR locations and designing cross-connects based on latency requirements.\n\n"+
+			"RTT data is published after month end, so the current month has no data. "+
+			"By default, returns data for the previous month. Use --year and --month to "+
+			"query a specific month.").
+		WithIntFlag("src-location", 0, "Source location ID").
+		WithDocumentedRequiredFlag("src-location", "Source location ID").
+		WithIntFlag("dst-location", 0, "Filter results to a specific destination location ID").
+		WithIntFlag("year", 0, "Year for RTT data (default: previous month's year)").
+		WithIntFlag("month", 0, "Month for RTT data, 1-12 (default: previous month)").
+		WithExample("megaport-cli locations rtt --src-location 67").
+		WithExample("megaport-cli locations rtt --src-location 67 --dst-location 3").
+		WithExample("megaport-cli locations rtt --src-location 67 --year 2026 --month 3").
+		WithExample("megaport-cli locations rtt --src-location 67 --output json").
+		WithRootCmd(rootCmd).
+		Build()
+
+	locationsCmd.AddCommand(listLocationsCmd, getLocationCmd, listCountriesCmd, listMarketCodesCmd, searchCmd, rttCmd)
 	rootCmd.AddCommand(locationsCmd)
 }

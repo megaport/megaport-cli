@@ -106,6 +106,28 @@ func printMarketCodes(marketCodes []string, format string, noColor bool) error {
 	return output.PrintOutput(outputs, format, noColor)
 }
 
+type rttOutput struct {
+	output.Output `json:"-" header:"-"`
+	SrcLocationID int     `json:"src_location_id" header:"Src Location ID"`
+	DstLocationID int     `json:"dst_location_id" header:"Dst Location ID"`
+	MedianRTTMs   float64 `json:"median_rtt_ms" header:"Median RTT (ms)"`
+}
+
+func printRoundTripTimes(rtts []*megaport.RoundTripTime, format string, noColor bool) error {
+	outputs := make([]rttOutput, 0, len(rtts))
+	for _, rtt := range rtts {
+		if rtt == nil {
+			continue
+		}
+		outputs = append(outputs, rttOutput{
+			SrcLocationID: rtt.SrcLocation,
+			DstLocationID: rtt.DstLocation,
+			MedianRTTMs:   rtt.MedianRTT,
+		})
+	}
+	return output.PrintOutput(outputs, format, noColor)
+}
+
 func printLocations(locations []*megaport.LocationV3, format string, noColor bool) error {
 	if format == utils.FormatTable {
 		tableOutputs := make([]locationTableOutput, 0, len(locations))

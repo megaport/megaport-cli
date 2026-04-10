@@ -2,10 +2,14 @@ package locations
 
 import (
 	"context"
+	"time"
 
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 )
+
+// timeNow is a mockable time function for testing default year/month.
+var timeNow = time.Now
 
 func filterLocations(locations []*megaport.LocationV3, filters map[string]string) []*megaport.LocationV3 {
 	return utils.Filter(locations, func(loc *megaport.LocationV3) bool {
@@ -42,4 +46,8 @@ var searchLocationsFunc = func(ctx context.Context, client *megaport.Client, sea
 
 var listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
 	return client.LocationService.ListLocationsV3(ctx)
+}
+
+var getRoundTripTimesFunc = func(ctx context.Context, client *megaport.Client, srcLocationID, year, month int) ([]*megaport.RoundTripTime, error) {
+	return client.LocationService.GetRoundTripTimes(ctx, srcLocationID, year, month)
 }

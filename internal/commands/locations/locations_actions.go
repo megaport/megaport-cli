@@ -202,6 +202,103 @@ func SearchLocations(cmd *cobra.Command, args []string, noColor bool, outputForm
 	return nil
 }
 
+func GetRoundTripTimes(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
+
+	client, err := config.NewUnauthenticatedClient()
+	if err != nil {
+		output.PrintError("Failed to create API client: %v", noColor, err)
+		return fmt.Errorf("failed to create API client: %w", err)
+	}
+
+	srcLocation, _ := cmd.Flags().GetInt("src-location")
+	if srcLocation <= 0 {
+		output.PrintError("--src-location is required and must be a positive integer", noColor)
+		return fmt.Errorf("--src-location is required and must be a positive integer")
+	}
+
+	year, _ := cmd.Flags().GetInt("year")
+	month, _ := cmd.Flags().GetInt("month")
+
+	if year == 0 || month == 0 {
+		// Default to the previous month since RTT data is published after
+		// month end — the current month will always return empty results.
+		prev := timeNow().AddDate(0, -1, 0)
+		if year == 0 {
+			year = prev.Year()
+		}
+		if month == 0 {
+			month = int(prev.Month())
+		}
+	}
+
+	if year <= 0 {
+		output.PrintError("--year must be a positive integer", noColor)
+		return fmt.Errorf("--year must be a positive integer")
+	}
+
+	if month < 1 || month > 12 {
+		output.PrintError("--month must be between 1 and 12", noColor)
+		return fmt.Errorf("--month must be between 1 and 12")
+	}
+
+	// Validate dst-location if provided
+	if cmd.Flags().Changed("dst-location") {
+		dstLocation, _ := cmd.Flags().GetInt("dst-location")
+		if dstLocation <= 0 {
+			output.PrintError("--dst-location must be a positive integer", noColor)
+			return fmt.Errorf("--dst-location must be a positive integer")
+		}
+	}
+
+	spinner := output.PrintResourceListing("round-trip time", noColor)
+
+	rtts, err := getRoundTripTimesFunc(ctx, client, srcLocation, year, month)
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to retrieve round-trip times: %v", noColor, err)
+		return fmt.Errorf("failed to get round-trip times: %w", err)
+	}
+
+	// Strip nil entries so length checks and counts are accurate.
+	cleaned := make([]*megaport.RoundTripTime, 0, len(rtts))
+	for _, rtt := range rtts {
+		if rtt != nil {
+			cleaned = append(cleaned, rtt)
+		}
+	}
+	rtts = cleaned
+
+	// Filter by destination location if specified
+	if cmd.Flags().Changed("dst-location") {
+		dstLocation, _ := cmd.Flags().GetInt("dst-location")
+		var filtered []*megaport.RoundTripTime
+		for _, rtt := range rtts {
+			if rtt.DstLocation == dstLocation {
+				filtered = append(filtered, rtt)
+			}
+		}
+		rtts = filtered
+	}
+
+	if len(rtts) == 0 {
+		if outputFormat == utils.FormatTable {
+			output.PrintInfo("No round-trip time data found.", noColor)
+			return nil
+		}
+		return printRoundTripTimes(rtts, outputFormat, noColor)
+	}
+
+	if outputFormat == utils.FormatTable {
+		output.PrintInfo("Found %d round-trip time entries", noColor, len(rtts))
+	}
+	return printRoundTripTimes(rtts, outputFormat, noColor)
+}
+
 func GetLocation(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
 
