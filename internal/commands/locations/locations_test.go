@@ -1,9 +1,14 @@
 package locations
 
 import (
+	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
+	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/testutil"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/stretchr/testify/assert"
 )
@@ -237,4 +242,188 @@ func TestPrintLocations_EmptySlice(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	assert.Equal(t, "[]\n", jsonOutput)
+}
+
+// RTT tests
+
+var testRTTs = []*megaport.RoundTripTime{
+	{SrcLocation: 67, DstLocation: 3, MedianRTT: 1.5},
+	{SrcLocation: 67, DstLocation: 12, MedianRTT: 150.3},
+	{SrcLocation: 67, DstLocation: 56, MedianRTT: 180.7},
+}
+
+func setupRTTMock(rtts []*megaport.RoundTripTime, err error) {
+	config.SetNewUnauthenticatedClientFunc(func() (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.LocationService = &MockLocationsService{
+			GetRoundTripTimesResult: rtts,
+			GetRoundTripTimesErr:    err,
+		}
+		return client, nil
+	})
+	getRoundTripTimesFunc = func(ctx context.Context, client *megaport.Client, srcLocationID, year, month int) ([]*megaport.RoundTripTime, error) {
+		return client.LocationService.GetRoundTripTimes(ctx, srcLocationID, year, month)
+	}
+}
+
+func TestGetRoundTripTimes(t *testing.T) {
+	origClientFunc := config.GetNewUnauthenticatedClientFunc()
+	defer config.SetNewUnauthenticatedClientFunc(origClientFunc)
+
+	origTimeNow := timeNow
+	defer func() { timeNow = origTimeNow }()
+	timeNow = func() time.Time { return time.Date(2026, 4, 10, 0, 0, 0, 0, time.UTC) }
+
+	tests := []struct {
+		name          string
+		srcLocation   string
+		dstLocation   string
+		year          string
+		month         string
+		mockRTTs      []*megaport.RoundTripTime
+		mockErr       error
+		expectedError string
+		expectedOut   string
+	}{
+		{
+			name:        "success with results",
+			srcLocation: "67",
+			mockRTTs:    testRTTs,
+			expectedOut: "67",
+		},
+		{
+			name:        "success with dst-location filter",
+			srcLocation: "67",
+			dstLocation: "3",
+			mockRTTs:    testRTTs,
+			expectedOut: "1.5",
+		},
+		{
+			name:        "success with explicit year and month",
+			srcLocation: "67",
+			year:        "2025",
+			month:       "6",
+			mockRTTs:    testRTTs,
+			expectedOut: "67",
+		},
+		{
+			name:          "API error",
+			srcLocation:   "67",
+			mockErr:       fmt.Errorf("API failure"),
+			expectedError: "API failure",
+		},
+		{
+			name:        "empty results",
+			srcLocation: "67",
+			mockRTTs:    []*megaport.RoundTripTime{},
+		},
+		{
+			name:          "missing src-location",
+			srcLocation:   "0",
+			expectedError: "--src-location is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupRTTMock(tt.mockRTTs, tt.mockErr)
+
+			cmd := testutil.NewCommand("rtt", testutil.OutputAdapter(GetRoundTripTimes))
+			cmd.Flags().Int("src-location", 0, "")
+			cmd.Flags().Int("dst-location", 0, "")
+			cmd.Flags().Int("year", 0, "")
+			cmd.Flags().Int("month", 0, "")
+
+			if tt.srcLocation != "" {
+				_ = cmd.Flags().Set("src-location", tt.srcLocation)
+			}
+			if tt.dstLocation != "" {
+				_ = cmd.Flags().Set("dst-location", tt.dstLocation)
+			}
+			if tt.year != "" {
+				_ = cmd.Flags().Set("year", tt.year)
+			}
+			if tt.month != "" {
+				_ = cmd.Flags().Set("month", tt.month)
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = testutil.OutputAdapter(GetRoundTripTimes)(cmd, nil)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedOut != "" {
+					assert.Contains(t, capturedOutput, tt.expectedOut)
+				}
+			}
+		})
+	}
+}
+
+func TestGetRoundTripTimesJSONOutput(t *testing.T) {
+	origClientFunc := config.GetNewUnauthenticatedClientFunc()
+	defer config.SetNewUnauthenticatedClientFunc(origClientFunc)
+
+	setupRTTMock(testRTTs, nil)
+
+	cmd := testutil.NewCommand("rtt", testutil.OutputAdapter(GetRoundTripTimes))
+	cmd.Flags().Int("src-location", 0, "")
+	cmd.Flags().Int("dst-location", 0, "")
+	cmd.Flags().Int("year", 0, "")
+	cmd.Flags().Int("month", 0, "")
+	_ = cmd.Flags().Set("src-location", "67")
+	_ = cmd.Flags().Set("output", "json")
+
+	var err error
+	capturedOutput := output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, nil)
+	})
+
+	assert.NoError(t, err)
+	assert.Contains(t, capturedOutput, "src_location_id")
+	assert.Contains(t, capturedOutput, "dst_location_id")
+	assert.Contains(t, capturedOutput, "median_rtt_ms")
+}
+
+func TestPrintRoundTripTimes_Table(t *testing.T) {
+	var err error
+	capturedOutput := output.CaptureOutput(func() {
+		err = printRoundTripTimes(testRTTs, "table", noColor)
+	})
+
+	assert.NoError(t, err)
+	assert.Contains(t, capturedOutput, "SRC LOCATION ID")
+	assert.Contains(t, capturedOutput, "DST LOCATION ID")
+	assert.Contains(t, capturedOutput, "MEDIAN RTT (MS)")
+	assert.Contains(t, capturedOutput, "67")
+	assert.Contains(t, capturedOutput, "1.5")
+}
+
+func TestPrintRoundTripTimes_NilEntries(t *testing.T) {
+	rtts := []*megaport.RoundTripTime{
+		nil,
+		{SrcLocation: 1, DstLocation: 2, MedianRTT: 5.0},
+	}
+	var err error
+	capturedOutput := output.CaptureOutput(func() {
+		err = printRoundTripTimes(rtts, "table", noColor)
+	})
+
+	assert.NoError(t, err)
+	assert.Contains(t, capturedOutput, "5")
+}
+
+func TestPrintRoundTripTimes_Empty(t *testing.T) {
+	var err error
+	capturedOutput := output.CaptureOutput(func() {
+		err = printRoundTripTimes([]*megaport.RoundTripTime{}, "json", noColor)
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "[]\n", capturedOutput)
 }
