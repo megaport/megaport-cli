@@ -240,6 +240,10 @@ func UpdateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("Failed to get original NAT Gateway: %v", noColor, err)
 		return err
 	}
+	if originalGW == nil {
+		output.PrintError("No NAT Gateway found with UID: %s", noColor, uid)
+		return fmt.Errorf("no NAT Gateway found with UID: %s", uid)
+	}
 
 	spinner := output.PrintResourceUpdating("NAT Gateway", uid, noColor)
 	var updatedGW *megaport.NATGateway
@@ -348,6 +352,9 @@ func GetNATGatewayTelemetry(cmd *cobra.Command, args []string, noColor bool, out
 
 	if cmd.Flags().Changed("days") {
 		dInt, _ := cmd.Flags().GetInt("days")
+		if dInt < 1 || dInt > 180 {
+			return fmt.Errorf("--days must be between 1 and 180")
+		}
 		d := int32(dInt)
 		req.Days = &d
 	} else if cmd.Flags().Changed("from") || cmd.Flags().Changed("to") {

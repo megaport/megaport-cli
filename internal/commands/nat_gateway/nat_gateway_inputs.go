@@ -11,27 +11,30 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// natGatewayJSONInput is a flat helper struct for unmarshalling camelCase JSON
+// into both create and update NAT Gateway requests.
+type natGatewayJSONInput struct {
+	Name                  string            `json:"name"`
+	LocationID            int               `json:"locationId"`
+	Speed                 int               `json:"speed"`
+	Term                  int               `json:"term"`
+	SessionCount          int               `json:"sessionCount"`
+	DiversityZone         string            `json:"diversityZone"`
+	ASN                   int               `json:"asn"`
+	BGPShutdownDefault    bool              `json:"bgpShutdownDefault"`
+	AutoRenewTerm         bool              `json:"autoRenewTerm"`
+	PromoCode             string            `json:"promoCode"`
+	ServiceLevelReference string            `json:"serviceLevelReference"`
+	ResourceTags          map[string]string `json:"resourceTags"`
+}
+
 func processJSONCreateNATGatewayInput(jsonStr, jsonFile string) (*megaport.CreateNATGatewayRequest, error) {
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
 		return nil, err
 	}
 
-	// Unmarshal into a flat helper to handle camelCase JSON keys.
-	var raw struct {
-		Name                  string            `json:"name"`
-		LocationID            int               `json:"locationId"`
-		Speed                 int               `json:"speed"`
-		Term                  int               `json:"term"`
-		SessionCount          int               `json:"sessionCount"`
-		DiversityZone         string            `json:"diversityZone"`
-		ASN                   int               `json:"asn"`
-		BGPShutdownDefault    bool              `json:"bgpShutdownDefault"`
-		AutoRenewTerm         bool              `json:"autoRenewTerm"`
-		PromoCode             string            `json:"promoCode"`
-		ServiceLevelReference string            `json:"serviceLevelReference"`
-		ResourceTags          map[string]string `json:"resourceTags"`
-	}
+	var raw natGatewayJSONInput
 	if err := json.Unmarshal(jsonData, &raw); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
@@ -116,20 +119,7 @@ func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.
 		return nil, err
 	}
 
-	var raw struct {
-		Name                  string            `json:"name"`
-		LocationID            int               `json:"locationId"`
-		Speed                 int               `json:"speed"`
-		Term                  int               `json:"term"`
-		SessionCount          int               `json:"sessionCount"`
-		DiversityZone         string            `json:"diversityZone"`
-		ASN                   int               `json:"asn"`
-		BGPShutdownDefault    bool              `json:"bgpShutdownDefault"`
-		AutoRenewTerm         bool              `json:"autoRenewTerm"`
-		PromoCode             string            `json:"promoCode"`
-		ServiceLevelReference string            `json:"serviceLevelReference"`
-		ResourceTags          map[string]string `json:"resourceTags"`
-	}
+	var raw natGatewayJSONInput
 	if err := json.Unmarshal(jsonData, &raw); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}

@@ -6,12 +6,12 @@ func (b *CommandBuilder) WithNATGatewayCreateFlags() *CommandBuilder {
 		WithIntFlag("term", 0, "The contract term in months (1, 12, 24, or 36)").
 		WithIntFlag("speed", 0, "The speed of the NAT Gateway in Mbps").
 		WithIntFlag("location-id", 0, "The ID of the location where the NAT Gateway will be provisioned").
-		WithIntFlag("session-count", 0, "The number of NAT sessions (optional)").
-		WithFlag("diversity-zone", "", "The diversity zone for the NAT Gateway (optional)").
+		WithIntFlag("session-count", 0, "The number of NAT sessions").
+		WithFlag("diversity-zone", "", "The diversity zone for the NAT Gateway").
 		WithOptionalFlag("diversity-zone", "The diversity zone for the NAT Gateway").
-		WithFlag("promo-code", "", "A promotional code for discounts (optional)").
+		WithFlag("promo-code", "", "A promotional code for discounts").
 		WithOptionalFlag("promo-code", "A promotional code for discounts").
-		WithFlag("service-level-reference", "", "A service level reference for the NAT Gateway (optional)").
+		WithFlag("service-level-reference", "", "A service level reference for the NAT Gateway").
 		WithOptionalFlag("service-level-reference", "A service level reference for the NAT Gateway").
 		WithBoolFlag("auto-renew", false, "Whether to automatically renew the contract term").
 		WithOptionalFlag("auto-renew", "Whether to automatically renew the contract term").
