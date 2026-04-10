@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -331,13 +332,15 @@ func TestResolveProfileInfo(t *testing.T) {
 		name            string
 		profileOverride string
 		envOverride     string
+		megaportEnvVar  string
 		expectedProfile string
 		expectedEnv     string
 	}{
 		{
-			name:            "defaults when no config exists",
+			name:            "defaults when no config or env vars",
 			profileOverride: "",
 			envOverride:     "",
+			megaportEnvVar:  "",
 			expectedProfile: "(env vars)",
 			expectedEnv:     "production",
 		},
@@ -345,21 +348,48 @@ func TestResolveProfileInfo(t *testing.T) {
 			name:            "profile override sets profile name",
 			profileOverride: "my-profile",
 			envOverride:     "",
+			megaportEnvVar:  "",
 			expectedProfile: "my-profile",
 			expectedEnv:     "production",
 		},
 		{
-			name:            "env override sets environment",
+			name:            "env flag overrides environment",
 			profileOverride: "",
 			envOverride:     "staging",
+			megaportEnvVar:  "",
 			expectedProfile: "(env vars)",
 			expectedEnv:     "staging",
 		},
 		{
-			name:            "both overrides",
+			name:            "both profile and env overrides",
 			profileOverride: "prod-profile",
 			envOverride:     "development",
+			megaportEnvVar:  "",
 			expectedProfile: "prod-profile",
+			expectedEnv:     "development",
+		},
+		{
+			name:            "MEGAPORT_ENVIRONMENT env var used as fallback",
+			profileOverride: "",
+			envOverride:     "",
+			megaportEnvVar:  "staging",
+			expectedProfile: "(env vars)",
+			expectedEnv:     "staging",
+		},
+		{
+			name:            "env flag takes precedence over MEGAPORT_ENVIRONMENT",
+			profileOverride: "",
+			envOverride:     "development",
+			megaportEnvVar:  "staging",
+			expectedProfile: "(env vars)",
+			expectedEnv:     "development",
+		},
+		{
+			name:            "profile override with MEGAPORT_ENVIRONMENT fallback",
+			profileOverride: "some-profile",
+			envOverride:     "",
+			megaportEnvVar:  "development",
+			expectedProfile: "some-profile",
 			expectedEnv:     "development",
 		},
 	}
@@ -368,27 +398,25 @@ func TestResolveProfileInfo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			origProfile := utils.ProfileOverride
 			origEnv := utils.Env
+			origMegaportEnv := os.Getenv("MEGAPORT_ENVIRONMENT")
 			defer func() {
 				utils.ProfileOverride = origProfile
 				utils.Env = origEnv
+				os.Setenv("MEGAPORT_ENVIRONMENT", origMegaportEnv)
 			}()
 
 			utils.ProfileOverride = tt.profileOverride
 			utils.Env = tt.envOverride
+			if tt.megaportEnvVar != "" {
+				os.Setenv("MEGAPORT_ENVIRONMENT", tt.megaportEnvVar)
+			} else {
+				os.Unsetenv("MEGAPORT_ENVIRONMENT")
+			}
 
 			profileName, environment := resolveProfileInfo()
 
-			if tt.profileOverride != "" {
-				assert.Equal(t, tt.expectedProfile, profileName)
-			}
-			if tt.envOverride != "" {
-				assert.Equal(t, tt.expectedEnv, environment)
-			}
-			// When no override, the function falls back to config or defaults
-			if tt.profileOverride == "" && tt.envOverride == "" {
-				assert.NotEmpty(t, profileName)
-				assert.NotEmpty(t, environment)
-			}
+			assert.Equal(t, tt.expectedProfile, profileName)
+			assert.Equal(t, tt.expectedEnv, environment)
 		})
 	}
 }

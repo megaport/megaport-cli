@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -34,7 +35,7 @@ func AuthStatus(cmd *cobra.Command, _ []string, noColor bool, outputFormat strin
 		return exitcodes.NewAPIError(fmt.Errorf("failed to retrieve user information: %w", err))
 	}
 
-	// Resolve profile and environment info
+	// Resolve profile and environment info using the same precedence as config.Login
 	profileName, environment := resolveProfileInfo()
 	apiEndpoint := client.BaseURL.String()
 
@@ -42,14 +43,19 @@ func AuthStatus(cmd *cobra.Command, _ []string, noColor bool, outputFormat strin
 	// The authenticated user is typically the first active admin, but since we
 	// can't determine the exact user from the token alone, we display the
 	// company context with all relevant details.
-	var currentUser *megaport.User
-	companyName := ""
+	currentUser := findCurrentUser(users)
 
-	if len(users) > 0 {
-		// All users share the same company, grab it from the first
-		companyName = users[0].CompanyName
-		// Try to find the most likely current user (first active admin)
-		currentUser = findCurrentUser(users)
+	// Derive company name from a known non-nil user to avoid panic on nil entries.
+	companyName := ""
+	if currentUser != nil {
+		companyName = currentUser.CompanyName
+	} else {
+		for _, u := range users {
+			if u != nil {
+				companyName = u.CompanyName
+				break
+			}
+		}
 	}
 
 	return printAuthStatus(currentUser, profileName, environment, apiEndpoint, companyName, outputFormat, noColor)
@@ -89,33 +95,49 @@ func findCurrentUser(users []*megaport.User) *megaport.User {
 	return users[0]
 }
 
-// resolveProfileInfo reads the active profile name and environment from config.
+// resolveProfileInfo determines the active profile name and environment using
+// the same precedence rules as config.Login / resolveEnvironment:
+//
+// Profile: --profile flag > active profile from config > "(env vars)"
+// Environment: --env flag > named profile env > active profile env > MEGAPORT_ENVIRONMENT > "production"
 func resolveProfileInfo() (profileName, environment string) {
 	profileName = "(env vars)"
 	environment = "production"
 
-	// Check if --profile override is in use
 	if utils.ProfileOverride != "" {
+		// --profile flag is set: read that specific named profile (same as config.Login)
 		profileName = utils.ProfileOverride
-	}
-
-	// Try to load profile config for environment and profile name
-	manager, err := config.NewConfigManager()
-	if err == nil {
-		profile, name, err := manager.GetCurrentProfile()
+		manager, err := config.NewConfigManager()
 		if err == nil {
-			if utils.ProfileOverride == "" {
-				profileName = name
-			}
-			if profile.Environment != "" {
+			profile, err := manager.GetProfile(utils.ProfileOverride)
+			if err == nil && profile.Environment != "" {
 				environment = profile.Environment
+			}
+		}
+	} else {
+		// No --profile flag: read the active profile from config
+		manager, err := config.NewConfigManager()
+		if err == nil {
+			profile, name, err := manager.GetCurrentProfile()
+			if err == nil {
+				profileName = name
+				if profile.Environment != "" {
+					environment = profile.Environment
+				}
 			}
 		}
 	}
 
-	// --env flag always overrides regardless of config state
+	// --env flag overrides profile environment (same as resolveEnvironment)
 	if utils.Env != "" {
 		environment = utils.Env
+	}
+
+	// MEGAPORT_ENVIRONMENT env var is the final fallback before the default
+	if environment == "production" && utils.Env == "" {
+		if envVar := os.Getenv("MEGAPORT_ENVIRONMENT"); envVar != "" {
+			environment = envVar
+		}
 	}
 
 	return profileName, environment
