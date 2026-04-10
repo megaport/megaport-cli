@@ -224,12 +224,14 @@ func GetRoundTripTimes(cmd *cobra.Command, args []string, noColor bool, outputFo
 	month, _ := cmd.Flags().GetInt("month")
 
 	if year == 0 || month == 0 {
-		now := timeNow()
+		// Default to the previous month since RTT data is published after
+		// month end — the current month will always return empty results.
+		prev := timeNow().AddDate(0, -1, 0)
 		if year == 0 {
-			year = now.Year()
+			year = prev.Year()
 		}
 		if month == 0 {
-			month = int(now.Month())
+			month = int(prev.Month())
 		}
 	}
 

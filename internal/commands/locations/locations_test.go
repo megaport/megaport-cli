@@ -411,6 +411,80 @@ func TestGetRoundTripTimesJSONOutput(t *testing.T) {
 	assert.Contains(t, capturedOutput, "median_rtt_ms")
 }
 
+func TestGetRoundTripTimesDefaultsPreviousMonth(t *testing.T) {
+	origClientFunc := config.GetNewUnauthenticatedClientFunc()
+	defer config.SetNewUnauthenticatedClientFunc(origClientFunc)
+
+	origTimeNow := timeNow
+	defer func() { timeNow = origTimeNow }()
+	// Mock time to April 10, 2026 — default should be March 2026.
+	timeNow = func() time.Time { return time.Date(2026, 4, 10, 0, 0, 0, 0, time.UTC) }
+
+	var capturedYear, capturedMonth int
+	origRTTFunc := getRoundTripTimesFunc
+	defer func() { getRoundTripTimesFunc = origRTTFunc }()
+
+	config.SetNewUnauthenticatedClientFunc(func() (*megaport.Client, error) {
+		return &megaport.Client{}, nil
+	})
+	getRoundTripTimesFunc = func(_ context.Context, _ *megaport.Client, _ int, year, month int) ([]*megaport.RoundTripTime, error) {
+		capturedYear = year
+		capturedMonth = month
+		return []*megaport.RoundTripTime{}, nil
+	}
+
+	cmd := testutil.NewCommand("rtt", testutil.OutputAdapter(GetRoundTripTimes))
+	cmd.Flags().Int("src-location", 0, "")
+	cmd.Flags().Int("dst-location", 0, "")
+	cmd.Flags().Int("year", 0, "")
+	cmd.Flags().Int("month", 0, "")
+	_ = cmd.Flags().Set("src-location", "67")
+
+	output.CaptureOutput(func() {
+		_ = testutil.OutputAdapter(GetRoundTripTimes)(cmd, nil)
+	})
+
+	assert.Equal(t, 2026, capturedYear, "default year should be from previous month")
+	assert.Equal(t, 3, capturedMonth, "default month should be previous month (March)")
+}
+
+func TestGetRoundTripTimesDefaultsJanuaryRollback(t *testing.T) {
+	origClientFunc := config.GetNewUnauthenticatedClientFunc()
+	defer config.SetNewUnauthenticatedClientFunc(origClientFunc)
+
+	origTimeNow := timeNow
+	defer func() { timeNow = origTimeNow }()
+	// Mock time to January 15, 2026 — default should be December 2025.
+	timeNow = func() time.Time { return time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC) }
+
+	var capturedYear, capturedMonth int
+	origRTTFunc := getRoundTripTimesFunc
+	defer func() { getRoundTripTimesFunc = origRTTFunc }()
+
+	config.SetNewUnauthenticatedClientFunc(func() (*megaport.Client, error) {
+		return &megaport.Client{}, nil
+	})
+	getRoundTripTimesFunc = func(_ context.Context, _ *megaport.Client, _ int, year, month int) ([]*megaport.RoundTripTime, error) {
+		capturedYear = year
+		capturedMonth = month
+		return []*megaport.RoundTripTime{}, nil
+	}
+
+	cmd := testutil.NewCommand("rtt", testutil.OutputAdapter(GetRoundTripTimes))
+	cmd.Flags().Int("src-location", 0, "")
+	cmd.Flags().Int("dst-location", 0, "")
+	cmd.Flags().Int("year", 0, "")
+	cmd.Flags().Int("month", 0, "")
+	_ = cmd.Flags().Set("src-location", "67")
+
+	output.CaptureOutput(func() {
+		_ = testutil.OutputAdapter(GetRoundTripTimes)(cmd, nil)
+	})
+
+	assert.Equal(t, 2025, capturedYear, "default year should roll back to 2025")
+	assert.Equal(t, 12, capturedMonth, "default month should be December")
+}
+
 func TestPrintRoundTripTimes_Table(t *testing.T) {
 	var err error
 	capturedOutput := output.CaptureOutput(func() {
