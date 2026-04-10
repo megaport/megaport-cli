@@ -582,7 +582,8 @@ func TestSpinnerStopWithSuccess(t *testing.T) {
 }
 
 func TestShouldSuppressSpinner(t *testing.T) {
-	origQuiet := IsQuiet()
+	origFormat := getOutputFormat()
+	defer SetOutputFormat(origFormat)
 	defer SetVerbosity("normal")
 
 	tests := []struct {
@@ -611,11 +612,14 @@ func TestShouldSuppressSpinner(t *testing.T) {
 			assert.Equal(t, tt.expected, shouldSuppressSpinner())
 		})
 	}
+}
 
-	// Restore
-	_ = origQuiet
-	SetVerbosity("normal")
-	SetOutputFormat("table")
+func TestShouldSuppressSpinnerForFormat(t *testing.T) {
+	assert.False(t, shouldSuppressSpinnerForFormat("table"))
+	assert.False(t, shouldSuppressSpinnerForFormat(""))
+	assert.True(t, shouldSuppressSpinnerForFormat("json"))
+	assert.True(t, shouldSuppressSpinnerForFormat("csv"))
+	assert.True(t, shouldSuppressSpinnerForFormat("xml"))
 }
 
 func TestSpinnerNoOpForCSV(t *testing.T) {
