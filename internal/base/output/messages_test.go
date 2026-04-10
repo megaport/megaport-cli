@@ -593,7 +593,7 @@ func TestShouldSuppressSpinner(t *testing.T) {
 		expected bool
 	}{
 		{"table format", "table", false, false},
-		{"empty format defaults to table", "", false, false},
+		{"empty format treated like table for spinner suppression", "", false, false},
 		{"json format suppressed", "json", false, true},
 		{"csv format suppressed", "csv", false, true},
 		{"xml format suppressed", "xml", false, true},
