@@ -89,7 +89,12 @@ func getOutputFormat() string {
 // shouldSuppressSpinner returns true when spinner output should be suppressed
 // to avoid corrupting machine-readable output formats (csv, xml, json).
 func shouldSuppressSpinner() bool {
-	format := getOutputFormat()
+	return shouldSuppressSpinnerForFormat(getOutputFormat())
+}
+
+// shouldSuppressSpinnerForFormat checks a specific format string, used when the
+// output format is passed explicitly rather than read from the global setting.
+func shouldSuppressSpinnerForFormat(format string) bool {
 	return IsQuiet() || (format != "" && format != "table")
 }
 
@@ -411,7 +416,7 @@ func PrintResourceGetting(resourceType, uid string, noColor bool) *Spinner {
 }
 
 func PrintResourceGettingWithOutput(resourceType, uid string, noColor bool, outputFormat string) *Spinner {
-	if shouldSuppressSpinner() {
+	if shouldSuppressSpinnerForFormat(outputFormat) {
 		return newNoOpSpinner()
 	}
 	uidFormatted := FormatUID(uid, noColor)
