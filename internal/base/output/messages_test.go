@@ -622,8 +622,8 @@ func TestShouldSuppressSpinnerForFormat(t *testing.T) {
 	assert.True(t, shouldSuppressSpinnerForFormat("xml"))
 }
 
-// saveOutputFormat captures the current output format and returns a cleanup
-// function that restores it, avoiding hard-coded assumptions about initial state.
+// saveOutputFormat captures the current output format and registers a t.Cleanup
+// to restore it, avoiding hard-coded assumptions about initial state.
 func saveOutputFormat(t *testing.T) {
 	t.Helper()
 	orig := getOutputFormat()
