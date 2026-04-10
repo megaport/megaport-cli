@@ -68,12 +68,13 @@ func IsVerbose() bool {
 
 // newNoOpSpinner returns a spinner that is already stopped.
 // Safe to call Start(), Stop(), and StopWithSuccess() on.
-func newNoOpSpinner() *Spinner {
+// noColor is forwarded so StopWithSuccess respects the --no-color flag.
+func newNoOpSpinner(noColor bool) *Spinner {
 	return &Spinner{
 		stop:         make(chan bool, 1),
 		stopped:      true,
 		outputFormat: getOutputFormat(),
-		noColor:      color.NoColor,
+		noColor:      noColor,
 	}
 }
 
@@ -354,7 +355,7 @@ func (s *Spinner) StopWithSuccess(msg string) {
 
 func PrintResourceCreating(resourceType, uid string, noColor bool) *Spinner {
 	if shouldSuppressSpinner() {
-		return newNoOpSpinner()
+		return newNoOpSpinner(noColor)
 	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Creating %s %s...", resourceType, uidFormatted)
@@ -365,7 +366,7 @@ func PrintResourceCreating(resourceType, uid string, noColor bool) *Spinner {
 
 func PrintResourceProvisioning(resourceType, uid string, noColor bool) *Spinner {
 	if shouldSuppressSpinner() {
-		return newNoOpSpinner()
+		return newNoOpSpinner(noColor)
 	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Provisioning %s %s...", resourceType, uidFormatted)
@@ -376,7 +377,7 @@ func PrintResourceProvisioning(resourceType, uid string, noColor bool) *Spinner 
 
 func PrintResourceUpdating(resourceType, uid string, noColor bool) *Spinner {
 	if shouldSuppressSpinner() {
-		return newNoOpSpinner()
+		return newNoOpSpinner(noColor)
 	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Updating %s %s...", resourceType, uidFormatted)
@@ -387,7 +388,7 @@ func PrintResourceUpdating(resourceType, uid string, noColor bool) *Spinner {
 
 func PrintResourceDeleting(resourceType, uid string, noColor bool) *Spinner {
 	if shouldSuppressSpinner() {
-		return newNoOpSpinner()
+		return newNoOpSpinner(noColor)
 	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Deleting %s %s...", resourceType, uidFormatted)
@@ -398,7 +399,7 @@ func PrintResourceDeleting(resourceType, uid string, noColor bool) *Spinner {
 
 func PrintResourceListing(resourceType string, noColor bool) *Spinner {
 	if shouldSuppressSpinner() {
-		return newNoOpSpinner()
+		return newNoOpSpinner(noColor)
 	}
 	msg := fmt.Sprintf("Listing %ss...", resourceType)
 	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
@@ -408,7 +409,7 @@ func PrintResourceListing(resourceType string, noColor bool) *Spinner {
 
 func PrintResourceGetting(resourceType, uid string, noColor bool) *Spinner {
 	if shouldSuppressSpinner() {
-		return newNoOpSpinner()
+		return newNoOpSpinner(noColor)
 	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Getting %s %s details...", resourceType, uidFormatted)
@@ -422,7 +423,7 @@ func PrintResourceGettingWithOutput(resourceType, uid string, noColor bool, outp
 		outputFormat = getOutputFormat()
 	}
 	if shouldSuppressSpinnerForFormat(outputFormat) {
-		s := newNoOpSpinner()
+		s := newNoOpSpinner(noColor)
 		s.outputFormat = outputFormat
 		return s
 	}
@@ -435,7 +436,7 @@ func PrintResourceGettingWithOutput(resourceType, uid string, noColor bool, outp
 
 func PrintListingResourceTags(resourceType, uid string, noColor bool) *Spinner {
 	if shouldSuppressSpinner() {
-		return newNoOpSpinner()
+		return newNoOpSpinner(noColor)
 	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Listing resource tags for %s %s...", resourceType, uidFormatted)
@@ -446,7 +447,7 @@ func PrintListingResourceTags(resourceType, uid string, noColor bool) *Spinner {
 
 func PrintResourceValidating(resourceType string, noColor bool) *Spinner {
 	if shouldSuppressSpinner() {
-		return newNoOpSpinner()
+		return newNoOpSpinner(noColor)
 	}
 	msg := fmt.Sprintf("Validating %s order...", resourceType)
 	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
@@ -456,7 +457,7 @@ func PrintResourceValidating(resourceType string, noColor bool) *Spinner {
 
 func PrintLoggingIn(noColor bool) *Spinner {
 	if IsQuiet() {
-		return newNoOpSpinner()
+		return newNoOpSpinner(noColor)
 	}
 	msg := "Logging in to Megaport..."
 	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
@@ -466,7 +467,7 @@ func PrintLoggingIn(noColor bool) *Spinner {
 
 func PrintLoggingInWithOutput(noColor bool, outputFormat string) *Spinner {
 	if IsQuiet() {
-		return newNoOpSpinner()
+		return newNoOpSpinner(noColor)
 	}
 	if outputFormat == "" {
 		outputFormat = getOutputFormat()
@@ -479,7 +480,7 @@ func PrintLoggingInWithOutput(noColor bool, outputFormat string) *Spinner {
 
 func PrintCustomSpinner(action, resourceId string, noColor bool) *Spinner {
 	if shouldSuppressSpinner() {
-		return newNoOpSpinner()
+		return newNoOpSpinner(noColor)
 	}
 	uidFormatted := FormatUID(resourceId, noColor)
 	msg := fmt.Sprintf("%s %s...", action, uidFormatted)
