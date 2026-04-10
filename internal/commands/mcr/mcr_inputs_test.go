@@ -376,11 +376,11 @@ func TestProcessFlagUpdatePrefixFilterListInput(t *testing.T) {
 
 func TestProcessJSONMCRInput_WithTunnelCount(t *testing.T) {
 	tests := []struct {
-		name            string
-		jsonStr         string
-		expectAddOns    bool
-		expectedCount   int
-		expectedError   string
+		name          string
+		jsonStr       string
+		expectAddOns  bool
+		expectedCount int
+		expectedError string
 	}{
 		{
 			name:          "tunnelCount 10 populates AddOns",

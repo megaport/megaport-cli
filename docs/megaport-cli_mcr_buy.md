@@ -18,6 +18,7 @@ This command allows you to purchase an MCR by providing the necessary details.
 ### Optional Fields
   - `cost-centre`: The cost centre for the MCR
   - `diversity-zone`: The diversity zone for the MCR
+  - `ipsec-tunnel-count`: IPSec tunnel count for an add-on (10, 20, or 30); omit to skip IPSec; set to 0 to include with API default (10)
   - `mcr-asn`: The ASN for the MCR (if not provided, a private ASN will be assigned)
   - `promo-code`: A promotional code for the MCR
   - `resource-tags`: JSON string of key-value pairs for resource tagging
@@ -29,6 +30,7 @@ This command allows you to purchase an MCR by providing the necessary details.
   - If mcr_asn is not provided, a private ASN will be automatically assigned
   - Resource tags allow you to categorize resources for organization and billing purposes
   - Required flags (name, term, port-speed, location-id, marketplace-visibility) can be skipped when using --interactive, --json, or --json-file
+  - IPSec add-on (--ipsec-tunnel-count) is not prompted in interactive mode; use --ipsec-tunnel-count flag or include 'tunnelCount' in the JSON input
 
 ### Example Usage
 
@@ -51,6 +53,7 @@ This command allows you to purchase an MCR by providing the necessary details.
   "diversityZone": "blue",
   "costCentre": "IT-Networking",
   "promoCode": "SUMMER2024",
+  "tunnelCount": 10,
   "resourceTags": {
     "environment": "production",
     "department": "networking",
@@ -78,6 +81,7 @@ megaport-cli mcr buy [flags]
 | `--cost-centre` |  |  | The cost centre for billing purposes | false |
 | `--diversity-zone` |  |  | The diversity zone for the MCR | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
+| `--ipsec-tunnel-count` |  | `0` | IPSec tunnel count for an add-on (10, 20, or 30) | false |
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 | `--location-id` |  | `0` | The ID of the location where the MCR will be provisioned | true |

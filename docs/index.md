@@ -1,6 +1,6 @@
 # Megaport CLI Documentation
 
-> Generated on April 3, 2026 for version v0.5.6
+> Generated on April 10, 2026 for version v0.7.0
 
 ## Available Commands
 
@@ -9,6 +9,10 @@
 | [megaport-cli](megaport-cli.md) | A CLI tool to interact with the Megaport API |
 | [megaport-cli apply](megaport-cli_apply.md) | Provision multiple resources from a config file |
 | [megaport-cli apply docs](megaport-cli_apply_docs.md) | Show documentation for this command |
+| [megaport-cli auth](megaport-cli_auth.md) | Manage authentication and view current identity |
+| [megaport-cli auth docs](megaport-cli_auth_docs.md) | Show documentation for this command |
+| [megaport-cli auth status](megaport-cli_auth_status.md) | Display current authentication status and identity |
+| [megaport-cli auth status docs](megaport-cli_auth_status_docs.md) | Show documentation for this command |
 | [megaport-cli billing-market](megaport-cli_billing-market.md) | Manage billing markets for the Megaport API |
 | [megaport-cli billing-market docs](megaport-cli_billing-market_docs.md) | Show documentation for this command |
 | [megaport-cli billing-market get](megaport-cli_billing-market_get.md) | Get billing market configurations |
@@ -43,7 +47,7 @@
 | [megaport-cli config use-profile docs](megaport-cli_config_use-profile_docs.md) | Show documentation for this command |
 | [megaport-cli config view](megaport-cli_config_view.md) | Display current configuration |
 | [megaport-cli config view docs](megaport-cli_config_view_docs.md) | Show documentation for this command |
-| [megaport-cli generate-docs](megaport-cli_generate-docs.md) | Generate markdown documentation for the CLI |
+| [megaport-cli generate-docs](megaport-cli_generate-docs.md) | Generate documentation for the CLI |
 | [megaport-cli generate-docs docs](megaport-cli_generate-docs_docs.md) | Show documentation for this command |
 | [megaport-cli ix](megaport-cli_ix.md) | Manage Internet Exchanges (IXs) in the Megaport API |
 | [megaport-cli ix buy](megaport-cli_ix_buy.md) | Buy an IX through the Megaport API |
@@ -84,6 +88,8 @@
 | [megaport-cli managed-account update](megaport-cli_managed-account_update.md) | Update an existing managed account |
 | [megaport-cli managed-account update docs](megaport-cli_managed-account_update_docs.md) | Show documentation for this command |
 | [megaport-cli mcr](megaport-cli_mcr.md) | Manage MCRs in the Megaport API |
+| [megaport-cli mcr add-ipsec-addon](megaport-cli_mcr_add-ipsec-addon.md) | Add an IPSec add-on to an existing MCR |
+| [megaport-cli mcr add-ipsec-addon docs](megaport-cli_mcr_add-ipsec-addon_docs.md) | Show documentation for this command |
 | [megaport-cli mcr buy](megaport-cli_mcr_buy.md) | Buy an MCR through the Megaport API |
 | [megaport-cli mcr buy docs](megaport-cli_mcr_buy_docs.md) | Show documentation for this command |
 | [megaport-cli mcr create-prefix-filter-list](megaport-cli_mcr_create-prefix-filter-list.md) | Create a prefix filter list on an MCR |
@@ -113,6 +119,8 @@
 | [megaport-cli mcr unlock docs](megaport-cli_mcr_unlock_docs.md) | Show documentation for this command |
 | [megaport-cli mcr update](megaport-cli_mcr_update.md) | Update an existing MCR |
 | [megaport-cli mcr update docs](megaport-cli_mcr_update_docs.md) | Show documentation for this command |
+| [megaport-cli mcr update-ipsec-addon](megaport-cli_mcr_update-ipsec-addon.md) | Update or disable an IPSec add-on on an MCR |
+| [megaport-cli mcr update-ipsec-addon docs](megaport-cli_mcr_update-ipsec-addon_docs.md) | Show documentation for this command |
 | [megaport-cli mcr update-prefix-filter-list](megaport-cli_mcr_update-prefix-filter-list.md) | Update a prefix filter list on an MCR |
 | [megaport-cli mcr update-prefix-filter-list docs](megaport-cli_mcr_update-prefix-filter-list_docs.md) | Show documentation for this command |
 | [megaport-cli mcr update-tags](megaport-cli_mcr_update-tags.md) | Update resource tags on a specific MCR |
@@ -245,3 +253,5 @@
 | [megaport-cli vxc update-tags docs](megaport-cli_vxc_update-tags_docs.md) | Show documentation for this command |
 | [megaport-cli vxc validate](megaport-cli_vxc_validate.md) | Validate a VXC order without purchasing |
 | [megaport-cli vxc validate docs](megaport-cli_vxc_validate_docs.md) | Show documentation for this command |
+| [megaport-cli whoami](megaport-cli_whoami.md) | Display current authenticated identity |
+| [megaport-cli whoami docs](megaport-cli_whoami_docs.md) | Show documentation for this command |

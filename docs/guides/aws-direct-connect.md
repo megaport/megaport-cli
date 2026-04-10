@@ -87,6 +87,7 @@ megaport-cli vxc buy \
   --term 12 \
   --a-end-uid port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   --a-end-vlan 100 \
+  --b-end-uid aws-partner-port-uid \
   --b-end-partner-config '{"connectType":"AWS","ownerAccount":"123456789012"}'
 ```
 
@@ -99,6 +100,7 @@ megaport-cli vxc buy \
   --term 12 \
   --a-end-uid port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   --a-end-vlan 100 \
+  --b-end-uid aws-partner-port-uid \
   --b-end-partner-config '{
     "connectType": "AWS",
     "ownerAccount": "123456789012",

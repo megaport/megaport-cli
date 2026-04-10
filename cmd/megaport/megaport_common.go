@@ -6,6 +6,7 @@ package megaport
 import (
 	"github.com/megaport/megaport-cli/internal/base/registry"
 	"github.com/megaport/megaport-cli/internal/commands/apply"
+	"github.com/megaport/megaport-cli/internal/commands/auth"
 	"github.com/megaport/megaport-cli/internal/commands/billing_market"
 	"github.com/megaport/megaport-cli/internal/commands/completion"
 	"github.com/megaport/megaport-cli/internal/commands/config"
@@ -50,6 +51,7 @@ var (
 // registerModules registers all command modules with the registry
 func registerModules() {
 	// Register all modules
+	moduleRegistry.Register(auth.NewModule())
 	moduleRegistry.Register(version.NewModule())
 	moduleRegistry.Register(ports.NewModule())
 	moduleRegistry.Register(vxc.NewModule())

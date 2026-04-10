@@ -15,6 +15,7 @@ import (
 
 // registerModules registers all WASM-supported command modules
 // The following commands are NOT supported in WASM:
+// - auth: Auth status relies on config profiles; WASM uses session-based auth via browser UI
 // - config: Config profiles are not supported; use session-based auth via browser UI instead
 // - completion: Shell completion is not applicable in browser environment
 // - generate-docs: Documentation generation is a development-time tool, not needed in WASM
