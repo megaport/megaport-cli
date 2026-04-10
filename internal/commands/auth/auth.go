@@ -29,7 +29,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 			"making infrastructure changes.").
 		WithExample("megaport-cli auth status").
 		WithExample("megaport-cli auth status --output json").
-		WithExample("megaport-cli auth status --output json --query 'email'").
+		WithExample("megaport-cli auth status --output json --query '[0].email'").
 		WithRootCmd(rootCmd).
 		Build()
 
