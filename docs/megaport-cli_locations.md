@@ -33,5 +33,6 @@ megaport-cli locations [flags]
 * [list](megaport-cli_locations_list.md)
 * [list-countries](megaport-cli_locations_list-countries.md)
 * [list-market-codes](megaport-cli_locations_list-market-codes.md)
+* [rtt](megaport-cli_locations_rtt.md)
 * [search](megaport-cli_locations_search.md)
 

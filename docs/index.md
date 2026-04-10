@@ -1,6 +1,6 @@
 # Megaport CLI Documentation
 
-> Generated on April 10, 2026 for version v0.7.0
+> Generated on April 10, 2026 for version v0.7.1
 
 ## Available Commands
 
@@ -75,6 +75,8 @@
 | [megaport-cli locations list-countries docs](megaport-cli_locations_list-countries_docs.md) | Show documentation for this command |
 | [megaport-cli locations list-market-codes](megaport-cli_locations_list-market-codes.md) | List all market codes |
 | [megaport-cli locations list-market-codes docs](megaport-cli_locations_list-market-codes_docs.md) | Show documentation for this command |
+| [megaport-cli locations rtt](megaport-cli_locations_rtt.md) | Query round-trip times between locations |
+| [megaport-cli locations rtt docs](megaport-cli_locations_rtt_docs.md) | Show documentation for this command |
 | [megaport-cli locations search](megaport-cli_locations_search.md) | Search locations by name (fuzzy match) |
 | [megaport-cli locations search docs](megaport-cli_locations_search_docs.md) | Show documentation for this command |
 | [megaport-cli managed-account](megaport-cli_managed-account.md) | Manage partner managed accounts in the Megaport API |
