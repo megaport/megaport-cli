@@ -622,9 +622,17 @@ func TestShouldSuppressSpinnerForFormat(t *testing.T) {
 	assert.True(t, shouldSuppressSpinnerForFormat("xml"))
 }
 
+// saveOutputFormat captures the current output format and returns a cleanup
+// function that restores it, avoiding hard-coded assumptions about initial state.
+func saveOutputFormat(t *testing.T) {
+	t.Helper()
+	orig := getOutputFormat()
+	t.Cleanup(func() { SetOutputFormat(orig) })
+}
+
 func TestSpinnerNoOpForCSV(t *testing.T) {
+	saveOutputFormat(t)
 	SetOutputFormat("csv")
-	defer SetOutputFormat("table")
 
 	spinner := PrintResourceListing("test", true)
 	// A no-op spinner is already stopped at creation
@@ -632,16 +640,16 @@ func TestSpinnerNoOpForCSV(t *testing.T) {
 }
 
 func TestSpinnerNoOpForXML(t *testing.T) {
+	saveOutputFormat(t)
 	SetOutputFormat("xml")
-	defer SetOutputFormat("table")
 
 	spinner := PrintResourceGetting("test", "uid-123", true)
 	assert.True(t, spinner.stopped, "spinner should be no-op (stopped) for xml format")
 }
 
 func TestSpinnerNoOpForJSON(t *testing.T) {
+	saveOutputFormat(t)
 	SetOutputFormat("json")
-	defer SetOutputFormat("table")
 
 	spinner := PrintResourceListing("test", true)
 	assert.True(t, spinner.stopped, "spinner should be no-op (stopped) for json format")
@@ -651,6 +659,7 @@ func TestSpinnerActiveForTable(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping spinner test in short mode")
 	}
+	saveOutputFormat(t)
 	SetOutputFormat("table")
 	SetIsTerminal(true)
 	defer SetIsTerminal(false)
@@ -661,8 +670,8 @@ func TestSpinnerActiveForTable(t *testing.T) {
 }
 
 func TestAllSpinnerFunctionsSuppressedForCSV(t *testing.T) {
+	saveOutputFormat(t)
 	SetOutputFormat("csv")
-	defer SetOutputFormat("table")
 
 	spinners := []*Spinner{
 		PrintResourceCreating("test", "uid", true),
@@ -686,12 +695,10 @@ func TestLoginSpinnersNotSuppressedForCSV(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping spinner test in short mode")
 	}
+	saveOutputFormat(t)
 	SetOutputFormat("csv")
 	SetIsTerminal(true)
-	defer func() {
-		SetOutputFormat("table")
-		SetIsTerminal(false)
-	}()
+	defer SetIsTerminal(false)
 
 	// Login spinners should still show regardless of output format
 	spinner := PrintLoggingIn(true)
@@ -704,12 +711,10 @@ func TestLoginSpinnersNotSuppressedForCSV(t *testing.T) {
 }
 
 func TestStopWithSuccessDoesNotWriteToStdoutForCSV(t *testing.T) {
+	saveOutputFormat(t)
 	SetOutputFormat("csv")
 	SetIsTerminal(true)
-	defer func() {
-		SetOutputFormat("table")
-		SetIsTerminal(false)
-	}()
+	defer SetIsTerminal(false)
 
 	spinner := PrintResourceListing("test", true)
 
@@ -728,12 +733,10 @@ func TestStopWithSuccessDoesNotWriteToStdoutForCSV(t *testing.T) {
 }
 
 func TestStopWithSuccessDoesNotWriteToStdoutForXML(t *testing.T) {
+	saveOutputFormat(t)
 	SetOutputFormat("xml")
 	SetIsTerminal(true)
-	defer func() {
-		SetOutputFormat("table")
-		SetIsTerminal(false)
-	}()
+	defer SetIsTerminal(false)
 
 	spinner := PrintResourceGetting("test", "uid", true)
 
@@ -751,8 +754,8 @@ func TestStopWithSuccessDoesNotWriteToStdoutForXML(t *testing.T) {
 }
 
 func TestNoOpSpinnerCarriesOutputFormat(t *testing.T) {
+	saveOutputFormat(t)
 	SetOutputFormat("csv")
-	defer SetOutputFormat("table")
 
 	spinner := PrintResourceListing("test", true)
 	assert.Equal(t, "csv", spinner.outputFormat, "no-op spinner should carry the output format")

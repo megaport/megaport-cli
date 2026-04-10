@@ -417,6 +417,9 @@ func PrintResourceGetting(resourceType, uid string, noColor bool) *Spinner {
 }
 
 func PrintResourceGettingWithOutput(resourceType, uid string, noColor bool, outputFormat string) *Spinner {
+	if outputFormat == "" {
+		outputFormat = getOutputFormat()
+	}
 	if shouldSuppressSpinnerForFormat(outputFormat) {
 		s := newNoOpSpinner()
 		s.outputFormat = outputFormat
