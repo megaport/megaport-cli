@@ -615,6 +615,10 @@ func TestShouldSuppressSpinner(t *testing.T) {
 }
 
 func TestShouldSuppressSpinnerForFormat(t *testing.T) {
+	// Ensure normal verbosity so IsQuiet() doesn't interfere.
+	defer SetVerbosity("normal")
+	SetVerbosity("normal")
+
 	assert.False(t, shouldSuppressSpinnerForFormat("table"))
 	assert.False(t, shouldSuppressSpinnerForFormat(""))
 	assert.True(t, shouldSuppressSpinnerForFormat("json"))
