@@ -11,6 +11,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func captureOutput(f func()) string {
@@ -579,4 +580,188 @@ func TestSpinnerStopWithSuccess(t *testing.T) {
 		spinner.StopWithSuccess("Operation completed")
 	})
 	assert.Contains(t, output, "✓ Operation completed")
+}
+
+func TestShouldSuppressSpinner(t *testing.T) {
+	origFormat := getOutputFormat()
+	defer SetOutputFormat(origFormat)
+	defer SetVerbosity("normal")
+
+	tests := []struct {
+		name     string
+		format   string
+		quiet    bool
+		expected bool
+	}{
+		{"table format", "table", false, false},
+		{"empty format treated like table for spinner suppression", "", false, false},
+		{"json format suppressed", "json", false, true},
+		{"csv format suppressed", "csv", false, true},
+		{"xml format suppressed", "xml", false, true},
+		{"quiet mode suppressed", "table", true, true},
+		{"quiet mode with csv", "csv", true, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetOutputFormat(tt.format)
+			if tt.quiet {
+				SetVerbosity("quiet")
+			} else {
+				SetVerbosity("normal")
+			}
+			assert.Equal(t, tt.expected, shouldSuppressSpinner())
+		})
+	}
+}
+
+func TestShouldSuppressSpinnerForFormat(t *testing.T) {
+	// Ensure normal verbosity so IsQuiet() doesn't interfere.
+	defer SetVerbosity("normal")
+	SetVerbosity("normal")
+
+	assert.False(t, shouldSuppressSpinnerForFormat("table"))
+	assert.False(t, shouldSuppressSpinnerForFormat(""))
+	assert.True(t, shouldSuppressSpinnerForFormat("json"))
+	assert.True(t, shouldSuppressSpinnerForFormat("csv"))
+	assert.True(t, shouldSuppressSpinnerForFormat("xml"))
+}
+
+// saveOutputFormat captures the current output format and registers a t.Cleanup
+// to restore it, avoiding hard-coded assumptions about initial state.
+func saveOutputFormat(t *testing.T) {
+	t.Helper()
+	orig := getOutputFormat()
+	t.Cleanup(func() { SetOutputFormat(orig) })
+}
+
+func TestSpinnerNoOpForCSV(t *testing.T) {
+	saveOutputFormat(t)
+	SetOutputFormat("csv")
+
+	spinner := PrintResourceListing("test", true)
+	// A no-op spinner is already stopped at creation
+	assert.True(t, spinner.stopped, "spinner should be no-op (stopped) for csv format")
+}
+
+func TestSpinnerNoOpForXML(t *testing.T) {
+	saveOutputFormat(t)
+	SetOutputFormat("xml")
+
+	spinner := PrintResourceGetting("test", "uid-123", true)
+	assert.True(t, spinner.stopped, "spinner should be no-op (stopped) for xml format")
+}
+
+func TestSpinnerNoOpForJSON(t *testing.T) {
+	saveOutputFormat(t)
+	SetOutputFormat("json")
+
+	spinner := PrintResourceListing("test", true)
+	assert.True(t, spinner.stopped, "spinner should be no-op (stopped) for json format")
+}
+
+func TestSpinnerActiveForTable(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping spinner test in short mode")
+	}
+	saveOutputFormat(t)
+	SetOutputFormat("table")
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
+	spinner := PrintResourceListing("test", true)
+	assert.False(t, spinner.stopped, "spinner should be active for table format")
+	spinner.Stop()
+}
+
+func TestAllSpinnerFunctionsSuppressedForCSV(t *testing.T) {
+	saveOutputFormat(t)
+	SetOutputFormat("csv")
+
+	spinners := []*Spinner{
+		PrintResourceCreating("test", "uid", true),
+		PrintResourceProvisioning("test", "uid", true),
+		PrintResourceUpdating("test", "uid", true),
+		PrintResourceDeleting("test", "uid", true),
+		PrintResourceListing("test", true),
+		PrintResourceGetting("test", "uid", true),
+		PrintResourceGettingWithOutput("test", "uid", true, "csv"),
+		PrintListingResourceTags("test", "uid", true),
+		PrintResourceValidating("test", true),
+		PrintCustomSpinner("testing", "uid", true),
+	}
+
+	for i, s := range spinners {
+		assert.True(t, s.stopped, "spinner %d should be no-op for csv format", i)
+	}
+}
+
+func TestLoginSpinnersNotSuppressedForCSV(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping spinner test in short mode")
+	}
+	saveOutputFormat(t)
+	SetOutputFormat("csv")
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
+	// Login spinners should still show regardless of output format
+	spinner := PrintLoggingIn(true)
+	assert.False(t, spinner.stopped, "login spinner should not be suppressed for csv format")
+	spinner.Stop()
+
+	spinner2 := PrintLoggingInWithOutput(true, "csv")
+	assert.False(t, spinner2.stopped, "login spinner with output should not be suppressed")
+	spinner2.Stop()
+}
+
+func TestStopWithSuccessDoesNotWriteToStdoutForCSV(t *testing.T) {
+	saveOutputFormat(t)
+	SetOutputFormat("csv")
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
+	spinner := PrintResourceListing("test", true)
+
+	// Suppress stderr so StopWithSuccess doesn't leak into test output.
+	oldStderr := os.Stderr
+	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	require.NoError(t, err)
+	defer devNull.Close()
+	os.Stderr = devNull
+	defer func() { os.Stderr = oldStderr }()
+
+	stdoutOutput := captureOutput(func() {
+		spinner.StopWithSuccess("done")
+	})
+	assert.Empty(t, stdoutOutput, "StopWithSuccess should not write to stdout for csv format")
+}
+
+func TestStopWithSuccessDoesNotWriteToStdoutForXML(t *testing.T) {
+	saveOutputFormat(t)
+	SetOutputFormat("xml")
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
+	spinner := PrintResourceGetting("test", "uid", true)
+
+	oldStderr := os.Stderr
+	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	require.NoError(t, err)
+	defer devNull.Close()
+	os.Stderr = devNull
+	defer func() { os.Stderr = oldStderr }()
+
+	stdoutOutput := captureOutput(func() {
+		spinner.StopWithSuccess("done")
+	})
+	assert.Empty(t, stdoutOutput, "StopWithSuccess should not write to stdout for xml format")
+}
+
+func TestNoOpSpinnerCarriesOutputFormat(t *testing.T) {
+	saveOutputFormat(t)
+	SetOutputFormat("csv")
+
+	spinner := PrintResourceListing("test", true)
+	assert.Equal(t, "csv", spinner.outputFormat, "no-op spinner should carry the output format")
 }
