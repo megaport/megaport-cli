@@ -233,6 +233,11 @@ func GetRoundTripTimes(cmd *cobra.Command, args []string, noColor bool, outputFo
 		}
 	}
 
+	if month < 1 || month > 12 {
+		output.PrintError("--month must be between 1 and 12", noColor)
+		return fmt.Errorf("--month must be between 1 and 12")
+	}
+
 	spinner := output.PrintResourceListing("round-trip time", noColor)
 
 	rtts, err := getRoundTripTimesFunc(ctx, client, srcLocation, year, month)
@@ -258,8 +263,9 @@ func GetRoundTripTimes(cmd *cobra.Command, args []string, noColor bool, outputFo
 	if len(rtts) == 0 {
 		if outputFormat == utils.FormatTable {
 			output.PrintInfo("No round-trip time data found.", noColor)
+			return nil
 		}
-		return nil
+		return printRoundTripTimes(rtts, outputFormat, noColor)
 	}
 
 	output.PrintInfo("Found %d round-trip time entries", noColor, len(rtts))
