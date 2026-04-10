@@ -20,7 +20,7 @@ func AuthStatus(cmd *cobra.Command, _ []string, noColor bool, outputFormat strin
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Authentication failed: %v", noColor, err)
-		return exitcodes.NewAuthError(fmt.Errorf("authentication failed: %w", err))
+		return exitcodes.NewAuthError(err)
 	}
 	defer cancel()
 

@@ -18,11 +18,14 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 
 	statusCmd := cmdbuilder.NewCommand("status", "Display current authentication status and identity").
 		WithOutputFormatRunFunc(AuthStatus).
-		WithLongDesc("Verify your credentials and display the currently authenticated identity.\n\n" +
+		WithLongDesc("Verify your credentials and display the current account context.\n\n" +
 			"This command authenticates with the Megaport API using your active profile or " +
-			"environment variables, then retrieves your user details. It shows your name, email, " +
+			"environment variables, then retrieves your company user details. It shows the " +
 			"company, environment, active profile, and API endpoint.\n\n" +
-			"Use this to confirm which identity and environment you are operating as before " +
+			"Note: the displayed user is inferred from the company user list (preferring the " +
+			"primary admin). For companies with multiple admins, it may not reflect the exact " +
+			"user who owns the API credentials.\n\n" +
+			"Use this to confirm which account and environment you are operating against before " +
 			"making infrastructure changes.").
 		WithExample("megaport-cli auth status").
 		WithExample("megaport-cli auth status --output json").
