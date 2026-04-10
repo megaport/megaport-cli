@@ -279,12 +279,20 @@ func TestFindCurrentUser(t *testing.T) {
 			expected: "ActiveUser",
 		},
 		{
-			name: "all inactive falls back to first user",
+			name: "all inactive falls back to first non-nil user",
 			users: []*megaport.User{
 				{FirstName: "Inactive1", Active: false},
 				{FirstName: "Inactive2", Active: false},
 			},
 			expected: "Inactive1",
+		},
+		{
+			name: "all nil entries returns nil",
+			users: []*megaport.User{
+				nil,
+				nil,
+			},
+			expected: "",
 		},
 		{
 			name: "nil users in list are skipped",

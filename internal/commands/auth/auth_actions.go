@@ -25,7 +25,7 @@ func AuthStatus(cmd *cobra.Command, _ []string, noColor bool, outputFormat strin
 	}
 	defer cancel()
 
-	spinner := output.PrintResourceGetting("authentication status", "", noColor)
+	spinner := output.PrintResourceListing("account detail", noColor)
 
 	users, err := listCompanyUsersFunc(ctx, client)
 	spinner.Stop()
@@ -62,7 +62,7 @@ func AuthStatus(cmd *cobra.Command, _ []string, noColor bool, outputFormat strin
 }
 
 // findCurrentUser attempts to identify the current user from the company user list.
-// It prioritizes active company admins, then any active user.
+// It prioritizes active company admins, then any active user, then the first non-nil user.
 func findCurrentUser(users []*megaport.User) *megaport.User {
 	if len(users) == 0 {
 		return nil
@@ -92,7 +92,14 @@ func findCurrentUser(users []*megaport.User) *megaport.User {
 		}
 	}
 
-	return users[0]
+	// Fall back to first non-nil user
+	for _, u := range users {
+		if u != nil {
+			return u
+		}
+	}
+
+	return nil
 }
 
 // resolveProfileInfo determines the active profile name and environment using
@@ -100,6 +107,9 @@ func findCurrentUser(users []*megaport.User) *megaport.User {
 //
 // Profile: --profile flag > active profile from config > "(env vars)"
 // Environment: --env flag > named profile env > active profile env > MEGAPORT_ENVIRONMENT > "production"
+//
+// When --env is set without --profile, config.Login may still fall back to the
+// active profile for credentials, so we always attempt to resolve the profile name.
 //
 // The returned environment is always normalized to a canonical name:
 // "production", "staging", or "development".
@@ -129,23 +139,26 @@ func resolveProfileInfo() (profileName, environment string) {
 			env = os.Getenv("MEGAPORT_ENVIRONMENT")
 		}
 	} else {
-		if utils.Env != "" {
-			env = utils.Env
-		} else {
-			// No --env flag: read the active profile from config
-			manager, err := config.NewConfigManager()
+		// No --profile flag: always attempt to load the active profile for the
+		// profile name, since config.Login may use it for credentials even when
+		// --env is set.
+		manager, err := config.NewConfigManager()
+		if err == nil {
+			profile, name, err := manager.GetCurrentProfile()
 			if err == nil {
-				profile, name, err := manager.GetCurrentProfile()
-				if err == nil {
-					profileName = name
-					if profile.Environment != "" {
-						env = profile.Environment
-					}
+				profileName = name
+				if profile.Environment != "" {
+					env = profile.Environment
 				}
 			}
-			if env == "" {
-				env = os.Getenv("MEGAPORT_ENVIRONMENT")
-			}
+		}
+		// --env flag overrides the profile's environment
+		if utils.Env != "" {
+			env = utils.Env
+		}
+		// Fall back to env var if still not set
+		if env == "" {
+			env = os.Getenv("MEGAPORT_ENVIRONMENT")
 		}
 	}
 
