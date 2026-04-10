@@ -70,8 +70,9 @@ func IsVerbose() bool {
 // Safe to call Start(), Stop(), and StopWithSuccess() on.
 func newNoOpSpinner() *Spinner {
 	return &Spinner{
-		stop:    make(chan bool, 1),
-		stopped: true,
+		stop:         make(chan bool, 1),
+		stopped:      true,
+		outputFormat: getOutputFormat(),
 	}
 }
 
