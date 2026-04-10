@@ -712,7 +712,12 @@ func TestStopWithSuccessDoesNotWriteToStdoutForCSV(t *testing.T) {
 	}()
 
 	spinner := PrintResourceListing("test", true)
-	// Spinner is no-op, but StopWithSuccess should still not write to stdout.
+
+	// Suppress stderr so StopWithSuccess doesn't leak into test output.
+	oldStderr := os.Stderr
+	os.Stderr, _ = os.Open(os.DevNull)
+	defer func() { os.Stderr = oldStderr }()
+
 	stdoutOutput := captureOutput(func() {
 		spinner.StopWithSuccess("done")
 	})
@@ -728,6 +733,11 @@ func TestStopWithSuccessDoesNotWriteToStdoutForXML(t *testing.T) {
 	}()
 
 	spinner := PrintResourceGetting("test", "uid", true)
+
+	oldStderr := os.Stderr
+	os.Stderr, _ = os.Open(os.DevNull)
+	defer func() { os.Stderr = oldStderr }()
+
 	stdoutOutput := captureOutput(func() {
 		spinner.StopWithSuccess("done")
 	})
