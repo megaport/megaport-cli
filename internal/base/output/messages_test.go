@@ -715,7 +715,8 @@ func TestStopWithSuccessDoesNotWriteToStdoutForCSV(t *testing.T) {
 
 	// Suppress stderr so StopWithSuccess doesn't leak into test output.
 	oldStderr := os.Stderr
-	devNull, _ := os.Open(os.DevNull)
+	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	assert.NoError(t, err)
 	defer devNull.Close()
 	os.Stderr = devNull
 	defer func() { os.Stderr = oldStderr }()
@@ -737,7 +738,8 @@ func TestStopWithSuccessDoesNotWriteToStdoutForXML(t *testing.T) {
 	spinner := PrintResourceGetting("test", "uid", true)
 
 	oldStderr := os.Stderr
-	devNull, _ := os.Open(os.DevNull)
+	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	assert.NoError(t, err)
 	defer devNull.Close()
 	os.Stderr = devNull
 	defer func() { os.Stderr = oldStderr }()
