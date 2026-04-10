@@ -264,12 +264,21 @@ func GetRoundTripTimes(cmd *cobra.Command, args []string, noColor bool, outputFo
 		return fmt.Errorf("failed to get round-trip times: %w", err)
 	}
 
+	// Strip nil entries so length checks and counts are accurate.
+	cleaned := make([]*megaport.RoundTripTime, 0, len(rtts))
+	for _, rtt := range rtts {
+		if rtt != nil {
+			cleaned = append(cleaned, rtt)
+		}
+	}
+	rtts = cleaned
+
 	// Filter by destination location if specified
 	if cmd.Flags().Changed("dst-location") {
 		dstLocation, _ := cmd.Flags().GetInt("dst-location")
 		var filtered []*megaport.RoundTripTime
 		for _, rtt := range rtts {
-			if rtt != nil && rtt.DstLocation == dstLocation {
+			if rtt.DstLocation == dstLocation {
 				filtered = append(filtered, rtt)
 			}
 		}
