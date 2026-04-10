@@ -166,7 +166,7 @@ func TestQuietSuppressesStopWithSuccess(t *testing.T) {
 	resetVerbosity(t)
 	SetVerbosity("quiet")
 
-	spinner := newNoOpSpinner()
+	spinner := newNoOpSpinner(true)
 	out := captureStdout(t, func() {
 		spinner.StopWithSuccess("done message")
 	})
