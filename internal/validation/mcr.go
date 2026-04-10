@@ -7,6 +7,11 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
+// validIPSecTunnelCounts lists the allowed non-zero IPSec tunnel counts.
+// Defined locally so the validation package does not depend on an SDK symbol
+// that may not be present in all SDK branches (e.g. during workspace development).
+var validIPSecTunnelCounts = []int{10, 20, 30}
+
 // ValidateIPSecTunnelCount validates a tunnel count for an IPSec add-on.
 // Valid non-zero values are always 10, 20, or 30.
 // When allowZeroDisable is true (update mode), 0 is also accepted to disable IPSec.
@@ -16,13 +21,13 @@ func ValidateIPSecTunnelCount(count int, allowZeroDisable bool) error {
 	if count == 0 && allowZeroDisable {
 		return nil
 	}
-	for _, valid := range megaport.ValidIPsecTunnelCounts {
+	for _, valid := range validIPSecTunnelCounts {
 		if count == valid {
 			return nil
 		}
 	}
-	counts := make([]string, len(megaport.ValidIPsecTunnelCounts))
-	for i, v := range megaport.ValidIPsecTunnelCounts {
+	counts := make([]string, len(validIPSecTunnelCounts))
+	for i, v := range validIPSecTunnelCounts {
 		counts[i] = fmt.Sprintf("%d", v)
 	}
 	validStr := strings.Join(counts, ", ")
