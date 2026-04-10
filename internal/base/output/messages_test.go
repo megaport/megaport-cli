@@ -11,6 +11,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func captureOutput(f func()) string {
@@ -725,7 +726,7 @@ func TestStopWithSuccessDoesNotWriteToStdoutForCSV(t *testing.T) {
 	// Suppress stderr so StopWithSuccess doesn't leak into test output.
 	oldStderr := os.Stderr
 	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer devNull.Close()
 	os.Stderr = devNull
 	defer func() { os.Stderr = oldStderr }()
@@ -746,7 +747,7 @@ func TestStopWithSuccessDoesNotWriteToStdoutForXML(t *testing.T) {
 
 	oldStderr := os.Stderr
 	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer devNull.Close()
 	os.Stderr = devNull
 	defer func() { os.Stderr = oldStderr }()
