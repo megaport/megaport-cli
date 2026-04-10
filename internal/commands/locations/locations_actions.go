@@ -235,9 +235,23 @@ func GetRoundTripTimes(cmd *cobra.Command, args []string, noColor bool, outputFo
 		}
 	}
 
+	if year <= 0 {
+		output.PrintError("--year must be a positive integer", noColor)
+		return fmt.Errorf("--year must be a positive integer")
+	}
+
 	if month < 1 || month > 12 {
 		output.PrintError("--month must be between 1 and 12", noColor)
 		return fmt.Errorf("--month must be between 1 and 12")
+	}
+
+	// Validate dst-location if provided
+	if cmd.Flags().Changed("dst-location") {
+		dstLocation, _ := cmd.Flags().GetInt("dst-location")
+		if dstLocation <= 0 {
+			output.PrintError("--dst-location must be a positive integer", noColor)
+			return fmt.Errorf("--dst-location must be a positive integer")
+		}
 	}
 
 	spinner := output.PrintResourceListing("round-trip time", noColor)
@@ -270,7 +284,9 @@ func GetRoundTripTimes(cmd *cobra.Command, args []string, noColor bool, outputFo
 		return printRoundTripTimes(rtts, outputFormat, noColor)
 	}
 
-	output.PrintInfo("Found %d round-trip time entries", noColor, len(rtts))
+	if outputFormat == utils.FormatTable {
+		output.PrintInfo("Found %d round-trip time entries", noColor, len(rtts))
+	}
 	return printRoundTripTimes(rtts, outputFormat, noColor)
 }
 
