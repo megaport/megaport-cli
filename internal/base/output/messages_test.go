@@ -737,7 +737,9 @@ func TestStopWithSuccessDoesNotWriteToStdoutForXML(t *testing.T) {
 	spinner := PrintResourceGetting("test", "uid", true)
 
 	oldStderr := os.Stderr
-	os.Stderr, _ = os.Open(os.DevNull)
+	devNull, _ := os.Open(os.DevNull)
+	defer devNull.Close()
+	os.Stderr = devNull
 	defer func() { os.Stderr = oldStderr }()
 
 	stdoutOutput := captureOutput(func() {
