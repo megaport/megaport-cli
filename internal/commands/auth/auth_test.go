@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"os"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -396,21 +395,23 @@ func TestResolveProfileInfo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Isolate config directory so the test doesn't read the developer's
+			// real ~/.megaport/config.json or create files outside the test.
+			t.Setenv("MEGAPORT_CONFIG_DIR", t.TempDir())
+
 			origProfile := utils.ProfileOverride
 			origEnv := utils.Env
-			origMegaportEnv := os.Getenv("MEGAPORT_ENVIRONMENT")
 			defer func() {
 				utils.ProfileOverride = origProfile
 				utils.Env = origEnv
-				os.Setenv("MEGAPORT_ENVIRONMENT", origMegaportEnv)
 			}()
 
 			utils.ProfileOverride = tt.profileOverride
 			utils.Env = tt.envOverride
 			if tt.megaportEnvVar != "" {
-				os.Setenv("MEGAPORT_ENVIRONMENT", tt.megaportEnvVar)
+				t.Setenv("MEGAPORT_ENVIRONMENT", tt.megaportEnvVar)
 			} else {
-				os.Unsetenv("MEGAPORT_ENVIRONMENT")
+				t.Setenv("MEGAPORT_ENVIRONMENT", "")
 			}
 
 			profileName, environment := resolveProfileInfo()
