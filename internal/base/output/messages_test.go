@@ -715,7 +715,9 @@ func TestStopWithSuccessDoesNotWriteToStdoutForCSV(t *testing.T) {
 
 	// Suppress stderr so StopWithSuccess doesn't leak into test output.
 	oldStderr := os.Stderr
-	os.Stderr, _ = os.Open(os.DevNull)
+	devNull, _ := os.Open(os.DevNull)
+	defer devNull.Close()
+	os.Stderr = devNull
 	defer func() { os.Stderr = oldStderr }()
 
 	stdoutOutput := captureOutput(func() {
