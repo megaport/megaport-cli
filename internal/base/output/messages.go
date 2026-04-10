@@ -86,6 +86,13 @@ func getOutputFormat() string {
 	return "table"
 }
 
+// shouldSuppressSpinner returns true when spinner output should be suppressed
+// to avoid corrupting machine-readable output formats (csv, xml, json).
+func shouldSuppressSpinner() bool {
+	format := getOutputFormat()
+	return IsQuiet() || (format != "" && format != "table")
+}
+
 // PrintSuccess, PrintError, PrintWarning, PrintInfo are defined in:
 // - messages_native.go for non-WASM builds
 // - messages_wasm.go for WASM builds
@@ -276,7 +283,7 @@ func (s *Spinner) runLoop(prefix string, startTime *time.Time) {
 					msg = fmt.Sprintf("%s (%s elapsed)", prefix, elapsed)
 				}
 
-				if s.outputFormat == "json" || !IsTerminal() {
+				if (s.outputFormat != "" && s.outputFormat != "table") || !IsTerminal() {
 					fmt.Fprintf(os.Stderr, "\r\033[K%s %s", styledFrame, msg)
 				} else {
 					fmt.Printf("\r\033[K%s %s", styledFrame, msg)
@@ -307,7 +314,7 @@ func (s *Spinner) Stop() {
 	s.stopped = true
 	s.mu.Unlock()
 	s.stop <- true
-	if s.outputFormat == "json" || !IsTerminal() {
+	if (s.outputFormat != "" && s.outputFormat != "table") || !IsTerminal() {
 		fmt.Fprint(os.Stderr, "\r\033[K")
 	} else {
 		fmt.Print("\r\033[K")
@@ -319,7 +326,9 @@ func (s *Spinner) StopWithSuccess(msg string) {
 	if IsQuiet() {
 		return
 	}
-	if s.outputFormat == "json" {
+	// Write success message to stderr for non-table formats to avoid corrupting
+	// machine-readable output streams.
+	if (s.outputFormat != "" && s.outputFormat != "table") || !IsTerminal() {
 		if s.noColor {
 			fmt.Fprintf(os.Stderr, "✓ %s\n", msg)
 		} else {
@@ -337,7 +346,7 @@ func (s *Spinner) StopWithSuccess(msg string) {
 }
 
 func PrintResourceCreating(resourceType, uid string, noColor bool) *Spinner {
-	if IsQuiet() {
+	if shouldSuppressSpinner() {
 		return newNoOpSpinner()
 	}
 	uidFormatted := FormatUID(uid, noColor)
@@ -348,7 +357,7 @@ func PrintResourceCreating(resourceType, uid string, noColor bool) *Spinner {
 }
 
 func PrintResourceProvisioning(resourceType, uid string, noColor bool) *Spinner {
-	if IsQuiet() {
+	if shouldSuppressSpinner() {
 		return newNoOpSpinner()
 	}
 	uidFormatted := FormatUID(uid, noColor)
@@ -359,7 +368,7 @@ func PrintResourceProvisioning(resourceType, uid string, noColor bool) *Spinner 
 }
 
 func PrintResourceUpdating(resourceType, uid string, noColor bool) *Spinner {
-	if IsQuiet() {
+	if shouldSuppressSpinner() {
 		return newNoOpSpinner()
 	}
 	uidFormatted := FormatUID(uid, noColor)
@@ -370,7 +379,7 @@ func PrintResourceUpdating(resourceType, uid string, noColor bool) *Spinner {
 }
 
 func PrintResourceDeleting(resourceType, uid string, noColor bool) *Spinner {
-	if IsQuiet() {
+	if shouldSuppressSpinner() {
 		return newNoOpSpinner()
 	}
 	uidFormatted := FormatUID(uid, noColor)
@@ -381,7 +390,7 @@ func PrintResourceDeleting(resourceType, uid string, noColor bool) *Spinner {
 }
 
 func PrintResourceListing(resourceType string, noColor bool) *Spinner {
-	if IsQuiet() {
+	if shouldSuppressSpinner() {
 		return newNoOpSpinner()
 	}
 	msg := fmt.Sprintf("Listing %ss...", resourceType)
@@ -391,7 +400,7 @@ func PrintResourceListing(resourceType string, noColor bool) *Spinner {
 }
 
 func PrintResourceGetting(resourceType, uid string, noColor bool) *Spinner {
-	if IsQuiet() {
+	if shouldSuppressSpinner() {
 		return newNoOpSpinner()
 	}
 	uidFormatted := FormatUID(uid, noColor)
@@ -402,7 +411,7 @@ func PrintResourceGetting(resourceType, uid string, noColor bool) *Spinner {
 }
 
 func PrintResourceGettingWithOutput(resourceType, uid string, noColor bool, outputFormat string) *Spinner {
-	if IsQuiet() {
+	if shouldSuppressSpinner() {
 		return newNoOpSpinner()
 	}
 	uidFormatted := FormatUID(uid, noColor)
@@ -413,7 +422,7 @@ func PrintResourceGettingWithOutput(resourceType, uid string, noColor bool, outp
 }
 
 func PrintListingResourceTags(resourceType, uid string, noColor bool) *Spinner {
-	if IsQuiet() {
+	if shouldSuppressSpinner() {
 		return newNoOpSpinner()
 	}
 	uidFormatted := FormatUID(uid, noColor)
@@ -424,7 +433,7 @@ func PrintListingResourceTags(resourceType, uid string, noColor bool) *Spinner {
 }
 
 func PrintResourceValidating(resourceType string, noColor bool) *Spinner {
-	if IsQuiet() {
+	if shouldSuppressSpinner() {
 		return newNoOpSpinner()
 	}
 	msg := fmt.Sprintf("Validating %s order...", resourceType)
@@ -457,7 +466,7 @@ func PrintLoggingInWithOutput(noColor bool, outputFormat string) *Spinner {
 }
 
 func PrintCustomSpinner(action, resourceId string, noColor bool) *Spinner {
-	if IsQuiet() {
+	if shouldSuppressSpinner() {
 		return newNoOpSpinner()
 	}
 	uidFormatted := FormatUID(resourceId, noColor)
