@@ -252,7 +252,10 @@ var testRTTs = []*megaport.RoundTripTime{
 	{SrcLocation: 67, DstLocation: 56, MedianRTT: 180.7},
 }
 
-func setupRTTMock(rtts []*megaport.RoundTripTime, err error) {
+// setupRTTMock configures mocks for RTT tests and returns a cleanup function
+// that restores the original getRoundTripTimesFunc.
+func setupRTTMock(rtts []*megaport.RoundTripTime, err error) func() {
+	origFunc := getRoundTripTimesFunc
 	config.SetNewUnauthenticatedClientFunc(func() (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.LocationService = &MockLocationsService{
@@ -264,6 +267,7 @@ func setupRTTMock(rtts []*megaport.RoundTripTime, err error) {
 	getRoundTripTimesFunc = func(ctx context.Context, client *megaport.Client, srcLocationID, year, month int) ([]*megaport.RoundTripTime, error) {
 		return client.LocationService.GetRoundTripTimes(ctx, srcLocationID, year, month)
 	}
+	return func() { getRoundTripTimesFunc = origFunc }
 }
 
 func TestGetRoundTripTimes(t *testing.T) {
@@ -272,18 +276,20 @@ func TestGetRoundTripTimes(t *testing.T) {
 
 	origTimeNow := timeNow
 	defer func() { timeNow = origTimeNow }()
+	// Fixed date for deterministic default year/month in tests.
 	timeNow = func() time.Time { return time.Date(2026, 4, 10, 0, 0, 0, 0, time.UTC) }
 
 	tests := []struct {
-		name          string
-		srcLocation   string
-		dstLocation   string
-		year          string
-		month         string
-		mockRTTs      []*megaport.RoundTripTime
-		mockErr       error
-		expectedError string
-		expectedOut   string
+		name           string
+		srcLocation    string
+		dstLocation    string
+		year           string
+		month          string
+		mockRTTs       []*megaport.RoundTripTime
+		mockErr        error
+		expectedError  string
+		expectedOut    string
+		notExpectedOut string
 	}{
 		{
 			name:        "success with results",
@@ -292,11 +298,12 @@ func TestGetRoundTripTimes(t *testing.T) {
 			expectedOut: "67",
 		},
 		{
-			name:        "success with dst-location filter",
-			srcLocation: "67",
-			dstLocation: "3",
-			mockRTTs:    testRTTs,
-			expectedOut: "1.5",
+			name:           "success with dst-location filter excludes non-matches",
+			srcLocation:    "67",
+			dstLocation:    "3",
+			mockRTTs:       testRTTs,
+			expectedOut:    "1.5",
+			notExpectedOut: "150.3",
 		},
 		{
 			name:        "success with explicit year and month",
@@ -322,11 +329,18 @@ func TestGetRoundTripTimes(t *testing.T) {
 			srcLocation:   "0",
 			expectedError: "--src-location is required",
 		},
+		{
+			name:          "invalid month",
+			srcLocation:   "67",
+			month:         "13",
+			expectedError: "--month must be between 1 and 12",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			setupRTTMock(tt.mockRTTs, tt.mockErr)
+			cleanup := setupRTTMock(tt.mockRTTs, tt.mockErr)
+			defer cleanup()
 
 			cmd := testutil.NewCommand("rtt", testutil.OutputAdapter(GetRoundTripTimes))
 			cmd.Flags().Int("src-location", 0, "")
@@ -360,6 +374,9 @@ func TestGetRoundTripTimes(t *testing.T) {
 				if tt.expectedOut != "" {
 					assert.Contains(t, capturedOutput, tt.expectedOut)
 				}
+				if tt.notExpectedOut != "" {
+					assert.NotContains(t, capturedOutput, tt.notExpectedOut)
+				}
 			}
 		})
 	}
@@ -369,7 +386,11 @@ func TestGetRoundTripTimesJSONOutput(t *testing.T) {
 	origClientFunc := config.GetNewUnauthenticatedClientFunc()
 	defer config.SetNewUnauthenticatedClientFunc(origClientFunc)
 
-	setupRTTMock(testRTTs, nil)
+	origTimeNow := timeNow
+	defer func() { timeNow = origTimeNow }()
+
+	cleanup := setupRTTMock(testRTTs, nil)
+	defer cleanup()
 
 	cmd := testutil.NewCommand("rtt", testutil.OutputAdapter(GetRoundTripTimes))
 	cmd.Flags().Int("src-location", 0, "")
