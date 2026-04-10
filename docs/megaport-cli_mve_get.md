@@ -16,6 +16,8 @@ This command retrieves and displays detailed information for a single Megaport V
 ```sh
   megaport-cli mve get a1b2c3d4-e5f6-7890-1234-567890abcdef
   megaport-cli mve get a1b2c3d4-e5f6-7890-1234-567890abcdef --export
+  megaport-cli mve get a1b2c3d4-e5f6-7890-1234-567890abcdef --watch
+  megaport-cli mve get a1b2c3d4-e5f6-7890-1234-567890abcdef --watch --interval 10s
 ```
 
 ## Usage
@@ -37,6 +39,8 @@ megaport-cli mve get [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 | `--export` |  | `false` | Output recreatable JSON config for use with buy --json (excludes read-only fields; vendorConfig not available from API) | false |
+| `--interval` |  | `5s` | Polling interval for --watch mode (e.g. 5s, 1m) | false |
+| `--watch` | `-w` | `false` | Continuously poll and display resource status (Ctrl+C to stop) | false |
 
 ## Subcommands
 * [docs](megaport-cli_mve_get_docs.md)
