@@ -326,6 +326,31 @@ func TestCapitalizeFirst(t *testing.T) {
 	assert.Equal(t, "ALREADY", capitalizeFirst("ALREADY"))
 }
 
+func TestNormalizeEnvironment(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"production", "production"},
+		{"prod", "production"},
+		{"PRODUCTION", "production"},
+		{"staging", "staging"},
+		{"STAGING", "staging"},
+		{"development", "development"},
+		{"dev", "development"},
+		{"DEV", "development"},
+		{"", "production"},
+		{"  staging  ", "staging"},
+		{"unknown", "production"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			assert.Equal(t, tt.expected, normalizeEnvironment(tt.input))
+		})
+	}
+}
+
 func TestResolveProfileInfo(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -389,6 +414,22 @@ func TestResolveProfileInfo(t *testing.T) {
 			envOverride:     "",
 			megaportEnvVar:  "development",
 			expectedProfile: "some-profile",
+			expectedEnv:     "development",
+		},
+		{
+			name:            "non-canonical env var is normalized",
+			profileOverride: "",
+			envOverride:     "",
+			megaportEnvVar:  "prod",
+			expectedProfile: "(env vars)",
+			expectedEnv:     "production",
+		},
+		{
+			name:            "non-canonical env flag is normalized",
+			profileOverride: "",
+			envOverride:     "dev",
+			megaportEnvVar:  "",
+			expectedProfile: "(env vars)",
 			expectedEnv:     "development",
 		},
 	}

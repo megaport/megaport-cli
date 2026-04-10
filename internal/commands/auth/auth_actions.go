@@ -100,9 +100,15 @@ func findCurrentUser(users []*megaport.User) *megaport.User {
 //
 // Profile: --profile flag > active profile from config > "(env vars)"
 // Environment: --env flag > named profile env > active profile env > MEGAPORT_ENVIRONMENT > "production"
+//
+// The returned environment is always normalized to a canonical name:
+// "production", "staging", or "development".
 func resolveProfileInfo() (profileName, environment string) {
 	profileName = "(env vars)"
-	environment = "production"
+
+	// Build environment using the same precedence as config.resolveEnvironment:
+	// track it as empty until explicitly set, then normalize at the end.
+	var env string
 
 	if utils.ProfileOverride != "" {
 		// --profile flag is set: read that specific named profile (same as config.Login)
@@ -111,34 +117,53 @@ func resolveProfileInfo() (profileName, environment string) {
 		if err == nil {
 			profile, err := manager.GetProfile(utils.ProfileOverride)
 			if err == nil && profile.Environment != "" {
-				environment = profile.Environment
+				env = profile.Environment
 			}
+		}
+		// --env flag overrides the profile's environment
+		if utils.Env != "" {
+			env = utils.Env
+		}
+		// Fall back to env var if still not set
+		if env == "" {
+			env = os.Getenv("MEGAPORT_ENVIRONMENT")
 		}
 	} else {
-		// No --profile flag: read the active profile from config
-		manager, err := config.NewConfigManager()
-		if err == nil {
-			profile, name, err := manager.GetCurrentProfile()
+		if utils.Env != "" {
+			env = utils.Env
+		} else {
+			// No --env flag: read the active profile from config
+			manager, err := config.NewConfigManager()
 			if err == nil {
-				profileName = name
-				if profile.Environment != "" {
-					environment = profile.Environment
+				profile, name, err := manager.GetCurrentProfile()
+				if err == nil {
+					profileName = name
+					if profile.Environment != "" {
+						env = profile.Environment
+					}
 				}
+			}
+			if env == "" {
+				env = os.Getenv("MEGAPORT_ENVIRONMENT")
 			}
 		}
 	}
 
-	// --env flag overrides profile environment (same as resolveEnvironment)
-	if utils.Env != "" {
-		environment = utils.Env
-	}
-
-	// MEGAPORT_ENVIRONMENT env var is the final fallback before the default
-	if environment == "production" && utils.Env == "" {
-		if envVar := os.Getenv("MEGAPORT_ENVIRONMENT"); envVar != "" {
-			environment = envVar
-		}
-	}
-
+	environment = normalizeEnvironment(env)
 	return profileName, environment
+}
+
+// normalizeEnvironment converts environment strings to canonical names,
+// matching the behavior of config.normalizeEnvironment.
+func normalizeEnvironment(env string) string {
+	switch strings.ToLower(strings.TrimSpace(env)) {
+	case "production", "prod":
+		return "production"
+	case "staging":
+		return "staging"
+	case "development", "dev":
+		return "development"
+	default:
+		return "production"
+	}
 }
