@@ -10,6 +10,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/testutil"
 	megaport "github.com/megaport/megaportgo"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -253,9 +254,10 @@ var testRTTs = []*megaport.RoundTripTime{
 }
 
 // setupRTTMock configures mocks for RTT tests and returns a cleanup function
-// that restores the original getRoundTripTimesFunc.
+// that restores both getRoundTripTimesFunc and the unauthenticated client func.
 func setupRTTMock(rtts []*megaport.RoundTripTime, err error) func() {
-	origFunc := getRoundTripTimesFunc
+	origRTTFunc := getRoundTripTimesFunc
+	origClientFunc := config.GetNewUnauthenticatedClientFunc()
 	config.SetNewUnauthenticatedClientFunc(func() (*megaport.Client, error) {
 		client := &megaport.Client{}
 		client.LocationService = &MockLocationsService{
@@ -267,13 +269,13 @@ func setupRTTMock(rtts []*megaport.RoundTripTime, err error) func() {
 	getRoundTripTimesFunc = func(ctx context.Context, client *megaport.Client, srcLocationID, year, month int) ([]*megaport.RoundTripTime, error) {
 		return client.LocationService.GetRoundTripTimes(ctx, srcLocationID, year, month)
 	}
-	return func() { getRoundTripTimesFunc = origFunc }
+	return func() {
+		getRoundTripTimesFunc = origRTTFunc
+		config.SetNewUnauthenticatedClientFunc(origClientFunc)
+	}
 }
 
 func TestGetRoundTripTimes(t *testing.T) {
-	origClientFunc := config.GetNewUnauthenticatedClientFunc()
-	defer config.SetNewUnauthenticatedClientFunc(origClientFunc)
-
 	origTimeNow := timeNow
 	defer func() { timeNow = origTimeNow }()
 	// Fixed date for deterministic default year/month in tests.
@@ -335,6 +337,20 @@ func TestGetRoundTripTimes(t *testing.T) {
 			month:         "13",
 			expectedError: "--month must be between 1 and 12",
 		},
+		{
+			name:          "negative year",
+			srcLocation:   "67",
+			year:          "-1",
+			month:         "3",
+			expectedError: "--year must be a positive integer",
+		},
+		{
+			name:          "invalid dst-location",
+			srcLocation:   "67",
+			dstLocation:   "0",
+			mockRTTs:      testRTTs,
+			expectedError: "--dst-location must be a positive integer",
+		},
 	}
 
 	for _, tt := range tests {
@@ -383,12 +399,6 @@ func TestGetRoundTripTimes(t *testing.T) {
 }
 
 func TestGetRoundTripTimesJSONOutput(t *testing.T) {
-	origClientFunc := config.GetNewUnauthenticatedClientFunc()
-	defer config.SetNewUnauthenticatedClientFunc(origClientFunc)
-
-	origTimeNow := timeNow
-	defer func() { timeNow = origTimeNow }()
-
 	cleanup := setupRTTMock(testRTTs, nil)
 	defer cleanup()
 
@@ -521,4 +531,41 @@ func TestPrintRoundTripTimes_Empty(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "[]\n", capturedOutput)
+}
+
+func TestAddCommandsTo(t *testing.T) {
+	root := &cobra.Command{Use: "megaport-cli"}
+	AddCommandsTo(root)
+
+	locationsFound := false
+	for _, cmd := range root.Commands() {
+		if cmd.Use == "locations" {
+			locationsFound = true
+			rttFound := false
+			for _, sub := range cmd.Commands() {
+				if sub.Use == "rtt" {
+					rttFound = true
+				}
+			}
+			assert.True(t, rttFound, "rtt subcommand should be registered under locations")
+		}
+	}
+	assert.True(t, locationsFound, "locations command should be registered")
+}
+
+func TestLocationsModule(t *testing.T) {
+	m := NewModule()
+	assert.Equal(t, "locations", m.Name())
+
+	root := &cobra.Command{Use: "megaport-cli"}
+	m.RegisterCommands(root)
+
+	found := false
+	for _, cmd := range root.Commands() {
+		if cmd.Use == "locations" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "RegisterCommands should add locations command")
 }
