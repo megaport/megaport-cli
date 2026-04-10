@@ -88,10 +88,6 @@ func printNATGatewaySessions(sessions []*megaport.NATGatewaySession, format stri
 }
 
 func printNATGatewayTelemetry(resp *megaport.ServiceTelemetryResponse, format string, noColor bool) error {
-	if resp == nil {
-		output.PrintInfo("No telemetry data available", noColor)
-		return nil
-	}
 	var outputs []natGatewayTelemetrySampleOutput
 	for _, metric := range resp.Data {
 		if metric == nil {
