@@ -67,7 +67,6 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 	WasmTableWriter.Reset() // Clear previous content
 	t.SetOutputMirror(WasmTableWriter)
 
-
 	// WASM-specific table configuration with improved column widths
 	// This ensures consistent, readable column distribution in the browser
 	columnConfigs := make([]prettytable.ColumnConfig, len(headers))

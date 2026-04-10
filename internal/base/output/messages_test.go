@@ -702,3 +702,42 @@ func TestLoginSpinnersNotSuppressedForCSV(t *testing.T) {
 	assert.False(t, spinner2.stopped, "login spinner with output should not be suppressed")
 	spinner2.Stop()
 }
+
+func TestStopWithSuccessDoesNotWriteToStdoutForCSV(t *testing.T) {
+	SetOutputFormat("csv")
+	SetIsTerminal(true)
+	defer func() {
+		SetOutputFormat("table")
+		SetIsTerminal(false)
+	}()
+
+	spinner := PrintResourceListing("test", true)
+	// Spinner is no-op, but StopWithSuccess should still not write to stdout.
+	stdoutOutput := captureOutput(func() {
+		spinner.StopWithSuccess("done")
+	})
+	assert.Empty(t, stdoutOutput, "StopWithSuccess should not write to stdout for csv format")
+}
+
+func TestStopWithSuccessDoesNotWriteToStdoutForXML(t *testing.T) {
+	SetOutputFormat("xml")
+	SetIsTerminal(true)
+	defer func() {
+		SetOutputFormat("table")
+		SetIsTerminal(false)
+	}()
+
+	spinner := PrintResourceGetting("test", "uid", true)
+	stdoutOutput := captureOutput(func() {
+		spinner.StopWithSuccess("done")
+	})
+	assert.Empty(t, stdoutOutput, "StopWithSuccess should not write to stdout for xml format")
+}
+
+func TestNoOpSpinnerCarriesOutputFormat(t *testing.T) {
+	SetOutputFormat("csv")
+	defer SetOutputFormat("table")
+
+	spinner := PrintResourceListing("test", true)
+	assert.Equal(t, "csv", spinner.outputFormat, "no-op spinner should carry the output format")
+}
