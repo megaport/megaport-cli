@@ -78,44 +78,55 @@ func promptForCreateNATGatewayDetails(noColor bool) (*megaport.CreateNATGatewayR
 func promptForUpdateNATGatewayDetails(uid string, noColor bool) (*megaport.UpdateNATGatewayRequest, error) {
 	req := &megaport.UpdateNATGatewayRequest{ProductUID: uid}
 
-	name, err := utils.ResourcePrompt("nat-gateway", "NAT Gateway name: ", noColor)
+	// All fields are optional for updates — empty input keeps the current value.
+	// The action layer merges unset fields from the original resource.
+	name, err := utils.ResourcePrompt("nat-gateway", "NAT Gateway name (leave empty to keep current): ", noColor)
 	if err != nil {
 		return nil, err
 	}
 	req.ProductName = strings.TrimSpace(name)
 
-	locationIDStr, err := utils.ResourcePrompt("nat-gateway", "Location ID: ", noColor)
+	locationIDStr, err := utils.ResourcePrompt("nat-gateway", "Location ID (leave empty to keep current): ", noColor)
 	if err != nil {
 		return nil, err
 	}
-	locationID, err := strconv.Atoi(strings.TrimSpace(locationIDStr))
-	if err != nil || locationID < 1 {
-		return nil, fmt.Errorf("invalid location ID: %s", locationIDStr)
+	locationIDStr = strings.TrimSpace(locationIDStr)
+	if locationIDStr != "" {
+		locationID, err := strconv.Atoi(locationIDStr)
+		if err != nil || locationID < 1 {
+			return nil, fmt.Errorf("invalid location ID: %s", locationIDStr)
+		}
+		req.LocationID = locationID
 	}
-	req.LocationID = locationID
 
-	speedStr, err := utils.ResourcePrompt("nat-gateway", "Speed (Mbps): ", noColor)
+	speedStr, err := utils.ResourcePrompt("nat-gateway", "Speed in Mbps (leave empty to keep current): ", noColor)
 	if err != nil {
 		return nil, err
 	}
-	speed, err := strconv.Atoi(strings.TrimSpace(speedStr))
-	if err != nil || speed < 1 {
-		return nil, fmt.Errorf("invalid speed: %s", speedStr)
+	speedStr = strings.TrimSpace(speedStr)
+	if speedStr != "" {
+		speed, err := strconv.Atoi(speedStr)
+		if err != nil || speed < 1 {
+			return nil, fmt.Errorf("invalid speed: %s", speedStr)
+		}
+		req.Speed = speed
 	}
-	req.Speed = speed
 
 	termStr, err := utils.ResourcePrompt("nat-gateway",
-		fmt.Sprintf("Contract term (%s months): ", validation.FormatIntSlice(validation.ValidContractTerms)), noColor)
+		fmt.Sprintf("Contract term in months (%s, leave empty to keep current): ", validation.FormatIntSlice(validation.ValidContractTerms)), noColor)
 	if err != nil {
 		return nil, err
 	}
-	term, err := strconv.Atoi(strings.TrimSpace(termStr))
-	if err != nil {
-		return nil, fmt.Errorf("invalid term: %s", termStr)
+	termStr = strings.TrimSpace(termStr)
+	if termStr != "" {
+		term, err := strconv.Atoi(termStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid term: %s", termStr)
+		}
+		req.Term = term
 	}
-	req.Term = term
 
-	sessionCountStr, err := utils.ResourcePrompt("nat-gateway", "Session count (optional, leave empty to keep current): ", noColor)
+	sessionCountStr, err := utils.ResourcePrompt("nat-gateway", "Session count (leave empty to keep current): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -128,14 +139,11 @@ func promptForUpdateNATGatewayDetails(uid string, noColor bool) (*megaport.Updat
 		req.Config.SessionCount = sc
 	}
 
-	diversityZone, err := utils.ResourcePrompt("nat-gateway", "Diversity zone (optional, leave empty to keep current): ", noColor)
+	diversityZone, err := utils.ResourcePrompt("nat-gateway", "Diversity zone (leave empty to keep current): ", noColor)
 	if err != nil {
 		return nil, err
 	}
 	req.Config.DiversityZone = strings.TrimSpace(diversityZone)
 
-	if err := validation.ValidateUpdateNATGatewayRequest(req); err != nil {
-		return nil, err
-	}
 	return req, nil
 }

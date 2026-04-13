@@ -228,6 +228,10 @@ func UpdateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("Failed to get original NAT Gateway: %v", noColor, err)
 		return err
 	}
+	if originalGW == nil {
+		output.PrintError("NAT Gateway %s not found", noColor, uid)
+		return fmt.Errorf("NAT Gateway %s not found", uid)
+	}
 
 	// Build the request from user input.
 	var req *megaport.UpdateNATGatewayRequest
@@ -412,6 +416,10 @@ func GetNATGatewayTelemetry(cmd *cobra.Command, args []string, noColor bool, out
 	if err != nil {
 		output.PrintError("Failed to get NAT Gateway telemetry: %v", noColor, err)
 		return fmt.Errorf("failed to get NAT Gateway telemetry: %w", err)
+	}
+	if resp == nil {
+		output.PrintError("NAT Gateway telemetry: empty response received", noColor)
+		return fmt.Errorf("NAT Gateway telemetry: empty response received")
 	}
 
 	return printNATGatewayTelemetry(resp, outputFormat, noColor)

@@ -78,10 +78,15 @@ func processFlagCreateNATGatewayInput(cmd *cobra.Command) (*megaport.CreateNATGa
 	autoRenew, _ := cmd.Flags().GetBool("auto-renew")
 
 	resourceTagsStr, _ := cmd.Flags().GetString("resource-tags")
+	resourceTagsFile, _ := cmd.Flags().GetString("resource-tags-file")
 	var resourceTags []megaport.ResourceTag
-	if resourceTagsStr != "" {
+	if resourceTagsStr != "" || resourceTagsFile != "" {
+		tagData, err := utils.ReadJSONInput(resourceTagsStr, resourceTagsFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read resource tags: %w", err)
+		}
 		var tagsMap map[string]string
-		if err := json.Unmarshal([]byte(resourceTagsStr), &tagsMap); err != nil {
+		if err := json.Unmarshal(tagData, &tagsMap); err != nil {
 			return nil, fmt.Errorf("failed to parse resource tags JSON: %w", err)
 		}
 		for k, v := range tagsMap {
