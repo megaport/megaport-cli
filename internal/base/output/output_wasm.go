@@ -138,8 +138,10 @@ func printCSV[T OutputFields](data []T) error {
 		return nil
 	}
 
-	if err := w.Write(headers); err != nil {
-		return err
+	if !getNoHeader() {
+		if err := w.Write(headers); err != nil {
+			return err
+		}
 	}
 
 	for _, item := range data {

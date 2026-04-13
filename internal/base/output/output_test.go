@@ -1289,6 +1289,7 @@ func TestNoHeaderTableSuppressesHeader(t *testing.T) {
 
 func TestNoHeaderTableWithHeaderEnabled(t *testing.T) {
 	SetNoHeader(false)
+	defer SetNoHeader(false)
 
 	data := []SimpleStruct{{ID: 1, Name: "beta", Active: false}}
 	out := CaptureOutput(func() {
@@ -1316,6 +1317,7 @@ func TestNoHeaderCSVSuppressesHeader(t *testing.T) {
 
 func TestNoHeaderCSVWithHeaderEnabled(t *testing.T) {
 	SetNoHeader(false)
+	defer SetNoHeader(false)
 
 	data := []SimpleStruct{{ID: 7, Name: "delta", Active: false}}
 	out := CaptureOutput(func() {

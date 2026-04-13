@@ -6,6 +6,7 @@ package megaport
 import (
 	"fmt"
 
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/base/registry"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/spf13/cobra"
@@ -14,6 +15,7 @@ import (
 // Common variables and declarations for WASM builds
 var (
 	noColor      bool
+	noHeader     bool
 	outputFormat string
 	quiet        bool
 	verbose      bool
@@ -82,11 +84,13 @@ func InitializeCommon() {
 	rootCmd.PersistentFlags().String("query", "", "JMESPath query to filter JSON output (requires --output json)")
 	rootCmd.PersistentFlags().BoolVar(&utils.NoRetry, "no-retry", false, "Disable automatic retry on transient API failures")
 	rootCmd.PersistentFlags().IntVar(&utils.MaxRetries, "max-retries", 3, "Maximum number of retries for transient API failures")
+	rootCmd.PersistentFlags().BoolVar(&noHeader, "no-header", false, "Suppress table and CSV column headers (useful for scripting)")
 	rootCmd.MarkFlagsMutuallyExclusive("quiet", "verbose")
 
 	// Validate retry flags in WASM builds too.
 	existingPreRunE := rootCmd.PersistentPreRunE
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		output.SetNoHeader(noHeader)
 		if utils.MaxRetries < 0 {
 			return fmt.Errorf("--max-retries must be >= 0, got %d", utils.MaxRetries)
 		}
