@@ -661,6 +661,15 @@ func TestAppendLogOpts(t *testing.T) {
 }
 
 func TestCLIHeadersSentOnRequests(t *testing.T) {
+	// Test the real NewUnauthenticatedClient production path to ensure
+	// cliHeaders is actually wired in, not just that the SDK accepts it.
+	originalFunc := GetNewUnauthenticatedClientFunc()
+	defer SetNewUnauthenticatedClientFunc(originalFunc)
+
+	originalEnv := utils.Env
+	defer func() { utils.Env = originalEnv }()
+	utils.Env = "production"
+
 	headersCh := make(chan http.Header, 1)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		headersCh <- r.Header.Clone()
@@ -669,10 +678,17 @@ func TestCLIHeadersSentOnRequests(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client, err := megaport.New(nil,
-		megaport.WithBaseURL(ts.URL+"/"),
-		megaport.WithCustomHeaders(cliHeaders),
-	)
+	// Use a temp config dir so profile resolution doesn't interfere
+	tempDir, err := os.MkdirTemp("", "megaport-header-test")
+	assert.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
+	t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+
+	client, err := NewUnauthenticatedClient()
+	assert.NoError(t, err)
+
+	// Point the real client at our test server
+	client.BaseURL, err = client.BaseURL.Parse(ts.URL + "/")
 	assert.NoError(t, err)
 
 	req, err := client.NewRequest(context.Background(), http.MethodGet, "/", nil)
