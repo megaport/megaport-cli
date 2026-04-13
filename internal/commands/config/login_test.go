@@ -3,6 +3,8 @@ package config
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -624,4 +626,28 @@ func TestLoginFuncAccessors(t *testing.T) {
 		assert.NotNil(t, client)
 		assert.True(t, called)
 	})
+}
+
+func TestCLIHeadersSentOnRequests(t *testing.T) {
+	var capturedHeaders http.Header
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedHeaders = r.Header
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"message":"ok"}`))
+	}))
+	defer ts.Close()
+
+	client, err := megaport.New(nil,
+		megaport.WithBaseURL(ts.URL+"/"),
+		megaport.WithCustomHeaders(cliHeaders),
+	)
+	assert.NoError(t, err)
+
+	req, err := client.NewRequest(context.Background(), http.MethodGet, "/", nil)
+	assert.NoError(t, err)
+
+	_, err = client.Do(context.Background(), req, nil)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "cli", capturedHeaders.Get("x-app"))
 }
