@@ -258,6 +258,19 @@ func TestGetNATGatewayTelemetry_InvalidToTime(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid --to time")
 }
 
+func TestGetNATGatewayTelemetry_NoTimeWindow(t *testing.T) {
+	mock := &MockNATGatewayService{}
+	defer setupMockNATGateway(mock)()
+
+	cmd := newTestCmd("telemetry")
+	require.NoError(t, cmd.Flags().Set("types", "BITS"))
+	// Neither --days nor --from/--to is set
+
+	err := GetNATGatewayTelemetry(cmd, []string{"uid-tel"}, true, "table")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "time window is required")
+}
+
 func TestGetNATGatewayTelemetry_MultipleTypes(t *testing.T) {
 	mock := &MockNATGatewayService{
 		TelemetryResult: &megaport.ServiceTelemetryResponse{

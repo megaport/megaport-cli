@@ -243,7 +243,7 @@ var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 
 // appendLogOpts appends HTTP debug logging options to the client option slice
 // when --log-http is enabled. Logs go to stderr at DEBUG level with sensitive
-// fields (access keys, response bodies from auth endpoints) redacted.
+// fields (access keys, tokens, and all response bodies) redacted.
 func appendLogOpts(opts []megaport.ClientOpt) []megaport.ClientOpt {
 	result := append([]megaport.ClientOpt(nil), opts...)
 	if utils.LogHTTP {

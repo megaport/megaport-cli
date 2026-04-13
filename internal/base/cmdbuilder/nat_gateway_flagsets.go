@@ -39,7 +39,8 @@ func (b *CommandBuilder) WithNATGatewayUpdateFlags() *CommandBuilder {
 		WithFlag("service-level-reference", "", "A service level reference").
 		WithOptionalFlag("service-level-reference", "A service level reference").
 		WithBoolFlag("auto-renew", false, "Whether to automatically renew the contract term").
-		WithOptionalFlag("auto-renew", "Whether to automatically renew the contract term")
+		WithOptionalFlag("auto-renew", "Whether to automatically renew the contract term").
+		WithResourceTagFlags()
 	return b
 }
 

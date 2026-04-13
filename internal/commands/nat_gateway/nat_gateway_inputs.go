@@ -196,6 +196,23 @@ func processFlagUpdateNATGatewayInput(cmd *cobra.Command, uid string) (*megaport
 	serviceLevelRef, _ := cmd.Flags().GetString("service-level-reference")
 	autoRenew, _ := cmd.Flags().GetBool("auto-renew")
 
+	resourceTagsStr, _ := cmd.Flags().GetString("resource-tags")
+	resourceTagsFile, _ := cmd.Flags().GetString("resource-tags-file")
+	var resourceTags []megaport.ResourceTag
+	if resourceTagsStr != "" || resourceTagsFile != "" {
+		tagData, err := utils.ReadJSONInput(resourceTagsStr, resourceTagsFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read resource tags: %w", err)
+		}
+		var tagsMap map[string]string
+		if err := json.Unmarshal(tagData, &tagsMap); err != nil {
+			return nil, fmt.Errorf("failed to parse resource tags JSON: %w", err)
+		}
+		for k, v := range tagsMap {
+			resourceTags = append(resourceTags, megaport.ResourceTag{Key: k, Value: v})
+		}
+	}
+
 	req := &megaport.UpdateNATGatewayRequest{
 		ProductUID:            uid,
 		ProductName:           name,
@@ -205,6 +222,7 @@ func processFlagUpdateNATGatewayInput(cmd *cobra.Command, uid string) (*megaport
 		AutoRenewTerm:         autoRenew,
 		PromoCode:             promoCode,
 		ServiceLevelReference: serviceLevelRef,
+		ResourceTags:          resourceTags,
 		Config: megaport.NATGatewayNetworkConfig{
 			DiversityZone: diversityZone,
 			SessionCount:  sessionCount,

@@ -18,6 +18,12 @@ func ValidateCreateNATGatewayRequest(req *megaport.CreateNATGatewayRequest) erro
 	if err := ValidateContractTerm(req.Term); err != nil {
 		return err
 	}
+	if req.Config.SessionCount < 0 {
+		return NewValidationError("session count", req.Config.SessionCount, "must be a non-negative integer")
+	}
+	if req.Config.ASN < 0 {
+		return NewValidationError("ASN", req.Config.ASN, "must be a non-negative integer")
+	}
 	return nil
 }
 
@@ -40,6 +46,12 @@ func ValidateUpdateNATGatewayRequest(req *megaport.UpdateNATGatewayRequest) erro
 	}
 	if err := ValidateContractTerm(req.Term); err != nil {
 		return err
+	}
+	if req.Config.SessionCount < 0 {
+		return NewValidationError("session count", req.Config.SessionCount, "must be a non-negative integer")
+	}
+	if req.Config.ASN < 0 {
+		return NewValidationError("ASN", req.Config.ASN, "must be a non-negative integer")
 	}
 	return nil
 }

@@ -215,7 +215,8 @@ func UpdateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 		cmd.Flags().Changed("speed") || cmd.Flags().Changed("location-id") ||
 		cmd.Flags().Changed("session-count") || cmd.Flags().Changed("diversity-zone") ||
 		cmd.Flags().Changed("promo-code") || cmd.Flags().Changed("service-level-reference") ||
-		cmd.Flags().Changed("auto-renew")
+		cmd.Flags().Changed("auto-renew") || cmd.Flags().Changed("resource-tags") ||
+		cmd.Flags().Changed("resource-tags-file")
 
 	if jsonStr == "" && jsonFile == "" && !flagsProvided && !interactive {
 		return fmt.Errorf("at least one field must be updated")
@@ -440,6 +441,8 @@ func GetNATGatewayTelemetry(cmd *cobra.Command, args []string, noColor bool, out
 		}
 		req.From = &from
 		req.To = &to
+	} else {
+		return fmt.Errorf("a time window is required: use --days or --from/--to")
 	}
 
 	spinner := output.PrintResourceGetting("NAT Gateway telemetry", uid, noColor)

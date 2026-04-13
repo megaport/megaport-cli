@@ -117,6 +117,40 @@ func TestValidateCreateNATGatewayRequest(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "negative session count",
+			req: &megaport.CreateNATGatewayRequest{
+				ProductName: "GW",
+				LocationID:  1,
+				Speed:       100,
+				Term:        12,
+				Config:      megaport.NATGatewayNetworkConfig{SessionCount: -1},
+			},
+			wantErr: true,
+			errMsg:  "session count",
+		},
+		{
+			name: "negative ASN",
+			req: &megaport.CreateNATGatewayRequest{
+				ProductName: "GW",
+				LocationID:  1,
+				Speed:       100,
+				Term:        12,
+				Config:      megaport.NATGatewayNetworkConfig{ASN: -1},
+			},
+			wantErr: true,
+			errMsg:  "ASN",
+		},
+		{
+			name: "zero session count is valid (unset/default)",
+			req: &megaport.CreateNATGatewayRequest{
+				ProductName: "GW",
+				LocationID:  1,
+				Speed:       100,
+				Term:        12,
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -206,6 +240,32 @@ func TestValidateUpdateNATGatewayRequest(t *testing.T) {
 			},
 			wantErr: true,
 			errMsg:  "contract term",
+		},
+		{
+			name: "negative session count",
+			req: &megaport.UpdateNATGatewayRequest{
+				ProductUID:  "uid-123",
+				ProductName: "GW",
+				LocationID:  100,
+				Speed:       1000,
+				Term:        12,
+				Config:      megaport.NATGatewayNetworkConfig{SessionCount: -1},
+			},
+			wantErr: true,
+			errMsg:  "session count",
+		},
+		{
+			name: "negative ASN",
+			req: &megaport.UpdateNATGatewayRequest{
+				ProductUID:  "uid-123",
+				ProductName: "GW",
+				LocationID:  100,
+				Speed:       1000,
+				Term:        12,
+				Config:      megaport.NATGatewayNetworkConfig{ASN: -1},
+			},
+			wantErr: true,
+			errMsg:  "ASN",
 		},
 	}
 
