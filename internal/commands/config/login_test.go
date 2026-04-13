@@ -625,3 +625,34 @@ func TestLoginFuncAccessors(t *testing.T) {
 		assert.True(t, called)
 	})
 }
+
+func TestAppendLogOpts(t *testing.T) {
+	t.Run("adds log options when LogHTTP is true", func(t *testing.T) {
+		origLogHTTP := utils.LogHTTP
+		defer func() { utils.LogHTTP = origLogHTTP }()
+
+		utils.LogHTTP = true
+		opts := appendLogOpts([]megaport.ClientOpt{})
+		// WithLogHandler and WithLogResponseBody should be appended
+		assert.Len(t, opts, 2, "should add 2 log options when LogHTTP is enabled")
+	})
+
+	t.Run("does not add log options when LogHTTP is false", func(t *testing.T) {
+		origLogHTTP := utils.LogHTTP
+		defer func() { utils.LogHTTP = origLogHTTP }()
+
+		utils.LogHTTP = false
+		opts := appendLogOpts([]megaport.ClientOpt{})
+		assert.Empty(t, opts, "should not add options when LogHTTP is disabled")
+	})
+
+	t.Run("preserves existing options", func(t *testing.T) {
+		origLogHTTP := utils.LogHTTP
+		defer func() { utils.LogHTTP = origLogHTTP }()
+
+		utils.LogHTTP = true
+		existing := []megaport.ClientOpt{megaport.WithEnvironment(megaport.EnvironmentStaging)}
+		opts := appendLogOpts(existing)
+		assert.Len(t, opts, 3, "should preserve existing option and add 2 log options")
+	})
+}

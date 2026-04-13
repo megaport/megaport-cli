@@ -203,11 +203,7 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 	envOpt := environmentOption(env)
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 
-	opts := []megaport.ClientOpt{megaport.WithCredentials(accessKey, secretKey), envOpt}
-	if utils.LogHTTP {
-		handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
-		opts = append(opts, megaport.WithLogHandler(handler), megaport.WithLogResponseBody())
-	}
+	opts := appendLogOpts([]megaport.ClientOpt{megaport.WithCredentials(accessKey, secretKey), envOpt})
 	megaportClient, err := megaport.New(httpClient, opts...)
 	if err != nil {
 		return nil, err
@@ -242,12 +238,18 @@ var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 	envOpt := environmentOption(env)
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 
-	opts := []megaport.ClientOpt{envOpt}
+	opts := appendLogOpts([]megaport.ClientOpt{envOpt})
+	return megaport.New(httpClient, opts...)
+}
+
+// appendLogOpts appends HTTP debug logging options to the client option slice
+// when --log-http is enabled. Logs go to stderr at DEBUG level.
+func appendLogOpts(opts []megaport.ClientOpt) []megaport.ClientOpt {
 	if utils.LogHTTP {
 		handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
 		opts = append(opts, megaport.WithLogHandler(handler), megaport.WithLogResponseBody())
 	}
-	return megaport.New(httpClient, opts...)
+	return opts
 }
 
 // NewUnauthenticatedClient creates an unauthenticated Megaport API client.
