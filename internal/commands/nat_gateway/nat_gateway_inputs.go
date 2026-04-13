@@ -115,10 +115,14 @@ func processFlagCreateNATGatewayInput(cmd *cobra.Command) (*megaport.CreateNATGa
 	return req, nil
 }
 
-func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.UpdateNATGatewayRequest, error) {
+// processJSONUpdateNATGatewayInput parses a JSON update request and returns the
+// request along with explicit-presence flags for bool fields that have no
+// omitempty. When a *bool pointer is nil the field was absent from the JSON and
+// mergeUpdateDefaults will inherit the original value instead.
+func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.UpdateNATGatewayRequest, bool, bool, error) {
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
-		return nil, err
+		return nil, false, false, err
 	}
 
 	var raw struct {
@@ -129,14 +133,25 @@ func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.
 		SessionCount          int               `json:"sessionCount"`
 		DiversityZone         string            `json:"diversityZone"`
 		ASN                   int               `json:"asn"`
-		BGPShutdownDefault    bool              `json:"bgpShutdownDefault"`
-		AutoRenewTerm         bool              `json:"autoRenewTerm"`
+		BGPShutdownDefault    *bool             `json:"bgpShutdownDefault"`
+		AutoRenewTerm         *bool             `json:"autoRenewTerm"`
 		PromoCode             string            `json:"promoCode"`
 		ServiceLevelReference string            `json:"serviceLevelReference"`
 		ResourceTags          map[string]string `json:"resourceTags"`
 	}
 	if err := json.Unmarshal(jsonData, &raw); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, false, false, fmt.Errorf("failed to parse JSON: %w", err)
+	}
+
+	autoRenewExplicit := raw.AutoRenewTerm != nil
+	bgpShutdownExplicit := raw.BGPShutdownDefault != nil
+
+	var autoRenew, bgpShutdown bool
+	if raw.AutoRenewTerm != nil {
+		autoRenew = *raw.AutoRenewTerm
+	}
+	if raw.BGPShutdownDefault != nil {
+		bgpShutdown = *raw.BGPShutdownDefault
 	}
 
 	req := &megaport.UpdateNATGatewayRequest{
@@ -145,12 +160,12 @@ func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.
 		LocationID:            raw.LocationID,
 		Speed:                 raw.Speed,
 		Term:                  raw.Term,
-		AutoRenewTerm:         raw.AutoRenewTerm,
+		AutoRenewTerm:         autoRenew,
 		PromoCode:             raw.PromoCode,
 		ServiceLevelReference: raw.ServiceLevelReference,
 		Config: megaport.NATGatewayNetworkConfig{
 			ASN:                raw.ASN,
-			BGPShutdownDefault: raw.BGPShutdownDefault,
+			BGPShutdownDefault: bgpShutdown,
 			DiversityZone:      raw.DiversityZone,
 			SessionCount:       raw.SessionCount,
 		},
@@ -164,7 +179,7 @@ func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.
 		req.ResourceTags = tags
 	}
 
-	return req, nil
+	return req, autoRenewExplicit, bgpShutdownExplicit, nil
 }
 
 func processFlagUpdateNATGatewayInput(cmd *cobra.Command, uid string) (*megaport.UpdateNATGatewayRequest, error) {

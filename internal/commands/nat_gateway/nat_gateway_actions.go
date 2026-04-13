@@ -239,16 +239,21 @@ func UpdateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	// Build the request from user input.
+	// autoRenewExplicit / bgpShutdownExplicit track whether the caller
+	// explicitly set those bool fields.  mergeUpdateDefaults uses them to
+	// distinguish "user wants false" from "user omitted the field".
 	var req *megaport.UpdateNATGatewayRequest
+	var autoRenewExplicit, bgpShutdownExplicit bool
 
 	if jsonStr != "" || jsonFile != "" {
 		output.PrintInfo("Using JSON input", noColor)
-		req, err = processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid)
+		req, autoRenewExplicit, bgpShutdownExplicit, err = processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid)
 	} else if flagsProvided {
 		output.PrintInfo("Using flag input", noColor)
 		req, err = processFlagUpdateNATGatewayInput(cmd, uid)
+		autoRenewExplicit = cmd.Flags().Changed("auto-renew")
 	} else if interactive {
-		req, err = promptForUpdateNATGatewayDetails(uid, noColor)
+		req, autoRenewExplicit, err = promptForUpdateNATGatewayDetails(uid, noColor)
 	}
 	if err != nil {
 		output.PrintError("Failed to process input: %v", noColor, err)
@@ -257,7 +262,7 @@ func UpdateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 
 	// Merge: fill in unset fields from the original gateway so partial
 	// updates work without requiring every field.
-	mergeUpdateDefaults(req, originalGW)
+	mergeUpdateDefaults(req, originalGW, autoRenewExplicit, bgpShutdownExplicit)
 
 	if err := validation.ValidateUpdateNATGatewayRequest(req); err != nil {
 		output.PrintError("Validation failed: %v", noColor, err)
@@ -285,7 +290,12 @@ func UpdateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 
 // mergeUpdateDefaults fills zero-valued fields in the update request with
 // values from the original NAT Gateway, enabling partial updates.
-func mergeUpdateDefaults(req *megaport.UpdateNATGatewayRequest, original *megaport.NATGateway) {
+//
+// autoRenewExplicit and bgpShutdownExplicit indicate that the caller explicitly
+// provided those bool fields (e.g. via a changed flag or a non-nil JSON
+// pointer). When true, the original value is NOT inherited, preserving an
+// intentional false.
+func mergeUpdateDefaults(req *megaport.UpdateNATGatewayRequest, original *megaport.NATGateway, autoRenewExplicit, bgpShutdownExplicit bool) {
 	if original == nil {
 		return
 	}
@@ -311,13 +321,12 @@ func mergeUpdateDefaults(req *megaport.UpdateNATGatewayRequest, original *megapo
 		req.Config.ASN = original.Config.ASN
 	}
 	// AutoRenewTerm and BGPShutdownDefault have no omitempty — false is always
-	// serialised. Inherit from the original so partial updates don't silently
-	// disable these. Users who need to explicitly set them to false can do so
-	// via JSON input with the field present.
-	if !req.AutoRenewTerm {
+	// serialised. Only inherit when the caller did not explicitly provide the
+	// field, so a deliberate false is preserved.
+	if !autoRenewExplicit && !req.AutoRenewTerm {
 		req.AutoRenewTerm = original.AutoRenewTerm
 	}
-	if !req.Config.BGPShutdownDefault {
+	if !bgpShutdownExplicit && !req.Config.BGPShutdownDefault {
 		req.Config.BGPShutdownDefault = original.Config.BGPShutdownDefault
 	}
 }

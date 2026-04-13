@@ -69,45 +69,75 @@ func promptForCreateNATGatewayDetails(noColor bool) (*megaport.CreateNATGatewayR
 	}
 	req.Config.DiversityZone = strings.TrimSpace(diversityZone)
 
+	autoRenewStr, err := utils.ResourcePrompt("nat-gateway", "Auto-renew (y/n, leave empty for no): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	req.AutoRenewTerm = strings.TrimSpace(autoRenewStr) == "y"
+
+	promoCode, err := utils.ResourcePrompt("nat-gateway", "Promo code (optional, leave empty to skip): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	req.PromoCode = strings.TrimSpace(promoCode)
+
+	serviceLevelRef, err := utils.ResourcePrompt("nat-gateway", "Service level reference (optional, leave empty to skip): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	req.ServiceLevelReference = strings.TrimSpace(serviceLevelRef)
+
+	tagsMap, err := utils.ResourceTagsPrompt(noColor)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range tagsMap {
+		req.ResourceTags = append(req.ResourceTags, megaport.ResourceTag{Key: k, Value: v})
+	}
+
 	if err := validation.ValidateCreateNATGatewayRequest(req); err != nil {
 		return nil, err
 	}
 	return req, nil
 }
 
-func promptForUpdateNATGatewayDetails(uid string, noColor bool) (*megaport.UpdateNATGatewayRequest, error) {
+// promptForUpdateNATGatewayDetails prompts the user for update fields interactively.
+// It returns the request, a bool indicating whether auto-renew was explicitly set
+// (so mergeUpdateDefaults can distinguish an explicit false from an omitted field),
+// and any error.
+func promptForUpdateNATGatewayDetails(uid string, noColor bool) (*megaport.UpdateNATGatewayRequest, bool, error) {
 	req := &megaport.UpdateNATGatewayRequest{ProductUID: uid}
 
 	// All fields are optional for updates — empty input keeps the current value.
 	// The action layer merges unset fields from the original resource.
 	name, err := utils.ResourcePrompt("nat-gateway", "NAT Gateway name (leave empty to keep current): ", noColor)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	req.ProductName = strings.TrimSpace(name)
 
 	locationIDStr, err := utils.ResourcePrompt("nat-gateway", "Location ID (leave empty to keep current): ", noColor)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	locationIDStr = strings.TrimSpace(locationIDStr)
 	if locationIDStr != "" {
 		locationID, err := strconv.Atoi(locationIDStr)
 		if err != nil || locationID < 1 {
-			return nil, fmt.Errorf("invalid location ID: %s", locationIDStr)
+			return nil, false, fmt.Errorf("invalid location ID: %s", locationIDStr)
 		}
 		req.LocationID = locationID
 	}
 
 	speedStr, err := utils.ResourcePrompt("nat-gateway", "Speed in Mbps (leave empty to keep current): ", noColor)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	speedStr = strings.TrimSpace(speedStr)
 	if speedStr != "" {
 		speed, err := strconv.Atoi(speedStr)
 		if err != nil || speed < 1 {
-			return nil, fmt.Errorf("invalid speed: %s", speedStr)
+			return nil, false, fmt.Errorf("invalid speed: %s", speedStr)
 		}
 		req.Speed = speed
 	}
@@ -115,35 +145,65 @@ func promptForUpdateNATGatewayDetails(uid string, noColor bool) (*megaport.Updat
 	termStr, err := utils.ResourcePrompt("nat-gateway",
 		fmt.Sprintf("Contract term in months (%s, leave empty to keep current): ", validation.FormatIntSlice(validation.ValidContractTerms)), noColor)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	termStr = strings.TrimSpace(termStr)
 	if termStr != "" {
 		term, err := strconv.Atoi(termStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid term: %s", termStr)
+			return nil, false, fmt.Errorf("invalid term: %s", termStr)
 		}
 		req.Term = term
 	}
 
 	sessionCountStr, err := utils.ResourcePrompt("nat-gateway", "Session count (leave empty to keep current): ", noColor)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	sessionCountStr = strings.TrimSpace(sessionCountStr)
 	if sessionCountStr != "" {
 		sc, err := strconv.Atoi(sessionCountStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid session count: %s", sessionCountStr)
+			return nil, false, fmt.Errorf("invalid session count: %s", sessionCountStr)
 		}
 		req.Config.SessionCount = sc
 	}
 
 	diversityZone, err := utils.ResourcePrompt("nat-gateway", "Diversity zone (leave empty to keep current): ", noColor)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	req.Config.DiversityZone = strings.TrimSpace(diversityZone)
 
-	return req, nil
+	autoRenewStr, err := utils.ResourcePrompt("nat-gateway", "Auto-renew (y/n, leave empty to keep current): ", noColor)
+	if err != nil {
+		return nil, false, err
+	}
+	autoRenewStr = strings.TrimSpace(autoRenewStr)
+	autoRenewExplicit := autoRenewStr != ""
+	if autoRenewExplicit {
+		req.AutoRenewTerm = autoRenewStr == "y"
+	}
+
+	promoCode, err := utils.ResourcePrompt("nat-gateway", "Promo code (leave empty to keep current): ", noColor)
+	if err != nil {
+		return nil, false, err
+	}
+	req.PromoCode = strings.TrimSpace(promoCode)
+
+	serviceLevelRef, err := utils.ResourcePrompt("nat-gateway", "Service level reference (leave empty to keep current): ", noColor)
+	if err != nil {
+		return nil, false, err
+	}
+	req.ServiceLevelReference = strings.TrimSpace(serviceLevelRef)
+
+	tagsMap, err := utils.ResourceTagsPrompt(noColor)
+	if err != nil {
+		return nil, false, err
+	}
+	for k, v := range tagsMap {
+		req.ResourceTags = append(req.ResourceTags, megaport.ResourceTag{Key: k, Value: v})
+	}
+
+	return req, autoRenewExplicit, nil
 }

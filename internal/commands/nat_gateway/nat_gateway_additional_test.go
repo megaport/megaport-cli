@@ -458,7 +458,7 @@ func TestProcessJSONUpdateNATGatewayInput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req, err := processJSONUpdateNATGatewayInput(tt.json, "", tt.uid)
+			req, _, _, err := processJSONUpdateNATGatewayInput(tt.json, "", tt.uid)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -469,6 +469,69 @@ func TestProcessJSONUpdateNATGatewayInput(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProcessJSONUpdateNATGatewayInputBoolPresence(t *testing.T) {
+	t.Run("autoRenewTerm absent returns explicit=false", func(t *testing.T) {
+		_, autoRenewExplicit, _, err := processJSONUpdateNATGatewayInput(`{"name":"GW"}`, "", "uid")
+		assert.NoError(t, err)
+		assert.False(t, autoRenewExplicit)
+	})
+	t.Run("autoRenewTerm present true returns explicit=true and value=true", func(t *testing.T) {
+		req, autoRenewExplicit, _, err := processJSONUpdateNATGatewayInput(`{"autoRenewTerm":true}`, "", "uid")
+		assert.NoError(t, err)
+		assert.True(t, autoRenewExplicit)
+		assert.True(t, req.AutoRenewTerm)
+	})
+	t.Run("autoRenewTerm present false returns explicit=true and value=false", func(t *testing.T) {
+		req, autoRenewExplicit, _, err := processJSONUpdateNATGatewayInput(`{"autoRenewTerm":false}`, "", "uid")
+		assert.NoError(t, err)
+		assert.True(t, autoRenewExplicit, "explicit false must be tracked so mergeUpdateDefaults does not override it")
+		assert.False(t, req.AutoRenewTerm)
+	})
+	t.Run("bgpShutdownDefault absent returns explicit=false", func(t *testing.T) {
+		_, _, bgpExplicit, err := processJSONUpdateNATGatewayInput(`{"name":"GW"}`, "", "uid")
+		assert.NoError(t, err)
+		assert.False(t, bgpExplicit)
+	})
+	t.Run("bgpShutdownDefault present false returns explicit=true and value=false", func(t *testing.T) {
+		req, _, bgpExplicit, err := processJSONUpdateNATGatewayInput(`{"bgpShutdownDefault":false}`, "", "uid")
+		assert.NoError(t, err)
+		assert.True(t, bgpExplicit, "explicit false must be tracked so mergeUpdateDefaults does not override it")
+		assert.False(t, req.Config.BGPShutdownDefault)
+	})
+}
+
+func TestMergeUpdateDefaultsExplicitBools(t *testing.T) {
+	original := &megaport.NATGateway{
+		ProductName:   "Original",
+		LocationID:    1,
+		Speed:         1000,
+		Term:          12,
+		AutoRenewTerm: true,
+		Config: megaport.NATGatewayNetworkConfig{
+			BGPShutdownDefault: true,
+		},
+	}
+
+	t.Run("explicit false for AutoRenewTerm preserved", func(t *testing.T) {
+		req := &megaport.UpdateNATGatewayRequest{ProductUID: "uid", AutoRenewTerm: false}
+		mergeUpdateDefaults(req, original, true, false)
+		assert.False(t, req.AutoRenewTerm, "explicit false should not be overridden by original true")
+	})
+
+	t.Run("explicit false for BGPShutdownDefault preserved", func(t *testing.T) {
+		req := &megaport.UpdateNATGatewayRequest{ProductUID: "uid", Config: megaport.NATGatewayNetworkConfig{BGPShutdownDefault: false}}
+		mergeUpdateDefaults(req, original, false, true)
+		assert.False(t, req.Config.BGPShutdownDefault, "explicit false should not be overridden by original true")
+	})
+
+	t.Run("non-explicit false for AutoRenewTerm inherits from original", func(t *testing.T) {
+		req := &megaport.UpdateNATGatewayRequest{ProductUID: "uid"}
+		mergeUpdateDefaults(req, original, false, false)
+		assert.True(t, req.AutoRenewTerm, "non-explicit false should inherit from original")
+		assert.True(t, req.Config.BGPShutdownDefault, "non-explicit false should inherit from original")
+	})
 }
 
 func TestProcessFlagCreateNATGatewayInput(t *testing.T) {
@@ -575,7 +638,7 @@ func TestMergeUpdateDefaults(t *testing.T) {
 			Speed:       2000,
 			Term:        24,
 		}
-		mergeUpdateDefaults(req, original)
+		mergeUpdateDefaults(req, original, false, false)
 		assert.Equal(t, "New Name", req.ProductName, "explicitly set name should not be overwritten")
 		assert.Equal(t, 100, req.LocationID, "should inherit from original")
 		assert.Equal(t, 2000, req.Speed, "should inherit from original")
@@ -596,7 +659,7 @@ func TestMergeUpdateDefaults(t *testing.T) {
 			Speed:       2000,
 			Term:        24,
 		}
-		mergeUpdateDefaults(req, original)
+		mergeUpdateDefaults(req, original, false, false)
 		assert.Equal(t, "New Name", req.ProductName)
 		assert.Equal(t, 200, req.LocationID)
 		assert.Equal(t, 5000, req.Speed)
@@ -622,7 +685,7 @@ func TestMergeUpdateDefaults(t *testing.T) {
 				ASN:           133937,
 			},
 		}
-		mergeUpdateDefaults(req, original)
+		mergeUpdateDefaults(req, original, false, false)
 		assert.Equal(t, 50000, req.Config.SessionCount, "should inherit SessionCount from original")
 		assert.Equal(t, "blue", req.Config.DiversityZone, "should inherit DiversityZone from original")
 		assert.Equal(t, 133937, req.Config.ASN, "should inherit ASN from original")
@@ -652,7 +715,7 @@ func TestMergeUpdateDefaults(t *testing.T) {
 				ASN:           133937,
 			},
 		}
-		mergeUpdateDefaults(req, original)
+		mergeUpdateDefaults(req, original, false, false)
 		assert.Equal(t, 100000, req.Config.SessionCount, "explicitly set SessionCount should not be overwritten")
 		assert.Equal(t, "red", req.Config.DiversityZone, "explicitly set DiversityZone should not be overwritten")
 		assert.Equal(t, 65000, req.Config.ASN, "explicitly set ASN should not be overwritten")
@@ -676,7 +739,7 @@ func TestMergeUpdateDefaults(t *testing.T) {
 				BGPShutdownDefault: true,
 			},
 		}
-		mergeUpdateDefaults(req, original)
+		mergeUpdateDefaults(req, original, false, false)
 		assert.True(t, req.AutoRenewTerm, "should inherit AutoRenewTerm from original when not set")
 		assert.True(t, req.Config.BGPShutdownDefault, "should inherit BGPShutdownDefault from original when not set")
 	})
@@ -686,7 +749,7 @@ func TestMergeUpdateDefaults(t *testing.T) {
 			ProductUID:  "uid-1",
 			ProductName: "Name",
 		}
-		mergeUpdateDefaults(req, nil)
+		mergeUpdateDefaults(req, nil, false, false)
 		assert.Equal(t, "Name", req.ProductName)
 	})
 }
