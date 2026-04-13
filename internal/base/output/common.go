@@ -68,6 +68,29 @@ func getOutputQuery() string {
 	return outputQuery
 }
 
+// noHeader controls whether table and CSV output suppresses the header row.
+// Set via --no-header flag. Protected by noHeaderMu.
+var (
+	noHeader   bool
+	noHeaderMu sync.RWMutex
+)
+
+// SetNoHeader sets whether table and CSV output should suppress column headers.
+// This function is goroutine-safe. Tests should call defer SetNoHeader(false) to
+// reset state between test cases.
+func SetNoHeader(v bool) {
+	noHeaderMu.Lock()
+	defer noHeaderMu.Unlock()
+	noHeader = v
+}
+
+// getNoHeader returns whether header suppression is active under a read lock.
+func getNoHeader() bool {
+	noHeaderMu.RLock()
+	defer noHeaderMu.RUnlock()
+	return noHeader
+}
+
 // applyJMESPath applies a JMESPath query to v and returns the result.
 // v must be a JSON-compatible value (e.g. []T or []map[string]interface{}).
 // The marshal→unmarshal round-trip is intentional: go-jmespath operates on an

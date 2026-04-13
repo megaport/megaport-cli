@@ -1270,3 +1270,74 @@ func TestApplyJMESPath_MarshalError(t *testing.T) {
 	_, err := applyJMESPath("[*]", make(chan int))
 	assert.Error(t, err)
 }
+
+// ---- --no-header flag ----
+
+func TestNoHeaderTableSuppressesHeader(t *testing.T) {
+	SetNoHeader(true)
+	defer SetNoHeader(false)
+
+	data := []SimpleStruct{{ID: 1, Name: "alpha", Active: true}}
+	out := CaptureOutput(func() {
+		err := PrintOutput(data, "table", true)
+		assert.NoError(t, err)
+	})
+
+	assert.NotContains(t, out, "ID", "header row should be suppressed")
+	assert.Contains(t, out, "alpha", "data row should still appear")
+}
+
+func TestNoHeaderTableWithHeaderEnabled(t *testing.T) {
+	SetNoHeader(false)
+
+	data := []SimpleStruct{{ID: 1, Name: "beta", Active: false}}
+	out := CaptureOutput(func() {
+		err := PrintOutput(data, "table", true)
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, out, "ID", "header row should appear when no-header is false")
+}
+
+func TestNoHeaderCSVSuppressesHeader(t *testing.T) {
+	SetNoHeader(true)
+	defer SetNoHeader(false)
+
+	data := []SimpleStruct{{ID: 42, Name: "gamma", Active: true}}
+	out := CaptureOutput(func() {
+		err := PrintOutput(data, "csv", true)
+		assert.NoError(t, err)
+	})
+
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	assert.Len(t, lines, 1, "only the data row should appear, not a header row")
+	assert.Contains(t, lines[0], "42")
+}
+
+func TestNoHeaderCSVWithHeaderEnabled(t *testing.T) {
+	SetNoHeader(false)
+
+	data := []SimpleStruct{{ID: 7, Name: "delta", Active: false}}
+	out := CaptureOutput(func() {
+		err := PrintOutput(data, "csv", true)
+		assert.NoError(t, err)
+	})
+
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	assert.GreaterOrEqual(t, len(lines), 2, "header + data row should both appear")
+	assert.Contains(t, lines[0], "id", "first line should be the header")
+}
+
+func TestNoHeaderDoesNotAffectJSON(t *testing.T) {
+	SetNoHeader(true)
+	defer SetNoHeader(false)
+
+	data := []SimpleStruct{{ID: 3, Name: "epsilon", Active: true}}
+	out := CaptureOutput(func() {
+		err := PrintOutput(data, "json", true)
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, out, `"name"`, "JSON should include field names regardless of --no-header")
+	assert.Contains(t, out, "epsilon")
+}

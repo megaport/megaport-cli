@@ -127,7 +127,9 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 	for _, header := range headers {
 		headerRow = append(headerRow, strings.ToUpper(header))
 	}
-	t.AppendHeader(headerRow)
+	if !getNoHeader() {
+		t.AppendHeader(headerRow)
+	}
 	for _, item := range data {
 		v := reflect.ValueOf(item)
 		if !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil()) {

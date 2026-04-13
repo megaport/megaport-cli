@@ -33,6 +33,7 @@ func init() {
 			noColor = true
 			_ = cmd.Flags().Set("no-color", "true")
 		}
+		output.SetNoHeader(noHeader)
 
 		format := strings.ToLower(outputFormat)
 		validFmt := false
