@@ -311,13 +311,14 @@ func TestUpdateNATGateway_ServiceError(t *testing.T) {
 	assert.Contains(t, err.Error(), "update failed")
 }
 
-func TestUpdateNATGateway_NilResponse(t *testing.T) {
+func TestUpdateNATGateway_EmptyUIDResponse(t *testing.T) {
 	mock := &MockNATGatewayService{
 		GetResult: &megaport.NATGateway{
-			ProductUID: "uid-nil", ProductName: "GW",
+			ProductUID: "uid-empty", ProductName: "GW",
 			LocationID: 1, Speed: 100, Term: 1,
 		},
-		UpdateResult: nil, // service returns nil
+		// Simulate a service response with no ProductUID (empty-UID guard).
+		UpdateResult: &megaport.NATGateway{},
 	}
 	defer setupMockNATGateway(mock)()
 
@@ -327,7 +328,7 @@ func TestUpdateNATGateway_NilResponse(t *testing.T) {
 	require.NoError(t, cmd.Flags().Set("location-id", "1"))
 	require.NoError(t, cmd.Flags().Set("term", "1"))
 
-	err := UpdateNATGateway(cmd, []string{"uid-nil"}, true)
+	err := UpdateNATGateway(cmd, []string{"uid-empty"}, true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no NAT Gateway UID")
 }
