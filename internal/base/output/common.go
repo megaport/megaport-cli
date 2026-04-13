@@ -91,6 +91,12 @@ func getNoHeader() bool {
 	return noHeader
 }
 
+// GetNoHeader returns the current no-header setting. Exported for use in tests
+// that need to verify the flag was wired correctly through PersistentPreRunE.
+func GetNoHeader() bool {
+	return getNoHeader()
+}
+
 // applyJMESPath applies a JMESPath query to v and returns the result.
 // v must be a JSON-compatible value (e.g. []T or []map[string]interface{}).
 // The marshal→unmarshal round-trip is intentional: go-jmespath operates on an

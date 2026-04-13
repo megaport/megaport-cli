@@ -8,8 +8,26 @@ import (
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+// TestNoHeaderFlagWiredThroughPersistentPreRunE verifies that --no-header is
+// registered on the root command and that PersistentPreRunE propagates its
+// value to the output package.
+func TestNoHeaderFlagWiredThroughPersistentPreRunE(t *testing.T) {
+	defer output.SetNoHeader(false)
+
+	// Run a no-auth command through the real rootCmd so PersistentPreRunE fires.
+	rootCmd.SetArgs([]string{"version", "--no-header"})
+	_ = output.CaptureOutput(func() {
+		err := rootCmd.Execute()
+		require.NoError(t, err)
+	})
+
+	assert.True(t, output.GetNoHeader(), "SetNoHeader should have been called with true by PersistentPreRunE")
+}
 
 func TestExitCodeFromError(t *testing.T) {
 	tests := []struct {
