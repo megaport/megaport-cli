@@ -156,8 +156,7 @@ func main() {
 	// Wire output state reset into the wasm package. Done here (rather than in
 	// internal/wasm) to break the import cycle between wasm and output packages.
 	wasm.RegisterOutputStateReset(func() {
-		output.SetOutputFields(nil)
-		output.SetOutputQuery("")
+		output.ResetState()
 		output.SetOutputFormat("table")
 		output.SetVerbosity("normal")
 	})

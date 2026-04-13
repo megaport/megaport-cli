@@ -17,7 +17,13 @@ import (
 // registered on the root command and that PersistentPreRunE propagates its
 // value to the output package.
 func TestNoHeaderFlagWiredThroughPersistentPreRunE(t *testing.T) {
-	defer output.SetNoHeader(false)
+	// Restore both the output package state and the cobra flag/backing variable
+	// so subsequent tests in this package are not affected.
+	defer func() {
+		output.SetNoHeader(false)
+		noHeader = false
+		_ = rootCmd.PersistentFlags().Set("no-header", "false")
+	}()
 
 	// Run a no-auth command through the real rootCmd so PersistentPreRunE fires.
 	rootCmd.SetArgs([]string{"version", "--no-header"})

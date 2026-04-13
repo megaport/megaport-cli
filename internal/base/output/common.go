@@ -97,6 +97,15 @@ func GetNoHeader() bool {
 	return getNoHeader()
 }
 
+// ResetState clears all package-level output configuration back to defaults.
+// Intended for callers such as the WASM entry point that must ensure output
+// state does not bleed between invocations.
+func ResetState() {
+	SetOutputFields(nil)
+	SetOutputQuery("")
+	SetNoHeader(false)
+}
+
 // applyJMESPath applies a JMESPath query to v and returns the result.
 // v must be a JSON-compatible value (e.g. []T or []map[string]interface{}).
 // The marshal→unmarshal round-trip is intentional: go-jmespath operates on an
