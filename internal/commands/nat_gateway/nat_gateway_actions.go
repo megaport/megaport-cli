@@ -285,6 +285,11 @@ func UpdateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("Failed to update NAT Gateway: %v", noColor, err)
 		return err
 	}
+	if updatedGW == nil || updatedGW.ProductUID == "" {
+		err = fmt.Errorf("service returned no NAT Gateway UID")
+		output.PrintError("Failed to update NAT Gateway: %v", noColor, err)
+		return err
+	}
 
 	output.PrintResourceUpdated("NAT Gateway", uid, noColor)
 	displayNATGatewayChanges(originalGW, updatedGW, noColor)
@@ -314,10 +319,10 @@ func mergeUpdateDefaults(req *megaport.UpdateNATGatewayRequest, original *megapo
 	if req.Term == 0 {
 		req.Term = original.Term
 	}
-	if req.Config.SessionCount == 0 {
+	if !explicit.SessionCount && req.Config.SessionCount == 0 {
 		req.Config.SessionCount = original.Config.SessionCount
 	}
-	if req.Config.DiversityZone == "" {
+	if !explicit.DiversityZone && req.Config.DiversityZone == "" {
 		req.Config.DiversityZone = original.Config.DiversityZone
 	}
 	// ASN: 0 means "unset/default" unless the caller explicitly provided it.

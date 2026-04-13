@@ -518,6 +518,28 @@ func TestProcessJSONUpdateNATGatewayInputBoolPresence(t *testing.T) {
 		assert.True(t, bgpExplicit, "explicit false must be tracked so mergeUpdateDefaults does not override it")
 		assert.False(t, req.Config.BGPShutdownDefault)
 	})
+	t.Run("sessionCount absent returns explicit=false", func(t *testing.T) {
+		_, explicit, err := processJSONUpdateNATGatewayInput(`{"name":"GW"}`, "", "uid")
+		assert.NoError(t, err)
+		assert.False(t, explicit.SessionCount)
+	})
+	t.Run("sessionCount present zero returns explicit=true", func(t *testing.T) {
+		req, explicit, err := processJSONUpdateNATGatewayInput(`{"sessionCount":0}`, "", "uid")
+		assert.NoError(t, err)
+		assert.True(t, explicit.SessionCount, "explicit 0 must be tracked so mergeUpdateDefaults does not override it")
+		assert.Equal(t, 0, req.Config.SessionCount)
+	})
+	t.Run("diversityZone absent returns explicit=false", func(t *testing.T) {
+		_, explicit, err := processJSONUpdateNATGatewayInput(`{"name":"GW"}`, "", "uid")
+		assert.NoError(t, err)
+		assert.False(t, explicit.DiversityZone)
+	})
+	t.Run("diversityZone present empty returns explicit=true", func(t *testing.T) {
+		req, explicit, err := processJSONUpdateNATGatewayInput(`{"diversityZone":""}`, "", "uid")
+		assert.NoError(t, err)
+		assert.True(t, explicit.DiversityZone, "explicit empty string must be tracked so mergeUpdateDefaults does not override it")
+		assert.Equal(t, "", req.Config.DiversityZone)
+	})
 }
 
 func TestMergeUpdateDefaultsExplicitBools(t *testing.T) {
@@ -529,6 +551,8 @@ func TestMergeUpdateDefaultsExplicitBools(t *testing.T) {
 		AutoRenewTerm: true,
 		Config: megaport.NATGatewayNetworkConfig{
 			BGPShutdownDefault: true,
+			SessionCount:       50000,
+			DiversityZone:      "blue",
 		},
 	}
 
@@ -549,6 +573,30 @@ func TestMergeUpdateDefaultsExplicitBools(t *testing.T) {
 		mergeUpdateDefaults(req, original, updateExplicitFields{})
 		assert.True(t, req.AutoRenewTerm, "non-explicit false should inherit from original")
 		assert.True(t, req.Config.BGPShutdownDefault, "non-explicit false should inherit from original")
+	})
+
+	t.Run("explicit zero for SessionCount preserved", func(t *testing.T) {
+		req := &megaport.UpdateNATGatewayRequest{ProductUID: "uid", Config: megaport.NATGatewayNetworkConfig{SessionCount: 0}}
+		mergeUpdateDefaults(req, original, updateExplicitFields{SessionCount: true})
+		assert.Equal(t, 0, req.Config.SessionCount, "explicit 0 should not be overridden by original 50000")
+	})
+
+	t.Run("non-explicit zero for SessionCount inherits from original", func(t *testing.T) {
+		req := &megaport.UpdateNATGatewayRequest{ProductUID: "uid"}
+		mergeUpdateDefaults(req, original, updateExplicitFields{})
+		assert.Equal(t, 50000, req.Config.SessionCount, "non-explicit 0 should inherit from original")
+	})
+
+	t.Run("explicit empty for DiversityZone preserved", func(t *testing.T) {
+		req := &megaport.UpdateNATGatewayRequest{ProductUID: "uid", Config: megaport.NATGatewayNetworkConfig{DiversityZone: ""}}
+		mergeUpdateDefaults(req, original, updateExplicitFields{DiversityZone: true})
+		assert.Equal(t, "", req.Config.DiversityZone, "explicit empty should not be overridden by original 'blue'")
+	})
+
+	t.Run("non-explicit empty for DiversityZone inherits from original", func(t *testing.T) {
+		req := &megaport.UpdateNATGatewayRequest{ProductUID: "uid"}
+		mergeUpdateDefaults(req, original, updateExplicitFields{})
+		assert.Equal(t, "blue", req.Config.DiversityZone, "non-explicit empty should inherit from original")
 	})
 }
 

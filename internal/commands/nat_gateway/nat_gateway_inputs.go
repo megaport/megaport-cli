@@ -117,17 +117,32 @@ func processFlagCreateNATGatewayInput(cmd *cobra.Command) (*megaport.CreateNATGa
 
 // updateExplicitFields tracks which zero-valued fields were explicitly provided
 // in an update request. This lets mergeUpdateDefaults distinguish "user wants
-// zero/false" from "user omitted the field and we should inherit from original".
+// zero/false/empty" from "user omitted the field and we should inherit from
+// the original resource".
+//
+// Fields that use pointer types in the raw JSON struct (ASN *int,
+// SessionCount *int, DiversityZone *string, AutoRenewTerm *bool,
+// BGPShutdownDefault *bool) get a corresponding entry here because their zero
+// value is ambiguous. Fields with genuinely invalid zero values
+// (LocationID, Speed, Term — all must be positive) do not need tracking
+// because 0 can only mean "omitted". Fields with omitempty on the SDK request
+// (PromoCode, ServiceLevelReference, ResourceTags) are safe to leave as plain
+// strings/slices because the API ignores empty/nil values for those.
 type updateExplicitFields struct {
 	AutoRenewTerm      bool // was autoRenewTerm present in input?
 	BGPShutdownDefault bool // was bgpShutdownDefault present in input?
 	ASN                bool // was asn present in JSON input? (no flag path for ASN)
+	SessionCount       bool // was sessionCount present in JSON input?
+	DiversityZone      bool // was diversityZone present in JSON input?
 }
 
 // processJSONUpdateNATGatewayInput parses a JSON update request and returns the
-// request along with explicit-presence flags for fields whose zero value is
-// ambiguous. Absent fields use pointer types (*bool, *int) so nil means "not
-// provided" and mergeUpdateDefaults will inherit from the original resource.
+// request along with explicit-presence flags for ambiguous fields. Fields whose
+// zero value could be a valid intentional value (bool, int for ASN/SessionCount,
+// string for DiversityZone) use pointer types in the raw struct so nil means
+// "not provided" and mergeUpdateDefaults will inherit from the original resource.
+// Fields with genuinely invalid zero values (LocationID, Speed, Term) or omitempty
+// in the SDK request (PromoCode, ServiceLevelReference) use plain types.
 func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.UpdateNATGatewayRequest, updateExplicitFields, error) {
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
@@ -139,8 +154,8 @@ func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.
 		LocationID            int               `json:"locationId"`
 		Speed                 int               `json:"speed"`
 		Term                  int               `json:"term"`
-		SessionCount          int               `json:"sessionCount"`
-		DiversityZone         string            `json:"diversityZone"`
+		SessionCount          *int              `json:"sessionCount"`
+		DiversityZone         *string           `json:"diversityZone"`
 		ASN                   *int              `json:"asn"`
 		BGPShutdownDefault    *bool             `json:"bgpShutdownDefault"`
 		AutoRenewTerm         *bool             `json:"autoRenewTerm"`
@@ -156,6 +171,8 @@ func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.
 		AutoRenewTerm:      raw.AutoRenewTerm != nil,
 		BGPShutdownDefault: raw.BGPShutdownDefault != nil,
 		ASN:                raw.ASN != nil,
+		SessionCount:       raw.SessionCount != nil,
+		DiversityZone:      raw.DiversityZone != nil,
 	}
 
 	var autoRenew, bgpShutdown bool
@@ -165,9 +182,16 @@ func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.
 	if raw.BGPShutdownDefault != nil {
 		bgpShutdown = *raw.BGPShutdownDefault
 	}
-	var asn int
+	var asn, sessionCount int
 	if raw.ASN != nil {
 		asn = *raw.ASN
+	}
+	if raw.SessionCount != nil {
+		sessionCount = *raw.SessionCount
+	}
+	var diversityZone string
+	if raw.DiversityZone != nil {
+		diversityZone = *raw.DiversityZone
 	}
 
 	req := &megaport.UpdateNATGatewayRequest{
@@ -182,8 +206,8 @@ func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.
 		Config: megaport.NATGatewayNetworkConfig{
 			ASN:                asn,
 			BGPShutdownDefault: bgpShutdown,
-			DiversityZone:      raw.DiversityZone,
-			SessionCount:       raw.SessionCount,
+			DiversityZone:      diversityZone,
+			SessionCount:       sessionCount,
 		},
 	}
 
