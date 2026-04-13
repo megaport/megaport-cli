@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
@@ -628,6 +629,37 @@ func TestLoginFuncAccessors(t *testing.T) {
 	})
 }
 
+func TestAppendLogOpts(t *testing.T) {
+	t.Run("adds log options when LogHTTP is true", func(t *testing.T) {
+		origLogHTTP := utils.LogHTTP
+		defer func() { utils.LogHTTP = origLogHTTP }()
+
+		utils.LogHTTP = true
+		opts := appendLogOpts([]megaport.ClientOpt{})
+		// WithLogHandler and WithLogResponseBody should be appended
+		assert.Len(t, opts, 2, "should add 2 log options when LogHTTP is enabled")
+	})
+
+	t.Run("does not add log options when LogHTTP is false", func(t *testing.T) {
+		origLogHTTP := utils.LogHTTP
+		defer func() { utils.LogHTTP = origLogHTTP }()
+
+		utils.LogHTTP = false
+		opts := appendLogOpts([]megaport.ClientOpt{})
+		assert.Empty(t, opts, "should not add options when LogHTTP is disabled")
+	})
+
+	t.Run("preserves existing options", func(t *testing.T) {
+		origLogHTTP := utils.LogHTTP
+		defer func() { utils.LogHTTP = origLogHTTP }()
+
+		utils.LogHTTP = true
+		existing := []megaport.ClientOpt{megaport.WithEnvironment(megaport.EnvironmentStaging)}
+		opts := appendLogOpts(existing)
+		assert.Len(t, opts, 3, "should preserve existing option and add 2 log options")
+	})
+}
+
 func TestCLIHeadersSentOnRequests(t *testing.T) {
 	headersCh := make(chan http.Header, 1)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -649,6 +681,11 @@ func TestCLIHeadersSentOnRequests(t *testing.T) {
 	_, err = client.Do(context.Background(), req, nil)
 	assert.NoError(t, err)
 
-	capturedHeaders := <-headersCh
+	var capturedHeaders http.Header
+	select {
+	case capturedHeaders = <-headersCh:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timed out waiting for request headers from test server")
+	}
 	assert.Equal(t, "cli", capturedHeaders.Get("x-app"))
 }
