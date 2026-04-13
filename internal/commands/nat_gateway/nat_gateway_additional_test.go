@@ -603,6 +603,61 @@ func TestMergeUpdateDefaults(t *testing.T) {
 		assert.Equal(t, 12, req.Term)
 	})
 
+	t.Run("fills zero Config fields from original", func(t *testing.T) {
+		req := &megaport.UpdateNATGatewayRequest{
+			ProductUID:  "uid-1",
+			ProductName: "Name",
+			LocationID:  100,
+			Speed:       1000,
+			Term:        12,
+		}
+		original := &megaport.NATGateway{
+			ProductName: "Name",
+			LocationID:  100,
+			Speed:       1000,
+			Term:        12,
+			Config: megaport.NATGatewayNetworkConfig{
+				SessionCount:  50000,
+				DiversityZone: "blue",
+				ASN:           133937,
+			},
+		}
+		mergeUpdateDefaults(req, original)
+		assert.Equal(t, 50000, req.Config.SessionCount, "should inherit SessionCount from original")
+		assert.Equal(t, "blue", req.Config.DiversityZone, "should inherit DiversityZone from original")
+		assert.Equal(t, 133937, req.Config.ASN, "should inherit ASN from original")
+	})
+
+	t.Run("does not overwrite provided Config fields", func(t *testing.T) {
+		req := &megaport.UpdateNATGatewayRequest{
+			ProductUID:  "uid-1",
+			ProductName: "Name",
+			LocationID:  100,
+			Speed:       1000,
+			Term:        12,
+			Config: megaport.NATGatewayNetworkConfig{
+				SessionCount:  100000,
+				DiversityZone: "red",
+				ASN:           65000,
+			},
+		}
+		original := &megaport.NATGateway{
+			ProductName: "Name",
+			LocationID:  100,
+			Speed:       1000,
+			Term:        12,
+			Config: megaport.NATGatewayNetworkConfig{
+				SessionCount:  50000,
+				DiversityZone: "blue",
+				ASN:           133937,
+			},
+		}
+		mergeUpdateDefaults(req, original)
+		assert.Equal(t, 100000, req.Config.SessionCount, "explicitly set SessionCount should not be overwritten")
+		assert.Equal(t, "red", req.Config.DiversityZone, "explicitly set DiversityZone should not be overwritten")
+		assert.Equal(t, 65000, req.Config.ASN, "explicitly set ASN should not be overwritten")
+	})
+
 	t.Run("nil original is safe", func(t *testing.T) {
 		req := &megaport.UpdateNATGatewayRequest{
 			ProductUID:  "uid-1",

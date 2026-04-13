@@ -296,6 +296,15 @@ func mergeUpdateDefaults(req *megaport.UpdateNATGatewayRequest, original *megapo
 	if req.Term == 0 {
 		req.Term = original.Term
 	}
+	if req.Config.SessionCount == 0 {
+		req.Config.SessionCount = original.Config.SessionCount
+	}
+	if req.Config.DiversityZone == "" {
+		req.Config.DiversityZone = original.Config.DiversityZone
+	}
+	if req.Config.ASN == 0 {
+		req.Config.ASN = original.Config.ASN
+	}
 }
 
 // DeleteNATGateway handles the nat-gateway delete command.

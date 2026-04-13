@@ -7,6 +7,7 @@ func (b *CommandBuilder) WithNATGatewayCreateFlags() *CommandBuilder {
 		WithIntFlag("speed", 0, "The speed of the NAT Gateway in Mbps").
 		WithIntFlag("location-id", 0, "The ID of the location where the NAT Gateway will be provisioned").
 		WithIntFlag("session-count", 0, "The number of NAT sessions (optional)").
+		WithOptionalFlag("session-count", "The number of NAT sessions").
 		WithFlag("diversity-zone", "", "The diversity zone for the NAT Gateway (optional)").
 		WithOptionalFlag("diversity-zone", "The diversity zone for the NAT Gateway").
 		WithFlag("promo-code", "", "A promotional code for discounts (optional)").
@@ -22,10 +23,15 @@ func (b *CommandBuilder) WithNATGatewayCreateFlags() *CommandBuilder {
 // WithNATGatewayUpdateFlags adds flags for NAT Gateway updates.
 func (b *CommandBuilder) WithNATGatewayUpdateFlags() *CommandBuilder {
 	b.WithFlag("name", "", "The new name of the NAT Gateway").
+		WithOptionalFlag("name", "The new name of the NAT Gateway").
 		WithIntFlag("term", 0, "The new contract term in months (1, 12, 24, or 36)").
+		WithOptionalFlag("term", "The new contract term in months").
 		WithIntFlag("speed", 0, "The new speed of the NAT Gateway in Mbps").
+		WithOptionalFlag("speed", "The new speed of the NAT Gateway in Mbps").
 		WithIntFlag("location-id", 0, "The new location ID").
+		WithOptionalFlag("location-id", "The new location ID").
 		WithIntFlag("session-count", 0, "The new session count").
+		WithOptionalFlag("session-count", "The new session count").
 		WithFlag("diversity-zone", "", "The new diversity zone").
 		WithOptionalFlag("diversity-zone", "The new diversity zone").
 		WithFlag("promo-code", "", "A promotional code").
