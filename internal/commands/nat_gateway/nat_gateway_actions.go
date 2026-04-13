@@ -86,6 +86,11 @@ func CreateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("Failed to create NAT Gateway: %v", noColor, err)
 		return err
 	}
+	if gw == nil || gw.ProductUID == "" {
+		err = fmt.Errorf("service returned no NAT Gateway UID")
+		output.PrintError("Failed to create NAT Gateway: %v", noColor, err)
+		return err
+	}
 
 	output.PrintResourceCreated("NAT Gateway", gw.ProductUID, noColor)
 	return nil
@@ -304,6 +309,16 @@ func mergeUpdateDefaults(req *megaport.UpdateNATGatewayRequest, original *megapo
 	}
 	if req.Config.ASN == 0 {
 		req.Config.ASN = original.Config.ASN
+	}
+	// AutoRenewTerm and BGPShutdownDefault have no omitempty — false is always
+	// serialised. Inherit from the original so partial updates don't silently
+	// disable these. Users who need to explicitly set them to false can do so
+	// via JSON input with the field present.
+	if !req.AutoRenewTerm {
+		req.AutoRenewTerm = original.AutoRenewTerm
+	}
+	if !req.Config.BGPShutdownDefault {
+		req.Config.BGPShutdownDefault = original.Config.BGPShutdownDefault
 	}
 }
 

@@ -48,6 +48,7 @@ func buildNATGatewayCommands(rootCmd *cobra.Command) (get, list, create, update,
 		WithExample("megaport-cli nat-gateway list --location-id 67").
 		WithExample("megaport-cli nat-gateway list --name \"my-gw\"").
 		WithExample("megaport-cli nat-gateway list --include-inactive").
+		WithAliases([]string{"ls"}).
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -112,6 +113,7 @@ func buildNATGatewayCommands(rootCmd *cobra.Command) (get, list, create, update,
 		WithExample("megaport-cli nat-gateway delete a1b2c3d4-e5f6-7890-1234-567890abcdef").
 		WithExample("megaport-cli nat-gateway delete a1b2c3d4-e5f6-7890-1234-567890abcdef --force").
 		WithImportantNote("This action is irreversible. The NAT Gateway will be deleted immediately.").
+		WithAliases([]string{"rm"}).
 		WithRootCmd(rootCmd).
 		Build()
 

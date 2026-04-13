@@ -658,6 +658,29 @@ func TestMergeUpdateDefaults(t *testing.T) {
 		assert.Equal(t, 65000, req.Config.ASN, "explicitly set ASN should not be overwritten")
 	})
 
+	t.Run("inherits bool fields from original when false", func(t *testing.T) {
+		req := &megaport.UpdateNATGatewayRequest{
+			ProductUID:  "uid-1",
+			ProductName: "Name",
+			LocationID:  100,
+			Speed:       1000,
+			Term:        12,
+		}
+		original := &megaport.NATGateway{
+			ProductName:   "Name",
+			LocationID:    100,
+			Speed:         1000,
+			Term:          12,
+			AutoRenewTerm: true,
+			Config: megaport.NATGatewayNetworkConfig{
+				BGPShutdownDefault: true,
+			},
+		}
+		mergeUpdateDefaults(req, original)
+		assert.True(t, req.AutoRenewTerm, "should inherit AutoRenewTerm from original when not set")
+		assert.True(t, req.Config.BGPShutdownDefault, "should inherit BGPShutdownDefault from original when not set")
+	})
+
 	t.Run("nil original is safe", func(t *testing.T) {
 		req := &megaport.UpdateNATGatewayRequest{
 			ProductUID:  "uid-1",
