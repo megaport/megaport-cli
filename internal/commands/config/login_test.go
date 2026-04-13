@@ -629,9 +629,9 @@ func TestLoginFuncAccessors(t *testing.T) {
 }
 
 func TestCLIHeadersSentOnRequests(t *testing.T) {
-	var capturedHeaders http.Header
+	headersCh := make(chan http.Header, 1)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		capturedHeaders = r.Header
+		headersCh <- r.Header.Clone()
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"message":"ok"}`))
 	}))
@@ -649,5 +649,6 @@ func TestCLIHeadersSentOnRequests(t *testing.T) {
 	_, err = client.Do(context.Background(), req, nil)
 	assert.NoError(t, err)
 
+	capturedHeaders := <-headersCh
 	assert.Equal(t, "cli", capturedHeaders.Get("x-app"))
 }
