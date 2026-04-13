@@ -10,6 +10,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -198,6 +199,8 @@ func ListNATGateways(cmd *cobra.Command, args []string, noColor bool, outputForm
 }
 
 // UpdateNATGateway handles the nat-gateway update command.
+// It fetches the original resource first and merges partial input so users
+// can update individual fields without providing every required field.
 func UpdateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
 	defer cancel()
@@ -210,25 +213,11 @@ func UpdateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 		cmd.Flags().Changed("speed") || cmd.Flags().Changed("location-id") ||
 		cmd.Flags().Changed("session-count") || cmd.Flags().Changed("diversity-zone")
 
-	var req *megaport.UpdateNATGatewayRequest
-	var err error
-
-	if jsonStr != "" || jsonFile != "" {
-		output.PrintInfo("Using JSON input", noColor)
-		req, err = processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid)
-	} else if flagsProvided {
-		output.PrintInfo("Using flag input", noColor)
-		req, err = processFlagUpdateNATGatewayInput(cmd, uid)
-	} else if interactive {
-		req, err = promptForUpdateNATGatewayDetails(uid, noColor)
-	} else {
+	if jsonStr == "" && jsonFile == "" && !flagsProvided && !interactive {
 		return fmt.Errorf("at least one field must be updated")
 	}
-	if err != nil {
-		output.PrintError("Failed to process input: %v", noColor, err)
-		return err
-	}
 
+	// Login and fetch the original gateway to use as defaults for unset fields.
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
@@ -238,6 +227,32 @@ func UpdateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 	originalGW, err := getNATGatewayFunc(ctx, client, uid)
 	if err != nil {
 		output.PrintError("Failed to get original NAT Gateway: %v", noColor, err)
+		return err
+	}
+
+	// Build the request from user input.
+	var req *megaport.UpdateNATGatewayRequest
+
+	if jsonStr != "" || jsonFile != "" {
+		output.PrintInfo("Using JSON input", noColor)
+		req, err = processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid)
+	} else if flagsProvided {
+		output.PrintInfo("Using flag input", noColor)
+		req, err = processFlagUpdateNATGatewayInput(cmd, uid)
+	} else if interactive {
+		req, err = promptForUpdateNATGatewayDetails(uid, noColor)
+	}
+	if err != nil {
+		output.PrintError("Failed to process input: %v", noColor, err)
+		return err
+	}
+
+	// Merge: fill in unset fields from the original gateway so partial
+	// updates work without requiring every field.
+	mergeUpdateDefaults(req, originalGW)
+
+	if err := validation.ValidateUpdateNATGatewayRequest(req); err != nil {
+		output.PrintError("Validation failed: %v", noColor, err)
 		return err
 	}
 
@@ -258,6 +273,26 @@ func UpdateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 	output.PrintResourceUpdated("NAT Gateway", uid, noColor)
 	displayNATGatewayChanges(originalGW, updatedGW, noColor)
 	return nil
+}
+
+// mergeUpdateDefaults fills zero-valued fields in the update request with
+// values from the original NAT Gateway, enabling partial updates.
+func mergeUpdateDefaults(req *megaport.UpdateNATGatewayRequest, original *megaport.NATGateway) {
+	if original == nil {
+		return
+	}
+	if req.ProductName == "" {
+		req.ProductName = original.ProductName
+	}
+	if req.LocationID == 0 {
+		req.LocationID = original.LocationID
+	}
+	if req.Speed == 0 {
+		req.Speed = original.Speed
+	}
+	if req.Term == 0 {
+		req.Term = original.Term
+	}
 }
 
 // DeleteNATGateway handles the nat-gateway delete command.
@@ -348,7 +383,10 @@ func GetNATGatewayTelemetry(cmd *cobra.Command, args []string, noColor bool, out
 
 	if cmd.Flags().Changed("days") {
 		dInt, _ := cmd.Flags().GetInt("days")
-		d := int32(dInt)
+		if dInt < 1 || dInt > 180 {
+			return fmt.Errorf("--days must be between 1 and 180")
+		}
+		d := int32(dInt) //nolint:gosec // validated above
 		req.Days = &d
 	} else if cmd.Flags().Changed("from") || cmd.Flags().Changed("to") {
 		fromStr, _ := cmd.Flags().GetString("from")

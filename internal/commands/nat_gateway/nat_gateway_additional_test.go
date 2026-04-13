@@ -414,28 +414,22 @@ func TestProcessJSONUpdateNATGatewayInput(t *testing.T) {
 			},
 		},
 		{
-			name:    "missing name",
-			json:    `{"term":12,"speed":1000,"locationId":1}`,
-			uid:     "uid-upd",
-			wantErr: true,
+			name: "partial update - name only",
+			json: `{"name":"Just Name"}`,
+			uid:  "uid-upd",
+			check: func(r *megaport.UpdateNATGatewayRequest) {
+				assert.Equal(t, "Just Name", r.ProductName)
+				assert.Equal(t, 0, r.Speed, "unset fields should be zero before merge")
+			},
 		},
 		{
-			name:    "missing location",
-			json:    `{"name":"GW","term":12,"speed":1000}`,
-			uid:     "uid-upd",
-			wantErr: true,
-		},
-		{
-			name:    "invalid term",
-			json:    `{"name":"GW","term":5,"speed":1000,"locationId":1}`,
-			uid:     "uid-upd",
-			wantErr: true,
-		},
-		{
-			name:    "empty uid",
-			json:    `{"name":"GW","term":12,"speed":1000,"locationId":1}`,
-			uid:     "",
-			wantErr: true,
+			name: "partial update - speed only",
+			json: `{"speed":2000}`,
+			uid:  "uid-upd",
+			check: func(r *megaport.UpdateNATGatewayRequest) {
+				assert.Equal(t, 2000, r.Speed)
+				assert.Equal(t, "", r.ProductName, "unset name should be empty before merge")
+			},
 		},
 		{
 			name:    "invalid JSON",
@@ -557,15 +551,66 @@ func TestProcessFlagUpdateNATGatewayInput(t *testing.T) {
 	assert.Equal(t, "red", req.Config.DiversityZone)
 }
 
-func TestProcessFlagUpdateNATGatewayInput_ValidationError(t *testing.T) {
+func TestProcessFlagUpdateNATGatewayInput_PartialUpdate(t *testing.T) {
 	cmd := newTestCmd("update")
-	// Missing name (empty string) should fail validation
-	require.NoError(t, cmd.Flags().Set("term", "12"))
-	require.NoError(t, cmd.Flags().Set("speed", "1000"))
-	require.NoError(t, cmd.Flags().Set("location-id", "1"))
+	// Only set name — other fields should be zero (filled by merge later)
+	require.NoError(t, cmd.Flags().Set("name", "New Name"))
 
-	_, err := processFlagUpdateNATGatewayInput(cmd, "uid-upd")
-	assert.Error(t, err)
+	req, err := processFlagUpdateNATGatewayInput(cmd, "uid-upd")
+	assert.NoError(t, err)
+	assert.Equal(t, "New Name", req.ProductName)
+	assert.Equal(t, 0, req.Speed, "speed should be zero before merge")
+	assert.Equal(t, 0, req.Term, "term should be zero before merge")
+}
+
+func TestMergeUpdateDefaults(t *testing.T) {
+	t.Run("fills zero fields from original", func(t *testing.T) {
+		req := &megaport.UpdateNATGatewayRequest{
+			ProductUID:  "uid-1",
+			ProductName: "New Name",
+		}
+		original := &megaport.NATGateway{
+			ProductName: "Old Name",
+			LocationID:  100,
+			Speed:       2000,
+			Term:        24,
+		}
+		mergeUpdateDefaults(req, original)
+		assert.Equal(t, "New Name", req.ProductName, "explicitly set name should not be overwritten")
+		assert.Equal(t, 100, req.LocationID, "should inherit from original")
+		assert.Equal(t, 2000, req.Speed, "should inherit from original")
+		assert.Equal(t, 24, req.Term, "should inherit from original")
+	})
+
+	t.Run("does not overwrite provided fields", func(t *testing.T) {
+		req := &megaport.UpdateNATGatewayRequest{
+			ProductUID:  "uid-1",
+			ProductName: "New Name",
+			LocationID:  200,
+			Speed:       5000,
+			Term:        12,
+		}
+		original := &megaport.NATGateway{
+			ProductName: "Old Name",
+			LocationID:  100,
+			Speed:       2000,
+			Term:        24,
+		}
+		mergeUpdateDefaults(req, original)
+		assert.Equal(t, "New Name", req.ProductName)
+		assert.Equal(t, 200, req.LocationID)
+		assert.Equal(t, 5000, req.Speed)
+		assert.Equal(t, 12, req.Term)
+	})
+
+	t.Run("nil original is safe", func(t *testing.T) {
+		req := &megaport.UpdateNATGatewayRequest{
+			ProductUID:  "uid-1",
+			ProductName: "Name",
+		}
+		mergeUpdateDefaults(req, nil)
+		assert.Equal(t, "Name", req.ProductName)
+	})
 }
 
 // ---- MockNATGatewayService.Reset ----

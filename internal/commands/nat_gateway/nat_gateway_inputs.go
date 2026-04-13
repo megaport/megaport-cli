@@ -159,13 +159,13 @@ func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.
 		req.ResourceTags = tags
 	}
 
-	if err := validation.ValidateUpdateNATGatewayRequest(req); err != nil {
-		return nil, err
-	}
 	return req, nil
 }
 
 func processFlagUpdateNATGatewayInput(cmd *cobra.Command, uid string) (*megaport.UpdateNATGatewayRequest, error) {
+	if uid == "" {
+		return nil, fmt.Errorf("product UID is required")
+	}
 	name, _ := cmd.Flags().GetString("name")
 	term, _ := cmd.Flags().GetInt("term")
 	speed, _ := cmd.Flags().GetInt("speed")
@@ -191,9 +191,6 @@ func processFlagUpdateNATGatewayInput(cmd *cobra.Command, uid string) (*megaport
 		},
 	}
 
-	if err := validation.ValidateUpdateNATGatewayRequest(req); err != nil {
-		return nil, err
-	}
 	return req, nil
 }
 

@@ -138,5 +138,8 @@ func buildNATGatewayCommands(rootCmd *cobra.Command) (get, list, create, update,
 		WithConditionalRequirements("types").
 		Build()
 
+	telemetry.MarkFlagsMutuallyExclusive("days", "from")
+	telemetry.MarkFlagsMutuallyExclusive("days", "to")
+
 	return
 }

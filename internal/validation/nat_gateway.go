@@ -22,10 +22,13 @@ func ValidateCreateNATGatewayRequest(req *megaport.CreateNATGatewayRequest) erro
 }
 
 // ValidateUpdateNATGatewayRequest validates a request to update a NAT Gateway.
+// Only the product UID is strictly required; other fields should be pre-filled
+// from the original resource before calling this function.
 func ValidateUpdateNATGatewayRequest(req *megaport.UpdateNATGatewayRequest) error {
 	if req.ProductUID == "" {
 		return NewValidationError("product UID", req.ProductUID, "cannot be empty")
 	}
+	// Name is required by the API (no omitempty on the field).
 	if req.ProductName == "" {
 		return NewValidationError("name", req.ProductName, "cannot be empty")
 	}
