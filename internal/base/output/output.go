@@ -60,8 +60,10 @@ func printCSV[T OutputFields](data []T) error {
 	if len(headers) == 0 {
 		return nil
 	}
-	if err := w.Write(headers); err != nil {
-		return err
+	if !getNoHeader() {
+		if err := w.Write(headers); err != nil {
+			return err
+		}
 	}
 	for _, item := range data {
 		if isNilOrInvalid(item) {

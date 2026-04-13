@@ -5,11 +5,46 @@ package megaport
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+// noHeaderTestItem is a minimal struct used to observe table header suppression.
+type noHeaderTestItem struct {
+	Name string `header:"NAME" json:"name"`
+}
+
+// TestNoHeaderFlagWiredThroughPersistentPreRunE verifies that --no-header is
+// registered on the root command and that PersistentPreRunE propagates its
+// value to the output package by observing that table headers are suppressed.
+func TestNoHeaderFlagWiredThroughPersistentPreRunE(t *testing.T) {
+	// Restore all output state, the backing var, and the cobra flag so
+	// subsequent tests in this package are not affected.
+	defer func() {
+		output.ResetState()
+		noHeader = false
+		_ = rootCmd.PersistentFlags().Set("no-header", "false")
+	}()
+
+	// Run a no-auth command through the real rootCmd so PersistentPreRunE fires.
+	rootCmd.SetArgs([]string{"version", "--no-header"})
+	_ = output.CaptureOutput(func() {
+		err := rootCmd.Execute()
+		require.NoError(t, err)
+	})
+
+	// Assert via observable behavior: table output should have no header row.
+	captured := output.CaptureOutput(func() {
+		_ = output.PrintOutput([]noHeaderTestItem{{Name: "row1"}}, "table", true)
+	})
+	assert.False(t, strings.Contains(captured, "NAME"), "header row should be suppressed after --no-header")
+	assert.True(t, strings.Contains(captured, "row1"), "data rows should still appear")
+}
 
 func TestExitCodeFromError(t *testing.T) {
 	tests := []struct {
