@@ -76,6 +76,7 @@ func init() {
 			LongDesc:    "Megaport CLI provides a command line interface to interact with the Megaport API.\n\nThe CLI allows you to manage Megaport resources such as ports, VXCs, MCRs, MVEs, service keys, and more.",
 			OptionalFlags: map[string]string{
 				"--no-color":    "Disable colored output",
+				"--no-header":   "Suppress table and CSV column headers (useful for scripting)",
 				"--output":      "Output format (json, yaml, table, csv, xml)",
 				"--help":        "Show help for any command",
 				"--env":         "Environment to use (production, staging, development)",
