@@ -115,14 +115,23 @@ func processFlagCreateNATGatewayInput(cmd *cobra.Command) (*megaport.CreateNATGa
 	return req, nil
 }
 
+// updateExplicitFields tracks which zero-valued fields were explicitly provided
+// in an update request. This lets mergeUpdateDefaults distinguish "user wants
+// zero/false" from "user omitted the field and we should inherit from original".
+type updateExplicitFields struct {
+	AutoRenewTerm      bool // was autoRenewTerm present in input?
+	BGPShutdownDefault bool // was bgpShutdownDefault present in input?
+	ASN                bool // was asn present in JSON input? (no flag path for ASN)
+}
+
 // processJSONUpdateNATGatewayInput parses a JSON update request and returns the
-// request along with explicit-presence flags for bool fields that have no
-// omitempty. When a *bool pointer is nil the field was absent from the JSON and
-// mergeUpdateDefaults will inherit the original value instead.
-func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.UpdateNATGatewayRequest, bool, bool, error) {
+// request along with explicit-presence flags for fields whose zero value is
+// ambiguous. Absent fields use pointer types (*bool, *int) so nil means "not
+// provided" and mergeUpdateDefaults will inherit from the original resource.
+func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.UpdateNATGatewayRequest, updateExplicitFields, error) {
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
-		return nil, false, false, err
+		return nil, updateExplicitFields{}, err
 	}
 
 	var raw struct {
@@ -132,7 +141,7 @@ func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.
 		Term                  int               `json:"term"`
 		SessionCount          int               `json:"sessionCount"`
 		DiversityZone         string            `json:"diversityZone"`
-		ASN                   int               `json:"asn"`
+		ASN                   *int              `json:"asn"`
 		BGPShutdownDefault    *bool             `json:"bgpShutdownDefault"`
 		AutoRenewTerm         *bool             `json:"autoRenewTerm"`
 		PromoCode             string            `json:"promoCode"`
@@ -140,11 +149,14 @@ func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.
 		ResourceTags          map[string]string `json:"resourceTags"`
 	}
 	if err := json.Unmarshal(jsonData, &raw); err != nil {
-		return nil, false, false, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, updateExplicitFields{}, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
-	autoRenewExplicit := raw.AutoRenewTerm != nil
-	bgpShutdownExplicit := raw.BGPShutdownDefault != nil
+	explicit := updateExplicitFields{
+		AutoRenewTerm:      raw.AutoRenewTerm != nil,
+		BGPShutdownDefault: raw.BGPShutdownDefault != nil,
+		ASN:                raw.ASN != nil,
+	}
 
 	var autoRenew, bgpShutdown bool
 	if raw.AutoRenewTerm != nil {
@@ -152,6 +164,10 @@ func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.
 	}
 	if raw.BGPShutdownDefault != nil {
 		bgpShutdown = *raw.BGPShutdownDefault
+	}
+	var asn int
+	if raw.ASN != nil {
+		asn = *raw.ASN
 	}
 
 	req := &megaport.UpdateNATGatewayRequest{
@@ -164,7 +180,7 @@ func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.
 		PromoCode:             raw.PromoCode,
 		ServiceLevelReference: raw.ServiceLevelReference,
 		Config: megaport.NATGatewayNetworkConfig{
-			ASN:                raw.ASN,
+			ASN:                asn,
 			BGPShutdownDefault: bgpShutdown,
 			DiversityZone:      raw.DiversityZone,
 			SessionCount:       raw.SessionCount,
@@ -179,7 +195,7 @@ func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.
 		req.ResourceTags = tags
 	}
 
-	return req, autoRenewExplicit, bgpShutdownExplicit, nil
+	return req, explicit, nil
 }
 
 func processFlagUpdateNATGatewayInput(cmd *cobra.Command, uid string) (*megaport.UpdateNATGatewayRequest, error) {

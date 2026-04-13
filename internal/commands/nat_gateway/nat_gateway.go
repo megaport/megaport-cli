@@ -43,6 +43,10 @@ func buildNATGatewayCommands(rootCmd *cobra.Command) (get, list, create, update,
 		WithOutputFormatRunFunc(ListNATGateways).
 		WithNATGatewayFilterFlags().
 		WithIntFlag("limit", 0, "Limit the number of results returned").
+		WithOptionalFlag("location-id", "Filter NAT Gateways by location ID").
+		WithOptionalFlag("name", "Filter NAT Gateways by name (substring match)").
+		WithOptionalFlag("include-inactive", "Include inactive NAT Gateways in the results").
+		WithOptionalFlag("limit", "Limit the number of results returned").
 		WithLongDesc("List all NAT Gateways for your account.\n\nThis command retrieves and displays all NAT Gateways, with optional filtering.").
 		WithExample("megaport-cli nat-gateway list").
 		WithExample("megaport-cli nat-gateway list --location-id 67").
@@ -136,9 +140,12 @@ func buildNATGatewayCommands(rootCmd *cobra.Command) (get, list, create, update,
 		WithExample("megaport-cli nat-gateway telemetry [uid] --types SPEED --days 30 --output json").
 		WithImportantNote("Use --days for a rolling window, or --from/--to for an absolute range (they are mutually exclusive)").
 		WithRootCmd(rootCmd).
-		WithConditionalRequirements("types").
 		Build()
 
+	// --types is always required; use MarkFlagRequired for a clear error
+	// instead of WithConditionalRequirements which adds interactive/JSON
+	// branches that this command doesn't support.
+	_ = telemetry.MarkFlagRequired("types")
 	telemetry.MarkFlagsMutuallyExclusive("days", "from")
 	telemetry.MarkFlagsMutuallyExclusive("days", "to")
 

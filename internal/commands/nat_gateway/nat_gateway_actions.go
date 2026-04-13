@@ -239,22 +239,24 @@ func UpdateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("NAT Gateway %s not found", uid)
 	}
 
-	// Build the request from user input.
-	// autoRenewExplicit / bgpShutdownExplicit track whether the caller
-	// explicitly set those bool fields.  mergeUpdateDefaults uses them to
-	// distinguish "user wants false" from "user omitted the field".
+	// Build the request from user input. explicit tracks which zero-valued
+	// fields the caller intentionally provided so mergeUpdateDefaults can
+	// distinguish "user wants zero/false" from "field was omitted".
 	var req *megaport.UpdateNATGatewayRequest
-	var autoRenewExplicit, bgpShutdownExplicit bool
+	var explicit updateExplicitFields
 
 	if jsonStr != "" || jsonFile != "" {
 		output.PrintInfo("Using JSON input", noColor)
-		req, autoRenewExplicit, bgpShutdownExplicit, err = processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid)
+		req, explicit, err = processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid)
 	} else if flagsProvided {
 		output.PrintInfo("Using flag input", noColor)
 		req, err = processFlagUpdateNATGatewayInput(cmd, uid)
-		autoRenewExplicit = cmd.Flags().Changed("auto-renew")
+		explicit.AutoRenewTerm = cmd.Flags().Changed("auto-renew")
+		// ASN and BGPShutdownDefault have no flag path; never explicit in flag mode.
 	} else if interactive {
-		req, autoRenewExplicit, err = promptForUpdateNATGatewayDetails(uid, noColor)
+		var autoRenewExpl bool
+		req, autoRenewExpl, err = promptForUpdateNATGatewayDetails(uid, noColor)
+		explicit.AutoRenewTerm = autoRenewExpl
 	}
 	if err != nil {
 		output.PrintError("Failed to process input: %v", noColor, err)
@@ -263,7 +265,7 @@ func UpdateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 
 	// Merge: fill in unset fields from the original gateway so partial
 	// updates work without requiring every field.
-	mergeUpdateDefaults(req, originalGW, autoRenewExplicit, bgpShutdownExplicit)
+	mergeUpdateDefaults(req, originalGW, explicit)
 
 	if err := validation.ValidateUpdateNATGatewayRequest(req); err != nil {
 		output.PrintError("Validation failed: %v", noColor, err)
@@ -292,11 +294,11 @@ func UpdateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 // mergeUpdateDefaults fills zero-valued fields in the update request with
 // values from the original NAT Gateway, enabling partial updates.
 //
-// autoRenewExplicit and bgpShutdownExplicit indicate that the caller explicitly
-// provided those bool fields (e.g. via a changed flag or a non-nil JSON
-// pointer). When true, the original value is NOT inherited, preserving an
-// intentional false.
-func mergeUpdateDefaults(req *megaport.UpdateNATGatewayRequest, original *megaport.NATGateway, autoRenewExplicit, bgpShutdownExplicit bool) {
+// explicit tracks which zero-valued fields the caller intentionally provided.
+// When a field is marked explicit its zero/false value is preserved; otherwise
+// the original resource value is inherited so partial updates don't
+// accidentally clear existing settings.
+func mergeUpdateDefaults(req *megaport.UpdateNATGatewayRequest, original *megaport.NATGateway, explicit updateExplicitFields) {
 	if original == nil {
 		return
 	}
@@ -318,16 +320,17 @@ func mergeUpdateDefaults(req *megaport.UpdateNATGatewayRequest, original *megapo
 	if req.Config.DiversityZone == "" {
 		req.Config.DiversityZone = original.Config.DiversityZone
 	}
-	if req.Config.ASN == 0 {
+	// ASN: 0 means "unset/default" unless the caller explicitly provided it.
+	if !explicit.ASN && req.Config.ASN == 0 {
 		req.Config.ASN = original.Config.ASN
 	}
 	// AutoRenewTerm and BGPShutdownDefault have no omitempty — false is always
 	// serialised. Only inherit when the caller did not explicitly provide the
 	// field, so a deliberate false is preserved.
-	if !autoRenewExplicit && !req.AutoRenewTerm {
+	if !explicit.AutoRenewTerm && !req.AutoRenewTerm {
 		req.AutoRenewTerm = original.AutoRenewTerm
 	}
-	if !bgpShutdownExplicit && !req.Config.BGPShutdownDefault {
+	if !explicit.BGPShutdownDefault && !req.Config.BGPShutdownDefault {
 		req.Config.BGPShutdownDefault = original.Config.BGPShutdownDefault
 	}
 }
