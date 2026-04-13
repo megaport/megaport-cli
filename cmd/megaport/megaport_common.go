@@ -96,6 +96,6 @@ func InitializeCommon() {
 	rootCmd.PersistentFlags().String("query", "", "JMESPath query to filter JSON output (requires --output json)")
 	rootCmd.PersistentFlags().BoolVar(&utils.NoRetry, "no-retry", false, "Disable automatic retry on transient API failures")
 	rootCmd.PersistentFlags().IntVar(&utils.MaxRetries, "max-retries", 3, "Maximum number of retries for transient API failures")
-	rootCmd.PersistentFlags().BoolVar(&utils.LogHTTP, "log-http", false, "Log raw HTTP requests and responses to stderr for debugging")
+	rootCmd.PersistentFlags().BoolVar(&utils.LogHTTP, "log-http", false, "Log raw HTTP requests/responses to stderr for debugging (may include sensitive data such as auth tokens)")
 	rootCmd.MarkFlagsMutuallyExclusive("quiet", "verbose")
 }

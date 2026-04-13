@@ -46,7 +46,7 @@ megaport-cli [flags]
 |------|-----------|---------|-------------|----------|
 | `--env` |  |  | Environment to use (prod, dev, or staging) | false |
 | `--fields` |  |  | Comma-separated list of fields to include in output (e.g., uid,name,status); use an unknown name to list available fields | false |
-| `--log-http` |  | `false` | Log raw HTTP requests and responses to stderr for debugging | false |
+| `--log-http` |  | `false` | Log raw HTTP requests/responses to stderr for debugging (may include sensitive data such as auth tokens) | false |
 | `--max-retries` |  | `3` | Maximum number of retries for transient API failures | false |
 | `--no-color` |  | `false` | Disable colorful output | false |
 | `--no-retry` |  | `false` | Disable automatic retry on transient API failures | false |
