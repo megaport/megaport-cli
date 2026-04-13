@@ -323,7 +323,7 @@ func (b *CommandBuilder) Build() *cobra.Command {
 		b.cmd.RunE = func(cmd *cobra.Command, args []string) error {
 			skeleton, _ := cmd.Flags().GetBool("generate-skeleton")
 			if skeleton {
-				fmt.Println(jsonExamples[0])
+				fmt.Fprintln(cmd.OutOrStdout(), jsonExamples[0])
 				return nil
 			}
 			if originalRunE != nil {

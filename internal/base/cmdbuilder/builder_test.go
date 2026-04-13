@@ -3,8 +3,6 @@ package cmdbuilder
 import (
 	"bytes"
 	"errors"
-	"io"
-	"os"
 	"testing"
 	"time"
 
@@ -704,18 +702,10 @@ func TestGenerateSkeletonFlag(t *testing.T) {
 			WithJSONExample(jsonExample).
 			Build()
 
-		// Capture stdout
-		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
 		require.NoError(t, cmd.Flags().Set("generate-skeleton", "true"))
 		err := cmd.RunE(cmd, []string{})
-
-		w.Close()
-		os.Stdout = oldStdout
-		var buf bytes.Buffer
-		_, _ = io.Copy(&buf, r)
 
 		assert.NoError(t, err)
 		assert.False(t, originalCalled)
@@ -757,17 +747,10 @@ func TestGenerateSkeletonFlag(t *testing.T) {
 			WithJSONExample(secondExample).
 			Build()
 
-		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
 		require.NoError(t, cmd.Flags().Set("generate-skeleton", "true"))
 		err := cmd.RunE(cmd, []string{})
-
-		w.Close()
-		os.Stdout = oldStdout
-		var buf bytes.Buffer
-		_, _ = io.Copy(&buf, r)
 
 		assert.NoError(t, err)
 		assert.Contains(t, buf.String(), jsonExample)
