@@ -1,7 +1,10 @@
 package cmdbuilder
 
 import (
+	"bytes"
 	"errors"
+	"io"
+	"os"
 	"testing"
 	"time"
 
@@ -673,4 +676,101 @@ func TestBuilderChaining(t *testing.T) {
 	}))
 	assert.Equal(t, b, b.WithRootCmd(&cobra.Command{}))
 	assert.Equal(t, b, b.WithAliases([]string{"t"}))
+}
+
+func TestGenerateSkeletonFlag(t *testing.T) {
+	const jsonExample = `{"name": "My Port", "term": 12}`
+
+	t.Run("flag added when JSON example present", func(t *testing.T) {
+		cmd := NewCommand("buy", "Buy a resource").
+			WithJSONExample(jsonExample).
+			Build()
+
+		assert.NotNil(t, cmd.Flags().Lookup("generate-skeleton"))
+	})
+
+	t.Run("flag absent without JSON example", func(t *testing.T) {
+		cmd := NewCommand("buy", "Buy a resource").Build()
+		assert.Nil(t, cmd.Flags().Lookup("generate-skeleton"))
+	})
+
+	t.Run("prints JSON example and returns nil without calling original RunE", func(t *testing.T) {
+		originalCalled := false
+		cmd := NewCommand("buy", "Buy a resource").
+			WithRunFunc(func(cmd *cobra.Command, args []string) error {
+				originalCalled = true
+				return nil
+			}).
+			WithJSONExample(jsonExample).
+			Build()
+
+		// Capture stdout
+		oldStdout := os.Stdout
+		r, w, _ := os.Pipe()
+		os.Stdout = w
+
+		require.NoError(t, cmd.Flags().Set("generate-skeleton", "true"))
+		err := cmd.RunE(cmd, []string{})
+
+		w.Close()
+		os.Stdout = oldStdout
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, r)
+
+		assert.NoError(t, err)
+		assert.False(t, originalCalled)
+		assert.Contains(t, buf.String(), jsonExample)
+	})
+
+	t.Run("original RunE called when flag not set", func(t *testing.T) {
+		originalCalled := false
+		cmd := NewCommand("buy", "Buy a resource").
+			WithRunFunc(func(cmd *cobra.Command, args []string) error {
+				originalCalled = true
+				return nil
+			}).
+			WithJSONExample(jsonExample).
+			Build()
+
+		err := cmd.RunE(cmd, []string{})
+		assert.NoError(t, err)
+		assert.True(t, originalCalled)
+	})
+
+	t.Run("skips ConditionalRequirements validation", func(t *testing.T) {
+		cmd := NewCommand("buy", "Buy a resource").
+			WithFlag("name", "", "Resource name").
+			WithJSONExample(jsonExample).
+			WithConditionalRequirements("name").
+			Build()
+
+		require.NoError(t, cmd.Flags().Set("generate-skeleton", "true"))
+		// name is not set — validation should be skipped
+		err := cmd.PreRunE(cmd, []string{})
+		assert.NoError(t, err)
+	})
+
+	t.Run("first example printed when multiple examples present", func(t *testing.T) {
+		const secondExample = `{"name": "Other", "term": 24}`
+		cmd := NewCommand("buy", "Buy a resource").
+			WithJSONExample(jsonExample).
+			WithJSONExample(secondExample).
+			Build()
+
+		oldStdout := os.Stdout
+		r, w, _ := os.Pipe()
+		os.Stdout = w
+
+		require.NoError(t, cmd.Flags().Set("generate-skeleton", "true"))
+		err := cmd.RunE(cmd, []string{})
+
+		w.Close()
+		os.Stdout = oldStdout
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, r)
+
+		assert.NoError(t, err)
+		assert.Contains(t, buf.String(), jsonExample)
+		assert.NotContains(t, buf.String(), secondExample)
+	})
 }

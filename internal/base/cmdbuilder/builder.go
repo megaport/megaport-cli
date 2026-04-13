@@ -170,8 +170,9 @@ func (b *CommandBuilder) WithConditionalRequirements(conditionallyRequiredFlags 
 		jsonStr, _ := cmd.Flags().GetString("json")
 		jsonFile, _ := cmd.Flags().GetString("json-file")
 
-		// Skip validation if interactive mode or JSON input is used
-		if interactive || jsonStr != "" || jsonFile != "" {
+		// Skip validation if interactive mode, JSON input, or skeleton mode is used
+		skeleton, _ := cmd.Flags().GetBool("generate-skeleton")
+		if interactive || jsonStr != "" || jsonFile != "" || skeleton {
 			return nil
 		}
 
@@ -313,6 +314,24 @@ func (b *CommandBuilder) Build() *cobra.Command {
 
 	// Add the docs subcommand
 	b.cmd.AddCommand(docsCmd)
+
+	// Auto-add --generate-skeleton flag for commands that have JSON examples
+	if len(b.jsonExamples) > 0 {
+		b.cmd.Flags().Bool("generate-skeleton", false, "Print a JSON skeleton template for --json input and exit")
+		originalRunE := b.cmd.RunE
+		jsonExamples := b.jsonExamples
+		b.cmd.RunE = func(cmd *cobra.Command, args []string) error {
+			skeleton, _ := cmd.Flags().GetBool("generate-skeleton")
+			if skeleton {
+				fmt.Println(jsonExamples[0])
+				return nil
+			}
+			if originalRunE != nil {
+				return originalRunE(cmd, args)
+			}
+			return nil
+		}
+	}
 
 	return b.cmd
 }
