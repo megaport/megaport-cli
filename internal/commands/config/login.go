@@ -202,7 +202,11 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 	envOpt := environmentOption(env)
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 
-	megaportClient, err := megaport.New(httpClient, megaport.WithCredentials(accessKey, secretKey), envOpt)
+	megaportClient, err := megaport.New(httpClient,
+		megaport.WithCredentials(accessKey, secretKey),
+		envOpt,
+		megaport.WithCustomHeaders(cliHeaders),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +239,7 @@ var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 
 	envOpt := environmentOption(env)
 	httpClient := &http.Client{Timeout: 30 * time.Second}
-	return megaport.New(httpClient, envOpt)
+	return megaport.New(httpClient, envOpt, megaport.WithCustomHeaders(cliHeaders))
 }
 
 // NewUnauthenticatedClient creates an unauthenticated Megaport API client.
