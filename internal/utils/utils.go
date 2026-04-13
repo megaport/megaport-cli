@@ -39,6 +39,9 @@ var (
 	// MaxRetries overrides the default retry count. Set via --max-retries flag.
 	MaxRetries int
 
+	// LogHTTP enables raw HTTP request/response logging to stderr. Set via --log-http flag.
+	LogHTTP bool
+
 	ValidFormats = []string{FormatTable, FormatJSON, FormatCSV, FormatXML}
 )
 
