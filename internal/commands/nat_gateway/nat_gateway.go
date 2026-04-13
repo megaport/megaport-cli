@@ -53,7 +53,6 @@ func buildNATGatewayCommands(rootCmd *cobra.Command) (get, list, create, update,
 
 	create = cmdbuilder.NewCommand("create", "Create a new NAT Gateway").
 		WithColorAwareRunFunc(CreateNATGateway).
-		WithNoWaitFlag().
 		WithBuyConfirmFlags().
 		WithNATGatewayCreateFlags().
 		WithStandardInputFlags().

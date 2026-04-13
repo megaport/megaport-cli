@@ -15,8 +15,7 @@ func (b *CommandBuilder) WithNATGatewayCreateFlags() *CommandBuilder {
 		WithOptionalFlag("service-level-reference", "A service level reference for the NAT Gateway").
 		WithBoolFlag("auto-renew", false, "Whether to automatically renew the contract term").
 		WithOptionalFlag("auto-renew", "Whether to automatically renew the contract term").
-		WithFlag("resource-tags", "", "JSON object of resource tags (e.g. '{\"env\":\"prod\"}')").
-		WithOptionalFlag("resource-tags", "JSON object of resource tags")
+		WithResourceTagFlags()
 	return b
 }
 

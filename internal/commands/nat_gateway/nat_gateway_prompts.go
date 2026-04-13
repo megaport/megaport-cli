@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
@@ -69,8 +68,6 @@ func promptForCreateNATGatewayDetails(noColor bool) (*megaport.CreateNATGatewayR
 		return nil, err
 	}
 	req.Config.DiversityZone = strings.TrimSpace(diversityZone)
-
-	output.PrintInfo("Note: use --promo-code and --service-level-reference flags for additional options", noColor)
 
 	if err := validation.ValidateCreateNATGatewayRequest(req); err != nil {
 		return nil, err

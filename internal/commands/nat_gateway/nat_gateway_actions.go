@@ -24,7 +24,10 @@ func CreateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 	jsonStr, _ := cmd.Flags().GetString("json")
 	jsonFile, _ := cmd.Flags().GetString("json-file")
 	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("term") ||
-		cmd.Flags().Changed("speed") || cmd.Flags().Changed("location-id")
+		cmd.Flags().Changed("speed") || cmd.Flags().Changed("location-id") ||
+		cmd.Flags().Changed("session-count") || cmd.Flags().Changed("diversity-zone") ||
+		cmd.Flags().Changed("promo-code") || cmd.Flags().Changed("service-level-reference") ||
+		cmd.Flags().Changed("auto-renew")
 
 	var req *megaport.CreateNATGatewayRequest
 	var err error
@@ -45,7 +48,6 @@ func CreateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	noWait, _ := cmd.Flags().GetBool("no-wait")
 	yes, _ := cmd.Flags().GetBool("yes")
 
 	client, err := config.Login(ctx)
@@ -70,12 +72,7 @@ func CreateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 	}
 
-	var spinner *output.Spinner
-	if !noWait {
-		spinner = output.PrintResourceProvisioning("NAT Gateway", req.ProductName, noColor)
-	} else {
-		spinner = output.PrintResourceCreating("NAT Gateway", req.ProductName, noColor)
-	}
+	spinner := output.PrintResourceCreating("NAT Gateway", req.ProductName, noColor)
 
 	var gw *megaport.NATGateway
 	err = utils.WithRetry(ctx, func(ctx context.Context) error {
@@ -211,7 +208,9 @@ func UpdateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 	jsonFile, _ := cmd.Flags().GetString("json-file")
 	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("term") ||
 		cmd.Flags().Changed("speed") || cmd.Flags().Changed("location-id") ||
-		cmd.Flags().Changed("session-count") || cmd.Flags().Changed("diversity-zone")
+		cmd.Flags().Changed("session-count") || cmd.Flags().Changed("diversity-zone") ||
+		cmd.Flags().Changed("promo-code") || cmd.Flags().Changed("service-level-reference") ||
+		cmd.Flags().Changed("auto-renew")
 
 	if jsonStr == "" && jsonFile == "" && !flagsProvided && !interactive {
 		return fmt.Errorf("at least one field must be updated")

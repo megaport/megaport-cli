@@ -667,7 +667,7 @@ func TestCreateNATGateway_JSONWithSessionCount(t *testing.T) {
 	assert.True(t, mock.CapturedCreateReq.AutoRenewTerm)
 }
 
-func TestCreateNATGateway_FlagsWithNoWait(t *testing.T) {
+func TestCreateNATGateway_FlagsWithYes(t *testing.T) {
 	mock := &MockNATGatewayService{}
 	defer setupMockNATGateway(mock)()
 
@@ -677,7 +677,6 @@ func TestCreateNATGateway_FlagsWithNoWait(t *testing.T) {
 	require.NoError(t, cmd.Flags().Set("speed", "1000"))
 	require.NoError(t, cmd.Flags().Set("location-id", "1"))
 	require.NoError(t, cmd.Flags().Set("yes", "true"))
-	require.NoError(t, cmd.Flags().Set("no-wait", "true"))
 
 	err := CreateNATGateway(cmd, nil, true)
 	assert.NoError(t, err)
