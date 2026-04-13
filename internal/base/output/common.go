@@ -91,19 +91,15 @@ func getNoHeader() bool {
 	return noHeader
 }
 
-// GetNoHeader returns the current no-header setting. Exported for use in tests
-// that need to verify the flag was wired correctly through PersistentPreRunE.
-func GetNoHeader() bool {
-	return getNoHeader()
-}
-
 // ResetState clears all package-level output configuration back to defaults.
-// Intended for callers such as the WASM entry point that must ensure output
-// state does not bleed between invocations.
+// Intended for callers such as the WASM entry point that must ensure all
+// output-related global state does not bleed between invocations.
 func ResetState() {
 	SetOutputFields(nil)
 	SetOutputQuery("")
 	SetNoHeader(false)
+	SetOutputFormat("table")
+	SetVerbosity("normal")
 }
 
 // applyJMESPath applies a JMESPath query to v and returns the result.

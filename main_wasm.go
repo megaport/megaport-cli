@@ -157,8 +157,6 @@ func main() {
 	// internal/wasm) to break the import cycle between wasm and output packages.
 	wasm.RegisterOutputStateReset(func() {
 		output.ResetState()
-		output.SetOutputFormat("table")
-		output.SetVerbosity("normal")
 	})
 
 	// Register the embedded documentation with the cmdbuilder package
