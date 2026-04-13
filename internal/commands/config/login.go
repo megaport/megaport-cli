@@ -237,18 +237,87 @@ var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 
 	envOpt := environmentOption(env)
 	httpClient := &http.Client{Timeout: 30 * time.Second}
-
 	opts := appendLogOpts([]megaport.ClientOpt{envOpt, megaport.WithCustomHeaders(cliHeaders)})
 	return megaport.New(httpClient, opts...)
 }
 
 // appendLogOpts appends HTTP debug logging options to the client option slice
-// when --log-http is enabled. Logs go to stderr at DEBUG level.
+// when --log-http is enabled. Logs go to stderr at DEBUG level with sensitive
+// fields (access keys, tokens, and all response bodies) redacted.
 func appendLogOpts(opts []megaport.ClientOpt) []megaport.ClientOpt {
 	result := append([]megaport.ClientOpt(nil), opts...)
 	if utils.LogHTTP {
-		handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
+		inner := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
+		handler := &redactingHandler{inner: inner}
 		result = append(result, megaport.WithLogHandler(handler), megaport.WithLogResponseBody())
+	}
+	return result
+}
+
+// sensitiveKeys lists slog attribute keys whose values should be redacted.
+var sensitiveKeys = map[string]bool{
+	"access_key":            true,
+	"secret_key":            true,
+	"response_body_base_64": true,
+	"authorization":         true,
+	"x-authorization":       true,
+	"access_token":          true,
+}
+
+// redactingHandler wraps an slog.Handler to replace sensitive attribute values
+// with "[REDACTED]" before passing them to the inner handler.
+type redactingHandler struct {
+	inner slog.Handler
+}
+
+func (h *redactingHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return h.inner.Enabled(ctx, level)
+}
+
+func (h *redactingHandler) Handle(ctx context.Context, r slog.Record) error {
+	redacted := slog.NewRecord(r.Time, r.Level, r.Message, r.PC)
+	r.Attrs(func(a slog.Attr) bool {
+		redacted.AddAttrs(redactAttr(a))
+		return true
+	})
+	return h.inner.Handle(ctx, redacted)
+}
+
+func (h *redactingHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	cleaned := make([]slog.Attr, len(attrs))
+	for i, a := range attrs {
+		cleaned[i] = redactAttr(a)
+	}
+	return &redactingHandler{inner: h.inner.WithAttrs(cleaned)}
+}
+
+func (h *redactingHandler) WithGroup(name string) slog.Handler {
+	return &redactingHandler{inner: h.inner.WithGroup(name)}
+}
+
+// redactAttr replaces the value of sensitive attributes with "[REDACTED]".
+// For group attributes (like the SDK's "api_request" group), it recurses
+// into the group's attributes.
+func redactAttr(a slog.Attr) slog.Attr {
+	if sensitiveKeys[a.Key] {
+		return slog.String(a.Key, "[REDACTED]")
+	}
+	// Recurse into group attributes
+	if a.Value.Kind() == slog.KindGroup {
+		attrs := a.Value.Group()
+		cleaned := make([]slog.Attr, len(attrs))
+		for i, ga := range attrs {
+			cleaned[i] = redactAttr(ga)
+		}
+		return slog.Group(a.Key, attrsToAny(cleaned)...)
+	}
+	return a
+}
+
+func attrsToAny(attrs []slog.Attr) []any {
+	result := make([]any, len(attrs))
+	for i, a := range attrs {
+		result[i] = a
 	}
 	return result
 }

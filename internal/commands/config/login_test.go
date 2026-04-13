@@ -1,8 +1,10 @@
 package config
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -636,7 +638,6 @@ func TestAppendLogOpts(t *testing.T) {
 
 		utils.LogHTTP = true
 		opts := appendLogOpts([]megaport.ClientOpt{})
-		// WithLogHandler and WithLogResponseBody should be appended
 		assert.Len(t, opts, 2, "should add 2 log options when LogHTTP is enabled")
 	})
 
@@ -704,4 +705,87 @@ func TestCLIHeadersSentOnRequests(t *testing.T) {
 		t.Fatalf("timed out waiting for request headers from test server")
 	}
 	assert.Equal(t, "cli", capturedHeaders.Get("x-app"))
+}
+
+func TestRedactingHandler(t *testing.T) {
+	var buf bytes.Buffer
+	inner := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+	handler := &redactingHandler{inner: inner}
+	logger := slog.New(handler)
+
+	t.Run("redacts sensitive keys", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "auth",
+			slog.String("access_key", "MEGA-SECRET-KEY"),
+			slog.String("secret_key", "super-secret"),
+			slog.String("access_token", "bearer-token-123"),
+		)
+		output := buf.String()
+		assert.NotContains(t, output, "MEGA-SECRET-KEY")
+		assert.NotContains(t, output, "super-secret")
+		assert.NotContains(t, output, "bearer-token-123")
+		assert.Contains(t, output, "[REDACTED]")
+	})
+
+	t.Run("preserves non-sensitive keys", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "request",
+			slog.String("method", "GET"),
+			slog.String("path", "/v3/products"),
+			slog.Int("status_code", 200),
+		)
+		output := buf.String()
+		assert.Contains(t, output, "GET")
+		assert.Contains(t, output, "/v3/products")
+		assert.Contains(t, output, "200")
+		assert.NotContains(t, output, "[REDACTED]")
+	})
+
+	t.Run("redacts response_body_base_64", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "response",
+			slog.String("response_body_base_64", "eyJhY2Nlc3NfdG9rZW4iOiJzZWNyZXQifQ=="),
+		)
+		output := buf.String()
+		assert.NotContains(t, output, "eyJhY2Nlc3NfdG9rZW4iOiJzZWNyZXQifQ==")
+		assert.Contains(t, output, "[REDACTED]")
+	})
+
+	t.Run("redacts inside group attributes", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "api call",
+			slog.Group("api_request",
+				slog.String("method", "POST"),
+				slog.String("access_key", "should-be-redacted"),
+				slog.String("response_body_base_64", "also-redacted"),
+			),
+		)
+		output := buf.String()
+		assert.Contains(t, output, "POST")
+		assert.NotContains(t, output, "should-be-redacted")
+		assert.NotContains(t, output, "also-redacted")
+	})
+
+	t.Run("Enabled delegates to inner", func(t *testing.T) {
+		assert.True(t, handler.Enabled(context.Background(), slog.LevelDebug))
+		assert.False(t, handler.Enabled(context.Background(), slog.LevelDebug-1))
+	})
+
+	t.Run("WithAttrs redacts", func(t *testing.T) {
+		buf.Reset()
+		child := handler.WithAttrs([]slog.Attr{slog.String("access_key", "persistent-key")})
+		slog.New(child).DebugContext(context.Background(), "test")
+		output := buf.String()
+		assert.NotContains(t, output, "persistent-key")
+		assert.Contains(t, output, "[REDACTED]")
+	})
+
+	t.Run("WithGroup wraps", func(t *testing.T) {
+		buf.Reset()
+		child := handler.WithGroup("mygroup")
+		slog.New(child).DebugContext(context.Background(), "test", slog.String("access_key", "grouped-key"))
+		output := buf.String()
+		assert.NotContains(t, output, "grouped-key")
+		assert.Contains(t, output, "[REDACTED]")
+	})
 }
