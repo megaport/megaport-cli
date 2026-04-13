@@ -914,3 +914,57 @@ func TestCreateNATGateway_JSONMissingSpeed(t *testing.T) {
 	err := CreateNATGateway(cmd, nil, true)
 	assert.Error(t, err)
 }
+
+// TestUpdateFlagExplicit_SessionCountZero verifies that --session-count 0 is treated
+// as an explicit zero and not overwritten by mergeUpdateDefaults.
+func TestUpdateFlagExplicit_SessionCountZero(t *testing.T) {
+	original := &megaport.NATGateway{
+		ProductName: "GW",
+		LocationID:  1,
+		Speed:       1000,
+		Term:        12,
+		Config:      megaport.NATGatewayNetworkConfig{SessionCount: 50000, DiversityZone: "blue"},
+	}
+
+	cmd := newTestCmd("update")
+	require.NoError(t, cmd.Flags().Set("session-count", "0"))
+
+	req, err := processFlagUpdateNATGatewayInput(cmd, "uid-1")
+	require.NoError(t, err)
+
+	explicit := updateExplicitFields{
+		SessionCount: cmd.Flags().Changed("session-count"),
+	}
+
+	mergeUpdateDefaults(req, original, explicit)
+
+	assert.Equal(t, 0, req.Config.SessionCount, "--session-count 0 should not be overwritten by original 50000")
+	assert.Equal(t, "blue", req.Config.DiversityZone, "DiversityZone should inherit from original when not set")
+}
+
+// TestUpdateFlagExplicit_DiversityZoneEmpty verifies that --diversity-zone ""
+// is treated as an explicit empty string and not overwritten by mergeUpdateDefaults.
+func TestUpdateFlagExplicit_DiversityZoneEmpty(t *testing.T) {
+	original := &megaport.NATGateway{
+		ProductName: "GW",
+		LocationID:  1,
+		Speed:       1000,
+		Term:        12,
+		Config:      megaport.NATGatewayNetworkConfig{SessionCount: 50000, DiversityZone: "blue"},
+	}
+
+	cmd := newTestCmd("update")
+	require.NoError(t, cmd.Flags().Set("diversity-zone", ""))
+
+	req, err := processFlagUpdateNATGatewayInput(cmd, "uid-1")
+	require.NoError(t, err)
+
+	explicit := updateExplicitFields{
+		DiversityZone: cmd.Flags().Changed("diversity-zone"),
+	}
+
+	mergeUpdateDefaults(req, original, explicit)
+
+	assert.Equal(t, "", req.Config.DiversityZone, "--diversity-zone '' should not be overwritten by original 'blue'")
+	assert.Equal(t, 50000, req.Config.SessionCount, "SessionCount should inherit from original when not set")
+}

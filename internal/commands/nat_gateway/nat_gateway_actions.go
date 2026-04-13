@@ -252,11 +252,11 @@ func UpdateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintInfo("Using flag input", noColor)
 		req, err = processFlagUpdateNATGatewayInput(cmd, uid)
 		explicit.AutoRenewTerm = cmd.Flags().Changed("auto-renew")
+		explicit.SessionCount = cmd.Flags().Changed("session-count")
+		explicit.DiversityZone = cmd.Flags().Changed("diversity-zone")
 		// ASN and BGPShutdownDefault have no flag path; never explicit in flag mode.
 	} else if interactive {
-		var autoRenewExpl bool
-		req, autoRenewExpl, err = promptForUpdateNATGatewayDetails(uid, noColor)
-		explicit.AutoRenewTerm = autoRenewExpl
+		req, explicit, err = promptForUpdateNATGatewayDetails(uid, noColor)
 	}
 	if err != nil {
 		output.PrintError("Failed to process input: %v", noColor, err)
