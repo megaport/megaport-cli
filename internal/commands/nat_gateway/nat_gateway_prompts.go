@@ -69,11 +69,14 @@ func promptForCreateNATGatewayDetails(noColor bool) (*megaport.CreateNATGatewayR
 	}
 	req.Config.DiversityZone = strings.TrimSpace(diversityZone)
 
-	autoRenewStr, err := utils.ResourcePrompt("nat-gateway", "Auto-renew (y/n, leave empty for no): ", noColor)
+	autoRenewStr, err := utils.ResourcePrompt("nat-gateway", "Auto-renew (y/yes/n/no, leave empty for no): ", noColor)
 	if err != nil {
 		return nil, err
 	}
-	req.AutoRenewTerm = strings.TrimSpace(autoRenewStr) == "y"
+	switch strings.ToLower(strings.TrimSpace(autoRenewStr)) {
+	case "y", "yes":
+		req.AutoRenewTerm = true
+	}
 
 	promoCode, err := utils.ResourcePrompt("nat-gateway", "Promo code (optional, leave empty to skip): ", noColor)
 	if err != nil {
@@ -179,14 +182,17 @@ func promptForUpdateNATGatewayDetails(uid string, noColor bool) (*megaport.Updat
 	req.Config.DiversityZone = dz
 	explicit.DiversityZone = dz != ""
 
-	autoRenewStr, err := utils.ResourcePrompt("nat-gateway", "Auto-renew (y/n, leave empty to keep current): ", noColor)
+	autoRenewStr, err := utils.ResourcePrompt("nat-gateway", "Auto-renew (y/yes/n/no, leave empty to keep current): ", noColor)
 	if err != nil {
 		return nil, explicit, err
 	}
-	autoRenewStr = strings.TrimSpace(autoRenewStr)
-	explicit.AutoRenewTerm = autoRenewStr != ""
-	if explicit.AutoRenewTerm {
-		req.AutoRenewTerm = autoRenewStr == "y"
+	switch strings.ToLower(strings.TrimSpace(autoRenewStr)) {
+	case "y", "yes":
+		req.AutoRenewTerm = true
+		explicit.AutoRenewTerm = true
+	case "n", "no":
+		req.AutoRenewTerm = false
+		explicit.AutoRenewTerm = true
 	}
 
 	promoCode, err := utils.ResourcePrompt("nat-gateway", "Promo code (leave empty to keep current): ", noColor)
