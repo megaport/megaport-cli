@@ -6,6 +6,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -202,7 +203,12 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 	envOpt := environmentOption(env)
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 
-	megaportClient, err := megaport.New(httpClient, megaport.WithCredentials(accessKey, secretKey), envOpt)
+	opts := []megaport.ClientOpt{megaport.WithCredentials(accessKey, secretKey), envOpt}
+	if utils.LogHTTP {
+		handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
+		opts = append(opts, megaport.WithLogHandler(handler), megaport.WithLogResponseBody())
+	}
+	megaportClient, err := megaport.New(httpClient, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +241,13 @@ var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 
 	envOpt := environmentOption(env)
 	httpClient := &http.Client{Timeout: 30 * time.Second}
-	return megaport.New(httpClient, envOpt)
+
+	opts := []megaport.ClientOpt{envOpt}
+	if utils.LogHTTP {
+		handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
+		opts = append(opts, megaport.WithLogHandler(handler), megaport.WithLogResponseBody())
+	}
+	return megaport.New(httpClient, opts...)
 }
 
 // NewUnauthenticatedClient creates an unauthenticated Megaport API client.
