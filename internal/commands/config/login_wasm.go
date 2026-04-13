@@ -131,6 +131,7 @@ var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 			}
 
 			// Create Megaport client with the external token (no OAuth flow needed!)
+			clientOpts = append(clientOpts, megaport.WithCustomHeaders(cliHeaders))
 			megaportClient, err := megaport.New(httpClient, clientOpts...)
 			if err != nil {
 				js.Global().Get("console").Call("error", "Failed to create Megaport client: "+err.Error())
@@ -229,6 +230,7 @@ var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	megaportClient, err := megaport.New(httpClient,
 		megaport.WithCredentials(accessKey, secretKey),
 		envOpt,
+		megaport.WithCustomHeaders(cliHeaders),
 	)
 	if err != nil {
 		js.Global().Get("console").Call("error", "Failed to create Megaport client: "+err.Error())
@@ -463,6 +465,7 @@ var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 	httpClient := wasmhttp.NewWasmHTTPClient()
 	httpClient.Timeout = 45 * time.Second
 
+	clientOpts = append(clientOpts, megaport.WithCustomHeaders(cliHeaders))
 	return megaport.New(httpClient, clientOpts...)
 }
 

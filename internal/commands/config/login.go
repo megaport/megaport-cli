@@ -203,7 +203,7 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 	envOpt := environmentOption(env)
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 
-	opts := appendLogOpts([]megaport.ClientOpt{megaport.WithCredentials(accessKey, secretKey), envOpt})
+	opts := appendLogOpts([]megaport.ClientOpt{megaport.WithCredentials(accessKey, secretKey), envOpt, megaport.WithCustomHeaders(cliHeaders)})
 	megaportClient, err := megaport.New(httpClient, opts...)
 	if err != nil {
 		return nil, err
@@ -238,7 +238,7 @@ var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 	envOpt := environmentOption(env)
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 
-	opts := appendLogOpts([]megaport.ClientOpt{envOpt})
+	opts := appendLogOpts([]megaport.ClientOpt{envOpt, megaport.WithCustomHeaders(cliHeaders)})
 	return megaport.New(httpClient, opts...)
 }
 

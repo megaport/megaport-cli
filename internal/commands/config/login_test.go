@@ -3,8 +3,11 @@ package config
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
@@ -655,4 +658,50 @@ func TestAppendLogOpts(t *testing.T) {
 		opts := appendLogOpts(existing)
 		assert.Len(t, opts, 3, "should preserve existing option and add 2 log options")
 	})
+}
+
+func TestCLIHeadersSentOnRequests(t *testing.T) {
+	// Test the real NewUnauthenticatedClient production path to ensure
+	// cliHeaders is actually wired in, not just that the SDK accepts it.
+	originalFunc := GetNewUnauthenticatedClientFunc()
+	defer SetNewUnauthenticatedClientFunc(originalFunc)
+
+	originalEnv := utils.Env
+	defer func() { utils.Env = originalEnv }()
+	utils.Env = "production"
+
+	headersCh := make(chan http.Header, 1)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		headersCh <- r.Header.Clone()
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"message":"ok"}`))
+	}))
+	defer ts.Close()
+
+	// Use a temp config dir so profile resolution doesn't interfere
+	tempDir, err := os.MkdirTemp("", "megaport-header-test")
+	assert.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
+	t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+
+	client, err := NewUnauthenticatedClient()
+	assert.NoError(t, err)
+
+	// Point the real client at our test server
+	client.BaseURL, err = client.BaseURL.Parse(ts.URL + "/")
+	assert.NoError(t, err)
+
+	req, err := client.NewRequest(context.Background(), http.MethodGet, "/", nil)
+	assert.NoError(t, err)
+
+	_, err = client.Do(context.Background(), req, nil)
+	assert.NoError(t, err)
+
+	var capturedHeaders http.Header
+	select {
+	case capturedHeaders = <-headersCh:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timed out waiting for request headers from test server")
+	}
+	assert.Equal(t, "cli", capturedHeaders.Get("x-app"))
 }
