@@ -587,7 +587,7 @@ func TestSetDefault(t *testing.T) {
 			return SetDefault(cmd, []string{"output", ""}, false)
 		})
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "output format must be one of: json, yaml, table")
+		assert.Contains(t, err.Error(), "output format must be one of: table, json, csv, xml, go-template")
 	})
 
 	t.Run("verify persistence", func(t *testing.T) {

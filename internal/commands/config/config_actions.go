@@ -205,9 +205,9 @@ func SetDefault(cmd *cobra.Command, args []string, noColor bool) error {
 
 	allowedSettings := map[string]func(string) (interface{}, error){
 		"output": func(v string) (interface{}, error) {
-			validFormats := map[string]bool{"json": true, "yaml": true, "table": true}
+			validFormats := map[string]bool{"table": true, "json": true, "csv": true, "xml": true, "go-template": true}
 			if !validFormats[v] {
-				return nil, fmt.Errorf("output format must be one of: json, yaml, table")
+				return nil, fmt.Errorf("output format must be one of: table, json, csv, xml, go-template")
 			}
 			return v, nil
 		},

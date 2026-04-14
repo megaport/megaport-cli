@@ -142,6 +142,7 @@ func RunWithPager(fn func() error) error {
 		info, statErr := tmp.Stat()
 		if statErr != nil {
 			// Cannot determine size; fall back to direct write.
+			// countLines already rewound on success but failed here, so seek manually.
 			if _, seekErr := tmp.Seek(0, io.SeekStart); seekErr == nil {
 				_, _ = io.Copy(origStdout, tmp)
 			}
@@ -153,11 +154,7 @@ func RunWithPager(fn func() error) error {
 		lineCount = 1
 	}
 
-	// Seek to start for the subsequent copy.
-	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
-		return fnErr
-	}
-
+	// countLines rewinds r to offset 0 on success, so tmp is ready to copy.
 	if height <= 0 {
 		// Terminal height unknown; write directly.
 		_, _ = io.Copy(origStdout, tmp)
@@ -180,8 +177,10 @@ func RunWithPager(fn func() error) error {
 }
 
 // countLines counts the number of newline characters in r by reading in
-// chunks, then seeks r back to the start. Unlike bufio.Scanner, this approach
-// has no token-size limit and handles arbitrarily wide table rows.
+// chunks. It seeks r to the start before counting and back to the start
+// before returning, so callers always receive r positioned at offset 0.
+// Unlike bufio.Scanner this approach has no token-size limit and handles
+// arbitrarily wide table rows.
 func countLines(r io.ReadSeeker) (int, error) {
 	if _, err := r.Seek(0, io.SeekStart); err != nil {
 		return 0, err
@@ -201,6 +200,9 @@ func countLines(r io.ReadSeeker) (int, error) {
 		if readErr != nil {
 			return count, readErr
 		}
+	}
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return count, err
 	}
 	return count, nil
 }
