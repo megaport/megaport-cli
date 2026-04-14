@@ -4,9 +4,11 @@
 package megaport
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/help"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/wasm"
@@ -37,8 +39,12 @@ func ExecuteWithArgs(args []string) {
 		argsToUse = args[1:]
 	}
 
-	// Disable automatic usage on errors so we can control the output
+	// Disable automatic usage on errors so we can control the output.
+	// Also reset SilenceErrors: a prior JSON-mode failure may have set it true
+	// via cmd.Root().SilenceErrors = true in a RunE wrapper, and the command
+	// tree is reused across WASM invocations.
 	rootCmd.SilenceUsage = true
+	rootCmd.SilenceErrors = false
 
 	// Set the args on the root command
 	rootCmd.SetArgs(argsToUse)
@@ -47,13 +53,17 @@ func ExecuteWithArgs(args []string) {
 	err := rootCmd.Execute()
 
 	if err != nil {
-		// When --output json is active the RunE wrapper already emitted a
-		// structured JSON error via PrintErrorJSON. Skip the plain-text block
-		// to avoid corrupting machine-readable output. Read the parsed flag
-		// value directly because the global output format may not have been set
-		// yet if execution failed before action setup completed.
-		if requestedFormat, flagErr := rootCmd.PersistentFlags().GetString("output"); flagErr == nil && requestedFormat == utils.FormatJSON {
-			return
+		// When the error is a *CLIError returned by a RunE wrapper in JSON mode,
+		// the wrapper has already written the structured JSON error via
+		// PrintErrorJSON. Skip the plain-text block to avoid corrupting
+		// machine-readable output. We gate on *CLIError (not just the --output
+		// flag) because errors that occur before a wrapper runs (e.g., flag
+		// parse errors) are not *CLIError and still need the plain-text block.
+		var cliErr *exitcodes.CLIError
+		if errors.As(err, &cliErr) {
+			if requestedFormat, flagErr := rootCmd.PersistentFlags().GetString("output"); flagErr == nil && requestedFormat == utils.FormatJSON {
+				return
+			}
 		}
 		// Clear the buffer if help was shown automatically
 		wasm.ResetOutputBuffers()
