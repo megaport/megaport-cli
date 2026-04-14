@@ -369,9 +369,10 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 		mcrs = activeMCRs
 	}
 
+	// Name, locationID, and portSpeed filtering are client-side; SDK only supports IncludeInactive.
 	filteredMCRs := filterMCRs(mcrs, locationID, portSpeed, mcrName)
 
-	limit, _ := cmd.Flags().GetInt("limit")
+	limit, _ := cmd.Flags().GetInt("limit") // applied client-side after fetch
 
 	tagFilters, _ := cmd.Flags().GetStringArray("tag")
 	if len(tagFilters) > 0 {

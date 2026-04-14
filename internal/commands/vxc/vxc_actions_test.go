@@ -777,15 +777,36 @@ func TestListVXCs(t *testing.T) {
 			outputFormat:   "table",
 		},
 		{
-			name: "filter by case insensitive name",
+			name: "name filter is case-sensitive",
 			flags: map[string]string{
 				"name": "PRODUCTION",
 			},
 			setupMock: func(m *MockVXCService) {
 				m.ListVXCResponse = testVXCs
 			},
+			expectedVXCs:   []string{},
+			unexpectedVXCs: []string{"production-vxc", "vxc-demo-01", "vxc-demo-02"},
+			outputFormat:   "table",
+		},
+		{
+			name: "name filter matches with correct case",
+			flags: map[string]string{
+				"name": "production",
+			},
+			setupMock: func(m *MockVXCService) {
+				m.ListVXCResponse = testVXCs
+			},
 			expectedVXCs:   []string{"production-vxc"},
 			unexpectedVXCs: []string{"vxc-demo-01", "vxc-demo-02", "test-vxc-decom"},
+			outputFormat:   "table",
+		},
+		{
+			name: "nil entry in SDK response is skipped",
+			setupMock: func(m *MockVXCService) {
+				m.ListVXCResponse = []*megaport.VXC{nil, testVXCs[0], nil, testVXCs[1]}
+			},
+			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02"},
+			unexpectedVXCs: []string{"production-vxc"},
 			outputFormat:   "table",
 		},
 		{
@@ -879,6 +900,31 @@ func TestListVXCs(t *testing.T) {
 		{
 			name: "filter by name-contains",
 			flags: map[string]string{
+				"name-contains": "demo",
+			},
+			setupMock: func(m *MockVXCService) {
+				m.ListVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02"},
+			unexpectedVXCs: []string{"production-vxc", "test-vxc-decom"},
+			outputFormat:   "table",
+		},
+		{
+			name: "name-contains is case-sensitive",
+			flags: map[string]string{
+				"name-contains": "DEMO",
+			},
+			setupMock: func(m *MockVXCService) {
+				m.ListVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{},
+			unexpectedVXCs: []string{"vxc-demo-01", "vxc-demo-02", "production-vxc"},
+			outputFormat:   "table",
+		},
+		{
+			name: "name-contains takes precedence over name",
+			flags: map[string]string{
+				"name":          "production",
 				"name-contains": "demo",
 			},
 			setupMock: func(m *MockVXCService) {

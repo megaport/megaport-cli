@@ -107,22 +107,23 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 		return fmt.Errorf("failed to list VXCs: %w", err)
 	}
 
-	var activeVXCs []*megaport.VXC
-	if !includeInactive {
-		for _, vxc := range vxcs {
-			if vxc != nil &&
-				vxc.ProvisioningStatus != megaport.STATUS_DECOMMISSIONED &&
-				vxc.ProvisioningStatus != megaport.STATUS_CANCELLED &&
-				vxc.ProvisioningStatus != utils.StatusDecommissioning {
-				activeVXCs = append(activeVXCs, vxc)
-			}
+	// Scrub nils and, unless --include-inactive, remove decommissioned/cancelled entries.
+	// Name, a-end, b-end, rate-limit, and status are already filtered by ListVXCsRequest.
+	var filteredVXCs []*megaport.VXC
+	for _, vxc := range vxcs {
+		if vxc == nil {
+			continue
 		}
-		vxcs = activeVXCs
+		if !includeInactive &&
+			(vxc.ProvisioningStatus == megaport.STATUS_DECOMMISSIONED ||
+				vxc.ProvisioningStatus == megaport.STATUS_CANCELLED ||
+				vxc.ProvisioningStatus == utils.StatusDecommissioning) {
+			continue
+		}
+		filteredVXCs = append(filteredVXCs, vxc)
 	}
 
-	filteredVXCs := filterVXCs(vxcs, name)
-
-	limit, _ := cmd.Flags().GetInt("limit")
+	limit, _ := cmd.Flags().GetInt("limit") // applied client-side after fetch
 
 	tagFilters, _ := cmd.Flags().GetStringArray("tag")
 	if len(tagFilters) > 0 {

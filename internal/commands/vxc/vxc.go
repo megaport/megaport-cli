@@ -24,8 +24,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithVXCFilterFlags().
 		WithTagFilterFlags().
 		WithLongDesc("List all VXCs available in the Megaport API.\n\nThis command retrieves all Virtual Cross Connects (VXCs) associated with your account. You can filter results by name, rate limit, A-End UID, B-End UID, status, or resource tags.").
-		WithOptionalFlag("name", "Filter VXCs by name (partial match)").
-		WithOptionalFlag("name-contains", "Filter VXCs by partial name match (server-side)").
+		WithOptionalFlag("name", "Filter VXCs by name (case-sensitive partial match)").
+		WithOptionalFlag("name-contains", "Filter VXCs by name (case-sensitive partial match; takes precedence over --name)").
 		WithOptionalFlag("rate-limit", "Filter VXCs by rate limit in Mbps").
 		WithOptionalFlag("a-end-uid", "Filter VXCs by A-End product UID").
 		WithOptionalFlag("b-end-uid", "Filter VXCs by B-End product UID").
