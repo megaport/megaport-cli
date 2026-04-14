@@ -16,14 +16,6 @@ import (
 // Used by RunE wrappers when --output json is active so automation scripts
 // can parse errors programmatically instead of scraping plain text.
 func PrintErrorJSON(code int, message string) {
-	type errorBody struct {
-		Code    int    `json:"code"`
-		Type    string `json:"type"`
-		Message string `json:"message"`
-	}
-	type errorEnvelope struct {
-		Error errorBody `json:"error"`
-	}
 	payload := errorEnvelope{
 		Error: errorBody{
 			Code:    code,

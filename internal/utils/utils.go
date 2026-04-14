@@ -131,6 +131,11 @@ func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobr
 		applyFieldsFilter(cmd)
 		applyTemplateFilter(cmd)
 		format, _ := cmd.Root().PersistentFlags().GetString("output")
+		if format == FormatGoTemplate && output.GetTemplateString() == "" {
+			cmd.SilenceUsage = true
+			cmd.SilenceErrors = true
+			return exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used"))
+		}
 		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
 			return err
 		}
@@ -158,6 +163,11 @@ func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool)
 		applyFieldsFilter(cmd)
 		applyTemplateFilter(cmd)
 		format, _ := cmd.Root().PersistentFlags().GetString("output")
+		if format == FormatGoTemplate && output.GetTemplateString() == "" {
+			cmd.SilenceUsage = true
+			cmd.SilenceErrors = true
+			return exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used"))
+		}
 		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
 			return err
 		}

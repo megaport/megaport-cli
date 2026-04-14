@@ -260,14 +260,6 @@ func ClearScreen() {}
 
 // PrintErrorJSON writes a structured JSON error to the WASM output buffer.
 func PrintErrorJSON(code int, message string) {
-	type errorBody struct {
-		Code    int    `json:"code"`
-		Type    string `json:"type"`
-		Message string `json:"message"`
-	}
-	type errorEnvelope struct {
-		Error errorBody `json:"error"`
-	}
 	payload := errorEnvelope{
 		Error: errorBody{
 			Code:    code,

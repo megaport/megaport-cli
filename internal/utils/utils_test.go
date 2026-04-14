@@ -17,6 +17,8 @@ import (
 )
 
 // captureStderr captures what the function writes to os.Stderr.
+// Not parallel-safe: it redirects the global os.Stderr via os.Pipe.
+// Do not call t.Parallel() in tests that use this helper.
 func captureStderr(t *testing.T, fn func()) string {
 	t.Helper()
 	old := os.Stderr
@@ -173,6 +175,27 @@ func TestWrapRunE(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, called)
 	})
+
+	t.Run("go-template without --template returns usage error", func(t *testing.T) {
+		wrapped := WrapRunE(func(cmd *cobra.Command, args []string) error {
+			return nil
+		})
+		root := &cobra.Command{Use: "root"}
+		root.PersistentFlags().String("fields", "", "")
+		root.PersistentFlags().String("query", "", "")
+		root.PersistentFlags().String("template", "", "")
+		root.PersistentFlags().String("output", "go-template", "")
+		child := &cobra.Command{Use: "list"}
+		root.AddCommand(child)
+
+		err := wrapped(child, []string{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--template is required")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
+	})
 }
 
 func TestWrapColorAwareRunE(t *testing.T) {
@@ -265,6 +288,28 @@ func TestWrapColorAwareRunE(t *testing.T) {
 		err := wrapped(child, []string{})
 		assert.NoError(t, err)
 		assert.True(t, called)
+	})
+
+	t.Run("go-template without --template returns usage error", func(t *testing.T) {
+		wrapped := WrapColorAwareRunE(func(cmd *cobra.Command, args []string, noColor bool) error {
+			return nil
+		})
+		root := &cobra.Command{Use: "root"}
+		root.PersistentFlags().Bool("no-color", false, "")
+		root.PersistentFlags().String("fields", "", "")
+		root.PersistentFlags().String("query", "", "")
+		root.PersistentFlags().String("template", "", "")
+		root.PersistentFlags().String("output", "go-template", "")
+		child := &cobra.Command{Use: "list"}
+		root.AddCommand(child)
+
+		err := wrapped(child, []string{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--template is required")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
 	})
 }
 
