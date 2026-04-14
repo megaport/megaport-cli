@@ -223,16 +223,8 @@ func runPager(pagerCmd string, content io.Reader, stdout *os.File) error {
 	//nolint:gosec // pager command is user-controlled via MEGAPORT_PAGER/PAGER env vars,
 	// which are trusted to the same degree as the calling user (see resolvePager).
 	cmd := exec.Command(parts[0], parts[1:]...)
+	cmd.Stdin = content
 	cmd.Stdout = stdout
 	cmd.Stderr = os.Stderr
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return err
-	}
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	_, _ = io.Copy(stdin, content)
-	_ = stdin.Close()
-	return cmd.Wait()
+	return cmd.Run()
 }
