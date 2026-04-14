@@ -173,7 +173,7 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 	// Create list MCRs command
 	list = cmdbuilder.NewCommand("list", "List all MCRs with optional filters").
 		WithOutputFormatRunFunc(ListMCRs).
-		WithLongDesc("List all MCRs available in the Megaport API.\n\nThis command fetches and displays a list of MCRs with details such as MCR ID, name, location, speed, and status. By default, only active MCRs are shown.").
+		WithLongDesc("List all MCRs available in the Megaport API.\n\nThis command fetches and displays a list of MCRs with details such as MCR ID, name, location, speed, and status. By default, only active MCRs are shown. You can also filter by resource tags.").
 		WithMCRFilterFlags().
 		WithTagFilterFlags().
 		WithOptionalFlag("location-id", "Filter MCRs by location ID").

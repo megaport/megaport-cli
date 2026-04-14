@@ -162,7 +162,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOutputFormatRunFunc(ListMVEs).
 		WithMVEFilterFlags().
 		WithTagFilterFlags().
-		WithLongDesc("List all MVEs available in the Megaport API.\n\nThis command fetches and displays a list of MVEs with details such as MVE ID, name, location, vendor, and status. By default, only active MVEs are shown.").
+		WithLongDesc("List all MVEs available in the Megaport API.\n\nThis command fetches and displays a list of MVEs with details such as MVE ID, name, location, vendor, and status. By default, only active MVEs are shown. You can also filter by resource tags.").
 		WithExample("megaport-cli mve list").
 		WithExample("megaport-cli mve list --location-id 123").
 		WithExample("megaport-cli mve list --vendor \"Cisco\"").

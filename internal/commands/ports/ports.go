@@ -193,7 +193,7 @@ func buildPortManagementCommands(rootCmd *cobra.Command) (list, get, status, del
 		WithOutputFormatRunFunc(ListPorts).
 		WithPortFilterFlags().
 		WithTagFilterFlags().
-		WithLongDesc("List all ports available in the Megaport API.\n\nThis command fetches and displays a list of ports with details such as port ID, name, location, speed, and status. By default, only active ports are shown.").
+		WithLongDesc("List all ports available in the Megaport API.\n\nThis command fetches and displays a list of ports with details such as port ID, name, location, speed, and status. By default, only active ports are shown. You can also filter by resource tags.").
 		WithOptionalFlag("location-id", "Filter ports by location ID").
 		WithOptionalFlag("port-speed", "Filter ports by port speed").
 		WithOptionalFlag("port-name", "Filter ports by port name").
