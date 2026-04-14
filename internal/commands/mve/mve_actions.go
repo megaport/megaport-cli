@@ -104,6 +104,9 @@ func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 			tagFilters, limit,
 		)
 		tagSpinner.Stop()
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		for uid, err := range tagErrs {
 			output.PrintWarning("Failed to fetch tags for MVE %s, skipping: %v", noColor, uid, err)
 		}
