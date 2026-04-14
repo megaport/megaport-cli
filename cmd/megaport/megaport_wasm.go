@@ -49,8 +49,11 @@ func ExecuteWithArgs(args []string) {
 	// Set the args on the root command
 	rootCmd.SetArgs(argsToUse)
 
-	// Execute and capture errors
-	err := rootCmd.Execute()
+	// Execute and capture errors. ExecuteC returns the command that ran so we
+	// can resolve --output from the most specific source (local flag on the
+	// executed command, used by WrapOutputFormatRunE, vs. the root persistent
+	// flag, used by WrapRunE / WrapColorAwareRunE).
+	executedCmd, err := rootCmd.ExecuteC()
 
 	if err != nil {
 		// When the error is a *CLIError returned by a RunE wrapper in JSON mode,
@@ -60,10 +63,8 @@ func ExecuteWithArgs(args []string) {
 		// flag) because errors that occur before a wrapper runs (e.g., flag
 		// parse errors) are not *CLIError and still need the plain-text block.
 		var cliErr *exitcodes.CLIError
-		if errors.As(err, &cliErr) {
-			if requestedFormat, flagErr := rootCmd.PersistentFlags().GetString("output"); flagErr == nil && requestedFormat == utils.FormatJSON {
-				return
-			}
+		if errors.As(err, &cliErr) && resolveOutputFormat(executedCmd) == utils.FormatJSON {
+			return
 		}
 		// Clear the buffer if help was shown automatically
 		wasm.ResetOutputBuffers()
@@ -71,6 +72,23 @@ func ExecuteWithArgs(args []string) {
 		fmt.Fprintf(wasm.WasmOutputBuffer, "Error: %v\n\n", err)
 		fmt.Fprintf(wasm.WasmOutputBuffer, "Run 'megaport-cli --help' to see the list of available commands.\n")
 	}
+}
+
+// resolveOutputFormat returns the --output value for the command that ran.
+// It checks the executed command's local --output flag first (used by
+// WrapOutputFormatRunE commands that shadow the persistent root flag), then
+// falls back to the root persistent flag (used by WrapRunE /
+// WrapColorAwareRunE commands).
+func resolveOutputFormat(cmd *cobra.Command) string {
+	if cmd != nil {
+		if f := cmd.Flags().Lookup("output"); f != nil {
+			return f.Value.String()
+		}
+	}
+	if format, err := rootCmd.PersistentFlags().GetString("output"); err == nil {
+		return format
+	}
+	return utils.FormatTable
 }
 
 func EnsureRootCommandOutput(writer io.Writer) {
