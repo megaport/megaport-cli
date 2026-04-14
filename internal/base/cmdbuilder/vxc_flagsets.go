@@ -60,8 +60,8 @@ func (b *CommandBuilder) WithVXCUpdateFlags() *CommandBuilder {
 
 // WithVXCFilterFlags adds flags for filtering VXC lists
 func (b *CommandBuilder) WithVXCFilterFlags() *CommandBuilder {
-	b.WithFlag("name", "", "Filter VXCs by name (partial match)")
-	b.WithFlag("name-contains", "", "Filter VXCs by partial name match (server-side)")
+	b.WithFlag("name", "", "Filter VXCs by name (case-sensitive partial match)")
+	b.WithFlag("name-contains", "", "Filter VXCs by name (case-sensitive partial match; takes precedence over --name)")
 	b.WithIntFlag("rate-limit", 0, "Filter VXCs by rate limit in Mbps")
 	b.WithFlag("a-end-uid", "", "Filter VXCs by A-End product UID")
 	b.WithFlag("b-end-uid", "", "Filter VXCs by B-End product UID")

@@ -78,8 +78,10 @@ func (m *MockVXCService) ListVXCs(ctx context.Context, req *megaport.ListVXCsReq
 	if m.ListVXCErr != nil {
 		return nil, m.ListVXCErr
 	}
-	// Simulate server-side filtering based on request fields (nils are passed through
-	// so callers handle them as they would with a real SDK response).
+	// Simulate server-side filtering for the subset of request fields this mock
+	// supports: NameContains, AEndProductUID, BEndProductUID, RateLimit, and
+	// Status. Nils are passed through so callers handle them as they would with
+	// a real SDK response.
 	var result []*megaport.VXC
 	for _, vxc := range m.ListVXCResponse {
 		if vxc == nil {
