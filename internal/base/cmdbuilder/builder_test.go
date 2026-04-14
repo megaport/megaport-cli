@@ -740,6 +740,16 @@ func TestGenerateSkeletonFlag(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("no RunE set returns nil when skeleton not requested", func(t *testing.T) {
+		cmd := NewCommand("buy", "Buy a resource").
+			WithJSONExample(jsonExample).
+			Build()
+
+		// No RunFunc set — originalRunE is nil; skeleton flag not set
+		err := cmd.RunE(cmd, []string{})
+		assert.NoError(t, err)
+	})
+
 	t.Run("first example printed when multiple examples present", func(t *testing.T) {
 		const secondExample = `{"name": "Other", "term": 24}`
 		cmd := NewCommand("buy", "Buy a resource").
