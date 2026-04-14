@@ -169,6 +169,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli mve list --name \"Edge Router\"").
 		WithExample("megaport-cli mve list --include-inactive").
 		WithExample("megaport-cli mve list --location-id 123 --vendor \"Cisco\" --name \"Edge\"").
+		WithExample("megaport-cli mve list --tag env=prod").
+		WithExample("megaport-cli mve list --tag env=prod --tag team=network").
 		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
 		WithAliases([]string{"ls"}).

@@ -92,16 +92,19 @@ func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 
 	tagFilters, _ := cmd.Flags().GetStringArray("tag")
 	if len(tagFilters) > 0 {
-		var tagged []*megaport.MVE
+		tagSpinner := output.PrintCustomSpinner("Fetching tags for", "MVEs", noColor)
+		tagged := make([]*megaport.MVE, 0, len(filteredMVEs))
 		for _, m := range filteredMVEs {
 			tags, err := listMVEResourceTagsFunc(ctx, client, m.UID)
 			if err != nil {
+				output.PrintWarning("Failed to fetch tags for MVE %s, skipping: %v", noColor, m.UID, err)
 				continue
 			}
 			if utils.MatchesTagFilters(tags, tagFilters) {
 				tagged = append(tagged, m)
 			}
 		}
+		tagSpinner.Stop()
 		filteredMVEs = tagged
 	}
 

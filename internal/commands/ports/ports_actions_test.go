@@ -2356,10 +2356,11 @@ func TestListPorts_TagFilter(t *testing.T) {
 			notExpected: []string{"port-1", "port-2", "port-3"},
 		},
 		{
-			name:           "tag fetch error excludes resource gracefully",
-			tagFilters:     []string{"env=prod"},
-			tagFetchErrUID: "port-1",
-			notExpected:    []string{"port-1"},
+			name:            "tag fetch error excludes resource gracefully",
+			tagFilters:      []string{"env=prod"},
+			tagFetchErrUID:  "port-1",
+			notExpected:     []string{"PortAlpha"}, // name absent from table; UID appears in warning
+			expectedOutputs: []string{"Failed to fetch tags"},
 		},
 	}
 

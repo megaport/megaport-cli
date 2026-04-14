@@ -2502,10 +2502,11 @@ func TestListVXCs_TagFilter(t *testing.T) {
 			notExpected: []string{"vxc-1", "vxc-2", "vxc-3"},
 		},
 		{
-			name:           "tag fetch error excludes resource gracefully",
-			tagFilters:     []string{"env=prod"},
-			tagFetchErrUID: "vxc-1",
-			notExpected:    []string{"vxc-1"},
+			name:            "tag fetch error excludes resource gracefully",
+			tagFilters:      []string{"env=prod"},
+			tagFetchErrUID:  "vxc-1",
+			notExpected:     []string{"VXC-Alpha"}, // name absent from table; UID appears in warning
+			expectedOutputs: []string{"Failed to fetch tags"},
 		},
 	}
 

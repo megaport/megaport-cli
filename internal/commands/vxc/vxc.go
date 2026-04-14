@@ -36,6 +36,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli vxc list --a-end-uid port-abc123").
 		WithExample("megaport-cli vxc list --status LIVE,CONFIGURED").
 		WithExample("megaport-cli vxc list --include-inactive").
+		WithExample("megaport-cli vxc list --tag env=prod").
+		WithExample("megaport-cli vxc list --tag env=prod --tag team=network").
 		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
 		WithAliases([]string{"ls"}).

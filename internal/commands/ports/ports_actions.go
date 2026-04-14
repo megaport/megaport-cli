@@ -303,16 +303,19 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 
 	tagFilters, _ := cmd.Flags().GetStringArray("tag")
 	if len(tagFilters) > 0 {
-		var tagged []*megaport.Port
+		tagSpinner := output.PrintCustomSpinner("Fetching tags for", "ports", noColor)
+		tagged := make([]*megaport.Port, 0, len(filteredPorts))
 		for _, p := range filteredPorts {
 			tags, err := listPortResourceTagsFunc(ctx, client, p.UID)
 			if err != nil {
+				output.PrintWarning("Failed to fetch tags for port %s, skipping: %v", noColor, p.UID, err)
 				continue
 			}
 			if utils.MatchesTagFilters(tags, tagFilters) {
 				tagged = append(tagged, p)
 			}
 		}
+		tagSpinner.Stop()
 		filteredPorts = tagged
 	}
 

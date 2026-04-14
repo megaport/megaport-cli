@@ -124,16 +124,19 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 
 	tagFilters, _ := cmd.Flags().GetStringArray("tag")
 	if len(tagFilters) > 0 {
-		var tagged []*megaport.VXC
+		tagSpinner := output.PrintCustomSpinner("Fetching tags for", "VXCs", noColor)
+		tagged := make([]*megaport.VXC, 0, len(filteredVXCs))
 		for _, v := range filteredVXCs {
 			tags, err := listVXCResourceTagsFunc(ctx, client, v.UID)
 			if err != nil {
+				output.PrintWarning("Failed to fetch tags for VXC %s, skipping: %v", noColor, v.UID, err)
 				continue
 			}
 			if utils.MatchesTagFilters(tags, tagFilters) {
 				tagged = append(tagged, v)
 			}
 		}
+		tagSpinner.Stop()
 		filteredVXCs = tagged
 	}
 

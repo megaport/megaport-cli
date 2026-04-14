@@ -2876,10 +2876,11 @@ func TestListMCRs_TagFilter(t *testing.T) {
 			notExpected: []string{"mcr-1", "mcr-2", "mcr-3"},
 		},
 		{
-			name:           "tag fetch error excludes resource gracefully",
-			tagFilters:     []string{"env=prod"},
-			tagFetchErrUID: "mcr-1",
-			notExpected:    []string{"mcr-1"},
+			name:            "tag fetch error excludes resource gracefully",
+			tagFilters:      []string{"env=prod"},
+			tagFetchErrUID:  "mcr-1",
+			notExpected:     []string{"MCR-Alpha"}, // name absent from table; UID appears in warning
+			expectedOutputs: []string{"Failed to fetch tags"},
 		},
 	}
 

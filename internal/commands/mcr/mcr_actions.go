@@ -373,16 +373,19 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 
 	tagFilters, _ := cmd.Flags().GetStringArray("tag")
 	if len(tagFilters) > 0 {
-		var tagged []*megaport.MCR
+		tagSpinner := output.PrintCustomSpinner("Fetching tags for", "MCRs", noColor)
+		tagged := make([]*megaport.MCR, 0, len(filteredMCRs))
 		for _, m := range filteredMCRs {
 			tags, err := listMCRResourceTagsFunc(ctx, client, m.UID)
 			if err != nil {
+				output.PrintWarning("Failed to fetch tags for MCR %s, skipping: %v", noColor, m.UID, err)
 				continue
 			}
 			if utils.MatchesTagFilters(tags, tagFilters) {
 				tagged = append(tagged, m)
 			}
 		}
+		tagSpinner.Stop()
 		filteredMCRs = tagged
 	}
 

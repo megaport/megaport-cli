@@ -2408,10 +2408,11 @@ func TestListMVEs_TagFilter(t *testing.T) {
 			notExpected: []string{"mve-1", "mve-2", "mve-3"},
 		},
 		{
-			name:           "tag fetch error excludes resource gracefully",
-			tagFilters:     []string{"env=prod"},
-			tagFetchErrUID: "mve-1",
-			notExpected:    []string{"mve-1"},
+			name:            "tag fetch error excludes resource gracefully",
+			tagFilters:      []string{"env=prod"},
+			tagFetchErrUID:  "mve-1",
+			notExpected:     []string{"MVE-Alpha"}, // name absent from table; UID appears in warning
+			expectedOutputs: []string{"Failed to fetch tags"},
 		},
 	}
 
