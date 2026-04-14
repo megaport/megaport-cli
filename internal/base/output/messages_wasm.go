@@ -4,10 +4,12 @@
 package output
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/wasm"
 )
 
@@ -255,3 +257,24 @@ func PrintInfo(format string, noColor bool, args ...interface{}) {
 
 // ClearScreen is a no-op in the WASM environment.
 func ClearScreen() {}
+
+// PrintErrorJSON writes a structured JSON error to the WASM output buffer.
+func PrintErrorJSON(code int, message string) {
+	type errorBody struct {
+		Code    int    `json:"code"`
+		Type    string `json:"type"`
+		Message string `json:"message"`
+	}
+	type errorEnvelope struct {
+		Error errorBody `json:"error"`
+	}
+	payload := errorEnvelope{
+		Error: errorBody{
+			Code:    code,
+			Type:    exitcodes.TypeName(code),
+			Message: message,
+		},
+	}
+	b, _ := json.Marshal(payload)
+	fmt.Fprintln(wasm.WasmOutputBuffer, string(b))
+}

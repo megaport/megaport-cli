@@ -23,3 +23,20 @@ func NewUsageError(err error) *CLIError     { return &CLIError{Code: Usage, Err:
 func NewAuthError(err error) *CLIError      { return &CLIError{Code: Authentication, Err: err} }
 func NewAPIError(err error) *CLIError       { return &CLIError{Code: API, Err: err} }
 func NewCancelledError(err error) *CLIError { return &CLIError{Code: Cancelled, Err: err} }
+
+// TypeName returns the string error type name for a given exit code.
+// Used when emitting structured JSON error output (--output json).
+func TypeName(code int) string {
+	switch code {
+	case Usage:
+		return "usage_error"
+	case Authentication:
+		return "auth_error"
+	case API:
+		return "api_error"
+	case Cancelled:
+		return "cancelled"
+	default:
+		return "general_error"
+	}
+}

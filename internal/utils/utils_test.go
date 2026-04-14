@@ -1,16 +1,50 @@
 package utils
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// captureStderr captures what the function writes to os.Stderr.
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+	fn()
+	w.Close()
+	os.Stderr = old
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	return buf.String()
+}
+
+// buildJSONChild builds a minimal cobra root+child command tree with the flags
+// needed by WrapOutputFormatRunE and WrapColorAwareRunE, with --output pre-set
+// to the given format. Returns only the child command.
+func buildJSONChild(format string) *cobra.Command {
+	root := &cobra.Command{Use: "root"}
+	root.PersistentFlags().Bool("no-color", false, "")
+	root.PersistentFlags().String("fields", "", "")
+	root.PersistentFlags().String("query", "", "")
+	root.PersistentFlags().String("template", "", "")
+	child := &cobra.Command{Use: "list"}
+	child.Flags().String("output", format, "")
+	root.AddCommand(child)
+	return child
+}
 
 func TestShouldDisableColors(t *testing.T) {
 	origArgs := os.Args
@@ -493,4 +527,86 @@ func TestWrapRunE_APIError(t *testing.T) {
 	var cliErr *exitcodes.CLIError
 	require.True(t, errors.As(err, &cliErr))
 	assert.Equal(t, exitcodes.API, cliErr.Code)
+}
+
+// parseErrorJSON unmarshals a JSON error envelope from s.
+func parseErrorJSON(t *testing.T, s string) (code int, errType, message string) {
+	t.Helper()
+	var env struct {
+		Error struct {
+			Code    int    `json:"code"`
+			Type    string `json:"type"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(s), &env), "stderr was not valid JSON: %q", s)
+	return env.Error.Code, env.Error.Type, env.Error.Message
+}
+
+func TestWrapRunE_JSONErrorOutput(t *testing.T) {
+	output.SetOutputFormat("json")
+	defer output.SetOutputFormat("table")
+
+	wrapped := WrapRunE(func(cmd *cobra.Command, args []string) error {
+		return errors.New("inner api error")
+	})
+	root := &cobra.Command{Use: "root"}
+	root.PersistentFlags().String("fields", "", "")
+	root.PersistentFlags().String("query", "", "")
+	root.PersistentFlags().String("template", "", "")
+	child := &cobra.Command{Use: "list"}
+	root.AddCommand(child)
+
+	stderr := captureStderr(t, func() {
+		err := wrapped(child, []string{})
+		require.Error(t, err)
+		// In JSON mode the error is not verbose-wrapped.
+		assert.Equal(t, "inner api error", err.Error())
+	})
+
+	code, errType, msg := parseErrorJSON(t, stderr)
+	assert.Equal(t, exitcodes.General, code)
+	assert.Equal(t, "general_error", errType)
+	assert.Equal(t, "inner api error", msg)
+}
+
+func TestWrapColorAwareRunE_JSONErrorOutput(t *testing.T) {
+	output.SetOutputFormat("json")
+	defer output.SetOutputFormat("table")
+
+	wrapped := WrapColorAwareRunE(func(cmd *cobra.Command, args []string, noColor bool) error {
+		return errors.New("auth failure")
+	})
+	child := buildJSONChild("json") // output flag not used by this wrapper; format read from global
+
+	stderr := captureStderr(t, func() {
+		err := wrapped(child, []string{})
+		require.Error(t, err)
+		assert.Equal(t, "auth failure", err.Error())
+	})
+
+	code, _, msg := parseErrorJSON(t, stderr)
+	assert.Equal(t, exitcodes.General, code)
+	assert.Equal(t, "auth failure", msg)
+}
+
+func TestWrapOutputFormatRunE_JSONErrorOutput(t *testing.T) {
+	output.SetOutputFormat("json")
+	defer output.SetOutputFormat("table")
+
+	wrapped := WrapOutputFormatRunE(func(cmd *cobra.Command, args []string, noColor bool, format string) error {
+		return errors.New("failed to get port: not found")
+	})
+	child := buildJSONChild("json")
+
+	stderr := captureStderr(t, func() {
+		err := wrapped(child, []string{})
+		require.Error(t, err)
+		assert.Equal(t, "failed to get port: not found", err.Error())
+	})
+
+	code, errType, msg := parseErrorJSON(t, stderr)
+	assert.Equal(t, exitcodes.API, code)
+	assert.Equal(t, "api_error", errType)
+	assert.Equal(t, "failed to get port: not found", msg)
 }

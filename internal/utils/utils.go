@@ -136,13 +136,14 @@ func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobr
 		}
 		err := runE(cmd, args)
 		if err != nil {
-			// Prevent usage output if an error occurs
 			cmd.SilenceUsage = true
-			// Silence duplicate error message
 			cmd.SilenceErrors = true
-
-			// Return a formatted error message with additional context
 			code := classifyError(err)
+			if output.GetOutputFormat() == FormatJSON {
+				output.PrintErrorJSON(code, err.Error())
+				cmd.Root().SilenceErrors = true
+				return exitcodes.New(code, err)
+			}
 			wrapped := fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag", cmd.Name(), err, cmd.Name(), args)
 			return exitcodes.New(code, wrapped)
 		}
@@ -171,13 +172,14 @@ func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool)
 
 		// Error handling from WrapRunE
 		if err != nil {
-			// Prevent usage output if an error occurs
 			cmd.SilenceUsage = true
-			// Silence duplicate error message
 			cmd.SilenceErrors = true
-
-			// Return a formatted error message with additional context
 			code := classifyError(err)
+			if output.GetOutputFormat() == FormatJSON {
+				output.PrintErrorJSON(code, err.Error())
+				cmd.Root().SilenceErrors = true
+				return exitcodes.New(code, err)
+			}
 			wrapped := fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag",
 				cmd.Name(), err, cmd.Name(), args)
 			return exitcodes.New(code, wrapped)
@@ -237,13 +239,14 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 
 		// Error handling from WrapRunE
 		if err != nil {
-			// Prevent usage output if an error occurs
 			cmd.SilenceUsage = true
-			// Silence duplicate error message
 			cmd.SilenceErrors = true
-
-			// Return a formatted error message with additional context
 			code := classifyError(err)
+			if output.GetOutputFormat() == FormatJSON {
+				output.PrintErrorJSON(code, err.Error())
+				cmd.Root().SilenceErrors = true
+				return exitcodes.New(code, err)
+			}
 			wrapped := fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag",
 				cmd.Name(), err, cmd.Name(), args)
 			return exitcodes.New(code, wrapped)

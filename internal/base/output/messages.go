@@ -89,6 +89,10 @@ func getOutputFormat() string {
 	return "table"
 }
 
+// GetOutputFormat returns the currently active output format (e.g. "table", "json").
+// Exported so that packages such as utils can check the format without an additional import.
+func GetOutputFormat() string { return getOutputFormat() }
+
 // shouldSuppressSpinner returns true when spinner output should be suppressed
 // to avoid corrupting machine-readable output formats (csv, xml, json, yaml, etc.).
 func shouldSuppressSpinner() bool {
