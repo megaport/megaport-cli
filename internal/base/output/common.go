@@ -132,6 +132,7 @@ func ResetState() {
 	SetOutputFields(nil)
 	SetOutputQuery("")
 	SetNoHeader(false)
+	SetNoPager(false)
 	SetTemplateString("")
 	SetOutputFormat("table")
 	SetVerbosity("normal")
@@ -252,7 +253,9 @@ func PrintOutput[T OutputFields](data []T, format string, noColor bool) error {
 	case "go-template":
 		return printGoTemplate(data)
 	default:
-		return printTable(data, noColor)
+		return RunWithPager(func() error {
+			return printTable(data, noColor)
+		})
 	}
 }
 

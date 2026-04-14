@@ -34,6 +34,7 @@ import (
 var (
 	noColor      bool
 	noHeader     bool
+	noPager      bool
 	outputFormat string
 	quiet        bool
 	verbose      bool
@@ -100,5 +101,7 @@ func InitializeCommon() {
 	rootCmd.PersistentFlags().IntVar(&utils.MaxRetries, "max-retries", 3, "Maximum number of retries for transient API failures")
 	rootCmd.PersistentFlags().BoolVar(&utils.LogHTTP, "log-http", false, "Log raw HTTP requests/responses to stderr for debugging (may include sensitive data such as auth tokens)")
 	rootCmd.PersistentFlags().BoolVar(&noHeader, "no-header", false, "Suppress table and CSV column headers (useful for scripting)")
+	rootCmd.PersistentFlags().BoolVar(&noPager, "no-pager", false, "Disable pager for long table output")
 	rootCmd.MarkFlagsMutuallyExclusive("quiet", "verbose")
+	rootCmd.SuggestionsMinimumDistance = 2
 }

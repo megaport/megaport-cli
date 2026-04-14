@@ -90,7 +90,11 @@ func ExecuteWithArgs(args []string) {
 func resolveOutputFormat(cmd *cobra.Command) string {
 	var raw string
 	if cmd != nil {
-		if f := cmd.Flags().Lookup("output"); f != nil {
+		// Only use the local --output flag if the user explicitly set it.
+		// WrapOutputFormatRunE commands always register a local --output flag
+		// whose default is "table"; reading it unconditionally would mask the
+		// user's intent expressed via the root persistent flag.
+		if f := cmd.Flags().Lookup("output"); f != nil && f.Changed {
 			raw = f.Value.String()
 		}
 	}
@@ -124,7 +128,9 @@ func init() {
 			OptionalFlags: map[string]string{
 				"--no-color":  "Disable colored output",
 				"--no-header": "Suppress table and CSV column headers (useful for scripting)",
-				"--output":    "Output format (json, yaml, table, csv, xml)",
+				"--no-pager":  "Disable pager for long table output (no-op in browser version)",
+				"--output":    "Output format (table, json, csv, xml, go-template)",
+				"--template":  "Go template string for --output go-template",
 				"--help":      "Show help for any command",
 				"--env":       "Environment to use (production, staging, development)",
 			},
@@ -171,9 +177,6 @@ func init() {
 	// Configure Cobra to show proper error messages for unknown commands
 	rootCmd.SilenceErrors = false
 	rootCmd.SilenceUsage = false
-
-	// Add suggestions for similar commands
-	rootCmd.SuggestionsMinimumDistance = 1
 
 	moduleRegistry.RegisterAll(rootCmd)
 }

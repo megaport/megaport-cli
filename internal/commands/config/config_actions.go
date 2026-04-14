@@ -205,9 +205,14 @@ func SetDefault(cmd *cobra.Command, args []string, noColor bool) error {
 
 	allowedSettings := map[string]func(string) (interface{}, error){
 		"output": func(v string) (interface{}, error) {
-			validFormats := map[string]bool{"json": true, "yaml": true, "table": true}
+			v = strings.ToLower(v)
+			validFormats := make(map[string]bool, len(utils.ValidFormats))
+			for _, f := range utils.ValidFormats {
+				validFormats[f] = true
+			}
 			if !validFormats[v] {
-				return nil, fmt.Errorf("output format must be one of: json, yaml, table")
+				return nil, fmt.Errorf("output format must be one of: %s",
+					strings.Join(utils.ValidFormats, ", "))
 			}
 			return v, nil
 		},
@@ -234,6 +239,14 @@ func SetDefault(cmd *cobra.Command, args []string, noColor bool) error {
 				return false, nil
 			}
 			return nil, fmt.Errorf("verbose must be true or false")
+		},
+		"no-pager": func(v string) (interface{}, error) {
+			if strings.ToLower(v) == "true" {
+				return true, nil
+			} else if strings.ToLower(v) == "false" {
+				return false, nil
+			}
+			return nil, fmt.Errorf("no-pager must be true or false")
 		},
 	}
 

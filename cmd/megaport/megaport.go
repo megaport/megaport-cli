@@ -34,6 +34,7 @@ func init() {
 			_ = cmd.Flags().Set("no-color", "true")
 		}
 		output.SetNoHeader(noHeader)
+		output.SetNoPager(noPager)
 
 		format := strings.ToLower(outputFormat)
 		validFmt := false
@@ -77,7 +78,9 @@ func init() {
 			OptionalFlags: map[string]string{
 				"--no-color":    "Disable colored output",
 				"--no-header":   "Suppress table and CSV column headers (useful for scripting)",
-				"--output":      "Output format (json, yaml, table, csv, xml)",
+				"--no-pager":    "Disable pager for long table output",
+				"--output":      "Output format (table, json, csv, xml, go-template)",
+				"--template":    "Go template string for --output go-template",
 				"--help":        "Show help for any command",
 				"--env":         "Environment to use (production, staging, development)",
 				"--quiet":       "Suppress informational output, only show errors and data",
@@ -212,6 +215,20 @@ func applyDefaultSettings(cmd *cobra.Command) {
 					return
 				}
 				verbose = boolVal
+			}
+		}
+	}
+
+	// Apply "no-pager" default
+	if !cmd.Flags().Changed("no-pager") {
+		if val, exists := manager.GetDefault("no-pager"); exists {
+			if boolVal, ok := val.(bool); ok {
+				err := cmd.Flags().Set("no-pager", fmt.Sprintf("%t", boolVal))
+				if err != nil {
+					log.Printf("Error setting no-pager flag: %v\n", err)
+					return
+				}
+				noPager = boolVal
 			}
 		}
 	}
