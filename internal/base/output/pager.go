@@ -126,8 +126,9 @@ func RunWithPager(fn func() error) error {
 	fnErr := fn()
 
 	// Count lines by scanning the file incrementally — avoids loading the
-	// entire output into memory and has no token-size limit.
-	lineCount, err := countLines(tmp)
+	// entire output into memory and stops early once output exceeds height.
+	// countLines rewinds tmp to offset 0 on success.
+	lineCount, err := countLines(tmp, height)
 	if err != nil {
 		// If counting fails, fall back to direct write so output is not lost.
 		if _, seekErr := tmp.Seek(0, io.SeekStart); seekErr == nil {
@@ -136,25 +137,9 @@ func RunWithPager(fn func() error) error {
 		return fnErr
 	}
 	if lineCount == 0 {
-		// fn() may have written content without a trailing newline (countLines
-		// counts '\n' only). Check the file size: if non-zero, treat the
-		// partial last line as a single line rather than dropping it.
-		info, statErr := tmp.Stat()
-		if statErr != nil {
-			// Cannot determine size; fall back to direct write.
-			// countLines already rewound on success but failed here, so seek manually.
-			if _, seekErr := tmp.Seek(0, io.SeekStart); seekErr == nil {
-				_, _ = io.Copy(origStdout, tmp)
-			}
-			return fnErr
-		}
-		if info.Size() == 0 {
-			return fnErr
-		}
-		lineCount = 1
+		return fnErr // truly empty file
 	}
 
-	// countLines rewinds r to offset 0 on success, so tmp is ready to copy.
 	if height <= 0 {
 		// Terminal height unknown; write directly.
 		_, _ = io.Copy(origStdout, tmp)
@@ -176,22 +161,34 @@ func RunWithPager(fn func() error) error {
 	return fnErr
 }
 
-// countLines counts the number of newline characters in r by reading in
-// chunks. It seeks r to the start before counting and back to the start
-// before returning, so callers always receive r positioned at offset 0.
-// Unlike bufio.Scanner this approach has no token-size limit and handles
-// arbitrarily wide table rows.
-func countLines(r io.ReadSeeker) (int, error) {
+// countLines counts the number of lines in r. A line ends at '\n'; a
+// non-empty file that does not end with '\n' contributes one additional
+// partial line. If limit > 0, counting stops as soon as the count exceeds
+// limit — useful for the "does output exceed terminal height?" check without
+// scanning the whole file. It seeks r to the start before counting and back
+// to the start before returning, so callers always receive r at offset 0.
+func countLines(r io.ReadSeeker, limit int) (int, error) {
 	if _, err := r.Seek(0, io.SeekStart); err != nil {
 		return 0, err
 	}
 	count := 0
+	var lastByte byte
+	hasContent := false
 	buf := make([]byte, 32*1024)
 	for {
 		n, readErr := r.Read(buf)
 		for _, b := range buf[:n] {
+			hasContent = true
+			lastByte = b
 			if b == '\n' {
 				count++
+				if limit > 0 && count > limit {
+					// Already know output exceeds the threshold; no need to read more.
+					if _, seekErr := r.Seek(0, io.SeekStart); seekErr != nil {
+						return count, seekErr
+					}
+					return count, nil
+				}
 			}
 		}
 		if readErr == io.EOF {
@@ -200,6 +197,10 @@ func countLines(r io.ReadSeeker) (int, error) {
 		if readErr != nil {
 			return count, readErr
 		}
+	}
+	// A non-empty file whose last byte is not '\n' has a partial final line.
+	if hasContent && lastByte != '\n' {
+		count++
 	}
 	if _, err := r.Seek(0, io.SeekStart); err != nil {
 		return count, err

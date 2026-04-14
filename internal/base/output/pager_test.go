@@ -143,8 +143,8 @@ func TestSetNoPager_RoundTrip(t *testing.T) {
 }
 
 // TestRunWithPager_NoTrailingNewline verifies that output without a trailing
-// newline is not silently dropped (regression: countLines counts '\n' only,
-// so a single line without '\n' returns lineCount==0).
+// newline is not silently dropped. countLines must count the partial final
+// line so the pager decision is correct.
 func TestRunWithPager_NoTrailingNewline(t *testing.T) {
 	orig := isTerminalCached.Load()
 	SetIsTerminal(true)
@@ -164,6 +164,34 @@ func TestRunWithPager_NoTrailingNewline(t *testing.T) {
 		require.NoError(t, err)
 	})
 	assert.Equal(t, "no-newline-here", out)
+}
+
+// TestRunWithPager_MultiLineNoTrailingNewline verifies that multi-line output
+// without a trailing newline is counted correctly (e.g., "a\nb\nc" is 3 lines,
+// not 2). An off-by-one here would cause the pager to trigger one line late.
+func TestRunWithPager_MultiLineNoTrailingNewline(t *testing.T) {
+	orig := isTerminalCached.Load()
+	SetIsTerminal(true)
+	t.Cleanup(func() { isTerminalCached.Store(orig) })
+
+	SetNoPager(false)
+	t.Cleanup(func() { SetNoPager(false) })
+
+	// Terminal height of 2. Output is "a\nb\nc" — 3 lines (no trailing '\n').
+	// With a correct count the pager fires; with an off-by-one it would not.
+	setTerminalHeightForTesting(2)
+	t.Cleanup(func() { setTerminalHeightForTesting(0) })
+
+	t.Setenv("MEGAPORT_PAGER", passthroughPager(t))
+
+	out := CaptureOutput(func() {
+		err := RunWithPager(func() error {
+			fmt.Print("a\nb\nc") // 3 lines, last has no '\n'
+			return nil
+		})
+		require.NoError(t, err)
+	})
+	assert.Equal(t, "a\nb\nc", out)
 }
 
 // TestRunWithPager_EmptyOutput verifies that when fn writes nothing to stdout,
