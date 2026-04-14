@@ -257,7 +257,7 @@ func TestFormatIntSlice(t *testing.T) {
 }
 
 func TestVLANHelpText(t *testing.T) {
-	assert.Equal(t, "0=auto-assign, -1=untagged, 2-4093 for specific VLAN (1 is reserved)", VLANHelpText())
+	assert.Equal(t, "0=auto-assign, -1=untagged, 2-4094 for specific VLAN (1 is reserved)", VLANHelpText())
 }
 
 func TestInnerVLANHelpText(t *testing.T) {

@@ -45,7 +45,7 @@ const (
 // derived from the VLAN constants defined in this package.
 func VLANHelpText() string {
 	return fmt.Sprintf("%d=auto-assign, %d=untagged, %d-%d for specific VLAN (%d is reserved)",
-		AutoAssignVLAN, UntaggedVLAN, MinAssignableVLAN, MaxAssignableVLAN, ReservedVLAN)
+		AutoAssignVLAN, UntaggedVLAN, MinAssignableVLAN, MaxVLAN, ReservedVLAN)
 }
 
 // InnerVLANHelpText returns a canonical human-readable description of valid inner VLAN

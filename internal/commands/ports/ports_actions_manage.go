@@ -10,6 +10,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -290,6 +291,10 @@ func CheckPortVLANAvailability(cmd *cobra.Command, args []string, noColor bool) 
 	if err != nil {
 		output.PrintError("Invalid VLAN ID: %v", noColor, err)
 		return fmt.Errorf("invalid VLAN ID")
+	}
+	if err := validation.ValidatePortVLANAvailability(vlan); err != nil {
+		output.PrintError("Invalid VLAN ID: %v", noColor, err)
+		return err
 	}
 
 	client, err := config.Login(ctx)
