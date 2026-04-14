@@ -86,6 +86,17 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli users update 12345 --interactive").
 		WithExample(`megaport-cli users update 12345 --first-name "Jane" --last-name "Smith"`).
 		WithExample(`megaport-cli users update 12345 --json '{"firstName":"Jane"}'`).
+		WithJSONExample(`{
+  "firstName": "Jane",
+  "lastName": "Smith",
+  "email": "jane.smith@example.com",
+  "phone": "+61400000000",
+  "position": "Network Engineer",
+  "active": true,
+  "notificationEnabled": true,
+  "newsletter": false,
+  "promotions": false
+}`).
 		WithImportantNote("Users with pending invitations cannot be updated").
 		WithRootCmd(rootCmd).
 		Build()

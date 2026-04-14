@@ -5,7 +5,9 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	megaport "github.com/megaport/megaportgo"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var testMVEs = []*megaport.MVE{
@@ -459,4 +461,13 @@ func TestFilterMVEs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMVEUpdateTagsHasGenerateSkeleton(t *testing.T) {
+	root := &cobra.Command{Use: "megaport-cli"}
+	AddCommandsTo(root)
+	updateTagsCmd, _, err := root.Find([]string{"mve", "update-tags"})
+	require.NoError(t, err)
+	require.NotNil(t, updateTagsCmd)
+	assert.NotNil(t, updateTagsCmd.Flags().Lookup("generate-skeleton"))
 }
