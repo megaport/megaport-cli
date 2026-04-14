@@ -317,7 +317,7 @@ func (b *CommandBuilder) Build() *cobra.Command {
 
 	// Auto-add --generate-skeleton flag for commands that have JSON examples
 	if len(b.jsonExamples) > 0 {
-		b.cmd.Flags().Bool("generate-skeleton", false, "Print a JSON skeleton template for --json input and exit")
+		b.cmd.Flags().Bool("generate-skeleton", false, "Print a JSON skeleton template for --json or --json-file input and exit")
 		originalArgs := b.cmd.Args
 		originalRunE := b.cmd.RunE
 		jsonExamples := b.jsonExamples
