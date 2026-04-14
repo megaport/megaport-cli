@@ -196,10 +196,11 @@ func TestRunWithPager_LongOutput_PagerFailure(t *testing.T) {
 
 	lines := strings.Repeat("x\n", 10)
 	out := CaptureOutput(func() {
-		_ = RunWithPager(func() error {
+		err := RunWithPager(func() error {
 			fmt.Print(lines)
 			return nil
 		})
+		require.NoError(t, err)
 	})
 	// Output must still appear (fallback path).
 	assert.Equal(t, lines, out)

@@ -41,7 +41,7 @@ func getNoPager() bool {
 // The pager value is fully controlled by the process environment, which is
 // trusted to the same degree as the user running the process — consistent with
 // how git(1) and gh(1) handle $GIT_PAGER / $PAGER. In automated or shared
-// environments, pass --no-pager or set MEGAPORT_PAGER="" to disable paging.
+// environments, pass --no-pager to disable paging.
 func resolvePager() string {
 	if v := os.Getenv("MEGAPORT_PAGER"); v != "" {
 		return v
@@ -93,8 +93,14 @@ func RunWithPager(fn func() error) error {
 	defer func() { _ = tmp.Close(); _ = os.Remove(tmp.Name()) }()
 
 	os.Stdout = tmp
+	defer func() {
+		os.Stdout = origStdout
+		if r := recover(); r != nil {
+			panic(r)
+		}
+	}()
+
 	fnErr := fn()
-	os.Stdout = origStdout
 
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
 		return fnErr
