@@ -172,8 +172,5 @@ func init() {
 	rootCmd.SilenceErrors = false
 	rootCmd.SilenceUsage = false
 
-	// Add suggestions for similar commands
-	rootCmd.SuggestionsMinimumDistance = 1
-
 	moduleRegistry.RegisterAll(rootCmd)
 }

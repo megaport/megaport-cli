@@ -1,0 +1,156 @@
+//go:build !wasm
+// +build !wasm
+
+package output
+
+import (
+	"fmt"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestResolvePager_Precedence(t *testing.T) {
+	t.Setenv("MEGAPORT_PAGER", "")
+	t.Setenv("PAGER", "")
+	assert.Equal(t, "less -R", resolvePager())
+
+	t.Setenv("PAGER", "more")
+	assert.Equal(t, "more", resolvePager())
+
+	t.Setenv("MEGAPORT_PAGER", "bat")
+	assert.Equal(t, "bat", resolvePager())
+}
+
+func TestRunWithPager_NonTTY(t *testing.T) {
+	orig := isTerminalCached.Load()
+	SetIsTerminal(false)
+	t.Cleanup(func() { isTerminalCached.Store(orig) })
+
+	called := false
+	err := RunWithPager(func() error {
+		called = true
+		return nil
+	})
+	require.NoError(t, err)
+	assert.True(t, called)
+}
+
+func TestRunWithPager_NoPager(t *testing.T) {
+	orig := isTerminalCached.Load()
+	SetIsTerminal(true)
+	t.Cleanup(func() { isTerminalCached.Store(orig) })
+
+	SetNoPager(true)
+	t.Cleanup(func() { SetNoPager(false) })
+
+	called := false
+	err := RunWithPager(func() error {
+		called = true
+		return nil
+	})
+	require.NoError(t, err)
+	assert.True(t, called)
+}
+
+func TestRunWithPager_ShortOutput(t *testing.T) {
+	orig := isTerminalCached.Load()
+	SetIsTerminal(true)
+	t.Cleanup(func() { isTerminalCached.Store(orig) })
+
+	SetNoPager(false)
+	t.Cleanup(func() { SetNoPager(false) })
+
+	// Set a tall terminal so output never exceeds height.
+	SetTerminalHeightForTesting(1000)
+	t.Cleanup(func() { SetTerminalHeightForTesting(0) })
+
+	t.Setenv("MEGAPORT_PAGER", "cat")
+
+	out := CaptureOutput(func() {
+		err := RunWithPager(func() error {
+			fmt.Println("line1")
+			fmt.Println("line2")
+			return nil
+		})
+		require.NoError(t, err)
+	})
+	assert.Contains(t, out, "line1")
+	assert.Contains(t, out, "line2")
+}
+
+func TestRunWithPager_LongOutput(t *testing.T) {
+	orig := isTerminalCached.Load()
+	SetIsTerminal(true)
+	t.Cleanup(func() { isTerminalCached.Store(orig) })
+
+	SetNoPager(false)
+	t.Cleanup(func() { SetNoPager(false) })
+
+	// Terminal height of 3 lines; output will be 10 lines — triggers pager.
+	SetTerminalHeightForTesting(3)
+	t.Cleanup(func() { SetTerminalHeightForTesting(0) })
+
+	// Use "cat" as the pager so output passes through unchanged.
+	t.Setenv("MEGAPORT_PAGER", "cat")
+
+	out := CaptureOutput(func() {
+		err := RunWithPager(func() error {
+			for i := range 10 {
+				fmt.Printf("line%d\n", i)
+			}
+			return nil
+		})
+		require.NoError(t, err)
+	})
+
+	for i := range 10 {
+		assert.Contains(t, out, fmt.Sprintf("line%d", i))
+	}
+}
+
+func TestRunWithPager_PropagatesFnError(t *testing.T) {
+	orig := isTerminalCached.Load()
+	SetIsTerminal(false) // non-TTY so RunWithPager short-circuits cleanly
+	t.Cleanup(func() { isTerminalCached.Store(orig) })
+
+	err := RunWithPager(func() error {
+		return fmt.Errorf("inner error")
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "inner error")
+}
+
+func TestSetNoPager_RoundTrip(t *testing.T) {
+	SetNoPager(true)
+	assert.True(t, getNoPager())
+	SetNoPager(false)
+	assert.False(t, getNoPager())
+}
+
+func TestRunWithPager_LongOutput_PagerFailure(t *testing.T) {
+	orig := isTerminalCached.Load()
+	SetIsTerminal(true)
+	t.Cleanup(func() { isTerminalCached.Store(orig) })
+
+	SetNoPager(false)
+	t.Cleanup(func() { SetNoPager(false) })
+
+	SetTerminalHeightForTesting(3)
+	t.Cleanup(func() { SetTerminalHeightForTesting(0) })
+
+	// Point to a nonexistent pager — RunWithPager should fall back to direct write.
+	t.Setenv("MEGAPORT_PAGER", "/nonexistent-pager-cmd")
+
+	lines := strings.Repeat("x\n", 10)
+	out := CaptureOutput(func() {
+		_ = RunWithPager(func() error {
+			fmt.Print(lines)
+			return nil
+		})
+	})
+	// Output must still appear (fallback path).
+	assert.Equal(t, lines, out)
+}

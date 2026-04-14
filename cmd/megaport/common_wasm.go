@@ -87,6 +87,7 @@ func InitializeCommon() {
 	rootCmd.PersistentFlags().IntVar(&utils.MaxRetries, "max-retries", 3, "Maximum number of retries for transient API failures")
 	rootCmd.PersistentFlags().BoolVar(&noHeader, "no-header", false, "Suppress table and CSV column headers (useful for scripting)")
 	rootCmd.MarkFlagsMutuallyExclusive("quiet", "verbose")
+	rootCmd.SuggestionsMinimumDistance = 2
 
 	// Validate retry flags in WASM builds too.
 	existingPreRunE := rootCmd.PersistentPreRunE

@@ -235,6 +235,14 @@ func SetDefault(cmd *cobra.Command, args []string, noColor bool) error {
 			}
 			return nil, fmt.Errorf("verbose must be true or false")
 		},
+		"no-pager": func(v string) (interface{}, error) {
+			if strings.ToLower(v) == "true" {
+				return true, nil
+			} else if strings.ToLower(v) == "false" {
+				return false, nil
+			}
+			return nil, fmt.Errorf("no-pager must be true or false")
+		},
 	}
 
 	validator, exists := allowedSettings[key]
