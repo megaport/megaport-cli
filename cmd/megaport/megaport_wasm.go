@@ -11,6 +11,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/help"
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/wasm"
 	"github.com/spf13/cobra"
@@ -65,6 +66,12 @@ func ExecuteWithArgs(args []string) {
 		// parse errors) are not *CLIError and still need the plain-text block.
 		var cliErr *exitcodes.CLIError
 		if errors.As(err, &cliErr) && resolveOutputFormat(executedCmd) == utils.FormatJSON {
+			// Reset the buffer to remove any plain-text output written before
+			// the error (commands may call output.PrintError etc. before
+			// returning), then re-emit a single clean JSON envelope so the
+			// buffer contains only valid JSON.
+			wasm.ResetOutputBuffers()
+			output.PrintErrorJSON(cliErr.Code, cliErr.Error())
 			return
 		}
 		// Clear the buffer if help was shown automatically
