@@ -3,9 +3,7 @@ package vxc
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -53,18 +51,4 @@ var getPartnerPortUID = func(ctx context.Context, svc megaport.VXCService, key, 
 
 var listVXCResourceTagsFunc = func(ctx context.Context, client *megaport.Client, vxcUID string) (map[string]string, error) {
 	return client.VXCService.ListVXCResourceTags(ctx, vxcUID)
-}
-
-// filterVXCs applies client-side case-insensitive name filtering as a safety
-// net alongside server-side NameContains filtering.
-func filterVXCs(vxcs []*megaport.VXC, name string) []*megaport.VXC {
-	return utils.Filter(vxcs, func(vxc *megaport.VXC) bool {
-		if vxc == nil {
-			return false
-		}
-		if name != "" && !strings.Contains(strings.ToLower(vxc.Name), strings.ToLower(name)) {
-			return false
-		}
-		return true
-	})
 }
