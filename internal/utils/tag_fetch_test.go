@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"testing"
 
@@ -56,28 +57,48 @@ func TestFetchTagsConcurrently_PartialErrors(t *testing.T) {
 }
 
 func TestFetchTagsConcurrently_BoundedConcurrency(t *testing.T) {
-	// Verify that no more than defaultTagFetchConcurrency goroutines fetch at once.
+	// Use exactly defaultTagFetchConcurrency UIDs so each worker handles one UID.
+	// This ensures a single barrier cycle with no multi-batch re-send to ready.
 	var inflight atomic.Int64
 	var maxSeen atomic.Int64
 
-	uids := make([]string, defaultTagFetchConcurrency*3)
+	// ready is signalled once per inflight fetch so the test can wait for full saturation.
+	ready := make(chan struct{}, defaultTagFetchConcurrency)
+	// release is closed to unblock all workers at once.
+	release := make(chan struct{})
+
+	uids := make([]string, defaultTagFetchConcurrency)
 	for i := range uids {
-		uids[i] = "uid"
+		uids[i] = fmt.Sprintf("uid-%d", i)
 	}
 
-	FetchTagsConcurrently(context.Background(), uids, func(_ context.Context, _ string) (map[string]string, error) {
-		cur := inflight.Add(1)
-		for {
-			m := maxSeen.Load()
-			if cur <= m || maxSeen.CompareAndSwap(m, cur) {
-				break
+	done := make(chan struct{})
+	go func() {
+		FetchTagsConcurrently(context.Background(), uids, func(_ context.Context, _ string) (map[string]string, error) {
+			cur := inflight.Add(1)
+			for {
+				m := maxSeen.Load()
+				if cur <= m || maxSeen.CompareAndSwap(m, cur) {
+					break
+				}
 			}
-		}
-		inflight.Add(-1)
-		return nil, nil
-	})
+			ready <- struct{}{} // signal: this fetch is inflight
+			<-release           // block until test observes full saturation
+			inflight.Add(-1)
+			return nil, nil
+		})
+		close(done)
+	}()
 
-	assert.LessOrEqual(t, maxSeen.Load(), int64(defaultTagFetchConcurrency))
+	// Wait for all workers to be simultaneously inflight.
+	for i := 0; i < defaultTagFetchConcurrency; i++ {
+		<-ready
+	}
+	// All workers are blocked: maxSeen reflects true simultaneous inflight count.
+	assert.Equal(t, int64(defaultTagFetchConcurrency), maxSeen.Load())
+
+	close(release) // unblock workers so the function can complete
+	<-done
 }
 
 func TestFetchTagsConcurrently_ContextCancelled(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-// defaultTagFetchConcurrency is the maximum number of parallel tag-fetch API calls.
+// defaultTagFetchConcurrency is the size of the fixed worker pool used when fetching tags.
 const defaultTagFetchConcurrency = 20
 
 type tagFetchResult struct {
@@ -14,8 +14,9 @@ type tagFetchResult struct {
 	err  error
 }
 
-// FetchTagsConcurrently fetches resource tags for multiple UIDs in parallel,
-// bounding concurrency to defaultTagFetchConcurrency outstanding requests.
+// FetchTagsConcurrently fetches resource tags for multiple UIDs using a fixed worker pool
+// capped at defaultTagFetchConcurrency, so neither goroutine count nor channel buffer
+// grows with the number of UIDs.
 // It returns two maps: uid→tags for successful fetches and uid→error for failures.
 func FetchTagsConcurrently(
 	ctx context.Context,
@@ -26,21 +27,33 @@ func FetchTagsConcurrently(
 		return nil, nil
 	}
 
-	results := make(chan tagFetchResult, len(uids))
-	sem := make(chan struct{}, defaultTagFetchConcurrency)
+	workerCount := defaultTagFetchConcurrency
+	if len(uids) < workerCount {
+		workerCount = len(uids)
+	}
+
+	jobs := make(chan string, workerCount)
+	results := make(chan tagFetchResult, workerCount)
 
 	var wg sync.WaitGroup
-	for _, uid := range uids {
-		uid := uid
+	for range workerCount {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-			tags, err := fetch(ctx, uid)
-			results <- tagFetchResult{uid: uid, tags: tags, err: err}
+			for uid := range jobs {
+				tags, err := fetch(ctx, uid)
+				results <- tagFetchResult{uid: uid, tags: tags, err: err}
+			}
 		}()
 	}
+
+	go func() {
+		for _, uid := range uids {
+			jobs <- uid
+		}
+		close(jobs)
+	}()
+
 	go func() {
 		wg.Wait()
 		close(results)
