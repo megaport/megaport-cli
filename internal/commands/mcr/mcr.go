@@ -342,6 +342,11 @@ func buildMCRTagCommands() (listTags, updateTags *cobra.Command) {
 		WithExample("megaport-cli mcr update-tags mcr-abc123 --interactive").
 		WithExample("megaport-cli mcr update-tags mcr-abc123 --json '{\"env\":\"production\",\"team\":\"network\"}'").
 		WithExample("megaport-cli mcr update-tags mcr-abc123 --json-file ./tags.json").
+		WithJSONExample(`{
+  "environment": "production",
+  "owner": "network-team",
+  "project": "cloud-migration"
+}`).
 		WithImportantNote("All existing tags will be replaced with the provided tags. To clear all tags, provide an empty tag set.").
 		Build()
 

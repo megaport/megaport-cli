@@ -189,6 +189,11 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli vxc update-tags vxc-abc123 --interactive").
 		WithExample("megaport-cli vxc update-tags vxc-abc123 --json '{\"env\":\"production\",\"team\":\"network\"}'").
 		WithExample("megaport-cli vxc update-tags vxc-abc123 --json-file ./tags.json").
+		WithJSONExample(`{
+  "environment": "production",
+  "owner": "network-team",
+  "project": "cloud-migration"
+}`).
 		WithImportantNote("All existing tags will be replaced with the provided tags. To clear all tags, provide an empty tag set.").
 		Build()
 
