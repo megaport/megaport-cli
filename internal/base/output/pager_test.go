@@ -64,8 +64,8 @@ func TestRunWithPager_ShortOutput(t *testing.T) {
 	t.Cleanup(func() { SetNoPager(false) })
 
 	// Set a tall terminal so output never exceeds height.
-	SetTerminalHeightForTesting(1000)
-	t.Cleanup(func() { SetTerminalHeightForTesting(0) })
+	setTerminalHeightForTesting(1000)
+	t.Cleanup(func() { setTerminalHeightForTesting(0) })
 
 	t.Setenv("MEGAPORT_PAGER", "cat")
 
@@ -90,8 +90,8 @@ func TestRunWithPager_LongOutput(t *testing.T) {
 	t.Cleanup(func() { SetNoPager(false) })
 
 	// Terminal height of 3 lines; output will be 10 lines — triggers pager.
-	SetTerminalHeightForTesting(3)
-	t.Cleanup(func() { SetTerminalHeightForTesting(0) })
+	setTerminalHeightForTesting(3)
+	t.Cleanup(func() { setTerminalHeightForTesting(0) })
 
 	// Use "cat" as the pager so output passes through unchanged.
 	t.Setenv("MEGAPORT_PAGER", "cat")
@@ -138,8 +138,8 @@ func TestRunWithPager_LongOutput_PagerFailure(t *testing.T) {
 	SetNoPager(false)
 	t.Cleanup(func() { SetNoPager(false) })
 
-	SetTerminalHeightForTesting(3)
-	t.Cleanup(func() { SetTerminalHeightForTesting(0) })
+	setTerminalHeightForTesting(3)
+	t.Cleanup(func() { setTerminalHeightForTesting(0) })
 
 	// Point to a nonexistent pager — RunWithPager should fall back to direct write.
 	t.Setenv("MEGAPORT_PAGER", "/nonexistent-pager-cmd")

@@ -90,7 +90,11 @@ func ExecuteWithArgs(args []string) {
 func resolveOutputFormat(cmd *cobra.Command) string {
 	var raw string
 	if cmd != nil {
-		if f := cmd.Flags().Lookup("output"); f != nil {
+		// Only use the local --output flag if the user explicitly set it.
+		// WrapOutputFormatRunE commands always register a local --output flag
+		// whose default is "table"; reading it unconditionally would mask the
+		// user's intent expressed via the root persistent flag.
+		if f := cmd.Flags().Lookup("output"); f != nil && f.Changed {
 			raw = f.Value.String()
 		}
 	}

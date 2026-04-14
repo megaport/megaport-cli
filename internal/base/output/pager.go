@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"golang.org/x/term"
 )
@@ -36,6 +37,11 @@ func getNoPager() bool {
 
 // resolvePager returns the pager command to use.
 // Precedence: MEGAPORT_PAGER > PAGER > "less -R".
+//
+// The pager value is fully controlled by the process environment, which is
+// trusted to the same degree as the user running the process — consistent with
+// how git(1) and gh(1) handle $GIT_PAGER / $PAGER. In automated or shared
+// environments, pass --no-pager or set MEGAPORT_PAGER="" to disable paging.
 func resolvePager() string {
 	if v := os.Getenv("MEGAPORT_PAGER"); v != "" {
 		return v
@@ -47,13 +53,14 @@ func resolvePager() string {
 }
 
 // terminalHeightOverride, when > 0, replaces automatic terminal height
-// detection. Set via SetTerminalHeightForTesting; reset by passing 0.
-var terminalHeightOverride int
+// detection. Protected by atomic load/store so parallel tests do not race.
+var terminalHeightOverride atomic.Int64
 
-// SetTerminalHeightForTesting overrides terminal height detection for tests.
-// Pass 0 to restore automatic detection.
-func SetTerminalHeightForTesting(h int) {
-	terminalHeightOverride = h
+// setTerminalHeightForTesting overrides terminal height detection for tests.
+// Pass 0 to restore automatic detection. Unexported to keep test scaffolding
+// out of the public API while still being accessible within the package.
+func setTerminalHeightForTesting(h int) {
+	terminalHeightOverride.Store(int64(h))
 }
 
 // pagerMu serialises RunWithPager calls. A separate mutex from stdoutMu is
@@ -82,8 +89,8 @@ func RunWithPager(fn func() error) error {
 		// Cannot create temp file; render directly.
 		return fn()
 	}
-	defer os.Remove(tmp.Name())
-	defer tmp.Close()
+	// Close before Remove so the file handle is released first (required on Windows).
+	defer func() { _ = tmp.Close(); _ = os.Remove(tmp.Name()) }()
 
 	os.Stdout = tmp
 	fnErr := fn()
@@ -98,7 +105,7 @@ func RunWithPager(fn func() error) error {
 	}
 
 	// Determine terminal height.
-	height := terminalHeightOverride
+	height := int(terminalHeightOverride.Load())
 	if height <= 0 {
 		_, h, sizeErr := term.GetSize(int(origStdout.Fd()))
 		if sizeErr != nil || h <= 0 {
@@ -128,7 +135,9 @@ func runPager(pagerCmd string, content []byte, stdout *os.File) error {
 	if len(parts) == 0 {
 		return fmt.Errorf("empty pager command")
 	}
-	cmd := exec.Command(parts[0], parts[1:]...) //nolint:gosec // pager command comes from trusted env var / default
+	//nolint:gosec // pager command is user-controlled via MEGAPORT_PAGER/PAGER env vars,
+	// which are trusted to the same degree as the calling user (see resolvePager).
+	cmd := exec.Command(parts[0], parts[1:]...)
 	cmd.Stdout = stdout
 	cmd.Stderr = os.Stderr
 	stdin, err := cmd.StdinPipe()
