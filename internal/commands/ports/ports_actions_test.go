@@ -2286,3 +2286,121 @@ func TestMockPortServiceReset(t *testing.T) {
 	assert.Nil(t, m.BuyPortErr)
 	assert.False(t, m.ForceNilGetPort)
 }
+
+func TestListPorts_TagFilter(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	origListPortsFunc := listPortsFunc
+	origListTagsFunc := listPortResourceTagsFunc
+	defer func() {
+		listPortsFunc = origListPortsFunc
+		listPortResourceTagsFunc = origListTagsFunc
+	}()
+
+	allPorts := []*megaport.Port{
+		{UID: "port-1", Name: "PortAlpha", ProvisioningStatus: "LIVE"},
+		{UID: "port-2", Name: "PortBeta", ProvisioningStatus: "LIVE"},
+		{UID: "port-3", Name: "PortGamma", ProvisioningStatus: "LIVE"},
+	}
+
+	tagsByUID := map[string]map[string]string{
+		"port-1": {"env": "prod", "team": "net"},
+		"port-2": {"env": "staging"},
+		"port-3": {},
+	}
+
+	listPortsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Port, error) {
+		return allPorts, nil
+	}
+
+	tests := []struct {
+		name            string
+		tagFilters      []string
+		tagFetchErrUID  string // UID that returns an error
+		expectedOutputs []string
+		notExpected     []string
+	}{
+		{
+			name:            "no tag filter returns all",
+			tagFilters:      nil,
+			expectedOutputs: []string{"port-1", "port-2", "port-3"},
+		},
+		{
+			name:            "exact match includes only matching resource",
+			tagFilters:      []string{"env=prod"},
+			expectedOutputs: []string{"port-1"},
+			notExpected:     []string{"port-2", "port-3"},
+		},
+		{
+			name:            "exact match excludes non-matching value",
+			tagFilters:      []string{"env=staging"},
+			expectedOutputs: []string{"port-2"},
+			notExpected:     []string{"port-1", "port-3"},
+		},
+		{
+			name:            "AND logic requires all filters to match",
+			tagFilters:      []string{"env=prod", "team=net"},
+			expectedOutputs: []string{"port-1"},
+			notExpected:     []string{"port-2", "port-3"},
+		},
+		{
+			name:            "key-exists match",
+			tagFilters:      []string{"env"},
+			expectedOutputs: []string{"port-1", "port-2"},
+			notExpected:     []string{"port-3"},
+		},
+		{
+			name:        "no match returns empty",
+			tagFilters:  []string{"env=nonexistent"},
+			notExpected: []string{"port-1", "port-2", "port-3"},
+		},
+		{
+			name:            "tag fetch error excludes resource gracefully",
+			tagFilters:      []string{"env=prod"},
+			tagFetchErrUID:  "port-1",
+			notExpected:     []string{"PortAlpha"}, // name absent from table; UID appears in warning
+			expectedOutputs: []string{"Failed to fetch tags"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			listPortResourceTagsFunc = func(ctx context.Context, client *megaport.Client, uid string) (map[string]string, error) {
+				if tt.tagFetchErrUID != "" && uid == tt.tagFetchErrUID {
+					return nil, fmt.Errorf("tag fetch error")
+				}
+				return tagsByUID[uid], nil
+			}
+
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				return &megaport.Client{PortService: &MockPortService{}}, nil
+			})
+
+			cmd := &cobra.Command{Use: "list"}
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().String("port-name", "", "")
+			cmd.Flags().Bool("include-inactive", false, "")
+			cmd.Flags().Int("limit", 0, "")
+			cmd.Flags().StringArray("tag", nil, "")
+
+			for _, f := range tt.tagFilters {
+				require.NoError(t, cmd.Flags().Set("tag", f))
+			}
+
+			var listErr error
+			capturedOutput := output.CaptureOutput(func() {
+				listErr = ListPorts(cmd, nil, true, "table")
+			})
+			assert.NoError(t, listErr)
+
+			for _, expected := range tt.expectedOutputs {
+				assert.Contains(t, capturedOutput, expected)
+			}
+			for _, notExp := range tt.notExpected {
+				assert.NotContains(t, capturedOutput, notExp)
+			}
+		})
+	}
+}

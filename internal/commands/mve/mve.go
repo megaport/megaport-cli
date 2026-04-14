@@ -161,13 +161,16 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	listMVEsCmd := cmdbuilder.NewCommand("list", "List all MVEs with optional filters").
 		WithOutputFormatRunFunc(ListMVEs).
 		WithMVEFilterFlags().
-		WithLongDesc("List all MVEs available in the Megaport API.\n\nThis command fetches and displays a list of MVEs with details such as MVE ID, name, location, vendor, and status. By default, only active MVEs are shown.").
+		WithTagFilterFlags().
+		WithLongDesc("List all MVEs available in the Megaport API.\n\nThis command fetches and displays a list of MVEs with details such as MVE ID, name, location, vendor, and status. By default, only active MVEs are shown. You can also filter by resource tags.").
 		WithExample("megaport-cli mve list").
 		WithExample("megaport-cli mve list --location-id 123").
 		WithExample("megaport-cli mve list --vendor \"Cisco\"").
 		WithExample("megaport-cli mve list --name \"Edge Router\"").
 		WithExample("megaport-cli mve list --include-inactive").
 		WithExample("megaport-cli mve list --location-id 123 --vendor \"Cisco\" --name \"Edge\"").
+		WithExample("megaport-cli mve list --tag env=prod").
+		WithExample("megaport-cli mve list --tag env=prod --tag team=network").
 		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
 		WithAliases([]string{"ls"}).

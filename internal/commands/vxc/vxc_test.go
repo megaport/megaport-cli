@@ -1,6 +1,7 @@
 package vxc
 
 import (
+	"context"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -547,4 +548,24 @@ func TestVXCUpdateTagsHasGenerateSkeleton(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, updateTagsCmd)
 	assert.NotNil(t, updateTagsCmd.Flags().Lookup("generate-skeleton"))
+}
+
+func TestVXCListHasTagFlag(t *testing.T) {
+	root := &cobra.Command{Use: "megaport-cli"}
+	AddCommandsTo(root)
+	listCmd, _, err := root.Find([]string{"vxc", "list"})
+	require.NoError(t, err)
+	require.NotNil(t, listCmd)
+	assert.NotNil(t, listCmd.Flags().Lookup("tag"), "list command should have --tag flag")
+}
+
+func TestListVXCResourceTagsFunc(t *testing.T) {
+	want := map[string]string{"env": "prod"}
+	mockSvc := &MockVXCService{ListVXCResourceTagsResult: want}
+	client := &megaport.Client{}
+	client.VXCService = mockSvc
+
+	got, err := listVXCResourceTagsFunc(context.Background(), client, "vxc-uid-1")
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
 }

@@ -173,8 +173,9 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 	// Create list MCRs command
 	list = cmdbuilder.NewCommand("list", "List all MCRs with optional filters").
 		WithOutputFormatRunFunc(ListMCRs).
-		WithLongDesc("List all MCRs available in the Megaport API.\n\nThis command fetches and displays a list of MCRs with details such as MCR ID, name, location, speed, and status. By default, only active MCRs are shown.").
+		WithLongDesc("List all MCRs available in the Megaport API.\n\nThis command fetches and displays a list of MCRs with details such as MCR ID, name, location, speed, and status. By default, only active MCRs are shown. You can also filter by resource tags.").
 		WithMCRFilterFlags().
+		WithTagFilterFlags().
 		WithOptionalFlag("location-id", "Filter MCRs by location ID").
 		WithOptionalFlag("name", "Filter MCRs by name").
 		WithOptionalFlag("port-speed", "Filter MCRs by port speed").
@@ -185,6 +186,8 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithExample("megaport-cli mcr list --name \"My MCR\"").
 		WithExample("megaport-cli mcr list --include-inactive").
 		WithExample("megaport-cli mcr list --location-id 1 --port-speed 10000 --name \"My MCR\"").
+		WithExample("megaport-cli mcr list --tag env=prod").
+		WithExample("megaport-cli mcr list --tag env=prod --tag team=network").
 		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
 		WithAliases([]string{"ls"}).

@@ -2352,3 +2352,108 @@ func TestListAvailableMVESizes_LoginError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "auth failed")
 }
+
+func TestListMVEs_TagFilter(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	origListTagsFunc := listMVEResourceTagsFunc
+	defer func() { listMVEResourceTagsFunc = origListTagsFunc }()
+
+	allMVEs := []*megaport.MVE{
+		{UID: "mve-1", Name: "MVE-Alpha", ProvisioningStatus: "LIVE"},
+		{UID: "mve-2", Name: "MVE-Beta", ProvisioningStatus: "LIVE"},
+		{UID: "mve-3", Name: "MVE-Gamma", ProvisioningStatus: "LIVE"},
+	}
+
+	tagsByUID := map[string]map[string]string{
+		"mve-1": {"env": "prod", "team": "net"},
+		"mve-2": {"env": "staging"},
+		"mve-3": {},
+	}
+
+	tests := []struct {
+		name            string
+		tagFilters      []string
+		tagFetchErrUID  string
+		expectedOutputs []string
+		notExpected     []string
+	}{
+		{
+			name:            "no tag filter returns all",
+			tagFilters:      nil,
+			expectedOutputs: []string{"mve-1", "mve-2", "mve-3"},
+		},
+		{
+			name:            "exact match includes only matching resource",
+			tagFilters:      []string{"env=prod"},
+			expectedOutputs: []string{"mve-1"},
+			notExpected:     []string{"mve-2", "mve-3"},
+		},
+		{
+			name:            "AND logic requires all filters to match",
+			tagFilters:      []string{"env=prod", "team=net"},
+			expectedOutputs: []string{"mve-1"},
+			notExpected:     []string{"mve-2", "mve-3"},
+		},
+		{
+			name:            "key-exists match",
+			tagFilters:      []string{"env"},
+			expectedOutputs: []string{"mve-1", "mve-2"},
+			notExpected:     []string{"mve-3"},
+		},
+		{
+			name:        "no match returns empty",
+			tagFilters:  []string{"env=nonexistent"},
+			notExpected: []string{"mve-1", "mve-2", "mve-3"},
+		},
+		{
+			name:            "tag fetch error excludes resource gracefully",
+			tagFilters:      []string{"env=prod"},
+			tagFetchErrUID:  "mve-1",
+			notExpected:     []string{"MVE-Alpha"}, // name absent from table; UID appears in warning
+			expectedOutputs: []string{"Failed to fetch tags"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			listMVEResourceTagsFunc = func(ctx context.Context, client *megaport.Client, uid string) (map[string]string, error) {
+				if tt.tagFetchErrUID != "" && uid == tt.tagFetchErrUID {
+					return nil, fmt.Errorf("tag fetch error")
+				}
+				return tagsByUID[uid], nil
+			}
+
+			mockSvc := &MockMVEService{ListMVEsResult: allMVEs}
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				return &megaport.Client{MVEService: mockSvc}, nil
+			})
+
+			cmd := &cobra.Command{Use: "list"}
+			cmd.Flags().Bool("include-inactive", false, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().String("vendor", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("limit", 0, "")
+			cmd.Flags().StringArray("tag", nil, "")
+
+			for _, f := range tt.tagFilters {
+				assert.NoError(t, cmd.Flags().Set("tag", f))
+			}
+
+			var listErr error
+			capturedOutput := output.CaptureOutput(func() {
+				listErr = ListMVEs(cmd, nil, true, "table")
+			})
+			assert.NoError(t, listErr)
+
+			for _, expected := range tt.expectedOutputs {
+				assert.Contains(t, capturedOutput, expected)
+			}
+			for _, notExp := range tt.notExpected {
+				assert.NotContains(t, capturedOutput, notExp)
+			}
+		})
+	}
+}

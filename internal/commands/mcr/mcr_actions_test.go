@@ -2820,3 +2820,108 @@ func TestValidateMCR(t *testing.T) {
 		})
 	}
 }
+
+func TestListMCRs_TagFilter(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	origListTagsFunc := listMCRResourceTagsFunc
+	defer func() { listMCRResourceTagsFunc = origListTagsFunc }()
+
+	allMCRs := []*megaport.MCR{
+		{UID: "mcr-1", Name: "MCR-Alpha", ProvisioningStatus: "LIVE"},
+		{UID: "mcr-2", Name: "MCR-Beta", ProvisioningStatus: "LIVE"},
+		{UID: "mcr-3", Name: "MCR-Gamma", ProvisioningStatus: "LIVE"},
+	}
+
+	tagsByUID := map[string]map[string]string{
+		"mcr-1": {"env": "prod", "team": "net"},
+		"mcr-2": {"env": "staging"},
+		"mcr-3": {},
+	}
+
+	tests := []struct {
+		name            string
+		tagFilters      []string
+		tagFetchErrUID  string
+		expectedOutputs []string
+		notExpected     []string
+	}{
+		{
+			name:            "no tag filter returns all",
+			tagFilters:      nil,
+			expectedOutputs: []string{"mcr-1", "mcr-2", "mcr-3"},
+		},
+		{
+			name:            "exact match includes only matching resource",
+			tagFilters:      []string{"env=prod"},
+			expectedOutputs: []string{"mcr-1"},
+			notExpected:     []string{"mcr-2", "mcr-3"},
+		},
+		{
+			name:            "AND logic requires all filters to match",
+			tagFilters:      []string{"env=prod", "team=net"},
+			expectedOutputs: []string{"mcr-1"},
+			notExpected:     []string{"mcr-2", "mcr-3"},
+		},
+		{
+			name:            "key-exists match",
+			tagFilters:      []string{"env"},
+			expectedOutputs: []string{"mcr-1", "mcr-2"},
+			notExpected:     []string{"mcr-3"},
+		},
+		{
+			name:        "no match returns empty",
+			tagFilters:  []string{"env=nonexistent"},
+			notExpected: []string{"mcr-1", "mcr-2", "mcr-3"},
+		},
+		{
+			name:            "tag fetch error excludes resource gracefully",
+			tagFilters:      []string{"env=prod"},
+			tagFetchErrUID:  "mcr-1",
+			notExpected:     []string{"MCR-Alpha"}, // name absent from table; UID appears in warning
+			expectedOutputs: []string{"Failed to fetch tags"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			listMCRResourceTagsFunc = func(ctx context.Context, client *megaport.Client, uid string) (map[string]string, error) {
+				if tt.tagFetchErrUID != "" && uid == tt.tagFetchErrUID {
+					return nil, fmt.Errorf("tag fetch error")
+				}
+				return tagsByUID[uid], nil
+			}
+
+			mockSvc := &MockMCRService{ListMCRsResult: allMCRs}
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				return &megaport.Client{MCRService: mockSvc}, nil
+			})
+
+			cmd := &cobra.Command{Use: "list"}
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Bool("include-inactive", false, "")
+			cmd.Flags().Int("limit", 0, "")
+			cmd.Flags().StringArray("tag", nil, "")
+
+			for _, f := range tt.tagFilters {
+				assert.NoError(t, cmd.Flags().Set("tag", f))
+			}
+
+			var listErr error
+			capturedOutput := output.CaptureOutput(func() {
+				listErr = ListMCRs(cmd, nil, true, "table")
+			})
+			assert.NoError(t, listErr)
+
+			for _, expected := range tt.expectedOutputs {
+				assert.Contains(t, capturedOutput, expected)
+			}
+			for _, notExp := range tt.notExpected {
+				assert.NotContains(t, capturedOutput, notExp)
+			}
+		})
+	}
+}

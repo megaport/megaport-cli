@@ -91,6 +91,26 @@ func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	filteredMVEs := filterMVEs(mves, locationID, vendor, name)
 
 	limit, _ := cmd.Flags().GetInt("limit")
+
+	tagFilters, _ := cmd.Flags().GetStringArray("tag")
+	if len(tagFilters) > 0 {
+		tagSpinner := output.PrintCustomSpinner("Fetching tags for", "MVEs", noColor)
+		var tagErrs map[string]error
+		filteredMVEs, tagErrs = utils.ApplyTagFilter(ctx, filteredMVEs,
+			func(m *megaport.MVE) string { return m.UID },
+			func(ctx context.Context, uid string) (map[string]string, error) {
+				return listMVEResourceTagsFunc(ctx, client, uid)
+			},
+			tagFilters, limit,
+		)
+		tagSpinner.Stop()
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		for uid, err := range tagErrs {
+			output.PrintWarning("Failed to fetch tags for MVE %s, skipping: %v", noColor, uid, err)
+		}
+	}
 	return utils.ApplyLimitAndPrint(filteredMVEs, limit, outputFormat, noColor,
 		"No MVEs found. Create one with 'megaport mve buy'.", printMVEs)
 }

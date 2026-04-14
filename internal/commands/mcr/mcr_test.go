@@ -1,11 +1,14 @@
 package mcr
 
 import (
+	"context"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	megaport "github.com/megaport/megaportgo"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var noColor = true
@@ -372,4 +375,37 @@ func TestFilterMCRs(t *testing.T) {
 func TestMCRUpdateTagsHasGenerateSkeleton(t *testing.T) {
 	_, updateTags := buildMCRTagCommands()
 	assert.NotNil(t, updateTags.Flags().Lookup("generate-skeleton"))
+}
+
+func TestMCRListHasTagFlag(t *testing.T) {
+	_, _, _, _, _, _, _, list, _, _ := buildMCRCommands(nil)
+	require.NotNil(t, list.Flags().Lookup("tag"), "list command should have --tag flag")
+}
+
+func TestMCRModule(t *testing.T) {
+	m := NewModule()
+	assert.Equal(t, "mcr", m.Name())
+
+	root := &cobra.Command{Use: "megaport-cli"}
+	m.RegisterCommands(root)
+
+	found := false
+	for _, cmd := range root.Commands() {
+		if cmd.Use == "mcr" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "RegisterCommands should add mcr command")
+}
+
+func TestListMCRResourceTagsFunc(t *testing.T) {
+	want := map[string]string{"env": "staging"}
+	mockSvc := &MockMCRService{ListMCRResourceTagsResult: want}
+	client := &megaport.Client{}
+	client.MCRService = mockSvc
+
+	got, err := listMCRResourceTagsFunc(context.Background(), client, "mcr-uid-1")
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
 }

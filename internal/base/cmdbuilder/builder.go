@@ -115,6 +115,13 @@ func (b *CommandBuilder) WithDurationFlagP(name, shorthand string, defaultVal ti
 	return b
 }
 
+// WithStringArrayFlag adds a repeatable string flag (each --flag value is a separate element).
+// Unlike StringSlice, StringArray does not split on commas.
+func (b *CommandBuilder) WithStringArrayFlag(name, usage string) *CommandBuilder {
+	b.cmd.Flags().StringArray(name, nil, usage)
+	return b
+}
+
 // WithRootCmd sets the root command for help generation
 func (b *CommandBuilder) WithRootCmd(rootCmd *cobra.Command) *CommandBuilder {
 	b.rootCmd = rootCmd
