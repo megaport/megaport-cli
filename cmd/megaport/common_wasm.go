@@ -74,7 +74,8 @@ func InitializeCommon() {
 
 	// Setup persistent flags
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", utils.FormatTable,
-		"Output format (table, json, csv, xml)")
+		"Output format (table, json, csv, xml, go-template; go-template not supported in browser version)")
+	rootCmd.PersistentFlags().String("template", "", "Go template string for --output go-template (not supported in browser version)")
 	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "Disable colorful output")
 	rootCmd.PersistentFlags().StringVar(&utils.Env, "env", "", "Environment to use (prod, dev, or staging)")
 	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "Suppress informational output, only show errors and data")

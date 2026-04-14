@@ -1343,3 +1343,89 @@ func TestNoHeaderDoesNotAffectJSON(t *testing.T) {
 	assert.Contains(t, out, `"name"`, "JSON should include field names regardless of --no-header")
 	assert.Contains(t, out, "epsilon")
 }
+
+func TestPrintGoTemplate_FieldExtraction(t *testing.T) {
+	SetTemplateString(`{{range .}}{{.Name}}{{"\n"}}{{end}}`)
+	defer SetTemplateString("")
+
+	data := []SimpleStruct{{ID: 1, Name: "alpha", Active: true}, {ID: 2, Name: "beta", Active: false}}
+	out := CaptureOutput(func() {
+		err := PrintOutput(data, "go-template", true)
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, out, "alpha")
+	assert.Contains(t, out, "beta")
+}
+
+func TestPrintGoTemplate_SingleItem(t *testing.T) {
+	SetTemplateString(`{{(index . 0).Name}}`)
+	defer SetTemplateString("")
+
+	data := []SimpleStruct{{ID: 1, Name: "gamma", Active: true}}
+	out := CaptureOutput(func() {
+		err := PrintOutput(data, "go-template", true)
+		assert.NoError(t, err)
+	})
+
+	assert.Equal(t, "gamma", strings.TrimSpace(out))
+}
+
+func TestPrintGoTemplate_FuncMap(t *testing.T) {
+	SetTemplateString(`{{range .}}{{upper .Name}}{{"\n"}}{{end}}`)
+	defer SetTemplateString("")
+
+	data := []SimpleStruct{{ID: 1, Name: "delta"}}
+	out := CaptureOutput(func() {
+		err := PrintOutput(data, "go-template", true)
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, out, "DELTA")
+}
+
+func TestPrintGoTemplate_InvalidTemplate(t *testing.T) {
+	SetTemplateString(`{{invalid`)
+	defer SetTemplateString("")
+
+	data := []SimpleStruct{{ID: 1, Name: "test"}}
+	var err error
+	CaptureOutput(func() {
+		err = PrintOutput(data, "go-template", true)
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid template")
+}
+
+func TestPrintGoTemplate_Count(t *testing.T) {
+	SetTemplateString(`{{len .}}`)
+	defer SetTemplateString("")
+
+	data := []SimpleStruct{{ID: 1, Name: "a"}, {ID: 2, Name: "b"}, {ID: 3, Name: "c"}}
+	out := CaptureOutput(func() {
+		err := PrintOutput(data, "go-template", true)
+		assert.NoError(t, err)
+	})
+
+	assert.Equal(t, "3", strings.TrimSpace(out))
+}
+
+func TestPrintGoTemplate_JSONFuncMap(t *testing.T) {
+	SetTemplateString(`{{range .}}{{json .}}{{"\n"}}{{end}}`)
+	defer SetTemplateString("")
+
+	data := []SimpleStruct{{ID: 1, Name: "epsilon", Active: true}}
+	out := CaptureOutput(func() {
+		err := PrintOutput(data, "go-template", true)
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, out, `"epsilon"`)
+}
+
+func TestResetState_ClearsTemplateString(t *testing.T) {
+	SetTemplateString("{{.}}")
+	ResetState()
+	assert.Equal(t, "", GetTemplateString())
+}

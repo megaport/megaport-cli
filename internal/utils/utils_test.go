@@ -334,6 +334,29 @@ func TestWrapOutputFormatRunE(t *testing.T) {
 		assert.Contains(t, err.Error(), "error running get command")
 		assert.Contains(t, err.Error(), "inner failure")
 	})
+
+	t.Run("go-template without --template returns usage error", func(t *testing.T) {
+		wrapped := WrapOutputFormatRunE(func(cmd *cobra.Command, args []string, noColor bool, format string) error {
+			return nil
+		})
+
+		root := &cobra.Command{Use: "root"}
+		root.PersistentFlags().Bool("no-color", false, "")
+		root.PersistentFlags().String("fields", "", "")
+		root.PersistentFlags().String("query", "", "")
+		root.PersistentFlags().String("template", "", "")
+		child := &cobra.Command{Use: "list"}
+		child.Flags().String("output", "go-template", "")
+		root.AddCommand(child)
+
+		err := wrapped(child, []string{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--template is required")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
+	})
 }
 
 func TestClassifyError(t *testing.T) {
