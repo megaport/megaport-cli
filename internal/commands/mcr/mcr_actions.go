@@ -376,17 +376,18 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	tagFilters, _ := cmd.Flags().GetStringArray("tag")
 	if len(tagFilters) > 0 {
 		tagSpinner := output.PrintCustomSpinner("Fetching tags for", "MCRs", noColor)
-		filteredMCRs = utils.ApplyTagFilter(ctx, filteredMCRs,
+		var tagErrs map[string]error
+		filteredMCRs, tagErrs = utils.ApplyTagFilter(ctx, filteredMCRs,
 			func(m *megaport.MCR) string { return m.UID },
 			func(ctx context.Context, uid string) (map[string]string, error) {
 				return listMCRResourceTagsFunc(ctx, client, uid)
 			},
 			tagFilters, limit,
-			func(uid string, err error) {
-				output.PrintWarning("Failed to fetch tags for MCR %s, skipping: %v", noColor, uid, err)
-			},
 		)
 		tagSpinner.Stop()
+		for uid, err := range tagErrs {
+			output.PrintWarning("Failed to fetch tags for MCR %s, skipping: %v", noColor, uid, err)
+		}
 	}
 	return utils.ApplyLimitAndPrint(filteredMCRs, limit, outputFormat, noColor,
 		"No MCRs found. Create one with 'megaport mcr buy'.", printMCRs)

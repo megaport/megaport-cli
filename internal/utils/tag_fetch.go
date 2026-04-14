@@ -11,8 +11,9 @@ import (
 //   - limit == 0: parallel fetch via FetchTagsConcurrently (minimises wall-clock time
 //     when all results are needed)
 //
-// onErr is called for each resource whose tags could not be fetched; that resource is
-// then excluded from the results.
+// Resources whose tags could not be fetched are excluded from the results; their UIDs
+// and errors are returned in the second map so the caller can report them after any
+// spinner has been stopped (avoiding interleaved terminal output).
 func ApplyTagFilter[T any](
 	ctx context.Context,
 	resources []T,
@@ -20,15 +21,18 @@ func ApplyTagFilter[T any](
 	fetch func(context.Context, string) (map[string]string, error),
 	tagFilters []string,
 	limit int,
-	onErr func(uid string, err error),
-) []T {
+) ([]T, map[string]error) {
 	if limit > 0 {
 		result := make([]T, 0, limit)
+		var fetchErrs map[string]error
 		for _, r := range resources {
 			uid := uidFunc(r)
 			tags, err := fetch(ctx, uid)
 			if err != nil {
-				onErr(uid, err)
+				if fetchErrs == nil {
+					fetchErrs = make(map[string]error)
+				}
+				fetchErrs[uid] = err
 				continue
 			}
 			if MatchesTagFilters(tags, tagFilters) {
@@ -38,7 +42,7 @@ func ApplyTagFilter[T any](
 				}
 			}
 		}
-		return result
+		return result, fetchErrs
 	}
 
 	// Unlimited: fetch all tags in parallel for minimal wall-clock time.
@@ -50,15 +54,14 @@ func ApplyTagFilter[T any](
 	result := make([]T, 0, len(resources))
 	for _, r := range resources {
 		uid := uidFunc(r)
-		if err, ok := fetchErrs[uid]; ok {
-			onErr(uid, err)
+		if _, failed := fetchErrs[uid]; failed {
 			continue
 		}
 		if MatchesTagFilters(allTags[uid], tagFilters) {
 			result = append(result, r)
 		}
 	}
-	return result
+	return result, fetchErrs
 }
 
 // defaultTagFetchConcurrency is the size of the fixed worker pool used when fetching tags.

@@ -135,13 +135,13 @@ func TestApplyTagFilter_NoLimit_AllMatch(t *testing.T) {
 		{uid: "a", tags: map[string]string{"env": "prod"}},
 		{uid: "b", tags: map[string]string{"env": "prod"}},
 	}
-	got := ApplyTagFilter(context.Background(), resources,
+	got, errs := ApplyTagFilter(context.Background(), resources,
 		func(r testResource) string { return r.uid },
 		makeTagFetch(resources),
 		[]string{"env=prod"}, 0,
-		func(uid string, err error) { t.Errorf("unexpected error for %s: %v", uid, err) },
 	)
 	assert.Len(t, got, 2)
+	assert.Empty(t, errs)
 }
 
 func TestApplyTagFilter_NoLimit_SomeMatch(t *testing.T) {
@@ -150,13 +150,13 @@ func TestApplyTagFilter_NoLimit_SomeMatch(t *testing.T) {
 		{uid: "b", tags: map[string]string{"env": "staging"}},
 		{uid: "c", tags: map[string]string{"env": "prod"}},
 	}
-	got := ApplyTagFilter(context.Background(), resources,
+	got, errs := ApplyTagFilter(context.Background(), resources,
 		func(r testResource) string { return r.uid },
 		makeTagFetch(resources),
 		[]string{"env=prod"}, 0,
-		func(uid string, err error) { t.Errorf("unexpected error for %s: %v", uid, err) },
 	)
 	require.Len(t, got, 2)
+	assert.Empty(t, errs)
 	assert.Equal(t, "a", got[0].uid)
 	assert.Equal(t, "c", got[1].uid)
 }
@@ -177,19 +177,18 @@ func TestApplyTagFilter_WithLimit_StopsEarly(t *testing.T) {
 		}
 		return nil, nil
 	}
-	got := ApplyTagFilter(context.Background(), resources,
+	got, errs := ApplyTagFilter(context.Background(), resources,
 		func(r testResource) string { return r.uid },
 		fetch,
 		[]string{"env=prod"}, 2,
-		func(uid string, err error) { t.Errorf("unexpected error for %s: %v", uid, err) },
 	)
 	assert.Len(t, got, 2)
+	assert.Empty(t, errs)
 	// With limit=2, should stop after 2 matches — only 2 API calls needed.
 	assert.Equal(t, 2, callCount)
 }
 
 func TestApplyTagFilter_FetchError_Excluded(t *testing.T) {
-	var warnedUID string
 	resources := []testResource{{uid: "ok"}, {uid: "err"}}
 	fetch := func(_ context.Context, uid string) (map[string]string, error) {
 		if uid == "err" {
@@ -197,13 +196,13 @@ func TestApplyTagFilter_FetchError_Excluded(t *testing.T) {
 		}
 		return map[string]string{"env": "prod"}, nil
 	}
-	got := ApplyTagFilter(context.Background(), resources,
+	got, errs := ApplyTagFilter(context.Background(), resources,
 		func(r testResource) string { return r.uid },
 		fetch,
 		[]string{"env=prod"}, 0,
-		func(uid string, _ error) { warnedUID = uid },
 	)
 	require.Len(t, got, 1)
 	assert.Equal(t, "ok", got[0].uid)
-	assert.Equal(t, "err", warnedUID)
+	assert.Contains(t, errs, "err")
+	assert.EqualError(t, errs["err"], "fetch failed")
 }

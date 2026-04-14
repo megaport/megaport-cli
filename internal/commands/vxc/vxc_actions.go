@@ -127,17 +127,18 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	tagFilters, _ := cmd.Flags().GetStringArray("tag")
 	if len(tagFilters) > 0 {
 		tagSpinner := output.PrintCustomSpinner("Fetching tags for", "VXCs", noColor)
-		filteredVXCs = utils.ApplyTagFilter(ctx, filteredVXCs,
+		var tagErrs map[string]error
+		filteredVXCs, tagErrs = utils.ApplyTagFilter(ctx, filteredVXCs,
 			func(v *megaport.VXC) string { return v.UID },
 			func(ctx context.Context, uid string) (map[string]string, error) {
 				return listVXCResourceTagsFunc(ctx, client, uid)
 			},
 			tagFilters, limit,
-			func(uid string, err error) {
-				output.PrintWarning("Failed to fetch tags for VXC %s, skipping: %v", noColor, uid, err)
-			},
 		)
 		tagSpinner.Stop()
+		for uid, err := range tagErrs {
+			output.PrintWarning("Failed to fetch tags for VXC %s, skipping: %v", noColor, uid, err)
+		}
 	}
 	return utils.ApplyLimitAndPrint(filteredVXCs, limit, outputFormat, noColor,
 		"No VXCs found. Create one with 'megaport vxc buy'.", printVXCs)
