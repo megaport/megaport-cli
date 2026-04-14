@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/help"
@@ -80,15 +81,16 @@ func ExecuteWithArgs(args []string) {
 // falls back to the root persistent flag (used by WrapRunE /
 // WrapColorAwareRunE commands).
 func resolveOutputFormat(cmd *cobra.Command) string {
+	var raw string
 	if cmd != nil {
 		if f := cmd.Flags().Lookup("output"); f != nil {
-			return f.Value.String()
+			raw = f.Value.String()
 		}
 	}
-	if format, err := rootCmd.PersistentFlags().GetString("output"); err == nil {
-		return format
+	if raw == "" {
+		raw, _ = rootCmd.PersistentFlags().GetString("output")
 	}
-	return utils.FormatTable
+	return strings.ToLower(raw)
 }
 
 func EnsureRootCommandOutput(writer io.Writer) {

@@ -130,10 +130,10 @@ func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobr
 	return func(cmd *cobra.Command, args []string) error {
 		applyFieldsFilter(cmd)
 		applyTemplateFilter(cmd)
-		format, _ := cmd.Root().PersistentFlags().GetString("output")
+		rawFormat, _ := cmd.Root().PersistentFlags().GetString("output")
+		format := strings.ToLower(rawFormat)
 		if format == FormatGoTemplate && output.GetTemplateString() == "" {
 			cmd.SilenceUsage = true
-			cmd.SilenceErrors = true
 			return exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used"))
 		}
 		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
@@ -162,10 +162,10 @@ func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool)
 	return func(cmd *cobra.Command, args []string) error {
 		applyFieldsFilter(cmd)
 		applyTemplateFilter(cmd)
-		format, _ := cmd.Root().PersistentFlags().GetString("output")
+		rawFormat, _ := cmd.Root().PersistentFlags().GetString("output")
+		format := strings.ToLower(rawFormat)
 		if format == FormatGoTemplate && output.GetTemplateString() == "" {
 			cmd.SilenceUsage = true
-			cmd.SilenceErrors = true
 			return exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used"))
 		}
 		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
