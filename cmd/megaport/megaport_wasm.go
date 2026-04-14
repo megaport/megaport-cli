@@ -128,7 +128,9 @@ func init() {
 			OptionalFlags: map[string]string{
 				"--no-color":  "Disable colored output",
 				"--no-header": "Suppress table and CSV column headers (useful for scripting)",
-				"--output":    "Output format (json, yaml, table, csv, xml)",
+				"--no-pager":  "Disable pager for long table output (no-op in browser version)",
+				"--output":    "Output format (table, json, csv, xml, go-template)",
+				"--template":  "Go template string for --output go-template",
 				"--help":      "Show help for any command",
 				"--env":       "Environment to use (production, staging, development)",
 			},

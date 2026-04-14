@@ -16,6 +16,7 @@ import (
 var (
 	noColor      bool
 	noHeader     bool
+	noPager      bool
 	outputFormat string
 	quiet        bool
 	verbose      bool
@@ -86,6 +87,7 @@ func InitializeCommon() {
 	rootCmd.PersistentFlags().BoolVar(&utils.NoRetry, "no-retry", false, "Disable automatic retry on transient API failures")
 	rootCmd.PersistentFlags().IntVar(&utils.MaxRetries, "max-retries", 3, "Maximum number of retries for transient API failures")
 	rootCmd.PersistentFlags().BoolVar(&noHeader, "no-header", false, "Suppress table and CSV column headers (useful for scripting)")
+	rootCmd.PersistentFlags().BoolVar(&noPager, "no-pager", false, "Disable pager for long table output (no-op in browser version)")
 	rootCmd.MarkFlagsMutuallyExclusive("quiet", "verbose")
 	rootCmd.SuggestionsMinimumDistance = 2
 
@@ -93,6 +95,7 @@ func InitializeCommon() {
 	existingPreRunE := rootCmd.PersistentPreRunE
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		output.SetNoHeader(noHeader)
+		output.SetNoPager(noPager) // no-op in WASM; keeps flag wiring symmetric with native
 		if utils.MaxRetries < 0 {
 			return fmt.Errorf("--max-retries must be >= 0, got %d", utils.MaxRetries)
 		}
