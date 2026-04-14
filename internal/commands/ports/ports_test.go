@@ -5,7 +5,9 @@ import (
 
 	op "github.com/megaport/megaport-cli/internal/base/output"
 	megaport "github.com/megaport/megaportgo"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var testPorts = []*megaport.Port{
@@ -382,4 +384,26 @@ func TestFilterPortsWithInactiveFlag(t *testing.T) {
 func TestPortsUpdateHasGenerateSkeleton(t *testing.T) {
 	_, _, update, _, _ := buildPortBuyCommands(nil)
 	assert.NotNil(t, update.Flags().Lookup("generate-skeleton"))
+}
+
+func TestPortsListHasTagFlag(t *testing.T) {
+	list, _, _, _, _, _, _, _ := buildPortManagementCommands(nil)
+	require.NotNil(t, list.Flags().Lookup("tag"), "list command should have --tag flag")
+}
+
+func TestPortsModule(t *testing.T) {
+	m := NewModule()
+	assert.Equal(t, "ports", m.Name())
+
+	root := &cobra.Command{Use: "megaport-cli"}
+	m.RegisterCommands(root)
+
+	found := false
+	for _, cmd := range root.Commands() {
+		if cmd.Use == "ports" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "RegisterCommands should add ports command")
 }

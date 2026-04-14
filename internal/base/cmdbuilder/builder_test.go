@@ -674,6 +674,24 @@ func TestBuilderChaining(t *testing.T) {
 	}))
 	assert.Equal(t, b, b.WithRootCmd(&cobra.Command{}))
 	assert.Equal(t, b, b.WithAliases([]string{"t"}))
+	assert.Equal(t, b, b.WithStringArrayFlag("tags", "repeatable flag"))
+}
+
+func TestWithStringArrayFlag(t *testing.T) {
+	cmd := NewCommand("list", "List resources").
+		WithStringArrayFlag("tag", "Filter by tag").
+		Build()
+
+	f := cmd.Flags().Lookup("tag")
+	require.NotNil(t, f, "tag flag should be registered")
+	assert.Equal(t, "stringArray", f.Value.Type())
+
+	// Each --tag value is kept as-is (no comma splitting).
+	require.NoError(t, cmd.Flags().Set("tag", "env=prod"))
+	require.NoError(t, cmd.Flags().Set("tag", "team=a,b"))
+	vals, err := cmd.Flags().GetStringArray("tag")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"env=prod", "team=a,b"}, vals)
 }
 
 func TestGenerateSkeletonFlag(t *testing.T) {
