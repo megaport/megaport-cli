@@ -134,7 +134,7 @@ func buildPortBuyCommands(rootCmd *cobra.Command) (buy, buyLag, update, validate
 		WithOptionalFlag("term", "The new contract term in months (1, 12, 24, or 36)").
 		WithExample("megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive").
 		WithExample("megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --name \"Updated Port\" --marketplace-visibility true --cost-centre \"Finance\"").
-		WithExample("megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{\"name\":\"Updated Port\",\"marketplaceVisibility\":true,\"costCentre\":\"Finance\"}'").
+		WithExample("megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{\"name\":\"Updated Port\",\"marketPlaceVisibility\":true,\"costCentre\":\"Finance\"}'").
 		WithExample("megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json-file ./update-port-config.json").
 		WithJSONExample(`{
   "name": "Updated Port",
