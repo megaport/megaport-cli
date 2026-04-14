@@ -18,28 +18,29 @@ import (
 // captureStderr captures what the function writes to os.Stderr.
 // Not parallel-safe: it redirects the global os.Stderr via os.Pipe.
 // Do not call t.Parallel() in tests that use this helper.
-func captureStderr(t *testing.T, fn func()) (captured string) {
+// The read end is drained concurrently to prevent pipe-buffer deadlocks when
+// fn() writes more data than the OS pipe buffer can hold.
+func captureStderr(t *testing.T, fn func()) string {
 	t.Helper()
 	old := os.Stderr
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
-	var buf bytes.Buffer
 	os.Stderr = w
-	defer func() {
-		os.Stderr = old
-	}()
-	defer func() {
-		_ = r.Close()
-	}()
-	defer func() {
+	defer func() { os.Stderr = old }()
+
+	// Drain the read end concurrently so fn() cannot block on a full pipe buffer.
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
 		_, _ = io.Copy(&buf, r)
-		captured = buf.String()
 	}()
-	defer func() {
-		_ = w.Close()
-	}()
+
 	fn()
-	return captured
+	_ = w.Close() // signal EOF to the goroutine
+	<-done        // wait for all data to be read
+	_ = r.Close()
+	return buf.String()
 }
 
 // buildJSONChild builds a minimal cobra root+child command tree with the flags
