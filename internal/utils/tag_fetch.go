@@ -26,6 +26,9 @@ func ApplyTagFilter[T any](
 		result := make([]T, 0, limit)
 		var fetchErrs map[string]error
 		for _, r := range resources {
+			if err := ctx.Err(); err != nil {
+				break
+			}
 			uid := uidFunc(r)
 			tags, err := fetch(ctx, uid)
 			if err != nil {
