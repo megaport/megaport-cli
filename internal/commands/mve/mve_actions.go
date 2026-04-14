@@ -90,25 +90,34 @@ func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 
 	filteredMVEs := filterMVEs(mves, locationID, vendor, name)
 
+	limit, _ := cmd.Flags().GetInt("limit")
+
 	tagFilters, _ := cmd.Flags().GetStringArray("tag")
 	if len(tagFilters) > 0 {
 		tagSpinner := output.PrintCustomSpinner("Fetching tags for", "MVEs", noColor)
+		uids := make([]string, len(filteredMVEs))
+		for i, m := range filteredMVEs {
+			uids[i] = m.UID
+		}
+		allTags, fetchErrs := utils.FetchTagsConcurrently(ctx, uids, func(ctx context.Context, uid string) (map[string]string, error) {
+			return listMVEResourceTagsFunc(ctx, client, uid)
+		})
+		tagSpinner.Stop()
 		tagged := make([]*megaport.MVE, 0, len(filteredMVEs))
 		for _, m := range filteredMVEs {
-			tags, err := listMVEResourceTagsFunc(ctx, client, m.UID)
-			if err != nil {
+			if err, ok := fetchErrs[m.UID]; ok {
 				output.PrintWarning("Failed to fetch tags for MVE %s, skipping: %v", noColor, m.UID, err)
 				continue
 			}
-			if utils.MatchesTagFilters(tags, tagFilters) {
+			if utils.MatchesTagFilters(allTags[m.UID], tagFilters) {
 				tagged = append(tagged, m)
+				if limit > 0 && len(tagged) >= limit {
+					break
+				}
 			}
 		}
-		tagSpinner.Stop()
 		filteredMVEs = tagged
 	}
-
-	limit, _ := cmd.Flags().GetInt("limit")
 	return utils.ApplyLimitAndPrint(filteredMVEs, limit, outputFormat, noColor,
 		"No MVEs found. Create one with 'megaport mve buy'.", printMVEs)
 }

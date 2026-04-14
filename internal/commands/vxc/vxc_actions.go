@@ -122,25 +122,34 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 
 	filteredVXCs := filterVXCs(vxcs, name)
 
+	limit, _ := cmd.Flags().GetInt("limit")
+
 	tagFilters, _ := cmd.Flags().GetStringArray("tag")
 	if len(tagFilters) > 0 {
 		tagSpinner := output.PrintCustomSpinner("Fetching tags for", "VXCs", noColor)
+		uids := make([]string, len(filteredVXCs))
+		for i, v := range filteredVXCs {
+			uids[i] = v.UID
+		}
+		allTags, fetchErrs := utils.FetchTagsConcurrently(ctx, uids, func(ctx context.Context, uid string) (map[string]string, error) {
+			return listVXCResourceTagsFunc(ctx, client, uid)
+		})
+		tagSpinner.Stop()
 		tagged := make([]*megaport.VXC, 0, len(filteredVXCs))
 		for _, v := range filteredVXCs {
-			tags, err := listVXCResourceTagsFunc(ctx, client, v.UID)
-			if err != nil {
+			if err, ok := fetchErrs[v.UID]; ok {
 				output.PrintWarning("Failed to fetch tags for VXC %s, skipping: %v", noColor, v.UID, err)
 				continue
 			}
-			if utils.MatchesTagFilters(tags, tagFilters) {
+			if utils.MatchesTagFilters(allTags[v.UID], tagFilters) {
 				tagged = append(tagged, v)
+				if limit > 0 && len(tagged) >= limit {
+					break
+				}
 			}
 		}
-		tagSpinner.Stop()
 		filteredVXCs = tagged
 	}
-
-	limit, _ := cmd.Flags().GetInt("limit")
 	return utils.ApplyLimitAndPrint(filteredVXCs, limit, outputFormat, noColor,
 		"No VXCs found. Create one with 'megaport vxc buy'.", printVXCs)
 }
