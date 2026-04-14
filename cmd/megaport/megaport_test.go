@@ -10,6 +10,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
+	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -44,6 +45,36 @@ func TestNoHeaderFlagWiredThroughPersistentPreRunE(t *testing.T) {
 	})
 	assert.False(t, strings.Contains(captured, "NAME"), "header row should be suppressed after --no-header")
 	assert.True(t, strings.Contains(captured, "row1"), "data rows should still appear")
+}
+
+// TestNoPagerDefaultApplied verifies that a "no-pager" default persisted in
+// the config file is picked up by applyDefaultSettings and wired into the
+// output package via PersistentPreRunE.
+func TestNoPagerDefaultApplied(t *testing.T) {
+	// Use an isolated config directory so this test doesn't touch the real one.
+	dir := t.TempDir()
+	t.Setenv("MEGAPORT_CONFIG_DIR", dir)
+
+	// Write no-pager = true as a config default.
+	mgr, err := config.NewConfigManager()
+	require.NoError(t, err)
+	require.NoError(t, mgr.SetDefault("no-pager", true))
+
+	// Restore package-level state and cobra flag after the test.
+	defer func() {
+		output.ResetState()
+		noPager = false
+		_ = rootCmd.PersistentFlags().Set("no-pager", "false")
+	}()
+
+	// Fire a lightweight command through the real rootCmd so PersistentPreRunE runs.
+	rootCmd.SetArgs([]string{"version"})
+	_ = output.CaptureOutput(func() {
+		_ = rootCmd.Execute()
+	})
+
+	// The default should have been applied.
+	assert.True(t, noPager, "noPager package var should be true after config default is applied")
 }
 
 func TestExitCodeFromError(t *testing.T) {

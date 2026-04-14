@@ -608,6 +608,53 @@ func TestSetDefault(t *testing.T) {
 	})
 }
 
+func TestSetDefault_NoPager(t *testing.T) {
+	t.Run("set true", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		cmd, _ := setupTestCmd()
+		outputText, err := captureOutputFromAction(func() error {
+			return SetDefault(cmd, []string{"no-pager", "true"}, false)
+		})
+		require.NoError(t, err)
+		assert.Contains(t, outputText, "Default 'no-pager' set to 'true'")
+
+		manager, err := NewConfigManager()
+		require.NoError(t, err)
+		val, exists := manager.GetDefault("no-pager")
+		assert.True(t, exists)
+		assert.Equal(t, true, val)
+	})
+
+	t.Run("set false", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		cmd, _ := setupTestCmd()
+		outputText, err := captureOutputFromAction(func() error {
+			return SetDefault(cmd, []string{"no-pager", "false"}, false)
+		})
+		require.NoError(t, err)
+		assert.Contains(t, outputText, "Default 'no-pager' set to 'false'")
+
+		manager, err := NewConfigManager()
+		require.NoError(t, err)
+		val, exists := manager.GetDefault("no-pager")
+		assert.True(t, exists)
+		assert.Equal(t, false, val)
+	})
+
+	t.Run("invalid value", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		cmd, _ := setupTestCmd()
+		_, err := captureOutputFromAction(func() error {
+			return SetDefault(cmd, []string{"no-pager", "badvalue"}, false)
+		})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "no-pager must be true or false")
+	})
+}
+
 func TestGetDefault(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		setupTestConfigEnv(t)

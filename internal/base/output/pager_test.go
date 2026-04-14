@@ -130,6 +130,56 @@ func TestSetNoPager_RoundTrip(t *testing.T) {
 	assert.False(t, getNoPager())
 }
 
+// TestRunWithPager_EmptyOutput verifies that when fn writes nothing to stdout,
+// RunWithPager returns cleanly without writing any output.
+func TestRunWithPager_EmptyOutput(t *testing.T) {
+	orig := isTerminalCached.Load()
+	SetIsTerminal(true)
+	t.Cleanup(func() { isTerminalCached.Store(orig) })
+
+	SetNoPager(false)
+	t.Cleanup(func() { SetNoPager(false) })
+
+	setTerminalHeightForTesting(5)
+	t.Cleanup(func() { setTerminalHeightForTesting(0) })
+
+	out := CaptureOutput(func() {
+		err := RunWithPager(func() error {
+			// Write nothing to os.Stdout — content will be empty.
+			return nil
+		})
+		require.NoError(t, err)
+	})
+	assert.Empty(t, out)
+}
+
+// TestRunWithPager_TermSizeFailure verifies that when terminal size cannot be
+// determined (origStdout is not a real TTY and no override is set), output is
+// written directly rather than being dropped.
+func TestRunWithPager_TermSizeFailure(t *testing.T) {
+	orig := isTerminalCached.Load()
+	SetIsTerminal(true)
+	t.Cleanup(func() { isTerminalCached.Store(orig) })
+
+	SetNoPager(false)
+	t.Cleanup(func() { SetNoPager(false) })
+
+	// Leave terminalHeightOverride at 0 (default). RunWithPager will call
+	// term.GetSize on origStdout, which is a temp file (not a TTY) when
+	// wrapped with CaptureOutput. That call fails, so the code falls through
+	// to the direct-write path rather than invoking the pager.
+	// (Do NOT call setTerminalHeightForTesting here.)
+
+	out := CaptureOutput(func() {
+		err := RunWithPager(func() error {
+			fmt.Println("direct-write-line")
+			return nil
+		})
+		require.NoError(t, err)
+	})
+	assert.Contains(t, out, "direct-write-line")
+}
+
 func TestRunWithPager_LongOutput_PagerFailure(t *testing.T) {
 	orig := isTerminalCached.Load()
 	SetIsTerminal(true)
