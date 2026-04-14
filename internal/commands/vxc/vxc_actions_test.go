@@ -2539,9 +2539,11 @@ func TestListVXCs_TagFilter(t *testing.T) {
 				assert.NoError(t, cmd.Flags().Set("tag", f))
 			}
 
+			var listErr error
 			capturedOutput := output.CaptureOutput(func() {
-				_ = ListVXCs(cmd, nil, true, "table")
+				listErr = ListVXCs(cmd, nil, true, "table")
 			})
+			assert.NoError(t, listErr)
 
 			for _, expected := range tt.expectedOutputs {
 				assert.Contains(t, capturedOutput, expected)

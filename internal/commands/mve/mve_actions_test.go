@@ -2442,9 +2442,11 @@ func TestListMVEs_TagFilter(t *testing.T) {
 				assert.NoError(t, cmd.Flags().Set("tag", f))
 			}
 
+			var listErr error
 			capturedOutput := output.CaptureOutput(func() {
-				_ = ListMVEs(cmd, nil, true, "table")
+				listErr = ListMVEs(cmd, nil, true, "table")
 			})
+			assert.NoError(t, listErr)
 
 			for _, expected := range tt.expectedOutputs {
 				assert.Contains(t, capturedOutput, expected)

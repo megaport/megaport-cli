@@ -2389,9 +2389,11 @@ func TestListPorts_TagFilter(t *testing.T) {
 				require.NoError(t, cmd.Flags().Set("tag", f))
 			}
 
+			var listErr error
 			capturedOutput := output.CaptureOutput(func() {
-				_ = ListPorts(cmd, nil, true, "table")
+				listErr = ListPorts(cmd, nil, true, "table")
 			})
+			assert.NoError(t, listErr)
 
 			for _, expected := range tt.expectedOutputs {
 				assert.Contains(t, capturedOutput, expected)
