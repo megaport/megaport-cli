@@ -34,6 +34,12 @@ func getNoPager() bool {
 	return noPagerVal
 }
 
+// GetNoPager returns the current no-pager setting. Intended for tests that
+// need to assert the output package was correctly wired by PersistentPreRunE.
+func GetNoPager() bool {
+	return getNoPager()
+}
+
 // resolvePager returns the pager command to use.
 // Precedence: MEGAPORT_PAGER > PAGER > "less -R".
 //
