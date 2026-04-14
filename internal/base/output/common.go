@@ -75,6 +75,28 @@ var (
 	noHeaderMu sync.RWMutex
 )
 
+// templateStr holds the Go template string from --template flag.
+// Empty string means no template. Protected by templateStrMu.
+var (
+	templateStr   string
+	templateStrMu sync.RWMutex
+)
+
+// SetTemplateString sets the Go template string applied by printGoTemplate.
+// Pass "" to disable. This function is goroutine-safe.
+func SetTemplateString(s string) {
+	templateStrMu.Lock()
+	defer templateStrMu.Unlock()
+	templateStr = s
+}
+
+// GetTemplateString returns the current Go template string under a read lock.
+func GetTemplateString() string {
+	templateStrMu.RLock()
+	defer templateStrMu.RUnlock()
+	return templateStr
+}
+
 // SetNoHeader sets whether table and CSV output should suppress column headers.
 // This function is goroutine-safe. Tests should call defer SetNoHeader(false) to
 // reset state between test cases.
@@ -98,6 +120,7 @@ func ResetState() {
 	SetOutputFields(nil)
 	SetOutputQuery("")
 	SetNoHeader(false)
+	SetTemplateString("")
 	SetOutputFormat("table")
 	SetVerbosity("normal")
 }
@@ -198,10 +221,11 @@ type ResourceTag struct {
 // PrintOutput prints data in the specified format
 func PrintOutput[T OutputFields](data []T, format string, noColor bool) error {
 	validFormats := map[string]bool{
-		"table": true,
-		"json":  true,
-		"csv":   true,
-		"xml":   true,
+		"table":       true,
+		"json":        true,
+		"csv":         true,
+		"xml":         true,
+		"go-template": true,
 	}
 	if !validFormats[format] {
 		return fmt.Errorf("invalid output format: %s", format)
@@ -213,6 +237,8 @@ func PrintOutput[T OutputFields](data []T, format string, noColor bool) error {
 		return printCSV(data)
 	case "xml":
 		return printXML(data)
+	case "go-template":
+		return printGoTemplate(data)
 	default:
 		return printTable(data, noColor)
 	}

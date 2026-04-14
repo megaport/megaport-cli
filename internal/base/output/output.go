@@ -10,7 +10,28 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
+	"text/template"
 )
+
+func printGoTemplate[T OutputFields](data []T) error {
+	tmplStr := GetTemplateString()
+	funcMap := template.FuncMap{
+		"join":  strings.Join,
+		"upper": strings.ToUpper,
+		"lower": strings.ToLower,
+		"trim":  strings.TrimSpace,
+		"json": func(v any) (string, error) {
+			b, err := json.Marshal(v)
+			return string(b), err
+		},
+	}
+	tmpl, err := template.New("output").Funcs(funcMap).Parse(tmplStr)
+	if err != nil {
+		return fmt.Errorf("invalid template: %w", err)
+	}
+	return tmpl.Execute(os.Stdout, data)
+}
 
 func printJSON[T OutputFields](data []T) error {
 	if data == nil {

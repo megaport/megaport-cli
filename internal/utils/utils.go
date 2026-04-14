@@ -13,10 +13,11 @@ import (
 )
 
 const (
-	FormatTable = "table"
-	FormatJSON  = "json"
-	FormatCSV   = "csv"
-	FormatXML   = "xml"
+	FormatTable      = "table"
+	FormatJSON       = "json"
+	FormatCSV        = "csv"
+	FormatXML        = "xml"
+	FormatGoTemplate = "go-template"
 
 	// StatusDecommissioning is used for filtering inactive resources. The SDK
 	// exports STATUS_CANCELLED and STATUS_DECOMMISSIONED but not this one.
@@ -42,7 +43,7 @@ var (
 	// LogHTTP enables raw HTTP request/response logging to stderr. Set via --log-http flag.
 	LogHTTP bool
 
-	ValidFormats = []string{FormatTable, FormatJSON, FormatCSV, FormatXML}
+	ValidFormats = []string{FormatTable, FormatJSON, FormatCSV, FormatXML, FormatGoTemplate}
 )
 
 func ShouldDisableColors() bool {
@@ -202,6 +203,16 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 			cmd.SilenceUsage = true
 			cmd.SilenceErrors = true
 			return exitcodes.NewUsageError(fmt.Errorf("invalid output format: %s. Must be one of: %v", format, ValidFormats))
+		}
+
+		if format == FormatGoTemplate {
+			tmplStr, _ := cmd.Root().PersistentFlags().GetString("template")
+			if tmplStr == "" {
+				cmd.SilenceUsage = true
+				cmd.SilenceErrors = true
+				return exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used"))
+			}
+			output.SetTemplateString(tmplStr)
 		}
 
 		applyFieldsFilter(cmd)
