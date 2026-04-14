@@ -20,7 +20,7 @@ import (
 // Do not call t.Parallel() in tests that use this helper.
 // The read end is drained concurrently to prevent pipe-buffer deadlocks when
 // fn() writes more data than the OS pipe buffer can hold.
-func captureStderr(t *testing.T, fn func()) string {
+func captureStderr(t *testing.T, fn func()) (result string) {
 	t.Helper()
 	old := os.Stderr
 	r, w, err := os.Pipe()
@@ -36,11 +36,18 @@ func captureStderr(t *testing.T, fn func()) string {
 		_, _ = io.Copy(&buf, r)
 	}()
 
+	// Use defers for cleanup so runtime.Goexit (from t.Fatal/require.*) inside
+	// fn() does not leave the pipe open and the goroutine blocked forever.
+	// result is set after the goroutine drains the pipe, via the named return.
+	defer func() {
+		_ = w.Close() // signal EOF to the goroutine
+		<-done        // wait for all data to be read
+		_ = r.Close()
+		result = buf.String()
+	}()
+
 	fn()
-	_ = w.Close() // signal EOF to the goroutine
-	<-done        // wait for all data to be read
-	_ = r.Close()
-	return buf.String()
+	return
 }
 
 // buildJSONChild builds a minimal cobra root+child command tree with the flags

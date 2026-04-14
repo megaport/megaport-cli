@@ -273,8 +273,8 @@ func PrintErrorJSON(code int, message string) {
 		// fail. If it somehow does, emit a minimal hard-coded envelope so
 		// callers always receive valid JSON.
 		msgJSON, _ := json.Marshal(message)
-		fmt.Fprintf(wasm.WasmOutputBuffer, `{"error":{"code":%d,"type":"general_error","message":%s}}`+"\n",
-			code, msgJSON)
+		fmt.Fprintf(wasm.WasmOutputBuffer, `{"error":{"code":%d,"type":"%s","message":%s}}`+"\n",
+			code, exitcodes.TypeName(code), msgJSON)
 		return
 	}
 	fmt.Fprintln(wasm.WasmOutputBuffer, string(b))

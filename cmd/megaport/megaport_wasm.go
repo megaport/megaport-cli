@@ -8,7 +8,6 @@ import (
 	"io"
 
 	"github.com/megaport/megaport-cli/internal/base/help"
-	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/wasm"
 	"github.com/spf13/cobra"
@@ -50,8 +49,10 @@ func ExecuteWithArgs(args []string) {
 	if err != nil {
 		// When --output json is active the RunE wrapper already emitted a
 		// structured JSON error via PrintErrorJSON. Skip the plain-text block
-		// to avoid corrupting machine-readable output.
-		if output.GetOutputFormat() == utils.FormatJSON {
+		// to avoid corrupting machine-readable output. Read the parsed flag
+		// value directly because the global output format may not have been set
+		// yet if execution failed before action setup completed.
+		if requestedFormat, flagErr := rootCmd.PersistentFlags().GetString("output"); flagErr == nil && requestedFormat == utils.FormatJSON {
 			return
 		}
 		// Clear the buffer if help was shown automatically
