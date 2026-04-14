@@ -378,3 +378,8 @@ func TestFilterPortsWithInactiveFlag(t *testing.T) {
 	filtered = filterPorts(allPorts, 1, 1000, "", true)
 	assert.Len(t, filtered, 2)
 }
+
+func TestPortsUpdateHasGenerateSkeleton(t *testing.T) {
+	_, _, update, _, _ := buildPortBuyCommands(nil)
+	assert.NotNil(t, update.Flags().Lookup("generate-skeleton"))
+}

@@ -368,3 +368,8 @@ func TestFilterMCRs(t *testing.T) {
 		})
 	}
 }
+
+func TestMCRUpdateTagsHasGenerateSkeleton(t *testing.T) {
+	_, updateTags := buildMCRTagCommands()
+	assert.NotNil(t, updateTags.Flags().Lookup("generate-skeleton"))
+}
