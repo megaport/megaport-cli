@@ -4,7 +4,6 @@
 package output
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -73,6 +72,9 @@ var pagerMu sync.Mutex
 // height, the output is piped through the configured pager. Otherwise the
 // output is written directly to stdout.
 //
+// Terminal dimensions are read before os.Stdout is redirected so that table
+// rendering (which calls getTerminalWidth via printTable) uses the real TTY
+// width for column layout even while output is being buffered to a temp file.
 // The temp file is streamed rather than loaded into memory, so paging large
 // tables does not require holding the full output in RAM.
 func RunWithPager(fn func() error) error {
@@ -84,6 +86,24 @@ func RunWithPager(fn func() error) error {
 	defer pagerMu.Unlock()
 
 	origStdout := os.Stdout
+
+	// Capture real terminal dimensions before swapping os.Stdout so that both
+	// column-width layout and the height gate use the actual TTY geometry.
+	height := int(terminalHeightOverride.Load())
+	if height <= 0 {
+		w, h, sizeErr := term.GetSize(int(origStdout.Fd()))
+		if sizeErr == nil {
+			if h > 0 {
+				height = h
+			}
+			if w > 0 {
+				// Override width so printTable uses the real TTY width while
+				// os.Stdout is redirected to the temp file.
+				terminalWidthOverride.Store(int64(w))
+				defer terminalWidthOverride.Store(0)
+			}
+		}
+	}
 
 	// Use a temp file to buffer output. An os.Pipe would deadlock once the
 	// pipe buffer fills up for large tables, while a temp file does not.
@@ -106,9 +126,16 @@ func RunWithPager(fn func() error) error {
 	fnErr := fn()
 
 	// Count lines by scanning the file incrementally — avoids loading the
-	// entire output into memory.
+	// entire output into memory and has no token-size limit.
 	lineCount, err := countLines(tmp)
-	if err != nil || lineCount == 0 {
+	if err != nil {
+		// If counting fails, fall back to direct write so output is not lost.
+		if _, seekErr := tmp.Seek(0, io.SeekStart); seekErr == nil {
+			_, _ = io.Copy(origStdout, tmp)
+		}
+		return fnErr
+	}
+	if lineCount == 0 {
 		return fnErr
 	}
 
@@ -117,16 +144,10 @@ func RunWithPager(fn func() error) error {
 		return fnErr
 	}
 
-	// Determine terminal height.
-	height := int(terminalHeightOverride.Load())
 	if height <= 0 {
-		_, h, sizeErr := term.GetSize(int(origStdout.Fd()))
-		if sizeErr != nil || h <= 0 {
-			// Cannot determine terminal size; write directly.
-			_, _ = io.Copy(origStdout, tmp)
-			return fnErr
-		}
-		height = h
+		// Terminal height unknown; write directly.
+		_, _ = io.Copy(origStdout, tmp)
+		return fnErr
 	}
 
 	if lineCount <= height {
@@ -144,19 +165,30 @@ func RunWithPager(fn func() error) error {
 	return fnErr
 }
 
-// countLines counts the number of newline-terminated lines in r by scanning
-// incrementally, then seeks r back to the start. Returns 0 and an error if
-// either the scan or the seek fails.
+// countLines counts the number of newline characters in r by reading in
+// chunks, then seeks r back to the start. Unlike bufio.Scanner, this approach
+// has no token-size limit and handles arbitrarily wide table rows.
 func countLines(r io.ReadSeeker) (int, error) {
 	if _, err := r.Seek(0, io.SeekStart); err != nil {
 		return 0, err
 	}
 	count := 0
-	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
-		count++
+	buf := make([]byte, 32*1024)
+	for {
+		n, readErr := r.Read(buf)
+		for _, b := range buf[:n] {
+			if b == '\n' {
+				count++
+			}
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return count, readErr
+		}
 	}
-	return count, scanner.Err()
+	return count, nil
 }
 
 // runPager spawns pagerCmd, streams content to its stdin, and waits for it to exit.

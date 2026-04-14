@@ -19,6 +19,12 @@ import (
 // goroutine safety (spinner goroutines read this concurrently).
 var isTerminalCached atomic.Bool
 
+// terminalWidthOverride, when > 0, is used by getTerminalWidth in place of
+// the width reported by os.Stdout. RunWithPager sets this before redirecting
+// os.Stdout to a temp file so that printTable uses the real TTY width for
+// column layout even while output is being buffered.
+var terminalWidthOverride atomic.Int64
+
 func init() {
 	isTerminalCached.Store(term.IsTerminal(int(os.Stdout.Fd())))
 }
@@ -34,6 +40,9 @@ func SetIsTerminal(val bool) {
 }
 
 func getTerminalWidth() int {
+	if ov := int(terminalWidthOverride.Load()); ov > 0 {
+		return ov
+	}
 	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil || width <= 0 {
 		return 100
