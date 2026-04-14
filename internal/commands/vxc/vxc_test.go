@@ -7,6 +7,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var testVXCs = []*megaport.VXC{
@@ -542,6 +543,8 @@ func TestToVXCOutput_EdgeCases(t *testing.T) {
 func TestVXCUpdateTagsHasGenerateSkeleton(t *testing.T) {
 	root := &cobra.Command{Use: "megaport-cli"}
 	AddCommandsTo(root)
-	updateTagsCmd, _, _ := root.Find([]string{"vxc", "update-tags"})
+	updateTagsCmd, _, err := root.Find([]string{"vxc", "update-tags"})
+	require.NoError(t, err)
+	require.NotNil(t, updateTagsCmd)
 	assert.NotNil(t, updateTagsCmd.Flags().Lookup("generate-skeleton"))
 }
