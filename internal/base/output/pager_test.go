@@ -5,12 +5,24 @@ package output
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// passthroughPager returns a shell command that copies stdin to stdout
+// unchanged, for use as a test pager. On Windows, "cat" is not available
+// by default, so the test is skipped on that platform.
+func passthroughPager(t *testing.T) string {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("test requires 'cat'; not available by default on Windows")
+	}
+	return "cat"
+}
 
 func TestResolvePager_Precedence(t *testing.T) {
 	t.Setenv("MEGAPORT_PAGER", "")
@@ -67,7 +79,7 @@ func TestRunWithPager_ShortOutput(t *testing.T) {
 	setTerminalHeightForTesting(1000)
 	t.Cleanup(func() { setTerminalHeightForTesting(0) })
 
-	t.Setenv("MEGAPORT_PAGER", "cat")
+	t.Setenv("MEGAPORT_PAGER", passthroughPager(t))
 
 	out := CaptureOutput(func() {
 		err := RunWithPager(func() error {
@@ -93,8 +105,8 @@ func TestRunWithPager_LongOutput(t *testing.T) {
 	setTerminalHeightForTesting(3)
 	t.Cleanup(func() { setTerminalHeightForTesting(0) })
 
-	// Use "cat" as the pager so output passes through unchanged.
-	t.Setenv("MEGAPORT_PAGER", "cat")
+	// Use a pass-through pager so output arrives unchanged.
+	t.Setenv("MEGAPORT_PAGER", passthroughPager(t))
 
 	out := CaptureOutput(func() {
 		err := RunWithPager(func() error {
@@ -128,6 +140,30 @@ func TestSetNoPager_RoundTrip(t *testing.T) {
 	assert.True(t, getNoPager())
 	SetNoPager(false)
 	assert.False(t, getNoPager())
+}
+
+// TestRunWithPager_NoTrailingNewline verifies that output without a trailing
+// newline is not silently dropped (regression: countLines counts '\n' only,
+// so a single line without '\n' returns lineCount==0).
+func TestRunWithPager_NoTrailingNewline(t *testing.T) {
+	orig := isTerminalCached.Load()
+	SetIsTerminal(true)
+	t.Cleanup(func() { isTerminalCached.Store(orig) })
+
+	SetNoPager(false)
+	t.Cleanup(func() { SetNoPager(false) })
+
+	setTerminalHeightForTesting(1000)
+	t.Cleanup(func() { setTerminalHeightForTesting(0) })
+
+	out := CaptureOutput(func() {
+		err := RunWithPager(func() error {
+			fmt.Print("no-newline-here") // deliberate: no '\n'
+			return nil
+		})
+		require.NoError(t, err)
+	})
+	assert.Equal(t, "no-newline-here", out)
 }
 
 // TestRunWithPager_EmptyOutput verifies that when fn writes nothing to stdout,

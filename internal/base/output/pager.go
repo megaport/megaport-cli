@@ -136,7 +136,21 @@ func RunWithPager(fn func() error) error {
 		return fnErr
 	}
 	if lineCount == 0 {
-		return fnErr
+		// fn() may have written content without a trailing newline (countLines
+		// counts '\n' only). Check the file size: if non-zero, treat the
+		// partial last line as a single line rather than dropping it.
+		info, statErr := tmp.Stat()
+		if statErr != nil {
+			// Cannot determine size; fall back to direct write.
+			if _, seekErr := tmp.Seek(0, io.SeekStart); seekErr == nil {
+				_, _ = io.Copy(origStdout, tmp)
+			}
+			return fnErr
+		}
+		if info.Size() == 0 {
+			return fnErr
+		}
+		lineCount = 1
 	}
 
 	// Seek to start for the subsequent copy.
