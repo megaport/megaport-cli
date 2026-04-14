@@ -130,19 +130,25 @@ func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobr
 	return func(cmd *cobra.Command, args []string) error {
 		applyFieldsFilter(cmd)
 		applyTemplateFilter(cmd)
-		format, _ := cmd.Root().PersistentFlags().GetString("output")
+		rawFormat, _ := cmd.Root().PersistentFlags().GetString("output")
+		format := strings.ToLower(rawFormat)
+		if format == FormatGoTemplate && output.GetTemplateString() == "" {
+			cmd.SilenceUsage = true
+			return exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used"))
+		}
 		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
 			return err
 		}
 		err := runE(cmd, args)
 		if err != nil {
-			// Prevent usage output if an error occurs
 			cmd.SilenceUsage = true
-			// Silence duplicate error message
 			cmd.SilenceErrors = true
-
-			// Return a formatted error message with additional context
 			code := classifyError(err)
+			if format == FormatJSON {
+				output.PrintErrorJSON(code, err.Error())
+				cmd.Root().SilenceErrors = true
+				return exitcodes.New(code, err)
+			}
 			wrapped := fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag", cmd.Name(), err, cmd.Name(), args)
 			return exitcodes.New(code, wrapped)
 		}
@@ -156,7 +162,12 @@ func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool)
 	return func(cmd *cobra.Command, args []string) error {
 		applyFieldsFilter(cmd)
 		applyTemplateFilter(cmd)
-		format, _ := cmd.Root().PersistentFlags().GetString("output")
+		rawFormat, _ := cmd.Root().PersistentFlags().GetString("output")
+		format := strings.ToLower(rawFormat)
+		if format == FormatGoTemplate && output.GetTemplateString() == "" {
+			cmd.SilenceUsage = true
+			return exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used"))
+		}
 		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
 			return err
 		}
@@ -171,13 +182,14 @@ func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool)
 
 		// Error handling from WrapRunE
 		if err != nil {
-			// Prevent usage output if an error occurs
 			cmd.SilenceUsage = true
-			// Silence duplicate error message
 			cmd.SilenceErrors = true
-
-			// Return a formatted error message with additional context
 			code := classifyError(err)
+			if format == FormatJSON {
+				output.PrintErrorJSON(code, err.Error())
+				cmd.Root().SilenceErrors = true
+				return exitcodes.New(code, err)
+			}
 			wrapped := fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag",
 				cmd.Name(), err, cmd.Name(), args)
 			return exitcodes.New(code, wrapped)
@@ -237,13 +249,14 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 
 		// Error handling from WrapRunE
 		if err != nil {
-			// Prevent usage output if an error occurs
 			cmd.SilenceUsage = true
-			// Silence duplicate error message
 			cmd.SilenceErrors = true
-
-			// Return a formatted error message with additional context
 			code := classifyError(err)
+			if format == FormatJSON {
+				output.PrintErrorJSON(code, err.Error())
+				cmd.Root().SilenceErrors = true
+				return exitcodes.New(code, err)
+			}
 			wrapped := fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag",
 				cmd.Name(), err, cmd.Name(), args)
 			return exitcodes.New(code, wrapped)

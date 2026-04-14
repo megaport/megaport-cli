@@ -1429,3 +1429,10 @@ func TestResetState_ClearsTemplateString(t *testing.T) {
 	ResetState()
 	assert.Equal(t, "", GetTemplateString())
 }
+
+func TestGetOutputFormat(t *testing.T) {
+	orig := GetOutputFormat()
+	t.Cleanup(func() { SetOutputFormat(orig) })
+	SetOutputFormat("json")
+	assert.Equal(t, "json", GetOutputFormat())
+}

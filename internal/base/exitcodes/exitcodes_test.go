@@ -43,6 +43,24 @@ func TestCLIError(t *testing.T) {
 	})
 }
 
+func TestTypeName(t *testing.T) {
+	tests := []struct {
+		code int
+		want string
+	}{
+		{Success, "general_error"}, // Success (0) has no specific type — falls through to default
+		{General, "general_error"},
+		{Usage, "usage_error"},
+		{Authentication, "auth_error"},
+		{API, "api_error"},
+		{Cancelled, "cancelled"},
+		{99, "general_error"}, // unknown code → default
+	}
+	for _, tt := range tests {
+		assert.Equal(t, tt.want, TypeName(tt.code))
+	}
+}
+
 func TestConstructors(t *testing.T) {
 	tests := []struct {
 		name     string

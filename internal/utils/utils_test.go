@@ -1,8 +1,11 @@
 package utils
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"testing"
 
@@ -11,6 +14,56 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// captureStderr captures what the function writes to os.Stderr.
+// Not parallel-safe: it redirects the global os.Stderr via os.Pipe.
+// Do not call t.Parallel() in tests that use this helper.
+// The read end is drained concurrently to prevent pipe-buffer deadlocks when
+// fn() writes more data than the OS pipe buffer can hold.
+func captureStderr(t *testing.T, fn func()) (result string) {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+	defer func() { os.Stderr = old }()
+
+	// Drain the read end concurrently so fn() cannot block on a full pipe buffer.
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_, _ = io.Copy(&buf, r)
+	}()
+
+	// Use defers for cleanup so runtime.Goexit (from t.Fatal/require.*) inside
+	// fn() does not leave the pipe open and the goroutine blocked forever.
+	// result is set after the goroutine drains the pipe, via the named return.
+	defer func() {
+		_ = w.Close() // signal EOF to the goroutine
+		<-done        // wait for all data to be read
+		_ = r.Close()
+		result = buf.String()
+	}()
+
+	fn()
+	return
+}
+
+// buildJSONChild builds a minimal cobra root+child command tree with the flags
+// needed by WrapOutputFormatRunE and WrapColorAwareRunE, with --output pre-set
+// to the given format. Returns only the child command.
+func buildJSONChild(format string) *cobra.Command {
+	root := &cobra.Command{Use: "root"}
+	root.PersistentFlags().Bool("no-color", false, "")
+	root.PersistentFlags().String("fields", "", "")
+	root.PersistentFlags().String("query", "", "")
+	root.PersistentFlags().String("template", "", "")
+	child := &cobra.Command{Use: "list"}
+	child.Flags().String("output", format, "")
+	root.AddCommand(child)
+	return child
+}
 
 func TestShouldDisableColors(t *testing.T) {
 	origArgs := os.Args
@@ -139,6 +192,27 @@ func TestWrapRunE(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, called)
 	})
+
+	t.Run("go-template without --template returns usage error", func(t *testing.T) {
+		wrapped := WrapRunE(func(cmd *cobra.Command, args []string) error {
+			return nil
+		})
+		root := &cobra.Command{Use: "root"}
+		root.PersistentFlags().String("fields", "", "")
+		root.PersistentFlags().String("query", "", "")
+		root.PersistentFlags().String("template", "", "")
+		root.PersistentFlags().String("output", "go-template", "")
+		child := &cobra.Command{Use: "list"}
+		root.AddCommand(child)
+
+		err := wrapped(child, []string{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--template is required")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
+	})
 }
 
 func TestWrapColorAwareRunE(t *testing.T) {
@@ -231,6 +305,28 @@ func TestWrapColorAwareRunE(t *testing.T) {
 		err := wrapped(child, []string{})
 		assert.NoError(t, err)
 		assert.True(t, called)
+	})
+
+	t.Run("go-template without --template returns usage error", func(t *testing.T) {
+		wrapped := WrapColorAwareRunE(func(cmd *cobra.Command, args []string, noColor bool) error {
+			return nil
+		})
+		root := &cobra.Command{Use: "root"}
+		root.PersistentFlags().Bool("no-color", false, "")
+		root.PersistentFlags().String("fields", "", "")
+		root.PersistentFlags().String("query", "", "")
+		root.PersistentFlags().String("template", "", "")
+		root.PersistentFlags().String("output", "go-template", "")
+		child := &cobra.Command{Use: "list"}
+		root.AddCommand(child)
+
+		err := wrapped(child, []string{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--template is required")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
 	})
 }
 
@@ -493,4 +589,86 @@ func TestWrapRunE_APIError(t *testing.T) {
 	var cliErr *exitcodes.CLIError
 	require.True(t, errors.As(err, &cliErr))
 	assert.Equal(t, exitcodes.API, cliErr.Code)
+}
+
+// parseErrorJSON unmarshals a JSON error envelope from s.
+func parseErrorJSON(t *testing.T, s string) (code int, errType, message string) {
+	t.Helper()
+	var env struct {
+		Error struct {
+			Code    int    `json:"code"`
+			Type    string `json:"type"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(s), &env), "stderr was not valid JSON: %q", s)
+	return env.Error.Code, env.Error.Type, env.Error.Message
+}
+
+func TestWrapRunE_JSONErrorOutput(t *testing.T) {
+	wrapped := WrapRunE(func(cmd *cobra.Command, args []string) error {
+		return errors.New("inner api error")
+	})
+	root := &cobra.Command{Use: "root"}
+	root.PersistentFlags().String("fields", "", "")
+	root.PersistentFlags().String("query", "", "")
+	root.PersistentFlags().String("template", "", "")
+	root.PersistentFlags().String("output", "json", "")
+	child := &cobra.Command{Use: "list"}
+	root.AddCommand(child)
+
+	stderr := captureStderr(t, func() {
+		err := wrapped(child, []string{})
+		require.Error(t, err)
+		// In JSON mode the error is not verbose-wrapped.
+		assert.Equal(t, "inner api error", err.Error())
+	})
+
+	code, errType, msg := parseErrorJSON(t, stderr)
+	assert.Equal(t, exitcodes.General, code)
+	assert.Equal(t, "general_error", errType)
+	assert.Equal(t, "inner api error", msg)
+}
+
+func TestWrapColorAwareRunE_JSONErrorOutput(t *testing.T) {
+	wrapped := WrapColorAwareRunE(func(cmd *cobra.Command, args []string, noColor bool) error {
+		return errors.New("auth failure")
+	})
+	// WrapColorAwareRunE reads --output from root persistent flags.
+	root := &cobra.Command{Use: "root"}
+	root.PersistentFlags().Bool("no-color", false, "")
+	root.PersistentFlags().String("fields", "", "")
+	root.PersistentFlags().String("query", "", "")
+	root.PersistentFlags().String("template", "", "")
+	root.PersistentFlags().String("output", "json", "")
+	child := &cobra.Command{Use: "list"}
+	root.AddCommand(child)
+
+	stderr := captureStderr(t, func() {
+		err := wrapped(child, []string{})
+		require.Error(t, err)
+		assert.Equal(t, "auth failure", err.Error())
+	})
+
+	code, _, msg := parseErrorJSON(t, stderr)
+	assert.Equal(t, exitcodes.General, code)
+	assert.Equal(t, "auth failure", msg)
+}
+
+func TestWrapOutputFormatRunE_JSONErrorOutput(t *testing.T) {
+	wrapped := WrapOutputFormatRunE(func(cmd *cobra.Command, args []string, noColor bool, format string) error {
+		return errors.New("failed to get port: not found")
+	})
+	child := buildJSONChild("json")
+
+	stderr := captureStderr(t, func() {
+		err := wrapped(child, []string{})
+		require.Error(t, err)
+		assert.Equal(t, "failed to get port: not found", err.Error())
+	})
+
+	code, errType, msg := parseErrorJSON(t, stderr)
+	assert.Equal(t, exitcodes.API, code)
+	assert.Equal(t, "api_error", errType)
+	assert.Equal(t, "failed to get port: not found", msg)
 }

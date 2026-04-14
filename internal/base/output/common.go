@@ -82,6 +82,18 @@ var (
 	templateStrMu sync.RWMutex
 )
 
+// errorBody and errorEnvelope are the JSON error envelope types shared by
+// PrintErrorJSON across native and WASM builds.
+type errorBody struct {
+	Code    int    `json:"code"`
+	Type    string `json:"type"`
+	Message string `json:"message"`
+}
+
+type errorEnvelope struct {
+	Error errorBody `json:"error"`
+}
+
 // SetTemplateString sets the Go template string applied by printGoTemplate.
 // Pass "" to disable. This function is goroutine-safe.
 func SetTemplateString(s string) {
