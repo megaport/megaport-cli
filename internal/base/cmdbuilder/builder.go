@@ -170,8 +170,9 @@ func (b *CommandBuilder) WithConditionalRequirements(conditionallyRequiredFlags 
 		jsonStr, _ := cmd.Flags().GetString("json")
 		jsonFile, _ := cmd.Flags().GetString("json-file")
 
-		// Skip validation if interactive mode or JSON input is used
-		if interactive || jsonStr != "" || jsonFile != "" {
+		// Skip validation if interactive mode, JSON input, or skeleton mode is used
+		skeleton, _ := cmd.Flags().GetBool("generate-skeleton")
+		if interactive || jsonStr != "" || jsonFile != "" || skeleton {
 			return nil
 		}
 
@@ -313,6 +314,41 @@ func (b *CommandBuilder) Build() *cobra.Command {
 
 	// Add the docs subcommand
 	b.cmd.AddCommand(docsCmd)
+
+	// Auto-add --generate-skeleton flag for commands that have JSON examples
+	if len(b.jsonExamples) > 0 {
+		b.cmd.Flags().Bool("generate-skeleton", false, "Print a JSON skeleton template for --json or --json-file input and exit")
+		originalArgs := b.cmd.Args
+		originalRunE := b.cmd.RunE
+		jsonExamples := b.jsonExamples
+
+		// Bypass positional-arg validation in skeleton mode so update commands
+		// (which require a UID arg) work without a dummy argument.
+		b.cmd.Args = func(cmd *cobra.Command, args []string) error {
+			skeleton, _ := cmd.Flags().GetBool("generate-skeleton")
+			if skeleton {
+				return nil
+			}
+			if originalArgs != nil {
+				return originalArgs(cmd, args)
+			}
+			return nil
+		}
+
+		b.cmd.RunE = func(cmd *cobra.Command, args []string) error {
+			skeleton, _ := cmd.Flags().GetBool("generate-skeleton")
+			if skeleton {
+				if _, err := fmt.Fprintln(cmd.OutOrStdout(), jsonExamples[0]); err != nil {
+					return err
+				}
+				return nil
+			}
+			if originalRunE != nil {
+				return originalRunE(cmd, args)
+			}
+			return nil
+		}
+	}
 
 	return b.cmd
 }
