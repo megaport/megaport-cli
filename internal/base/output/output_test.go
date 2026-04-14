@@ -1410,3 +1410,22 @@ func TestPrintGoTemplate_Count(t *testing.T) {
 
 	assert.Equal(t, "3", strings.TrimSpace(out))
 }
+
+func TestPrintGoTemplate_JSONFuncMap(t *testing.T) {
+	SetTemplateString(`{{range .}}{{json .}}{{"\n"}}{{end}}`)
+	defer SetTemplateString("")
+
+	data := []SimpleStruct{{ID: 1, Name: "epsilon", Active: true}}
+	out := CaptureOutput(func() {
+		err := PrintOutput(data, "go-template", true)
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, out, `"epsilon"`)
+}
+
+func TestResetState_ClearsTemplateString(t *testing.T) {
+	SetTemplateString("{{.}}")
+	ResetState()
+	assert.Equal(t, "", GetTemplateString())
+}
