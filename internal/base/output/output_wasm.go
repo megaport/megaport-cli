@@ -352,6 +352,11 @@ func printXML[T OutputFields](data []T) error {
 	return nil
 }
 
+// printGoTemplate is not supported in the WASM build.
+func printGoTemplate[T OutputFields](_ []T) error {
+	return fmt.Errorf("--output go-template is not supported in the browser version")
+}
+
 // calculateColumnWidths calculates the maximum width for each column
 func calculateColumnWidths(rows [][]string) []int {
 	if len(rows) == 0 {

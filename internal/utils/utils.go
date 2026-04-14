@@ -67,6 +67,16 @@ func GetCurrentEnv() string {
 	return Env
 }
 
+// applyTemplateFilter reads the --template persistent flag and calls output.SetTemplateString.
+// Called by all RunE wrappers so the template string is always set before PrintOutput is invoked.
+func applyTemplateFilter(cmd *cobra.Command) {
+	tmplStr, err := cmd.Root().PersistentFlags().GetString("template")
+	if err != nil {
+		tmplStr = ""
+	}
+	output.SetTemplateString(tmplStr)
+}
+
 // applyQueryFilter reads the --query persistent flag and calls output.SetOutputQuery.
 // Returns the query string so RunE wrappers can validate it against the selected output format.
 func applyQueryFilter(cmd *cobra.Command) string {
@@ -119,6 +129,7 @@ func applyFieldsFilter(cmd *cobra.Command) {
 func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		applyFieldsFilter(cmd)
+		applyTemplateFilter(cmd)
 		format, _ := cmd.Root().PersistentFlags().GetString("output")
 		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
 			return err
@@ -144,6 +155,7 @@ func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobr
 func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		applyFieldsFilter(cmd)
+		applyTemplateFilter(cmd)
 		format, _ := cmd.Root().PersistentFlags().GetString("output")
 		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
 			return err
@@ -205,14 +217,11 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 			return exitcodes.NewUsageError(fmt.Errorf("invalid output format: %s. Must be one of: %v", format, ValidFormats))
 		}
 
-		if format == FormatGoTemplate {
-			tmplStr, _ := cmd.Root().PersistentFlags().GetString("template")
-			if tmplStr == "" {
-				cmd.SilenceUsage = true
-				cmd.SilenceErrors = true
-				return exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used"))
-			}
-			output.SetTemplateString(tmplStr)
+		applyTemplateFilter(cmd)
+		if format == FormatGoTemplate && output.GetTemplateString() == "" {
+			cmd.SilenceUsage = true
+			cmd.SilenceErrors = true
+			return exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used"))
 		}
 
 		applyFieldsFilter(cmd)
