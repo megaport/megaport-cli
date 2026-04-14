@@ -120,9 +120,9 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 		vxcs = activeVXCs
 	}
 
-	filteredVXCs := filterVXCs(vxcs, name)
+	filteredVXCs := vxcs // all supported filters already applied by SDK via ListVXCsRequest
 
-	limit, _ := cmd.Flags().GetInt("limit")
+	limit, _ := cmd.Flags().GetInt("limit") // applied client-side after fetch
 
 	tagFilters, _ := cmd.Flags().GetStringArray("tag")
 	if len(tagFilters) > 0 {

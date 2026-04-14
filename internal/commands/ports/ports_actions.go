@@ -299,9 +299,10 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 	portName, _ := cmd.Flags().GetString("port-name")
 	includeInactive, _ := cmd.Flags().GetBool("include-inactive")
 
+	// All filtering is client-side: the SDK's ListPorts takes no filter params.
 	filteredPorts := filterPorts(ports, locationID, portSpeed, portName, includeInactive)
 
-	limit, _ := cmd.Flags().GetInt("limit")
+	limit, _ := cmd.Flags().GetInt("limit") // applied client-side after fetch
 
 	tagFilters, _ := cmd.Flags().GetStringArray("tag")
 	if len(tagFilters) > 0 {

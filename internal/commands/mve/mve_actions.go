@@ -88,9 +88,10 @@ func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 		mves = activeMVEs
 	}
 
+	// Name, locationID, and vendor filtering are client-side; SDK only supports IncludeInactive.
 	filteredMVEs := filterMVEs(mves, locationID, vendor, name)
 
-	limit, _ := cmd.Flags().GetInt("limit")
+	limit, _ := cmd.Flags().GetInt("limit") // applied client-side after fetch
 
 	tagFilters, _ := cmd.Flags().GetStringArray("tag")
 	if len(tagFilters) > 0 {
