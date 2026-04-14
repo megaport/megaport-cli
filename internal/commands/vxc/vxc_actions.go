@@ -122,6 +122,21 @@ func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 
 	filteredVXCs := filterVXCs(vxcs, name)
 
+	tagFilters, _ := cmd.Flags().GetStringArray("tag")
+	if len(tagFilters) > 0 {
+		var tagged []*megaport.VXC
+		for _, v := range filteredVXCs {
+			tags, err := listVXCResourceTagsFunc(ctx, client, v.UID)
+			if err != nil {
+				continue
+			}
+			if utils.MatchesTagFilters(tags, tagFilters) {
+				tagged = append(tagged, v)
+			}
+		}
+		filteredVXCs = tagged
+	}
+
 	limit, _ := cmd.Flags().GetInt("limit")
 	return utils.ApplyLimitAndPrint(filteredVXCs, limit, outputFormat, noColor,
 		"No VXCs found. Create one with 'megaport vxc buy'.", printVXCs)

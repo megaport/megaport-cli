@@ -371,6 +371,21 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 
 	filteredMCRs := filterMCRs(mcrs, locationID, portSpeed, mcrName)
 
+	tagFilters, _ := cmd.Flags().GetStringArray("tag")
+	if len(tagFilters) > 0 {
+		var tagged []*megaport.MCR
+		for _, m := range filteredMCRs {
+			tags, err := listMCRResourceTagsFunc(ctx, client, m.UID)
+			if err != nil {
+				continue
+			}
+			if utils.MatchesTagFilters(tags, tagFilters) {
+				tagged = append(tagged, m)
+			}
+		}
+		filteredMCRs = tagged
+	}
+
 	limit, _ := cmd.Flags().GetInt("limit")
 	return utils.ApplyLimitAndPrint(filteredMCRs, limit, outputFormat, noColor,
 		"No MCRs found. Create one with 'megaport mcr buy'.", printMCRs)

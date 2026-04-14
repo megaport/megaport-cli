@@ -51,6 +51,10 @@ var getPartnerPortUID = func(ctx context.Context, svc megaport.VXCService, key, 
 	return res.ProductUID, nil
 }
 
+var listVXCResourceTagsFunc = func(ctx context.Context, client *megaport.Client, vxcUID string) (map[string]string, error) {
+	return client.VXCService.ListVXCResourceTags(ctx, vxcUID)
+}
+
 // filterVXCs applies client-side case-insensitive name filtering as a safety
 // net alongside server-side NameContains filtering.
 func filterVXCs(vxcs []*megaport.VXC, name string) []*megaport.VXC {

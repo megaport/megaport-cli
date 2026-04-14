@@ -22,6 +22,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	listVXCsCmd := cmdbuilder.NewCommand("list", "List all VXCs with optional filters").
 		WithOutputFormatRunFunc(ListVXCs).
 		WithVXCFilterFlags().
+		WithTagFilterFlags().
 		WithLongDesc("List all VXCs available in the Megaport API.\n\nThis command retrieves all Virtual Cross Connects (VXCs) associated with your account. You can filter results by name, rate limit, A-End UID, B-End UID, or status.").
 		WithOptionalFlag("name", "Filter VXCs by name (partial match)").
 		WithOptionalFlag("name-contains", "Filter VXCs by partial name match (server-side)").

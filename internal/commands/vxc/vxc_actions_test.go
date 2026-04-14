@@ -2446,3 +2446,108 @@ func TestMockVXCServiceReset(t *testing.T) {
 	assert.Nil(t, m.DeleteVXCError)
 	assert.False(t, m.ForceNilGetVXC)
 }
+
+func TestListVXCs_TagFilter(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	origListTagsFunc := listVXCResourceTagsFunc
+	defer func() { listVXCResourceTagsFunc = origListTagsFunc }()
+
+	allVXCs := []*megaport.VXC{
+		{UID: "vxc-1", Name: "VXC-Alpha", ProvisioningStatus: "LIVE"},
+		{UID: "vxc-2", Name: "VXC-Beta", ProvisioningStatus: "LIVE"},
+		{UID: "vxc-3", Name: "VXC-Gamma", ProvisioningStatus: "LIVE"},
+	}
+
+	tagsByUID := map[string]map[string]string{
+		"vxc-1": {"env": "prod", "team": "net"},
+		"vxc-2": {"env": "staging"},
+		"vxc-3": {},
+	}
+
+	tests := []struct {
+		name            string
+		tagFilters      []string
+		tagFetchErrUID  string
+		expectedOutputs []string
+		notExpected     []string
+	}{
+		{
+			name:            "no tag filter returns all",
+			tagFilters:      nil,
+			expectedOutputs: []string{"vxc-1", "vxc-2", "vxc-3"},
+		},
+		{
+			name:            "exact match includes only matching resource",
+			tagFilters:      []string{"env=prod"},
+			expectedOutputs: []string{"vxc-1"},
+			notExpected:     []string{"vxc-2", "vxc-3"},
+		},
+		{
+			name:            "AND logic requires all filters to match",
+			tagFilters:      []string{"env=prod", "team=net"},
+			expectedOutputs: []string{"vxc-1"},
+			notExpected:     []string{"vxc-2", "vxc-3"},
+		},
+		{
+			name:            "key-exists match",
+			tagFilters:      []string{"env"},
+			expectedOutputs: []string{"vxc-1", "vxc-2"},
+			notExpected:     []string{"vxc-3"},
+		},
+		{
+			name:        "no match returns empty",
+			tagFilters:  []string{"env=nonexistent"},
+			notExpected: []string{"vxc-1", "vxc-2", "vxc-3"},
+		},
+		{
+			name:           "tag fetch error excludes resource gracefully",
+			tagFilters:     []string{"env=prod"},
+			tagFetchErrUID: "vxc-1",
+			notExpected:    []string{"vxc-1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			listVXCResourceTagsFunc = func(ctx context.Context, client *megaport.Client, uid string) (map[string]string, error) {
+				if tt.tagFetchErrUID != "" && uid == tt.tagFetchErrUID {
+					return nil, fmt.Errorf("tag fetch error")
+				}
+				return tagsByUID[uid], nil
+			}
+
+			mockSvc := &MockVXCService{ListVXCResponse: allVXCs}
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				return &megaport.Client{VXCService: mockSvc}, nil
+			})
+
+			cmd := &cobra.Command{Use: "list"}
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().String("name-contains", "", "")
+			cmd.Flags().Int("rate-limit", 0, "")
+			cmd.Flags().String("a-end-uid", "", "")
+			cmd.Flags().String("b-end-uid", "", "")
+			cmd.Flags().Bool("include-inactive", false, "")
+			cmd.Flags().String("status", "", "")
+			cmd.Flags().Int("limit", 0, "")
+			cmd.Flags().StringArray("tag", nil, "")
+
+			for _, f := range tt.tagFilters {
+				assert.NoError(t, cmd.Flags().Set("tag", f))
+			}
+
+			capturedOutput := output.CaptureOutput(func() {
+				_ = ListVXCs(cmd, nil, true, "table")
+			})
+
+			for _, expected := range tt.expectedOutputs {
+				assert.Contains(t, capturedOutput, expected)
+			}
+			for _, notExp := range tt.notExpected {
+				assert.NotContains(t, capturedOutput, notExp)
+			}
+		})
+	}
+}

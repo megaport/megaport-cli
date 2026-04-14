@@ -301,6 +301,21 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 
 	filteredPorts := filterPorts(ports, locationID, portSpeed, portName, includeInactive)
 
+	tagFilters, _ := cmd.Flags().GetStringArray("tag")
+	if len(tagFilters) > 0 {
+		var tagged []*megaport.Port
+		for _, p := range filteredPorts {
+			tags, err := listPortResourceTagsFunc(ctx, client, p.UID)
+			if err != nil {
+				continue
+			}
+			if utils.MatchesTagFilters(tags, tagFilters) {
+				tagged = append(tagged, p)
+			}
+		}
+		filteredPorts = tagged
+	}
+
 	limit, _ := cmd.Flags().GetInt("limit")
 	return utils.ApplyLimitAndPrint(filteredPorts, limit, outputFormat, noColor,
 		"No ports found. Create one with 'megaport ports buy'.", printPorts)
