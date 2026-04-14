@@ -70,7 +70,8 @@ func TestNoPagerDefaultApplied(t *testing.T) {
 	// Fire a lightweight command through the real rootCmd so PersistentPreRunE runs.
 	rootCmd.SetArgs([]string{"version"})
 	_ = output.CaptureOutput(func() {
-		_ = rootCmd.Execute()
+		err := rootCmd.Execute()
+		require.NoError(t, err)
 	})
 
 	// The default should have been applied.

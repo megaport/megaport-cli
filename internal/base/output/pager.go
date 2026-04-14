@@ -4,7 +4,7 @@
 package output
 
 import (
-	"bytes"
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -72,6 +72,9 @@ var pagerMu sync.Mutex
 // pager is not disabled, and the captured line count exceeds the terminal
 // height, the output is piped through the configured pager. Otherwise the
 // output is written directly to stdout.
+//
+// The temp file is streamed rather than loaded into memory, so paging large
+// tables does not require holding the full output in RAM.
 func RunWithPager(fn func() error) error {
 	if !IsTerminal() || getNoPager() {
 		return fn()
@@ -102,11 +105,15 @@ func RunWithPager(fn func() error) error {
 
 	fnErr := fn()
 
-	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
+	// Count lines by scanning the file incrementally — avoids loading the
+	// entire output into memory.
+	lineCount, err := countLines(tmp)
+	if err != nil || lineCount == 0 {
 		return fnErr
 	}
-	content, err := io.ReadAll(tmp)
-	if err != nil || len(content) == 0 {
+
+	// Seek to start for the subsequent copy.
+	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
 		return fnErr
 	}
 
@@ -116,27 +123,44 @@ func RunWithPager(fn func() error) error {
 		_, h, sizeErr := term.GetSize(int(origStdout.Fd()))
 		if sizeErr != nil || h <= 0 {
 			// Cannot determine terminal size; write directly.
-			_, _ = origStdout.Write(content)
+			_, _ = io.Copy(origStdout, tmp)
 			return fnErr
 		}
 		height = h
 	}
 
-	if bytes.Count(content, []byte("\n")) <= height {
-		_, _ = origStdout.Write(content)
+	if lineCount <= height {
+		_, _ = io.Copy(origStdout, tmp)
 		return fnErr
 	}
 
 	// Output exceeds terminal height: pipe through pager.
-	if err := runPager(resolvePager(), content, origStdout); err != nil {
-		// Pager failed; fall back to direct write so output is not lost.
-		_, _ = origStdout.Write(content)
+	if err := runPager(resolvePager(), tmp, origStdout); err != nil {
+		// Pager failed; seek back and fall back to direct write so output is not lost.
+		if _, seekErr := tmp.Seek(0, io.SeekStart); seekErr == nil {
+			_, _ = io.Copy(origStdout, tmp)
+		}
 	}
 	return fnErr
 }
 
-// runPager spawns pagerCmd, pipes content to its stdin, and waits for it to exit.
-func runPager(pagerCmd string, content []byte, stdout *os.File) error {
+// countLines counts the number of newline-terminated lines in r by scanning
+// incrementally, then seeks r back to the start. Returns 0 and an error if
+// either the scan or the seek fails.
+func countLines(r io.ReadSeeker) (int, error) {
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return 0, err
+	}
+	count := 0
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		count++
+	}
+	return count, scanner.Err()
+}
+
+// runPager spawns pagerCmd, streams content to its stdin, and waits for it to exit.
+func runPager(pagerCmd string, content io.Reader, stdout *os.File) error {
 	parts := strings.Fields(pagerCmd)
 	if len(parts) == 0 {
 		return fmt.Errorf("empty pager command")
@@ -153,7 +177,7 @@ func runPager(pagerCmd string, content []byte, stdout *os.File) error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	_, _ = stdin.Write(content)
+	_, _ = io.Copy(stdin, content)
 	_ = stdin.Close()
 	return cmd.Wait()
 }
