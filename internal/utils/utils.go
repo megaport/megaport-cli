@@ -144,7 +144,7 @@ func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobr
 			cmd.SilenceUsage = true
 			cmd.SilenceErrors = true
 			code := classifyError(err)
-			if output.GetOutputFormat() == FormatJSON {
+			if format == FormatJSON {
 				output.PrintErrorJSON(code, err.Error())
 				cmd.Root().SilenceErrors = true
 				return exitcodes.New(code, err)
@@ -185,7 +185,7 @@ func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool)
 			cmd.SilenceUsage = true
 			cmd.SilenceErrors = true
 			code := classifyError(err)
-			if output.GetOutputFormat() == FormatJSON {
+			if format == FormatJSON {
 				output.PrintErrorJSON(code, err.Error())
 				cmd.Root().SilenceErrors = true
 				return exitcodes.New(code, err)
@@ -252,7 +252,7 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 			cmd.SilenceUsage = true
 			cmd.SilenceErrors = true
 			code := classifyError(err)
-			if output.GetOutputFormat() == FormatJSON {
+			if format == FormatJSON {
 				output.PrintErrorJSON(code, err.Error())
 				cmd.Root().SilenceErrors = true
 				return exitcodes.New(code, err)

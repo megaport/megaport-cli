@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
-	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,18 +18,28 @@ import (
 // captureStderr captures what the function writes to os.Stderr.
 // Not parallel-safe: it redirects the global os.Stderr via os.Pipe.
 // Do not call t.Parallel() in tests that use this helper.
-func captureStderr(t *testing.T, fn func()) string {
+func captureStderr(t *testing.T, fn func()) (captured string) {
 	t.Helper()
 	old := os.Stderr
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
-	os.Stderr = w
-	fn()
-	w.Close()
-	os.Stderr = old
 	var buf bytes.Buffer
-	_, _ = io.Copy(&buf, r)
-	return buf.String()
+	os.Stderr = w
+	defer func() {
+		os.Stderr = old
+	}()
+	defer func() {
+		_ = r.Close()
+	}()
+	defer func() {
+		_, _ = io.Copy(&buf, r)
+		captured = buf.String()
+	}()
+	defer func() {
+		_ = w.Close()
+	}()
+	fn()
+	return captured
 }
 
 // buildJSONChild builds a minimal cobra root+child command tree with the flags
@@ -589,9 +598,6 @@ func parseErrorJSON(t *testing.T, s string) (code int, errType, message string) 
 }
 
 func TestWrapRunE_JSONErrorOutput(t *testing.T) {
-	output.SetOutputFormat("json")
-	defer output.SetOutputFormat("table")
-
 	wrapped := WrapRunE(func(cmd *cobra.Command, args []string) error {
 		return errors.New("inner api error")
 	})
@@ -599,6 +605,7 @@ func TestWrapRunE_JSONErrorOutput(t *testing.T) {
 	root.PersistentFlags().String("fields", "", "")
 	root.PersistentFlags().String("query", "", "")
 	root.PersistentFlags().String("template", "", "")
+	root.PersistentFlags().String("output", "json", "")
 	child := &cobra.Command{Use: "list"}
 	root.AddCommand(child)
 
@@ -616,13 +623,18 @@ func TestWrapRunE_JSONErrorOutput(t *testing.T) {
 }
 
 func TestWrapColorAwareRunE_JSONErrorOutput(t *testing.T) {
-	output.SetOutputFormat("json")
-	defer output.SetOutputFormat("table")
-
 	wrapped := WrapColorAwareRunE(func(cmd *cobra.Command, args []string, noColor bool) error {
 		return errors.New("auth failure")
 	})
-	child := buildJSONChild("json") // output flag not used by this wrapper; format read from global
+	// WrapColorAwareRunE reads --output from root persistent flags.
+	root := &cobra.Command{Use: "root"}
+	root.PersistentFlags().Bool("no-color", false, "")
+	root.PersistentFlags().String("fields", "", "")
+	root.PersistentFlags().String("query", "", "")
+	root.PersistentFlags().String("template", "", "")
+	root.PersistentFlags().String("output", "json", "")
+	child := &cobra.Command{Use: "list"}
+	root.AddCommand(child)
 
 	stderr := captureStderr(t, func() {
 		err := wrapped(child, []string{})
@@ -636,9 +648,6 @@ func TestWrapColorAwareRunE_JSONErrorOutput(t *testing.T) {
 }
 
 func TestWrapOutputFormatRunE_JSONErrorOutput(t *testing.T) {
-	output.SetOutputFormat("json")
-	defer output.SetOutputFormat("table")
-
 	wrapped := WrapOutputFormatRunE(func(cmd *cobra.Command, args []string, noColor bool, format string) error {
 		return errors.New("failed to get port: not found")
 	})
