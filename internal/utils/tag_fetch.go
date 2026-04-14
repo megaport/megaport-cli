@@ -5,6 +5,62 @@ import (
 	"sync"
 )
 
+// ApplyTagFilter filters resources by tag, choosing the optimal fetch strategy:
+//   - limit > 0: sequential fetch with early stopping (avoids unnecessary API calls
+//     once enough matches are found)
+//   - limit == 0: parallel fetch via FetchTagsConcurrently (minimises wall-clock time
+//     when all results are needed)
+//
+// onErr is called for each resource whose tags could not be fetched; that resource is
+// then excluded from the results.
+func ApplyTagFilter[T any](
+	ctx context.Context,
+	resources []T,
+	uidFunc func(T) string,
+	fetch func(context.Context, string) (map[string]string, error),
+	tagFilters []string,
+	limit int,
+	onErr func(uid string, err error),
+) []T {
+	if limit > 0 {
+		result := make([]T, 0, limit)
+		for _, r := range resources {
+			uid := uidFunc(r)
+			tags, err := fetch(ctx, uid)
+			if err != nil {
+				onErr(uid, err)
+				continue
+			}
+			if MatchesTagFilters(tags, tagFilters) {
+				result = append(result, r)
+				if len(result) >= limit {
+					break
+				}
+			}
+		}
+		return result
+	}
+
+	// Unlimited: fetch all tags in parallel for minimal wall-clock time.
+	uids := make([]string, len(resources))
+	for i, r := range resources {
+		uids[i] = uidFunc(r)
+	}
+	allTags, fetchErrs := FetchTagsConcurrently(ctx, uids, fetch)
+	result := make([]T, 0, len(resources))
+	for _, r := range resources {
+		uid := uidFunc(r)
+		if err, ok := fetchErrs[uid]; ok {
+			onErr(uid, err)
+			continue
+		}
+		if MatchesTagFilters(allTags[uid], tagFilters) {
+			result = append(result, r)
+		}
+	}
+	return result
+}
+
 // defaultTagFetchConcurrency is the size of the fixed worker pool used when fetching tags.
 const defaultTagFetchConcurrency = 20
 

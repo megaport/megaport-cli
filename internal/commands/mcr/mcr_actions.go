@@ -376,28 +376,17 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 	tagFilters, _ := cmd.Flags().GetStringArray("tag")
 	if len(tagFilters) > 0 {
 		tagSpinner := output.PrintCustomSpinner("Fetching tags for", "MCRs", noColor)
-		uids := make([]string, len(filteredMCRs))
-		for i, m := range filteredMCRs {
-			uids[i] = m.UID
-		}
-		allTags, fetchErrs := utils.FetchTagsConcurrently(ctx, uids, func(ctx context.Context, uid string) (map[string]string, error) {
-			return listMCRResourceTagsFunc(ctx, client, uid)
-		})
+		filteredMCRs = utils.ApplyTagFilter(ctx, filteredMCRs,
+			func(m *megaport.MCR) string { return m.UID },
+			func(ctx context.Context, uid string) (map[string]string, error) {
+				return listMCRResourceTagsFunc(ctx, client, uid)
+			},
+			tagFilters, limit,
+			func(uid string, err error) {
+				output.PrintWarning("Failed to fetch tags for MCR %s, skipping: %v", noColor, uid, err)
+			},
+		)
 		tagSpinner.Stop()
-		tagged := make([]*megaport.MCR, 0, len(filteredMCRs))
-		for _, m := range filteredMCRs {
-			if err, ok := fetchErrs[m.UID]; ok {
-				output.PrintWarning("Failed to fetch tags for MCR %s, skipping: %v", noColor, m.UID, err)
-				continue
-			}
-			if utils.MatchesTagFilters(allTags[m.UID], tagFilters) {
-				tagged = append(tagged, m)
-				if limit > 0 && len(tagged) >= limit {
-					break
-				}
-			}
-		}
-		filteredMCRs = tagged
 	}
 	return utils.ApplyLimitAndPrint(filteredMCRs, limit, outputFormat, noColor,
 		"No MCRs found. Create one with 'megaport mcr buy'.", printMCRs)

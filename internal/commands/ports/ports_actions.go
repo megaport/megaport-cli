@@ -306,28 +306,17 @@ func ListPorts(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 	tagFilters, _ := cmd.Flags().GetStringArray("tag")
 	if len(tagFilters) > 0 {
 		tagSpinner := output.PrintCustomSpinner("Fetching tags for", "ports", noColor)
-		uids := make([]string, len(filteredPorts))
-		for i, p := range filteredPorts {
-			uids[i] = p.UID
-		}
-		allTags, fetchErrs := utils.FetchTagsConcurrently(ctx, uids, func(ctx context.Context, uid string) (map[string]string, error) {
-			return listPortResourceTagsFunc(ctx, client, uid)
-		})
+		filteredPorts = utils.ApplyTagFilter(ctx, filteredPorts,
+			func(p *megaport.Port) string { return p.UID },
+			func(ctx context.Context, uid string) (map[string]string, error) {
+				return listPortResourceTagsFunc(ctx, client, uid)
+			},
+			tagFilters, limit,
+			func(uid string, err error) {
+				output.PrintWarning("Failed to fetch tags for port %s, skipping: %v", noColor, uid, err)
+			},
+		)
 		tagSpinner.Stop()
-		tagged := make([]*megaport.Port, 0, len(filteredPorts))
-		for _, p := range filteredPorts {
-			if err, ok := fetchErrs[p.UID]; ok {
-				output.PrintWarning("Failed to fetch tags for port %s, skipping: %v", noColor, p.UID, err)
-				continue
-			}
-			if utils.MatchesTagFilters(allTags[p.UID], tagFilters) {
-				tagged = append(tagged, p)
-				if limit > 0 && len(tagged) >= limit {
-					break
-				}
-			}
-		}
-		filteredPorts = tagged
 	}
 	return utils.ApplyLimitAndPrint(filteredPorts, limit, outputFormat, noColor,
 		"No ports found. Create one with 'megaport ports buy'.", printPorts)

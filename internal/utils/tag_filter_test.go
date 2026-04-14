@@ -91,6 +91,18 @@ func TestMatchesTagFilters(t *testing.T) {
 			filters: []string{"key=a=b"},
 			want:    true,
 		},
+		{
+			name:    "empty filter string never matches",
+			tags:    map[string]string{"": "anything"},
+			filters: []string{""},
+			want:    false,
+		},
+		{
+			name:    "empty key in key=value form never matches",
+			tags:    map[string]string{"": "v"},
+			filters: []string{"=v"},
+			want:    false,
+		},
 	}
 
 	for _, tt := range tests {
