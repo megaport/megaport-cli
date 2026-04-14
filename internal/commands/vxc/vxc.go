@@ -133,8 +133,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("shutdown", "Whether to shut down the VXC (true/false)").
 		WithOptionalFlag("a-end-vlan", "New VLAN for A-End ("+validation.VLANHelpText()+")").
 		WithOptionalFlag("b-end-vlan", "New VLAN for B-End ("+validation.VLANHelpText()+")").
-		WithOptionalFlag("a-end-inner-vlan", "New inner VLAN for A-End (-1 or higher, only for QinQ)").
-		WithOptionalFlag("b-end-inner-vlan", "New inner VLAN for B-End (-1 or higher, only for QinQ)").
+		WithOptionalFlag("a-end-inner-vlan", "New inner VLAN for A-End ("+validation.InnerVLANHelpText()+", only for QinQ)").
+		WithOptionalFlag("b-end-inner-vlan", "New inner VLAN for B-End ("+validation.InnerVLANHelpText()+", only for QinQ)").
 		WithOptionalFlag("a-end-uid", "New A-End product UID").
 		WithOptionalFlag("b-end-uid", "New B-End product UID").
 		WithOptionalFlag("a-end-partner-config", "JSON string with A-End VRouter partner configuration").

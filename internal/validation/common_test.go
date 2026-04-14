@@ -257,13 +257,9 @@ func TestFormatIntSlice(t *testing.T) {
 }
 
 func TestVLANHelpText(t *testing.T) {
-	want := fmt.Sprintf("%d=auto-assign, %d=untagged, %d-%d for specific VLAN (%d is reserved)",
-		AutoAssignVLAN, UntaggedVLAN, MinAssignableVLAN, MaxAssignableVLAN, ReservedVLAN)
-	assert.Equal(t, want, VLANHelpText())
+	assert.Equal(t, "0=auto-assign, -1=untagged, 2-4093 for specific VLAN (1 is reserved)", VLANHelpText())
 }
 
 func TestInnerVLANHelpText(t *testing.T) {
-	want := fmt.Sprintf("%d=none, %d=untagged, %d-%d for specific VLAN (%d is reserved)",
-		AutoAssignVLAN, UntaggedVLAN, MinAssignableVLAN, MaxVLAN, ReservedVLAN)
-	assert.Equal(t, want, InnerVLANHelpText())
+	assert.Equal(t, "0=none, -1=untagged, 2-4094 for specific VLAN (1 is reserved)", InnerVLANHelpText())
 }
