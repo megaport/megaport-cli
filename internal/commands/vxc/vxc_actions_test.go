@@ -910,6 +910,31 @@ func TestListVXCs(t *testing.T) {
 			outputFormat:   "table",
 		},
 		{
+			name: "name-contains is case-sensitive",
+			flags: map[string]string{
+				"name-contains": "DEMO",
+			},
+			setupMock: func(m *MockVXCService) {
+				m.ListVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{},
+			unexpectedVXCs: []string{"vxc-demo-01", "vxc-demo-02", "production-vxc"},
+			outputFormat:   "table",
+		},
+		{
+			name: "name-contains takes precedence over name",
+			flags: map[string]string{
+				"name":          "production",
+				"name-contains": "demo",
+			},
+			setupMock: func(m *MockVXCService) {
+				m.ListVXCResponse = testVXCs
+			},
+			expectedVXCs:   []string{"vxc-demo-01", "vxc-demo-02"},
+			unexpectedVXCs: []string{"production-vxc", "test-vxc-decom"},
+			outputFormat:   "table",
+		},
+		{
 			name: "include inactive VXCs",
 			flags: map[string]string{
 				"include-inactive": "true",
