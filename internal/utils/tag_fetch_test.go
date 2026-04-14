@@ -105,12 +105,18 @@ func TestFetchTagsConcurrently_ContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // pre-cancel
 
-	uids := []string{"uid-1", "uid-2"}
+	// With a pre-cancelled context the producer stops enqueuing early, so the
+	// number of errors is non-deterministic (0 – len(uids)). What matters is:
+	// (a) the call returns without deadlocking, and
+	// (b) every error in errMap is a context error.
+	uids := []string{"uid-1", "uid-2", "uid-3", "uid-4", "uid-5"}
 	_, errMap := FetchTagsConcurrently(ctx, uids, func(ctx context.Context, uid string) (map[string]string, error) {
 		return nil, ctx.Err()
 	})
 
-	assert.Len(t, errMap, 2)
+	for uid, err := range errMap {
+		assert.ErrorIs(t, err, context.Canceled, "error for %s should be context.Canceled", uid)
+	}
 }
 
 // --- ApplyTagFilter tests ---

@@ -100,17 +100,27 @@ func FetchTagsConcurrently(
 		go func() {
 			defer wg.Done()
 			for uid := range jobs {
+				// Propagate cancellation without making a redundant API call.
+				if err := ctx.Err(); err != nil {
+					results <- tagFetchResult{uid: uid, err: err}
+					continue
+				}
 				tags, err := fetch(ctx, uid)
 				results <- tagFetchResult{uid: uid, tags: tags, err: err}
 			}
 		}()
 	}
 
+	// Stop enqueuing new jobs as soon as the context is done.
 	go func() {
+		defer close(jobs)
 		for _, uid := range uids {
-			jobs <- uid
+			select {
+			case jobs <- uid:
+			case <-ctx.Done():
+				return
+			}
 		}
-		close(jobs)
 	}()
 
 	go func() {
