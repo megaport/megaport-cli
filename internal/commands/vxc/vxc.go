@@ -2,6 +2,7 @@ package vxc
 
 import (
 	"github.com/megaport/megaport-cli/internal/base/cmdbuilder"
+	"github.com/megaport/megaport-cli/internal/validation"
 	"github.com/spf13/cobra"
 )
 
@@ -87,8 +88,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithDocumentedRequiredFlag("term", "Contract term in months (1, 12, 24, or 36)").
 		WithDocumentedRequiredFlag("a-end-uid", "UID of the A-End product").
 		WithDocumentedRequiredFlag("b-end-uid", "UID of the B-End product (if not using partner configuration)").
-		WithDocumentedRequiredFlag("a-end-vlan", "VLAN for A-End (0-4093, except 1)").
-		WithDocumentedRequiredFlag("b-end-vlan", "VLAN for B-End (0-4093, except 1)").
+		WithDocumentedRequiredFlag("a-end-vlan", "VLAN for A-End ("+validation.VLANHelpText()+")").
+		WithDocumentedRequiredFlag("b-end-vlan", "VLAN for B-End ("+validation.VLANHelpText()+")").
 		WithExample("megaport-cli vxc buy --interactive").
 		WithExample("megaport-cli vxc buy --name \"My VXC\" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200").
 		WithExample("megaport-cli vxc buy --name \"My VXC\" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200 --resource-tags '{\"environment\":\"production\",\"team\":\"networking\"}'").
@@ -130,8 +131,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("term", "New contract term in months (1, 12, 24, or 36)").
 		WithOptionalFlag("cost-centre", "New cost centre for billing").
 		WithOptionalFlag("shutdown", "Whether to shut down the VXC (true/false)").
-		WithOptionalFlag("a-end-vlan", "New VLAN for A-End (2-4093, except 4090)").
-		WithOptionalFlag("b-end-vlan", "New VLAN for B-End (2-4093, except 4090)").
+		WithOptionalFlag("a-end-vlan", "New VLAN for A-End ("+validation.VLANHelpText()+")").
+		WithOptionalFlag("b-end-vlan", "New VLAN for B-End ("+validation.VLANHelpText()+")").
 		WithOptionalFlag("a-end-inner-vlan", "New inner VLAN for A-End (-1 or higher, only for QinQ)").
 		WithOptionalFlag("b-end-inner-vlan", "New inner VLAN for B-End (-1 or higher, only for QinQ)").
 		WithOptionalFlag("a-end-uid", "New A-End product UID").
