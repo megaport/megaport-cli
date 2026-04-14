@@ -318,8 +318,23 @@ func (b *CommandBuilder) Build() *cobra.Command {
 	// Auto-add --generate-skeleton flag for commands that have JSON examples
 	if len(b.jsonExamples) > 0 {
 		b.cmd.Flags().Bool("generate-skeleton", false, "Print a JSON skeleton template for --json input and exit")
+		originalArgs := b.cmd.Args
 		originalRunE := b.cmd.RunE
 		jsonExamples := b.jsonExamples
+
+		// Bypass positional-arg validation in skeleton mode so update commands
+		// (which require a UID arg) work without a dummy argument.
+		b.cmd.Args = func(cmd *cobra.Command, args []string) error {
+			skeleton, _ := cmd.Flags().GetBool("generate-skeleton")
+			if skeleton {
+				return nil
+			}
+			if originalArgs != nil {
+				return originalArgs(cmd, args)
+			}
+			return nil
+		}
+
 		b.cmd.RunE = func(cmd *cobra.Command, args []string) error {
 			skeleton, _ := cmd.Flags().GetBool("generate-skeleton")
 			if skeleton {

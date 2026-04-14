@@ -740,6 +740,43 @@ func TestGenerateSkeletonFlag(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("end-to-end via Execute bypasses ExactArgs validation", func(t *testing.T) {
+		originalCalled := false
+		cmd := NewCommand("update", "Update a resource").
+			WithArgs(cobra.ExactArgs(1)).
+			WithRunFunc(func(cmd *cobra.Command, args []string) error {
+				originalCalled = true
+				return nil
+			}).
+			WithJSONExample(jsonExample).
+			Build()
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+		cmd.SetArgs([]string{"--generate-skeleton"})
+		err := cmd.Execute()
+
+		assert.NoError(t, err)
+		assert.False(t, originalCalled)
+		assert.Contains(t, buf.String(), jsonExample)
+	})
+
+	t.Run("ExactArgs validation still enforced without skeleton flag", func(t *testing.T) {
+		cmd := NewCommand("update", "Update a resource").
+			WithArgs(cobra.ExactArgs(1)).
+			WithRunFunc(func(cmd *cobra.Command, args []string) error { return nil }).
+			WithJSONExample(jsonExample).
+			Build()
+
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+		cmd.SetArgs([]string{}) // no args, no skeleton — should fail
+		err := cmd.Execute()
+		assert.Error(t, err)
+	})
+
 	t.Run("no RunE set returns nil when skeleton not requested", func(t *testing.T) {
 		cmd := NewCommand("buy", "Buy a resource").
 			WithJSONExample(jsonExample).
