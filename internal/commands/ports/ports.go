@@ -1,7 +1,10 @@
 package ports
 
 import (
+	"fmt"
+
 	"github.com/megaport/megaport-cli/internal/base/cmdbuilder"
+	"github.com/megaport/megaport-cli/internal/validation"
 	"github.com/spf13/cobra"
 )
 
@@ -297,7 +300,7 @@ func buildPortManagementCommands(rootCmd *cobra.Command) (list, get, status, del
 	checkVLAN = cmdbuilder.NewCommand("check-vlan", "Check if a VLAN is available on a port").
 		WithArgs(cobra.ExactArgs(2)).
 		WithColorAwareRunFunc(CheckPortVLANAvailability).
-		WithLongDesc("Check if a VLAN is available on a port in the Megaport API.\n\nThis command verifies whether a specific VLAN ID is available for use on a port. This is useful when planning new VXCs to ensure the VLAN ID you want to use is not already in use by another connection.\n\nVLAN ID must be between 2 and 4094 (inclusive).").
+		WithLongDesc(fmt.Sprintf("Check if a VLAN is available on a port in the Megaport API.\n\nThis command verifies whether a specific VLAN ID is available for use on a port. This is useful when planning new VXCs to ensure the VLAN ID you want to use is not already in use by another connection.\n\nVLAN ID must be between %d and %d (inclusive).", validation.MinAssignableVLAN, validation.MaxAssignableVLAN)).
 		WithExample("megaport-cli ports check-vlan 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p 100").
 		WithExample("megaport-cli ports check-vlan port-abc123 500").
 		WithRootCmd(rootCmd).

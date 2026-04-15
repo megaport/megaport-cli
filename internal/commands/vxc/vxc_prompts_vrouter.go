@@ -27,7 +27,7 @@ func promptVRouterConfig(noColor bool) (*megaport.VXCOrderVrouterPartnerConfig, 
 	for i := 0; i < interfaceCount; i++ {
 		iface := megaport.PartnerConfigInterface{}
 
-		vlanStr, err := utils.ResourcePrompt("vxc", "VLAN (0-4094, except 1, optional - press Enter for no VLAN): ", noColor)
+		vlanStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("VLAN (0-%d, except %d, optional - press Enter for no VLAN): ", validation.MaxVLAN, validation.ReservedVLAN), noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -37,9 +37,9 @@ func promptVRouterConfig(noColor bool) (*megaport.VXCOrderVrouterPartnerConfig, 
 			if err != nil {
 				return nil, fmt.Errorf("VLAN must be a valid integer")
 			}
-			if vlan < 0 || vlan > 4094 || vlan == 1 {
+			if vlan < 0 || vlan > validation.MaxVLAN || vlan == validation.ReservedVLAN {
 				return nil, validation.NewValidationError("VRouter interface VLAN", vlan,
-					"must be 0 or between 2-4094 (1 is reserved)")
+					fmt.Sprintf("must be %d or between %d-%d (%d is reserved)", validation.AutoAssignVLAN, validation.MinAssignableVLAN, validation.MaxVLAN, validation.ReservedVLAN))
 			}
 			iface.VLAN = vlan
 		} else {

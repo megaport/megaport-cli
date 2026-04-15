@@ -1286,6 +1286,12 @@ func TestCheckPortVLANAvailability(t *testing.T) {
 			expectedError: "invalid VLAN ID",
 		},
 		{
+			name:          "VLAN out of assignable range",
+			portUID:       "port-vlan-5",
+			vlanArg:       "4094",
+			expectedError: "must be between",
+		},
+		{
 			name:          "API error",
 			portUID:       "port-vlan-4",
 			vlanArg:       "300",

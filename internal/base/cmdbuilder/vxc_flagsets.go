@@ -19,10 +19,10 @@ func (b *CommandBuilder) WithVXCCommonFlags() *CommandBuilder {
 func (b *CommandBuilder) WithVXCEndpointFlags() *CommandBuilder {
 	b.WithFlag("a-end-uid", "", "UID of the A-End product")
 	b.WithFlag("b-end-uid", "", "UID of the B-End product")
-	b.WithIntFlag("a-end-vlan", 0, "VLAN for A-End (0-4093, except 1)")
-	b.WithIntFlag("b-end-vlan", 0, "VLAN for B-End (0-4093, except 1)")
-	b.WithIntFlag("a-end-inner-vlan", 0, "Inner VLAN for A-End (-1 or higher)")
-	b.WithIntFlag("b-end-inner-vlan", 0, "Inner VLAN for B-End (-1 or higher)")
+	b.WithIntFlag("a-end-vlan", 0, "VLAN for A-End ("+validation.VLANHelpText()+")")
+	b.WithIntFlag("b-end-vlan", 0, "VLAN for B-End ("+validation.VLANHelpText()+")")
+	b.WithIntFlag("a-end-inner-vlan", 0, "Inner VLAN for A-End ("+validation.InnerVLANHelpText()+")")
+	b.WithIntFlag("b-end-inner-vlan", 0, "Inner VLAN for B-End ("+validation.InnerVLANHelpText()+")")
 	return b
 }
 

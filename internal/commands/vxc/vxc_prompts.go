@@ -44,7 +44,7 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		return nil, err
 	}
 
-	aEndVLANStr, err := utils.ResourcePrompt("vxc", "A-End VLAN (-1=untagged, 0=auto-assigned, 2-4094 for specific VLAN): ", noColor)
+	aEndVLANStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("A-End VLAN (%s): ", validation.VLANHelpText()), noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		}
 	}
 
-	aEndInnerVLANStr, err := utils.ResourcePrompt("vxc", "Enter A-End Inner VLAN (optional): ", noColor)
+	aEndInnerVLANStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("A-End Inner VLAN (optional, %s, press Enter to skip): ", validation.InnerVLANHelpText()), noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 
 	bEndConfig := megaport.VXCOrderEndpointConfiguration{}
 
-	bEndVLANStr, err := utils.ResourcePrompt("vxc", "B-End VLAN (-1=untagged, 0=auto-assigned, 2-4094 for specific VLAN): ", noColor)
+	bEndVLANStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("B-End VLAN (%s): ", validation.VLANHelpText()), noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		req.BEndConfiguration.VLAN = bEndVLAN
 	}
 
-	bEndInnerVLANStr, err := utils.ResourcePrompt("vxc", "Enter B-End Inner VLAN (optional): ", noColor)
+	bEndInnerVLANStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("B-End Inner VLAN (optional, %s, press Enter to skip): ", validation.InnerVLANHelpText()), noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +335,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		return nil, err
 	}
 	if strings.ToLower(updateAEndVLAN) == "yes" {
-		aEndVLANStr, err := utils.ResourcePrompt("vxc", "A-End VLAN (-1=untagged, 0=auto-assigned, 2-4094 for specific VLAN): ", noColor)
+		aEndVLANStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("A-End VLAN (%s): ", validation.VLANHelpText()), noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -355,7 +355,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		return nil, err
 	}
 	if strings.ToLower(updateBEndVLAN) == "yes" {
-		bEndVLANStr, err := utils.ResourcePrompt("vxc", "B-End VLAN (-1=untagged, 0=auto-assigned, 2-4094 for specific VLAN): ", noColor)
+		bEndVLANStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("B-End VLAN (%s): ", validation.VLANHelpText()), noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -379,7 +379,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		return nil, err
 	}
 	if strings.ToLower(updateAEndInnerVLAN) == "yes" {
-		aEndInnerVLANStr, err := utils.ResourcePrompt("vxc", "Enter new A-End Inner VLAN (-1, 0, or 2-4094): ", noColor)
+		aEndInnerVLANStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("Enter new A-End Inner VLAN (%s): ", validation.InnerVLANHelpText()), noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -405,7 +405,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		return nil, err
 	}
 	if strings.ToLower(updateBEndInnerVLAN) == "yes" {
-		bEndInnerVLANStr, err := utils.ResourcePrompt("vxc", "Enter new B-End Inner VLAN (-1, 0, or 2-4094): ", noColor)
+		bEndInnerVLANStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("Enter new B-End Inner VLAN (%s): ", validation.InnerVLANHelpText()), noColor)
 		if err != nil {
 			return nil, err
 		}

@@ -41,6 +41,20 @@ const (
 	ReservedVLAN = 1
 )
 
+// VLANHelpText returns a canonical human-readable description of valid VLAN values,
+// derived from the VLAN constants defined in this package.
+func VLANHelpText() string {
+	return fmt.Sprintf("%d=auto-assign, %d=untagged, %d-%d for specific VLAN (%d is reserved)",
+		AutoAssignVLAN, UntaggedVLAN, MinAssignableVLAN, MaxVLAN, ReservedVLAN)
+}
+
+// InnerVLANHelpText returns a canonical human-readable description of valid inner VLAN
+// (Q-in-Q) values. Inner VLANs use 0 to mean "no inner VLAN" rather than "auto-assign".
+func InnerVLANHelpText() string {
+	return fmt.Sprintf("%d=none, %d=untagged, %d-%d for specific VLAN (%d is reserved)",
+		AutoAssignVLAN, UntaggedVLAN, MinAssignableVLAN, MaxVLAN, ReservedVLAN)
+}
+
 // FormatIntSlice formats a slice of ints as a human-readable string.
 // Example: []int{1, 12, 24, 36} → "1, 12, 24, or 36"
 func FormatIntSlice(vals []int) string {
