@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -120,18 +119,9 @@ func DeletePort(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	force, err := cmd.Flags().GetBool("force")
-	if err != nil {
-		output.PrintError("Failed to get force flag: %v", noColor, err)
+	force, _ := cmd.Flags().GetBool("force")
+	if confirmed, err := utils.ConfirmDelete("Port", portUID, force, noColor); !confirmed {
 		return err
-	}
-
-	if !force {
-		confirmMsg := "Are you sure you want to delete port " + portUID + "? "
-		if !utils.ConfirmPrompt(confirmMsg, noColor) {
-			output.PrintInfo("Deletion cancelled", noColor)
-			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
-		}
 	}
 
 	safeDelete, err := cmd.Flags().GetBool("safe-delete")

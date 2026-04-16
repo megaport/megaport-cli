@@ -438,17 +438,12 @@ func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	defer cancel()
 
 	vxcUID := args[0]
-	formattedUID := output.FormatUID(vxcUID, noColor)
 
 	force, _ := cmd.Flags().GetBool("force")
 	deleteNow, _ := cmd.Flags().GetBool("now")
 
-	if !force {
-		message := fmt.Sprintf("Are you sure you want to delete VXC %s?", formattedUID)
-		if !utils.ConfirmPrompt(message, noColor) {
-			output.PrintInfo("Deletion cancelled", noColor)
-			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
-		}
+	if confirmed, err := utils.ConfirmDelete("VXC", vxcUID, force, noColor); !confirmed {
+		return err
 	}
 
 	client, err := config.Login(ctx)

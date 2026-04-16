@@ -497,18 +497,9 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	defer cancel()
 	mveUID := args[0]
 
-	force, err := cmd.Flags().GetBool("force")
-	if err != nil {
-		output.PrintError("Failed to get force flag: %v", noColor, err)
+	force, _ := cmd.Flags().GetBool("force")
+	if confirmed, err := utils.ConfirmDelete("MVE", mveUID, force, noColor); !confirmed {
 		return err
-	}
-
-	if !force {
-		confirmMsg := "Are you sure you want to delete MVE " + mveUID + "? "
-		if !utils.ConfirmPrompt(confirmMsg, noColor) {
-			output.PrintInfo("Deletion cancelled", noColor)
-			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
-		}
 	}
 
 	client, err := config.Login(ctx)

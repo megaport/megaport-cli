@@ -371,17 +371,9 @@ func DeleteIX(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	force, err := cmd.Flags().GetBool("force")
-	if err != nil {
+	force, _ := cmd.Flags().GetBool("force")
+	if confirmed, err := utils.ConfirmDelete("IX", ixUID, force, noColor); !confirmed {
 		return err
-	}
-
-	if !force {
-		confirmMsg := "Are you sure you want to delete IX " + ixUID + "? "
-		if !utils.ConfirmPrompt(confirmMsg, noColor) {
-			output.PrintInfo("Deletion cancelled", noColor)
-			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
-		}
 	}
 
 	deleteRequest := &megaport.DeleteIXRequest{
