@@ -595,17 +595,6 @@ func TestBuildIXRequestFromFlags(t *testing.T) {
 				assert.True(t, req.Shutdown)
 			},
 		},
-		{
-			name:  "no flags (defaults)",
-			flags: map[string]string{},
-			validate: func(t *testing.T, req *megaport.BuyIXRequest) {
-				assert.Equal(t, "", req.ProductUID)
-				assert.Equal(t, "", req.Name)
-				assert.Equal(t, 0, req.ASN)
-				assert.Equal(t, 0, req.RateLimit)
-				assert.Equal(t, 0, req.VLAN)
-			},
-		},
 	}
 
 	for _, tt := range tests {
@@ -629,6 +618,93 @@ func TestBuildIXRequestFromFlags(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, req)
 			tt.validate(t, req)
+		})
+	}
+}
+
+func TestBuildIXRequestFromFlags_ValidationErrors(t *testing.T) {
+	tests := []struct {
+		name        string
+		flags       map[string]string
+		errContains string
+	}{
+		{
+			name: "invalid ASN zero",
+			flags: map[string]string{
+				"asn":         "0",
+				"mac-address": "00:11:22:33:44:55",
+				"rate-limit":  "1000",
+			},
+			errContains: "Invalid ASN",
+		},
+		{
+			name: "invalid ASN negative",
+			flags: map[string]string{
+				"asn":         "-1",
+				"mac-address": "00:11:22:33:44:55",
+				"rate-limit":  "1000",
+			},
+			errContains: "Invalid ASN",
+		},
+		{
+			name: "invalid MAC address",
+			flags: map[string]string{
+				"asn":         "65000",
+				"mac-address": "not-a-mac",
+				"rate-limit":  "1000",
+			},
+			errContains: "Invalid MAC address",
+		},
+		{
+			name: "empty MAC address",
+			flags: map[string]string{
+				"asn":         "65000",
+				"mac-address": "",
+				"rate-limit":  "1000",
+			},
+			errContains: "Invalid MAC address",
+		},
+		{
+			name: "invalid rate limit zero",
+			flags: map[string]string{
+				"asn":         "65000",
+				"mac-address": "00:11:22:33:44:55",
+				"rate-limit":  "0",
+			},
+			errContains: "Invalid rate limit",
+		},
+		{
+			name: "invalid rate limit negative",
+			flags: map[string]string{
+				"asn":         "65000",
+				"mac-address": "00:11:22:33:44:55",
+				"rate-limit":  "-1",
+			},
+			errContains: "Invalid rate limit",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &cobra.Command{Use: "test"}
+			cmd.Flags().String("product-uid", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().String("network-service-type", "", "")
+			cmd.Flags().Int("asn", 0, "")
+			cmd.Flags().String("mac-address", "", "")
+			cmd.Flags().Int("rate-limit", 0, "")
+			cmd.Flags().Int("vlan", 0, "")
+			cmd.Flags().Bool("shutdown", false, "")
+			cmd.Flags().String("promo-code", "", "")
+
+			for k, v := range tt.flags {
+				_ = cmd.Flags().Set(k, v)
+			}
+
+			req, err := buildIXRequestFromFlags(cmd)
+			assert.Error(t, err)
+			assert.Nil(t, req)
+			assert.Contains(t, err.Error(), tt.errContains)
 		})
 	}
 }
@@ -658,14 +734,9 @@ func TestBuildIXRequestFromJSON(t *testing.T) {
 			},
 		},
 		{
-			name:    "valid JSON string with partial fields",
-			jsonStr: `{"productUid":"port-123","productName":"Partial IX"}`,
-			validate: func(t *testing.T, req *megaport.BuyIXRequest) {
-				assert.Equal(t, "port-123", req.ProductUID)
-				assert.Equal(t, "Partial IX", req.Name)
-				assert.Equal(t, 0, req.ASN)
-				assert.Equal(t, 0, req.RateLimit)
-			},
+			name:          "partial fields missing ASN",
+			jsonStr:       `{"productUid":"port-123","productName":"Partial IX"}`,
+			expectedError: "Invalid ASN",
 		},
 		{
 			name:          "invalid JSON syntax",
@@ -673,12 +744,19 @@ func TestBuildIXRequestFromJSON(t *testing.T) {
 			expectedError: "failed to parse JSON",
 		},
 		{
-			name:    "empty JSON object",
-			jsonStr: `{}`,
-			validate: func(t *testing.T, req *megaport.BuyIXRequest) {
-				assert.Equal(t, "", req.ProductUID)
-				assert.Equal(t, "", req.Name)
-			},
+			name:          "empty JSON object",
+			jsonStr:       `{}`,
+			expectedError: "Invalid ASN",
+		},
+		{
+			name:          "invalid MAC address in JSON",
+			jsonStr:       `{"productUid":"port-123","productName":"IX","asn":65000,"macAddress":"bad-mac","rateLimit":1000,"vlan":100}`,
+			expectedError: "Invalid MAC address",
+		},
+		{
+			name:          "invalid rate limit in JSON",
+			jsonStr:       `{"productUid":"port-123","productName":"IX","asn":65000,"macAddress":"00:11:22:33:44:55","rateLimit":0,"vlan":100}`,
+			expectedError: "Invalid rate limit",
 		},
 		{
 			name: "valid JSON file",
@@ -1098,7 +1176,7 @@ func TestBuildIXRequestFromPrompt(t *testing.T) {
 				"65000",
 				"",
 			},
-			expectedError: "MAC address is required",
+			expectedError: "Invalid MAC address",
 		},
 		{
 			name: "invalid rate limit (non-numeric)",

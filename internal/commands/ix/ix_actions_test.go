@@ -478,10 +478,8 @@ func TestBuyIX(t *testing.T) {
 			flags: map[string]string{
 				"name": "Test IX",
 			},
-			setupMock: func(m *MockIXService) {
-				m.validateIXOrderError = fmt.Errorf("validation failed: missing required fields")
-			},
-			expectedError: "validation failed",
+			setupMock:     func(m *MockIXService) {},
+			expectedError: "Invalid ASN",
 		},
 		{
 			name: "API error",
@@ -1511,7 +1509,13 @@ func TestBuyIX_LoginError(t *testing.T) {
 	cmd.Flags().String("json", "", "JSON string")
 	cmd.Flags().String("json-file", "", "JSON file")
 
+	_ = cmd.Flags().Set("product-uid", "port-uid-123")
 	_ = cmd.Flags().Set("name", "Test IX")
+	_ = cmd.Flags().Set("network-service-type", "Los Angeles IX")
+	_ = cmd.Flags().Set("asn", "65000")
+	_ = cmd.Flags().Set("mac-address", "00:11:22:33:44:55")
+	_ = cmd.Flags().Set("rate-limit", "1000")
+	_ = cmd.Flags().Set("vlan", "100")
 
 	var err error
 	output.CaptureOutput(func() {
