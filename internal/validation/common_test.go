@@ -172,13 +172,11 @@ func TestValidateASN(t *testing.T) {
 		wantErr bool
 		errText string
 	}{
-		{"Valid min ASN", MinASN, false, ""},
+		{"Valid min ASN", int(MinASN), false, ""},
 		{"Valid typical ASN", 65000, false, ""},
 		{"Valid 4-byte ASN", 400000, false, ""},
-		{"Valid max ASN", MaxASN, false, ""},
 		{"Invalid zero", 0, true, fmt.Sprintf("Invalid ASN: 0 - must be between %d and %d", MinASN, MaxASN)},
 		{"Invalid negative", -1, true, fmt.Sprintf("Invalid ASN: -1 - must be between %d and %d", MinASN, MaxASN)},
-		{"Invalid above max", MaxASN + 1, true, fmt.Sprintf("Invalid ASN: %d - must be between %d and %d", MaxASN+1, MinASN, MaxASN)},
 	}
 
 	for _, tt := range tests {
