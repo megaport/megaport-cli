@@ -502,7 +502,7 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("Failed to get force flag: %v", noColor, err)
 		return err
 	}
-	if confirmed, err := utils.ConfirmDelete("MVE", mveUID, force, noColor); !confirmed {
+	if confirmed, err := utils.ConfirmDelete(utils.ResourceTypeMVE, mveUID, force, noColor); !confirmed {
 		return err
 	}
 

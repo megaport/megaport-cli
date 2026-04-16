@@ -15,7 +15,7 @@ func TestConfirmDelete(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		resourceType  string
+		resourceType  ResourceType
 		resourceID    string
 		force         bool
 		noColor       bool
@@ -26,7 +26,7 @@ func TestConfirmDelete(t *testing.T) {
 	}{
 		{
 			name:          "force skips prompt",
-			resourceType:  "Port",
+			resourceType:  ResourceTypePort,
 			resourceID:    "abc-123",
 			force:         true,
 			noColor:       true,
@@ -34,7 +34,7 @@ func TestConfirmDelete(t *testing.T) {
 		},
 		{
 			name:          "user confirms deletion",
-			resourceType:  "VXC",
+			resourceType:  ResourceTypeVXC,
 			resourceID:    "vxc-456",
 			force:         false,
 			noColor:       true,
@@ -43,7 +43,7 @@ func TestConfirmDelete(t *testing.T) {
 		},
 		{
 			name:          "user declines deletion",
-			resourceType:  "MCR",
+			resourceType:  ResourceTypeMCR,
 			resourceID:    "mcr-789",
 			force:         false,
 			noColor:       true,
@@ -54,7 +54,7 @@ func TestConfirmDelete(t *testing.T) {
 		},
 		{
 			name:          "noColor forwarded to prompt",
-			resourceType:  "MVE",
+			resourceType:  ResourceTypeMVE,
 			resourceID:    "mve-012",
 			force:         false,
 			noColor:       false,

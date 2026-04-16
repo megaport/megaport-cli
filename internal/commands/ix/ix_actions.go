@@ -375,7 +375,7 @@ func DeleteIX(cmd *cobra.Command, args []string, noColor bool) error {
 	if err != nil {
 		return err
 	}
-	if confirmed, err := utils.ConfirmDelete("IX", ixUID, force, noColor); !confirmed {
+	if confirmed, err := utils.ConfirmDelete(utils.ResourceTypeIX, ixUID, force, noColor); !confirmed {
 		return err
 	}
 

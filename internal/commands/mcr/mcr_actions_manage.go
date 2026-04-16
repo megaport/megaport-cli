@@ -31,7 +31,7 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	if err != nil {
 		return err
 	}
-	if confirmed, err := utils.ConfirmDelete("MCR", mcrUID, force, noColor); !confirmed {
+	if confirmed, err := utils.ConfirmDelete(utils.ResourceTypeMCR, mcrUID, force, noColor); !confirmed {
 		return err
 	}
 

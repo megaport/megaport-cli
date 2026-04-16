@@ -450,7 +450,7 @@ func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	if confirmed, err := utils.ConfirmDelete("VXC", vxcUID, force, noColor); !confirmed {
+	if confirmed, err := utils.ConfirmDelete(utils.ResourceTypeVXC, vxcUID, force, noColor); !confirmed {
 		return err
 	}
 
