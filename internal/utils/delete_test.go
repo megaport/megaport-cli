@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
@@ -52,10 +53,10 @@ func TestConfirmDelete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			promptCalled := false
+			expectedMsg := fmt.Sprintf("Are you sure you want to delete %s %s?", tt.resourceType, tt.resourceID)
 			SetConfirmPrompt(func(message string, _ bool) bool {
 				promptCalled = true
-				assert.Contains(t, message, tt.resourceType)
-				assert.Contains(t, message, tt.resourceID)
+				assert.Equal(t, expectedMsg, message)
 				return tt.confirmResult
 			})
 
