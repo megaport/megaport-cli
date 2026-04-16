@@ -119,7 +119,11 @@ func DeletePort(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	force, _ := cmd.Flags().GetBool("force")
+	force, err := cmd.Flags().GetBool("force")
+	if err != nil {
+		output.PrintError("Failed to get force flag: %v", noColor, err)
+		return err
+	}
 	if confirmed, err := utils.ConfirmDelete("Port", portUID, force, noColor); !confirmed {
 		return err
 	}

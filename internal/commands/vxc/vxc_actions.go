@@ -439,8 +439,16 @@ func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
 
 	vxcUID := args[0]
 
-	force, _ := cmd.Flags().GetBool("force")
-	deleteNow, _ := cmd.Flags().GetBool("now")
+	force, err := cmd.Flags().GetBool("force")
+	if err != nil {
+		output.PrintError("Failed to get force flag: %v", noColor, err)
+		return err
+	}
+	deleteNow, err := cmd.Flags().GetBool("now")
+	if err != nil {
+		output.PrintError("Failed to get now flag: %v", noColor, err)
+		return err
+	}
 
 	if confirmed, err := utils.ConfirmDelete("VXC", vxcUID, force, noColor); !confirmed {
 		return err

@@ -22,9 +22,15 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	mcrUID := args[0]
 
-	deleteNow, _ := cmd.Flags().GetBool("now")
+	deleteNow, err := cmd.Flags().GetBool("now")
+	if err != nil {
+		return err
+	}
 
-	force, _ := cmd.Flags().GetBool("force")
+	force, err := cmd.Flags().GetBool("force")
+	if err != nil {
+		return err
+	}
 	if confirmed, err := utils.ConfirmDelete("MCR", mcrUID, force, noColor); !confirmed {
 		return err
 	}
