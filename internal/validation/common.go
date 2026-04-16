@@ -41,9 +41,9 @@ const (
 	// ReservedVLAN identifies a VLAN ID that is reserved and cannot be used.
 	ReservedVLAN = 1
 	// MinASN is the minimum valid Autonomous System Number.
-	MinASN = 1
+	MinASN int64 = 1
 	// MaxASN is the maximum valid 32-bit Autonomous System Number.
-	MaxASN = 4294967295
+	MaxASN int64 = 4294967295
 )
 
 // VLANHelpText returns a canonical human-readable description of valid VLAN values,
@@ -202,7 +202,8 @@ func ValidateRateLimit(rateLimit int) error {
 //   - A ValidationError if the ASN is not valid
 //   - nil if the validation passes
 func ValidateASN(asn int) error {
-	if asn < MinASN || asn > MaxASN {
+	v := int64(asn)
+	if v < MinASN || v > MaxASN {
 		return NewValidationError("ASN", asn,
 			fmt.Sprintf("must be between %d and %d", MinASN, MaxASN))
 	}
@@ -216,7 +217,8 @@ func ValidateASN(asn int) error {
 //
 // Validation checks:
 //   - MAC address must not be empty
-//   - Must be parseable as a hardware address (colon or hyphen separated hex pairs)
+//   - Must be parseable as a hardware address by net.ParseMAC (colon-separated,
+//     hyphen-separated, or dot-separated formats)
 //   - Must be exactly 6 bytes (EUI-48)
 //
 // Returns:
