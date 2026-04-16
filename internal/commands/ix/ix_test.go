@@ -682,6 +682,16 @@ func TestBuildIXRequestFromFlags_ValidationErrors(t *testing.T) {
 			},
 			errContains: "Invalid rate limit",
 		},
+		{
+			name: "invalid VLAN reserved",
+			flags: map[string]string{
+				"asn":         "65000",
+				"mac-address": "00:11:22:33:44:55",
+				"rate-limit":  "1000",
+				"vlan":        "1",
+			},
+			errContains: "Invalid VLAN ID",
+		},
 	}
 
 	for _, tt := range tests {
@@ -995,6 +1005,99 @@ func TestBuildUpdateIXRequestFromFlags(t *testing.T) {
 	}
 }
 
+func TestBuildUpdateIXRequestFromFlags_ValidationErrors(t *testing.T) {
+	tests := []struct {
+		name        string
+		flags       map[string]string
+		errContains string
+	}{
+		{
+			name:        "invalid ASN zero",
+			flags:       map[string]string{"asn": "0"},
+			errContains: "Invalid ASN",
+		},
+		{
+			name:        "invalid MAC address",
+			flags:       map[string]string{"mac-address": "bad-mac"},
+			errContains: "Invalid MAC address",
+		},
+		{
+			name:        "invalid rate limit zero",
+			flags:       map[string]string{"rate-limit": "0"},
+			errContains: "Invalid rate limit",
+		},
+		{
+			name:        "invalid VLAN reserved",
+			flags:       map[string]string{"vlan": "1"},
+			errContains: "Invalid VLAN ID",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &cobra.Command{Use: "test"}
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("rate-limit", 0, "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().Int("vlan", 0, "")
+			cmd.Flags().String("mac-address", "", "")
+			cmd.Flags().Int("asn", 0, "")
+			cmd.Flags().String("password", "", "")
+			cmd.Flags().Bool("public-graph", false, "")
+			cmd.Flags().String("reverse-dns", "", "")
+			cmd.Flags().String("a-end-product-uid", "", "")
+			cmd.Flags().Bool("shutdown", false, "")
+
+			for k, v := range tt.flags {
+				_ = cmd.Flags().Set(k, v)
+			}
+
+			req, err := buildUpdateIXRequestFromFlags(cmd)
+			assert.Error(t, err)
+			assert.Nil(t, req)
+			assert.Contains(t, err.Error(), tt.errContains)
+		})
+	}
+}
+
+func TestBuildUpdateIXRequestFromJSON_ValidationErrors(t *testing.T) {
+	tests := []struct {
+		name        string
+		jsonStr     string
+		errContains string
+	}{
+		{
+			name:        "invalid ASN",
+			jsonStr:     `{"asn": 0}`,
+			errContains: "Invalid ASN",
+		},
+		{
+			name:        "invalid MAC address",
+			jsonStr:     `{"macAddress": "bad-mac"}`,
+			errContains: "Invalid MAC address",
+		},
+		{
+			name:        "invalid rate limit",
+			jsonStr:     `{"rateLimit": -1}`,
+			errContains: "Invalid rate limit",
+		},
+		{
+			name:        "invalid VLAN",
+			jsonStr:     `{"vlan": 1}`,
+			errContains: "Invalid VLAN ID",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := buildUpdateIXRequestFromJSON(tt.jsonStr, "")
+			assert.Error(t, err)
+			assert.Nil(t, req)
+			assert.Contains(t, err.Error(), tt.errContains)
+		})
+	}
+}
+
 func TestBuildUpdateIXRequestFromJSON(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -1244,8 +1347,10 @@ func TestBuildIXRequestFromPrompt(t *testing.T) {
 
 func TestBuildUpdateIXRequestFromPrompt(t *testing.T) {
 	originalPrompt := utils.GetResourcePrompt()
+	originalPasswordPrompt := utils.GetPasswordPrompt()
 	defer func() {
 		utils.SetResourcePrompt(originalPrompt)
+		utils.SetPasswordPrompt(originalPasswordPrompt)
 	}()
 
 	tests := []struct {
@@ -1365,7 +1470,7 @@ func TestBuildUpdateIXRequestFromPrompt(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			promptIndex := 0
-			utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
+			nextPrompt := func() (string, error) {
 				if promptIndex < len(tt.prompts) {
 					response := tt.prompts[promptIndex]
 					promptIndex++
@@ -1375,6 +1480,12 @@ func TestBuildUpdateIXRequestFromPrompt(t *testing.T) {
 					return response, nil
 				}
 				return "", fmt.Errorf("unexpected prompt call")
+			}
+			utils.SetResourcePrompt(func(_, _ string, _ bool) (string, error) {
+				return nextPrompt()
+			})
+			utils.SetPasswordPrompt(func(_ string, _ bool) (string, error) {
+				return nextPrompt()
 			})
 
 			req, err := buildUpdateIXRequestFromPrompt("ix-123", true)

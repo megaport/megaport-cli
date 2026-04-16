@@ -180,7 +180,7 @@ func buildUpdateIXRequestFromPrompt(_ string, noColor bool) (*megaport.UpdateIXR
 		fieldsUpdated = true
 	}
 
-	password, err := utils.ResourcePrompt("ix", "Enter new BGP password (leave empty to skip): ", noColor)
+	password, err := utils.PasswordPrompt("Enter new BGP password (leave empty to skip):", noColor)
 	if err != nil {
 		return nil, err
 	}
