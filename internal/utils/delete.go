@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
@@ -17,7 +18,7 @@ func ConfirmDelete(resourceType, resourceID string, force, noColor bool) (bool, 
 	message := fmt.Sprintf("Are you sure you want to delete %s %s?", resourceType, resourceID)
 	if !ConfirmPrompt(message, noColor) {
 		output.PrintInfo("Deletion cancelled", noColor)
-		return false, exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
+		return false, exitcodes.New(exitcodes.Cancelled, errors.New("cancelled by user"))
 	}
 	return true, nil
 }

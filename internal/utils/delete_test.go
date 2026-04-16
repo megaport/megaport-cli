@@ -18,6 +18,7 @@ func TestConfirmDelete(t *testing.T) {
 		resourceType  string
 		resourceID    string
 		force         bool
+		noColor       bool
 		confirmResult bool
 		wantConfirmed bool
 		wantErr       bool
@@ -28,6 +29,7 @@ func TestConfirmDelete(t *testing.T) {
 			resourceType:  "Port",
 			resourceID:    "abc-123",
 			force:         true,
+			noColor:       true,
 			wantConfirmed: true,
 		},
 		{
@@ -35,6 +37,7 @@ func TestConfirmDelete(t *testing.T) {
 			resourceType:  "VXC",
 			resourceID:    "vxc-456",
 			force:         false,
+			noColor:       true,
 			confirmResult: true,
 			wantConfirmed: true,
 		},
@@ -43,10 +46,20 @@ func TestConfirmDelete(t *testing.T) {
 			resourceType:  "MCR",
 			resourceID:    "mcr-789",
 			force:         false,
+			noColor:       true,
 			confirmResult: false,
 			wantConfirmed: false,
 			wantErr:       true,
 			wantExitCode:  exitcodes.Cancelled,
+		},
+		{
+			name:          "noColor forwarded to prompt",
+			resourceType:  "MVE",
+			resourceID:    "mve-012",
+			force:         false,
+			noColor:       false,
+			confirmResult: true,
+			wantConfirmed: true,
 		},
 	}
 
@@ -54,13 +67,14 @@ func TestConfirmDelete(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			promptCalled := false
 			expectedMsg := fmt.Sprintf("Are you sure you want to delete %s %s?", tt.resourceType, tt.resourceID)
-			SetConfirmPrompt(func(message string, _ bool) bool {
+			SetConfirmPrompt(func(message string, noColor bool) bool {
 				promptCalled = true
 				assert.Equal(t, expectedMsg, message)
+				assert.Equal(t, tt.noColor, noColor, "noColor should be forwarded to ConfirmPrompt")
 				return tt.confirmResult
 			})
 
-			confirmed, err := ConfirmDelete(tt.resourceType, tt.resourceID, tt.force, true)
+			confirmed, err := ConfirmDelete(tt.resourceType, tt.resourceID, tt.force, tt.noColor)
 
 			assert.Equal(t, tt.wantConfirmed, confirmed)
 
