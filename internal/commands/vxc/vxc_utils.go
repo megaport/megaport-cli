@@ -55,20 +55,32 @@ var getPartnerPortUID = func(ctx context.Context, svc megaport.VXCService, key, 
 var resolvePartnerPortUID = func(ctx context.Context, svc megaport.VXCService, partnerConfig megaport.VXCPartnerConfiguration) (string, error) {
 	switch pc := partnerConfig.(type) {
 	case *megaport.VXCPartnerConfigAzure:
-		if pc.ServiceKey == "" {
+		if pc == nil || pc.ServiceKey == "" {
 			return "", fmt.Errorf("serviceKey is required for Azure configuration")
 		}
-		return getPartnerPortUID(ctx, svc, pc.ServiceKey, "AZURE")
+		uid, err := getPartnerPortUID(ctx, svc, pc.ServiceKey, "AZURE")
+		if err != nil {
+			return "", fmt.Errorf("azure partner port: %w", err)
+		}
+		return uid, nil
 	case *megaport.VXCPartnerConfigGoogle:
-		if pc.PairingKey == "" {
+		if pc == nil || pc.PairingKey == "" {
 			return "", fmt.Errorf("pairingKey is required for Google configuration")
 		}
-		return getPartnerPortUID(ctx, svc, pc.PairingKey, "GOOGLE")
+		uid, err := getPartnerPortUID(ctx, svc, pc.PairingKey, "GOOGLE")
+		if err != nil {
+			return "", fmt.Errorf("google partner port: %w", err)
+		}
+		return uid, nil
 	case *megaport.VXCPartnerConfigOracle:
-		if pc.VirtualCircuitId == "" {
+		if pc == nil || pc.VirtualCircuitId == "" {
 			return "", fmt.Errorf("virtualCircuitId is required for Oracle configuration")
 		}
-		return getPartnerPortUID(ctx, svc, pc.VirtualCircuitId, "ORACLE")
+		uid, err := getPartnerPortUID(ctx, svc, pc.VirtualCircuitId, "ORACLE")
+		if err != nil {
+			return "", fmt.Errorf("oracle partner port: %w", err)
+		}
+		return uid, nil
 	default:
 		return "", nil
 	}
