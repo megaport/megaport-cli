@@ -15,8 +15,8 @@ func TestNativeInitAssignsPasswordPromptFn(t *testing.T) {
 }
 
 func TestNativePasswordPrompt_NonTTYReturnsError(t *testing.T) {
-	// term.ReadPassword fails when stdin is not a terminal, which is the case
-	// under `go test`. Exercising that path covers nativePasswordPrompt.
+	// term.ReadPassword fails when stdin is not a terminal. This test
+	// explicitly replaces os.Stdin with a pipe to exercise that error path.
 	oldStdin, oldStdout := os.Stdin, os.Stdout
 	defer func() { os.Stdin, os.Stdout = oldStdin, oldStdout }()
 
