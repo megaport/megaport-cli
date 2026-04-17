@@ -166,12 +166,7 @@ func TestValidateRateLimit(t *testing.T) {
 }
 
 func TestValidateASN(t *testing.T) {
-	// maxAllowed mirrors the validator's target-specific upper bound so tests
-	// compile and run correctly on both 64-bit and 32-bit targets.
-	maxAllowed := int64(^uint(0) >> 1)
-	if maxAllowed > MaxASN {
-		maxAllowed = MaxASN
-	}
+	maxAllowed := maxSupportedASNForInt()
 
 	tests := []struct {
 		name    string
