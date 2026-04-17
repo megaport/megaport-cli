@@ -105,6 +105,43 @@ func TestApplyDefaultSettings_WarnsOnConfigLoadFailure(t *testing.T) {
 	assert.Contains(t, warnings[0], "Could not load saved default settings")
 }
 
+// TestApplyDefaultSettings_ResolvesQuietVerboseConflict verifies that when
+// saved defaults would enable both --quiet and --verbose (which are declared
+// mutually exclusive on rootCmd), applyDefaultSettings drops one and returns
+// a warning. Covers the case where neither flag was passed on the CLI, so
+// both get applied from config.
+func TestApplyDefaultSettings_ResolvesQuietVerboseConflict(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("MEGAPORT_CONFIG_DIR", dir)
+
+	mgr, err := config.NewConfigManager()
+	require.NoError(t, err)
+	require.NoError(t, mgr.SetDefault("quiet", true))
+	require.NoError(t, mgr.SetDefault("verbose", true))
+
+	defer func() {
+		output.ResetState()
+		quiet = false
+		verbose = false
+		_ = rootCmd.PersistentFlags().Set("quiet", "false")
+		_ = rootCmd.PersistentFlags().Set("verbose", "false")
+	}()
+
+	warnings := applyDefaultSettings(rootCmd)
+
+	assert.True(t, quiet, "quiet should remain set (safer default)")
+	assert.False(t, verbose, "verbose should be dropped to resolve conflict")
+	require.NotEmpty(t, warnings)
+	var found bool
+	for _, w := range warnings {
+		if strings.Contains(w, "--quiet and --verbose") {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected a conflict-resolution warning, got %v", warnings)
+}
+
 func TestExitCodeFromError(t *testing.T) {
 	tests := []struct {
 		name     string

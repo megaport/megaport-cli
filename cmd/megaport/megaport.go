@@ -221,10 +221,36 @@ func applyDefaultSettings(cmd *cobra.Command) []string {
 	applyBool("verbose", &verbose)
 	applyBool("no-pager", &noPager)
 
+	var warnings []string
 	if len(failed) > 0 {
-		return []string{fmt.Sprintf("Could not apply saved defaults for: %s", strings.Join(failed, ", "))}
+		warnings = append(warnings, fmt.Sprintf("Could not apply saved defaults for: %s", strings.Join(failed, ", ")))
 	}
-	return nil
+
+	// --quiet and --verbose are mutually exclusive (see MarkFlagsMutuallyExclusive).
+	// A saved default can combine with a CLI flag (or a manually-edited config
+	// can set both) and bypass cobra's validation. Resolve by preferring the
+	// explicitly-set flag; if both are from config, drop verbose as the safer
+	// default so automation is not unexpectedly chatty.
+	if quiet && verbose {
+		cliQuiet := cmd.Flags().Changed("quiet")
+		cliVerbose := cmd.Flags().Changed("verbose")
+		dropped := "verbose"
+		switch {
+		case cliQuiet && !cliVerbose:
+			verbose = false
+			_ = cmd.Flags().Set("verbose", "false")
+		case cliVerbose && !cliQuiet:
+			quiet = false
+			_ = cmd.Flags().Set("quiet", "false")
+			dropped = "quiet"
+		default:
+			verbose = false
+			_ = cmd.Flags().Set("verbose", "false")
+		}
+		warnings = append(warnings, fmt.Sprintf("Saved defaults set both --quiet and --verbose; dropping --%s", dropped))
+	}
+
+	return warnings
 }
 
 // ExecuteWithArgs adds all child commands to the root command and executes with given args.
