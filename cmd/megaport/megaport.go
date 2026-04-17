@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 
@@ -160,77 +159,58 @@ func init() {
 func applyDefaultSettings(cmd *cobra.Command) {
 	manager, err := config.NewConfigManager()
 	if err != nil {
-		return // Silently continue if config can't be loaded
+		output.PrintWarning("Could not load saved default settings: %v", noColor, err)
+		return
 	}
 
-	// Apply "no-color" default
-	if !cmd.Flags().Changed("no-color") {
-		if val, exists := manager.GetDefault("no-color"); exists {
-			if boolVal, ok := val.(bool); ok {
-				err := cmd.Flags().Set("no-color", fmt.Sprintf("%t", boolVal))
-				if err != nil {
-					log.Printf("Error setting no-color flag: %v\n", err)
-					return
-				}
-				noColor = boolVal
-			}
+	var failed []string
+
+	applyBool := func(flag string, target *bool) {
+		if cmd.Flags().Changed(flag) {
+			return
 		}
-
-	}
-
-	// Apply "output" default
-	if !cmd.Flags().Changed("output") {
-		if val, exists := manager.GetDefault("output"); exists {
-			if strVal, ok := val.(string); ok {
-				err := cmd.Flags().Set("output", strVal)
-				if err != nil {
-					log.Printf("Error setting output flag: %v\n", err)
-					return
-				}
-			}
+		val, exists := manager.GetDefault(flag)
+		if !exists {
+			return
+		}
+		boolVal, ok := val.(bool)
+		if !ok {
+			return
+		}
+		if setErr := cmd.Flags().Set(flag, fmt.Sprintf("%t", boolVal)); setErr != nil {
+			failed = append(failed, flag)
+			return
+		}
+		if target != nil {
+			*target = boolVal
 		}
 	}
 
-	// Apply "quiet" default
-	if !cmd.Flags().Changed("quiet") {
-		if val, exists := manager.GetDefault("quiet"); exists {
-			if boolVal, ok := val.(bool); ok {
-				err := cmd.Flags().Set("quiet", fmt.Sprintf("%t", boolVal))
-				if err != nil {
-					log.Printf("Error setting quiet flag: %v\n", err)
-					return
-				}
-				quiet = boolVal
-			}
+	applyString := func(flag string) {
+		if cmd.Flags().Changed(flag) {
+			return
+		}
+		val, exists := manager.GetDefault(flag)
+		if !exists {
+			return
+		}
+		strVal, ok := val.(string)
+		if !ok {
+			return
+		}
+		if setErr := cmd.Flags().Set(flag, strVal); setErr != nil {
+			failed = append(failed, flag)
 		}
 	}
 
-	// Apply "verbose" default
-	if !cmd.Flags().Changed("verbose") {
-		if val, exists := manager.GetDefault("verbose"); exists {
-			if boolVal, ok := val.(bool); ok {
-				err := cmd.Flags().Set("verbose", fmt.Sprintf("%t", boolVal))
-				if err != nil {
-					log.Printf("Error setting verbose flag: %v\n", err)
-					return
-				}
-				verbose = boolVal
-			}
-		}
-	}
+	applyBool("no-color", &noColor)
+	applyString("output")
+	applyBool("quiet", &quiet)
+	applyBool("verbose", &verbose)
+	applyBool("no-pager", &noPager)
 
-	// Apply "no-pager" default
-	if !cmd.Flags().Changed("no-pager") {
-		if val, exists := manager.GetDefault("no-pager"); exists {
-			if boolVal, ok := val.(bool); ok {
-				err := cmd.Flags().Set("no-pager", fmt.Sprintf("%t", boolVal))
-				if err != nil {
-					log.Printf("Error setting no-pager flag: %v\n", err)
-					return
-				}
-				noPager = boolVal
-			}
-		}
+	if len(failed) > 0 {
+		output.PrintWarning("Could not apply saved defaults for: %s", noColor, strings.Join(failed, ", "))
 	}
 }
 

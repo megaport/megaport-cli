@@ -5,6 +5,8 @@ package megaport
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -79,6 +81,30 @@ func TestNoPagerDefaultApplied(t *testing.T) {
 	assert.True(t, noPager, "noPager package var should be true after config default is applied")
 	// Assert the output package was notified (output.SetNoPager wiring path).
 	assert.True(t, output.GetNoPager(), "output.GetNoPager() should be true after PersistentPreRunE wires SetNoPager")
+}
+
+// TestApplyDefaultSettings_WarnsOnConfigLoadFailure verifies that when
+// NewConfigManager fails (e.g. the configured config dir cannot be created),
+// applyDefaultSettings emits a visible warning instead of returning silently.
+func TestApplyDefaultSettings_WarnsOnConfigLoadFailure(t *testing.T) {
+	// Create a temp file, then point MEGAPORT_CONFIG_DIR at a subpath of it.
+	// os.MkdirAll will fail because the parent is a regular file, forcing
+	// NewConfigManager to return an error.
+	parent := filepath.Join(t.TempDir(), "not-a-dir")
+	require.NoError(t, os.WriteFile(parent, []byte("x"), 0600))
+	t.Setenv("MEGAPORT_CONFIG_DIR", filepath.Join(parent, "child"))
+
+	defer func() {
+		output.ResetState()
+		noColor = false
+		_ = rootCmd.PersistentFlags().Set("no-color", "false")
+	}()
+
+	// PrintWarning writes to stdout in non-json output format; capture stdout.
+	captured := output.CaptureOutput(func() {
+		applyDefaultSettings(rootCmd)
+	})
+	assert.Contains(t, captured, "Could not load saved default settings")
 }
 
 func TestExitCodeFromError(t *testing.T) {
