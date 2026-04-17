@@ -85,7 +85,7 @@ func TestNoPagerDefaultApplied(t *testing.T) {
 
 // TestApplyDefaultSettings_WarnsOnConfigLoadFailure verifies that when
 // NewConfigManager fails (e.g. the configured config dir cannot be created),
-// applyDefaultSettings emits a visible warning instead of returning silently.
+// applyDefaultSettings returns a warning message instead of silently skipping.
 func TestApplyDefaultSettings_WarnsOnConfigLoadFailure(t *testing.T) {
 	// Create a temp file, then point MEGAPORT_CONFIG_DIR at a subpath of it.
 	// os.MkdirAll will fail because the parent is a regular file, forcing
@@ -100,11 +100,9 @@ func TestApplyDefaultSettings_WarnsOnConfigLoadFailure(t *testing.T) {
 		t.Fatal("expected NewConfigManager to fail when config dir cannot be created")
 	}
 
-	// PrintWarning writes to stdout in the default (non-json) output format.
-	captured := output.CaptureOutput(func() {
-		applyDefaultSettings(rootCmd)
-	})
-	assert.Contains(t, captured, "Could not load saved default settings")
+	warnings := applyDefaultSettings(rootCmd)
+	require.Len(t, warnings, 1)
+	assert.Contains(t, warnings[0], "Could not load saved default settings")
 }
 
 func TestExitCodeFromError(t *testing.T) {

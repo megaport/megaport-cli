@@ -25,7 +25,7 @@ func init() {
 
 	// Apply non-WASM specific initialization
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		applyDefaultSettings(cmd)
+		defaultWarnings := applyDefaultSettings(cmd)
 
 		// Auto-disable color when stdout is not a TTY (piped output)
 		if !cmd.Flags().Changed("no-color") && !output.IsTerminal() {
@@ -47,6 +47,7 @@ func init() {
 			return fmt.Errorf("invalid output format: %s. Must be one of: %s",
 				outputFormat, strings.Join(utils.ValidFormats, ", "))
 		}
+		output.SetOutputFormat(format)
 
 		// Set verbosity level based on flags
 		if quiet {
@@ -55,6 +56,13 @@ func init() {
 			output.SetVerbosity("verbose")
 		} else {
 			output.SetVerbosity("normal")
+		}
+
+		// Emit config-default warnings now that output format and verbosity are
+		// configured, so PrintWarning routes to stderr under --output json and
+		// is suppressed under --quiet.
+		for _, w := range defaultWarnings {
+			output.PrintWarning("%s", noColor, w)
 		}
 
 		// Validate retry flags
@@ -155,12 +163,14 @@ func init() {
 	moduleRegistry.RegisterAll(rootCmd)
 }
 
-// Apply defaults from config to command flags
-func applyDefaultSettings(cmd *cobra.Command) {
+// applyDefaultSettings reads saved defaults from config and applies them to
+// cmd's flags. It returns a list of warning messages to emit later (after the
+// caller has configured output format and verbosity) so that warnings are
+// routed and suppressed correctly under --output json / --quiet.
+func applyDefaultSettings(cmd *cobra.Command) []string {
 	manager, err := config.NewConfigManager()
 	if err != nil {
-		output.PrintWarning("Could not load saved default settings: %v", noColor, err)
-		return
+		return []string{fmt.Sprintf("Could not load saved default settings: %v", err)}
 	}
 
 	var failed []string
@@ -212,8 +222,9 @@ func applyDefaultSettings(cmd *cobra.Command) {
 	applyBool("no-pager", &noPager)
 
 	if len(failed) > 0 {
-		output.PrintWarning("Could not apply saved defaults for: %s", noColor, strings.Join(failed, ", "))
+		return []string{fmt.Sprintf("Could not apply saved defaults for: %s", strings.Join(failed, ", "))}
 	}
+	return nil
 }
 
 // ExecuteWithArgs adds all child commands to the root command and executes with given args.
