@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	passwordPromptFn = nativePasswordPrompt
+	SetPasswordPrompt(nativePasswordPrompt)
 }
 
 func nativePasswordPrompt(msg string, noColor bool) (string, error) {
