@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/fatih/color"
-	"golang.org/x/term"
 )
 
 // promptFuncMu guards all prompt function pointers.
@@ -108,20 +107,9 @@ var resourcePromptFn = func(resourceType string, msg string, noColor bool) (stri
 	return strings.TrimSpace(input), nil
 }
 
-var passwordPromptFn = func(msg string, noColor bool) (string, error) {
-	if !noColor {
-		fmt.Print(color.New(color.FgHiRed, color.Bold).Sprint("🔒 " + msg + " "))
-	} else {
-		fmt.Print("🔒 " + msg + " ")
-	}
-
-	password, err := term.ReadPassword(int(os.Stdin.Fd()))
-	fmt.Println() // newline after masked input
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(password)), nil
-}
+// passwordPromptFn is set by the platform-specific init in prompts_native.go
+// (native terminal) or prompts_wasm.go (browser).
+var passwordPromptFn func(msg string, noColor bool) (string, error)
 
 var resourceTagsPromptFn = func(noColor bool) (map[string]string, error) {
 	addTags := ConfirmPrompt("Would you like to add resource tags?", noColor)
