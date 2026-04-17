@@ -215,6 +215,13 @@ func applyDefaultSettings(cmd *cobra.Command) []string {
 		}
 	}
 
+	// Capture which flags the user set on the CLI before applying defaults,
+	// because cmd.Flags().Set (called inside applyBool) marks a flag as Changed
+	// regardless of origin — we can't distinguish CLI-set from config-set after
+	// the fact.
+	cliQuiet := cmd.Flags().Changed("quiet")
+	cliVerbose := cmd.Flags().Changed("verbose")
+
 	applyBool("no-color", &noColor)
 	applyString("output")
 	applyBool("quiet", &quiet)
@@ -232,8 +239,6 @@ func applyDefaultSettings(cmd *cobra.Command) []string {
 	// explicitly-set flag; if both are from config, drop verbose as the safer
 	// default so automation is not unexpectedly chatty.
 	if quiet && verbose {
-		cliQuiet := cmd.Flags().Changed("quiet")
-		cliVerbose := cmd.Flags().Changed("verbose")
 		dropped := "verbose"
 		switch {
 		case cliQuiet && !cliVerbose:

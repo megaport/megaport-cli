@@ -142,6 +142,37 @@ func TestApplyDefaultSettings_ResolvesQuietVerboseConflict(t *testing.T) {
 	assert.True(t, found, "expected a conflict-resolution warning, got %v", warnings)
 }
 
+// TestApplyDefaultSettings_CLIVerboseOverridesConfigQuiet verifies that when
+// the user passes --verbose on the CLI and a saved default also sets quiet,
+// the CLI flag wins. Regression test for a bug where the conflict resolver
+// read cmd.Flags().Changed *after* applying defaults, which always reported
+// true and caused the CLI-provided flag to be dropped instead of the config one.
+func TestApplyDefaultSettings_CLIVerboseOverridesConfigQuiet(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("MEGAPORT_CONFIG_DIR", dir)
+
+	mgr, err := config.NewConfigManager()
+	require.NoError(t, err)
+	require.NoError(t, mgr.SetDefault("quiet", true))
+
+	defer func() {
+		output.ResetState()
+		quiet = false
+		verbose = false
+		_ = rootCmd.PersistentFlags().Set("quiet", "false")
+		_ = rootCmd.PersistentFlags().Set("verbose", "false")
+	}()
+
+	// Simulate the user passing --verbose on the CLI.
+	require.NoError(t, rootCmd.PersistentFlags().Set("verbose", "true"))
+	verbose = true
+
+	_ = applyDefaultSettings(rootCmd)
+
+	assert.True(t, verbose, "CLI-set --verbose should win over config quiet")
+	assert.False(t, quiet, "config-sourced quiet should be dropped when CLI set verbose")
+}
+
 func TestExitCodeFromError(t *testing.T) {
 	tests := []struct {
 		name     string
