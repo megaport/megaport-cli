@@ -190,22 +190,36 @@ func ValidateRateLimit(rateLimit int) error {
 	return nil
 }
 
-// ValidateASN validates if an ASN (Autonomous System Number) is within the valid 32-bit range.
+// maxSupportedASNForInt returns the largest ASN value representable by the
+// current build target's int type, capped at MaxASN. On 64-bit targets this
+// is MaxASN (4294967295); on 32-bit targets (e.g. js/wasm) it is math.MaxInt32.
+func maxSupportedASNForInt() int64 {
+	maxInt := int64(^uint(0) >> 1)
+	if maxInt < MaxASN {
+		return maxInt
+	}
+	return MaxASN
+}
+
+// ValidateASN validates if an ASN (Autonomous System Number) is within the
+// supported range for the current build target.
 //
 // Parameters:
 //   - asn: The ASN to validate
 //
 // Validation checks:
-//   - ASN must be between MinASN (1) and MaxASN (4294967295) inclusive
+//   - ASN must be between MinASN (1) and the lesser of MaxASN (4294967295)
+//     and the current target's maximum int value, inclusive.
 //
 // Returns:
 //   - A ValidationError if the ASN is not valid
 //   - nil if the validation passes
 func ValidateASN(asn int) error {
 	v := int64(asn)
-	if v < MinASN || v > MaxASN {
+	maxASN := maxSupportedASNForInt()
+	if v < MinASN || v > maxASN {
 		return NewValidationError("ASN", asn,
-			fmt.Sprintf("must be between %d and %d", MinASN, MaxASN))
+			fmt.Sprintf("must be between %d and %d", MinASN, maxASN))
 	}
 	return nil
 }

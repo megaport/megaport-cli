@@ -166,6 +166,13 @@ func TestValidateRateLimit(t *testing.T) {
 }
 
 func TestValidateASN(t *testing.T) {
+	// maxAllowed mirrors the validator's target-specific upper bound so tests
+	// compile and run correctly on both 64-bit and 32-bit targets.
+	maxAllowed := int64(^uint(0) >> 1)
+	if maxAllowed > MaxASN {
+		maxAllowed = MaxASN
+	}
+
 	tests := []struct {
 		name    string
 		asn     int
@@ -175,8 +182,25 @@ func TestValidateASN(t *testing.T) {
 		{"Valid min ASN", int(MinASN), false, ""},
 		{"Valid typical ASN", 65000, false, ""},
 		{"Valid 4-byte ASN", 400000, false, ""},
-		{"Invalid zero", 0, true, fmt.Sprintf("Invalid ASN: 0 - must be between %d and %d", MinASN, MaxASN)},
-		{"Invalid negative", -1, true, fmt.Sprintf("Invalid ASN: -1 - must be between %d and %d", MinASN, MaxASN)},
+		{"Valid max ASN", int(maxAllowed), false, ""},
+		{"Invalid zero", 0, true, fmt.Sprintf("Invalid ASN: 0 - must be between %d and %d", MinASN, maxAllowed)},
+		{"Invalid negative", -1, true, fmt.Sprintf("Invalid ASN: -1 - must be between %d and %d", MinASN, maxAllowed)},
+	}
+
+	// Only test "max+1" when the next int value is representable on this target.
+	if maxAllowed < int64(^uint(0)>>1) {
+		overflow := int(maxAllowed) + 1
+		tests = append(tests, struct {
+			name    string
+			asn     int
+			wantErr bool
+			errText string
+		}{
+			"Invalid max ASN plus one",
+			overflow,
+			true,
+			fmt.Sprintf("Invalid ASN: %d - must be between %d and %d", overflow, MinASN, maxAllowed),
+		})
 	}
 
 	for _, tt := range tests {
