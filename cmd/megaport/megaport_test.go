@@ -94,13 +94,13 @@ func TestApplyDefaultSettings_WarnsOnConfigLoadFailure(t *testing.T) {
 	require.NoError(t, os.WriteFile(parent, []byte("x"), 0600))
 	t.Setenv("MEGAPORT_CONFIG_DIR", filepath.Join(parent, "child"))
 
-	defer func() {
-		output.ResetState()
-		noColor = false
-		_ = rootCmd.PersistentFlags().Set("no-color", "false")
-	}()
+	// Guard against drift in NewConfigManager: if it ever stops returning an
+	// error for this scenario, the warning assertion below would pass vacuously.
+	if _, err := config.NewConfigManager(); err == nil {
+		t.Fatal("expected NewConfigManager to fail when config dir cannot be created")
+	}
 
-	// PrintWarning writes to stdout in non-json output format; capture stdout.
+	// PrintWarning writes to stdout in the default (non-json) output format.
 	captured := output.CaptureOutput(func() {
 		applyDefaultSettings(rootCmd)
 	})

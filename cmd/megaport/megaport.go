@@ -173,6 +173,8 @@ func applyDefaultSettings(cmd *cobra.Command) {
 		if !exists {
 			return
 		}
+		// Type mismatches (e.g. a string where a bool is expected) are treated
+		// as absent so a stray manual edit to config.json does not block the CLI.
 		boolVal, ok := val.(bool)
 		if !ok {
 			return
