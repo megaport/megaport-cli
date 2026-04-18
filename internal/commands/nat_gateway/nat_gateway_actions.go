@@ -351,8 +351,9 @@ func DeleteNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 
 	uid := args[0]
 	force, _ := cmd.Flags().GetBool("force")
+	yes, _ := cmd.Flags().GetBool("yes")
 
-	if !force {
+	if !force && !yes {
 		if !utils.ConfirmPrompt("Are you sure you want to delete NAT Gateway "+uid+"? ", noColor) {
 			output.PrintInfo("Deletion cancelled", noColor)
 			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))

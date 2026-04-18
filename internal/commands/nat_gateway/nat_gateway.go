@@ -115,6 +115,7 @@ func buildNATGatewayCommands(rootCmd *cobra.Command) (get, list, create, update,
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(DeleteNATGateway).
 		WithBoolFlag("force", false, "Skip the confirmation prompt").
+		WithBoolFlag("yes", false, "Skip the confirmation prompt (alias of --force)").
 		WithLongDesc("Delete a NAT Gateway.\n\nThis command deletes an existing NAT Gateway by its product UID.").
 		WithExample("megaport-cli nat-gateway delete a1b2c3d4-e5f6-7890-1234-567890abcdef").
 		WithExample("megaport-cli nat-gateway delete a1b2c3d4-e5f6-7890-1234-567890abcdef --force").
