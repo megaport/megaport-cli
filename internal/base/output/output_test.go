@@ -1444,7 +1444,9 @@ func TestDefaultOutputConfig_Values(t *testing.T) {
 
 // TestSetConfig_AppliesAllFields verifies that SetConfig writes every field
 // of the struct to the backing package-level state. NoPager is covered in
-// pager_test.go because its getter is native-only.
+// pager_test.go because pager state is native-only — the WASM build
+// provides stub SetNoPager (no-op) and GetNoPager (always false)
+// implementations, so a round-trip assertion is only meaningful on native.
 func TestSetConfig_AppliesAllFields(t *testing.T) {
 	t.Cleanup(ResetState)
 

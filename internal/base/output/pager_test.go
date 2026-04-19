@@ -143,9 +143,10 @@ func TestSetNoPager_RoundTrip(t *testing.T) {
 }
 
 // TestSetConfig_NoPager covers the NoPager field of SetConfig on native
-// builds. The field is separated from the main SetConfig test because
-// GetNoPager / getNoPager are not defined in WASM builds (SetNoPager is a
-// no-op there).
+// builds. This file is guarded by //go:build !wasm because pager state is
+// native-only: WASM provides stub SetNoPager (no-op) and GetNoPager
+// (always false) implementations, so a round-trip assertion only exercises
+// real state on native.
 func TestSetConfig_NoPager(t *testing.T) {
 	t.Cleanup(ResetState)
 
