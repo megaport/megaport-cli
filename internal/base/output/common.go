@@ -23,10 +23,11 @@ var (
 )
 
 // SetOutputFields sets the field filter applied by all PrintOutput calls.
-// Only fields whose json tag name or header display name (case-insensitive) appears
-// in fields will be included in output. Pass nil to restore full output (all fields).
-// This function is goroutine-safe. Tests should call defer SetOutputFields(nil) to
-// reset state between test cases.
+// Only fields whose json tag name or header display name (case-insensitive)
+// appears in fields will be included in output. Passing nil or an empty
+// slice restores full output (all fields). This function is goroutine-safe.
+// Tests should call defer SetOutputFields(nil) to reset state between
+// test cases.
 //
 // The slice is copied before being stored, so callers may mutate or reuse
 // the backing array after the call returns without affecting the filter.

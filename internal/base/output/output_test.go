@@ -1496,6 +1496,38 @@ func TestSetConfig_ZeroValueClearsState(t *testing.T) {
 	assert.False(t, IsQuiet())
 }
 
+// TestSetOutputFields_CopiesInputSlice verifies that SetOutputFields does
+// not retain the caller's slice header. Mutating the original slice after
+// the call must not affect the stored filter, otherwise concurrent readers
+// of getOutputFields could observe a torn update.
+func TestSetOutputFields_CopiesInputSlice(t *testing.T) {
+	t.Cleanup(ResetState)
+
+	original := []string{"uid", "name"}
+	SetOutputFields(original)
+
+	original[0] = "mutated"
+	original[1] = "also-mutated"
+
+	assert.Equal(t, []string{"uid", "name"}, getOutputFields())
+}
+
+// TestSetConfig_CopiesFieldsSlice is the SetConfig equivalent of the above
+// — the defensive copy must also apply when Fields is passed via
+// OutputConfig, since the SetConfig godoc promises callers can reuse the
+// backing array after the call returns.
+func TestSetConfig_CopiesFieldsSlice(t *testing.T) {
+	t.Cleanup(ResetState)
+
+	original := []string{"uid", "name"}
+	SetConfig(OutputConfig{Fields: original})
+
+	original[0] = "mutated"
+	original[1] = "also-mutated"
+
+	assert.Equal(t, []string{"uid", "name"}, getOutputFields())
+}
+
 // TestResetState_ViaDefaultOutputConfig verifies that ResetState restores
 // the documented defaults after every field has been set to a non-default
 // value. This protects against a future SetConfig change that forgets to
