@@ -125,17 +125,55 @@ func getNoHeader() bool {
 	return noHeader
 }
 
+// OutputConfig bundles every field that the package-level setters accept.
+// Callers that need to apply several settings at once (most notably the
+// WASM entry point on re-invocation and test cleanup helpers) can assemble
+// an OutputConfig and pass it to SetConfig rather than calling each setter
+// by hand. The individual setters remain the primary API; SetConfig is a
+// convenience on top of them.
+//
+// SetConfig writes every field verbatim — there is no "leave unchanged"
+// sentinel. Callers that want defaults should start from
+// DefaultOutputConfig() and override the fields they care about.
+type OutputConfig struct {
+	// Fields is stored by reference by SetOutputFields; callers must not
+	// mutate the backing array after passing it through SetConfig.
+	Fields   []string
+	Query    string
+	NoHeader bool
+	NoPager  bool
+	Template string
+	Format   string
+	// Verbosity is one of "normal", "quiet", or "verbose".
+	Verbosity string
+}
+
+// DefaultOutputConfig returns the defaults that ResetState applies.
+func DefaultOutputConfig() OutputConfig {
+	return OutputConfig{Format: "table", Verbosity: "normal"}
+}
+
+// SetConfig applies every field of c by delegating to the individual
+// setters. Because each setter uses its own lock, SetConfig is not atomic
+// across fields — concurrent readers may observe a partial update.
+// Callers should invoke SetConfig from the main goroutine before spawning
+// work, which matches how the flag-driven RunE wrappers already use the
+// individual setters.
+func SetConfig(c OutputConfig) {
+	SetOutputFields(c.Fields)
+	SetOutputQuery(c.Query)
+	SetNoHeader(c.NoHeader)
+	SetNoPager(c.NoPager)
+	SetTemplateString(c.Template)
+	SetOutputFormat(c.Format)
+	SetVerbosity(c.Verbosity)
+}
+
 // ResetState clears all package-level output configuration back to defaults.
 // Intended for callers such as the WASM entry point that must ensure all
 // output-related global state does not bleed between invocations.
 func ResetState() {
-	SetOutputFields(nil)
-	SetOutputQuery("")
-	SetNoHeader(false)
-	SetNoPager(false)
-	SetTemplateString("")
-	SetOutputFormat("table")
-	SetVerbosity("normal")
+	SetConfig(DefaultOutputConfig())
 }
 
 // applyJMESPath applies a JMESPath query to v and returns the result.

@@ -24,14 +24,38 @@ const (
 	StatusDecommissioning = "DECOMMISSIONING"
 )
 
+// These persistent-flag variables are written by cobra during flag parsing
+// on the main goroutine (via PersistentFlags().<T>Var(&utils.X, ...)) and
+// read later while the command runs. They are intentionally plain types
+// rather than sync/atomic wrappers because pflag binds to *string, *bool
+// and *int — switching to atomics would require per-flag pflag.Value shims
+// and break every test that assigns these directly (see auth/login tests).
+//
+// The safety argument rests on a strict happens-before ordering *per
+// invocation*:
+//  1. cmd.Execute() parses flags and writes each variable on the main goroutine.
+//  2. Only after parsing completes does cobra invoke PersistentPreRunE /
+//     RunE, which may spawn background work (spinners, API retry loops).
+//  3. Nothing writes these variables again until the command returns and
+//     all spawned work has been joined, so concurrent readers within a
+//     single invocation always observe the parsed value.
+//
+// In the long-lived WASM process each subsequent command re-enters this
+// sequence: flags are re-parsed on the main goroutine only after the
+// previous invocation has fully returned, so the per-invocation invariant
+// holds across re-entries too.
+//
+// If a future caller needs to mutate any of these at runtime (for example:
+// re-login with a new profile mid-command, toggle LogHTTP after a
+// suspicious response, or adjust MaxRetries between API calls), introduce
+// an atomic snapshot rather than mutating the globals — the set-once
+// invariant is what makes plain variables acceptable here, and it applies
+// equally to every variable in this block.
 var (
-	// Env is the target environment (prod, dev, staging). Set once via flag
-	// binding before command execution; read during login. Not protected by
-	// a mutex because cobra flag parsing and command execution are sequential
-	// on the main goroutine.
+	// Env is the target environment (prod, dev, staging).
 	Env string
 
-	// ProfileOverride is the config profile name. Same set-once semantics as Env.
+	// ProfileOverride is the config profile name selected via --profile.
 	ProfileOverride string
 
 	// NoRetry disables automatic retry on transient API failures. Set via --no-retry flag.
