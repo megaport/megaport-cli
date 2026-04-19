@@ -27,10 +27,17 @@ var (
 // in fields will be included in output. Pass nil to restore full output (all fields).
 // This function is goroutine-safe. Tests should call defer SetOutputFields(nil) to
 // reset state between test cases.
+//
+// The slice is copied before being stored, so callers may mutate or reuse
+// the backing array after the call returns without affecting the filter.
 func SetOutputFields(fields []string) {
 	outputFieldsMu.Lock()
 	defer outputFieldsMu.Unlock()
-	outputFields = fields
+	if fields == nil {
+		outputFields = nil
+		return
+	}
+	outputFields = append([]string(nil), fields...)
 }
 
 // getOutputFields returns a copy of the current field filter under a read lock.
@@ -136,8 +143,10 @@ func getNoHeader() bool {
 // sentinel. Callers that want defaults should start from
 // DefaultOutputConfig() and override the fields they care about.
 type OutputConfig struct {
-	// Fields is stored by reference by SetOutputFields; callers must not
-	// mutate the backing array after passing it through SetConfig.
+	// Fields is the list of field names (json tag or header display name,
+	// case-insensitive) to include in output. Nil or empty means all fields.
+	// The slice is copied by SetOutputFields, so callers may reuse the
+	// backing array after SetConfig returns.
 	Fields   []string
 	Query    string
 	NoHeader bool
@@ -154,11 +163,12 @@ func DefaultOutputConfig() OutputConfig {
 }
 
 // SetConfig applies every field of c by delegating to the individual
-// setters. Because each setter uses its own lock, SetConfig is not atomic
-// across fields — concurrent readers may observe a partial update.
-// Callers should invoke SetConfig from the main goroutine before spawning
-// work, which matches how the flag-driven RunE wrappers already use the
-// individual setters.
+// setters. Those setters use a mix of per-field mutexes (Fields, Query,
+// NoHeader, NoPager, Template) and atomic.Value (Format, Verbosity), so
+// SetConfig is not atomic across fields — concurrent readers may observe
+// a partial update. Callers should invoke SetConfig from the main
+// goroutine before spawning work, which matches how the flag-driven RunE
+// wrappers already use the individual setters.
 func SetConfig(c OutputConfig) {
 	SetOutputFields(c.Fields)
 	SetOutputQuery(c.Query)
