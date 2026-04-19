@@ -142,6 +142,20 @@ func TestSetNoPager_RoundTrip(t *testing.T) {
 	assert.False(t, getNoPager())
 }
 
+// TestSetConfig_NoPager covers the NoPager field of SetConfig on native
+// builds. The field is separated from the main SetConfig test because
+// GetNoPager / getNoPager are not defined in WASM builds (SetNoPager is a
+// no-op there).
+func TestSetConfig_NoPager(t *testing.T) {
+	t.Cleanup(ResetState)
+
+	SetConfig(OutputConfig{NoPager: true})
+	assert.True(t, GetNoPager())
+
+	SetConfig(OutputConfig{NoPager: false})
+	assert.False(t, GetNoPager())
+}
+
 // TestRunWithPager_NoTrailingNewline verifies that output without a trailing
 // newline is not silently dropped. countLines must count the partial final
 // line so the pager decision is correct.
