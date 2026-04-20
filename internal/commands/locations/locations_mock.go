@@ -28,6 +28,8 @@ type MockLocationsService struct {
 
 	FilterLocationsByMetroV3Result []*megaport.LocationV3
 
+	FilterLocationsByNATGatewaySpeedV3Result []*megaport.LocationV3
+
 	// V2 methods
 	ListLocationsResult []*megaport.Location
 	ListLocationsErr    error
@@ -114,6 +116,10 @@ func (m *MockLocationsService) FilterLocationsByMcrAvailabilityV3(ctx context.Co
 
 func (m *MockLocationsService) FilterLocationsByMetroV3(ctx context.Context, metro string, locations []*megaport.LocationV3) []*megaport.LocationV3 {
 	return m.FilterLocationsByMetroV3Result
+}
+
+func (m *MockLocationsService) FilterLocationsByNATGatewaySpeedV3(ctx context.Context, speedMbps int, locations []*megaport.LocationV3) []*megaport.LocationV3 {
+	return m.FilterLocationsByNATGatewaySpeedV3Result
 }
 
 // Shared methods
