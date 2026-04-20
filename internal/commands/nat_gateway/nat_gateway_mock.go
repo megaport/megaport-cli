@@ -21,12 +21,18 @@ type MockNATGatewayService struct {
 	SessionsErr     error
 	TelemetryResult *megaport.ServiceTelemetryResponse
 	TelemetryErr    error
+	BuyResult      *megaport.NATGatewayBuyResult
+	BuyErr         error
+	ValidateResult *megaport.NATGatewayValidateResult
+	ValidateErr    error
 
 	CapturedCreateReq    *megaport.CreateNATGatewayRequest
 	CapturedUpdateReq    *megaport.UpdateNATGatewayRequest
 	CapturedDeleteUID    string
 	CapturedGetUID       string
 	CapturedTelemetryReq *megaport.GetNATGatewayTelemetryRequest
+	CapturedBuyUID      string
+	CapturedValidateUID string
 }
 
 func (m *MockNATGatewayService) CreateNATGateway(ctx context.Context, req *megaport.CreateNATGatewayRequest) (*megaport.NATGateway, error) {
@@ -92,6 +98,28 @@ func (m *MockNATGatewayService) GetNATGatewayTelemetry(ctx context.Context, req 
 	return &megaport.ServiceTelemetryResponse{}, nil
 }
 
+func (m *MockNATGatewayService) ValidateNATGatewayOrder(ctx context.Context, productUID string) (*megaport.NATGatewayValidateResult, error) {
+	m.CapturedValidateUID = productUID
+	if m.ValidateErr != nil {
+		return nil, m.ValidateErr
+	}
+	if m.ValidateResult != nil {
+		return m.ValidateResult, nil
+	}
+	return &megaport.NATGatewayValidateResult{ProductUID: productUID}, nil
+}
+
+func (m *MockNATGatewayService) BuyNATGateway(ctx context.Context, productUID string) (*megaport.NATGatewayBuyResult, error) {
+	m.CapturedBuyUID = productUID
+	if m.BuyErr != nil {
+		return nil, m.BuyErr
+	}
+	if m.BuyResult != nil {
+		return m.BuyResult, nil
+	}
+	return &megaport.NATGatewayBuyResult{ProductUID: productUID}, nil
+}
+
 func (m *MockNATGatewayService) Reset() {
 	m.CreateResult = nil
 	m.CreateErr = nil
@@ -106,6 +134,12 @@ func (m *MockNATGatewayService) Reset() {
 	m.SessionsErr = nil
 	m.TelemetryResult = nil
 	m.TelemetryErr = nil
+	m.BuyResult = nil
+	m.BuyErr = nil
+	m.ValidateResult = nil
+	m.ValidateErr = nil
+	m.CapturedBuyUID = ""
+	m.CapturedValidateUID = ""
 	m.CapturedCreateReq = nil
 	m.CapturedUpdateReq = nil
 	m.CapturedDeleteUID = ""
