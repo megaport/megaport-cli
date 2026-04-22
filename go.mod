@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/charmbracelet/glamour v1.0.0
 	github.com/fatih/color v1.19.0
-	github.com/jedib0t/go-pretty/v6 v6.7.9
+	github.com/jedib0t/go-pretty/v6 v6.7.10
 	github.com/jmespath/go-jmespath v0.4.0
 	github.com/megaport/megaportgo v1.7.2
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d
