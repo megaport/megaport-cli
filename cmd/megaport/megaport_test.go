@@ -84,11 +84,12 @@ func TestNoPagerDefaultApplied(t *testing.T) {
 // resetVerbosityFlags resets the quiet/verbose package vars, their cobra flag
 // values, and — critically — their Changed state so the mutually-exclusive
 // group check does not fire on subsequent tests that share the global rootCmd.
-func resetVerbosityFlags() {
+func resetVerbosityFlags(t *testing.T) {
+	t.Helper()
 	quiet = false
 	verbose = false
 	for _, name := range []string{"quiet", "verbose"} {
-		_ = rootCmd.PersistentFlags().Set(name, "false")
+		require.NoError(t, rootCmd.PersistentFlags().Set(name, "false"))
 		if f := rootCmd.PersistentFlags().Lookup(name); f != nil {
 			f.Changed = false
 		}
@@ -100,7 +101,7 @@ func resetVerbosityFlags() {
 func TestQuietFlagWiredThroughPersistentPreRunE(t *testing.T) {
 	defer func() {
 		output.ResetState()
-		resetVerbosityFlags()
+		resetVerbosityFlags(t)
 	}()
 	rootCmd.SetArgs([]string{"version", "--quiet"})
 	_ = output.CaptureOutput(func() {
@@ -115,7 +116,7 @@ func TestQuietFlagWiredThroughPersistentPreRunE(t *testing.T) {
 func TestVerboseFlagWiredThroughPersistentPreRunE(t *testing.T) {
 	defer func() {
 		output.ResetState()
-		resetVerbosityFlags()
+		resetVerbosityFlags(t)
 	}()
 	rootCmd.SetArgs([]string{"version", "--verbose"})
 	_ = output.CaptureOutput(func() {
