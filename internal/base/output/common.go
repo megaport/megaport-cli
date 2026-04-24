@@ -38,13 +38,22 @@ var (
 )
 
 // ApplyOutputConfig atomically replaces the entire output configuration.
+// Fields is deep-copied before storing so that mutations to the caller's slice
+// cannot affect the stored configuration after this call returns.
 func ApplyOutputConfig(cfg OutputConfig) {
+	if cfg.Fields != nil {
+		cp := make([]string, len(cfg.Fields))
+		copy(cp, cfg.Fields)
+		cfg.Fields = cp
+	}
 	outputCfgMu.Lock()
 	defer outputCfgMu.Unlock()
 	outputCfg = cfg
 }
 
 // GetOutputConfig returns a snapshot of the current output configuration.
+// Fields is deep-copied so that mutations to the returned slice cannot affect
+// the stored configuration.
 func GetOutputConfig() OutputConfig {
 	outputCfgMu.RLock()
 	defer outputCfgMu.RUnlock()
@@ -56,30 +65,39 @@ func GetOutputConfig() OutputConfig {
 	return cp
 }
 
+// updateOutputConfig holds the write lock and calls fn to mutate the stored
+// config in place. Use this in single-field Set* shims to avoid the
+// read-modify-write window that snapshot+replace creates.
+func updateOutputConfig(fn func(*OutputConfig)) {
+	outputCfgMu.Lock()
+	defer outputCfgMu.Unlock()
+	fn(&outputCfg)
+}
+
 // SetOutputFields sets the field filter applied by all PrintOutput calls.
-// Pass nil to restore full output (all fields).
+// Pass nil to restore full output (all fields). The slice is deep-copied so
+// subsequent mutations to fields do not affect the stored config.
 func SetOutputFields(fields []string) {
-	cfg := GetOutputConfig()
-	cfg.Fields = fields
-	ApplyOutputConfig(cfg)
+	var cp []string
+	if fields != nil {
+		cp = make([]string, len(fields))
+		copy(cp, fields)
+	}
+	updateOutputConfig(func(c *OutputConfig) { c.Fields = cp })
 }
 
 func getOutputFields() []string { return GetOutputConfig().Fields }
 
 // SetOutputQuery sets the JMESPath query applied by printJSON. Pass "" to disable.
 func SetOutputQuery(query string) {
-	cfg := GetOutputConfig()
-	cfg.Query = query
-	ApplyOutputConfig(cfg)
+	updateOutputConfig(func(c *OutputConfig) { c.Query = query })
 }
 
 func getOutputQuery() string { return GetOutputConfig().Query }
 
 // SetNoHeader sets whether table and CSV output should suppress column headers.
 func SetNoHeader(v bool) {
-	cfg := GetOutputConfig()
-	cfg.NoHeader = v
-	ApplyOutputConfig(cfg)
+	updateOutputConfig(func(c *OutputConfig) { c.NoHeader = v })
 }
 
 func getNoHeader() bool { return GetOutputConfig().NoHeader }
@@ -87,9 +105,7 @@ func getNoHeader() bool { return GetOutputConfig().NoHeader }
 // SetTemplateString sets the Go template string applied by printGoTemplate.
 // Pass "" to disable.
 func SetTemplateString(s string) {
-	cfg := GetOutputConfig()
-	cfg.Template = s
-	ApplyOutputConfig(cfg)
+	updateOutputConfig(func(c *OutputConfig) { c.Template = s })
 }
 
 // GetTemplateString returns the current Go template string.

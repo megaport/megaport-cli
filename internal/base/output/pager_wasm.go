@@ -7,9 +7,7 @@ package output
 // value has no effect in the WASM build because RunWithPager always calls fn
 // directly — there is no terminal and no pager process to spawn.
 func SetNoPager(v bool) {
-	cfg := GetOutputConfig()
-	cfg.NoPager = v
-	ApplyOutputConfig(cfg)
+	updateOutputConfig(func(c *OutputConfig) { c.NoPager = v })
 }
 
 // GetNoPager returns the stored no-pager setting. It may be true if the

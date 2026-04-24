@@ -5,6 +5,7 @@ package megaport
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/base/registry"
@@ -104,6 +105,7 @@ func InitializeCommon() {
 		cfg.NoHeader = noHeader
 		cfg.NoPager = noPager // no-op in WASM pager; keeps flag wiring symmetric with native
 		cfg.Verbosity = verbosity
+		cfg.Format = strings.ToLower(outputFormat)
 		output.ApplyOutputConfig(cfg)
 		if utils.MaxRetries < 0 {
 			return fmt.Errorf("--max-retries must be >= 0, got %d", utils.MaxRetries)

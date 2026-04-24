@@ -18,9 +18,7 @@ import (
 // SetNoPager disables or enables the pager. When true, output is always written
 // directly to stdout even if it exceeds the terminal height.
 func SetNoPager(v bool) {
-	cfg := GetOutputConfig()
-	cfg.NoPager = v
-	ApplyOutputConfig(cfg)
+	updateOutputConfig(func(c *OutputConfig) { c.NoPager = v })
 }
 
 func getNoPager() bool { return GetOutputConfig().NoPager }
