@@ -1051,7 +1051,8 @@ func fieldsTestData() []fieldsTestStruct {
 }
 
 func TestSetOutputFields_Table(t *testing.T) {
-	t.Cleanup(func() { ResetState() })
+	origIsTerminal := isTerminalCached.Load()
+	t.Cleanup(func() { ResetState(); SetIsTerminal(origIsTerminal) })
 	SetOutputFields([]string{"uid", "name"})
 	SetIsTerminal(false)
 
@@ -1119,7 +1120,8 @@ func TestSetOutputFields_XML(t *testing.T) {
 }
 
 func TestSetOutputFields_CaseInsensitive(t *testing.T) {
-	t.Cleanup(func() { ResetState() })
+	origIsTerminal := isTerminalCached.Load()
+	t.Cleanup(func() { ResetState(); SetIsTerminal(origIsTerminal) })
 	SetOutputFields([]string{"UID", "NAME"}) // uppercase
 	SetIsTerminal(false)
 
@@ -1134,7 +1136,8 @@ func TestSetOutputFields_CaseInsensitive(t *testing.T) {
 }
 
 func TestSetOutputFields_HeaderNameAlias(t *testing.T) {
-	t.Cleanup(func() { ResetState() })
+	origIsTerminal := isTerminalCached.Load()
+	t.Cleanup(func() { ResetState(); SetIsTerminal(origIsTerminal) })
 	// Match by header name "Port Speed" (has a space)
 	SetOutputFields([]string{"Port Speed"})
 	SetIsTerminal(false)
@@ -1150,7 +1153,8 @@ func TestSetOutputFields_HeaderNameAlias(t *testing.T) {
 }
 
 func TestSetOutputFields_UnknownField(t *testing.T) {
-	t.Cleanup(func() { ResetState() })
+	origIsTerminal := isTerminalCached.Load()
+	t.Cleanup(func() { ResetState(); SetIsTerminal(origIsTerminal) })
 	SetOutputFields([]string{"uid", "nonexistent"})
 	SetIsTerminal(false)
 
@@ -1162,6 +1166,8 @@ func TestSetOutputFields_UnknownField(t *testing.T) {
 }
 
 func TestSetOutputFields_Nil_RestoresAll(t *testing.T) {
+	origIsTerminal := isTerminalCached.Load()
+	t.Cleanup(func() { ResetState(); SetIsTerminal(origIsTerminal) })
 	SetIsTerminal(false)
 
 	SetOutputFields([]string{"uid"})
