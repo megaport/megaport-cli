@@ -231,7 +231,7 @@ func TestVerbosePrintVerboseWithJSONFormat(t *testing.T) {
 	resetVerbosity(t)
 	SetVerbosity("verbose")
 
-	oldFormat := getOutputFormat()
+	oldFormat := GetOutputFormat()
 	SetOutputFormat("json")
 	defer SetOutputFormat(oldFormat)
 

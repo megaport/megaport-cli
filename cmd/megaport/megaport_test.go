@@ -49,8 +49,8 @@ func TestNoHeaderFlagWiredThroughPersistentPreRunE(t *testing.T) {
 
 // TestNoPagerDefaultApplied verifies that a "no-pager" default persisted in
 // the config file is read by applyDefaultSettings AND forwarded to the output
-// package via output.SetNoPager in PersistentPreRunE. Both sides of the
-// wiring are asserted so that removing either call causes the test to fail.
+// package via output.ApplyOutputConfig in PersistentPreRunE. Both sides of
+// the wiring are asserted so that removing either call causes the test to fail.
 func TestNoPagerDefaultApplied(t *testing.T) {
 	// Use an isolated config directory so this test doesn't touch the real one.
 	dir := t.TempDir()
@@ -77,8 +77,8 @@ func TestNoPagerDefaultApplied(t *testing.T) {
 
 	// Assert the flag var was set (applyDefaultSettings path).
 	assert.True(t, noPager, "noPager package var should be true after config default is applied")
-	// Assert the output package was notified (output.SetNoPager wiring path).
-	assert.True(t, output.GetNoPager(), "output.GetNoPager() should be true after PersistentPreRunE wires SetNoPager")
+	// Assert the output package was notified (output.ApplyOutputConfig wiring path).
+	assert.True(t, output.GetNoPager(), "output.GetNoPager() should be true after PersistentPreRunE wires NoPager via ApplyOutputConfig")
 }
 
 func TestExitCodeFromError(t *testing.T) {
