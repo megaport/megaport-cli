@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/fatih/color"
@@ -31,40 +30,19 @@ var spinnerColors = []func(...interface{}) string{
 	color.New(color.FgHiGreen, color.Bold).SprintFunc(),
 }
 
-// currentOutputFormat stores the output format atomically to avoid data races
-// between spinner goroutines and Print* calls on the main goroutine.
-var currentOutputFormat atomic.Value
-
-// currentVerbosity stores the verbosity level atomically.
-// Valid values: "normal", "quiet", "verbose".
-var currentVerbosity atomic.Value
-
-func init() {
-	currentOutputFormat.Store("table")
-	currentVerbosity.Store("normal")
-}
-
 // SetVerbosity sets the global verbosity level ("normal", "quiet", or "verbose").
 func SetVerbosity(level string) {
-	currentVerbosity.Store(level)
+	cfg := GetOutputConfig()
+	cfg.Verbosity = level
+	ApplyOutputConfig(cfg)
 }
 
 // IsQuiet returns true when quiet mode is active.
 // In quiet mode, informational messages and spinners are suppressed.
-func IsQuiet() bool {
-	if v, ok := currentVerbosity.Load().(string); ok {
-		return v == "quiet"
-	}
-	return false
-}
+func IsQuiet() bool { return GetOutputConfig().Verbosity == "quiet" }
 
 // IsVerbose returns true when verbose mode is active.
-func IsVerbose() bool {
-	if v, ok := currentVerbosity.Load().(string); ok {
-		return v == "verbose"
-	}
-	return false
-}
+func IsVerbose() bool { return GetOutputConfig().Verbosity == "verbose" }
 
 // newNoOpSpinner returns a spinner that is already stopped.
 // Safe to call Start(), Stop(), and StopWithSuccess() on.
@@ -79,19 +57,15 @@ func newNoOpSpinner(noColor bool) *Spinner {
 }
 
 func SetOutputFormat(format string) {
-	currentOutputFormat.Store(format)
+	cfg := GetOutputConfig()
+	cfg.Format = format
+	ApplyOutputConfig(cfg)
 }
 
-func getOutputFormat() string {
-	if v, ok := currentOutputFormat.Load().(string); ok {
-		return v
-	}
-	return "table"
-}
+func getOutputFormat() string { return GetOutputConfig().Format }
 
 // GetOutputFormat returns the currently active output format (e.g. "table", "json").
-// Exported so other packages can read the current output format without relying on an unexported helper.
-func GetOutputFormat() string { return getOutputFormat() }
+func GetOutputFormat() string { return GetOutputConfig().Format }
 
 // shouldSuppressSpinner returns true when spinner output should be suppressed
 // to avoid corrupting machine-readable output formats (csv, xml, json, yaml, etc.).

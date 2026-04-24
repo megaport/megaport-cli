@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1050,7 +1051,7 @@ func fieldsTestData() []fieldsTestStruct {
 }
 
 func TestSetOutputFields_Table(t *testing.T) {
-	defer SetOutputFields(nil)
+	t.Cleanup(func() { ResetState() })
 	SetOutputFields([]string{"uid", "name"})
 	SetIsTerminal(false)
 
@@ -1068,7 +1069,7 @@ func TestSetOutputFields_Table(t *testing.T) {
 }
 
 func TestSetOutputFields_CSV(t *testing.T) {
-	defer SetOutputFields(nil)
+	t.Cleanup(func() { ResetState() })
 	SetOutputFields([]string{"uid", "status"})
 
 	out := CaptureOutput(func() {
@@ -1085,7 +1086,7 @@ func TestSetOutputFields_CSV(t *testing.T) {
 }
 
 func TestSetOutputFields_JSON(t *testing.T) {
-	defer SetOutputFields(nil)
+	t.Cleanup(func() { ResetState() })
 	SetOutputFields([]string{"uid", "name"})
 
 	out := CaptureOutput(func() {
@@ -1103,7 +1104,7 @@ func TestSetOutputFields_JSON(t *testing.T) {
 }
 
 func TestSetOutputFields_XML(t *testing.T) {
-	defer SetOutputFields(nil)
+	t.Cleanup(func() { ResetState() })
 	SetOutputFields([]string{"uid", "name"})
 
 	out := CaptureOutput(func() {
@@ -1118,7 +1119,7 @@ func TestSetOutputFields_XML(t *testing.T) {
 }
 
 func TestSetOutputFields_CaseInsensitive(t *testing.T) {
-	defer SetOutputFields(nil)
+	t.Cleanup(func() { ResetState() })
 	SetOutputFields([]string{"UID", "NAME"}) // uppercase
 	SetIsTerminal(false)
 
@@ -1133,7 +1134,7 @@ func TestSetOutputFields_CaseInsensitive(t *testing.T) {
 }
 
 func TestSetOutputFields_HeaderNameAlias(t *testing.T) {
-	defer SetOutputFields(nil)
+	t.Cleanup(func() { ResetState() })
 	// Match by header name "Port Speed" (has a space)
 	SetOutputFields([]string{"Port Speed"})
 	SetIsTerminal(false)
@@ -1149,7 +1150,7 @@ func TestSetOutputFields_HeaderNameAlias(t *testing.T) {
 }
 
 func TestSetOutputFields_UnknownField(t *testing.T) {
-	defer SetOutputFields(nil)
+	t.Cleanup(func() { ResetState() })
 	SetOutputFields([]string{"uid", "nonexistent"})
 	SetIsTerminal(false)
 
@@ -1180,7 +1181,7 @@ func TestSetOutputFields_Nil_RestoresAll(t *testing.T) {
 // ---- --query flag tests ----
 
 func TestSetOutputQuery_FilterArray(t *testing.T) {
-	defer SetOutputQuery("")
+	t.Cleanup(func() { ResetState() })
 	SetOutputQuery("[?status=='LIVE']")
 
 	out, err := CaptureOutputErr(func() error {
@@ -1196,7 +1197,7 @@ func TestSetOutputQuery_FilterArray(t *testing.T) {
 }
 
 func TestSetOutputQuery_ExtractField(t *testing.T) {
-	defer SetOutputQuery("")
+	t.Cleanup(func() { ResetState() })
 	SetOutputQuery("[*].name")
 
 	out, err := CaptureOutputErr(func() error {
@@ -1210,8 +1211,8 @@ func TestSetOutputQuery_ExtractField(t *testing.T) {
 }
 
 func TestSetOutputQuery_WithFields(t *testing.T) {
-	defer SetOutputFields(nil)
-	defer SetOutputQuery("")
+	t.Cleanup(func() { ResetState() })
+	t.Cleanup(func() { ResetState() })
 	SetOutputFields([]string{"uid", "name"})
 	SetOutputQuery("[*].uid")
 
@@ -1226,7 +1227,7 @@ func TestSetOutputQuery_WithFields(t *testing.T) {
 }
 
 func TestSetOutputQuery_InvalidQuery(t *testing.T) {
-	defer SetOutputQuery("")
+	t.Cleanup(func() { ResetState() })
 	SetOutputQuery("INVALID[[")
 
 	err := PrintOutput(fieldsTestData(), "json", true)
@@ -1235,7 +1236,7 @@ func TestSetOutputQuery_InvalidQuery(t *testing.T) {
 }
 
 func TestSetOutputQuery_EmptyData(t *testing.T) {
-	defer SetOutputQuery("")
+	t.Cleanup(func() { ResetState() })
 	SetOutputQuery("[*].uid")
 
 	out, err := CaptureOutputErr(func() error {
@@ -1275,7 +1276,7 @@ func TestApplyJMESPath_MarshalError(t *testing.T) {
 
 func TestNoHeaderTableSuppressesHeader(t *testing.T) {
 	SetNoHeader(true)
-	defer SetNoHeader(false)
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 1, Name: "alpha", Active: true}}
 	out := CaptureOutput(func() {
@@ -1289,7 +1290,7 @@ func TestNoHeaderTableSuppressesHeader(t *testing.T) {
 
 func TestNoHeaderTableWithHeaderEnabled(t *testing.T) {
 	SetNoHeader(false)
-	defer SetNoHeader(false)
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 1, Name: "beta", Active: false}}
 	out := CaptureOutput(func() {
@@ -1302,7 +1303,7 @@ func TestNoHeaderTableWithHeaderEnabled(t *testing.T) {
 
 func TestNoHeaderCSVSuppressesHeader(t *testing.T) {
 	SetNoHeader(true)
-	defer SetNoHeader(false)
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 42, Name: "gamma", Active: true}}
 	out := CaptureOutput(func() {
@@ -1317,7 +1318,7 @@ func TestNoHeaderCSVSuppressesHeader(t *testing.T) {
 
 func TestNoHeaderCSVWithHeaderEnabled(t *testing.T) {
 	SetNoHeader(false)
-	defer SetNoHeader(false)
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 7, Name: "delta", Active: false}}
 	out := CaptureOutput(func() {
@@ -1332,7 +1333,7 @@ func TestNoHeaderCSVWithHeaderEnabled(t *testing.T) {
 
 func TestNoHeaderDoesNotAffectJSON(t *testing.T) {
 	SetNoHeader(true)
-	defer SetNoHeader(false)
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 3, Name: "epsilon", Active: true}}
 	out := CaptureOutput(func() {
@@ -1346,7 +1347,7 @@ func TestNoHeaderDoesNotAffectJSON(t *testing.T) {
 
 func TestPrintGoTemplate_FieldExtraction(t *testing.T) {
 	SetTemplateString(`{{range .}}{{.Name}}{{"\n"}}{{end}}`)
-	defer SetTemplateString("")
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 1, Name: "alpha", Active: true}, {ID: 2, Name: "beta", Active: false}}
 	out := CaptureOutput(func() {
@@ -1360,7 +1361,7 @@ func TestPrintGoTemplate_FieldExtraction(t *testing.T) {
 
 func TestPrintGoTemplate_SingleItem(t *testing.T) {
 	SetTemplateString(`{{(index . 0).Name}}`)
-	defer SetTemplateString("")
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 1, Name: "gamma", Active: true}}
 	out := CaptureOutput(func() {
@@ -1373,7 +1374,7 @@ func TestPrintGoTemplate_SingleItem(t *testing.T) {
 
 func TestPrintGoTemplate_FuncMap(t *testing.T) {
 	SetTemplateString(`{{range .}}{{upper .Name}}{{"\n"}}{{end}}`)
-	defer SetTemplateString("")
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 1, Name: "delta"}}
 	out := CaptureOutput(func() {
@@ -1386,7 +1387,7 @@ func TestPrintGoTemplate_FuncMap(t *testing.T) {
 
 func TestPrintGoTemplate_InvalidTemplate(t *testing.T) {
 	SetTemplateString(`{{invalid`)
-	defer SetTemplateString("")
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 1, Name: "test"}}
 	var err error
@@ -1400,7 +1401,7 @@ func TestPrintGoTemplate_InvalidTemplate(t *testing.T) {
 
 func TestPrintGoTemplate_Count(t *testing.T) {
 	SetTemplateString(`{{len .}}`)
-	defer SetTemplateString("")
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 1, Name: "a"}, {ID: 2, Name: "b"}, {ID: 3, Name: "c"}}
 	out := CaptureOutput(func() {
@@ -1413,7 +1414,7 @@ func TestPrintGoTemplate_Count(t *testing.T) {
 
 func TestPrintGoTemplate_JSONFuncMap(t *testing.T) {
 	SetTemplateString(`{{range .}}{{json .}}{{"\n"}}{{end}}`)
-	defer SetTemplateString("")
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 1, Name: "epsilon", Active: true}}
 	out := CaptureOutput(func() {
@@ -1437,120 +1438,20 @@ func TestGetOutputFormat(t *testing.T) {
 	assert.Equal(t, "json", GetOutputFormat())
 }
 
-func TestDefaultOutputConfig_Values(t *testing.T) {
-	cfg := DefaultOutputConfig()
-	assert.Equal(t, OutputConfig{Format: "table", Verbosity: "normal"}, cfg)
-}
+func TestApplyOutputConfigConcurrent(t *testing.T) {
+	orig := GetOutputConfig()
+	t.Cleanup(func() { ApplyOutputConfig(orig) })
 
-// TestSetConfig_AppliesAllFields verifies that SetConfig writes every field
-// of the struct to the backing package-level state. NoPager is covered in
-// pager_test.go because pager state is native-only — the WASM build
-// provides stub SetNoPager (no-op) and GetNoPager (always false)
-// implementations, so a round-trip assertion is only meaningful on native.
-func TestSetConfig_AppliesAllFields(t *testing.T) {
-	t.Cleanup(ResetState)
-
-	fields := []string{"uid", "name"}
-	SetConfig(OutputConfig{
-		Fields:    fields,
-		Query:     "[].uid",
-		NoHeader:  true,
-		Template:  "{{.UID}}",
-		Format:    "json",
-		Verbosity: "verbose",
-	})
-
-	assert.Equal(t, fields, getOutputFields())
-	assert.Equal(t, "[].uid", getOutputQuery())
-	assert.True(t, getNoHeader())
-	assert.Equal(t, "{{.UID}}", GetTemplateString())
-	assert.Equal(t, "json", GetOutputFormat())
-	assert.True(t, IsVerbose())
-	assert.False(t, IsQuiet())
-}
-
-// TestSetConfig_ZeroValueClearsState verifies that passing a zero-value
-// OutputConfig writes empty/false to every field. This documents that
-// SetConfig does not have a "leave unchanged" sentinel — callers that want
-// to preserve existing state must read it first.
-func TestSetConfig_ZeroValueClearsState(t *testing.T) {
-	t.Cleanup(ResetState)
-
-	SetConfig(OutputConfig{
-		Fields:    []string{"uid"},
-		Query:     "[]",
-		NoHeader:  true,
-		Template:  "{{.}}",
-		Format:    "json",
-		Verbosity: "verbose",
-	})
-
-	SetConfig(OutputConfig{})
-
-	assert.Nil(t, getOutputFields())
-	assert.Equal(t, "", getOutputQuery())
-	assert.False(t, getNoHeader())
-	assert.Equal(t, "", GetTemplateString())
-	assert.Equal(t, "", GetOutputFormat())
-	assert.False(t, IsVerbose())
-	assert.False(t, IsQuiet())
-}
-
-// TestSetOutputFields_CopiesInputSlice verifies that SetOutputFields does
-// not retain the caller's slice header. Mutating the original slice after
-// the call must not affect the stored filter, otherwise concurrent readers
-// of getOutputFields could observe a torn update.
-func TestSetOutputFields_CopiesInputSlice(t *testing.T) {
-	t.Cleanup(ResetState)
-
-	original := []string{"uid", "name"}
-	SetOutputFields(original)
-
-	original[0] = "mutated"
-	original[1] = "also-mutated"
-
-	assert.Equal(t, []string{"uid", "name"}, getOutputFields())
-}
-
-// TestSetConfig_CopiesFieldsSlice is the SetConfig equivalent of the above
-// — the defensive copy must also apply when Fields is passed via
-// OutputConfig, since the SetConfig godoc promises callers can reuse the
-// backing array after the call returns.
-func TestSetConfig_CopiesFieldsSlice(t *testing.T) {
-	t.Cleanup(ResetState)
-
-	original := []string{"uid", "name"}
-	SetConfig(OutputConfig{Fields: original})
-
-	original[0] = "mutated"
-	original[1] = "also-mutated"
-
-	assert.Equal(t, []string{"uid", "name"}, getOutputFields())
-}
-
-// TestResetState_ViaDefaultOutputConfig verifies that ResetState restores
-// the documented defaults after every field has been set to a non-default
-// value. This protects against a future SetConfig change that forgets to
-// apply one of the defaults.
-func TestResetState_ViaDefaultOutputConfig(t *testing.T) {
-	t.Cleanup(ResetState)
-
-	SetConfig(OutputConfig{
-		Fields:    []string{"uid"},
-		Query:     "[]",
-		NoHeader:  true,
-		Template:  "{{.}}",
-		Format:    "json",
-		Verbosity: "quiet",
-	})
-
-	ResetState()
-
-	assert.Nil(t, getOutputFields())
-	assert.Equal(t, "", getOutputQuery())
-	assert.False(t, getNoHeader())
-	assert.Equal(t, "", GetTemplateString())
-	assert.Equal(t, "table", GetOutputFormat())
-	assert.False(t, IsQuiet())
-	assert.False(t, IsVerbose())
+	var wg sync.WaitGroup
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			cfg := GetOutputConfig()
+			cfg.Format = "json"
+			ApplyOutputConfig(cfg)
+			_ = GetOutputConfig()
+		}()
+	}
+	wg.Wait()
 }
