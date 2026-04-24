@@ -1212,7 +1212,6 @@ func TestSetOutputQuery_ExtractField(t *testing.T) {
 
 func TestSetOutputQuery_WithFields(t *testing.T) {
 	t.Cleanup(func() { ResetState() })
-	t.Cleanup(func() { ResetState() })
 	SetOutputFields([]string{"uid", "name"})
 	SetOutputQuery("[*].uid")
 
