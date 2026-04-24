@@ -21,11 +21,19 @@ func SetNoPager(v bool) {
 	updateOutputConfig(func(c *OutputConfig) { c.NoPager = v })
 }
 
-func getNoPager() bool { return GetOutputConfig().NoPager }
+func getNoPager() bool {
+	outputCfgMu.RLock()
+	defer outputCfgMu.RUnlock()
+	return outputCfg.NoPager
+}
 
 // GetNoPager returns the current no-pager setting. Intended for tests that
 // need to assert the output package was correctly wired by PersistentPreRunE.
-func GetNoPager() bool { return GetOutputConfig().NoPager }
+func GetNoPager() bool {
+	outputCfgMu.RLock()
+	defer outputCfgMu.RUnlock()
+	return outputCfg.NoPager
+}
 
 // resolvePager returns the pager command to use.
 // Precedence: MEGAPORT_PAGER > PAGER > "less -R".
