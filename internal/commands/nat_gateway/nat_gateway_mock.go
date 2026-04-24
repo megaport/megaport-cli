@@ -21,18 +21,18 @@ type MockNATGatewayService struct {
 	SessionsErr     error
 	TelemetryResult *megaport.ServiceTelemetryResponse
 	TelemetryErr    error
-	BuyResult      *megaport.NATGatewayBuyResult
-	BuyErr         error
-	ValidateResult *megaport.NATGatewayValidateResult
-	ValidateErr    error
+	BuyResult       *megaport.NATGatewayBuyResult
+	BuyErr          error
+	ValidateResult  *megaport.NATGatewayValidateResult
+	ValidateErr     error
 
 	CapturedCreateReq    *megaport.CreateNATGatewayRequest
 	CapturedUpdateReq    *megaport.UpdateNATGatewayRequest
 	CapturedDeleteUID    string
 	CapturedGetUID       string
 	CapturedTelemetryReq *megaport.GetNATGatewayTelemetryRequest
-	CapturedBuyUID      string
-	CapturedValidateUID string
+	CapturedBuyUID       string
+	CapturedValidateUID  string
 }
 
 func (m *MockNATGatewayService) CreateNATGateway(ctx context.Context, req *megaport.CreateNATGatewayRequest) (*megaport.NATGateway, error) {
