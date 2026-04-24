@@ -43,7 +43,8 @@ var (
 	// LogHTTP enables raw HTTP request/response logging to stderr. Set via --log-http flag.
 	LogHTTP bool
 
-	ValidFormats = []string{FormatTable, FormatJSON, FormatCSV, FormatXML, FormatGoTemplate}
+	ValidFormats     = []string{FormatTable, FormatJSON, FormatCSV, FormatXML, FormatGoTemplate}
+	ValidFormatsWASM = []string{FormatTable, FormatJSON, FormatCSV, FormatXML}
 )
 
 func ShouldDisableColors() bool {

@@ -102,11 +102,8 @@ func InitializeCommon() {
 			verbosity = "verbose"
 		}
 		format := strings.ToLower(outputFormat)
-		if format == utils.FormatGoTemplate {
-			return fmt.Errorf("invalid output format: go-template is not supported in the browser version")
-		}
 		validFmt := false
-		for _, vf := range utils.ValidFormats {
+		for _, vf := range utils.ValidFormatsWASM {
 			if format == vf {
 				validFmt = true
 				break
@@ -114,7 +111,7 @@ func InitializeCommon() {
 		}
 		if !validFmt {
 			return fmt.Errorf("invalid output format: %s. Must be one of: %s",
-				outputFormat, strings.Join(utils.ValidFormats, ", "))
+				outputFormat, strings.Join(utils.ValidFormatsWASM, ", "))
 		}
 		cfg := output.GetOutputConfig()
 		cfg.NoHeader = noHeader
