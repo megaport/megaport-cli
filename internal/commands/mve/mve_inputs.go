@@ -3,9 +3,9 @@ package mve
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -13,22 +13,13 @@ import (
 
 func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVERequest, error) {
 	var jsonData map[string]interface{}
-	var err error
 
-	if jsonStr != "" {
-		err = json.Unmarshal([]byte(jsonStr), &jsonData)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing JSON string: %v", err)
-		}
-	} else if jsonFilePath != "" {
-		jsonBytes, err := os.ReadFile(jsonFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-		err = json.Unmarshal(jsonBytes, &jsonData)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing JSON from file: %v", err)
-		}
+	rawBytes, err := utils.ReadJSONInput(jsonStr, jsonFilePath)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(rawBytes, &jsonData); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	req := &megaport.BuyMVERequest{}
@@ -58,7 +49,7 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 	}
 
 	if vendorConfigMap, ok := jsonData["vendorConfig"].(map[string]interface{}); ok {
-		vendorConfig, err := parseVendorConfig(vendorConfigMap)
+		vendorConfig, err := ParseVendorConfig(vendorConfigMap)
 		if err != nil {
 			return nil, err
 		}
@@ -93,6 +84,7 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 }
 
 func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error) {
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	name, _ := cmd.Flags().GetString("name")
 	term, _ := cmd.Flags().GetInt("term")
 	locationID, _ := cmd.Flags().GetInt("location-id")
@@ -107,9 +99,9 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 		var vendorConfigMap map[string]interface{}
 		err := json.Unmarshal([]byte(vendorConfigStr), &vendorConfigMap)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing vendor-config JSON string: %v", err)
+			return nil, fmt.Errorf("failed to parse vendor-config JSON string: %w", err)
 		}
-		vendorConfig, err = parseVendorConfig(vendorConfigMap)
+		vendorConfig, err = ParseVendorConfig(vendorConfigMap)
 		if err != nil {
 			return nil, err
 		}
@@ -120,7 +112,7 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 		var vnicsData []interface{}
 		err := json.Unmarshal([]byte(vnicsStr), &vnicsData)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing vnics JSON string: %v", err)
+			return nil, fmt.Errorf("failed to parse vnics JSON string: %w", err)
 		}
 
 		vnics = make([]megaport.MVENetworkInterface, 0, len(vnicsData))
@@ -159,7 +151,9 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 	return req, nil
 }
 
-func parseVendorConfig(vendorConfigMap map[string]interface{}) (megaport.VendorConfig, error) {
+// ParseVendorConfig converts a vendor config map (e.g. decoded from YAML/JSON) into
+// the appropriate typed VendorConfig based on the "vendor" key.
+func ParseVendorConfig(vendorConfigMap map[string]interface{}) (megaport.VendorConfig, error) {
 	vendor, ok := vendorConfigMap["vendor"].(string)
 	if !ok {
 		return nil, fmt.Errorf("vendor field is required in vendor config")
@@ -620,22 +614,13 @@ func getBoolFromMap(m map[string]interface{}, key string) (bool, bool) {
 
 func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.ModifyMVERequest, error) {
 	var jsonData map[string]interface{}
-	var err error
 
-	if jsonStr != "" {
-		err = json.Unmarshal([]byte(jsonStr), &jsonData)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing JSON string: %v", err)
-		}
-	} else if jsonFilePath != "" {
-		jsonBytes, err := os.ReadFile(jsonFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-		err = json.Unmarshal(jsonBytes, &jsonData)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing JSON from file: %v", err)
-		}
+	rawBytes, err := utils.ReadJSONInput(jsonStr, jsonFilePath)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(rawBytes, &jsonData); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	req := &megaport.ModifyMVERequest{

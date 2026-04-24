@@ -194,6 +194,39 @@ func TestValidateMVEProductSize(t *testing.T) {
 	}
 }
 
+func TestValidateDateRange(t *testing.T) {
+	tests := []struct {
+		name      string
+		startDate string
+		endDate   string
+		wantErr   bool
+		errText   string
+	}{
+		{"Both empty", "", "", false, ""},
+		{"Both valid end after start", "2026-01-01", "2026-06-01", false, ""},
+		{"Only start provided", "2026-01-01", "", true, "Invalid date range: end-date - both --start-date and --end-date must be provided together"},
+		{"Only end provided", "", "2026-06-01", true, "Invalid date range: start-date - both --start-date and --end-date must be provided together"},
+		{"Invalid start format", "01-01-2026", "2026-06-01", true, "Invalid start-date: 01-01-2026 - must be in YYYY-MM-DD format"},
+		{"Invalid end format", "2026-01-01", "01-06-2026", true, "Invalid end-date: 01-06-2026 - must be in YYYY-MM-DD format"},
+		{"End before start", "2026-06-01", "2026-01-01", true, "Invalid date range: 2026-06-01 to 2026-01-01 - end date must be after start date"},
+		{"Same date", "2026-06-01", "2026-06-01", true, "Invalid date range: 2026-06-01 to 2026-06-01 - end date must be after start date"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateDateRange(tt.startDate, tt.endDate)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateDateRange() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
+				assert.Equal(t, tt.errText, err.Error(), "Error message mismatch")
+			}
+		})
+	}
+}
+
 func TestValidationError(t *testing.T) {
 	err := NewValidationError("test field", 123, "test reason")
 	expected := "Invalid test field: 123 - test reason"
@@ -201,4 +234,32 @@ func TestValidationError(t *testing.T) {
 		t.Errorf("ValidationError.Error() = %v, want %v", err.Error(), expected)
 	}
 	assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
+}
+
+func TestFormatIntSlice(t *testing.T) {
+	tests := []struct {
+		name string
+		vals []int
+		want string
+	}{
+		{"empty", nil, ""},
+		{"single", []int{1}, "1"},
+		{"two", []int{1, 12}, "1 or 12"},
+		{"three", []int{1, 12, 24}, "1, 12, or 24"},
+		{"four", []int{1, 12, 24, 36}, "1, 12, 24, or 36"},
+		{"port speeds", []int{1000, 10000, 100000}, "1000, 10000, or 100000"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, FormatIntSlice(tt.vals))
+		})
+	}
+}
+
+func TestVLANHelpText(t *testing.T) {
+	assert.Equal(t, "0=auto-assign, -1=untagged, 2-4094 for specific VLAN (1 is reserved)", VLANHelpText())
+}
+
+func TestInnerVLANHelpText(t *testing.T) {
+	assert.Equal(t, "0=none, -1=untagged, 2-4094 for specific VLAN (1 is reserved)", InnerVLANHelpText())
 }

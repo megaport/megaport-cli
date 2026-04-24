@@ -50,4 +50,6 @@ megaport-cli ports [flags]
 * [unlock](megaport-cli_ports_unlock.md)
 * [update](megaport-cli_ports_update.md)
 * [update-tags](megaport-cli_ports_update-tags.md)
+* [validate](megaport-cli_ports_validate.md)
+* [validate-lag](megaport-cli_ports_validate-lag.md)
 

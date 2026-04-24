@@ -7,24 +7,32 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// MCROutput represents the desired fields for JSON output of MCR details.
-type MCROutput struct {
+// mcrOutput represents the desired fields for JSON output of MCR details.
+type mcrOutput struct {
 	output.Output      `json:"-" header:"-"`
-	UID                string `json:"uid" header:"UID"`
-	Name               string `json:"name" header:"Name"`
-	LocationID         int    `json:"location_id" header:"Location ID"`
-	ProvisioningStatus string `json:"provisioning_status" header:"Status"`
-	ASN                int    `json:"asn" header:"ASN"`
-	Speed              int    `json:"speed" header:"Speed"`
+	UID                string           `json:"uid" header:"UID"`
+	Name               string           `json:"name" header:"Name"`
+	LocationID         int              `json:"location_id" header:"Location ID"`
+	ProvisioningStatus string           `json:"provisioning_status" header:"Status"`
+	ASN                int              `json:"asn" header:"ASN"`
+	Speed              int              `json:"speed" header:"Speed"`
+	AddOns             []mcrAddOnOutput `json:"add_ons,omitempty" header:"-" csv:"-"`
 }
 
-// ToMCROutput converts a *megaport.MCR to our MCROutput struct.
-func ToMCROutput(mcr *megaport.MCR) (MCROutput, error) {
+// mcrAddOnOutput represents an add-on attached to an MCR.
+type mcrAddOnOutput struct {
+	AddOnUID    string `json:"add_on_uid"`
+	AddOnType   string `json:"add_on_type"`
+	TunnelCount int    `json:"tunnel_count"`
+}
+
+// toMCROutput converts a *megaport.MCR to our mcrOutput struct.
+func toMCROutput(mcr *megaport.MCR) (mcrOutput, error) {
 	if mcr == nil {
-		return MCROutput{}, fmt.Errorf("invalid MCR: nil value")
+		return mcrOutput{}, fmt.Errorf("invalid MCR: nil value")
 	}
 
-	output := MCROutput{
+	o := mcrOutput{
 		UID:                mcr.UID,
 		Name:               mcr.Name,
 		LocationID:         mcr.LocationID,
@@ -32,16 +40,27 @@ func ToMCROutput(mcr *megaport.MCR) (MCROutput, error) {
 		Speed:              mcr.PortSpeed,
 	}
 
-	output.ASN = mcr.Resources.VirtualRouter.ASN
+	o.ASN = mcr.Resources.VirtualRouter.ASN
 
-	return output, nil
+	for _, addon := range mcr.AddOns {
+		if addon == nil {
+			continue
+		}
+		o.AddOns = append(o.AddOns, mcrAddOnOutput{
+			AddOnUID:    addon.AddOnUID,
+			AddOnType:   addon.AddOnType,
+			TunnelCount: addon.TunnelCount,
+		})
+	}
+
+	return o, nil
 }
 
 // printMCRs prints a list of MCRs in the specified format.
 func printMCRs(mcrs []*megaport.MCR, format string, noColor bool) error {
-	outputs := make([]MCROutput, 0, len(mcrs))
+	outputs := make([]mcrOutput, 0, len(mcrs))
 	for _, mcr := range mcrs {
-		output, err := ToMCROutput(mcr)
+		output, err := toMCROutput(mcr)
 		if err != nil {
 			return err
 		}
@@ -56,82 +75,35 @@ func displayMCRChanges(original, updated *megaport.MCR, noColor bool) {
 		return
 	}
 
-	fmt.Println()
-	output.PrintInfo("Changes applied:", noColor)
-
-	// Track if any changes were found
-	changesFound := false
-
-	// Compare name
-	if original.Name != updated.Name {
-		changesFound = true
-		oldName := output.FormatOldValue(original.Name, noColor)
-		newName := output.FormatNewValue(updated.Name, noColor)
-		fmt.Printf("  • Name: %s → %s\n", oldName, newName)
-	}
-
-	if original.CostCentre != updated.CostCentre {
-		changesFound = true
-		oldCostCentre := original.CostCentre
-		if oldCostCentre == "" {
-			oldCostCentre = "(none)"
-		}
-		newCostCentre := updated.CostCentre
-		if newCostCentre == "" {
-			newCostCentre = "(none)"
-		}
-		fmt.Printf("  • Cost Centre: %s → %s\n",
-			output.FormatOldValue(oldCostCentre, noColor),
-			output.FormatNewValue(newCostCentre, noColor))
-	}
-
-	// Compare contract term
-	if original.ContractTermMonths != updated.ContractTermMonths {
-		changesFound = true
-		oldTerm := output.FormatOldValue(fmt.Sprintf("%d months", original.ContractTermMonths), noColor)
-		newTerm := output.FormatNewValue(fmt.Sprintf("%d months", updated.ContractTermMonths), noColor)
-		fmt.Printf("  • Contract Term: %s → %s\n", oldTerm, newTerm)
-	}
-
-	if original.MarketplaceVisibility != updated.MarketplaceVisibility {
-		changesFound = true
-		oldVisibility := "No"
-		if original.MarketplaceVisibility {
-			oldVisibility = "Yes"
-		}
-		newVisibility := "No"
-		if updated.MarketplaceVisibility {
-			newVisibility = "Yes"
-		}
-		fmt.Printf("  • Marketplace Visibility: %s → %s\n",
-			output.FormatOldValue(oldVisibility, noColor),
-			output.FormatNewValue(newVisibility, noColor))
+	changes := []output.FieldChange{
+		{Label: "Name", OldValue: original.Name, NewValue: updated.Name},
+		{Label: "Cost Centre", OldValue: output.FormatOptionalString(original.CostCentre), NewValue: output.FormatOptionalString(updated.CostCentre)},
+		{Label: "Contract Term", OldValue: fmt.Sprintf("%d months", original.ContractTermMonths), NewValue: fmt.Sprintf("%d months", updated.ContractTermMonths)},
+		{Label: "Marketplace Visibility", OldValue: output.FormatBool(original.MarketplaceVisibility), NewValue: output.FormatBool(updated.MarketplaceVisibility)},
 	}
 
 	originalASN := original.Resources.VirtualRouter.ASN
 	updatedASN := updated.Resources.VirtualRouter.ASN
-
-	if originalASN != updatedASN && (originalASN != 0 || updatedASN != 0) {
-		changesFound = true
-		oldASN := output.FormatOldValue(fmt.Sprintf("%d", originalASN), noColor)
-		newASN := output.FormatNewValue(fmt.Sprintf("%d", updatedASN), noColor)
-		fmt.Printf("  • ASN: %s → %s\n", oldASN, newASN)
+	if originalASN != 0 || updatedASN != 0 {
+		changes = append(changes, output.FieldChange{
+			Label:    "ASN",
+			OldValue: fmt.Sprintf("%d", originalASN),
+			NewValue: fmt.Sprintf("%d", updatedASN),
+		})
 	}
 
-	if !changesFound {
-		fmt.Println("  No changes detected")
-	}
+	output.DisplayChanges(changes, noColor)
 }
 
-type PrefixFilterListOutput struct {
+type prefixFilterListOutput struct {
 	output.Output `json:"-" header:"-"`
 	ID            int                           `json:"id"`
 	Description   string                        `json:"description"`
 	AddressFamily string                        `json:"address_family"`
-	Entries       []PrefixFilterListEntryOutput `json:"entries"`
+	Entries       []prefixFilterListEntryOutput `json:"entries"`
 }
 
-type PrefixFilterListEntryOutput struct {
+type prefixFilterListEntryOutput struct {
 	output.Output `json:"-" header:"-"`
 	Action        string `json:"action"`
 	Prefix        string `json:"prefix"`
@@ -139,14 +111,14 @@ type PrefixFilterListEntryOutput struct {
 	Le            int    `json:"le,omitempty"`
 }
 
-func ToPrefixFilterListOutput(prefixFilterList *megaport.MCRPrefixFilterList) (PrefixFilterListOutput, error) {
+func toPrefixFilterListOutput(prefixFilterList *megaport.MCRPrefixFilterList) (prefixFilterListOutput, error) {
 	if prefixFilterList == nil {
-		return PrefixFilterListOutput{}, fmt.Errorf("invalid prefix filter list: nil value")
+		return prefixFilterListOutput{}, fmt.Errorf("invalid prefix filter list: nil value")
 	}
 
-	entries := make([]PrefixFilterListEntryOutput, len(prefixFilterList.Entries))
+	entries := make([]prefixFilterListEntryOutput, len(prefixFilterList.Entries))
 	for i, entry := range prefixFilterList.Entries {
-		entries[i] = PrefixFilterListEntryOutput{
+		entries[i] = prefixFilterListEntryOutput{
 			Action: entry.Action,
 			Prefix: entry.Prefix,
 			Ge:     entry.Ge,
@@ -154,7 +126,7 @@ func ToPrefixFilterListOutput(prefixFilterList *megaport.MCRPrefixFilterList) (P
 		}
 	}
 
-	return PrefixFilterListOutput{
+	return prefixFilterListOutput{
 		ID:            prefixFilterList.ID,
 		Description:   prefixFilterList.Description,
 		AddressFamily: prefixFilterList.AddressFamily,
@@ -164,8 +136,8 @@ func ToPrefixFilterListOutput(prefixFilterList *megaport.MCRPrefixFilterList) (P
 
 type MCRStatus struct {
 	UID    string `json:"uid" header:"UID"`
-	Name   string `json:"name" header:"NAME"`
-	Status string `json:"status" header:"STATUS"`
+	Name   string `json:"name" header:"Name"`
+	Status string `json:"status" header:"Status"`
 	ASN    int    `json:"asn" header:"ASN"`
-	Speed  int    `json:"speed" header:"SPEED"`
+	Speed  int    `json:"speed" header:"Speed"`
 }

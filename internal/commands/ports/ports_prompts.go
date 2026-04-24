@@ -2,9 +2,11 @@ package ports
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -20,23 +22,26 @@ func promptForPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.Name = name
 
-	termStr, err := utils.ResourcePrompt("port", "Enter term (1, 12, 24, 36) (required): ", noColor)
+	termStr, err := utils.ResourcePrompt("port", fmt.Sprintf("Enter term (%s) (required): ", validation.FormatIntSlice(validation.ValidContractTerms)), noColor)
 	if err != nil {
 		return nil, err
 	}
 	term, err := strconv.Atoi(termStr)
-	if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
-		return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+	if err != nil {
+		return nil, fmt.Errorf("invalid term: %w", err)
+	}
+	if err := validation.ValidateContractTerm(term); err != nil {
+		return nil, err
 	}
 	req.Term = term
 
-	portSpeedStr, err := utils.ResourcePrompt("port", "Enter port speed (1000, 10000, 100000) (required): ", noColor)
+	portSpeedStr, err := utils.ResourcePrompt("port", fmt.Sprintf("Enter port speed (%s) (required): ", validation.FormatIntSlice(validation.ValidPortSpeeds)), noColor)
 	if err != nil {
 		return nil, err
 	}
 	portSpeed, err := strconv.Atoi(portSpeedStr)
-	if err != nil || (portSpeed != 1000 && portSpeed != 10000 && portSpeed != 100000) {
-		return nil, fmt.Errorf("invalid port speed, must be one of 1000, 10000, 100000")
+	if err != nil || !slices.Contains(validation.ValidPortSpeeds, portSpeed) {
+		return nil, fmt.Errorf("invalid port speed, must be one of %s", validation.FormatIntSlice(validation.ValidPortSpeeds))
 	}
 	req.PortSpeed = portSpeed
 
@@ -99,23 +104,26 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.Name = name
 
-	termStr, err := utils.ResourcePrompt("port", "Enter term (1, 12, 24, 36) (required): ", noColor)
+	termStr, err := utils.ResourcePrompt("port", fmt.Sprintf("Enter term (%s) (required): ", validation.FormatIntSlice(validation.ValidContractTerms)), noColor)
 	if err != nil {
 		return nil, err
 	}
 	term, err := strconv.Atoi(termStr)
-	if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
-		return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+	if err != nil {
+		return nil, fmt.Errorf("invalid term: %w", err)
+	}
+	if err := validation.ValidateContractTerm(term); err != nil {
+		return nil, err
 	}
 	req.Term = term
 
-	portSpeedStr, err := utils.ResourcePrompt("port", "Enter port speed (10000 or 100000) (required): ", noColor)
+	portSpeedStr, err := utils.ResourcePrompt("port", fmt.Sprintf("Enter port speed (%s) (required): ", validation.FormatIntSlice(validation.ValidLAGPortSpeeds)), noColor)
 	if err != nil {
 		return nil, err
 	}
 	portSpeed, err := strconv.Atoi(portSpeedStr)
-	if err != nil || (portSpeed != 10000 && portSpeed != 100000) {
-		return nil, fmt.Errorf("invalid port speed, must be one of 10000 or 100000")
+	if err != nil || !slices.Contains(validation.ValidLAGPortSpeeds, portSpeed) {
+		return nil, fmt.Errorf("invalid port speed, must be one of %s", validation.FormatIntSlice(validation.ValidLAGPortSpeeds))
 	}
 	req.PortSpeed = portSpeed
 
@@ -129,13 +137,13 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	}
 	req.LocationId = locationID
 
-	lagCountStr, err := utils.ResourcePrompt("port", "Enter LAG count (1-8) (required): ", noColor)
+	lagCountStr, err := utils.ResourcePrompt("port", fmt.Sprintf("Enter LAG count (%d-%d) (required): ", validation.MinLAGCount, validation.MaxLAGCount), noColor)
 	if err != nil {
 		return nil, err
 	}
 	lagCount, err := strconv.Atoi(lagCountStr)
-	if err != nil || lagCount < 1 || lagCount > 8 {
-		return nil, fmt.Errorf("invalid LAG count, must be between 1 and 8")
+	if err != nil || lagCount < validation.MinLAGCount || lagCount > validation.MaxLAGCount {
+		return nil, fmt.Errorf("invalid LAG count, must be between %d and %d", validation.MinLAGCount, validation.MaxLAGCount)
 	}
 	req.LagCount = lagCount
 
@@ -208,14 +216,17 @@ func promptForUpdatePortDetails(portUID string, noColor bool) (*megaport.ModifyP
 		req.CostCentre = costCentre
 	}
 
-	termStr, err := utils.ResourcePrompt("port", "Enter new term (1, 12, 24, 36) (optional): ", noColor)
+	termStr, err := utils.ResourcePrompt("port", fmt.Sprintf("Enter new term (%s) (optional): ", validation.FormatIntSlice(validation.ValidContractTerms)), noColor)
 	if err != nil {
 		return nil, err
 	}
 	if termStr != "" {
 		term, err := strconv.Atoi(termStr)
-		if err != nil || (term != 1 && term != 12 && term != 24 && term != 36) {
-			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		if err != nil {
+			return nil, fmt.Errorf("invalid term: %w", err)
+		}
+		if err := validation.ValidateContractTerm(term); err != nil {
+			return nil, err
 		}
 		req.ContractTermMonths = &term
 	}

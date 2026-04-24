@@ -5,12 +5,219 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/jmespath/go-jmespath"
 )
 
-// Output is a marker interface for output types
+// stdoutMu protects os.Stdout during CaptureOutput/CaptureOutputErr calls.
+// Both native and WASM builds use this mutex.
+var stdoutMu sync.Mutex
+
+// outputFields holds the user-selected fields from --fields flag.
+// nil means all fields are shown. Protected by outputFieldsMu.
+var (
+	outputFields   []string
+	outputFieldsMu sync.RWMutex
+)
+
+// SetOutputFields sets the field filter applied by all PrintOutput calls.
+// Only fields whose json tag name or header display name (case-insensitive) appears
+// in fields will be included in output. Pass nil to restore full output (all fields).
+// This function is goroutine-safe. Tests should call defer SetOutputFields(nil) to
+// reset state between test cases.
+func SetOutputFields(fields []string) {
+	outputFieldsMu.Lock()
+	defer outputFieldsMu.Unlock()
+	outputFields = fields
+}
+
+// getOutputFields returns a copy of the current field filter under a read lock.
+func getOutputFields() []string {
+	outputFieldsMu.RLock()
+	defer outputFieldsMu.RUnlock()
+	if outputFields == nil {
+		return nil
+	}
+	cp := make([]string, len(outputFields))
+	copy(cp, outputFields)
+	return cp
+}
+
+// outputQuery holds the JMESPath expression from --query flag.
+// Empty string means no query. Protected by outputQueryMu.
+var (
+	outputQuery   string
+	outputQueryMu sync.RWMutex
+)
+
+// SetOutputQuery sets the JMESPath query applied by printJSON.
+// Pass "" to disable. This function is goroutine-safe.
+// Tests should call defer SetOutputQuery("") to reset state between test cases.
+func SetOutputQuery(query string) {
+	outputQueryMu.Lock()
+	defer outputQueryMu.Unlock()
+	outputQuery = query
+}
+
+// getOutputQuery returns the current JMESPath query under a read lock.
+func getOutputQuery() string {
+	outputQueryMu.RLock()
+	defer outputQueryMu.RUnlock()
+	return outputQuery
+}
+
+// noHeader controls whether table and CSV output suppresses the header row.
+// Set via --no-header flag. Protected by noHeaderMu.
+var (
+	noHeader   bool
+	noHeaderMu sync.RWMutex
+)
+
+// templateStr holds the Go template string from --template flag.
+// Empty string means no template. Protected by templateStrMu.
+var (
+	templateStr   string
+	templateStrMu sync.RWMutex
+)
+
+// errorBody and errorEnvelope are the JSON error envelope types shared by
+// PrintErrorJSON across native and WASM builds.
+type errorBody struct {
+	Code    int    `json:"code"`
+	Type    string `json:"type"`
+	Message string `json:"message"`
+}
+
+type errorEnvelope struct {
+	Error errorBody `json:"error"`
+}
+
+// SetTemplateString sets the Go template string applied by printGoTemplate.
+// Pass "" to disable. This function is goroutine-safe.
+func SetTemplateString(s string) {
+	templateStrMu.Lock()
+	defer templateStrMu.Unlock()
+	templateStr = s
+}
+
+// GetTemplateString returns the current Go template string under a read lock.
+func GetTemplateString() string {
+	templateStrMu.RLock()
+	defer templateStrMu.RUnlock()
+	return templateStr
+}
+
+// SetNoHeader sets whether table and CSV output should suppress column headers.
+// This function is goroutine-safe. Tests should call defer SetNoHeader(false) to
+// reset state between test cases.
+func SetNoHeader(v bool) {
+	noHeaderMu.Lock()
+	defer noHeaderMu.Unlock()
+	noHeader = v
+}
+
+// getNoHeader returns whether header suppression is active under a read lock.
+func getNoHeader() bool {
+	noHeaderMu.RLock()
+	defer noHeaderMu.RUnlock()
+	return noHeader
+}
+
+// ResetState clears all package-level output configuration back to defaults.
+// Intended for callers such as the WASM entry point that must ensure all
+// output-related global state does not bleed between invocations.
+func ResetState() {
+	SetOutputFields(nil)
+	SetOutputQuery("")
+	SetNoHeader(false)
+	SetNoPager(false)
+	SetTemplateString("")
+	SetOutputFormat("table")
+	SetVerbosity("normal")
+}
+
+// applyJMESPath applies a JMESPath query to v and returns the result.
+// v must be a JSON-compatible value (e.g. []T or []map[string]interface{}).
+// The marshal→unmarshal round-trip is intentional: go-jmespath operates on an
+// interface{} tree, so typed Go structs must be converted first. This doubles
+// memory momentarily but is necessary for correct JMESPath evaluation.
+func applyJMESPath(query string, v interface{}) (interface{}, error) {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var parsed interface{}
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return nil, err
+	}
+	result, err := jmespath.Search(query, parsed)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JMESPath query %q: %w", query, err)
+	}
+	return result, nil
+}
+
+// prepareJSONData applies --fields filtering and --query (JMESPath) to data,
+// returning the value ready for JSON encoding. This shared logic is used by
+// both native and WASM printJSON implementations.
+func prepareJSONData[T OutputFields](data []T) (interface{}, error) {
+	fields := getOutputFields()
+	query := getOutputQuery()
+
+	var toEncode interface{}
+	if len(fields) > 0 {
+		headers, jsonNames, indices, err := getStructTypeInfo(data)
+		if err != nil {
+			return nil, err
+		}
+		_, jsonNames, indices, err = filterByFields(headers, jsonNames, indices, fields)
+		if err != nil {
+			return nil, err
+		}
+		rows := make([]interface{}, 0, len(data))
+		for _, item := range data {
+			v := reflect.ValueOf(item)
+			if v.Kind() == reflect.Ptr {
+				if v.IsNil() {
+					rows = append(rows, nil)
+					continue
+				}
+				v = v.Elem()
+			}
+			if !v.IsValid() || v.Kind() != reflect.Struct {
+				rows = append(rows, nil)
+				continue
+			}
+			m := make(map[string]interface{}, len(indices))
+			for i, idx := range indices {
+				if idx >= v.NumField() {
+					continue
+				}
+				m[jsonNames[i]] = v.Field(idx).Interface()
+			}
+			rows = append(rows, m)
+		}
+		toEncode = rows
+	} else {
+		toEncode = data
+	}
+
+	if query != "" {
+		var err error
+		toEncode, err = applyJMESPath(query, toEncode)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return toEncode, nil
+}
+
+// Output is a marker interface embedded by output structs.
 type Output interface {
-	isOuput()
+	isOutput()
 }
 
 // OutputFields is a constraint for types that can be output
@@ -20,16 +227,18 @@ type OutputFields interface {
 
 // ResourceTag represents a key-value tag pair
 type ResourceTag struct {
-	Key   string `json:"key" header:"KEY"`
-	Value string `json:"value" header:"VALUE"`
+	Key   string `json:"key" header:"Key"`
+	Value string `json:"value" header:"Value"`
 }
 
 // PrintOutput prints data in the specified format
 func PrintOutput[T OutputFields](data []T, format string, noColor bool) error {
 	validFormats := map[string]bool{
-		"table": true,
-		"json":  true,
-		"csv":   true,
+		"table":       true,
+		"json":        true,
+		"csv":         true,
+		"xml":         true,
+		"go-template": true,
 	}
 	if !validFormats[format] {
 		return fmt.Errorf("invalid output format: %s", format)
@@ -39,27 +248,33 @@ func PrintOutput[T OutputFields](data []T, format string, noColor bool) error {
 		return printJSON(data)
 	case "csv":
 		return printCSV(data)
+	case "xml":
+		return printXML(data)
+	case "go-template":
+		return printGoTemplate(data)
 	default:
-		return printTable(data, noColor)
+		return RunWithPager(func() error {
+			return printTable(data, noColor)
+		})
 	}
 }
 
-// getStructTypeInfo extracts header names and field indices from a struct type
-func getStructTypeInfo[T OutputFields](data []T) ([]string, []int, error) {
+// getStructTypeInfo extracts header names, json names, and field indices from a struct type.
+// jsonNames are the json tag values (used for --fields matching); headers are the display names.
+func getStructTypeInfo[T OutputFields](data []T) (headers, jsonNames []string, fieldIndices []int, err error) {
 	var sample T
 	if len(data) > 0 {
 		sample = data[0]
 	}
 	sampleVal := reflect.ValueOf(sample)
 	if !sampleVal.IsValid() {
-		fmt.Println("")
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 	itemType := sampleVal.Type()
 	if itemType.Kind() == reflect.Ptr {
 		if sampleVal.IsNil() {
 			if itemType.Elem().Kind() != reflect.Struct {
-				return nil, nil, nil
+				return nil, nil, nil, nil
 			}
 			itemType = itemType.Elem()
 		} else {
@@ -68,16 +283,78 @@ func getStructTypeInfo[T OutputFields](data []T) ([]string, []int, error) {
 		}
 	}
 	if itemType.Kind() != reflect.Struct {
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
-	headers, fieldIndices := extractFieldInfo(itemType)
-	return headers, fieldIndices, nil
+	headers, jsonNames, fieldIndices = extractFieldInfo(itemType)
+	return headers, jsonNames, fieldIndices, nil
 }
 
-// extractFieldInfo extracts field information from a struct type
-func extractFieldInfo(itemType reflect.Type) ([]string, []int) {
-	var headers []string
-	var fieldIndices []int
+// extractCSVFieldInfo extracts CSV-specific field metadata from the first element of data.
+// CSV uses the csv tag as the header name (falling back to json tag), and skips fields
+// that have neither a csv nor json tag. This differs from extractFieldInfo, which does
+// not require csv/json tags and instead falls back to header/csv/output tags or the field name.
+func extractCSVFieldInfo[T OutputFields](data []T) (headers, jsonNames []string, fieldIndices []int, err error) {
+	var sample T
+	if len(data) > 0 {
+		sample = data[0]
+	}
+	sampleVal := reflect.ValueOf(sample)
+	if !sampleVal.IsValid() {
+		return nil, nil, nil, nil
+	}
+	t := sampleVal.Type()
+	if t.Kind() == reflect.Ptr {
+		if sampleVal.IsNil() {
+			if t.Elem().Kind() != reflect.Struct {
+				return nil, nil, nil, nil
+			}
+			t = t.Elem()
+		} else {
+			t = sampleVal.Elem().Type()
+		}
+	}
+	if t.Kind() != reflect.Struct {
+		return nil, nil, nil, nil
+	}
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		if field.PkgPath != "" {
+			continue
+		}
+		if !isOutputCompatibleType(field.Type) {
+			continue
+		}
+		csvTag := field.Tag.Get("csv")
+		if csvTag == "-" {
+			continue
+		}
+		jsonTag := field.Tag.Get("json")
+		// Strip json tag options (e.g. "name,omitempty" -> "name") before
+		// using as a fallback header or for --fields matching.
+		jsonName := jsonTag
+		if idx := strings.Index(jsonName, ","); idx != -1 {
+			jsonName = jsonName[:idx]
+		}
+		if csvTag == "" {
+			if jsonName == "" || jsonName == "-" {
+				continue
+			}
+			csvTag = jsonName
+		}
+		jn := jsonName
+		if jn == "" || jn == "-" {
+			jn = strings.ToLower(field.Name)
+		}
+		headers = append(headers, csvTag)
+		jsonNames = append(jsonNames, jn)
+		fieldIndices = append(fieldIndices, i)
+	}
+	return headers, jsonNames, fieldIndices, nil
+}
+
+// extractFieldInfo extracts field information from a struct type.
+// Returns headers (display names), jsonNames (json tag names for --fields matching), and field indices.
+func extractFieldInfo(itemType reflect.Type) (headers, jsonNames []string, fieldIndices []int) {
 	for i := 0; i < itemType.NumField(); i++ {
 		field := itemType.Field(i)
 		if field.PkgPath != "" {
@@ -105,10 +382,77 @@ func extractFieldInfo(itemType reflect.Type) ([]string, []int) {
 		if headerTag == "" {
 			headerTag = strings.ToUpper(field.Name)
 		}
+
+		// Derive the json name for --fields matching.
+		jsonName := field.Tag.Get("json")
+		if idx := strings.Index(jsonName, ","); idx != -1 {
+			jsonName = jsonName[:idx]
+		}
+		if jsonName == "" || jsonName == "-" {
+			jsonName = strings.ToLower(field.Name)
+		}
+
 		headers = append(headers, headerTag)
+		jsonNames = append(jsonNames, jsonName)
 		fieldIndices = append(fieldIndices, i)
 	}
-	return headers, fieldIndices
+	return headers, jsonNames, fieldIndices
+}
+
+// filterByFields filters (headers, jsonNames, indices) to only the user-selected fields.
+// Matching is case-insensitive: json names are tried first, then header names.
+// Duplicate selections are silently deduplicated. Returns an error listing available
+// json names if any selected field is unknown.
+func filterByFields(headers, jsonNames []string, indices []int, selected []string) ([]string, []string, []int, error) {
+	if len(selected) == 0 {
+		return headers, jsonNames, indices, nil
+	}
+	// Two separate maps avoids the collision that occurs when a header name
+	// happens to match a json name of a different field.
+	byJSON := make(map[string]int, len(jsonNames))
+	for i, jn := range jsonNames {
+		byJSON[strings.ToLower(jn)] = i
+	}
+	byHeader := make(map[string]int, len(headers))
+	for i, h := range headers {
+		byHeader[strings.ToLower(h)] = i
+	}
+
+	// Pre-build the available-fields string once so it is not rebuilt on every error.
+	available := make([]string, 0, len(jsonNames))
+	for j, jn := range jsonNames {
+		if j < len(headers) && !strings.EqualFold(headers[j], jn) {
+			available = append(available, fmt.Sprintf("%s (or %q)", jn, headers[j]))
+		} else {
+			available = append(available, jn)
+		}
+	}
+	availableStr := strings.Join(available, ", ")
+
+	seen := make(map[int]bool, len(selected))
+	var outHeaders, outJSONNames []string
+	var outIndices []int
+	for _, sel := range selected {
+		key := strings.ToLower(strings.TrimSpace(sel))
+		// Prefer json name match; fall back to header display name.
+		i, ok := byJSON[key]
+		if !ok {
+			i, ok = byHeader[key]
+		}
+		if !ok {
+			return nil, nil, nil, fmt.Errorf("unknown field %q, available fields: %s", sel, availableStr)
+		}
+		if seen[i] {
+			continue // deduplicate repeated field selections
+		}
+		seen[i] = true
+		if len(headers) > 0 {
+			outHeaders = append(outHeaders, headers[i])
+		}
+		outJSONNames = append(outJSONNames, jsonNames[i])
+		outIndices = append(outIndices, indices[i])
+	}
+	return outHeaders, outJSONNames, outIndices, nil
 }
 
 // isOutputCompatibleType checks if a type can be output
@@ -140,6 +484,12 @@ func isOutputCompatibleType(t reflect.Type) bool {
 		// All primitive types are compatible
 		return true
 	}
+}
+
+// isNilOrInvalid returns true if item is a nil pointer or an invalid reflect value.
+func isNilOrInvalid(item interface{}) bool {
+	v := reflect.ValueOf(item)
+	return !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil())
 }
 
 // extractRowData extracts field values from a struct for table/CSV output
@@ -237,6 +587,9 @@ func formatFieldValue(fieldVal reflect.Value) string {
 	case reflect.Float32, reflect.Float64:
 		return fmt.Sprintf("%g", fieldVal.Float())
 	default:
+		if !fieldVal.CanInterface() {
+			return ""
+		}
 		val := fieldVal.Interface()
 		if val == nil {
 			return ""

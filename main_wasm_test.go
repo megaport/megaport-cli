@@ -86,7 +86,7 @@ func TestExecuteMegaportCommand_InvalidCommand(t *testing.T) {
 
 	assert.Equal(t, js.TypeObject, result.Type())
 	output := result.Get("output")
-	
+
 	// Should have error output
 	outputStr := output.String()
 	assert.NotEmpty(t, outputStr)
@@ -152,7 +152,7 @@ func TestExecuteMegaportCommandAsync_Callback(t *testing.T) {
 // TestExecuteMegaportCommandAsync_NoCallback verifies error handling without callback
 func TestExecuteMegaportCommandAsync_NoCallback(t *testing.T) {
 	executeMegaportCmdAsync := js.Global().Get("executeMegaportCommandAsync")
-	
+
 	// Should not panic even with missing callback
 	assert.NotPanics(t, func() {
 		executeMegaportCmdAsync.Invoke(js.ValueOf("version"))
@@ -162,7 +162,7 @@ func TestExecuteMegaportCommandAsync_NoCallback(t *testing.T) {
 // TestExecuteMegaportCommandAsync_InvalidCallback verifies invalid callback handling
 func TestExecuteMegaportCommandAsync_InvalidCallback(t *testing.T) {
 	executeMegaportCmdAsync := js.Global().Get("executeMegaportCommandAsync")
-	
+
 	// Should not panic with non-function callback
 	assert.NotPanics(t, func() {
 		executeMegaportCmdAsync.Invoke(
@@ -235,7 +235,7 @@ func TestCommandArgumentParsing(t *testing.T) {
 			wasm.ResetOutputBuffers()
 
 			executeMegaportCmd := js.Global().Get("executeMegaportCommand")
-			
+
 			assert.NotPanics(t, func() {
 				result := executeMegaportCmd.Invoke(js.ValueOf(tt.command))
 				assert.Equal(t, js.TypeObject, result.Type())

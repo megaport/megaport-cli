@@ -4,15 +4,32 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/spf13/cobra"
 )
 
+// maskAccessKey masks an access key for display, showing only the first 4 and last 4 characters.
+func maskAccessKey(key string) string {
+	if key == "" {
+		return ""
+	}
+	if len(key) > 8 {
+		return key[:4] + "..." + key[len(key)-4:]
+	}
+	if len(key) > 4 {
+		return key[:2] + "..." + key[len(key)-2:]
+	}
+	return "****"
+}
+
 func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	profileName := args[0]
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	accessKey, _ := cmd.Flags().GetString("access-key")
 	secretKey, _ := cmd.Flags().GetString("secret-key")
 	environment, _ := cmd.Flags().GetString("environment")
@@ -95,7 +112,7 @@ func DeleteProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	confirmed := utils.ConfirmPrompt(fmt.Sprintf("Are you sure you want to delete profile '%s'? (y/n): ", profileName), noColor)
 	if !confirmed {
 		output.PrintInfo("Profile deletion cancelled", noColor)
-		return nil
+		return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 	}
 
 	if err := manager.DeleteProfile(profileName); err != nil {
@@ -106,7 +123,7 @@ func DeleteProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
-type ProfileOutput struct {
+type profileOutput struct {
 	output.Output `json:"-" header:"-"`
 	Name          string `json:"name" header:"Name"`
 	AccessKey     string `json:"access_key" header:"Access Key"`
@@ -116,6 +133,7 @@ type ProfileOutput struct {
 }
 
 func ListProfiles(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
 	manager, err := NewConfigManager()
 	if err != nil {
 		return err
@@ -128,11 +146,18 @@ func ListProfiles(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	}
 	activeProfile := manager.config.ActiveProfile
 
-	var profileOutputs []ProfileOutput
-	for name, profile := range profiles {
-		profileOutputs = append(profileOutputs, ProfileOutput{
+	names := make([]string, 0, len(profiles))
+	for name := range profiles {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	profileOutputs := make([]profileOutput, 0, len(profiles))
+	for _, name := range names {
+		profile := profiles[name]
+		profileOutputs = append(profileOutputs, profileOutput{
 			Name:        name,
-			AccessKey:   profile.AccessKey,
+			AccessKey:   maskAccessKey(profile.AccessKey),
 			Environment: profile.Environment,
 			Description: profile.Description,
 			IsActive:    name == activeProfile,
@@ -180,9 +205,14 @@ func SetDefault(cmd *cobra.Command, args []string, noColor bool) error {
 
 	allowedSettings := map[string]func(string) (interface{}, error){
 		"output": func(v string) (interface{}, error) {
-			validFormats := map[string]bool{"json": true, "yaml": true, "table": true}
+			v = strings.ToLower(v)
+			validFormats := make(map[string]bool, len(utils.ValidFormats))
+			for _, f := range utils.ValidFormats {
+				validFormats[f] = true
+			}
 			if !validFormats[v] {
-				return nil, fmt.Errorf("output format must be one of: json, yaml, table")
+				return nil, fmt.Errorf("output format must be one of: %s",
+					strings.Join(utils.ValidFormats, ", "))
 			}
 			return v, nil
 		},
@@ -193,6 +223,30 @@ func SetDefault(cmd *cobra.Command, args []string, noColor bool) error {
 				return false, nil
 			}
 			return nil, fmt.Errorf("no-color must be true or false")
+		},
+		"quiet": func(v string) (interface{}, error) {
+			if strings.ToLower(v) == "true" {
+				return true, nil
+			} else if strings.ToLower(v) == "false" {
+				return false, nil
+			}
+			return nil, fmt.Errorf("quiet must be true or false")
+		},
+		"verbose": func(v string) (interface{}, error) {
+			if strings.ToLower(v) == "true" {
+				return true, nil
+			} else if strings.ToLower(v) == "false" {
+				return false, nil
+			}
+			return nil, fmt.Errorf("verbose must be true or false")
+		},
+		"no-pager": func(v string) (interface{}, error) {
+			if strings.ToLower(v) == "true" {
+				return true, nil
+			} else if strings.ToLower(v) == "false" {
+				return false, nil
+			}
+			return nil, fmt.Errorf("no-pager must be true or false")
 		},
 	}
 
@@ -255,7 +309,7 @@ func ExportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 
 	filePath, _ := cmd.Flags().GetString("file")
 	if filePath != "" {
-		if err := os.WriteFile(filePath, data, 0644); err != nil {
+		if err := os.WriteFile(filePath, data, 0600); err != nil {
 			return fmt.Errorf("failed to write config to file: %w", err)
 		}
 		output.PrintSuccess("Configuration exported to '%s'", noColor, filePath)
@@ -301,7 +355,7 @@ func ImportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 	confirmed := utils.ConfirmPrompt("This will overwrite any existing profiles with the same names. Continue? (y/n): ", noColor)
 	if !confirmed {
 		output.PrintInfo("Import cancelled", noColor)
-		return nil
+		return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 	}
 
 	manager, err := NewConfigManager()
@@ -358,7 +412,7 @@ func ViewConfig(cmd *cobra.Command, args []string, noColor bool) error {
 	} else {
 		fmt.Fprintf(cmd.OutOrStdout(), "Current Configuration:\n\n")
 		fmt.Fprintf(cmd.OutOrStdout(), "  Active Profile: %s\n", profileName)
-		fmt.Fprintf(cmd.OutOrStdout(), "  Access Key: %s\n", activeProfile.AccessKey)
+		fmt.Fprintf(cmd.OutOrStdout(), "  Access Key: %s\n", maskAccessKey(activeProfile.AccessKey))
 		fmt.Fprintf(cmd.OutOrStdout(), "  Environment: %s\n", activeProfile.Environment)
 
 		if activeProfile.Description != "" {
@@ -404,7 +458,7 @@ func ClearDefaults(cmd *cobra.Command, args []string, noColor bool) error {
 	confirmed := utils.ConfirmPrompt("Are you sure you want to clear all default settings? (y/n): ", noColor)
 	if !confirmed {
 		output.PrintInfo("Operation cancelled", noColor)
-		return nil
+		return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 	}
 
 	if err := manager.ClearDefaults(); err != nil {

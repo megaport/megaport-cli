@@ -456,15 +456,18 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
    * Use this when the portal already has a valid session token.
    *
    * @param token - The access token from the portal session
-   * @param environment - Environment (production, staging, development)
+   * @param hostname - The current hostname (e.g., window.location.hostname) - used to determine environment
    */
-  const setAuthToken = (token: string, environment = 'production'): void => {
+  const setAuthToken = (token: string, hostname?: string): void => {
+    // SSR-safe: only access window.location in browser context
+    const actualHostname = hostname ?? (typeof window !== 'undefined' ? window.location.hostname : 'localhost');
     if (window.setAuthToken) {
-      const result = window.setAuthToken(token, environment);
+      const result = window.setAuthToken(token, actualHostname);
 
-      log('🔑 External token set (bypassing OAuth flow)');
+      log(`🔑 External token set (bypassing OAuth flow) - hostname: ${actualHostname}, environment: ${result?.environment}`);
       emitTelemetry('auth_token_set' as any, {
-        environment,
+        hostname: actualHostname,
+        environment: result?.environment,
         success: result?.success,
       });
 
@@ -478,7 +481,7 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
       console.error(
         '❌ setAuthToken function not available. WASM may not be initialized.'
       );
-      emitTelemetry('auth_token_set' as any, { environment, success: false });
+      emitTelemetry('auth_token_set' as any, { hostname: actualHostname, success: false });
     }
   };
 

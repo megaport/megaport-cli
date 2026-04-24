@@ -1,8 +1,41 @@
 package validation
 
 import (
+	"fmt"
+	"strings"
+
 	megaport "github.com/megaport/megaportgo"
 )
+
+// validIPSecTunnelCounts lists the allowed non-zero IPSec tunnel counts.
+// Defined locally so the validation package does not depend on an SDK symbol
+// that may not be present in all SDK branches (e.g. during workspace development).
+var validIPSecTunnelCounts = []int{10, 20, 30}
+
+// ValidateIPSecTunnelCount validates a tunnel count for an IPSec add-on.
+// Valid non-zero values are always 10, 20, or 30.
+// When allowZeroDisable is true (update mode), 0 is also accepted to disable IPSec.
+// When allowZeroDisable is false (add mode), 0 is rejected; callers that wish to
+// use the API default should skip calling this function when count is 0.
+func ValidateIPSecTunnelCount(count int, allowZeroDisable bool) error {
+	if count == 0 && allowZeroDisable {
+		return nil
+	}
+	for _, valid := range validIPSecTunnelCounts {
+		if count == valid {
+			return nil
+		}
+	}
+	counts := make([]string, len(validIPSecTunnelCounts))
+	for i, v := range validIPSecTunnelCounts {
+		counts[i] = fmt.Sprintf("%d", v)
+	}
+	validStr := strings.Join(counts, ", ")
+	if allowZeroDisable {
+		return fmt.Errorf("invalid IPSec tunnel count %d: must be %s, or 0 to disable", count, validStr)
+	}
+	return fmt.Errorf("invalid IPSec tunnel count %d: must be %s (0 uses the API default of 10)", count, validStr)
+}
 
 // ValidateMCRRequest validates a request to buy/provision a new MCR (Megaport Cloud Router).
 // This function ensures all parameters meet the requirements for creating a new MCR.

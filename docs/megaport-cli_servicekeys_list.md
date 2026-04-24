@@ -12,6 +12,7 @@ This command retrieves and displays all service keys along with their details. U
 
 ```sh
   megaport-cli servicekeys list
+  megaport-cli servicekeys list --product-uid "product-uid"
 ```
 
 ## Usage
@@ -24,10 +25,16 @@ megaport-cli servicekeys list [flags]
 ## Parent Command
 
 * [megaport-cli servicekeys](megaport-cli_servicekeys.md)
+
+## Aliases
+
+* ls
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
+| `--limit` |  | `0` | Maximum number of results to display (0 = unlimited) | false |
+| `--product-uid` |  |  | Filter service keys by product UID | false |
 
 ## Subcommands
 * [docs](megaport-cli_servicekeys_list_docs.md)

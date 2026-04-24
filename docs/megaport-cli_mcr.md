@@ -37,6 +37,7 @@ megaport-cli mcr [flags]
 |------|-----------|---------|-------------|----------|
 
 ## Subcommands
+* [add-ipsec-addon](megaport-cli_mcr_add-ipsec-addon.md)
 * [buy](megaport-cli_mcr_buy.md)
 * [create-prefix-filter-list](megaport-cli_mcr_create-prefix-filter-list.md)
 * [delete](megaport-cli_mcr_delete.md)
@@ -47,9 +48,13 @@ megaport-cli mcr [flags]
 * [list](megaport-cli_mcr_list.md)
 * [list-prefix-filter-lists](megaport-cli_mcr_list-prefix-filter-lists.md)
 * [list-tags](megaport-cli_mcr_list-tags.md)
+* [lock](megaport-cli_mcr_lock.md)
 * [restore](megaport-cli_mcr_restore.md)
 * [status](megaport-cli_mcr_status.md)
+* [unlock](megaport-cli_mcr_unlock.md)
 * [update](megaport-cli_mcr_update.md)
+* [update-ipsec-addon](megaport-cli_mcr_update-ipsec-addon.md)
 * [update-prefix-filter-list](megaport-cli_mcr_update-prefix-filter-list.md)
 * [update-tags](megaport-cli_mcr_update-tags.md)
+* [validate](megaport-cli_mcr_validate.md)
 

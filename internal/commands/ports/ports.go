@@ -1,7 +1,10 @@
 package ports
 
 import (
+	"fmt"
+
 	"github.com/megaport/megaport-cli/internal/base/cmdbuilder"
+	"github.com/megaport/megaport-cli/internal/validation"
 	"github.com/spf13/cobra"
 )
 
@@ -23,10 +26,25 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-		// Create buy port command
-	buyPortCmd := cmdbuilder.NewCommand("buy", "Buy a port through the Megaport API").
+	buy, buyLag, update, validate, validateLag := buildPortBuyCommands(rootCmd)
+	list, get, status, deleteCmd, restore, lock, unlock, checkVLAN := buildPortManagementCommands(rootCmd)
+	listTags, updateTags := buildPortTagCommands()
+
+	portsCmd.AddCommand(
+		buy, buyLag, update, validate, validateLag,
+		list, get, status, deleteCmd, restore, lock, unlock, checkVLAN,
+		listTags, updateTags,
+	)
+	rootCmd.AddCommand(portsCmd)
+}
+
+// buildPortBuyCommands creates the buy, buy-lag, and update port commands.
+func buildPortBuyCommands(rootCmd *cobra.Command) (buy, buyLag, update, validate, validateLag *cobra.Command) {
+	buy = cmdbuilder.NewCommand("buy", "Buy a port through the Megaport API").
 		WithColorAwareRunFunc(BuyPort).
 		WithInteractiveFlag().
+		WithNoWaitFlag().
+		WithBuyConfirmFlags().
 		WithPortCreationFlags().
 		WithJSONConfigFlags().
 		WithLongDesc("Buy a port through the Megaport API.\n\nThis command allows you to purchase a port by providing the necessary details.").
@@ -64,10 +82,11 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithConditionalRequirements("name", "term", "port-speed", "location-id", "marketplace-visibility").
 		Build()
 
-	// Create buy LAG port command
-	buyLagCmd := cmdbuilder.NewCommand("buy-lag", "Buy a LAG port through the Megaport API").
+	buyLag = cmdbuilder.NewCommand("buy-lag", "Buy a LAG port through the Megaport API").
 		WithColorAwareRunFunc(BuyLAGPort).
 		WithInteractiveFlag().
+		WithNoWaitFlag().
+		WithBuyConfirmFlags().
 		WithPortLAGFlags().
 		WithJSONConfigFlags().
 		WithLongDesc("Buy a LAG port through the Megaport API.\n\nThis command allows you to purchase a LAG port by providing the necessary details.").
@@ -105,8 +124,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithConditionalRequirements("name", "term", "port-speed", "location-id", "lag-count", "marketplace-visibility").
 		Build()
 
-	// Update port command
-	updatePortCmd := cmdbuilder.NewCommand("update", "Update a port's details").
+	update = cmdbuilder.NewCommand("update", "Update a port's details").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(UpdatePort).
 		WithInteractiveFlag().
@@ -117,20 +135,71 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("marketplace-visibility", "Whether the port should be visible in the marketplace (true or false)").
 		WithOptionalFlag("cost-centre", "The cost centre for billing purposes").
 		WithOptionalFlag("term", "The new contract term in months (1, 12, 24, or 36)").
+		WithExample("megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive").
+		WithExample("megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --name \"Updated Port\" --marketplace-visibility true --cost-centre \"Finance\"").
+		WithExample("megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{\"name\":\"Updated Port\",\"marketPlaceVisibility\":true,\"costCentre\":\"Finance\"}'").
+		WithExample("megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json-file ./update-port-config.json").
+		WithJSONExample(`{
+  "name": "Updated Port",
+  "marketPlaceVisibility": true,
+  "costCentre": "IT-2024",
+  "contractTermMonths": 24
+}`).
 		WithImportantNote("At least one update flag must be provided when not using --interactive, --json, or --json-file").
 		WithRootCmd(rootCmd).
 		WithConditionalRequirements("at_least_one:name,marketplace-visibility,cost-centre,term").
 		Build()
 
-		// Create list ports command
-	listPortsCmd := cmdbuilder.NewCommand("list", "List all ports with optional filters").
+	validate = cmdbuilder.NewCommand("validate", "Validate a port order without purchasing").
+		WithColorAwareRunFunc(ValidatePort).
+		WithInteractiveFlag().
+		WithPortCreationFlags().
+		WithJSONConfigFlags().
+		WithLongDesc("Validates a port configuration against the Megaport API without creating the resource.\n\nUse this for dry-run validation before purchasing, or in CI pipelines to check configurations.").
+		WithDocumentedRequiredFlag("name", "The name of the port (1-64 characters)").
+		WithDocumentedRequiredFlag("term", "The term of the port (1, 12, 24, or 36 months)").
+		WithDocumentedRequiredFlag("port-speed", "The speed of the port (1000, 10000, or 100000 Mbps)").
+		WithDocumentedRequiredFlag("location-id", "The ID of the location where the port will be provisioned").
+		WithDocumentedRequiredFlag("marketplace-visibility", "Whether the port should be visible in the marketplace (true or false)").
+		WithExample(`megaport-cli ports validate --name "My Port" --term 12 --port-speed 10000 --location-id 123 --marketplace-visibility true`).
+		WithExample("megaport-cli ports validate --json-file ./port-config.json").
+		WithImportantNote("This command only validates the configuration — no resources are created and no charges are incurred").
+		WithRootCmd(rootCmd).
+		WithConditionalRequirements("name", "term", "port-speed", "location-id", "marketplace-visibility").
+		Build()
+
+	validateLag = cmdbuilder.NewCommand("validate-lag", "Validate a LAG port order without purchasing").
+		WithColorAwareRunFunc(ValidateLAGPort).
+		WithInteractiveFlag().
+		WithPortLAGFlags().
+		WithJSONConfigFlags().
+		WithLongDesc("Validates a LAG port configuration against the Megaport API without creating the resource.\n\nUse this for dry-run validation before purchasing, or in CI pipelines to check configurations.").
+		WithDocumentedRequiredFlag("name", "The name of the port (1-64 characters)").
+		WithDocumentedRequiredFlag("term", "The term of the port (1, 12, or 24 months)").
+		WithDocumentedRequiredFlag("port-speed", "The speed of each LAG member port (10000 or 100000 Mbps)").
+		WithDocumentedRequiredFlag("location-id", "The ID of the location where the port will be provisioned").
+		WithDocumentedRequiredFlag("lag-count", "The number of LAG members (between 1 and 8)").
+		WithDocumentedRequiredFlag("marketplace-visibility", "Whether the port should be visible in the marketplace (true or false)").
+		WithExample(`megaport-cli ports validate-lag --name "My LAG Port" --term 12 --port-speed 10000 --location-id 123 --lag-count 2 --marketplace-visibility true`).
+		WithExample("megaport-cli ports validate-lag --json-file ./lag-config.json").
+		WithImportantNote("This command only validates the configuration — no resources are created and no charges are incurred").
+		WithRootCmd(rootCmd).
+		WithConditionalRequirements("name", "term", "port-speed", "location-id", "lag-count", "marketplace-visibility").
+		Build()
+
+	return buy, buyLag, update, validate, validateLag
+}
+
+// buildPortManagementCommands creates the list, get, status, delete, restore, lock, unlock, and check-vlan commands.
+func buildPortManagementCommands(rootCmd *cobra.Command) (list, get, status, deleteCmd, restore, lock, unlock, checkVLAN *cobra.Command) {
+	list = cmdbuilder.NewCommand("list", "List all ports with optional filters").
 		WithOutputFormatRunFunc(ListPorts).
 		WithPortFilterFlags().
-		WithLongDesc("List all ports available in the Megaport API.\n\nThis command fetches and displays a list of ports with details such as port ID, name, location, speed, and status. By default, only active ports are shown.").
+		WithTagFilterFlags().
+		WithLongDesc("List all ports available in the Megaport API.\n\nThis command fetches and displays a list of ports with details such as port ID, name, location, speed, and status. By default, only active ports are shown. You can also filter by resource tags.").
 		WithOptionalFlag("location-id", "Filter ports by location ID").
 		WithOptionalFlag("port-speed", "Filter ports by port speed").
 		WithOptionalFlag("port-name", "Filter ports by port name").
-		WithOptionalFlag("lag-only", "Show only LAG ports").
 		WithOptionalFlag("include-inactive", "Include ports in CANCELLED, DECOMMISSIONED, or DECOMMISSIONING states").
 		WithExample("megaport-cli ports list").
 		WithExample("megaport-cli ports list --location-id 1").
@@ -138,34 +207,45 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli ports list --port-name \"Data Center Primary\"").
 		WithExample("megaport-cli ports list --include-inactive").
 		WithExample("megaport-cli ports list --location-id 1 --port-speed 10000 --port-name \"Data Center Primary\"").
+		WithExample("megaport-cli ports list --tag env=prod").
+		WithExample("megaport-cli ports list --tag env=prod --tag team=network").
+		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"ls"}).
 		Build()
 
-	// Create get port command
-	getPortCmd := cmdbuilder.NewCommand("get", "Get details for a single port").
+	get = cmdbuilder.NewCommand("get", "Get details for a single port").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetPort).
+		WithBoolFlag("export", false, "Output recreatable JSON config for use with buy --json (excludes read-only fields)").
+		WithWatchFlags().
 		WithLongDesc("Get details for a single port from the Megaport API.\n\nThis command fetches and displays detailed information about a specific port. You need to provide the UID of the port as an argument.").
 		WithExample("megaport-cli ports get port-abc123").
 		WithExample("megaport-cli ports get 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
+		WithExample("megaport-cli ports get port-abc123 --export").
+		WithExample("megaport-cli ports get port-abc123 --watch").
+		WithExample("megaport-cli ports get port-abc123 --watch --interval 10s").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"show"}).
 		Build()
 
-	// Create status port command
-	statusPortCmd := cmdbuilder.NewCommand("status", "Check the provisioning status of a port").
+	status = cmdbuilder.NewCommand("status", "Check the provisioning status of a port").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetPortStatus).
+		WithWatchFlags().
 		WithLongDesc("Check the provisioning status of a port through the Megaport API.\n\nThis command retrieves only the essential status information for a port without all the details. It's useful for monitoring ongoing provisioning.").
 		WithExample("megaport-cli ports status port-abc123").
+		WithExample("megaport-cli ports status port-abc123 --watch").
+		WithExample("megaport-cli ports status port-abc123 --watch --interval 10s").
 		WithImportantNote("This is a lightweight command that only shows the port's status without retrieving all details.").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"st"}).
 		Build()
 
-	// Create delete port command
-	deletePortCmd := cmdbuilder.NewCommand("delete", "Delete a port from your account").
+	deleteCmd = cmdbuilder.NewCommand("delete", "Delete a port from your account").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(DeletePort).
-		WithDeleteFlags().
+		WithSafeDeleteFlags().
 		WithLongDesc("Delete a port from your account in the Megaport API.\n\nThis command allows you to delete an existing port by providing the UID of the port as an argument. By default, the port will be scheduled for deletion at the end of the current billing period.").
 		WithOptionalFlag("now", "Delete the port immediately instead of waiting until the end of the billing period").
 		WithOptionalFlag("force", "Skip the confirmation prompt and proceed with deletion").
@@ -176,10 +256,10 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli ports delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now").
 		WithExample("megaport-cli ports delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now --force").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"rm"}).
 		Build()
 
-	// Create restore port command
-	restorePortCmd := cmdbuilder.NewCommand("restore", "Restore a deleted port").
+	restore = cmdbuilder.NewCommand("restore", "Restore a deleted port").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(RestorePort).
 		WithLongDesc("Restore a previously deleted port in the Megaport API.\n\nThis command allows you to restore a port that has been marked for deletion but not yet fully decommissioned. The port will be reinstated with its original configuration.").
@@ -192,8 +272,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create lock port command
-	lockPortCmd := cmdbuilder.NewCommand("lock", "Lock a port").
+	lock = cmdbuilder.NewCommand("lock", "Lock a port").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(LockPort).
 		WithLongDesc("Lock a port in the Megaport API.\n\nThis command allows you to lock an existing port, preventing any changes or modifications to the port or its associated VXCs. Locking a port is useful for ensuring critical infrastructure remains stable and preventing accidental changes.").
@@ -206,8 +285,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create unlock port command
-	unlockPortCmd := cmdbuilder.NewCommand("unlock", "Unlock a port").
+	unlock = cmdbuilder.NewCommand("unlock", "Unlock a port").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(UnlockPort).
 		WithLongDesc("Unlock a port in the Megaport API.\n\nThis command allows you to unlock a previously locked port, re-enabling the ability to make changes to the port and its associated VXCs.").
@@ -219,26 +297,28 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Create check VLAN command
-	checkPortVLANAvailabilityCmd := cmdbuilder.NewCommand("check-vlan", "Check if a VLAN is available on a port").
+	checkVLAN = cmdbuilder.NewCommand("check-vlan", "Check if a VLAN is available on a port").
 		WithArgs(cobra.ExactArgs(2)).
 		WithColorAwareRunFunc(CheckPortVLANAvailability).
-		WithLongDesc("Check if a VLAN is available on a port in the Megaport API.\n\nThis command verifies whether a specific VLAN ID is available for use on a port. This is useful when planning new VXCs to ensure the VLAN ID you want to use is not already in use by another connection.\n\nVLAN ID must be between 2 and 4094 (inclusive).").
+		WithLongDesc(fmt.Sprintf("Check if a VLAN is available on a port in the Megaport API.\n\nThis command verifies whether a specific VLAN ID is available for use on a port. This is useful when planning new VXCs to ensure the VLAN ID you want to use is not already in use by another connection.\n\nVLAN ID must be between %d and %d (inclusive).", validation.MinAssignableVLAN, validation.MaxAssignableVLAN)).
 		WithExample("megaport-cli ports check-vlan 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p 100").
 		WithExample("megaport-cli ports check-vlan port-abc123 500").
 		WithRootCmd(rootCmd).
 		Build()
 
-	// Add list-tags command
-	listTagsCmd := cmdbuilder.NewCommand("list-tags", "List resource tags on a specific port.").
+	return list, get, status, deleteCmd, restore, lock, unlock, checkVLAN
+}
+
+// buildPortTagCommands creates the list-tags and update-tags commands.
+func buildPortTagCommands() (listTags, updateTags *cobra.Command) {
+	listTags = cmdbuilder.NewCommand("list-tags", "List resource tags on a specific port.").
 		WithLongDesc("Lists all resource tags associated with a specific port").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(ListPortResourceTags).
 		WithExample("megaport port list-tags port-abc123").
 		Build()
 
-	// Add update-tags command
-	updateTagsCmd := cmdbuilder.NewCommand("update-tags", "Update resource tags on a specific port").
+	updateTags = cmdbuilder.NewCommand("update-tags", "Update resource tags on a specific port").
 		WithLongDesc("Update resource tags associated with a specific port. Tags can be provided via interactive prompts, JSON string, or JSON file.").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(UpdatePortResourceTags).
@@ -249,21 +329,5 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("All existing tags will be replaced with the provided tags. To clear all tags, provide an empty tag set.").
 		Build()
 
-	// Add commands to their parents
-	portsCmd.AddCommand(
-		buyPortCmd,
-		buyLagCmd,
-		listPortsCmd,
-		getPortCmd,
-		statusPortCmd,
-		updatePortCmd,
-		deletePortCmd,
-		restorePortCmd,
-		lockPortCmd,
-		unlockPortCmd,
-		checkPortVLANAvailabilityCmd,
-		listTagsCmd,
-		updateTagsCmd,
-	)
-	rootCmd.AddCommand(portsCmd)
+	return listTags, updateTags
 }

@@ -4,56 +4,61 @@ import (
 	"context"
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 )
 
 func filterMVEImages(images []*megaport.MVEImage, vendor, productCode string, id int, version string, releaseImage bool) []*megaport.MVEImage {
-	var filtered []*megaport.MVEImage
-	for _, image := range images {
+	return utils.Filter(images, func(image *megaport.MVEImage) bool {
 		if vendor != "" && image.Vendor != vendor {
-			continue
+			return false
 		}
 		if productCode != "" && image.ProductCode != productCode {
-			continue
+			return false
 		}
 		if id != 0 && image.ID != id {
-			continue
+			return false
 		}
 		if version != "" && image.Version != version {
-			continue
+			return false
 		}
 		if releaseImage && !image.ReleaseImage {
-			continue
+			return false
 		}
-		filtered = append(filtered, image)
-	}
-	return filtered
+		return true
+	})
 }
 
 func filterMVEs(mves []*megaport.MVE, locationID int, vendor, name string) []*megaport.MVE {
-	var filtered []*megaport.MVE
-	if mves == nil {
-		return filtered
-	}
-	for _, mve := range mves {
+	return utils.Filter(mves, func(mve *megaport.MVE) bool {
 		if mve == nil {
-			continue
+			return false
 		}
 		if locationID > 0 && mve.LocationID != locationID {
-			continue
+			return false
 		}
-		mveVendor := mve.Vendor
-		if vendor != "" && !strings.EqualFold(mveVendor, vendor) {
-			continue
+		if vendor != "" && !strings.EqualFold(mve.Vendor, vendor) {
+			return false
 		}
 		if name != "" && !strings.Contains(strings.ToLower(mve.Name), strings.ToLower(name)) {
-			continue
+			return false
 		}
-		filtered = append(filtered, mve)
-	}
-	return filtered
+		return true
+	})
 }
 
 var listMVEResourceTagsFunc = func(ctx context.Context, client *megaport.Client, mveID string) (map[string]string, error) {
 	return client.MVEService.ListMVEResourceTags(ctx, mveID)
+}
+
+var lockMVEFunc = func(ctx context.Context, client *megaport.Client, mveUID string) (*megaport.ManageProductLockResponse, error) {
+	return client.ProductService.ManageProductLock(ctx, &megaport.ManageProductLockRequest{ProductID: mveUID, ShouldLock: true})
+}
+
+var unlockMVEFunc = func(ctx context.Context, client *megaport.Client, mveUID string) (*megaport.ManageProductLockResponse, error) {
+	return client.ProductService.ManageProductLock(ctx, &megaport.ManageProductLockRequest{ProductID: mveUID, ShouldLock: false})
+}
+
+var restoreMVEFunc = func(ctx context.Context, client *megaport.Client, mveUID string) (*megaport.RestoreProductResponse, error) {
+	return client.ProductService.RestoreProduct(ctx, mveUID)
 }

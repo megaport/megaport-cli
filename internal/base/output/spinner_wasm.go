@@ -5,6 +5,7 @@ package output
 
 import (
 	"fmt"
+	"sync"
 	"syscall/js"
 	"time"
 
@@ -16,10 +17,10 @@ import (
 type WasmSpinner struct {
 	message      string
 	noColor      bool
-	stopped      bool
 	stopChan     chan bool
 	jsSpinnerID  js.Value
 	outputFormat string
+	stopOnce     sync.Once
 }
 
 // NewWasmSpinner creates a spinner that works in the WASM environment
@@ -27,8 +28,7 @@ func NewWasmSpinner(message string, noColor bool, outputFormat string) *WasmSpin
 	return &WasmSpinner{
 		message:      message,
 		noColor:      noColor,
-		stopped:      false,
-		stopChan:     make(chan bool),
+		stopChan:     make(chan bool, 1),
 		outputFormat: outputFormat,
 	}
 }
@@ -38,7 +38,7 @@ func NewWasmSpinner(message string, noColor bool, outputFormat string) *WasmSpin
 func (s *WasmSpinner) Start(message string) {
 	// Store the message for later use
 	s.message = message
-	
+
 	if js.Global().Get("wasmStartSpinner").IsUndefined() {
 		// Fallback: Do NOT print anything in WASM mode
 		// The spinner is purely visual via JavaScript
@@ -47,33 +47,27 @@ func (s *WasmSpinner) Start(message string) {
 
 	// Call JavaScript function to start spinner animation
 	s.jsSpinnerID = js.Global().Call("wasmStartSpinner", message)
-	
+
 	// Also log to console for debugging
 	js.Global().Get("console").Call("log", "🔄 WASM Spinner started (ID: "+s.jsSpinnerID.String()+"): "+message)
 }
 
-// Stop stops the spinner
-// This implements SpinnerInterface.Stop()
+// Stop stops the spinner. Safe to call from multiple goroutines.
 func (s *WasmSpinner) Stop() {
-	if s.stopped {
-		return
-	}
-	s.stopped = true
-	
-	// Stop the JavaScript spinner
-	if !s.jsSpinnerID.IsUndefined() && !s.jsSpinnerID.IsNull() {
-		if !js.Global().Get("wasmStopSpinner").IsUndefined() {
-			js.Global().Call("wasmStopSpinner", s.jsSpinnerID)
+	s.stopOnce.Do(func() {
+		// Stop the JavaScript spinner
+		if !s.jsSpinnerID.IsUndefined() && !s.jsSpinnerID.IsNull() {
+			if !js.Global().Get("wasmStopSpinner").IsUndefined() {
+				js.Global().Call("wasmStopSpinner", s.jsSpinnerID)
+			}
 		}
-	}
-	
-	js.Global().Get("console").Call("log", "⏹️ WASM Spinner stopped: "+s.message)
+	})
 }
 
 // StopWithSuccess stops the spinner and shows a success message
 func (s *WasmSpinner) StopWithSuccess(msg string) {
 	s.Stop()
-	
+
 	// In WASM mode, success messages are handled separately
 	// Do not output here to avoid duplication
 	PrintSuccess(msg, s.noColor)
@@ -90,13 +84,13 @@ func init() {
 // This function is used when building for WASM to inject the WasmSpinner
 func NewSpinnerWasm(noColor bool, outputFormat string) *Spinner {
 	wasmSpinner := NewWasmSpinner("", noColor, outputFormat)
-	
+
 	return &Spinner{
-		stop:         make(chan bool),
+		stop:         make(chan bool, 1),
 		frameRate:    150 * time.Millisecond,
 		noColor:      noColor,
 		outputFormat: outputFormat,
-		style:        "wasm",
+		style:        SpinnerStyleWASM,
 		wasmSpinner:  wasmSpinner, // Inject the WASM spinner
 	}
 }
@@ -137,12 +131,12 @@ func WasmLoadingMessage(message string, noColor bool) {
 		bottom := color.New(color.FgHiCyan, color.Bold).Sprint("╚════════════════════════════════════════╝")
 		icon := color.New(color.FgHiCyan, color.Bold).Sprint("⏳")
 		text := color.New(color.FgHiWhite, color.Bold).Sprint(message)
-		
+
 		fmt.Println(border)
 		fmt.Printf("║ %s  %-35s ║\n", icon, text)
 		fmt.Println(bottom)
 	}
-	
+
 	// Notify JavaScript
 	if !js.Global().Get("wasmShowLoading").IsUndefined() {
 		js.Global().Call("wasmShowLoading", message)

@@ -15,6 +15,8 @@ This command retrieves only the essential status information for a port without 
 
 ```sh
   megaport-cli ports status port-abc123
+  megaport-cli ports status port-abc123 --watch
+  megaport-cli ports status port-abc123 --watch --interval 10s
 ```
 
 ## Usage
@@ -27,10 +29,16 @@ megaport-cli ports status [flags]
 ## Parent Command
 
 * [megaport-cli ports](megaport-cli_ports.md)
+
+## Aliases
+
+* st
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
+| `--interval` |  | `5s` | Polling interval for --watch mode (e.g. 5s, 1m) | false |
+| `--watch` | `-w` | `false` | Continuously poll and display resource status (Ctrl+C to stop) | false |
 
 ## Subcommands
 * [docs](megaport-cli_ports_status_docs.md)

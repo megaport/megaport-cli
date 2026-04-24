@@ -2,29 +2,24 @@ package mcr
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/testutil"
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
-func testCommandAdapter(fn func(cmd *cobra.Command, args []string, noColor bool) error) func(cmd *cobra.Command, args []string) error {
-	return func(cmd *cobra.Command, args []string) error {
-		return fn(cmd, args, false)
-	}
-}
-
 func TestGetMCRCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name          string
@@ -73,6 +68,15 @@ func TestGetMCRCmd_WithMockClient(t *testing.T) {
 			expectedOut: []string{`"uid": "mcr-123"`, `"name": "Test MCR"`, `"location_id": 123`},
 		},
 		{
+			name:   "get MCR nil response",
+			mcrID:  "mcr-nil",
+			format: "table",
+			setupMock: func(m *MockMCRService) {
+				m.ForceNilGetMCR = true
+			},
+			expectedError: "no MCR found with UID: mcr-nil",
+		},
+		{
 			name:   "get MCR error",
 			mcrID:  "mcr-invalid",
 			format: "table",
@@ -88,25 +92,18 @@ func TestGetMCRCmd_WithMockClient(t *testing.T) {
 			mockMCRService := &MockMCRService{}
 			tt.setupMock(mockMCRService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
-			}
+			})
+
+			cmd := testutil.NewCommand("get-mcr [mcrID]", func(cmd *cobra.Command, args []string) error {
+				return GetMCR(cmd, args, false, tt.format)
+			})
+			testutil.SetFlags(t, cmd, map[string]string{"output": tt.format})
 
 			var err error
-			cmd := &cobra.Command{
-				Use: "get-mcr [mcrID]",
-				RunE: func(cmd *cobra.Command, args []string) error {
-					return GetMCR(cmd, args, false, tt.format)
-				},
-			}
-
-			cmd.Flags().StringP("output", "o", "table", "Output format (json, table)")
-			err = cmd.Flags().Set("output", tt.format)
-			if err != nil {
-				t.Fatalf("Failed to set output format: %v", err)
-			}
 
 			output := output.CaptureOutput(func() {
 				err = cmd.RunE(cmd, []string{tt.mcrID})
@@ -126,13 +123,13 @@ func TestGetMCRCmd_WithMockClient(t *testing.T) {
 }
 
 func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	originalPrompt := utils.ResourcePrompt
-	originalConfirmPrompt := utils.ConfirmPrompt
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+	originalPrompt := utils.GetResourcePrompt()
+	originalConfirmPrompt := utils.GetConfirmPrompt()
 	defer func() {
-		config.LoginFunc = originalLoginFunc
-		utils.ResourcePrompt = originalPrompt
-		utils.ConfirmPrompt = originalConfirmPrompt
+		utils.SetResourcePrompt(originalPrompt)
+		utils.SetConfirmPrompt(originalConfirmPrompt)
 	}()
 
 	tests := []struct {
@@ -140,6 +137,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 		mcrID          string
 		force          bool
 		deleteNow      bool
+		safeDelete     bool
 		promptResponse string
 		setupMock      func(*MockMCRService)
 		expectedError  string
@@ -152,6 +150,21 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			force:          false,
 			deleteNow:      false,
 			promptResponse: "y",
+			setupMock: func(m *MockMCRService) {
+				m.DeleteMCRResult = &megaport.DeleteMCRResponse{
+					IsDeleting: true,
+				}
+			},
+			expectedOutput: "MCR deleted",
+			expectDeleted:  true,
+		},
+		{
+			name:           "safe delete flag passed to request",
+			mcrID:          "mcr-safe-delete",
+			force:          true,
+			deleteNow:      false,
+			safeDelete:     true,
+			promptResponse: "",
 			setupMock: func(m *MockMCRService) {
 				m.DeleteMCRResult = &megaport.DeleteMCRResponse{
 					IsDeleting: true,
@@ -193,7 +206,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			force:          false,
 			promptResponse: "n",
 			setupMock:      func(m *MockMCRService) {},
-			expectedOutput: "Deletion cancelled",
+			expectedError:  "cancelled by user",
 			expectDeleted:  false,
 		},
 		{
@@ -202,9 +215,9 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			force:          false,
 			promptResponse: "y",
 			setupMock: func(m *MockMCRService) {
-				m.DeleteMCRErr = fmt.Errorf("error deleting MCR")
+				m.DeleteMCRErr = fmt.Errorf("failed to delete MCR")
 			},
-			expectedError: "error deleting MCR",
+			expectedError: "failed to delete MCR",
 			expectDeleted: false,
 		},
 	}
@@ -214,21 +227,21 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			mockMCRService := &MockMCRService{}
 			tt.setupMock(mockMCRService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
-			}
+			})
 
-			utils.ConfirmPrompt = func(message string, _ bool) bool {
+			utils.SetConfirmPrompt(func(message string, _ bool) bool {
 				assert.Contains(t, message, fmt.Sprintf("Are you sure you want to delete MCR %s?", tt.mcrID))
 				return tt.promptResponse == "y"
-			}
+			})
 
-			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+			utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
 				assert.Contains(t, msg, fmt.Sprintf("Are you sure you want to delete MCR %s?", tt.mcrID))
 				return tt.promptResponse, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "delete-mcr [mcrID]",
@@ -238,15 +251,17 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			}
 			cmd.Flags().BoolP("force", "f", false, "Force deletion without confirmation")
 			cmd.Flags().Bool("now", false, "Delete MCR immediately instead of at end of billing cycle")
-			err := cmd.Flags().Set("force", fmt.Sprintf("%v", tt.force))
-			if err != nil {
-				t.Fatalf("Failed to set force flag: %v", err)
+			cmd.Flags().Bool("safe-delete", false, "Fail if the resource has attached VXCs or other active services")
+			flags := map[string]string{
+				"force": fmt.Sprintf("%v", tt.force),
+				"now":   fmt.Sprintf("%v", tt.deleteNow),
 			}
-			err = cmd.Flags().Set("now", fmt.Sprintf("%v", tt.deleteNow))
-			if err != nil {
-				t.Fatalf("Failed to set now flag: %v", err)
+			if tt.safeDelete {
+				flags["safe-delete"] = "true"
 			}
+			testutil.SetFlags(t, cmd, flags)
 
+			var err error
 			output := output.CaptureOutput(func() {
 				err = cmd.RunE(cmd, []string{tt.mcrID})
 			})
@@ -261,6 +276,9 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 				if tt.expectDeleted {
 					assert.NotNil(t, mockMCRService.CapturedDeleteMCRUID)
 					assert.Equal(t, tt.mcrID, mockMCRService.CapturedDeleteMCRUID)
+					if tt.safeDelete {
+						assert.True(t, mockMCRService.CapturedDeleteMCRRequest.SafeDelete)
+					}
 				}
 			}
 		})
@@ -268,10 +286,8 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 }
 
 func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name          string
@@ -294,9 +310,9 @@ func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
 			name:  "restore MCR error",
 			mcrID: "mcr-error",
 			setupMock: func(m *MockMCRService) {
-				m.RestoreMCRErr = fmt.Errorf("error restoring MCR")
+				m.RestoreMCRErr = fmt.Errorf("failed to restore MCR")
 			},
-			expectedError: "error restoring MCR",
+			expectedError: "failed to restore MCR",
 		},
 		{
 			name:  "restore MCR unsuccessful",
@@ -315,11 +331,11 @@ func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
 			mockMCRService := &MockMCRService{}
 			tt.setupMock(mockMCRService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
-			}
+			})
 
 			restoreMCRCmd := &cobra.Command{
 				Use: "restore-mcr [mcrID]",
@@ -436,10 +452,8 @@ func TestRestoreMCRFunc(t *testing.T) {
 }
 
 func TestListMCRPrefixFilterListsCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name           string
@@ -480,11 +494,11 @@ func TestListMCRPrefixFilterListsCmd_WithMockClient(t *testing.T) {
 			mockMCRService := &MockMCRService{}
 			tt.setupMock(mockMCRService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
-			}
+			})
 
 			listMCRPrefixFilterListsCmd := &cobra.Command{
 				Use: "list-mcr-prefix-filter-lists [mcrUID]",
@@ -511,10 +525,8 @@ func TestListMCRPrefixFilterListsCmd_WithMockClient(t *testing.T) {
 }
 
 func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name           string
@@ -552,11 +564,11 @@ func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 			mockMCRService := &MockMCRService{}
 			tt.setupMock(mockMCRService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use:  "get-mcr-prefix-filter-list [mcrUID] [prefixListID]",
@@ -582,11 +594,11 @@ func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 }
 
 func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	originalPrompt := utils.ResourcePrompt
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+	originalPrompt := utils.GetResourcePrompt()
 	defer func() {
-		config.LoginFunc = originalLoginFunc
-		utils.ResourcePrompt = originalPrompt
+		utils.SetResourcePrompt(originalPrompt)
 	}()
 
 	tests := []struct {
@@ -630,15 +642,15 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 			mockMCRService := &MockMCRService{}
 			tt.setupMock(mockMCRService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
-			}
+			})
 
-			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+			utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
 				return tt.promptResponse, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "delete-mcr-prefix-filter-list [mcrUID] [prefixListID]",
@@ -647,16 +659,13 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 				},
 			}
 			cmd.Flags().BoolP("force", "f", false, "Force deletion without confirmation")
-			err := cmd.Flags().Set("force", fmt.Sprintf("%v", tt.force))
-			if err != nil {
-				t.Fatalf("Failed to set force flag: %v", err)
-			}
 			cmd.Flags().Bool("now", false, "Delete prefix filter list immediately instead of at end of billing cycle")
-			err = cmd.Flags().Set("now", fmt.Sprintf("%v", false))
-			if err != nil {
-				t.Fatalf("Failed to set now flag: %v", err)
-			}
+			testutil.SetFlags(t, cmd, map[string]string{
+				"force": fmt.Sprintf("%v", tt.force),
+				"now":   fmt.Sprintf("%v", false),
+			})
 
+			var err error
 			output := output.CaptureOutput(func() {
 				err = cmd.RunE(cmd, []string{tt.mcrUID, fmt.Sprintf("%d", tt.prefixListID)})
 			})
@@ -672,15 +681,105 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 	}
 }
 
-func TestBuyMCRCmd_WithMockClient(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	originalLoginFunc := config.LoginFunc
+func TestBuyMCR_NoWaitFlag(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 	originalBuyMCRFunc := buyMCRFunc
 	defer func() {
-		utils.ResourcePrompt = originalPrompt
-		config.LoginFunc = originalLoginFunc
 		buyMCRFunc = originalBuyMCRFunc
 	}()
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	tests := []struct {
+		name                     string
+		noWait                   bool
+		expectedWaitForProvision bool
+	}{
+		{
+			name:                     "default waits for provisioning",
+			noWait:                   false,
+			expectedWaitForProvision: true,
+		},
+		{
+			name:                     "no-wait skips provisioning wait",
+			noWait:                   true,
+			expectedWaitForProvision: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockMCRService := &MockMCRService{}
+			mockMCRService.BuyMCRResult = &megaport.BuyMCRResponse{
+				TechnicalServiceUID: "mcr-uid-123",
+			}
+
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockMCRService
+				return client, nil
+			})
+
+			var capturedReq *megaport.BuyMCRRequest
+			buyMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
+				capturedReq = req
+				return &megaport.BuyMCRResponse{
+					TechnicalServiceUID: "mcr-uid-123",
+				}, nil
+			}
+
+			cmd := &cobra.Command{Use: "buy"}
+			cmd.Flags().BoolP("interactive", "i", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().BoolP("yes", "y", false, "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Int("mcr-asn", 0, "")
+			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().String("promo-code", "", "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			testutil.SetFlags(t, cmd, map[string]string{
+				"name":        "Test MCR",
+				"term":        "12",
+				"port-speed":  "10000",
+				"location-id": "123",
+				"mcr-asn":     "65000",
+			})
+			if tt.noWait {
+				assert.NoError(t, cmd.Flags().Set("no-wait", "true"))
+			}
+
+			var err error
+			output.CaptureOutput(func() {
+				err = BuyMCR(cmd, nil, true)
+			})
+
+			assert.NoError(t, err)
+			assert.NotNil(t, capturedReq)
+			assert.Equal(t, tt.expectedWaitForProvision, capturedReq.WaitForProvision)
+		})
+	}
+}
+
+func TestBuyMCRCmd_WithMockClient(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	originalBuyMCRFunc := buyMCRFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+	defer func() {
+		utils.SetResourcePrompt(originalPrompt)
+		buyMCRFunc = originalBuyMCRFunc
+	}()
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	tests := []struct {
 		name           string
@@ -768,7 +867,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			flags: map[string]string{
 				"json": `{"name":"Test MCR","term":"invalid"}`,
 			},
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name: "API error",
@@ -788,20 +887,33 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			name:          "no input provided",
 			expectedError: "no input provided",
 		},
+		{
+			name:        "JSON takes precedence over interactive flag",
+			interactive: true,
+			flags: map[string]string{
+				"json": `{"name":"JSON MCR","term":24,"portSpeed":10000,"locationId":123,"mcrAsn":65000,"diversityZone":"green","costCentre":"cost-789","promoCode":"JSONPROMO"}`,
+			},
+			setupMock: func(m *MockMCRService) {
+				m.BuyMCRResult = &megaport.BuyMCRResponse{
+					TechnicalServiceUID: "mcr-json-wins",
+				}
+			},
+			expectedOutput: "MCR created",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if len(tt.prompts) > 0 {
 				promptIndex := 0
-				utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+				utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
 					if promptIndex < len(tt.prompts) {
 						response := tt.prompts[promptIndex]
 						promptIndex++
 						return response, nil
 					}
 					return "", fmt.Errorf("unexpected prompt call")
-				}
+				})
 			}
 
 			mockMCRService := &MockMCRService{}
@@ -809,18 +921,19 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 				tt.setupMock(mockMCRService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use:  "buy",
-				RunE: testCommandAdapter(BuyMCR),
+				RunE: testutil.NoColorAdapter(BuyMCR),
 			}
 
 			cmd.Flags().BoolP("interactive", "i", false, "Use interactive mode with prompts")
+			cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt")
 			cmd.Flags().String("name", "", "MCR name")
 			cmd.Flags().Int("term", 0, "Contract term in months (1, 12, 24, or 36)")
 			cmd.Flags().Int("port-speed", 0, "Port speed in Mbps")
@@ -832,18 +945,14 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			cmd.Flags().String("json", "", "JSON string containing MCR configuration")
 			cmd.Flags().String("json-file", "", "Path to JSON file containing MCR configuration")
 
+			flags := make(map[string]string)
 			if tt.interactive {
-				if err := cmd.Flags().Set("interactive", "true"); err != nil {
-					t.Fatalf("Failed to set interactive flag: %v", err)
-				}
+				flags["interactive"] = "true"
 			}
-
-			for flagName, flagValue := range tt.flags {
-				err := cmd.Flags().Set(flagName, flagValue)
-				if err != nil {
-					t.Fatalf("Failed to set %s flag: %v", flagName, err)
-				}
+			for k, v := range tt.flags {
+				flags[k] = v
 			}
+			testutil.SetFlags(t, cmd, flags)
 
 			var err error
 			output := output.CaptureOutput(func() {
@@ -895,10 +1004,8 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 }
 
 func TestGetMCRStatus(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name           string
@@ -952,7 +1059,7 @@ func TestGetMCRStatus(t *testing.T) {
 			setupMock: func(m *MockMCRService) {
 				m.GetMCRErr = fmt.Errorf("MCR not found")
 			},
-			expectedError: "error getting MCR status",
+			expectedError: "failed to get MCR status",
 			outputFormat:  "table",
 		},
 		{
@@ -964,6 +1071,15 @@ func TestGetMCRStatus(t *testing.T) {
 			expectedError: "API error",
 			outputFormat:  "table",
 		},
+		{
+			name:   "nil MCR returned without error",
+			mcrUID: "mcr-nil",
+			setupMock: func(m *MockMCRService) {
+				m.ForceNilGetMCR = true
+			},
+			expectedError: "no MCR found",
+			outputFormat:  "table",
+		},
 	}
 
 	for _, tt := range tests {
@@ -973,11 +1089,11 @@ func TestGetMCRStatus(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "status [mcrUID]",
@@ -1013,10 +1129,8 @@ func TestGetMCRStatus(t *testing.T) {
 }
 
 func TestListMCRsCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	// Sample MCRs for testing
 	testMCRs := []*megaport.MCR{
@@ -1205,6 +1319,29 @@ func TestListMCRsCmd_WithMockClient(t *testing.T) {
 			expectedError: "API error: service unavailable",
 			outputFormat:  "table",
 		},
+		{
+			name: "limit results",
+			flags: map[string]string{
+				"limit": "2",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = testMCRs
+			},
+			expectedMCRs:   []string{"mcr-demo-01", "mcr-demo0-01"},
+			unexpectedMCRs: []string{"production-mcr"},
+			outputFormat:   "table",
+		},
+		{
+			name: "negative limit returns error",
+			flags: map[string]string{
+				"limit": "-1",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRsResult = testMCRs
+			},
+			expectedError: "--limit must be a non-negative integer",
+			outputFormat:  "table",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1214,11 +1351,11 @@ func TestListMCRsCmd_WithMockClient(t *testing.T) {
 				tt.setupMock(mockMCRService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MCRService = mockMCRService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "list",
@@ -1232,14 +1369,10 @@ func TestListMCRsCmd_WithMockClient(t *testing.T) {
 			cmd.Flags().Int("location-id", 0, "Filter MCRs by location ID")
 			cmd.Flags().Int("port-speed", 0, "Filter MCRs by port speed")
 			cmd.Flags().Bool("include-inactive", false, "Include inactive MCRs")
+			cmd.Flags().Int("limit", 0, "Maximum number of results to display")
 
 			// Set flag values from test case
-			for flagName, flagValue := range tt.flags {
-				err := cmd.Flags().Set(flagName, flagValue)
-				if err != nil {
-					t.Fatalf("Failed to set %s flag: %v", flagName, err)
-				}
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
@@ -1280,7 +1413,7 @@ func TestListMCRsCmd_WithMockClient(t *testing.T) {
 
 				// Check warning message when no results found
 				if len(tt.expectedMCRs) == 0 && tt.expectedError == "" {
-					assert.Contains(t, capturedOutput, "No MCRs found matching the specified filters")
+					assert.Contains(t, capturedOutput, "No MCRs found. Create one with 'megaport mcr buy'.")
 				}
 			}
 
@@ -1441,6 +1574,1354 @@ func TestFilterMCRs_EdgeCases(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := filterMCRs(tt.mcrs, tt.locationID, tt.portSpeed, tt.mcrName)
 			assert.Equal(t, tt.expectedLen, len(result))
+		})
+	}
+}
+
+func TestListMCRResourceTagsCmd(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name           string
+		mcrUID         string
+		setupMock      func(*MockMCRService)
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name:   "successful list",
+			mcrUID: "mcr-123",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsResult = map[string]string{
+					"environment": "production",
+					"team":        "networking",
+				}
+			},
+			expectedOutput: "environment",
+		},
+		{
+			name:   "empty tags",
+			mcrUID: "mcr-empty",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsResult = map[string]string{}
+			},
+		},
+		{
+			name:   "API error",
+			mcrUID: "mcr-error",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsErr = fmt.Errorf("API error: not found")
+			},
+			expectedError: "failed to get resource tags",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockMCRService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockService
+				return client, nil
+			})
+
+			cmd := &cobra.Command{
+				Use: "list-tags [mcrUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return ListMCRResourceTags(cmd, args, false, "table")
+				},
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.mcrUID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedOutput != "" {
+					assert.Contains(t, capturedOutput, tt.expectedOutput)
+				}
+			}
+		})
+	}
+}
+
+func TestUpdateMCRResourceTagsCmd(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+	originalResourcePrompt := utils.GetUpdateResourceTagsPrompt()
+	defer func() {
+		utils.SetUpdateResourceTagsPrompt(originalResourcePrompt)
+	}()
+
+	tests := []struct {
+		name                 string
+		mcrUID               string
+		interactive          bool
+		promptResult         map[string]string
+		promptError          error
+		jsonInput            string
+		setupMock            func(*MockMCRService)
+		expectedError        string
+		expectedOutput       string
+		expectedCapturedTags map[string]string
+	}{
+		{
+			name:        "successful update with interactive mode",
+			mcrUID:      "mcr-123",
+			interactive: true,
+			promptResult: map[string]string{
+				"environment": "production",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsResult = map[string]string{"environment": "staging"}
+			},
+			expectedOutput:       "Resource tags updated for MCR mcr-123",
+			expectedCapturedTags: map[string]string{"environment": "production"},
+		},
+		{
+			name:      "successful update with json",
+			mcrUID:    "mcr-456",
+			jsonInput: `{"environment": "production", "team": "networking"}`,
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsResult = map[string]string{}
+			},
+			expectedOutput: "Resource tags updated for MCR mcr-456",
+			expectedCapturedTags: map[string]string{
+				"environment": "production",
+				"team":        "networking",
+			},
+		},
+		{
+			name:      "error with invalid json",
+			mcrUID:    "mcr-789",
+			jsonInput: `{invalid json}`,
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsResult = map[string]string{}
+			},
+			expectedError: "failed to parse JSON",
+		},
+		{
+			name:      "error with API tag listing",
+			mcrUID:    "mcr-list-error",
+			jsonInput: `{"environment": "production"}`,
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsErr = fmt.Errorf("API error: resource not found")
+			},
+			expectedError: "failed to log in or list existing resource tags",
+		},
+		{
+			name:      "error with API update",
+			mcrUID:    "mcr-update-error",
+			jsonInput: `{"environment": "production"}`,
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsResult = map[string]string{}
+				m.UpdateMCRResourceTagsErr = fmt.Errorf("API error: unauthorized")
+			},
+			expectedError: "failed to update resource tags",
+		},
+		{
+			name:      "empty tags clear all existing tags",
+			mcrUID:    "mcr-clear",
+			jsonInput: `{}`,
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsResult = map[string]string{"env": "staging"}
+			},
+			expectedOutput:       "Resource tags updated for MCR mcr-clear",
+			expectedCapturedTags: map[string]string{},
+		},
+		{
+			name:   "no input provided",
+			mcrUID: "mcr-no-input",
+			setupMock: func(m *MockMCRService) {
+				m.ListMCRResourceTagsResult = map[string]string{}
+			},
+			expectedError: "no input provided",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockMCRService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockService
+				return client, nil
+			})
+
+			utils.SetUpdateResourceTagsPrompt(func(existingTags map[string]string, noColor bool) (map[string]string, error) {
+				return tt.promptResult, tt.promptError
+			})
+
+			cmd := &cobra.Command{
+				Use: "update-tags [mcrUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return UpdateMCRResourceTags(cmd, args, false)
+				},
+			}
+
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			if tt.interactive {
+				err := cmd.Flags().Set("interactive", "true")
+				assert.NoError(t, err)
+			}
+			if tt.jsonInput != "" {
+				err := cmd.Flags().Set("json", tt.jsonInput)
+				assert.NoError(t, err)
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.mcrUID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedOutput != "" {
+					assert.Contains(t, capturedOutput, tt.expectedOutput)
+				}
+				if tt.expectedCapturedTags != nil {
+					assert.Equal(t, tt.expectedCapturedTags, mockService.CapturedUpdateMCRResourceTagsRequest)
+				}
+			}
+		})
+	}
+}
+
+func TestUpdateMCR(t *testing.T) {
+	originalLoginFunc := config.GetLoginFunc()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+	originalGetMCRFunc := getMCRFunc
+	originalUpdateMCRFunc := updateMCRFunc
+	defer func() {
+		getMCRFunc = originalGetMCRFunc
+		updateMCRFunc = originalUpdateMCRFunc
+	}()
+
+	tests := []struct {
+		name           string
+		args           []string
+		flags          map[string]string
+		setupLogin     func()
+		setupGetMCR    func()
+		setupUpdateMCR func()
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name: "success with flags",
+			args: []string{"mcr-123"},
+			flags: map[string]string{
+				"name": "Updated MCR",
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				})
+			},
+			setupGetMCR: func() {
+				getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+					return &megaport.MCR{
+						UID:                mcrUID,
+						Name:               "Original MCR",
+						ProvisioningStatus: "LIVE",
+					}, nil
+				}
+			},
+			setupUpdateMCR: func() {
+				updateMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyMCRRequest) (*megaport.ModifyMCRResponse, error) {
+					return &megaport.ModifyMCRResponse{IsUpdated: true}, nil
+				}
+			},
+			expectedOutput: "MCR updated mcr-123",
+		},
+		{
+			name: "success with JSON",
+			args: []string{"mcr-456"},
+			flags: map[string]string{
+				"json": `{"name":"JSON Updated MCR"}`,
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				})
+			},
+			setupGetMCR: func() {
+				getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+					return &megaport.MCR{
+						UID:                mcrUID,
+						Name:               "JSON Updated MCR",
+						ProvisioningStatus: "LIVE",
+					}, nil
+				}
+			},
+			setupUpdateMCR: func() {
+				updateMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyMCRRequest) (*megaport.ModifyMCRResponse, error) {
+					return &megaport.ModifyMCRResponse{IsUpdated: true}, nil
+				}
+			},
+			expectedOutput: "MCR updated mcr-456",
+		},
+		{
+			name: "login error",
+			args: []string{"mcr-123"},
+			flags: map[string]string{
+				"name": "Updated MCR",
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					return nil, fmt.Errorf("authentication failed")
+				})
+			},
+			expectedError: "authentication failed",
+		},
+		{
+			name: "get original MCR error",
+			args: []string{"mcr-123"},
+			flags: map[string]string{
+				"name": "Updated MCR",
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				})
+			},
+			setupGetMCR: func() {
+				getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+					return nil, fmt.Errorf("MCR not found")
+				}
+			},
+			expectedError: "MCR not found",
+		},
+		{
+			name: "update API error",
+			args: []string{"mcr-123"},
+			flags: map[string]string{
+				"name": "Updated MCR",
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				})
+			},
+			setupGetMCR: func() {
+				getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+					return &megaport.MCR{
+						UID:                mcrUID,
+						Name:               "Original MCR",
+						ProvisioningStatus: "LIVE",
+					}, nil
+				}
+			},
+			setupUpdateMCR: func() {
+				updateMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyMCRRequest) (*megaport.ModifyMCRResponse, error) {
+					return nil, fmt.Errorf("API error: service unavailable")
+				}
+			},
+			expectedError: "API error: service unavailable",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset to defaults
+			getMCRFunc = originalGetMCRFunc
+			updateMCRFunc = originalUpdateMCRFunc
+			config.SetLoginFunc(originalLoginFunc)
+
+			if tt.setupLogin != nil {
+				tt.setupLogin()
+			}
+			if tt.setupGetMCR != nil {
+				tt.setupGetMCR()
+			}
+			if tt.setupUpdateMCR != nil {
+				tt.setupUpdateMCR()
+			}
+
+			cmd := &cobra.Command{
+				Use:  "update",
+				RunE: testutil.NoColorAdapter(UpdateMCR),
+			}
+
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().Bool("marketplace-visibility", false, "")
+			cmd.Flags().Int("term", 0, "")
+
+			testutil.SetFlags(t, cmd, tt.flags)
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, tt.args)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedOutput != "" {
+					assert.Contains(t, capturedOutput, tt.expectedOutput)
+				}
+			}
+		})
+	}
+}
+
+func TestCreateMCRPrefixFilterList(t *testing.T) {
+	originalLoginFunc := config.GetLoginFunc()
+	originalCreateFunc := createMCRPrefixFilterListFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+	defer func() {
+		createMCRPrefixFilterListFunc = originalCreateFunc
+	}()
+
+	tests := []struct {
+		name           string
+		args           []string
+		flags          map[string]string
+		setupLogin     func()
+		setupCreate    func()
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name: "success with flags",
+			args: []string{"mcr-123"},
+			flags: map[string]string{
+				"description":    "Test Prefix List",
+				"address-family": "IPv4",
+				"entries":        `[{"action":"permit","prefix":"10.0.0.0/8"}]`,
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				})
+			},
+			setupCreate: func() {
+				createMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, req *megaport.CreateMCRPrefixFilterListRequest) (*megaport.CreateMCRPrefixFilterListResponse, error) {
+					return &megaport.CreateMCRPrefixFilterListResponse{PrefixFilterListID: 42}, nil
+				}
+			},
+			expectedOutput: "Prefix filter list created successfully",
+		},
+		{
+			name: "success with JSON",
+			args: []string{"mcr-456"},
+			flags: map[string]string{
+				"json": `{"description":"JSON Prefix List","addressFamily":"IPv4","entries":[{"action":"deny","prefix":"192.168.0.0/16"}]}`,
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				})
+			},
+			setupCreate: func() {
+				createMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, req *megaport.CreateMCRPrefixFilterListRequest) (*megaport.CreateMCRPrefixFilterListResponse, error) {
+					return &megaport.CreateMCRPrefixFilterListResponse{PrefixFilterListID: 99}, nil
+				}
+			},
+			expectedOutput: "Prefix filter list created successfully",
+		},
+		{
+			name: "login error",
+			args: []string{"mcr-123"},
+			flags: map[string]string{
+				"description":    "Test Prefix List",
+				"address-family": "IPv4",
+				"entries":        `[{"action":"permit","prefix":"10.0.0.0/8"}]`,
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					return nil, fmt.Errorf("authentication failed")
+				})
+			},
+			expectedError: "authentication failed",
+		},
+		{
+			name: "API error",
+			args: []string{"mcr-123"},
+			flags: map[string]string{
+				"description":    "Test Prefix List",
+				"address-family": "IPv4",
+				"entries":        `[{"action":"permit","prefix":"10.0.0.0/8"}]`,
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				})
+			},
+			setupCreate: func() {
+				createMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, req *megaport.CreateMCRPrefixFilterListRequest) (*megaport.CreateMCRPrefixFilterListResponse, error) {
+					return nil, fmt.Errorf("API error: prefix filter list creation failed")
+				}
+			},
+			expectedError: "API error: prefix filter list creation failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset to defaults
+			config.SetLoginFunc(originalLoginFunc)
+			createMCRPrefixFilterListFunc = originalCreateFunc
+
+			if tt.setupLogin != nil {
+				tt.setupLogin()
+			}
+			if tt.setupCreate != nil {
+				tt.setupCreate()
+			}
+
+			cmd := &cobra.Command{
+				Use:  "create-prefix-filter-list",
+				RunE: testutil.NoColorAdapter(CreateMCRPrefixFilterList),
+			}
+
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("description", "", "")
+			cmd.Flags().String("address-family", "", "")
+			cmd.Flags().String("entries", "", "")
+
+			testutil.SetFlags(t, cmd, tt.flags)
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, tt.args)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedOutput != "" {
+					assert.Contains(t, capturedOutput, tt.expectedOutput)
+				}
+			}
+		})
+	}
+}
+
+func TestUpdateMCRPrefixFilterList(t *testing.T) {
+	originalLoginFunc := config.GetLoginFunc()
+	originalModifyFunc := modifyMCRPrefixFilterListFunc
+	originalGetPrefixFunc := getMCRPrefixFilterListFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+	defer func() {
+		modifyMCRPrefixFilterListFunc = originalModifyFunc
+		getMCRPrefixFilterListFunc = originalGetPrefixFunc
+	}()
+
+	tests := []struct {
+		name             string
+		args             []string
+		flags            map[string]string
+		setupLogin       func()
+		setupModify      func()
+		setupGetPrefixFL func()
+		expectedError    string
+		expectedOutput   string
+	}{
+		{
+			name: "success with flags",
+			args: []string{"mcr-123", "456"},
+			flags: map[string]string{
+				"description": "Updated Prefix List",
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				})
+			},
+			setupGetPrefixFL: func() {
+				getMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrUID string, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
+					return &megaport.MCRPrefixFilterList{
+						ID:            456,
+						Description:   "Original Prefix List",
+						AddressFamily: "IPv4",
+						Entries: []*megaport.MCRPrefixListEntry{
+							{Action: "permit", Prefix: "10.0.0.0/8"},
+						},
+					}, nil
+				}
+			},
+			setupModify: func() {
+				modifyMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrID string, prefixFilterListID int, prefixFilterList *megaport.MCRPrefixFilterList) (*megaport.ModifyMCRPrefixFilterListResponse, error) {
+					return &megaport.ModifyMCRPrefixFilterListResponse{IsUpdated: true}, nil
+				}
+			},
+			expectedOutput: "Prefix filter list updated successfully",
+		},
+		{
+			name: "success with JSON",
+			args: []string{"mcr-789", "123"},
+			flags: map[string]string{
+				"json": `{"description":"JSON Updated Prefix List","entries":[{"action":"deny","prefix":"172.16.0.0/12"}]}`,
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				})
+			},
+			setupGetPrefixFL: func() {
+				getMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrUID string, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
+					return &megaport.MCRPrefixFilterList{
+						ID:            123,
+						Description:   "Original Prefix List",
+						AddressFamily: "IPv4",
+						Entries: []*megaport.MCRPrefixListEntry{
+							{Action: "permit", Prefix: "10.0.0.0/8"},
+						},
+					}, nil
+				}
+			},
+			setupModify: func() {
+				modifyMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrID string, prefixFilterListID int, prefixFilterList *megaport.MCRPrefixFilterList) (*megaport.ModifyMCRPrefixFilterListResponse, error) {
+					return &megaport.ModifyMCRPrefixFilterListResponse{IsUpdated: true}, nil
+				}
+			},
+			expectedOutput: "Prefix filter list updated successfully",
+		},
+		{
+			name:          "invalid prefix filter list ID",
+			args:          []string{"mcr-123", "abc"},
+			expectedError: "invalid prefix filter list ID",
+		},
+		{
+			name: "API error",
+			args: []string{"mcr-123", "456"},
+			flags: map[string]string{
+				"description": "Updated Prefix List",
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				})
+			},
+			setupGetPrefixFL: func() {
+				getMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrUID string, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
+					return &megaport.MCRPrefixFilterList{
+						ID:            456,
+						Description:   "Original Prefix List",
+						AddressFamily: "IPv4",
+						Entries: []*megaport.MCRPrefixListEntry{
+							{Action: "permit", Prefix: "10.0.0.0/8"},
+						},
+					}, nil
+				}
+			},
+			setupModify: func() {
+				modifyMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrID string, prefixFilterListID int, prefixFilterList *megaport.MCRPrefixFilterList) (*megaport.ModifyMCRPrefixFilterListResponse, error) {
+					return nil, fmt.Errorf("API error: update failed")
+				}
+			},
+			expectedError: "API error: update failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset to defaults
+			config.SetLoginFunc(originalLoginFunc)
+			modifyMCRPrefixFilterListFunc = originalModifyFunc
+			getMCRPrefixFilterListFunc = originalGetPrefixFunc
+
+			if tt.setupLogin != nil {
+				tt.setupLogin()
+			}
+			if tt.setupGetPrefixFL != nil {
+				tt.setupGetPrefixFL()
+			}
+			if tt.setupModify != nil {
+				tt.setupModify()
+			}
+
+			cmd := &cobra.Command{
+				Use:  "update-prefix-filter-list",
+				RunE: testutil.NoColorAdapter(UpdateMCRPrefixFilterList),
+			}
+
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("description", "", "")
+			cmd.Flags().String("address-family", "", "")
+			cmd.Flags().String("entries", "", "")
+
+			testutil.SetFlags(t, cmd, tt.flags)
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, tt.args)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedOutput != "" {
+					assert.Contains(t, capturedOutput, tt.expectedOutput)
+				}
+			}
+		})
+	}
+}
+
+func TestLockMCRCmd_WithMockClient(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name          string
+		mcrID         string
+		lockErr       error
+		expectedError string
+		expectedOut   string
+	}{
+		{
+			name:        "lock MCR success",
+			mcrID:       "mcr-to-lock",
+			expectedOut: "MCR mcr-to-lock locked successfully",
+		},
+		{
+			name:          "lock MCR error",
+			mcrID:         "mcr-error",
+			lockErr:       fmt.Errorf("failed to lock MCR"),
+			expectedError: "failed to lock MCR",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origFunc := lockMCRFunc
+			defer func() { lockMCRFunc = origFunc }()
+
+			lockMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.ManageProductLockResponse, error) {
+				if tt.lockErr != nil {
+					return nil, tt.lockErr
+				}
+				return &megaport.ManageProductLockResponse{}, nil
+			}
+
+			lockMCRCmd := &cobra.Command{
+				Use: "lock [mcrUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return LockMCR(cmd, args, false)
+				},
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = lockMCRCmd.RunE(lockMCRCmd, []string{tt.mcrID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOut)
+			}
+		})
+	}
+}
+
+func TestUnlockMCRCmd_WithMockClient(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name          string
+		mcrID         string
+		unlockErr     error
+		expectedError string
+		expectedOut   string
+	}{
+		{
+			name:        "unlock MCR success",
+			mcrID:       "mcr-to-unlock",
+			expectedOut: "MCR mcr-to-unlock unlocked successfully",
+		},
+		{
+			name:          "unlock MCR error",
+			mcrID:         "mcr-error",
+			unlockErr:     fmt.Errorf("failed to unlock MCR"),
+			expectedError: "failed to unlock MCR",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origFunc := unlockMCRFunc
+			defer func() { unlockMCRFunc = origFunc }()
+
+			unlockMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.ManageProductLockResponse, error) {
+				if tt.unlockErr != nil {
+					return nil, tt.unlockErr
+				}
+				return &megaport.ManageProductLockResponse{}, nil
+			}
+
+			unlockMCRCmd := &cobra.Command{
+				Use: "unlock [mcrUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return UnlockMCR(cmd, args, false)
+				},
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = unlockMCRCmd.RunE(unlockMCRCmd, []string{tt.mcrID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOut)
+			}
+		})
+	}
+}
+
+func TestLockMCRCmd_LoginError(t *testing.T) {
+	originalLoginFunc := config.GetLoginFunc()
+	defer func() { config.SetLoginFunc(originalLoginFunc) }()
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		return nil, fmt.Errorf("login failed")
+	})
+
+	cmd := &cobra.Command{}
+	err := LockMCR(cmd, []string{"mcr-123"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to log in")
+}
+
+func TestUnlockMCRCmd_LoginError(t *testing.T) {
+	originalLoginFunc := config.GetLoginFunc()
+	defer func() { config.SetLoginFunc(originalLoginFunc) }()
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		return nil, fmt.Errorf("login failed")
+	})
+
+	cmd := &cobra.Command{}
+	err := UnlockMCR(cmd, []string{"mcr-123"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to log in")
+}
+
+func TestBuyMCR_Confirmation(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	originalBuyMCRFunc := buyMCRFunc
+	defer func() { buyMCRFunc = originalBuyMCRFunc }()
+
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+
+	tests := []struct {
+		name                 string
+		flags                map[string]string
+		jsonInput            string
+		confirmResult        bool
+		expectBuyCalled      bool
+		expectedOutput       string
+		expectedError        string
+		promptShouldBeCalled bool
+	}{
+		{
+			name: "confirmation accepted",
+			flags: map[string]string{
+				"name":        "Test MCR",
+				"term":        "12",
+				"port-speed":  "10000",
+				"location-id": "123",
+				"mcr-asn":     "65000",
+			},
+			confirmResult:        true,
+			expectBuyCalled:      true,
+			expectedOutput:       "MCR created",
+			promptShouldBeCalled: true,
+		},
+		{
+			name: "confirmation denied",
+			flags: map[string]string{
+				"name":        "Test MCR",
+				"term":        "12",
+				"port-speed":  "10000",
+				"location-id": "123",
+				"mcr-asn":     "65000",
+			},
+			confirmResult:        false,
+			expectBuyCalled:      false,
+			expectedError:        "cancelled by user",
+			promptShouldBeCalled: true,
+		},
+		{
+			name: "yes flag skips confirmation",
+			flags: map[string]string{
+				"name":        "Test MCR",
+				"term":        "12",
+				"port-speed":  "10000",
+				"location-id": "123",
+				"mcr-asn":     "65000",
+				"yes":         "true",
+			},
+			confirmResult:        false,
+			expectBuyCalled:      true,
+			expectedOutput:       "MCR created",
+			promptShouldBeCalled: false,
+		},
+		{
+			name: "json input skips confirmation",
+			flags: map[string]string{
+				"json": `{"name":"JSON MCR","term":12,"portSpeed":10000,"locationId":123,"mcrAsn":65000}`,
+			},
+			confirmResult:        false,
+			expectBuyCalled:      true,
+			expectedOutput:       "MCR created",
+			promptShouldBeCalled: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockMCRService := &MockMCRService{
+				BuyMCRResult: &megaport.BuyMCRResponse{
+					TechnicalServiceUID: "mcr-confirm-123",
+				},
+			}
+
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockMCRService
+				return client, nil
+			})
+
+			buyCalled := false
+			buyMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
+				buyCalled = true
+				return &megaport.BuyMCRResponse{
+					TechnicalServiceUID: "mcr-confirm-123",
+				}, nil
+			}
+
+			promptCalled := false
+			utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
+				promptCalled = true
+				return tt.confirmResult
+			})
+
+			cmd := &cobra.Command{
+				Use:  "buy",
+				RunE: testutil.NoColorAdapter(BuyMCR),
+			}
+
+			cmd.Flags().BoolP("interactive", "i", false, "")
+			cmd.Flags().BoolP("yes", "y", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Int("mcr-asn", 0, "")
+			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().String("promo-code", "", "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			testutil.SetFlags(t, cmd, tt.flags)
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, nil)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+			}
+
+			assert.Equal(t, tt.expectBuyCalled, buyCalled, "buy function called mismatch")
+			assert.Equal(t, tt.promptShouldBeCalled, promptCalled, "confirmation prompt called mismatch")
+		})
+	}
+}
+
+func TestExportMCRConfig(t *testing.T) {
+	mcr := &megaport.MCR{
+		UID:                "mcr-should-not-appear",
+		Name:               "My MCR",
+		ContractTermMonths: 12,
+		PortSpeed:          1000,
+		LocationID:         99,
+		DiversityZone:      "red",
+		CostCentre:         "NetOps",
+		ProvisioningStatus: "LIVE",
+		Resources: megaport.MCRResources{
+			VirtualRouter: megaport.MCRVirtualRouter{
+				ASN: 65000,
+			},
+		},
+	}
+	m := exportMCRConfig(mcr)
+
+	assert.Equal(t, "My MCR", m["name"])
+	assert.Equal(t, 12, m["term"])
+	assert.Equal(t, 1000, m["portSpeed"])
+	assert.Equal(t, 99, m["locationId"])
+	assert.Equal(t, "red", m["diversityZone"])
+	assert.Equal(t, "NetOps", m["costCentre"])
+	assert.Equal(t, 65000, m["mcrAsn"])
+
+	_, hasUID := m["productUid"]
+	assert.False(t, hasUID, "export should not include productUid")
+	_, hasStatus := m["provisioningStatus"]
+	assert.False(t, hasStatus, "export should not include provisioningStatus")
+}
+
+func TestGetMCR_Export(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockService := &MockMCRService{
+		GetMCRResult: &megaport.MCR{
+			UID:                "mcr-export-123",
+			Name:               "Export MCR",
+			ContractTermMonths: 12,
+			PortSpeed:          1000,
+			LocationID:         42,
+			ProvisioningStatus: "LIVE",
+		},
+	}
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.MCRService = mockService
+		return client, nil
+	})
+
+	cmd := &cobra.Command{Use: "get"}
+	cmd.Flags().Bool("export", false, "")
+	assert.NoError(t, cmd.Flags().Set("export", "true"))
+
+	var err error
+	capturedOutput := output.CaptureOutput(func() {
+		err = GetMCR(cmd, []string{"mcr-export-123"}, true, "table")
+	})
+
+	assert.NoError(t, err)
+	var parsed map[string]interface{}
+	assert.NoError(t, json.Unmarshal([]byte(capturedOutput), &parsed), "export output must be valid JSON")
+	assert.Equal(t, "Export MCR", parsed["name"])
+	assert.Equal(t, float64(42), parsed["locationId"])
+	_, hasUID := parsed["productUid"]
+	assert.False(t, hasUID, "export should not include productUid")
+}
+
+func TestValidateMCR(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name             string
+		flags            map[string]string
+		jsonInput        string
+		jsonFileContent  string
+		setupMock        func(*MockMCRService)
+		loginError       error
+		expectedError    string
+		expectedContains string
+	}{
+		{
+			name: "success with flags",
+			flags: map[string]string{
+				"name":                   "test-mcr",
+				"term":                   "12",
+				"port-speed":             "5000",
+				"location-id":            "1",
+				"marketplace-visibility": "true",
+			},
+			setupMock:        func(m *MockMCRService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name:             "success with JSON",
+			jsonInput:        `{"name":"json-mcr","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true}`,
+			setupMock:        func(m *MockMCRService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name: "validation error",
+			flags: map[string]string{
+				"name":                   "test-mcr",
+				"term":                   "12",
+				"port-speed":             "5000",
+				"location-id":            "1",
+				"marketplace-visibility": "true",
+			},
+			setupMock: func(m *MockMCRService) {
+				m.ValidateMCROrderErr = fmt.Errorf("invalid MCR configuration")
+			},
+			expectedError: "invalid MCR configuration",
+		},
+		{
+			name:          "no input provided",
+			flags:         map[string]string{},
+			setupMock:     func(m *MockMCRService) {},
+			expectedError: "no input provided",
+		},
+		{
+			name: "login error",
+			flags: map[string]string{
+				"name":                   "test-mcr",
+				"term":                   "12",
+				"port-speed":             "5000",
+				"location-id":            "1",
+				"marketplace-visibility": "true",
+			},
+			setupMock:     func(m *MockMCRService) {},
+			loginError:    fmt.Errorf("authentication failed"),
+			expectedError: "authentication failed",
+		},
+		{
+			name:          "invalid JSON input",
+			jsonInput:     `{invalid json}`,
+			setupMock:     func(m *MockMCRService) {},
+			expectedError: "failed to parse JSON",
+		},
+		{
+			name:             "success with JSON file",
+			jsonFileContent:  `{"name":"file-mcr","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true}`,
+			setupMock:        func(m *MockMCRService) {},
+			expectedContains: "validation passed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockMCRService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			if tt.loginError != nil {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					return nil, tt.loginError
+				})
+			} else {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = mockService
+					return client, nil
+				})
+			}
+
+			cmd := &cobra.Command{Use: "validate"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Bool("marketplace-visibility", false, "")
+			cmd.Flags().Int("mcr-asn", 0, "")
+			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().String("promo-code", "", "")
+			cmd.Flags().String("resource-tags", "", "")
+
+			if tt.jsonInput != "" {
+				assert.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+			if tt.jsonFileContent != "" {
+				tmpFile, tmpErr := os.CreateTemp("", "mcr-validate-*.json")
+				assert.NoError(t, tmpErr)
+				defer os.Remove(tmpFile.Name())
+				_, tmpErr = tmpFile.WriteString(tt.jsonFileContent)
+				assert.NoError(t, tmpErr)
+				tmpFile.Close()
+				assert.NoError(t, cmd.Flags().Set("json-file", tmpFile.Name()))
+			}
+			for k, v := range tt.flags {
+				assert.NoError(t, cmd.Flags().Set(k, v))
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = ValidateMCR(cmd, nil, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedContains != "" {
+					assert.Contains(t, capturedOutput, tt.expectedContains)
+				}
+			}
+		})
+	}
+}
+
+func TestListMCRs_TagFilter(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	origListTagsFunc := listMCRResourceTagsFunc
+	defer func() { listMCRResourceTagsFunc = origListTagsFunc }()
+
+	allMCRs := []*megaport.MCR{
+		{UID: "mcr-1", Name: "MCR-Alpha", ProvisioningStatus: "LIVE"},
+		{UID: "mcr-2", Name: "MCR-Beta", ProvisioningStatus: "LIVE"},
+		{UID: "mcr-3", Name: "MCR-Gamma", ProvisioningStatus: "LIVE"},
+	}
+
+	tagsByUID := map[string]map[string]string{
+		"mcr-1": {"env": "prod", "team": "net"},
+		"mcr-2": {"env": "staging"},
+		"mcr-3": {},
+	}
+
+	tests := []struct {
+		name            string
+		tagFilters      []string
+		tagFetchErrUID  string
+		expectedOutputs []string
+		notExpected     []string
+	}{
+		{
+			name:            "no tag filter returns all",
+			tagFilters:      nil,
+			expectedOutputs: []string{"mcr-1", "mcr-2", "mcr-3"},
+		},
+		{
+			name:            "exact match includes only matching resource",
+			tagFilters:      []string{"env=prod"},
+			expectedOutputs: []string{"mcr-1"},
+			notExpected:     []string{"mcr-2", "mcr-3"},
+		},
+		{
+			name:            "AND logic requires all filters to match",
+			tagFilters:      []string{"env=prod", "team=net"},
+			expectedOutputs: []string{"mcr-1"},
+			notExpected:     []string{"mcr-2", "mcr-3"},
+		},
+		{
+			name:            "key-exists match",
+			tagFilters:      []string{"env"},
+			expectedOutputs: []string{"mcr-1", "mcr-2"},
+			notExpected:     []string{"mcr-3"},
+		},
+		{
+			name:        "no match returns empty",
+			tagFilters:  []string{"env=nonexistent"},
+			notExpected: []string{"mcr-1", "mcr-2", "mcr-3"},
+		},
+		{
+			name:            "tag fetch error excludes resource gracefully",
+			tagFilters:      []string{"env=prod"},
+			tagFetchErrUID:  "mcr-1",
+			notExpected:     []string{"MCR-Alpha"}, // name absent from table; UID appears in warning
+			expectedOutputs: []string{"Failed to fetch tags"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			listMCRResourceTagsFunc = func(ctx context.Context, client *megaport.Client, uid string) (map[string]string, error) {
+				if tt.tagFetchErrUID != "" && uid == tt.tagFetchErrUID {
+					return nil, fmt.Errorf("tag fetch error")
+				}
+				return tagsByUID[uid], nil
+			}
+
+			mockSvc := &MockMCRService{ListMCRsResult: allMCRs}
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				return &megaport.Client{MCRService: mockSvc}, nil
+			})
+
+			cmd := &cobra.Command{Use: "list"}
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Bool("include-inactive", false, "")
+			cmd.Flags().Int("limit", 0, "")
+			cmd.Flags().StringArray("tag", nil, "")
+
+			for _, f := range tt.tagFilters {
+				assert.NoError(t, cmd.Flags().Set("tag", f))
+			}
+
+			var listErr error
+			capturedOutput := output.CaptureOutput(func() {
+				listErr = ListMCRs(cmd, nil, true, "table")
+			})
+			assert.NoError(t, listErr)
+
+			for _, expected := range tt.expectedOutputs {
+				assert.Contains(t, capturedOutput, expected)
+			}
+			for _, notExp := range tt.notExpected {
+				assert.NotContains(t, capturedOutput, notExp)
+			}
 		})
 	}
 }

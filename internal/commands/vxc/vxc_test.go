@@ -1,11 +1,14 @@
 package vxc
 
 import (
+	"context"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	megaport "github.com/megaport/megaportgo"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var testVXCs = []*megaport.VXC{
@@ -231,13 +234,122 @@ func TestPrintVXCs_EdgeCases(t *testing.T) {
 	}
 }
 
+func TestDisplayVXCChanges(t *testing.T) {
+	tests := []struct {
+		name             string
+		original         *megaport.VXC
+		updated          *megaport.VXC
+		expectedContains []string
+		expectEmpty      bool
+	}{
+		{
+			name:        "nil original",
+			original:    nil,
+			updated:     &megaport.VXC{},
+			expectEmpty: true,
+		},
+		{
+			name:        "nil updated",
+			original:    &megaport.VXC{},
+			updated:     nil,
+			expectEmpty: true,
+		},
+		{
+			name:             "no changes",
+			original:         &megaport.VXC{Name: "Same", RateLimit: 100},
+			updated:          &megaport.VXC{Name: "Same", RateLimit: 100},
+			expectedContains: []string{"No changes detected"},
+		},
+		{
+			name:             "name change",
+			original:         &megaport.VXC{Name: "Old"},
+			updated:          &megaport.VXC{Name: "New"},
+			expectedContains: []string{"Name:", "Old", "New"},
+		},
+		{
+			name:             "rate limit change",
+			original:         &megaport.VXC{RateLimit: 100},
+			updated:          &megaport.VXC{RateLimit: 500},
+			expectedContains: []string{"Rate Limit:", "100 Mbps", "500 Mbps"},
+		},
+		{
+			name:             "cost centre change from empty",
+			original:         &megaport.VXC{CostCentre: ""},
+			updated:          &megaport.VXC{CostCentre: "CC-123"},
+			expectedContains: []string{"Cost Centre:", "(none)", "CC-123"},
+		},
+		{
+			name:             "term change",
+			original:         &megaport.VXC{ContractTermMonths: 12},
+			updated:          &megaport.VXC{ContractTermMonths: 24},
+			expectedContains: []string{"Contract Term:", "12 months", "24 months"},
+		},
+		{
+			name: "a-end vlan change",
+			original: &megaport.VXC{
+				AEndConfiguration: megaport.VXCEndConfiguration{VLAN: 100},
+			},
+			updated: &megaport.VXC{
+				AEndConfiguration: megaport.VXCEndConfiguration{VLAN: 200},
+			},
+			expectedContains: []string{"A-End VLAN:", "100", "200"},
+		},
+		{
+			name: "b-end vlan change",
+			original: &megaport.VXC{
+				BEndConfiguration: megaport.VXCEndConfiguration{VLAN: 300},
+			},
+			updated: &megaport.VXC{
+				BEndConfiguration: megaport.VXCEndConfiguration{VLAN: 400},
+			},
+			expectedContains: []string{"B-End VLAN:"},
+		},
+		{
+			name:             "locked change",
+			original:         &megaport.VXC{Locked: false},
+			updated:          &megaport.VXC{Locked: true},
+			expectedContains: []string{"Locked:", "No", "Yes"},
+		},
+		{
+			name: "multiple changes",
+			original: &megaport.VXC{
+				Name:      "OldName",
+				RateLimit: 100,
+				Locked:    false,
+			},
+			updated: &megaport.VXC{
+				Name:      "NewName",
+				RateLimit: 500,
+				Locked:    true,
+			},
+			expectedContains: []string{"Name:", "Rate Limit:", "Locked:"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			captured := output.CaptureOutput(func() {
+				displayVXCChanges(tt.original, tt.updated, true)
+			})
+
+			if tt.expectEmpty {
+				assert.Empty(t, captured)
+			} else {
+				for _, expected := range tt.expectedContains {
+					assert.Contains(t, captured, expected)
+				}
+			}
+		})
+	}
+}
+
 func TestToVXCOutput_EdgeCases(t *testing.T) {
 	tests := []struct {
 		name          string
 		vxc           *megaport.VXC
 		shouldError   bool
 		errorContains string
-		validateFunc  func(*testing.T, VXCOutput)
+		validateFunc  func(*testing.T, vxcOutput)
 	}{
 		{
 			name:          "nil vxc",
@@ -248,7 +360,7 @@ func TestToVXCOutput_EdgeCases(t *testing.T) {
 		{
 			name: "zero values",
 			vxc:  &megaport.VXC{},
-			validateFunc: func(t *testing.T, output VXCOutput) {
+			validateFunc: func(t *testing.T, output vxcOutput) {
 				assert.Empty(t, output.UID)
 				assert.Empty(t, output.Name)
 				assert.Empty(t, output.AEndUID)
@@ -267,7 +379,7 @@ func TestToVXCOutput_EdgeCases(t *testing.T) {
 				RateLimit:          75,
 				ProvisioningStatus: "CONFIGURED",
 			},
-			validateFunc: func(t *testing.T, output VXCOutput) {
+			validateFunc: func(t *testing.T, output vxcOutput) {
 				assert.Equal(t, "vxc-1", output.UID)
 				assert.Equal(t, "TestVXC", output.Name)
 				assert.Empty(t, output.AEndUID)
@@ -282,7 +394,7 @@ func TestToVXCOutput_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output, err := ToVXCOutput(tt.vxc)
+			output, err := toVXCOutput(tt.vxc)
 
 			if tt.shouldError {
 				assert.Error(t, err)
@@ -297,4 +409,33 @@ func TestToVXCOutput_EdgeCases(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestVXCUpdateTagsHasGenerateSkeleton(t *testing.T) {
+	root := &cobra.Command{Use: "megaport-cli"}
+	AddCommandsTo(root)
+	updateTagsCmd, _, err := root.Find([]string{"vxc", "update-tags"})
+	require.NoError(t, err)
+	require.NotNil(t, updateTagsCmd)
+	assert.NotNil(t, updateTagsCmd.Flags().Lookup("generate-skeleton"))
+}
+
+func TestVXCListHasTagFlag(t *testing.T) {
+	root := &cobra.Command{Use: "megaport-cli"}
+	AddCommandsTo(root)
+	listCmd, _, err := root.Find([]string{"vxc", "list"})
+	require.NoError(t, err)
+	require.NotNil(t, listCmd)
+	assert.NotNil(t, listCmd.Flags().Lookup("tag"), "list command should have --tag flag")
+}
+
+func TestListVXCResourceTagsFunc(t *testing.T) {
+	want := map[string]string{"env": "prod"}
+	mockSvc := &MockVXCService{ListVXCResourceTagsResult: want}
+	client := &megaport.Client{}
+	client.VXCService = mockSvc
+
+	got, err := listVXCResourceTagsFunc(context.Background(), client, "vxc-uid-1")
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
 }

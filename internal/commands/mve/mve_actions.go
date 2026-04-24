@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"sort"
+	"strconv"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -16,16 +16,45 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
+func exportMVEConfig(mve *megaport.MVE) map[string]interface{} {
+	m := map[string]interface{}{
+		"name":       mve.Name,
+		"term":       mve.ContractTermMonths,
+		"locationId": mve.LocationID,
+	}
+	if mve.DiversityZone != "" {
+		m["diversityZone"] = mve.DiversityZone
+	}
+	if mve.CostCentre != "" {
+		m["costCentre"] = mve.CostCentre
+	}
+	if len(mve.NetworkInterfaces) > 0 {
+		vnics := make([]map[string]interface{}, 0, len(mve.NetworkInterfaces))
+		for _, ni := range mve.NetworkInterfaces {
+			vnic := map[string]interface{}{
+				"description": ni.Description,
+			}
+			if ni.VLAN != 0 {
+				vnic["vlan"] = ni.VLAN
+			}
+			vnics = append(vnics, vnic)
+		}
+		m["vnics"] = vnics
+	}
+	return m
+}
 
-	client, err := config.Login(ctx)
+func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return err
 	}
+	defer cancel()
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	locationID, _ := cmd.Flags().GetInt("location-id")
 	vendor, _ := cmd.Flags().GetString("vendor")
 	name, _ := cmd.Flags().GetString("name")
@@ -43,77 +72,73 @@ func ListMVEs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 
 	if err != nil {
 		output.PrintError("Failed to list MVEs: %v", noColor, err)
-		return fmt.Errorf("error listing MVEs: %v", err)
+		return fmt.Errorf("failed to list MVEs: %w", err)
 	}
 
 	var activeMVEs []*megaport.MVE
 	if !includeInactive {
 		for _, mve := range mves {
 			if mve != nil &&
-				mve.ProvisioningStatus != "DECOMMISSIONED" &&
-				mve.ProvisioningStatus != "CANCELLED" &&
-				mve.ProvisioningStatus != "DECOMMISSIONING" {
+				mve.ProvisioningStatus != megaport.STATUS_DECOMMISSIONED &&
+				mve.ProvisioningStatus != megaport.STATUS_CANCELLED &&
+				mve.ProvisioningStatus != utils.StatusDecommissioning {
 				activeMVEs = append(activeMVEs, mve)
 			}
 		}
 		mves = activeMVEs
 	}
 
+	// Name, locationID, and vendor filtering are client-side; SDK only supports IncludeInactive.
 	filteredMVEs := filterMVEs(mves, locationID, vendor, name)
 
-	if len(filteredMVEs) == 0 {
-		output.PrintWarning("No MVEs found matching the specified filters", noColor)
-		return printMVEs(filteredMVEs, outputFormat, noColor)
-	}
+	limit, _ := cmd.Flags().GetInt("limit") // applied client-side after fetch
 
-	err = printMVEs(filteredMVEs, outputFormat, noColor)
-	if err != nil {
-		output.PrintError("Failed to print MVEs: %v", noColor, err)
-		return fmt.Errorf("error printing MVEs: %v", err)
+	tagFilters, _ := cmd.Flags().GetStringArray("tag")
+	if len(tagFilters) > 0 {
+		tagSpinner := output.PrintCustomSpinner("Fetching tags for", "MVEs", noColor)
+		var tagErrs map[string]error
+		filteredMVEs, tagErrs = utils.ApplyTagFilter(ctx, filteredMVEs,
+			func(m *megaport.MVE) string { return m.UID },
+			func(ctx context.Context, uid string) (map[string]string, error) {
+				return listMVEResourceTagsFunc(ctx, client, uid)
+			},
+			tagFilters, limit,
+		)
+		tagSpinner.Stop()
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		for uid, err := range tagErrs {
+			output.PrintWarning("Failed to fetch tags for MVE %s, skipping: %v", noColor, uid, err)
+		}
 	}
-	return nil
+	return utils.ApplyLimitAndPrint(filteredMVEs, limit, outputFormat, noColor,
+		"No MVEs found. Create one with 'megaport mve buy'.", printMVEs)
+}
+
+func buildMVERequest(cmd *cobra.Command, noColor bool) (*megaport.BuyMVERequest, error) {
+	return utils.ResolveInput(utils.InputConfig[*megaport.BuyMVERequest]{
+		ResourceName: "MVE",
+		Cmd:          cmd,
+		NoColor:      noColor,
+		FlagsProvided: func() bool {
+			return cmd.Flags().Changed("name") || cmd.Flags().Changed("term") ||
+				cmd.Flags().Changed("location-id") || cmd.Flags().Changed("vendor-config") ||
+				cmd.Flags().Changed("vnics")
+		},
+		FromJSON:   processJSONBuyMVEInput,
+		FromFlags:  func() (*megaport.BuyMVERequest, error) { return processFlagBuyMVEInput(cmd) },
+		FromPrompt: func() (*megaport.BuyMVERequest, error) { return promptForBuyMVEDetails(noColor) },
+	})
 }
 
 func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
+	defer cancel()
 
-	interactive, _ := cmd.Flags().GetBool("interactive")
-	jsonStr, _ := cmd.Flags().GetString("json")
-	jsonFile, _ := cmd.Flags().GetString("json-file")
-
-	flagsProvided := cmd.Flags().Changed("name") ||
-		cmd.Flags().Changed("term") ||
-		cmd.Flags().Changed("location-id") ||
-		cmd.Flags().Changed("vendor-config") ||
-		cmd.Flags().Changed("vnics")
-
-	var req *megaport.BuyMVERequest
-	var err error
-
-	if jsonStr != "" || jsonFile != "" {
-		output.PrintInfo("Using JSON input", noColor)
-		req, err = processJSONBuyMVEInput(jsonStr, jsonFile)
-		if err != nil {
-			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return err
-		}
-	} else if flagsProvided {
-		output.PrintInfo("Using flag input", noColor)
-		req, err = processFlagBuyMVEInput(cmd)
-		if err != nil {
-			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return err
-		}
-	} else if interactive {
-		output.PrintInfo("Starting interactive mode", noColor)
-		req, err = promptForBuyMVEDetails(noColor)
-		if err != nil {
-			output.PrintError("Interactive input failed: %v", noColor, err)
-			return err
-		}
-	} else {
-		output.PrintError("No input provided, use --interactive, --json, or flags to specify MVE details", noColor)
-		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify MVE details")
+	req, err := buildMVERequest(cmd, noColor)
+	if err != nil {
+		return err
 	}
 
 	client, err := config.Login(ctx)
@@ -124,7 +149,7 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err := validation.ValidateMVEVendorConfig(req.VendorConfig); err != nil {
 		output.PrintError("Validation failed: %v", noColor, err)
-		return fmt.Errorf("validation failed: %v", err)
+		return fmt.Errorf("validation failed: %w", err)
 	}
 
 	validationSpinner := output.PrintResourceValidating("MVE", noColor)
@@ -135,17 +160,45 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		output.PrintError("Validation failed: %v", noColor, err)
-		return fmt.Errorf("validation failed: %v", err)
+		return fmt.Errorf("validation failed: %w", err)
 	}
 
 	output.PrintInfo("Validation successful", noColor)
 
-	req.WaitForProvision = true
-	req.WaitForTime = 10 * time.Minute
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
+	yes, _ := cmd.Flags().GetBool("yes")
+	if !yes && jsonStr == "" && jsonFile == "" {
+		details := []utils.BuyConfirmDetail{
+			{Key: "Name", Value: req.Name},
+			{Key: "Term", Value: fmt.Sprintf("%d months", req.Term)},
+			{Key: "Location ID", Value: strconv.Itoa(req.LocationID)},
+		}
+		if !utils.BuyConfirmPrompt("MVE", details, noColor) {
+			output.PrintInfo("Purchase cancelled", noColor)
+			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
+		}
+	}
 
-	spinner := output.PrintResourceCreating("MVE", req.Name, noColor)
+	noWait, _ := cmd.Flags().GetBool("no-wait")
+	if !noWait {
+		req.WaitForProvision = true
+		req.WaitForTime = utils.DefaultProvisionTimeout
+	}
 
-	resp, err := client.MVEService.BuyMVE(ctx, req)
+	var spinner *output.Spinner
+	if req.WaitForProvision {
+		spinner = output.PrintResourceProvisioning("MVE", req.Name, noColor)
+	} else {
+		spinner = output.PrintResourceCreating("MVE", req.Name, noColor)
+	}
+
+	var resp *megaport.BuyMVEResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = client.MVEService.BuyMVE(ctx, req)
+		return e
+	})
 
 	spinner.Stop()
 
@@ -158,15 +211,49 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
+func ValidateMVE(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
+
+	req, err := buildMVERequest(cmd, noColor)
+	if err != nil {
+		return err
+	}
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return err
+	}
+
+	if err := validation.ValidateMVEVendorConfig(req.VendorConfig); err != nil {
+		output.PrintError("Validation failed: %v", noColor, err)
+		return fmt.Errorf("validation failed: %w", err)
+	}
+
+	spinner := output.PrintResourceValidating("MVE", noColor)
+	err = client.MVEService.ValidateMVEOrder(ctx, req)
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Validation failed: %v", noColor, err)
+		return fmt.Errorf("validation failed: %w", err)
+	}
+
+	output.PrintSuccess("MVE validation passed", noColor)
+	return nil
+}
+
 func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
+	defer cancel()
 	mveUID := args[0]
 	formattedUID := output.FormatUID(mveUID, noColor)
 
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return err
 	}
 
 	getSpinner := output.PrintResourceGetting("MVE", mveUID, noColor)
@@ -177,7 +264,7 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		output.PrintError("Failed to get original MVE details: %v", noColor, err)
-		return fmt.Errorf("error getting MVE details: %v", err)
+		return fmt.Errorf("failed to get MVE details: %w", err)
 	}
 
 	interactive, _ := cmd.Flags().GetBool("interactive")
@@ -194,20 +281,20 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		req, err = processJSONUpdateMVEInput(jsonStr, jsonFile, mveUID)
 		if err != nil {
 			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return fmt.Errorf("error processing JSON input: %v", err)
+			return fmt.Errorf("failed to process JSON input: %w", err)
 		}
 	} else if flagsProvided {
 		req, err = processFlagUpdateMVEInput(cmd, mveUID)
 		if err != nil {
 			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return fmt.Errorf("error processing flag input: %v", err)
+			return fmt.Errorf("failed to process flag input: %w", err)
 		}
 	} else if interactive {
 		output.PrintInfo("Starting interactive mode for MVE %s", noColor, formattedUID)
 		req, err = promptForUpdateMVEDetails(mveUID, noColor)
 		if err != nil {
 			output.PrintError("Failed to get MVE details interactively: %v", noColor, err)
-			return fmt.Errorf("error getting MVE details interactively: %v", err)
+			return fmt.Errorf("failed to get MVE details interactively: %w", err)
 		}
 	} else {
 		output.PrintError("No input provided", noColor)
@@ -215,11 +302,16 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	req.WaitForUpdate = true
-	req.WaitForTime = 10 * time.Minute
+	req.WaitForTime = utils.DefaultProvisionTimeout
 
 	updateSpinner := output.PrintResourceUpdating("MVE", mveUID, noColor)
 
-	resp, err := client.MVEService.ModifyMVE(ctx, req)
+	var resp *megaport.ModifyMVEResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = client.MVEService.ModifyMVE(ctx, req)
+		return e
+	})
 
 	updateSpinner.Stop()
 
@@ -253,14 +345,19 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
+	output.SetOutputFormat(outputFormat)
 
-	client, err := config.Login(ctx)
+	watch, _ := cmd.Flags().GetBool("watch")
+	if watch {
+		return watchGetMVE(cmd, args, noColor, outputFormat)
+	}
+
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return err
 	}
+	defer cancel()
 
 	mveUID := args[0]
 	formattedUID := output.FormatUID(mveUID, noColor)
@@ -276,8 +373,9 @@ func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	spinner.Stop()
 
 	if err != nil {
+		err = utils.WrapAPIError(err, "MVE", mveUID)
 		output.PrintError("Failed to get MVE: %v", noColor, err)
-		return fmt.Errorf("error getting MVE: %v", err)
+		return fmt.Errorf("failed to get MVE: %w", err)
 	}
 
 	if mve == nil {
@@ -285,23 +383,49 @@ func GetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 		return fmt.Errorf("no MVE found with UID: %s", mveUID)
 	}
 
-	err = output.PrintOutput([]*megaport.MVE{mve}, outputFormat, noColor)
+	export, _ := cmd.Flags().GetBool("export")
+	if export {
+		cfg := exportMVEConfig(mve)
+		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal export config: %w", err)
+		}
+		fmt.Println(string(jsonBytes))
+		return nil
+	}
+
+	err = printMVEs([]*megaport.MVE{mve}, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print MVEs: %v", noColor, err)
-		return fmt.Errorf("error printing MVEs: %v", err)
+		return fmt.Errorf("failed to print MVEs: %w", err)
 	}
 	return nil
 }
 
-func ListMVEImages(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
+func watchGetMVE(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	mveUID := args[0]
+	return utils.WatchResource(cmd, "MVE", mveUID, noColor, outputFormat, config.Login,
+		func(ctx context.Context, client *megaport.Client) (string, error) {
+			mve, err := client.MVEService.GetMVE(ctx, mveUID)
+			if err != nil {
+				return "", err
+			}
+			if mve == nil {
+				return "", fmt.Errorf("no MVE found with UID: %s", mveUID)
+			}
+			err = printMVEs([]*megaport.MVE{mve}, outputFormat, noColor)
+			return mve.ProvisioningStatus, err
+		})
+}
 
-	client, err := config.Login(ctx)
+func ListMVEImages(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return err
 	}
+	defer cancel()
 
 	spinner := output.PrintResourceListing("MVE image", noColor)
 
@@ -311,7 +435,7 @@ func ListMVEImages(cmd *cobra.Command, args []string, noColor bool, outputFormat
 
 	if err != nil {
 		output.PrintError("Failed to list MVE images: %v", noColor, err)
-		return fmt.Errorf("error listing MVE images: %v", err)
+		return fmt.Errorf("failed to list MVE images: %w", err)
 	}
 
 	if images == nil {
@@ -330,20 +454,19 @@ func ListMVEImages(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	err = output.PrintOutput(filteredImages, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print MVE images: %v", noColor, err)
-		return fmt.Errorf("error printing MVE images: %v", err)
+		return fmt.Errorf("failed to print MVE images: %w", err)
 	}
 	return nil
 }
 
 func ListAvailableMVESizes(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
-
-	client, err := config.Login(ctx)
+	output.SetOutputFormat(outputFormat)
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return err
 	}
+	defer cancel()
 
 	spinner := output.PrintResourceListing("MVE size", noColor)
 
@@ -353,7 +476,7 @@ func ListAvailableMVESizes(cmd *cobra.Command, args []string, noColor bool, outp
 
 	if err != nil {
 		output.PrintError("Failed to list MVE sizes: %v", noColor, err)
-		return fmt.Errorf("error listing MVE sizes: %v", err)
+		return fmt.Errorf("failed to list MVE sizes: %w", err)
 	}
 
 	if sizes == nil {
@@ -364,13 +487,14 @@ func ListAvailableMVESizes(cmd *cobra.Command, args []string, noColor bool, outp
 	err = output.PrintOutput(sizes, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print MVE sizes: %v", noColor, err)
-		return fmt.Errorf("error printing MVE sizes: %v", err)
+		return fmt.Errorf("failed to print MVE sizes: %w", err)
 	}
 	return nil
 }
 
 func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
 	mveUID := args[0]
 
 	force, err := cmd.Flags().GetBool("force")
@@ -383,32 +507,47 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		confirmMsg := "Are you sure you want to delete MVE " + mveUID + "? "
 		if !utils.ConfirmPrompt(confirmMsg, noColor) {
 			output.PrintInfo("Deletion cancelled", noColor)
-			return nil
+			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 		}
 	}
 
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return err
+	}
+
+	safeDelete, err := cmd.Flags().GetBool("safe-delete")
+	if err != nil {
+		output.PrintError("Failed to get safe-delete flag: %v", noColor, err)
+		return err
 	}
 
 	spinner := output.PrintResourceDeleting("MVE", mveUID, noColor)
 
 	req := &megaport.DeleteMVERequest{
-		MVEID: mveUID,
+		MVEID:      mveUID,
+		SafeDelete: safeDelete,
 	}
-	resp, err := client.MVEService.DeleteMVE(ctx, req)
+	var resp *megaport.DeleteMVEResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = client.MVEService.DeleteMVE(ctx, req)
+		return e
+	})
 
 	spinner.Stop()
 
 	if err != nil {
+		err = utils.WrapAPIError(err, "MVE", mveUID)
 		output.PrintError("Failed to delete MVE: %v", noColor, err)
-		return fmt.Errorf("error deleting MVE: %v", err)
+		return fmt.Errorf("failed to delete MVE: %w", err)
 	}
 
+	// MVEs always delete immediately (SDK hardcodes DeleteNow: true), so the
+	// --now flag has no API effect. Always report as immediate deletion.
 	if resp.IsDeleted {
-		output.PrintResourceDeleted("MVE", mveUID, false, noColor)
+		output.PrintResourceDeleted("MVE", mveUID, true, noColor)
 	} else {
 		output.PrintWarning("MVE delete failed", noColor)
 	}
@@ -416,120 +555,56 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func ListMVEResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
 	mveUID := args[0]
-
-	ctx := context.Background()
-
-	client, err := config.LoginFunc(ctx)
-	if err != nil {
-		return err
-	}
-
-	tagsMap, err := listMVEResourceTagsFunc(ctx, client, mveUID)
-
-	if err != nil {
-		return fmt.Errorf("error getting resource tags for MVE %s: %v", mveUID, err)
-	}
-
-	tags := make([]output.ResourceTag, 0, len(tagsMap))
-	for k, v := range tagsMap {
-		tags = append(tags, output.ResourceTag{Key: k, Value: v})
-	}
-
-	sort.Slice(tags, func(i, j int) bool {
-		return tags[i].Key < tags[j].Key
+	return utils.ListResourceTags("MVE", mveUID, noColor, outputFormat, func(ctx context.Context, uid string) (map[string]string, error) {
+		client, err := config.Login(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return listMVEResourceTagsFunc(ctx, client, uid)
 	})
-
-	return output.PrintOutput(tags, outputFormat, noColor)
 }
 
 func UpdateMVEResourceTags(cmd *cobra.Command, args []string, noColor bool) error {
 	mveUID := args[0]
-
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
-
-	client, err := config.LoginFunc(ctx)
-	if err != nil {
-		output.PrintError("Failed to log in: %v", noColor, err)
+	var client *megaport.Client
+	login := func(ctx context.Context) error {
+		var err error
+		client, err = config.Login(ctx)
 		return err
 	}
-
-	existingTags, err := listMVEResourceTagsFunc(ctx, client, mveUID)
-
-	if err != nil {
-		return fmt.Errorf("failed to get existing resource tags: %v", err)
-	}
-
-	interactive, _ := cmd.Flags().GetBool("interactive")
-
-	var resourceTags map[string]string
-
-	if interactive {
-		resourceTags, err = utils.UpdateResourceTagsPrompt(existingTags, noColor)
-		if err != nil {
-			output.PrintError("Failed to update resource tags", noColor)
-			return err
-		}
-	} else {
-		jsonStr, _ := cmd.Flags().GetString("json")
-		jsonFile, _ := cmd.Flags().GetString("json-file")
-
-		if jsonStr != "" {
-			resourceTags = make(map[string]string)
-			if err := json.Unmarshal([]byte(jsonStr), &resourceTags); err != nil {
-				output.PrintError("Failed to parse JSON: %v", noColor, err)
-				return fmt.Errorf("error parsing JSON: %v", err)
+	return utils.UpdateResourceTags(utils.UpdateTagsOptions{
+		ResourceType: "MVE",
+		UID:          mveUID,
+		NoColor:      noColor,
+		Cmd:          cmd,
+		ListFunc: func(ctx context.Context, uid string) (map[string]string, error) {
+			if err := login(ctx); err != nil {
+				return nil, err
 			}
-		} else if jsonFile != "" {
-			jsonData, err := os.ReadFile(jsonFile)
-			if err != nil {
-				output.PrintError("Failed to read JSON file: %v", noColor, err)
-				return fmt.Errorf("error reading JSON file: %v", err)
-			}
-
-			resourceTags = make(map[string]string)
-			if err := json.Unmarshal(jsonData, &resourceTags); err != nil {
-				output.PrintError("Failed to parse JSON file: %v", noColor, err)
-				return fmt.Errorf("error parsing JSON file: %v", err)
-			}
-		} else {
-			output.PrintError("No input provided for tags", noColor)
-			return fmt.Errorf("no input provided, use --interactive, --json, or --json-file to specify resource tags")
-		}
-	}
-
-	if len(resourceTags) == 0 {
-		fmt.Println("No tags provided. The MVE will have all existing tags removed.")
-	}
-
-	spinner := output.PrintResourceUpdating("MVE-Resource-Tags", mveUID, noColor)
-
-	err = client.MVEService.UpdateMVEResourceTags(ctx, mveUID, resourceTags)
-
-	spinner.Stop()
-
-	if err != nil {
-		return fmt.Errorf("failed to update resource tags: %v", err)
-	}
-
-	fmt.Printf("Resource tags updated for MVE %s\n", mveUID)
-	return nil
+			return listMVEResourceTagsFunc(ctx, client, uid)
+		},
+		UpdateFunc: func(ctx context.Context, uid string, tags map[string]string) error {
+			return client.MVEService.UpdateMVEResourceTags(ctx, uid, tags)
+		},
+	})
 }
 
 // GetMVEStatus retrieves only the provisioning status of an MVE without all details
 func GetMVEStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
+	output.SetOutputFormat(outputFormat)
 
-	client, err := config.Login(ctx)
+	watch, _ := cmd.Flags().GetBool("watch")
+	if watch {
+		return watchMVEStatus(cmd, args, noColor, outputFormat)
+	}
+
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return err
 	}
+	defer cancel()
 
 	mveUID := args[0]
 
@@ -541,7 +616,12 @@ func GetMVEStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 	if err != nil {
 		output.PrintError("Failed to get MVE status: %v", noColor, err)
-		return fmt.Errorf("error getting MVE status: %v", err)
+		return fmt.Errorf("failed to get MVE status: %w", err)
+	}
+
+	if mve == nil {
+		output.PrintError("No MVE found with UID: %s", noColor, mveUID)
+		return fmt.Errorf("no MVE found with UID: %s", mveUID)
 	}
 
 	status := []MVEStatus{
@@ -555,4 +635,101 @@ func GetMVEStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	}
 
 	return output.PrintOutput(status, outputFormat, noColor)
+}
+
+func watchMVEStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	mveUID := args[0]
+	return utils.WatchResource(cmd, "MVE", mveUID, noColor, outputFormat, config.Login,
+		func(ctx context.Context, client *megaport.Client) (string, error) {
+			mve, err := client.MVEService.GetMVE(ctx, mveUID)
+			if err != nil {
+				return "", err
+			}
+			if mve == nil {
+				return "", fmt.Errorf("no MVE found with UID: %s", mveUID)
+			}
+			status := []MVEStatus{
+				{
+					UID:    mve.UID,
+					Name:   mve.Name,
+					Status: mve.ProvisioningStatus,
+					Vendor: mve.Vendor,
+					Size:   mve.Size,
+				},
+			}
+			err = output.PrintOutput(status, outputFormat, noColor)
+			return mve.ProvisioningStatus, err
+		})
+}
+
+func LockMVE(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return err
+	}
+	defer cancel()
+
+	mveUID := args[0]
+
+	output.PrintInfo("Locking MVE %s...", noColor, mveUID)
+
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		_, e := lockMVEFunc(ctx, client, mveUID)
+		return e
+	})
+	if err != nil {
+		return fmt.Errorf("failed to lock MVE: %w", err)
+	}
+
+	output.PrintSuccess("MVE %s locked successfully", noColor, mveUID)
+	return nil
+}
+
+func UnlockMVE(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return err
+	}
+	defer cancel()
+
+	mveUID := args[0]
+
+	output.PrintInfo("Unlocking MVE %s...", noColor, mveUID)
+
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		_, e := unlockMVEFunc(ctx, client, mveUID)
+		return e
+	})
+	if err != nil {
+		return fmt.Errorf("failed to unlock MVE: %w", err)
+	}
+
+	output.PrintSuccess("MVE %s unlocked successfully", noColor, mveUID)
+	return nil
+}
+
+func RestoreMVE(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return err
+	}
+	defer cancel()
+
+	mveUID := args[0]
+
+	output.PrintInfo("Restoring MVE %s...", noColor, mveUID)
+
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		_, e := restoreMVEFunc(ctx, client, mveUID)
+		return e
+	})
+	if err != nil {
+		return fmt.Errorf("failed to restore MVE: %w", err)
+	}
+
+	output.PrintSuccess("MVE %s restored successfully", noColor, mveUID)
+	return nil
 }

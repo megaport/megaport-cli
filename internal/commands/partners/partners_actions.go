@@ -1,9 +1,7 @@
 package partners
 
 import (
-	"context"
 	"fmt"
-	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
@@ -12,13 +10,14 @@ import (
 )
 
 func ListPartners(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	output.SetOutputFormat(outputFormat)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("failed to log in: %w", err)
 	}
 
 	spinner := output.PrintResourceListing("partner", noColor)
@@ -27,9 +26,10 @@ func ListPartners(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 	if err != nil {
 		output.PrintError("Failed to list partner ports: %v", noColor, err)
-		return fmt.Errorf("error listing partners: %v", err)
+		return fmt.Errorf("failed to list partners: %w", err)
 	}
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	productName, _ := cmd.Flags().GetString("product-name")
 	connectType, _ := cmd.Flags().GetString("connect-type")
 	companyName, _ := cmd.Flags().GetString("company-name")
@@ -38,22 +38,31 @@ func ListPartners(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 	filteredPartners := filterPartners(partners, productName, connectType, companyName, locationID, diversityZone)
 
+	limit, _ := cmd.Flags().GetInt("limit")
+	if limit < 0 {
+		return fmt.Errorf("--limit must be a non-negative integer")
+	}
+	if limit > 0 && len(filteredPartners) > limit {
+		filteredPartners = filteredPartners[:limit]
+	}
+
 	if len(filteredPartners) == 0 {
-		output.PrintWarning("No partner ports found matching the specified filters", noColor)
-	} else {
-		output.PrintInfo("Found %d partner ports matching the specified filters", noColor, len(filteredPartners))
+		if outputFormat == utils.FormatTable {
+			output.PrintInfo("No partner ports found matching your filters.", noColor)
+		}
+		return nil
 	}
 
 	err = printPartnersFunc(filteredPartners, outputFormat, noColor)
 	if err != nil {
-		output.PrintError("Failed to output.Print partner ports: %v", noColor, err)
-		return fmt.Errorf("error output.Printing partners: %v", err)
+		output.PrintError("Failed to print partner ports: %v", noColor, err)
+		return fmt.Errorf("failed to print partners: %w", err)
 	}
 	return nil
 }
 
 func FindPartners(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
 	output.PrintInfo("Searching for partner ports...", noColor)
@@ -61,7 +70,7 @@ func FindPartners(cmd *cobra.Command, args []string, noColor bool) error {
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return fmt.Errorf("failed to log in: %w", err)
 	}
 
 	spinner := output.PrintResourceListing("partner", noColor)
@@ -70,7 +79,7 @@ func FindPartners(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		output.PrintError("Failed to list partner ports: %v", noColor, err)
-		return fmt.Errorf("error listing partners: %v", err)
+		return fmt.Errorf("failed to list partners: %w", err)
 	}
 
 	output.PrintInfo("Filter partner ports - press Enter to skip any filter", noColor)
@@ -103,7 +112,7 @@ func FindPartners(cmd *cobra.Command, args []string, noColor bool) error {
 	if locationIDStr != "" {
 		if _, err := fmt.Sscanf(locationIDStr, "%d", &locationID); err != nil {
 			output.PrintError("Invalid location ID format: %v", noColor, err)
-			return fmt.Errorf("invalid location ID format: %v", err)
+			return fmt.Errorf("invalid location ID format: %w", err)
 		}
 	}
 
@@ -130,8 +139,8 @@ func FindPartners(cmd *cobra.Command, args []string, noColor bool) error {
 
 	err = printPartnersFunc(filteredPartners, selectedFormat, noColor)
 	if err != nil {
-		output.PrintError("Failed to output.Print partner ports: %v", noColor, err)
-		return fmt.Errorf("error output.Printing partners: %v", err)
+		output.PrintError("Failed to print partner ports: %v", noColor, err)
+		return fmt.Errorf("failed to print partners: %w", err)
 	}
 	return nil
 }

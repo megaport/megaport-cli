@@ -15,6 +15,8 @@ This command retrieves only the essential status information for a Megaport Virt
 
 ```sh
   megaport-cli mve status mve-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  megaport-cli mve status mve-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --watch
+  megaport-cli mve status mve-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --watch --interval 10s
 ```
 
 ## Usage
@@ -27,10 +29,16 @@ megaport-cli mve status [flags]
 ## Parent Command
 
 * [megaport-cli mve](megaport-cli_mve.md)
+
+## Aliases
+
+* st
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
+| `--interval` |  | `5s` | Polling interval for --watch mode (e.g. 5s, 1m) | false |
+| `--watch` | `-w` | `false` | Continuously poll and display resource status (Ctrl+C to stop) | false |
 
 ## Subcommands
 * [docs](megaport-cli_mve_status_docs.md)

@@ -35,23 +35,19 @@ func setupTestCmd() (*cobra.Command, *bytes.Buffer) {
 	return cmd, outBuf
 }
 
-func setupTestConfigEnv(t *testing.T) (string, func()) {
+func setupTestConfigEnv(t *testing.T) string {
 	t.Helper()
 	tempDir, err := os.MkdirTemp("", "megaport-config-actions-test")
 	require.NoError(t, err)
 
-	oldEnv := os.Getenv("MEGAPORT_CONFIG_DIR")
-	os.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+	t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
 
-	return tempDir, func() {
-		os.Setenv("MEGAPORT_CONFIG_DIR", oldEnv)
-		os.RemoveAll(tempDir)
-	}
+	return tempDir
 }
 
 func TestUpdateProfile_CMD(t *testing.T) {
-	_, cleanup := setupTestConfigEnv(t)
-	defer cleanup()
+	setupTestConfigEnv(t)
 
 	// Create a profile first
 	manager, err := NewConfigManager()
@@ -111,8 +107,7 @@ func TestUpdateProfile_CMD(t *testing.T) {
 }
 
 func TestUseProfile_CMD(t *testing.T) {
-	_, cleanup := setupTestConfigEnv(t)
-	defer cleanup()
+	setupTestConfigEnv(t)
 
 	// Create some profiles first
 	manager, err := NewConfigManager()
@@ -166,8 +161,7 @@ func TestUseProfile_CMD(t *testing.T) {
 }
 
 func TestViewConfig(t *testing.T) {
-	_, cleanup := setupTestConfigEnv(t)
-	defer cleanup()
+	setupTestConfigEnv(t)
 
 	// Create a profile and set defaults
 	manager, err := NewConfigManager()
@@ -205,16 +199,72 @@ func TestViewConfig(t *testing.T) {
 	assert.Contains(t, output, "No active profile set")
 }
 
+func TestMaskAccessKey(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"empty string", "", ""},
+		{"short key (<=4 chars)", "abcd", "****"},
+		{"medium key (5-8 chars)", "abcdef", "ab...ef"},
+		{"long key (>8 chars)", "abcdefghijklmnop", "abcd...mnop"},
+		{"exactly 8 chars", "abcdefgh", "ab...gh"},
+		{"exactly 9 chars", "abcdefghi", "abcd...fghi"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, maskAccessKey(tt.input))
+		})
+	}
+}
+
+func TestViewConfig_MasksAccessKey(t *testing.T) {
+	setupTestConfigEnv(t)
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+	err = manager.CreateProfile("mask-test", "my-secret-access-key-12345", "secret", "production", "")
+	require.NoError(t, err)
+	err = manager.UseProfile("mask-test")
+	require.NoError(t, err)
+
+	cmd, cmdOut := setupTestCmd()
+	err = ViewConfig(cmd, nil, false)
+	require.NoError(t, err)
+
+	viewOutput := cmdOut.String()
+	assert.NotContains(t, viewOutput, "my-secret-access-key-12345", "full access key should not appear in view output")
+	assert.Contains(t, viewOutput, "my-s...2345", "masked access key should appear in view output")
+}
+
+func TestListProfiles_MasksAccessKey(t *testing.T) {
+	setupTestConfigEnv(t)
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+	err = manager.CreateProfile("mask-test", "my-secret-access-key-12345", "secret", "production", "")
+	require.NoError(t, err)
+
+	listOutput, err := captureOutputFromAction(func() error {
+		cmd, _ := setupTestCmd()
+		return ListProfiles(cmd, nil, true, "table")
+	})
+	require.NoError(t, err)
+
+	assert.NotContains(t, listOutput, "my-secret-access-key-12345", "full access key should not appear in list output")
+	assert.Contains(t, listOutput, "my-s...2345", "masked access key should appear in list output")
+}
+
 func TestDeleteProfile_CMD(t *testing.T) {
-	_, cleanup := setupTestConfigEnv(t)
-	defer cleanup()
+	setupTestConfigEnv(t)
 
 	// Setup utility function to automatically confirm deletion
-	oldConfirmPrompt := utils.ConfirmPrompt
-	utils.ConfirmPrompt = func(message string, noColor bool) bool {
+	oldConfirmPrompt := utils.GetConfirmPrompt()
+	utils.SetConfirmPrompt(func(message string, noColor bool) bool {
 		return true // Auto-confirm
-	}
-	defer func() { utils.ConfirmPrompt = oldConfirmPrompt }()
+	})
+	defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
 
 	// Create profiles
 	manager, err := NewConfigManager()
@@ -255,8 +305,7 @@ func TestDeleteProfile_CMD(t *testing.T) {
 }
 
 func TestExportImportConfig(t *testing.T) {
-	configDir, cleanup := setupTestConfigEnv(t)
-	defer cleanup()
+	configDir := setupTestConfigEnv(t)
 
 	// Create a profile first
 	manager, err := NewConfigManager()
@@ -283,9 +332,10 @@ func TestExportImportConfig(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, outputText, "Configuration exported")
 
-	// Verify file exists
-	_, err = os.Stat(exportPath)
+	// Verify file exists and has restrictive permissions
+	exportInfo, err := os.Stat(exportPath)
 	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0600), exportInfo.Mode().Perm(), "exported config file should have 0600 permissions")
 
 	// Read exported content to verify it - this also ensures file is fully written
 	exportContent, err := os.ReadFile(exportPath)
@@ -325,8 +375,7 @@ func TestExportImportConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	// *** Important: Create a completely new config directory ***
-	_, newCleanup := setupTestConfigEnv(t)
-	defer newCleanup()
+	setupTestConfigEnv(t)
 
 	// Import to the new environment using the manual export file
 	cmd, _ = setupTestCmd()
@@ -337,11 +386,11 @@ func TestExportImportConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	// Mock confirmation
-	oldConfirmPrompt := utils.ConfirmPrompt
-	utils.ConfirmPrompt = func(message string, noColor bool) bool {
+	oldConfirmPrompt := utils.GetConfirmPrompt()
+	utils.SetConfirmPrompt(func(message string, noColor bool) bool {
 		return true // Auto-confirm
-	}
-	defer func() { utils.ConfirmPrompt = oldConfirmPrompt }()
+	})
+	defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
 
 	outputText, err = captureOutputFromAction(func() error {
 		return ImportConfig(cmd, nil, false)
@@ -372,4 +421,452 @@ func TestExportImportConfig(t *testing.T) {
 	if exists {
 		assert.Equal(t, "json", val)
 	}
+}
+
+func TestCreateProfile_CMD(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		cmd, _ := setupTestCmd()
+		cmd.Flags().String("access-key", "", "")
+		cmd.Flags().String("secret-key", "", "")
+		cmd.Flags().String("environment", "", "")
+		cmd.Flags().String("description", "", "")
+		err := cmd.ParseFlags([]string{
+			"--access-key=my-access",
+			"--secret-key=my-secret",
+			"--environment=production",
+			"--description=My profile",
+		})
+		require.NoError(t, err)
+
+		outputText, err := captureOutputFromAction(func() error {
+			return CreateProfile(cmd, []string{"new-profile"}, false)
+		})
+		require.NoError(t, err)
+		assert.Contains(t, outputText, "Profile 'new-profile' created successfully")
+
+		// Verify profile was persisted
+		manager, err := NewConfigManager()
+		require.NoError(t, err)
+		profiles, err := manager.ListProfiles()
+		require.NoError(t, err)
+		profile, exists := profiles["new-profile"]
+		assert.True(t, exists)
+		assert.Equal(t, "my-access", profile.AccessKey)
+		assert.Equal(t, "my-secret", profile.SecretKey)
+		assert.Equal(t, "production", profile.Environment)
+		assert.Equal(t, "My profile", profile.Description)
+	})
+
+	t.Run("invalid environment", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		cmd, _ := setupTestCmd()
+		cmd.Flags().String("access-key", "", "")
+		cmd.Flags().String("secret-key", "", "")
+		cmd.Flags().String("environment", "", "")
+		cmd.Flags().String("description", "", "")
+		err := cmd.ParseFlags([]string{
+			"--access-key=key",
+			"--secret-key=secret",
+			"--environment=invalid-env",
+		})
+		require.NoError(t, err)
+
+		_, err = captureOutputFromAction(func() error {
+			return CreateProfile(cmd, []string{"bad-env-profile"}, false)
+		})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "environment must be 'production', 'staging', or 'development'")
+	})
+
+	t.Run("empty name", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		cmd, _ := setupTestCmd()
+		cmd.Flags().String("access-key", "", "")
+		cmd.Flags().String("secret-key", "", "")
+		cmd.Flags().String("environment", "", "")
+		cmd.Flags().String("description", "", "")
+		err := cmd.ParseFlags([]string{
+			"--access-key=key",
+			"--secret-key=secret",
+			"--environment=production",
+		})
+		require.NoError(t, err)
+
+		_, err = captureOutputFromAction(func() error {
+			return CreateProfile(cmd, []string{""}, false)
+		})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "profile name cannot be empty")
+	})
+
+	t.Run("duplicate profile", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		cmd, _ := setupTestCmd()
+		cmd.Flags().String("access-key", "", "")
+		cmd.Flags().String("secret-key", "", "")
+		cmd.Flags().String("environment", "", "")
+		cmd.Flags().String("description", "", "")
+		err := cmd.ParseFlags([]string{
+			"--access-key=key1",
+			"--secret-key=secret1",
+			"--environment=production",
+			"--description=First",
+		})
+		require.NoError(t, err)
+
+		_, err = captureOutputFromAction(func() error {
+			return CreateProfile(cmd, []string{"dup-profile"}, false)
+		})
+		require.NoError(t, err)
+
+		// Create same profile again — should overwrite
+		cmd2, _ := setupTestCmd()
+		cmd2.Flags().String("access-key", "", "")
+		cmd2.Flags().String("secret-key", "", "")
+		cmd2.Flags().String("environment", "", "")
+		cmd2.Flags().String("description", "", "")
+		err = cmd2.ParseFlags([]string{
+			"--access-key=key2",
+			"--secret-key=secret2",
+			"--environment=staging",
+			"--description=Second",
+		})
+		require.NoError(t, err)
+
+		_, err = captureOutputFromAction(func() error {
+			return CreateProfile(cmd2, []string{"dup-profile"}, false)
+		})
+		require.NoError(t, err)
+
+		// Verify overwritten values
+		manager, err := NewConfigManager()
+		require.NoError(t, err)
+		profiles, err := manager.ListProfiles()
+		require.NoError(t, err)
+		profile := profiles["dup-profile"]
+		assert.Equal(t, "key2", profile.AccessKey)
+		assert.Equal(t, "secret2", profile.SecretKey)
+		assert.Equal(t, "staging", profile.Environment)
+		assert.Equal(t, "Second", profile.Description)
+	})
+}
+
+func TestSetDefault(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		cmd, _ := setupTestCmd()
+		outputText, err := captureOutputFromAction(func() error {
+			return SetDefault(cmd, []string{"output", "json"}, false)
+		})
+		require.NoError(t, err)
+		assert.Contains(t, outputText, "Default 'output' set to 'json'")
+	})
+
+	t.Run("invalid setting name", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		cmd, _ := setupTestCmd()
+		_, err := captureOutputFromAction(func() error {
+			return SetDefault(cmd, []string{"invalid-key", "value"}, false)
+		})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown configuration key: invalid-key")
+	})
+
+	t.Run("empty value", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		cmd, _ := setupTestCmd()
+		_, err := captureOutputFromAction(func() error {
+			return SetDefault(cmd, []string{"output", ""}, false)
+		})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "output format must be one of: table, json, csv, xml, go-template")
+	})
+
+	t.Run("verify persistence", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		cmd, _ := setupTestCmd()
+		_, err := captureOutputFromAction(func() error {
+			return SetDefault(cmd, []string{"output", "json"}, false)
+		})
+		require.NoError(t, err)
+
+		// Read back from disk with a new manager
+		manager, err := NewConfigManager()
+		require.NoError(t, err)
+		val, exists := manager.GetDefault("output")
+		assert.True(t, exists)
+		assert.Equal(t, "json", val)
+	})
+}
+
+func TestSetDefault_NoPager(t *testing.T) {
+	t.Run("set true", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		cmd, _ := setupTestCmd()
+		outputText, err := captureOutputFromAction(func() error {
+			return SetDefault(cmd, []string{"no-pager", "true"}, false)
+		})
+		require.NoError(t, err)
+		assert.Contains(t, outputText, "Default 'no-pager' set to 'true'")
+
+		manager, err := NewConfigManager()
+		require.NoError(t, err)
+		val, exists := manager.GetDefault("no-pager")
+		assert.True(t, exists)
+		assert.Equal(t, true, val)
+	})
+
+	t.Run("set false", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		cmd, _ := setupTestCmd()
+		outputText, err := captureOutputFromAction(func() error {
+			return SetDefault(cmd, []string{"no-pager", "false"}, false)
+		})
+		require.NoError(t, err)
+		assert.Contains(t, outputText, "Default 'no-pager' set to 'false'")
+
+		manager, err := NewConfigManager()
+		require.NoError(t, err)
+		val, exists := manager.GetDefault("no-pager")
+		assert.True(t, exists)
+		assert.Equal(t, false, val)
+	})
+
+	t.Run("invalid value", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		cmd, _ := setupTestCmd()
+		_, err := captureOutputFromAction(func() error {
+			return SetDefault(cmd, []string{"no-pager", "badvalue"}, false)
+		})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "no-pager must be true or false")
+	})
+}
+
+func TestGetDefault(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		// Set a default first
+		setCmd, _ := setupTestCmd()
+		_, err := captureOutputFromAction(func() error {
+			return SetDefault(setCmd, []string{"output", "json"}, false)
+		})
+		require.NoError(t, err)
+
+		// Now get it
+		getCmd, cmdOut := setupTestCmd()
+		err = GetDefault(getCmd, []string{"output"}, false)
+		require.NoError(t, err)
+		assert.Contains(t, cmdOut.String(), "json")
+	})
+
+	t.Run("non-existent setting", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		cmd, _ := setupTestCmd()
+		err := GetDefault(cmd, []string{"nonexistent"}, false)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "default 'nonexistent' not found")
+	})
+
+	t.Run("empty setting name", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		cmd, _ := setupTestCmd()
+		err := GetDefault(cmd, []string{""}, false)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "default '' not found")
+	})
+}
+
+func TestRemoveDefault(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		// Set a default first
+		setCmd, _ := setupTestCmd()
+		_, err := captureOutputFromAction(func() error {
+			return SetDefault(setCmd, []string{"output", "json"}, false)
+		})
+		require.NoError(t, err)
+
+		// Remove it
+		rmCmd, _ := setupTestCmd()
+		outputText, err := captureOutputFromAction(func() error {
+			return RemoveDefault(rmCmd, []string{"output"}, false)
+		})
+		require.NoError(t, err)
+		assert.Contains(t, outputText, "Default setting 'output' removed")
+
+		// Verify it's gone
+		manager, err := NewConfigManager()
+		require.NoError(t, err)
+		_, exists := manager.GetDefault("output")
+		assert.False(t, exists)
+	})
+
+	t.Run("non-existent setting", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		cmd, _ := setupTestCmd()
+		outputText, err := captureOutputFromAction(func() error {
+			return RemoveDefault(cmd, []string{"nonexistent"}, false)
+		})
+		// RemoveDefault does not error for non-existent keys
+		require.NoError(t, err)
+		assert.Contains(t, outputText, "Default setting 'nonexistent' removed")
+	})
+
+	t.Run("empty setting name", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		cmd, _ := setupTestCmd()
+		outputText, err := captureOutputFromAction(func() error {
+			return RemoveDefault(cmd, []string{""}, false)
+		})
+		require.NoError(t, err)
+		assert.Contains(t, outputText, "Default setting '' removed")
+	})
+}
+
+func TestClearDefaults(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		// Set multiple defaults
+		manager, err := NewConfigManager()
+		require.NoError(t, err)
+		err = manager.SetDefault("output", "json")
+		require.NoError(t, err)
+		err = manager.SetDefault("no-color", true)
+		require.NoError(t, err)
+
+		// Mock confirmation
+		oldConfirmPrompt := utils.GetConfirmPrompt()
+		utils.SetConfirmPrompt(func(message string, noColor bool) bool {
+			return true
+		})
+		defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
+
+		cmd, _ := setupTestCmd()
+		outputText, err := captureOutputFromAction(func() error {
+			return ClearDefaults(cmd, nil, false)
+		})
+		require.NoError(t, err)
+		assert.Contains(t, outputText, "All default settings cleared")
+
+		// Verify all defaults are gone
+		manager, err = NewConfigManager()
+		require.NoError(t, err)
+		_, exists := manager.GetDefault("output")
+		assert.False(t, exists)
+		_, exists = manager.GetDefault("no-color")
+		assert.False(t, exists)
+	})
+
+	t.Run("cancelled", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		// Set a default so there's something to clear
+		manager, err := NewConfigManager()
+		require.NoError(t, err)
+		err = manager.SetDefault("output", "json")
+		require.NoError(t, err)
+
+		// Mock confirmation to return false
+		oldConfirmPrompt := utils.GetConfirmPrompt()
+		utils.SetConfirmPrompt(func(message string, noColor bool) bool {
+			return false
+		})
+		defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
+
+		cmd, _ := setupTestCmd()
+		outputText, err := captureOutputFromAction(func() error {
+			return ClearDefaults(cmd, nil, false)
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cancelled by user")
+		assert.Contains(t, outputText, "Operation cancelled")
+
+		// Verify defaults are still present
+		manager, err = NewConfigManager()
+		require.NoError(t, err)
+		val, exists := manager.GetDefault("output")
+		assert.True(t, exists)
+		assert.Equal(t, "json", val)
+	})
+
+	t.Run("nothing to clear", func(t *testing.T) {
+		setupTestConfigEnv(t)
+
+		// Mock confirmation
+		oldConfirmPrompt := utils.GetConfirmPrompt()
+		utils.SetConfirmPrompt(func(message string, noColor bool) bool {
+			return true
+		})
+		defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
+
+		cmd, _ := setupTestCmd()
+		outputText, err := captureOutputFromAction(func() error {
+			return ClearDefaults(cmd, nil, false)
+		})
+		require.NoError(t, err)
+		assert.Contains(t, outputText, "All default settings cleared")
+	})
+}
+
+func TestDeleteProfile_Cancelled(t *testing.T) {
+	setupTestConfigEnv(t)
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+	require.NoError(t, manager.CreateProfile("to-keep", "access", "secret", "production", ""))
+
+	oldConfirmPrompt := utils.GetConfirmPrompt()
+	utils.SetConfirmPrompt(func(_ string, _ bool) bool { return false })
+	defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
+
+	cmd, _ := setupTestCmd()
+	outputText, err := captureOutputFromAction(func() error {
+		return DeleteProfile(cmd, []string{"to-keep"}, false)
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cancelled by user")
+	assert.Contains(t, outputText, "Profile deletion cancelled")
+}
+
+func TestImportConfig_Cancelled(t *testing.T) {
+	configDir := setupTestConfigEnv(t)
+
+	// Create a minimal export file to import from.
+	importPath := filepath.Join(configDir, "import.json")
+	require.NoError(t, os.WriteFile(importPath, []byte(`{"version":1,"profiles":{}}`), 0600))
+
+	oldConfirmPrompt := utils.GetConfirmPrompt()
+	utils.SetConfirmPrompt(func(_ string, _ bool) bool { return false })
+	defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
+
+	cmd, _ := setupTestCmd()
+	cmd.Flags().String("file", importPath, "")
+	require.NoError(t, cmd.ParseFlags([]string{"--file=" + importPath}))
+
+	outputText, err := captureOutputFromAction(func() error {
+		return ImportConfig(cmd, nil, false)
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cancelled by user")
+	assert.Contains(t, outputText, "Import cancelled")
 }

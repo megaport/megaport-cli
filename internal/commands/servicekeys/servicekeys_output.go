@@ -8,21 +8,21 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-type ServiceKeyOutput struct {
+type serviceKeyOutput struct {
 	output.Output `json:"-" header:"-"`
-	KeyUID        string `json:"key_uid" header:"KEY UID"`
-	ProductName   string `json:"product_name" header:"PRODUCT NAME"`
-	ProductUID    string `json:"product_uid" header:"PRODUCT UID"`
-	Description   string `json:"description" header:"DESCRIPTION"`
-	CreateDate    string `json:"create_date" header:"CREATE DATE"`
+	KeyUID        string `json:"key_uid" header:"Key UID"`
+	ProductName   string `json:"product_name" header:"Product Name"`
+	ProductUID    string `json:"product_uid" header:"Product UID"`
+	Description   string `json:"description" header:"Description"`
+	CreateDate    string `json:"create_date" header:"Create Date"`
 }
 
-func ToServiceKeyOutput(sk *megaport.ServiceKey) (ServiceKeyOutput, error) {
+func toServiceKeyOutput(sk *megaport.ServiceKey) (serviceKeyOutput, error) {
 	if sk == nil {
-		return ServiceKeyOutput{}, fmt.Errorf("nil service key")
+		return serviceKeyOutput{}, fmt.Errorf("nil service key")
 	}
 
-	output := ServiceKeyOutput{
+	output := serviceKeyOutput{
 		KeyUID:      sk.Key,
 		ProductName: sk.ProductName,
 		ProductUID:  sk.ProductUID,

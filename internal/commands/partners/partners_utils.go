@@ -3,6 +3,7 @@ package partners
 import (
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -12,24 +13,22 @@ func filterPartners(
 	locationID int,
 	diversityZone string,
 ) []*megaport.PartnerMegaport {
-	var filtered []*megaport.PartnerMegaport
-	for _, partner := range partners {
+	return utils.Filter(partners, func(partner *megaport.PartnerMegaport) bool {
 		if productName != "" && !strings.EqualFold(partner.ProductName, productName) {
-			continue
+			return false
 		}
 		if connectType != "" && !strings.EqualFold(partner.ConnectType, connectType) {
-			continue
+			return false
 		}
 		if companyName != "" && !strings.EqualFold(partner.CompanyName, companyName) {
-			continue
+			return false
 		}
 		if locationID != 0 && partner.LocationId != locationID {
-			continue
+			return false
 		}
 		if diversityZone != "" && !strings.EqualFold(partner.DiversityZone, diversityZone) {
-			continue
+			return false
 		}
-		filtered = append(filtered, partner)
-	}
-	return filtered
+		return true
+	})
 }

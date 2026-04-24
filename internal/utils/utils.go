@@ -1,24 +1,49 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
+	"github.com/megaport/megaport-cli/internal/base/output"
+	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
 
 const (
-	FormatTable = "table"
-	FormatJSON  = "json"
-	FormatCSV   = "csv"
-	FormatXML   = "xml"
+	FormatTable      = "table"
+	FormatJSON       = "json"
+	FormatCSV        = "csv"
+	FormatXML        = "xml"
+	FormatGoTemplate = "go-template"
+
+	// StatusDecommissioning is used for filtering inactive resources. The SDK
+	// exports STATUS_CANCELLED and STATUS_DECOMMISSIONED but not this one.
+	StatusDecommissioning = "DECOMMISSIONING"
 )
 
 var (
-	Env          string
-	OutputFormat string
-	NoColor      bool
-	ValidFormats = []string{FormatTable, FormatJSON, FormatCSV, FormatXML}
+	// Env is the target environment (prod, dev, staging). Set once via flag
+	// binding before command execution; read during login. Not protected by
+	// a mutex because cobra flag parsing and command execution are sequential
+	// on the main goroutine.
+	Env string
+
+	// ProfileOverride is the config profile name. Same set-once semantics as Env.
+	ProfileOverride string
+
+	// NoRetry disables automatic retry on transient API failures. Set via --no-retry flag.
+	NoRetry bool
+
+	// MaxRetries overrides the default retry count. Set via --max-retries flag.
+	MaxRetries int
+
+	// LogHTTP enables raw HTTP request/response logging to stderr. Set via --log-http flag.
+	LogHTTP bool
+
+	ValidFormats = []string{FormatTable, FormatJSON, FormatCSV, FormatXML, FormatGoTemplate}
 )
 
 func ShouldDisableColors() bool {
@@ -32,8 +57,7 @@ func ShouldDisableColors() bool {
 		}
 	}
 
-	// Finally check the global variable
-	return NoColor || noColorEnv
+	return noColorEnv
 }
 
 func GetCurrentEnv() string {
@@ -43,18 +67,90 @@ func GetCurrentEnv() string {
 	return Env
 }
 
+// applyTemplateFilter reads the --template persistent flag and calls output.SetTemplateString.
+// Called by all RunE wrappers so the template string is always set before PrintOutput is invoked.
+func applyTemplateFilter(cmd *cobra.Command) {
+	tmplStr, err := cmd.Root().PersistentFlags().GetString("template")
+	if err != nil {
+		tmplStr = ""
+	}
+	output.SetTemplateString(tmplStr)
+}
+
+// applyQueryFilter reads the --query persistent flag and calls output.SetOutputQuery.
+// Returns the query string so RunE wrappers can validate it against the selected output format.
+func applyQueryFilter(cmd *cobra.Command) string {
+	queryStr, err := cmd.Root().PersistentFlags().GetString("query")
+	if err != nil {
+		queryStr = ""
+	}
+	output.SetOutputQuery(queryStr)
+	return queryStr
+}
+
+// enforceQueryFormatGuard returns a usage error if --query is set and the
+// resolved output format is not json. The caller must pass in the already-
+// resolved format so this function does not re-derive it; this avoids a
+// discrepancy when a subcommand defines a local --output flag that shadows
+// the root persistent flag.
+func enforceQueryFormatGuard(cmd *cobra.Command, queryStr, format string) error {
+	if queryStr == "" {
+		return nil
+	}
+	if format != FormatJSON {
+		cmd.SilenceUsage = true
+		cmd.SilenceErrors = true
+		return exitcodes.NewUsageError(fmt.Errorf("--query flag requires --output json"))
+	}
+	return nil
+}
+
+// applyFieldsFilter reads the --fields persistent flag and calls output.SetOutputFields.
+// Called by all RunE wrappers so the filter is always consistent regardless of wrapper used.
+func applyFieldsFilter(cmd *cobra.Command) {
+	fieldsStr, err := cmd.Root().PersistentFlags().GetString("fields")
+	if err != nil {
+		fieldsStr = ""
+	}
+	if fieldsStr != "" {
+		var fields []string
+		for _, f := range strings.Split(fieldsStr, ",") {
+			if f = strings.TrimSpace(f); f != "" {
+				fields = append(fields, f)
+			}
+		}
+		output.SetOutputFields(fields)
+	} else {
+		output.SetOutputFields(nil)
+	}
+}
+
 // WrapRunE wraps a RunE function to set SilenceUsage to true if an error occurs and formats the error message.
 func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
+		applyFieldsFilter(cmd)
+		applyTemplateFilter(cmd)
+		rawFormat, _ := cmd.Root().PersistentFlags().GetString("output")
+		format := strings.ToLower(rawFormat)
+		if format == FormatGoTemplate && output.GetTemplateString() == "" {
+			cmd.SilenceUsage = true
+			return exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used"))
+		}
+		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
+			return err
+		}
 		err := runE(cmd, args)
 		if err != nil {
-			// Prevent usage output if an error occurs
 			cmd.SilenceUsage = true
-			// Silence duplicate error message
 			cmd.SilenceErrors = true
-
-			// Return a formatted error message with additional context
-			return fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag", cmd.Name(), err, cmd.Name(), args)
+			code := classifyError(err)
+			if format == FormatJSON {
+				output.PrintErrorJSON(code, err.Error())
+				cmd.Root().SilenceErrors = true
+				return exitcodes.New(code, err)
+			}
+			wrapped := fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag", cmd.Name(), err, cmd.Name(), args)
+			return exitcodes.New(code, wrapped)
 		}
 		return nil
 	}
@@ -64,6 +160,17 @@ func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobr
 // and passing the noColor flag to command functions.
 func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
+		applyFieldsFilter(cmd)
+		applyTemplateFilter(cmd)
+		rawFormat, _ := cmd.Root().PersistentFlags().GetString("output")
+		format := strings.ToLower(rawFormat)
+		if format == FormatGoTemplate && output.GetTemplateString() == "" {
+			cmd.SilenceUsage = true
+			return exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used"))
+		}
+		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
+			return err
+		}
 		// Get noColor value from root command
 		noColor, err := cmd.Root().PersistentFlags().GetBool("no-color")
 		if err != nil {
@@ -75,14 +182,17 @@ func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool)
 
 		// Error handling from WrapRunE
 		if err != nil {
-			// Prevent usage output if an error occurs
 			cmd.SilenceUsage = true
-			// Silence duplicate error message
 			cmd.SilenceErrors = true
-
-			// Return a formatted error message with additional context
-			return fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag",
+			code := classifyError(err)
+			if format == FormatJSON {
+				output.PrintErrorJSON(code, err.Error())
+				cmd.Root().SilenceErrors = true
+				return exitcodes.New(code, err)
+			}
+			wrapped := fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag",
 				cmd.Name(), err, cmd.Name(), args)
+			return exitcodes.New(code, wrapped)
 		}
 		return nil
 	}
@@ -116,7 +226,22 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 			// If an invalid format is provided, return an error
 			cmd.SilenceUsage = true
 			cmd.SilenceErrors = true
-			return fmt.Errorf("invalid output format: %s. Must be one of: %v", format, ValidFormats)
+			return exitcodes.NewUsageError(fmt.Errorf("invalid output format: %s. Must be one of: %v", format, ValidFormats))
+		}
+
+		applyTemplateFilter(cmd)
+		if format == FormatGoTemplate && output.GetTemplateString() == "" {
+			cmd.SilenceUsage = true
+			cmd.SilenceErrors = true
+			return exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used"))
+		}
+
+		applyFieldsFilter(cmd)
+		// Pass the already-resolved format so enforceQueryFormatGuard does not
+		// re-read --output from the root persistent flags (which could differ
+		// if the subcommand defines its own local --output override).
+		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
+			return err
 		}
 
 		// Call the function with both parameters
@@ -124,15 +249,103 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 
 		// Error handling from WrapRunE
 		if err != nil {
-			// Prevent usage output if an error occurs
 			cmd.SilenceUsage = true
-			// Silence duplicate error message
 			cmd.SilenceErrors = true
-
-			// Return a formatted error message with additional context
-			return fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag",
+			code := classifyError(err)
+			if format == FormatJSON {
+				output.PrintErrorJSON(code, err.Error())
+				cmd.Root().SilenceErrors = true
+				return exitcodes.New(code, err)
+			}
+			wrapped := fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag",
 				cmd.Name(), err, cmd.Name(), args)
+			return exitcodes.New(code, wrapped)
 		}
 		return nil
 	}
+}
+
+// classifyError inspects an error message to determine the appropriate exit code.
+func classifyError(err error) int {
+	// Preserve exit codes already set by action functions
+	var cliErr *exitcodes.CLIError
+	if errors.As(err, &cliErr) {
+		return cliErr.Code
+	}
+
+	// Type-safe SDK error inspection first
+	var apiErr *megaport.ErrorResponse
+	if errors.As(err, &apiErr) {
+		switch apiErr.Response.StatusCode {
+		case 401, 403:
+			return exitcodes.Authentication
+		case 404, 422, 429, 500, 502, 503:
+			return exitcodes.API
+		}
+	}
+
+	msg := err.Error()
+
+	// Authentication errors
+	authPatterns := []string{
+		"failed to log in",
+		"access key not provided",
+		"secret key not provided",
+		"authentication",
+		"Authorize",
+	}
+	for _, p := range authPatterns {
+		if strings.Contains(msg, p) {
+			return exitcodes.Authentication
+		}
+	}
+
+	// Usage/validation errors
+	usagePatterns := []string{
+		"invalid output format",
+		"required flag",
+		"not set when not using interactive",
+		"at least one field must be updated",
+		"at least one of these flags",
+		"invalid location ID",
+	}
+	for _, p := range usagePatterns {
+		if strings.Contains(msg, p) {
+			return exitcodes.Usage
+		}
+	}
+	// "invalid" + "ID" pattern
+	if strings.Contains(msg, "invalid") && strings.Contains(msg, "ID") {
+		return exitcodes.Usage
+	}
+
+	// API errors
+	apiPatterns := []string{
+		"failed to list",
+		"failed to get",
+		"failed to create",
+		"failed to update",
+		"failed to delete",
+		"failed to buy",
+		"failed to modify",
+		"failed to retrieve",
+		"failed to validate",
+		"failed to restore",
+		"failed to lock",
+		"failed to unlock",
+		"failed to set",
+		"failed to print",
+		"failed to build",
+		"failed to marshal",
+		"failed to parse",
+		"failed to read",
+		"API failure",
+	}
+	for _, p := range apiPatterns {
+		if strings.Contains(msg, p) {
+			return exitcodes.API
+		}
+	}
+
+	return exitcodes.General
 }

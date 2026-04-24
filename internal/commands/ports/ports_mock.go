@@ -23,6 +23,7 @@ type MockPortService struct {
 	DeletePortErr              error
 	DeletePortResult           *megaport.DeletePortResponse
 	CapturedDeletePortUID      string
+	CapturedDeletePortRequest  *megaport.DeletePortRequest
 	ListPortResourceTagsErr    error
 	ListPortResourceTagsResult map[string]string
 	CapturedResourceTagPortUID string
@@ -47,11 +48,15 @@ type MockPortService struct {
 	}
 	UpdatePortErr    error
 	UpdatePortResult *megaport.ModifyPortResponse
+	ForceNilGetPort  bool
 }
 
 func (m *MockPortService) GetPort(ctx context.Context, portID string) (*megaport.Port, error) {
 	if m.GetPortErr != nil {
 		return nil, m.GetPortErr
+	}
+	if m.ForceNilGetPort {
+		return nil, nil
 	}
 	if m.GetPortResult != nil {
 		return m.GetPortResult, nil
@@ -97,6 +102,7 @@ func (m *MockPortService) CheckPortVLANAvailability(ctx context.Context, portID 
 
 func (m *MockPortService) DeletePort(ctx context.Context, req *megaport.DeletePortRequest) (*megaport.DeletePortResponse, error) {
 	m.CapturedDeletePortUID = req.PortID
+	m.CapturedDeletePortRequest = req
 	if m.DeletePortErr != nil {
 		return nil, m.DeletePortErr
 	}
@@ -189,4 +195,50 @@ func (m *MockPortService) UpdatePortResourceTags(ctx context.Context, portID str
 		m.CapturedResourceTags[k] = v
 	}
 	return m.UpdatePortResourceTagsErr
+}
+
+// Reset clears all configured results, errors, and captured requests.
+func (m *MockPortService) Reset() {
+	m.GetPortErr = nil
+	m.GetPortResult = nil
+	m.ListPortsErr = nil
+	m.ListPortsResult = nil
+	m.BuyPortErr = nil
+	m.BuyPortResult = nil
+	m.CapturedRequest = nil
+	m.CheckPortVLANAvailabilityErr = nil
+	m.CheckPortVLANAvailabilityResult = false
+	m.CapturedVLANRequest = struct {
+		PortID string
+		VLANID int
+	}{}
+	m.DeletePortErr = nil
+	m.DeletePortResult = nil
+	m.CapturedDeletePortUID = ""
+	m.CapturedDeletePortRequest = nil
+	m.ListPortResourceTagsErr = nil
+	m.ListPortResourceTagsResult = nil
+	m.CapturedResourceTagPortUID = ""
+	m.CapturedResourceTags = nil
+	m.ValidatePortOrderErr = nil
+	m.ModifyPortErr = nil
+	m.ModifyPortResult = nil
+	m.CapturedModifyPortRequest = nil
+	m.RestorePortErr = nil
+	m.RestorePortResult = nil
+	m.CapturedRestorePortUID = ""
+	m.LockPortErr = nil
+	m.LockPortResult = nil
+	m.CapturedLockPortUID = ""
+	m.UnlockPortErr = nil
+	m.UnlockPortResult = nil
+	m.CapturedUnlockPortUID = ""
+	m.UpdatePortResourceTagsErr = nil
+	m.CapturedUpdateTagsRequest = struct {
+		PortID string
+		Tags   map[string]string
+	}{}
+	m.UpdatePortErr = nil
+	m.UpdatePortResult = nil
+	m.ForceNilGetPort = false
 }

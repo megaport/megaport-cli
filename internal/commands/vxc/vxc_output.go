@@ -7,8 +7,8 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// VXCOutput represents the desired fields for output.
-type VXCOutput struct {
+// vxcOutput represents the desired fields for output.
+type vxcOutput struct {
 	output.Output `json:"-" header:"-"`
 	UID           string `json:"uid" header:"UID"`
 	Name          string `json:"name" header:"Name"`
@@ -20,10 +20,10 @@ type VXCOutput struct {
 	Status        string `json:"status" header:"Status"`
 }
 
-// ToVXCOutput converts a VXC to a VXCOutput.
-func ToVXCOutput(v *megaport.VXC) (VXCOutput, error) {
+// toVXCOutput converts a VXC to a vxcOutput.
+func toVXCOutput(v *megaport.VXC) (vxcOutput, error) {
 	if v == nil {
-		return VXCOutput{}, fmt.Errorf("invalid VXC: nil value")
+		return vxcOutput{}, fmt.Errorf("invalid VXC: nil value")
 	}
 
 	aEndVLAN := v.AEndConfiguration.VLAN
@@ -33,7 +33,7 @@ func ToVXCOutput(v *megaport.VXC) (VXCOutput, error) {
 
 	status := v.ProvisioningStatus
 
-	return VXCOutput{
+	return vxcOutput{
 		UID:       v.UID,
 		Name:      v.Name,
 		AEndUID:   aEndUID,
@@ -51,9 +51,9 @@ func printVXCs(vxcs []*megaport.VXC, format string, noColor bool) error {
 		vxcs = []*megaport.VXC{}
 	}
 
-	outputs := make([]VXCOutput, 0, len(vxcs))
+	outputs := make([]vxcOutput, 0, len(vxcs))
 	for _, vxc := range vxcs {
-		output, err := ToVXCOutput(vxc)
+		output, err := toVXCOutput(vxc)
 		if err != nil {
 			return err
 		}
@@ -68,92 +68,21 @@ func displayVXCChanges(original, updated *megaport.VXC, noColor bool) {
 		return
 	}
 
-	fmt.Println() // Empty line before changes
-	output.PrintInfo("Changes applied:", noColor)
-
-	// Track if any changes were found
-	changesFound := false
-
-	// Compare name
-	if original.Name != updated.Name {
-		changesFound = true
-		oldName := output.FormatOldValue(original.Name, noColor)
-		newName := output.FormatNewValue(updated.Name, noColor)
-		fmt.Printf("  • Name: %s → %s\n", oldName, newName)
+	changes := []output.FieldChange{
+		{Label: "Name", OldValue: original.Name, NewValue: updated.Name},
+		{Label: "Rate Limit", OldValue: fmt.Sprintf("%d Mbps", original.RateLimit), NewValue: fmt.Sprintf("%d Mbps", updated.RateLimit)},
+		{Label: "Cost Centre", OldValue: output.FormatOptionalString(original.CostCentre), NewValue: output.FormatOptionalString(updated.CostCentre)},
+		{Label: "Contract Term", OldValue: fmt.Sprintf("%d months", original.ContractTermMonths), NewValue: fmt.Sprintf("%d months", updated.ContractTermMonths)},
+		{Label: "A-End VLAN", OldValue: fmt.Sprintf("%d", original.AEndConfiguration.VLAN), NewValue: fmt.Sprintf("%d", updated.AEndConfiguration.VLAN)},
+		{Label: "B-End VLAN", OldValue: fmt.Sprintf("%d", original.BEndConfiguration.VLAN), NewValue: fmt.Sprintf("%d", updated.BEndConfiguration.VLAN)},
+		{Label: "Locked", OldValue: output.FormatBool(original.Locked), NewValue: output.FormatBool(updated.Locked)},
 	}
-
-	// Compare rate limit
-	if original.RateLimit != updated.RateLimit {
-		changesFound = true
-		oldRate := output.FormatOldValue(fmt.Sprintf("%d Mbps", original.RateLimit), noColor)
-		newRate := output.FormatNewValue(fmt.Sprintf("%d Mbps", updated.RateLimit), noColor)
-		fmt.Printf("  • Rate Limit: %s → %s\n", oldRate, newRate)
-	}
-
-	// Compare cost centre
-	if original.CostCentre != updated.CostCentre {
-		changesFound = true
-		oldCostCentre := original.CostCentre
-		if oldCostCentre == "" {
-			oldCostCentre = "(none)"
-		}
-		newCostCentre := updated.CostCentre
-		if newCostCentre == "" {
-			newCostCentre = "(none)"
-		}
-		fmt.Printf("  • Cost Centre: %s → %s\n",
-			output.FormatOldValue(oldCostCentre, noColor),
-			output.FormatNewValue(newCostCentre, noColor))
-	}
-
-	// Compare contract term
-	if original.ContractTermMonths != updated.ContractTermMonths {
-		changesFound = true
-		oldTerm := output.FormatOldValue(fmt.Sprintf("%d months", original.ContractTermMonths), noColor)
-		newTerm := output.FormatNewValue(fmt.Sprintf("%d months", updated.ContractTermMonths), noColor)
-		fmt.Printf("  • Contract Term: %s → %s\n", oldTerm, newTerm)
-	}
-
-	// Compare A-End VLAN - directly compare the VLAN values
-	if original.AEndConfiguration.VLAN != updated.AEndConfiguration.VLAN {
-		changesFound = true
-		oldVlan := output.FormatOldValue(fmt.Sprintf("%d", original.AEndConfiguration.VLAN), noColor)
-		newVlan := output.FormatNewValue(fmt.Sprintf("%d", updated.AEndConfiguration.VLAN), noColor)
-		fmt.Printf("  • A-End VLAN: %s → %s\n", oldVlan, newVlan)
-	}
-
-	// Compare B-End VLAN - directly compare the VLAN values
-	if original.BEndConfiguration.VLAN != updated.BEndConfiguration.VLAN {
-		changesFound = true
-		oldVlan := output.FormatOldValue(fmt.Sprintf("%d", original.BEndConfiguration.VLAN), noColor)
-		newVlan := output.FormatNewValue(fmt.Sprintf("%d", updated.BEndConfiguration.VLAN), noColor)
-		fmt.Printf("  • B-End VLAN: %s → %s\n", oldVlan, newVlan)
-	}
-
-	// Compare locked status
-	if original.Locked != updated.Locked {
-		changesFound = true
-		oldLocked := "No"
-		if original.Locked {
-			oldLocked = "Yes"
-		}
-		newLocked := "No"
-		if updated.Locked {
-			newLocked = "Yes"
-		}
-		fmt.Printf("  • Locked: %s → %s\n",
-			output.FormatOldValue(oldLocked, noColor),
-			output.FormatNewValue(newLocked, noColor))
-	}
-
-	if !changesFound {
-		fmt.Println("  No changes detected")
-	}
+	output.DisplayChanges(changes, noColor)
 }
 
 type VXCStatus struct {
 	UID    string `json:"uid" header:"UID"`
-	Name   string `json:"name" header:"NAME"`
-	Status string `json:"status" header:"STATUS"`
-	Type   string `json:"type" header:"TYPE"`
+	Name   string `json:"name" header:"Name"`
+	Status string `json:"status" header:"Status"`
+	Type   string `json:"type" header:"Type"`
 }

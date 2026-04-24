@@ -13,6 +13,9 @@ This command fetches and displays detailed information about a specific port. Yo
 ```sh
   megaport-cli ports get port-abc123
   megaport-cli ports get 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
+  megaport-cli ports get port-abc123 --export
+  megaport-cli ports get port-abc123 --watch
+  megaport-cli ports get port-abc123 --watch --interval 10s
 ```
 
 ## Usage
@@ -25,10 +28,17 @@ megaport-cli ports get [flags]
 ## Parent Command
 
 * [megaport-cli ports](megaport-cli_ports.md)
+
+## Aliases
+
+* show
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
+| `--export` |  | `false` | Output recreatable JSON config for use with buy --json (excludes read-only fields) | false |
+| `--interval` |  | `5s` | Polling interval for --watch mode (e.g. 5s, 1m) | false |
+| `--watch` | `-w` | `false` | Continuously poll and display resource status (Ctrl+C to stop) | false |
 
 ## Subcommands
 * [docs](megaport-cli_ports_get_docs.md)

@@ -29,11 +29,16 @@ megaport-cli mve list [flags]
 ## Parent Command
 
 * [megaport-cli mve](megaport-cli_mve.md)
+
+## Aliases
+
+* ls
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 | `--include-inactive` |  | `false` | Include inactive MVEs in the list | false |
+| `--limit` |  | `0` | Maximum number of results to display (0 = unlimited) | false |
 | `--location-id` |  | `0` | Filter MVEs by location ID | false |
 | `--name` |  |  | Filter MVEs by name | false |
 | `--vendor` |  |  | Filter MVEs by vendor | false |

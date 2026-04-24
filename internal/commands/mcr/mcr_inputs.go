@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -16,18 +16,40 @@ func processJSONMCRInput(jsonStr, jsonFile string) (*megaport.BuyMCRRequest, err
 	var jsonData []byte
 	var err error
 
-	if jsonFile != "" {
-		jsonData, err = os.ReadFile(jsonFile)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-	} else {
-		jsonData = []byte(jsonStr)
+	jsonData, err = utils.ReadJSONInput(jsonStr, jsonFile)
+	if err != nil {
+		return nil, err
 	}
 
 	req := &megaport.BuyMCRRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+	}
+
+	// BuyMCRRequest.AddOns is []MCRAddOn (interface) and cannot be directly
+	// unmarshaled by the standard library. Read tunnelCount separately using a
+	// pointer so we can distinguish "key absent" from an explicit value.
+	var extras struct {
+		TunnelCount *int `json:"tunnelCount"`
+	}
+	if err := json.Unmarshal(jsonData, &extras); err != nil {
+		return nil, fmt.Errorf("failed to parse tunnelCount: %w", err)
+	}
+	if extras.TunnelCount != nil {
+		if *extras.TunnelCount < 0 {
+			return nil, fmt.Errorf("tunnelCount must be 0 or a positive value (10, 20, or 30)")
+		}
+		if *extras.TunnelCount > 0 {
+			if err := validation.ValidateIPSecTunnelCount(*extras.TunnelCount, false); err != nil {
+				return nil, err
+			}
+		}
+		// Always include the add-on config when the key is present:
+		// tunnelCount == 0 tells the API to use its default of 10 tunnels.
+		req.AddOns = append(req.AddOns, &megaport.MCRAddOnIPsecConfig{
+			AddOnType:   megaport.AddOnTypeIPsec,
+			TunnelCount: *extras.TunnelCount,
+		})
 	}
 
 	if err := validation.ValidateMCRRequest(req); err != nil {
@@ -38,6 +60,7 @@ func processJSONMCRInput(jsonStr, jsonFile string) (*megaport.BuyMCRRequest, err
 }
 
 func processFlagMCRInput(cmd *cobra.Command) (*megaport.BuyMCRRequest, error) {
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	name, _ := cmd.Flags().GetString("name")
 	term, _ := cmd.Flags().GetInt("term")
 	portSpeed, _ := cmd.Flags().GetInt("port-speed")
@@ -52,7 +75,7 @@ func processFlagMCRInput(cmd *cobra.Command) (*megaport.BuyMCRRequest, error) {
 	var resourceTags map[string]string
 	if resourceTagsStr != "" {
 		if err := json.Unmarshal([]byte(resourceTagsStr), &resourceTags); err != nil {
-			return nil, fmt.Errorf("error parsing resource tags JSON: %v", err)
+			return nil, fmt.Errorf("failed to parse resource tags JSON: %w", err)
 		}
 	}
 
@@ -68,6 +91,24 @@ func processFlagMCRInput(cmd *cobra.Command) (*megaport.BuyMCRRequest, error) {
 		ResourceTags:  resourceTags,
 	}
 
+	if cmd.Flags().Changed("ipsec-tunnel-count") {
+		ipsecTunnelCount, _ := cmd.Flags().GetInt("ipsec-tunnel-count")
+		if ipsecTunnelCount < 0 {
+			return nil, fmt.Errorf("ipsec-tunnel-count must be 0 or a positive value (10, 20, or 30)")
+		}
+		if ipsecTunnelCount > 0 {
+			if err := validation.ValidateIPSecTunnelCount(ipsecTunnelCount, false); err != nil {
+				return nil, err
+			}
+		}
+		// Always include the add-on when the flag is explicitly set:
+		// ipsecTunnelCount == 0 tells the API to use its default of 10 tunnels.
+		req.AddOns = append(req.AddOns, &megaport.MCRAddOnIPsecConfig{
+			AddOnType:   megaport.AddOnTypeIPsec,
+			TunnelCount: ipsecTunnelCount,
+		})
+	}
+
 	if err := validation.ValidateMCRRequest(req); err != nil {
 		return nil, err
 	}
@@ -79,18 +120,14 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 	var jsonData []byte
 	var err error
 
-	if jsonFile != "" {
-		jsonData, err = os.ReadFile(jsonFile)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-	} else {
-		jsonData = []byte(jsonStr)
+	jsonData, err = utils.ReadJSONInput(jsonStr, jsonFile)
+	if err != nil {
+		return nil, err
 	}
 
 	var jsonMap map[string]interface{}
 	if err := json.Unmarshal(jsonData, &jsonMap); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	updateFields := []string{"name", "costCentre", "marketplaceVisibility", "contractTermMonths"}
@@ -108,7 +145,7 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 
 	req := &megaport.ModifyMCRRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	if _, nameProvided := jsonMap["name"]; nameProvided && req.Name == "" {
@@ -125,9 +162,12 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 			return nil, fmt.Errorf("invalid contract term type: must be a number")
 		}
 
-		termValue := int64(termFloat)
-		if termValue != 1 && termValue != 12 && termValue != 24 && termValue != 36 {
-			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		// Note: fractional values (e.g. 12.5) are already rejected by the
+		// json.Unmarshal into the struct's *int field above, so no need to
+		// check math.Trunc here.
+		termValue := int(termFloat)
+		if err := validation.ValidateContractTerm(termValue); err != nil {
+			return nil, err
 		}
 	}
 
@@ -168,8 +208,8 @@ func processFlagUpdateMCRInput(cmd *cobra.Command, mcrUID string) (*megaport.Mod
 
 	if termSet {
 		term, _ := cmd.Flags().GetInt("term")
-		if term != 1 && term != 12 && term != 24 && term != 36 {
-			return nil, fmt.Errorf("invalid term, must be one of 1, 12, 24, 36")
+		if err := validation.ValidateContractTerm(term); err != nil {
+			return nil, err
 		}
 		req.ContractTermMonths = &term
 	}
@@ -181,13 +221,9 @@ func processJSONPrefixFilterListInput(jsonStr, jsonFile string, mcrUID string) (
 	var jsonData []byte
 	var err error
 
-	if jsonFile != "" {
-		jsonData, err = os.ReadFile(jsonFile)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-	} else {
-		jsonData = []byte(jsonStr)
+	jsonData, err = utils.ReadJSONInput(jsonStr, jsonFile)
+	if err != nil {
+		return nil, err
 	}
 
 	var tempData struct {
@@ -202,7 +238,7 @@ func processJSONPrefixFilterListInput(jsonStr, jsonFile string, mcrUID string) (
 	}
 
 	if err := json.Unmarshal(jsonData, &tempData); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	entries := make([]*megaport.MCRPrefixListEntry, len(tempData.Entries))
@@ -255,7 +291,7 @@ func processFlagPrefixFilterListInput(cmd *cobra.Command, mcrUID string) (*megap
 
 	if entriesJSON != "" {
 		if err := json.Unmarshal([]byte(entriesJSON), &entriesData); err != nil {
-			return nil, fmt.Errorf("error parsing entries JSON: %v", err)
+			return nil, fmt.Errorf("failed to parse entries JSON: %w", err)
 		}
 	}
 
@@ -299,13 +335,9 @@ func processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile string, mcrUID str
 	var jsonData []byte
 	var err error
 
-	if jsonFile != "" {
-		jsonData, err = os.ReadFile(jsonFile)
-		if err != nil {
-			return nil, fmt.Errorf("error reading JSON file: %v", err)
-		}
-	} else {
-		jsonData = []byte(jsonStr)
+	jsonData, err = utils.ReadJSONInput(jsonStr, jsonFile)
+	if err != nil {
+		return nil, err
 	}
 
 	var tempData struct {
@@ -320,7 +352,7 @@ func processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile string, mcrUID str
 	}
 
 	if err := json.Unmarshal(jsonData, &tempData); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	descriptionProvided := tempData.Description != ""
@@ -330,18 +362,18 @@ func processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile string, mcrUID str
 		return nil, fmt.Errorf("at least one field (description or entries) must be updated")
 	}
 
+	ctx := context.Background()
+	client, err := config.Login(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve current prefix filter list: %w", err)
+	}
+
 	if tempData.AddressFamily != "" {
-		ctx := context.Background()
-		client, err := config.Login(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
-		if err != nil {
-			return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
-		}
-
 		if tempData.AddressFamily != currentPrefixFilterList.AddressFamily {
 			return nil, fmt.Errorf("address family cannot be changed after creation (current: %s, requested: %s)",
 				currentPrefixFilterList.AddressFamily, tempData.AddressFamily)
@@ -366,17 +398,6 @@ func processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile string, mcrUID str
 			Ge:     geValue,
 			Le:     leValue,
 		}
-	}
-
-	ctx := context.Background()
-	client, err := config.Login(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
 	}
 
 	description := tempData.Description
@@ -414,24 +435,6 @@ func processFlagUpdatePrefixFilterListInput(cmd *cobra.Command, mcrUID string, p
 	addressFamily, _ := cmd.Flags().GetString("address-family")
 	entriesJSON, _ := cmd.Flags().GetString("entries")
 
-	if cmd.Flags().Changed("address-family") {
-		ctx := context.Background()
-		client, err := config.Login(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
-		if err != nil {
-			return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
-		}
-
-		if addressFamily != currentPrefixFilterList.AddressFamily {
-			return nil, fmt.Errorf("address family cannot be changed after creation (current: %s, requested: %s)",
-				currentPrefixFilterList.AddressFamily, addressFamily)
-		}
-	}
-
 	ctx := context.Background()
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -440,7 +443,14 @@ func processFlagUpdatePrefixFilterListInput(cmd *cobra.Command, mcrUID string, p
 
 	currentPrefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving current prefix filter list: %v", err)
+		return nil, fmt.Errorf("failed to retrieve current prefix filter list: %w", err)
+	}
+
+	if cmd.Flags().Changed("address-family") {
+		if addressFamily != currentPrefixFilterList.AddressFamily {
+			return nil, fmt.Errorf("address family cannot be changed after creation (current: %s, requested: %s)",
+				currentPrefixFilterList.AddressFamily, addressFamily)
+		}
 	}
 
 	if !descriptionProvided {
@@ -458,7 +468,7 @@ func processFlagUpdatePrefixFilterListInput(cmd *cobra.Command, mcrUID string, p
 		}
 
 		if err := json.Unmarshal([]byte(entriesJSON), &entriesData); err != nil {
-			return nil, fmt.Errorf("error parsing entries JSON: %v", err)
+			return nil, fmt.Errorf("failed to parse entries JSON: %w", err)
 		}
 
 		entries = make([]*megaport.MCRPrefixListEntry, len(entriesData))

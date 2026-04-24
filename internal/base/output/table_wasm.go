@@ -8,11 +8,26 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"syscall/js"
 
 	prettytable "github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 )
+
+// isTerminalCached is always false in WASM (no real terminal).
+// Uses atomic.Bool for goroutine safety.
+var isTerminalCached atomic.Bool
+
+// IsTerminal returns true if stdout is connected to a terminal. Always false in WASM.
+func IsTerminal() bool {
+	return isTerminalCached.Load()
+}
+
+// SetIsTerminal overrides the cached TTY detection result. Intended for tests.
+func SetIsTerminal(val bool) {
+	isTerminalCached.Store(val)
+}
 
 // WasmTableWriter is a global buffer for capturing table output in WASM
 var WasmTableWriter = &bytes.Buffer{}
@@ -28,9 +43,17 @@ func calculateDynamicWidth(termWidth int, minWidth, maxPercentage int) int {
 
 // printTable is the WASM-specific implementation that properly captures table output
 func printTable[T OutputFields](data []T, noColor bool) error {
-	headers, fieldIndices, err := getStructTypeInfo(data)
+	wasmBufMu.Lock()
+	defer wasmBufMu.Unlock()
+	headers, jsonNames, fieldIndices, err := getStructTypeInfo(data)
 	if err != nil {
 		return err
+	}
+	if wasmFields := getOutputFields(); len(wasmFields) > 0 {
+		headers, _, fieldIndices, err = filterByFields(headers, jsonNames, fieldIndices, wasmFields)
+		if err != nil {
+			return err
+		}
 	}
 	if len(headers) == 0 {
 		return nil
@@ -43,8 +66,6 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 	// Don't write to os.Stdout as it causes capture issues
 	WasmTableWriter.Reset() // Clear previous content
 	t.SetOutputMirror(WasmTableWriter)
-
-	js.Global().Get("console").Call("log", "📊 Table will write to WasmTableWriter")
 
 	// WASM-specific table configuration with improved column widths
 	// This ensures consistent, readable column distribution in the browser
@@ -107,7 +128,7 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 				MiddleHorizontal: "─",
 				MiddleSeparator:  "┼",
 				MiddleVertical:   "│",
-				PaddingLeft:      " ",  // Single space for compact display
+				PaddingLeft:      " ", // Single space for compact display
 				PaddingRight:     " ",
 				Right:            "│",
 				RightSeparator:   "┤",
@@ -118,15 +139,15 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 			},
 			Color: prettytable.ColorOptions{
 				// Bright, readable colors for dark terminal background
-				Header:       text.Colors{text.FgHiCyan, text.Bold},     // Bright cyan text, no background
-				Row:          text.Colors{text.FgHiWhite},               // Bright white for rows
-				RowAlternate: text.Colors{text.FgCyan},                  // Cyan for alternating rows
-				Footer:       text.Colors{text.FgHiCyan, text.Bold},     // Bright cyan footer
-				Border:       text.Colors{text.FgBlue},                  // Blue borders for subtle frame
+				Header:       text.Colors{text.FgHiCyan, text.Bold}, // Bright cyan text, no background
+				Row:          text.Colors{text.FgHiWhite},           // Bright white for rows
+				RowAlternate: text.Colors{text.FgCyan},              // Cyan for alternating rows
+				Footer:       text.Colors{text.FgHiCyan, text.Bold}, // Bright cyan footer
+				Border:       text.Colors{text.FgBlue},              // Blue borders for subtle frame
 			},
 			Format: prettytable.FormatOptions{
 				Footer: text.FormatDefault,
-				Header: text.FormatUpper,  // Uppercase headers for clarity
+				Header: text.FormatUpper, // Uppercase headers for clarity
 				Row:    text.FormatDefault,
 			},
 			Options: prettytable.Options{
@@ -134,7 +155,7 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 				SeparateColumns: true,
 				SeparateFooter:  true,
 				SeparateHeader:  true,
-				SeparateRows:    false,  // No row separation for compact display
+				SeparateRows:    false, // No row separation for compact display
 			},
 		}
 		t.SetStyle(megaportStyle)
@@ -148,10 +169,13 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 	for _, header := range headers {
 		headerRow = append(headerRow, strings.ToUpper(header))
 	}
-	t.AppendHeader(headerRow)
+	if !getNoHeader() {
+		t.AppendHeader(headerRow)
+	}
 
 	for _, item := range data {
-		if reflect.ValueOf(item).IsZero() {
+		v := reflect.ValueOf(item)
+		if !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil()) {
 			continue
 		}
 		values := extractRowData(item, fieldIndices)
@@ -165,12 +189,10 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 		t.AppendRow(row)
 	}
 
-	js.Global().Get("console").Call("log", "🎨 About to render table...")
 	t.Render()
 
 	// Get the rendered table output
 	tableOutput := WasmTableWriter.String()
-	js.Global().Get("console").Call("log", fmt.Sprintf("✅ Table rendered, buffer size: %d bytes", len(tableOutput)))
 
 	// Write the table output to stdout so it can be captured by wasm buffers
 	// This is the key: write the buffered content to stdout
@@ -178,7 +200,6 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 
 	// Also write to a JavaScript-accessible global variable
 	js.Global().Set("wasmTableOutput", tableOutput)
-	js.Global().Get("console").Call("log", "📝 Table output also stored in wasmTableOutput global")
 
 	return nil
 }

@@ -2,40 +2,52 @@ package locations
 
 import (
 	"context"
+	"time"
 
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 )
 
-func filterLocations(locations []*megaport.Location, filters map[string]string) []*megaport.Location {
-	var filtered []*megaport.Location
-	for _, loc := range locations {
+// timeNow is a mockable time function for testing default year/month.
+var timeNow = time.Now
+
+func filterLocations(locations []*megaport.LocationV3, filters map[string]string) []*megaport.LocationV3 {
+	return utils.Filter(locations, func(loc *megaport.LocationV3) bool {
 		if metro, ok := filters["metro"]; ok && loc.Metro != metro {
-			continue
+			return false
 		}
-		if country, ok := filters["country"]; ok && loc.Country != country {
-			continue
+		if country, ok := filters["country"]; ok && loc.Address.Country != country {
+			return false
 		}
 		if name, ok := filters["name"]; ok && loc.Name != name {
-			continue
+			return false
 		}
-		filtered = append(filtered, loc)
-	}
-	return filtered
+		if market, ok := filters["market"]; ok && loc.Market != market {
+			return false
+		}
+		if val, ok := filters["mcrAvailable"]; ok && val == "true" && !loc.HasMCRSupport() {
+			return false
+		}
+		return true
+	})
 }
 
-// listLocationsFunc now uses the v3 API and converts to legacy format for compatibility
-var listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Location, error) {
-	// Use v3 API (recommended)
-	locationsV3, err := client.LocationService.ListLocationsV3(ctx)
-	if err != nil {
-		return nil, err
-	}
+var listCountriesFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.Country, error) {
+	return client.LocationService.ListCountries(ctx)
+}
 
-	// Convert v3 locations to legacy format for backward compatibility
-	var legacyLocations []*megaport.Location
-	for _, v3Loc := range locationsV3 {
-		legacyLocations = append(legacyLocations, v3Loc.ToLegacyLocation())
-	}
+var listMarketCodesFunc = func(ctx context.Context, client *megaport.Client) ([]string, error) {
+	return client.LocationService.ListMarketCodes(ctx)
+}
 
-	return legacyLocations, nil
+var searchLocationsFunc = func(ctx context.Context, client *megaport.Client, search string) ([]*megaport.LocationV3, error) {
+	return client.LocationService.GetLocationByNameFuzzyV3(ctx, search)
+}
+
+var listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
+	return client.LocationService.ListLocationsV3(ctx)
+}
+
+var getRoundTripTimesFunc = func(ctx context.Context, client *megaport.Client, srcLocationID, year, month int) ([]*megaport.RoundTripTime, error) {
+	return client.LocationService.GetRoundTripTimes(ctx, srcLocationID, year, month)
 }

@@ -7,13 +7,42 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync/atomic"
 
 	prettytable "github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"golang.org/x/term"
 )
 
+// isTerminalCached stores the TTY detection result, computed once at init.
+// It can be overridden in tests via SetIsTerminal. Uses atomic.Bool for
+// goroutine safety (spinner goroutines read this concurrently).
+var isTerminalCached atomic.Bool
+
+// terminalWidthOverride, when > 0, is used by getTerminalWidth in place of
+// the width reported by os.Stdout. RunWithPager sets this before redirecting
+// os.Stdout to a temp file so that printTable uses the real TTY width for
+// column layout even while output is being buffered.
+var terminalWidthOverride atomic.Int64
+
+func init() {
+	isTerminalCached.Store(term.IsTerminal(int(os.Stdout.Fd())))
+}
+
+// IsTerminal returns true if stdout is connected to a terminal (not piped).
+func IsTerminal() bool {
+	return isTerminalCached.Load()
+}
+
+// SetIsTerminal overrides the cached TTY detection result. Intended for tests.
+func SetIsTerminal(val bool) {
+	isTerminalCached.Store(val)
+}
+
 func getTerminalWidth() int {
+	if ov := int(terminalWidthOverride.Load()); ov > 0 {
+		return ov
+	}
 	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil || width <= 0 {
 		return 100
@@ -30,9 +59,15 @@ func calculateDynamicWidth(termWidth int, minWidth, maxPercentage int) int {
 }
 
 func printTable[T OutputFields](data []T, noColor bool) error {
-	headers, fieldIndices, err := getStructTypeInfo(data)
+	headers, jsonNames, fieldIndices, err := getStructTypeInfo(data)
 	if err != nil {
 		return err
+	}
+	if tableFields := getOutputFields(); len(tableFields) > 0 {
+		headers, _, fieldIndices, err = filterByFields(headers, jsonNames, fieldIndices, tableFields)
+		if err != nil {
+			return err
+		}
 	}
 	if len(headers) == 0 {
 		return nil
@@ -101,9 +136,12 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 	for _, header := range headers {
 		headerRow = append(headerRow, strings.ToUpper(header))
 	}
-	t.AppendHeader(headerRow)
+	if !getNoHeader() {
+		t.AppendHeader(headerRow)
+	}
 	for _, item := range data {
-		if reflect.ValueOf(item).IsZero() {
+		v := reflect.ValueOf(item)
+		if !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil()) {
 			continue
 		}
 		values := extractRowData(item, fieldIndices)

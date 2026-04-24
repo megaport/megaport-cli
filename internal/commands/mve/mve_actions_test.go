@@ -2,13 +2,15 @@ package mve
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"strconv"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/testutil"
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -107,21 +109,14 @@ func TestFilterMVEImages(t *testing.T) {
 	}
 }
 func TestListMVEImages(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
-
 	mockService := &MockMVEService{
 		ListMVEImagesResult: testMVEImages,
 	}
 
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{
-			MVEService: mockService,
-		}
-		return client, nil
-	}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.MVEService = mockService
+	})
+	defer cleanup()
 
 	tests := []struct {
 		name          string
@@ -176,7 +171,7 @@ func TestListMVEImages(t *testing.T) {
 				Use: "list-images",
 				RunE: func(cmd *cobra.Command, args []string) error {
 					ctx := context.Background()
-					client, err := config.LoginFunc(ctx)
+					client, err := config.Login(ctx)
 					if err != nil {
 						return err
 					}
@@ -227,21 +222,14 @@ func TestListMVEImages(t *testing.T) {
 }
 
 func TestListAvailableMVESizes(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
-
 	mockService := &MockMVEService{
 		ListAvailableMVESizesResult: testMVESizes,
 	}
 
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{
-			MVEService: mockService,
-		}
-		return client, nil
-	}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.MVEService = mockService
+	})
+	defer cleanup()
 
 	rootCmd := &cobra.Command{Use: "megaport"}
 	mveCmd := &cobra.Command{Use: "mve"}
@@ -250,7 +238,7 @@ func TestListAvailableMVESizes(t *testing.T) {
 		Use: "list-sizes",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
-			client, err := config.LoginFunc(ctx)
+			client, err := config.Login(ctx)
 			if err != nil {
 				return err
 			}
@@ -283,11 +271,9 @@ func TestListAvailableMVESizes(t *testing.T) {
 }
 
 func TestUpdateMVE(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	originalLoginFunc := config.LoginFunc
+	originalPrompt := utils.GetResourcePrompt()
 	defer func() {
-		utils.ResourcePrompt = originalPrompt
-		config.LoginFunc = originalLoginFunc
+		utils.SetResourcePrompt(originalPrompt)
 	}()
 
 	mockService := &MockMVEService{
@@ -295,12 +281,11 @@ func TestUpdateMVE(t *testing.T) {
 			Name: "Mock MVE",
 		},
 	}
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{
-			MVEService: mockService,
-		}
-		return client, nil
-	}
+
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.MVEService = mockService
+	})
+	defer cleanup()
 
 	tests := []struct {
 		name            string
@@ -436,14 +421,14 @@ func TestUpdateMVE(t *testing.T) {
 			}
 
 			promptIndex := 0
-			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+			utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
 				if promptIndex < len(tt.prompts) {
 					response := tt.prompts[promptIndex]
 					promptIndex++
 					return response, nil
 				}
 				return "", fmt.Errorf("unexpected prompt call")
-			}
+			})
 
 			cmd := &cobra.Command{Use: "update"}
 			cmd.Flags().Bool("interactive", tt.interactive, "")
@@ -453,10 +438,7 @@ func TestUpdateMVE(t *testing.T) {
 			cmd.Flags().String("cost-centre", "", "")
 			cmd.Flags().Int("contract-term", 0, "")
 
-			for flag, value := range tt.flags {
-				err := cmd.Flags().Set(flag, value)
-				assert.NoError(t, err)
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
 			output := output.CaptureOutput(func() {
@@ -479,11 +461,11 @@ func TestUpdateMVE(t *testing.T) {
 }
 
 func TestDeleteMVE(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	originalConfirmPrompt := utils.ConfirmPrompt
+	originalConfirmPrompt := utils.GetConfirmPrompt()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer func() {
-		config.LoginFunc = originalLoginFunc
-		utils.ConfirmPrompt = originalConfirmPrompt
+		cleanup()
+		utils.SetConfirmPrompt(originalConfirmPrompt)
 	}()
 
 	tests := []struct {
@@ -492,6 +474,7 @@ func TestDeleteMVE(t *testing.T) {
 		confirmDelete  bool
 		forceFlag      bool
 		nowFlag        bool
+		safeDeleteFlag bool
 		expectedError  string
 		expectedOutput string
 	}{
@@ -501,6 +484,15 @@ func TestDeleteMVE(t *testing.T) {
 				m.DeleteMVEErr = nil
 			},
 			confirmDelete:  true,
+			expectedOutput: "MVE deleted mve-uid",
+		},
+		{
+			name: "safe delete flag passed to request",
+			mockSetup: func(m *MockMVEService) {
+				m.DeleteMVEErr = nil
+			},
+			forceFlag:      true,
+			safeDeleteFlag: true,
 			expectedOutput: "MVE deleted mve-uid",
 		},
 		{
@@ -518,8 +510,8 @@ func TestDeleteMVE(t *testing.T) {
 			name: "deletion cancelled",
 			mockSetup: func(m *MockMVEService) {
 			},
-			confirmDelete:  false,
-			expectedOutput: "Deletion cancelled",
+			confirmDelete: false,
+			expectedError: "cancelled by user",
 		},
 		{
 			name: "force deletion",
@@ -545,16 +537,16 @@ func TestDeleteMVE(t *testing.T) {
 			mockService := &MockMVEService{}
 			tt.mockSetup(mockService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{
 					MVEService: mockService,
 				}
 				return client, nil
-			}
+			})
 
-			utils.ConfirmPrompt = func(question string, _ bool) bool {
+			utils.SetConfirmPrompt(func(question string, _ bool) bool {
 				return tt.confirmDelete
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "delete",
@@ -565,6 +557,10 @@ func TestDeleteMVE(t *testing.T) {
 
 			cmd.Flags().Bool("force", tt.forceFlag, "")
 			cmd.Flags().Bool("now", tt.nowFlag, "")
+			cmd.Flags().Bool("safe-delete", false, "")
+			if tt.safeDeleteFlag {
+				_ = cmd.Flags().Set("safe-delete", "true")
+			}
 
 			var err error
 			output := output.CaptureOutput(func() {
@@ -577,26 +573,30 @@ func TestDeleteMVE(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Contains(t, output, tt.expectedOutput)
+				if tt.safeDeleteFlag {
+					assert.NotNil(t, mockService.CapturedDeleteMVERequest)
+					assert.True(t, mockService.CapturedDeleteMVERequest.SafeDelete)
+				}
 			}
 		})
 	}
 }
 
 func TestBuyMVE(t *testing.T) {
-	originalPrompt := utils.ResourcePrompt
-	originalLoginFunc := config.LoginFunc
+	originalPrompt := utils.GetResourcePrompt()
 	defer func() {
-		utils.ResourcePrompt = originalPrompt
-		config.LoginFunc = originalLoginFunc
+		utils.SetResourcePrompt(originalPrompt)
 	}()
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	mockService := &MockMVEService{}
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-		client := &megaport.Client{
-			MVEService: mockService,
-		}
-		return client, nil
-	}
+
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.MVEService = mockService
+	})
+	defer cleanup()
 
 	tests := []struct {
 		name            string
@@ -798,6 +798,45 @@ func TestBuyMVE(t *testing.T) {
 			},
 			expectedError: "purchase failed",
 		},
+		{
+			name: "invalid JSON returns error",
+			flags: map[string]string{
+				"json": `{bad json}`,
+			},
+			expectedError: "failed to parse JSON",
+		},
+		{
+			name:        "JSON takes precedence over interactive flag",
+			interactive: true,
+			flags: map[string]string{
+				"json": `{
+					"name": "JSON MVE",
+					"term": 12,
+					"locationId": 123,
+					"vendorConfig": {
+						"vendor": "cisco",
+						"imageId": 1,
+						"productSize": "LARGE",
+						"mveLabel": "json-label",
+						"manageLocally": true,
+						"adminSshPublicKey": "admin-ssh",
+						"sshPublicKey": "ssh-key",
+						"cloudInit": "cloud-init",
+						"fmcIpAddress": "fmc-ip",
+						"fmcRegistrationKey": "fmc-key",
+						"fmcNatId": "fmc-nat"
+					},
+					"vnics": [{"description": "JSON VNIC", "vlan": 200}]
+				}`,
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.ValidateMVEOrderErr = nil
+				m.BuyMVEResult = &megaport.BuyMVEResponse{
+					TechnicalServiceUID: "mve-json-wins",
+				}
+			},
+			expectedOutput: "MVE created mve-json-wins",
+		},
 	}
 
 	for _, tt := range tests {
@@ -808,14 +847,14 @@ func TestBuyMVE(t *testing.T) {
 			}
 
 			promptIndex := 0
-			utils.ResourcePrompt = func(_, msg string, _ bool) (string, error) {
+			utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
 				if promptIndex < len(tt.prompts) {
 					response := tt.prompts[promptIndex]
 					promptIndex++
 					return response, nil
 				}
 				return "", fmt.Errorf("unexpected prompt call")
-			}
+			})
 
 			cmd := &cobra.Command{Use: "buy"}
 			cmd.Flags().Bool("interactive", tt.interactive, "")
@@ -827,10 +866,7 @@ func TestBuyMVE(t *testing.T) {
 			cmd.Flags().String("vendor-config", "", "")
 			cmd.Flags().String("vnics", "", "")
 
-			for flag, value := range tt.flags {
-				err := cmd.Flags().Set(flag, value)
-				assert.NoError(t, err)
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
 			output := output.CaptureOutput(func() {
@@ -852,11 +888,78 @@ func TestBuyMVE(t *testing.T) {
 	}
 }
 
+func TestBuyMVE_NoWaitFlag(t *testing.T) {
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	tests := []struct {
+		name                     string
+		noWait                   bool
+		expectedWaitForProvision bool
+	}{
+		{
+			name:                     "default waits for provisioning",
+			noWait:                   false,
+			expectedWaitForProvision: true,
+		},
+		{
+			name:                     "no-wait skips provisioning wait",
+			noWait:                   true,
+			expectedWaitForProvision: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockMVEService{}
+			mockService.ValidateMVEOrderErr = nil
+			mockService.BuyMVEResult = &megaport.BuyMVEResponse{
+				TechnicalServiceUID: "mve-uid-123",
+			}
+
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+				c.MVEService = mockService
+			})
+			defer cleanup()
+
+			cmd := &cobra.Command{Use: "buy"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().String("vendor-config", "", "")
+			cmd.Flags().String("vnics", "", "")
+
+			testutil.SetFlags(t, cmd, map[string]string{
+				"name":          "Test MVE",
+				"term":          "12",
+				"location-id":   "123",
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
+				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
+			})
+			if tt.noWait {
+				assert.NoError(t, cmd.Flags().Set("no-wait", "true"))
+			}
+
+			var err error
+			output.CaptureOutput(func() {
+				err = BuyMVE(cmd, nil, false)
+			})
+
+			assert.NoError(t, err)
+			assert.NotNil(t, mockService.CapturedBuyMVERequest)
+			assert.Equal(t, tt.expectedWaitForProvision, mockService.CapturedBuyMVERequest.WaitForProvision)
+		})
+	}
+}
+
 func TestListMVEsCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	mves := []*megaport.MVE{
 		{
@@ -969,7 +1072,7 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 			setupMock: func(m *MockMVEService) {
 				m.ListMVEsResult = mves
 			},
-			expectedOutput:   []string{"No MVEs found matching the specified filters"},
+			expectedOutput:   []string{"No MVEs found. Create one with 'megaport mve buy'."},
 			unexpectedOutput: []string{"mve-1", "mve-2", "mve-3"},
 		},
 		{
@@ -978,7 +1081,7 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 			setupMock: func(m *MockMVEService) {
 				m.ListMVEsErr = fmt.Errorf("API error: service unavailable")
 			},
-			expectedError: "error listing MVEs",
+			expectedError: "failed to list MVEs",
 		},
 		{
 			name:         "empty result",
@@ -986,7 +1089,26 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 			setupMock: func(m *MockMVEService) {
 				m.ListMVEsResult = []*megaport.MVE{}
 			},
-			expectedOutput: []string{"No MVEs found matching the specified filters"},
+			expectedOutput: []string{"No MVEs found. Create one with 'megaport mve buy'."},
+		},
+		{
+			name:         "limit results",
+			flags:        map[string]string{"limit": "1"},
+			outputFormat: "table",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEsResult = mves
+			},
+			expectedOutput:   []string{"mve-1", "TestMVE-1"},
+			unexpectedOutput: []string{"mve-2", "TestMVE-2"},
+		},
+		{
+			name:         "negative limit returns error",
+			flags:        map[string]string{"limit": "-1"},
+			outputFormat: "table",
+			setupMock: func(m *MockMVEService) {
+				m.ListMVEsResult = mves
+			},
+			expectedError: "--limit must be a non-negative integer",
 		},
 	}
 
@@ -997,33 +1119,21 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 				tt.setupMock(mockMVEService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				return &megaport.Client{
 					MVEService: mockMVEService,
 				}, nil
-			}
+			})
 
 			cmd := &cobra.Command{}
 			cmd.Flags().Bool("include-inactive", false, "")
 			cmd.Flags().Int("location-id", 0, "")
 			cmd.Flags().String("vendor", "", "")
 			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("limit", 0, "")
 			cmd.Flags().String("output", tt.outputFormat, "")
 
-			for flag, value := range tt.flags {
-				switch flag {
-				case "include-inactive":
-					boolVal, _ := strconv.ParseBool(value)
-					err := cmd.Flags().Set(flag, strconv.FormatBool(boolVal))
-					assert.NoError(t, err)
-				case "location-id":
-					err := cmd.Flags().Set(flag, value)
-					assert.NoError(t, err)
-				default:
-					err := cmd.Flags().Set(flag, value)
-					assert.NoError(t, err)
-				}
-			}
+			testutil.SetFlags(t, cmd, tt.flags)
 			err := cmd.Flags().Set("output", tt.outputFormat)
 			assert.NoError(t, err)
 
@@ -1053,10 +1163,8 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 }
 
 func TestListMVEResourceTagsCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name          string
@@ -1104,14 +1212,14 @@ func TestListMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 			expectedOut: []string{`"key": "environment"`, `"value": "staging"`, `"key": "cost-center"`, `"value": "cc-123"`},
 		},
 		{
-			name:         "error fetching tags",
+			name:         "failed to fetch tags",
 			mveUID:       "mve-error",
 			outputFormat: "table",
 			setupMock: func(m *MockMVEService) {
 				m.ListMVEResourceTagsResult = make(map[string]string)
 				m.ListMVEResourceTagsErr = fmt.Errorf("API error: not found")
 			},
-			expectedError: "error getting resource tags",
+			expectedError: "failed to get resource tags",
 		},
 	}
 
@@ -1120,11 +1228,11 @@ func TestListMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 			mockMVEService := &MockMVEService{}
 			tt.setupMock(mockMVEService)
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MVEService = mockMVEService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "list-tags [mveUID]",
@@ -1164,11 +1272,11 @@ func TestListMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 }
 
 func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	originalResourcePrompt := utils.UpdateResourceTagsPrompt
+	originalResourcePrompt := utils.GetUpdateResourceTagsPrompt()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer func() {
-		config.LoginFunc = originalLoginFunc
-		utils.UpdateResourceTagsPrompt = originalResourcePrompt
+		cleanup()
+		utils.SetUpdateResourceTagsPrompt(originalResourcePrompt)
 	}()
 
 	tests := []struct {
@@ -1236,7 +1344,7 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 				m.ListMVEResourceTagsResult = map[string]string{}
 				m.CapturedUpdateMVEResourceTagsRequest = make(map[string]string)
 			},
-			expectedError: "error parsing JSON",
+			expectedError: "failed to parse JSON",
 		},
 		{
 			name:        "error in interactive mode",
@@ -1277,7 +1385,7 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 				m.ListMVEResourceTagsErr = fmt.Errorf("API error: resource not found")
 				m.CapturedUpdateMVEResourceTagsRequest = make(map[string]string)
 			},
-			expectedError: "failed to get existing resource tags",
+			expectedError: "failed to log in or list existing resource tags",
 		},
 		{
 			name:      "empty tags clear all existing tags",
@@ -1314,15 +1422,15 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 				tt.setupMock(mockMVEService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MVEService = mockMVEService
 				return client, nil
-			}
+			})
 
-			utils.UpdateResourceTagsPrompt = func(existingTags map[string]string, noColor bool) (map[string]string, error) {
+			utils.SetUpdateResourceTagsPrompt(func(existingTags map[string]string, noColor bool) (map[string]string, error) {
 				return tt.promptResult, tt.promptError
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "update-tags [mveUID]",
@@ -1378,10 +1486,8 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 }
 
 func TestGetMVEStatus(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	defer func() {
-		config.LoginFunc = originalLoginFunc
-	}()
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
 
 	tests := []struct {
 		name           string
@@ -1427,7 +1533,7 @@ func TestGetMVEStatus(t *testing.T) {
 			setupMock: func(m *MockMVEService) {
 				m.GetMVEErr = fmt.Errorf("MVE not found")
 			},
-			expectedError: "error getting MVE status",
+			expectedError: "failed to get MVE status",
 			outputFormat:  "table",
 		},
 		{
@@ -1439,6 +1545,15 @@ func TestGetMVEStatus(t *testing.T) {
 			expectedError: "API error",
 			outputFormat:  "table",
 		},
+		{
+			name:   "nil MVE returned without error",
+			mveUID: "mve-nil",
+			setupMock: func(m *MockMVEService) {
+				m.ForceNilGetMVE = true
+			},
+			expectedError: "no MVE found",
+			outputFormat:  "table",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1448,11 +1563,11 @@ func TestGetMVEStatus(t *testing.T) {
 				tt.setupMock(mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				client := &megaport.Client{}
 				client.MVEService = mockService
 				return client, nil
-			}
+			})
 
 			cmd := &cobra.Command{
 				Use: "status [mveUID]",
@@ -1482,6 +1597,862 @@ func TestGetMVEStatus(t *testing.T) {
 					assert.Contains(t, capturedOutput, "STATUS")
 					assert.Contains(t, capturedOutput, "VENDOR")
 				}
+			}
+		})
+	}
+}
+
+func TestGetMVE(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name           string
+		mveUID         string
+		setupMock      func(m *MockMVEService)
+		outputFormat   string
+		expectedError  string
+		expectedOutput string
+	}{
+		{
+			name:   "success table format",
+			mveUID: "mve-uid-123",
+			setupMock: func(m *MockMVEService) {
+				m.GetMVEResult = &megaport.MVE{
+					UID:                "mve-uid-123",
+					Name:               "Test MVE",
+					ProvisioningStatus: "LIVE",
+					Vendor:             "cisco",
+					Size:               "MEDIUM",
+				}
+			},
+			outputFormat:   "table",
+			expectedOutput: "mve-uid-123",
+		},
+		{
+			name:   "success JSON format",
+			mveUID: "mve-uid-456",
+			setupMock: func(m *MockMVEService) {
+				m.GetMVEResult = &megaport.MVE{
+					UID:                "mve-uid-456",
+					Name:               "JSON MVE",
+					ProvisioningStatus: "LIVE",
+					Vendor:             "fortinet",
+					Size:               "LARGE",
+				}
+			},
+			outputFormat:   "json",
+			expectedOutput: "mve-uid-456",
+		},
+		{
+			name:   "API error",
+			mveUID: "mve-error",
+			setupMock: func(m *MockMVEService) {
+				m.GetMVEErr = fmt.Errorf("API failure")
+			},
+			outputFormat:  "table",
+			expectedError: "failed to get MVE",
+		},
+		{
+			name:   "nil MVE",
+			mveUID: "mve-nil",
+			setupMock: func(m *MockMVEService) {
+				m.ForceNilGetMVE = true
+			},
+			outputFormat:  "table",
+			expectedError: "no MVE found with UID: mve-nil",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockMVEService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MVEService = mockService
+				return client, nil
+			})
+
+			cmd := &cobra.Command{
+				Use: "get [mveUID]",
+			}
+
+			defer output.SetOutputFormat("table")
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = GetMVE(cmd, []string{tt.mveUID}, noColor, tt.outputFormat)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.outputFormat == "json" {
+					var parsed []map[string]interface{}
+					assert.NoError(t, json.Unmarshal([]byte(capturedOutput), &parsed), "JSON output should be valid JSON")
+					if assert.NotEmpty(t, parsed) {
+						assert.Equal(t, tt.mveUID, parsed[0]["uid"])
+					}
+				} else {
+					assert.Contains(t, capturedOutput, tt.expectedOutput)
+				}
+			}
+		})
+	}
+}
+
+func TestLockMVECmd_WithMockClient(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name          string
+		mveID         string
+		lockErr       error
+		expectedError string
+		expectedOut   string
+	}{
+		{
+			name:        "lock MVE success",
+			mveID:       "mve-to-lock",
+			expectedOut: "MVE mve-to-lock locked successfully",
+		},
+		{
+			name:          "lock MVE error",
+			mveID:         "mve-error",
+			lockErr:       fmt.Errorf("failed to lock MVE"),
+			expectedError: "failed to lock MVE",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origFunc := lockMVEFunc
+			defer func() { lockMVEFunc = origFunc }()
+
+			lockMVEFunc = func(ctx context.Context, client *megaport.Client, mveUID string) (*megaport.ManageProductLockResponse, error) {
+				if tt.lockErr != nil {
+					return nil, tt.lockErr
+				}
+				return &megaport.ManageProductLockResponse{}, nil
+			}
+
+			lockMVECmd := &cobra.Command{
+				Use: "lock [mveUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return LockMVE(cmd, args, false)
+				},
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = lockMVECmd.RunE(lockMVECmd, []string{tt.mveID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOut)
+			}
+		})
+	}
+}
+
+func TestUnlockMVECmd_WithMockClient(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name          string
+		mveID         string
+		unlockErr     error
+		expectedError string
+		expectedOut   string
+	}{
+		{
+			name:        "unlock MVE success",
+			mveID:       "mve-to-unlock",
+			expectedOut: "MVE mve-to-unlock unlocked successfully",
+		},
+		{
+			name:          "unlock MVE error",
+			mveID:         "mve-error",
+			unlockErr:     fmt.Errorf("failed to unlock MVE"),
+			expectedError: "failed to unlock MVE",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origFunc := unlockMVEFunc
+			defer func() { unlockMVEFunc = origFunc }()
+
+			unlockMVEFunc = func(ctx context.Context, client *megaport.Client, mveUID string) (*megaport.ManageProductLockResponse, error) {
+				if tt.unlockErr != nil {
+					return nil, tt.unlockErr
+				}
+				return &megaport.ManageProductLockResponse{}, nil
+			}
+
+			unlockMVECmd := &cobra.Command{
+				Use: "unlock [mveUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return UnlockMVE(cmd, args, false)
+				},
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = unlockMVECmd.RunE(unlockMVECmd, []string{tt.mveID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOut)
+			}
+		})
+	}
+}
+
+func TestRestoreMVECmd_WithMockClient(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name          string
+		mveID         string
+		restoreErr    error
+		expectedError string
+		expectedOut   string
+	}{
+		{
+			name:        "restore MVE success",
+			mveID:       "mve-to-restore",
+			expectedOut: "MVE mve-to-restore restored successfully",
+		},
+		{
+			name:          "restore MVE error",
+			mveID:         "mve-error",
+			restoreErr:    fmt.Errorf("failed to restore MVE"),
+			expectedError: "failed to restore MVE",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origFunc := restoreMVEFunc
+			defer func() { restoreMVEFunc = origFunc }()
+
+			restoreMVEFunc = func(ctx context.Context, client *megaport.Client, mveUID string) (*megaport.RestoreProductResponse, error) {
+				if tt.restoreErr != nil {
+					return nil, tt.restoreErr
+				}
+				return &megaport.RestoreProductResponse{}, nil
+			}
+
+			restoreMVECmd := &cobra.Command{
+				Use: "restore [mveUID]",
+				RunE: func(cmd *cobra.Command, args []string) error {
+					return RestoreMVE(cmd, args, false)
+				},
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = restoreMVECmd.RunE(restoreMVECmd, []string{tt.mveID})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOut)
+			}
+		})
+	}
+}
+
+func TestLockMVECmd_LoginError(t *testing.T) {
+	originalLoginFunc := config.GetLoginFunc()
+	defer func() { config.SetLoginFunc(originalLoginFunc) }()
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		return nil, fmt.Errorf("login failed")
+	})
+
+	cmd := &cobra.Command{}
+	err := LockMVE(cmd, []string{"mve-123"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to log in")
+}
+
+func TestUnlockMVECmd_LoginError(t *testing.T) {
+	originalLoginFunc := config.GetLoginFunc()
+	defer func() { config.SetLoginFunc(originalLoginFunc) }()
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		return nil, fmt.Errorf("login failed")
+	})
+
+	cmd := &cobra.Command{}
+	err := UnlockMVE(cmd, []string{"mve-123"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to log in")
+}
+
+func TestRestoreMVECmd_LoginError(t *testing.T) {
+	originalLoginFunc := config.GetLoginFunc()
+	defer func() { config.SetLoginFunc(originalLoginFunc) }()
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		return nil, fmt.Errorf("login failed")
+	})
+
+	cmd := &cobra.Command{}
+	err := RestoreMVE(cmd, []string{"mve-123"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to log in")
+}
+
+func TestBuyMVE_Confirmation(t *testing.T) {
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+
+	tests := []struct {
+		name                 string
+		flags                map[string]string
+		confirmResult        bool
+		expectBuyCalled      bool
+		expectedOutput       string
+		expectedError        string
+		promptShouldBeCalled bool
+	}{
+		{
+			name: "confirmation accepted",
+			flags: map[string]string{
+				"name":          "Test MVE",
+				"term":          "12",
+				"location-id":   "123",
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
+				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
+			},
+			confirmResult:        true,
+			expectBuyCalled:      true,
+			expectedOutput:       "MVE created",
+			promptShouldBeCalled: true,
+		},
+		{
+			name: "confirmation denied",
+			flags: map[string]string{
+				"name":          "Test MVE",
+				"term":          "12",
+				"location-id":   "123",
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
+				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
+			},
+			confirmResult:        false,
+			expectBuyCalled:      false,
+			expectedError:        "cancelled by user",
+			promptShouldBeCalled: true,
+		},
+		{
+			name: "yes flag skips confirmation",
+			flags: map[string]string{
+				"name":          "Test MVE",
+				"term":          "12",
+				"location-id":   "123",
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
+				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
+				"yes":           "true",
+			},
+			confirmResult:        false,
+			expectBuyCalled:      true,
+			expectedOutput:       "MVE created",
+			promptShouldBeCalled: false,
+		},
+		{
+			name: "json input skips confirmation",
+			flags: map[string]string{
+				"json": `{"name":"JSON MVE","term":12,"locationId":123,"vendorConfig":{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"},"vnics":[{"description":"VNIC 1","vlan":100}]}`,
+			},
+			confirmResult:        false,
+			expectBuyCalled:      true,
+			expectedOutput:       "MVE created",
+			promptShouldBeCalled: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockMVEService{
+				BuyMVEResult: &megaport.BuyMVEResponse{
+					TechnicalServiceUID: "mve-confirm-123",
+				},
+			}
+
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+				c.MVEService = mockService
+			})
+			defer cleanup()
+
+			promptCalled := false
+			utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
+				promptCalled = true
+				return tt.confirmResult
+			})
+
+			cmd := &cobra.Command{Use: "buy"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().BoolP("yes", "y", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().String("vendor-config", "", "")
+			cmd.Flags().String("vnics", "", "")
+
+			testutil.SetFlags(t, cmd, tt.flags)
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = BuyMVE(cmd, nil, noColor)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Contains(t, capturedOutput, tt.expectedOutput)
+			}
+
+			if tt.expectBuyCalled {
+				assert.NotNil(t, mockService.CapturedBuyMVERequest, "expected BuyMVE to be called")
+			} else {
+				assert.Nil(t, mockService.CapturedBuyMVERequest, "expected BuyMVE not to be called")
+			}
+			assert.Equal(t, tt.promptShouldBeCalled, promptCalled, "BuyConfirmPrompt called expectation mismatch")
+		})
+	}
+}
+
+func TestValidateMVE(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	tests := []struct {
+		name             string
+		flags            map[string]string
+		jsonInput        string
+		jsonFileContent  string
+		setupMock        func(*MockMVEService)
+		loginError       error
+		expectedError    string
+		expectedContains string
+	}{
+		{
+			name: "success with flags",
+			flags: map[string]string{
+				"name":          "test-mve",
+				"term":          "12",
+				"location-id":   "1",
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"MEDIUM","mveLabel":"test-label","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA","sshPublicKey":"ssh-rsa AAAA","cloudInit":"#cloud-config","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"reg-key","fmcNatId":"nat-id"}`,
+				"vnics":         `[{"description":"Data Plane","vlan":100}]`,
+			},
+			setupMock:        func(m *MockMVEService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name:             "success with JSON",
+			jsonInput:        `{"name":"test-mve","term":12,"locationId":1,"vendorConfig":{"vendor":"cisco","imageId":1,"productSize":"MEDIUM","mveLabel":"test-label","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA","sshPublicKey":"ssh-rsa AAAA","cloudInit":"#cloud-config","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"reg-key","fmcNatId":"nat-id"},"vnics":[{"description":"Data Plane","vlan":100}]}`,
+			setupMock:        func(m *MockMVEService) {},
+			expectedContains: "validation passed",
+		},
+		{
+			name:      "validation error",
+			jsonInput: `{"name":"test-mve","term":12,"locationId":1,"vendorConfig":{"vendor":"cisco","imageId":1,"productSize":"MEDIUM","mveLabel":"test-label","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA","sshPublicKey":"ssh-rsa AAAA","cloudInit":"#cloud-config","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"reg-key","fmcNatId":"nat-id"},"vnics":[{"description":"Data Plane","vlan":100}]}`,
+			setupMock: func(m *MockMVEService) {
+				m.ValidateMVEOrderErr = fmt.Errorf("invalid MVE configuration")
+			},
+			expectedError: "invalid MVE configuration",
+		},
+		{
+			name:          "no input provided",
+			setupMock:     func(m *MockMVEService) {},
+			expectedError: "no input provided",
+		},
+		{
+			name:          "login error",
+			jsonInput:     `{"name":"test-mve","term":12,"locationId":1,"vendorConfig":{"vendor":"cisco","imageId":1,"productSize":"MEDIUM","mveLabel":"test-label","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA","sshPublicKey":"ssh-rsa AAAA","cloudInit":"#cloud-config","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"reg-key","fmcNatId":"nat-id"},"vnics":[{"description":"Data Plane","vlan":100}]}`,
+			setupMock:     func(m *MockMVEService) {},
+			loginError:    fmt.Errorf("authentication failed"),
+			expectedError: "authentication failed",
+		},
+		{
+			name:          "invalid JSON input",
+			jsonInput:     `{invalid json}`,
+			setupMock:     func(m *MockMVEService) {},
+			expectedError: "failed to parse JSON",
+		},
+		{
+			name:          "vendor config validation failure",
+			jsonInput:     `{"name":"test-mve","term":12,"locationId":1,"vendorConfig":{"vendor":"unknown_vendor","imageId":1,"productSize":"MEDIUM"},"vnics":[{"description":"Data Plane","vlan":100}]}`,
+			setupMock:     func(m *MockMVEService) {},
+			expectedError: "unsupported vendor",
+		},
+		{
+			name:             "success with JSON file",
+			jsonFileContent:  `{"name":"file-mve","term":12,"locationId":1,"vendorConfig":{"vendor":"cisco","imageId":1,"productSize":"MEDIUM","mveLabel":"test-label","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA","sshPublicKey":"ssh-rsa AAAA","cloudInit":"#cloud-config","fmcIpAddress":"10.0.0.1","fmcRegistrationKey":"reg-key","fmcNatId":"nat-id"},"vnics":[{"description":"Data Plane","vlan":100}]}`,
+			setupMock:        func(m *MockMVEService) {},
+			expectedContains: "validation passed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockMVEService{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockService)
+			}
+
+			if tt.loginError != nil {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					return nil, tt.loginError
+				})
+			} else {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MVEService = mockService
+					return client, nil
+				})
+			}
+
+			cmd := &cobra.Command{Use: "validate"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().String("vendor-config", "", "")
+			cmd.Flags().String("vnics", "", "")
+			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().String("promo-code", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().String("resource-tags", "", "")
+
+			if tt.jsonInput != "" {
+				assert.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			}
+			if tt.jsonFileContent != "" {
+				tmpFile, tmpErr := os.CreateTemp("", "mve-validate-*.json")
+				assert.NoError(t, tmpErr)
+				defer os.Remove(tmpFile.Name())
+				_, tmpErr = tmpFile.WriteString(tt.jsonFileContent)
+				assert.NoError(t, tmpErr)
+				tmpFile.Close()
+				assert.NoError(t, cmd.Flags().Set("json-file", tmpFile.Name()))
+			}
+			for k, v := range tt.flags {
+				assert.NoError(t, cmd.Flags().Set(k, v))
+			}
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = ValidateMVE(cmd, nil, true)
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.expectedContains != "" {
+					assert.Contains(t, capturedOutput, tt.expectedContains)
+				}
+			}
+		})
+	}
+}
+
+func TestListMVEImages_NilResult(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockService := &MockMVEService{}
+	// Force nil return by not setting result and not setting error
+	// The mock returns empty slice by default, so we need to override
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.MVEService = mockService
+		return client, nil
+	})
+
+	mockService.ListMVEImagesErr = fmt.Errorf("API failure")
+
+	cmd := testutil.NewCommand("list-images", testutil.OutputAdapter(ListMVEImages))
+	cmd.Flags().String("vendor", "", "")
+	cmd.Flags().String("product-code", "", "")
+	cmd.Flags().Int("id", 0, "")
+	cmd.Flags().String("version", "", "")
+	cmd.Flags().Bool("release-image", false, "")
+
+	var err error
+	output.CaptureOutput(func() {
+		err = testutil.OutputAdapter(ListMVEImages)(cmd, nil)
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "API failure")
+}
+
+func TestListMVEImages_LoginError(t *testing.T) {
+	cleanup := testutil.SetupLoginError(fmt.Errorf("auth failed"))
+	defer cleanup()
+
+	cmd := testutil.NewCommand("list-images", testutil.OutputAdapter(ListMVEImages))
+	cmd.Flags().String("vendor", "", "")
+	cmd.Flags().String("product-code", "", "")
+	cmd.Flags().Int("id", 0, "")
+	cmd.Flags().String("version", "", "")
+	cmd.Flags().Bool("release-image", false, "")
+
+	var err error
+	output.CaptureOutput(func() {
+		err = testutil.OutputAdapter(ListMVEImages)(cmd, nil)
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "auth failed")
+}
+
+func TestListAvailableMVESizes_Error(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockService := &MockMVEService{}
+	mockService.ListAvailableMVESizesErr = fmt.Errorf("API failure")
+
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.MVEService = mockService
+		return client, nil
+	})
+
+	cmd := testutil.NewCommand("list-sizes", testutil.OutputAdapter(ListAvailableMVESizes))
+
+	var err error
+	output.CaptureOutput(func() {
+		err = testutil.OutputAdapter(ListAvailableMVESizes)(cmd, nil)
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "API failure")
+}
+
+func TestExportMVEConfig(t *testing.T) {
+	mve := &megaport.MVE{
+		UID:                "mve-should-not-appear",
+		Name:               "My MVE",
+		ContractTermMonths: 12,
+		LocationID:         55,
+		DiversityZone:      "green",
+		CostCentre:         "EdgeOps",
+		ProvisioningStatus: "LIVE",
+		NetworkInterfaces: []*megaport.MVENetworkInterface{
+			{Description: "eth0", VLAN: 100},
+			{Description: "eth1"},
+		},
+	}
+	m := exportMVEConfig(mve)
+
+	assert.Equal(t, "My MVE", m["name"])
+	assert.Equal(t, 12, m["term"])
+	assert.Equal(t, 55, m["locationId"])
+	assert.Equal(t, "green", m["diversityZone"])
+	assert.Equal(t, "EdgeOps", m["costCentre"])
+
+	vnics, ok := m["vnics"].([]map[string]interface{})
+	assert.True(t, ok)
+	assert.Len(t, vnics, 2)
+	assert.Equal(t, "eth0", vnics[0]["description"])
+	assert.Equal(t, 100, vnics[0]["vlan"])
+	assert.Equal(t, "eth1", vnics[1]["description"])
+	_, hasVLAN := vnics[1]["vlan"]
+	assert.False(t, hasVLAN, "zero VLAN should be omitted")
+
+	_, hasUID := m["productUid"]
+	assert.False(t, hasUID, "export should not include productUid")
+	_, hasVendor := m["vendorConfig"]
+	assert.False(t, hasVendor, "vendorConfig is not available from API")
+}
+
+func TestGetMVE_Export(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockService := &MockMVEService{
+		GetMVEResult: &megaport.MVE{
+			UID:                "mve-export-123",
+			Name:               "Export MVE",
+			ContractTermMonths: 12,
+			LocationID:         55,
+			ProvisioningStatus: "LIVE",
+			NetworkInterfaces: []*megaport.MVENetworkInterface{
+				{Description: "Data"},
+			},
+		},
+	}
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.MVEService = mockService
+		return client, nil
+	})
+
+	cmd := &cobra.Command{Use: "get"}
+	cmd.Flags().Bool("export", false, "")
+	assert.NoError(t, cmd.Flags().Set("export", "true"))
+
+	var err error
+	capturedOutput := output.CaptureOutput(func() {
+		err = GetMVE(cmd, []string{"mve-export-123"}, true, "table")
+	})
+
+	assert.NoError(t, err)
+	var parsed map[string]interface{}
+	assert.NoError(t, json.Unmarshal([]byte(capturedOutput), &parsed), "export output must be valid JSON")
+	assert.Equal(t, "Export MVE", parsed["name"])
+	assert.Equal(t, float64(55), parsed["locationId"])
+	_, hasUID := parsed["productUid"]
+	assert.False(t, hasUID, "export should not include productUid")
+}
+
+func TestListAvailableMVESizes_LoginError(t *testing.T) {
+	cleanup := testutil.SetupLoginError(fmt.Errorf("auth failed"))
+	defer cleanup()
+
+	cmd := testutil.NewCommand("list-sizes", testutil.OutputAdapter(ListAvailableMVESizes))
+
+	var err error
+	output.CaptureOutput(func() {
+		err = testutil.OutputAdapter(ListAvailableMVESizes)(cmd, nil)
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "auth failed")
+}
+
+func TestListMVEs_TagFilter(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	origListTagsFunc := listMVEResourceTagsFunc
+	defer func() { listMVEResourceTagsFunc = origListTagsFunc }()
+
+	allMVEs := []*megaport.MVE{
+		{UID: "mve-1", Name: "MVE-Alpha", ProvisioningStatus: "LIVE"},
+		{UID: "mve-2", Name: "MVE-Beta", ProvisioningStatus: "LIVE"},
+		{UID: "mve-3", Name: "MVE-Gamma", ProvisioningStatus: "LIVE"},
+	}
+
+	tagsByUID := map[string]map[string]string{
+		"mve-1": {"env": "prod", "team": "net"},
+		"mve-2": {"env": "staging"},
+		"mve-3": {},
+	}
+
+	tests := []struct {
+		name            string
+		tagFilters      []string
+		tagFetchErrUID  string
+		expectedOutputs []string
+		notExpected     []string
+	}{
+		{
+			name:            "no tag filter returns all",
+			tagFilters:      nil,
+			expectedOutputs: []string{"mve-1", "mve-2", "mve-3"},
+		},
+		{
+			name:            "exact match includes only matching resource",
+			tagFilters:      []string{"env=prod"},
+			expectedOutputs: []string{"mve-1"},
+			notExpected:     []string{"mve-2", "mve-3"},
+		},
+		{
+			name:            "AND logic requires all filters to match",
+			tagFilters:      []string{"env=prod", "team=net"},
+			expectedOutputs: []string{"mve-1"},
+			notExpected:     []string{"mve-2", "mve-3"},
+		},
+		{
+			name:            "key-exists match",
+			tagFilters:      []string{"env"},
+			expectedOutputs: []string{"mve-1", "mve-2"},
+			notExpected:     []string{"mve-3"},
+		},
+		{
+			name:        "no match returns empty",
+			tagFilters:  []string{"env=nonexistent"},
+			notExpected: []string{"mve-1", "mve-2", "mve-3"},
+		},
+		{
+			name:            "tag fetch error excludes resource gracefully",
+			tagFilters:      []string{"env=prod"},
+			tagFetchErrUID:  "mve-1",
+			notExpected:     []string{"MVE-Alpha"}, // name absent from table; UID appears in warning
+			expectedOutputs: []string{"Failed to fetch tags"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			listMVEResourceTagsFunc = func(ctx context.Context, client *megaport.Client, uid string) (map[string]string, error) {
+				if tt.tagFetchErrUID != "" && uid == tt.tagFetchErrUID {
+					return nil, fmt.Errorf("tag fetch error")
+				}
+				return tagsByUID[uid], nil
+			}
+
+			mockSvc := &MockMVEService{ListMVEsResult: allMVEs}
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				return &megaport.Client{MVEService: mockSvc}, nil
+			})
+
+			cmd := &cobra.Command{Use: "list"}
+			cmd.Flags().Bool("include-inactive", false, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().String("vendor", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("limit", 0, "")
+			cmd.Flags().StringArray("tag", nil, "")
+
+			for _, f := range tt.tagFilters {
+				assert.NoError(t, cmd.Flags().Set("tag", f))
+			}
+
+			var listErr error
+			capturedOutput := output.CaptureOutput(func() {
+				listErr = ListMVEs(cmd, nil, true, "table")
+			})
+			assert.NoError(t, listErr)
+
+			for _, expected := range tt.expectedOutputs {
+				assert.Contains(t, capturedOutput, expected)
+			}
+			for _, notExp := range tt.notExpected {
+				assert.NotContains(t, capturedOutput, notExp)
 			}
 		})
 	}

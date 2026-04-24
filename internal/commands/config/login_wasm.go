@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"syscall/js"
 	"time"
 
@@ -17,14 +18,68 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-func Login(ctx context.Context) (*megaport.Client, error) {
-	return LoginFunc(ctx)
+// loginFuncMu guards loginFunc and newUnauthenticatedClientFunc.
+var loginFuncMu sync.RWMutex
+
+// GetLoginFunc returns the current login function in a thread-safe manner.
+func GetLoginFunc() func(context.Context) (*megaport.Client, error) {
+	loginFuncMu.RLock()
+	defer loginFuncMu.RUnlock()
+	return loginFunc
 }
 
-// LoginFunc overrides the standard login for WASM environments
+// SetLoginFunc replaces the login function in a thread-safe manner.
+func SetLoginFunc(fn func(context.Context) (*megaport.Client, error)) {
+	loginFuncMu.Lock()
+	defer loginFuncMu.Unlock()
+	loginFunc = fn
+}
+
+// GetLoginFuncWithOutput is not used in WASM but provided for API compatibility with testutil.
+func GetLoginFuncWithOutput() func(context.Context, string) (*megaport.Client, error) {
+	loginFuncMu.RLock()
+	currentLoginFunc := loginFunc
+	loginFuncMu.RUnlock()
+	return func(ctx context.Context, _ string) (*megaport.Client, error) {
+		return currentLoginFunc(ctx)
+	}
+}
+
+// SetLoginFuncWithOutput is not used in WASM but provided for API compatibility with testutil.
+func SetLoginFuncWithOutput(fn func(context.Context, string) (*megaport.Client, error)) {
+	loginFuncMu.Lock()
+	defer loginFuncMu.Unlock()
+	loginFunc = func(ctx context.Context) (*megaport.Client, error) {
+		return fn(ctx, "")
+	}
+}
+
+// GetNewUnauthenticatedClientFunc returns the current unauthenticated client factory in a thread-safe manner.
+func GetNewUnauthenticatedClientFunc() func() (*megaport.Client, error) {
+	loginFuncMu.RLock()
+	defer loginFuncMu.RUnlock()
+	return newUnauthenticatedClientFunc
+}
+
+// SetNewUnauthenticatedClientFunc replaces the unauthenticated client factory in a thread-safe manner.
+func SetNewUnauthenticatedClientFunc(fn func() (*megaport.Client, error)) {
+	loginFuncMu.Lock()
+	defer loginFuncMu.Unlock()
+	newUnauthenticatedClientFunc = fn
+}
+
+func Login(ctx context.Context) (*megaport.Client, error) {
+	return GetLoginFunc()(ctx)
+}
+
+func LoginWithOutput(ctx context.Context, outputFormat string) (*megaport.Client, error) {
+	return GetLoginFuncWithOutput()(ctx, outputFormat)
+}
+
+// loginFunc overrides the standard login for WASM environments.
 // Note: WASM version uses session-based authentication managed by the browser UI.
 // Config profiles are not supported in the WASM version.
-var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	var accessKey, secretKey, env string
 
 	// Add console logging for debugging
@@ -33,42 +88,51 @@ var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	js.Global().Get("console").Call("info", "ℹ️  Config profiles are not supported - please use the login form in the UI")
 
 	// PRIORITY 1: Check for external token from portal (bypasses OAuth flow)
+	// Token is stored in env var (set by setAuthToken in wasm.go) rather than JS globals
+	// to avoid exposing credentials in the browser's window object.
 	megaportTokenGlobal := js.Global().Get("megaportToken")
 	if !megaportTokenGlobal.IsUndefined() && !megaportTokenGlobal.IsNull() {
-		token := megaportTokenGlobal.Get("token").String()
+		token := os.Getenv("MEGAPORT_ACCESS_TOKEN")
 		tokenEnv := megaportTokenGlobal.Get("environment").String()
+		apiURL := megaportTokenGlobal.Get("apiURL").String()
 
 		if token != "" {
 			js.Global().Get("console").Call("log", "✅ Using external token from portal (bypassing OAuth flow)")
 			js.Global().Get("console").Call("log", "Environment: "+tokenEnv)
-
-			// Default to production
-			if tokenEnv == "" {
-				tokenEnv = "production"
-			}
-
-			// Set environment option
-			var envOpt megaport.ClientOpt
-			switch tokenEnv {
-			case "production":
-				envOpt = megaport.WithEnvironment(megaport.EnvironmentProduction)
-			case "staging":
-				envOpt = megaport.WithEnvironment(megaport.EnvironmentStaging)
-			case "development":
-				envOpt = megaport.WithEnvironment(megaport.EnvironmentDevelopment)
-			default:
-				envOpt = megaport.WithEnvironment(megaport.EnvironmentProduction)
-			}
+			js.Global().Get("console").Call("log", "API URL: "+apiURL)
 
 			// Create WASM HTTP client
 			httpClient := wasmhttp.NewWasmHTTPClient()
 			httpClient.Timeout = 45 * time.Second
 
+			// Build client options - prefer apiURL if available (hostname-derived)
+			var clientOpts []megaport.ClientOpt
+			clientOpts = append(clientOpts, megaport.WithAccessToken(token, time.Time{}))
+
+			if apiURL != "" {
+				// Use the API URL derived from hostname - this auto-works for new environments
+				js.Global().Get("console").Call("log", "🔗 Using hostname-derived API URL: "+apiURL)
+				clientOpts = append(clientOpts, megaport.WithBaseURL(apiURL))
+			} else {
+				// Fallback to environment-based URL selection
+				js.Global().Get("console").Call("log", "⚠️ No API URL provided, falling back to environment-based selection")
+				var envOpt megaport.ClientOpt
+				switch tokenEnv {
+				case "production":
+					envOpt = megaport.WithEnvironment(megaport.EnvironmentProduction)
+				case "staging":
+					envOpt = megaport.WithEnvironment(megaport.EnvironmentStaging)
+				case "development":
+					envOpt = megaport.WithEnvironment(megaport.EnvironmentDevelopment)
+				default:
+					envOpt = megaport.WithEnvironment(megaport.EnvironmentProduction)
+				}
+				clientOpts = append(clientOpts, envOpt)
+			}
+
 			// Create Megaport client with the external token (no OAuth flow needed!)
-			megaportClient, err := megaport.New(httpClient,
-				megaport.WithAccessToken(token, time.Time{}), // Token managed externally by portal
-				envOpt,
-			)
+			clientOpts = append(clientOpts, megaport.WithCustomHeaders(cliHeaders))
+			megaportClient, err := megaport.New(httpClient, clientOpts...)
 			if err != nil {
 				js.Global().Get("console").Call("error", "Failed to create Megaport client: "+err.Error())
 				js.Global().Get("console").Call("groupEnd")
@@ -81,33 +145,36 @@ var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		}
 	}
 
-	// PRIORITY 2: Check for API Key/Secret credentials (uses OAuth flow)
-	// First, try to get credentials from JavaScript global (set by browser login)
+	// PRIORITY 2: Check for API Key/Secret credentials (uses OAuth flow).
+	// setAuthCredentials() stores credentials in Go env vars and exposes only
+	// the non-secret environment name in window.megaportCredentials, so always
+	// read accessKey/secretKey from env vars rather than the JS global.
+	accessKey = os.Getenv("MEGAPORT_ACCESS_KEY")
+	secretKey = os.Getenv("MEGAPORT_SECRET_KEY")
+	env = os.Getenv("MEGAPORT_ENVIRONMENT")
+
+	if accessKey != "" {
+		js.Global().Get("console").Call("log", "Using access key from environment variable")
+		js.Global().Get("console").Call("log", "Access Key: "+maskCredential(accessKey))
+	}
+	if secretKey != "" {
+		js.Global().Get("console").Call("log", "Using secret key from environment variable")
+	}
+
+	// Allow the megaportCredentials JS global's environment field to override
+	// the env var (the UI may set it before calling setAuthCredentials).
 	megaportCredsGlobal := js.Global().Get("megaportCredentials")
 	if !megaportCredsGlobal.IsUndefined() && !megaportCredsGlobal.IsNull() {
-		js.Global().Get("console").Call("log", "✅ Found credentials from browser login")
-		accessKey = megaportCredsGlobal.Get("accessKey").String()
-		secretKey = megaportCredsGlobal.Get("secretKey").String()
-		env = megaportCredsGlobal.Get("environment").String()
-		js.Global().Get("console").Call("log", "Access Key: "+maskCredential(accessKey))
+		envVal := megaportCredsGlobal.Get("environment")
+		if envVal.Type() == js.TypeString {
+			if s := envVal.String(); s != "" {
+				env = s
+			}
+		}
+	}
+
+	if env != "" {
 		js.Global().Get("console").Call("log", "Environment: "+env)
-	} else {
-		// Fallback to environment variables
-		accessKey = os.Getenv("MEGAPORT_ACCESS_KEY")
-		if accessKey != "" {
-			js.Global().Get("console").Call("log", "Using access key from environment variable")
-			js.Global().Get("console").Call("log", "Access Key: "+maskCredential(accessKey))
-		}
-
-		secretKey = os.Getenv("MEGAPORT_SECRET_KEY")
-		if secretKey != "" {
-			js.Global().Get("console").Call("log", "Using secret key from environment variable")
-		}
-
-		env = os.Getenv("MEGAPORT_ENVIRONMENT")
-		if env != "" {
-			js.Global().Get("console").Call("log", "Using environment from environment variable: "+env)
-		}
 	}
 
 	// Validate credentials
@@ -139,10 +206,10 @@ var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		apiEndpoint = "https://api.megaport.com"
 		envOpt = megaport.WithEnvironment(megaport.EnvironmentProduction)
 	case "staging":
-		apiEndpoint = "https://api-staging.megaport.com" // Adjust if needed
+		apiEndpoint = "https://api-staging.megaport.com"
 		envOpt = megaport.WithEnvironment(megaport.EnvironmentStaging)
 	case "development":
-		apiEndpoint = "https://api-dev.megaport.com" // Adjust if needed
+		apiEndpoint = "https://api-mpone-dev.megaport.com"
 		envOpt = megaport.WithEnvironment(megaport.EnvironmentDevelopment)
 	default:
 		apiEndpoint = "https://api.megaport.com"
@@ -163,6 +230,7 @@ var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	megaportClient, err := megaport.New(httpClient,
 		megaport.WithCredentials(accessKey, secretKey),
 		envOpt,
+		megaport.WithCustomHeaders(cliHeaders),
 	)
 	if err != nil {
 		js.Global().Get("console").Call("error", "Failed to create Megaport client: "+err.Error())
@@ -212,6 +280,9 @@ var LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
 
 // Helper function to mask credentials for logging
 func maskCredential(cred string) string {
+	if len(cred) < 4 {
+		return "****"
+	}
 	if len(cred) <= 8 {
 		return cred[:2] + "..." + cred[len(cred)-2:]
 	}
@@ -226,7 +297,7 @@ func RetryWithBackoffAndConsoleLogging(ctx context.Context, attempts int, client
 		switch client.BaseURL.Host {
 		case "api-staging.megaport.com":
 			environment = "staging"
-		case "api-dev.megaport.com":
+		case "api-mpone-dev.megaport.com":
 			environment = "development"
 		}
 	} else {
@@ -354,4 +425,51 @@ func ClearCachedToken() {
 func Logout() {
 	ClearCachedToken()
 	js.Global().Get("console").Call("log", "User logged out and tokens cleared")
+}
+
+// newUnauthenticatedClientFunc creates a Megaport API client without authentication.
+// Used for public API endpoints (e.g., locations) that don't require credentials.
+var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
+	var clientOpts []megaport.ClientOpt
+
+	// Prefer hostname-derived API URL (auto-works for non-standard environments)
+	var apiURL string
+	megaportTokenGlobal := js.Global().Get("megaportToken")
+	if !megaportTokenGlobal.IsUndefined() && !megaportTokenGlobal.IsNull() {
+		urlVal := megaportTokenGlobal.Get("apiURL")
+		if urlVal.Type() == js.TypeString {
+			apiURL = urlVal.String()
+		}
+	}
+
+	if apiURL != "" {
+		clientOpts = append(clientOpts, megaport.WithBaseURL(apiURL))
+	} else {
+		// Fall back to environment-based URL selection
+		var env string
+		megaportCredsGlobal := js.Global().Get("megaportCredentials")
+		if !megaportCredsGlobal.IsUndefined() && !megaportCredsGlobal.IsNull() {
+			envVal := megaportCredsGlobal.Get("environment")
+			if envVal.Type() == js.TypeString {
+				if s := envVal.String(); s != "" {
+					env = s
+				}
+			}
+		}
+		if env == "" {
+			env = os.Getenv("MEGAPORT_ENVIRONMENT")
+		}
+		clientOpts = append(clientOpts, environmentOption(normalizeEnvironment(env)))
+	}
+
+	httpClient := wasmhttp.NewWasmHTTPClient()
+	httpClient.Timeout = 45 * time.Second
+
+	clientOpts = append(clientOpts, megaport.WithCustomHeaders(cliHeaders))
+	return megaport.New(httpClient, clientOpts...)
+}
+
+// NewUnauthenticatedClient creates an unauthenticated Megaport API client.
+func NewUnauthenticatedClient() (*megaport.Client, error) {
+	return GetNewUnauthenticatedClientFunc()()
 }

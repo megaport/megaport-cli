@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -47,28 +48,40 @@ var restoreMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID s
 	return client.MCRService.RestoreMCR(ctx, mcrUID)
 }
 
+var listMCRResourceTagsFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (map[string]string, error) {
+	return client.MCRService.ListMCRResourceTags(ctx, mcrUID)
+}
+
+var lockMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.ManageProductLockResponse, error) {
+	return client.ProductService.ManageProductLock(ctx, &megaport.ManageProductLockRequest{ProductID: mcrUID, ShouldLock: true})
+}
+
+var unlockMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.ManageProductLockResponse, error) {
+	return client.ProductService.ManageProductLock(ctx, &megaport.ManageProductLockRequest{ProductID: mcrUID, ShouldLock: false})
+}
+
+var updateMCRWithAddOnFunc = func(ctx context.Context, client *megaport.Client, mcrID string, req megaport.MCRAddOnRequest) error {
+	return client.MCRService.UpdateMCRWithAddOn(ctx, mcrID, req)
+}
+
+var updateMCRIPsecAddOnFunc = func(ctx context.Context, client *megaport.Client, mcrID, addOnUID string, tunnelCount int) error {
+	return client.MCRService.UpdateMCRIPsecAddOn(ctx, mcrID, addOnUID, tunnelCount)
+}
+
 func filterMCRs(mcrs []*megaport.MCR, locationID, portSpeed int, mcrName string) []*megaport.MCR {
-	var filtered []*megaport.MCR
-
-	if mcrs == nil {
-		return filtered
-	}
-
-	for _, mcr := range mcrs {
+	return utils.Filter(mcrs, func(mcr *megaport.MCR) bool {
 		if mcr == nil {
-			continue
+			return false
 		}
 		if locationID > 0 && mcr.LocationID != locationID {
-			continue
+			return false
 		}
 		if portSpeed > 0 && mcr.PortSpeed != portSpeed {
-			continue
+			return false
 		}
 		if mcrName != "" && !strings.Contains(strings.ToLower(mcr.Name), strings.ToLower(mcrName)) {
-			continue
+			return false
 		}
-		filtered = append(filtered, mcr)
-	}
-
-	return filtered
+		return true
+	})
 }

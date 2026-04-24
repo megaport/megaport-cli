@@ -417,7 +417,7 @@ func TestPromptTimeout(t *testing.T) {
 
 	// Register a prompt directly (without blocking via PromptForInput)
 	pendingMutex.Lock()
-	promptCounter++
+	promptCounter.Add(1)
 	promptID := fmt.Sprintf("timeout_test_%d", time.Now().UnixNano())
 
 	request := &PromptRequest{
@@ -493,7 +493,7 @@ func TestConcurrentPrompts(t *testing.T) {
 
 		// Register prompt directly without blocking on PromptForInput
 		pendingMutex.Lock()
-		promptCounter++
+		promptCounter.Add(1)
 		promptID := fmt.Sprintf("concurrent_test_%d_%d", i, time.Now().UnixNano())
 		promptIDs[i] = promptID
 
@@ -599,13 +599,13 @@ func TestPromptIDUniqueness(t *testing.T) {
 	wg.Add(numPrompts)
 
 	for i := 0; i < numPrompts; i++ {
-		go func(n int) {
+		go func() {
 			defer wg.Done()
 
 			// Register prompt directly (similar to what PromptForInput does)
 			pendingMutex.Lock()
-			promptCounter++
-			promptID := fmt.Sprintf("unique_test_%d_%d", promptCounter, time.Now().UnixNano())
+			cnt := promptCounter.Add(1)
+			promptID := fmt.Sprintf("unique_test_%d_%d", cnt, time.Now().UnixNano())
 
 			request := &PromptRequest{
 				ID:           promptID,
@@ -625,7 +625,7 @@ func TestPromptIDUniqueness(t *testing.T) {
 			}
 			seenIDs[promptID] = true
 			idMutex.Unlock()
-		}(i)
+		}()
 	}
 
 	// Wait for all goroutines to complete

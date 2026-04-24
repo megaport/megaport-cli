@@ -14,6 +14,15 @@ func (b *CommandBuilder) WithServiceKeyCreateFlags() *CommandBuilder {
 	b.WithServiceKeyCommonFlags()
 	b.WithDateRangeFlags()
 	b.WithIntFlag("max-speed", 0, "Maximum speed for the service key")
+	b.WithBoolFlag("active", false, "Make the service key available immediately")
+	b.WithBoolFlag("pre-approved", false, "Pre-approve the service key for use")
+	b.WithIntFlag("vlan", 0, "VLAN ID for the service key (required for single-use keys)")
+	return b
+}
+
+// WithServiceKeyListFlags adds flags for listing service keys
+func (b *CommandBuilder) WithServiceKeyListFlags() *CommandBuilder {
+	b.WithFlag("product-uid", "", "Filter service keys by product UID")
 	return b
 }
 

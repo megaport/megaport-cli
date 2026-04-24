@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/fatih/color"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func captureOutput(f func()) string {
@@ -165,6 +167,12 @@ func TestPrintResourceDeleted(t *testing.T) {
 }
 
 func TestSpinner(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping timing-sensitive spinner test")
+	}
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
 	spinner := NewSpinner(true)
 	assert.NotNil(t, spinner)
 	assert.Equal(t, 100*time.Millisecond, spinner.frameRate)
@@ -179,6 +187,12 @@ func TestSpinner(t *testing.T) {
 }
 
 func TestPrintResourceSpinners(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping timing-sensitive resource spinner test")
+	}
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
 	tests := []struct {
 		name         string
 		function     func(string, string, bool) *Spinner
@@ -234,6 +248,12 @@ func TestPrintResourceSpinners(t *testing.T) {
 }
 
 func TestPrintResourceListing(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping timing-sensitive resource listing test")
+	}
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
 	output := captureOutput(func() {
 		spinner := PrintResourceListing("Port", true)
 		time.Sleep(200 * time.Millisecond)
@@ -416,7 +436,143 @@ func TestFormatNewValue(t *testing.T) {
 	assert.Contains(t, StripANSIColors(result), "new-value")
 }
 
+// TestOutputFormatConcurrency verifies that SetOutputFormat, getOutputFormat,
+// Print* helpers, and spinner creation can be called concurrently without a
+// data race. Run with: go test -race ./internal/base/output/...
+func TestOutputFormatConcurrency(t *testing.T) {
+	const goroutines = 10
+	const iterations = 50
+
+	// Restore original format after the test.
+	origFormat := getOutputFormat()
+	defer SetOutputFormat(origFormat)
+
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+
+	for i := 0; i < goroutines; i++ {
+		go func(id int) {
+			defer wg.Done()
+			for j := 0; j < iterations; j++ {
+				// Alternate between formats to maximize contention.
+				if j%2 == 0 {
+					SetOutputFormat("json")
+				} else {
+					SetOutputFormat("table")
+				}
+
+				// Read the format (the main thing under test).
+				f := getOutputFormat()
+				assert.Contains(t, []string{"json", "table"}, f)
+
+				// Exercise Print* helpers that read the atomic value.
+				PrintSuccess("concurrent %d", true, id)
+				PrintError("concurrent %d", true, id)
+				PrintWarning("concurrent %d", true, id)
+				PrintInfo("concurrent %d", true, id)
+
+				// Exercise spinner creation which also reads the format.
+				s := PrintResourceListing("Port", true)
+				s.Stop()
+			}
+		}(i)
+	}
+
+	wg.Wait()
+}
+
+func TestPrintResourceProvisioning(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping timing-sensitive provisioning test")
+	}
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
+	t.Run("shows provisioning message with elapsed time", func(t *testing.T) {
+		output := captureOutput(func() {
+			spinner := PrintResourceProvisioning("Port", "port-123", true)
+			time.Sleep(200 * time.Millisecond)
+			spinner.Stop()
+		})
+		assert.Contains(t, output, "Provisioning Port port-123...")
+		assert.Contains(t, output, "elapsed")
+	})
+
+	t.Run("quiet mode returns no-op spinner", func(t *testing.T) {
+		SetVerbosity("quiet")
+		defer SetVerbosity("normal")
+		spinner := PrintResourceProvisioning("Port", "port-123", true)
+		assert.NotNil(t, spinner)
+		assert.True(t, spinner.stopped)
+	})
+}
+
+func TestStartWithElapsed(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping timing-sensitive elapsed timer test")
+	}
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
+	t.Run("appends elapsed time to message", func(t *testing.T) {
+		spinner := NewSpinner(true)
+		output := captureOutput(func() {
+			spinner.StartWithElapsed("Provisioning Port...")
+			time.Sleep(1100 * time.Millisecond)
+			spinner.Stop()
+		})
+		assert.Contains(t, output, "Provisioning Port...")
+		assert.Contains(t, output, "elapsed")
+	})
+
+	t.Run("stop does not panic", func(t *testing.T) {
+		spinner := NewSpinner(true)
+		spinner.StartWithElapsed("Provisioning...")
+		time.Sleep(50 * time.Millisecond)
+		assert.NotPanics(t, spinner.Stop)
+	})
+
+	t.Run("already stopped spinner is a no-op", func(t *testing.T) {
+		spinner := NewSpinner(true)
+		spinner.stopped = true
+		assert.NotPanics(t, func() { spinner.StartWithElapsed("test") })
+	})
+
+	t.Run("wasm style uses wasm chars", func(t *testing.T) {
+		spinner := NewSpinner(true)
+		spinner.style = "wasm"
+		output := captureOutput(func() {
+			spinner.StartWithElapsed("Provisioning...")
+			time.Sleep(200 * time.Millisecond)
+			spinner.Stop()
+		})
+		assert.Contains(t, output, "elapsed")
+	})
+
+	t.Run("json output format writes to stderr", func(t *testing.T) {
+		spinner := NewSpinnerWithOutput(true, "json")
+		// Capture stderr by redirecting os.Stderr
+		r, w, _ := os.Pipe()
+		oldStderr := os.Stderr
+		os.Stderr = w
+		spinner.StartWithElapsed("Provisioning...")
+		time.Sleep(200 * time.Millisecond)
+		spinner.Stop()
+		w.Close()
+		os.Stderr = oldStderr
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, r)
+		assert.Contains(t, buf.String(), "elapsed")
+	})
+}
+
 func TestSpinnerStopWithSuccess(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping timing-sensitive spinner stop test")
+	}
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
 	output := captureOutput(func() {
 		spinner := NewSpinner(true)
 		spinner.Start("Testing")
@@ -424,4 +580,188 @@ func TestSpinnerStopWithSuccess(t *testing.T) {
 		spinner.StopWithSuccess("Operation completed")
 	})
 	assert.Contains(t, output, "✓ Operation completed")
+}
+
+func TestShouldSuppressSpinner(t *testing.T) {
+	origFormat := getOutputFormat()
+	defer SetOutputFormat(origFormat)
+	defer SetVerbosity("normal")
+
+	tests := []struct {
+		name     string
+		format   string
+		quiet    bool
+		expected bool
+	}{
+		{"table format", "table", false, false},
+		{"empty format treated like table for spinner suppression", "", false, false},
+		{"json format suppressed", "json", false, true},
+		{"csv format suppressed", "csv", false, true},
+		{"xml format suppressed", "xml", false, true},
+		{"quiet mode suppressed", "table", true, true},
+		{"quiet mode with csv", "csv", true, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetOutputFormat(tt.format)
+			if tt.quiet {
+				SetVerbosity("quiet")
+			} else {
+				SetVerbosity("normal")
+			}
+			assert.Equal(t, tt.expected, shouldSuppressSpinner())
+		})
+	}
+}
+
+func TestShouldSuppressSpinnerForFormat(t *testing.T) {
+	// Ensure normal verbosity so IsQuiet() doesn't interfere.
+	defer SetVerbosity("normal")
+	SetVerbosity("normal")
+
+	assert.False(t, shouldSuppressSpinnerForFormat("table"))
+	assert.False(t, shouldSuppressSpinnerForFormat(""))
+	assert.True(t, shouldSuppressSpinnerForFormat("json"))
+	assert.True(t, shouldSuppressSpinnerForFormat("csv"))
+	assert.True(t, shouldSuppressSpinnerForFormat("xml"))
+}
+
+// saveOutputFormat captures the current output format and registers a t.Cleanup
+// to restore it, avoiding hard-coded assumptions about initial state.
+func saveOutputFormat(t *testing.T) {
+	t.Helper()
+	orig := getOutputFormat()
+	t.Cleanup(func() { SetOutputFormat(orig) })
+}
+
+func TestSpinnerNoOpForCSV(t *testing.T) {
+	saveOutputFormat(t)
+	SetOutputFormat("csv")
+
+	spinner := PrintResourceListing("test", true)
+	// A no-op spinner is already stopped at creation
+	assert.True(t, spinner.stopped, "spinner should be no-op (stopped) for csv format")
+}
+
+func TestSpinnerNoOpForXML(t *testing.T) {
+	saveOutputFormat(t)
+	SetOutputFormat("xml")
+
+	spinner := PrintResourceGetting("test", "uid-123", true)
+	assert.True(t, spinner.stopped, "spinner should be no-op (stopped) for xml format")
+}
+
+func TestSpinnerNoOpForJSON(t *testing.T) {
+	saveOutputFormat(t)
+	SetOutputFormat("json")
+
+	spinner := PrintResourceListing("test", true)
+	assert.True(t, spinner.stopped, "spinner should be no-op (stopped) for json format")
+}
+
+func TestSpinnerActiveForTable(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping spinner test in short mode")
+	}
+	saveOutputFormat(t)
+	SetOutputFormat("table")
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
+	spinner := PrintResourceListing("test", true)
+	assert.False(t, spinner.stopped, "spinner should be active for table format")
+	spinner.Stop()
+}
+
+func TestAllSpinnerFunctionsSuppressedForCSV(t *testing.T) {
+	saveOutputFormat(t)
+	SetOutputFormat("csv")
+
+	spinners := []*Spinner{
+		PrintResourceCreating("test", "uid", true),
+		PrintResourceProvisioning("test", "uid", true),
+		PrintResourceUpdating("test", "uid", true),
+		PrintResourceDeleting("test", "uid", true),
+		PrintResourceListing("test", true),
+		PrintResourceGetting("test", "uid", true),
+		PrintResourceGettingWithOutput("test", "uid", true, "csv"),
+		PrintListingResourceTags("test", "uid", true),
+		PrintResourceValidating("test", true),
+		PrintCustomSpinner("testing", "uid", true),
+	}
+
+	for i, s := range spinners {
+		assert.True(t, s.stopped, "spinner %d should be no-op for csv format", i)
+	}
+}
+
+func TestLoginSpinnersNotSuppressedForCSV(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping spinner test in short mode")
+	}
+	saveOutputFormat(t)
+	SetOutputFormat("csv")
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
+	// Login spinners should still show regardless of output format
+	spinner := PrintLoggingIn(true)
+	assert.False(t, spinner.stopped, "login spinner should not be suppressed for csv format")
+	spinner.Stop()
+
+	spinner2 := PrintLoggingInWithOutput(true, "csv")
+	assert.False(t, spinner2.stopped, "login spinner with output should not be suppressed")
+	spinner2.Stop()
+}
+
+func TestStopWithSuccessDoesNotWriteToStdoutForCSV(t *testing.T) {
+	saveOutputFormat(t)
+	SetOutputFormat("csv")
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
+	spinner := PrintResourceListing("test", true)
+
+	// Suppress stderr so StopWithSuccess doesn't leak into test output.
+	oldStderr := os.Stderr
+	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	require.NoError(t, err)
+	defer devNull.Close()
+	os.Stderr = devNull
+	defer func() { os.Stderr = oldStderr }()
+
+	stdoutOutput := captureOutput(func() {
+		spinner.StopWithSuccess("done")
+	})
+	assert.Empty(t, stdoutOutput, "StopWithSuccess should not write to stdout for csv format")
+}
+
+func TestStopWithSuccessDoesNotWriteToStdoutForXML(t *testing.T) {
+	saveOutputFormat(t)
+	SetOutputFormat("xml")
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
+	spinner := PrintResourceGetting("test", "uid", true)
+
+	oldStderr := os.Stderr
+	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	require.NoError(t, err)
+	defer devNull.Close()
+	os.Stderr = devNull
+	defer func() { os.Stderr = oldStderr }()
+
+	stdoutOutput := captureOutput(func() {
+		spinner.StopWithSuccess("done")
+	})
+	assert.Empty(t, stdoutOutput, "StopWithSuccess should not write to stdout for xml format")
+}
+
+func TestNoOpSpinnerCarriesOutputFormat(t *testing.T) {
+	saveOutputFormat(t)
+	SetOutputFormat("csv")
+
+	spinner := PrintResourceListing("test", true)
+	assert.Equal(t, "csv", spinner.outputFormat, "no-op spinner should carry the output format")
 }

@@ -5,7 +5,8 @@ before:
     # this is just an example and not a requirement for provider building/publishing
     - go mod tidy
 builds:
-  - env:
+  - id: release
+    env:
       # goreleaser does not work with CGO, it could also complicate
       # usage by users in CI/CD systems like Terraform Cloud where
       # they are unable to install libraries.
@@ -29,8 +30,25 @@ builds:
       - goos: darwin
         goarch: '386'
     binary: '{{ .ProjectName }}_v{{ .Version }}'
+  - id: docker
+    env:
+      - CGO_ENABLED=0
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    flags:
+      - -trimpath
+    ldflags:
+      - '-s -w -X github.com/megaport/megaport-cli/internal/commands/version.version={{.Version}}'
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    binary: megaport-cli
 archives:
-  - format: zip
+  - id: release
+    builds:
+      - release
+    format: zip
     name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
 checksum:
   name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
@@ -47,8 +65,63 @@ signs:
       - '${signature}'
       - '--detach-sign'
       - '${artifact}'
+dockers:
+  - ids:
+      - docker
+    image_templates:
+      - "ghcr.io/megaport/megaport-cli:{{ .Tag }}-amd64"
+      - "ghcr.io/megaport/megaport-cli:latest-amd64"
+    dockerfile: Dockerfile.cli
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+    goos: linux
+    goarch: amd64
+  - ids:
+      - docker
+    image_templates:
+      - "ghcr.io/megaport/megaport-cli:{{ .Tag }}-arm64"
+      - "ghcr.io/megaport/megaport-cli:latest-arm64"
+    dockerfile: Dockerfile.cli
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/arm64"
+    goos: linux
+    goarch: arm64
+
+docker_manifests:
+  - name_template: "ghcr.io/megaport/megaport-cli:{{ .Tag }}"
+    image_templates:
+      - "ghcr.io/megaport/megaport-cli:{{ .Tag }}-amd64"
+      - "ghcr.io/megaport/megaport-cli:{{ .Tag }}-arm64"
+  - name_template: "ghcr.io/megaport/megaport-cli:latest"
+    image_templates:
+      - "ghcr.io/megaport/megaport-cli:latest-amd64"
+      - "ghcr.io/megaport/megaport-cli:latest-arm64"
+
+brews:
+  - ids:
+      - release
+    repository:
+      owner: megaport
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/megaport/megaport-cli"
+    description: "CLI tool for managing Megaport network infrastructure"
+    license: "MPL-2.0"
+    install: |
+      if File.exist?("megaport-cli_v#{version}")
+        bin.install "megaport-cli_v#{version}" => "megaport-cli"
+      else
+        bin.install "megaport-cli"
+      end
+    test: |
+      assert_match "Megaport CLI Version", shell_output("#{bin}/megaport-cli version")
+    skip_upload: auto
+
 release:
   # If you want to manually examine the release before its live, uncomment this line:
   draft: true
 changelog:
-  skip: true
+  disable: true

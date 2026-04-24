@@ -7,30 +7,25 @@ import (
 )
 
 type MockMCRService struct {
-	BuyMCRResult                             *megaport.BuyMCRResponse
-	BuyMCRErr                                error
-	CapturedBuyMCRRequest                    *megaport.BuyMCRRequest
-	ValidateMCROrderErr                      error
-	GetMCRResult                             *megaport.MCR
-	GetMCRErr                                error
-	ListMCRsResult                           []*megaport.MCR
-	ListMCRsErr                              error
-	CapturedListMCRsRequest                  *megaport.ListMCRsRequest
-	DeleteMCRResult                          *megaport.DeleteMCRResponse
-	DeleteMCRErr                             error
-	CapturedDeleteMCRUID                     string
-	CapturedMCRUID                           string
-	RestoreMCRResult                         *megaport.RestoreMCRResponse
-	RestoreMCRErr                            error
-	CapturedRestoreMCRUID                    string
-	CreateMCRPrefixFilterListResult          *megaport.CreateMCRPrefixFilterListResponse
-	CreateMCRPrefixFilterListErr             error
-	CapturedCreateMCRPrefixFilterListRequest *megaport.CreateMCRPrefixFilterListRequest
-	CapturedCreatePrefixFilterListRequest    *megaport.CreateMCRPrefixFilterListRequest
-
-	CreateMCRPrefixFilterListResponse *megaport.CreateMCRPrefixFilterListResponse
-	CreateMCRPrefixFilterListError    error
-	CapturedCreatePrefixFilterList    *megaport.CreateMCRPrefixFilterListRequest
+	BuyMCRResult                          *megaport.BuyMCRResponse
+	BuyMCRErr                             error
+	CapturedBuyMCRRequest                 *megaport.BuyMCRRequest
+	ValidateMCROrderErr                   error
+	GetMCRResult                          *megaport.MCR
+	GetMCRErr                             error
+	ListMCRsResult                        []*megaport.MCR
+	ListMCRsErr                           error
+	CapturedListMCRsRequest               *megaport.ListMCRsRequest
+	DeleteMCRResult                       *megaport.DeleteMCRResponse
+	DeleteMCRErr                          error
+	CapturedDeleteMCRUID                  string
+	CapturedDeleteMCRRequest              *megaport.DeleteMCRRequest
+	RestoreMCRResult                      *megaport.RestoreMCRResponse
+	RestoreMCRErr                         error
+	CapturedRestoreMCRUID                 string
+	CreateMCRPrefixFilterListResult       *megaport.CreateMCRPrefixFilterListResponse
+	CreateMCRPrefixFilterListErr          error
+	CapturedCreatePrefixFilterListRequest *megaport.CreateMCRPrefixFilterListRequest
 
 	ListMCRPrefixFilterListsResult           []*megaport.PrefixFilterList
 	ListMCRPrefixFilterListsErr              error
@@ -53,6 +48,16 @@ type MockMCRService struct {
 	CapturedModifyPrefixFilterListMCRID      string
 	CapturedModifyPrefixFilterListID         int
 	CapturedModifyPrefixFilterList           *megaport.MCRPrefixFilterList
+	ForceNilGetMCR                           bool
+
+	UpdateMCRWithAddOnErr           error
+	CapturedUpdateMCRWithAddOnMCRID string
+	CapturedUpdateMCRWithAddOnReq   megaport.MCRAddOnRequest
+
+	UpdateMCRIPsecAddOnErr            error
+	CapturedUpdateMCRIPsecAddOnMCRID  string
+	CapturedUpdateMCRIPsecAddOnUID    string
+	CapturedUpdateMCRIPsecTunnelCount int
 }
 
 func (m *MockMCRService) BuyMCR(ctx context.Context, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
@@ -71,7 +76,17 @@ func (m *MockMCRService) GetMCR(ctx context.Context, mcrUID string) (*megaport.M
 	if m.GetMCRErr != nil {
 		return nil, m.GetMCRErr
 	}
-	return m.GetMCRResult, nil
+	if m.ForceNilGetMCR {
+		return nil, nil
+	}
+	if m.GetMCRResult != nil {
+		return m.GetMCRResult, nil
+	}
+	return &megaport.MCR{
+		UID:                mcrUID,
+		Name:               "Mock MCR",
+		ProvisioningStatus: "LIVE",
+	}, nil
 }
 
 func (m *MockMCRService) ListMCRs(ctx context.Context, req *megaport.ListMCRsRequest) ([]*megaport.MCR, error) {
@@ -87,6 +102,7 @@ func (m *MockMCRService) ListMCRs(ctx context.Context, req *megaport.ListMCRsReq
 
 func (m *MockMCRService) DeleteMCR(ctx context.Context, req *megaport.DeleteMCRRequest) (*megaport.DeleteMCRResponse, error) {
 	m.CapturedDeleteMCRUID = req.MCRID
+	m.CapturedDeleteMCRRequest = req
 	if m.DeleteMCRErr != nil {
 		return nil, m.DeleteMCRErr
 	}
@@ -167,6 +183,19 @@ func (m *MockMCRService) GetMCRPrefixFilterLists(ctx context.Context, mcrID stri
 	return m.GetMCRPrefixFilterListsResult, nil
 }
 
+func (m *MockMCRService) UpdateMCRWithAddOn(ctx context.Context, mcrID string, req megaport.MCRAddOnRequest) error {
+	m.CapturedUpdateMCRWithAddOnMCRID = mcrID
+	m.CapturedUpdateMCRWithAddOnReq = req
+	return m.UpdateMCRWithAddOnErr
+}
+
+func (m *MockMCRService) UpdateMCRIPsecAddOn(ctx context.Context, mcrID string, addOnUID string, tunnelCount int) error {
+	m.CapturedUpdateMCRIPsecAddOnMCRID = mcrID
+	m.CapturedUpdateMCRIPsecAddOnUID = addOnUID
+	m.CapturedUpdateMCRIPsecTunnelCount = tunnelCount
+	return m.UpdateMCRIPsecAddOnErr
+}
+
 func (m *MockMCRService) Reset() {
 	m.BuyMCRResult = nil
 	m.BuyMCRErr = nil
@@ -180,17 +209,12 @@ func (m *MockMCRService) Reset() {
 	m.DeleteMCRResult = nil
 	m.DeleteMCRErr = nil
 	m.CapturedDeleteMCRUID = ""
-	m.CapturedMCRUID = ""
 	m.RestoreMCRResult = nil
 	m.RestoreMCRErr = nil
 	m.CapturedRestoreMCRUID = ""
 	m.CreateMCRPrefixFilterListResult = nil
 	m.CreateMCRPrefixFilterListErr = nil
-	m.CapturedCreateMCRPrefixFilterListRequest = nil
 	m.CapturedCreatePrefixFilterListRequest = nil
-	m.CreateMCRPrefixFilterListResponse = nil
-	m.CreateMCRPrefixFilterListError = nil
-	m.CapturedCreatePrefixFilterList = nil
 	m.ListMCRPrefixFilterListsResult = nil
 	m.ListMCRPrefixFilterListsErr = nil
 	m.GetMCRPrefixFilterListResult = nil
@@ -212,4 +236,11 @@ func (m *MockMCRService) Reset() {
 	m.CapturedModifyPrefixFilterListMCRID = ""
 	m.CapturedModifyPrefixFilterListID = 0
 	m.CapturedModifyPrefixFilterList = nil
+	m.UpdateMCRWithAddOnErr = nil
+	m.CapturedUpdateMCRWithAddOnMCRID = ""
+	m.CapturedUpdateMCRWithAddOnReq = megaport.MCRAddOnRequest{}
+	m.UpdateMCRIPsecAddOnErr = nil
+	m.CapturedUpdateMCRIPsecAddOnMCRID = ""
+	m.CapturedUpdateMCRIPsecAddOnUID = ""
+	m.CapturedUpdateMCRIPsecTunnelCount = 0
 }

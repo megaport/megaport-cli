@@ -1,5 +1,7 @@
 # Megaport CLI
 
+[![codecov](https://codecov.io/gh/megaport/megaport-cli/branch/main/graph/badge.svg)](https://codecov.io/gh/megaport/megaport-cli)
+
 > [!CAUTION]
 > The Megaport CLI tool is currently an unsupported alpha, we're excited for feedback but please know that functionality and features may change drastically, and there may be bugs.
 
@@ -14,6 +16,7 @@
 - [Shell Completion](#shell-completion)
 - [Architecture](#architecture)
 - [Available Commands](#available-commands)
+- [Exit Codes](#exit-codes)
 - [Troubleshooting](#troubleshooting)
 - [Additional Documentation](#additional-documentation)
 - [Contributing](#contributing)
@@ -51,6 +54,37 @@ go install github.com/megaport/megaport-cli@latest
 # Verify installation
 megaport-cli version
 ```
+
+## Docker
+
+Pre-built images are published to the GitHub Container Registry for `linux/amd64` and `linux/arm64` on every release:
+
+```sh
+# Run with the latest release
+docker run --rm \
+  -e MEGAPORT_ACCESS_KEY=your_access_key \
+  -e MEGAPORT_SECRET_KEY=your_secret_key \
+  ghcr.io/megaport/megaport-cli:latest ports list
+
+# Pin to a specific version
+docker run --rm \
+  -e MEGAPORT_ACCESS_KEY=your_access_key \
+  -e MEGAPORT_SECRET_KEY=your_secret_key \
+  ghcr.io/megaport/megaport-cli:v0.4.7 locations list --metro "Sydney"
+```
+
+### CI/CD (GitHub Actions)
+
+```yaml
+- name: List Megaport ports
+  run: |
+    docker run --rm \
+      -e MEGAPORT_ACCESS_KEY=${{ secrets.MEGAPORT_ACCESS_KEY }} \
+      -e MEGAPORT_SECRET_KEY=${{ secrets.MEGAPORT_SECRET_KEY }} \
+      ghcr.io/megaport/megaport-cli:latest ports list -o json
+```
+
+> **Note:** This image runs the native CLI. For the browser-based interactive terminal, see [WASM_README.md](WASM_README.md).
 
 ## Getting Started
 
@@ -142,12 +176,19 @@ Settings are applied in this order (highest to lowest precedence):
 
 ### Environment Variables
 
-For CI/CD pipelines or temporary usage:
+| Variable | Description | Default |
+|---|---|---|
+| `MEGAPORT_ACCESS_KEY` | API access key (overrides active profile) | — |
+| `MEGAPORT_SECRET_KEY` | API secret key (overrides active profile) | — |
+| `MEGAPORT_ENVIRONMENT` | API environment: `production`, `staging`, `development` | `production` |
+| `MEGAPORT_CONFIG_DIR` | Override config file directory (default: `~/.megaport/`) | — |
+
+For CI/CD pipelines or temporary usage, set these before running any command:
 
 ```sh
-export MEGAPORT_ACCESS_KEY=<your-access-key>
-export MEGAPORT_SECRET_KEY=<your-secret-key>
-export MEGAPORT_ENVIRONMENT=<environment>  # production, staging, or development
+export MEGAPORT_ACCESS_KEY=your_access_key
+export MEGAPORT_SECRET_KEY=your_secret_key
+export MEGAPORT_ENVIRONMENT=production
 ```
 
 For complete documentation on configuration options, profile management, import/export functionality, and troubleshooting, see the [Configuration Guide](internal/commands/config/config.md).
@@ -173,8 +214,13 @@ Key architectural components:
 - `mcr`: Manage Megaport Cloud Routers
 - `mve`: Manage Megaport Virtual Edge instances
 - `vxc`: Manage Virtual Cross Connects
+- `ix`: Manage Internet Exchange connections
 - `partners`: List and search partner ports
 - `servicekeys`: Manage service keys
+- `users`: Manage company users
+- `managed-account`: Manage partner managed accounts (sub-companies)
+- `billing-market`: View and configure billing market details
+- `status`: Show a dashboard of all resources
 
 ### Output Formats
 
@@ -183,6 +229,7 @@ All commands support multiple output formats:
 - `--output table` (default)
 - `--output json`
 - `--output csv`
+- `--output xml`
 
 ### Examples
 
@@ -431,14 +478,138 @@ megaport-cli servicekeys create --product-uid PRODUCT_UID --description "My Serv
 megaport-cli servicekeys update SERVICE_KEY_UID --description "Updated Description"
 ```
 
+#### IX (Internet Exchange)
+
+```sh
+# List all IXs
+megaport-cli ix list
+
+# Get details for a specific IX
+megaport-cli ix get IX_UID --output json
+
+# Buy a new IX
+megaport-cli ix buy --interactive
+megaport-cli ix buy --product-uid PORT_UID --name "My IX" --network-service-type "Los Angeles IX" --asn 65000 --mac-address "00:11:22:33:44:55" --rate-limit 1000 --vlan 100
+megaport-cli ix buy --json '{"productUid":"PORT_UID","productName":"My IX","networkServiceType":"Los Angeles IX","asn":65000,"macAddress":"00:11:22:33:44:55","rateLimit":1000,"vlan":100}'
+megaport-cli ix buy --json-file ./ix-config.json
+
+# Update an existing IX
+megaport-cli ix update IX_UID --interactive
+megaport-cli ix update IX_UID --name "Updated IX" --rate-limit 2000
+
+# Delete an IX
+megaport-cli ix delete IX_UID
+```
+
+#### Users
+
+```sh
+# List all users in your company
+megaport-cli users list
+megaport-cli users list --active-only
+megaport-cli users list --position "Technical Admin"
+
+# Get details for a specific user
+megaport-cli users get EMPLOYEE_ID
+
+# Create a new user
+megaport-cli users create --interactive
+megaport-cli users create --first-name "John" --last-name "Doe" --email "john@example.com" --position "Technical Admin"
+megaport-cli users create --json '{"firstName":"John","lastName":"Doe","email":"john@example.com","position":"Technical Admin"}'
+
+# Update a user
+megaport-cli users update EMPLOYEE_ID --interactive
+megaport-cli users update EMPLOYEE_ID --first-name "Jane"
+
+# Deactivate or delete a user
+megaport-cli users deactivate EMPLOYEE_ID
+megaport-cli users delete EMPLOYEE_ID --force
+
+# View user activity
+megaport-cli users activity
+```
+
+#### Status Dashboard
+
+```sh
+# Show a dashboard of all active resources
+megaport-cli status
+
+# Include inactive/decommissioned resources
+megaport-cli status --include-inactive
+
+# Output as JSON
+megaport-cli status -o json
+```
+
+#### Billing Market
+
+```sh
+# Get current billing market configuration
+megaport-cli billing-market get
+megaport-cli billing-market get -o json
+
+# Set billing market configuration
+megaport-cli billing-market set --currency USD --language en \
+  --billing-contact-name "John Doe" --billing-contact-phone "+1234567890" \
+  --billing-contact-email "john@example.com" \
+  --address1 "123 Main St" --city "New York" --state "NY" \
+  --postcode "10001" --country US --first-party-id 1558
+```
+
+#### Managed Accounts
+
+```sh
+# List all managed accounts linked to your partner account
+megaport-cli managed-account list
+megaport-cli managed-account list --account-name "Acme"
+
+# Get details for a specific managed account
+megaport-cli managed-account get COMPANY_UID ACCOUNT_NAME
+
+# Create a new managed account
+megaport-cli managed-account create --interactive
+megaport-cli managed-account create --account-name "Acme Corp" --account-ref "REF-001"
+megaport-cli managed-account create --json '{"accountName":"Acme Corp","accountRef":"REF-001"}'
+
+# Update a managed account
+megaport-cli managed-account update COMPANY_UID --account-name "New Name"
+```
+
+## Exit Codes
+
+| Exit Code | Meaning |
+|-----------|---------|
+| 0 | Success |
+| 1 | General error |
+| 2 | Usage / validation error |
+| 3 | Authentication error |
+| 4 | API error |
+| 5 | Cancelled by user |
+
 ## Troubleshooting
 
-Common issues and their solutions:
+### Authentication Errors
+If you see "401 Unauthorized", check:
+- Your API credentials are correct: `megaport config view`
+- Your active profile is set: `megaport config list-profiles`
+- Environment variables aren't overriding your profile (unset `MEGAPORT_ACCESS_KEY` / `MEGAPORT_SECRET_KEY` to use the profile)
 
-- **Authentication errors**: Ensure your access key and secret key are correctly set and have the necessary permissions
-- **Rate limiting**: The Megaport API has rate limits; if you encounter 429 errors, add delays between requests
-- **Output formatting issues**: Use the `--no-color` flag if terminal colors are causing display problems
-- **Missing resources**: Resources may take time to provision; use appropriate wait times in automation scripts
+### Command Not Found
+Ensure the binary is in your `PATH`:
+- **Go install**: Add `$(go env GOPATH)/bin` to your shell's `PATH`
+- **Manual install**: Add the directory containing the binary to `PATH`
+
+### Rate Limiting
+If you see 429 errors, the Megaport API rate limit has been hit. Add delays between requests in automation scripts.
+
+### Slow Commands / Large Accounts
+List operations fetch all resources. Use filters to narrow results:
+- `megaport ports list --port-name "Sydney"`
+- `megaport vxc list --a-end-uid <portUID>`
+
+### Display Issues
+Use `--no-color` if terminal colors cause display problems, or pipe output to a file.
 
 ### Workflow Example: Set up a Cloud Connection
 
@@ -467,14 +638,23 @@ megaport-cli vxc buy --a-end-uid "port-xxxxxxxx" \
 The CLI includes comprehensive generated documentation in the `docs` folder:
 
 - **[Index of all commands](docs/index.md)** - Complete listing of all available commands
+- **Guides:**
+  - [AWS Direct Connect](docs/guides/aws-direct-connect.md) — step-by-step walkthrough for setting up AWS Direct Connect
+  - [Multi-Cloud Connectivity](docs/guides/multi-cloud-connectivity.md) — connect AWS, Azure, and GCP through a Megaport Cloud Router
+  - [Portal to CLI Migration](docs/guides/portal-to-cli-migration.md) — transition from the Megaport Portal to the CLI
 - **Command References:**
   - Locations - Find and explore Megaport locations
   - Ports - Manage physical ports
   - VXC - Virtual cross connects between endpoints
   - MCR - Megaport Cloud Router management
   - MVE - Megaport Virtual Edge devices
+  - IX - Internet Exchange connections
   - Partners - Cloud service provider connections
   - Service Keys - Manage service keys for connections
+  - Users - Manage company users
+  - Managed Accounts - Partner sub-account management
+  - Billing Market - Billing contact and currency configuration
+  - Status - Resource dashboard
 
 Each command page includes:
 

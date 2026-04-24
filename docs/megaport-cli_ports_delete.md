@@ -35,12 +35,17 @@ megaport-cli ports delete [flags]
 ## Parent Command
 
 * [megaport-cli ports](megaport-cli_ports.md)
+
+## Aliases
+
+* rm
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 | `--force` | `-f` | `false` | Skip confirmation prompt | false |
 | `--now` |  | `false` | Delete resource immediately instead of at end of billing cycle | false |
+| `--safe-delete` |  | `false` | Fail if the resource has attached VXCs or other active services | false |
 
 ## Subcommands
 * [docs](megaport-cli_ports_delete_docs.md)

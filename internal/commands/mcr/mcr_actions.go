@@ -4,62 +4,92 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"sort"
 	"strconv"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
 
+func exportMCRConfig(mcr *megaport.MCR) map[string]interface{} {
+	m := map[string]interface{}{
+		"name":       mcr.Name,
+		"term":       mcr.ContractTermMonths,
+		"portSpeed":  mcr.PortSpeed,
+		"locationId": mcr.LocationID,
+	}
+	if mcr.Resources.VirtualRouter.ASN != 0 {
+		m["mcrAsn"] = mcr.Resources.VirtualRouter.ASN
+	}
+	if mcr.DiversityZone != "" {
+		m["diversityZone"] = mcr.DiversityZone
+	}
+	if mcr.CostCentre != "" {
+		m["costCentre"] = mcr.CostCentre
+	}
+	return m
+}
+
+func buildMCRRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyMCRRequest, error) {
+	return utils.ResolveInput(utils.InputConfig[*megaport.BuyMCRRequest]{
+		ResourceName: "MCR",
+		Cmd:          cmd,
+		NoColor:      noColor,
+		FlagsProvided: func() bool {
+			return cmd.Flags().Changed("name") || cmd.Flags().Changed("term") ||
+				cmd.Flags().Changed("port-speed") || cmd.Flags().Changed("location-id") ||
+				cmd.Flags().Changed("mcr-asn")
+		},
+		FromJSON:   processJSONMCRInput,
+		FromFlags:  func() (*megaport.BuyMCRRequest, error) { return processFlagMCRInput(cmd) },
+		FromPrompt: func() (*megaport.BuyMCRRequest, error) { return promptForMCRDetails(noColor) },
+	})
+}
+
 func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
+	defer cancel()
 
-	interactive, _ := cmd.Flags().GetBool("interactive")
-	jsonStr, _ := cmd.Flags().GetString("json")
-	jsonFile, _ := cmd.Flags().GetString("json-file")
-
-	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("term") ||
-		cmd.Flags().Changed("port-speed") || cmd.Flags().Changed("location-id") ||
-		cmd.Flags().Changed("mcr-asn")
-
-	var req *megaport.BuyMCRRequest
-	var err error
-
-	if jsonStr != "" || jsonFile != "" {
-		output.PrintInfo("Using JSON input", noColor)
-		req, err = processJSONMCRInput(jsonStr, jsonFile)
-		if err != nil {
-			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return err
-		}
-	} else if flagsProvided {
-		output.PrintInfo("Using flag input", noColor)
-		req, err = processFlagMCRInput(cmd)
-		if err != nil {
-			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return err
-		}
-	} else if interactive {
-		req, err = promptForMCRDetails(noColor)
-		if err != nil {
-			return err
-		}
-	} else {
-		output.PrintError("No input provided, use --interactive, --json, or flags to specify MCR details", noColor)
-		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify MCR details")
+	req, err := buildMCRRequest(cmd, noColor)
+	if err != nil {
+		return err
 	}
 
-	req.WaitForProvision = true
-	req.WaitForTime = 10 * time.Minute
+	// If --ipsec-tunnel-count was explicitly set and the resolved request has no
+	// add-ons yet (i.e. the interactive path was used, which doesn't process this
+	// flag), apply it now. JSON and flag paths already populate req.AddOns, so the
+	// len check prevents double-application.
+	if cmd.Flags().Changed("ipsec-tunnel-count") && len(req.AddOns) == 0 {
+		ipsecTunnelCount, _ := cmd.Flags().GetInt("ipsec-tunnel-count")
+		if ipsecTunnelCount < 0 {
+			return fmt.Errorf("ipsec-tunnel-count must be 0 or a positive value (10, 20, or 30)")
+		}
+		if ipsecTunnelCount > 0 {
+			if err := validation.ValidateIPSecTunnelCount(ipsecTunnelCount, false); err != nil {
+				return err
+			}
+		}
+		req.AddOns = append(req.AddOns, &megaport.MCRAddOnIPsecConfig{
+			AddOnType:   megaport.AddOnTypeIPsec,
+			TunnelCount: ipsecTunnelCount,
+		})
+	}
+
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
+	noWait, _ := cmd.Flags().GetBool("no-wait")
+	if !noWait {
+		req.WaitForProvision = true
+		req.WaitForTime = utils.DefaultProvisionTimeout
+	}
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 
@@ -68,29 +98,83 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	spinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error validating MCR order: %v", noColor, err)
+		output.PrintError("Failed to validate MCR order: %v", noColor, err)
 		return err
 	}
 
-	buySpinner := output.PrintResourceCreating("MCR", req.Name, noColor)
-	resp, err := buyMCRFunc(ctx, client, req)
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
+	yes, _ := cmd.Flags().GetBool("yes")
+	if !yes && jsonStr == "" && jsonFile == "" {
+		details := []utils.BuyConfirmDetail{
+			{Key: "Name", Value: req.Name},
+			{Key: "Term", Value: fmt.Sprintf("%d months", req.Term)},
+			{Key: "Port Speed", Value: fmt.Sprintf("%d Mbps", req.PortSpeed)},
+			{Key: "Location ID", Value: strconv.Itoa(req.LocationID)},
+		}
+		if req.MCRAsn != 0 {
+			details = append(details, utils.BuyConfirmDetail{Key: "ASN", Value: strconv.Itoa(req.MCRAsn)})
+		}
+		if !utils.BuyConfirmPrompt("MCR", details, noColor) {
+			output.PrintInfo("Purchase cancelled", noColor)
+			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
+		}
+	}
+
+	var buySpinner *output.Spinner
+	if req.WaitForProvision {
+		buySpinner = output.PrintResourceProvisioning("MCR", req.Name, noColor)
+	} else {
+		buySpinner = output.PrintResourceCreating("MCR", req.Name, noColor)
+	}
+	var resp *megaport.BuyMCRResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = buyMCRFunc(ctx, client, req)
+		return e
+	})
 	buySpinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error buying MCR: %v", noColor, err)
+		output.PrintError("Failed to buy MCR: %v", noColor, err)
 		return err
 	}
 
-	output.PrintSuccess("MCR created %s", noColor, resp.TechnicalServiceUID)
+	output.PrintResourceCreated("MCR", resp.TechnicalServiceUID, noColor)
+	return nil
+}
+
+func ValidateMCR(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
+
+	req, err := buildMCRRequest(cmd, noColor)
+	if err != nil {
+		return err
+	}
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return err
+	}
+
+	spinner := output.PrintResourceValidating("MCR", noColor)
+	err = client.MCRService.ValidateMCROrder(ctx, req)
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to validate MCR order: %v", noColor, err)
+		return err
+	}
+
+	output.PrintSuccess("MCR validation passed", noColor)
 	return nil
 }
 
 func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
-
-	if len(args) == 0 {
-		return fmt.Errorf("mcr UID is required")
-	}
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
+	defer cancel()
 
 	mcrUID := args[0]
 
@@ -129,25 +213,30 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	req.WaitForUpdate = true
-	req.WaitForTime = 10 * time.Minute
+	req.WaitForTime = utils.DefaultProvisionTimeout
 
 	client, err := config.Login(ctx)
 	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
+		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 
 	originalMCR, err := getMCRFunc(ctx, client, mcrUID)
 	if err != nil {
-		output.PrintError("Error getting original MCR: %v", noColor, err)
+		output.PrintError("Failed to get original MCR: %v", noColor, err)
 		return err
 	}
 	updateSpinner := output.PrintResourceUpdating("MCR", mcrUID, noColor)
-	resp, err := updateMCRFunc(ctx, client, req)
+	var resp *megaport.ModifyMCRResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = updateMCRFunc(ctx, client, req)
+		return e
+	})
 	updateSpinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error updating MCR: %v", noColor, err)
+		output.PrintError("Failed to update MCR: %v", noColor, err)
 		return err
 	}
 
@@ -170,142 +259,20 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
-func CreateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
-
-	if len(args) == 0 {
-		return fmt.Errorf("mcr UID is required")
-	}
-
-	mcrUID := args[0]
-
-	interactive, _ := cmd.Flags().GetBool("interactive")
-	jsonStr, _ := cmd.Flags().GetString("json")
-	jsonFile, _ := cmd.Flags().GetString("json-file")
-
-	flagsProvided := cmd.Flags().Changed("description") || cmd.Flags().Changed("address-family") ||
-		cmd.Flags().Changed("entries")
-
-	var req *megaport.CreateMCRPrefixFilterListRequest
-	var err error
-
-	if jsonStr != "" || jsonFile != "" {
-		output.PrintInfo("Using JSON input", noColor)
-		req, err = processJSONPrefixFilterListInput(jsonStr, jsonFile, mcrUID)
-		if err != nil {
-			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return err
-		}
-	} else if flagsProvided {
-		output.PrintInfo("Using flag input", noColor)
-		req, err = processFlagPrefixFilterListInput(cmd, mcrUID)
-		if err != nil {
-			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return err
-		}
-	} else if interactive {
-		req, err = promptForPrefixFilterListDetails(mcrUID, noColor)
-		if err != nil {
-			return err
-		}
-	} else {
-		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify prefix filter list details")
-	}
-
-	client, err := config.Login(ctx)
-	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
-		return err
-	}
-	spinner := output.PrintResourceCreating("Prefix Filter List", req.PrefixFilterList.Description, noColor)
-	resp, err := createMCRPrefixFilterListFunc(ctx, client, req)
-	spinner.Stop()
-
-	if err != nil {
-		output.PrintError("Error creating prefix filter list: %v", noColor, err)
-		return err
-	}
-
-	output.PrintSuccess("Prefix filter list created successfully - ID: %d", noColor, resp.PrefixFilterListID)
-	return nil
-}
-
-func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
-
-	if len(args) < 2 {
-		return fmt.Errorf("mcr UID and prefix filter list ID are required")
-	}
-
-	mcrUID := args[0]
-	prefixFilterListID, err := strconv.Atoi(args[1])
-	if err != nil {
-		return fmt.Errorf("invalid prefix filter list ID: %v", err)
-	}
-
-	interactive, _ := cmd.Flags().GetBool("interactive")
-	jsonStr, _ := cmd.Flags().GetString("json")
-	jsonFile, _ := cmd.Flags().GetString("json-file")
-
-	flagsProvided := cmd.Flags().Changed("description") || cmd.Flags().Changed("address-family") ||
-		cmd.Flags().Changed("entries")
-
-	var prefixFilterList *megaport.MCRPrefixFilterList
-	var getErr error
-
-	if jsonStr != "" || jsonFile != "" {
-		output.PrintInfo("Using JSON input", noColor)
-		prefixFilterList, getErr = processJSONUpdatePrefixFilterListInput(jsonStr, jsonFile, mcrUID, prefixFilterListID)
-		if getErr != nil {
-			output.PrintError("Failed to process JSON input: %v", noColor, getErr)
-			return getErr
-		}
-	} else if flagsProvided {
-		output.PrintInfo("Using flag input", noColor)
-		prefixFilterList, getErr = processFlagUpdatePrefixFilterListInput(cmd, mcrUID, prefixFilterListID)
-		if getErr != nil {
-			output.PrintError("Failed to process flag input: %v", noColor, getErr)
-			return getErr
-		}
-	} else if interactive {
-		prefixFilterList, getErr = promptForUpdatePrefixFilterListDetails(mcrUID, prefixFilterListID, noColor)
-		if getErr != nil {
-			return getErr
-		}
-	} else {
-		return fmt.Errorf("at least one field must be updated")
-	}
-
-	client, err := config.Login(ctx)
-	if err != nil {
-		output.PrintError("Error logging in: %v", noColor, err)
-		return err
-	}
-	spinner := output.PrintResourceUpdating("Prefix Filter List", fmt.Sprintf("%d", prefixFilterListID), noColor)
-	resp, err := modifyMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID, prefixFilterList)
-	spinner.Stop()
-
-	if err != nil {
-		output.PrintError("Error updating prefix filter list: %v", noColor, err)
-		return err
-	}
-
-	if resp.IsUpdated {
-		output.PrintSuccess("Prefix filter list updated successfully - ID: %d", noColor, prefixFilterListID)
-	} else {
-		output.PrintError("Prefix filter list update request was not successful", noColor)
-	}
-	return nil
-}
-
 func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
+	output.SetOutputFormat(outputFormat)
 
-	client, err := config.Login(ctx)
-	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
+	watch, _ := cmd.Flags().GetBool("watch")
+	if watch {
+		return watchGetMCR(cmd, args, noColor, outputFormat)
 	}
+
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return err
+	}
+	defer cancel()
 
 	mcrUID := args[0]
 
@@ -316,213 +283,58 @@ func GetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	spinner.Stop()
 
 	if err != nil {
-		output.PrintError("Error getting MCR: %v", noColor, err)
-		return fmt.Errorf("error getting MCR: %v", err)
+		err = utils.WrapAPIError(err, "MCR", mcrUID)
+		output.PrintError("Failed to get MCR: %v", noColor, err)
+		return fmt.Errorf("failed to get MCR: %w", err)
+	}
+
+	if mcr == nil {
+		output.PrintError("No MCR found with UID: %s", noColor, mcrUID)
+		return fmt.Errorf("no MCR found with UID: %s", mcrUID)
+	}
+
+	export, _ := cmd.Flags().GetBool("export")
+	if export {
+		cfg := exportMCRConfig(mcr)
+		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal export config: %w", err)
+		}
+		fmt.Println(string(jsonBytes))
+		return nil
 	}
 
 	err = printMCRs([]*megaport.MCR{mcr}, outputFormat, noColor)
 	if err != nil {
-		return fmt.Errorf("error printing MCRs: %v", err)
+		return fmt.Errorf("failed to print MCRs: %w", err)
 	}
 	return nil
 }
 
-func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
-
-	client, err := config.Login(ctx)
-	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
-	}
-
+func watchGetMCR(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	mcrUID := args[0]
-
-	deleteNow, err := cmd.Flags().GetBool("now")
-	if err != nil {
-		return err
-	}
-
-	force, err := cmd.Flags().GetBool("force")
-	if err != nil {
-		return err
-	}
-
-	if !force {
-		confirmMsg := "Are you sure you want to delete MCR " + mcrUID + "? (y/n): "
-		confirmation, err := utils.ResourcePrompt("mcr", confirmMsg, noColor)
-		if err != nil {
-			return err
-		}
-
-		if confirmation != "y" && confirmation != "Y" {
-			output.PrintInfo("Deletion cancelled", noColor)
-			return nil
-		}
-	}
-
-	deleteRequest := &megaport.DeleteMCRRequest{
-		MCRID:     mcrUID,
-		DeleteNow: deleteNow,
-	}
-
-	spinner := output.PrintResourceDeleting("MCR", mcrUID, noColor)
-
-	resp, err := deleteMCRFunc(ctx, client, deleteRequest)
-
-	spinner.Stop()
-
-	if err != nil {
-		return fmt.Errorf("error deleting MCR: %v", err)
-	}
-
-	if resp.IsDeleting {
-		output.PrintResourceDeleted("MCR", mcrUID, deleteNow, noColor)
-	} else {
-		output.PrintError("MCR deletion request was not successful", noColor)
-	}
-
-	return nil
-}
-
-func RestoreMCR(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
-
-	client, err := config.Login(ctx)
-	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
-	}
-
-	mcrUID := args[0]
-
-	output.PrintInfo("Restoring MCR %s...", noColor, mcrUID)
-
-	resp, err := restoreMCRFunc(ctx, client, mcrUID)
-	if err != nil {
-		return fmt.Errorf("error restoring MCR: %v", err)
-	}
-
-	if resp.IsRestored {
-		output.PrintSuccess("MCR %s restored successfully", noColor, mcrUID)
-	} else {
-		output.PrintError("MCR restoration request was not successful", noColor)
-	}
-
-	return nil
-}
-
-func ListMCRPrefixFilterLists(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
-	ctx := context.Background()
-
-	client, err := config.Login(ctx)
-	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
-	}
-
-	mcrUID := args[0]
-
-	spinner := output.PrintResourceListing("Prefix filter list", noColor)
-
-	prefixFilterLists, err := listMCRPrefixFilterListsFunc(ctx, client, mcrUID)
-
-	spinner.Stop()
-
-	if err != nil {
-		return fmt.Errorf("error listing prefix filter lists: %v", err)
-	}
-
-	err = output.PrintOutput(prefixFilterLists, outputFormat, noColor)
-	if err != nil {
-		return fmt.Errorf("error printing prefix filter lists: %v", err)
-	}
-	return nil
-}
-
-func GetMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
-	ctx := context.Background()
-
-	client, err := config.Login(ctx)
-	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
-	}
-
-	mcrUID := args[0]
-	prefixFilterListID, err := strconv.Atoi(args[1])
-	if err != nil {
-		return fmt.Errorf("invalid prefix filter list ID: %v", err)
-	}
-
-	spinner := output.PrintResourceGetting("Prefix filter list", fmt.Sprintf("%d", prefixFilterListID), noColor)
-
-	prefixFilterList, err := getMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
-
-	spinner.Stop()
-
-	if err != nil {
-		return fmt.Errorf("error getting prefix filter list: %v", err)
-	}
-
-	op, err := ToPrefixFilterListOutput(prefixFilterList)
-	if err != nil {
-		return fmt.Errorf("error converting prefix filter list: %v", err)
-	}
-
-	err = output.PrintOutput([]PrefixFilterListOutput{op}, outputFormat, noColor)
-	if err != nil {
-		return fmt.Errorf("error printing prefix filter list: %v", err)
-	}
-	return nil
-}
-
-func DeleteMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
-
-	client, err := config.Login(ctx)
-	if err != nil {
-		return fmt.Errorf("error logging in: %v", err)
-	}
-
-	mcrUID := args[0]
-	prefixFilterListID, err := strconv.Atoi(args[1])
-	if err != nil {
-		return fmt.Errorf("invalid prefix filter list ID: %v", err)
-	}
-
-	spinner := output.PrintResourceDeleting("Prefix filter list", fmt.Sprintf("%d", prefixFilterListID), noColor)
-
-	resp, err := deleteMCRPrefixFilterListFunc(ctx, client, mcrUID, prefixFilterListID)
-
-	spinner.Stop()
-
-	if err != nil {
-		return fmt.Errorf("error deleting prefix filter list: %v", err)
-	}
-
-	if resp.IsDeleted {
-		output.PrintSuccess("Prefix filter list deleted successfully - ID: %d", noColor, prefixFilterListID)
-	} else {
-		output.PrintError("Prefix filter list deletion request was not successful", noColor)
-	}
-
-	return nil
+	return utils.WatchResource(cmd, "MCR", mcrUID, noColor, outputFormat, config.Login,
+		func(pollCtx context.Context, client *megaport.Client) (string, error) {
+			mcr, err := getMCRFunc(pollCtx, client, mcrUID)
+			if err != nil {
+				return "", err
+			}
+			if mcr == nil {
+				return "", fmt.Errorf("no MCR found with UID: %s", mcrUID)
+			}
+			err = printMCRs([]*megaport.MCR{mcr}, outputFormat, noColor)
+			return mcr.ProvisioningStatus, err
+		})
 }
 
 func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
-
-	client, err := config.Login(ctx)
+	output.SetOutputFormat(outputFormat)
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return err
 	}
+	defer cancel()
 
 	locationID, _ := cmd.Flags().GetInt("location-id")
 	portSpeed, _ := cmd.Flags().GetInt("port-speed")
@@ -541,174 +353,46 @@ func ListMCRs(cmd *cobra.Command, args []string, noColor bool, outputFormat stri
 
 	if err != nil {
 		output.PrintError("Failed to list MCRs: %v", noColor, err)
-		return fmt.Errorf("error listing MCRs: %v", err)
+		return fmt.Errorf("failed to list MCRs: %w", err)
 	}
 
 	var activeMCRs []*megaport.MCR
 	if !includeInactive {
 		for _, mcr := range mcrs {
 			if mcr != nil &&
-				mcr.ProvisioningStatus != "DECOMMISSIONED" &&
-				mcr.ProvisioningStatus != "CANCELLED" &&
-				mcr.ProvisioningStatus != "DECOMMISSIONING" {
+				mcr.ProvisioningStatus != megaport.STATUS_DECOMMISSIONED &&
+				mcr.ProvisioningStatus != megaport.STATUS_CANCELLED &&
+				mcr.ProvisioningStatus != utils.StatusDecommissioning {
 				activeMCRs = append(activeMCRs, mcr)
 			}
 		}
 		mcrs = activeMCRs
 	}
 
+	// Name, locationID, and portSpeed filtering are client-side; SDK only supports IncludeInactive.
 	filteredMCRs := filterMCRs(mcrs, locationID, portSpeed, mcrName)
 
-	if len(filteredMCRs) == 0 {
-		output.PrintWarning("No MCRs found matching the specified filters", noColor)
-	}
+	limit, _ := cmd.Flags().GetInt("limit") // applied client-side after fetch
 
-	err = printMCRs(filteredMCRs, outputFormat, noColor)
-	if err != nil {
-		output.PrintError("Failed to print MCRs: %v", noColor, err)
-		return fmt.Errorf("error printing MCRs: %v", err)
-	}
-	return nil
-}
-
-func ListMCRResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
-	mcrUID := args[0]
-
-	ctx := context.Background()
-
-	client, err := config.LoginFunc(ctx)
-	if err != nil {
-		return err
-	}
-
-	tagsMap, err := client.MCRService.ListMCRResourceTags(ctx, mcrUID)
-
-	if err != nil {
-		output.PrintError("Error getting resource tags for MCR %s: %v", noColor, mcrUID, err)
-		return fmt.Errorf("error getting resource tags for MCR %s: %v", mcrUID, err)
-	}
-
-	tags := make([]output.ResourceTag, 0, len(tagsMap))
-	for k, v := range tagsMap {
-		tags = append(tags, output.ResourceTag{Key: k, Value: v})
-	}
-
-	sort.Slice(tags, func(i, j int) bool {
-		return tags[i].Key < tags[j].Key
-	})
-
-	return output.PrintOutput(tags, outputFormat, noColor)
-}
-
-func UpdateMCRResourceTags(cmd *cobra.Command, args []string, noColor bool) error {
-	mcrUID := args[0]
-
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
-
-	client, err := config.LoginFunc(ctx)
-	if err != nil {
-		output.PrintError("Failed to log in: %v", noColor, err)
-		return err
-	}
-
-	existingTags, err := client.MCRService.ListMCRResourceTags(ctx, mcrUID)
-
-	if err != nil {
-		output.PrintError("Failed to get existing resource tags: %v", noColor, err)
-		return fmt.Errorf("failed to get existing resource tags: %v", err)
-	}
-
-	interactive, _ := cmd.Flags().GetBool("interactive")
-
-	var resourceTags map[string]string
-
-	if interactive {
-		resourceTags, err = utils.UpdateResourceTagsPrompt(existingTags, noColor)
-		if err != nil {
-			output.PrintError("Failed to update resource tags", noColor, err)
+	tagFilters, _ := cmd.Flags().GetStringArray("tag")
+	if len(tagFilters) > 0 {
+		tagSpinner := output.PrintCustomSpinner("Fetching tags for", "MCRs", noColor)
+		var tagErrs map[string]error
+		filteredMCRs, tagErrs = utils.ApplyTagFilter(ctx, filteredMCRs,
+			func(m *megaport.MCR) string { return m.UID },
+			func(ctx context.Context, uid string) (map[string]string, error) {
+				return listMCRResourceTagsFunc(ctx, client, uid)
+			},
+			tagFilters, limit,
+		)
+		tagSpinner.Stop()
+		if err := ctx.Err(); err != nil {
 			return err
 		}
-	} else {
-		jsonStr, _ := cmd.Flags().GetString("json")
-		jsonFile, _ := cmd.Flags().GetString("json-file")
-
-		if jsonStr != "" {
-			if err := json.Unmarshal([]byte(jsonStr), &resourceTags); err != nil {
-				output.PrintError("Failed to parse JSON: %v", noColor, err)
-				return fmt.Errorf("error parsing JSON: %v", err)
-			}
-		} else if jsonFile != "" {
-			jsonData, err := os.ReadFile(jsonFile)
-			if err != nil {
-				output.PrintError("Failed to read JSON file: %v", noColor, err)
-				return fmt.Errorf("error reading JSON file: %v", err)
-			}
-
-			if err := json.Unmarshal(jsonData, &resourceTags); err != nil {
-				output.PrintError("Failed to parse JSON file: %v", noColor, err)
-				return fmt.Errorf("error parsing JSON file: %v", err)
-			}
-		} else {
-			output.PrintError("No input provided for tags", noColor)
-			return fmt.Errorf("no input provided, use --interactive, --json, or --json-file to specify resource tags")
+		for uid, err := range tagErrs {
+			output.PrintWarning("Failed to fetch tags for MCR %s, skipping: %v", noColor, uid, err)
 		}
 	}
-
-	if len(resourceTags) == 0 {
-		fmt.Fprintln(os.Stderr, "No tags provided. The MCR will have all existing tags removed.")
-	}
-
-	spinner := output.PrintResourceUpdating("MCR-Resource-Tags", mcrUID, noColor)
-
-	err = client.MCRService.UpdateMCRResourceTags(ctx, mcrUID, resourceTags)
-
-	spinner.Stop()
-
-	if err != nil {
-		output.PrintError("Failed to update resource tags: %v", noColor, err)
-		return fmt.Errorf("failed to update resource tags: %v", err)
-	}
-
-	fmt.Fprintf(os.Stderr, "Resource tags updated for MCR %s\n", mcrUID)
-	return nil
-}
-
-func GetMCRStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
-
-	client, err := config.Login(ctx)
-	if err != nil {
-		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
-	}
-
-	mcrUID := args[0]
-
-	spinner := output.PrintResourceGetting("MCR", mcrUID, noColor)
-
-	mcr, err := client.MCRService.GetMCR(ctx, mcrUID)
-
-	spinner.Stop()
-
-	if err != nil {
-		output.PrintError("Failed to get MCR status: %v", noColor, err)
-		return fmt.Errorf("error getting MCR status: %v", err)
-	}
-
-	status := []MCRStatus{
-		{
-			UID:    mcr.UID,
-			Name:   mcr.Name,
-			Status: mcr.ProvisioningStatus,
-			ASN:    mcr.Resources.VirtualRouter.ASN,
-			Speed:  mcr.PortSpeed,
-		},
-	}
-
-	return output.PrintOutput(status, outputFormat, noColor)
+	return utils.ApplyLimitAndPrint(filteredMCRs, limit, outputFormat, noColor,
+		"No MCRs found. Create one with 'megaport mcr buy'.", printMCRs)
 }

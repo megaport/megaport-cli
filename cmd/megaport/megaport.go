@@ -4,13 +4,16 @@
 package megaport
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/help"
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/wasm"
@@ -24,15 +27,43 @@ func init() {
 	// Apply non-WASM specific initialization
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		applyDefaultSettings(cmd)
+
+		// Auto-disable color when stdout is not a TTY (piped output)
+		if !cmd.Flags().Changed("no-color") && !output.IsTerminal() {
+			noColor = true
+			_ = cmd.Flags().Set("no-color", "true")
+		}
+		output.SetNoHeader(noHeader)
+		output.SetNoPager(noPager)
+
 		format := strings.ToLower(outputFormat)
-		for _, validFormat := range utils.ValidFormats {
-			if format == validFormat {
-				return nil
+		validFmt := false
+		for _, vf := range utils.ValidFormats {
+			if format == vf {
+				validFmt = true
+				break
 			}
 		}
+		if !validFmt {
+			return fmt.Errorf("invalid output format: %s. Must be one of: %s",
+				outputFormat, strings.Join(utils.ValidFormats, ", "))
+		}
 
-		return fmt.Errorf("invalid output format: %s. Must be one of: %s",
-			outputFormat, strings.Join(utils.ValidFormats, ", "))
+		// Set verbosity level based on flags
+		if quiet {
+			output.SetVerbosity("quiet")
+		} else if verbose {
+			output.SetVerbosity("verbose")
+		} else {
+			output.SetVerbosity("normal")
+		}
+
+		// Validate retry flags
+		if utils.MaxRetries < 0 {
+			return exitcodes.NewUsageError(fmt.Errorf("--max-retries must be >= 0, got %d", utils.MaxRetries))
+		}
+
+		return nil
 	}
 
 	// Store the original help function so we can call it when needed
@@ -45,10 +76,17 @@ func init() {
 			ShortDesc:   "A CLI tool to interact with the Megaport API",
 			LongDesc:    "Megaport CLI provides a command line interface to interact with the Megaport API.\n\nThe CLI allows you to manage Megaport resources such as ports, VXCs, MCRs, MVEs, service keys, and more.",
 			OptionalFlags: map[string]string{
-				"--no-color": "Disable colored output",
-				"--output":   "Output format (json, yaml, table, csv, xml)",
-				"--help":     "Show help for any command",
-				"--env":      "Environment to use (production, staging, development)",
+				"--no-color":    "Disable colored output",
+				"--no-header":   "Suppress table and CSV column headers (useful for scripting)",
+				"--no-pager":    "Disable pager for long table output",
+				"--output":      "Output format (table, json, csv, xml, go-template)",
+				"--template":    "Go template string for --output go-template",
+				"--help":        "Show help for any command",
+				"--env":         "Environment to use (production, staging, development)",
+				"--quiet":       "Suppress informational output, only show errors and data",
+				"--verbose":     "Show additional debug information",
+				"--no-retry":    "Disable automatic retry on transient API failures",
+				"--max-retries": "Maximum number of retries for transient API failures (default 3)",
 			},
 			Examples: []string{
 				"megaport-cli ports list",
@@ -84,6 +122,11 @@ func init() {
 
 		// Also check environment
 		if _, exists := os.LookupEnv("NO_COLOR"); exists {
+			isColorDisabled = true
+		}
+
+		// Auto-disable color when stdout is not a TTY
+		if !output.IsTerminal() {
 			isColorDisabled = true
 		}
 
@@ -147,36 +190,65 @@ func applyDefaultSettings(cmd *cobra.Command) {
 			}
 		}
 	}
+
+	// Apply "quiet" default
+	if !cmd.Flags().Changed("quiet") {
+		if val, exists := manager.GetDefault("quiet"); exists {
+			if boolVal, ok := val.(bool); ok {
+				err := cmd.Flags().Set("quiet", fmt.Sprintf("%t", boolVal))
+				if err != nil {
+					log.Printf("Error setting quiet flag: %v\n", err)
+					return
+				}
+				quiet = boolVal
+			}
+		}
+	}
+
+	// Apply "verbose" default
+	if !cmd.Flags().Changed("verbose") {
+		if val, exists := manager.GetDefault("verbose"); exists {
+			if boolVal, ok := val.(bool); ok {
+				err := cmd.Flags().Set("verbose", fmt.Sprintf("%t", boolVal))
+				if err != nil {
+					log.Printf("Error setting verbose flag: %v\n", err)
+					return
+				}
+				verbose = boolVal
+			}
+		}
+	}
+
+	// Apply "no-pager" default
+	if !cmd.Flags().Changed("no-pager") {
+		if val, exists := manager.GetDefault("no-pager"); exists {
+			if boolVal, ok := val.(bool); ok {
+				err := cmd.Flags().Set("no-pager", fmt.Sprintf("%t", boolVal))
+				if err != nil {
+					log.Printf("Error setting no-pager flag: %v\n", err)
+					return
+				}
+				noPager = boolVal
+			}
+		}
+	}
 }
 
 // ExecuteWithArgs adds all child commands to the root command and executes with given args.
 func ExecuteWithArgs(args []string) {
-	// Save original args
-	originalArgs := os.Args
-
-	// Debug
-	fmt.Printf("WASM ExecuteWithArgs: args=%v\n", args)
-
-	// Set new args for this execution
-	os.Args = args
-
 	// Direct output to our WASM buffer
 	rootCmd.SetOut(wasm.WasmOutputBuffer)
 	rootCmd.SetErr(wasm.WasmOutputBuffer)
 
-	// IMPORTANT: When executing in WASM, set this to ensure args are processed properly
+	// Use cobra's SetArgs instead of mutating the global os.Args
 	rootCmd.SetArgs(args[1:]) // Skip program name (args[0])
 
 	// Execute and capture errors
 	err := rootCmd.Execute()
 
-	// Debug the command result
 	if err != nil {
 		fmt.Fprintf(wasm.WasmOutputBuffer, "Error executing command: %v\n", err)
 	}
-
-	// Restore original args
-	os.Args = originalArgs
 }
 
 func EnsureRootCommandOutput(writer io.Writer) {
@@ -187,6 +259,45 @@ func EnsureRootCommandOutput(writer io.Writer) {
 // Execute adds all child commands to the root command and sets flags appropriately.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		os.Exit(1)
+		os.Exit(exitCodeFromError(err))
 	}
+}
+
+func exitCodeFromError(err error) int {
+	// Check for explicitly typed CLIError (from wrappers or cmdbuilder)
+	var cliErr *exitcodes.CLIError
+	if errors.As(err, &cliErr) {
+		return cliErr.Code
+	}
+
+	// Cobra usage errors (unknown command/flag, wrong arg count)
+	msg := err.Error()
+	if isCobraUsageError(msg) {
+		return exitcodes.Usage
+	}
+
+	// PersistentPreRunE format validation
+	if strings.Contains(msg, "invalid output format") {
+		return exitcodes.Usage
+	}
+
+	return exitcodes.General
+}
+
+func isCobraUsageError(msg string) bool {
+	cobraPatterns := []string{
+		"unknown command",
+		"unknown flag",
+		"unknown shorthand flag",
+		"accepts between",
+		"accepts at most",
+		"accepts at least",
+		"required flag(s)",
+	}
+	for _, p := range cobraPatterns {
+		if strings.Contains(msg, p) {
+			return true
+		}
+	}
+	return false
 }

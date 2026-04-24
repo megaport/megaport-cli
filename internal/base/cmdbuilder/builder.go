@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/help"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/spf13/cobra"
@@ -101,6 +103,25 @@ func (b *CommandBuilder) WithBoolFlagP(name, shorthand string, defaultVal bool, 
 	return b
 }
 
+// WithDurationFlag adds a duration flag to the command
+func (b *CommandBuilder) WithDurationFlag(name string, defaultVal time.Duration, usage string) *CommandBuilder {
+	b.cmd.Flags().Duration(name, defaultVal, usage)
+	return b
+}
+
+// WithDurationFlagP adds a duration flag with a shorthand to the command
+func (b *CommandBuilder) WithDurationFlagP(name, shorthand string, defaultVal time.Duration, usage string) *CommandBuilder {
+	b.cmd.Flags().DurationP(name, shorthand, defaultVal, usage)
+	return b
+}
+
+// WithStringArrayFlag adds a repeatable string flag (each --flag value is a separate element).
+// Unlike StringSlice, StringArray does not split on commas.
+func (b *CommandBuilder) WithStringArrayFlag(name, usage string) *CommandBuilder {
+	b.cmd.Flags().StringArray(name, nil, usage)
+	return b
+}
+
 // WithRootCmd sets the root command for help generation
 func (b *CommandBuilder) WithRootCmd(rootCmd *cobra.Command) *CommandBuilder {
 	b.rootCmd = rootCmd
@@ -156,8 +177,9 @@ func (b *CommandBuilder) WithConditionalRequirements(conditionallyRequiredFlags 
 		jsonStr, _ := cmd.Flags().GetString("json")
 		jsonFile, _ := cmd.Flags().GetString("json-file")
 
-		// Skip validation if interactive mode or JSON input is used
-		if interactive || jsonStr != "" || jsonFile != "" {
+		// Skip validation if interactive mode, JSON input, or skeleton mode is used
+		skeleton, _ := cmd.Flags().GetBool("generate-skeleton")
+		if interactive || jsonStr != "" || jsonFile != "" || skeleton {
 			return nil
 		}
 
@@ -184,7 +206,7 @@ func (b *CommandBuilder) WithConditionalRequirements(conditionallyRequiredFlags 
 				}
 
 				if !atLeastOneSet {
-					return fmt.Errorf("at least one of these flags must be set: %s", strings.Join(flagList, ", "))
+					return exitcodes.NewUsageError(fmt.Errorf("at least one of these flags must be set: %s", strings.Join(flagList, ", ")))
 				}
 			} else {
 				// Handle normal required flag
@@ -195,7 +217,7 @@ func (b *CommandBuilder) WithConditionalRequirements(conditionallyRequiredFlags 
 
 				// Check if flag has been explicitly set
 				if !cmd.Flags().Changed(flagSpec) {
-					return fmt.Errorf("required flag \"%s\" not set when not using interactive or JSON input", flagSpec)
+					return exitcodes.NewUsageError(fmt.Errorf("required flag \"%s\" not set when not using interactive or JSON input", flagSpec))
 				}
 			}
 		}
@@ -262,21 +284,9 @@ func (b *CommandBuilder) WithFlagCompletionFunc(flagName string, f func(cmd *cob
 	return b
 }
 
-// WithDocumentation adds a 'docs' subcommand that shows rendered markdown documentation
-func (b *CommandBuilder) WithDocumentation() *CommandBuilder {
-	// Create a 'docs' subcommand
-	docsCmd := &cobra.Command{
-		Use:   "docs",
-		Short: "Show documentation for this command",
-		Long:  "Display formatted documentation for this command from markdown files",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Show documentation for the parent command
-			return ShowDocumentation(cmd.Parent())
-		},
-	}
-
-	// Add the docs subcommand
-	b.cmd.AddCommand(docsCmd)
+// WithAliases sets command aliases for shorthand access
+func (b *CommandBuilder) WithAliases(aliases []string) *CommandBuilder {
+	b.cmd.Aliases = aliases
 	return b
 }
 
@@ -284,12 +294,7 @@ func (b *CommandBuilder) WithDocumentation() *CommandBuilder {
 func (b *CommandBuilder) Build() *cobra.Command {
 	// Generate help text if root command is available
 	if b.rootCmd != nil {
-		fullCommandPath := b.cmd.Use
-		if b.cmd.Parent() != nil {
-			fullCommandPath = "megaport-cli " + fullCommandPath
-		} else {
-			fullCommandPath = "megaport-cli " + fullCommandPath
-		}
+		fullCommandPath := "megaport-cli " + b.cmd.Use
 
 		helpBuilder := &help.CommandHelpBuilder{
 			CommandName:    fullCommandPath,
@@ -316,6 +321,41 @@ func (b *CommandBuilder) Build() *cobra.Command {
 
 	// Add the docs subcommand
 	b.cmd.AddCommand(docsCmd)
+
+	// Auto-add --generate-skeleton flag for commands that have JSON examples
+	if len(b.jsonExamples) > 0 {
+		b.cmd.Flags().Bool("generate-skeleton", false, "Print a JSON skeleton template for --json or --json-file input and exit")
+		originalArgs := b.cmd.Args
+		originalRunE := b.cmd.RunE
+		jsonExamples := b.jsonExamples
+
+		// Bypass positional-arg validation in skeleton mode so update commands
+		// (which require a UID arg) work without a dummy argument.
+		b.cmd.Args = func(cmd *cobra.Command, args []string) error {
+			skeleton, _ := cmd.Flags().GetBool("generate-skeleton")
+			if skeleton {
+				return nil
+			}
+			if originalArgs != nil {
+				return originalArgs(cmd, args)
+			}
+			return nil
+		}
+
+		b.cmd.RunE = func(cmd *cobra.Command, args []string) error {
+			skeleton, _ := cmd.Flags().GetBool("generate-skeleton")
+			if skeleton {
+				if _, err := fmt.Fprintln(cmd.OutOrStdout(), jsonExamples[0]); err != nil {
+					return err
+				}
+				return nil
+			}
+			if originalRunE != nil {
+				return originalRunE(cmd, args)
+			}
+			return nil
+		}
+	}
 
 	return b.cmd
 }

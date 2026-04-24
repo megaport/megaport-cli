@@ -87,6 +87,15 @@ func ValidateVXCEndInnerVLAN(vlan int) error {
 	return ValidateVLAN(vlan)
 }
 
+// ValidateVNICIndex validates a vNIC index for a VXC endpoint.
+// The index must be non-negative.
+func ValidateVNICIndex(index int) error {
+	if index < 0 {
+		return NewValidationError("vNIC index", index, "must be non-negative")
+	}
+	return nil
+}
+
 // ValidateVXCRequest validates a VXC (Virtual Cross Connect) request.
 // This function ensures all required parameters for creating a VXC are present and valid.
 //
@@ -199,7 +208,7 @@ func ValidateAWSPartnerConfig(config *megaport.VXCPartnerConfigAWS) error {
 		}
 	}
 	if !isValidType {
-		return NewValidationError("AWS connect type", config.ConnectType, "must be 'AWS', or 'AWSHC'")
+		return NewValidationError("AWS connect type", config.ConnectType, "must be 'AWS', 'AWSHC', 'private', or 'public'")
 	}
 
 	if config.OwnerAccount == "" {
@@ -361,9 +370,10 @@ func ValidateIBMPartnerConfig(config *megaport.VXCPartnerConfigIBM) error {
 
 func isValidIBMName(name string) bool {
 	for _, c := range name {
-		if c < '0' || (c > '9' && c < 'A') || (c > 'Z' && c < 'a') || (c > 'z' && c != '/' && c != '-' && c != '_' && c != ',') {
-			return false
+		if (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '/' || c == '-' || c == '_' || c == ',' {
+			continue
 		}
+		return false
 	}
 	return true
 }

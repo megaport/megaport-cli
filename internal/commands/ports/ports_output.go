@@ -7,20 +7,20 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-type PortOutput struct {
+type portOutput struct {
 	output.Output      `json:"-" header:"-"`
 	UID                string `json:"uid" header:"UID"`
 	Name               string `json:"name" header:"Name"`
-	LocationID         int    `json:"location_id" header:"LocationID"`
+	LocationID         int    `json:"location_id" header:"Location ID"`
 	PortSpeed          int    `json:"port_speed" header:"Speed"`
 	ProvisioningStatus string `json:"provisioning_status" header:"Status"`
 }
 
-func ToPortOutput(port *megaport.Port) (PortOutput, error) {
+func toPortOutput(port *megaport.Port) (portOutput, error) {
 	if port == nil {
-		return PortOutput{}, fmt.Errorf("invalid port: nil value")
+		return portOutput{}, fmt.Errorf("invalid port: nil value")
 	}
-	return PortOutput{
+	return portOutput{
 		UID:                port.UID,
 		Name:               port.Name,
 		LocationID:         port.LocationID,
@@ -30,9 +30,9 @@ func ToPortOutput(port *megaport.Port) (PortOutput, error) {
 }
 
 func printPorts(ports []*megaport.Port, format string, noColor bool) error {
-	outputs := make([]PortOutput, 0, len(ports))
+	outputs := make([]portOutput, 0, len(ports))
 	for _, port := range ports {
-		output, err := ToPortOutput(port)
+		output, err := toPortOutput(port)
 		if err != nil {
 			return err
 		}
@@ -43,10 +43,10 @@ func printPorts(ports []*megaport.Port, format string, noColor bool) error {
 
 type PortStatus struct {
 	UID    string `json:"uid" header:"UID"`
-	Name   string `json:"name" header:"NAME"`
-	Status string `json:"status" header:"STATUS"`
-	Type   string `json:"type" header:"TYPE"`
-	Speed  int    `json:"speed" header:"SPEED"`
+	Name   string `json:"name" header:"Name"`
+	Status string `json:"status" header:"Status"`
+	Type   string `json:"type" header:"Type"`
+	Speed  int    `json:"speed" header:"Speed"`
 }
 
 func displayPortChanges(original, updated *megaport.Port, noColor bool) {
@@ -54,70 +54,13 @@ func displayPortChanges(original, updated *megaport.Port, noColor bool) {
 		return
 	}
 
-	fmt.Println()
-	output.PrintInfo("Changes applied:", noColor)
-	changesFound := false
-
-	if original.Name != updated.Name {
-		changesFound = true
-		oldName := output.FormatOldValue(original.Name, noColor)
-		newName := output.FormatNewValue(updated.Name, noColor)
-		fmt.Printf("  • Name: %s → %s\n", oldName, newName)
+	changes := []output.FieldChange{
+		{Label: "Name", OldValue: original.Name, NewValue: updated.Name},
+		{Label: "Cost Centre", OldValue: output.FormatOptionalString(original.CostCentre), NewValue: output.FormatOptionalString(updated.CostCentre)},
+		{Label: "Contract Term", OldValue: fmt.Sprintf("%d months", original.ContractTermMonths), NewValue: fmt.Sprintf("%d months", updated.ContractTermMonths)},
+		{Label: "Marketplace Visibility", OldValue: output.FormatBool(original.MarketplaceVisibility), NewValue: output.FormatBool(updated.MarketplaceVisibility)},
+		{Label: "Locked", OldValue: output.FormatBool(original.AdminLocked), NewValue: output.FormatBool(updated.AdminLocked)},
 	}
 
-	if original.CostCentre != updated.CostCentre {
-		changesFound = true
-		oldCostCentre := original.CostCentre
-		if oldCostCentre == "" {
-			oldCostCentre = "(none)"
-		}
-		newCostCentre := updated.CostCentre
-		if newCostCentre == "" {
-			newCostCentre = "(none)"
-		}
-		fmt.Printf("  • Cost Centre: %s → %s\n",
-			output.FormatOldValue(oldCostCentre, noColor),
-			output.FormatNewValue(newCostCentre, noColor))
-	}
-
-	if original.ContractTermMonths != updated.ContractTermMonths {
-		changesFound = true
-		oldTerm := output.FormatOldValue(fmt.Sprintf("%d months", original.ContractTermMonths), noColor)
-		newTerm := output.FormatNewValue(fmt.Sprintf("%d months", updated.ContractTermMonths), noColor)
-		fmt.Printf("  • Contract Term: %s → %s\n", oldTerm, newTerm)
-	}
-
-	if original.MarketplaceVisibility != updated.MarketplaceVisibility {
-		changesFound = true
-		oldVisibility := "No"
-		if original.MarketplaceVisibility {
-			oldVisibility = "Yes"
-		}
-		newVisibility := "No"
-		if updated.MarketplaceVisibility {
-			newVisibility = "Yes"
-		}
-		fmt.Printf("  • Marketplace Visibility: %s → %s\n",
-			output.FormatOldValue(oldVisibility, noColor),
-			output.FormatNewValue(newVisibility, noColor))
-	}
-
-	if original.AdminLocked != updated.AdminLocked {
-		changesFound = true
-		oldLocked := "No"
-		if original.AdminLocked {
-			oldLocked = "Yes"
-		}
-		newLocked := "No"
-		if updated.AdminLocked {
-			newLocked = "Yes"
-		}
-		fmt.Printf("  • Locked: %s → %s\n",
-			output.FormatOldValue(oldLocked, noColor),
-			output.FormatNewValue(newLocked, noColor))
-	}
-
-	if !changesFound {
-		fmt.Println("  No changes detected")
-	}
+	output.DisplayChanges(changes, noColor)
 }

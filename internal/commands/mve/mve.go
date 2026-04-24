@@ -22,6 +22,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	buyMVECmd := cmdbuilder.NewCommand("buy", "Purchase a new Megaport Virtual Edge (MVE) device").
 		WithColorAwareRunFunc(BuyMVE).
 		WithInteractiveFlag().
+		WithNoWaitFlag().
+		WithBuyConfirmFlags().
 		WithMVECreateFlags().
 		WithJSONConfigFlags().
 		WithLongDesc("Purchase a new Megaport Virtual Edge (MVE) device through the Megaport API.\n\nThis command allows you to purchase an MVE by providing the necessary details.").
@@ -76,10 +78,16 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	getMVECmd := cmdbuilder.NewCommand("get", "Get details for a single MVE").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetMVE).
+		WithBoolFlag("export", false, "Output recreatable JSON config for use with buy --json (excludes read-only fields; vendorConfig not available from API)").
+		WithWatchFlags().
 		WithLongDesc("Get details for a single MVE from the Megaport API.\n\nThis command retrieves and displays detailed information for a single Megaport Virtual Edge (MVE). You must provide the unique identifier (UID) of the MVE you wish to retrieve.").
 		WithExample("megaport-cli mve get a1b2c3d4-e5f6-7890-1234-567890abcdef").
+		WithExample("megaport-cli mve get a1b2c3d4-e5f6-7890-1234-567890abcdef --export").
+		WithExample("megaport-cli mve get a1b2c3d4-e5f6-7890-1234-567890abcdef --watch").
+		WithExample("megaport-cli mve get a1b2c3d4-e5f6-7890-1234-567890abcdef --watch --interval 10s").
 		WithImportantNote("The output includes the MVE's UID, name, vendor, version, status, and connectivity details").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"show"}).
 		Build()
 
 	updateMVECmd := cmdbuilder.NewCommand("update", "Update an existing MVE").
@@ -112,7 +120,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	deleteMVECmd := cmdbuilder.NewCommand("delete", "Delete an existing MVE").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(DeleteMVE).
-		WithDeleteFlags().
+		WithSafeDeleteFlags().
 		WithLongDesc("Delete an existing Megaport Virtual Edge (MVE).\n\nThis command allows you to delete an existing MVE by providing its UID.").
 		WithExample("megaport-cli mve delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
 		WithExample("megaport-cli mve delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --force").
@@ -121,6 +129,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("Billing for the MVE stops at the end of the current billing period unless --now is specified").
 		WithImportantNote("All associated VXCs will be automatically terminated").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"rm"}).
 		Build()
 
 	listMVEImagesCmd := cmdbuilder.NewCommand("list-images", "List all available MVE images").
@@ -152,23 +161,32 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	listMVEsCmd := cmdbuilder.NewCommand("list", "List all MVEs with optional filters").
 		WithOutputFormatRunFunc(ListMVEs).
 		WithMVEFilterFlags().
-		WithLongDesc("List all MVEs available in the Megaport API.\n\nThis command fetches and displays a list of MVEs with details such as MVE ID, name, location, vendor, and status. By default, only active MVEs are shown.").
+		WithTagFilterFlags().
+		WithLongDesc("List all MVEs available in the Megaport API.\n\nThis command fetches and displays a list of MVEs with details such as MVE ID, name, location, vendor, and status. By default, only active MVEs are shown. You can also filter by resource tags.").
 		WithExample("megaport-cli mve list").
 		WithExample("megaport-cli mve list --location-id 123").
 		WithExample("megaport-cli mve list --vendor \"Cisco\"").
 		WithExample("megaport-cli mve list --name \"Edge Router\"").
 		WithExample("megaport-cli mve list --include-inactive").
 		WithExample("megaport-cli mve list --location-id 123 --vendor \"Cisco\" --name \"Edge\"").
+		WithExample("megaport-cli mve list --tag env=prod").
+		WithExample("megaport-cli mve list --tag env=prod --tag team=network").
+		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"ls"}).
 		Build()
 
 	statusMVECmd := cmdbuilder.NewCommand("status", "Check the provisioning status of an MVE").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetMVEStatus).
+		WithWatchFlags().
 		WithLongDesc("Check the provisioning status of an MVE through the Megaport API.\n\nThis command retrieves only the essential status information for a Megaport Virtual Edge (MVE) without all the details. It's useful for monitoring ongoing provisioning.").
 		WithExample("megaport-cli mve status mve-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
+		WithExample("megaport-cli mve status mve-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --watch").
+		WithExample("megaport-cli mve status mve-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --watch --interval 10s").
 		WithImportantNote("This is a lightweight command that only shows the MVE's status without retrieving all details.").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"st"}).
 		Build()
 
 	listTagsCmd := cmdbuilder.NewCommand("list-tags", "List resource tags on a specific MVE").
@@ -186,14 +204,65 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli mve update-tags mve-abc123 --interactive").
 		WithExample("megaport-cli mve update-tags mve-abc123 --json '{\"env\":\"production\",\"team\":\"network\"}'").
 		WithExample("megaport-cli mve update-tags mve-abc123 --json-file ./tags.json").
+		WithJSONExample(`{
+  "environment": "production",
+  "owner": "network-team",
+  "project": "cloud-migration"
+}`).
 		WithImportantNote("All existing tags will be replaced with the provided tags. To clear all tags, provide an empty tag set.").
+		Build()
+
+	restoreMVECmd := cmdbuilder.NewCommand("restore", "Restore a deleted MVE").
+		WithArgs(cobra.ExactArgs(1)).
+		WithColorAwareRunFunc(RestoreMVE).
+		WithLongDesc("Restore a previously deleted MVE.\n\nThis command allows you to restore a previously deleted Megaport Virtual Edge (MVE), provided it has not yet been fully decommissioned.").
+		WithExample("megaport-cli mve restore [mveUID]").
+		WithRootCmd(rootCmd).
+		Build()
+
+	lockMVECmd := cmdbuilder.NewCommand("lock", "Lock an MVE").
+		WithArgs(cobra.ExactArgs(1)).
+		WithColorAwareRunFunc(LockMVE).
+		WithLongDesc("Lock an MVE to prevent modifications.\n\nThis command locks a Megaport Virtual Edge (MVE) to prevent any changes from being made to it. Use the unlock command to re-enable modifications.").
+		WithExample("megaport-cli mve lock [mveUID]").
+		WithRootCmd(rootCmd).
+		Build()
+
+	unlockMVECmd := cmdbuilder.NewCommand("unlock", "Unlock an MVE").
+		WithArgs(cobra.ExactArgs(1)).
+		WithColorAwareRunFunc(UnlockMVE).
+		WithLongDesc("Unlock a previously locked MVE.\n\nThis command unlocks a Megaport Virtual Edge (MVE) that was previously locked, allowing modifications to be made again.").
+		WithExample("megaport-cli mve unlock [mveUID]").
+		WithRootCmd(rootCmd).
+		Build()
+
+	validateMVECmd := cmdbuilder.NewCommand("validate", "Validate an MVE order without purchasing").
+		WithColorAwareRunFunc(ValidateMVE).
+		WithInteractiveFlag().
+		WithMVECreateFlags().
+		WithJSONConfigFlags().
+		WithLongDesc("Validates an MVE configuration against the Megaport API without creating the resource.\n\nUse this for dry-run validation before purchasing, or in CI pipelines to check configurations.").
+		WithDocumentedRequiredFlag("name", "The name of the MVE").
+		WithDocumentedRequiredFlag("term", "The term of the MVE (1, 12, 24, or 36 months)").
+		WithDocumentedRequiredFlag("location-id", "The ID of the location where the MVE will be provisioned").
+		WithDocumentedRequiredFlag("vendor-config", "JSON string with vendor-specific configuration").
+		WithDocumentedRequiredFlag("vnics", "JSON array of network interfaces").
+		WithExample(`megaport-cli mve validate --name "My MVE" --term 12 --location-id 123 --vendor-config '{"vendor":"cisco","imageId":123,"productSize":"MEDIUM"}' --vnics '[{"description":"Data Plane","vlan":100}]'`).
+		WithExample("megaport-cli mve validate --json-file ./mve-config.json").
+		WithImportantNote("This command only validates the configuration — no resources are created and no charges are incurred").
+		WithRootCmd(rootCmd).
+		WithConditionalRequirements("name", "term", "location-id", "vendor-config", "vnics").
 		Build()
 
 	mveCmd.AddCommand(
 		buyMVECmd,
+		validateMVECmd,
 		getMVECmd,
 		updateMVECmd,
 		deleteMVECmd,
+		restoreMVECmd,
+		lockMVECmd,
+		unlockMVECmd,
 		listMVEImagesCmd,
 		listAvailableMVESizesCmd,
 		listMVEsCmd,

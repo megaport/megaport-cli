@@ -1,5 +1,14 @@
 package cmdbuilder
 
+import "time"
+
+// WithWatchFlags adds flags for continuous status monitoring
+func (b *CommandBuilder) WithWatchFlags() *CommandBuilder {
+	b.WithBoolFlagP("watch", "w", false, "Continuously poll and display resource status (Ctrl+C to stop)")
+	b.WithDurationFlag("interval", 5*time.Second, "Polling interval for --watch mode (e.g. 5s, 1m)")
+	return b
+}
+
 // AddStandardInputFlags adds interactive, json and json-file flags
 func (b *CommandBuilder) WithStandardInputFlags() *CommandBuilder {
 	b.WithBoolFlagP("interactive", "i", false, "Use interactive mode with prompts")
@@ -31,15 +40,34 @@ func (b *CommandBuilder) WithResourceTagFlags() *CommandBuilder {
 	return b
 }
 
-// WithMCRDeleteFlags adds flags for deletion
+// WithDeleteFlags adds flags for deletion
 func (b *CommandBuilder) WithDeleteFlags() *CommandBuilder {
 	b.WithBoolFlagP("force", "f", false, "Skip confirmation prompt")
 	b.WithBoolFlag("now", false, "Delete resource immediately instead of at end of billing cycle")
 	return b
 }
 
+// WithSafeDeleteFlags adds flags for deletion with safe-delete support (for resources that support it via the API)
+func (b *CommandBuilder) WithSafeDeleteFlags() *CommandBuilder {
+	b.WithDeleteFlags()
+	b.WithBoolFlag("safe-delete", false, "Fail if the resource has attached VXCs or other active services")
+	return b
+}
+
+// WithBuyConfirmFlags adds the --yes/-y flag to skip buy confirmation prompts
+func (b *CommandBuilder) WithBuyConfirmFlags() *CommandBuilder {
+	b.WithBoolFlagP("yes", "y", false, "Skip confirmation prompt for purchase")
+	return b
+}
+
 // WithInteractiveFlag adds just the interactive flag
 func (b *CommandBuilder) WithInteractiveFlag() *CommandBuilder {
 	b.WithBoolFlagP("interactive", "i", false, "Use interactive mode with prompts")
+	return b
+}
+
+// WithNoWaitFlag adds a flag to skip waiting for provisioning
+func (b *CommandBuilder) WithNoWaitFlag() *CommandBuilder {
+	b.WithBoolFlag("no-wait", false, "Do not wait for provisioning to complete")
 	return b
 }

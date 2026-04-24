@@ -2,6 +2,7 @@ package vxc
 
 import (
 	"github.com/megaport/megaport-cli/internal/base/cmdbuilder"
+	"github.com/megaport/megaport-cli/internal/validation"
 	"github.com/spf13/cobra"
 )
 
@@ -10,6 +11,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	// Create vxc parent command
 	vxcCmd := cmdbuilder.NewCommand("vxc", "Manage VXCs in the Megaport API").
 		WithLongDesc("Manage VXCs in the Megaport API.\n\nThis command groups all operations related to Virtual Cross Connects (VXCs). VXCs are virtual point-to-point connections between two ports or devices on the Megaport network. You can use the subcommands to perform actions such as retrieving details, purchasing, updating, and deleting VXCs.").
+		WithExample("megaport-cli vxc list").
 		WithExample("megaport-cli vxc get [vxcUID]").
 		WithExample("megaport-cli vxc buy").
 		WithExample("megaport-cli vxc update [vxcUID]").
@@ -17,30 +19,67 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
+	// Create list VXCs command
+	listVXCsCmd := cmdbuilder.NewCommand("list", "List all VXCs with optional filters").
+		WithOutputFormatRunFunc(ListVXCs).
+		WithVXCFilterFlags().
+		WithTagFilterFlags().
+		WithLongDesc("List all VXCs available in the Megaport API.\n\nThis command retrieves all Virtual Cross Connects (VXCs) associated with your account. You can filter results by name, rate limit, A-End UID, B-End UID, status, or resource tags.").
+		WithOptionalFlag("name", "Filter VXCs by name (case-sensitive partial match)").
+		WithOptionalFlag("name-contains", "Filter VXCs by name (case-sensitive partial match; takes precedence over --name)").
+		WithOptionalFlag("rate-limit", "Filter VXCs by rate limit in Mbps").
+		WithOptionalFlag("a-end-uid", "Filter VXCs by A-End product UID").
+		WithOptionalFlag("b-end-uid", "Filter VXCs by B-End product UID").
+		WithOptionalFlag("status", "Filter VXCs by status (comma-separated, e.g. LIVE,CONFIGURED)").
+		WithOptionalFlag("include-inactive", "Include inactive VXCs in the list").
+		WithExample("megaport-cli vxc list").
+		WithExample("megaport-cli vxc list --name \"My VXC\"").
+		WithExample("megaport-cli vxc list --a-end-uid port-abc123").
+		WithExample("megaport-cli vxc list --status LIVE,CONFIGURED").
+		WithExample("megaport-cli vxc list --include-inactive").
+		WithExample("megaport-cli vxc list --tag env=prod").
+		WithExample("megaport-cli vxc list --tag env=prod --tag team=network").
+		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
+		WithRootCmd(rootCmd).
+		WithAliases([]string{"ls"}).
+		Build()
+
 	// Create get VXC command
 	getVXCCmd := cmdbuilder.NewCommand("get", "Get details for a single VXC").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetVXC).
+		WithBoolFlag("export", false, "Output recreatable JSON config for use with buy --json (excludes read-only fields; partner configs not available from API)").
+		WithWatchFlags().
 		WithLongDesc("Get details for a single VXC through the Megaport API.\n\nThis command retrieves detailed information for a single Virtual Cross Connect (VXC). You must provide the unique identifier (UID) of the VXC you wish to retrieve.").
 		WithExample("megaport-cli vxc get vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
+		WithExample("megaport-cli vxc get vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --export").
+		WithExample("megaport-cli vxc get vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --watch").
+		WithExample("megaport-cli vxc get vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --watch --interval 10s").
 		WithImportantNote("The output includes the VXC's UID, name, rate limit, A-End and B-End details, status, and cost centre.").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"show"}).
 		Build()
 
 	// Create status VXC command
 	statusVXCCmd := cmdbuilder.NewCommand("status", "Check the provisioning status of a VXC").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetVXCStatus).
+		WithWatchFlags().
 		WithLongDesc("Check the provisioning status of a VXC through the Megaport API.\n\nThis command retrieves only the essential status information for a Virtual Cross Connect (VXC) without all the details. It's useful for monitoring ongoing provisioning.").
 		WithExample("megaport-cli vxc status vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
+		WithExample("megaport-cli vxc status vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --watch").
+		WithExample("megaport-cli vxc status vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --watch --interval 10s").
 		WithImportantNote("This is a lightweight command that only shows the VXC's status without retrieving all details.").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"st"}).
 		Build()
 
 	// Create buy VXC command
 	buyVXCCmd := cmdbuilder.NewCommand("buy", "Purchase a new VXC").
 		WithColorAwareRunFunc(BuyVXC).
 		WithInteractiveFlag().
+		WithNoWaitFlag().
+		WithBuyConfirmFlags().
 		WithVXCCreateFlags().
 		WithJSONConfigFlags().
 		WithLongDesc("Purchase a new Megaport Virtual Cross Connect (VXC) through the Megaport API.\n\nThis command allows you to create a VXC by providing the necessary details.").
@@ -49,8 +88,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithDocumentedRequiredFlag("term", "Contract term in months (1, 12, 24, or 36)").
 		WithDocumentedRequiredFlag("a-end-uid", "UID of the A-End product").
 		WithDocumentedRequiredFlag("b-end-uid", "UID of the B-End product (if not using partner configuration)").
-		WithDocumentedRequiredFlag("a-end-vlan", "VLAN for A-End (0-4093, except 1)").
-		WithDocumentedRequiredFlag("b-end-vlan", "VLAN for B-End (0-4093, except 1)").
+		WithDocumentedRequiredFlag("a-end-vlan", "VLAN for A-End ("+validation.VLANHelpText()+")").
+		WithDocumentedRequiredFlag("b-end-vlan", "VLAN for B-End ("+validation.VLANHelpText()+")").
 		WithExample("megaport-cli vxc buy --interactive").
 		WithExample("megaport-cli vxc buy --name \"My VXC\" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200").
 		WithExample("megaport-cli vxc buy --name \"My VXC\" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200 --resource-tags '{\"environment\":\"production\",\"team\":\"networking\"}'").
@@ -92,10 +131,10 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("term", "New contract term in months (1, 12, 24, or 36)").
 		WithOptionalFlag("cost-centre", "New cost centre for billing").
 		WithOptionalFlag("shutdown", "Whether to shut down the VXC (true/false)").
-		WithOptionalFlag("a-end-vlan", "New VLAN for A-End (2-4093, except 4090)").
-		WithOptionalFlag("b-end-vlan", "New VLAN for B-End (2-4093, except 4090)").
-		WithOptionalFlag("a-end-inner-vlan", "New inner VLAN for A-End (-1 or higher, only for QinQ)").
-		WithOptionalFlag("b-end-inner-vlan", "New inner VLAN for B-End (-1 or higher, only for QinQ)").
+		WithOptionalFlag("a-end-vlan", "New VLAN for A-End ("+validation.VLANHelpText()+")").
+		WithOptionalFlag("b-end-vlan", "New VLAN for B-End ("+validation.VLANHelpText()+")").
+		WithOptionalFlag("a-end-inner-vlan", "New inner VLAN for A-End ("+validation.InnerVLANHelpText()+", only for QinQ)").
+		WithOptionalFlag("b-end-inner-vlan", "New inner VLAN for B-End ("+validation.InnerVLANHelpText()+", only for QinQ)").
 		WithOptionalFlag("a-end-uid", "New A-End product UID").
 		WithOptionalFlag("b-end-uid", "New B-End product UID").
 		WithOptionalFlag("a-end-partner-config", "JSON string with A-End VRouter partner configuration").
@@ -134,6 +173,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("Billing for the VXC stops at the end of the current billing period").
 		WithImportantNote("The VXC is immediately disconnected upon deletion").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"rm"}).
 		Build()
 
 	// Add list-tags command
@@ -153,14 +193,39 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli vxc update-tags vxc-abc123 --interactive").
 		WithExample("megaport-cli vxc update-tags vxc-abc123 --json '{\"env\":\"production\",\"team\":\"network\"}'").
 		WithExample("megaport-cli vxc update-tags vxc-abc123 --json-file ./tags.json").
+		WithJSONExample(`{
+  "environment": "production",
+  "owner": "network-team",
+  "project": "cloud-migration"
+}`).
 		WithImportantNote("All existing tags will be replaced with the provided tags. To clear all tags, provide an empty tag set.").
+		Build()
+
+	// Create validate VXC command
+	validateVXCCmd := cmdbuilder.NewCommand("validate", "Validate a VXC order without purchasing").
+		WithColorAwareRunFunc(ValidateVXC).
+		WithInteractiveFlag().
+		WithVXCCreateFlags().
+		WithJSONConfigFlags().
+		WithLongDesc("Validates a VXC configuration against the Megaport API without creating the resource.\n\nUse this for dry-run validation before purchasing, or in CI pipelines to check configurations.").
+		WithDocumentedRequiredFlag("name", "Name of the VXC").
+		WithDocumentedRequiredFlag("rate-limit", "Bandwidth in Mbps").
+		WithDocumentedRequiredFlag("term", "Contract term in months (1, 12, 24, or 36)").
+		WithDocumentedRequiredFlag("a-end-uid", "UID of the A-End product").
+		WithExample(`megaport-cli vxc validate --name "My VXC" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200`).
+		WithExample("megaport-cli vxc validate --json-file ./vxc-config.json").
+		WithImportantNote("This command only validates the configuration — no resources are created and no charges are incurred").
+		WithRootCmd(rootCmd).
+		WithConditionalRequirements("name", "rate-limit", "term", "a-end-uid").
 		Build()
 
 	// Add commands to their parents
 	vxcCmd.AddCommand(
+		listVXCsCmd,
 		getVXCCmd,
 		statusVXCCmd,
 		buyVXCCmd,
+		validateVXCCmd,
 		updateVXCCmd,
 		deleteVXCCmd,
 		listTagsCmd,

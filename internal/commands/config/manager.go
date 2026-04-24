@@ -68,9 +68,12 @@ func NewConfigManager() (*ConfigManager, error) {
 			return nil, fmt.Errorf("failed to create default config: %w", err)
 		}
 
-		err = os.WriteFile(configPath, configData, 0644)
+		err = os.WriteFile(configPath, configData, 0600)
 		if err != nil {
 			return nil, fmt.Errorf("failed to write default config: %w", err)
+		}
+		if err := os.Chmod(configPath, 0600); err != nil {
+			return nil, fmt.Errorf("failed to set permissions on config file: %w", err)
 		}
 	}
 
@@ -83,16 +86,20 @@ func NewConfigManager() (*ConfigManager, error) {
 		}
 	}
 
+	needsSave := false
 	if config.Profiles == nil {
 		config.Profiles = make(map[string]*Profile)
+		needsSave = true
 	}
 	if config.Defaults == nil {
 		config.Defaults = make(map[string]interface{})
+		needsSave = true
 	}
 	manager.config = &config
-	err = manager.Save()
-	if err != nil {
-		return nil, fmt.Errorf("failed to save config: %w", err)
+	if needsSave {
+		if err := manager.Save(); err != nil {
+			return nil, fmt.Errorf("failed to save config: %w", err)
+		}
 	}
 
 	return manager, nil
@@ -105,6 +112,14 @@ func (m *ConfigManager) GetCurrentProfile() (*Profile, string, error) {
 		return nil, "", ErrProfileNotFound
 	}
 	return profile, profileName, nil
+}
+
+func (m *ConfigManager) GetProfile(name string) (*Profile, error) {
+	profile, exists := m.config.Profiles[name]
+	if !exists {
+		return nil, fmt.Errorf("profile %q not found", name)
+	}
+	return profile, nil
 }
 
 func (m *ConfigManager) CreateProfile(name, accessKey, secretKey, environment, description string) error {
@@ -120,15 +135,6 @@ func (m *ConfigManager) CreateProfile(name, accessKey, secretKey, environment, d
 	if m.config.Profiles == nil {
 		m.config.Profiles = make(map[string]*Profile)
 	}
-	configPath, err := GetConfigFilePath()
-	if err != nil {
-		return fmt.Errorf("failed to get config file path: %w", err)
-	}
-	file, err := os.OpenFile(configPath, os.O_WRONLY, 0644)
-	if err != nil {
-		return fmt.Errorf("cannot write to config file: %w", err)
-	}
-	file.Close()
 	m.config.Profiles[name] = &Profile{
 		AccessKey:   accessKey,
 		SecretKey:   secretKey,

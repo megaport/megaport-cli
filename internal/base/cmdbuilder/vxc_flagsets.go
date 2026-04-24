@@ -1,10 +1,16 @@
 package cmdbuilder
 
+import (
+	"fmt"
+
+	"github.com/megaport/megaport-cli/internal/validation"
+)
+
 // WithVXCCommonFlags adds common flags for VXC operations
 func (b *CommandBuilder) WithVXCCommonFlags() *CommandBuilder {
 	b.WithFlag("name", "", "Name of the VXC")
 	b.WithIntFlag("rate-limit", 0, "Bandwidth in Mbps")
-	b.WithIntFlag("term", 0, "Contract term in months (1, 12, 24, or 36)")
+	b.WithIntFlag("term", 0, fmt.Sprintf("Contract term in months (%s)", validation.FormatIntSlice(validation.ValidContractTerms)))
 	b.WithFlag("cost-centre", "", "Cost centre for billing")
 	return b
 }
@@ -13,10 +19,10 @@ func (b *CommandBuilder) WithVXCCommonFlags() *CommandBuilder {
 func (b *CommandBuilder) WithVXCEndpointFlags() *CommandBuilder {
 	b.WithFlag("a-end-uid", "", "UID of the A-End product")
 	b.WithFlag("b-end-uid", "", "UID of the B-End product")
-	b.WithIntFlag("a-end-vlan", 0, "VLAN for A-End (0-4093, except 1)")
-	b.WithIntFlag("b-end-vlan", 0, "VLAN for B-End (0-4093, except 1)")
-	b.WithIntFlag("a-end-inner-vlan", 0, "Inner VLAN for A-End (-1 or higher)")
-	b.WithIntFlag("b-end-inner-vlan", 0, "Inner VLAN for B-End (-1 or higher)")
+	b.WithIntFlag("a-end-vlan", 0, "VLAN for A-End ("+validation.VLANHelpText()+")")
+	b.WithIntFlag("b-end-vlan", 0, "VLAN for B-End ("+validation.VLANHelpText()+")")
+	b.WithIntFlag("a-end-inner-vlan", 0, "Inner VLAN for A-End ("+validation.InnerVLANHelpText()+")")
+	b.WithIntFlag("b-end-inner-vlan", 0, "Inner VLAN for B-End ("+validation.InnerVLANHelpText()+")")
 	return b
 }
 
@@ -46,5 +52,20 @@ func (b *CommandBuilder) WithVXCUpdateFlags() *CommandBuilder {
 	b.WithVXCEndpointFlags()
 	b.WithVXCPartnerConfigFlags()
 	b.WithBoolFlag("shutdown", false, "Whether to shut down the VXC")
+	b.WithBoolFlag("is-approved", false, "Approve or reject a VXC via the Megaport Marketplace")
+	b.WithIntFlag("a-vnic-index", -1, "New A-End vNIC index when moving a VXC on an MVE")
+	b.WithIntFlag("b-vnic-index", -1, "New B-End vNIC index when moving a VXC on an MVE")
+	return b
+}
+
+// WithVXCFilterFlags adds flags for filtering VXC lists
+func (b *CommandBuilder) WithVXCFilterFlags() *CommandBuilder {
+	b.WithFlag("name", "", "Filter VXCs by name (case-sensitive partial match)")
+	b.WithFlag("name-contains", "", "Filter VXCs by name (case-sensitive partial match; takes precedence over --name)")
+	b.WithIntFlag("rate-limit", 0, "Filter VXCs by rate limit in Mbps")
+	b.WithFlag("a-end-uid", "", "Filter VXCs by A-End product UID")
+	b.WithFlag("b-end-uid", "", "Filter VXCs by B-End product UID")
+	b.WithFlag("status", "", "Filter VXCs by status (comma-separated, e.g. LIVE,CONFIGURED)")
+	b.WithBoolFlag("include-inactive", false, "Include inactive VXCs in the list")
 	return b
 }

@@ -13,17 +13,17 @@ import (
 
 func TestListLookingGlassIPRoutes(t *testing.T) {
 	// Store original functions and restore after test
-	originalLoginFunc := config.LoginFunc
+	originalLoginFunc := config.GetLoginFunc()
 	originalFunc := listIPRoutesFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
+		config.SetLoginFunc(originalLoginFunc)
 		listIPRoutesFunc = originalFunc
 	}()
 
 	// Mock the login function
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		return &megaport.Client{}, nil
-	}
+	})
 
 	metric := 100
 	localPref := 200
@@ -64,17 +64,17 @@ func TestListLookingGlassIPRoutes(t *testing.T) {
 
 func TestListLookingGlassIPRoutesWithFilter(t *testing.T) {
 	// Store original functions and restore after test
-	originalLoginFunc := config.LoginFunc
+	originalLoginFunc := config.GetLoginFunc()
 	originalFunc := listIPRoutesWithFilterFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
+		config.SetLoginFunc(originalLoginFunc)
 		listIPRoutesWithFilterFunc = originalFunc
 	}()
 
 	// Mock the login function
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		return &megaport.Client{}, nil
-	}
+	})
 
 	// Mock the function
 	listIPRoutesWithFilterFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ListIPRoutesRequest) ([]*megaport.LookingGlassIPRoute, error) {
@@ -101,17 +101,17 @@ func TestListLookingGlassIPRoutesWithFilter(t *testing.T) {
 
 func TestListLookingGlassBGPRoutes(t *testing.T) {
 	// Store original functions and restore after test
-	originalLoginFunc := config.LoginFunc
+	originalLoginFunc := config.GetLoginFunc()
 	originalFunc := listBGPRoutesFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
+		config.SetLoginFunc(originalLoginFunc)
 		listBGPRoutesFunc = originalFunc
 	}()
 
 	// Mock the login function
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		return &megaport.Client{}, nil
-	}
+	})
 
 	localPref := 100
 	med := 50
@@ -150,17 +150,17 @@ func TestListLookingGlassBGPRoutes(t *testing.T) {
 
 func TestListLookingGlassBGPSessions(t *testing.T) {
 	// Store original functions and restore after test
-	originalLoginFunc := config.LoginFunc
+	originalLoginFunc := config.GetLoginFunc()
 	originalFunc := listBGPSessionsFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
+		config.SetLoginFunc(originalLoginFunc)
 		listBGPSessionsFunc = originalFunc
 	}()
 
 	// Mock the login function
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		return &megaport.Client{}, nil
-	}
+	})
 
 	uptime := 86400
 	prefixesIn := 100
@@ -178,7 +178,7 @@ func TestListLookingGlassBGPSessions(t *testing.T) {
 				Uptime:          &uptime,
 				PrefixesIn:      &prefixesIn,
 				PrefixesOut:     &prefixesOut,
-				VXCId:           12345,
+				VXCID:           12345,
 				VXCName:         "Test VXC",
 				Description:     "Test BGP Session",
 			},
@@ -195,17 +195,17 @@ func TestListLookingGlassBGPSessions(t *testing.T) {
 
 func TestListLookingGlassBGPNeighborRoutes(t *testing.T) {
 	// Store original functions and restore after test
-	originalLoginFunc := config.LoginFunc
+	originalLoginFunc := config.GetLoginFunc()
 	originalFunc := listBGPNeighborRoutesFunc
 	defer func() {
-		config.LoginFunc = originalLoginFunc
+		config.SetLoginFunc(originalLoginFunc)
 		listBGPNeighborRoutesFunc = originalFunc
 	}()
 
 	// Mock the login function
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		return &megaport.Client{}, nil
-	}
+	})
 
 	localPref := 100
 	med := 50
@@ -241,13 +241,13 @@ func TestListLookingGlassBGPNeighborRoutes(t *testing.T) {
 
 func TestListLookingGlassBGPNeighborRoutesInvalidDirection(t *testing.T) {
 	// Store original function and restore after test
-	originalLoginFunc := config.LoginFunc
-	defer func() { config.LoginFunc = originalLoginFunc }()
+	originalLoginFunc := config.GetLoginFunc()
+	defer func() { config.SetLoginFunc(originalLoginFunc) }()
 
 	// Mock the login function
-	config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		return &megaport.Client{}, nil
-	}
+	})
 
 	// Create command
 	cmd := &cobra.Command{}
@@ -353,7 +353,7 @@ func TestToBGPSessionOutput(t *testing.T) {
 		Uptime:          &uptime,
 		PrefixesIn:      &prefixesIn,
 		PrefixesOut:     &prefixesOut,
-		VXCId:           12345,
+		VXCID:           12345,
 		VXCName:         "Test VXC",
 		Description:     "Test BGP Session",
 	}

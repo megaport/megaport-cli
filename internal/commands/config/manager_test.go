@@ -15,24 +15,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupTestConfig(t *testing.T) (string, func()) {
+func setupTestConfig(t *testing.T) string {
 	t.Helper()
 
 	tempDir, err := os.MkdirTemp("", "megaport-config-test")
 	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
 
-	oldConfigDir := os.Getenv("MEGAPORT_CONFIG_DIR")
-	os.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+	t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
 
-	return tempDir, func() {
-		os.Setenv("MEGAPORT_CONFIG_DIR", oldConfigDir)
-		os.RemoveAll(tempDir)
-	}
+	return tempDir
 }
 
 func TestNewConfigManager(t *testing.T) {
-	tempDir, cleanup := setupTestConfig(t)
-	defer cleanup()
+	tempDir := setupTestConfig(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -56,8 +52,7 @@ func TestNewConfigManager(t *testing.T) {
 }
 
 func TestCreateProfile(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -76,8 +71,7 @@ func TestCreateProfile(t *testing.T) {
 }
 
 func TestUpdateProfile(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -116,8 +110,7 @@ func TestUpdateProfile(t *testing.T) {
 }
 
 func TestDeleteProfile(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -148,8 +141,7 @@ func TestDeleteProfile(t *testing.T) {
 }
 
 func TestGetCurrentProfile(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -171,9 +163,40 @@ func TestGetCurrentProfile(t *testing.T) {
 	assert.Equal(t, "production", profile.Environment)
 }
 
+func TestGetProfile(t *testing.T) {
+	setupTestConfig(t)
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+
+	// Create test profiles
+	err = manager.CreateProfile("staging", "staging-access", "staging-secret", "staging", "Staging profile")
+	require.NoError(t, err)
+
+	err = manager.CreateProfile("production", "prod-access", "prod-secret", "production", "Production profile")
+	require.NoError(t, err)
+
+	// Test: get existing profile
+	profile, err := manager.GetProfile("staging")
+	require.NoError(t, err)
+	assert.Equal(t, "staging-access", profile.AccessKey)
+	assert.Equal(t, "staging-secret", profile.SecretKey)
+	assert.Equal(t, "staging", profile.Environment)
+
+	// Test: get another existing profile
+	profile, err = manager.GetProfile("production")
+	require.NoError(t, err)
+	assert.Equal(t, "prod-access", profile.AccessKey)
+
+	// Test: get non-existent profile
+	_, err = manager.GetProfile("non-existent")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "non-existent")
+	assert.Contains(t, err.Error(), "not found")
+}
+
 func TestDefaultSettings(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -214,8 +237,7 @@ func TestDefaultSettings(t *testing.T) {
 }
 
 func TestExportConfig(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -244,8 +266,7 @@ func TestExportConfig(t *testing.T) {
 }
 
 func TestListProfiles(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -272,8 +293,7 @@ func TestListProfiles(t *testing.T) {
 }
 
 func TestUseProfile(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -306,8 +326,7 @@ func TestNilSafety(t *testing.T) {
 }
 
 func TestConfigPersistence(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	{
 		manager, err := NewConfigManager()
@@ -332,8 +351,7 @@ func TestConfigPersistence(t *testing.T) {
 }
 
 func TestCorruptedConfigFile(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -356,9 +374,31 @@ func TestCorruptedConfigFile(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestCorruptedConfigFile_Permissions(t *testing.T) {
+	setupTestConfig(t)
+
+	configPath, err := GetConfigFilePath()
+	require.NoError(t, err)
+
+	// Write corrupted config with overly permissive 0644 to simulate drift
+	err = os.WriteFile(configPath, []byte("not valid json"), 0644)
+	require.NoError(t, err)
+
+	// Verify the file is indeed 0644 before recovery
+	info, err := os.Stat(configPath)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0644), info.Mode().Perm(), "precondition: file should be 0644 before recovery")
+
+	_, err = NewConfigManager()
+	require.NoError(t, err)
+
+	info, err = os.Stat(configPath)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0600), info.Mode().Perm(), "config file should have 0600 permissions after corruption recovery")
+}
+
 func TestSpecialProfileNames(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -396,8 +436,7 @@ func TestSpecialProfileNames(t *testing.T) {
 }
 
 func TestDuplicateProfiles(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -423,8 +462,7 @@ func TestDuplicateProfiles(t *testing.T) {
 }
 
 func TestConfigVersionHandling(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	// Create a config file with older version
 	oldConfig := ConfigFile{
@@ -474,9 +512,7 @@ func TestReadOnlyConfigFile(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	oldConfigDir := os.Getenv("MEGAPORT_CONFIG_DIR")
-	os.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
-	defer os.Setenv("MEGAPORT_CONFIG_DIR", oldConfigDir)
+	t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
 
 	// Create the config directory first
 	configDir, err := GetConfigDir()
@@ -506,8 +542,7 @@ func TestReadOnlyConfigFile(t *testing.T) {
 }
 
 func TestProfileNameCaseSensitivity(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -556,9 +591,7 @@ func TestVeryLongPaths(t *testing.T) {
 	}
 
 	// Set as config dir
-	oldConfigDir := os.Getenv("MEGAPORT_CONFIG_DIR")
-	os.Setenv("MEGAPORT_CONFIG_DIR", longPath)
-	defer os.Setenv("MEGAPORT_CONFIG_DIR", oldConfigDir)
+	t.Setenv("MEGAPORT_CONFIG_DIR", longPath)
 
 	// Should still work
 	manager, err := NewConfigManager()
@@ -591,9 +624,7 @@ func TestSymlinkConfigDir(t *testing.T) {
 	require.NoError(t, err)
 
 	// Use symlink as config dir
-	oldConfigDir := os.Getenv("MEGAPORT_CONFIG_DIR")
-	os.Setenv("MEGAPORT_CONFIG_DIR", symlinkDir)
-	defer os.Setenv("MEGAPORT_CONFIG_DIR", oldConfigDir)
+	t.Setenv("MEGAPORT_CONFIG_DIR", symlinkDir)
 
 	// Should work with symlink
 	manager, err := NewConfigManager()
@@ -609,8 +640,7 @@ func TestSymlinkConfigDir(t *testing.T) {
 }
 
 func TestImportWithMissingFields(t *testing.T) {
-	_, cleanup := setupTestConfigEnv(t)
-	defer cleanup()
+	setupTestConfigEnv(t)
 
 	// Create a minimal import file with missing fields
 	minimalConfig := `{
@@ -637,11 +667,11 @@ func TestImportWithMissingFields(t *testing.T) {
 	require.NoError(t, err)
 
 	// Mock confirmation
-	oldConfirmPrompt := utils.ConfirmPrompt
-	utils.ConfirmPrompt = func(message string, noColor bool) bool {
+	oldConfirmPrompt := utils.GetConfirmPrompt()
+	utils.SetConfirmPrompt(func(message string, noColor bool) bool {
 		return true
-	}
-	defer func() { utils.ConfirmPrompt = oldConfirmPrompt }()
+	})
+	defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
 
 	_, err = captureOutputFromAction(func() error {
 		return ImportConfig(cmd, nil, false)
@@ -661,8 +691,7 @@ func TestImportWithMissingFields(t *testing.T) {
 }
 
 func TestExportWithMaxProfiles(t *testing.T) {
-	_, cleanup := setupTestConfigEnv(t)
-	defer cleanup()
+	setupTestConfigEnv(t)
 
 	// Create many profiles (testing export with large dataset)
 	manager, err := NewConfigManager()

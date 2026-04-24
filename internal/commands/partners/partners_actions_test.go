@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/testutil"
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -13,21 +15,21 @@ import (
 )
 
 func TestFindPartners(t *testing.T) {
-	originalLoginFunc := config.LoginFunc
-	originalPrompt := utils.Prompt
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	originalPrompt := utils.GetPrompt()
 	origPrintPartnersFunc := printPartnersFunc
 
 	defer func() {
 		printPartnersFunc = origPrintPartnersFunc
-		utils.Prompt = originalPrompt
-		config.LoginFunc = originalLoginFunc
+		utils.SetPrompt(originalPrompt)
+		cleanup()
 	}()
 
 	tests := []struct {
 		name          string
 		prompts       []string
 		expectedError string
-		setupMock     func(*testing.T, *mockPartnerService)
+		setupMock     func(*testing.T, *MockPartnerService)
 		expectedCount int
 	}{
 		{
@@ -41,7 +43,7 @@ func TestFindPartners(t *testing.T) {
 				"table",
 			},
 			expectedError: "",
-			setupMock: func(t *testing.T, m *mockPartnerService) {
+			setupMock: func(t *testing.T, m *MockPartnerService) {
 				m.listPartnersResponse = []*megaport.PartnerMegaport{
 					{
 						ProductName:   "Test Product",
@@ -73,7 +75,7 @@ func TestFindPartners(t *testing.T) {
 				"json",
 			},
 			expectedError: "",
-			setupMock: func(t *testing.T, m *mockPartnerService) {
+			setupMock: func(t *testing.T, m *MockPartnerService) {
 				m.listPartnersResponse = []*megaport.PartnerMegaport{
 					{
 						ProductName:   "Test Product",
@@ -105,7 +107,7 @@ func TestFindPartners(t *testing.T) {
 				"table",
 			},
 			expectedError: "invalid location ID format",
-			setupMock: func(t *testing.T, m *mockPartnerService) {
+			setupMock: func(t *testing.T, m *MockPartnerService) {
 				m.listPartnersResponse = []*megaport.PartnerMegaport{}
 				m.listPartnersErr = nil
 			},
@@ -117,8 +119,8 @@ func TestFindPartners(t *testing.T) {
 				"",
 				"",
 			},
-			expectedError: "error listing partners",
-			setupMock: func(t *testing.T, m *mockPartnerService) {
+			expectedError: "failed to list partners",
+			setupMock: func(t *testing.T, m *MockPartnerService) {
 				m.listPartnersResponse = nil
 				m.listPartnersErr = fmt.Errorf("API connection failure")
 			},
@@ -128,29 +130,29 @@ func TestFindPartners(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockService := &mockPartnerService{}
+			mockService := &MockPartnerService{}
 			if tt.setupMock != nil {
 				tt.setupMock(t, mockService)
 			}
 
-			config.LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
-				if tt.expectedError == "error logging in" {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				if tt.expectedError == "failed to log in" {
 					return nil, fmt.Errorf("login failure")
 				}
 				return &megaport.Client{
 					PartnerService: mockService,
 				}, nil
-			}
+			})
 
 			promptIndex := 0
-			utils.Prompt = func(message string, noColor bool) (string, error) {
+			utils.SetPrompt(func(message string, noColor bool) (string, error) {
 				if promptIndex >= len(tt.prompts) {
 					return "", fmt.Errorf("unexpected additional prompt: %s", message)
 				}
 				response := tt.prompts[promptIndex]
 				promptIndex++
 				return response, nil
-			}
+			})
 
 			var capturedPartners []*megaport.PartnerMegaport
 			printPartnersFunc = func(partners []*megaport.PartnerMegaport, format string, noColor bool) error {
@@ -168,6 +170,142 @@ func TestFindPartners(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, len(tt.prompts), promptIndex, "not all prompts were used")
 				assert.Equal(t, tt.expectedCount, len(capturedPartners), "incorrect number of filtered partners")
+			}
+		})
+	}
+}
+
+func TestListPartners(t *testing.T) {
+	testPartners := []*megaport.PartnerMegaport{
+		{
+			ProductName:   "AWS Direct Connect",
+			ConnectType:   "AWS",
+			CompanyName:   "Amazon",
+			LocationId:    123,
+			DiversityZone: "blue",
+		},
+		{
+			ProductName:   "Azure ExpressRoute",
+			ConnectType:   "AZURE",
+			CompanyName:   "Microsoft",
+			LocationId:    456,
+			DiversityZone: "red",
+		},
+		{
+			ProductName:   "Google Cloud Interconnect",
+			ConnectType:   "GOOGLE",
+			CompanyName:   "Google",
+			LocationId:    789,
+			DiversityZone: "blue",
+		},
+	}
+
+	tests := []struct {
+		name          string
+		partners      []*megaport.PartnerMegaport
+		partnersErr   error
+		loginErr      error
+		flags         map[string]string
+		expectedErr   string
+		expectedCount int
+		expectWarning bool
+	}{
+		{
+			name:          "filter by product-name",
+			partners:      testPartners,
+			flags:         map[string]string{"product-name": "AWS Direct Connect"},
+			expectedCount: 1,
+		},
+		{
+			name:          "filter by connect-type",
+			partners:      testPartners,
+			flags:         map[string]string{"connect-type": "AZURE"},
+			expectedCount: 1,
+		},
+		{
+			name:          "empty result",
+			partners:      testPartners,
+			flags:         map[string]string{"product-name": "NonExistent"},
+			expectedCount: 0,
+			expectWarning: true,
+		},
+		{
+			name:        "API error",
+			partners:    nil,
+			partnersErr: fmt.Errorf("API connection failure"),
+			expectedErr: "failed to list partners",
+		},
+		{
+			name:        "login error",
+			loginErr:    fmt.Errorf("login failure"),
+			expectedErr: "failed to log in",
+		},
+		{
+			name:          "limit results",
+			partners:      testPartners,
+			flags:         map[string]string{"limit": "2"},
+			expectedCount: 2,
+		},
+		{
+			name:        "negative limit returns error",
+			partners:    testPartners,
+			flags:       map[string]string{"limit": "-1"},
+			expectedErr: "--limit must be a non-negative integer",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockPartnerService{
+				listPartnersResponse: tt.partners,
+				listPartnersErr:      tt.partnersErr,
+			}
+
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+				c.PartnerService = mockService
+			})
+			origPrintPartnersFunc := printPartnersFunc
+			defer func() {
+				printPartnersFunc = origPrintPartnersFunc
+				cleanup()
+			}()
+
+			if tt.loginErr != nil {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					return nil, tt.loginErr
+				})
+			}
+
+			var capturedPartners []*megaport.PartnerMegaport
+			printPartnersFunc = func(partners []*megaport.PartnerMegaport, format string, noColor bool) error {
+				capturedPartners = partners
+				return nil
+			}
+
+			cmd := testutil.NewCommand("list", nil)
+			cmd.Flags().String("product-name", "", "")
+			cmd.Flags().String("connect-type", "", "")
+			cmd.Flags().String("company-name", "", "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().Int("limit", 0, "")
+
+			testutil.SetFlags(t, cmd, tt.flags)
+
+			var err error
+			capturedOutput := output.CaptureOutput(func() {
+				err = ListPartners(cmd, []string{}, true, "table")
+			})
+
+			if tt.expectedErr != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedCount, len(capturedPartners))
+				if tt.expectWarning {
+					assert.Contains(t, capturedOutput, "No partner ports found")
+				}
 			}
 		})
 	}

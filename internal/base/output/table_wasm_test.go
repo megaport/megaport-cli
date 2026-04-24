@@ -237,11 +237,11 @@ func TestPrintTable_WASM_BoxDrawing(t *testing.T) {
 	// Check for box drawing characters used in MegaportEnhancedStyle
 	assert.Contains(t, output, "│") // Vertical border
 	assert.Contains(t, output, "─") // Horizontal border
-	
+
 	// Check for corners (at least one of these should be present)
-	hasCorners := strings.Contains(output, "┌") || 
-		strings.Contains(output, "┐") || 
-		strings.Contains(output, "└") || 
+	hasCorners := strings.Contains(output, "┌") ||
+		strings.Contains(output, "┐") ||
+		strings.Contains(output, "└") ||
 		strings.Contains(output, "┘")
 	assert.True(t, hasCorners, "Table should have corner characters")
 }

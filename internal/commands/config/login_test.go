@@ -1,10 +1,15 @@
 package config
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
@@ -19,9 +24,9 @@ var (
 )
 
 func TestLogin(t *testing.T) {
-	originalLoginFunc := LoginFunc
+	originalLoginFunc := GetLoginFunc()
 	defer func() {
-		LoginFunc = originalLoginFunc
+		SetLoginFunc(originalLoginFunc)
 	}()
 
 	tests := []struct {
@@ -89,12 +94,14 @@ func TestLogin(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Unsetenv("MEGAPORT_ACCESS_KEY")
-			os.Unsetenv("MEGAPORT_SECRET_KEY")
-			os.Unsetenv("MEGAPORT_ENVIRONMENT")
+			// Clear all env vars first, then set the ones specified in the test case.
+			// t.Setenv auto-restores when the subtest finishes.
+			t.Setenv("MEGAPORT_ACCESS_KEY", "") // empty string is equivalent to unset for os.Getenv callers
+			t.Setenv("MEGAPORT_SECRET_KEY", "")
+			t.Setenv("MEGAPORT_ENVIRONMENT", "")
 
 			for key, value := range tt.envVars {
-				os.Setenv(key, value)
+				t.Setenv(key, value)
 			}
 
 			if tt.envFlag != "" {
@@ -105,7 +112,7 @@ func TestLogin(t *testing.T) {
 
 			var capturedAccessKey, capturedSecretKey, capturedEnv string
 
-			LoginFunc = func(ctx context.Context) (*megaport.Client, error) {
+			SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 				capturedAccessKey = os.Getenv(accessKeyEnvVar)
 				capturedSecretKey = os.Getenv(secretKeyEnvVar)
 				capturedEnv = env
@@ -119,7 +126,7 @@ func TestLogin(t *testing.T) {
 
 				client := &megaport.Client{}
 				return client, nil
-			}
+			})
 
 			client, err := Login(context.Background())
 
@@ -146,18 +153,10 @@ func TestLogin(t *testing.T) {
 }
 
 func TestEnvironmentSelectionPrecedence(t *testing.T) {
-	// Save original values
+	// Save and restore non-env-var globals
 	originalEnv := utils.Env
-	originalMegaportEnv := os.Getenv("MEGAPORT_ENVIRONMENT")
-
 	defer func() {
-		// Restore original values
 		utils.Env = originalEnv
-		if originalMegaportEnv == "" {
-			os.Unsetenv("MEGAPORT_ENVIRONMENT")
-		} else {
-			os.Setenv("MEGAPORT_ENVIRONMENT", originalMegaportEnv)
-		}
 	}()
 
 	tests := []struct {
@@ -194,13 +193,12 @@ func TestEnvironmentSelectionPrecedence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			origEnv := utils.Env
+			defer func() { utils.Env = origEnv }()
+
 			// Setup test environment
 			utils.Env = tt.globalFlag
-			if tt.envVar != "" {
-				os.Setenv("MEGAPORT_ENVIRONMENT", tt.envVar)
-			} else {
-				os.Unsetenv("MEGAPORT_ENVIRONMENT")
-			}
+			t.Setenv("MEGAPORT_ENVIRONMENT", tt.envVar)
 
 			// Test the environment selection logic by examining the values
 			// that would be read in the login function
@@ -222,25 +220,323 @@ func TestEnvironmentSelectionPrecedence(t *testing.T) {
 	}
 }
 
-func TestCredentialSelectionPrecedence(t *testing.T) {
-	// Save original values
+func TestProfileOverrideLogin(t *testing.T) {
+	// Save and restore non-env-var globals
 	originalEnv := utils.Env
-	originalAccessKey := os.Getenv("MEGAPORT_ACCESS_KEY")
-	originalSecretKey := os.Getenv("MEGAPORT_SECRET_KEY")
+	originalProfileOverride := utils.ProfileOverride
+	originalLoginFuncWithOutput := GetLoginFuncWithOutput()
 
 	defer func() {
-		// Restore original values
 		utils.Env = originalEnv
-		if originalAccessKey == "" {
-			os.Unsetenv("MEGAPORT_ACCESS_KEY")
-		} else {
-			os.Setenv("MEGAPORT_ACCESS_KEY", originalAccessKey)
-		}
-		if originalSecretKey == "" {
-			os.Unsetenv("MEGAPORT_SECRET_KEY")
-		} else {
-			os.Setenv("MEGAPORT_SECRET_KEY", originalSecretKey)
-		}
+		utils.ProfileOverride = originalProfileOverride
+		SetLoginFuncWithOutput(originalLoginFuncWithOutput)
+	}()
+
+	// Setup temp config dir with profiles
+	tempDir, err := os.MkdirTemp("", "megaport-login-test")
+	assert.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
+	t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+
+	// Clear env vars so profile credentials are used
+	t.Setenv("MEGAPORT_ACCESS_KEY", "")
+	t.Setenv("MEGAPORT_SECRET_KEY", "")
+	t.Setenv("MEGAPORT_ENVIRONMENT", "")
+
+	// Create config with two profiles
+	manager, err := NewConfigManager()
+	assert.NoError(t, err)
+	err = manager.CreateProfile("staging", "staging-access", "staging-secret", "staging", "")
+	assert.NoError(t, err)
+	err = manager.CreateProfile("prod", "prod-access", "prod-secret", "production", "")
+	assert.NoError(t, err)
+	err = manager.UseProfile("prod")
+	assert.NoError(t, err)
+
+	t.Run("profile override uses specified profile and reaches API call", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
+		utils.Env = ""
+		utils.ProfileOverride = "staging"
+
+		// Call the real LoginFuncWithOutput - it will resolve credentials from
+		// the "staging" profile and fail at Authorize (no real API), which proves
+		// credential resolution succeeded (didn't get "access key not provided" error).
+		_, err := LoginWithOutput(context.Background(), "json")
+		assert.Error(t, err)
+		// Should NOT be a "not provided" error — that would mean credential resolution failed
+		assert.NotContains(t, err.Error(), "access key not provided")
+		assert.NotContains(t, err.Error(), "secret key not provided")
+		assert.NotContains(t, err.Error(), "not found")
+	})
+
+	t.Run("profile override with non-existent profile returns error", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
+		utils.Env = ""
+		utils.ProfileOverride = "non-existent"
+
+		_, err := LoginWithOutput(context.Background(), "json")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "non-existent")
+		assert.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("without profile override uses active profile and reaches API call", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
+		utils.Env = ""
+		utils.ProfileOverride = ""
+
+		// Active profile is "prod" — should resolve credentials from it
+		_, err := LoginWithOutput(context.Background(), "json")
+		assert.Error(t, err)
+		// Should NOT be a "not provided" error
+		assert.NotContains(t, err.Error(), "access key not provided")
+		assert.NotContains(t, err.Error(), "secret key not provided")
+	})
+
+	t.Run("env flag overrides profile environment", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
+		utils.Env = "development"
+		utils.ProfileOverride = "staging"
+
+		// Both --profile and --env are set: credentials from staging profile,
+		// environment from --env flag. Should still resolve and reach API call.
+		_, err := LoginWithOutput(context.Background(), "json")
+		assert.Error(t, err)
+		assert.NotContains(t, err.Error(), "access key not provided")
+		assert.NotContains(t, err.Error(), "not found")
+	})
+
+	t.Run("no profile and no env vars returns credential error", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
+		utils.Env = ""
+		utils.ProfileOverride = ""
+
+		// Delete the active profile so there are no credentials available
+		err := manager.UseProfile("")
+		// UseProfile with empty may fail, so we set active profile to non-existent
+		_ = err
+
+		// Use a fresh temp dir with no profiles
+		emptyDir, err := os.MkdirTemp("", "megaport-empty-test")
+		assert.NoError(t, err)
+		t.Cleanup(func() { os.RemoveAll(emptyDir) })
+		t.Setenv("MEGAPORT_CONFIG_DIR", emptyDir)
+
+		_, err = LoginWithOutput(context.Background(), "json")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "access key not provided")
+	})
+}
+
+func TestNewUnauthenticatedClient(t *testing.T) {
+	// Save and restore non-env-var globals
+	originalEnv := utils.Env
+	originalProfileOverride := utils.ProfileOverride
+
+	defer func() {
+		utils.Env = originalEnv
+		utils.ProfileOverride = originalProfileOverride
+	}()
+
+	// Default empty config dir for all subtests (subtests that need profiles override this)
+	defaultEmptyDir, err := os.MkdirTemp("", "megaport-unauth-default")
+	assert.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(defaultEmptyDir) })
+	t.Setenv("MEGAPORT_CONFIG_DIR", defaultEmptyDir)
+
+	t.Run("defaults to production when no env configured", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
+		utils.Env = ""
+		utils.ProfileOverride = ""
+		t.Setenv("MEGAPORT_ENVIRONMENT", "")
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "api.megaport.com")
+	})
+
+	t.Run("respects env flag", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
+		utils.Env = "staging"
+		utils.ProfileOverride = ""
+		t.Setenv("MEGAPORT_ENVIRONMENT", "")
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "api-staging.megaport.com")
+	})
+
+	t.Run("respects MEGAPORT_ENVIRONMENT env var", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
+		utils.Env = ""
+		utils.ProfileOverride = ""
+		t.Setenv("MEGAPORT_ENVIRONMENT", "staging")
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "api-staging.megaport.com")
+	})
+
+	t.Run("profile override with valid profile uses profile env", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
+		tempDir, err := os.MkdirTemp("", "megaport-unauth-test")
+		assert.NoError(t, err)
+		t.Cleanup(func() { os.RemoveAll(tempDir) })
+		t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+
+		manager, err := NewConfigManager()
+		assert.NoError(t, err)
+		err = manager.CreateProfile("staging-profile", "key", "secret", "staging", "")
+		assert.NoError(t, err)
+
+		utils.Env = ""
+		utils.ProfileOverride = "staging-profile"
+		t.Setenv("MEGAPORT_ENVIRONMENT", "")
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "api-staging.megaport.com")
+	})
+
+	t.Run("profile override with non-existent profile returns error", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
+		tempDir, err := os.MkdirTemp("", "megaport-unauth-test")
+		assert.NoError(t, err)
+		t.Cleanup(func() { os.RemoveAll(tempDir) })
+		t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+
+		utils.Env = ""
+		utils.ProfileOverride = "non-existent"
+
+		client, err := NewUnauthenticatedClient()
+		assert.Error(t, err)
+		assert.Nil(t, client)
+		assert.Contains(t, err.Error(), "non-existent")
+	})
+
+	t.Run("env flag overrides profile environment", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
+		tempDir, err := os.MkdirTemp("", "megaport-unauth-test")
+		assert.NoError(t, err)
+		t.Cleanup(func() { os.RemoveAll(tempDir) })
+		t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+
+		manager, err := NewConfigManager()
+		assert.NoError(t, err)
+		err = manager.CreateProfile("staging-profile", "key", "secret", "staging", "")
+		assert.NoError(t, err)
+
+		utils.Env = "production"
+		utils.ProfileOverride = "staging-profile"
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "api.megaport.com")
+	})
+
+	t.Run("does not require credentials", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
+		utils.Env = "production"
+		utils.ProfileOverride = ""
+		t.Setenv("MEGAPORT_ACCESS_KEY", "")
+		t.Setenv("MEGAPORT_SECRET_KEY", "")
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Empty(t, client.AccessKey)
+		assert.Empty(t, client.SecretKey)
+	})
+
+	t.Run("accepts short alias prod", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
+		utils.Env = "prod"
+		utils.ProfileOverride = ""
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "api.megaport.com")
+	})
+
+	t.Run("accepts short alias dev", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+
+		utils.Env = "dev"
+		utils.ProfileOverride = ""
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "api-mpone-dev.megaport.com")
+	})
+}
+
+func TestCredentialSelectionPrecedence(t *testing.T) {
+	// Save and restore non-env-var globals
+	originalEnv := utils.Env
+	defer func() {
+		utils.Env = originalEnv
 	}()
 
 	tests := []struct {
@@ -268,10 +564,13 @@ func TestCredentialSelectionPrecedence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			origEnv := utils.Env
+			defer func() { utils.Env = origEnv }()
+
 			// Setup test environment
 			utils.Env = tt.globalFlag
-			os.Setenv("MEGAPORT_ACCESS_KEY", tt.envAccessKey)
-			os.Setenv("MEGAPORT_SECRET_KEY", tt.envSecretKey)
+			t.Setenv("MEGAPORT_ACCESS_KEY", tt.envAccessKey)
+			t.Setenv("MEGAPORT_SECRET_KEY", tt.envSecretKey)
 
 			// Test credential selection logic
 			var accessKey, secretKey string
@@ -296,4 +595,197 @@ func TestCredentialSelectionPrecedence(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLoginFuncAccessors(t *testing.T) {
+	t.Run("SetLoginFuncWithOutput round-trips", func(t *testing.T) {
+		original := GetLoginFuncWithOutput()
+		defer SetLoginFuncWithOutput(original)
+
+		called := false
+		SetLoginFuncWithOutput(func(_ context.Context, _ string) (*megaport.Client, error) {
+			called = true
+			return &megaport.Client{}, nil
+		})
+		fn := GetLoginFuncWithOutput()
+		client, err := fn(context.Background(), "json")
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.True(t, called)
+	})
+
+	t.Run("SetNewUnauthenticatedClientFunc round-trips", func(t *testing.T) {
+		original := GetNewUnauthenticatedClientFunc()
+		defer SetNewUnauthenticatedClientFunc(original)
+
+		called := false
+		SetNewUnauthenticatedClientFunc(func() (*megaport.Client, error) {
+			called = true
+			return &megaport.Client{}, nil
+		})
+		fn := GetNewUnauthenticatedClientFunc()
+		client, err := fn()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.True(t, called)
+	})
+}
+
+func TestAppendLogOpts(t *testing.T) {
+	t.Run("adds log options when LogHTTP is true", func(t *testing.T) {
+		origLogHTTP := utils.LogHTTP
+		defer func() { utils.LogHTTP = origLogHTTP }()
+
+		utils.LogHTTP = true
+		opts := appendLogOpts([]megaport.ClientOpt{})
+		assert.Len(t, opts, 2, "should add 2 log options when LogHTTP is enabled")
+	})
+
+	t.Run("does not add log options when LogHTTP is false", func(t *testing.T) {
+		origLogHTTP := utils.LogHTTP
+		defer func() { utils.LogHTTP = origLogHTTP }()
+
+		utils.LogHTTP = false
+		opts := appendLogOpts([]megaport.ClientOpt{})
+		assert.Empty(t, opts, "should not add options when LogHTTP is disabled")
+	})
+
+	t.Run("preserves existing options", func(t *testing.T) {
+		origLogHTTP := utils.LogHTTP
+		defer func() { utils.LogHTTP = origLogHTTP }()
+
+		utils.LogHTTP = true
+		existing := []megaport.ClientOpt{megaport.WithEnvironment(megaport.EnvironmentStaging)}
+		opts := appendLogOpts(existing)
+		assert.Len(t, opts, 3, "should preserve existing option and add 2 log options")
+	})
+}
+
+func TestCLIHeadersSentOnRequests(t *testing.T) {
+	// Test the real NewUnauthenticatedClient production path to ensure
+	// cliHeaders is actually wired in, not just that the SDK accepts it.
+	originalFunc := GetNewUnauthenticatedClientFunc()
+	defer SetNewUnauthenticatedClientFunc(originalFunc)
+
+	originalEnv := utils.Env
+	defer func() { utils.Env = originalEnv }()
+	utils.Env = "production"
+
+	headersCh := make(chan http.Header, 1)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		headersCh <- r.Header.Clone()
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"message":"ok"}`))
+	}))
+	defer ts.Close()
+
+	// Use a temp config dir so profile resolution doesn't interfere
+	tempDir, err := os.MkdirTemp("", "megaport-header-test")
+	assert.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
+	t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+
+	client, err := NewUnauthenticatedClient()
+	assert.NoError(t, err)
+
+	// Point the real client at our test server
+	client.BaseURL, err = client.BaseURL.Parse(ts.URL + "/")
+	assert.NoError(t, err)
+
+	req, err := client.NewRequest(context.Background(), http.MethodGet, "/", nil)
+	assert.NoError(t, err)
+
+	_, err = client.Do(context.Background(), req, nil)
+	assert.NoError(t, err)
+
+	var capturedHeaders http.Header
+	select {
+	case capturedHeaders = <-headersCh:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timed out waiting for request headers from test server")
+	}
+	assert.Equal(t, "cli", capturedHeaders.Get("x-app"))
+}
+
+func TestRedactingHandler(t *testing.T) {
+	var buf bytes.Buffer
+	inner := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+	handler := &redactingHandler{inner: inner}
+	logger := slog.New(handler)
+
+	t.Run("redacts sensitive keys", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "auth",
+			slog.String("access_key", "MEGA-SECRET-KEY"),
+			slog.String("secret_key", "super-secret"),
+			slog.String("access_token", "bearer-token-123"),
+		)
+		output := buf.String()
+		assert.NotContains(t, output, "MEGA-SECRET-KEY")
+		assert.NotContains(t, output, "super-secret")
+		assert.NotContains(t, output, "bearer-token-123")
+		assert.Contains(t, output, "[REDACTED]")
+	})
+
+	t.Run("preserves non-sensitive keys", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "request",
+			slog.String("method", "GET"),
+			slog.String("path", "/v3/products"),
+			slog.Int("status_code", 200),
+		)
+		output := buf.String()
+		assert.Contains(t, output, "GET")
+		assert.Contains(t, output, "/v3/products")
+		assert.Contains(t, output, "200")
+		assert.NotContains(t, output, "[REDACTED]")
+	})
+
+	t.Run("redacts response_body_base_64", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "response",
+			slog.String("response_body_base_64", "eyJhY2Nlc3NfdG9rZW4iOiJzZWNyZXQifQ=="),
+		)
+		output := buf.String()
+		assert.NotContains(t, output, "eyJhY2Nlc3NfdG9rZW4iOiJzZWNyZXQifQ==")
+		assert.Contains(t, output, "[REDACTED]")
+	})
+
+	t.Run("redacts inside group attributes", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "api call",
+			slog.Group("api_request",
+				slog.String("method", "POST"),
+				slog.String("access_key", "should-be-redacted"),
+				slog.String("response_body_base_64", "also-redacted"),
+			),
+		)
+		output := buf.String()
+		assert.Contains(t, output, "POST")
+		assert.NotContains(t, output, "should-be-redacted")
+		assert.NotContains(t, output, "also-redacted")
+	})
+
+	t.Run("Enabled delegates to inner", func(t *testing.T) {
+		assert.True(t, handler.Enabled(context.Background(), slog.LevelDebug))
+		assert.False(t, handler.Enabled(context.Background(), slog.LevelDebug-1))
+	})
+
+	t.Run("WithAttrs redacts", func(t *testing.T) {
+		buf.Reset()
+		child := handler.WithAttrs([]slog.Attr{slog.String("access_key", "persistent-key")})
+		slog.New(child).DebugContext(context.Background(), "test")
+		output := buf.String()
+		assert.NotContains(t, output, "persistent-key")
+		assert.Contains(t, output, "[REDACTED]")
+	})
+
+	t.Run("WithGroup wraps", func(t *testing.T) {
+		buf.Reset()
+		child := handler.WithGroup("mygroup")
+		slog.New(child).DebugContext(context.Background(), "test", slog.String("access_key", "grouped-key"))
+		output := buf.String()
+		assert.NotContains(t, output, "grouped-key")
+		assert.Contains(t, output, "[REDACTED]")
+	})
 }

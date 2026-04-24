@@ -29,7 +29,7 @@ var getPartnerPortUID = func(ctx context.Context, svc megaport.VXCService, key, 
 	var res *megaport.LookupPartnerPortsResponse
 	var err error
 
-	if partnerName == "GOOGLE" || partnerName == "ORACLE" {
+	if partnerName == "AZURE" || partnerName == "GOOGLE" || partnerName == "ORACLE" {
 		res, err = svc.LookupPartnerPorts(ctx, &megaport.LookupPartnerPortsRequest{
 			Key:     key,
 			Partner: partnerName,
@@ -39,7 +39,7 @@ var getPartnerPortUID = func(ctx context.Context, svc megaport.VXCService, key, 
 	}
 
 	if err != nil {
-		return "", fmt.Errorf("error looking up partner port: %v", err)
+		return "", fmt.Errorf("failed to look up partner port: %w", err)
 	}
 
 	if res.ProductUID == "" {
@@ -47,4 +47,8 @@ var getPartnerPortUID = func(ctx context.Context, svc megaport.VXCService, key, 
 	}
 
 	return res.ProductUID, nil
+}
+
+var listVXCResourceTagsFunc = func(ctx context.Context, client *megaport.Client, vxcUID string) (map[string]string, error) {
+	return client.VXCService.ListVXCResourceTags(ctx, vxcUID)
 }

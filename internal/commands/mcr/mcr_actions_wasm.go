@@ -20,6 +20,8 @@ func init() {
 	updateMCRFunc = updateMCRWasmImpl
 	deleteMCRFunc = deleteMCRWasmImpl
 	restoreMCRFunc = restoreMCRWasmImpl
+	lockMCRFunc = lockMCRWasmImpl
+	unlockMCRFunc = unlockMCRWasmImpl
 	createMCRPrefixFilterListFunc = createMCRPrefixFilterListWasmImpl
 	listMCRPrefixFilterListsFunc = listMCRPrefixFilterListsWasmImpl
 	getMCRPrefixFilterListFunc = getMCRPrefixFilterListWasmImpl
@@ -46,7 +48,7 @@ func getMCRWasmImpl(ctx context.Context, client *megaport.Client, mcrUID string)
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("error logging in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -61,7 +63,7 @@ func getMCRWasmImpl(ctx context.Context, client *megaport.Client, mcrUID string)
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("error getting MCR: %v", err)
+		return nil, fmt.Errorf("failed to get MCR: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK GetMCR successful")
@@ -77,7 +79,7 @@ func buyMCRWasmImpl(ctx context.Context, client *megaport.Client, req *megaport.
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("error logging in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -92,7 +94,7 @@ func buyMCRWasmImpl(ctx context.Context, client *megaport.Client, req *megaport.
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("error buying MCR: %v", err)
+		return nil, fmt.Errorf("failed to buy MCR: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK BuyMCR successful")
@@ -108,7 +110,7 @@ func updateMCRWasmImpl(ctx context.Context, client *megaport.Client, req *megapo
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("error logging in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -123,7 +125,7 @@ func updateMCRWasmImpl(ctx context.Context, client *megaport.Client, req *megapo
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("error modifying MCR: %v", err)
+		return nil, fmt.Errorf("failed to modify MCR: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK ModifyMCR successful")
@@ -139,7 +141,7 @@ func deleteMCRWasmImpl(ctx context.Context, client *megaport.Client, req *megapo
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("error logging in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -154,7 +156,7 @@ func deleteMCRWasmImpl(ctx context.Context, client *megaport.Client, req *megapo
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("error deleting MCR: %v", err)
+		return nil, fmt.Errorf("failed to delete MCR: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK DeleteMCR successful")
@@ -170,7 +172,7 @@ func restoreMCRWasmImpl(ctx context.Context, client *megaport.Client, mcrUID str
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("error logging in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -185,7 +187,7 @@ func restoreMCRWasmImpl(ctx context.Context, client *megaport.Client, mcrUID str
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("error restoring MCR: %v", err)
+		return nil, fmt.Errorf("failed to restore MCR: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK RestoreMCR successful")
@@ -201,7 +203,7 @@ func createMCRPrefixFilterListWasmImpl(ctx context.Context, client *megaport.Cli
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("error logging in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -216,7 +218,7 @@ func createMCRPrefixFilterListWasmImpl(ctx context.Context, client *megaport.Cli
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("error creating MCR prefix filter list: %v", err)
+		return nil, fmt.Errorf("failed to create MCR prefix filter list: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK CreateMCRPrefixFilterList successful")
@@ -232,7 +234,7 @@ func listMCRPrefixFilterListsWasmImpl(ctx context.Context, client *megaport.Clie
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("error logging in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -247,7 +249,7 @@ func listMCRPrefixFilterListsWasmImpl(ctx context.Context, client *megaport.Clie
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("error listing MCR prefix filter lists: %v", err)
+		return nil, fmt.Errorf("failed to list MCR prefix filter lists: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", fmt.Sprintf("✅ SDK returned %d prefix filter lists successfully", len(lists)))
@@ -263,7 +265,7 @@ func getMCRPrefixFilterListWasmImpl(ctx context.Context, client *megaport.Client
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("error logging in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -278,7 +280,7 @@ func getMCRPrefixFilterListWasmImpl(ctx context.Context, client *megaport.Client
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("error getting MCR prefix filter list: %v", err)
+		return nil, fmt.Errorf("failed to get MCR prefix filter list: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK GetMCRPrefixFilterList successful")
@@ -294,7 +296,7 @@ func modifyMCRPrefixFilterListWasmImpl(ctx context.Context, client *megaport.Cli
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("error logging in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -309,7 +311,7 @@ func modifyMCRPrefixFilterListWasmImpl(ctx context.Context, client *megaport.Cli
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("error modifying MCR prefix filter list: %v", err)
+		return nil, fmt.Errorf("failed to modify MCR prefix filter list: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK ModifyMCRPrefixFilterList successful")
@@ -325,7 +327,7 @@ func deleteMCRPrefixFilterListWasmImpl(ctx context.Context, client *megaport.Cli
 		client, err = config.Login(ctx)
 		if err != nil {
 			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("error logging in: %v", err)
+			return nil, fmt.Errorf("failed to log in: %w", err)
 		}
 	}
 
@@ -340,9 +342,71 @@ func deleteMCRPrefixFilterListWasmImpl(ctx context.Context, client *megaport.Cli
 			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
 		}
 
-		return nil, fmt.Errorf("error deleting MCR prefix filter list: %v", err)
+		return nil, fmt.Errorf("failed to delete MCR prefix filter list: %w", err)
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK DeleteMCRPrefixFilterList successful")
+	return response, nil
+}
+
+// lockMCRWasmImpl uses the SDK's ProductService.ManageProductLock() method
+func lockMCRWasmImpl(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.ManageProductLockResponse, error) {
+	js.Global().Get("console").Call("log", fmt.Sprintf("🚀 Using SDK ProductService.ManageProductLock() to lock MCR %s", mcrUID))
+
+	if client == nil {
+		var err error
+		client, err = config.Login(ctx)
+		if err != nil {
+			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
+			return nil, fmt.Errorf("failed to log in: %w", err)
+		}
+	}
+
+	js.Global().Get("console").Call("log", "📡 Calling SDK ProductService.ManageProductLock()...")
+	response, err := client.ProductService.ManageProductLock(ctx, &megaport.ManageProductLockRequest{ProductID: mcrUID, ShouldLock: true})
+	if err != nil {
+		js.Global().Get("console").Call("error", fmt.Sprintf("❌ SDK ManageProductLock (lock) failed: %v", err))
+
+		if isAuthError(err) {
+			js.Global().Get("console").Call("warn", "🔓 Authentication token expired or invalid, clearing cache")
+			config.ClearCachedToken()
+			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
+		}
+
+		return nil, fmt.Errorf("failed to lock MCR: %w", err)
+	}
+
+	js.Global().Get("console").Call("log", "✅ SDK ManageProductLock (lock) successful")
+	return response, nil
+}
+
+// unlockMCRWasmImpl uses the SDK's ProductService.ManageProductLock() method
+func unlockMCRWasmImpl(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.ManageProductLockResponse, error) {
+	js.Global().Get("console").Call("log", fmt.Sprintf("🚀 Using SDK ProductService.ManageProductLock() to unlock MCR %s", mcrUID))
+
+	if client == nil {
+		var err error
+		client, err = config.Login(ctx)
+		if err != nil {
+			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
+			return nil, fmt.Errorf("failed to log in: %w", err)
+		}
+	}
+
+	js.Global().Get("console").Call("log", "📡 Calling SDK ProductService.ManageProductLock()...")
+	response, err := client.ProductService.ManageProductLock(ctx, &megaport.ManageProductLockRequest{ProductID: mcrUID, ShouldLock: false})
+	if err != nil {
+		js.Global().Get("console").Call("error", fmt.Sprintf("❌ SDK ManageProductLock (unlock) failed: %v", err))
+
+		if isAuthError(err) {
+			js.Global().Get("console").Call("warn", "🔓 Authentication token expired or invalid, clearing cache")
+			config.ClearCachedToken()
+			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
+		}
+
+		return nil, fmt.Errorf("failed to unlock MCR: %w", err)
+	}
+
+	js.Global().Get("console").Call("log", "✅ SDK ManageProductLock (unlock) successful")
 	return response, nil
 }

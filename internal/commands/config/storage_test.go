@@ -18,15 +18,13 @@ func TestGetConfigDir(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	oldConfigDir := os.Getenv("MEGAPORT_CONFIG_DIR")
-	os.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
-	defer os.Setenv("MEGAPORT_CONFIG_DIR", oldConfigDir)
+	t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
 
 	configDir, err := GetConfigDir()
 	require.NoError(t, err)
 	assert.Equal(t, tempDir, configDir)
 
-	os.Setenv("MEGAPORT_CONFIG_DIR", "")
+	t.Setenv("MEGAPORT_CONFIG_DIR", "")
 	homeDir, err := os.UserHomeDir()
 	require.NoError(t, err)
 
@@ -43,9 +41,7 @@ func TestGetConfigFilePath(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	oldConfigDir := os.Getenv("MEGAPORT_CONFIG_DIR")
-	os.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
-	defer os.Setenv("MEGAPORT_CONFIG_DIR", oldConfigDir)
+	t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
 
 	configPath, err := GetConfigFilePath()
 	require.NoError(t, err)
@@ -61,9 +57,7 @@ func TestPermissionDenied(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(parentDir)
 	tempDir := filepath.Join(parentDir, "config-subdir")
-	oldConfigDir := os.Getenv("MEGAPORT_CONFIG_DIR")
-	os.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
-	defer os.Setenv("MEGAPORT_CONFIG_DIR", oldConfigDir)
+	t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
 
 	err = os.Chmod(parentDir, 0500)
 	require.NoError(t, err)
@@ -73,8 +67,7 @@ func TestPermissionDenied(t *testing.T) {
 }
 
 func TestEmptyConfigFile(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	configPath, err := GetConfigFilePath()
 	require.NoError(t, err)
@@ -90,8 +83,7 @@ func TestEmptyConfigFile(t *testing.T) {
 }
 
 func TestVeryLargeValues(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -113,8 +105,7 @@ func TestVeryLargeValues(t *testing.T) {
 }
 
 func TestMalformedButValidJSON(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	configPath, err := GetConfigFilePath()
 	require.NoError(t, err)
@@ -137,8 +128,7 @@ func TestMalformedButValidJSON(t *testing.T) {
 }
 
 func TestConfigFilePermissions(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -158,8 +148,7 @@ func TestConfigFilePermissions(t *testing.T) {
 }
 
 func TestSecretHandling(t *testing.T) {
-	_, cleanup := setupTestConfig(t)
-	defer cleanup()
+	setupTestConfig(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
@@ -186,10 +175,7 @@ func TestChangingConfigDirMidway(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(dir2)
 
-	oldConfigDir := os.Getenv("MEGAPORT_CONFIG_DIR")
-	defer os.Setenv("MEGAPORT_CONFIG_DIR", oldConfigDir)
-
-	os.Setenv("MEGAPORT_CONFIG_DIR", dir1)
+	t.Setenv("MEGAPORT_CONFIG_DIR", dir1)
 
 	manager1, err := NewConfigManager()
 	require.NoError(t, err)
@@ -197,7 +183,7 @@ func TestChangingConfigDirMidway(t *testing.T) {
 	err = manager1.CreateProfile("profile1", "access1", "secret1", "production", "")
 	require.NoError(t, err)
 
-	os.Setenv("MEGAPORT_CONFIG_DIR", dir2)
+	t.Setenv("MEGAPORT_CONFIG_DIR", dir2)
 
 	manager2, err := NewConfigManager()
 	require.NoError(t, err)

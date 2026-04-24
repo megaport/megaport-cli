@@ -5,6 +5,8 @@ package validation
 
 import (
 	"fmt"
+	"strings"
+	"time"
 )
 
 var (
@@ -38,6 +40,39 @@ const (
 	// ReservedVLAN identifies a VLAN ID that is reserved and cannot be used.
 	ReservedVLAN = 1
 )
+
+// VLANHelpText returns a canonical human-readable description of valid VLAN values,
+// derived from the VLAN constants defined in this package.
+func VLANHelpText() string {
+	return fmt.Sprintf("%d=auto-assign, %d=untagged, %d-%d for specific VLAN (%d is reserved)",
+		AutoAssignVLAN, UntaggedVLAN, MinAssignableVLAN, MaxVLAN, ReservedVLAN)
+}
+
+// InnerVLANHelpText returns a canonical human-readable description of valid inner VLAN
+// (Q-in-Q) values. Inner VLANs use 0 to mean "no inner VLAN" rather than "auto-assign".
+func InnerVLANHelpText() string {
+	return fmt.Sprintf("%d=none, %d=untagged, %d-%d for specific VLAN (%d is reserved)",
+		AutoAssignVLAN, UntaggedVLAN, MinAssignableVLAN, MaxVLAN, ReservedVLAN)
+}
+
+// FormatIntSlice formats a slice of ints as a human-readable string.
+// Example: []int{1, 12, 24, 36} → "1, 12, 24, or 36"
+func FormatIntSlice(vals []int) string {
+	if len(vals) == 0 {
+		return ""
+	}
+	strs := make([]string, len(vals))
+	for i, v := range vals {
+		strs[i] = fmt.Sprintf("%d", v)
+	}
+	if len(strs) == 1 {
+		return strs[0]
+	}
+	if len(strs) == 2 {
+		return strs[0] + " or " + strs[1]
+	}
+	return strings.Join(strs[:len(strs)-1], ", ") + ", or " + strs[len(strs)-1]
+}
 
 // ValidateContractTerm validates if a contract term is one of the allowed values.
 // Contract terms define the duration of the service commitment in months.
@@ -146,6 +181,33 @@ func ValidateVLAN(vlan int) error {
 func ValidateRateLimit(rateLimit int) error {
 	if rateLimit <= 0 {
 		return NewValidationError("rate limit", rateLimit, "must be a positive integer")
+	}
+	return nil
+}
+
+// ValidateDateRange validates that a start and end date pair is complete, well-formed, and ordered.
+// Both dates must be provided together in YYYY-MM-DD format, and the end date must be after the start date.
+func ValidateDateRange(startDate, endDate string) error {
+	if startDate == "" && endDate == "" {
+		return nil
+	}
+	if startDate == "" || endDate == "" {
+		missing := "start-date"
+		if startDate != "" {
+			missing = "end-date"
+		}
+		return NewValidationError("date range", missing, "both --start-date and --end-date must be provided together")
+	}
+	startTime, err := time.Parse("2006-01-02", startDate)
+	if err != nil {
+		return NewValidationError("start-date", startDate, "must be in YYYY-MM-DD format")
+	}
+	endTime, err := time.Parse("2006-01-02", endDate)
+	if err != nil {
+		return NewValidationError("end-date", endDate, "must be in YYYY-MM-DD format")
+	}
+	if !endTime.After(startTime) {
+		return NewValidationError("date range", fmt.Sprintf("%s to %s", startDate, endDate), "end date must be after start date")
 	}
 	return nil
 }

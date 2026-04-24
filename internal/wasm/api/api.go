@@ -113,7 +113,7 @@ func MakeDirectFetch(url string, token string) (*FetchResponse, error) {
 			}
 
 			console.Call("error", fmt.Sprintf("❌ Error reading body: %s", errMsg))
-			errorChan <- fmt.Errorf("error reading response body: %s", errMsg)
+			errorChan <- fmt.Errorf("failed to read response body: %s", errMsg)
 			return nil
 		})
 
@@ -160,7 +160,7 @@ func MakeDirectFetchJSON(url string, token string, target interface{}) error {
 	}
 
 	if err := json.Unmarshal(response.Body, target); err != nil {
-		return fmt.Errorf("failed to parse JSON response: %v", err)
+		return fmt.Errorf("failed to parse JSON response: %w", err)
 	}
 
 	return nil

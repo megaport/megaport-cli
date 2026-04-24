@@ -31,6 +31,10 @@ megaport-cli vxc delete [flags]
 ## Parent Command
 
 * [megaport-cli vxc](megaport-cli_vxc.md)
+
+## Aliases
+
+* rm
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

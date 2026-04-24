@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"sort"
+	"strings"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -15,15 +15,153 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
+func exportVXCConfig(vxc *megaport.VXC) map[string]interface{} {
+	m := map[string]interface{}{
+		"portUid":   vxc.AEndConfiguration.UID,
+		"vxcName":   vxc.Name,
+		"rateLimit": vxc.RateLimit,
+		"term":      vxc.ContractTermMonths,
+	}
+	if vxc.CostCentre != "" {
+		m["costCentre"] = vxc.CostCentre
+	}
 
-	client, err := config.Login(ctx)
+	aEnd := map[string]interface{}{}
+	if vxc.AEndConfiguration.VLAN != 0 {
+		aEnd["vlan"] = vxc.AEndConfiguration.VLAN
+	}
+	if vxc.AEndConfiguration.InnerVLAN != 0 {
+		aEnd["innerVlan"] = vxc.AEndConfiguration.InnerVLAN
+	}
+	if len(aEnd) > 0 {
+		m["aEndConfiguration"] = aEnd
+	}
+
+	bEnd := map[string]interface{}{
+		"productUID": vxc.BEndConfiguration.UID,
+	}
+	if vxc.BEndConfiguration.VLAN != 0 {
+		bEnd["vlan"] = vxc.BEndConfiguration.VLAN
+	}
+	if vxc.BEndConfiguration.InnerVLAN != 0 {
+		bEnd["innerVlan"] = vxc.BEndConfiguration.InnerVLAN
+	}
+	m["bEndConfiguration"] = bEnd
+
+	return m
+}
+
+func ListVXCs(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return err
 	}
+	defer cancel()
+
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
+	name, _ := cmd.Flags().GetString("name")
+	nameContains, _ := cmd.Flags().GetString("name-contains")
+	rateLimit, _ := cmd.Flags().GetInt("rate-limit")
+	aEndUID, _ := cmd.Flags().GetString("a-end-uid")
+	bEndUID, _ := cmd.Flags().GetString("b-end-uid")
+	includeInactive, _ := cmd.Flags().GetBool("include-inactive")
+	statusStr, _ := cmd.Flags().GetString("status")
+
+	// Determine server-side name filter: --name-contains takes precedence, else --name
+	serverNameContains := nameContains
+	if serverNameContains == "" {
+		serverNameContains = name
+	}
+
+	// Parse comma-separated status filter
+	var statusFilter []string
+	if statusStr != "" {
+		for _, s := range strings.Split(statusStr, ",") {
+			s = strings.TrimSpace(s)
+			if s != "" {
+				statusFilter = append(statusFilter, s)
+			}
+		}
+	}
+
+	req := &megaport.ListVXCsRequest{
+		IncludeInactive: includeInactive,
+		NameContains:    serverNameContains,
+		AEndProductUID:  aEndUID,
+		BEndProductUID:  bEndUID,
+		RateLimit:       rateLimit,
+		Status:          statusFilter,
+	}
+
+	spinner := output.PrintResourceListing("VXC", noColor)
+
+	vxcs, err := client.VXCService.ListVXCs(ctx, req)
+
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to list VXCs: %v", noColor, err)
+		return fmt.Errorf("failed to list VXCs: %w", err)
+	}
+
+	// Scrub nils and, unless --include-inactive, remove decommissioned/cancelled entries.
+	// Name, a-end, b-end, rate-limit, and status are already filtered by ListVXCsRequest.
+	var filteredVXCs []*megaport.VXC
+	for _, vxc := range vxcs {
+		if vxc == nil {
+			continue
+		}
+		if !includeInactive &&
+			(vxc.ProvisioningStatus == megaport.STATUS_DECOMMISSIONED ||
+				vxc.ProvisioningStatus == megaport.STATUS_CANCELLED ||
+				vxc.ProvisioningStatus == utils.StatusDecommissioning) {
+			continue
+		}
+		filteredVXCs = append(filteredVXCs, vxc)
+	}
+
+	limit, _ := cmd.Flags().GetInt("limit") // applied client-side after fetch
+
+	tagFilters, _ := cmd.Flags().GetStringArray("tag")
+	if len(tagFilters) > 0 {
+		tagSpinner := output.PrintCustomSpinner("Fetching tags for", "VXCs", noColor)
+		var tagErrs map[string]error
+		filteredVXCs, tagErrs = utils.ApplyTagFilter(ctx, filteredVXCs,
+			func(v *megaport.VXC) string { return v.UID },
+			func(ctx context.Context, uid string) (map[string]string, error) {
+				return listVXCResourceTagsFunc(ctx, client, uid)
+			},
+			tagFilters, limit,
+		)
+		tagSpinner.Stop()
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		for uid, err := range tagErrs {
+			output.PrintWarning("Failed to fetch tags for VXC %s, skipping: %v", noColor, uid, err)
+		}
+	}
+	return utils.ApplyLimitAndPrint(filteredVXCs, limit, outputFormat, noColor,
+		"No VXCs found. Create one with 'megaport vxc buy'.", printVXCs)
+}
+
+func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
+	watch, _ := cmd.Flags().GetBool("watch")
+	if watch {
+		return watchGetVXC(cmd, args, noColor, outputFormat)
+	}
+
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return err
+	}
+	defer cancel()
 
 	vxcUID := args[0]
 
@@ -34,16 +172,49 @@ func GetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string
 	spinner.Stop()
 
 	if err != nil {
+		err = utils.WrapAPIError(err, "VXC", vxcUID)
 		output.PrintError("Failed to get VXC: %v", noColor, err)
-		return fmt.Errorf("error getting VXC: %v", err)
+		return fmt.Errorf("failed to get VXC: %w", err)
+	}
+
+	if vxc == nil {
+		output.PrintError("No VXC found with UID: %s", noColor, vxcUID)
+		return fmt.Errorf("no VXC found with UID: %s", vxcUID)
+	}
+
+	export, _ := cmd.Flags().GetBool("export")
+	if export {
+		cfg := exportVXCConfig(vxc)
+		jsonBytes, err := json.MarshalIndent(cfg, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal export config: %w", err)
+		}
+		fmt.Println(string(jsonBytes))
+		return nil
 	}
 
 	err = printVXCs([]*megaport.VXC{vxc}, outputFormat, noColor)
 	if err != nil {
 		output.PrintError("Failed to print VXCs: %v", noColor, err)
-		return fmt.Errorf("error printing VXCs: %v", err)
+		return fmt.Errorf("failed to print VXCs: %w", err)
 	}
 	return nil
+}
+
+func watchGetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	vxcUID := args[0]
+	return utils.WatchResource(cmd, "VXC", vxcUID, noColor, outputFormat, config.Login,
+		func(pollCtx context.Context, client *megaport.Client) (string, error) {
+			vxc, err := client.VXCService.GetVXC(pollCtx, vxcUID)
+			if err != nil {
+				return "", err
+			}
+			if vxc == nil {
+				return "", fmt.Errorf("no VXC found with UID: %s", vxcUID)
+			}
+			err = printVXCs([]*megaport.VXC{vxc}, outputFormat, noColor)
+			return vxc.ProvisioningStatus, err
+		})
 }
 
 var hasUpdateVXCNonInteractiveFlags = func(cmd *cobra.Command) bool {
@@ -56,54 +227,45 @@ var hasUpdateVXCNonInteractiveFlags = func(cmd *cobra.Command) bool {
 	return false
 }
 
-func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+func buildVXCRequest(cmd *cobra.Command, ctx context.Context, client *megaport.Client, noColor bool) (*megaport.BuyVXCRequest, error) {
+	return utils.ResolveInput(utils.InputConfig[*megaport.BuyVXCRequest]{
+		ResourceName: "VXC",
+		Cmd:          cmd,
+		NoColor:      noColor,
+		FlagsProvided: func() bool {
+			return cmd.Flags().Changed("name") || cmd.Flags().Changed("rate-limit") ||
+				cmd.Flags().Changed("term") || cmd.Flags().Changed("a-end-uid") ||
+				cmd.Flags().Changed("a-end-vlan") || cmd.Flags().Changed("b-end-uid") ||
+				cmd.Flags().Changed("b-end-vlan")
+		},
+		FromJSON: buildVXCRequestFromJSON,
+		FromFlags: func() (*megaport.BuyVXCRequest, error) {
+			return buildVXCRequestFromFlags(cmd, ctx, client.VXCService)
+		},
+		FromPrompt: func() (*megaport.BuyVXCRequest, error) {
+			return buildVXCRequestFromPrompt(ctx, client.VXCService, noColor)
+		},
+	})
+}
 
-	client, err := config.Login(ctx)
+func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx, cancel, client, err := utils.LoginClient(cmd, utils.DefaultMutationTimeout, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
+		return err
+	}
+	defer cancel()
+
+	req, err := buildVXCRequest(cmd, ctx, client, noColor)
+	if err != nil {
+		return err
 	}
 
-	interactive, _ := cmd.Flags().GetBool("interactive")
-	jsonStr, _ := cmd.Flags().GetString("json")
-	jsonFile, _ := cmd.Flags().GetString("json-file")
-
-	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("rate-limit") ||
-		cmd.Flags().Changed("term") || cmd.Flags().Changed("a-end-uid") ||
-		cmd.Flags().Changed("a-end-vlan") || cmd.Flags().Changed("b-end-uid") ||
-		cmd.Flags().Changed("b-end-vlan")
-
-	var req *megaport.BuyVXCRequest
-
-	if jsonStr != "" || jsonFile != "" {
-		output.PrintInfo("Using JSON input", noColor)
-		req, err = buildVXCRequestFromJSON(jsonStr, jsonFile)
-		if err != nil {
-			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return err
-		}
-	} else if flagsProvided {
-		output.PrintInfo("Using flag input", noColor)
-		req, err = buildVXCRequestFromFlags(cmd, ctx, client.VXCService)
-		if err != nil {
-			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return err
-		}
-	} else if interactive {
-		output.PrintInfo("Starting interactive mode", noColor)
-		req, err = buildVXCRequestFromPrompt(ctx, client.VXCService, noColor)
-		if err != nil {
-			output.PrintError("Interactive input failed: %v", noColor, err)
-			return err
-		}
-	} else {
-		output.PrintError("No input provided", noColor)
-		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify VXC details")
+	noWait, _ := cmd.Flags().GetBool("no-wait")
+	if !noWait {
+		req.WaitForProvision = true
+		req.WaitForTime = utils.DefaultProvisionTimeout
 	}
-
-	req.WaitForProvision = true
-	req.WaitForTime = 10 * time.Minute
 
 	validateSpinner := output.PrintResourceValidating("VXC", noColor)
 
@@ -115,9 +277,35 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	spinner := output.PrintResourceCreating("VXC", req.VXCName, noColor)
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
+	yes, _ := cmd.Flags().GetBool("yes")
+	if !yes && jsonStr == "" && jsonFile == "" {
+		details := []utils.BuyConfirmDetail{
+			{Key: "Name", Value: req.VXCName},
+			{Key: "Term", Value: fmt.Sprintf("%d months", req.Term)},
+			{Key: "Rate Limit", Value: fmt.Sprintf("%d Mbps", req.RateLimit)},
+			{Key: "A-End Port UID", Value: req.PortUID},
+		}
+		if !utils.BuyConfirmPrompt("VXC", details, noColor) {
+			output.PrintInfo("Purchase cancelled", noColor)
+			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
+		}
+	}
 
-	resp, err := buyVXCFunc(ctx, client, req)
+	var spinner *output.Spinner
+	if req.WaitForProvision {
+		spinner = output.PrintResourceProvisioning("VXC", req.VXCName, noColor)
+	} else {
+		spinner = output.PrintResourceCreating("VXC", req.VXCName, noColor)
+	}
+
+	var resp *megaport.BuyVXCResponse
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = buyVXCFunc(ctx, client, req)
+		return e
+	})
 
 	spinner.Stop()
 
@@ -130,8 +318,35 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	return nil
 }
 
+func ValidateVXC(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return err
+	}
+	defer cancel()
+
+	req, err := buildVXCRequest(cmd, ctx, client, noColor)
+	if err != nil {
+		return err
+	}
+
+	spinner := output.PrintResourceValidating("VXC", noColor)
+	err = client.VXCService.ValidateVXCOrder(ctx, req)
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to validate VXC order: %v", noColor, err)
+		return err
+	}
+
+	output.PrintSuccess("VXC validation passed", noColor)
+	return nil
+}
+
 func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx := context.Background()
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
+	defer cancel()
 
 	vxcUID := args[0]
 	formattedUID := output.FormatUID(vxcUID, noColor)
@@ -150,7 +365,7 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 
 	if err != nil {
 		output.PrintError("Failed to retrieve original VXC details: %v", noColor, err)
-		return fmt.Errorf("failed to retrieve original VXC details: %v", err)
+		return fmt.Errorf("failed to retrieve original VXC details: %w", err)
 	}
 
 	var req *megaport.UpdateVXCRequest
@@ -163,12 +378,14 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	if jsonStr != "" || jsonFilePath != "" {
 		output.PrintInfo("Using JSON input for VXC %s", noColor, formattedUID)
 		req, buildErr = buildUpdateVXCRequestFromJSON(jsonStr, jsonFilePath)
-	} else if interactive || !hasUpdateVXCNonInteractiveFlags(cmd) {
-		output.PrintInfo("Starting interactive mode for VXC %s", noColor, formattedUID)
-		req, buildErr = buildUpdateVXCRequestFromPrompt(vxcUID, noColor)
-	} else {
+	} else if hasUpdateVXCNonInteractiveFlags(cmd) {
 		output.PrintInfo("Using flag input for VXC %s", noColor, formattedUID)
 		req, buildErr = buildUpdateVXCRequestFromFlags(cmd)
+	} else if interactive {
+		output.PrintInfo("Starting interactive mode for VXC %s", noColor, formattedUID)
+		req, buildErr = buildUpdateVXCRequestFromPrompt(ctx, client, vxcUID, noColor)
+	} else {
+		return fmt.Errorf("at least one field must be updated")
 	}
 
 	if buildErr != nil {
@@ -182,17 +399,19 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	req.WaitForUpdate = true
-	req.WaitForTime = 10 * time.Minute
+	req.WaitForTime = utils.DefaultProvisionTimeout
 
 	updateSpinner := output.PrintResourceUpdating("VXC", vxcUID, noColor)
 
-	err = updateVXCFunc(ctx, client, vxcUID, req)
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		return updateVXCFunc(ctx, client, vxcUID, req)
+	})
 
 	updateSpinner.Stop()
 
 	if err != nil {
 		output.PrintError("Failed to update VXC: %v", noColor, err)
-		return fmt.Errorf("failed to update VXC: %v", err)
+		return fmt.Errorf("failed to update VXC: %w", err)
 	}
 
 	getUpdatedSpinner := output.PrintResourceGetting("VXC", vxcUID, noColor)
@@ -215,7 +434,7 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, 5*time.Minute)
 	defer cancel()
 
 	vxcUID := args[0]
@@ -228,7 +447,7 @@ func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
 		message := fmt.Sprintf("Are you sure you want to delete VXC %s?", formattedUID)
 		if !utils.ConfirmPrompt(message, noColor) {
 			output.PrintInfo("Deletion cancelled", noColor)
-			return nil
+			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 		}
 	}
 
@@ -244,11 +463,14 @@ func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
 
 	spinner := output.PrintResourceDeleting("VXC", vxcUID, noColor)
 
-	err = deleteVXCFunc(ctx, client, vxcUID, req)
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		return deleteVXCFunc(ctx, client, vxcUID, req)
+	})
 
 	spinner.Stop()
 
 	if err != nil {
+		err = utils.WrapAPIError(err, "VXC", vxcUID)
 		output.PrintError("Failed to delete VXC: %v", noColor, err)
 		return err
 	}
@@ -258,120 +480,55 @@ func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
 }
 
 func ListVXCResourceTags(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	// Set output format for proper JSON mode handling
-	output.SetOutputFormat(outputFormat)
-
 	vxcUID := args[0]
-
-	ctx := context.Background()
-
-	client, err := config.LoginFunc(ctx)
-	if err != nil {
-		return err
-	}
-
-	tagsMap, err := client.VXCService.ListVXCResourceTags(ctx, vxcUID)
-
-	if err != nil {
-		output.PrintError("Error getting resource tags for VXC %s: %v", noColor, vxcUID, err)
-		return fmt.Errorf("error getting resource tags for VXC %s: %v", vxcUID, err)
-	}
-
-	tags := make([]output.ResourceTag, 0, len(tagsMap))
-	for k, v := range tagsMap {
-		tags = append(tags, output.ResourceTag{Key: k, Value: v})
-	}
-
-	sort.Slice(tags, func(i, j int) bool {
-		return tags[i].Key < tags[j].Key
+	return utils.ListResourceTags("VXC", vxcUID, noColor, outputFormat, func(ctx context.Context, uid string) (map[string]string, error) {
+		client, err := config.Login(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return client.VXCService.ListVXCResourceTags(ctx, uid)
 	})
-
-	return output.PrintOutput(tags, outputFormat, noColor)
 }
 
 func UpdateVXCResourceTags(cmd *cobra.Command, args []string, noColor bool) error {
 	vxcUID := args[0]
+	var client *megaport.Client
+	login := func(ctx context.Context) error {
+		var err error
+		client, err = config.Login(ctx)
+		return err
+	}
+	return utils.UpdateResourceTags(utils.UpdateTagsOptions{
+		ResourceType: "VXC",
+		UID:          vxcUID,
+		NoColor:      noColor,
+		Cmd:          cmd,
+		ListFunc: func(ctx context.Context, uid string) (map[string]string, error) {
+			if err := login(ctx); err != nil {
+				return nil, err
+			}
+			return client.VXCService.ListVXCResourceTags(ctx, uid)
+		},
+		UpdateFunc: func(ctx context.Context, uid string, tags map[string]string) error {
+			return client.VXCService.UpdateVXCResourceTags(ctx, uid, tags)
+		},
+	})
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
+func GetVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
 
-	client, err := config.LoginFunc(ctx)
+	watch, _ := cmd.Flags().GetBool("watch")
+	if watch {
+		return watchVXCStatus(cmd, args, noColor, outputFormat)
+	}
+
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
-
-	existingTags, err := client.VXCService.ListVXCResourceTags(ctx, vxcUID)
-
-	if err != nil {
-		output.PrintError("Failed to get existing resource tags: %v", noColor, err)
-		return fmt.Errorf("failed to get existing resource tags: %v", err)
-	}
-
-	interactive, _ := cmd.Flags().GetBool("interactive")
-
-	var resourceTags map[string]string
-
-	if interactive {
-		resourceTags, err = utils.UpdateResourceTagsPrompt(existingTags, noColor)
-		if err != nil {
-			output.PrintError("Failed to update resource tags", noColor, err)
-			return err
-		}
-	} else {
-		jsonStr, _ := cmd.Flags().GetString("json")
-		jsonFile, _ := cmd.Flags().GetString("json-file")
-
-		if jsonStr != "" {
-			if err := json.Unmarshal([]byte(jsonStr), &resourceTags); err != nil {
-				output.PrintError("Failed to parse JSON: %v", noColor, err)
-				return fmt.Errorf("error parsing JSON: %v", err)
-			}
-		} else if jsonFile != "" {
-			jsonData, err := os.ReadFile(jsonFile)
-			if err != nil {
-				output.PrintError("Failed to read JSON file: %v", noColor, err)
-				return fmt.Errorf("error reading JSON file: %v", err)
-			}
-
-			if err := json.Unmarshal(jsonData, &resourceTags); err != nil {
-				output.PrintError("Failed to parse JSON file: %v", noColor, err)
-				return fmt.Errorf("error parsing JSON file: %v", err)
-			}
-		} else {
-			output.PrintError("No input provided for tags", noColor)
-			return fmt.Errorf("no input provided, use --interactive, --json, or --json-file to specify resource tags")
-		}
-	}
-
-	if len(resourceTags) == 0 {
-		cmd.PrintErrln("No tags provided. The VXC will have all existing tags removed")
-	}
-
-	spinner := output.PrintResourceUpdating("VXC-Resource-Tags", vxcUID, noColor)
-
-	err = client.VXCService.UpdateVXCResourceTags(ctx, vxcUID, resourceTags)
-
-	spinner.Stop()
-
-	if err != nil {
-		output.PrintError("Failed to update resource tags: %v", noColor, err)
-		return fmt.Errorf("failed to update resource tags: %v", err)
-	}
-
-	fmt.Printf("Resource tags updated for VXC %s\n", vxcUID)
-	return nil
-}
-
-func GetVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
-
-	client, err := config.Login(ctx)
-	if err != nil {
-		output.PrintError("Failed to log in: %v", noColor, err)
-		return fmt.Errorf("error logging in: %v", err)
-	}
 
 	vxcUID := args[0]
 
@@ -383,7 +540,12 @@ func GetVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 
 	if err != nil {
 		output.PrintError("Failed to get VXC status: %v", noColor, err)
-		return fmt.Errorf("error getting VXC status: %v", err)
+		return fmt.Errorf("failed to get VXC status: %w", err)
+	}
+
+	if vxc == nil {
+		output.PrintError("No VXC found with UID: %s", noColor, vxcUID)
+		return fmt.Errorf("no VXC found with UID: %s", vxcUID)
 	}
 
 	status := []VXCStatus{
@@ -396,4 +558,28 @@ func GetVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	}
 
 	return output.PrintOutput(status, outputFormat, noColor)
+}
+
+func watchVXCStatus(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	vxcUID := args[0]
+	return utils.WatchResource(cmd, "VXC", vxcUID, noColor, outputFormat, config.Login,
+		func(pollCtx context.Context, client *megaport.Client) (string, error) {
+			vxc, err := client.VXCService.GetVXC(pollCtx, vxcUID)
+			if err != nil {
+				return "", err
+			}
+			if vxc == nil {
+				return "", fmt.Errorf("no VXC found with UID: %s", vxcUID)
+			}
+			status := []VXCStatus{
+				{
+					UID:    vxc.UID,
+					Name:   vxc.Name,
+					Status: vxc.ProvisioningStatus,
+					Type:   vxc.Type,
+				},
+			}
+			err = output.PrintOutput(status, outputFormat, noColor)
+			return vxc.ProvisioningStatus, err
+		})
 }

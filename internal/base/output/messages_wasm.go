@@ -4,10 +4,12 @@
 package output
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/wasm"
 )
 
@@ -17,18 +19,19 @@ import (
 // createBox creates a bordered box around text for prominent display
 func createBox(text string, borderColor *color.Color, textColor *color.Color, width int) string {
 	lines := strings.Split(text, "\n")
-	
-	// Calculate box width
+
+	// Calculate box width using stripped length to ignore ANSI escape codes
 	maxLen := 0
 	for _, line := range lines {
-		if len(line) > maxLen {
-			maxLen = len(line)
+		stripped := StripANSIColors(line)
+		if len(stripped) > maxLen {
+			maxLen = len(stripped)
 		}
 	}
 	if width > maxLen {
 		maxLen = width
 	}
-	
+
 	// Box drawing characters
 	topLeft := "╔"
 	topRight := "╗"
@@ -36,19 +39,20 @@ func createBox(text string, borderColor *color.Color, textColor *color.Color, wi
 	bottomRight := "╝"
 	horizontal := "═"
 	vertical := "║"
-	
+
 	// Build the box
 	var result strings.Builder
-	
+
 	// Top border
 	result.WriteString(borderColor.Sprint(topLeft))
 	result.WriteString(borderColor.Sprint(strings.Repeat(horizontal, maxLen+2)))
 	result.WriteString(borderColor.Sprint(topRight))
 	result.WriteString("\n")
-	
+
 	// Content lines
 	for _, line := range lines {
-		padding := maxLen - len(line)
+		stripped := StripANSIColors(line)
+		padding := maxLen - len(stripped)
 		result.WriteString(borderColor.Sprint(vertical))
 		result.WriteString(" ")
 		result.WriteString(textColor.Sprint(line))
@@ -57,19 +61,19 @@ func createBox(text string, borderColor *color.Color, textColor *color.Color, wi
 		result.WriteString(borderColor.Sprint(vertical))
 		result.WriteString("\n")
 	}
-	
+
 	// Bottom border
 	result.WriteString(borderColor.Sprint(bottomLeft))
 	result.WriteString(borderColor.Sprint(strings.Repeat(horizontal, maxLen+2)))
 	result.WriteString(borderColor.Sprint(bottomRight))
-	
+
 	return result.String()
 }
 
 // PrintSuccessBox prints a success message in a prominent green box
 func PrintSuccessBox(format string, noColor bool, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	
+
 	if noColor {
 		fmt.Printf("✓ %s\n", msg)
 	} else {
@@ -85,7 +89,7 @@ func PrintSuccessBox(format string, noColor bool, args ...interface{}) {
 // PrintErrorBox prints an error message in a prominent red box
 func PrintErrorBox(format string, noColor bool, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	
+
 	if noColor {
 		fmt.Printf("✗ %s\n", msg)
 	} else {
@@ -101,7 +105,7 @@ func PrintErrorBox(format string, noColor bool, args ...interface{}) {
 // PrintWarningBox prints a warning message in a prominent yellow box
 func PrintWarningBox(format string, noColor bool, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	
+
 	if noColor {
 		fmt.Printf("⚠ %s\n", msg)
 	} else {
@@ -117,7 +121,7 @@ func PrintWarningBox(format string, noColor bool, args ...interface{}) {
 // PrintInfoBox prints an info message in a prominent blue box
 func PrintInfoBox(format string, noColor bool, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	
+
 	if noColor {
 		fmt.Printf("ℹ %s\n", msg)
 	} else {
@@ -136,9 +140,9 @@ func PrintBanner(text string, bannerType string, noColor bool) {
 		fmt.Println(text)
 		return
 	}
-	
+
 	var borderColor, textColor *color.Color
-	
+
 	switch bannerType {
 	case "success":
 		borderColor = color.New(color.FgHiGreen, color.Bold)
@@ -156,7 +160,7 @@ func PrintBanner(text string, bannerType string, noColor bool) {
 		borderColor = color.New(color.FgHiWhite, color.Bold)
 		textColor = color.New(color.FgHiWhite, color.Bold)
 	}
-	
+
 	// Create a wide banner
 	banner := createBox(text, borderColor, textColor, 60)
 	fmt.Println()
@@ -170,23 +174,23 @@ func PrintProgressBox(message string, percentage int, noColor bool) {
 		fmt.Printf("[%d%%] %s\n", percentage, message)
 		return
 	}
-	
+
 	// Create a progress bar within a box
 	barWidth := 30
 	filledWidth := (percentage * barWidth) / 100
 	emptyWidth := barWidth - filledWidth
-	
+
 	filled := color.New(color.BgGreen).Sprint(strings.Repeat(" ", filledWidth))
 	empty := color.New(color.BgHiBlack).Sprint(strings.Repeat(" ", emptyWidth))
 	progressBar := fmt.Sprintf("%s%s", filled, empty)
-	
+
 	percentText := color.New(color.FgHiWhite, color.Bold).Sprintf("%3d%%", percentage)
 	text := fmt.Sprintf("%s │%s│ %s", percentText, progressBar, message)
-	
+
 	borderColor := color.New(color.FgHiCyan, color.Bold)
 	textColor := color.New(color.FgHiWhite)
 	box := createBox(text, borderColor, textColor, 50)
-	
+
 	fmt.Print("\r") // Clear line
 	fmt.Print(box)
 }
@@ -196,6 +200,9 @@ func PrintProgressBox(message string, percentage int, noColor bool) {
 
 // PrintSuccess overrides the base function for WASM to capture output
 func PrintSuccess(format string, noColor bool, args ...interface{}) {
+	if IsQuiet() {
+		return
+	}
 	msg := fmt.Sprintf(format, args...)
 	var output string
 	if noColor {
@@ -220,6 +227,9 @@ func PrintError(format string, noColor bool, args ...interface{}) {
 
 // PrintWarning overrides the base function for WASM to capture output
 func PrintWarning(format string, noColor bool, args ...interface{}) {
+	if IsQuiet() {
+		return
+	}
 	msg := fmt.Sprintf(format, args...)
 	var output string
 	if noColor {
@@ -232,6 +242,9 @@ func PrintWarning(format string, noColor bool, args ...interface{}) {
 
 // PrintInfo overrides the base function for WASM to capture output
 func PrintInfo(format string, noColor bool, args ...interface{}) {
+	if IsQuiet() {
+		return
+	}
 	msg := fmt.Sprintf(format, args...)
 	var output string
 	if noColor {
@@ -240,4 +253,29 @@ func PrintInfo(format string, noColor bool, args ...interface{}) {
 		output = color.BlueString("ℹ ") + msg + "\n"
 	}
 	wasm.WasmOutputBuffer.Write([]byte(output))
+}
+
+// ClearScreen is a no-op in the WASM environment.
+func ClearScreen() {}
+
+// PrintErrorJSON writes a structured JSON error to the WASM output buffer.
+func PrintErrorJSON(code int, message string) {
+	payload := errorEnvelope{
+		Error: errorBody{
+			Code:    code,
+			Type:    exitcodes.TypeName(code),
+			Message: message,
+		},
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		// errorEnvelope contains only primitive types so Marshal should never
+		// fail. If it somehow does, emit a minimal hard-coded envelope so
+		// callers always receive valid JSON.
+		msgJSON, _ := json.Marshal(message)
+		fmt.Fprintf(wasm.WasmOutputBuffer, `{"error":{"code":%d,"type":"%s","message":%s}}`+"\n",
+			code, exitcodes.TypeName(code), msgJSON)
+		return
+	}
+	fmt.Fprintln(wasm.WasmOutputBuffer, string(b))
 }

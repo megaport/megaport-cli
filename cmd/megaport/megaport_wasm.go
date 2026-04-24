@@ -4,24 +4,32 @@
 package megaport
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"strings"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/help"
+	"github.com/megaport/megaport-cli/internal/base/output"
+	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/wasm"
 	"github.com/spf13/cobra"
 )
 
 func ExecuteWithArgs(args []string) {
-	// Debug
-	fmt.Printf("WASM ExecuteWithArgs: args=%v\n", args)
+	// Reset all flags on the command tree so that flag values from a previous
+	// execution don't leak into the current one. Cobra marks flags as "Changed"
+	// after parsing, and this state persists when the same command tree is reused
+	// across multiple WASM invocations.
+	resetAllFlags(rootCmd)
 
 	// Direct output to our WASM buffer
 	rootCmd.SetOut(wasm.WasmOutputBuffer)
 	rootCmd.SetErr(wasm.WasmOutputBuffer)
 
 	// Enable traversal for subcommand flags
-	rootCmd.PersistentFlags().ParseErrorsWhitelist.UnknownFlags = true
+	rootCmd.PersistentFlags().ParseErrorsAllowlist.UnknownFlags = true
 	rootCmd.TraverseChildren = true
 
 	// Enable subcommand traversal for ALL commands, not just root
@@ -33,43 +41,67 @@ func ExecuteWithArgs(args []string) {
 		argsToUse = args[1:]
 	}
 
-	// Debug the actual args we're using
-	fmt.Printf("WASM using args for command: %v\n", argsToUse)
-
-	// Disable automatic usage on errors so we can control the output
+	// Disable automatic usage on errors so we can control the output.
+	// Also reset SilenceErrors: a prior JSON-mode failure may have set it true
+	// via cmd.Root().SilenceErrors = true in a RunE wrapper, and the command
+	// tree is reused across WASM invocations.
 	rootCmd.SilenceUsage = true
+	rootCmd.SilenceErrors = false
 
 	// Set the args on the root command
 	rootCmd.SetArgs(argsToUse)
 
-	// Execute and capture errors
-	err := rootCmd.Execute()
+	// Execute and capture errors. ExecuteC returns the command that ran so we
+	// can resolve --output from the most specific source (local flag on the
+	// executed command, used by WrapOutputFormatRunE, vs. the root persistent
+	// flag, used by WrapRunE / WrapColorAwareRunE).
+	executedCmd, err := rootCmd.ExecuteC()
 
-	// Log to JS console for debugging
-	fmt.Printf("WASM Execute returned error: %v\n", err)
-
-	// Debug the command result - only report errors
-	// The command output is already in WasmOutputBuffer
 	if err != nil {
-		fmt.Printf("WASM: Error detected, clearing buffer and showing error\n")
+		// When the error is a *CLIError returned by a RunE wrapper in JSON mode,
+		// the wrapper has already written the structured JSON error via
+		// PrintErrorJSON. Skip the plain-text block to avoid corrupting
+		// machine-readable output. We gate on *CLIError (not just the --output
+		// flag) because errors that occur before a wrapper runs (e.g., flag
+		// parse errors) are not *CLIError and still need the plain-text block.
+		var cliErr *exitcodes.CLIError
+		if errors.As(err, &cliErr) && resolveOutputFormat(executedCmd) == utils.FormatJSON {
+			// Reset the buffer to remove any plain-text output written before
+			// the error (commands may call output.PrintError etc. before
+			// returning), then re-emit a single clean JSON envelope so the
+			// buffer contains only valid JSON.
+			wasm.ResetOutputBuffers()
+			output.PrintErrorJSON(cliErr.Code, cliErr.Error())
+			return
+		}
 		// Clear the buffer if help was shown automatically
 		wasm.ResetOutputBuffers()
 
 		fmt.Fprintf(wasm.WasmOutputBuffer, "Error: %v\n\n", err)
 		fmt.Fprintf(wasm.WasmOutputBuffer, "Run 'megaport-cli --help' to see the list of available commands.\n")
-	} else {
-		fmt.Printf("WASM: No error returned from Execute()\n")
 	}
 }
 
-// New helper function to enable traversal on all commands
-func enableTraversalForAllCommands(cmd *cobra.Command) {
-	cmd.TraverseChildren = true
-	cmd.Flags().ParseErrorsWhitelist.UnknownFlags = true
-
-	for _, subCmd := range cmd.Commands() {
-		enableTraversalForAllCommands(subCmd)
+// resolveOutputFormat returns the --output value for the command that ran.
+// It checks the executed command's local --output flag first (used by
+// WrapOutputFormatRunE commands that shadow the persistent root flag), then
+// falls back to the root persistent flag (used by WrapRunE /
+// WrapColorAwareRunE commands).
+func resolveOutputFormat(cmd *cobra.Command) string {
+	var raw string
+	if cmd != nil {
+		// Only use the local --output flag if the user explicitly set it.
+		// WrapOutputFormatRunE commands always register a local --output flag
+		// whose default is "table"; reading it unconditionally would mask the
+		// user's intent expressed via the root persistent flag.
+		if f := cmd.Flags().Lookup("output"); f != nil && f.Changed {
+			raw = f.Value.String()
+		}
 	}
+	if raw == "" {
+		raw, _ = rootCmd.PersistentFlags().GetString("output")
+	}
+	return strings.ToLower(raw)
 }
 
 func EnsureRootCommandOutput(writer io.Writer) {
@@ -94,10 +126,13 @@ func init() {
 			ShortDesc:   "A CLI tool to interact with the Megaport API",
 			LongDesc:    "Megaport CLI provides a command line interface to interact with the Megaport API.\n\nThe CLI allows you to manage Megaport resources such as ports, VXCs, MCRs, MVEs, service keys, and more.",
 			OptionalFlags: map[string]string{
-				"--no-color": "Disable colored output",
-				"--output":   "Output format (json, yaml, table, csv, xml)",
-				"--help":     "Show help for any command",
-				"--env":      "Environment to use (production, staging, development)",
+				"--no-color":  "Disable colored output",
+				"--no-header": "Suppress table and CSV column headers (useful for scripting)",
+				"--no-pager":  "Disable pager for long table output (no-op in browser version)",
+				"--output":    "Output format (table, json, csv, xml, go-template)",
+				"--template":  "Go template string for --output go-template",
+				"--help":      "Show help for any command",
+				"--env":       "Environment to use (production, staging, development)",
 			},
 			Examples: []string{
 				"megaport-cli ports list",
@@ -142,9 +177,6 @@ func init() {
 	// Configure Cobra to show proper error messages for unknown commands
 	rootCmd.SilenceErrors = false
 	rootCmd.SilenceUsage = false
-
-	// Add suggestions for similar commands
-	rootCmd.SuggestionsMinimumDistance = 1
 
 	moduleRegistry.RegisterAll(rootCmd)
 }
