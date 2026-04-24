@@ -707,6 +707,59 @@ func TestAllSpinnerFunctionsSuppressedForCSV(t *testing.T) {
 	}
 }
 
+// TestSpinnersNotSuppressedForTable covers the non-suppressed code paths in
+// PrintListingResourceTags, PrintResourceValidating, and PrintCustomSpinner —
+// specifically the GetOutputFormat() call and spinner creation that are only
+// reached when the output format is "table" and a terminal is active.
+func TestSpinnersNotSuppressedForTable(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping spinner test in short mode")
+	}
+	t.Cleanup(func() { ResetState() })
+	SetOutputFormat("table")
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
+	s1 := PrintListingResourceTags("Port", "uid-1", true)
+	assert.False(t, s1.stopped, "PrintListingResourceTags should not be suppressed for table format")
+	s1.Stop()
+
+	s2 := PrintResourceValidating("VXC", true)
+	assert.False(t, s2.stopped, "PrintResourceValidating should not be suppressed for table format")
+	s2.Stop()
+
+	s3 := PrintCustomSpinner("Syncing", "uid-2", true)
+	assert.False(t, s3.stopped, "PrintCustomSpinner should not be suppressed for table format")
+	s3.Stop()
+}
+
+// TestPrintResourceGettingWithOutput_EmptyFormatFallback covers the
+// outputFormat = GetOutputFormat() fallback when an empty string is passed.
+func TestPrintResourceGettingWithOutput_EmptyFormatFallback(t *testing.T) {
+	t.Cleanup(func() { ResetState() })
+	SetOutputFormat("csv") // suppresses spinner so the test is fast
+
+	s := PrintResourceGettingWithOutput("Port", "uid-1", true, "")
+	assert.True(t, s.stopped, "spinner should be suppressed when format falls back to csv")
+	assert.Equal(t, "csv", s.outputFormat)
+}
+
+// TestPrintLoggingInWithOutput_EmptyFormatFallback covers the
+// outputFormat = GetOutputFormat() fallback when an empty string is passed.
+func TestPrintLoggingInWithOutput_EmptyFormatFallback(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping spinner test in short mode")
+	}
+	t.Cleanup(func() { ResetState() })
+	SetOutputFormat("table")
+	SetIsTerminal(true)
+	defer SetIsTerminal(false)
+
+	s := PrintLoggingInWithOutput(true, "")
+	assert.False(t, s.stopped, "login spinner should not be suppressed when format falls back to table")
+	s.Stop()
+}
+
 func TestLoginSpinnersNotSuppressedForCSV(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping spinner test in short mode")
