@@ -449,6 +449,11 @@ func TestOutputFormatConcurrency(t *testing.T) {
 	orig := GetOutputConfig()
 	t.Cleanup(func() { ApplyOutputConfig(orig) })
 
+	// Seed both fields that goroutines will cycle through so assertions
+	// cannot observe a value from a previous test.
+	SetOutputFormat("table")
+	SetVerbosity("normal")
+
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
 
