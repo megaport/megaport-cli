@@ -94,9 +94,16 @@ func InitializeCommon() {
 	// Validate retry flags in WASM builds too.
 	existingPreRunE := rootCmd.PersistentPreRunE
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		verbosity := "normal"
+		if quiet {
+			verbosity = "quiet"
+		} else if verbose {
+			verbosity = "verbose"
+		}
 		cfg := output.GetOutputConfig()
 		cfg.NoHeader = noHeader
 		cfg.NoPager = noPager // no-op in WASM pager; keeps flag wiring symmetric with native
+		cfg.Verbosity = verbosity
 		output.ApplyOutputConfig(cfg)
 		if utils.MaxRetries < 0 {
 			return fmt.Errorf("--max-retries must be >= 0, got %d", utils.MaxRetries)
