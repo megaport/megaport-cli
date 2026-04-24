@@ -70,7 +70,8 @@ var (
 	// BaseURL overrides the API base URL (e.g. http://localhost:8080). Set via --base-url flag.
 	BaseURL string
 
-	ValidFormats = []string{FormatTable, FormatJSON, FormatCSV, FormatXML, FormatGoTemplate}
+	ValidFormats     = []string{FormatTable, FormatJSON, FormatCSV, FormatXML, FormatGoTemplate}
+	ValidFormatsWASM = []string{FormatTable, FormatJSON, FormatCSV, FormatXML}
 )
 
 func ShouldDisableColors() bool {
