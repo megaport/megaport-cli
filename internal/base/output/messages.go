@@ -37,10 +37,18 @@ func SetVerbosity(level string) {
 
 // IsQuiet returns true when quiet mode is active.
 // In quiet mode, informational messages and spinners are suppressed.
-func IsQuiet() bool { return GetOutputConfig().Verbosity == "quiet" }
+func IsQuiet() bool {
+	outputCfgMu.RLock()
+	defer outputCfgMu.RUnlock()
+	return outputCfg.Verbosity == "quiet"
+}
 
 // IsVerbose returns true when verbose mode is active.
-func IsVerbose() bool { return GetOutputConfig().Verbosity == "verbose" }
+func IsVerbose() bool {
+	outputCfgMu.RLock()
+	defer outputCfgMu.RUnlock()
+	return outputCfg.Verbosity == "verbose"
+}
 
 // newNoOpSpinner returns a spinner that is already stopped.
 // Safe to call Start(), Stop(), and StopWithSuccess() on.
@@ -59,7 +67,11 @@ func SetOutputFormat(format string) {
 }
 
 // GetOutputFormat returns the currently active output format (e.g. "table", "json").
-func GetOutputFormat() string { return GetOutputConfig().Format }
+func GetOutputFormat() string {
+	outputCfgMu.RLock()
+	defer outputCfgMu.RUnlock()
+	return outputCfg.Format
+}
 
 // shouldSuppressSpinner returns true when spinner output should be suppressed
 // to avoid corrupting machine-readable output formats (csv, xml, json, yaml, etc.).
