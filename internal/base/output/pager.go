@@ -15,30 +15,19 @@ import (
 	"golang.org/x/term"
 )
 
-var (
-	noPagerMu  sync.RWMutex
-	noPagerVal bool
-)
-
 // SetNoPager disables or enables the pager. When true, output is always written
 // directly to stdout even if it exceeds the terminal height.
 func SetNoPager(v bool) {
-	noPagerMu.Lock()
-	defer noPagerMu.Unlock()
-	noPagerVal = v
+	cfg := GetOutputConfig()
+	cfg.NoPager = v
+	ApplyOutputConfig(cfg)
 }
 
-func getNoPager() bool {
-	noPagerMu.RLock()
-	defer noPagerMu.RUnlock()
-	return noPagerVal
-}
+func getNoPager() bool { return GetOutputConfig().NoPager }
 
 // GetNoPager returns the current no-pager setting. Intended for tests that
 // need to assert the output package was correctly wired by PersistentPreRunE.
-func GetNoPager() bool {
-	return getNoPager()
-}
+func GetNoPager() bool { return GetOutputConfig().NoPager }
 
 // resolvePager returns the pager command to use.
 // Precedence: MEGAPORT_PAGER > PAGER > "less -R".

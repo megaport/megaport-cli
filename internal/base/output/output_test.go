@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1050,7 +1051,7 @@ func fieldsTestData() []fieldsTestStruct {
 }
 
 func TestSetOutputFields_Table(t *testing.T) {
-	defer SetOutputFields(nil)
+	t.Cleanup(func() { ResetState() })
 	SetOutputFields([]string{"uid", "name"})
 	SetIsTerminal(false)
 
@@ -1068,7 +1069,7 @@ func TestSetOutputFields_Table(t *testing.T) {
 }
 
 func TestSetOutputFields_CSV(t *testing.T) {
-	defer SetOutputFields(nil)
+	t.Cleanup(func() { ResetState() })
 	SetOutputFields([]string{"uid", "status"})
 
 	out := CaptureOutput(func() {
@@ -1085,7 +1086,7 @@ func TestSetOutputFields_CSV(t *testing.T) {
 }
 
 func TestSetOutputFields_JSON(t *testing.T) {
-	defer SetOutputFields(nil)
+	t.Cleanup(func() { ResetState() })
 	SetOutputFields([]string{"uid", "name"})
 
 	out := CaptureOutput(func() {
@@ -1103,7 +1104,7 @@ func TestSetOutputFields_JSON(t *testing.T) {
 }
 
 func TestSetOutputFields_XML(t *testing.T) {
-	defer SetOutputFields(nil)
+	t.Cleanup(func() { ResetState() })
 	SetOutputFields([]string{"uid", "name"})
 
 	out := CaptureOutput(func() {
@@ -1118,7 +1119,7 @@ func TestSetOutputFields_XML(t *testing.T) {
 }
 
 func TestSetOutputFields_CaseInsensitive(t *testing.T) {
-	defer SetOutputFields(nil)
+	t.Cleanup(func() { ResetState() })
 	SetOutputFields([]string{"UID", "NAME"}) // uppercase
 	SetIsTerminal(false)
 
@@ -1133,7 +1134,7 @@ func TestSetOutputFields_CaseInsensitive(t *testing.T) {
 }
 
 func TestSetOutputFields_HeaderNameAlias(t *testing.T) {
-	defer SetOutputFields(nil)
+	t.Cleanup(func() { ResetState() })
 	// Match by header name "Port Speed" (has a space)
 	SetOutputFields([]string{"Port Speed"})
 	SetIsTerminal(false)
@@ -1149,7 +1150,7 @@ func TestSetOutputFields_HeaderNameAlias(t *testing.T) {
 }
 
 func TestSetOutputFields_UnknownField(t *testing.T) {
-	defer SetOutputFields(nil)
+	t.Cleanup(func() { ResetState() })
 	SetOutputFields([]string{"uid", "nonexistent"})
 	SetIsTerminal(false)
 
@@ -1180,7 +1181,7 @@ func TestSetOutputFields_Nil_RestoresAll(t *testing.T) {
 // ---- --query flag tests ----
 
 func TestSetOutputQuery_FilterArray(t *testing.T) {
-	defer SetOutputQuery("")
+	t.Cleanup(func() { ResetState() })
 	SetOutputQuery("[?status=='LIVE']")
 
 	out, err := CaptureOutputErr(func() error {
@@ -1196,7 +1197,7 @@ func TestSetOutputQuery_FilterArray(t *testing.T) {
 }
 
 func TestSetOutputQuery_ExtractField(t *testing.T) {
-	defer SetOutputQuery("")
+	t.Cleanup(func() { ResetState() })
 	SetOutputQuery("[*].name")
 
 	out, err := CaptureOutputErr(func() error {
@@ -1210,8 +1211,8 @@ func TestSetOutputQuery_ExtractField(t *testing.T) {
 }
 
 func TestSetOutputQuery_WithFields(t *testing.T) {
-	defer SetOutputFields(nil)
-	defer SetOutputQuery("")
+	t.Cleanup(func() { ResetState() })
+	t.Cleanup(func() { ResetState() })
 	SetOutputFields([]string{"uid", "name"})
 	SetOutputQuery("[*].uid")
 
@@ -1226,7 +1227,7 @@ func TestSetOutputQuery_WithFields(t *testing.T) {
 }
 
 func TestSetOutputQuery_InvalidQuery(t *testing.T) {
-	defer SetOutputQuery("")
+	t.Cleanup(func() { ResetState() })
 	SetOutputQuery("INVALID[[")
 
 	err := PrintOutput(fieldsTestData(), "json", true)
@@ -1235,7 +1236,7 @@ func TestSetOutputQuery_InvalidQuery(t *testing.T) {
 }
 
 func TestSetOutputQuery_EmptyData(t *testing.T) {
-	defer SetOutputQuery("")
+	t.Cleanup(func() { ResetState() })
 	SetOutputQuery("[*].uid")
 
 	out, err := CaptureOutputErr(func() error {
@@ -1275,7 +1276,7 @@ func TestApplyJMESPath_MarshalError(t *testing.T) {
 
 func TestNoHeaderTableSuppressesHeader(t *testing.T) {
 	SetNoHeader(true)
-	defer SetNoHeader(false)
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 1, Name: "alpha", Active: true}}
 	out := CaptureOutput(func() {
@@ -1289,7 +1290,7 @@ func TestNoHeaderTableSuppressesHeader(t *testing.T) {
 
 func TestNoHeaderTableWithHeaderEnabled(t *testing.T) {
 	SetNoHeader(false)
-	defer SetNoHeader(false)
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 1, Name: "beta", Active: false}}
 	out := CaptureOutput(func() {
@@ -1302,7 +1303,7 @@ func TestNoHeaderTableWithHeaderEnabled(t *testing.T) {
 
 func TestNoHeaderCSVSuppressesHeader(t *testing.T) {
 	SetNoHeader(true)
-	defer SetNoHeader(false)
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 42, Name: "gamma", Active: true}}
 	out := CaptureOutput(func() {
@@ -1317,7 +1318,7 @@ func TestNoHeaderCSVSuppressesHeader(t *testing.T) {
 
 func TestNoHeaderCSVWithHeaderEnabled(t *testing.T) {
 	SetNoHeader(false)
-	defer SetNoHeader(false)
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 7, Name: "delta", Active: false}}
 	out := CaptureOutput(func() {
@@ -1332,7 +1333,7 @@ func TestNoHeaderCSVWithHeaderEnabled(t *testing.T) {
 
 func TestNoHeaderDoesNotAffectJSON(t *testing.T) {
 	SetNoHeader(true)
-	defer SetNoHeader(false)
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 3, Name: "epsilon", Active: true}}
 	out := CaptureOutput(func() {
@@ -1346,7 +1347,7 @@ func TestNoHeaderDoesNotAffectJSON(t *testing.T) {
 
 func TestPrintGoTemplate_FieldExtraction(t *testing.T) {
 	SetTemplateString(`{{range .}}{{.Name}}{{"\n"}}{{end}}`)
-	defer SetTemplateString("")
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 1, Name: "alpha", Active: true}, {ID: 2, Name: "beta", Active: false}}
 	out := CaptureOutput(func() {
@@ -1360,7 +1361,7 @@ func TestPrintGoTemplate_FieldExtraction(t *testing.T) {
 
 func TestPrintGoTemplate_SingleItem(t *testing.T) {
 	SetTemplateString(`{{(index . 0).Name}}`)
-	defer SetTemplateString("")
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 1, Name: "gamma", Active: true}}
 	out := CaptureOutput(func() {
@@ -1373,7 +1374,7 @@ func TestPrintGoTemplate_SingleItem(t *testing.T) {
 
 func TestPrintGoTemplate_FuncMap(t *testing.T) {
 	SetTemplateString(`{{range .}}{{upper .Name}}{{"\n"}}{{end}}`)
-	defer SetTemplateString("")
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 1, Name: "delta"}}
 	out := CaptureOutput(func() {
@@ -1386,7 +1387,7 @@ func TestPrintGoTemplate_FuncMap(t *testing.T) {
 
 func TestPrintGoTemplate_InvalidTemplate(t *testing.T) {
 	SetTemplateString(`{{invalid`)
-	defer SetTemplateString("")
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 1, Name: "test"}}
 	var err error
@@ -1400,7 +1401,7 @@ func TestPrintGoTemplate_InvalidTemplate(t *testing.T) {
 
 func TestPrintGoTemplate_Count(t *testing.T) {
 	SetTemplateString(`{{len .}}`)
-	defer SetTemplateString("")
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 1, Name: "a"}, {ID: 2, Name: "b"}, {ID: 3, Name: "c"}}
 	out := CaptureOutput(func() {
@@ -1413,7 +1414,7 @@ func TestPrintGoTemplate_Count(t *testing.T) {
 
 func TestPrintGoTemplate_JSONFuncMap(t *testing.T) {
 	SetTemplateString(`{{range .}}{{json .}}{{"\n"}}{{end}}`)
-	defer SetTemplateString("")
+	t.Cleanup(func() { ResetState() })
 
 	data := []SimpleStruct{{ID: 1, Name: "epsilon", Active: true}}
 	out := CaptureOutput(func() {
@@ -1435,4 +1436,22 @@ func TestGetOutputFormat(t *testing.T) {
 	t.Cleanup(func() { SetOutputFormat(orig) })
 	SetOutputFormat("json")
 	assert.Equal(t, "json", GetOutputFormat())
+}
+
+func TestApplyOutputConfigConcurrent(t *testing.T) {
+	orig := GetOutputConfig()
+	t.Cleanup(func() { ApplyOutputConfig(orig) })
+
+	var wg sync.WaitGroup
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			cfg := GetOutputConfig()
+			cfg.Format = "json"
+			ApplyOutputConfig(cfg)
+			_ = GetOutputConfig()
+		}()
+	}
+	wg.Wait()
 }

@@ -443,9 +443,8 @@ func TestOutputFormatConcurrency(t *testing.T) {
 	const goroutines = 10
 	const iterations = 50
 
-	// Restore original format after the test.
-	origFormat := getOutputFormat()
-	defer SetOutputFormat(origFormat)
+	orig := GetOutputConfig()
+	t.Cleanup(func() { ApplyOutputConfig(orig) })
 
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
@@ -500,7 +499,7 @@ func TestPrintResourceProvisioning(t *testing.T) {
 
 	t.Run("quiet mode returns no-op spinner", func(t *testing.T) {
 		SetVerbosity("quiet")
-		defer SetVerbosity("normal")
+		t.Cleanup(func() { ResetState() })
 		spinner := PrintResourceProvisioning("Port", "port-123", true)
 		assert.NotNil(t, spinner)
 		assert.True(t, spinner.stopped)
@@ -583,9 +582,7 @@ func TestSpinnerStopWithSuccess(t *testing.T) {
 }
 
 func TestShouldSuppressSpinner(t *testing.T) {
-	origFormat := getOutputFormat()
-	defer SetOutputFormat(origFormat)
-	defer SetVerbosity("normal")
+	t.Cleanup(func() { ResetState() })
 
 	tests := []struct {
 		name     string
@@ -617,7 +614,7 @@ func TestShouldSuppressSpinner(t *testing.T) {
 
 func TestShouldSuppressSpinnerForFormat(t *testing.T) {
 	// Ensure normal verbosity so IsQuiet() doesn't interfere.
-	defer SetVerbosity("normal")
+	t.Cleanup(func() { ResetState() })
 	SetVerbosity("normal")
 
 	assert.False(t, shouldSuppressSpinnerForFormat("table"))
