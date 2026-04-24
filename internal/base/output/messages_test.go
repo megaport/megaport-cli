@@ -170,8 +170,9 @@ func TestSpinner(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping timing-sensitive spinner test")
 	}
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	spinner := NewSpinner(true)
 	assert.NotNil(t, spinner)
@@ -190,8 +191,9 @@ func TestPrintResourceSpinners(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping timing-sensitive resource spinner test")
 	}
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	tests := []struct {
 		name         string
@@ -251,8 +253,9 @@ func TestPrintResourceListing(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping timing-sensitive resource listing test")
 	}
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	output := captureOutput(func() {
 		spinner := PrintResourceListing("Port", true)
@@ -503,8 +506,9 @@ func TestPrintResourceProvisioning(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping timing-sensitive provisioning test")
 	}
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	t.Run("shows provisioning message with elapsed time", func(t *testing.T) {
 		output := captureOutput(func() {
@@ -529,8 +533,9 @@ func TestStartWithElapsed(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping timing-sensitive elapsed timer test")
 	}
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	t.Run("appends elapsed time to message", func(t *testing.T) {
 		spinner := NewSpinner(true)
@@ -588,8 +593,9 @@ func TestSpinnerStopWithSuccess(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping timing-sensitive spinner stop test")
 	}
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	output := captureOutput(func() {
 		spinner := NewSpinner(true)
@@ -682,8 +688,9 @@ func TestSpinnerActiveForTable(t *testing.T) {
 	}
 	saveOutputFormat(t)
 	SetOutputFormat("table")
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	spinner := PrintResourceListing("test", true)
 	assert.False(t, spinner.stopped, "spinner should be active for table format")
@@ -722,8 +729,9 @@ func TestSpinnersNotSuppressedForTable(t *testing.T) {
 	}
 	t.Cleanup(func() { ResetState() })
 	SetOutputFormat("table")
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	s1 := PrintListingResourceTags("Port", "uid-1", true)
 	assert.False(t, s1.stopped, "PrintListingResourceTags should not be suppressed for table format")
@@ -757,8 +765,9 @@ func TestPrintLoggingInWithOutput_EmptyFormatFallback(t *testing.T) {
 	}
 	t.Cleanup(func() { ResetState() })
 	SetOutputFormat("table")
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	s := PrintLoggingInWithOutput(true, "")
 	assert.False(t, s.stopped, "login spinner should not be suppressed when format falls back to table")
@@ -771,8 +780,9 @@ func TestLoginSpinnersNotSuppressedForCSV(t *testing.T) {
 	}
 	saveOutputFormat(t)
 	SetOutputFormat("csv")
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	// Login spinners should still show regardless of output format
 	spinner := PrintLoggingIn(true)
@@ -787,8 +797,9 @@ func TestLoginSpinnersNotSuppressedForCSV(t *testing.T) {
 func TestStopWithSuccessDoesNotWriteToStdoutForCSV(t *testing.T) {
 	saveOutputFormat(t)
 	SetOutputFormat("csv")
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	spinner := PrintResourceListing("test", true)
 
@@ -809,8 +820,9 @@ func TestStopWithSuccessDoesNotWriteToStdoutForCSV(t *testing.T) {
 func TestStopWithSuccessDoesNotWriteToStdoutForXML(t *testing.T) {
 	saveOutputFormat(t)
 	SetOutputFormat("xml")
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	spinner := PrintResourceGetting("test", "uid", true)
 
