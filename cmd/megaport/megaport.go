@@ -55,6 +55,7 @@ func init() {
 		cfg.NoHeader = noHeader
 		cfg.NoPager = noPager
 		cfg.Verbosity = verbosity
+		cfg.Format = format // normalized to lower-case above
 		output.ApplyOutputConfig(cfg)
 
 		// Emit config-default warnings now that output format and verbosity are

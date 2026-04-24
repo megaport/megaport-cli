@@ -32,9 +32,7 @@ var spinnerColors = []func(...interface{}) string{
 
 // SetVerbosity sets the global verbosity level ("normal", "quiet", or "verbose").
 func SetVerbosity(level string) {
-	cfg := GetOutputConfig()
-	cfg.Verbosity = level
-	ApplyOutputConfig(cfg)
+	updateOutputConfig(func(c *OutputConfig) { c.Verbosity = level })
 }
 
 // IsQuiet returns true when quiet mode is active.
@@ -57,9 +55,7 @@ func newNoOpSpinner(noColor bool) *Spinner {
 }
 
 func SetOutputFormat(format string) {
-	cfg := GetOutputConfig()
-	cfg.Format = format
-	ApplyOutputConfig(cfg)
+	updateOutputConfig(func(c *OutputConfig) { c.Format = format })
 }
 
 // GetOutputFormat returns the currently active output format (e.g. "table", "json").
