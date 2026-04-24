@@ -436,9 +436,12 @@ func TestFormatNewValue(t *testing.T) {
 	assert.Contains(t, StripANSIColors(result), "new-value")
 }
 
-// TestOutputFormatConcurrency verifies that SetOutputFormat, getOutputFormat,
-// Print* helpers, and spinner creation can be called concurrently without a
-// data race. Run with: go test -race ./internal/base/output/...
+// TestOutputFormatConcurrency verifies that concurrent reads and writes to the
+// output config via GetOutputFormat, SetVerbosity, and the Print* helpers do
+// not cause data races. Unlike tests that only vary a single field, this one
+// has odd-numbered goroutines write Format while even-numbered goroutines write
+// Verbosity — exercising concurrent writes to different fields simultaneously.
+// Run with: go test -race ./internal/base/output/...
 func TestOutputFormatConcurrency(t *testing.T) {
 	const goroutines = 10
 	const iterations = 50
@@ -453,24 +456,35 @@ func TestOutputFormatConcurrency(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			for j := 0; j < iterations; j++ {
-				// Alternate between formats to maximize contention.
-				if j%2 == 0 {
-					SetOutputFormat("json")
+				if id%2 == 0 {
+					// Even goroutines write Format.
+					if j%2 == 0 {
+						SetOutputFormat("json")
+					} else {
+						SetOutputFormat("table")
+					}
 				} else {
-					SetOutputFormat("table")
+					// Odd goroutines write Verbosity — different field, same mutex.
+					if j%2 == 0 {
+						SetVerbosity("quiet")
+					} else {
+						SetVerbosity("normal")
+					}
 				}
 
-				// Read the format (the main thing under test).
-				f := getOutputFormat()
-				assert.Contains(t, []string{"json", "table"}, f)
+				// All goroutines read back through the struct — any lost write
+				// or torn read will be caught by the race detector.
+				cfg := GetOutputConfig()
+				assert.Contains(t, []string{"json", "table"}, cfg.Format)
+				assert.Contains(t, []string{"quiet", "normal"}, cfg.Verbosity)
 
-				// Exercise Print* helpers that read the atomic value.
+				// Exercise Print* helpers that read the config.
 				PrintSuccess("concurrent %d", true, id)
 				PrintError("concurrent %d", true, id)
 				PrintWarning("concurrent %d", true, id)
 				PrintInfo("concurrent %d", true, id)
 
-				// Exercise spinner creation which also reads the format.
+				// Exercise spinner creation which also reads the config.
 				s := PrintResourceListing("Port", true)
 				s.Stop()
 			}
@@ -628,7 +642,7 @@ func TestShouldSuppressSpinnerForFormat(t *testing.T) {
 // to restore it, avoiding hard-coded assumptions about initial state.
 func saveOutputFormat(t *testing.T) {
 	t.Helper()
-	orig := getOutputFormat()
+	orig := GetOutputFormat()
 	t.Cleanup(func() { SetOutputFormat(orig) })
 }
 

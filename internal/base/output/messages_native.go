@@ -34,7 +34,7 @@ func PrintSuccess(format string, noColor bool, args ...interface{}) {
 		return
 	}
 	msg := fmt.Sprintf(format, args...)
-	if getOutputFormat() == "json" {
+	if GetOutputFormat() == "json" {
 		if noColor {
 			fmt.Fprintf(os.Stderr, "✓ %s\n", msg)
 		} else {
@@ -53,7 +53,7 @@ func PrintSuccess(format string, noColor bool, args ...interface{}) {
 
 func PrintError(format string, noColor bool, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	if getOutputFormat() == "json" {
+	if GetOutputFormat() == "json" {
 		if noColor {
 			fmt.Fprintf(os.Stderr, "✗ %s\n", msg)
 		} else {
@@ -75,7 +75,7 @@ func PrintWarning(format string, noColor bool, args ...interface{}) {
 		return
 	}
 	msg := fmt.Sprintf(format, args...)
-	if getOutputFormat() == "json" {
+	if GetOutputFormat() == "json" {
 		if noColor {
 			fmt.Fprintf(os.Stderr, "⚠ %s\n", msg)
 		} else {
@@ -97,7 +97,7 @@ func PrintInfo(format string, noColor bool, args ...interface{}) {
 		return
 	}
 	msg := fmt.Sprintf(format, args...)
-	if getOutputFormat() == "json" {
+	if GetOutputFormat() == "json" {
 		if noColor {
 			fmt.Fprintf(os.Stderr, "ℹ %s\n", msg)
 		} else {

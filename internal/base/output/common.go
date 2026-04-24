@@ -27,6 +27,7 @@ type OutputConfig struct {
 	Verbosity string // "normal"|"quiet"|"verbose"
 }
 
+// defaultOutputConfig returns the baseline configuration used at startup and by ResetState.
 func defaultOutputConfig() OutputConfig {
 	return OutputConfig{Format: "table", Verbosity: "normal"}
 }
@@ -56,7 +57,7 @@ func GetOutputConfig() OutputConfig {
 }
 
 // SetOutputFields sets the field filter applied by all PrintOutput calls.
-// Pass nil to restore full output (all fields). Goroutine-safe.
+// Pass nil to restore full output (all fields).
 func SetOutputFields(fields []string) {
 	cfg := GetOutputConfig()
 	cfg.Fields = fields
