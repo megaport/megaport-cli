@@ -93,14 +93,22 @@ func SetOutputQuery(query string) {
 	updateOutputConfig(func(c *OutputConfig) { c.Query = query })
 }
 
-func getOutputQuery() string { return GetOutputConfig().Query }
+func getOutputQuery() string {
+	outputCfgMu.RLock()
+	defer outputCfgMu.RUnlock()
+	return outputCfg.Query
+}
 
 // SetNoHeader sets whether table and CSV output should suppress column headers.
 func SetNoHeader(v bool) {
 	updateOutputConfig(func(c *OutputConfig) { c.NoHeader = v })
 }
 
-func getNoHeader() bool { return GetOutputConfig().NoHeader }
+func getNoHeader() bool {
+	outputCfgMu.RLock()
+	defer outputCfgMu.RUnlock()
+	return outputCfg.NoHeader
+}
 
 // SetTemplateString sets the Go template string applied by printGoTemplate.
 // Pass "" to disable.
@@ -109,7 +117,11 @@ func SetTemplateString(s string) {
 }
 
 // GetTemplateString returns the current Go template string.
-func GetTemplateString() string { return GetOutputConfig().Template }
+func GetTemplateString() string {
+	outputCfgMu.RLock()
+	defer outputCfgMu.RUnlock()
+	return outputCfg.Template
+}
 
 // errorBody and errorEnvelope are the JSON error envelope types shared by
 // PrintErrorJSON across native and WASM builds.
