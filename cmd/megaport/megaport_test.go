@@ -129,8 +129,8 @@ func TestApplyDefaultSettings_ResolvesQuietVerboseConflict(t *testing.T) {
 
 	warnings := applyDefaultSettings(rootCmd)
 
-	assert.True(t, quiet, "quiet should remain set (safer default)")
-	assert.False(t, verbose, "verbose should be dropped to resolve conflict")
+	assert.True(t, verbose, "verbose should remain set (safer default — unexpected output surfaces problems)")
+	assert.False(t, quiet, "quiet should be dropped to resolve conflict")
 	require.NotEmpty(t, warnings)
 	var found bool
 	for _, w := range warnings {

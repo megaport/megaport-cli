@@ -236,21 +236,21 @@ func applyDefaultSettings(cmd *cobra.Command) []string {
 	// --quiet and --verbose are mutually exclusive (see MarkFlagsMutuallyExclusive).
 	// A saved default can combine with a CLI flag (or a manually-edited config
 	// can set both) and bypass cobra's validation. Resolve by preferring the
-	// explicitly-set flag; if both are from config, drop verbose as the safer
-	// default so automation is not unexpectedly chatty.
+	// explicitly-set flag; if both are from config, drop quiet so unexpected
+	// output surfaces a problem to the user rather than silently suppressing it.
 	if quiet && verbose {
-		dropped := "verbose"
+		dropped := "quiet"
 		switch {
 		case cliQuiet && !cliVerbose:
 			verbose = false
 			_ = cmd.Flags().Set("verbose", "false")
+			dropped = "verbose"
 		case cliVerbose && !cliQuiet:
 			quiet = false
 			_ = cmd.Flags().Set("quiet", "false")
-			dropped = "quiet"
 		default:
-			verbose = false
-			_ = cmd.Flags().Set("verbose", "false")
+			quiet = false
+			_ = cmd.Flags().Set("quiet", "false")
 		}
 		warnings = append(warnings, fmt.Sprintf("Saved defaults set both --quiet and --verbose; dropping --%s", dropped))
 	}
