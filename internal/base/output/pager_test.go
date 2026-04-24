@@ -138,8 +138,10 @@ func TestRunWithPager_PropagatesFnError(t *testing.T) {
 func TestSetNoPager_RoundTrip(t *testing.T) {
 	SetNoPager(true)
 	assert.True(t, getNoPager())
+	assert.True(t, GetNoPager())
 	SetNoPager(false)
 	assert.False(t, getNoPager())
+	assert.False(t, GetNoPager())
 }
 
 // TestRunWithPager_NoTrailingNewline verifies that output without a trailing
