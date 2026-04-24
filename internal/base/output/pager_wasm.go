@@ -12,7 +12,11 @@ func SetNoPager(v bool) {
 
 // GetNoPager returns the stored no-pager setting. It may be true if the
 // --no-pager flag was passed, but RunWithPager ignores it in WASM builds.
-func GetNoPager() bool { return GetOutputConfig().NoPager }
+func GetNoPager() bool {
+	outputCfgMu.RLock()
+	defer outputCfgMu.RUnlock()
+	return outputCfg.NoPager
+}
 
 // RunWithPager in the WASM build simply calls fn directly. There is no
 // terminal to detect and no process to spawn.

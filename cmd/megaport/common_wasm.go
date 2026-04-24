@@ -102,6 +102,9 @@ func InitializeCommon() {
 			verbosity = "verbose"
 		}
 		format := strings.ToLower(outputFormat)
+		if format == utils.FormatGoTemplate {
+			return fmt.Errorf("invalid output format: go-template is not supported in the browser version")
+		}
 		validFmt := false
 		for _, vf := range utils.ValidFormats {
 			if format == vf {
