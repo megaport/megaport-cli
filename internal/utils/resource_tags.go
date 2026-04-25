@@ -42,7 +42,14 @@ func readTagsFile(path string) ([]byte, error) {
 	if info.Size() > maxTagsFileSize {
 		return nil, fmt.Errorf("file %q exceeds maximum allowed size of 1 MiB (%d bytes)", path, info.Size())
 	}
-	return io.ReadAll(io.LimitReader(f, maxTagsFileSize+1))
+	data, err := io.ReadAll(io.LimitReader(f, maxTagsFileSize+1))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+	if len(data) > maxTagsFileSize {
+		return nil, fmt.Errorf("file %q exceeds maximum allowed size of 1 MiB (%d bytes)", path, len(data))
+	}
+	return data, nil
 }
 
 const defaultTagsTimeout = 90 * time.Second
