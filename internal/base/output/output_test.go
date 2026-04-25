@@ -1436,25 +1436,3 @@ func TestGetOutputFormat(t *testing.T) {
 	SetOutputFormat("json")
 	assert.Equal(t, "json", GetOutputFormat())
 }
-
-func TestSetTerminalWidthForTesting(t *testing.T) {
-	// Pin to a known width and verify getTerminalWidth returns it.
-	SetTerminalWidthForTesting(123)
-	assert.Equal(t, 123, getTerminalWidth())
-
-	// Reset to 0 re-enables auto-detection. Redirect stdout to a pipe so
-	// term.GetSize deterministically fails and the 80-char fallback assertion
-	// holds regardless of whether the test runner has a real TTY.
-	r, w, err := os.Pipe()
-	assert.NoError(t, err)
-	origStdout := os.Stdout
-	os.Stdout = w
-	defer func() {
-		os.Stdout = origStdout
-		_ = w.Close()
-		_ = r.Close()
-	}()
-
-	SetTerminalWidthForTesting(0)
-	assert.Equal(t, 80, getTerminalWidth())
-}

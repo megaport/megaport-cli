@@ -277,3 +277,61 @@ func TestPrintNewlineWithJSONFormat(t *testing.T) {
 	assert.Empty(t, stdout, "PrintNewline should not write to stdout in JSON output mode")
 	assert.Equal(t, "\n", stderr, "PrintNewline should write exactly one newline to stderr in JSON output mode")
 }
+
+func TestQuietSuppressesPrintPlain(t *testing.T) {
+	resetVerbosity(t)
+	SetVerbosity("quiet")
+
+	out := captureStdout(t, func() {
+		PrintPlain("test message", true)
+	})
+	assert.Empty(t, out, "PrintPlain should produce no output in quiet mode")
+}
+
+func TestPrintPlainWritesToStdout(t *testing.T) {
+	resetVerbosity(t)
+
+	out := captureStdout(t, func() {
+		PrintPlain("hello %s", true, "world")
+	})
+	assert.Equal(t, "hello world\n", out, "PrintPlain should write formatted line to stdout")
+}
+
+func TestPrintPlainWithJSONFormat(t *testing.T) {
+	resetVerbosity(t)
+
+	oldFormat := getOutputFormat()
+	SetOutputFormat("json")
+	defer SetOutputFormat(oldFormat)
+
+	var stdout string
+	stderr := captureStderr(t, func() {
+		stdout = captureStdout(t, func() {
+			PrintPlain("section heading", true)
+		})
+	})
+	assert.Empty(t, stdout, "PrintPlain should not write to stdout in JSON output mode")
+	assert.Equal(t, "section heading\n", stderr, "PrintPlain should write to stderr in JSON output mode")
+}
+
+func TestSetTerminalWidthForTesting(t *testing.T) {
+	// Pin to a known width and verify getTerminalWidth returns it.
+	SetTerminalWidthForTesting(123)
+	assert.Equal(t, 123, getTerminalWidth())
+
+	// Reset to 0 re-enables auto-detection. Redirect stdout to a pipe so
+	// term.GetSize deterministically fails and the 80-char fallback assertion
+	// holds regardless of whether the test runner has a real TTY.
+	r, w, err := os.Pipe()
+	assert.NoError(t, err)
+	origStdout := os.Stdout
+	os.Stdout = w
+	defer func() {
+		os.Stdout = origStdout
+		_ = w.Close()
+		_ = r.Close()
+	}()
+
+	SetTerminalWidthForTesting(0)
+	assert.Equal(t, 80, getTerminalWidth())
+}
