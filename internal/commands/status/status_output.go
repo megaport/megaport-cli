@@ -337,7 +337,7 @@ func printDashboardCSV(dashboard dashboardOutput, noColor bool) error {
 		{"IXS", func() error { return output.PrintOutput(dashboard.IXs, "csv", noColor) }},
 	}
 	for _, s := range sections {
-		fmt.Printf("# %s\n", s.name)
+		output.PrintPlain("# %s", noColor, s.name)
 		if err := s.fn(); err != nil {
 			return err
 		}
