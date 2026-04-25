@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/spf13/cobra"
 )
@@ -105,6 +106,15 @@ func UpdateResourceTags(opts UpdateTagsOptions) error {
 
 	if len(resourceTags) == 0 {
 		output.PrintWarning("No tags provided. The %s will have all existing tags removed.", opts.NoColor, opts.ResourceType)
+	}
+
+	force, _ := opts.Cmd.Flags().GetBool("force")
+	if !force && !interactive && len(existingTags) > 0 {
+		msg := fmt.Sprintf("This will replace %d existing tag(s). Continue? [y/N]: ", len(existingTags))
+		if !ConfirmPrompt(msg, opts.NoColor) {
+			output.PrintInfo("Update cancelled", opts.NoColor)
+			return exitcodes.NewCancelledError(fmt.Errorf("cancelled by user"))
+		}
 	}
 
 	// Use a separate context for the update call.

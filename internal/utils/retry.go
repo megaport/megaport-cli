@@ -168,7 +168,7 @@ func isRetryable(err error, retryNetworkErrors bool) bool {
 	// Check for transient network errors via the net.Error interface.
 	var netErr net.Error
 	if errors.As(err, &netErr) {
-		return netErr.Timeout() || netErr.Temporary() //nolint:staticcheck // Temporary is deprecated but still useful for transient network errors
+		return netErr.Timeout()
 	}
 
 	// Last-resort substring matching for errors that don't expose structured types.

@@ -236,6 +236,7 @@ func newUpdateCmd(t *testing.T, flags map[string]string) *cobra.Command {
 	t.Helper()
 	cmd := &cobra.Command{Use: "update-tags"}
 	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().Bool("force", false, "")
 	cmd.Flags().String("json", "", "")
 	cmd.Flags().String("json-file", "", "")
 	cmd.Flags().String("tags", "", "")
@@ -256,13 +257,29 @@ func TestUpdateResourceTags(t *testing.T) {
 	}
 
 	t.Run("success with JSON input", func(t *testing.T) {
-		cmd := newUpdateCmd(t, map[string]string{"json": `{"env":"prod"}`})
+		cmd := newUpdateCmd(t, map[string]string{"json": `{"env":"prod"}`, "force": "true"})
 		err := UpdateResourceTags(UpdateTagsOptions{
 			ResourceType: "port",
 			UID:          "uid-1",
 			NoColor:      true,
 			Cmd:          cmd,
 			ListFunc:     successListFunc,
+			UpdateFunc:   successUpdateFunc,
+		})
+		assert.NoError(t, err)
+	})
+
+	t.Run("success with no existing tags skips confirmation", func(t *testing.T) {
+		emptyListFunc := func(ctx context.Context, uid string) (map[string]string, error) {
+			return map[string]string{}, nil
+		}
+		cmd := newUpdateCmd(t, map[string]string{"json": `{"env":"prod"}`})
+		err := UpdateResourceTags(UpdateTagsOptions{
+			ResourceType: "port",
+			UID:          "uid-6",
+			NoColor:      true,
+			Cmd:          cmd,
+			ListFunc:     emptyListFunc,
 			UpdateFunc:   successUpdateFunc,
 		})
 		assert.NoError(t, err)
@@ -303,7 +320,7 @@ func TestUpdateResourceTags(t *testing.T) {
 		failUpdateFunc := func(ctx context.Context, uid string, tags map[string]string) error {
 			return fmt.Errorf("update failed")
 		}
-		cmd := newUpdateCmd(t, map[string]string{"json": `{"env":"staging"}`})
+		cmd := newUpdateCmd(t, map[string]string{"json": `{"env":"staging"}`, "force": "true"})
 		err := UpdateResourceTags(UpdateTagsOptions{
 			ResourceType: "port",
 			UID:          "uid-4",

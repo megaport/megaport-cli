@@ -1667,6 +1667,7 @@ func TestUpdateMCRResourceTagsCmd(t *testing.T) {
 		name                 string
 		mcrUID               string
 		interactive          bool
+		force                bool
 		promptResult         map[string]string
 		promptError          error
 		jsonInput            string
@@ -1732,6 +1733,7 @@ func TestUpdateMCRResourceTagsCmd(t *testing.T) {
 		{
 			name:      "empty tags clear all existing tags",
 			mcrUID:    "mcr-clear",
+			force:     true,
 			jsonInput: `{}`,
 			setupMock: func(m *MockMCRService) {
 				m.ListMCRResourceTagsResult = map[string]string{"env": "staging"}
@@ -1774,11 +1776,16 @@ func TestUpdateMCRResourceTagsCmd(t *testing.T) {
 			}
 
 			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().Bool("force", false, "")
 			cmd.Flags().String("json", "", "")
 			cmd.Flags().String("json-file", "", "")
 
 			if tt.interactive {
 				err := cmd.Flags().Set("interactive", "true")
+				assert.NoError(t, err)
+			}
+			if tt.force {
+				err := cmd.Flags().Set("force", "true")
 				assert.NoError(t, err)
 			}
 			if tt.jsonInput != "" {
