@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -18,21 +19,30 @@ import (
 const maxTagsFileSize = 1 << 20 // 1 MiB
 
 // readTagsFile reads a user-supplied JSON file path safely: it cleans the path,
-// rejects upward traversal, and enforces a 1 MiB size limit before reading.
+// rejects upward traversal, rejects non-regular files, and enforces a 1 MiB
+// size limit while reading (open + stat + LimitReader avoids a TOCTOU race).
 func readTagsFile(path string) ([]byte, error) {
 	clean := filepath.Clean(path)
 	// Reject paths that still navigate above the current directory after cleaning.
 	if clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
 		return nil, fmt.Errorf("invalid file path %q: path traversal not allowed", path)
 	}
-	info, err := os.Stat(clean)
+	f, err := os.Open(clean)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("file %q is not a regular file", path)
 	}
 	if info.Size() > maxTagsFileSize {
 		return nil, fmt.Errorf("file %q exceeds maximum allowed size of 1 MiB (%d bytes)", path, info.Size())
 	}
-	return os.ReadFile(clean)
+	return io.ReadAll(io.LimitReader(f, maxTagsFileSize+1))
 }
 
 const defaultTagsTimeout = 90 * time.Second
@@ -132,7 +142,12 @@ func UpdateResourceTags(opts UpdateTagsOptions) error {
 
 	force, _ := opts.Cmd.Flags().GetBool("force")
 	if !force && !interactive && len(existingTags) > 0 {
-		msg := fmt.Sprintf("This will replace %d existing tag(s). Continue? [y/N]: ", len(existingTags))
+		var msg string
+		if len(resourceTags) == 0 {
+			msg = fmt.Sprintf("This will remove all %d existing tag(s). Continue?", len(existingTags))
+		} else {
+			msg = fmt.Sprintf("This will replace %d existing tag(s). Continue?", len(existingTags))
+		}
 		if !ConfirmPrompt(msg, opts.NoColor) {
 			output.PrintInfo("Update cancelled", opts.NoColor)
 			return exitcodes.NewCancelledError(fmt.Errorf("cancelled by user"))

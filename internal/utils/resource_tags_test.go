@@ -115,6 +115,14 @@ func TestParseResourceTagsInput(t *testing.T) {
 		assert.Contains(t, err.Error(), "exceeds maximum allowed size")
 	})
 
+	t.Run("non-regular file rejected", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		cmd := newCmdWithFlags(t, map[string]string{"json-file": tmpDir})
+		_, err := ParseResourceTagsInput(cmd)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not a regular file")
+	})
+
 	t.Run("invalid JSON file content", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		path := filepath.Join(tmpDir, "bad.json")
@@ -322,6 +330,28 @@ func TestUpdateResourceTags(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "cancelled by user")
+	})
+
+	t.Run("remove all tags uses remove wording in confirmation", func(t *testing.T) {
+		var capturedMsg string
+		original := GetConfirmPrompt()
+		SetConfirmPrompt(func(msg string, noColor bool) bool {
+			capturedMsg = msg
+			return false
+		})
+		defer SetConfirmPrompt(original)
+
+		cmd := newUpdateCmd(t, map[string]string{"json": `{}`})
+		_ = UpdateResourceTags(UpdateTagsOptions{
+			ResourceType: "port",
+			UID:          "uid-remove",
+			NoColor:      true,
+			Cmd:          cmd,
+			ListFunc:     successListFunc,
+			UpdateFunc:   successUpdateFunc,
+		})
+		assert.Contains(t, capturedMsg, "remove all")
+		assert.NotContains(t, capturedMsg, "replace")
 	})
 
 	t.Run("confirmation accepted proceeds with update", func(t *testing.T) {
