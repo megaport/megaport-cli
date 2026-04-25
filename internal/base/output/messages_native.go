@@ -115,8 +115,16 @@ func PrintInfo(format string, noColor bool, args ...interface{}) {
 	}
 }
 
-// PrintNewline prints a blank line to stdout.
+// PrintNewline prints a blank line, suppressed in quiet mode and routed to
+// stderr when the output format is json (consistent with PrintInfo et al.).
 func PrintNewline() {
+	if IsQuiet() {
+		return
+	}
+	if getOutputFormat() == "json" {
+		fmt.Fprintln(os.Stderr)
+		return
+	}
 	fmt.Println()
 }
 

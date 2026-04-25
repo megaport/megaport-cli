@@ -1442,8 +1442,19 @@ func TestSetTerminalWidthForTesting(t *testing.T) {
 	SetTerminalWidthForTesting(123)
 	assert.Equal(t, 123, getTerminalWidth())
 
-	// Reset to 0 re-enables auto-detection; in a test environment
-	// term.GetSize fails on a non-TTY stdout so the fallback (80) is returned.
+	// Reset to 0 re-enables auto-detection. Redirect stdout to a pipe so
+	// term.GetSize deterministically fails and the 80-char fallback assertion
+	// holds regardless of whether the test runner has a real TTY.
+	r, w, err := os.Pipe()
+	assert.NoError(t, err)
+	origStdout := os.Stdout
+	os.Stdout = w
+	defer func() {
+		os.Stdout = origStdout
+		_ = w.Close()
+		_ = r.Close()
+	}()
+
 	SetTerminalWidthForTesting(0)
 	assert.Equal(t, 80, getTerminalWidth())
 }

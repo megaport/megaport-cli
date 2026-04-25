@@ -255,8 +255,11 @@ func PrintInfo(format string, noColor bool, args ...interface{}) {
 	wasm.WasmOutputBuffer.Write([]byte(output))
 }
 
-// PrintNewline writes a blank line to the WASM output buffer.
+// PrintNewline writes a blank line to the WASM output buffer, suppressed in quiet mode.
 func PrintNewline() {
+	if IsQuiet() {
+		return
+	}
 	wasm.WasmOutputBuffer.Write([]byte("\n"))
 }
 
