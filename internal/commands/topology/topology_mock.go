@@ -116,7 +116,7 @@ func (m *MockMCRService) WaitForMCRReady(ctx context.Context, mcrID string, time
 	return fmt.Errorf("mock: WaitForMCRReady not configured")
 }
 
-func (m *MockMCRService) WaitForMCRReady(ctx context.Context, mcrID string, timeout time.Duration) error {
+func (m *MockMCRService) WaitForMCRReady(_ context.Context, _ string, _ time.Duration) error {
 	return nil
 }
 
