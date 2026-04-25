@@ -94,6 +94,27 @@ func TestParseResourceTagsInput(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed to read JSON file")
 	})
 
+	t.Run("path traversal rejected", func(t *testing.T) {
+		cmd := newCmdWithFlags(t, map[string]string{"json-file": "../../etc/passwd"})
+		_, err := ParseResourceTagsInput(cmd)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "path traversal not allowed")
+	})
+
+	t.Run("file exceeding size limit rejected", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		path := filepath.Join(tmpDir, "big.json")
+		big := make([]byte, maxTagsFileSize+1)
+		big[0] = '{'
+		big[len(big)-1] = '}'
+		require.NoError(t, os.WriteFile(path, big, 0644))
+
+		cmd := newCmdWithFlags(t, map[string]string{"json-file": path})
+		_, err := ParseResourceTagsInput(cmd)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "exceeds maximum allowed size")
+	})
+
 	t.Run("invalid JSON file content", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		path := filepath.Join(tmpDir, "bad.json")

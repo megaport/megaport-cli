@@ -60,8 +60,8 @@ type MockMCRService struct {
 	CapturedUpdateMCRIPsecAddOnUID    string
 	CapturedUpdateMCRIPsecTunnelCount int
 
-	WaitForMCRReadyErr            error
-	CapturedWaitForMCRReadyMCRID  string
+	WaitForMCRReadyErr           error
+	CapturedWaitForMCRReadyMCRID string
 }
 
 func (m *MockMCRService) BuyMCR(ctx context.Context, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {

@@ -5,13 +5,35 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/spf13/cobra"
 )
+
+const maxTagsFileSize = 1 << 20 // 1 MiB
+
+// readTagsFile reads a user-supplied JSON file path safely: it cleans the path,
+// rejects upward traversal, and enforces a 1 MiB size limit before reading.
+func readTagsFile(path string) ([]byte, error) {
+	clean := filepath.Clean(path)
+	// Reject paths that still navigate above the current directory after cleaning.
+	if clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return nil, fmt.Errorf("invalid file path %q: path traversal not allowed", path)
+	}
+	info, err := os.Stat(clean)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+	if info.Size() > maxTagsFileSize {
+		return nil, fmt.Errorf("file %q exceeds maximum allowed size of 1 MiB (%d bytes)", path, info.Size())
+	}
+	return os.ReadFile(clean)
+}
 
 const defaultTagsTimeout = 90 * time.Second
 
@@ -148,7 +170,7 @@ func ParseResourceTagsInput(cmd *cobra.Command) (map[string]string, error) {
 			return nil, fmt.Errorf("failed to parse JSON: %w", err)
 		}
 	} else if jsonFile != "" {
-		jsonData, err := os.ReadFile(jsonFile)
+		jsonData, err := readTagsFile(jsonFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read JSON file: %w", err)
 		}
@@ -179,7 +201,7 @@ func parseResourceTagsInputExtended(cmd *cobra.Command) (map[string]string, erro
 			return nil, fmt.Errorf("failed to parse JSON: %w", err)
 		}
 	case jsonFile != "":
-		jsonData, err := os.ReadFile(jsonFile)
+		jsonData, err := readTagsFile(jsonFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read JSON file: %w", err)
 		}
@@ -195,7 +217,7 @@ func parseResourceTagsInputExtended(cmd *cobra.Command) (map[string]string, erro
 			return nil, fmt.Errorf("failed to parse resource-tags JSON: %w", err)
 		}
 	case tagsFile != "":
-		tagData, err := os.ReadFile(tagsFile)
+		tagData, err := readTagsFile(tagsFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read tags file: %w", err)
 		}
