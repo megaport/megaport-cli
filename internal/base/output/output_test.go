@@ -1436,3 +1436,14 @@ func TestGetOutputFormat(t *testing.T) {
 	SetOutputFormat("json")
 	assert.Equal(t, "json", GetOutputFormat())
 }
+
+func TestSetTerminalWidthForTesting(t *testing.T) {
+	// Pin to a known width and verify getTerminalWidth returns it.
+	SetTerminalWidthForTesting(123)
+	assert.Equal(t, 123, getTerminalWidth())
+
+	// Reset to 0 re-enables auto-detection; in a test environment
+	// term.GetSize fails on a non-TTY stdout so the fallback (80) is returned.
+	SetTerminalWidthForTesting(0)
+	assert.Equal(t, 80, getTerminalWidth())
+}
