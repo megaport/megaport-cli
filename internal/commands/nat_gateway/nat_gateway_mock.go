@@ -120,6 +120,74 @@ func (m *MockNATGatewayService) BuyNATGateway(ctx context.Context, productUID st
 	return &megaport.NATGatewayBuyResult{ProductUID: productUID}, nil
 }
 
+func (m *MockNATGatewayService) CreateNATGatewayPacketFilter(_ context.Context, _ string, _ *megaport.NATGatewayPacketFilterRequest) (*megaport.NATGatewayPacketFilter, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) ListNATGatewayPacketFilters(_ context.Context, _ string) ([]*megaport.NATGatewayPacketFilterSummary, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) GetNATGatewayPacketFilter(_ context.Context, _ string, _ int) (*megaport.NATGatewayPacketFilter, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) UpdateNATGatewayPacketFilter(_ context.Context, _ string, _ int, _ *megaport.NATGatewayPacketFilterRequest) (*megaport.NATGatewayPacketFilter, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) DeleteNATGatewayPacketFilter(_ context.Context, _ string, _ int) error {
+	return nil
+}
+
+func (m *MockNATGatewayService) ListNATGatewayPrefixLists(_ context.Context, _ string) ([]*megaport.NATGatewayPrefixListSummary, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) CreateNATGatewayPrefixList(_ context.Context, _ string, _ *megaport.NATGatewayPrefixList) (*megaport.NATGatewayPrefixList, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) GetNATGatewayPrefixList(_ context.Context, _ string, _ int) (*megaport.NATGatewayPrefixList, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) UpdateNATGatewayPrefixList(_ context.Context, _ string, _ int, _ *megaport.NATGatewayPrefixList) (*megaport.NATGatewayPrefixList, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) DeleteNATGatewayPrefixList(_ context.Context, _ string, _ int) error {
+	return nil
+}
+
+func (m *MockNATGatewayService) ListNATGatewayIPRoutesAsync(_ context.Context, _, _ string) (string, error) {
+	return "", nil
+}
+
+func (m *MockNATGatewayService) ListNATGatewayBGPRoutesAsync(_ context.Context, _, _ string) (string, error) {
+	return "", nil
+}
+
+func (m *MockNATGatewayService) ListNATGatewayBGPNeighborRoutesAsync(_ context.Context, _ *megaport.NATGatewayBGPNeighborRoutesRequest) (string, error) {
+	return "", nil
+}
+
+func (m *MockNATGatewayService) GetNATGatewayDiagnosticsRoutes(_ context.Context, _, _ string) ([]*megaport.NATGatewayRoute, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) ListNATGatewayIPRoutes(_ context.Context, _, _ string) ([]*megaport.NATGatewayIPRoute, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) ListNATGatewayBGPRoutes(_ context.Context, _, _ string) ([]*megaport.NATGatewayBGPRoute, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) ListNATGatewayBGPNeighborRoutes(_ context.Context, _ *megaport.NATGatewayBGPNeighborRoutesRequest) ([]*megaport.NATGatewayBGPRoute, error) {
+	return nil, nil
+}
+
 func (m *MockNATGatewayService) Reset() {
 	m.CreateResult = nil
 	m.CreateErr = nil

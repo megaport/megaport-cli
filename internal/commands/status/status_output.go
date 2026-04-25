@@ -230,7 +230,7 @@ func printDashboard(dashboard dashboardOutput, format string, noColor bool) erro
 
 func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	// PORTS
-	fmt.Printf("\nPORTS (%d)\n", len(dashboard.Ports))
+	output.PrintInfo("\nPORTS (%d)", noColor, len(dashboard.Ports))
 	if len(dashboard.Ports) == 0 {
 		output.PrintWarning("No ports found.", noColor)
 	} else {
@@ -240,7 +240,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	}
 
 	// MCRS
-	fmt.Printf("\nMCRS (%d)\n", len(dashboard.MCRs))
+	output.PrintInfo("\nMCRS (%d)", noColor, len(dashboard.MCRs))
 	if len(dashboard.MCRs) == 0 {
 		output.PrintWarning("No MCRs found.", noColor)
 	} else {
@@ -250,7 +250,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	}
 
 	// MVES
-	fmt.Printf("\nMVES (%d)\n", len(dashboard.MVEs))
+	output.PrintInfo("\nMVES (%d)", noColor, len(dashboard.MVEs))
 	if len(dashboard.MVEs) == 0 {
 		output.PrintWarning("No MVEs found.", noColor)
 	} else {
@@ -260,7 +260,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	}
 
 	// VXCS
-	fmt.Printf("\nVXCS (%d)\n", len(dashboard.VXCs))
+	output.PrintInfo("\nVXCS (%d)", noColor, len(dashboard.VXCs))
 	if len(dashboard.VXCs) == 0 {
 		output.PrintWarning("No VXCs found.", noColor)
 	} else {
@@ -270,7 +270,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	}
 
 	// IXS
-	fmt.Printf("\nIXS (%d)\n", len(dashboard.IXs))
+	output.PrintInfo("\nIXS (%d)", noColor, len(dashboard.IXs))
 	if len(dashboard.IXs) == 0 {
 		output.PrintWarning("No IXs found.", noColor)
 	} else {
@@ -280,7 +280,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	}
 
 	s := dashboard.Summary
-	fmt.Printf("\nTotal: %d port(s), %d MCR(s), %d MVE(s), %d VXC(s), %d IX(s)\n",
+	output.PrintInfo("\nTotal: %d port(s), %d MCR(s), %d MVE(s), %d VXC(s), %d IX(s)", noColor,
 		s.Ports, s.MCRs, s.MVEs, s.VXCs, s.IXs)
 
 	return nil
