@@ -230,7 +230,7 @@ func printDashboard(dashboard dashboardOutput, format string, noColor bool) erro
 
 func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	// PORTS
-	fmt.Println()
+	output.PrintNewline()
 	output.PrintInfo("PORTS (%d)", noColor, len(dashboard.Ports))
 	if len(dashboard.Ports) == 0 {
 		output.PrintWarning("No ports found.", noColor)
@@ -241,7 +241,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	}
 
 	// MCRS
-	fmt.Println()
+	output.PrintNewline()
 	output.PrintInfo("MCRS (%d)", noColor, len(dashboard.MCRs))
 	if len(dashboard.MCRs) == 0 {
 		output.PrintWarning("No MCRs found.", noColor)
@@ -252,7 +252,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	}
 
 	// MVES
-	fmt.Println()
+	output.PrintNewline()
 	output.PrintInfo("MVES (%d)", noColor, len(dashboard.MVEs))
 	if len(dashboard.MVEs) == 0 {
 		output.PrintWarning("No MVEs found.", noColor)
@@ -263,7 +263,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	}
 
 	// VXCS
-	fmt.Println()
+	output.PrintNewline()
 	output.PrintInfo("VXCS (%d)", noColor, len(dashboard.VXCs))
 	if len(dashboard.VXCs) == 0 {
 		output.PrintWarning("No VXCs found.", noColor)
@@ -274,7 +274,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	}
 
 	// IXS
-	fmt.Println()
+	output.PrintNewline()
 	output.PrintInfo("IXS (%d)", noColor, len(dashboard.IXs))
 	if len(dashboard.IXs) == 0 {
 		output.PrintWarning("No IXs found.", noColor)
@@ -285,7 +285,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	}
 
 	s := dashboard.Summary
-	fmt.Println()
+	output.PrintNewline()
 	output.PrintInfo("Total: %d port(s), %d MCR(s), %d MVE(s), %d VXC(s), %d IX(s)", noColor,
 		s.Ports, s.MCRs, s.MVEs, s.VXCs, s.IXs)
 
@@ -341,7 +341,7 @@ func printDashboardCSV(dashboard dashboardOutput, noColor bool) error {
 		if err := s.fn(); err != nil {
 			return err
 		}
-		fmt.Println()
+		output.PrintNewline()
 	}
 	return nil
 }
