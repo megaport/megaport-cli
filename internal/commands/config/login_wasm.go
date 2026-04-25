@@ -369,10 +369,7 @@ func RetryWithBackoffAndConsoleLogging(ctx context.Context, attempts int, client
 			case <-timer.C:
 			case <-ctx.Done():
 				if !timer.Stop() {
-					select {
-					case <-timer.C:
-					default:
-					}
+					<-timer.C
 				}
 				return nil, ctx.Err()
 			}
