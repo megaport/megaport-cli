@@ -134,12 +134,13 @@ func (d *DirectOutputBuffer) Reset() {
 	d.buffer.Reset()
 }
 
-// EnableDebugMode turns on additional debugging. In production, this is
-// enabled only when the host page opts in via window.wasmDebugMode = true
-// (see main_wasm.go). When active, every buffer write is logged to the
-// browser console — this may expose sensitive data (API keys, tokens,
-// command output) to anyone with DevTools open, so it must never be
-// enabled in production deployments.
+// EnableDebugMode turns on additional debugging. This should be enabled only
+// when the host page explicitly opts in via window.wasmDebugMode = true
+// (see main_wasm.go) for local debugging or other controlled, non-public
+// environments. When active, every buffer write is logged to the browser
+// console — this may expose sensitive data (API keys, tokens, command
+// output) to anyone with DevTools open, so it must not be enabled for
+// public or hosted production deployments.
 func EnableDebugMode() {
 	debugMode.Store(true)
 	js.Global().Set("wasmDebug", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
