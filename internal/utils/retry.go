@@ -165,7 +165,13 @@ func isRetryable(err error, retryNetworkErrors bool) bool {
 		return true
 	}
 
-	// Check for transient network errors via the net.Error interface.
+	// Check for DNS errors explicitly: IsTemporary covers transient failures that
+	// are not timeouts (e.g. SERVFAIL), which Timeout() alone would miss.
+	if dnsErr, ok := err.(*net.DNSError); ok {
+		return dnsErr.IsTimeout || dnsErr.IsTemporary
+	}
+
+	// Check remaining transient network errors via the net.Error interface.
 	var netErr net.Error
 	if errors.As(err, &netErr) {
 		return netErr.Timeout()
