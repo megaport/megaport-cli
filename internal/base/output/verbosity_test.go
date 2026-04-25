@@ -241,3 +241,40 @@ func TestVerbosePrintVerboseWithJSONFormat(t *testing.T) {
 	assert.Contains(t, out, "[DEBUG]", "PrintVerbose should write to stderr in JSON format")
 	assert.Contains(t, out, "debug info", "PrintVerbose should contain the message")
 }
+
+func TestQuietSuppressesPrintNewline(t *testing.T) {
+	resetVerbosity(t)
+	SetVerbosity("quiet")
+
+	out := captureStdout(t, func() {
+		PrintNewline()
+	})
+	assert.Empty(t, out, "PrintNewline should produce no output in quiet mode")
+}
+
+func TestPrintNewlineWritesToStdout(t *testing.T) {
+	resetVerbosity(t)
+
+	out := captureStdout(t, func() {
+		PrintNewline()
+	})
+	assert.Equal(t, "\n", out, "PrintNewline should write exactly one newline to stdout")
+}
+
+func TestPrintNewlineWithJSONFormat(t *testing.T) {
+	resetVerbosity(t)
+
+	oldFormat := getOutputFormat()
+	SetOutputFormat("json")
+	defer SetOutputFormat(oldFormat)
+
+	stdout := captureStdout(t, func() {
+		PrintNewline()
+	})
+	assert.Empty(t, stdout, "PrintNewline should not write to stdout in JSON output mode")
+
+	stderr := captureStderr(t, func() {
+		PrintNewline()
+	})
+	assert.Equal(t, "\n", stderr, "PrintNewline should write exactly one newline to stderr in JSON output mode")
+}
