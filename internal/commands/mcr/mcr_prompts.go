@@ -271,7 +271,7 @@ func promptPrefixFilterEntry(noColor bool) (*megaport.MCRPrefixListEntry, error)
 func promptAddNewPrefixEntries(noColor bool) ([]*megaport.MCRPrefixListEntry, error) {
 	var entries []*megaport.MCRPrefixListEntry
 	for {
-		output.PrintInfo("Add a new prefix filter entry (leave prefix blank to finish):", noColor)
+		output.PrintPlain("Add a new prefix filter entry (leave prefix blank to finish):", noColor)
 
 		entry, err := promptPrefixFilterEntry(noColor)
 		if err != nil {
@@ -289,7 +289,7 @@ func promptAddNewPrefixEntries(noColor bool) ([]*megaport.MCRPrefixListEntry, er
 func promptUpdateExistingEntries(currentEntries []*megaport.MCRPrefixListEntry, noColor bool) ([]*megaport.MCRPrefixListEntry, error) {
 	var entries []*megaport.MCRPrefixListEntry
 	for i, entry := range currentEntries {
-		output.PrintInfo("Entry %d - Current: Action: %s, Prefix: %s, GE: %d, LE: %d", noColor,
+		output.PrintPlain("Entry %d - Current: Action: %s, Prefix: %s, GE: %d, LE: %d", noColor,
 			i+1, entry.Action, entry.Prefix, entry.Ge, entry.Le)
 
 		keepEntry, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Keep entry %d? (yes/no): ", i+1), noColor)
@@ -406,7 +406,7 @@ func promptForUpdatePrefixFilterListDetails(ctx context.Context, client *megapor
 		return nil, fmt.Errorf("failed to retrieve current prefix filter list: %w", err)
 	}
 
-	output.PrintInfo("Current description: %s", noColor, currentPrefixFilterList.Description)
+	output.PrintPlain("Current description: %s", noColor, currentPrefixFilterList.Description)
 	description, err := utils.ResourcePrompt("mcr", "Enter new description (leave empty to keep current): ", noColor)
 	if err != nil {
 		return nil, err
@@ -415,7 +415,7 @@ func promptForUpdatePrefixFilterListDetails(ctx context.Context, client *megapor
 		description = currentPrefixFilterList.Description
 	}
 
-	output.PrintInfo("Address family: %s (cannot be changed after creation)", noColor, currentPrefixFilterList.AddressFamily)
+	output.PrintPlain("Address family: %s (cannot be changed after creation)", noColor, currentPrefixFilterList.AddressFamily)
 	addressFamily := currentPrefixFilterList.AddressFamily
 
 	entries := make([]*megaport.MCRPrefixListEntry, 0, len(currentPrefixFilterList.Entries))

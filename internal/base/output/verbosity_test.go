@@ -268,13 +268,12 @@ func TestPrintNewlineWithJSONFormat(t *testing.T) {
 	SetOutputFormat("json")
 	defer SetOutputFormat(oldFormat)
 
-	stdout := captureStdout(t, func() {
-		PrintNewline()
+	var stdout string
+	stderr := captureStderr(t, func() {
+		stdout = captureStdout(t, func() {
+			PrintNewline()
+		})
 	})
 	assert.Empty(t, stdout, "PrintNewline should not write to stdout in JSON output mode")
-
-	stderr := captureStderr(t, func() {
-		PrintNewline()
-	})
 	assert.Equal(t, "\n", stderr, "PrintNewline should write exactly one newline to stderr in JSON output mode")
 }

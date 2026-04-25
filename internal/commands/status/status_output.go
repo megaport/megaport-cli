@@ -231,7 +231,7 @@ func printDashboard(dashboard dashboardOutput, format string, noColor bool) erro
 func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	// PORTS
 	output.PrintNewline()
-	output.PrintInfo("PORTS (%d)", noColor, len(dashboard.Ports))
+	output.PrintPlain("PORTS (%d)", noColor, len(dashboard.Ports))
 	if len(dashboard.Ports) == 0 {
 		output.PrintWarning("No ports found.", noColor)
 	} else {
@@ -242,7 +242,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 
 	// MCRS
 	output.PrintNewline()
-	output.PrintInfo("MCRS (%d)", noColor, len(dashboard.MCRs))
+	output.PrintPlain("MCRS (%d)", noColor, len(dashboard.MCRs))
 	if len(dashboard.MCRs) == 0 {
 		output.PrintWarning("No MCRs found.", noColor)
 	} else {
@@ -253,7 +253,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 
 	// MVES
 	output.PrintNewline()
-	output.PrintInfo("MVES (%d)", noColor, len(dashboard.MVEs))
+	output.PrintPlain("MVES (%d)", noColor, len(dashboard.MVEs))
 	if len(dashboard.MVEs) == 0 {
 		output.PrintWarning("No MVEs found.", noColor)
 	} else {
@@ -264,7 +264,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 
 	// VXCS
 	output.PrintNewline()
-	output.PrintInfo("VXCS (%d)", noColor, len(dashboard.VXCs))
+	output.PrintPlain("VXCS (%d)", noColor, len(dashboard.VXCs))
 	if len(dashboard.VXCs) == 0 {
 		output.PrintWarning("No VXCs found.", noColor)
 	} else {
@@ -275,7 +275,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 
 	// IXS
 	output.PrintNewline()
-	output.PrintInfo("IXS (%d)", noColor, len(dashboard.IXs))
+	output.PrintPlain("IXS (%d)", noColor, len(dashboard.IXs))
 	if len(dashboard.IXs) == 0 {
 		output.PrintWarning("No IXs found.", noColor)
 	} else {
@@ -286,7 +286,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 
 	s := dashboard.Summary
 	output.PrintNewline()
-	output.PrintInfo("Total: %d port(s), %d MCR(s), %d MVE(s), %d VXC(s), %d IX(s)", noColor,
+	output.PrintPlain("Total: %d port(s), %d MCR(s), %d MVE(s), %d VXC(s), %d IX(s)", noColor,
 		s.Ports, s.MCRs, s.MVEs, s.VXCs, s.IXs)
 
 	return nil

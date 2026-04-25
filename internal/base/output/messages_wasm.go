@@ -255,6 +255,15 @@ func PrintInfo(format string, noColor bool, args ...interface{}) {
 	wasm.WasmOutputBuffer.Write([]byte(output))
 }
 
+// PrintPlain overrides the base function for WASM to capture output.
+func PrintPlain(format string, noColor bool, args ...interface{}) {
+	if IsQuiet() {
+		return
+	}
+	msg := fmt.Sprintf(format, args...)
+	wasm.WasmOutputBuffer.Write([]byte(msg + "\n"))
+}
+
 // PrintNewline writes a blank line to the WASM output buffer, suppressed in quiet mode.
 func PrintNewline() {
 	if IsQuiet() {
