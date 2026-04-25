@@ -285,6 +285,41 @@ func TestUpdateResourceTags(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("confirmation declined cancels update", func(t *testing.T) {
+		original := GetConfirmPrompt()
+		SetConfirmPrompt(func(string, bool) bool { return false })
+		defer SetConfirmPrompt(original)
+
+		cmd := newUpdateCmd(t, map[string]string{"json": `{"env":"prod"}`})
+		err := UpdateResourceTags(UpdateTagsOptions{
+			ResourceType: "port",
+			UID:          "uid-7",
+			NoColor:      true,
+			Cmd:          cmd,
+			ListFunc:     successListFunc,
+			UpdateFunc:   successUpdateFunc,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cancelled by user")
+	})
+
+	t.Run("confirmation accepted proceeds with update", func(t *testing.T) {
+		original := GetConfirmPrompt()
+		SetConfirmPrompt(func(string, bool) bool { return true })
+		defer SetConfirmPrompt(original)
+
+		cmd := newUpdateCmd(t, map[string]string{"json": `{"env":"prod"}`})
+		err := UpdateResourceTags(UpdateTagsOptions{
+			ResourceType: "port",
+			UID:          "uid-8",
+			NoColor:      true,
+			Cmd:          cmd,
+			ListFunc:     successListFunc,
+			UpdateFunc:   successUpdateFunc,
+		})
+		assert.NoError(t, err)
+	})
+
 	t.Run("failed to parse JSON", func(t *testing.T) {
 		cmd := newUpdateCmd(t, map[string]string{"json": `not-json`})
 		err := UpdateResourceTags(UpdateTagsOptions{
