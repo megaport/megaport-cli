@@ -361,7 +361,11 @@ func RetryWithBackoffAndConsoleLogging(ctx context.Context, attempts int, client
 		if i < attempts-1 {
 			waitTime := time.Duration(500*(1<<i)) * time.Millisecond
 			js.Global().Get("console").Call("log", fmt.Sprintf("Waiting %v before next attempt", waitTime))
-			<-time.After(waitTime)
+			select {
+			case <-time.After(waitTime):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
 		}
 	}
 	return nil, err
