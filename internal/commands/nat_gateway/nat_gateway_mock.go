@@ -2,6 +2,7 @@ package nat_gateway
 
 import (
 	"context"
+	"fmt"
 
 	megaport "github.com/megaport/megaportgo"
 )
@@ -121,71 +122,71 @@ func (m *MockNATGatewayService) BuyNATGateway(ctx context.Context, productUID st
 }
 
 func (m *MockNATGatewayService) CreateNATGatewayPacketFilter(_ context.Context, _ string, _ *megaport.NATGatewayPacketFilterRequest) (*megaport.NATGatewayPacketFilter, error) {
-	return nil, nil
+	return nil, fmt.Errorf("mock: CreateNATGatewayPacketFilter not configured")
 }
 
 func (m *MockNATGatewayService) ListNATGatewayPacketFilters(_ context.Context, _ string) ([]*megaport.NATGatewayPacketFilterSummary, error) {
-	return nil, nil
+	return nil, fmt.Errorf("mock: ListNATGatewayPacketFilters not configured")
 }
 
 func (m *MockNATGatewayService) GetNATGatewayPacketFilter(_ context.Context, _ string, _ int) (*megaport.NATGatewayPacketFilter, error) {
-	return nil, nil
+	return nil, fmt.Errorf("mock: GetNATGatewayPacketFilter not configured")
 }
 
 func (m *MockNATGatewayService) UpdateNATGatewayPacketFilter(_ context.Context, _ string, _ int, _ *megaport.NATGatewayPacketFilterRequest) (*megaport.NATGatewayPacketFilter, error) {
-	return nil, nil
+	return nil, fmt.Errorf("mock: UpdateNATGatewayPacketFilter not configured")
 }
 
 func (m *MockNATGatewayService) DeleteNATGatewayPacketFilter(_ context.Context, _ string, _ int) error {
-	return nil
+	return fmt.Errorf("mock: DeleteNATGatewayPacketFilter not configured")
 }
 
 func (m *MockNATGatewayService) ListNATGatewayPrefixLists(_ context.Context, _ string) ([]*megaport.NATGatewayPrefixListSummary, error) {
-	return nil, nil
+	return nil, fmt.Errorf("mock: ListNATGatewayPrefixLists not configured")
 }
 
 func (m *MockNATGatewayService) CreateNATGatewayPrefixList(_ context.Context, _ string, _ *megaport.NATGatewayPrefixList) (*megaport.NATGatewayPrefixList, error) {
-	return nil, nil
+	return nil, fmt.Errorf("mock: CreateNATGatewayPrefixList not configured")
 }
 
 func (m *MockNATGatewayService) GetNATGatewayPrefixList(_ context.Context, _ string, _ int) (*megaport.NATGatewayPrefixList, error) {
-	return nil, nil
+	return nil, fmt.Errorf("mock: GetNATGatewayPrefixList not configured")
 }
 
 func (m *MockNATGatewayService) UpdateNATGatewayPrefixList(_ context.Context, _ string, _ int, _ *megaport.NATGatewayPrefixList) (*megaport.NATGatewayPrefixList, error) {
-	return nil, nil
+	return nil, fmt.Errorf("mock: UpdateNATGatewayPrefixList not configured")
 }
 
 func (m *MockNATGatewayService) DeleteNATGatewayPrefixList(_ context.Context, _ string, _ int) error {
-	return nil
+	return fmt.Errorf("mock: DeleteNATGatewayPrefixList not configured")
 }
 
 func (m *MockNATGatewayService) ListNATGatewayIPRoutesAsync(_ context.Context, _, _ string) (string, error) {
-	return "", nil
+	return "", fmt.Errorf("mock: ListNATGatewayIPRoutesAsync not configured")
 }
 
 func (m *MockNATGatewayService) ListNATGatewayBGPRoutesAsync(_ context.Context, _, _ string) (string, error) {
-	return "", nil
+	return "", fmt.Errorf("mock: ListNATGatewayBGPRoutesAsync not configured")
 }
 
 func (m *MockNATGatewayService) ListNATGatewayBGPNeighborRoutesAsync(_ context.Context, _ *megaport.NATGatewayBGPNeighborRoutesRequest) (string, error) {
-	return "", nil
+	return "", fmt.Errorf("mock: ListNATGatewayBGPNeighborRoutesAsync not configured")
 }
 
 func (m *MockNATGatewayService) GetNATGatewayDiagnosticsRoutes(_ context.Context, _, _ string) ([]*megaport.NATGatewayRoute, error) {
-	return nil, nil
+	return nil, fmt.Errorf("mock: GetNATGatewayDiagnosticsRoutes not configured")
 }
 
 func (m *MockNATGatewayService) ListNATGatewayIPRoutes(_ context.Context, _, _ string) ([]*megaport.NATGatewayIPRoute, error) {
-	return nil, nil
+	return nil, fmt.Errorf("mock: ListNATGatewayIPRoutes not configured")
 }
 
 func (m *MockNATGatewayService) ListNATGatewayBGPRoutes(_ context.Context, _, _ string) ([]*megaport.NATGatewayBGPRoute, error) {
-	return nil, nil
+	return nil, fmt.Errorf("mock: ListNATGatewayBGPRoutes not configured")
 }
 
 func (m *MockNATGatewayService) ListNATGatewayBGPNeighborRoutes(_ context.Context, _ *megaport.NATGatewayBGPNeighborRoutesRequest) ([]*megaport.NATGatewayBGPRoute, error) {
-	return nil, nil
+	return nil, fmt.Errorf("mock: ListNATGatewayBGPNeighborRoutes not configured")
 }
 
 func (m *MockNATGatewayService) Reset() {

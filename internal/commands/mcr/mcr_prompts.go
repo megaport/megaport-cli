@@ -271,7 +271,7 @@ func promptPrefixFilterEntry(noColor bool) (*megaport.MCRPrefixListEntry, error)
 func promptAddNewPrefixEntries(noColor bool) ([]*megaport.MCRPrefixListEntry, error) {
 	var entries []*megaport.MCRPrefixListEntry
 	for {
-		fmt.Println("Add a new prefix filter entry (leave prefix blank to finish):")
+		output.PrintInfo("Add a new prefix filter entry (leave prefix blank to finish):", noColor)
 
 		entry, err := promptPrefixFilterEntry(noColor)
 		if err != nil {
