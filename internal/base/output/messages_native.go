@@ -117,7 +117,7 @@ func PrintInfo(format string, noColor bool, args ...interface{}) {
 
 // PrintPlain prints a plain line with no icon prefix. Like PrintInfo it is
 // suppressed in quiet mode and routed to stderr in JSON output mode.
-func PrintPlain(format string, noColor bool, args ...interface{}) {
+func PrintPlain(format string, _ bool, args ...interface{}) {
 	if IsQuiet() {
 		return
 	}

@@ -256,7 +256,7 @@ func PrintInfo(format string, noColor bool, args ...interface{}) {
 }
 
 // PrintPlain overrides the base function for WASM to capture output.
-func PrintPlain(format string, noColor bool, args ...interface{}) {
+func PrintPlain(format string, _ bool, args ...interface{}) {
 	if IsQuiet() {
 		return
 	}
