@@ -33,8 +33,25 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: 'go.mod'
+      # Add packages here as integration tests are written (see docs/INTEGRATION_TESTING.md)
+      - name: Verify provisioning integration tests are discovered
+        shell: bash
+        run: |
+          set -euo pipefail
+          discovered=$(go test -tags integration -list '^TestIntegration_' \
+            ./internal/commands/ports/... \
+            ./internal/commands/vxc/... \
+            ./internal/commands/mcr/... \
+            ./internal/commands/mve/... 2>/dev/null \
+            | grep '^TestIntegration_' || true)
+          if [ -z "$discovered" ]; then
+            echo "::error::No TestIntegration_* tests discovered in the targeted packages."
+            echo "Update the package list in .github/workflows/integration-test.yml as tests are added."
+            exit 1
+          fi
+          echo "Discovered tests:"
+          echo "$discovered"
       - name: Run provisioning integration tests
-        # Add packages here as integration tests are written (see docs/INTEGRATION_TESTING.md)
         run: go test -tags integration -run '^TestIntegration_' -v -timeout 30m ./internal/commands/ports/... ./internal/commands/vxc/... ./internal/commands/mcr/... ./internal/commands/mve/...
         env:
           MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
