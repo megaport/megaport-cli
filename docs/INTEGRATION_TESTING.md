@@ -12,7 +12,7 @@ export MEGAPORT_SECRET_KEY=<your-staging-secret-key>
 export MEGAPORT_ENVIRONMENT=staging
 ```
 
-Staging credentials can be obtained from the Megaport staging portal. The `MEGAPORT_ENVIRONMENT=staging` value is enforced by the test helpers — tests will skip automatically if it is not set, preventing accidental runs against production.
+Staging credentials can be obtained from the Megaport staging portal. The staging environment is hardcoded in the test helper (`testutil.SetupIntegrationClient`) — it is not possible to accidentally target production through the test suite. `MEGAPORT_ENVIRONMENT=staging` is passed to the CI runner for consistency with local usage, but is not read by the test helper itself.
 
 ## Running tests
 
@@ -59,7 +59,7 @@ Integration tests run in CI via `.github/workflows/integration-test.yml`:
 2. Set `//go:build integration` at the top and use `package <resource>` (not `package <resource>_test`)
 3. Use `testutil.SetupIntegrationClient(t)` and `defer testutil.LoginWithClient(t, client)()` to authenticate
 4. Call action functions directly and capture output with `output.CaptureOutput`
-5. Use `t.Cleanup()` (not `defer`) for resource deletion so cleanup runs even on test failure
+5. Use `t.Cleanup()` for resource deletion (e.g. deleting staging ports/VXCs) so cleanup runs even on test failure; `defer` is fine for non-resource cleanup like restoring login state
 6. Add the package to the provisioning job in `.github/workflows/integration-test.yml`
 
-See `internal/commands/locations/locations_integration_test.go` for a complete read-only example and `internal/commands/ports/ports_integration_test.go` for a full lifecycle example.
+See `internal/commands/locations/locations_integration_test.go` for a complete read-only example. Provisioning lifecycle examples (ports, VXC, MCR, MVE) will be available once those integration tests are written.
