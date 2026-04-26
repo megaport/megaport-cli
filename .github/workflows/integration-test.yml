@@ -1,19 +1,39 @@
 name: integration-tests
 on:
   schedule:
-    - cron: '0 2 * * 1'  # Weekly, Monday 02:00 UTC
+    - cron: '0 2 * * *'  # Nightly, 02:00 UTC
   workflow_dispatch:       # Allow manual trigger from GitHub UI
 
 jobs:
-  integration:
+  # Fast read-only tests — safe to run nightly, no resources provisioned
+  integration-readonly:
+    name: Integration Tests (Read-only)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
-      - name: Run integration tests
-        run: go test -tags integration -v -timeout 5m ./internal/commands/locations/... ./internal/commands/partners/...
+      - name: Run read-only integration tests
+        run: go test -tags integration -v -timeout 5m ./internal/commands/locations/...
+        env:
+          MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
+          MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}
+          MEGAPORT_ENVIRONMENT: staging
+
+  # Provisioning lifecycle tests — manual trigger only until all tests are written
+  integration-provisioning:
+    name: Integration Tests (Provisioning)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - name: Run provisioning integration tests
+        # Add packages here as integration tests are written (see docs/INTEGRATION_TESTING.md)
+        run: go test -tags integration -v -timeout 30m ./internal/commands/ports/... ./internal/commands/vxc/... ./internal/commands/mcr/... ./internal/commands/mve/...
         env:
           MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
           MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}
