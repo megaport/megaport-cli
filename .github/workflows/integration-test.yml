@@ -38,12 +38,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          discovered=$(go test -tags integration -list '^TestIntegration_' \
+          if ! list_output=$(go test -tags integration -list '^TestIntegration_' \
             ./internal/commands/ports/... \
             ./internal/commands/vxc/... \
             ./internal/commands/mcr/... \
-            ./internal/commands/mve/... 2>/dev/null \
-            | grep '^TestIntegration_' || true)
+            ./internal/commands/mve/... 2>&1); then
+            echo "::error::go test -list failed — see build/compile errors below."
+            echo "$list_output"
+            exit 1
+          fi
+          discovered=$(printf '%s\n' "$list_output" | grep '^TestIntegration_' || true)
           if [ -z "$discovered" ]; then
             echo "::error::No TestIntegration_* tests discovered in the targeted packages."
             echo "Update the package list in .github/workflows/integration-test.yml as tests are added."
