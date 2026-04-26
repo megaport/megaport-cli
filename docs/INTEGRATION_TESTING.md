@@ -20,18 +20,21 @@ Staging credentials can be obtained from the Megaport staging portal. The stagin
 # Read-only tests only — fast (< 5 min), no resources provisioned
 make test-integration-readonly
 
-# Full suite including provisioning lifecycle tests (~20–30 min)
+# Full suite including any provisioning lifecycle tests (~20–30 min)
+# Currently only read-only tests exist; provisioning tests will be added incrementally.
 make test-integration
 
 # A single package
-go test -tags integration -v -timeout 30m ./internal/commands/ports/...
+go test -tags integration -run '^TestIntegration_' -v -timeout 30m ./internal/commands/ports/...
 ```
 
 ## What gets created on staging
 
-Provisioning lifecycle tests (ports, VXC, MCR, MVE, IX, NAT Gateway) create real resources on the staging account. All test resources are named with the prefix `CLI-Test-` for easy identification.
+Once provisioning lifecycle tests are written (ports, VXC, MCR, MVE, IX, NAT Gateway), they will create real resources on the staging account. All test resources will be named with the prefix `CLI-Test-` for easy identification.
 
-Resources are cleaned up automatically via `t.Cleanup()` at the end of each test, even when the test fails. However, if a test run is interrupted (e.g. `Ctrl+C`), cleanup may not run. In that case, log in to the staging portal and delete any resources prefixed with `CLI-Test-`.
+Resources will be cleaned up automatically via `t.Cleanup()` at the end of each test, even when the test fails. However, if a test run is interrupted (e.g. `Ctrl+C`), cleanup may not run. In that case, log in to the staging portal and delete any resources prefixed with `CLI-Test-`.
+
+Currently, only read-only integration tests exist (`locations`). No resources are provisioned.
 
 ## Build tag
 
@@ -50,7 +53,7 @@ Running `go test ./...` (without `-tags integration`) excludes these files entir
 
 Integration tests run in CI via `.github/workflows/integration-test.yml`:
 
-- **Read-only job**: runs nightly on `main`, tests `locations` (and `partners` once its integration test is written). Fast, no resource cost.
+- **Read-only job**: runs nightly on `main` and on manual trigger, tests `locations` (and additional packages as read-only integration tests are written). Fast, no resource cost.
 - **Provisioning job**: manual trigger only (`workflow_dispatch`). Runs lifecycle tests for ports, VXC, MCR, MVE, and additional resources as they are added.
 
 ## Adding a new integration test

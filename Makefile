@@ -16,11 +16,11 @@ test-cover:
 
 # Run integration tests against staging API (requires credentials — see docs/INTEGRATION_TESTING.md)
 test-integration:
-	go test -tags integration -v -timeout 30m ./internal/commands/...
+	go test -tags integration -run '^TestIntegration_' -v -timeout 30m ./internal/commands/...
 
 # Run only read-only integration tests — fast, no resources provisioned
 test-integration-readonly:
-	go test -tags integration -v -timeout 5m ./internal/commands/locations/...
+	go test -tags integration -run '^TestIntegration_' -v -timeout 5m ./internal/commands/locations/...
 
 # Run linter
 lint:

@@ -5,7 +5,7 @@ on:
   workflow_dispatch:       # Allow manual trigger from GitHub UI
 
 jobs:
-  # Fast read-only tests — safe to run nightly, no resources provisioned
+  # Fast read-only tests — runs on schedule and manual trigger
   integration-readonly:
     name: Integration Tests (Read-only)
     runs-on: ubuntu-latest
@@ -15,7 +15,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Run read-only integration tests
-        run: go test -tags integration -v -timeout 5m ./internal/commands/locations/...
+        run: go test -tags integration -run '^TestIntegration_' -v -timeout 5m ./internal/commands/locations/...
         env:
           MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
           MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}
@@ -33,7 +33,7 @@ jobs:
           go-version-file: 'go.mod'
       - name: Run provisioning integration tests
         # Add packages here as integration tests are written (see docs/INTEGRATION_TESTING.md)
-        run: go test -tags integration -v -timeout 30m ./internal/commands/ports/... ./internal/commands/vxc/... ./internal/commands/mcr/... ./internal/commands/mve/...
+        run: go test -tags integration -run '^TestIntegration_' -v -timeout 30m ./internal/commands/ports/... ./internal/commands/vxc/... ./internal/commands/mcr/... ./internal/commands/mve/...
         env:
           MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
           MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}
