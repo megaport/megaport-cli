@@ -15,80 +15,113 @@ import (
 // Both native and WASM builds use this mutex.
 var stdoutMu sync.Mutex
 
-// outputFields holds the user-selected fields from --fields flag.
-// nil means all fields are shown. Protected by outputFieldsMu.
-var (
-	outputFields   []string
-	outputFieldsMu sync.RWMutex
-)
-
-// SetOutputFields sets the field filter applied by all PrintOutput calls.
-// Only fields whose json tag name or header display name (case-insensitive)
-// appears in fields will be included in output. Passing nil or an empty
-// slice restores full output (all fields). This function is goroutine-safe.
-// Tests should call defer SetOutputFields(nil) to reset state between
-// test cases.
-//
-// The slice is copied before being stored, so callers may mutate or reuse
-// the backing array after the call returns without affecting the filter.
-func SetOutputFields(fields []string) {
-	outputFieldsMu.Lock()
-	defer outputFieldsMu.Unlock()
-	if fields == nil {
-		outputFields = nil
-		return
-	}
-	outputFields = append([]string(nil), fields...)
+// OutputConfig holds all user-facing output configuration as a single struct.
+// Use ApplyOutputConfig to write and GetOutputConfig to read atomically.
+type OutputConfig struct {
+	Fields    []string // nil = show all
+	Query     string   // JMESPath; "" = disabled
+	NoHeader  bool
+	Template  string // Go template; "" = disabled
+	NoPager   bool
+	Format    string // "table"|"json"|"csv"|"xml"|"go-template"
+	Verbosity string // "normal"|"quiet"|"verbose"
 }
 
-// getOutputFields returns a copy of the current field filter under a read lock.
-func getOutputFields() []string {
-	outputFieldsMu.RLock()
-	defer outputFieldsMu.RUnlock()
-	if outputFields == nil {
-		return nil
+// defaultOutputConfig returns the baseline configuration used at startup and by ResetState.
+func defaultOutputConfig() OutputConfig {
+	return OutputConfig{Format: "table", Verbosity: "normal"}
+}
+
+var (
+	outputCfg   = defaultOutputConfig()
+	outputCfgMu sync.RWMutex
+)
+
+// ApplyOutputConfig atomically replaces the entire output configuration.
+// Fields is deep-copied before storing so that mutations to the caller's slice
+// cannot affect the stored configuration after this call returns.
+func ApplyOutputConfig(cfg OutputConfig) {
+	if cfg.Fields != nil {
+		cp := make([]string, len(cfg.Fields))
+		copy(cp, cfg.Fields)
+		cfg.Fields = cp
 	}
-	cp := make([]string, len(outputFields))
-	copy(cp, outputFields)
+	outputCfgMu.Lock()
+	defer outputCfgMu.Unlock()
+	outputCfg = cfg
+}
+
+// GetOutputConfig returns a snapshot of the current output configuration.
+// Fields is deep-copied so that mutations to the returned slice cannot affect
+// the stored configuration.
+func GetOutputConfig() OutputConfig {
+	outputCfgMu.RLock()
+	defer outputCfgMu.RUnlock()
+	cp := outputCfg
+	if outputCfg.Fields != nil {
+		cp.Fields = make([]string, len(outputCfg.Fields))
+		copy(cp.Fields, outputCfg.Fields)
+	}
 	return cp
 }
 
-// outputQuery holds the JMESPath expression from --query flag.
-// Empty string means no query. Protected by outputQueryMu.
-var (
-	outputQuery   string
-	outputQueryMu sync.RWMutex
-)
+// updateOutputConfig holds the write lock and calls fn to mutate the stored
+// config in place. Use this in single-field Set* shims to avoid the
+// read-modify-write window that snapshot+replace creates.
+func updateOutputConfig(fn func(*OutputConfig)) {
+	outputCfgMu.Lock()
+	defer outputCfgMu.Unlock()
+	fn(&outputCfg)
+}
 
-// SetOutputQuery sets the JMESPath query applied by printJSON.
-// Pass "" to disable. This function is goroutine-safe.
-// Tests should call defer SetOutputQuery("") to reset state between test cases.
+// SetOutputFields sets the field filter applied by all PrintOutput calls.
+// Pass nil to restore full output (all fields). The slice is deep-copied so
+// subsequent mutations to fields do not affect the stored config.
+func SetOutputFields(fields []string) {
+	var cp []string
+	if fields != nil {
+		cp = make([]string, len(fields))
+		copy(cp, fields)
+	}
+	updateOutputConfig(func(c *OutputConfig) { c.Fields = cp })
+}
+
+func getOutputFields() []string { return GetOutputConfig().Fields }
+
+// SetOutputQuery sets the JMESPath query applied by printJSON. Pass "" to disable.
 func SetOutputQuery(query string) {
-	outputQueryMu.Lock()
-	defer outputQueryMu.Unlock()
-	outputQuery = query
+	updateOutputConfig(func(c *OutputConfig) { c.Query = query })
 }
 
-// getOutputQuery returns the current JMESPath query under a read lock.
 func getOutputQuery() string {
-	outputQueryMu.RLock()
-	defer outputQueryMu.RUnlock()
-	return outputQuery
+	outputCfgMu.RLock()
+	defer outputCfgMu.RUnlock()
+	return outputCfg.Query
 }
 
-// noHeader controls whether table and CSV output suppresses the header row.
-// Set via --no-header flag. Protected by noHeaderMu.
-var (
-	noHeader   bool
-	noHeaderMu sync.RWMutex
-)
+// SetNoHeader sets whether table and CSV output should suppress column headers.
+func SetNoHeader(v bool) {
+	updateOutputConfig(func(c *OutputConfig) { c.NoHeader = v })
+}
 
-// templateStr holds the Go template string from --template flag.
-// Empty string means no template. Protected by templateStrMu.
-var (
-	templateStr   string
-	templateStrMu sync.RWMutex
-)
+func getNoHeader() bool {
+	outputCfgMu.RLock()
+	defer outputCfgMu.RUnlock()
+	return outputCfg.NoHeader
+}
+
+// SetTemplateString sets the Go template string applied by printGoTemplate.
+// Pass "" to disable.
+func SetTemplateString(s string) {
+	updateOutputConfig(func(c *OutputConfig) { c.Template = s })
+}
+
+// GetTemplateString returns the current Go template string.
+func GetTemplateString() string {
+	outputCfgMu.RLock()
+	defer outputCfgMu.RUnlock()
+	return outputCfg.Template
+}
 
 // errorBody and errorEnvelope are the JSON error envelope types shared by
 // PrintErrorJSON across native and WASM builds.
@@ -102,74 +135,16 @@ type errorEnvelope struct {
 	Error errorBody `json:"error"`
 }
 
-// SetTemplateString sets the Go template string applied by printGoTemplate.
-// Pass "" to disable. This function is goroutine-safe.
-func SetTemplateString(s string) {
-	templateStrMu.Lock()
-	defer templateStrMu.Unlock()
-	templateStr = s
-}
-
-// GetTemplateString returns the current Go template string under a read lock.
-func GetTemplateString() string {
-	templateStrMu.RLock()
-	defer templateStrMu.RUnlock()
-	return templateStr
-}
-
-// SetNoHeader sets whether table and CSV output should suppress column headers.
-// This function is goroutine-safe. Tests should call defer SetNoHeader(false) to
-// reset state between test cases.
-func SetNoHeader(v bool) {
-	noHeaderMu.Lock()
-	defer noHeaderMu.Unlock()
-	noHeader = v
-}
-
-// getNoHeader returns whether header suppression is active under a read lock.
-func getNoHeader() bool {
-	noHeaderMu.RLock()
-	defer noHeaderMu.RUnlock()
-	return noHeader
-}
-
-// OutputConfig bundles every field that the package-level setters accept.
-// Callers that need to apply several settings at once (most notably the
-// WASM entry point on re-invocation and test cleanup helpers) can assemble
-// an OutputConfig and pass it to SetConfig rather than calling each setter
-// by hand. The individual setters remain the primary API; SetConfig is a
-// convenience on top of them.
-//
-// SetConfig writes every field verbatim — there is no "leave unchanged"
-// sentinel. Callers that want defaults should start from
-// DefaultOutputConfig() and override the fields they care about.
-type OutputConfig struct {
-	// Fields is the list of field names (json tag or header display name,
-	// case-insensitive) to include in output. Nil or empty means all fields.
-	// The slice is copied by SetOutputFields, so callers may reuse the
-	// backing array after SetConfig returns.
-	Fields   []string
-	Query    string
-	NoHeader bool
-	NoPager  bool
-	Template string
-	Format   string
-	// Verbosity is one of "normal", "quiet", or "verbose".
-	Verbosity string
-}
-
 // DefaultOutputConfig returns the defaults that ResetState applies.
 func DefaultOutputConfig() OutputConfig {
-	return OutputConfig{Format: "table", Verbosity: "normal"}
+	return defaultOutputConfig()
 }
 
-// SetConfig applies every field of c by delegating to the individual
-// setters. Those setters use a mix of per-field mutexes (Fields, Query,
-// NoHeader, NoPager, Template) and atomic.Value (Format, Verbosity), so
-// SetConfig is not atomic across fields — concurrent readers may observe
-// a partial update. Callers should invoke SetConfig from the main
-// goroutine before spawning work, which matches how the flag-driven RunE
-// wrappers already use the individual setters.
+// SetConfig applies every field of c by delegating to the individual setters.
+// Those setters hold per-field locks or use atomic.Value (Format, Verbosity),
+// so SetConfig is not atomic across fields — concurrent readers may observe
+// a partial update. Callers should invoke SetConfig from the main goroutine
+// before spawning work.
 func SetConfig(c OutputConfig) {
 	SetOutputFields(c.Fields)
 	SetOutputQuery(c.Query)
@@ -180,12 +155,9 @@ func SetConfig(c OutputConfig) {
 	SetVerbosity(c.Verbosity)
 }
 
-// ResetState clears all package-level output configuration back to defaults.
-// Intended for callers such as the WASM entry point that must ensure all
-// output-related global state does not bleed between invocations.
-func ResetState() {
-	SetConfig(DefaultOutputConfig())
-}
+// ResetState clears all output configuration back to defaults.
+// Intended for the WASM entry point to prevent state bleed between invocations.
+func ResetState() { ApplyOutputConfig(defaultOutputConfig()) }
 
 // applyJMESPath applies a JMESPath query to v and returns the result.
 // v must be a JSON-compatible value (e.g. []T or []map[string]interface{}).
