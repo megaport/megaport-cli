@@ -65,7 +65,7 @@ func TestPromptForPortDetails_EmptyName(t *testing.T) {
 
 	_, err := promptForPortDetails(true)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "name is required")
+	assert.Contains(t, err.Error(), "Invalid port name")
 }
 
 func TestPromptForPortDetails_InvalidTerm(t *testing.T) {

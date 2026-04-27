@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/fatih/color"
+	"golang.org/x/term"
 )
 
 // promptFuncMu guards all prompt function pointers.
@@ -105,6 +106,21 @@ var resourcePromptFn = func(resourceType string, msg string, noColor bool) (stri
 		return "", err
 	}
 	return strings.TrimSpace(input), nil
+}
+
+var passwordPromptFn = func(msg string, noColor bool) (string, error) {
+	if !noColor {
+		fmt.Print(color.New(color.FgHiRed, color.Bold).Sprint("🔒 " + msg + " "))
+	} else {
+		fmt.Print("🔒 " + msg + " ")
+	}
+
+	password, err := term.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Println() // newline after masked input
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(password)), nil
 }
 
 var resourceTagsPromptFn = func(noColor bool) (map[string]string, error) {
@@ -275,6 +291,14 @@ func BuyConfirmPrompt(resourceType string, details []BuyConfirmDetail, noColor b
 	return fn(resourceType, details, noColor)
 }
 
+// PasswordPrompt asks the user for sensitive input with masked terminal echo.
+func PasswordPrompt(msg string, noColor bool) (string, error) {
+	promptFuncMu.RLock()
+	fn := passwordPromptFn
+	promptFuncMu.RUnlock()
+	return fn(msg, noColor)
+}
+
 // ResourcePrompt asks the user for resource-specific input.
 func ResourcePrompt(resourceType string, msg string, noColor bool) (string, error) {
 	promptFuncMu.RLock()
@@ -319,6 +343,12 @@ func GetBuyConfirmPrompt() func(string, []BuyConfirmDetail, bool) bool {
 	return buyConfirmPromptFn
 }
 
+func GetPasswordPrompt() func(string, bool) (string, error) {
+	promptFuncMu.RLock()
+	defer promptFuncMu.RUnlock()
+	return passwordPromptFn
+}
+
 func GetResourcePrompt() func(string, string, bool) (string, error) {
 	promptFuncMu.RLock()
 	defer promptFuncMu.RUnlock()
@@ -355,6 +385,12 @@ func SetBuyConfirmPrompt(fn func(string, []BuyConfirmDetail, bool) bool) {
 	promptFuncMu.Lock()
 	defer promptFuncMu.Unlock()
 	buyConfirmPromptFn = fn
+}
+
+func SetPasswordPrompt(fn func(string, bool) (string, error)) {
+	promptFuncMu.Lock()
+	defer promptFuncMu.Unlock()
+	passwordPromptFn = fn
 }
 
 func SetResourcePrompt(fn func(string, string, bool) (string, error)) {
