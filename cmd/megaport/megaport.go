@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 
@@ -26,7 +25,7 @@ func init() {
 
 	// Apply non-WASM specific initialization
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		applyDefaultSettings(cmd)
+		defaultWarnings := applyDefaultSettings(cmd)
 
 		// Auto-disable color when stdout is not a TTY (piped output)
 		if !cmd.Flags().Changed("no-color") && !output.IsTerminal() {
@@ -48,6 +47,7 @@ func init() {
 			return fmt.Errorf("invalid output format: %s. Must be one of: %s",
 				outputFormat, strings.Join(utils.ValidFormats, ", "))
 		}
+		output.SetOutputFormat(format)
 
 		// Set verbosity level based on flags
 		if quiet {
@@ -56,6 +56,13 @@ func init() {
 			output.SetVerbosity("verbose")
 		} else {
 			output.SetVerbosity("normal")
+		}
+
+		// Emit config-default warnings now that output format and verbosity are
+		// configured, so PrintWarning routes to stderr under --output json and
+		// is suppressed under --quiet.
+		for _, w := range defaultWarnings {
+			output.PrintWarning("%s", noColor, w)
 		}
 
 		// Validate retry flags
@@ -156,82 +163,99 @@ func init() {
 	moduleRegistry.RegisterAll(rootCmd)
 }
 
-// Apply defaults from config to command flags
-func applyDefaultSettings(cmd *cobra.Command) {
+// applyDefaultSettings reads saved defaults from config and applies them to
+// cmd's flags. It returns a list of warning messages to emit later (after the
+// caller has configured output format and verbosity) so that warnings are
+// routed and suppressed correctly under --output json / --quiet.
+func applyDefaultSettings(cmd *cobra.Command) []string {
 	manager, err := config.NewConfigManager()
 	if err != nil {
-		return // Silently continue if config can't be loaded
+		return []string{fmt.Sprintf("Could not load saved default settings: %v", err)}
 	}
 
-	// Apply "no-color" default
-	if !cmd.Flags().Changed("no-color") {
-		if val, exists := manager.GetDefault("no-color"); exists {
-			if boolVal, ok := val.(bool); ok {
-				err := cmd.Flags().Set("no-color", fmt.Sprintf("%t", boolVal))
-				if err != nil {
-					log.Printf("Error setting no-color flag: %v\n", err)
-					return
-				}
-				noColor = boolVal
-			}
+	var failed []string
+
+	applyBool := func(flag string, target *bool) {
+		if cmd.Flags().Changed(flag) {
+			return
 		}
-
-	}
-
-	// Apply "output" default
-	if !cmd.Flags().Changed("output") {
-		if val, exists := manager.GetDefault("output"); exists {
-			if strVal, ok := val.(string); ok {
-				err := cmd.Flags().Set("output", strVal)
-				if err != nil {
-					log.Printf("Error setting output flag: %v\n", err)
-					return
-				}
-			}
+		val, exists := manager.GetDefault(flag)
+		if !exists {
+			return
+		}
+		// Type mismatches (e.g. a string where a bool is expected) are treated
+		// as absent so a stray manual edit to config.json does not block the CLI.
+		boolVal, ok := val.(bool)
+		if !ok {
+			return
+		}
+		if setErr := cmd.Flags().Set(flag, fmt.Sprintf("%t", boolVal)); setErr != nil {
+			failed = append(failed, flag)
+			return
+		}
+		if target != nil {
+			*target = boolVal
 		}
 	}
 
-	// Apply "quiet" default
-	if !cmd.Flags().Changed("quiet") {
-		if val, exists := manager.GetDefault("quiet"); exists {
-			if boolVal, ok := val.(bool); ok {
-				err := cmd.Flags().Set("quiet", fmt.Sprintf("%t", boolVal))
-				if err != nil {
-					log.Printf("Error setting quiet flag: %v\n", err)
-					return
-				}
-				quiet = boolVal
-			}
+	applyString := func(flag string) {
+		if cmd.Flags().Changed(flag) {
+			return
+		}
+		val, exists := manager.GetDefault(flag)
+		if !exists {
+			return
+		}
+		strVal, ok := val.(string)
+		if !ok {
+			return
+		}
+		if setErr := cmd.Flags().Set(flag, strVal); setErr != nil {
+			failed = append(failed, flag)
 		}
 	}
 
-	// Apply "verbose" default
-	if !cmd.Flags().Changed("verbose") {
-		if val, exists := manager.GetDefault("verbose"); exists {
-			if boolVal, ok := val.(bool); ok {
-				err := cmd.Flags().Set("verbose", fmt.Sprintf("%t", boolVal))
-				if err != nil {
-					log.Printf("Error setting verbose flag: %v\n", err)
-					return
-				}
-				verbose = boolVal
-			}
-		}
+	// Capture which flags the user set on the CLI before applying defaults,
+	// because cmd.Flags().Set (called inside applyBool) marks a flag as Changed
+	// regardless of origin — we can't distinguish CLI-set from config-set after
+	// the fact.
+	cliQuiet := cmd.Flags().Changed("quiet")
+	cliVerbose := cmd.Flags().Changed("verbose")
+
+	applyBool("no-color", &noColor)
+	applyString("output")
+	applyBool("quiet", &quiet)
+	applyBool("verbose", &verbose)
+	applyBool("no-pager", &noPager)
+
+	var warnings []string
+	if len(failed) > 0 {
+		warnings = append(warnings, fmt.Sprintf("Could not apply saved defaults for: %s", strings.Join(failed, ", ")))
 	}
 
-	// Apply "no-pager" default
-	if !cmd.Flags().Changed("no-pager") {
-		if val, exists := manager.GetDefault("no-pager"); exists {
-			if boolVal, ok := val.(bool); ok {
-				err := cmd.Flags().Set("no-pager", fmt.Sprintf("%t", boolVal))
-				if err != nil {
-					log.Printf("Error setting no-pager flag: %v\n", err)
-					return
-				}
-				noPager = boolVal
-			}
+	// --quiet and --verbose are mutually exclusive (see MarkFlagsMutuallyExclusive).
+	// A saved default can combine with a CLI flag (or a manually-edited config
+	// can set both) and bypass cobra's validation. Resolve by preferring the
+	// explicitly-set flag; if both are from config, drop quiet so unexpected
+	// output surfaces a problem to the user rather than silently suppressing it.
+	if quiet && verbose {
+		dropped := "quiet"
+		switch {
+		case cliQuiet && !cliVerbose:
+			verbose = false
+			_ = cmd.Flags().Set("verbose", "false")
+			dropped = "verbose"
+		case cliVerbose && !cliQuiet:
+			quiet = false
+			_ = cmd.Flags().Set("quiet", "false")
+		default:
+			quiet = false
+			_ = cmd.Flags().Set("quiet", "false")
 		}
+		warnings = append(warnings, fmt.Sprintf("Saved defaults set both --quiet and --verbose; dropping --%s", dropped))
 	}
+
+	return warnings
 }
 
 // ExecuteWithArgs adds all child commands to the root command and executes with given args.
