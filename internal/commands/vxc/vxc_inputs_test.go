@@ -1,10 +1,14 @@
 package vxc
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
 	megaport "github.com/megaport/megaportgo"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParsePartnerConfigFromJSON(t *testing.T) {
@@ -757,6 +761,242 @@ func TestBuildUpdateVXCRequestFromJSON_PartnerConfigs(t *testing.T) {
 				assert.NoError(t, err)
 				if tt.validate != nil {
 					tt.validate(t, result)
+				}
+			}
+		})
+	}
+}
+
+func TestResolvePartnerPortUID(t *testing.T) {
+	origGetPartnerPortUID := getPartnerPortUID
+	defer func() { getPartnerPortUID = origGetPartnerPortUID }()
+
+	tests := []struct {
+		name          string
+		partnerConfig megaport.VXCPartnerConfiguration
+		mockUID       string
+		mockErr       error
+		expectedUID   string
+		expectedError string
+	}{
+		{
+			name:          "Azure success",
+			partnerConfig: &megaport.VXCPartnerConfigAzure{ServiceKey: "azure-key-123"},
+			mockUID:       "azure-port-uid",
+			expectedUID:   "azure-port-uid",
+		},
+		{
+			name:          "Google success",
+			partnerConfig: &megaport.VXCPartnerConfigGoogle{PairingKey: "google-key-456"},
+			mockUID:       "google-port-uid",
+			expectedUID:   "google-port-uid",
+		},
+		{
+			name:          "Oracle success",
+			partnerConfig: &megaport.VXCPartnerConfigOracle{VirtualCircuitId: "oracle-vc-789"},
+			mockUID:       "oracle-port-uid",
+			expectedUID:   "oracle-port-uid",
+		},
+		{
+			name:          "Azure empty service key",
+			partnerConfig: &megaport.VXCPartnerConfigAzure{ServiceKey: ""},
+			expectedError: "serviceKey is required for Azure configuration",
+		},
+		{
+			name:          "Google empty pairing key",
+			partnerConfig: &megaport.VXCPartnerConfigGoogle{PairingKey: ""},
+			expectedError: "pairingKey is required for Google configuration",
+		},
+		{
+			name:          "Oracle empty virtual circuit ID",
+			partnerConfig: &megaport.VXCPartnerConfigOracle{VirtualCircuitId: ""},
+			expectedError: "virtualCircuitId is required for Oracle configuration",
+		},
+		{
+			name:          "Azure lookup error wraps with partner name",
+			partnerConfig: &megaport.VXCPartnerConfigAzure{ServiceKey: "bad-key"},
+			mockErr:       fmt.Errorf("failed to look up partner port: API error"),
+			expectedError: "azure partner port:",
+		},
+		{
+			name:          "unsupported partner type returns empty",
+			partnerConfig: &megaport.VXCPartnerConfigAWS{OwnerAccount: "123"},
+			expectedUID:   "",
+		},
+		{
+			name:          "transit partner type returns empty",
+			partnerConfig: &megaport.VXCPartnerConfigTransit{ConnectType: "TRANSIT"},
+			expectedUID:   "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			getPartnerPortUID = func(_ context.Context, _ megaport.VXCService, _, _ string) (string, error) {
+				return tt.mockUID, tt.mockErr
+			}
+
+			ctx := context.Background()
+			mockSvc := &MockVXCService{}
+
+			uid, err := resolvePartnerPortUID(ctx, mockSvc, tt.partnerConfig)
+
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedUID, uid)
+			}
+		})
+	}
+}
+
+func TestBuildVXCRequestFromFlags_PartnerConfig(t *testing.T) {
+	origResolve := resolvePartnerPortUID
+	defer func() { resolvePartnerPortUID = origResolve }()
+
+	newBuyCmd := func() *cobra.Command {
+		cmd := &cobra.Command{Use: "buy"}
+		cmd.Flags().String("a-end-uid", "", "")
+		cmd.Flags().String("b-end-uid", "", "")
+		cmd.Flags().String("name", "", "")
+		cmd.Flags().Int("rate-limit", 0, "")
+		cmd.Flags().Int("term", 0, "")
+		cmd.Flags().Int("a-end-vlan", 0, "")
+		cmd.Flags().Int("b-end-vlan", 0, "")
+		cmd.Flags().Int("a-end-inner-vlan", 0, "")
+		cmd.Flags().Int("b-end-inner-vlan", 0, "")
+		cmd.Flags().Int("a-end-vnic-index", 0, "")
+		cmd.Flags().Int("b-end-vnic-index", 0, "")
+		cmd.Flags().String("promo-code", "", "")
+		cmd.Flags().String("service-key", "", "")
+		cmd.Flags().String("cost-centre", "", "")
+		cmd.Flags().String("a-end-partner-config", "", "")
+		cmd.Flags().String("b-end-partner-config", "", "")
+		return cmd
+	}
+
+	tests := []struct {
+		name            string
+		flags           map[string]string
+		flagsInt        map[string]int
+		resolveUID      string
+		resolveErr      error
+		expectedError   string
+		validateRequest func(*testing.T, *megaport.BuyVXCRequest)
+	}{
+		{
+			name: "A-End Azure partner config resolves UID and is assigned",
+			flags: map[string]string{
+				"name":                 "Test VXC",
+				"b-end-uid":            "b-end-uid-123",
+				"a-end-partner-config": `{"connectType":"AZURE","serviceKey":"azure-svc-key"}`,
+			},
+			flagsInt:   map[string]int{"rate-limit": 100, "term": 1},
+			resolveUID: "resolved-a-uid",
+			validateRequest: func(t *testing.T, req *megaport.BuyVXCRequest) {
+				assert.Equal(t, "resolved-a-uid", req.PortUID)
+				assert.NotNil(t, req.AEndConfiguration.PartnerConfig)
+				azCfg, ok := req.AEndConfiguration.PartnerConfig.(*megaport.VXCPartnerConfigAzure)
+				require.True(t, ok)
+				assert.Equal(t, "azure-svc-key", azCfg.ServiceKey)
+			},
+		},
+		{
+			name: "A-End Google partner config resolves UID and is assigned",
+			flags: map[string]string{
+				"name":                 "Test VXC",
+				"b-end-uid":            "b-end-uid-123",
+				"a-end-partner-config": `{"connectType":"GOOGLE","pairingKey":"google-pairing-key"}`,
+			},
+			flagsInt:   map[string]int{"rate-limit": 100, "term": 1},
+			resolveUID: "resolved-a-uid",
+			validateRequest: func(t *testing.T, req *megaport.BuyVXCRequest) {
+				assert.Equal(t, "resolved-a-uid", req.PortUID)
+				assert.NotNil(t, req.AEndConfiguration.PartnerConfig)
+				_, ok := req.AEndConfiguration.PartnerConfig.(*megaport.VXCPartnerConfigGoogle)
+				require.True(t, ok)
+			},
+		},
+		{
+			name: "B-End Azure partner config resolves UID",
+			flags: map[string]string{
+				"name":                 "Test VXC",
+				"a-end-uid":            "a-end-uid-123",
+				"b-end-partner-config": `{"connectType":"AZURE","serviceKey":"azure-svc-key"}`,
+			},
+			flagsInt:   map[string]int{"rate-limit": 100, "term": 1},
+			resolveUID: "resolved-b-uid",
+			validateRequest: func(t *testing.T, req *megaport.BuyVXCRequest) {
+				assert.Equal(t, "resolved-b-uid", req.BEndConfiguration.ProductUID)
+				assert.NotNil(t, req.BEndConfiguration.PartnerConfig)
+			},
+		},
+		{
+			name: "A-End partner resolve error",
+			flags: map[string]string{
+				"name":                 "Test VXC",
+				"b-end-uid":            "b-end-uid-123",
+				"a-end-partner-config": `{"connectType":"AZURE","serviceKey":"bad-key"}`,
+			},
+			flagsInt:      map[string]int{"rate-limit": 100, "term": 1},
+			resolveErr:    fmt.Errorf("azure partner port: failed to look up partner port: API error"),
+			expectedError: "failed to look up A-End Partner Port",
+		},
+		{
+			name: "B-End partner resolve error",
+			flags: map[string]string{
+				"name":                 "Test VXC",
+				"a-end-uid":            "a-end-uid-123",
+				"b-end-partner-config": `{"connectType":"GOOGLE","pairingKey":"bad-key"}`,
+			},
+			flagsInt:      map[string]int{"rate-limit": 100, "term": 1},
+			resolveErr:    fmt.Errorf("google partner port: failed to look up partner port: API error"),
+			expectedError: "failed to look up B-End Partner Port",
+		},
+		{
+			name: "A-End UID provided skips resolution but keeps partner config",
+			flags: map[string]string{
+				"name":                 "Test VXC",
+				"a-end-uid":            "explicit-a-uid",
+				"b-end-uid":            "b-end-uid-123",
+				"a-end-partner-config": `{"connectType":"AZURE","serviceKey":"azure-svc-key"}`,
+			},
+			flagsInt: map[string]int{"rate-limit": 100, "term": 1},
+			validateRequest: func(t *testing.T, req *megaport.BuyVXCRequest) {
+				assert.Equal(t, "explicit-a-uid", req.PortUID)
+				assert.NotNil(t, req.AEndConfiguration.PartnerConfig)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resolvePartnerPortUID = func(_ context.Context, _ megaport.VXCService, _ megaport.VXCPartnerConfiguration) (string, error) {
+				return tt.resolveUID, tt.resolveErr
+			}
+
+			cmd := newBuyCmd()
+			for k, v := range tt.flags {
+				require.NoError(t, cmd.Flags().Set(k, v))
+			}
+			for k, v := range tt.flagsInt {
+				require.NoError(t, cmd.Flags().Set(k, fmt.Sprintf("%d", v)))
+			}
+
+			ctx := context.Background()
+			mockSvc := &MockVXCService{}
+
+			req, err := buildVXCRequestFromFlags(cmd, ctx, mockSvc)
+
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				require.NoError(t, err)
+				if tt.validateRequest != nil {
+					tt.validateRequest(t, req)
 				}
 			}
 		})
