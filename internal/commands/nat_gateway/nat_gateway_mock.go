@@ -21,18 +21,18 @@ type MockNATGatewayService struct {
 	SessionsErr     error
 	TelemetryResult *megaport.ServiceTelemetryResponse
 	TelemetryErr    error
-	ValidateResult  *megaport.NATGatewayValidateResult
-	ValidateErr     error
 	BuyResult       *megaport.NATGatewayBuyResult
 	BuyErr          error
+	ValidateResult  *megaport.NATGatewayValidateResult
+	ValidateErr     error
 
 	CapturedCreateReq    *megaport.CreateNATGatewayRequest
 	CapturedUpdateReq    *megaport.UpdateNATGatewayRequest
 	CapturedDeleteUID    string
 	CapturedGetUID       string
 	CapturedTelemetryReq *megaport.GetNATGatewayTelemetryRequest
-	CapturedValidateUID  string
 	CapturedBuyUID       string
+	CapturedValidateUID  string
 }
 
 func (m *MockNATGatewayService) CreateNATGateway(ctx context.Context, req *megaport.CreateNATGatewayRequest) (*megaport.NATGateway, error) {
@@ -120,6 +120,74 @@ func (m *MockNATGatewayService) BuyNATGateway(ctx context.Context, productUID st
 	return &megaport.NATGatewayBuyResult{ProductUID: productUID}, nil
 }
 
+func (m *MockNATGatewayService) ListNATGatewayPacketFilters(ctx context.Context, productUID string) ([]*megaport.NATGatewayPacketFilterSummary, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) CreateNATGatewayPacketFilter(ctx context.Context, productUID string, req *megaport.NATGatewayPacketFilterRequest) (*megaport.NATGatewayPacketFilter, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) GetNATGatewayPacketFilter(ctx context.Context, productUID string, packetFilterID int) (*megaport.NATGatewayPacketFilter, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) UpdateNATGatewayPacketFilter(ctx context.Context, productUID string, packetFilterID int, req *megaport.NATGatewayPacketFilterRequest) (*megaport.NATGatewayPacketFilter, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) DeleteNATGatewayPacketFilter(ctx context.Context, productUID string, packetFilterID int) error {
+	return nil
+}
+
+func (m *MockNATGatewayService) ListNATGatewayPrefixLists(ctx context.Context, productUID string) ([]*megaport.NATGatewayPrefixListSummary, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) CreateNATGatewayPrefixList(ctx context.Context, productUID string, req *megaport.NATGatewayPrefixList) (*megaport.NATGatewayPrefixList, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) GetNATGatewayPrefixList(ctx context.Context, productUID string, prefixListID int) (*megaport.NATGatewayPrefixList, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) UpdateNATGatewayPrefixList(ctx context.Context, productUID string, prefixListID int, req *megaport.NATGatewayPrefixList) (*megaport.NATGatewayPrefixList, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) DeleteNATGatewayPrefixList(ctx context.Context, productUID string, prefixListID int) error {
+	return nil
+}
+
+func (m *MockNATGatewayService) ListNATGatewayIPRoutesAsync(ctx context.Context, productUID, ipAddress string) (string, error) {
+	return "", nil
+}
+
+func (m *MockNATGatewayService) ListNATGatewayBGPRoutesAsync(ctx context.Context, productUID, ipAddress string) (string, error) {
+	return "", nil
+}
+
+func (m *MockNATGatewayService) ListNATGatewayBGPNeighborRoutesAsync(ctx context.Context, req *megaport.NATGatewayBGPNeighborRoutesRequest) (string, error) {
+	return "", nil
+}
+
+func (m *MockNATGatewayService) GetNATGatewayDiagnosticsRoutes(ctx context.Context, productUID, operationID string) ([]*megaport.NATGatewayRoute, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) ListNATGatewayIPRoutes(ctx context.Context, productUID, ipAddress string) ([]*megaport.NATGatewayIPRoute, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) ListNATGatewayBGPRoutes(ctx context.Context, productUID, ipAddress string) ([]*megaport.NATGatewayBGPRoute, error) {
+	return nil, nil
+}
+
+func (m *MockNATGatewayService) ListNATGatewayBGPNeighborRoutes(ctx context.Context, req *megaport.NATGatewayBGPNeighborRoutesRequest) ([]*megaport.NATGatewayBGPRoute, error) {
+	return nil, nil
+}
+
 func (m *MockNATGatewayService) Reset() {
 	m.CreateResult = nil
 	m.CreateErr = nil
@@ -134,15 +202,15 @@ func (m *MockNATGatewayService) Reset() {
 	m.SessionsErr = nil
 	m.TelemetryResult = nil
 	m.TelemetryErr = nil
-	m.ValidateResult = nil
-	m.ValidateErr = nil
 	m.BuyResult = nil
 	m.BuyErr = nil
+	m.ValidateResult = nil
+	m.ValidateErr = nil
 	m.CapturedCreateReq = nil
 	m.CapturedUpdateReq = nil
 	m.CapturedDeleteUID = ""
 	m.CapturedGetUID = ""
 	m.CapturedTelemetryReq = nil
-	m.CapturedValidateUID = ""
 	m.CapturedBuyUID = ""
+	m.CapturedValidateUID = ""
 }
