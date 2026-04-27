@@ -30,6 +30,31 @@ type natGatewaySessionOutput struct {
 	SessionCounts string `json:"session_counts" header:"Session Counts"`
 }
 
+// natGatewayValidateOutput is the display struct for a NAT Gateway validate result.
+type natGatewayValidateOutput struct {
+	output.Output `json:"-" header:"-"`
+	UID           string  `json:"uid"            header:"UID"`
+	ProductType   string  `json:"product_type"   header:"Product Type"`
+	Metro         string  `json:"metro"          header:"Metro"`
+	Currency      string  `json:"currency"       header:"Currency"`
+	MonthlyRate   float64 `json:"monthly_rate"   header:"Monthly Rate"`
+	HourlyRate    float64 `json:"hourly_rate"    header:"Hourly Rate"`
+	MonthlySetup  float64 `json:"monthly_setup"  header:"Monthly Setup"`
+}
+
+// natGatewayBuyOutput is the display struct for a NAT Gateway buy result.
+type natGatewayBuyOutput struct {
+	output.Output      `json:"-" header:"-"`
+	UID                string `json:"uid"                header:"UID"`
+	Name               string `json:"name"               header:"Name"`
+	ServiceName        string `json:"service_name"       header:"Service Name"`
+	ProductType        string `json:"product_type"       header:"Product Type"`
+	ProvisioningStatus string `json:"provisioning_status" header:"Status"`
+	RateLimit          int    `json:"rate_limit"         header:"Rate Limit (Mbps)"`
+	LocationID         int    `json:"location_id"        header:"Location ID"`
+	ContractTermMonths int    `json:"contract_term_months" header:"Term"`
+}
+
 // natGatewayTelemetrySampleOutput is the display struct for a single telemetry sample.
 type natGatewayTelemetrySampleOutput struct {
 	output.Output `json:"-" header:"-"`
@@ -105,6 +130,39 @@ func printNATGatewayTelemetry(resp *megaport.ServiceTelemetryResponse, format st
 		}
 	}
 	return output.PrintOutput(outputs, format, noColor)
+}
+
+func printNATGatewayValidateResult(res *megaport.NATGatewayValidateResult, format string, noColor bool) error {
+	if res == nil {
+		return fmt.Errorf("invalid NAT Gateway validate result: nil value")
+	}
+	out := natGatewayValidateOutput{
+		UID:          res.ProductUID,
+		ProductType:  res.ProductType,
+		Metro:        res.Metro,
+		Currency:     res.Price.Currency,
+		MonthlyRate:  res.Price.MonthlyRate,
+		HourlyRate:   res.Price.HourlyRate,
+		MonthlySetup: res.Price.MonthlySetup,
+	}
+	return output.PrintOutput([]natGatewayValidateOutput{out}, format, noColor)
+}
+
+func printNATGatewayBuyResult(res *megaport.NATGatewayBuyResult, format string, noColor bool) error {
+	if res == nil {
+		return fmt.Errorf("invalid NAT Gateway buy result: nil value")
+	}
+	out := natGatewayBuyOutput{
+		UID:                res.ProductUID,
+		Name:               res.ProductName,
+		ServiceName:        res.ServiceName,
+		ProductType:        res.ProductType,
+		ProvisioningStatus: res.ProvisioningStatus,
+		RateLimit:          res.RateLimit,
+		LocationID:         res.LocationID,
+		ContractTermMonths: res.ContractTermMonths,
+	}
+	return output.PrintOutput([]natGatewayBuyOutput{out}, format, noColor)
 }
 
 // exportNATGatewayConfig returns a map suitable for use as JSON input to create.
