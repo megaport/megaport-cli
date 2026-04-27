@@ -135,6 +135,26 @@ type errorEnvelope struct {
 	Error errorBody `json:"error"`
 }
 
+// DefaultOutputConfig returns the defaults that ResetState applies.
+func DefaultOutputConfig() OutputConfig {
+	return defaultOutputConfig()
+}
+
+// SetConfig applies every field of c by delegating to the individual setters.
+// Those setters hold per-field locks or use atomic.Value (Format, Verbosity),
+// so SetConfig is not atomic across fields — concurrent readers may observe
+// a partial update. Callers should invoke SetConfig from the main goroutine
+// before spawning work.
+func SetConfig(c OutputConfig) {
+	SetOutputFields(c.Fields)
+	SetOutputQuery(c.Query)
+	SetNoHeader(c.NoHeader)
+	SetNoPager(c.NoPager)
+	SetTemplateString(c.Template)
+	SetOutputFormat(c.Format)
+	SetVerbosity(c.Verbosity)
+}
+
 // ResetState clears all output configuration back to defaults.
 // Intended for the WASM entry point to prevent state bleed between invocations.
 func ResetState() { ApplyOutputConfig(defaultOutputConfig()) }
