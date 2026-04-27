@@ -1,19 +1,62 @@
 name: integration-tests
 on:
   schedule:
-    - cron: '0 2 * * 1'  # Weekly, Monday 02:00 UTC
+    - cron: '0 2 * * *'  # Nightly, 02:00 UTC
   workflow_dispatch:       # Allow manual trigger from GitHub UI
 
 jobs:
-  integration:
+  # Fast read-only tests — runs on schedule and manual trigger
+  integration-readonly:
+    name: Integration Tests (Read-only)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: 'go.mod'
-      - name: Run integration tests
-        run: go test -tags integration -v -timeout 5m ./internal/commands/locations/... ./internal/commands/partners/...
+      - name: Run read-only integration tests
+        run: go test -tags integration -run '^TestIntegration_' -v -timeout 5m ./internal/commands/locations/...
+        env:
+          MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
+          MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}
+          MEGAPORT_ENVIRONMENT: staging
+
+  # Provisioning lifecycle tests — manual trigger only until all tests are written
+  integration-provisioning:
+    name: Integration Tests (Provisioning)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: 'go.mod'
+      # Add packages here as integration tests are written (see docs/INTEGRATION_TESTING.md)
+      - name: Verify provisioning integration tests are discovered
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! list_output=$(go test -tags integration -list '^TestIntegration_' \
+            ./internal/commands/ports/... \
+            ./internal/commands/vxc/... \
+            ./internal/commands/mcr/... \
+            ./internal/commands/mve/... 2>&1); then
+            echo "::error::go test -list failed — see build/compile errors below."
+            echo "$list_output"
+            exit 1
+          fi
+          discovered=$(printf '%s\n' "$list_output" | grep '^TestIntegration_' || true)
+          if [ -z "$discovered" ]; then
+            echo "::error::No TestIntegration_* tests discovered in the targeted packages."
+            echo "Update the package list in .github/workflows/integration-test.yml as tests are added."
+            exit 1
+          fi
+          echo "Discovered tests:"
+          echo "$discovered"
+      - name: Run provisioning integration tests
+        run: go test -tags integration -run '^TestIntegration_' -v -timeout 30m ./internal/commands/ports/... ./internal/commands/vxc/... ./internal/commands/mcr/... ./internal/commands/mve/...
         env:
           MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
           MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}
