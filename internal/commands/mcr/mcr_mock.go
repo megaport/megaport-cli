@@ -2,6 +2,7 @@ package mcr
 
 import (
 	"context"
+	"time"
 
 	megaport "github.com/megaport/megaportgo"
 )
@@ -194,6 +195,10 @@ func (m *MockMCRService) UpdateMCRIPsecAddOn(ctx context.Context, mcrID string, 
 	m.CapturedUpdateMCRIPsecAddOnUID = addOnUID
 	m.CapturedUpdateMCRIPsecTunnelCount = tunnelCount
 	return m.UpdateMCRIPsecAddOnErr
+}
+
+func (m *MockMCRService) WaitForMCRReady(_ context.Context, _ string, _ time.Duration) error {
+	return nil
 }
 
 func (m *MockMCRService) Reset() {
