@@ -6,10 +6,12 @@ on:
     tags:
       - 'v*'
 
-# Permissions for creating releases
+# Permissions for creating releases and signing artifact attestations
 permissions:
   contents: write
   packages: write
+  id-token: write
+  attestations: write
 
 jobs:
   goreleaser:
@@ -52,3 +54,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
           HOMEBREW_TOKEN: ${{ secrets.HOMEBREW_TOKEN }}
+
+      - name: Attest build provenance for release archives
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/megaport-cli_*.zip
+            dist/megaport-cli_*_SHA256SUMS
