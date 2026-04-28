@@ -64,10 +64,12 @@ func (m *MockPortService) UpdatePortResourceTags(ctx context.Context, portID str
 
 // MockMCRService implements megaport.MCRService for testing.
 type MockMCRService struct {
-	BuyMCRResult        *megaport.BuyMCRResponse
-	BuyMCRErr           error
-	ValidateMCROrderErr error
-	CapturedMCRRequest  *megaport.BuyMCRRequest
+	BuyMCRResult         *megaport.BuyMCRResponse
+	BuyMCRErr            error
+	ValidateMCROrderErr  error
+	CapturedMCRRequest   *megaport.BuyMCRRequest
+	WaitForMCRReadyDelay time.Duration
+	WaitForMCRReadyErr   error
 }
 
 func (m *MockMCRService) BuyMCR(ctx context.Context, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
@@ -134,7 +136,16 @@ func (m *MockMCRService) UpdateMCRIPsecAddOn(ctx context.Context, mcrID string, 
 }
 
 func (m *MockMCRService) WaitForMCRReady(ctx context.Context, mcrID string, timeout time.Duration) error {
-	return nil
+	if m.WaitForMCRReadyDelay > 0 {
+		t := time.NewTimer(m.WaitForMCRReadyDelay)
+		defer t.Stop()
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-t.C:
+		}
+	}
+	return m.WaitForMCRReadyErr
 }
 
 // MockMVEService implements megaport.MVEService for testing.
