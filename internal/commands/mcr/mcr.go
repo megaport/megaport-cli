@@ -342,6 +342,7 @@ func buildMCRTagCommands() (listTags, updateTags *cobra.Command) {
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(UpdateMCRResourceTags).
 		WithStandardInputFlags().
+		WithBoolFlag("force", false, "Skip the confirmation prompt").
 		WithExample("megaport-cli mcr update-tags mcr-abc123 --interactive").
 		WithExample("megaport-cli mcr update-tags mcr-abc123 --json '{\"env\":\"production\",\"team\":\"network\"}'").
 		WithExample("megaport-cli mcr update-tags mcr-abc123 --json-file ./tags.json").

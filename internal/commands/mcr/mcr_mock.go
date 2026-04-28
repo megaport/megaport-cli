@@ -2,6 +2,7 @@ package mcr
 
 import (
 	"context"
+	"time"
 
 	megaport "github.com/megaport/megaportgo"
 )
@@ -58,6 +59,9 @@ type MockMCRService struct {
 	CapturedUpdateMCRIPsecAddOnMCRID  string
 	CapturedUpdateMCRIPsecAddOnUID    string
 	CapturedUpdateMCRIPsecTunnelCount int
+
+	WaitForMCRReadyErr           error
+	CapturedWaitForMCRReadyMCRID string
 }
 
 func (m *MockMCRService) BuyMCR(ctx context.Context, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
@@ -196,6 +200,11 @@ func (m *MockMCRService) UpdateMCRIPsecAddOn(ctx context.Context, mcrID string, 
 	return m.UpdateMCRIPsecAddOnErr
 }
 
+func (m *MockMCRService) WaitForMCRReady(ctx context.Context, mcrID string, timeout time.Duration) error {
+	m.CapturedWaitForMCRReadyMCRID = mcrID
+	return m.WaitForMCRReadyErr
+}
+
 func (m *MockMCRService) Reset() {
 	m.BuyMCRResult = nil
 	m.BuyMCRErr = nil
@@ -243,4 +252,6 @@ func (m *MockMCRService) Reset() {
 	m.CapturedUpdateMCRIPsecAddOnMCRID = ""
 	m.CapturedUpdateMCRIPsecAddOnUID = ""
 	m.CapturedUpdateMCRIPsecTunnelCount = 0
+	m.WaitForMCRReadyErr = nil
+	m.CapturedWaitForMCRReadyMCRID = ""
 }
