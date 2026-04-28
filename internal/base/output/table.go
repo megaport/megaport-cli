@@ -39,13 +39,19 @@ func SetIsTerminal(val bool) {
 	isTerminalCached.Store(val)
 }
 
+// SetTerminalWidthForTesting pins the terminal width used by table rendering.
+// Pass 0 to restore auto-detection. Intended for tests only.
+func SetTerminalWidthForTesting(width int) {
+	terminalWidthOverride.Store(int64(width))
+}
+
 func getTerminalWidth() int {
 	if ov := int(terminalWidthOverride.Load()); ov > 0 {
 		return ov
 	}
 	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil || width <= 0 {
-		return 100
+		return 80
 	}
 	return width
 }
