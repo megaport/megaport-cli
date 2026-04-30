@@ -105,9 +105,12 @@ brews:
     repository:
       owner: megaport
       name: homebrew-tap
+      branch: "bump-megaport-cli-{{ .Version }}"
       token: "{{ .Env.HOMEBREW_TOKEN }}"
       pull_request:
         enabled: true
+        base:
+          branch: main
     directory: Formula
     homepage: "https://github.com/megaport/megaport-cli"
     description: "CLI tool for managing Megaport network infrastructure"
