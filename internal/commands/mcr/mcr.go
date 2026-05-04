@@ -26,6 +26,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	create, listPFL, getPFL, updatePFL, deletePFL := buildMCRPrefixFilterCommands(rootCmd)
 	listTags, updateTags := buildMCRTagCommands()
 	addIPSec, updateIPSec := buildMCRIPSecCommands(rootCmd)
+	lookingGlass := buildMCRLookingGlassCommands(rootCmd)
 
 	mcrCmd.AddCommand(
 		get, buy, update, del, restore, lock, unlock,
@@ -33,6 +34,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		list, status, validate,
 		listTags, updateTags,
 		addIPSec, updateIPSec,
+		lookingGlass,
 	)
 	rootCmd.AddCommand(mcrCmd)
 }
@@ -396,6 +398,76 @@ func buildMCRIPSecCommands(rootCmd *cobra.Command) (addIPSec, updateIPSec *cobra
 		WithRootCmd(rootCmd).
 		WithConditionalRequirements("tunnel-count").
 		Build()
+
+	return
+}
+
+// buildMCRLookingGlassCommands extracts the Looking Glass diagnostic command definitions.
+func buildMCRLookingGlassCommands(rootCmd *cobra.Command) (lookingGlass *cobra.Command) {
+	lookingGlass = cmdbuilder.NewCommand("looking-glass", "MCR Looking Glass diagnostic commands").
+		WithLongDesc("MCR Looking Glass diagnostic commands.\n\nThe Looking Glass provides visibility into traffic routing on your MCR, helping you troubleshoot connections by showing the status of protocols and routing tables.").
+		WithExample("megaport-cli mcr looking-glass ip-routes [mcrUID]").
+		WithExample("megaport-cli mcr looking-glass bgp-routes [mcrUID]").
+		WithExample("megaport-cli mcr looking-glass bgp-sessions [mcrUID]").
+		WithImportantNote("Looking Glass commands are read-only diagnostic tools").
+		WithImportantNote("Use --ip flag to filter routes by IP address or prefix").
+		WithRootCmd(rootCmd).
+		Build()
+
+	lgIPRoutesCmd := cmdbuilder.NewCommand("ip-routes", "List IP routes from the MCR routing table").
+		WithArgs(cobra.ExactArgs(1)).
+		WithOutputFormatRunFunc(ListLookingGlassIPRoutes).
+		WithLongDesc("List IP routes from the MCR Looking Glass.\n\nThis command retrieves all routes (BGP, static, connected, local) from the MCR's routing table. You can filter by protocol or IP address/prefix.").
+		WithFlag("protocol", "", "Filter by protocol (BGP, STATIC, CONNECTED, LOCAL)").
+		WithFlag("ip", "", "Filter by IP address or prefix (e.g., 10.0.0.0/8 or 192.168.1.1)").
+		WithExample("megaport-cli mcr looking-glass ip-routes [mcrUID]").
+		WithExample("megaport-cli mcr looking-glass ip-routes [mcrUID] --protocol BGP").
+		WithExample("megaport-cli mcr looking-glass ip-routes [mcrUID] --ip 10.0.0.0/8").
+		WithExample("megaport-cli mcr looking-glass ip-routes [mcrUID] --protocol STATIC --ip 192.168.0.0/16").
+		WithImportantNote("Protocol values: BGP, STATIC, CONNECTED, LOCAL").
+		WithRootCmd(rootCmd).
+		Build()
+
+	lgBGPRoutesCmd := cmdbuilder.NewCommand("bgp-routes", "List BGP routes with full BGP attributes").
+		WithArgs(cobra.ExactArgs(1)).
+		WithOutputFormatRunFunc(ListLookingGlassBGPRoutes).
+		WithLongDesc("List BGP routes from the MCR Looking Glass.\n\nThis command retrieves routes learned via BGP with full BGP attributes including AS path, local preference, MED, communities, and origin.").
+		WithFlag("ip", "", "Filter by IP address or prefix (e.g., 10.0.0.0/8 or 192.168.1.1)").
+		WithExample("megaport-cli mcr looking-glass bgp-routes [mcrUID]").
+		WithExample("megaport-cli mcr looking-glass bgp-routes [mcrUID] --ip 10.0.0.0/8").
+		WithImportantNote("Shows BGP-specific attributes like AS path, local preference, MED, and communities").
+		WithRootCmd(rootCmd).
+		Build()
+
+	lgBGPSessionsCmd := cmdbuilder.NewCommand("bgp-sessions", "List BGP sessions configured on the MCR").
+		WithArgs(cobra.ExactArgs(1)).
+		WithOutputFormatRunFunc(ListLookingGlassBGPSessions).
+		WithLongDesc("List all BGP sessions configured on the MCR.\n\nThis command shows the status of all BGP peering sessions including neighbor address, ASN, session status, uptime, and prefix counts.").
+		WithExample("megaport-cli mcr looking-glass bgp-sessions [mcrUID]").
+		WithImportantNote("Session status can be UP, DOWN, or UNKNOWN").
+		WithImportantNote("Use the session ID from this output with bgp-neighbor-routes command").
+		WithRootCmd(rootCmd).
+		Build()
+
+	lgBGPNeighborRoutesCmd := cmdbuilder.NewCommand("bgp-neighbor-routes", "List routes advertised to or received from a BGP neighbor").
+		WithArgs(cobra.ExactArgs(3)).
+		WithOutputFormatRunFunc(ListLookingGlassBGPNeighborRoutes).
+		WithLongDesc("List routes advertised to or received from a specific BGP neighbor.\n\nThis command shows routes that are either being advertised to a neighbor or received from a neighbor. Use the session ID from 'bgp-sessions' command.").
+		WithFlag("ip", "", "Filter by IP address or prefix (e.g., 10.0.0.0/8 or 192.168.1.1)").
+		WithExample("megaport-cli mcr looking-glass bgp-neighbor-routes [mcrUID] [sessionID] advertised").
+		WithExample("megaport-cli mcr looking-glass bgp-neighbor-routes [mcrUID] [sessionID] received").
+		WithExample("megaport-cli mcr looking-glass bgp-neighbor-routes [mcrUID] [sessionID] received --ip 10.0.0.0/8").
+		WithImportantNote("Direction must be 'advertised' or 'received'").
+		WithImportantNote("Get session ID from 'mcr looking-glass bgp-sessions' command").
+		WithRootCmd(rootCmd).
+		Build()
+
+	lookingGlass.AddCommand(
+		lgIPRoutesCmd,
+		lgBGPRoutesCmd,
+		lgBGPSessionsCmd,
+		lgBGPNeighborRoutesCmd,
+	)
 
 	return
 }
