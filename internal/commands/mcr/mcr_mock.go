@@ -2,6 +2,7 @@ package mcr
 
 import (
 	"context"
+	"time"
 
 	megaport "github.com/megaport/megaportgo"
 )
@@ -58,6 +59,10 @@ type MockMCRService struct {
 	CapturedUpdateMCRIPsecAddOnMCRID  string
 	CapturedUpdateMCRIPsecAddOnUID    string
 	CapturedUpdateMCRIPsecTunnelCount int
+
+	WaitForMCRReadyErr             error
+	CapturedWaitForMCRReadyMCRID   string
+	CapturedWaitForMCRReadyTimeout time.Duration
 }
 
 func (m *MockMCRService) BuyMCR(ctx context.Context, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
@@ -196,6 +201,12 @@ func (m *MockMCRService) UpdateMCRIPsecAddOn(ctx context.Context, mcrID string, 
 	return m.UpdateMCRIPsecAddOnErr
 }
 
+func (m *MockMCRService) WaitForMCRReady(ctx context.Context, mcrID string, timeout time.Duration) error {
+	m.CapturedWaitForMCRReadyMCRID = mcrID
+	m.CapturedWaitForMCRReadyTimeout = timeout
+	return m.WaitForMCRReadyErr
+}
+
 // MockMCRLookingGlassService implements megaport.MCRLookingGlassService for testing.
 type MockMCRLookingGlassService struct {
 	ListIPRoutesResult              []*megaport.LookingGlassIPRoute
@@ -319,4 +330,7 @@ func (m *MockMCRService) Reset() {
 	m.CapturedUpdateMCRIPsecAddOnMCRID = ""
 	m.CapturedUpdateMCRIPsecAddOnUID = ""
 	m.CapturedUpdateMCRIPsecTunnelCount = 0
+	m.WaitForMCRReadyErr = nil
+	m.CapturedWaitForMCRReadyMCRID = ""
+	m.CapturedWaitForMCRReadyTimeout = 0
 }

@@ -33,6 +33,76 @@ type MockNATGatewayService struct {
 	CapturedTelemetryReq *megaport.GetNATGatewayTelemetryRequest
 	CapturedBuyUID       string
 	CapturedValidateUID  string
+
+	ListPacketFiltersResult  []*megaport.NATGatewayPacketFilterSummary
+	ListPacketFiltersErr     error
+	CreatePacketFilterResult *megaport.NATGatewayPacketFilter
+	CreatePacketFilterErr    error
+	GetPacketFilterResult    *megaport.NATGatewayPacketFilter
+	GetPacketFilterErr       error
+	UpdatePacketFilterResult *megaport.NATGatewayPacketFilter
+	UpdatePacketFilterErr    error
+	DeletePacketFilterErr    error
+
+	CapturedListPacketFiltersUID  string
+	CapturedCreatePacketFilterUID string
+	CapturedCreatePacketFilterReq *megaport.NATGatewayPacketFilterRequest
+	CapturedGetPacketFilterUID    string
+	CapturedGetPacketFilterID     int
+	CapturedUpdatePacketFilterUID string
+	CapturedUpdatePacketFilterID  int
+	CapturedUpdatePacketFilterReq *megaport.NATGatewayPacketFilterRequest
+	CapturedDeletePacketFilterUID string
+	CapturedDeletePacketFilterID  int
+
+	ListPrefixListsResult  []*megaport.NATGatewayPrefixListSummary
+	ListPrefixListsErr     error
+	CreatePrefixListResult *megaport.NATGatewayPrefixList
+	CreatePrefixListErr    error
+	GetPrefixListResult    *megaport.NATGatewayPrefixList
+	GetPrefixListErr       error
+	UpdatePrefixListResult *megaport.NATGatewayPrefixList
+	UpdatePrefixListErr    error
+	DeletePrefixListErr    error
+
+	CapturedListPrefixListsUID  string
+	CapturedCreatePrefixListUID string
+	CapturedCreatePrefixListReq *megaport.NATGatewayPrefixList
+	CapturedGetPrefixListUID    string
+	CapturedGetPrefixListID     int
+	CapturedUpdatePrefixListUID string
+	CapturedUpdatePrefixListID  int
+	CapturedUpdatePrefixListReq *megaport.NATGatewayPrefixList
+	CapturedDeletePrefixListUID string
+	CapturedDeletePrefixListID  int
+
+	IPRoutesAsyncResult          string
+	IPRoutesAsyncErr             error
+	BGPRoutesAsyncResult         string
+	BGPRoutesAsyncErr            error
+	BGPNeighborRoutesAsyncResult string
+	BGPNeighborRoutesAsyncErr    error
+	DiagnosticsRoutesResult      []*megaport.NATGatewayRoute
+	DiagnosticsRoutesErr         error
+	IPRoutesResult               []*megaport.NATGatewayIPRoute
+	IPRoutesErr                  error
+	BGPRoutesResult              []*megaport.NATGatewayBGPRoute
+	BGPRoutesErr                 error
+	BGPNeighborRoutesResult      []*megaport.NATGatewayBGPRoute
+	BGPNeighborRoutesErr         error
+
+	CapturedIPRoutesAsyncUID          string
+	CapturedIPRoutesAsyncIPAddr       string
+	CapturedBGPRoutesAsyncUID         string
+	CapturedBGPRoutesAsyncIPAddr      string
+	CapturedBGPNeighborRoutesAsyncReq *megaport.NATGatewayBGPNeighborRoutesRequest
+	CapturedDiagnosticsRoutesUID      string
+	CapturedDiagnosticsRoutesOpID     string
+	CapturedIPRoutesUID               string
+	CapturedIPRoutesIPAddr            string
+	CapturedBGPRoutesUID              string
+	CapturedBGPRoutesIPAddr           string
+	CapturedBGPNeighborRoutesReq      *megaport.NATGatewayBGPNeighborRoutesRequest
 }
 
 func (m *MockNATGatewayService) CreateNATGateway(ctx context.Context, req *megaport.CreateNATGatewayRequest) (*megaport.NATGateway, error) {
@@ -120,6 +190,142 @@ func (m *MockNATGatewayService) BuyNATGateway(ctx context.Context, productUID st
 	return &megaport.NATGatewayBuyResult{ProductUID: productUID}, nil
 }
 
+func (m *MockNATGatewayService) ListNATGatewayPacketFilters(ctx context.Context, productUID string) ([]*megaport.NATGatewayPacketFilterSummary, error) {
+	m.CapturedListPacketFiltersUID = productUID
+	if m.ListPacketFiltersErr != nil {
+		return nil, m.ListPacketFiltersErr
+	}
+	return m.ListPacketFiltersResult, nil
+}
+
+func (m *MockNATGatewayService) CreateNATGatewayPacketFilter(ctx context.Context, productUID string, req *megaport.NATGatewayPacketFilterRequest) (*megaport.NATGatewayPacketFilter, error) {
+	m.CapturedCreatePacketFilterUID = productUID
+	m.CapturedCreatePacketFilterReq = req
+	if m.CreatePacketFilterErr != nil {
+		return nil, m.CreatePacketFilterErr
+	}
+	return m.CreatePacketFilterResult, nil
+}
+
+func (m *MockNATGatewayService) GetNATGatewayPacketFilter(ctx context.Context, productUID string, packetFilterID int) (*megaport.NATGatewayPacketFilter, error) {
+	m.CapturedGetPacketFilterUID = productUID
+	m.CapturedGetPacketFilterID = packetFilterID
+	if m.GetPacketFilterErr != nil {
+		return nil, m.GetPacketFilterErr
+	}
+	return m.GetPacketFilterResult, nil
+}
+
+func (m *MockNATGatewayService) UpdateNATGatewayPacketFilter(ctx context.Context, productUID string, packetFilterID int, req *megaport.NATGatewayPacketFilterRequest) (*megaport.NATGatewayPacketFilter, error) {
+	m.CapturedUpdatePacketFilterUID = productUID
+	m.CapturedUpdatePacketFilterID = packetFilterID
+	m.CapturedUpdatePacketFilterReq = req
+	if m.UpdatePacketFilterErr != nil {
+		return nil, m.UpdatePacketFilterErr
+	}
+	return m.UpdatePacketFilterResult, nil
+}
+
+func (m *MockNATGatewayService) DeleteNATGatewayPacketFilter(ctx context.Context, productUID string, packetFilterID int) error {
+	m.CapturedDeletePacketFilterUID = productUID
+	m.CapturedDeletePacketFilterID = packetFilterID
+	return m.DeletePacketFilterErr
+}
+
+func (m *MockNATGatewayService) ListNATGatewayPrefixLists(ctx context.Context, productUID string) ([]*megaport.NATGatewayPrefixListSummary, error) {
+	m.CapturedListPrefixListsUID = productUID
+	if m.ListPrefixListsErr != nil {
+		return nil, m.ListPrefixListsErr
+	}
+	return m.ListPrefixListsResult, nil
+}
+
+func (m *MockNATGatewayService) CreateNATGatewayPrefixList(ctx context.Context, productUID string, req *megaport.NATGatewayPrefixList) (*megaport.NATGatewayPrefixList, error) {
+	m.CapturedCreatePrefixListUID = productUID
+	m.CapturedCreatePrefixListReq = req
+	if m.CreatePrefixListErr != nil {
+		return nil, m.CreatePrefixListErr
+	}
+	return m.CreatePrefixListResult, nil
+}
+
+func (m *MockNATGatewayService) GetNATGatewayPrefixList(ctx context.Context, productUID string, prefixListID int) (*megaport.NATGatewayPrefixList, error) {
+	m.CapturedGetPrefixListUID = productUID
+	m.CapturedGetPrefixListID = prefixListID
+	if m.GetPrefixListErr != nil {
+		return nil, m.GetPrefixListErr
+	}
+	return m.GetPrefixListResult, nil
+}
+
+func (m *MockNATGatewayService) UpdateNATGatewayPrefixList(ctx context.Context, productUID string, prefixListID int, req *megaport.NATGatewayPrefixList) (*megaport.NATGatewayPrefixList, error) {
+	m.CapturedUpdatePrefixListUID = productUID
+	m.CapturedUpdatePrefixListID = prefixListID
+	m.CapturedUpdatePrefixListReq = req
+	if m.UpdatePrefixListErr != nil {
+		return nil, m.UpdatePrefixListErr
+	}
+	return m.UpdatePrefixListResult, nil
+}
+
+func (m *MockNATGatewayService) DeleteNATGatewayPrefixList(ctx context.Context, productUID string, prefixListID int) error {
+	m.CapturedDeletePrefixListUID = productUID
+	m.CapturedDeletePrefixListID = prefixListID
+	return m.DeletePrefixListErr
+}
+
+func (m *MockNATGatewayService) ListNATGatewayIPRoutesAsync(ctx context.Context, productUID, ipAddress string) (string, error) {
+	m.CapturedIPRoutesAsyncUID = productUID
+	m.CapturedIPRoutesAsyncIPAddr = ipAddress
+	return m.IPRoutesAsyncResult, m.IPRoutesAsyncErr
+}
+
+func (m *MockNATGatewayService) ListNATGatewayBGPRoutesAsync(ctx context.Context, productUID, ipAddress string) (string, error) {
+	m.CapturedBGPRoutesAsyncUID = productUID
+	m.CapturedBGPRoutesAsyncIPAddr = ipAddress
+	return m.BGPRoutesAsyncResult, m.BGPRoutesAsyncErr
+}
+
+func (m *MockNATGatewayService) ListNATGatewayBGPNeighborRoutesAsync(ctx context.Context, req *megaport.NATGatewayBGPNeighborRoutesRequest) (string, error) {
+	m.CapturedBGPNeighborRoutesAsyncReq = req
+	return m.BGPNeighborRoutesAsyncResult, m.BGPNeighborRoutesAsyncErr
+}
+
+func (m *MockNATGatewayService) GetNATGatewayDiagnosticsRoutes(ctx context.Context, productUID, operationID string) ([]*megaport.NATGatewayRoute, error) {
+	m.CapturedDiagnosticsRoutesUID = productUID
+	m.CapturedDiagnosticsRoutesOpID = operationID
+	if m.DiagnosticsRoutesErr != nil {
+		return nil, m.DiagnosticsRoutesErr
+	}
+	return m.DiagnosticsRoutesResult, nil
+}
+
+func (m *MockNATGatewayService) ListNATGatewayIPRoutes(ctx context.Context, productUID, ipAddress string) ([]*megaport.NATGatewayIPRoute, error) {
+	m.CapturedIPRoutesUID = productUID
+	m.CapturedIPRoutesIPAddr = ipAddress
+	if m.IPRoutesErr != nil {
+		return nil, m.IPRoutesErr
+	}
+	return m.IPRoutesResult, nil
+}
+
+func (m *MockNATGatewayService) ListNATGatewayBGPRoutes(ctx context.Context, productUID, ipAddress string) ([]*megaport.NATGatewayBGPRoute, error) {
+	m.CapturedBGPRoutesUID = productUID
+	m.CapturedBGPRoutesIPAddr = ipAddress
+	if m.BGPRoutesErr != nil {
+		return nil, m.BGPRoutesErr
+	}
+	return m.BGPRoutesResult, nil
+}
+
+func (m *MockNATGatewayService) ListNATGatewayBGPNeighborRoutes(ctx context.Context, req *megaport.NATGatewayBGPNeighborRoutesRequest) ([]*megaport.NATGatewayBGPRoute, error) {
+	m.CapturedBGPNeighborRoutesReq = req
+	if m.BGPNeighborRoutesErr != nil {
+		return nil, m.BGPNeighborRoutesErr
+	}
+	return m.BGPNeighborRoutesResult, nil
+}
+
 func (m *MockNATGatewayService) Reset() {
 	m.CreateResult = nil
 	m.CreateErr = nil
@@ -145,4 +351,71 @@ func (m *MockNATGatewayService) Reset() {
 	m.CapturedDeleteUID = ""
 	m.CapturedGetUID = ""
 	m.CapturedTelemetryReq = nil
+
+	m.ListPacketFiltersResult = nil
+	m.ListPacketFiltersErr = nil
+	m.CreatePacketFilterResult = nil
+	m.CreatePacketFilterErr = nil
+	m.GetPacketFilterResult = nil
+	m.GetPacketFilterErr = nil
+	m.UpdatePacketFilterResult = nil
+	m.UpdatePacketFilterErr = nil
+	m.DeletePacketFilterErr = nil
+	m.CapturedListPacketFiltersUID = ""
+	m.CapturedCreatePacketFilterUID = ""
+	m.CapturedCreatePacketFilterReq = nil
+	m.CapturedGetPacketFilterUID = ""
+	m.CapturedGetPacketFilterID = 0
+	m.CapturedUpdatePacketFilterUID = ""
+	m.CapturedUpdatePacketFilterID = 0
+	m.CapturedUpdatePacketFilterReq = nil
+	m.CapturedDeletePacketFilterUID = ""
+	m.CapturedDeletePacketFilterID = 0
+
+	m.ListPrefixListsResult = nil
+	m.ListPrefixListsErr = nil
+	m.CreatePrefixListResult = nil
+	m.CreatePrefixListErr = nil
+	m.GetPrefixListResult = nil
+	m.GetPrefixListErr = nil
+	m.UpdatePrefixListResult = nil
+	m.UpdatePrefixListErr = nil
+	m.DeletePrefixListErr = nil
+	m.CapturedListPrefixListsUID = ""
+	m.CapturedCreatePrefixListUID = ""
+	m.CapturedCreatePrefixListReq = nil
+	m.CapturedGetPrefixListUID = ""
+	m.CapturedGetPrefixListID = 0
+	m.CapturedUpdatePrefixListUID = ""
+	m.CapturedUpdatePrefixListID = 0
+	m.CapturedUpdatePrefixListReq = nil
+	m.CapturedDeletePrefixListUID = ""
+	m.CapturedDeletePrefixListID = 0
+
+	m.IPRoutesAsyncResult = ""
+	m.IPRoutesAsyncErr = nil
+	m.BGPRoutesAsyncResult = ""
+	m.BGPRoutesAsyncErr = nil
+	m.BGPNeighborRoutesAsyncResult = ""
+	m.BGPNeighborRoutesAsyncErr = nil
+	m.DiagnosticsRoutesResult = nil
+	m.DiagnosticsRoutesErr = nil
+	m.IPRoutesResult = nil
+	m.IPRoutesErr = nil
+	m.BGPRoutesResult = nil
+	m.BGPRoutesErr = nil
+	m.BGPNeighborRoutesResult = nil
+	m.BGPNeighborRoutesErr = nil
+	m.CapturedIPRoutesAsyncUID = ""
+	m.CapturedIPRoutesAsyncIPAddr = ""
+	m.CapturedBGPRoutesAsyncUID = ""
+	m.CapturedBGPRoutesAsyncIPAddr = ""
+	m.CapturedBGPNeighborRoutesAsyncReq = nil
+	m.CapturedDiagnosticsRoutesUID = ""
+	m.CapturedDiagnosticsRoutesOpID = ""
+	m.CapturedIPRoutesUID = ""
+	m.CapturedIPRoutesIPAddr = ""
+	m.CapturedBGPRoutesUID = ""
+	m.CapturedBGPRoutesIPAddr = ""
+	m.CapturedBGPNeighborRoutesReq = nil
 }

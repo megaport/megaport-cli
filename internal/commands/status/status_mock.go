@@ -3,6 +3,7 @@ package status
 import (
 	"context"
 	"fmt"
+	"time"
 
 	megaport "github.com/megaport/megaportgo"
 )
@@ -147,6 +148,10 @@ func (m *MockMCRService) UpdateMCRWithAddOn(_ context.Context, _ string, _ megap
 
 func (m *MockMCRService) UpdateMCRIPsecAddOn(_ context.Context, _ string, _ string, _ int) error {
 	return fmt.Errorf("mock: UpdateMCRIPsecAddOn not configured")
+}
+
+func (m *MockMCRService) WaitForMCRReady(_ context.Context, _ string, _ time.Duration) error {
+	return nil
 }
 
 // MockMVEService is a minimal mock for testing the status dashboard.
