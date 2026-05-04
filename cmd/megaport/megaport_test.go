@@ -5,6 +5,8 @@ package megaport
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -79,6 +81,96 @@ func TestNoPagerDefaultApplied(t *testing.T) {
 	assert.True(t, noPager, "noPager package var should be true after config default is applied")
 	// Assert the output package was notified (output.SetNoPager wiring path).
 	assert.True(t, output.GetNoPager(), "output.GetNoPager() should be true after PersistentPreRunE wires SetNoPager")
+}
+
+// TestApplyDefaultSettings_WarnsOnConfigLoadFailure verifies that when
+// NewConfigManager fails (e.g. the configured config dir cannot be created),
+// applyDefaultSettings returns a warning message instead of silently skipping.
+func TestApplyDefaultSettings_WarnsOnConfigLoadFailure(t *testing.T) {
+	// Create a temp file, then point MEGAPORT_CONFIG_DIR at a subpath of it.
+	// os.MkdirAll will fail because the parent is a regular file, forcing
+	// NewConfigManager to return an error.
+	parent := filepath.Join(t.TempDir(), "not-a-dir")
+	require.NoError(t, os.WriteFile(parent, []byte("x"), 0600))
+	t.Setenv("MEGAPORT_CONFIG_DIR", filepath.Join(parent, "child"))
+
+	// Guard against drift in NewConfigManager: if it ever stops returning an
+	// error for this scenario, the warning assertion below would pass vacuously.
+	if _, err := config.NewConfigManager(); err == nil {
+		t.Fatal("expected NewConfigManager to fail when config dir cannot be created")
+	}
+
+	warnings := applyDefaultSettings(rootCmd)
+	require.Len(t, warnings, 1)
+	assert.Contains(t, warnings[0], "Could not load saved default settings")
+}
+
+// TestApplyDefaultSettings_ResolvesQuietVerboseConflict verifies that when
+// saved defaults would enable both --quiet and --verbose (which are declared
+// mutually exclusive on rootCmd), applyDefaultSettings drops one and returns
+// a warning. Covers the case where neither flag was passed on the CLI, so
+// both get applied from config.
+func TestApplyDefaultSettings_ResolvesQuietVerboseConflict(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("MEGAPORT_CONFIG_DIR", dir)
+
+	mgr, err := config.NewConfigManager()
+	require.NoError(t, err)
+	require.NoError(t, mgr.SetDefault("quiet", true))
+	require.NoError(t, mgr.SetDefault("verbose", true))
+
+	defer func() {
+		output.ResetState()
+		quiet = false
+		verbose = false
+		_ = rootCmd.PersistentFlags().Set("quiet", "false")
+		_ = rootCmd.PersistentFlags().Set("verbose", "false")
+	}()
+
+	warnings := applyDefaultSettings(rootCmd)
+
+	assert.True(t, verbose, "verbose should remain set (safer default — unexpected output surfaces problems)")
+	assert.False(t, quiet, "quiet should be dropped to resolve conflict")
+	require.NotEmpty(t, warnings)
+	var found bool
+	for _, w := range warnings {
+		if strings.Contains(w, "--quiet and --verbose") {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected a conflict-resolution warning, got %v", warnings)
+}
+
+// TestApplyDefaultSettings_CLIVerboseOverridesConfigQuiet verifies that when
+// the user passes --verbose on the CLI and a saved default also sets quiet,
+// the CLI flag wins. Regression test for a bug where the conflict resolver
+// read cmd.Flags().Changed *after* applying defaults, which always reported
+// true and caused the CLI-provided flag to be dropped instead of the config one.
+func TestApplyDefaultSettings_CLIVerboseOverridesConfigQuiet(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("MEGAPORT_CONFIG_DIR", dir)
+
+	mgr, err := config.NewConfigManager()
+	require.NoError(t, err)
+	require.NoError(t, mgr.SetDefault("quiet", true))
+
+	defer func() {
+		output.ResetState()
+		quiet = false
+		verbose = false
+		_ = rootCmd.PersistentFlags().Set("quiet", "false")
+		_ = rootCmd.PersistentFlags().Set("verbose", "false")
+	}()
+
+	// Simulate the user passing --verbose on the CLI.
+	require.NoError(t, rootCmd.PersistentFlags().Set("verbose", "true"))
+	verbose = true
+
+	_ = applyDefaultSettings(rootCmd)
+
+	assert.True(t, verbose, "CLI-set --verbose should win over config quiet")
+	assert.False(t, quiet, "config-sourced quiet should be dropped when CLI set verbose")
 }
 
 func TestExitCodeFromError(t *testing.T) {
