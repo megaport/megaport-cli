@@ -1436,3 +1436,121 @@ func TestGetOutputFormat(t *testing.T) {
 	SetOutputFormat("json")
 	assert.Equal(t, "json", GetOutputFormat())
 }
+
+func TestDefaultOutputConfig_Values(t *testing.T) {
+	cfg := DefaultOutputConfig()
+	assert.Equal(t, OutputConfig{Format: "table", Verbosity: "normal"}, cfg)
+}
+
+// TestSetConfig_AppliesAllFields verifies that SetConfig writes every field
+// of the struct to the backing package-level state. NoPager is covered in
+// pager_test.go because pager state is native-only — the WASM build
+// provides stub SetNoPager (no-op) and GetNoPager (always false)
+// implementations, so a round-trip assertion is only meaningful on native.
+func TestSetConfig_AppliesAllFields(t *testing.T) {
+	t.Cleanup(ResetState)
+
+	fields := []string{"uid", "name"}
+	SetConfig(OutputConfig{
+		Fields:    fields,
+		Query:     "[].uid",
+		NoHeader:  true,
+		Template:  "{{.UID}}",
+		Format:    "json",
+		Verbosity: "verbose",
+	})
+
+	assert.Equal(t, fields, getOutputFields())
+	assert.Equal(t, "[].uid", getOutputQuery())
+	assert.True(t, getNoHeader())
+	assert.Equal(t, "{{.UID}}", GetTemplateString())
+	assert.Equal(t, "json", GetOutputFormat())
+	assert.True(t, IsVerbose())
+	assert.False(t, IsQuiet())
+}
+
+// TestSetConfig_ZeroValueClearsState verifies that passing a zero-value
+// OutputConfig writes empty/false to every field. This documents that
+// SetConfig does not have a "leave unchanged" sentinel — callers that want
+// to preserve existing state must read it first.
+func TestSetConfig_ZeroValueClearsState(t *testing.T) {
+	t.Cleanup(ResetState)
+
+	SetConfig(OutputConfig{
+		Fields:    []string{"uid"},
+		Query:     "[]",
+		NoHeader:  true,
+		Template:  "{{.}}",
+		Format:    "json",
+		Verbosity: "verbose",
+	})
+
+	SetConfig(OutputConfig{})
+
+	assert.Nil(t, getOutputFields())
+	assert.Equal(t, "", getOutputQuery())
+	assert.False(t, getNoHeader())
+	assert.Equal(t, "", GetTemplateString())
+	assert.Equal(t, "", GetOutputFormat())
+	assert.False(t, IsVerbose())
+	assert.False(t, IsQuiet())
+}
+
+// TestSetOutputFields_CopiesInputSlice verifies that SetOutputFields does
+// not retain the caller's slice header. Mutating the original slice after
+// the call must not affect the stored filter, otherwise concurrent readers
+// of getOutputFields could observe a torn update.
+func TestSetOutputFields_CopiesInputSlice(t *testing.T) {
+	t.Cleanup(ResetState)
+
+	original := []string{"uid", "name"}
+	SetOutputFields(original)
+
+	original[0] = "mutated"
+	original[1] = "also-mutated"
+
+	assert.Equal(t, []string{"uid", "name"}, getOutputFields())
+}
+
+// TestSetConfig_CopiesFieldsSlice is the SetConfig equivalent of the above
+// — the defensive copy must also apply when Fields is passed via
+// OutputConfig, since the SetConfig godoc promises callers can reuse the
+// backing array after the call returns.
+func TestSetConfig_CopiesFieldsSlice(t *testing.T) {
+	t.Cleanup(ResetState)
+
+	original := []string{"uid", "name"}
+	SetConfig(OutputConfig{Fields: original})
+
+	original[0] = "mutated"
+	original[1] = "also-mutated"
+
+	assert.Equal(t, []string{"uid", "name"}, getOutputFields())
+}
+
+// TestResetState_ViaDefaultOutputConfig verifies that ResetState restores
+// the documented defaults after every field has been set to a non-default
+// value. This protects against a future SetConfig change that forgets to
+// apply one of the defaults.
+func TestResetState_ViaDefaultOutputConfig(t *testing.T) {
+	t.Cleanup(ResetState)
+
+	SetConfig(OutputConfig{
+		Fields:    []string{"uid"},
+		Query:     "[]",
+		NoHeader:  true,
+		Template:  "{{.}}",
+		Format:    "json",
+		Verbosity: "quiet",
+	})
+
+	ResetState()
+
+	assert.Nil(t, getOutputFields())
+	assert.Equal(t, "", getOutputQuery())
+	assert.False(t, getNoHeader())
+	assert.Equal(t, "", GetTemplateString())
+	assert.Equal(t, "table", GetOutputFormat())
+	assert.False(t, IsQuiet())
+	assert.False(t, IsVerbose())
+}

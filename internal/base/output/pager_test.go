@@ -142,6 +142,21 @@ func TestSetNoPager_RoundTrip(t *testing.T) {
 	assert.False(t, getNoPager())
 }
 
+// TestSetConfig_NoPager covers the NoPager field of SetConfig on native
+// builds. This file is guarded by //go:build !wasm because pager state is
+// native-only: WASM provides stub SetNoPager (no-op) and GetNoPager
+// (always false) implementations, so a round-trip assertion only exercises
+// real state on native.
+func TestSetConfig_NoPager(t *testing.T) {
+	t.Cleanup(ResetState)
+
+	SetConfig(OutputConfig{NoPager: true})
+	assert.True(t, GetNoPager())
+
+	SetConfig(OutputConfig{NoPager: false})
+	assert.False(t, GetNoPager())
+}
+
 // TestRunWithPager_NoTrailingNewline verifies that output without a trailing
 // newline is not silently dropped. countLines must count the partial final
 // line so the pager decision is correct.
