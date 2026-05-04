@@ -94,6 +94,35 @@ func TestParseResourceTagsInput(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed to read JSON file")
 	})
 
+	t.Run("path traversal rejected", func(t *testing.T) {
+		cmd := newCmdWithFlags(t, map[string]string{"json-file": "../../etc/passwd"})
+		_, err := ParseResourceTagsInput(cmd)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "path traversal not allowed")
+	})
+
+	t.Run("file exceeding size limit rejected", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		path := filepath.Join(tmpDir, "big.json")
+		big := make([]byte, maxTagsFileSize+1)
+		big[0] = '{'
+		big[len(big)-1] = '}'
+		require.NoError(t, os.WriteFile(path, big, 0644))
+
+		cmd := newCmdWithFlags(t, map[string]string{"json-file": path})
+		_, err := ParseResourceTagsInput(cmd)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "exceeds maximum allowed size")
+	})
+
+	t.Run("non-regular file rejected", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		cmd := newCmdWithFlags(t, map[string]string{"json-file": tmpDir})
+		_, err := ParseResourceTagsInput(cmd)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not a regular file")
+	})
+
 	t.Run("invalid JSON file content", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		path := filepath.Join(tmpDir, "bad.json")
@@ -236,6 +265,7 @@ func newUpdateCmd(t *testing.T, flags map[string]string) *cobra.Command {
 	t.Helper()
 	cmd := &cobra.Command{Use: "update-tags"}
 	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().Bool("force", false, "")
 	cmd.Flags().String("json", "", "")
 	cmd.Flags().String("json-file", "", "")
 	cmd.Flags().String("tags", "", "")
@@ -256,10 +286,83 @@ func TestUpdateResourceTags(t *testing.T) {
 	}
 
 	t.Run("success with JSON input", func(t *testing.T) {
-		cmd := newUpdateCmd(t, map[string]string{"json": `{"env":"prod"}`})
+		cmd := newUpdateCmd(t, map[string]string{"json": `{"env":"prod"}`, "force": "true"})
 		err := UpdateResourceTags(UpdateTagsOptions{
 			ResourceType: "port",
 			UID:          "uid-1",
+			NoColor:      true,
+			Cmd:          cmd,
+			ListFunc:     successListFunc,
+			UpdateFunc:   successUpdateFunc,
+		})
+		assert.NoError(t, err)
+	})
+
+	t.Run("success with no existing tags skips confirmation", func(t *testing.T) {
+		emptyListFunc := func(ctx context.Context, uid string) (map[string]string, error) {
+			return map[string]string{}, nil
+		}
+		cmd := newUpdateCmd(t, map[string]string{"json": `{"env":"prod"}`})
+		err := UpdateResourceTags(UpdateTagsOptions{
+			ResourceType: "port",
+			UID:          "uid-6",
+			NoColor:      true,
+			Cmd:          cmd,
+			ListFunc:     emptyListFunc,
+			UpdateFunc:   successUpdateFunc,
+		})
+		assert.NoError(t, err)
+	})
+
+	t.Run("confirmation declined cancels update", func(t *testing.T) {
+		original := GetConfirmPrompt()
+		SetConfirmPrompt(func(string, bool) bool { return false })
+		defer SetConfirmPrompt(original)
+
+		cmd := newUpdateCmd(t, map[string]string{"json": `{"env":"prod"}`})
+		err := UpdateResourceTags(UpdateTagsOptions{
+			ResourceType: "port",
+			UID:          "uid-7",
+			NoColor:      true,
+			Cmd:          cmd,
+			ListFunc:     successListFunc,
+			UpdateFunc:   successUpdateFunc,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cancelled by user")
+	})
+
+	t.Run("remove all tags uses remove wording in confirmation", func(t *testing.T) {
+		var capturedMsg string
+		original := GetConfirmPrompt()
+		SetConfirmPrompt(func(msg string, noColor bool) bool {
+			capturedMsg = msg
+			return false
+		})
+		defer SetConfirmPrompt(original)
+
+		cmd := newUpdateCmd(t, map[string]string{"json": `{}`})
+		_ = UpdateResourceTags(UpdateTagsOptions{
+			ResourceType: "port",
+			UID:          "uid-remove",
+			NoColor:      true,
+			Cmd:          cmd,
+			ListFunc:     successListFunc,
+			UpdateFunc:   successUpdateFunc,
+		})
+		assert.Contains(t, capturedMsg, "remove all")
+		assert.NotContains(t, capturedMsg, "replace")
+	})
+
+	t.Run("confirmation accepted proceeds with update", func(t *testing.T) {
+		original := GetConfirmPrompt()
+		SetConfirmPrompt(func(string, bool) bool { return true })
+		defer SetConfirmPrompt(original)
+
+		cmd := newUpdateCmd(t, map[string]string{"json": `{"env":"prod"}`})
+		err := UpdateResourceTags(UpdateTagsOptions{
+			ResourceType: "port",
+			UID:          "uid-8",
 			NoColor:      true,
 			Cmd:          cmd,
 			ListFunc:     successListFunc,
@@ -303,7 +406,7 @@ func TestUpdateResourceTags(t *testing.T) {
 		failUpdateFunc := func(ctx context.Context, uid string, tags map[string]string) error {
 			return fmt.Errorf("update failed")
 		}
-		cmd := newUpdateCmd(t, map[string]string{"json": `{"env":"staging"}`})
+		cmd := newUpdateCmd(t, map[string]string{"json": `{"env":"staging"}`, "force": "true"})
 		err := UpdateResourceTags(UpdateTagsOptions{
 			ResourceType: "port",
 			UID:          "uid-4",
