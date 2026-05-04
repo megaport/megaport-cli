@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/fatih/color"
@@ -31,39 +30,24 @@ var spinnerColors = []func(...interface{}) string{
 	color.New(color.FgHiGreen, color.Bold).SprintFunc(),
 }
 
-// currentOutputFormat stores the output format atomically to avoid data races
-// between spinner goroutines and Print* calls on the main goroutine.
-var currentOutputFormat atomic.Value
-
-// currentVerbosity stores the verbosity level atomically.
-// Valid values: "normal", "quiet", "verbose".
-var currentVerbosity atomic.Value
-
-func init() {
-	currentOutputFormat.Store("table")
-	currentVerbosity.Store("normal")
-}
-
 // SetVerbosity sets the global verbosity level ("normal", "quiet", or "verbose").
 func SetVerbosity(level string) {
-	currentVerbosity.Store(level)
+	updateOutputConfig(func(c *OutputConfig) { c.Verbosity = level })
 }
 
 // IsQuiet returns true when quiet mode is active.
 // In quiet mode, informational messages and spinners are suppressed.
 func IsQuiet() bool {
-	if v, ok := currentVerbosity.Load().(string); ok {
-		return v == "quiet"
-	}
-	return false
+	outputCfgMu.RLock()
+	defer outputCfgMu.RUnlock()
+	return outputCfg.Verbosity == "quiet"
 }
 
 // IsVerbose returns true when verbose mode is active.
 func IsVerbose() bool {
-	if v, ok := currentVerbosity.Load().(string); ok {
-		return v == "verbose"
-	}
-	return false
+	outputCfgMu.RLock()
+	defer outputCfgMu.RUnlock()
+	return outputCfg.Verbosity == "verbose"
 }
 
 // newNoOpSpinner returns a spinner that is already stopped.
@@ -73,30 +57,26 @@ func newNoOpSpinner(noColor bool) *Spinner {
 	return &Spinner{
 		stop:         make(chan bool, 1),
 		stopped:      true,
-		outputFormat: getOutputFormat(),
+		outputFormat: GetOutputFormat(),
 		noColor:      noColor,
 	}
 }
 
 func SetOutputFormat(format string) {
-	currentOutputFormat.Store(format)
-}
-
-func getOutputFormat() string {
-	if v, ok := currentOutputFormat.Load().(string); ok {
-		return v
-	}
-	return "table"
+	updateOutputConfig(func(c *OutputConfig) { c.Format = format })
 }
 
 // GetOutputFormat returns the currently active output format (e.g. "table", "json").
-// Exported so other packages can read the current output format without relying on an unexported helper.
-func GetOutputFormat() string { return getOutputFormat() }
+func GetOutputFormat() string {
+	outputCfgMu.RLock()
+	defer outputCfgMu.RUnlock()
+	return outputCfg.Format
+}
 
 // shouldSuppressSpinner returns true when spinner output should be suppressed
 // to avoid corrupting machine-readable output formats (csv, xml, json, yaml, etc.).
 func shouldSuppressSpinner() bool {
-	return shouldSuppressSpinnerForFormat(getOutputFormat())
+	return shouldSuppressSpinnerForFormat(GetOutputFormat())
 }
 
 // shouldSuppressSpinnerForFormat checks a specific format string. Spinners are
@@ -363,7 +343,7 @@ func PrintResourceCreating(resourceType, uid string, noColor bool) *Spinner {
 	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Creating %s %s...", resourceType, uidFormatted)
-	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
+	spinner := NewSpinnerWithOutput(noColor, GetOutputFormat())
 	spinner.Start(msg)
 	return spinner
 }
@@ -374,7 +354,7 @@ func PrintResourceProvisioning(resourceType, uid string, noColor bool) *Spinner 
 	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Provisioning %s %s...", resourceType, uidFormatted)
-	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
+	spinner := NewSpinnerWithOutput(noColor, GetOutputFormat())
 	spinner.StartWithElapsed(msg)
 	return spinner
 }
@@ -385,7 +365,7 @@ func PrintResourceUpdating(resourceType, uid string, noColor bool) *Spinner {
 	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Updating %s %s...", resourceType, uidFormatted)
-	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
+	spinner := NewSpinnerWithOutput(noColor, GetOutputFormat())
 	spinner.Start(msg)
 	return spinner
 }
@@ -396,7 +376,7 @@ func PrintResourceDeleting(resourceType, uid string, noColor bool) *Spinner {
 	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Deleting %s %s...", resourceType, uidFormatted)
-	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
+	spinner := NewSpinnerWithOutput(noColor, GetOutputFormat())
 	spinner.Start(msg)
 	return spinner
 }
@@ -406,7 +386,7 @@ func PrintResourceListing(resourceType string, noColor bool) *Spinner {
 		return newNoOpSpinner(noColor)
 	}
 	msg := fmt.Sprintf("Listing %ss...", resourceType)
-	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
+	spinner := NewSpinnerWithOutput(noColor, GetOutputFormat())
 	spinner.Start(msg)
 	return spinner
 }
@@ -417,14 +397,14 @@ func PrintResourceGetting(resourceType, uid string, noColor bool) *Spinner {
 	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Getting %s %s details...", resourceType, uidFormatted)
-	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
+	spinner := NewSpinnerWithOutput(noColor, GetOutputFormat())
 	spinner.Start(msg)
 	return spinner
 }
 
 func PrintResourceGettingWithOutput(resourceType, uid string, noColor bool, outputFormat string) *Spinner {
 	if outputFormat == "" {
-		outputFormat = getOutputFormat()
+		outputFormat = GetOutputFormat()
 	}
 	if shouldSuppressSpinnerForFormat(outputFormat) {
 		s := newNoOpSpinner(noColor)
@@ -444,7 +424,7 @@ func PrintListingResourceTags(resourceType, uid string, noColor bool) *Spinner {
 	}
 	uidFormatted := FormatUID(uid, noColor)
 	msg := fmt.Sprintf("Listing resource tags for %s %s...", resourceType, uidFormatted)
-	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
+	spinner := NewSpinnerWithOutput(noColor, GetOutputFormat())
 	spinner.Start(msg)
 	return spinner
 }
@@ -454,7 +434,7 @@ func PrintResourceValidating(resourceType string, noColor bool) *Spinner {
 		return newNoOpSpinner(noColor)
 	}
 	msg := fmt.Sprintf("Validating %s order...", resourceType)
-	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
+	spinner := NewSpinnerWithOutput(noColor, GetOutputFormat())
 	spinner.Start(msg)
 	return spinner
 }
@@ -464,7 +444,7 @@ func PrintLoggingIn(noColor bool) *Spinner {
 		return newNoOpSpinner(noColor)
 	}
 	msg := "Logging in to Megaport..."
-	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
+	spinner := NewSpinnerWithOutput(noColor, GetOutputFormat())
 	spinner.Start(msg)
 	return spinner
 }
@@ -474,7 +454,7 @@ func PrintLoggingInWithOutput(noColor bool, outputFormat string) *Spinner {
 		return newNoOpSpinner(noColor)
 	}
 	if outputFormat == "" {
-		outputFormat = getOutputFormat()
+		outputFormat = GetOutputFormat()
 	}
 	msg := "Logging in to Megaport..."
 	spinner := NewSpinnerWithOutput(noColor, outputFormat)
@@ -488,7 +468,7 @@ func PrintCustomSpinner(action, resourceId string, noColor bool) *Spinner {
 	}
 	uidFormatted := FormatUID(resourceId, noColor)
 	msg := fmt.Sprintf("%s %s...", action, uidFormatted)
-	spinner := NewSpinnerWithOutput(noColor, getOutputFormat())
+	spinner := NewSpinnerWithOutput(noColor, GetOutputFormat())
 	spinner.Start(msg)
 	return spinner
 }
@@ -499,7 +479,7 @@ func PrintVerbose(format string, noColor bool, args ...interface{}) {
 		return
 	}
 	msg := fmt.Sprintf(format, args...)
-	if getOutputFormat() == "json" {
+	if GetOutputFormat() == "json" {
 		if noColor {
 			fmt.Fprintf(os.Stderr, "[DEBUG] %s\n", msg)
 		} else {

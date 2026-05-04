@@ -5,6 +5,7 @@ package megaport
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/base/registry"
@@ -94,8 +95,30 @@ func InitializeCommon() {
 	// Validate retry flags in WASM builds too.
 	existingPreRunE := rootCmd.PersistentPreRunE
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		output.SetNoHeader(noHeader)
-		output.SetNoPager(noPager) // no-op in WASM; keeps flag wiring symmetric with native
+		verbosity := "normal"
+		if quiet {
+			verbosity = "quiet"
+		} else if verbose {
+			verbosity = "verbose"
+		}
+		format := strings.ToLower(outputFormat)
+		validFmt := false
+		for _, vf := range utils.ValidFormatsWASM {
+			if format == vf {
+				validFmt = true
+				break
+			}
+		}
+		if !validFmt {
+			return fmt.Errorf("invalid output format: %s. Must be one of: %s",
+				outputFormat, strings.Join(utils.ValidFormatsWASM, ", "))
+		}
+		cfg := output.GetOutputConfig()
+		cfg.NoHeader = noHeader
+		cfg.NoPager = noPager // no-op in WASM pager; keeps flag wiring symmetric with native
+		cfg.Verbosity = verbosity
+		cfg.Format = format
+		output.ApplyOutputConfig(cfg)
 		if utils.MaxRetries < 0 {
 			return fmt.Errorf("--max-retries must be >= 0, got %d", utils.MaxRetries)
 		}

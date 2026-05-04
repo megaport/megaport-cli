@@ -49,8 +49,8 @@ func TestNoHeaderFlagWiredThroughPersistentPreRunE(t *testing.T) {
 
 // TestNoPagerDefaultApplied verifies that a "no-pager" default persisted in
 // the config file is read by applyDefaultSettings AND forwarded to the output
-// package via output.SetNoPager in PersistentPreRunE. Both sides of the
-// wiring are asserted so that removing either call causes the test to fail.
+// package via output.ApplyOutputConfig in PersistentPreRunE. Both sides of
+// the wiring are asserted so that removing either call causes the test to fail.
 func TestNoPagerDefaultApplied(t *testing.T) {
 	// Use an isolated config directory so this test doesn't touch the real one.
 	dir := t.TempDir()
@@ -77,8 +77,53 @@ func TestNoPagerDefaultApplied(t *testing.T) {
 
 	// Assert the flag var was set (applyDefaultSettings path).
 	assert.True(t, noPager, "noPager package var should be true after config default is applied")
-	// Assert the output package was notified (output.SetNoPager wiring path).
-	assert.True(t, output.GetNoPager(), "output.GetNoPager() should be true after PersistentPreRunE wires SetNoPager")
+	// Assert the output package was notified (output.ApplyOutputConfig wiring path).
+	assert.True(t, output.GetNoPager(), "output.GetNoPager() should be true after PersistentPreRunE wires NoPager via ApplyOutputConfig")
+}
+
+// resetVerbosityFlags resets the quiet/verbose package vars, their cobra flag
+// values, and — critically — their Changed state so the mutually-exclusive
+// group check does not fire on subsequent tests that share the global rootCmd.
+func resetVerbosityFlags(t *testing.T) {
+	t.Helper()
+	quiet = false
+	verbose = false
+	for _, name := range []string{"quiet", "verbose"} {
+		require.NoError(t, rootCmd.PersistentFlags().Set(name, "false"))
+		if f := rootCmd.PersistentFlags().Lookup(name); f != nil {
+			f.Changed = false
+		}
+	}
+}
+
+// TestQuietFlagWiredThroughPersistentPreRunE verifies that --quiet sets
+// Verbosity to "quiet" in the output config via ApplyOutputConfig.
+func TestQuietFlagWiredThroughPersistentPreRunE(t *testing.T) {
+	defer func() {
+		output.ResetState()
+		resetVerbosityFlags(t)
+	}()
+	rootCmd.SetArgs([]string{"version", "--quiet"})
+	_ = output.CaptureOutput(func() {
+		err := rootCmd.Execute()
+		require.NoError(t, err)
+	})
+	assert.True(t, output.IsQuiet(), "IsQuiet should be true after --quiet flag wired via ApplyOutputConfig")
+}
+
+// TestVerboseFlagWiredThroughPersistentPreRunE verifies that --verbose sets
+// Verbosity to "verbose" in the output config via ApplyOutputConfig.
+func TestVerboseFlagWiredThroughPersistentPreRunE(t *testing.T) {
+	defer func() {
+		output.ResetState()
+		resetVerbosityFlags(t)
+	}()
+	rootCmd.SetArgs([]string{"version", "--verbose"})
+	_ = output.CaptureOutput(func() {
+		err := rootCmd.Execute()
+		require.NoError(t, err)
+	})
+	assert.True(t, output.IsVerbose(), "IsVerbose should be true after --verbose flag wired via ApplyOutputConfig")
 }
 
 func TestExitCodeFromError(t *testing.T) {

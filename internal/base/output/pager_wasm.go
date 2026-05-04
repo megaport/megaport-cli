@@ -3,12 +3,20 @@
 
 package output
 
-// SetNoPager is a no-op in the WASM build. The browser environment has no
-// terminal and cannot spawn pager processes.
-func SetNoPager(_ bool) {}
+// SetNoPager stores the no-pager flag in the shared OutputConfig. The stored
+// value has no effect in the WASM build because RunWithPager always calls fn
+// directly — there is no terminal and no pager process to spawn.
+func SetNoPager(v bool) {
+	updateOutputConfig(func(c *OutputConfig) { c.NoPager = v })
+}
 
-// GetNoPager always returns false in the WASM build; paging is never active.
-func GetNoPager() bool { return false }
+// GetNoPager returns the stored no-pager setting. It may be true if the
+// --no-pager flag was passed, but RunWithPager ignores it in WASM builds.
+func GetNoPager() bool {
+	outputCfgMu.RLock()
+	defer outputCfgMu.RUnlock()
+	return outputCfg.NoPager
+}
 
 // RunWithPager in the WASM build simply calls fn directly. There is no
 // terminal to detect and no process to spawn.
