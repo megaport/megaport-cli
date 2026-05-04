@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -42,13 +43,16 @@ func buildIXRequestFromPrompt(_ context.Context, noColor bool) (*megaport.BuyIXR
 	if err != nil {
 		return nil, fmt.Errorf("invalid ASN: %w", err)
 	}
+	if err := validation.ValidateASN(asn); err != nil {
+		return nil, err
+	}
 
 	macAddress, err := utils.ResourcePrompt("ix", "Enter MAC address (required): ", noColor)
 	if err != nil {
 		return nil, err
 	}
-	if macAddress == "" {
-		return nil, fmt.Errorf("MAC address is required")
+	if err := validation.ValidateMACAddress(macAddress); err != nil {
+		return nil, err
 	}
 
 	rateLimitStr, err := utils.ResourcePrompt("ix", "Enter rate limit in Mbps (required): ", noColor)
@@ -59,6 +63,9 @@ func buildIXRequestFromPrompt(_ context.Context, noColor bool) (*megaport.BuyIXR
 	if err != nil {
 		return nil, fmt.Errorf("invalid rate limit: %w", err)
 	}
+	if err := validation.ValidateRateLimit(rateLimit); err != nil {
+		return nil, err
+	}
 
 	vlanStr, err := utils.ResourcePrompt("ix", "Enter VLAN ID (required): ", noColor)
 	if err != nil {
@@ -67,6 +74,9 @@ func buildIXRequestFromPrompt(_ context.Context, noColor bool) (*megaport.BuyIXR
 	vlan, err := strconv.Atoi(vlanStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid VLAN: %w", err)
+	}
+	if err := validation.ValidateVLAN(vlan); err != nil {
+		return nil, err
 	}
 
 	promoCode, err := utils.ResourcePrompt("ix", "Enter promo code (optional, leave empty to skip): ", noColor)
@@ -110,6 +120,9 @@ func buildUpdateIXRequestFromPrompt(_ string, noColor bool) (*megaport.UpdateIXR
 		if err != nil {
 			return nil, fmt.Errorf("invalid rate limit: %w", err)
 		}
+		if err := validation.ValidateRateLimit(rateLimit); err != nil {
+			return nil, err
+		}
 		req.RateLimit = &rateLimit
 		fieldsUpdated = true
 	}
@@ -132,6 +145,9 @@ func buildUpdateIXRequestFromPrompt(_ string, noColor bool) (*megaport.UpdateIXR
 		if err != nil {
 			return nil, fmt.Errorf("invalid VLAN: %w", err)
 		}
+		if err := validation.ValidateVLAN(vlan); err != nil {
+			return nil, err
+		}
 		req.VLAN = &vlan
 		fieldsUpdated = true
 	}
@@ -141,6 +157,9 @@ func buildUpdateIXRequestFromPrompt(_ string, noColor bool) (*megaport.UpdateIXR
 		return nil, err
 	}
 	if macAddress != "" {
+		if err := validation.ValidateMACAddress(macAddress); err != nil {
+			return nil, err
+		}
 		req.MACAddress = &macAddress
 		fieldsUpdated = true
 	}
@@ -154,11 +173,14 @@ func buildUpdateIXRequestFromPrompt(_ string, noColor bool) (*megaport.UpdateIXR
 		if err != nil {
 			return nil, fmt.Errorf("invalid ASN: %w", err)
 		}
+		if err := validation.ValidateASN(asn); err != nil {
+			return nil, err
+		}
 		req.ASN = &asn
 		fieldsUpdated = true
 	}
 
-	password, err := utils.ResourcePrompt("ix", "Enter new BGP password (leave empty to skip): ", noColor)
+	password, err := utils.PasswordPrompt("Enter new BGP password (leave empty to skip):", noColor)
 	if err != nil {
 		return nil, err
 	}

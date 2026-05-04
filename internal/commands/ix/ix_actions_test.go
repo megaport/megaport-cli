@@ -478,10 +478,8 @@ func TestBuyIX(t *testing.T) {
 			flags: map[string]string{
 				"name": "Test IX",
 			},
-			setupMock: func(m *MockIXService) {
-				m.validateIXOrderError = fmt.Errorf("validation failed: missing required fields")
-			},
-			expectedError: "validation failed",
+			setupMock:     func(m *MockIXService) {},
+			expectedError: "Invalid ASN",
 		},
 		{
 			name: "API error",
@@ -1064,11 +1062,13 @@ func TestGetIX(t *testing.T) {
 
 func TestUpdateIX(t *testing.T) {
 	originalPrompt := utils.GetResourcePrompt()
+	originalPasswordPrompt := utils.GetPasswordPrompt()
 	originalUpdateIXFunc := updateIXFunc
 	originalGetIXFunc := getIXFunc
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer func() {
 		utils.SetResourcePrompt(originalPrompt)
+		utils.SetPasswordPrompt(originalPasswordPrompt)
 		cleanup()
 		updateIXFunc = originalUpdateIXFunc
 		getIXFunc = originalGetIXFunc
@@ -1262,13 +1262,19 @@ func TestUpdateIX(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if len(tt.prompts) > 0 {
 				promptIndex := 0
-				utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
+				nextPrompt := func() (string, error) {
 					if promptIndex < len(tt.prompts) {
 						response := tt.prompts[promptIndex]
 						promptIndex++
 						return response, nil
 					}
 					return "", fmt.Errorf("unexpected prompt call")
+				}
+				utils.SetResourcePrompt(func(_, _ string, _ bool) (string, error) {
+					return nextPrompt()
+				})
+				utils.SetPasswordPrompt(func(_ string, _ bool) (string, error) {
+					return nextPrompt()
 				})
 			}
 
@@ -1511,7 +1517,13 @@ func TestBuyIX_LoginError(t *testing.T) {
 	cmd.Flags().String("json", "", "JSON string")
 	cmd.Flags().String("json-file", "", "JSON file")
 
+	_ = cmd.Flags().Set("product-uid", "port-uid-123")
 	_ = cmd.Flags().Set("name", "Test IX")
+	_ = cmd.Flags().Set("network-service-type", "Los Angeles IX")
+	_ = cmd.Flags().Set("asn", "65000")
+	_ = cmd.Flags().Set("mac-address", "00:11:22:33:44:55")
+	_ = cmd.Flags().Set("rate-limit", "1000")
+	_ = cmd.Flags().Set("vlan", "100")
 
 	var err error
 	output.CaptureOutput(func() {

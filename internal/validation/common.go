@@ -5,6 +5,7 @@ package validation
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"time"
 )
@@ -39,6 +40,10 @@ const (
 	MaxVLAN = 4094
 	// ReservedVLAN identifies a VLAN ID that is reserved and cannot be used.
 	ReservedVLAN = 1
+	// MinASN is the minimum valid Autonomous System Number.
+	MinASN int64 = 1
+	// MaxASN is the maximum valid 32-bit Autonomous System Number.
+	MaxASN int64 = 4294967295
 )
 
 // VLANHelpText returns a canonical human-readable description of valid VLAN values,
@@ -181,6 +186,68 @@ func ValidateVLAN(vlan int) error {
 func ValidateRateLimit(rateLimit int) error {
 	if rateLimit <= 0 {
 		return NewValidationError("rate limit", rateLimit, "must be a positive integer")
+	}
+	return nil
+}
+
+// maxSupportedASNForInt returns the largest ASN value representable by the
+// current build target's int type, capped at MaxASN. On 64-bit targets this
+// is MaxASN (4294967295); on 32-bit targets (e.g. js/wasm) it is math.MaxInt32.
+func maxSupportedASNForInt() int64 {
+	maxInt := int64(^uint(0) >> 1)
+	if maxInt < MaxASN {
+		return maxInt
+	}
+	return MaxASN
+}
+
+// ValidateASN validates if an ASN (Autonomous System Number) is within the
+// supported range for the current build target.
+//
+// Parameters:
+//   - asn: The ASN to validate
+//
+// Validation checks:
+//   - ASN must be between MinASN (1) and the lesser of MaxASN (4294967295)
+//     and the current target's maximum int value, inclusive.
+//
+// Returns:
+//   - A ValidationError if the ASN is not valid
+//   - nil if the validation passes
+func ValidateASN(asn int) error {
+	v := int64(asn)
+	maxASN := maxSupportedASNForInt()
+	if v < MinASN || v > maxASN {
+		return NewValidationError("ASN", asn,
+			fmt.Sprintf("must be between %d and %d", MinASN, maxASN))
+	}
+	return nil
+}
+
+// ValidateMACAddress validates if a string is a valid EUI-48 MAC address.
+//
+// Parameters:
+//   - mac: The MAC address string to validate
+//
+// Validation checks:
+//   - MAC address must not be empty
+//   - Must be parseable as a hardware address by net.ParseMAC (colon-separated,
+//     hyphen-separated, or dot-separated formats)
+//   - Must be exactly 6 bytes (EUI-48)
+//
+// Returns:
+//   - A ValidationError if the MAC address is not valid
+//   - nil if the validation passes
+func ValidateMACAddress(mac string) error {
+	if mac == "" {
+		return NewValidationError("MAC address", mac, "cannot be empty")
+	}
+	hw, err := net.ParseMAC(mac)
+	if err != nil {
+		return NewValidationError("MAC address", mac, "must be a valid MAC address (e.g. 00:11:22:33:44:55)")
+	}
+	if len(hw) != 6 {
+		return NewValidationError("MAC address", mac, "must be a 6-byte (EUI-48) MAC address")
 	}
 	return nil
 }
