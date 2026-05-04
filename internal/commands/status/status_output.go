@@ -230,7 +230,8 @@ func printDashboard(dashboard dashboardOutput, format string, noColor bool) erro
 
 func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	// PORTS
-	fmt.Printf("\nPORTS (%d)\n", len(dashboard.Ports))
+	output.PrintNewline()
+	output.PrintPlain("PORTS (%d)", noColor, len(dashboard.Ports))
 	if len(dashboard.Ports) == 0 {
 		output.PrintWarning("No ports found.", noColor)
 	} else {
@@ -240,7 +241,8 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	}
 
 	// MCRS
-	fmt.Printf("\nMCRS (%d)\n", len(dashboard.MCRs))
+	output.PrintNewline()
+	output.PrintPlain("MCRS (%d)", noColor, len(dashboard.MCRs))
 	if len(dashboard.MCRs) == 0 {
 		output.PrintWarning("No MCRs found.", noColor)
 	} else {
@@ -250,7 +252,8 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	}
 
 	// MVES
-	fmt.Printf("\nMVES (%d)\n", len(dashboard.MVEs))
+	output.PrintNewline()
+	output.PrintPlain("MVES (%d)", noColor, len(dashboard.MVEs))
 	if len(dashboard.MVEs) == 0 {
 		output.PrintWarning("No MVEs found.", noColor)
 	} else {
@@ -260,7 +263,8 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	}
 
 	// VXCS
-	fmt.Printf("\nVXCS (%d)\n", len(dashboard.VXCs))
+	output.PrintNewline()
+	output.PrintPlain("VXCS (%d)", noColor, len(dashboard.VXCs))
 	if len(dashboard.VXCs) == 0 {
 		output.PrintWarning("No VXCs found.", noColor)
 	} else {
@@ -270,7 +274,8 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	}
 
 	// IXS
-	fmt.Printf("\nIXS (%d)\n", len(dashboard.IXs))
+	output.PrintNewline()
+	output.PrintPlain("IXS (%d)", noColor, len(dashboard.IXs))
 	if len(dashboard.IXs) == 0 {
 		output.PrintWarning("No IXs found.", noColor)
 	} else {
@@ -280,7 +285,8 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	}
 
 	s := dashboard.Summary
-	fmt.Printf("\nTotal: %d port(s), %d MCR(s), %d MVE(s), %d VXC(s), %d IX(s)\n",
+	output.PrintNewline()
+	output.PrintPlain("Total: %d port(s), %d MCR(s), %d MVE(s), %d VXC(s), %d IX(s)", noColor,
 		s.Ports, s.MCRs, s.MVEs, s.VXCs, s.IXs)
 
 	return nil
@@ -331,11 +337,11 @@ func printDashboardCSV(dashboard dashboardOutput, noColor bool) error {
 		{"IXS", func() error { return output.PrintOutput(dashboard.IXs, "csv", noColor) }},
 	}
 	for _, s := range sections {
-		fmt.Printf("# %s\n", s.name)
+		output.PrintPlain("# %s", noColor, s.name)
 		if err := s.fn(); err != nil {
 			return err
 		}
-		fmt.Println()
+		output.PrintNewline()
 	}
 	return nil
 }

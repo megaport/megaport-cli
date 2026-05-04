@@ -71,38 +71,13 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse a-end-partner-config: %w", err)
 		}
-		// If the A End UID is not provided, attempt to look it up from the partner port key
+		aEndConfig.PartnerConfig = aEndPartnerConfig
 		if aEndUID == "" {
-			switch aEndPartnerConfig := aEndPartnerConfig.(type) {
-			case *megaport.VXCPartnerConfigAzure:
-				if aEndPartnerConfig.ServiceKey == "" {
-					return nil, fmt.Errorf("serviceKey is required for Azure configuration")
-				}
-				uid, err := getPartnerPortUID(ctx, svc, aEndPartnerConfig.ServiceKey, "AZURE")
-				if err != nil {
-					return nil, fmt.Errorf("failed to look up Azure Partner Port: %w", err)
-				}
-				aEndUID = uid
-			case *megaport.VXCPartnerConfigGoogle:
-				if aEndPartnerConfig.PairingKey == "" {
-					return nil, fmt.Errorf("pairingKey is required for Google configuration")
-				}
-				uid, err := getPartnerPortUID(ctx, svc, aEndPartnerConfig.PairingKey, "GOOGLE")
-				if err != nil {
-					return nil, fmt.Errorf("failed to look up Google Partner Port: %w", err)
-				}
-				aEndUID = uid
-			case *megaport.VXCPartnerConfigOracle:
-				if aEndPartnerConfig.VirtualCircuitId == "" {
-					return nil, fmt.Errorf("virtualCircuitId is required for Oracle configuration")
-				}
-				uid, err := getPartnerPortUID(ctx, svc, aEndPartnerConfig.VirtualCircuitId, "ORACLE")
-				if err != nil {
-					return nil, fmt.Errorf("failed to look up Oracle Partner Port: %w", err)
-				}
-				aEndUID = uid
-				aEndConfig.PartnerConfig = aEndPartnerConfig
+			uid, err := resolvePartnerPortUID(ctx, svc, aEndPartnerConfig)
+			if err != nil {
+				return nil, fmt.Errorf("failed to look up A-End Partner Port: %w", err)
 			}
+			aEndUID = uid
 		}
 	}
 
@@ -130,36 +105,12 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 	bEndUID, _ := cmd.Flags().GetString("b-end-uid")
 
 	// Attempt to look up partner port UID if not provided
-	if bEndUID == "" {
-		switch bEndPartnerConfig := bEndConfig.PartnerConfig.(type) {
-		case *megaport.VXCPartnerConfigAzure:
-			if bEndPartnerConfig.ServiceKey == "" {
-				return nil, fmt.Errorf("serviceKey is required for Azure configuration")
-			}
-			uid, err := getPartnerPortUID(ctx, svc, bEndPartnerConfig.ServiceKey, "AZURE")
-			if err != nil {
-				return nil, fmt.Errorf("failed to look up Azure Partner Port: %w", err)
-			}
-			bEndUID = uid
-		case *megaport.VXCPartnerConfigGoogle:
-			if bEndPartnerConfig.PairingKey == "" {
-				return nil, fmt.Errorf("pairingKey is required for Google configuration")
-			}
-			uid, err := getPartnerPortUID(ctx, svc, bEndPartnerConfig.PairingKey, "GOOGLE")
-			if err != nil {
-				return nil, fmt.Errorf("failed to look up Google Partner Port: %w", err)
-			}
-			bEndUID = uid
-		case *megaport.VXCPartnerConfigOracle:
-			if bEndPartnerConfig.VirtualCircuitId == "" {
-				return nil, fmt.Errorf("virtualCircuitId is required for Oracle configuration")
-			}
-			uid, err := getPartnerPortUID(ctx, svc, bEndPartnerConfig.VirtualCircuitId, "ORACLE")
-			if err != nil {
-				return nil, fmt.Errorf("failed to look up Oracle Partner Port: %w", err)
-			}
-			bEndUID = uid
+	if bEndUID == "" && bEndConfig.PartnerConfig != nil {
+		uid, err := resolvePartnerPortUID(ctx, svc, bEndConfig.PartnerConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to look up B-End Partner Port: %w", err)
 		}
+		bEndUID = uid
 	}
 
 	if bEndUID == "" {

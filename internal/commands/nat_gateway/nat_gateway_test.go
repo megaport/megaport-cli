@@ -358,6 +358,74 @@ func TestDeleteNATGateway_ServiceError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// ---- Validate ----
+
+func TestValidateNATGateway(t *testing.T) {
+	mock := &MockNATGatewayService{
+		ValidateResult: &megaport.NATGatewayValidateResult{
+			ProductUID:  "uid-val",
+			ProductType: "NATGW",
+			Metro:       "Sydney",
+			Price: megaport.NATGatewayOrderPrice{
+				Currency:    "AUD",
+				MonthlyRate: 123.45,
+				HourlyRate:  0.17,
+			},
+		},
+	}
+	defer setupMockNATGateway(mock)()
+
+	cmd := newTestCmd("validate")
+	err := ValidateNATGateway(cmd, []string{"uid-val"}, true, "table")
+	assert.NoError(t, err)
+	assert.Equal(t, "uid-val", mock.CapturedValidateUID)
+}
+
+func TestValidateNATGateway_ServiceError(t *testing.T) {
+	mock := &MockNATGatewayService{ValidateErr: fmt.Errorf("validate failed")}
+	defer setupMockNATGateway(mock)()
+
+	cmd := newTestCmd("validate")
+	err := ValidateNATGateway(cmd, []string{"uid-val-err"}, true, "table")
+	assert.Error(t, err)
+}
+
+// ---- Buy ----
+
+func TestBuyNATGateway(t *testing.T) {
+	mock := &MockNATGatewayService{
+		BuyResult: &megaport.NATGatewayBuyResult{
+			ProductUID:         "uid-buy",
+			ProductName:        "My NAT GW",
+			ServiceName:        "NAT-SRV-01",
+			ProductType:        "NATGW",
+			ProvisioningStatus: "DEPLOYABLE",
+			RateLimit:          1000,
+			LocationID:         123,
+			ContractTermMonths: 12,
+		},
+	}
+	defer setupMockNATGateway(mock)()
+
+	cmd := newTestCmd("buy")
+	require.NoError(t, cmd.Flags().Set("yes", "true"))
+
+	err := BuyNATGateway(cmd, []string{"uid-buy"}, true)
+	assert.NoError(t, err)
+	assert.Equal(t, "uid-buy", mock.CapturedBuyUID)
+}
+
+func TestBuyNATGateway_ServiceError(t *testing.T) {
+	mock := &MockNATGatewayService{BuyErr: fmt.Errorf("buy failed")}
+	defer setupMockNATGateway(mock)()
+
+	cmd := newTestCmd("buy")
+	require.NoError(t, cmd.Flags().Set("yes", "true"))
+
+	err := BuyNATGateway(cmd, []string{"uid-buy-err"}, true)
+	assert.Error(t, err)
+}
+
 // ---- List Sessions ----
 
 func TestListNATGatewaySessions(t *testing.T) {

@@ -344,13 +344,13 @@ func (m *MockNATGatewayService) Reset() {
 	m.BuyErr = nil
 	m.ValidateResult = nil
 	m.ValidateErr = nil
-	m.CapturedBuyUID = ""
-	m.CapturedValidateUID = ""
 	m.CapturedCreateReq = nil
 	m.CapturedUpdateReq = nil
 	m.CapturedDeleteUID = ""
 	m.CapturedGetUID = ""
 	m.CapturedTelemetryReq = nil
+	m.CapturedBuyUID = ""
+	m.CapturedValidateUID = ""
 
 	m.ListPacketFiltersResult = nil
 	m.ListPacketFiltersErr = nil
