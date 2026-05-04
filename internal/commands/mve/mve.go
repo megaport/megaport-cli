@@ -201,6 +201,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(UpdateMVEResourceTags).
 		WithStandardInputFlags().
+		WithBoolFlag("force", false, "Skip the confirmation prompt").
 		WithExample("megaport-cli mve update-tags mve-abc123 --interactive").
 		WithExample("megaport-cli mve update-tags mve-abc123 --json '{\"env\":\"production\",\"team\":\"network\"}'").
 		WithExample("megaport-cli mve update-tags mve-abc123 --json-file ./tags.json").
