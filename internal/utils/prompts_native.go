@@ -1,5 +1,4 @@
-//go:build !js || !wasm
-// +build !js !wasm
+//go:build !js && !wasm
 
 package utils
 
@@ -17,6 +16,7 @@ func init() {
 }
 
 func nativePasswordPrompt(msg string, noColor bool) (string, error) {
+	// \U0001f512 is the lock symbol 🔒
 	if !noColor {
 		fmt.Print(color.New(color.FgHiRed, color.Bold).Sprint("\U0001f512 " + msg + " "))
 	} else {
