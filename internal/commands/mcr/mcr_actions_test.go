@@ -452,6 +452,8 @@ func TestRestoreMCRFunc(t *testing.T) {
 }
 
 func TestListMCRPrefixFilterListsCmd_WithMockClient(t *testing.T) {
+	output.SetTerminalWidthForTesting(200)
+	defer output.SetTerminalWidthForTesting(0)
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
 
@@ -525,6 +527,8 @@ func TestListMCRPrefixFilterListsCmd_WithMockClient(t *testing.T) {
 }
 
 func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
+	output.SetTerminalWidthForTesting(200)
+	defer output.SetTerminalWidthForTesting(0)
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
 

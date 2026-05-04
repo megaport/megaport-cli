@@ -151,7 +151,7 @@ func (m *MockMCRService) UpdateMCRIPsecAddOn(_ context.Context, _ string, _ stri
 }
 
 func (m *MockMCRService) WaitForMCRReady(_ context.Context, _ string, _ time.Duration) error {
-	return nil
+	return fmt.Errorf("mock: WaitForMCRReady not configured")
 }
 
 // MockMVEService is a minimal mock for testing the status dashboard.

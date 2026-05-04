@@ -114,7 +114,7 @@ func (m *MockMCRService) UpdateMCRIPsecAddOn(ctx context.Context, mcrID string, 
 }
 
 func (m *MockMCRService) WaitForMCRReady(ctx context.Context, mcrID string, timeout time.Duration) error {
-	return nil
+	return fmt.Errorf("mock: WaitForMCRReady not configured")
 }
 
 // MockMVEService satisfies megaport.MVEService for testing.
