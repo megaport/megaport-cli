@@ -60,8 +60,9 @@ type MockMCRService struct {
 	CapturedUpdateMCRIPsecAddOnUID    string
 	CapturedUpdateMCRIPsecTunnelCount int
 
-	WaitForMCRReadyErr           error
-	CapturedWaitForMCRReadyMCRID string
+	WaitForMCRReadyErr             error
+	CapturedWaitForMCRReadyMCRID   string
+	CapturedWaitForMCRReadyTimeout time.Duration
 }
 
 func (m *MockMCRService) BuyMCR(ctx context.Context, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
@@ -202,6 +203,7 @@ func (m *MockMCRService) UpdateMCRIPsecAddOn(ctx context.Context, mcrID string, 
 
 func (m *MockMCRService) WaitForMCRReady(ctx context.Context, mcrID string, timeout time.Duration) error {
 	m.CapturedWaitForMCRReadyMCRID = mcrID
+	m.CapturedWaitForMCRReadyTimeout = timeout
 	return m.WaitForMCRReadyErr
 }
 
@@ -254,4 +256,5 @@ func (m *MockMCRService) Reset() {
 	m.CapturedUpdateMCRIPsecTunnelCount = 0
 	m.WaitForMCRReadyErr = nil
 	m.CapturedWaitForMCRReadyMCRID = ""
+	m.CapturedWaitForMCRReadyTimeout = 0
 }
