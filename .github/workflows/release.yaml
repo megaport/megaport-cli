@@ -6,10 +6,12 @@ on:
     tags:
       - 'v*'
 
-# Permissions for creating releases
+# Permissions for creating releases and signing artifact attestations
 permissions:
   contents: write
   packages: write
+  id-token: write
+  attestations: write
 
 jobs:
   goreleaser:
@@ -44,6 +46,15 @@ jobs:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
 
+      - name: Mint installation token for homebrew-tap
+        id: tap-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: megaport
+          repositories: homebrew-tap
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
         with:
@@ -51,4 +62,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
-          HOMEBREW_TOKEN: ${{ secrets.HOMEBREW_TOKEN }}
+          HOMEBREW_TOKEN: ${{ steps.tap-token.outputs.token }}
+
+      - name: Attest build provenance for release archives
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/megaport-cli_*.zip
+            dist/megaport-cli_*_SHA256SUMS
