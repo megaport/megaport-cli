@@ -112,7 +112,8 @@ func (m *MockMCRService) UpdateMCRWithAddOn(ctx context.Context, mcrID string, r
 func (m *MockMCRService) UpdateMCRIPsecAddOn(ctx context.Context, mcrID string, addOnUID string, tunnelCount int) error {
 	return fmt.Errorf("mock: UpdateMCRIPsecAddOn not configured")
 }
-func (m *MockMCRService) WaitForMCRReady(ctx context.Context, mcrID string, timeout time.Duration) error {
+
+func (m *MockMCRService) WaitForMCRReady(_ context.Context, _ string, _ time.Duration) error {
 	return fmt.Errorf("mock: WaitForMCRReady not configured")
 }
 
