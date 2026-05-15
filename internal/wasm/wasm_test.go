@@ -523,57 +523,91 @@ func TestSetAuthToken(t *testing.T) {
 		name        string
 		token       string
 		hostname    string
+		explicitEnv string
 		expectError bool
 		expectedEnv string
+		expectedURL string
 	}{
 		{
 			name:        "valid token for production portal",
 			token:       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test",
 			hostname:    "portal.megaport.com",
+			explicitEnv: "",
 			expectError: false,
 			expectedEnv: "production",
+			expectedURL: "https://api.megaport.com/",
 		},
 		{
 			name:        "valid token for staging portal",
 			token:       "valid-staging-token-12345",
 			hostname:    "portal-staging.megaport.com",
+			explicitEnv: "",
 			expectError: false,
 			expectedEnv: "staging",
+			expectedURL: "https://api-staging.megaport.com/",
 		},
 		{
 			name:        "valid token for localhost (development)",
 			token:       "dev-token-12345",
 			hostname:    "localhost",
+			explicitEnv: "",
 			expectError: false,
 			expectedEnv: "development",
+			expectedURL: "https://api-staging.megaport.com/",
 		},
 		{
 			name:        "valid token for QA environment",
 			token:       "qa-token-12345",
 			hostname:    "portal-qa.megaport.com",
+			explicitEnv: "",
 			expectError: false,
 			expectedEnv: "development",
+			expectedURL: "https://api-qa.megaport.com/",
 		},
 		{
 			name:        "valid token for UAT environment",
 			token:       "uat-token-12345",
 			hostname:    "portal-uat.megaport.com",
+			explicitEnv: "",
 			expectError: false,
 			expectedEnv: "development",
+			expectedURL: "https://api-uat.megaport.com/",
+		},
+		{
+			name:        "explicit environment overrides hostname mapping with free text",
+			token:       "explicit-env-token-12345",
+			hostname:    "portal.megaport.com",
+			explicitEnv: "qa",
+			expectError: false,
+			expectedEnv: "qa",
+			expectedURL: "https://api-qa.metaport.com/",
+		},
+		{
+			name:        "explicit production environment uses production api",
+			token:       "explicit-prod-token-12345",
+			hostname:    "portal-staging.megaport.com",
+			explicitEnv: "production",
+			expectError: false,
+			expectedEnv: "production",
+			expectedURL: "https://api.megaport.com/",
 		},
 		{
 			name:        "empty token should fail",
 			token:       "",
 			hostname:    "portal.megaport.com",
+			explicitEnv: "",
 			expectError: true,
 			expectedEnv: "",
+			expectedURL: "",
 		},
 		{
 			name:        "empty hostname should fail",
 			token:       "valid-token-12345",
 			hostname:    "",
+			explicitEnv: "",
 			expectError: true,
 			expectedEnv: "",
+			expectedURL: "",
 		},
 	}
 
@@ -586,7 +620,12 @@ func TestSetAuthToken(t *testing.T) {
 			setAuthFunc := js.Global().Get("setAuthToken")
 			assert.False(t, setAuthFunc.IsUndefined(), "setAuthToken should be registered")
 
-			result := setAuthFunc.Invoke(tt.token, tt.hostname)
+			var result js.Value
+			if tt.explicitEnv != "" {
+				result = setAuthFunc.Invoke(tt.token, tt.hostname, tt.explicitEnv)
+			} else {
+				result = setAuthFunc.Invoke(tt.token, tt.hostname)
+			}
 
 			success := result.Get("success").Bool()
 
@@ -598,6 +637,11 @@ func TestSetAuthToken(t *testing.T) {
 				// Verify returned environment matches expected
 				returnedEnv := result.Get("environment").String()
 				assert.Equal(t, tt.expectedEnv, returnedEnv, "returned environment should match expected")
+
+				if tt.expectedURL != "" {
+					returnedURL := result.Get("apiURL").String()
+					assert.Equal(t, tt.expectedURL, returnedURL, "returned API URL should match expected")
+				}
 
 				// Verify auth info shows token is set
 				authInfo := js.Global().Get("debugAuthInfo").Invoke()

@@ -694,6 +694,9 @@ func clearAuthCredentials(this js.Value, args []js.Value) interface{} {
 // This bypasses the OAuth flow and uses the token directly from the portal session
 // Use this when the portal already has a valid login token stored in the browser
 // Accepts hostname (e.g., window.location.hostname) to determine environment and API URL
+// Optionally accepts an explicit environment override as the 3rd argument:
+//
+//	setAuthToken(token, hostname, environment)
 func setAuthToken(this js.Value, args []js.Value) interface{} {
 	if len(args) < 2 {
 		return map[string]interface{}{
@@ -719,10 +722,26 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 		}
 	}
 
+	// Optional explicit environment override (free text).
+	var explicitEnv string
+	if len(args) >= 3 {
+		explicitEnv = strings.ToLower(strings.TrimSpace(args[2].String()))
+	}
+
 	// Map hostname to environment and API URL
 	// This allows new environments to auto-work by deriving API URL from hostname
 	environment := hostnameToEnvironment(hostname)
 	apiURL := hostnameToAPIURL(hostname)
+
+	if explicitEnv != "" {
+		environment = explicitEnv
+		if explicitEnv == "production" {
+			environment = "production"
+			apiURL = "https://api.megaport.com/"
+		} else {
+			apiURL = fmt.Sprintf("https://api-%s.megaport.com/", explicitEnv)
+		}
+	}
 
 	js.Global().Get("console").Call("log", fmt.Sprintf("🌐 Hostname '%s' mapped to environment '%s'", hostname, environment))
 	js.Global().Get("console").Call("log", fmt.Sprintf("🔗 API URL: %s", apiURL))

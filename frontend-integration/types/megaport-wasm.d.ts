@@ -141,11 +141,13 @@ export interface MegaportWASM {
    * Use this when the portal already has a valid login token stored in the browser
    * @param token - The access token from the portal session
    * @param hostname - The current hostname (e.g., window.location.hostname) - environment and API URL are auto-detected
+  * @param environment - Optional explicit environment override (free text)
    * @returns Result object with success status, detected environment, and derived API URL
    */
   setAuthToken(
     token: string,
-    hostname: string
+    hostname: string,
+    environment?: string
   ): { success: boolean; error?: string; environment?: string; hostname?: string; apiURL?: string };
 
   /**
@@ -244,8 +246,9 @@ declare global {
     ) => { success: boolean; error?: string };
     setAuthToken?: (
       token: string,
-      hostname: string
-    ) => { success: boolean; error?: string; environment?: string; hostname?: string };
+      hostname: string,
+      environment?: string
+    ) => { success: boolean; error?: string; environment?: string; hostname?: string; apiURL?: string };
     clearAuthCredentials?: () => { success: boolean };
     resetWasmOutput?: () => boolean;
     getWasmOutput?: () => string;
