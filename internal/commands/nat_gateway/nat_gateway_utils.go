@@ -36,6 +36,14 @@ var getNATGatewayTelemetryFunc = func(ctx context.Context, client *megaport.Clie
 	return client.NATGatewayService.GetNATGatewayTelemetry(ctx, req)
 }
 
+var validateNATGatewayOrderFunc = func(ctx context.Context, client *megaport.Client, productUID string) (*megaport.NATGatewayValidateResult, error) {
+	return client.NATGatewayService.ValidateNATGatewayOrder(ctx, productUID)
+}
+
+var buyNATGatewayFunc = func(ctx context.Context, client *megaport.Client, productUID string) (*megaport.NATGatewayBuyResult, error) {
+	return client.NATGatewayService.BuyNATGateway(ctx, productUID)
+}
+
 func filterNATGateways(gateways []*megaport.NATGateway, locationID int, name string) []*megaport.NATGateway {
 	return utils.Filter(gateways, func(gw *megaport.NATGateway) bool {
 		if gw == nil {

@@ -190,6 +190,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(UpdateVXCResourceTags).
 		WithStandardInputFlags().
+		WithBoolFlag("force", false, "Skip the confirmation prompt").
 		WithExample("megaport-cli vxc update-tags vxc-abc123 --interactive").
 		WithExample("megaport-cli vxc update-tags vxc-abc123 --json '{\"env\":\"production\",\"team\":\"network\"}'").
 		WithExample("megaport-cli vxc update-tags vxc-abc123 --json-file ./tags.json").

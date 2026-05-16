@@ -115,6 +115,33 @@ func PrintInfo(format string, noColor bool, args ...interface{}) {
 	}
 }
 
+// PrintPlain prints a plain line with no icon prefix. Like PrintInfo it is
+// suppressed in quiet mode and routed to stderr in JSON output mode.
+func PrintPlain(format string, _ bool, args ...interface{}) {
+	if IsQuiet() {
+		return
+	}
+	msg := fmt.Sprintf(format, args...)
+	if getOutputFormat() == "json" {
+		fmt.Fprintln(os.Stderr, msg)
+	} else {
+		fmt.Println(msg)
+	}
+}
+
+// PrintNewline prints a blank line, suppressed in quiet mode and routed to
+// stderr when the output format is json (consistent with PrintInfo et al.).
+func PrintNewline() {
+	if IsQuiet() {
+		return
+	}
+	if getOutputFormat() == "json" {
+		fmt.Fprintln(os.Stderr)
+		return
+	}
+	fmt.Println()
+}
+
 // ClearScreen clears the terminal screen using ANSI escape codes.
 func ClearScreen() {
 	fmt.Print("\033[H\033[2J")

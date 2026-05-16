@@ -154,6 +154,7 @@ func TestRetryWithBackoff_TransientNetworkErrors(t *testing.T) {
 		retryable bool
 	}{
 		{"timeout error", &net.DNSError{IsTimeout: true}, true},
+		{"temporary DNS error (non-timeout)", &net.DNSError{IsTemporary: true}, true},
 		{"connection reset (string)", fmt.Errorf("read tcp: connection reset by peer"), true},
 		{"connection refused (string)", fmt.Errorf("dial tcp: connection refused"), true},
 		{"io.EOF", io.EOF, true},

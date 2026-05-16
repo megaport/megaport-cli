@@ -449,6 +449,7 @@ func TestUpdatePortResourceTagsCmd(t *testing.T) {
 		name                 string
 		portUID              string
 		interactive          bool
+		force                bool
 		jsonInput            string
 		tagsInput            string
 		resourceTagsInput    string
@@ -521,6 +522,7 @@ func TestUpdatePortResourceTagsCmd(t *testing.T) {
 		{
 			name:      "empty tags clear all existing tags",
 			portUID:   "port-clear",
+			force:     true,
 			jsonInput: `{}`,
 			setupMock: func(m *MockPortService) {
 				m.ListPortResourceTagsResult = map[string]string{"env": "staging"}
@@ -559,6 +561,7 @@ func TestUpdatePortResourceTagsCmd(t *testing.T) {
 			}
 
 			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().Bool("force", false, "")
 			cmd.Flags().String("json", "", "")
 			cmd.Flags().String("json-file", "", "")
 			cmd.Flags().String("tags", "", "")
@@ -567,6 +570,9 @@ func TestUpdatePortResourceTagsCmd(t *testing.T) {
 
 			if tt.interactive {
 				assert.NoError(t, cmd.Flags().Set("interactive", "true"))
+			}
+			if tt.force {
+				assert.NoError(t, cmd.Flags().Set("force", "true"))
 			}
 			if tt.jsonInput != "" {
 				assert.NoError(t, cmd.Flags().Set("json", tt.jsonInput))

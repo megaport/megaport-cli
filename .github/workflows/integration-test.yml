@@ -4,6 +4,9 @@ on:
     - cron: '0 2 * * *'  # Nightly, 02:00 UTC
   workflow_dispatch:       # Allow manual trigger from GitHub UI
 
+permissions:
+  contents: read
+
 jobs:
   # Fast read-only tests — runs on schedule and manual trigger
   integration-readonly:
@@ -11,8 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5.6.0
         with:
           go-version-file: 'go.mod'
       - name: Run read-only integration tests
@@ -29,8 +32,8 @@ jobs:
     timeout-minutes: 35
     if: github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5.6.0
         with:
           go-version-file: 'go.mod'
       # Add packages here as integration tests are written (see docs/INTEGRATION_TESTING.md)
