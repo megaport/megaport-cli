@@ -75,7 +75,7 @@ func printCSV[T OutputFields](data []T) error {
 		return nil
 	}
 	t := sampleVal.Type()
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		if sampleVal.IsNil() {
 			if t.Elem().Kind() != reflect.Struct {
 				return nil
@@ -149,7 +149,7 @@ func printCSV[T OutputFields](data []T) error {
 		if !v.IsValid() {
 			continue
 		}
-		if v.Kind() == reflect.Ptr {
+		if v.Kind() == reflect.Pointer {
 			if v.IsNil() {
 				continue
 			}
@@ -165,7 +165,7 @@ func printCSV[T OutputFields](data []T) error {
 				continue
 			}
 			fieldVal := v.Field(idx)
-			if !fieldVal.IsValid() || (fieldVal.Kind() == reflect.Ptr && fieldVal.IsNil()) {
+			if !fieldVal.IsValid() || (fieldVal.Kind() == reflect.Pointer && fieldVal.IsNil()) {
 				row = append(row, "")
 				continue
 			}
@@ -211,7 +211,7 @@ func printXML[T OutputFields](data []T) error {
 		return writeEmpty()
 	}
 	t := sampleVal.Type()
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		if sampleVal.IsNil() {
 			if t.Elem().Kind() != reflect.Struct {
 				return writeEmpty()
@@ -302,7 +302,7 @@ func printXML[T OutputFields](data []T) error {
 		if !v.IsValid() {
 			continue
 		}
-		if v.Kind() == reflect.Ptr {
+		if v.Kind() == reflect.Pointer {
 			if v.IsNil() {
 				continue
 			}

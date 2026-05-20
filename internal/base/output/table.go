@@ -147,7 +147,7 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 	}
 	for _, item := range data {
 		v := reflect.ValueOf(item)
-		if !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil()) {
+		if !v.IsValid() || (v.Kind() == reflect.Pointer && v.IsNil()) {
 			continue
 		}
 		values := extractRowData(item, fieldIndices)
