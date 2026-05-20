@@ -152,6 +152,12 @@ func TestProcessJSONUpdateMCRInput_MCRAsnUnsetWhenKeyAbsent(t *testing.T) {
 	assert.Nil(t, req.MCRAsn, "MCRAsn should remain nil when mcrAsn key is absent")
 }
 
+func TestProcessJSONUpdateMCRInput_MCRAsnNullRejected(t *testing.T) {
+	_, err := processJSONUpdateMCRInput(`{"mcrAsn":null}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid MCR ASN: null value")
+}
+
 func TestProcessFlagUpdateMCRInput(t *testing.T) {
 	tests := []struct {
 		name          string

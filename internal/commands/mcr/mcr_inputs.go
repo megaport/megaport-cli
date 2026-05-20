@@ -171,6 +171,10 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 		}
 	}
 
+	if _, provided := jsonMap["mcrAsn"]; provided && req.MCRAsn == nil {
+		return nil, fmt.Errorf("invalid MCR ASN: null value")
+	}
+
 	return req, nil
 }
 
