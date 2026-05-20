@@ -253,9 +253,18 @@ func TestWithPortUpdateFlags(t *testing.T) {
 func TestWithMCRUpdateFlags(t *testing.T) {
 	cmd := NewCommand("test", "test").WithMCRUpdateFlags().Build()
 
-	expectedFlags := []string{"name", "cost-centre", "marketplace-visibility"}
-	for _, flag := range expectedFlags {
-		assert.NotNil(t, cmd.Flags().Lookup(flag), "MCR update flag %q should exist", flag)
+	expectedFlags := map[string]string{
+		"name":                   "string",
+		"cost-centre":            "string",
+		"marketplace-visibility": "bool",
+		"term":                   "int",
+	}
+	for name, expectedType := range expectedFlags {
+		f := cmd.Flags().Lookup(name)
+		assert.NotNil(t, f, "MCR update flag %q should exist", name)
+		if f != nil {
+			assert.Equal(t, expectedType, f.Value.Type(), "MCR update flag %q type", name)
+		}
 	}
 }
 
