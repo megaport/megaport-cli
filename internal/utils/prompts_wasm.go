@@ -18,6 +18,7 @@ func init() {
 	SetPrompt(wasmPrompt)
 	SetConfirmPrompt(wasmConfirmPrompt)
 	SetResourcePrompt(wasmResourcePrompt)
+	SetSecretResourcePrompt(wasmSecretResourcePrompt)
 	SetResourceTagsPrompt(wasmResourceTagsPrompt)
 	SetUpdateResourceTagsPrompt(wasmUpdateResourceTagsPrompt)
 }
@@ -43,6 +44,13 @@ func wasmConfirmPrompt(question string, noColor bool) bool {
 func wasmResourcePrompt(resourceType string, msg string, noColor bool) (string, error) {
 	// Use the resource-specific prompt type
 	return wasm.PromptForInput(msg, "resource", resourceType)
+}
+
+// wasmSecretResourcePrompt delegates to the JS prompt callback with a
+// "password" prompt type so the host UI can mask the input (e.g. render an
+// <input type="password">).
+func wasmSecretResourcePrompt(resourceType string, msg string, noColor bool) (string, error) {
+	return wasm.PromptForInput(msg, "password", resourceType)
 }
 
 func wasmResourceTagsPrompt(noColor bool) (map[string]string, error) {
