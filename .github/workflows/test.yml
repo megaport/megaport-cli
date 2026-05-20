@@ -25,3 +25,16 @@ jobs:
         with:
           files: coverage.out
           fail_ci_if_error: false
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5.6.0
+        with:
+          go-version-file: 'go.mod'
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
+      - name: Run golangci-lint
+        run: golangci-lint run --timeout=5m
