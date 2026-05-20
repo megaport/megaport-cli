@@ -197,7 +197,7 @@ func promptMVEVendorConfig(vendorStr string, imageID int, productSize string, mv
 		if err != nil {
 			return nil, err
 		}
-		adminPassword, err := utils.ResourcePrompt("mve", "Enter admin password (optional): ", noColor)
+		adminPassword, err := utils.SecretResourcePrompt("mve", "Enter admin password (optional): ", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -242,11 +242,11 @@ func promptMVEVendorConfig(vendorStr string, imageID int, productSize string, mv
 		if err != nil {
 			return nil, err
 		}
-		adminPassword, err := utils.ResourcePrompt("mve", "Enter admin password (optional, leave blank if providing hash): ", noColor)
+		adminPassword, err := utils.SecretResourcePrompt("mve", "Enter admin password (optional, leave blank if providing hash): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		adminPasswordHash, err := utils.ResourcePrompt("mve", "Enter admin password hash (optional, leave blank if providing plaintext password): ", noColor)
+		adminPasswordHash, err := utils.SecretResourcePrompt("mve", "Enter admin password hash (optional, leave blank if providing plaintext password): ", noColor)
 		if err != nil {
 			return nil, err
 		}

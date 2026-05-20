@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/fatih/color"
+	"golang.org/x/term"
 )
 
 // promptFuncMu guards all prompt function pointers.
@@ -105,6 +106,36 @@ var resourcePromptFn = func(resourceType string, msg string, noColor bool) (stri
 		return "", err
 	}
 	return strings.TrimSpace(input), nil
+}
+
+// secretResourcePromptFn reads a sensitive value (password, token) without
+// echoing it to the terminal. Falls back to the standard echoed prompt when
+// stdin is not a terminal (piped input, CI) so scripted usage keeps working.
+var secretResourcePromptFn = func(resourceType string, msg string, noColor bool) (string, error) {
+	icon := "🔐"
+
+	if !noColor {
+		fmt.Print(color.New(color.FgHiRed, color.Bold).Sprint(icon + " " + msg + " "))
+	} else {
+		fmt.Print(icon + " " + msg + " ")
+	}
+
+	fd := int(os.Stdin.Fd())
+	if !term.IsTerminal(fd) {
+		reader := bufio.NewReader(os.Stdin)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return "", err
+		}
+		return strings.TrimSpace(input), nil
+	}
+
+	pw, err := term.ReadPassword(fd)
+	fmt.Println()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(pw)), nil
 }
 
 var resourceTagsPromptFn = func(noColor bool) (map[string]string, error) {
@@ -283,6 +314,16 @@ func ResourcePrompt(resourceType string, msg string, noColor bool) (string, erro
 	return fn(resourceType, msg, noColor)
 }
 
+// SecretResourcePrompt asks the user for a sensitive resource-specific input
+// (e.g. an admin password) without echoing the input to the terminal when
+// stdin is a TTY. Falls back to the standard echoed prompt for piped input.
+func SecretResourcePrompt(resourceType string, msg string, noColor bool) (string, error) {
+	promptFuncMu.RLock()
+	fn := secretResourcePromptFn
+	promptFuncMu.RUnlock()
+	return fn(resourceType, msg, noColor)
+}
+
 // ResourceTagsPrompt asks the user to enter resource tags.
 func ResourceTagsPrompt(noColor bool) (map[string]string, error) {
 	promptFuncMu.RLock()
@@ -325,6 +366,12 @@ func GetResourcePrompt() func(string, string, bool) (string, error) {
 	return resourcePromptFn
 }
 
+func GetSecretResourcePrompt() func(string, string, bool) (string, error) {
+	promptFuncMu.RLock()
+	defer promptFuncMu.RUnlock()
+	return secretResourcePromptFn
+}
+
 func GetResourceTagsPrompt() func(bool) (map[string]string, error) {
 	promptFuncMu.RLock()
 	defer promptFuncMu.RUnlock()
@@ -361,6 +408,12 @@ func SetResourcePrompt(fn func(string, string, bool) (string, error)) {
 	promptFuncMu.Lock()
 	defer promptFuncMu.Unlock()
 	resourcePromptFn = fn
+}
+
+func SetSecretResourcePrompt(fn func(string, string, bool) (string, error)) {
+	promptFuncMu.Lock()
+	defer promptFuncMu.Unlock()
+	secretResourcePromptFn = fn
 }
 
 func SetResourceTagsPrompt(fn func(bool) (map[string]string, error)) {

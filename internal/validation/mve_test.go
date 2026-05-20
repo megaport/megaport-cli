@@ -575,9 +575,9 @@ func TestValidateMVEVendorConfig_AllVendors(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		// paloalto - missing admin password hash
+		// paloalto - missing both admin password and admin password hash
 		{
-			name: "Invalid paloalto - missing admin password hash",
+			name: "Invalid paloalto - missing admin password and admin password hash",
 			config: &megaport.PaloAltoConfig{
 				Vendor:       "palo_alto",
 				ImageID:      123,
@@ -586,7 +586,20 @@ func TestValidateMVEVendorConfig_AllVendors(t *testing.T) {
 				LicenseData:  "license-data",
 			},
 			wantErr: true,
-			errText: "Invalid admin password hash:  - cannot be empty",
+			errText: "Invalid admin password / admin password hash:  - at least one of admin password or admin password hash must be provided",
+		},
+		// paloalto - valid with plaintext admin password only
+		{
+			name: "Valid paloalto config with plaintext admin password",
+			config: &megaport.PaloAltoConfig{
+				Vendor:        "palo_alto",
+				ImageID:       123,
+				ProductSize:   "MEDIUM",
+				SSHPublicKey:  "ssh-rsa AAAA...",
+				AdminPassword: "S3cretP@ss",
+				LicenseData:   "license-data",
+			},
+			wantErr: false,
 		},
 		// prisma - valid
 		{

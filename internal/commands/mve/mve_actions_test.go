@@ -587,6 +587,8 @@ func TestBuyMVE(t *testing.T) {
 	defer func() {
 		utils.SetResourcePrompt(originalPrompt)
 	}()
+	originalSecretPrompt := utils.GetSecretResourcePrompt()
+	defer func() { utils.SetSecretResourcePrompt(originalSecretPrompt) }()
 	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
 	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
 	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
@@ -849,14 +851,16 @@ func TestBuyMVE(t *testing.T) {
 			}
 
 			promptIndex := 0
-			utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
+			next := func(_, msg string, _ bool) (string, error) {
 				if promptIndex < len(tt.prompts) {
 					response := tt.prompts[promptIndex]
 					promptIndex++
 					return response, nil
 				}
 				return "", fmt.Errorf("unexpected prompt call")
-			})
+			}
+			utils.SetResourcePrompt(next)
+			utils.SetSecretResourcePrompt(next)
 
 			cmd := &cobra.Command{Use: "buy"}
 			cmd.Flags().Bool("interactive", tt.interactive, "")
