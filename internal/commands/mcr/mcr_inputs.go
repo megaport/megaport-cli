@@ -130,7 +130,7 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
-	updateFields := []string{"name", "costCentre", "marketplaceVisibility", "contractTermMonths"}
+	updateFields := []string{"name", "costCentre", "marketplaceVisibility", "contractTermMonths", "mcrAsn"}
 	anyFieldUpdated := false
 	for _, field := range updateFields {
 		if _, ok := jsonMap[field]; ok {
@@ -183,8 +183,9 @@ func processFlagUpdateMCRInput(cmd *cobra.Command, mcrUID string) (*megaport.Mod
 	costCentreSet := cmd.Flags().Changed("cost-centre")
 	marketplaceVisibilitySet := cmd.Flags().Changed("marketplace-visibility")
 	termSet := cmd.Flags().Changed("term")
+	mcrAsnSet := cmd.Flags().Changed("mcr-asn")
 
-	if !nameSet && !costCentreSet && !marketplaceVisibilitySet && !termSet {
+	if !nameSet && !costCentreSet && !marketplaceVisibilitySet && !termSet && !mcrAsnSet {
 		return nil, fmt.Errorf("at least one field must be updated")
 	}
 
@@ -212,6 +213,11 @@ func processFlagUpdateMCRInput(cmd *cobra.Command, mcrUID string) (*megaport.Mod
 			return nil, err
 		}
 		req.ContractTermMonths = &term
+	}
+
+	if mcrAsnSet {
+		asn, _ := cmd.Flags().GetInt("mcr-asn")
+		req.MCRAsn = &asn
 	}
 
 	return req, nil
