@@ -161,6 +161,27 @@ func TestPromptForUpdateMCRDetails_InvalidASN(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid ASN")
 }
 
+func TestPromptForUpdateMCRDetails_ASNPromptError(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	// name, costCentre, mvFlag, term succeed; ASN prompt (5th) fails.
+	idx := 0
+	responses := []string{"", "", "", ""}
+	utils.SetResourcePrompt(func(resourceType, msg string, noColor bool) (string, error) {
+		if idx >= len(responses) {
+			return "", fmt.Errorf("prompt failure on ASN")
+		}
+		val := responses[idx]
+		idx++
+		return val, nil
+	})
+
+	_, err := promptForUpdateMCRDetails("mcr-123", true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "prompt failure on ASN")
+}
+
 func TestPromptPrefixFilterEntry_Success(t *testing.T) {
 	originalPrompt := utils.GetResourcePrompt()
 	defer func() { utils.SetResourcePrompt(originalPrompt) }()
