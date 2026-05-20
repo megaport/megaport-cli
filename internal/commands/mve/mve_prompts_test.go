@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/utils"
+	megaport "github.com/megaport/megaportgo"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -193,4 +194,98 @@ func TestPromptMVEVnics_InvalidVLAN(t *testing.T) {
 	_, err := promptMVEVnics(true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid VLAN ID")
+}
+
+// promptMVEVendorConfig tests — cisco/palo_alto admin password handling
+
+func TestPromptMVEVendorConfig_Cisco_WithAdminPassword(t *testing.T) {
+	origResource := utils.GetResourcePrompt()
+	origSecret := utils.GetSecretResourcePrompt()
+	defer func() {
+		utils.SetResourcePrompt(origResource)
+		utils.SetSecretResourcePrompt(origSecret)
+	}()
+
+	// Order: manageLocally, adminSSHPublicKey, sshPublicKey, cloudInit,
+	// fmcIPAddress, fmcRegistrationKey, fmcNatID, then SECRET adminPassword
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"true", "admin-ssh", "ssh-key", "cloud-init",
+		"10.0.0.1", "fmc-reg", "fmc-nat",
+	}))
+	utils.SetSecretResourcePrompt(mockPromptSequence([]string{"s3cr3t!"}))
+
+	cfg, err := promptMVEVendorConfig("cisco", 99, "LARGE", "lbl", true)
+	assert.NoError(t, err)
+	cisco, ok := cfg.(*megaport.CiscoConfig)
+	assert.True(t, ok)
+	assert.Equal(t, "cisco", cisco.Vendor)
+	assert.Equal(t, 99, cisco.ImageID)
+	assert.Equal(t, "LARGE", cisco.ProductSize)
+	assert.Equal(t, "lbl", cisco.MVELabel)
+	assert.True(t, cisco.ManageLocally)
+	assert.Equal(t, "admin-ssh", cisco.AdminSSHPublicKey)
+	assert.Equal(t, "ssh-key", cisco.SSHPublicKey)
+	assert.Equal(t, "cloud-init", cisco.CloudInit)
+	assert.Equal(t, "10.0.0.1", cisco.FMCIPAddress)
+	assert.Equal(t, "fmc-reg", cisco.FMCRegistrationKey)
+	assert.Equal(t, "fmc-nat", cisco.FMCNatID)
+	assert.Equal(t, "s3cr3t!", cisco.AdminPassword)
+}
+
+func TestPromptMVEVendorConfig_PaloAlto_PlaintextOnly(t *testing.T) {
+	origResource := utils.GetResourcePrompt()
+	origSecret := utils.GetSecretResourcePrompt()
+	defer func() {
+		utils.SetResourcePrompt(origResource)
+		utils.SetSecretResourcePrompt(origSecret)
+	}()
+
+	// Order: sshPublicKey, SECRET adminPassword, SECRET adminPasswordHash, licenseData
+	utils.SetResourcePrompt(mockPromptSequence([]string{"ssh-key", "license"}))
+	utils.SetSecretResourcePrompt(mockPromptSequence([]string{"p4ssw0rd", ""}))
+
+	cfg, err := promptMVEVendorConfig("palo_alto", 42, "MEDIUM", "lbl", true)
+	assert.NoError(t, err)
+	pa, ok := cfg.(*megaport.PaloAltoConfig)
+	assert.True(t, ok)
+	assert.Equal(t, "palo_alto", pa.Vendor)
+	assert.Equal(t, "ssh-key", pa.SSHPublicKey)
+	assert.Equal(t, "p4ssw0rd", pa.AdminPassword)
+	assert.Equal(t, "", pa.AdminPasswordHash)
+	assert.Equal(t, "license", pa.LicenseData)
+}
+
+func TestPromptMVEVendorConfig_PaloAlto_HashOnly(t *testing.T) {
+	origResource := utils.GetResourcePrompt()
+	origSecret := utils.GetSecretResourcePrompt()
+	defer func() {
+		utils.SetResourcePrompt(origResource)
+		utils.SetSecretResourcePrompt(origSecret)
+	}()
+
+	utils.SetResourcePrompt(mockPromptSequence([]string{"ssh-key", "license"}))
+	utils.SetSecretResourcePrompt(mockPromptSequence([]string{"", "hashed-value"}))
+
+	cfg, err := promptMVEVendorConfig("palo_alto", 42, "MEDIUM", "lbl", true)
+	assert.NoError(t, err)
+	pa, ok := cfg.(*megaport.PaloAltoConfig)
+	assert.True(t, ok)
+	assert.Equal(t, "", pa.AdminPassword)
+	assert.Equal(t, "hashed-value", pa.AdminPasswordHash)
+}
+
+func TestPromptMVEVendorConfig_PaloAlto_BothBlank(t *testing.T) {
+	origResource := utils.GetResourcePrompt()
+	origSecret := utils.GetSecretResourcePrompt()
+	defer func() {
+		utils.SetResourcePrompt(origResource)
+		utils.SetSecretResourcePrompt(origSecret)
+	}()
+
+	utils.SetResourcePrompt(mockPromptSequence([]string{"ssh-key"}))
+	utils.SetSecretResourcePrompt(mockPromptSequence([]string{"", ""}))
+
+	_, err := promptMVEVendorConfig("palo_alto", 42, "MEDIUM", "lbl", true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "either admin password or admin password hash is required")
 }

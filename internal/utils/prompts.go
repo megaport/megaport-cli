@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/fatih/color"
-	"golang.org/x/term"
 )
 
 // promptFuncMu guards all prompt function pointers.
@@ -108,9 +107,10 @@ var resourcePromptFn = func(resourceType string, msg string, noColor bool) (stri
 	return strings.TrimSpace(input), nil
 }
 
-// secretResourcePromptFn reads a sensitive value (password, token) without
-// echoing it to the terminal. Falls back to the standard echoed prompt when
-// stdin is not a terminal (piped input, CI) so scripted usage keeps working.
+// secretResourcePromptFn reads a sensitive value (password, token).
+// The default implementation here is the WASM-safe echoing fallback; native
+// builds replace it via init() in prompts_secret_native.go with a TTY-aware
+// version that disables terminal echo using golang.org/x/term.
 var secretResourcePromptFn = func(resourceType string, msg string, noColor bool) (string, error) {
 	icon := "🔐"
 
@@ -120,22 +120,12 @@ var secretResourcePromptFn = func(resourceType string, msg string, noColor bool)
 		fmt.Print(icon + " " + msg + " ")
 	}
 
-	fd := int(os.Stdin.Fd())
-	if !term.IsTerminal(fd) {
-		reader := bufio.NewReader(os.Stdin)
-		input, err := reader.ReadString('\n')
-		if err != nil {
-			return "", err
-		}
-		return strings.TrimSpace(input), nil
-	}
-
-	pw, err := term.ReadPassword(fd)
-	fmt.Println()
+	reader := bufio.NewReader(os.Stdin)
+	input, err := reader.ReadString('\n')
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(pw)), nil
+	return strings.TrimSpace(input), nil
 }
 
 var resourceTagsPromptFn = func(noColor bool) (map[string]string, error) {
