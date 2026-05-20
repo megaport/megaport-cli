@@ -197,6 +197,10 @@ func promptMVEVendorConfig(vendorStr string, imageID int, productSize string, mv
 		if err != nil {
 			return nil, err
 		}
+		adminPassword, err := utils.ResourcePrompt("mve", "Enter admin password (optional): ", noColor)
+		if err != nil {
+			return nil, err
+		}
 		return &megaport.CiscoConfig{
 			Vendor:             "cisco",
 			ImageID:            imageID,
@@ -205,6 +209,7 @@ func promptMVEVendorConfig(vendorStr string, imageID int, productSize string, mv
 			ManageLocally:      manageLocally,
 			AdminSSHPublicKey:  adminSSHPublicKey,
 			SSHPublicKey:       sshPublicKey,
+			AdminPassword:      adminPassword,
 			CloudInit:          cloudInit,
 			FMCIPAddress:       fmcIPAddress,
 			FMCRegistrationKey: fmcRegistrationKey,
@@ -237,9 +242,16 @@ func promptMVEVendorConfig(vendorStr string, imageID int, productSize string, mv
 		if err != nil {
 			return nil, err
 		}
-		adminPasswordHash, err := utils.ResourcePrompt("mve", "Enter admin password hash (required): ", noColor)
+		adminPassword, err := utils.ResourcePrompt("mve", "Enter admin password (optional, leave blank if providing hash): ", noColor)
 		if err != nil {
 			return nil, err
+		}
+		adminPasswordHash, err := utils.ResourcePrompt("mve", "Enter admin password hash (optional, leave blank if providing plaintext password): ", noColor)
+		if err != nil {
+			return nil, err
+		}
+		if adminPassword == "" && adminPasswordHash == "" {
+			return nil, fmt.Errorf("either admin password or admin password hash is required for PaloAlto configuration")
 		}
 		licenseData, err := utils.ResourcePrompt("mve", "Enter license data (required): ", noColor)
 		if err != nil {
@@ -252,6 +264,7 @@ func promptMVEVendorConfig(vendorStr string, imageID int, productSize string, mv
 			MVELabel:          mveLabel,
 			SSHPublicKey:      sshPublicKey,
 			AdminPasswordHash: adminPasswordHash,
+			AdminPassword:     adminPassword,
 			LicenseData:       licenseData,
 		}, nil
 	case "prisma":

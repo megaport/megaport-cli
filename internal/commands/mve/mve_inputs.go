@@ -330,6 +330,8 @@ func parseCiscoConfig(config map[string]interface{}) (*megaport.CiscoConfig, err
 		return nil, fmt.Errorf("fmcNatId is required for Cisco configuration")
 	}
 
+	adminPassword, _ := getStringFromMap(config, "adminPassword")
+
 	return &megaport.CiscoConfig{
 		Vendor:             "cisco",
 		ImageID:            imageID,
@@ -338,6 +340,7 @@ func parseCiscoConfig(config map[string]interface{}) (*megaport.CiscoConfig, err
 		ManageLocally:      manageLocally,
 		AdminSSHPublicKey:  adminSSHPublicKey,
 		SSHPublicKey:       sshPublicKey,
+		AdminPassword:      adminPassword,
 		CloudInit:          cloudInit,
 		FMCIPAddress:       fmcIPAddress,
 		FMCRegistrationKey: fmcRegistrationKey,
@@ -404,9 +407,10 @@ func parsePaloAltoConfig(config map[string]interface{}) (*megaport.PaloAltoConfi
 		return nil, fmt.Errorf("sshPublicKey is required for PaloAlto configuration")
 	}
 
-	adminPasswordHash, ok := getStringFromMap(config, "adminPasswordHash")
-	if !ok {
-		return nil, fmt.Errorf("adminPasswordHash is required for PaloAlto configuration")
+	adminPasswordHash, _ := getStringFromMap(config, "adminPasswordHash")
+	adminPassword, _ := getStringFromMap(config, "adminPassword")
+	if adminPassword == "" && adminPasswordHash == "" {
+		return nil, fmt.Errorf("either adminPassword or adminPasswordHash is required for PaloAlto configuration")
 	}
 
 	licenseData, ok := getStringFromMap(config, "licenseData")
@@ -421,6 +425,7 @@ func parsePaloAltoConfig(config map[string]interface{}) (*megaport.PaloAltoConfi
 		MVELabel:          mveLabel,
 		SSHPublicKey:      sshPublicKey,
 		AdminPasswordHash: adminPasswordHash,
+		AdminPassword:     adminPassword,
 		LicenseData:       licenseData,
 	}, nil
 }

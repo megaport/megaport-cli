@@ -633,6 +633,7 @@ func TestBuyMVE(t *testing.T) {
 				"fmc-ip",
 				"fmc-key",
 				"fmc-nat",
+				"admin-pass",
 				"VNIC 1",
 				"100",
 				"",
@@ -663,6 +664,7 @@ func TestBuyMVE(t *testing.T) {
 				assert.Equal(t, "fmc-ip", ciscoConfig.FMCIPAddress)
 				assert.Equal(t, "fmc-key", ciscoConfig.FMCRegistrationKey)
 				assert.Equal(t, "fmc-nat", ciscoConfig.FMCNatID)
+				assert.Equal(t, "admin-pass", ciscoConfig.AdminPassword)
 
 				assert.Len(t, req.Vnics, 1)
 				assert.Equal(t, "VNIC 1", req.Vnics[0].Description)
