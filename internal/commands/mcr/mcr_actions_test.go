@@ -1855,6 +1855,10 @@ func TestUpdateMCR(t *testing.T) {
 			args: []string{"mcr-789"},
 			flags: map[string]string{
 				"term": "24",
+			name: "success with mcr-asn flag only",
+			args: []string{"mcr-789"},
+			flags: map[string]string{
+				"mcr-asn": "65020",
 			},
 			setupLogin: func() {
 				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
@@ -1879,6 +1883,11 @@ func TestUpdateMCR(t *testing.T) {
 					}
 					if *req.ContractTermMonths != 24 {
 						return nil, fmt.Errorf("expected ContractTermMonths=24, got %d", *req.ContractTermMonths)
+					if req.MCRAsn == nil {
+						return nil, fmt.Errorf("expected MCRAsn to be set")
+					}
+					if *req.MCRAsn != 65020 {
+						return nil, fmt.Errorf("expected MCRAsn=65020, got %d", *req.MCRAsn)
 					}
 					return &megaport.ModifyMCRResponse{IsUpdated: true}, nil
 				}
@@ -2007,6 +2016,7 @@ func TestUpdateMCR(t *testing.T) {
 			cmd.Flags().String("cost-centre", "", "")
 			cmd.Flags().Bool("marketplace-visibility", false, "")
 			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("mcr-asn", 0, "")
 
 			testutil.SetFlags(t, cmd, tt.flags)
 
