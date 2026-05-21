@@ -121,7 +121,7 @@ func PrintPlain(format string, _ bool, args ...interface{}) {
 		return
 	}
 	msg := fmt.Sprintf(format, args...)
-	if getOutputFormat() == "json" {
+	if GetOutputFormat() == "json" {
 		fmt.Fprintln(os.Stderr, msg)
 	} else {
 		fmt.Println(msg)
@@ -134,7 +134,7 @@ func PrintNewline() {
 	if IsQuiet() {
 		return
 	}
-	if getOutputFormat() == "json" {
+	if GetOutputFormat() == "json" {
 		fmt.Fprintln(os.Stderr)
 		return
 	}
