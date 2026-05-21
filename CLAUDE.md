@@ -69,8 +69,8 @@ Use `WithConditionalRequirements()` to enforce required flags only when not usin
 ### Build Tags
 
 Platform-specific code uses build tags:
-- Native: `//go:build !js || !wasm`
-- WASM: `//go:build js && wasm`
+- Native: `//go:build !wasm`
+- WASM: `//go:build wasm`
 
 Files with `_wasm` suffix contain browser-specific implementations. When adding platform-specific behavior, create paired files with appropriate build tags.
 

@@ -23,7 +23,7 @@ fi
 
 # Build WASM first (to check for errors)
 echo "📦 Building WASM binary..."
-GOWORK=off GOOS=js GOARCH=wasm go build -mod=vendor -tags js,wasm -o web/megaport.wasm .
+GOWORK=off GOOS=js GOARCH=wasm go build -mod=vendor -tags wasm -o web/megaport.wasm .
 echo "✅ WASM build successful"
 echo ""
 

@@ -184,7 +184,7 @@ Customer Browser                Docker Container
 # - ./web:/app/web:ro
 
 # Rebuild WASM locally
-GOOS=js GOARCH=wasm go build -tags js,wasm -o web/megaport.wasm .
+GOOS=js GOARCH=wasm go build -tags wasm -o web/megaport.wasm .
 
 # Container will serve the updated files immediately
 ```
@@ -193,7 +193,7 @@ GOOS=js GOARCH=wasm go build -tags js,wasm -o web/megaport.wasm .
 
 ```bash
 # Build WASM
-GOOS=js GOARCH=wasm go build -tags js,wasm -o web/megaport.wasm .
+GOOS=js GOARCH=wasm go build -tags wasm -o web/megaport.wasm .
 
 # Build server
 go build -o server ./cmd/server/server.go

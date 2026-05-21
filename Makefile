@@ -39,7 +39,7 @@ check: lint test
 
 # Build WASM binary
 wasm:
-	GOOS=js GOARCH=wasm go build -tags js,wasm -o web/megaport.wasm .
+	GOOS=js GOARCH=wasm go build -tags wasm -o web/megaport.wasm .
 
 # Clean build artifacts
 clean:

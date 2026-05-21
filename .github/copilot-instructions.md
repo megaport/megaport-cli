@@ -9,7 +9,7 @@ go test -v ./internal/commands/ports                     # Single package
 go test -v ./internal/commands/ports -run TestFilterPorts # Single test
 golangci-lint run                                        # Lint (.golangci.yml)
 gofmt -w .                                               # Format
-GOOS=js GOARCH=wasm go build -tags js,wasm -o web/megaport.wasm .  # WASM build
+GOOS=js GOARCH=wasm go build -tags wasm -o web/megaport.wasm .  # WASM build
 ```
 
 `make check` runs lint + test together. Use before committing.
@@ -67,8 +67,8 @@ Each resource in `internal/commands/<resource>/` follows this file layout:
 ### Build Tags
 
 Platform-specific code uses build tags:
-- Native: `//go:build !js || !wasm`
-- WASM: `//go:build js && wasm`
+- Native: `//go:build !wasm`
+- WASM: `//go:build wasm`
 
 Files with `_wasm` suffix contain browser-specific implementations. When adding platform-specific behavior, create paired files with appropriate build tags.
 

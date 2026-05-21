@@ -41,7 +41,7 @@ WORKDIR /app
 COPY . .
 
 # Build the WASM binary using vendored dependencies
-RUN GOOS=js GOARCH=wasm go build -mod=vendor -tags js,wasm -o web/megaport.wasm .
+RUN GOOS=js GOARCH=wasm go build -mod=vendor -tags wasm -o web/megaport.wasm .
 
 # Build the server binary using vendored dependencies
 RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -o server ./cmd/server/server.go
