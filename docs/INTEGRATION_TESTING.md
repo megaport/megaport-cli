@@ -42,7 +42,6 @@ All integration test files use the `//go:build integration` build tag:
 
 ```go
 //go:build integration
-// +build integration
 
 package ports
 ```
