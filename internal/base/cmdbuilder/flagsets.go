@@ -54,6 +54,14 @@ func (b *CommandBuilder) WithSafeDeleteFlags() *CommandBuilder {
 	return b
 }
 
+// WithImmediateSafeDeleteFlags adds delete flags for resources that only support
+// immediate deletion (no --now flag), with safe-delete support.
+func (b *CommandBuilder) WithImmediateSafeDeleteFlags() *CommandBuilder {
+	b.WithBoolFlagP("force", "f", false, "Skip confirmation prompt")
+	b.WithBoolFlag("safe-delete", false, "Fail if the resource has attached VXCs or other active services")
+	return b
+}
+
 // WithBuyConfirmFlags adds the --yes/-y flag to skip buy confirmation prompts
 func (b *CommandBuilder) WithBuyConfirmFlags() *CommandBuilder {
 	b.WithBoolFlagP("yes", "y", false, "Skip confirmation prompt for purchase")

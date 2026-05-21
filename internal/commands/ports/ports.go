@@ -245,8 +245,7 @@ func buildPortManagementCommands(rootCmd *cobra.Command) (list, get, status, del
 	deleteCmd = cmdbuilder.NewCommand("delete", "Delete a port from your account").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(DeletePort).
-		WithBoolFlagP("force", "f", false, "Skip confirmation prompt").
-		WithBoolFlag("safe-delete", false, "Fail if the resource has attached VXCs or other active services").
+		WithImmediateSafeDeleteFlags().
 		WithLongDesc("Delete a port from your account in the Megaport API.\n\nThis command deletes an existing port by providing the UID of the port as an argument. Ports are deleted immediately; deferred cancellation at the end of the billing period is no longer supported.").
 		WithOptionalFlag("force", "Skip the confirmation prompt and proceed with deletion").
 		WithOptionalFlag("safe-delete", "Fail if the resource has attached VXCs or other active services").
