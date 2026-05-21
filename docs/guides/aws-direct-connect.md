@@ -158,8 +158,8 @@ To remove the connection when no longer needed:
 # Delete VXC first
 megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --now
 
-# Then delete the port
-megaport-cli ports delete port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --now
+# Then delete the port (ports are always deleted immediately)
+megaport-cli ports delete port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
 ## Related Commands

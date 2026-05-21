@@ -305,8 +305,8 @@ megaport-cli ports update PORT_UID --name "Updated Port" --marketplace-visibilit
 megaport-cli ports update PORT_UID --json '{"name":"Updated Port","marketplaceVisibility":true}'
 megaport-cli ports update PORT_UID --json-file ./update-port-config.json
 
-# Delete a port
-megaport-cli ports delete PORT_UID --now
+# Delete a port (ports are always deleted immediately)
+megaport-cli ports delete PORT_UID
 
 # Restore a deleted port
 megaport-cli ports restore PORT_UID

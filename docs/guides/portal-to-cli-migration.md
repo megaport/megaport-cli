@@ -172,11 +172,11 @@ VXCs must be deleted before deleting their parent port or MCR:
 # Delete VXCs first
 megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --now
 
-# Then delete the port
-megaport-cli ports delete port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --now
+# Then delete the port (ports are always deleted immediately)
+megaport-cli ports delete port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
-> **Note:** Omit `--now` to schedule deletion at the end of the current billing period instead of immediately.
+> **Note:** For VXCs and other deferred-cancellation resources, omit `--now` to schedule deletion at the end of the current billing period. Ports no longer support deferred cancellation and are always deleted immediately.
 
 ### Manage billing contact
 
@@ -226,10 +226,10 @@ megaport-cli ports get port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --export > my-p
 
 ### Skip confirmation prompts in scripts
 
-Use `--force` to suppress interactive prompts and `--now` for immediate deletion:
+Use `--force` to suppress interactive prompts (ports are always deleted immediately):
 
 ```sh
-megaport-cli ports delete port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --now --force
+megaport-cli ports delete port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --force
 ```
 
 ### Get machine-readable output
@@ -323,7 +323,7 @@ for uid in $VXCS; do
 done
 
 echo "Deleting port ${PORT_UID}..."
-megaport-cli ports delete "$PORT_UID" --now --force --quiet
+megaport-cli ports delete "$PORT_UID" --force --quiet
 echo "Done."
 ```
 
