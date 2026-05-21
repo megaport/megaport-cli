@@ -130,6 +130,8 @@ func TestFilterServiceKeys(t *testing.T) {
 }
 
 func TestServiceKeyOutput_Table(t *testing.T) {
+	output.SetTerminalWidthForTesting(200)
+	defer output.SetTerminalWidthForTesting(0)
 	outputs := make([]serviceKeyOutput, 0, len(mockServiceKeys))
 	for _, sk := range mockServiceKeys {
 		skOutput, err := toServiceKeyOutput(sk)

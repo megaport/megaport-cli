@@ -14,18 +14,20 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli nat-gateway create").
 		WithExample("megaport-cli nat-gateway update [uid]").
 		WithExample("megaport-cli nat-gateway delete [uid]").
+		WithExample("megaport-cli nat-gateway validate [uid]").
+		WithExample("megaport-cli nat-gateway buy [uid]").
 		WithExample("megaport-cli nat-gateway list-sessions").
 		WithExample("megaport-cli nat-gateway telemetry [uid] --types BITS --days 7").
 		WithRootCmd(rootCmd).
 		Build()
 
-	get, list, create, update, del, listSessions, telemetry := buildNATGatewayCommands(rootCmd)
+	get, list, create, update, del, validate, buy, listSessions, telemetry := buildNATGatewayCommands(rootCmd)
 
-	natCmd.AddCommand(get, list, create, update, del, listSessions, telemetry)
+	natCmd.AddCommand(get, list, create, update, del, validate, buy, listSessions, telemetry)
 	rootCmd.AddCommand(natCmd)
 }
 
-func buildNATGatewayCommands(rootCmd *cobra.Command) (get, list, create, update, del, listSessions, telemetry *cobra.Command) {
+func buildNATGatewayCommands(rootCmd *cobra.Command) (get, list, create, update, del, validate, buy, listSessions, telemetry *cobra.Command) {
 	get = cmdbuilder.NewCommand("get", "Get details for a single NAT Gateway").
 		WithArgs(cobra.ExactArgs(1)).
 		WithOutputFormatRunFunc(GetNATGateway).
@@ -113,11 +115,33 @@ func buildNATGatewayCommands(rootCmd *cobra.Command) (get, list, create, update,
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(DeleteNATGateway).
 		WithBoolFlag("force", false, "Skip the confirmation prompt").
+		WithBoolFlag("yes", false, "Skip the confirmation prompt (alias of --force)").
 		WithLongDesc("Delete a NAT Gateway.\n\nThis command deletes an existing NAT Gateway by its product UID.").
 		WithExample("megaport-cli nat-gateway delete a1b2c3d4-e5f6-7890-1234-567890abcdef").
 		WithExample("megaport-cli nat-gateway delete a1b2c3d4-e5f6-7890-1234-567890abcdef --force").
 		WithImportantNote("This action is irreversible. The NAT Gateway will be deleted immediately.").
 		WithAliases([]string{"rm"}).
+		WithRootCmd(rootCmd).
+		Build()
+
+	validate = cmdbuilder.NewCommand("validate", "Validate a NAT Gateway design without purchasing").
+		WithArgs(cobra.ExactArgs(1)).
+		WithOutputFormatRunFunc(ValidateNATGateway).
+		WithLongDesc("Validate a NAT Gateway design via /v3/networkdesign/validate.\n\nUse this after 'nat-gateway create' to preview pricing and confirm the design is valid before calling 'nat-gateway buy'. No resources are provisioned and no charges are incurred.").
+		WithExample("megaport-cli nat-gateway validate a1b2c3d4-e5f6-7890-1234-567890abcdef").
+		WithExample("megaport-cli nat-gateway validate a1b2c3d4-e5f6-7890-1234-567890abcdef --output json").
+		WithImportantNote("The NAT Gateway must already exist in DESIGN state (create it first with 'nat-gateway create').").
+		WithRootCmd(rootCmd).
+		Build()
+
+	buy = cmdbuilder.NewCommand("buy", "Purchase a NAT Gateway design to begin provisioning").
+		WithArgs(cobra.ExactArgs(1)).
+		WithColorAwareRunFunc(BuyNATGateway).
+		WithBoolFlag("yes", false, "Skip the confirmation prompt").
+		WithLongDesc("Purchase a NAT Gateway design via /v3/networkdesign/buy.\n\nRun this after 'nat-gateway validate' to kick off provisioning of a NAT Gateway that currently exists in DESIGN state. Billing begins once the order is accepted.").
+		WithExample("megaport-cli nat-gateway buy a1b2c3d4-e5f6-7890-1234-567890abcdef").
+		WithExample("megaport-cli nat-gateway buy a1b2c3d4-e5f6-7890-1234-567890abcdef --yes").
+		WithImportantNote("This action begins billing for the NAT Gateway and cannot be undone without deleting the resource.").
 		WithRootCmd(rootCmd).
 		Build()
 

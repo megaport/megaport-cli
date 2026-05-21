@@ -1,6 +1,7 @@
 package mcr
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -373,4 +374,33 @@ func TestPromptUpdateExistingEntries_DeleteEntry(t *testing.T) {
 	entries, err := promptUpdateExistingEntries(current, true)
 	assert.NoError(t, err)
 	assert.Len(t, entries, 0)
+}
+
+func TestPromptForUpdatePrefixFilterListDetails_Success(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	originalGetPFL := getMCRPrefixFilterListFunc
+	defer func() {
+		utils.SetResourcePrompt(originalPrompt)
+		getMCRPrefixFilterListFunc = originalGetPFL
+	}()
+
+	getMCRPrefixFilterListFunc = func(_ context.Context, _ *megaport.Client, _ string, _ int) (*megaport.MCRPrefixFilterList, error) {
+		return &megaport.MCRPrefixFilterList{
+			ID:            1,
+			Description:   "old desc",
+			AddressFamily: "IPv4",
+			Entries: []*megaport.MCRPrefixListEntry{
+				{Prefix: "10.0.0.0/8", Action: "permit"},
+			},
+		}, nil
+	}
+
+	// description (empty = keep current), modifyExisting=no, addNew=no
+	utils.SetResourcePrompt(mockPromptSequence([]string{"", "no", "no"}))
+
+	result, err := promptForUpdatePrefixFilterListDetails(context.Background(), nil, "mcr-uid", 1, true)
+	assert.NoError(t, err)
+	assert.Equal(t, "old desc", result.Description)
+	assert.Equal(t, "IPv4", result.AddressFamily)
+	assert.Len(t, result.Entries, 1)
 }

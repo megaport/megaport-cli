@@ -496,6 +496,8 @@ func TestGetRoundTripTimesDefaultsJanuaryRollback(t *testing.T) {
 }
 
 func TestPrintRoundTripTimes_Table(t *testing.T) {
+	output.SetTerminalWidthForTesting(200)
+	defer output.SetTerminalWidthForTesting(0)
 	var err error
 	capturedOutput := output.CaptureOutput(func() {
 		err = printRoundTripTimes(testRTTs, "table", noColor)

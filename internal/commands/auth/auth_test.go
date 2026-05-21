@@ -29,6 +29,8 @@ func setupMockLogin(mock *MockUserManagementService) {
 }
 
 func TestAuthStatus(t *testing.T) {
+	output.SetTerminalWidthForTesting(200)
+	defer output.SetTerminalWidthForTesting(0)
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
 

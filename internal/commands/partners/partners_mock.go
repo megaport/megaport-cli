@@ -33,7 +33,7 @@ func (m *MockPartnerService) FilterPartnerMegaportByLocationId(ctx context.Conte
 	return m.filterResponse, m.filterErr
 }
 
-func (m *MockPartnerService) FilterPartnerMegaportByDiversityZone(ctx context.Context, partners []*megaport.PartnerMegaport, diversityZone string, exactMatch bool) ([]*megaport.PartnerMegaport, error) {
+func (m *MockPartnerService) FilterPartnerMegaportByDiversityZone(ctx context.Context, partners []*megaport.PartnerMegaport, diversityZone string) ([]*megaport.PartnerMegaport, error) {
 	return m.filterResponse, m.filterErr
 }
 

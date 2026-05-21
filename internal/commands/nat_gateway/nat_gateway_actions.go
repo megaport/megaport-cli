@@ -351,8 +351,9 @@ func DeleteNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 
 	uid := args[0]
 	force, _ := cmd.Flags().GetBool("force")
+	yes, _ := cmd.Flags().GetBool("yes")
 
-	if !force {
+	if !force && !yes {
 		if !utils.ConfirmPrompt("Are you sure you want to delete NAT Gateway "+uid+"? ", noColor) {
 			output.PrintInfo("Deletion cancelled", noColor)
 			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
@@ -401,6 +402,88 @@ func ListNATGatewaySessions(cmd *cobra.Command, args []string, noColor bool, out
 	}
 
 	return printNATGatewaySessions(sessions, outputFormat, noColor)
+}
+
+// ValidateNATGateway handles the nat-gateway validate command.
+// It validates a NAT Gateway design (already created via 'create') against
+// /v3/networkdesign/validate and prints the returned pricing preview.
+func ValidateNATGateway(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+
+	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return err
+	}
+	defer cancel()
+
+	uid := args[0]
+	spinner := output.PrintResourceValidating("NAT Gateway", noColor)
+	res, err := validateNATGatewayOrderFunc(ctx, client, uid)
+	spinner.Stop()
+
+	if err != nil {
+		err = utils.WrapAPIError(err, "NAT Gateway", uid)
+		output.PrintError("Failed to validate NAT Gateway: %v", noColor, err)
+		return fmt.Errorf("failed to validate NAT Gateway: %w", err)
+	}
+	if res == nil {
+		output.PrintError("NAT Gateway validate: empty response received", noColor)
+		return fmt.Errorf("NAT Gateway validate: empty response received")
+	}
+
+	return printNATGatewayValidateResult(res, outputFormat, noColor)
+}
+
+// BuyNATGateway handles the nat-gateway buy command.
+// It purchases an existing NAT Gateway design via /v3/networkdesign/buy,
+// which begins provisioning and starts billing.
+func BuyNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
+	defer cancel()
+
+	uid := args[0]
+	yes, _ := cmd.Flags().GetBool("yes")
+
+	if !yes {
+		if !utils.ConfirmPrompt("Purchasing NAT Gateway "+uid+" will begin billing. Continue? ", noColor) {
+			output.PrintInfo("Purchase cancelled", noColor)
+			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
+		}
+	}
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return err
+	}
+
+	spinner := output.PrintResourceCreating("NAT Gateway", uid, noColor)
+	var res *megaport.NATGatewayBuyResult
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		res, e = buyNATGatewayFunc(ctx, client, uid)
+		return e
+	})
+	spinner.Stop()
+
+	if err != nil {
+		err = utils.WrapAPIError(err, "NAT Gateway", uid)
+		output.PrintError("Failed to buy NAT Gateway: %v", noColor, err)
+		return fmt.Errorf("failed to buy NAT Gateway: %w", err)
+	}
+	if res == nil || res.ProductUID == "" {
+		err = fmt.Errorf("service returned no NAT Gateway UID")
+		output.PrintError("Failed to buy NAT Gateway: %v", noColor, err)
+		return err
+	}
+
+	output.PrintResourceCreated("NAT Gateway", res.ProductUID, noColor)
+	outputFormat, _ := cmd.Flags().GetString("output")
+	if outputFormat == "" {
+		outputFormat = "table"
+	}
+	return printNATGatewayBuyResult(res, outputFormat, noColor)
 }
 
 // GetNATGatewayTelemetry handles the nat-gateway telemetry command.

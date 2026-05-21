@@ -323,6 +323,7 @@ func buildPortTagCommands() (listTags, updateTags *cobra.Command) {
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(UpdatePortResourceTags).
 		WithStandardInputFlags().
+		WithBoolFlag("force", false, "Skip the confirmation prompt").
 		WithExample("megaport-cli ports update-tags port-abc123 --interactive").
 		WithExample("megaport-cli ports update-tags port-abc123 --json '{\"env\":\"production\",\"team\":\"network\"}'").
 		WithExample("megaport-cli ports update-tags port-abc123 --json-file ./tags.json").
