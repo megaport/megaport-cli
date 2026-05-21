@@ -3,6 +3,7 @@
 package ports
 
 import (
+	"context"
 	crypto_rand "crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -10,10 +11,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
-	"github.com/megaport/megaport-cli/internal/testutil"
+	"github.com/megaport/megaport-cli/internal/commands/config"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -27,11 +30,58 @@ import (
 // exercise.
 const integrationLocationID = 67
 
-func generateUniqueID() string {
-	buf := make([]byte, 4)
-	if _, err := crypto_rand.Read(buf); err != nil {
-		panic(err)
+// Per-test save/restore of config.LoginFunc is not safe under t.Parallel():
+// concurrent tests can capture each other's installed function as their
+// "original" and leave the global in an unexpected state on cleanup. Instead
+// we install one staging login function for the whole package run via
+// sync.Once. Every test shares the same authorised *megaport.Client, which is
+// fine because they all target the same staging environment.
+var (
+	sharedClient     *megaport.Client
+	sharedClientOnce sync.Once
+	sharedClientErr  error
+)
+
+func requireSharedClient(t *testing.T) {
+	t.Helper()
+	sharedClientOnce.Do(func() {
+		accessKey := os.Getenv("MEGAPORT_ACCESS_KEY")
+		secretKey := os.Getenv("MEGAPORT_SECRET_KEY")
+		if accessKey == "" || secretKey == "" {
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		defer cancel()
+		client, err := megaport.New(nil,
+			megaport.WithCredentials(accessKey, secretKey),
+			megaport.WithEnvironment(megaport.EnvironmentStaging),
+		)
+		if err != nil {
+			sharedClientErr = fmt.Errorf("failed to create megaport client: %w", err)
+			return
+		}
+		if _, err := client.Authorize(ctx); err != nil {
+			sharedClientErr = fmt.Errorf("failed to authorize against staging API: %w", err)
+			return
+		}
+		sharedClient = client
+		config.SetLoginFunc(func(context.Context) (*megaport.Client, error) {
+			return client, nil
+		})
+	})
+	if sharedClientErr != nil {
+		t.Fatalf("integration setup failed: %v", sharedClientErr)
 	}
+	if sharedClient == nil {
+		t.Skip("MEGAPORT_ACCESS_KEY and MEGAPORT_SECRET_KEY required for integration tests")
+	}
+}
+
+func generateUniqueID(t *testing.T) string {
+	t.Helper()
+	buf := make([]byte, 4)
+	_, err := crypto_rand.Read(buf)
+	require.NoError(t, err, "failed to read crypto/rand entropy")
 	return hex.EncodeToString(buf)
 }
 
@@ -129,20 +179,12 @@ func captureWithFormat(format string, f func()) string {
 // registerPortCleanup schedules a best-effort delete of the given port. The
 // cleanup runs even when the test fails, ensuring no orphaned resources on
 // staging. After deletion it asserts the port is reported as
-// DECOMMISSIONING / DECOMMISSIONED.
-//
-// The cleanup re-installs the staging client into config.LoginFunc for the
-// duration of its run. This is necessary because the outer
-// `defer testutil.LoginWithClient(t, client)()` in the test body runs (and
-// restores the original loginFunc) before any t.Cleanup callback, so cleanup
-// would otherwise hit the real loginFunc — which may resolve to a different
-// environment than staging.
-func registerPortCleanup(t *testing.T, client *megaport.Client, uid string) {
+// DECOMMISSIONING / DECOMMISSIONED. The package-level login function installed
+// by requireSharedClient remains active for the cleanup callback (no
+// per-test restore happens).
+func registerPortCleanup(t *testing.T, uid string) {
 	t.Helper()
 	t.Cleanup(func() {
-		restore := testutil.LoginWithClient(t, client)
-		defer restore()
-
 		delCmd := newDeletePortCmd()
 		require.NoError(t, delCmd.Flags().Set("now", "true"))
 		require.NoError(t, delCmd.Flags().Set("force", "true"))
@@ -266,11 +308,9 @@ func runUpdatePortWithFlag(t *testing.T, uid, flagName, flagValue string) {
 
 func TestIntegration_PortLifecycle(t *testing.T) {
 	t.Parallel()
+	requireSharedClient(t)
 
-	client := testutil.SetupIntegrationClient(t)
-	defer testutil.LoginWithClient(t, client)()
-
-	portName := fmt.Sprintf("CLI-Test-Port-%s", generateUniqueID())
+	portName := fmt.Sprintf("CLI-Test-Port-%s", generateUniqueID(t))
 
 	buyCmd := newBuyPortCmd()
 	require.NoError(t, buyCmd.Flags().Set("name", portName))
@@ -281,7 +321,7 @@ func TestIntegration_PortLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
 
 	uid := runBuyPort(t, buyCmd, "Port")
-	registerPortCleanup(t, client, uid)
+	registerPortCleanup(t, uid)
 	t.Logf("Created port with UID: %s", uid)
 
 	port := portFromGet(t, uid)
@@ -309,11 +349,9 @@ func TestIntegration_PortLifecycle(t *testing.T) {
 
 func TestIntegration_LAGPortLifecycle(t *testing.T) {
 	t.Parallel()
+	requireSharedClient(t)
 
-	client := testutil.SetupIntegrationClient(t)
-	defer testutil.LoginWithClient(t, client)()
-
-	portName := fmt.Sprintf("CLI-Test-LAG-%s", generateUniqueID())
+	portName := fmt.Sprintf("CLI-Test-LAG-%s", generateUniqueID(t))
 
 	buyCmd := newBuyLAGPortCmd()
 	require.NoError(t, buyCmd.Flags().Set("name", portName))
@@ -325,7 +363,7 @@ func TestIntegration_LAGPortLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
 
 	uid := runBuyLAGPort(t, buyCmd)
-	registerPortCleanup(t, client, uid)
+	registerPortCleanup(t, uid)
 	t.Logf("Created LAG port with UID: %s", uid)
 
 	port := portFromGet(t, uid)
@@ -342,13 +380,11 @@ func TestIntegration_LAGPortLifecycle(t *testing.T) {
 
 func TestIntegration_PortJSONInputLifecycle(t *testing.T) {
 	t.Parallel()
+	requireSharedClient(t)
 
-	client := testutil.SetupIntegrationClient(t)
-	defer testutil.LoginWithClient(t, client)()
+	portName := fmt.Sprintf("CLI-Test-Port-JSON-%s", generateUniqueID(t))
 
-	portName := fmt.Sprintf("CLI-Test-Port-JSON-%s", generateUniqueID())
-
-	buyPayload := map[string]interface{}{
+	buyPayload := map[string]any{
 		"name":                  portName,
 		"term":                  1,
 		"portSpeed":             1000,
@@ -362,7 +398,7 @@ func TestIntegration_PortJSONInputLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("json", string(buyJSON)))
 
 	uid := runBuyPort(t, buyCmd, "Port")
-	registerPortCleanup(t, client, uid)
+	registerPortCleanup(t, uid)
 	t.Logf("Created port (JSON input) with UID: %s", uid)
 
 	port := portFromGet(t, uid)
@@ -382,13 +418,11 @@ func TestIntegration_PortJSONInputLifecycle(t *testing.T) {
 
 func TestIntegration_PortJSONFileLifecycle(t *testing.T) {
 	t.Parallel()
+	requireSharedClient(t)
 
-	client := testutil.SetupIntegrationClient(t)
-	defer testutil.LoginWithClient(t, client)()
+	portName := fmt.Sprintf("CLI-Test-Port-JSONFile-%s", generateUniqueID(t))
 
-	portName := fmt.Sprintf("CLI-Test-Port-JSONFile-%s", generateUniqueID())
-
-	buyPayload := map[string]interface{}{
+	buyPayload := map[string]any{
 		"name":                  portName,
 		"term":                  1,
 		"portSpeed":             1000,
@@ -405,7 +439,7 @@ func TestIntegration_PortJSONFileLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("json-file", buyFile))
 
 	uid := runBuyPort(t, buyCmd, "Port")
-	registerPortCleanup(t, client, uid)
+	registerPortCleanup(t, uid)
 	t.Logf("Created port (JSON file) with UID: %s", uid)
 
 	port := portFromGet(t, uid)
@@ -414,7 +448,7 @@ func TestIntegration_PortJSONFileLifecycle(t *testing.T) {
 	assert.NotEmpty(t, port["provisioning_status"])
 
 	newName := portName + "-Updated-TempJSON"
-	updatePayload, err := json.MarshalIndent(map[string]interface{}{
+	updatePayload, err := json.MarshalIndent(map[string]any{
 		"name":                  newName,
 		"marketPlaceVisibility": true,
 	}, "", "  ")
