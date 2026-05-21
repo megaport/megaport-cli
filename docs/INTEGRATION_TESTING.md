@@ -59,9 +59,35 @@ Integration tests run in CI via `.github/workflows/integration-test.yml`:
 
 1. Create `internal/commands/<resource>/<resource>_integration_test.go`
 2. Set `//go:build integration` at the top and use `package <resource>` (not `package <resource>_test`)
-3. Use `testutil.SetupIntegrationClient(t)` and `defer testutil.LoginWithClient(t, client)()` to authenticate
+3. Authenticate using one of the helpers below (see "Authentication helpers")
 4. Call action functions directly and capture output with `output.CaptureOutput`
 5. Use `t.Cleanup()` for resource deletion (e.g. deleting staging ports/VXCs) so cleanup runs even on test failure; `defer` is fine for non-resource cleanup like restoring login state
 6. Add the package to the provisioning job in `.github/workflows/integration-test.yml`
 
-See `internal/commands/locations/locations_integration_test.go` for a complete read-only example. Provisioning lifecycle examples (ports, VXC, MCR, MVE) will be available once those integration tests are written.
+See `internal/commands/locations/locations_integration_test.go` for a serial read-only example and `internal/commands/ports/ports_integration_test.go` for a parallel provisioning-lifecycle example.
+
+### Authentication helpers
+
+Two helpers in `internal/testutil` handle staging authentication. Pick based on whether your tests use `t.Parallel()`.
+
+**Serial tests** (no `t.Parallel()`): use `testutil.SetupIntegrationClient` plus `testutil.LoginWithClient`. The login override is saved on entry and restored on cleanup:
+
+```go
+func TestIntegration_Foo(t *testing.T) {
+    client := testutil.SetupIntegrationClient(t)
+    defer testutil.LoginWithClient(t, client)()
+    // ...
+}
+```
+
+**Parallel tests** (`t.Parallel()`): use `testutil.RequireSharedIntegrationClient`. It authorises once per process via `sync.Once` and installs the login override exactly once; it never restores. All callers share a single authorised `*megaport.Client`, which is safe because they all target the same staging environment.
+
+```go
+func TestIntegration_Foo(t *testing.T) {
+    t.Parallel()
+    testutil.RequireSharedIntegrationClient(t)
+    // ...
+}
+```
+
+Do not combine `LoginWithClient` with `t.Parallel()`: its save/restore pattern races when concurrent tests each capture and restore `config.LoginFunc`, leaving the global pointing at a stale closure.

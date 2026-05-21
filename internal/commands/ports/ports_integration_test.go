@@ -3,7 +3,6 @@
 package ports
 
 import (
-	"context"
 	crypto_rand "crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -11,13 +10,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
-	"github.com/megaport/megaport-cli/internal/commands/config"
-	megaport "github.com/megaport/megaportgo"
+	"github.com/megaport/megaport-cli/internal/testutil"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,52 +27,9 @@ import (
 // exercise.
 const integrationLocationID = 67
 
-// Per-test save/restore of config.LoginFunc is not safe under t.Parallel():
-// concurrent tests can capture each other's installed function as their
-// "original" and leave the global in an unexpected state on cleanup. Instead
-// we install one staging login function for the whole package run via
-// sync.Once. Every test shares the same authorised *megaport.Client, which is
-// fine because they all target the same staging environment.
-var (
-	sharedClient     *megaport.Client
-	sharedClientOnce sync.Once
-	sharedClientErr  error
-)
-
-func requireSharedClient(t *testing.T) {
-	t.Helper()
-	sharedClientOnce.Do(func() {
-		accessKey := os.Getenv("MEGAPORT_ACCESS_KEY")
-		secretKey := os.Getenv("MEGAPORT_SECRET_KEY")
-		if accessKey == "" || secretKey == "" {
-			return
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-		defer cancel()
-		client, err := megaport.New(nil,
-			megaport.WithCredentials(accessKey, secretKey),
-			megaport.WithEnvironment(megaport.EnvironmentStaging),
-		)
-		if err != nil {
-			sharedClientErr = fmt.Errorf("failed to create megaport client: %w", err)
-			return
-		}
-		if _, err := client.Authorize(ctx); err != nil {
-			sharedClientErr = fmt.Errorf("failed to authorize against staging API: %w", err)
-			return
-		}
-		sharedClient = client
-		config.SetLoginFunc(func(context.Context) (*megaport.Client, error) {
-			return client, nil
-		})
-	})
-	if sharedClientErr != nil {
-		t.Fatalf("integration setup failed: %v", sharedClientErr)
-	}
-	if sharedClient == nil {
-		t.Skip("MEGAPORT_ACCESS_KEY and MEGAPORT_SECRET_KEY required for integration tests")
-	}
-}
+// These tests use t.Parallel(); see testutil.RequireSharedIntegrationClient
+// for why a process-wide sync.Once-guarded login function is used here
+// instead of the per-test save/restore pattern in testutil.LoginWithClient.
 
 func generateUniqueID(t *testing.T) string {
 	t.Helper()
@@ -176,12 +130,24 @@ func captureWithFormat(format string, f func()) string {
 	})
 }
 
+// cleanupStatusTimeout bounds how long registerPortCleanup will poll GetPort
+// for the port to enter DECOMMISSIONING/DECOMMISSIONED after DeletePort.
+// DeletePort only submits the cancellation request; the API can take a few
+// seconds to reflect the new provisioning_status. Sixty seconds is well
+// above observed transitions on staging without making a stuck cleanup
+// drag the test run out by minutes.
+const (
+	cleanupStatusTimeout  = 60 * time.Second
+	cleanupStatusInterval = 2 * time.Second
+)
+
 // registerPortCleanup schedules a best-effort delete of the given port. The
 // cleanup runs even when the test fails, ensuring no orphaned resources on
-// staging. After deletion it asserts the port is reported as
-// DECOMMISSIONING / DECOMMISSIONED. The package-level login function installed
-// by requireSharedClient remains active for the cleanup callback (no
-// per-test restore happens).
+// staging. After deletion it polls GetPort until the port reports
+// DECOMMISSIONING / DECOMMISSIONED, or until cleanupStatusTimeout elapses.
+// The package-level login function installed by
+// testutil.RequireSharedIntegrationClient remains active for the cleanup
+// callback (no per-test restore happens).
 func registerPortCleanup(t *testing.T, uid string) {
 	t.Helper()
 	t.Cleanup(func() {
@@ -198,27 +164,37 @@ func registerPortCleanup(t *testing.T, uid string) {
 			return
 		}
 
-		getCmd := newGetPortCmd()
-		var getErr error
-		getOut := captureWithFormat("json", func() {
-			getErr = GetPort(getCmd, []string{uid}, true, "json")
-		})
-		if getErr != nil {
-			t.Logf("cleanup: GetPort after delete returned %v (port may already be gone)", getErr)
-			return
-		}
-		var ports []map[string]any
-		if err := json.Unmarshal([]byte(getOut), &ports); err != nil || len(ports) == 0 {
-			t.Errorf("cleanup: GetPort returned success but body could not be parsed: %v, output: %s", err, getOut)
-			return
-		}
-		status, ok := ports[0]["provisioning_status"].(string)
-		if !ok {
-			t.Errorf("cleanup: provisioning_status missing or not a string in GetPort response: %v", ports[0]["provisioning_status"])
-			return
-		}
-		if !strings.Contains(status, "DECOMMISSIONING") && !strings.Contains(status, "DECOMMISSIONED") {
-			t.Errorf("expected port %s to be DECOMMISSIONING or DECOMMISSIONED, got %q", uid, status)
+		deadline := time.Now().Add(cleanupStatusTimeout)
+		var lastStatus string
+		for {
+			getCmd := newGetPortCmd()
+			var getErr error
+			getOut := captureWithFormat("json", func() {
+				getErr = GetPort(getCmd, []string{uid}, true, "json")
+			})
+			if getErr != nil {
+				t.Logf("cleanup: GetPort after delete returned %v (port may already be gone)", getErr)
+				return
+			}
+			var ports []map[string]any
+			if err := json.Unmarshal([]byte(getOut), &ports); err != nil || len(ports) == 0 {
+				t.Errorf("cleanup: GetPort returned success but body could not be parsed: %v, output: %s", err, getOut)
+				return
+			}
+			status, ok := ports[0]["provisioning_status"].(string)
+			if !ok {
+				t.Errorf("cleanup: provisioning_status missing or not a string in GetPort response: %v", ports[0]["provisioning_status"])
+				return
+			}
+			lastStatus = status
+			if strings.Contains(status, "DECOMMISSIONING") || strings.Contains(status, "DECOMMISSIONED") {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Errorf("expected port %s to reach DECOMMISSIONING or DECOMMISSIONED within %s, last status %q", uid, cleanupStatusTimeout, lastStatus)
+				return
+			}
+			time.Sleep(cleanupStatusInterval)
 		}
 	})
 }
@@ -308,7 +284,7 @@ func runUpdatePortWithFlag(t *testing.T, uid, flagName, flagValue string) {
 
 func TestIntegration_PortLifecycle(t *testing.T) {
 	t.Parallel()
-	requireSharedClient(t)
+	testutil.RequireSharedIntegrationClient(t)
 
 	portName := fmt.Sprintf("CLI-Test-Port-%s", generateUniqueID(t))
 
@@ -349,7 +325,7 @@ func TestIntegration_PortLifecycle(t *testing.T) {
 
 func TestIntegration_LAGPortLifecycle(t *testing.T) {
 	t.Parallel()
-	requireSharedClient(t)
+	testutil.RequireSharedIntegrationClient(t)
 
 	portName := fmt.Sprintf("CLI-Test-LAG-%s", generateUniqueID(t))
 
@@ -380,7 +356,7 @@ func TestIntegration_LAGPortLifecycle(t *testing.T) {
 
 func TestIntegration_PortJSONInputLifecycle(t *testing.T) {
 	t.Parallel()
-	requireSharedClient(t)
+	testutil.RequireSharedIntegrationClient(t)
 
 	portName := fmt.Sprintf("CLI-Test-Port-JSON-%s", generateUniqueID(t))
 
@@ -418,7 +394,7 @@ func TestIntegration_PortJSONInputLifecycle(t *testing.T) {
 
 func TestIntegration_PortJSONFileLifecycle(t *testing.T) {
 	t.Parallel()
-	requireSharedClient(t)
+	testutil.RequireSharedIntegrationClient(t)
 
 	portName := fmt.Sprintf("CLI-Test-Port-JSONFile-%s", generateUniqueID(t))
 
