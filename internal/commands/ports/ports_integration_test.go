@@ -136,11 +136,14 @@ func registerPortCleanup(t *testing.T, client *megaport.Client, uid string) {
 		require.NoError(t, delCmd.Flags().Set("now", "true"))
 		require.NoError(t, delCmd.Flags().Set("force", "true"))
 
+		var deleteErr error
 		_ = captureWithFormat("table", func() {
-			if err := DeletePort(delCmd, []string{uid}, true); err != nil {
-				t.Errorf("cleanup: failed to delete port %s: %v", uid, err)
-			}
+			deleteErr = DeletePort(delCmd, []string{uid}, true)
 		})
+		if deleteErr != nil {
+			t.Errorf("cleanup: failed to delete port %s: %v", uid, deleteErr)
+			return
+		}
 
 		getCmd := newGetPortCmd()
 		var getErr error
@@ -151,12 +154,16 @@ func registerPortCleanup(t *testing.T, client *megaport.Client, uid string) {
 			t.Logf("cleanup: GetPort after delete returned %v (port may already be gone)", getErr)
 			return
 		}
-		var ports []map[string]interface{}
+		var ports []map[string]any
 		if err := json.Unmarshal([]byte(getOut), &ports); err != nil || len(ports) == 0 {
-			t.Logf("cleanup: could not parse GetPort JSON: %v, output: %s", err, getOut)
+			t.Errorf("cleanup: GetPort returned success but body could not be parsed: %v, output: %s", err, getOut)
 			return
 		}
-		status, _ := ports[0]["provisioning_status"].(string)
+		status, ok := ports[0]["provisioning_status"].(string)
+		if !ok {
+			t.Errorf("cleanup: provisioning_status missing or not a string in GetPort response: %v", ports[0]["provisioning_status"])
+			return
+		}
 		if !strings.Contains(status, "DECOMMISSIONING") && !strings.Contains(status, "DECOMMISSIONED") {
 			t.Errorf("expected port %s to be DECOMMISSIONING or DECOMMISSIONED, got %q", uid, status)
 		}
@@ -165,7 +172,7 @@ func registerPortCleanup(t *testing.T, client *megaport.Client, uid string) {
 
 // portFromGet runs GetPort with JSON output and returns the first port record.
 // Fails the test if the response is empty or malformed.
-func portFromGet(t *testing.T, uid string) map[string]interface{} {
+func portFromGet(t *testing.T, uid string) map[string]any {
 	t.Helper()
 	cmd := newGetPortCmd()
 	var err error
@@ -173,7 +180,7 @@ func portFromGet(t *testing.T, uid string) map[string]interface{} {
 		err = GetPort(cmd, []string{uid}, true, "json")
 	})
 	require.NoError(t, err)
-	var ports []map[string]interface{}
+	var ports []map[string]any
 	require.NoErrorf(t, json.Unmarshal([]byte(captured), &ports), "GetPort output should be valid JSON: %s", captured)
 	require.NotEmptyf(t, ports, "GetPort returned empty array: %s", captured)
 	return ports[0]
@@ -215,22 +222,10 @@ func runUpdatePortName(t *testing.T, uid, newName string) {
 	require.NoErrorf(t, err, "UpdatePort failed: %s", captured)
 }
 
-func runUpdatePortJSON(t *testing.T, uid, jsonPayload string) {
+func runUpdatePortWithFlag(t *testing.T, uid, flagName, flagValue string) {
 	t.Helper()
 	cmd := newUpdatePortCmd()
-	require.NoError(t, cmd.Flags().Set("json", jsonPayload))
-
-	var err error
-	captured := captureWithFormat("table", func() {
-		err = UpdatePort(cmd, []string{uid}, true)
-	})
-	require.NoErrorf(t, err, "UpdatePort failed: %s", captured)
-}
-
-func runUpdatePortJSONFile(t *testing.T, uid, jsonFile string) {
-	t.Helper()
-	cmd := newUpdatePortCmd()
-	require.NoError(t, cmd.Flags().Set("json-file", jsonFile))
+	require.NoError(t, cmd.Flags().Set(flagName, flagValue))
 
 	var err error
 	captured := captureWithFormat("table", func() {
@@ -338,7 +333,7 @@ func TestIntegration_PortJSONInputLifecycle(t *testing.T) {
 	updatePayload, err := json.Marshal(map[string]string{"name": newName})
 	require.NoError(t, err)
 
-	runUpdatePortJSON(t, uid, string(updatePayload))
+	runUpdatePortWithFlag(t, uid, "json", string(updatePayload))
 
 	updated := portFromGet(t, uid)
 	assert.Equal(t, newName, updated["name"])
@@ -387,7 +382,7 @@ func TestIntegration_PortJSONFileLifecycle(t *testing.T) {
 	updateFile := filepath.Join(t.TempDir(), "port-update.json")
 	require.NoError(t, os.WriteFile(updateFile, updatePayload, 0o600))
 
-	runUpdatePortJSONFile(t, uid, updateFile)
+	runUpdatePortWithFlag(t, uid, "json-file", updateFile)
 
 	updated := portFromGet(t, uid)
 	assert.Equal(t, newName, updated["name"])
