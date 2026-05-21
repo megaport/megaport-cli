@@ -1,4 +1,4 @@
-.PHONY: build test lint fmt vet check clean wasm
+.PHONY: build test test-cover test-integration test-integration-readonly lint fmt vet check clean wasm
 
 # Build the CLI binary
 build:
@@ -13,6 +13,14 @@ test-cover:
 	go test -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out
 	@rm -f coverage.out
+
+# Run integration tests against staging API (requires credentials — see docs/INTEGRATION_TESTING.md)
+test-integration:
+	go test -tags integration -run '^TestIntegration_' -v -timeout 30m ./internal/commands/...
+
+# Run only read-only integration tests — fast, no resources provisioned
+test-integration-readonly:
+	go test -tags integration -run '^TestIntegration_' -v -timeout 5m ./internal/commands/locations/...
 
 # Run linter
 lint:
