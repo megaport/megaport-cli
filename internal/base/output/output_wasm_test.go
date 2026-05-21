@@ -7,6 +7,7 @@ import (
 	"syscall/js"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/wasm"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -300,6 +301,29 @@ func TestWasmOutputConcurrency(t *testing.T) {
 	assert.Equal(t, iterations, len(WasmJSONWriter.String()))
 	assert.Equal(t, iterations, len(WasmCSVWriter.String()))
 	assert.Equal(t, iterations, len(WasmTableWriter.String()))
+}
+
+// TestPrintNewline_WASM verifies PrintNewline writes a newline to WasmOutputBuffer.
+func TestPrintNewline_WASM(t *testing.T) {
+	wasm.WasmOutputBuffer.Reset()
+	SetVerbosity("normal")
+
+	PrintNewline()
+
+	assert.Equal(t, "\n", wasm.WasmOutputBuffer.String(), "PrintNewline should write exactly one newline to WasmOutputBuffer")
+	wasm.WasmOutputBuffer.Reset()
+}
+
+// TestPrintNewline_WASM_QuietSuppresses verifies PrintNewline is a no-op in quiet mode.
+func TestPrintNewline_WASM_QuietSuppresses(t *testing.T) {
+	wasm.WasmOutputBuffer.Reset()
+	SetVerbosity("quiet")
+	defer SetVerbosity("normal")
+
+	PrintNewline()
+
+	assert.Empty(t, wasm.WasmOutputBuffer.String(), "PrintNewline should produce no output in quiet mode")
+	wasm.WasmOutputBuffer.Reset()
 }
 
 // TestConsoleLogging verifies console.log doesn't cause panics

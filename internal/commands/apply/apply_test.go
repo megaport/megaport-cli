@@ -237,6 +237,8 @@ ports:
 }
 
 func TestApplyConfig_DryRunValidationError(t *testing.T) {
+	output.SetTerminalWidthForTesting(200)
+	defer output.SetTerminalWidthForTesting(0)
 	mockPort := &MockPortService{ValidatePortOrderErr: fmt.Errorf("invalid location")}
 	defer setupMockClient(mockPort, &MockMCRService{}, &MockMVEService{}, &MockVXCService{})()
 

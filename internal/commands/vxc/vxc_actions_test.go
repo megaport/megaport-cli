@@ -442,6 +442,7 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 		name                 string
 		vxcUID               string
 		interactive          bool
+		force                bool
 		promptResult         map[string]string
 		promptError          error
 		jsonInput            string
@@ -477,8 +478,9 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 		{
 			name:   "successful update with json",
 			vxcUID: "vxc-456",
+			force:  true,
 			jsonInput: `{
-				"environment": "production", 
+				"environment": "production",
 				"team": "networking",
 				"project": "cloud-migration"
 			}`,
@@ -549,6 +551,7 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 		{
 			name:      "empty tags clear all existing tags",
 			vxcUID:    "vxc-clear-tags",
+			force:     true,
 			jsonInput: `{}`,
 			existingTags: map[string]string{
 				"environment": "staging",
@@ -598,11 +601,17 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 			}
 
 			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().Bool("force", false, "")
 			cmd.Flags().String("json", "", "")
 			cmd.Flags().String("json-file", "", "")
 
 			if tt.interactive {
 				err := cmd.Flags().Set("interactive", "true")
+				assert.NoError(t, err)
+			}
+
+			if tt.force {
+				err := cmd.Flags().Set("force", "true")
 				assert.NoError(t, err)
 			}
 

@@ -1283,6 +1283,7 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 		name                 string
 		mveUID               string
 		interactive          bool
+		force                bool
 		promptResult         map[string]string
 		promptError          error
 		jsonInput            string
@@ -1317,6 +1318,7 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 		{
 			name:   "successful update with json",
 			mveUID: "mve-456",
+			force:  true,
 			jsonInput: `{
 				"environment": "production",
 				"project": "sdwan-rollout"
@@ -1390,6 +1392,7 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 		{
 			name:      "empty tags clear all existing tags",
 			mveUID:    "mve-clear-tags",
+			force:     true,
 			jsonInput: `{}`,
 			setupMock: func(m *MockMVEService) {
 				m.ListMVEResourceTagsResult = map[string]string{
@@ -1440,6 +1443,7 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 			}
 
 			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().Bool("force", false, "")
 			cmd.Flags().String("json", "", "")
 			cmd.Flags().String("json-file", "", "")
 
@@ -1447,6 +1451,13 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 				err := cmd.Flags().Set("interactive", "true")
 				if err != nil {
 					t.Fatalf("Failed to set interactive flag: %v", err)
+				}
+			}
+
+			if tt.force {
+				err := cmd.Flags().Set("force", "true")
+				if err != nil {
+					t.Fatalf("Failed to set force flag: %v", err)
 				}
 			}
 

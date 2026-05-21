@@ -3,6 +3,7 @@ package apply
 import (
 	"context"
 	"fmt"
+	"time"
 
 	megaport "github.com/megaport/megaportgo"
 )
@@ -63,10 +64,12 @@ func (m *MockPortService) UpdatePortResourceTags(ctx context.Context, portID str
 
 // MockMCRService implements megaport.MCRService for testing.
 type MockMCRService struct {
-	BuyMCRResult        *megaport.BuyMCRResponse
-	BuyMCRErr           error
-	ValidateMCROrderErr error
-	CapturedMCRRequest  *megaport.BuyMCRRequest
+	BuyMCRResult         *megaport.BuyMCRResponse
+	BuyMCRErr            error
+	ValidateMCROrderErr  error
+	CapturedMCRRequest   *megaport.BuyMCRRequest
+	WaitForMCRReadyDelay time.Duration
+	WaitForMCRReadyErr   error
 }
 
 func (m *MockMCRService) BuyMCR(ctx context.Context, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
@@ -130,6 +133,19 @@ func (m *MockMCRService) UpdateMCRWithAddOn(ctx context.Context, mcrID string, r
 
 func (m *MockMCRService) UpdateMCRIPsecAddOn(ctx context.Context, mcrID string, addOnUID string, tunnelCount int) error {
 	return fmt.Errorf("mock: UpdateMCRIPsecAddOn not configured")
+}
+
+func (m *MockMCRService) WaitForMCRReady(ctx context.Context, mcrID string, timeout time.Duration) error {
+	if m.WaitForMCRReadyDelay > 0 {
+		t := time.NewTimer(m.WaitForMCRReadyDelay)
+		defer t.Stop()
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-t.C:
+		}
+	}
+	return m.WaitForMCRReadyErr
 }
 
 // MockMVEService implements megaport.MVEService for testing.
