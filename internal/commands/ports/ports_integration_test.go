@@ -105,6 +105,17 @@ func newGetPortCmd() *cobra.Command {
 	return cmd
 }
 
+func newListPortsCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "list"}
+	cmd.Flags().Int("location-id", 0, "")
+	cmd.Flags().Int("port-speed", 0, "")
+	cmd.Flags().String("port-name", "", "")
+	cmd.Flags().Bool("include-inactive", false, "")
+	cmd.Flags().Int("limit", 0, "")
+	cmd.Flags().StringArray("tag", nil, "")
+	return cmd
+}
+
 // captureWithFormat sets the global output format and runs f under
 // output.CaptureOutput. Both happen while CaptureOutput's stdoutMu is held, so
 // parallel tests cannot race on the global format or on stdout swapping.
@@ -168,6 +179,25 @@ func registerPortCleanup(t *testing.T, client *megaport.Client, uid string) {
 			t.Errorf("expected port %s to be DECOMMISSIONING or DECOMMISSIONED, got %q", uid, status)
 		}
 	})
+}
+
+// listPortsByName runs ListPorts with --port-name set and returns the parsed
+// records. The port-name filter is a substring match server-side-equivalent on
+// the client; passing the unique generated name keeps results scoped to the
+// caller's port even when other parallel tests are running.
+func listPortsByName(t *testing.T, name string) []map[string]any {
+	t.Helper()
+	cmd := newListPortsCmd()
+	require.NoError(t, cmd.Flags().Set("port-name", name))
+
+	var err error
+	captured := captureWithFormat("json", func() {
+		err = ListPorts(cmd, nil, true, "json")
+	})
+	require.NoErrorf(t, err, "ListPorts failed: %s", captured)
+	var ports []map[string]any
+	require.NoErrorf(t, json.Unmarshal([]byte(captured), &ports), "ListPorts output should be valid JSON: %s", captured)
+	return ports
 }
 
 // portFromGet runs GetPort with JSON output and returns the first port record.
@@ -258,6 +288,17 @@ func TestIntegration_PortLifecycle(t *testing.T) {
 	assert.Equal(t, uid, port["uid"])
 	assert.Equal(t, portName, port["name"])
 	assert.NotEmpty(t, port["provisioning_status"], "provisioning_status should be populated")
+
+	listed := listPortsByName(t, portName)
+	require.NotEmpty(t, listed, "newly created port should appear in list filtered by name %q", portName)
+	found := false
+	for _, p := range listed {
+		if p["uid"] == uid {
+			found = true
+			break
+		}
+	}
+	assert.Truef(t, found, "uid %s not found in list filtered by name %q; got %d port(s)", uid, portName, len(listed))
 
 	newName := portName + "-Updated"
 	runUpdatePortName(t, uid, newName)
