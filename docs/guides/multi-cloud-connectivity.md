@@ -275,13 +275,13 @@ Once all VXCs are LIVE, complete the setup in each cloud console:
 Delete VXCs before deleting the MCR:
 
 ```sh
-# Delete VXCs first
-megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --now  # AWS
-megaport-cli vxc delete vxc-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy --now  # Azure
-megaport-cli vxc delete vxc-zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz --now  # GCP
+# Delete VXCs first (immediate by default; pass --later to defer to end of billing cycle)
+megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx  # AWS
+megaport-cli vxc delete vxc-yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy  # Azure
+megaport-cli vxc delete vxc-zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz  # GCP
 
 # Then delete the MCR
-megaport-cli mcr delete mcr-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --now
+megaport-cli mcr delete mcr-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
 ## Related Commands

@@ -120,14 +120,14 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	deleteMVECmd := cmdbuilder.NewCommand("delete", "Delete an existing MVE").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(DeleteMVE).
-		WithSafeDeleteFlags().
-		WithLongDesc("Delete an existing Megaport Virtual Edge (MVE).\n\nThis command allows you to delete an existing MVE by providing its UID.").
+		WithImmediateSafeDeleteFlags().
+		WithLongDesc("Delete an existing Megaport Virtual Edge (MVE).\n\nMVEs are deleted immediately; deferred end-of-term cancellation is not supported by the API.").
 		WithExample("megaport-cli mve delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
 		WithExample("megaport-cli mve delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --force").
-		WithExample("megaport-cli mve delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now").
-		WithImportantNote("Deletion is final and cannot be undone").
-		WithImportantNote("Billing for the MVE stops at the end of the current billing period unless --now is specified").
+		WithExample("megaport-cli mve delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --force --safe-delete").
+		WithImportantNote("Deletion is immediate; billing stops right away").
 		WithImportantNote("All associated VXCs will be automatically terminated").
+		WithImportantNote("Deletion is final and cannot be undone").
 		WithRootCmd(rootCmd).
 		WithAliases([]string{"rm"}).
 		Build()

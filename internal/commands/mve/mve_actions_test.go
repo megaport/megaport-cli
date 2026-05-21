@@ -473,7 +473,6 @@ func TestDeleteMVE(t *testing.T) {
 		mockSetup      func(*MockMVEService)
 		confirmDelete  bool
 		forceFlag      bool
-		nowFlag        bool
 		safeDeleteFlag bool
 		expectedError  string
 		expectedOutput string
@@ -521,15 +520,6 @@ func TestDeleteMVE(t *testing.T) {
 			forceFlag:      true,
 			expectedOutput: "MVE deleted mve-uid",
 		},
-		{
-			name: "immediate deletion",
-			mockSetup: func(m *MockMVEService) {
-				m.DeleteMVEErr = nil
-			},
-			confirmDelete:  true,
-			nowFlag:        true,
-			expectedOutput: "MVE deleted mve-uid",
-		},
 	}
 
 	for _, tt := range tests {
@@ -556,7 +546,6 @@ func TestDeleteMVE(t *testing.T) {
 			}
 
 			cmd.Flags().Bool("force", tt.forceFlag, "")
-			cmd.Flags().Bool("now", tt.nowFlag, "")
 			cmd.Flags().Bool("safe-delete", false, "")
 			if tt.safeDeleteFlag {
 				_ = cmd.Flags().Set("safe-delete", "true")

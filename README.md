@@ -343,8 +343,8 @@ megaport-cli mcr update MCR_UID --name "Updated MCR" --cost-centre "IT-123"
 megaport-cli mcr update MCR_UID --json '{"name":"Updated MCR","costCentre":"IT-123"}'
 megaport-cli mcr update MCR_UID --json-file ./update-mcr-config.json
 
-# Delete an MCR
-megaport-cli mcr delete MCR_UID --now
+# Delete an MCR (immediate)
+megaport-cli mcr delete MCR_UID
 
 # Restore a deleted MCR
 megaport-cli mcr restore MCR_UID
@@ -397,8 +397,8 @@ megaport-cli mve update MVE_UID --interactive
 megaport-cli mve update MVE_UID --name "Updated MVE Name" --cost-centre "New Cost Centre" --contract-term 24
 megaport-cli mve update MVE_UID --json '{"name": "New MVE Name", "costCentre": "New Cost Centre", "contractTermMonths": 24}'
 
-# Delete an MVE
-megaport-cli mve delete MVE_UID --now
+# Delete an MVE (immediate)
+megaport-cli mve delete MVE_UID
 
 # List all available MVE images
 megaport-cli mve list-images

@@ -441,7 +441,8 @@ func DeleteVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	formattedUID := output.FormatUID(vxcUID, noColor)
 
 	force, _ := cmd.Flags().GetBool("force")
-	deleteNow, _ := cmd.Flags().GetBool("now")
+	later, _ := cmd.Flags().GetBool("later")
+	deleteNow := !later
 
 	if !force {
 		message := fmt.Sprintf("Are you sure you want to delete VXC %s?", formattedUID)
