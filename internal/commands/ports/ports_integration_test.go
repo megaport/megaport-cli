@@ -200,9 +200,9 @@ func registerPortCleanup(t *testing.T, uid string) {
 }
 
 // listPortsByName runs ListPorts with --port-name set and returns the parsed
-// records. The port-name filter is a substring match server-side-equivalent on
-// the client; passing the unique generated name keeps results scoped to the
-// caller's port even when other parallel tests are running.
+// records. The port-name filter is applied client-side as a substring match
+// on port names; passing the unique generated name keeps results scoped to
+// the caller's port even when other parallel tests are running.
 func listPortsByName(t *testing.T, name string) []map[string]any {
 	t.Helper()
 	cmd := newListPortsCmd()
