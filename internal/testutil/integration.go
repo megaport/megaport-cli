@@ -114,3 +114,16 @@ func RequireSharedIntegrationClient(t *testing.T) {
 		t.Skip("MEGAPORT_ACCESS_KEY and MEGAPORT_SECRET_KEY required for integration tests")
 	}
 }
+
+// SharedIntegrationClient returns the process-wide staging client installed by
+// RequireSharedIntegrationClient. Tests use it to read state directly from the
+// SDK in assertions, avoiding output.CaptureOutput on hot paths where parallel
+// goroutines would race on the global os.Stdout swap. Callers must invoke
+// RequireSharedIntegrationClient(t) first; this fails the test if not.
+func SharedIntegrationClient(t *testing.T) *megaport.Client {
+	t.Helper()
+	if sharedIntegrationClient == nil {
+		t.Fatal("SharedIntegrationClient called before RequireSharedIntegrationClient")
+	}
+	return sharedIntegrationClient
+}

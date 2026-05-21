@@ -3,6 +3,7 @@
 package ports
 
 import (
+	"context"
 	crypto_rand "crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -10,11 +11,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/testutil"
+	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,6 +32,33 @@ const integrationLocationID = 67
 // These tests use t.Parallel(); see testutil.RequireSharedIntegrationClient
 // for why a process-wide sync.Once-guarded login function is used here
 // instead of the per-test save/restore pattern in testutil.LoginWithClient.
+//
+// State assertions go through the SDK directly (testutil.SharedIntegrationClient)
+// rather than via output.CaptureOutput on GetPort/ListPorts. CaptureOutput
+// swaps the global os.Stdout for a tmpfile while it runs; with t.Parallel(),
+// concurrent action goroutines (especially their spinner goroutines, which
+// write asynchronously) end up writing into another test's tmpfile or into a
+// just-closed file descriptor. The result is polluted or empty captures.
+// Side-effecting actions (BuyPort, BuyLAGPort, UpdatePort, DeletePort) still
+// run end-to-end through the CLI code paths; we only skip capture and read
+// the API state directly for verification.
+
+// integrationBuyResponses lets parallel tests retrieve the BuyPortResponse
+// for their port without scraping stdout. The init() hook below wraps
+// buyPortFunc so the SDK response is stored under the request name; tests
+// read the UID back from this map.
+var integrationBuyResponses sync.Map // key: request.Name (string), value: *megaport.BuyPortResponse
+
+func init() {
+	base := buyPortFunc
+	buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
+		resp, err := base(ctx, client, req)
+		if err == nil && resp != nil && req != nil && req.Name != "" {
+			integrationBuyResponses.Store(req.Name, resp)
+		}
+		return resp, err
+	}
+}
 
 func generateUniqueID(t *testing.T) string {
 	t.Helper()
@@ -37,23 +66,6 @@ func generateUniqueID(t *testing.T) string {
 	_, err := crypto_rand.Read(buf)
 	require.NoError(t, err, "failed to read crypto/rand entropy")
 	return hex.EncodeToString(buf)
-}
-
-// extractCreatedUID parses "<resource> created <uid>" from captured output and
-// returns the UID. PrintResourceCreated writes "<resource> created <uid>" via
-// PrintSuccess; with noColor=true the UID is unstyled, so the next whitespace
-// character terminates it.
-func extractCreatedUID(t *testing.T, captured, resourceLabel string) string {
-	t.Helper()
-	marker := resourceLabel + " created "
-	idx := strings.Index(captured, marker)
-	require.GreaterOrEqualf(t, idx, 0, "expected %q in output, got: %q", marker, captured)
-	rest := captured[idx+len(marker):]
-	end := strings.IndexAny(rest, " \n\r\t")
-	if end < 0 {
-		return strings.TrimSpace(rest)
-	}
-	return strings.TrimSpace(rest[:end])
 }
 
 func newBuyPortCmd() *cobra.Command {
@@ -102,40 +114,12 @@ func newDeletePortCmd() *cobra.Command {
 	return cmd
 }
 
-func newGetPortCmd() *cobra.Command {
-	cmd := &cobra.Command{Use: "get"}
-	cmd.Flags().Bool("watch", false, "")
-	cmd.Flags().Bool("export", false, "")
-	return cmd
-}
-
-func newListPortsCmd() *cobra.Command {
-	cmd := &cobra.Command{Use: "list"}
-	cmd.Flags().Int("location-id", 0, "")
-	cmd.Flags().Int("port-speed", 0, "")
-	cmd.Flags().String("port-name", "", "")
-	cmd.Flags().Bool("include-inactive", false, "")
-	cmd.Flags().Int("limit", 0, "")
-	cmd.Flags().StringArray("tag", nil, "")
-	return cmd
-}
-
-// captureWithFormat sets the global output format and runs f under
-// output.CaptureOutput. Both happen while CaptureOutput's stdoutMu is held, so
-// parallel tests cannot race on the global format or on stdout swapping.
-func captureWithFormat(format string, f func()) string {
-	return output.CaptureOutput(func() {
-		output.SetOutputFormat(format)
-		f()
-	})
-}
-
-// cleanupStatusTimeout bounds how long registerPortCleanup will poll GetPort
+// cleanupStatusTimeout bounds how long registerPortCleanup will poll the SDK
 // for the port to enter DECOMMISSIONING/DECOMMISSIONED after DeletePort.
 // DeletePort only submits the cancellation request; the API can take a few
 // seconds to reflect the new provisioning_status. Sixty seconds is well
-// above observed transitions on staging without making a stuck cleanup
-// drag the test run out by minutes.
+// above observed transitions on staging without making a stuck cleanup drag
+// the test run out by minutes.
 const (
 	cleanupStatusTimeout  = 60 * time.Second
 	cleanupStatusInterval = 2 * time.Second
@@ -143,8 +127,9 @@ const (
 
 // registerPortCleanup schedules a best-effort delete of the given port. The
 // cleanup runs even when the test fails, ensuring no orphaned resources on
-// staging. After deletion it polls GetPort until the port reports
-// DECOMMISSIONING / DECOMMISSIONED, or until cleanupStatusTimeout elapses.
+// staging. DeletePort writes its progress to the real stdout (interleaved
+// with other parallel tests' cleanups, which is harmless). The post-delete
+// status check polls the SDK directly to avoid CaptureOutput's stdout swap.
 // The package-level login function installed by
 // testutil.RequireSharedIntegrationClient remains active for the cleanup
 // callback (no per-test restore happens).
@@ -155,39 +140,24 @@ func registerPortCleanup(t *testing.T, uid string) {
 		require.NoError(t, delCmd.Flags().Set("now", "true"))
 		require.NoError(t, delCmd.Flags().Set("force", "true"))
 
-		var deleteErr error
-		_ = captureWithFormat("table", func() {
-			deleteErr = DeletePort(delCmd, []string{uid}, true)
-		})
-		if deleteErr != nil {
-			t.Errorf("cleanup: failed to delete port %s: %v", uid, deleteErr)
+		if err := DeletePort(delCmd, []string{uid}, true); err != nil {
+			t.Errorf("cleanup: failed to delete port %s: %v", uid, err)
 			return
 		}
 
+		client := testutil.SharedIntegrationClient(t)
 		deadline := time.Now().Add(cleanupStatusTimeout)
 		var lastStatus string
 		for {
-			getCmd := newGetPortCmd()
-			var getErr error
-			getOut := captureWithFormat("json", func() {
-				getErr = GetPort(getCmd, []string{uid}, true, "json")
-			})
-			if getErr != nil {
-				t.Logf("cleanup: GetPort after delete returned %v (port may already be gone)", getErr)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			port, err := client.PortService.GetPort(ctx, uid)
+			cancel()
+			if err != nil {
+				t.Logf("cleanup: SDK GetPort after delete returned %v (port may already be gone)", err)
 				return
 			}
-			var ports []map[string]any
-			if err := json.Unmarshal([]byte(getOut), &ports); err != nil || len(ports) == 0 {
-				t.Errorf("cleanup: GetPort returned success but body could not be parsed: %v, output: %s", err, getOut)
-				return
-			}
-			status, ok := ports[0]["provisioning_status"].(string)
-			if !ok {
-				t.Errorf("cleanup: provisioning_status missing or not a string in GetPort response: %v", ports[0]["provisioning_status"])
-				return
-			}
-			lastStatus = status
-			if strings.Contains(status, "DECOMMISSIONING") || strings.Contains(status, "DECOMMISSIONED") {
+			lastStatus = port.ProvisioningStatus
+			if strings.Contains(lastStatus, "DECOMMISSIONING") || strings.Contains(lastStatus, "DECOMMISSIONED") {
 				return
 			}
 			if time.Now().After(deadline) {
@@ -199,87 +169,98 @@ func registerPortCleanup(t *testing.T, uid string) {
 	})
 }
 
-// listPortsByName runs ListPorts with --port-name set and returns the parsed
-// records. The port-name filter is applied client-side as a substring match
-// on port names; passing the unique generated name keeps results scoped to
-// the caller's port even when other parallel tests are running.
-func listPortsByName(t *testing.T, name string) []map[string]any {
+// portFromSDK reads the port via the shared SDK client. Used for parallel-safe
+// state assertions instead of scraping GetPort's stdout output.
+func portFromSDK(t *testing.T, uid string) *megaport.Port {
 	t.Helper()
-	cmd := newListPortsCmd()
-	require.NoError(t, cmd.Flags().Set("port-name", name))
-
-	var err error
-	captured := captureWithFormat("json", func() {
-		err = ListPorts(cmd, nil, true, "json")
-	})
-	require.NoErrorf(t, err, "ListPorts failed: %s", captured)
-	var ports []map[string]any
-	require.NoErrorf(t, json.Unmarshal([]byte(captured), &ports), "ListPorts output should be valid JSON: %s", captured)
-	return ports
+	client := testutil.SharedIntegrationClient(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	port, err := client.PortService.GetPort(ctx, uid)
+	require.NoErrorf(t, err, "SDK GetPort failed for %s", uid)
+	require.NotNilf(t, port, "SDK GetPort returned nil for %s", uid)
+	return port
 }
 
-// portFromGet runs GetPort with JSON output and returns the first port record.
-// Fails the test if the response is empty or malformed.
-func portFromGet(t *testing.T, uid string) map[string]any {
+// portsBySDKNameFilter lists all ports via the shared SDK client and returns
+// those whose name contains the given substring (case-insensitive, matching
+// the ListPorts action's client-side filter). Used for parallel-safe
+// list assertions.
+func portsBySDKNameFilter(t *testing.T, nameSubstring string) []*megaport.Port {
 	t.Helper()
-	cmd := newGetPortCmd()
-	var err error
-	captured := captureWithFormat("json", func() {
-		err = GetPort(cmd, []string{uid}, true, "json")
-	})
-	require.NoError(t, err)
-	var ports []map[string]any
-	require.NoErrorf(t, json.Unmarshal([]byte(captured), &ports), "GetPort output should be valid JSON: %s", captured)
-	require.NotEmptyf(t, ports, "GetPort returned empty array: %s", captured)
-	return ports[0]
+	client := testutil.SharedIntegrationClient(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	all, err := client.PortService.ListPorts(ctx)
+	require.NoError(t, err, "SDK ListPorts failed")
+	needle := strings.ToLower(nameSubstring)
+	var out []*megaport.Port
+	for _, p := range all {
+		if p == nil {
+			continue
+		}
+		if strings.Contains(strings.ToLower(p.Name), needle) {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
-func runBuyPort(t *testing.T, cmd *cobra.Command, resourceLabel string) string {
+// runBuyPort and runBuyLAGPort intentionally do not wrap BuyPort/BuyLAGPort
+// in output.CaptureOutput. Both actions block until LIVE
+// (WaitForProvision=true), which can take tens of seconds on staging, and
+// CaptureOutput would hold output.stdoutMu for the entire wait — defeating
+// t.Parallel(). Their spinner goroutines also write asynchronously, which
+// races with any concurrent CaptureOutput's stdout swap. The UID is
+// recovered from the response recorded by the init() hook on buyPortFunc
+// instead of scraping stdout.
+//
+// portName is passed explicitly (rather than read from --name) so that JSON
+// buys, which encode the name inside the payload rather than on a cobra
+// flag, work the same way as flag-driven buys. It must match the Name in
+// the final BuyPortRequest the action sends to the SDK.
+func runBuyPort(t *testing.T, cmd *cobra.Command, portName string) string {
 	t.Helper()
-	var err error
-	captured := captureWithFormat("table", func() {
-		err = BuyPort(cmd, nil, true)
-	})
-	require.NoErrorf(t, err, "BuyPort failed: %s", captured)
-	uid := extractCreatedUID(t, captured, resourceLabel)
-	require.NotEmpty(t, uid, "extracted UID is empty")
-	return uid
+	require.NotEmpty(t, portName, "portName must be provided to runBuyPort")
+	require.NoErrorf(t, BuyPort(cmd, nil, true), "BuyPort failed for %q", portName)
+	return uidFromBuyResponse(t, portName)
 }
 
-func runBuyLAGPort(t *testing.T, cmd *cobra.Command) string {
+func runBuyLAGPort(t *testing.T, cmd *cobra.Command, portName string) string {
 	t.Helper()
-	var err error
-	captured := captureWithFormat("table", func() {
-		err = BuyLAGPort(cmd, nil, true)
-	})
-	require.NoErrorf(t, err, "BuyLAGPort failed: %s", captured)
-	uid := extractCreatedUID(t, captured, "LAG Port")
-	require.NotEmpty(t, uid, "extracted LAG UID is empty")
-	return uid
+	require.NotEmpty(t, portName, "portName must be provided to runBuyLAGPort")
+	require.NoErrorf(t, BuyLAGPort(cmd, nil, true), "BuyLAGPort failed for %q", portName)
+	return uidFromBuyResponse(t, portName)
 }
 
+// uidFromBuyResponse returns the first technical service UID recorded for the
+// given port name. Tests rely on init()'s buyPortFunc wrapper to populate
+// integrationBuyResponses with the SDK response.
+func uidFromBuyResponse(t *testing.T, name string) string {
+	t.Helper()
+	v, ok := integrationBuyResponses.Load(name)
+	require.Truef(t, ok, "no buy response recorded for port %q", name)
+	resp, ok := v.(*megaport.BuyPortResponse)
+	require.Truef(t, ok, "buy response for %q has unexpected type %T", name, v)
+	require.NotEmptyf(t, resp.TechnicalServiceUIDs, "buy response for %q has no technical service UIDs", name)
+	return resp.TechnicalServiceUIDs[0]
+}
+
+// runUpdatePortName and runUpdatePortWithFlag also skip CaptureOutput.
+// UpdatePort blocks on WaitForUpdate=true and uses spinners. The test only
+// needs to know the call succeeded; no stdout scraping is required.
 func runUpdatePortName(t *testing.T, uid, newName string) {
 	t.Helper()
 	cmd := newUpdatePortCmd()
 	require.NoError(t, cmd.Flags().Set("name", newName))
-
-	var err error
-	captured := captureWithFormat("table", func() {
-		err = UpdatePort(cmd, []string{uid}, true)
-	})
-	require.NoErrorf(t, err, "UpdatePort failed: %s", captured)
+	require.NoErrorf(t, UpdatePort(cmd, []string{uid}, true), "UpdatePort failed for %s", uid)
 }
 
 func runUpdatePortWithFlag(t *testing.T, uid, flagName, flagValue string) {
 	t.Helper()
 	cmd := newUpdatePortCmd()
 	require.NoError(t, cmd.Flags().Set(flagName, flagValue))
-
-	var err error
-	captured := captureWithFormat("table", func() {
-		err = UpdatePort(cmd, []string{uid}, true)
-	})
-	require.NoErrorf(t, err, "UpdatePort failed: %s", captured)
+	require.NoErrorf(t, UpdatePort(cmd, []string{uid}, true), "UpdatePort failed for %s", uid)
 }
 
 func TestIntegration_PortLifecycle(t *testing.T) {
@@ -296,20 +277,20 @@ func TestIntegration_PortLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("marketplace-visibility", "false"))
 	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
 
-	uid := runBuyPort(t, buyCmd, "Port")
+	uid := runBuyPort(t, buyCmd, portName)
 	registerPortCleanup(t, uid)
 	t.Logf("Created port with UID: %s", uid)
 
-	port := portFromGet(t, uid)
-	assert.Equal(t, uid, port["uid"])
-	assert.Equal(t, portName, port["name"])
-	assert.NotEmpty(t, port["provisioning_status"], "provisioning_status should be populated")
+	port := portFromSDK(t, uid)
+	assert.Equal(t, uid, port.UID)
+	assert.Equal(t, portName, port.Name)
+	assert.NotEmpty(t, port.ProvisioningStatus, "provisioning_status should be populated")
 
-	listed := listPortsByName(t, portName)
+	listed := portsBySDKNameFilter(t, portName)
 	require.NotEmpty(t, listed, "newly created port should appear in list filtered by name %q", portName)
 	found := false
 	for _, p := range listed {
-		if p["uid"] == uid {
+		if p.UID == uid {
 			found = true
 			break
 		}
@@ -319,8 +300,8 @@ func TestIntegration_PortLifecycle(t *testing.T) {
 	newName := portName + "-Updated"
 	runUpdatePortName(t, uid, newName)
 
-	updated := portFromGet(t, uid)
-	assert.Equal(t, newName, updated["name"])
+	updated := portFromSDK(t, uid)
+	assert.Equal(t, newName, updated.Name)
 }
 
 func TestIntegration_LAGPortLifecycle(t *testing.T) {
@@ -338,20 +319,20 @@ func TestIntegration_LAGPortLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("marketplace-visibility", "false"))
 	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
 
-	uid := runBuyLAGPort(t, buyCmd)
+	uid := runBuyLAGPort(t, buyCmd, portName)
 	registerPortCleanup(t, uid)
 	t.Logf("Created LAG port with UID: %s", uid)
 
-	port := portFromGet(t, uid)
-	assert.Equal(t, uid, port["uid"])
-	assert.Equal(t, portName, port["name"])
-	assert.NotEmpty(t, port["provisioning_status"])
+	port := portFromSDK(t, uid)
+	assert.Equal(t, uid, port.UID)
+	assert.Equal(t, portName, port.Name)
+	assert.NotEmpty(t, port.ProvisioningStatus)
 
 	newName := portName + "-Updated"
 	runUpdatePortName(t, uid, newName)
 
-	updated := portFromGet(t, uid)
-	assert.Equal(t, newName, updated["name"])
+	updated := portFromSDK(t, uid)
+	assert.Equal(t, newName, updated.Name)
 }
 
 func TestIntegration_PortJSONInputLifecycle(t *testing.T) {
@@ -373,14 +354,14 @@ func TestIntegration_PortJSONInputLifecycle(t *testing.T) {
 	buyCmd := newBuyPortCmd()
 	require.NoError(t, buyCmd.Flags().Set("json", string(buyJSON)))
 
-	uid := runBuyPort(t, buyCmd, "Port")
+	uid := runBuyPort(t, buyCmd, portName)
 	registerPortCleanup(t, uid)
 	t.Logf("Created port (JSON input) with UID: %s", uid)
 
-	port := portFromGet(t, uid)
-	assert.Equal(t, uid, port["uid"])
-	assert.Equal(t, portName, port["name"])
-	assert.NotEmpty(t, port["provisioning_status"])
+	port := portFromSDK(t, uid)
+	assert.Equal(t, uid, port.UID)
+	assert.Equal(t, portName, port.Name)
+	assert.NotEmpty(t, port.ProvisioningStatus)
 
 	newName := portName + "-Updated-JSON"
 	updatePayload, err := json.Marshal(map[string]string{"name": newName})
@@ -388,8 +369,8 @@ func TestIntegration_PortJSONInputLifecycle(t *testing.T) {
 
 	runUpdatePortWithFlag(t, uid, "json", string(updatePayload))
 
-	updated := portFromGet(t, uid)
-	assert.Equal(t, newName, updated["name"])
+	updated := portFromSDK(t, uid)
+	assert.Equal(t, newName, updated.Name)
 }
 
 func TestIntegration_PortJSONFileLifecycle(t *testing.T) {
@@ -414,14 +395,14 @@ func TestIntegration_PortJSONFileLifecycle(t *testing.T) {
 	buyCmd := newBuyPortCmd()
 	require.NoError(t, buyCmd.Flags().Set("json-file", buyFile))
 
-	uid := runBuyPort(t, buyCmd, "Port")
+	uid := runBuyPort(t, buyCmd, portName)
 	registerPortCleanup(t, uid)
 	t.Logf("Created port (JSON file) with UID: %s", uid)
 
-	port := portFromGet(t, uid)
-	assert.Equal(t, uid, port["uid"])
-	assert.Equal(t, portName, port["name"])
-	assert.NotEmpty(t, port["provisioning_status"])
+	port := portFromSDK(t, uid)
+	assert.Equal(t, uid, port.UID)
+	assert.Equal(t, portName, port.Name)
+	assert.NotEmpty(t, port.ProvisioningStatus)
 
 	newName := portName + "-Updated-TempJSON"
 	updatePayload, err := json.MarshalIndent(map[string]any{
@@ -435,6 +416,6 @@ func TestIntegration_PortJSONFileLifecycle(t *testing.T) {
 
 	runUpdatePortWithFlag(t, uid, "json-file", updateFile)
 
-	updated := portFromGet(t, uid)
-	assert.Equal(t, newName, updated["name"])
+	updated := portFromSDK(t, uid)
+	assert.Equal(t, newName, updated.Name)
 }
