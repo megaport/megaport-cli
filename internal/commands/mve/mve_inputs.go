@@ -704,7 +704,8 @@ func processFlagUpdateMVEInput(cmd *cobra.Command, mveUID string) (*megaport.Mod
 
 // parseVnicUpdates decodes a slice of {description: string} maps into
 // []megaport.MVEVnicUpdate. Order is preserved — the API applies updates
-// positionally to the existing vNICs.
+// positionally to the existing vNICs. Only description can be updated;
+// unknown keys are rejected so callers don't silently lose input.
 func parseVnicUpdates(vnicsData []interface{}) ([]megaport.MVEVnicUpdate, error) {
 	vnics := make([]megaport.MVEVnicUpdate, 0, len(vnicsData))
 	for i, vnicData := range vnicsData {
@@ -712,9 +713,18 @@ func parseVnicUpdates(vnicsData []interface{}) ([]megaport.MVEVnicUpdate, error)
 		if !ok {
 			return nil, fmt.Errorf("vnics[%d] must be an object with a description field", i)
 		}
+		for k := range vnicMap {
+			if k != "description" {
+				return nil, fmt.Errorf("vnics[%d].%s is not supported; only description can be updated", i, k)
+			}
+		}
 		description, ok := vnicMap["description"].(string)
 		if !ok {
 			return nil, fmt.Errorf("vnics[%d].description is required and must be a string", i)
+		}
+		description = strings.TrimSpace(description)
+		if description == "" {
+			return nil, fmt.Errorf("vnics[%d].description must not be empty", i)
 		}
 		vnics = append(vnics, megaport.MVEVnicUpdate{Description: description})
 	}

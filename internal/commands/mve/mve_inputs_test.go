@@ -401,7 +401,7 @@ func TestProcessJSONUpdateMVEInput_Vnics(t *testing.T) {
 }
 
 func TestProcessJSONUpdateMVEInput_VnicMissingDescription(t *testing.T) {
-	_, err := processJSONUpdateMVEInput(`{"vnics":[{"vlan":100}]}`, "", "mve-123")
+	_, err := processJSONUpdateMVEInput(`{"vnics":[{}]}`, "", "mve-123")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "vnics[0].description")
 }
@@ -454,4 +454,32 @@ func TestProcessJSONUpdateMVEInput_VnicsNotArray(t *testing.T) {
 			assert.Contains(t, err.Error(), "vnics must be an array")
 		})
 	}
+}
+
+func TestProcessJSONUpdateMVEInput_VnicUnsupportedKey(t *testing.T) {
+	_, err := processJSONUpdateMVEInput(`{"vnics":[{"description":"Data Plane","vlan":100}]}`, "", "mve-123")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "vnics[0].vlan is not supported")
+}
+
+func TestProcessJSONUpdateMVEInput_VnicEmptyDescription(t *testing.T) {
+	cases := []string{
+		`{"vnics":[{"description":""}]}`,
+		`{"vnics":[{"description":"   "}]}`,
+	}
+	for _, in := range cases {
+		t.Run(in, func(t *testing.T) {
+			_, err := processJSONUpdateMVEInput(in, "", "mve-123")
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "vnics[0].description must not be empty")
+		})
+	}
+}
+
+func TestProcessJSONUpdateMVEInput_VnicTrimsDescription(t *testing.T) {
+	req, err := processJSONUpdateMVEInput(`{"vnics":[{"description":"  Data Plane  "}]}`, "", "mve-123")
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	require.Len(t, req.Vnics, 1)
+	assert.Equal(t, "Data Plane", req.Vnics[0].Description)
 }
