@@ -240,9 +240,11 @@ func TestPromptMVEVendorConfig_PaloAlto_PlaintextOnly(t *testing.T) {
 		utils.SetSecretResourcePrompt(origSecret)
 	}()
 
-	// Order: sshPublicKey, SECRET adminPassword, SECRET adminPasswordHash, licenseData
+	// Order: sshPublicKey, SECRET adminPassword, licenseData.
+	// The hash prompt is skipped when adminPassword is non-empty so the user
+	// cannot accidentally provide both credentials in interactive mode.
 	utils.SetResourcePrompt(mockPromptSequence([]string{"ssh-key", "license"}))
-	utils.SetSecretResourcePrompt(mockPromptSequence([]string{"p4ssw0rd", ""}))
+	utils.SetSecretResourcePrompt(mockPromptSequence([]string{"p4ssw0rd"}))
 
 	cfg, err := promptMVEVendorConfig("palo_alto", 42, "MEDIUM", "lbl", true)
 	assert.NoError(t, err)
@@ -274,6 +276,10 @@ func TestPromptMVEVendorConfig_PaloAlto_HashOnly(t *testing.T) {
 	assert.Equal(t, "hashed-value", pa.AdminPasswordHash)
 }
 
+// TestPromptMVEVendorConfig_PaloAlto_BothBlank verifies that the prompt
+// itself does not fail when the user leaves both credentials blank — the
+// "at least one required" rule is enforced by ValidatePaloAltoConfig in the
+// shared validation layer, so the prompt only has to capture input.
 func TestPromptMVEVendorConfig_PaloAlto_BothBlank(t *testing.T) {
 	origResource := utils.GetResourcePrompt()
 	origSecret := utils.GetSecretResourcePrompt()
@@ -282,10 +288,13 @@ func TestPromptMVEVendorConfig_PaloAlto_BothBlank(t *testing.T) {
 		utils.SetSecretResourcePrompt(origSecret)
 	}()
 
-	utils.SetResourcePrompt(mockPromptSequence([]string{"ssh-key"}))
+	utils.SetResourcePrompt(mockPromptSequence([]string{"ssh-key", "license"}))
 	utils.SetSecretResourcePrompt(mockPromptSequence([]string{"", ""}))
 
-	_, err := promptMVEVendorConfig("palo_alto", 42, "MEDIUM", "lbl", true)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "either admin password or admin password hash is required")
+	cfg, err := promptMVEVendorConfig("palo_alto", 42, "MEDIUM", "lbl", true)
+	assert.NoError(t, err)
+	pa, ok := cfg.(*megaport.PaloAltoConfig)
+	assert.True(t, ok)
+	assert.Equal(t, "", pa.AdminPassword)
+	assert.Equal(t, "", pa.AdminPasswordHash)
 }

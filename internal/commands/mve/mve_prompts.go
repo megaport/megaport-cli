@@ -242,16 +242,16 @@ func promptMVEVendorConfig(vendorStr string, imageID int, productSize string, mv
 		if err != nil {
 			return nil, err
 		}
-		adminPassword, err := utils.SecretResourcePrompt("mve", "Enter admin password (optional, leave blank if providing hash): ", noColor)
+		adminPassword, err := utils.SecretResourcePrompt("mve", "Enter admin password (optional, leave blank to provide a password hash instead): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		adminPasswordHash, err := utils.SecretResourcePrompt("mve", "Enter admin password hash (optional, leave blank if providing plaintext password): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if adminPassword == "" && adminPasswordHash == "" {
-			return nil, fmt.Errorf("either admin password or admin password hash is required for PaloAlto configuration")
+		var adminPasswordHash string
+		if adminPassword == "" {
+			adminPasswordHash, err = utils.SecretResourcePrompt("mve", "Enter admin password hash (required when admin password is not provided): ", noColor)
+			if err != nil {
+				return nil, err
+			}
 		}
 		licenseData, err := utils.ResourcePrompt("mve", "Enter license data (required): ", noColor)
 		if err != nil {

@@ -409,9 +409,6 @@ func parsePaloAltoConfig(config map[string]interface{}) (*megaport.PaloAltoConfi
 
 	adminPasswordHash, _ := getStringFromMap(config, "adminPasswordHash")
 	adminPassword, _ := getStringFromMap(config, "adminPassword")
-	if adminPassword == "" && adminPasswordHash == "" {
-		return nil, fmt.Errorf("either adminPassword or adminPasswordHash is required for PaloAlto configuration")
-	}
 
 	licenseData, ok := getStringFromMap(config, "licenseData")
 	if !ok {

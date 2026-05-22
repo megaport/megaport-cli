@@ -601,6 +601,21 @@ func TestValidateMVEVendorConfig_AllVendors(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		// paloalto - both admin password and admin password hash supplied
+		{
+			name: "Invalid paloalto - both admin password and admin password hash supplied",
+			config: &megaport.PaloAltoConfig{
+				Vendor:            "palo_alto",
+				ImageID:           123,
+				ProductSize:       "MEDIUM",
+				SSHPublicKey:      "ssh-rsa AAAA...",
+				AdminPassword:     "S3cretP@ss",
+				AdminPasswordHash: "$6$rounds=4096$...",
+				LicenseData:       "license-data",
+			},
+			wantErr: true,
+			errText: "Invalid admin password / admin password hash:  - only one of admin password or admin password hash may be provided, not both",
+		},
 		// prisma - valid
 		{
 			name: "Valid prisma config",

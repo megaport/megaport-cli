@@ -446,7 +446,7 @@ func ValidateFortinetConfig(config *megaport.FortinetConfig) error {
 //   - Image ID must be a positive integer
 //   - Product size must be valid (calls ValidateMVEProductSize)
 //   - SSH public key must be provided (for user access)
-//   - At least one of admin password or admin password hash must be provided
+//   - Exactly one of admin password or admin password hash must be provided
 //     (for secure administrator authentication)
 //   - License data must be provided (for Palo Alto Networks licensing)
 //
@@ -465,6 +465,9 @@ func ValidatePaloAltoConfig(config *megaport.PaloAltoConfig) error {
 	}
 	if config.AdminPassword == "" && config.AdminPasswordHash == "" {
 		return NewValidationError("admin password / admin password hash", "", "at least one of admin password or admin password hash must be provided")
+	}
+	if config.AdminPassword != "" && config.AdminPasswordHash != "" {
+		return NewValidationError("admin password / admin password hash", "", "only one of admin password or admin password hash may be provided, not both")
 	}
 	if config.LicenseData == "" {
 		return NewValidationError("license data", config.LicenseData, "cannot be empty")

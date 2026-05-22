@@ -200,12 +200,13 @@ func TestParseVendorConfig(t *testing.T) {
 			expectedError: "sshPublicKey is required",
 		},
 		{
-			name: "palo_alto missing both adminPassword and adminPasswordHash",
+			// adminPassword / adminPasswordHash combination rules are enforced by
+			// ValidatePaloAltoConfig — parsing accepts either, both, or neither.
+			name: "palo_alto neither adminPassword nor adminPasswordHash parses without error",
 			config: map[string]interface{}{
 				"vendor": "palo_alto", "imageId": float64(1), "productSize": "MEDIUM",
 				"sshPublicKey": "ssh-rsa", "licenseData": "license",
 			},
-			expectedError: "either adminPassword or adminPasswordHash is required",
 		},
 		{
 			name: "palo_alto success with plaintext adminPassword",
