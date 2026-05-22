@@ -513,3 +513,21 @@ func TestProcessJSONUpdateMVEInput_TermZeroIsValidationError(t *testing.T) {
 	assert.Error(t, err)
 	assert.NotContains(t, err.Error(), "at least one field must be provided")
 }
+
+func TestProcessFlagUpdateMVEInput_VnicsEmptyString(t *testing.T) {
+	cmd := createTestCmd()
+	require.NoError(t, cmd.Flags().Set("vnics", ""))
+
+	_, err := processFlagUpdateMVEInput(cmd, "mve-123")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "vnics must be a non-empty JSON array")
+}
+
+func TestProcessFlagUpdateMVEInput_VnicsWhitespaceString(t *testing.T) {
+	cmd := createTestCmd()
+	require.NoError(t, cmd.Flags().Set("vnics", "   "))
+
+	_, err := processFlagUpdateMVEInput(cmd, "mve-123")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "vnics must be a non-empty JSON array")
+}

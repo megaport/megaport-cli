@@ -683,7 +683,10 @@ func processFlagUpdateMVEInput(cmd *cobra.Command, mveUID string) (*megaport.Mod
 		req.ContractTermMonths = &contractTerm
 	}
 
-	if vnicsStr != "" {
+	if cmd.Flags().Changed("vnics") {
+		if strings.TrimSpace(vnicsStr) == "" {
+			return nil, fmt.Errorf("vnics must be a non-empty JSON array of objects with a description field")
+		}
 		var vnicsData []interface{}
 		if err := json.Unmarshal([]byte(vnicsStr), &vnicsData); err != nil {
 			return nil, fmt.Errorf("failed to parse vnics JSON string: %w", err)
