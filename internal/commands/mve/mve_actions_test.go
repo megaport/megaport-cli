@@ -465,7 +465,7 @@ func TestUpdateMVE(t *testing.T) {
 					},
 				}
 			},
-			expectedError: "vnics length (0) must match the MVE's existing vNIC count (1)",
+			expectedError: "vnics must contain at least one object",
 		},
 		{
 			name: "vnic count match success",

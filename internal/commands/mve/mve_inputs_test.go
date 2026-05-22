@@ -483,3 +483,33 @@ func TestProcessJSONUpdateMVEInput_VnicTrimsDescription(t *testing.T) {
 	require.Len(t, req.Vnics, 1)
 	assert.Equal(t, "Data Plane", req.Vnics[0].Description)
 }
+
+func TestProcessJSONUpdateMVEInput_VnicsEmptyArray(t *testing.T) {
+	_, err := processJSONUpdateMVEInput(`{"vnics":[]}`, "", "mve-123")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "vnics must contain at least one object")
+}
+
+func TestProcessFlagUpdateMVEInput_VnicsEmptyArray(t *testing.T) {
+	cmd := createTestCmd()
+	require.NoError(t, cmd.Flags().Set("vnics", `[]`))
+
+	_, err := processFlagUpdateMVEInput(cmd, "mve-123")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "vnics must contain at least one object")
+}
+
+func TestProcessFlagUpdateMVEInput_TermZeroIsValidationError(t *testing.T) {
+	cmd := createTestCmd()
+	require.NoError(t, cmd.Flags().Set("term", "0"))
+
+	_, err := processFlagUpdateMVEInput(cmd, "mve-123")
+	assert.Error(t, err)
+	assert.NotContains(t, err.Error(), "at least one field must be provided")
+}
+
+func TestProcessJSONUpdateMVEInput_TermZeroIsValidationError(t *testing.T) {
+	_, err := processJSONUpdateMVEInput(`{"contractTermMonths":0}`, "", "mve-123")
+	assert.Error(t, err)
+	assert.NotContains(t, err.Error(), "at least one field must be provided")
+}
