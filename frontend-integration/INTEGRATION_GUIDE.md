@@ -148,9 +148,10 @@ onUserLogout(() => {
 │  │  Browser WebAssembly Runtime                     │  │
 │  │  ┌────────────────────────────────────────────┐  │  │
 │  │  │  megaport.wasm (Go WASM Binary)            │  │  │
-│  │  │  - Complete CLI functionality              │  │  │
+│  │  │  - Browser-compatible subset of the CLI    │  │  │
 │  │  │  - Megaport API integration                │  │  │
-│  │  │  - All commands (ports, vxc, mcr, etc.)   │  │  │
+│  │  │  - Resource modules: ports, vxc, mcr, mve, │  │  │
+│  │  │    locations, partners, servicekeys        │  │  │
 │  │  └────────────────────────────────────────────┘  │  │
 │  └──────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────┘

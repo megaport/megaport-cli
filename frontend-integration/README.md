@@ -155,7 +155,9 @@ Vue composable for WASM integration.
 
 ### Available Commands
 
-All standard Megaport CLI commands are supported:
+The browser/WASM build registers a subset of the native CLI's modules: `ports`, `vxc`, `mcr`, `mve`, `locations`, `partners`, and `servicekeys`. Other modules (`auth`, `config`, `completion`, `generate-docs`, `version`, `nat-gateway`, `ix`, `users`, `status`, `topology`, `apply`, `product`, `managed-account`, `billing-market`) are not available in the browser. See [`WASM_README.md`](../WASM_README.md#available-commands) for the authoritative list.
+
+Within each available module, the same subcommands the native CLI provides are exposed (so `partners` is still `list` / `find`, `locations` is still `list` / `get`, etc.). Common examples:
 
 ```bash
 # Resource Management
