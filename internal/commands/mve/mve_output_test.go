@@ -85,6 +85,60 @@ func TestDisplayMVEChanges(t *testing.T) {
 			updated:          &megaport.MVE{Name: "New", ContractTermMonths: 24},
 			expectedContains: []string{"Name", "Contract Term"},
 		},
+		{
+			name: "vnic description changed",
+			original: &megaport.MVE{
+				NetworkInterfaces: []*megaport.MVENetworkInterface{
+					{Description: "Data Plane"},
+					{Description: "Mgmt"},
+				},
+			},
+			updated: &megaport.MVE{
+				NetworkInterfaces: []*megaport.MVENetworkInterface{
+					{Description: "Data Plane Renamed"},
+					{Description: "Mgmt"},
+				},
+			},
+			expectedContains: []string{"vNIC[0] Description", "Data Plane Renamed"},
+		},
+		{
+			name: "vnic count differs uses min length",
+			original: &megaport.MVE{
+				NetworkInterfaces: []*megaport.MVENetworkInterface{{Description: "Only"}},
+			},
+			updated: &megaport.MVE{
+				NetworkInterfaces: []*megaport.MVENetworkInterface{
+					{Description: "Only Renamed"},
+					{Description: "Extra"},
+				},
+			},
+			expectedContains: []string{"vNIC[0] Description", "Only Renamed"},
+		},
+		{
+			name: "nil vnic entry is rendered as empty",
+			original: &megaport.MVE{
+				NetworkInterfaces: []*megaport.MVENetworkInterface{nil},
+			},
+			updated: &megaport.MVE{
+				NetworkInterfaces: []*megaport.MVENetworkInterface{{Description: "Set"}},
+			},
+			expectedContains: []string{"vNIC[0] Description", "Set"},
+		},
+		{
+			name: "updated has fewer vnics than original",
+			original: &megaport.MVE{
+				NetworkInterfaces: []*megaport.MVENetworkInterface{
+					{Description: "Old"},
+					{Description: "Drop"},
+				},
+			},
+			updated: &megaport.MVE{
+				NetworkInterfaces: []*megaport.MVENetworkInterface{
+					{Description: "New"},
+				},
+			},
+			expectedContains: []string{"vNIC[0] Description", "New"},
+		},
 	}
 
 	for _, tt := range tests {

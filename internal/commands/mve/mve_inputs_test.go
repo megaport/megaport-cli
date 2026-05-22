@@ -425,3 +425,18 @@ func TestProcessFlagUpdateMVEInput_VnicsInvalidJSON(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse vnics JSON")
 }
+
+func TestProcessJSONUpdateMVEInput_VnicEntryNotObject(t *testing.T) {
+	_, err := processJSONUpdateMVEInput(`{"vnics":["not-an-object"]}`, "", "mve-123")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "vnics[0] must be an object")
+}
+
+func TestProcessFlagUpdateMVEInput_VnicEntryNotObject(t *testing.T) {
+	cmd := createTestCmd()
+	require.NoError(t, cmd.Flags().Set("vnics", `["not-an-object"]`))
+
+	_, err := processFlagUpdateMVEInput(cmd, "mve-123")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "vnics[0] must be an object")
+}

@@ -174,6 +174,68 @@ func TestPromptForUpdateMVEDetails_DeclineVnicUpdate(t *testing.T) {
 	assert.Empty(t, req.Vnics)
 }
 
+func TestPromptForUpdateMVEDetails_VnicYesNoPromptError(t *testing.T) {
+	original := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(original) }()
+
+	// First three prompts (name/cost/term) succeed; fourth (y/N) returns an error.
+	calls := 0
+	utils.SetResourcePrompt(func(_, _ string, _ bool) (string, error) {
+		calls++
+		if calls == 4 {
+			return "", fmt.Errorf("stdin closed")
+		}
+		return "", nil
+	})
+
+	currentVnics := []*megaport.MVENetworkInterface{{Description: "Data Plane"}}
+	_, err := promptForUpdateMVEDetails("mve-123", currentVnics, true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "stdin closed")
+}
+
+func TestPromptForUpdateMVEDetails_VnicDescriptionPromptError(t *testing.T) {
+	original := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(original) }()
+
+	// name/cost/term empty, "y" to update vnics, then error on first description prompt.
+	calls := 0
+	utils.SetResourcePrompt(func(_, _ string, _ bool) (string, error) {
+		calls++
+		switch calls {
+		case 1, 2, 3:
+			return "", nil
+		case 4:
+			return "y", nil
+		default:
+			return "", fmt.Errorf("stdin closed")
+		}
+	})
+
+	currentVnics := []*megaport.MVENetworkInterface{{Description: "Data Plane"}}
+	_, err := promptForUpdateMVEDetails("mve-123", currentVnics, true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "stdin closed")
+}
+
+func TestPromptForUpdateMVEDetails_VnicNilEntryDefaultsToEmpty(t *testing.T) {
+	original := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(original) }()
+
+	// name, cost, term, accept vnic update, description for nil vnic
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"", "", "",
+		"yes",
+		"New Description",
+	}))
+
+	currentVnics := []*megaport.MVENetworkInterface{nil}
+	req, err := promptForUpdateMVEDetails("mve-123", currentVnics, true)
+	require.NoError(t, err)
+	require.Len(t, req.Vnics, 1)
+	assert.Equal(t, "New Description", req.Vnics[0].Description)
+}
+
 // promptMVEVnics tests
 
 func TestPromptMVEVnics_NoVnics(t *testing.T) {
