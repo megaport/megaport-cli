@@ -278,7 +278,7 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 
 	flagsProvided := cmd.Flags().Changed("name") ||
 		cmd.Flags().Changed("cost-centre") ||
-		cmd.Flags().Changed("contract-term") ||
+		cmd.Flags().Changed("term") ||
 		cmd.Flags().Changed("vnics")
 
 	var req *megaport.ModifyMVERequest

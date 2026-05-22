@@ -113,7 +113,7 @@ func ValidateBuyMVERequest(req *megaport.BuyMVERequest) error {
 //   - req: The ModifyMVERequest object containing the fields to update
 //
 // Validation checks:
-//   - At least one updateable field must be provided (name, cost center, or contract term)
+//   - At least one updateable field must be provided (name, cost center, contract term, or vNICs)
 //   - If contract term is provided, it must be valid (typically 1, 12, 24, or 36 months)
 //
 // Returns:

@@ -660,7 +660,7 @@ func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.
 func processFlagUpdateMVEInput(cmd *cobra.Command, mveUID string) (*megaport.ModifyMVERequest, error) {
 	name, _ := cmd.Flags().GetString("name")
 	costCentre, _ := cmd.Flags().GetString("cost-centre")
-	contractTerm, _ := cmd.Flags().GetInt("contract-term")
+	contractTerm, _ := cmd.Flags().GetInt("term")
 	vnicsStr, _ := cmd.Flags().GetString("vnics")
 
 	req := &megaport.ModifyMVERequest{

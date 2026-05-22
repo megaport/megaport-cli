@@ -327,9 +327,9 @@ func TestUpdateMVE(t *testing.T) {
 			name: "flag mode success",
 			args: []string{"mve-123"},
 			flags: map[string]string{
-				"name":          "Flag Updated MVE",
-				"cost-centre":   "Flag Cost Centre",
-				"contract-term": "36",
+				"name":        "Flag Updated MVE",
+				"cost-centre": "Flag Cost Centre",
+				"term":        "36",
 			},
 			mockSetup: func(m *MockMVEService) {
 				m.ModifyMVEResult = &megaport.ModifyMVEResponse{
@@ -391,7 +391,7 @@ func TestUpdateMVE(t *testing.T) {
 			name: "invalid contract term",
 			args: []string{"mve-123"},
 			flags: map[string]string{
-				"contract-term": "13",
+				"term": "13",
 			},
 			expectedError: "Invalid contract term: 13 - must be one of: [1 12 24 36]",
 		},
@@ -447,7 +447,7 @@ func TestUpdateMVE(t *testing.T) {
 			cmd.Flags().String("json-file", "", "")
 			cmd.Flags().String("name", "", "")
 			cmd.Flags().String("cost-centre", "", "")
-			cmd.Flags().Int("contract-term", 0, "")
+			cmd.Flags().Int("term", 0, "")
 
 			testutil.SetFlags(t, cmd, tt.flags)
 

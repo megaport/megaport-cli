@@ -367,7 +367,7 @@ func TestProcessFlagUpdateMVEInput(t *testing.T) {
 				require.NoError(t, cmd.Flags().Set("cost-centre", tt.costCentre))
 			}
 			if tt.contractTerm > 0 {
-				require.NoError(t, cmd.Flags().Set("contract-term", "24"))
+				require.NoError(t, cmd.Flags().Set("term", "24"))
 			}
 
 			req, err := processFlagUpdateMVEInput(cmd, "mve-123")
@@ -386,7 +386,7 @@ func createTestCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "test"}
 	cmd.Flags().String("name", "", "")
 	cmd.Flags().String("cost-centre", "", "")
-	cmd.Flags().Int("contract-term", 0, "")
+	cmd.Flags().Int("term", 0, "")
 	cmd.Flags().String("vnics", "", "")
 	return cmd
 }
