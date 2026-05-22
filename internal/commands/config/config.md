@@ -41,7 +41,7 @@ The configuration file is stored at `~/.megaport/config.json` by default, or at 
 
 ### Key Components
 
-- **version**: Config file format version (currently 2)
+- **version**: Config file format version (currently 1)
 - **active_profile**: Name of the currently selected profile
 - **profiles**: Map of profile names to profile configurations
   - **access_key**: Megaport API access key

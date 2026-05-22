@@ -48,6 +48,7 @@ megaport-cli managed-account create [flags]
 |------|-----------|---------|-------------|----------|
 | `--account-name` |  |  | The name of the managed account | true |
 | `--account-ref` |  |  | The reference ID for the managed account | true |
+| `--generate-skeleton` |  | `false` | Print a JSON skeleton template for --json or --json-file input and exit | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |

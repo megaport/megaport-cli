@@ -150,7 +150,7 @@ onUserLogout(() => {
 │  │  │  megaport.wasm (Go WASM Binary)            │  │  │
 │  │  │  - Complete CLI functionality              │  │  │
 │  │  │  - Megaport API integration                │  │  │
-│  │  │  - All commands (port, vxc, mcr, etc.)    │  │  │
+│  │  │  - All commands (ports, vxc, mcr, etc.)   │  │  │
 │  │  └────────────────────────────────────────────┘  │  │
 │  └──────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────┘
@@ -217,7 +217,7 @@ const createVXC = async () => {
 };
 
 const listPorts = async () => {
-  const result = await execute('port list --output json');
+  const result = await execute('ports list --output json');
   const ports = JSON.parse(result.output || '[]');
   showPortsModal(ports);
 };
@@ -242,18 +242,18 @@ const props = defineProps<{ port: Port }>();
 const { execute } = useMegaportWASM();
 
 const lockPort = async () => {
-  await execute(`port lock ${props.port.uid}`);
+  await execute(`ports lock ${props.port.uid}`);
   refresh();
 };
 
 const unlockPort = async () => {
-  await execute(`port unlock ${props.port.uid}`);
+  await execute(`ports unlock ${props.port.uid}`);
   refresh();
 };
 
 const checkVlan = async () => {
   const vlan = await prompt('Enter VLAN ID:');
-  const result = await execute(`port check-vlan ${props.port.uid} ${vlan}`);
+  const result = await execute(`ports check-vlan ${props.port.uid} ${vlan}`);
   showResult(result);
 };
 </script>
@@ -379,7 +379,7 @@ watchEffect(() => {
 
 // Handle command errors
 try {
-  const result = await execute('port list');
+  const result = await execute('ports list');
   if (result.error) {
     console.error('Command failed:', result.error);
     showErrorNotification({

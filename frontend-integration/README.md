@@ -68,7 +68,7 @@ const output = ref('');
 setAuth('your-access-key', 'your-secret-key', 'staging');
 
 const listPorts = async () => {
-  const result = await execute('port list --output json');
+  const result = await execute('ports list --output json');
   output.value = result.output || result.error;
 };
 </script>
@@ -159,15 +159,15 @@ All standard Megaport CLI commands are supported:
 
 ```bash
 # Resource Management
-port list [--output json|table|csv]
-vxc list [--output json|table|csv]
-mcr list [--output json|table|csv]
-mve list [--output json|table|csv]
+ports list [--output json|table|csv|xml]
+vxc list [--output json|table|csv|xml]
+mcr list [--output json|table|csv|xml]
+mve list [--output json|table|csv|xml]
 
 # Information
-location list
-partner list
-servicekey list
+locations list
+partners list
+servicekeys list
 
 # Terminal Commands
 help        # Show help
@@ -259,9 +259,9 @@ npm run dev
 Try these commands in the terminal:
 
 ```bash
-location list
+locations list
 help
-port list --output json
+ports list --output json
 ```
 
 ### 3. Verify Output
@@ -506,7 +506,7 @@ export const useMegaportStore = defineStore('megaport', () => {
   const wasm = useMegaportWASM();
 
   const listPorts = async () => {
-    const result = await wasm.execute('port list --output json');
+    const result = await wasm.execute('ports list --output json');
     return JSON.parse(result.output);
   };
 

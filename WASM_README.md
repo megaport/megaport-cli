@@ -11,7 +11,7 @@ This is the **WASM browser version** of the Megaport CLI that:
 - **Deployed with Docker** - Easy deployment with a containerized web server
 - **Session-based authentication** - Secure login using customer's Megaport credentials
 - **XTerm.js Terminal** - Full-featured terminal emulator with ANSI support
-- **Early Release** - Currently supports locations and ports commands (more coming soon!)
+- **Early Release** - Covers the main resource modules (ports, MCR, MVE, VXC, locations, partners, service keys). Auth, config, completion, and `generate-docs` are not applicable in the browser.
 
 ## Quick Start (One Command!)
 
@@ -46,20 +46,26 @@ That's it! The script will:
 3. Click **Login**
 4. Start using the CLI!
 
-### Available Commands (Current)
+### Available Commands
 
-⚠️ **Note**: This is a very early release of the WASM version. Currently supported commands:
+The WASM build registers the following modules. Each supports the same subcommands (`list`, `get`, `buy`, `update`, `delete`, etc.) as the native CLI, subject to the constraints of running in the browser:
 
-- `locations list` - List all Megaport locations
-- `locations get <locationId>` - Get details for a specific location
-- `ports list` - List your ports
-- `ports get <portId>` - Get details for a specific port
+- `locations` - Find Megaport locations and metros
+- `ports` - Manage Megaport ports (including LAG ports)
+- `mcr` - Manage Megaport Cloud Routers
+- `mve` - Manage Megaport Virtual Edge devices
+- `vxc` - Manage Virtual Cross Connects
+- `partners` - Look up cloud partner ports
+- `servicekeys` - Manage service keys
+
+The following modules are intentionally **not** available in WASM: `auth`, `config`, `completion`, `generate-docs`, and `version` — these either rely on the local filesystem (profile storage, completion scripts) or aren't meaningful in a browser context. Authentication in WASM is session-based via the web UI login form.
 
 **Output Formats**: All standard output formats are supported:
 
 - `--output table` (default) - Formatted table with styled output
 - `--output json` - JSON format for programmatic use
 - `--output csv` - CSV format for data export
+- `--output xml` - XML format
 
 **Example Commands**:
 
@@ -67,10 +73,10 @@ That's it! The script will:
 megaport-cli locations list
 megaport-cli locations list --output json
 megaport-cli ports list
-megaport-cli ports get abc123
+megaport-cli ports get <portUID>
+megaport-cli vxc list --status LIVE
+megaport-cli partners list --company-name "Amazon Web Services"
 ```
-
-More commands will be added in future releases!
 
 ### Session Management
 
@@ -248,7 +254,7 @@ X-Session-Token: abc123...
 ### Can't build WASM
 
 ```bash
-# Make sure you have Go 1.21 or later
+# Make sure you have Go 1.25 or later (matches go.mod)
 go version
 
 # Check WASM support

@@ -54,6 +54,7 @@ This command allows you to purchase an MVE by providing the necessary details.
     "manageLocally": true,
     "adminSshPublicKey": "ssh-rsa AAAA...",
     "sshPublicKey": "ssh-rsa AAAA...",
+    "adminPassword": "S3cretP@ss",
     "cloudInit": "#cloud-config\npackages:\n - nginx\n"
   },
   "vnics": [
@@ -85,6 +86,7 @@ megaport-cli mve buy [flags]
 |------|-----------|---------|-------------|----------|
 | `--cost-centre` |  |  | Cost centre for billing | false |
 | `--diversity-zone` |  |  | The diversity zone for the MVE | false |
+| `--generate-skeleton` |  | `false` | Print a JSON skeleton template for --json or --json-file input and exit | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
