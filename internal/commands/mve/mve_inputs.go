@@ -642,7 +642,11 @@ func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.
 		req.ContractTermMonths = &termMonths
 	}
 
-	if vnicsData, ok := jsonData["vnics"].([]interface{}); ok {
+	if rawVnics, exists := jsonData["vnics"]; exists {
+		vnicsData, ok := rawVnics.([]interface{})
+		if !ok {
+			return nil, fmt.Errorf("vnics must be an array of objects with a description field")
+		}
 		vnics, err := parseVnicUpdates(vnicsData)
 		if err != nil {
 			return nil, err

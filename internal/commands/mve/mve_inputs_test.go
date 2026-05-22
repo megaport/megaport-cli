@@ -440,3 +440,18 @@ func TestProcessFlagUpdateMVEInput_VnicEntryNotObject(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "vnics[0] must be an object")
 }
+
+func TestProcessJSONUpdateMVEInput_VnicsNotArray(t *testing.T) {
+	cases := []string{
+		`{"vnics":{"description":"Data Plane"}}`,
+		`{"vnics":"Data Plane"}`,
+		`{"vnics":null}`,
+	}
+	for _, in := range cases {
+		t.Run(in, func(t *testing.T) {
+			_, err := processJSONUpdateMVEInput(in, "", "mve-123")
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "vnics must be an array")
+		})
+	}
+}
