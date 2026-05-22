@@ -576,6 +576,8 @@ func TestBuyMVE(t *testing.T) {
 	defer func() {
 		utils.SetResourcePrompt(originalPrompt)
 	}()
+	originalSecretPrompt := utils.GetSecretResourcePrompt()
+	defer func() { utils.SetSecretResourcePrompt(originalSecretPrompt) }()
 	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
 	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
 	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
@@ -622,6 +624,7 @@ func TestBuyMVE(t *testing.T) {
 				"fmc-ip",
 				"fmc-key",
 				"fmc-nat",
+				"admin-pass",
 				"VNIC 1",
 				"100",
 				"",
@@ -652,6 +655,7 @@ func TestBuyMVE(t *testing.T) {
 				assert.Equal(t, "fmc-ip", ciscoConfig.FMCIPAddress)
 				assert.Equal(t, "fmc-key", ciscoConfig.FMCRegistrationKey)
 				assert.Equal(t, "fmc-nat", ciscoConfig.FMCNatID)
+				assert.Equal(t, "admin-pass", ciscoConfig.AdminPassword)
 
 				assert.Len(t, req.Vnics, 1)
 				assert.Equal(t, "VNIC 1", req.Vnics[0].Description)
@@ -836,14 +840,16 @@ func TestBuyMVE(t *testing.T) {
 			}
 
 			promptIndex := 0
-			utils.SetResourcePrompt(func(_, msg string, _ bool) (string, error) {
+			next := func(_, msg string, _ bool) (string, error) {
 				if promptIndex < len(tt.prompts) {
 					response := tt.prompts[promptIndex]
 					promptIndex++
 					return response, nil
 				}
 				return "", fmt.Errorf("unexpected prompt call")
-			})
+			}
+			utils.SetResourcePrompt(next)
+			utils.SetSecretResourcePrompt(next)
 
 			cmd := &cobra.Command{Use: "buy"}
 			cmd.Flags().Bool("interactive", tt.interactive, "")

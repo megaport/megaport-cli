@@ -54,6 +54,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
     "manageLocally": true,
     "adminSshPublicKey": "ssh-rsa AAAA...",
     "sshPublicKey": "ssh-rsa AAAA...",
+    "adminPassword": "S3cretP@ss",
     "cloudInit": "#cloud-config\npackages:\n - nginx\n"
   },
   "vnics": [
