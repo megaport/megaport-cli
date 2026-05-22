@@ -440,6 +440,23 @@ func TestUpdateMVE(t *testing.T) {
 			expectedError: "vnics length (1) must match the MVE's existing vNIC count (2)",
 		},
 		{
+			name: "explicit empty vnics array rejected alongside other updates",
+			args: []string{"mve-123"},
+			flags: map[string]string{
+				"name":  "Renamed",
+				"vnics": `[]`,
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.GetMVEResult = &megaport.MVE{
+					Name: "Mock MVE",
+					NetworkInterfaces: []*megaport.MVENetworkInterface{
+						{Description: "Data Plane"},
+					},
+				}
+			},
+			expectedError: "vnics length (0) must match the MVE's existing vNIC count (1)",
+		},
+		{
 			name: "vnic count match success",
 			args: []string{"mve-123"},
 			flags: map[string]string{
