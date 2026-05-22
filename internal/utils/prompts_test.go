@@ -512,7 +512,7 @@ func TestDesignConfirmPrompt_DefaultRendering(t *testing.T) {
 	})
 
 	assert.Contains(t, out, "Design Summary:")
-	assert.Contains(t, out, "Proceed with create?")
+	assert.Contains(t, out, "Proceed with creation?")
 	assert.Contains(t, out, "Resource Type: NAT Gateway")
 	assert.Contains(t, out, "Name: test-gw")
 	assert.Contains(t, out, "Speed: 1000 Mbps")

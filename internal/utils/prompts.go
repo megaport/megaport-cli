@@ -67,7 +67,7 @@ var buyConfirmPromptFn = func(resourceType string, details []BuyConfirmDetail, n
 // designConfirmPromptFn renders the confirmation for design-stage operations
 // (e.g. nat-gateway create) that produce a non-billable DESIGN-state record.
 var designConfirmPromptFn = func(resourceType string, details []BuyConfirmDetail, noColor bool) bool {
-	return printConfirmSummary("Design Summary:", resourceType, details, "Proceed with create?", noColor)
+	return printConfirmSummary("Design Summary:", resourceType, details, "Proceed with creation?", noColor)
 }
 
 func printConfirmSummary(header, resourceType string, details []BuyConfirmDetail, question string, noColor bool) bool {
@@ -308,9 +308,8 @@ func BuyConfirmPrompt(resourceType string, details []BuyConfirmDetail, noColor b
 
 // DesignConfirmPrompt displays a design summary and asks for confirmation.
 // Use this for commands that create a DESIGN-state resource without billing
-// (e.g. nat-gateway create) — BuyConfirmPrompt's "Purchase Summary" /
-// "Proceed with purchase?" wording is reserved for commands that actually
-// trigger billing.
+// (e.g. nat-gateway create) — BuyConfirmPrompt's purchase wording is
+// reserved for commands that actually trigger billing.
 func DesignConfirmPrompt(resourceType string, details []BuyConfirmDetail, noColor bool) bool {
 	promptFuncMu.RLock()
 	fn := designConfirmPromptFn
