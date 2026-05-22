@@ -278,7 +278,8 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 
 	flagsProvided := cmd.Flags().Changed("name") ||
 		cmd.Flags().Changed("cost-centre") ||
-		cmd.Flags().Changed("contract-term")
+		cmd.Flags().Changed("contract-term") ||
+		cmd.Flags().Changed("vnics")
 
 	var req *megaport.ModifyMVERequest
 
@@ -296,7 +297,7 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 	} else if interactive {
 		output.PrintInfo("Starting interactive mode for MVE %s", noColor, formattedUID)
-		req, err = promptForUpdateMVEDetails(mveUID, noColor)
+		req, err = promptForUpdateMVEDetails(mveUID, originalMVE.NetworkInterfaces, noColor)
 		if err != nil {
 			output.PrintError("Failed to get MVE details interactively: %v", noColor, err)
 			return fmt.Errorf("failed to get MVE details interactively: %w", err)

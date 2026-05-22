@@ -416,6 +416,14 @@ func TestValidateUpdateMVERequest(t *testing.T) {
 			wantErr: true,
 			errText: fmt.Sprintf("Invalid contract term: 5 - must be one of: %v", ValidContractTerms),
 		},
+		{
+			name: "Valid vnic-only update",
+			req: &megaport.ModifyMVERequest{
+				MVEID: "mve-uid-123",
+				Vnics: []megaport.MVEVnicUpdate{{Description: "Data Plane"}},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

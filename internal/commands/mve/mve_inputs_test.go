@@ -387,5 +387,41 @@ func createTestCmd() *cobra.Command {
 	cmd.Flags().String("name", "", "")
 	cmd.Flags().String("cost-centre", "", "")
 	cmd.Flags().Int("contract-term", 0, "")
+	cmd.Flags().String("vnics", "", "")
 	return cmd
+}
+
+func TestProcessJSONUpdateMVEInput_Vnics(t *testing.T) {
+	req, err := processJSONUpdateMVEInput(`{"vnics":[{"description":"Data Plane"},{"description":"Management"}]}`, "", "mve-123")
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	require.Len(t, req.Vnics, 2)
+	assert.Equal(t, "Data Plane", req.Vnics[0].Description)
+	assert.Equal(t, "Management", req.Vnics[1].Description)
+}
+
+func TestProcessJSONUpdateMVEInput_VnicMissingDescription(t *testing.T) {
+	_, err := processJSONUpdateMVEInput(`{"vnics":[{"vlan":100}]}`, "", "mve-123")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "vnics[0].description")
+}
+
+func TestProcessFlagUpdateMVEInput_Vnics(t *testing.T) {
+	cmd := createTestCmd()
+	require.NoError(t, cmd.Flags().Set("vnics", `[{"description":"Data Plane"}]`))
+
+	req, err := processFlagUpdateMVEInput(cmd, "mve-123")
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	require.Len(t, req.Vnics, 1)
+	assert.Equal(t, "Data Plane", req.Vnics[0].Description)
+}
+
+func TestProcessFlagUpdateMVEInput_VnicsInvalidJSON(t *testing.T) {
+	cmd := createTestCmd()
+	require.NoError(t, cmd.Flags().Set("vnics", `[{`))
+
+	_, err := processFlagUpdateMVEInput(cmd, "mve-123")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse vnics JSON")
 }

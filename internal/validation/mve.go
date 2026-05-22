@@ -121,7 +121,7 @@ func ValidateBuyMVERequest(req *megaport.BuyMVERequest) error {
 //   - nil if all validation checks pass
 func ValidateUpdateMVERequest(req *megaport.ModifyMVERequest) error {
 	// Check if any update fields are provided
-	if req.Name == "" && req.CostCentre == "" && req.ContractTermMonths == nil {
+	if req.Name == "" && req.CostCentre == "" && req.ContractTermMonths == nil && len(req.Vnics) == 0 {
 		return NewValidationError("update request", req, "at least one field must be provided for update")
 	}
 

@@ -642,6 +642,14 @@ func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.
 		req.ContractTermMonths = &termMonths
 	}
 
+	if vnicsData, ok := jsonData["vnics"].([]interface{}); ok {
+		vnics, err := parseVnicUpdates(vnicsData)
+		if err != nil {
+			return nil, err
+		}
+		req.Vnics = vnics
+	}
+
 	if err := validation.ValidateUpdateMVERequest(req); err != nil {
 		return nil, err
 	}
@@ -653,6 +661,7 @@ func processFlagUpdateMVEInput(cmd *cobra.Command, mveUID string) (*megaport.Mod
 	name, _ := cmd.Flags().GetString("name")
 	costCentre, _ := cmd.Flags().GetString("cost-centre")
 	contractTerm, _ := cmd.Flags().GetInt("contract-term")
+	vnicsStr, _ := cmd.Flags().GetString("vnics")
 
 	req := &megaport.ModifyMVERequest{
 		MVEID: mveUID,
@@ -670,9 +679,40 @@ func processFlagUpdateMVEInput(cmd *cobra.Command, mveUID string) (*megaport.Mod
 		req.ContractTermMonths = &contractTerm
 	}
 
+	if vnicsStr != "" {
+		var vnicsData []interface{}
+		if err := json.Unmarshal([]byte(vnicsStr), &vnicsData); err != nil {
+			return nil, fmt.Errorf("failed to parse vnics JSON string: %w", err)
+		}
+		vnics, err := parseVnicUpdates(vnicsData)
+		if err != nil {
+			return nil, err
+		}
+		req.Vnics = vnics
+	}
+
 	if err := validation.ValidateUpdateMVERequest(req); err != nil {
 		return nil, err
 	}
 
 	return req, nil
+}
+
+// parseVnicUpdates decodes a slice of {description: string} maps into
+// []megaport.MVEVnicUpdate. Order is preserved — the API applies updates
+// positionally to the existing vNICs.
+func parseVnicUpdates(vnicsData []interface{}) ([]megaport.MVEVnicUpdate, error) {
+	vnics := make([]megaport.MVEVnicUpdate, 0, len(vnicsData))
+	for i, vnicData := range vnicsData {
+		vnicMap, ok := vnicData.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("vnics[%d] must be an object with a description field", i)
+		}
+		description, ok := vnicMap["description"].(string)
+		if !ok {
+			return nil, fmt.Errorf("vnics[%d].description is required and must be a string", i)
+		}
+		vnics = append(vnics, megaport.MVEVnicUpdate{Description: description})
+	}
+	return vnics, nil
 }
