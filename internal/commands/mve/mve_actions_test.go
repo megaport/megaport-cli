@@ -423,6 +423,17 @@ func TestUpdateMVE(t *testing.T) {
 			expectedError: "empty response from API",
 		},
 		{
+			name: "original MVE not found",
+			args: []string{"mve-123"},
+			flags: map[string]string{
+				"name": "Updated MVE",
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.ForceNilGetMVE = true
+			},
+			expectedError: "MVE mve-123 not found",
+		},
+		{
 			name: "vnic count mismatch",
 			args: []string{"mve-123"},
 			flags: map[string]string{

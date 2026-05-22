@@ -236,6 +236,23 @@ func TestPromptForUpdateMVEDetails_VnicNilEntryDefaultsToEmpty(t *testing.T) {
 	assert.Equal(t, "New Description", req.Vnics[0].Description)
 }
 
+func TestPromptForUpdateMVEDetails_VnicEmptyCurrentEmptyInputErrors(t *testing.T) {
+	original := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(original) }()
+
+	// name, cost, term, accept vnic update, empty description for vnic with empty current desc
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"", "", "",
+		"yes",
+		"",
+	}))
+
+	currentVnics := []*megaport.MVENetworkInterface{{Description: ""}}
+	_, err := promptForUpdateMVEDetails("mve-123", currentVnics, true)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "vnics[0].description must not be empty")
+}
+
 // promptMVEVnics tests
 
 func TestPromptMVEVnics_NoVnics(t *testing.T) {

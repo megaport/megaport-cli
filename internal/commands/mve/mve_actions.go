@@ -271,6 +271,10 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("Failed to get original MVE details: %v", noColor, err)
 		return fmt.Errorf("failed to get MVE details: %w", err)
 	}
+	if originalMVE == nil {
+		output.PrintError("MVE %s not found", noColor, mveUID)
+		return fmt.Errorf("MVE %s not found", mveUID)
+	}
 
 	interactive, _ := cmd.Flags().GetBool("interactive")
 	jsonStr, _ := cmd.Flags().GetString("json")

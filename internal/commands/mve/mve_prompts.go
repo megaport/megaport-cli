@@ -442,11 +442,21 @@ func promptForUpdateMVEDetails(mveUID string, currentVnics []*megaport.MVENetwor
 				if current != nil {
 					currentDesc = current.Description
 				}
-				desc, err := utils.ResourcePrompt("mve", fmt.Sprintf("Description for vNIC[%d] (current: %q, leave empty to keep): ", i, currentDesc), noColor)
+				var promptMsg string
+				if currentDesc == "" {
+					promptMsg = fmt.Sprintf("Description for vNIC[%d] (no current value, must be non-empty): ", i)
+				} else {
+					promptMsg = fmt.Sprintf("Description for vNIC[%d] (current: %q, leave empty to keep): ", i, currentDesc)
+				}
+				desc, err := utils.ResourcePrompt("mve", promptMsg, noColor)
 				if err != nil {
 					return nil, err
 				}
-				if strings.TrimSpace(desc) == "" {
+				desc = strings.TrimSpace(desc)
+				if desc == "" {
+					if currentDesc == "" {
+						return nil, fmt.Errorf("vnics[%d].description must not be empty", i)
+					}
 					desc = currentDesc
 				}
 				vnics[i] = megaport.MVEVnicUpdate{Description: desc}
