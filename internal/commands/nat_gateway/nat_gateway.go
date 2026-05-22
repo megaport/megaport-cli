@@ -11,7 +11,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithLongDesc("Manage NAT Gateways in the Megaport API.\n\nThis command groups all operations related to Megaport NAT Gateways. NAT Gateways provide network address translation services within the Megaport fabric.").
 		WithExample("megaport-cli nat-gateway get [uid]").
 		WithExample("megaport-cli nat-gateway list").
-		WithExample("megaport-cli nat-gateway create").
+		WithExample("megaport-cli nat-gateway create --interactive").
 		WithExample("megaport-cli nat-gateway update [uid]").
 		WithExample("megaport-cli nat-gateway delete [uid]").
 		WithExample("megaport-cli nat-gateway validate [uid]").

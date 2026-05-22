@@ -11,7 +11,7 @@ This is the **WASM browser version** of the Megaport CLI that:
 - **Deployed with Docker** - Easy deployment with a containerized web server
 - **Session-based authentication** - Secure login using customer's Megaport credentials
 - **XTerm.js Terminal** - Full-featured terminal emulator with ANSI support
-- **Early Release** - Covers the main resource modules (ports, MCR, MVE, VXC, locations, partners, service keys). Auth, config, completion, and `generate-docs` are not applicable in the browser.
+- **Early Release** - Covers the main resource modules (ports, MCR, MVE, VXC, locations, partners, service keys). Auth, config, completion, `generate-docs`, and `version` are not applicable in the browser.
 
 ## Quick Start (One Command!)
 
@@ -60,12 +60,14 @@ The WASM build registers the following modules. Each supports the same subcomman
 
 The following modules are intentionally **not** available in WASM: `auth`, `config`, `completion`, `generate-docs`, and `version` — these either rely on the local filesystem (profile storage, completion scripts) or aren't meaningful in a browser context. Authentication in WASM is session-based via the web UI login form.
 
-**Output Formats**: All standard output formats are supported:
+**Output Formats**: The WASM build supports the following output formats:
 
 - `--output table` (default) - Formatted table with styled output
 - `--output json` - JSON format for programmatic use
 - `--output csv` - CSV format for data export
 - `--output xml` - XML format
+
+`--output go-template` is not supported in WASM/browser builds.
 
 **Example Commands**:
 
