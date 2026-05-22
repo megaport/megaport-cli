@@ -370,6 +370,55 @@ func TestResourcePrompt(t *testing.T) {
 	}
 }
 
+// Test the SecretResourcePrompt function — verifies the override hook delegates
+// to the installed function and propagates resource type, message, and noColor.
+func TestSecretResourcePrompt(t *testing.T) {
+	original := GetSecretResourcePrompt()
+	defer SetSecretResourcePrompt(original)
+
+	var (
+		gotResource string
+		gotMsg      string
+		gotNoColor  bool
+	)
+	SetSecretResourcePrompt(func(resource, msg string, noColor bool) (string, error) {
+		gotResource, gotMsg, gotNoColor = resource, msg, noColor
+		return "p@ss", nil
+	})
+
+	got, err := SecretResourcePrompt("mve", "admin password: ", true)
+	assert.NoError(t, err)
+	assert.Equal(t, "p@ss", got)
+	assert.Equal(t, "mve", gotResource)
+	assert.Equal(t, "admin password: ", gotMsg)
+	assert.True(t, gotNoColor)
+}
+
+// TestSecretResourcePrompt_NonTTYFallback verifies that when stdin is not a
+// terminal the default implementation falls back to a buffered read so piped
+// CI input still works (term.ReadPassword would error on a non-TTY fd).
+func TestSecretResourcePrompt_NonTTYFallback(t *testing.T) {
+	output := withMockedIO("piped-secret\n", func() {
+		got, err := SecretResourcePrompt("mve", "admin password: ", true)
+		assert.NoError(t, err)
+		assert.Equal(t, "piped-secret", got)
+	})
+	// Prompt should still be rendered, with the lock icon.
+	assert.Contains(t, output, "🔐")
+	assert.Contains(t, output, "admin password:")
+}
+
+// TestSecretResourcePrompt_NonTTYFallbackWithColor exercises the colored-prompt
+// branch of the default implementation.
+func TestSecretResourcePrompt_NonTTYFallbackWithColor(t *testing.T) {
+	output := withMockedIO("colored-secret\n", func() {
+		got, err := SecretResourcePrompt("mve", "admin password: ", false)
+		assert.NoError(t, err)
+		assert.Equal(t, "colored-secret", got)
+	})
+	assert.Contains(t, output, "admin password:")
+}
+
 // TestAccessors verifies that every Get/Set accessor pair round-trips correctly
 // and that the call-through wrappers delegate to the underlying function pointer.
 func TestAccessors(t *testing.T) {
@@ -385,6 +434,19 @@ func TestAccessors(t *testing.T) {
 		result := BuyConfirmPrompt("port", nil, true)
 		assert.True(t, called)
 		assert.True(t, result)
+	})
+
+	t.Run("SecretResourcePrompt", func(t *testing.T) {
+		original := GetSecretResourcePrompt()
+		defer SetSecretResourcePrompt(original)
+
+		SetSecretResourcePrompt(func(_, _ string, _ bool) (string, error) {
+			return "sentinel", nil
+		})
+		got := GetSecretResourcePrompt()
+		out, err := got("", "", false)
+		assert.NoError(t, err)
+		assert.Equal(t, "sentinel", out)
 	})
 
 	t.Run("ResourceTagsPrompt", func(t *testing.T) {
