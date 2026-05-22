@@ -4,10 +4,81 @@ import (
 	"os"
 	"testing"
 
+	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestParseVendorConfig_AdminPasswordPropagation(t *testing.T) {
+	t.Run("cisco AdminPassword set on returned config", func(t *testing.T) {
+		cfg, err := ParseVendorConfig(map[string]interface{}{
+			"vendor": "cisco", "imageId": float64(1), "productSize": "MEDIUM",
+			"mveLabel": "label", "manageLocally": true,
+			"adminSshPublicKey": "ssh-rsa", "sshPublicKey": "ssh-rsa",
+			"adminPassword": "s3cret", "cloudInit": "#cloud",
+			"fmcIpAddress": "10.0.0.1", "fmcRegistrationKey": "key",
+			"fmcNatId": "nat",
+		})
+		require.NoError(t, err)
+		cisco, ok := cfg.(*megaport.CiscoConfig)
+		require.True(t, ok)
+		assert.Equal(t, "s3cret", cisco.AdminPassword)
+	})
+
+	t.Run("palo_alto AdminPassword set on returned config", func(t *testing.T) {
+		cfg, err := ParseVendorConfig(map[string]interface{}{
+			"vendor": "palo_alto", "imageId": float64(1), "productSize": "MEDIUM",
+			"sshPublicKey": "ssh-rsa", "adminPassword": "s3cret",
+			"licenseData": "license",
+		})
+		require.NoError(t, err)
+		pa, ok := cfg.(*megaport.PaloAltoConfig)
+		require.True(t, ok)
+		assert.Equal(t, "s3cret", pa.AdminPassword)
+		assert.Empty(t, pa.AdminPasswordHash)
+	})
+
+	t.Run("cisco AdminPassword empty when key absent", func(t *testing.T) {
+		cfg, err := ParseVendorConfig(map[string]interface{}{
+			"vendor": "cisco", "imageId": float64(1), "productSize": "MEDIUM",
+			"mveLabel": "label", "manageLocally": true,
+			"adminSshPublicKey": "ssh-rsa", "sshPublicKey": "ssh-rsa",
+			"cloudInit": "#cloud", "fmcIpAddress": "10.0.0.1",
+			"fmcRegistrationKey": "key", "fmcNatId": "nat",
+		})
+		require.NoError(t, err)
+		cisco, ok := cfg.(*megaport.CiscoConfig)
+		require.True(t, ok)
+		assert.Empty(t, cisco.AdminPassword)
+	})
+
+	t.Run("palo_alto AdminPasswordHash only, AdminPassword empty", func(t *testing.T) {
+		cfg, err := ParseVendorConfig(map[string]interface{}{
+			"vendor": "palo_alto", "imageId": float64(1), "productSize": "MEDIUM",
+			"sshPublicKey": "ssh-rsa", "adminPasswordHash": "hash",
+			"licenseData": "license",
+		})
+		require.NoError(t, err)
+		pa, ok := cfg.(*megaport.PaloAltoConfig)
+		require.True(t, ok)
+		assert.Equal(t, "hash", pa.AdminPasswordHash)
+		assert.Empty(t, pa.AdminPassword)
+	})
+
+	t.Run("palo_alto both AdminPassword and AdminPasswordHash accepted", func(t *testing.T) {
+		cfg, err := ParseVendorConfig(map[string]interface{}{
+			"vendor": "palo_alto", "imageId": float64(1), "productSize": "MEDIUM",
+			"sshPublicKey": "ssh-rsa", "adminPassword": "s3cret",
+			"adminPasswordHash": "hash", "licenseData": "license",
+		})
+		require.NoError(t, err)
+		pa, ok := cfg.(*megaport.PaloAltoConfig)
+		require.True(t, ok)
+		assert.Equal(t, "s3cret", pa.AdminPassword)
+		assert.Equal(t, "hash", pa.AdminPasswordHash)
+	})
+}
 
 func TestParseVendorConfig(t *testing.T) {
 	tests := []struct {
@@ -127,6 +198,34 @@ func TestParseVendorConfig(t *testing.T) {
 			name:          "palo_alto missing sshPublicKey",
 			config:        map[string]interface{}{"vendor": "palo_alto", "imageId": float64(1), "productSize": "MEDIUM"},
 			expectedError: "sshPublicKey is required",
+		},
+		{
+			// adminPassword / adminPasswordHash combination rules are enforced by
+			// ValidatePaloAltoConfig — parsing accepts either, both, or neither.
+			name: "palo_alto neither adminPassword nor adminPasswordHash parses without error",
+			config: map[string]interface{}{
+				"vendor": "palo_alto", "imageId": float64(1), "productSize": "MEDIUM",
+				"sshPublicKey": "ssh-rsa", "licenseData": "license",
+			},
+		},
+		{
+			name: "palo_alto success with plaintext adminPassword",
+			config: map[string]interface{}{
+				"vendor": "palo_alto", "imageId": float64(1), "productSize": "MEDIUM",
+				"sshPublicKey": "ssh-rsa", "adminPassword": "s3cret",
+				"licenseData": "license",
+			},
+		},
+		{
+			name: "cisco success with adminPassword",
+			config: map[string]interface{}{
+				"vendor": "cisco", "imageId": float64(1), "productSize": "MEDIUM",
+				"mveLabel": "label", "manageLocally": true,
+				"adminSshPublicKey": "ssh-rsa", "sshPublicKey": "ssh-rsa",
+				"adminPassword": "s3cret", "cloudInit": "#cloud",
+				"fmcIpAddress": "10.0.0.1", "fmcRegistrationKey": "key",
+				"fmcNatId": "nat",
+			},
 		},
 		{
 			name:          "prisma missing ionKey",

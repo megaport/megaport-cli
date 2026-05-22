@@ -228,7 +228,7 @@ func prepareJSONData[T OutputFields](data []T) (interface{}, error) {
 		rows := make([]interface{}, 0, len(data))
 		for _, item := range data {
 			v := reflect.ValueOf(item)
-			if v.Kind() == reflect.Ptr {
+			if v.Kind() == reflect.Pointer {
 				if v.IsNil() {
 					rows = append(rows, nil)
 					continue
@@ -320,7 +320,7 @@ func getStructTypeInfo[T OutputFields](data []T) (headers, jsonNames []string, f
 		return nil, nil, nil, nil
 	}
 	itemType := sampleVal.Type()
-	if itemType.Kind() == reflect.Ptr {
+	if itemType.Kind() == reflect.Pointer {
 		if sampleVal.IsNil() {
 			if itemType.Elem().Kind() != reflect.Struct {
 				return nil, nil, nil, nil
@@ -352,7 +352,7 @@ func extractCSVFieldInfo[T OutputFields](data []T) (headers, jsonNames []string,
 		return nil, nil, nil, nil
 	}
 	t := sampleVal.Type()
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		if sampleVal.IsNil() {
 			if t.Elem().Kind() != reflect.Struct {
 				return nil, nil, nil, nil
@@ -507,7 +507,7 @@ func filterByFields(headers, jsonNames []string, indices []int, selected []strin
 // isOutputCompatibleType checks if a type can be output
 func isOutputCompatibleType(t reflect.Type) bool {
 	// Handle pointer types by checking the element type
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		return isOutputCompatibleType(t.Elem())
 	}
 
@@ -538,13 +538,13 @@ func isOutputCompatibleType(t reflect.Type) bool {
 // isNilOrInvalid returns true if item is a nil pointer or an invalid reflect value.
 func isNilOrInvalid(item interface{}) bool {
 	v := reflect.ValueOf(item)
-	return !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil())
+	return !v.IsValid() || (v.Kind() == reflect.Pointer && v.IsNil())
 }
 
 // extractRowData extracts field values from a struct for table/CSV output
 func extractRowData(item interface{}, fieldIndices []int) []string {
 	itemVal := reflect.ValueOf(item)
-	if itemVal.Kind() == reflect.Ptr {
+	if itemVal.Kind() == reflect.Pointer {
 		if itemVal.IsNil() {
 			return make([]string, len(fieldIndices))
 		}
@@ -566,7 +566,7 @@ func formatFieldValue(fieldVal reflect.Value) string {
 	if !fieldVal.IsValid() {
 		return ""
 	}
-	if fieldVal.Kind() == reflect.Ptr {
+	if fieldVal.Kind() == reflect.Pointer {
 		if fieldVal.IsNil() {
 			return ""
 		}
