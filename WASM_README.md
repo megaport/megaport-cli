@@ -48,7 +48,7 @@ That's it! The script will:
 
 ### Available Commands
 
-The WASM build registers the following modules. Each supports the same subcommands (`list`, `get`, `buy`, `update`, `delete`, etc.) as the native CLI, subject to the constraints of running in the browser:
+The WASM build registers the following modules. Each module exposes the same subcommands it provides in the native CLI (so `partners` is still `list` / `find`, `locations` is still `list` / `get`, and so on), subject to the constraints of running in the browser:
 
 - `locations` - Find Megaport locations and metros
 - `ports` - Manage Megaport ports (including LAG ports)
@@ -58,7 +58,7 @@ The WASM build registers the following modules. Each supports the same subcomman
 - `partners` - Look up cloud partner ports
 - `servicekeys` - Manage service keys
 
-The following modules are intentionally **not** available in WASM: `auth`, `config`, `completion`, `generate-docs`, and `version` — these either rely on the local filesystem (profile storage, completion scripts) or aren't meaningful in a browser context. Authentication in WASM is session-based via the web UI login form.
+Any module not in that list is unavailable in the WASM build — including `auth`, `config`, `completion`, `generate-docs`, `version`, `nat-gateway`, `ix`, `users`, `status`, `topology`, `apply`, `product`, `managed-account`, and `billing-market`. Some rely on the local filesystem (profile storage, completion scripts); others have simply not been wired into the browser build yet. Authentication in WASM is session-based via the web UI login form.
 
 **Output Formats**: The WASM build supports the following output formats:
 

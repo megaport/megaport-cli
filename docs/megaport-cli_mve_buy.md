@@ -24,6 +24,7 @@ This command allows you to purchase an MVE by providing the necessary details.
 
 ### Important Notes
   - For production deployments, you may want to use a JSON file to manage complex configurations
+  - Treat fields like adminPassword, adminSshPublicKey, sshPublicKey, accountKey, and any other credentials as secrets — replace the placeholders in these examples and avoid committing populated config files to source control.
   - To list available images and their IDs, use: megaport-cli mve list-images
   - To list available sizes, use: megaport-cli mve list-sizes
   - Location IDs can be retrieved with: megaport-cli locations list
@@ -54,7 +55,7 @@ This command allows you to purchase an MVE by providing the necessary details.
     "manageLocally": true,
     "adminSshPublicKey": "ssh-rsa AAAA...",
     "sshPublicKey": "ssh-rsa AAAA...",
-    "adminPassword": "S3cretP@ss",
+    "adminPassword": "<your-admin-password>",
     "cloudInit": "#cloud-config\npackages:\n - nginx\n"
   },
   "vnics": [
