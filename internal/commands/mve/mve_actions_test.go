@@ -422,6 +422,46 @@ func TestUpdateMVE(t *testing.T) {
 			},
 			expectedError: "empty response from API",
 		},
+		{
+			name: "vnic count mismatch",
+			args: []string{"mve-123"},
+			flags: map[string]string{
+				"vnics": `[{"description":"Only One"}]`,
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.GetMVEResult = &megaport.MVE{
+					Name: "Mock MVE",
+					NetworkInterfaces: []*megaport.MVENetworkInterface{
+						{Description: "Data Plane"},
+						{Description: "Management"},
+					},
+				}
+			},
+			expectedError: "vnics length (1) must match the MVE's existing vNIC count (2)",
+		},
+		{
+			name: "vnic count match success",
+			args: []string{"mve-123"},
+			flags: map[string]string{
+				"vnics": `[{"description":"Data Plane Renamed"},{"description":"Mgmt"}]`,
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.ModifyMVEResult = &megaport.ModifyMVEResponse{MVEUpdated: true}
+				m.GetMVEResult = &megaport.MVE{
+					Name: "Mock MVE",
+					NetworkInterfaces: []*megaport.MVENetworkInterface{
+						{Description: "Data Plane"},
+						{Description: "Management"},
+					},
+				}
+			},
+			expectedOutput: "MVE updated mve-123",
+			validateRequest: func(t *testing.T, req *megaport.ModifyMVERequest) {
+				assert.Len(t, req.Vnics, 2)
+				assert.Equal(t, "Data Plane Renamed", req.Vnics[0].Description)
+				assert.Equal(t, "Mgmt", req.Vnics[1].Description)
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -448,6 +488,7 @@ func TestUpdateMVE(t *testing.T) {
 			cmd.Flags().String("name", "", "")
 			cmd.Flags().String("cost-centre", "", "")
 			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().String("vnics", "", "")
 
 			testutil.SetFlags(t, cmd, tt.flags)
 

@@ -134,6 +134,12 @@ func ValidateUpdateMVERequest(req *megaport.ModifyMVERequest) error {
 		}
 	}
 
+	for i, v := range req.Vnics {
+		if v.Description == "" {
+			return NewValidationError(fmt.Sprintf("vnics[%d].description", i), v.Description, "must not be empty")
+		}
+	}
+
 	return nil
 }
 

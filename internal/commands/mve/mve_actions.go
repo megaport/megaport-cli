@@ -307,6 +307,12 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify MVE update details")
 	}
 
+	if len(req.Vnics) > 0 && len(req.Vnics) != len(originalMVE.NetworkInterfaces) {
+		msg := fmt.Sprintf("vnics length (%d) must match the MVE's existing vNIC count (%d) — the vNIC count cannot change after provisioning", len(req.Vnics), len(originalMVE.NetworkInterfaces))
+		output.PrintError("%s", noColor, msg)
+		return fmt.Errorf("%s", msg)
+	}
+
 	req.WaitForUpdate = true
 	req.WaitForTime = utils.DefaultProvisionTimeout
 

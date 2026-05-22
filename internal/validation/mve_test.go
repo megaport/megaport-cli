@@ -424,6 +424,15 @@ func TestValidateUpdateMVERequest(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "Empty vnic description rejected",
+			req: &megaport.ModifyMVERequest{
+				MVEID: "mve-uid-123",
+				Vnics: []megaport.MVEVnicUpdate{{Description: "Data Plane"}, {Description: ""}},
+			},
+			wantErr: true,
+			errText: "vnics[1].description",
+		},
 	}
 
 	for _, tt := range tests {
