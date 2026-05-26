@@ -109,6 +109,9 @@ instead, build just the static front-end assets and sync the output dir:
 make web-static          # or: ./scripts/build-web.sh
 ```
 
+Needs the Go toolchain and Node/npm on `PATH` — the build compiles the WASM
+binary and bundles the Vue front end.
+
 This produces a self-contained **`web/vue-demo/`** directory (Vue build +
 `megaport.wasm` + `wasm_exec.js`). Publish it with:
 
