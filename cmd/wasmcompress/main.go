@@ -68,9 +68,14 @@ func encodeToFile(srcPath, dstPath string, encode func(io.Writer, io.Reader) err
 	if err != nil {
 		return 0, err
 	}
+	tmpName := tmp.Name()
+	// On any error, close the handle (so the file can be removed on Windows) and
+	// delete the temp file. Close is idempotent enough here: a second Close on the
+	// success paths below just returns ErrClosed, which we ignore.
 	defer func() {
 		if err != nil {
-			_ = os.Remove(tmp.Name())
+			_ = tmp.Close()
+			_ = os.Remove(tmpName)
 		}
 	}()
 
@@ -78,19 +83,17 @@ func encodeToFile(srcPath, dstPath string, encode func(io.Writer, io.Reader) err
 	if err = tmp.Chmod(0o644); err != nil {
 		return 0, err
 	}
-
 	if err = encode(tmp, src); err != nil {
-		_ = tmp.Close()
 		return 0, err
 	}
 	if err = tmp.Close(); err != nil {
 		return 0, err
 	}
-	fi, err := os.Stat(tmp.Name())
+	fi, err := os.Stat(tmpName)
 	if err != nil {
 		return 0, err
 	}
-	if err = os.Rename(tmp.Name(), dstPath); err != nil {
+	if err = os.Rename(tmpName, dstPath); err != nil {
 		return 0, err
 	}
 	return fi.Size(), nil

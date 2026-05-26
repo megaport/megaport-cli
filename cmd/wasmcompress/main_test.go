@@ -144,6 +144,16 @@ func TestEncodeToFileNoPartialOnError(t *testing.T) {
 	if _, statErr := os.Stat(dst); !errors.Is(statErr, os.ErrNotExist) {
 		t.Fatalf("expected no artifact at %s on encode failure (stat err: %v)", dst, statErr)
 	}
+	// The temp file must be cleaned up too — only the source should remain.
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.Name() != "src.wasm" {
+			t.Fatalf("leftover file after failed encode: %s", e.Name())
+		}
+	}
 }
 
 func TestCompressWASMMissingFile(t *testing.T) {
