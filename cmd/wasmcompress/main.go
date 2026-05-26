@@ -8,11 +8,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/andybalholm/brotli"
 )
 
-const defaultWASM = "web/vue-demo/megaport.wasm"
+const defaultWASM = "web/megaport.wasm"
 
 func writeBrotli(dst io.Writer, src io.Reader) error {
 	w := brotli.NewWriterLevel(dst, brotli.BestCompression)
@@ -61,23 +62,30 @@ func encodeToFile(srcPath, dstPath string, encode func(io.Writer, io.Reader) err
 	}
 	defer src.Close()
 
-	dst, err := os.Create(dstPath)
+	// Encode to a temp file and rename on success, so a failed or partial encode
+	// never leaves a truncated artifact at dstPath (these get uploaded to a CDN).
+	tmp, err := os.CreateTemp(filepath.Dir(dstPath), filepath.Base(dstPath)+".*.tmp")
 	if err != nil {
 		return 0, err
 	}
-	// Surface a close error (e.g. a flush failing on a full disk) so a
-	// truncated artifact isn't reported as a success.
 	defer func() {
-		if cerr := dst.Close(); cerr != nil && err == nil {
-			err = cerr
+		if err != nil {
+			_ = os.Remove(tmp.Name())
 		}
 	}()
 
-	if err = encode(dst, src); err != nil {
+	if err = encode(tmp, src); err != nil {
+		_ = tmp.Close()
 		return 0, err
 	}
-	fi, err := dst.Stat()
+	if err = tmp.Close(); err != nil {
+		return 0, err
+	}
+	fi, err := os.Stat(tmp.Name())
 	if err != nil {
+		return 0, err
+	}
+	if err = os.Rename(tmp.Name(), dstPath); err != nil {
 		return 0, err
 	}
 	return fi.Size(), nil

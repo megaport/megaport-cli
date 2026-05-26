@@ -42,9 +42,9 @@ wasm:
 	GOOS=js GOARCH=wasm go build -tags js,wasm -o web/megaport.wasm .
 
 # Pre-compress the WASM artifact (brotli q11 + gzip -9) for CDN serving
-wasm-compress:
+wasm-compress: wasm
 	go run ./cmd/wasmcompress web/megaport.wasm
 
 # Clean build artifacts
 clean:
-	rm -f megaport-cli cover*.out coverage*.out web/megaport.wasm web/megaport.wasm.br web/megaport.wasm.gz web/vue-demo/megaport.wasm.br web/vue-demo/megaport.wasm.gz
+	rm -f megaport-cli cover*.out coverage*.out web/megaport.wasm web/megaport.wasm.br web/megaport.wasm.gz web/vue-demo/megaport.wasm web/vue-demo/megaport.wasm.br web/vue-demo/megaport.wasm.gz

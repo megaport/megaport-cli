@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -51,6 +52,9 @@ func TestWriteGzipRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("gzip decode: %v", err)
 	}
+	if err := r.Close(); err != nil {
+		t.Fatalf("gzip close (CRC/footer): %v", err)
+	}
 	if !bytes.Equal(got, in) {
 		t.Fatal("gzip round-trip mismatch")
 	}
@@ -96,6 +100,27 @@ func TestCompressWASMProducesObjects(t *testing.T) {
 	}
 	if !bytes.Equal(got, in) {
 		t.Fatal("brotli object did not round-trip to original wasm")
+	}
+}
+
+func TestEncodeToFileNoPartialOnError(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.wasm")
+	if err := os.WriteFile(src, sampleWASM(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dst := filepath.Join(dir, "out.br")
+
+	boom := errors.New("encode blew up")
+	_, err := encodeToFile(src, dst, func(w io.Writer, _ io.Reader) error {
+		_, _ = w.Write([]byte("half-written")) // partial output before failing
+		return boom
+	})
+	if !errors.Is(err, boom) {
+		t.Fatalf("got err %v, want %v", err, boom)
+	}
+	if _, statErr := os.Stat(dst); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("expected no artifact at %s on encode failure (stat err: %v)", dst, statErr)
 	}
 }
 
