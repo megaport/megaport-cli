@@ -57,6 +57,12 @@ cp web/wasm_exec.js web/vue-demo/
 echo "✅ WASM files copied to Vue build"
 echo ""
 
+# Pre-compress the WASM for CDN serving (CloudFront skips auto-compression >10MB)
+echo "🗜️  Pre-compressing WASM (brotli + gzip)..."
+GOWORK=off go run -mod=vendor ./cmd/wasmcompress web/vue-demo/megaport.wasm
+echo "✅ Compressed artifacts created (.br, .gz)"
+echo ""
+
 # Build Docker image
 echo "🐳 Building Docker image..."
 docker build --no-cache -t megaport-cli-wasm:latest . > /tmp/docker-build.log 2>&1

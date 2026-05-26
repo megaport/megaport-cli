@@ -1,4 +1,4 @@
-.PHONY: build test test-cover test-integration test-integration-readonly lint fmt vet check clean wasm
+.PHONY: build test test-cover test-integration test-integration-readonly lint fmt vet check clean wasm wasm-compress
 
 # Build the CLI binary
 build:
@@ -41,6 +41,10 @@ check: lint test
 wasm:
 	GOOS=js GOARCH=wasm go build -tags js,wasm -o web/megaport.wasm .
 
+# Pre-compress the WASM artifact (brotli q11 + gzip -9) for CDN serving
+wasm-compress:
+	go run ./cmd/wasmcompress web/megaport.wasm
+
 # Clean build artifacts
 clean:
-	rm -f megaport-cli cover*.out coverage*.out web/megaport.wasm
+	rm -f megaport-cli cover*.out coverage*.out web/megaport.wasm web/megaport.wasm.br web/megaport.wasm.gz web/vue-demo/megaport.wasm.br web/vue-demo/megaport.wasm.gz

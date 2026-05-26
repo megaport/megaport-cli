@@ -3,6 +3,7 @@ module github.com/megaport/megaport-cli
 go 1.25.0
 
 require (
+	github.com/andybalholm/brotli v1.2.1
 	github.com/charmbracelet/glamour v1.0.0
 	github.com/fatih/color v1.19.0
 	github.com/jedib0t/go-pretty/v6 v6.7.10

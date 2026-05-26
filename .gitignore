@@ -18,6 +18,8 @@
 # WASM build artifacts
 web/megaport.wasm
 *.wasm
+*.wasm.br
+*.wasm.gz
 
 # Node.js / npm
 node_modules/

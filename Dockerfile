@@ -43,6 +43,9 @@ COPY . .
 # Build the WASM binary using vendored dependencies
 RUN GOOS=js GOARCH=wasm go build -mod=vendor -tags js,wasm -o web/megaport.wasm .
 
+# Pre-compress the WASM for CDN serving (CloudFront skips auto-compression >10MB)
+RUN go run -mod=vendor ./cmd/wasmcompress web/megaport.wasm
+
 # Build the server binary using vendored dependencies
 RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -o server ./cmd/server/server.go
 
@@ -73,6 +76,8 @@ COPY --from=frontend-builder /app/web/vue-demo ./web
 
 # Copy WASM files from Go builder to Vue build directory
 COPY --from=go-builder /app/web/megaport.wasm ./web/
+COPY --from=go-builder /app/web/megaport.wasm.br ./web/
+COPY --from=go-builder /app/web/megaport.wasm.gz ./web/
 COPY --from=go-builder /app/web/wasm_exec.js ./web/
 
 # Expose port
