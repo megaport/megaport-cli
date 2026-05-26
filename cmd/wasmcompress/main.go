@@ -74,6 +74,11 @@ func encodeToFile(srcPath, dstPath string, encode func(io.Writer, io.Reader) err
 		}
 	}()
 
+	// os.CreateTemp makes the file 0600; served artifacts need to be readable.
+	if err = tmp.Chmod(0o644); err != nil {
+		return 0, err
+	}
+
 	if err = encode(tmp, src); err != nil {
 		_ = tmp.Close()
 		return 0, err

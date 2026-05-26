@@ -103,6 +103,28 @@ func TestCompressWASMProducesObjects(t *testing.T) {
 	}
 }
 
+func TestCompressWASMArtifactsAreReadable(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "megaport.wasm")
+	if err := os.WriteFile(path, sampleWASM(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := compressWASM(path); err != nil {
+		t.Fatalf("compressWASM: %v", err)
+	}
+	// Served/packaged artifacts must be group- and world-readable, not the
+	// 0600 that os.CreateTemp would leave behind.
+	for _, ext := range []string{".br", ".gz"} {
+		fi, err := os.Stat(path + ext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if perm := fi.Mode().Perm(); perm&0o044 != 0o044 {
+			t.Fatalf("%s perm = %04o, want group+other readable", ext, perm)
+		}
+	}
+}
+
 func TestEncodeToFileNoPartialOnError(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "src.wasm")
