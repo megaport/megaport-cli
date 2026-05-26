@@ -1,6 +1,7 @@
 // Command wasmcompress writes brotli (q11) and gzip (-9) copies of a wasm
-// artifact next to it. CloudFront only auto-compresses objects up to 10 MB, so
-// the ~32 MB wasm must be pre-compressed at the origin (ESD-1268).
+// artifact next to it. CloudFront only auto-compresses objects up to 10 MB, and
+// the wasm is well above that even after stripping glamour, so it must be
+// pre-compressed at the origin (ESD-1268).
 package main
 
 import (
@@ -110,12 +111,12 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("wasmcompress %s\n", path)
-	fmt.Printf("  raw     %6.2f MB\n", mb(res.rawSize))
-	fmt.Printf("  brotli  %6.2f MB  (%s.br, %.0f%% of raw)\n", mb(res.brSize), path, pct(res.brSize, res.rawSize))
-	fmt.Printf("  gzip    %6.2f MB  (%s.gz, %.0f%% of raw)\n", mb(res.gzSize), path, pct(res.gzSize, res.rawSize))
+	fmt.Printf("  raw     %6.2f MiB\n", mib(res.rawSize))
+	fmt.Printf("  brotli  %6.2f MiB  (%s.br, %.0f%% of raw)\n", mib(res.brSize), path, pct(res.brSize, res.rawSize))
+	fmt.Printf("  gzip    %6.2f MiB  (%s.gz, %.0f%% of raw)\n", mib(res.gzSize), path, pct(res.gzSize, res.rawSize))
 }
 
-func mb(n int64) float64 { return float64(n) / (1024 * 1024) }
+func mib(n int64) float64 { return float64(n) / (1024 * 1024) }
 
 func pct(part, whole int64) float64 {
 	if whole == 0 {
