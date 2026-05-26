@@ -20,6 +20,8 @@ func ShowDocumentation(cmd *cobra.Command) error {
 		return fmt.Errorf("documentation file not found for %s: %w", cmdPath, err)
 	}
 
-	fmt.Println(string(content))
+	// Write to the Cobra writer (WasmOutputBuffer in the browser), not os.Stdout
+	// via fmt.Println — the latter goes to the dev console, not the terminal UI.
+	fmt.Fprintln(cmd.OutOrStdout(), string(content))
 	return nil
 }
