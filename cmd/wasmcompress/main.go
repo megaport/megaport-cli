@@ -71,8 +71,8 @@ func encodeToFile(srcPath, dstPath string, encode func(io.Writer, io.Reader) err
 	}
 	tmpName := tmp.Name()
 	// On any error, close the handle (so the file can be removed on Windows) and
-	// delete the temp file. Close is idempotent enough here: a second Close on the
-	// success paths below just returns ErrClosed, which we ignore.
+	// delete the temp file. On the error paths after the explicit Close below this
+	// closes a second time and gets ErrClosed, which we ignore.
 	defer func() {
 		if err != nil {
 			_ = tmp.Close()
