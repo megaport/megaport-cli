@@ -39,7 +39,7 @@ func FindDocFile(cmd *cobra.Command) (string, error) {
 		}
 		if err := tempFile.Close(); err != nil {
 			_ = os.Remove(tempFile.Name())
-			return "", fmt.Errorf("failed to write to temporary file: %w", err)
+			return "", fmt.Errorf("failed to close temporary file: %w", err)
 		}
 		return tempFile.Name(), nil
 	}
