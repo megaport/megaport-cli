@@ -26,17 +26,21 @@ func FindDocFile(cmd *cobra.Command) (string, error) {
 	embeddedPath := path.Join("docs", docName)
 	content, err := embeddedDocsFS.ReadFile(embeddedPath)
 	if err == nil {
-		// Create a temporary file to store the content for rendering
+		// Stage the embedded content in a temp file; RenderDocFile reads it back
+		// by path and the caller removes it after rendering.
 		tempFile, err := os.CreateTemp("", "megaport-docs-*.md")
 		if err != nil {
 			return "", fmt.Errorf("failed to create temporary file: %w", err)
 		}
-		defer tempFile.Close()
-
 		if _, err := tempFile.Write(content); err != nil {
+			_ = tempFile.Close()
+			_ = os.Remove(tempFile.Name())
 			return "", fmt.Errorf("failed to write to temporary file: %w", err)
 		}
-
+		if err := tempFile.Close(); err != nil {
+			_ = os.Remove(tempFile.Name())
+			return "", fmt.Errorf("failed to write to temporary file: %w", err)
+		}
 		return tempFile.Name(), nil
 	}
 
