@@ -22,6 +22,6 @@ func ShowDocumentation(cmd *cobra.Command) error {
 
 	// Write to the Cobra writer (WasmOutputBuffer in the browser), not os.Stdout
 	// via fmt.Println — the latter goes to the dev console, not the terminal UI.
-	fmt.Fprintln(cmd.OutOrStdout(), string(content))
-	return nil
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(content))
+	return err
 }

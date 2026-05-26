@@ -92,7 +92,6 @@ func ShowDocumentation(cmd *cobra.Command) error {
 		return err
 	}
 
-	// Print the rendered documentation
-	fmt.Println(rendered)
-	return nil
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), rendered)
+	return err
 }
