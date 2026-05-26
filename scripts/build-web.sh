@@ -6,6 +6,14 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
+# Fail early with an actionable message rather than a generic "command not found".
+for tool in go npm; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "error: '$tool' is required but was not found on PATH" >&2
+    exit 1
+  fi
+done
+
 publish_dir="web/vue-demo"
 
 echo "==> Building Vue front end (frontend-integration -> $publish_dir)"
