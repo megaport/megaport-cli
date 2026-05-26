@@ -5,6 +5,7 @@ package cmdbuilder
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -20,8 +21,9 @@ func FindDocFile(cmd *cobra.Command) (string, error) {
 	cmdPath := getCommandPath(cmd)
 	docName := cmdPath + ".md"
 
-	// First try to read from embedded docs
-	embeddedPath := filepath.Join("docs", docName)
+	// First try to read from embedded docs. embed.FS paths are always
+	// slash-separated, so use path.Join, not filepath.Join (\ on Windows).
+	embeddedPath := path.Join("docs", docName)
 	content, err := embeddedDocsFS.ReadFile(embeddedPath)
 	if err == nil {
 		// Create a temporary file to store the content for rendering

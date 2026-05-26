@@ -4,7 +4,7 @@ package cmdbuilder
 
 import (
 	"fmt"
-	"path/filepath"
+	"path"
 
 	"github.com/spf13/cobra"
 )
@@ -15,7 +15,7 @@ import (
 func ShowDocumentation(cmd *cobra.Command) error {
 	cmdPath := getCommandPath(cmd)
 
-	content, err := embeddedDocsFS.ReadFile(filepath.Join("docs", cmdPath+".md"))
+	content, err := embeddedDocsFS.ReadFile(path.Join("docs", cmdPath+".md"))
 	if err != nil {
 		return fmt.Errorf("documentation file not found for %s: %w", cmdPath, err)
 	}
