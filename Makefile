@@ -47,4 +47,4 @@ web-static:
 
 # Clean build artifacts
 clean:
-	rm -f megaport-cli cover*.out coverage*.out web/megaport.wasm
+	rm -f megaport-cli cover*.out coverage*.out web/megaport.wasm web/vue-demo/megaport.wasm
