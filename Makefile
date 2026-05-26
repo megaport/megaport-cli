@@ -1,4 +1,4 @@
-.PHONY: build test test-cover test-integration test-integration-readonly lint fmt vet check clean wasm
+.PHONY: build test test-cover test-integration test-integration-readonly lint fmt vet check clean wasm web-static
 
 # Build the CLI binary
 build:
@@ -40,6 +40,10 @@ check: lint test
 # Build WASM binary
 wasm:
 	GOOS=js GOARCH=wasm go build -tags js,wasm -o web/megaport.wasm .
+
+# Build the static browser/WASM site into web/vue-demo/ (for CDN hosting)
+web-static:
+	./scripts/build-web.sh
 
 # Clean build artifacts
 clean:

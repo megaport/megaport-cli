@@ -98,6 +98,42 @@ docker rm megaport-cli-wasm
 ./deploy.sh
 ```
 
+## Static Build (CDN Hosting)
+
+The Docker flow above runs a Go file server. To host the browser CLI on a CDN
+(S3 + CloudFront) instead, build the static assets and sync the output dir — no
+server required:
+
+```bash
+make web-static          # or: ./scripts/build-web.sh
+```
+
+This produces a self-contained **`web/vue-demo/`** directory (Vue build +
+`megaport.wasm` + `wasm_exec.js`). Publish it with:
+
+```bash
+aws s3 sync web/vue-demo/ s3://<bucket>/<prefix>/ --delete
+```
+
+`--delete` prunes stale hashed assets from old builds, so point it at a prefix
+dedicated to this site — it removes anything else under that prefix.
+
+### Notes for the CDN/S3 side
+
+- The build assumes the app is served from the **site root**. Serving under a
+  path (e.g. `media.megaport.com/cli/`) needs source changes, not just config:
+  vite's `base` in `frontend-integration/vite.demo.config.ts` rewrites the
+  bundled `assets/`, but `megaport.wasm` and `wasm_exec.js` are fetched from
+  hardcoded absolute paths (`wasm-path`/`wasm-exec-path` in
+  `frontend-integration/demo/App.vue`) and would 404. Confirm root hosting, or
+  budget for those edits.
+- `megaport.wasm` is ~32 MB uncompressed — serve it compressed (brotli `-q11`
+  gets it to ~4.7 MB over the wire, gzip `-9` ~6.8 MB). S3 must set
+  `Content-Type: application/wasm` explicitly; it won't be inferred.
+- The wasm file keeps a fixed name (it isn't content-hashed like vite's
+  `assets/`), so invalidate it on every deploy. Serve `index.html` `no-cache`;
+  the hashed files under `assets/` can cache long/immutable.
+
 ## Configuration
 
 ### Environment Variables
