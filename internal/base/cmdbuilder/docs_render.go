@@ -1,7 +1,8 @@
+//go:build !(js && wasm)
+
 package cmdbuilder
 
 import (
-	"embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,14 +14,6 @@ import (
 
 // DocsDirectory is the fallback location for markdown documentation files
 var DocsDirectory = "./docs"
-
-// embeddedDocsFS holds the embedded documentation files
-var embeddedDocsFS embed.FS
-
-// RegisterEmbeddedDocs registers the embedded documentation filesystem
-func RegisterEmbeddedDocs(docs embed.FS) {
-	embeddedDocsFS = docs
-}
 
 // FindDocFile locates the markdown file for a specific command
 func FindDocFile(cmd *cobra.Command) (string, error) {
@@ -102,22 +95,4 @@ func ShowDocumentation(cmd *cobra.Command) error {
 	// Print the rendered documentation
 	fmt.Println(rendered)
 	return nil
-}
-
-// getCommandPath returns the file path-style name for a command (e.g., "megaport-cli_mcr_buy")
-func getCommandPath(cmd *cobra.Command) string {
-	if cmd.Parent() == nil {
-		return "megaport-cli"
-	}
-
-	// Build the full path
-	path := cmd.Name()
-	parent := cmd.Parent()
-
-	for parent != nil && parent.Name() != "" && parent.Name() != "megaport-cli" {
-		path = parent.Name() + "_" + path
-		parent = parent.Parent()
-	}
-
-	return "megaport-cli_" + path
 }
