@@ -66,5 +66,9 @@
     "terminal"
   ],
   "author": "Megaport",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=18",
+    "npm": ">=9"
+  }
 }
