@@ -68,7 +68,7 @@
   "author": "Megaport",
   "license": "MIT",
   "engines": {
-    "node": ">=18",
+    "node": ">=20",
     "npm": ">=9"
   }
 }
