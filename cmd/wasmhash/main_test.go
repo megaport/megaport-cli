@@ -267,6 +267,37 @@ func TestRunInjectError(t *testing.T) {
 	}
 }
 
+func TestRunRollsBackRenameOnInjectFailure(t *testing.T) {
+	dir := t.TempDir()
+	wasmPath := filepath.Join(dir, "megaport.wasm")
+	if err := os.WriteFile(wasmPath, []byte("bytes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	idx := filepath.Join(dir, "index.html")
+	// No </head>: injectWasmURL fails after the rename has already happened.
+	if err := os.WriteFile(idx, []byte("<html><body>no head</body></html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"wasmhash", wasmPath, idx}, &stdout, &stderr); code != 1 {
+		t.Fatalf("run code = %d, want 1", code)
+	}
+
+	// The original wasm must be restored so a re-run can succeed, with no
+	// orphaned hashed file left behind.
+	if _, err := os.Stat(wasmPath); err != nil {
+		t.Fatalf("original wasm not restored after inject failure: %v", err)
+	}
+	matches, err := filepath.Glob(filepath.Join(dir, "megaport.*.wasm"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(matches) != 0 {
+		t.Fatalf("orphaned hashed wasm left behind: %v", matches)
+	}
+}
+
 func TestHashFileLengthResistsCollisions(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "x.wasm")

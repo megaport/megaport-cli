@@ -103,6 +103,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	url := "/" + filepath.Base(newPath)
 	if err := injectWasmURL(indexPath, url); err != nil {
+		// Best-effort rollback so a failed run leaves the wasm where it started
+		// instead of half-renamed.
+		_ = os.Rename(newPath, wasmPath)
 		fmt.Fprintf(stderr, "wasmhash: %v\n", err)
 		return 1
 	}
