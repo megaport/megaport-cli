@@ -37,6 +37,10 @@ web/node_modules/
 web/package.json
 web/package-lock.json
 
+# Host build artifacts (the image rebuilds these in its own stages)
+frontend-integration/node_modules/
+web/vue-demo/
+
 # Temporary files
 tmp/
 temp/
