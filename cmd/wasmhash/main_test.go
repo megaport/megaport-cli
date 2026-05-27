@@ -266,3 +266,61 @@ func TestRunInjectError(t *testing.T) {
 		t.Fatalf("stderr missing inject error: %q", stderr.String())
 	}
 }
+
+func TestHashFileLengthResistsCollisions(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "x.wasm")
+	if err := os.WriteFile(p, []byte("some bytes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	h, err := hashFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// At least 64 bits of hash: an immutable-cached URL must never be reusable
+	// by different content, or stale wasm would be served for a year.
+	if len(h) < 16 {
+		t.Fatalf("hash prefix = %d chars (%d bits), want >= 16 chars (64 bits)", len(h), len(h)*4)
+	}
+}
+
+func TestInjectWasmURLIdempotentCRLF(t *testing.T) {
+	dir := t.TempDir()
+	idx := filepath.Join(dir, "index.html")
+	if err := os.WriteFile(idx, []byte(indexTemplate), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Re-inject across rebuilds, normalizing the file to CRLF in between (as git
+	// autocrlf or a Windows editor would). The old tag must be fully replaced
+	// each time, with no blank-line creep around it.
+	for _, url := range []string{"/megaport.aaaa.wasm", "/megaport.bbbb.wasm", "/megaport.cccc.wasm"} {
+		if err := injectWasmURL(idx, url); err != nil {
+			t.Fatal(err)
+		}
+		b, err := os.ReadFile(idx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		lf := strings.ReplaceAll(string(b), "\r\n", "\n")
+		crlf := strings.ReplaceAll(lf, "\n", "\r\n")
+		if err := os.WriteFile(idx, []byte(crlf), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	out, err := os.ReadFile(idx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := string(out)
+	if n := strings.Count(html, "__MEGAPORT_WASM_URL__"); n != 1 {
+		t.Fatalf("expected exactly one injected script, got %d:\n%q", n, html)
+	}
+	if !strings.Contains(html, "/megaport.cccc.wasm") {
+		t.Fatalf("latest url missing:\n%q", html)
+	}
+	if strings.Contains(html, "</script>\r\n\r\n") || strings.Contains(html, "</script>\n\r\n") {
+		t.Fatalf("blank line accumulated after injected tag:\n%q", html)
+	}
+}

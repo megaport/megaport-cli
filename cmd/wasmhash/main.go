@@ -16,11 +16,13 @@ import (
 	"strings"
 )
 
-const hashLen = 8
+// 16 hex chars = 64 bits, so a content-hashed URL served immutable can't be
+// reused by different content.
+const hashLen = 16
 
-// injectedRe matches the script tag wasmhash writes, so a rebuild replaces it
-// rather than stacking a second one.
-var injectedRe = regexp.MustCompile(`<script>window\.__MEGAPORT_WASM_URL__=[^<]*</script>\n?`)
+// injectedRe matches the script tag wasmhash writes (including a CRLF or LF line
+// ending), so a rebuild replaces it rather than stacking a second one.
+var injectedRe = regexp.MustCompile(`<script>window\.__MEGAPORT_WASM_URL__=[^<]*</script>(?:\r?\n)?`)
 
 func hashFile(path string) (string, error) {
 	f, err := os.Open(path)
