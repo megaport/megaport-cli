@@ -63,7 +63,6 @@
 
         <MegaportTerminal
           ref="terminalRef"
-          wasm-path="/megaport.wasm"
           wasm-exec-path="/wasm_exec.js"
           :welcome-message="welcomeMessage"
         />

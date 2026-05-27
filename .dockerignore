@@ -37,6 +37,10 @@ web/node_modules/
 web/package.json
 web/package-lock.json
 
+# Vue demo build output — rebuilt fresh in the frontend-builder stage; excluding the
+# (possibly stale) committed copy keeps old hashed assets out of the image.
+web/vue-demo/
+
 # Temporary files
 tmp/
 temp/
