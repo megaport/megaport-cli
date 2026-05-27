@@ -84,24 +84,29 @@ func injectWasmURL(indexPath, wasmURL string) error {
 }
 
 func main() {
-	if len(os.Args) < 3 {
-		fmt.Fprintln(os.Stderr, "usage: wasmhash <wasm-path> <index.html>")
-		os.Exit(2)
+	os.Exit(run(os.Args, os.Stdout, os.Stderr))
+}
+
+func run(args []string, stdout, stderr io.Writer) int {
+	if len(args) < 3 {
+		fmt.Fprintln(stderr, "usage: wasmhash <wasm-path> <index.html>")
+		return 2
 	}
-	wasmPath, indexPath := os.Args[1], os.Args[2]
+	wasmPath, indexPath := args[1], args[2]
 
 	newPath, hash, err := renameWithHash(wasmPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "wasmhash: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "wasmhash: %v\n", err)
+		return 1
 	}
 	url := "/" + filepath.Base(newPath)
 	if err := injectWasmURL(indexPath, url); err != nil {
-		fmt.Fprintf(os.Stderr, "wasmhash: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "wasmhash: %v\n", err)
+		return 1
 	}
 
 	// stdout is just the hashed path so the build can feed it to wasmcompress.
-	fmt.Println(newPath)
-	fmt.Fprintf(os.Stderr, "wasmhash: %s (hash %s) -> %s\n", wasmPath, hash, url)
+	fmt.Fprintln(stdout, newPath)
+	fmt.Fprintf(stderr, "wasmhash: %s (hash %s) -> %s\n", wasmPath, hash, url)
+	return 0
 }

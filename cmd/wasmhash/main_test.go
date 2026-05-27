@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
@@ -181,5 +182,87 @@ func TestInjectWasmURLNoHead(t *testing.T) {
 	}
 	if err := injectWasmURL(idx, "/megaport.x.wasm"); err == nil {
 		t.Fatal("expected error when there is no </head> to inject into")
+	}
+}
+
+func TestInjectWasmURLMissingFile(t *testing.T) {
+	dir := t.TempDir()
+	if err := injectWasmURL(filepath.Join(dir, "does-not-exist.html"), "/megaport.x.wasm"); err == nil {
+		t.Fatal("expected error when index.html cannot be read")
+	}
+}
+
+func TestRunHappyPath(t *testing.T) {
+	dir := t.TempDir()
+	wasmPath := filepath.Join(dir, "megaport.wasm")
+	content := []byte("hello wasm world")
+	if err := os.WriteFile(wasmPath, content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	idx := filepath.Join(dir, "index.html")
+	if err := os.WriteFile(idx, []byte(indexTemplate), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"wasmhash", wasmPath, idx}, &stdout, &stderr); code != 0 {
+		t.Fatalf("run code = %d, want 0 (stderr: %s)", code, stderr.String())
+	}
+
+	hash := wantHash(content)
+	wantPath := filepath.Join(dir, "megaport."+hash+".wasm")
+	if got := strings.TrimSpace(stdout.String()); got != wantPath {
+		t.Fatalf("stdout = %q, want hashed path %q", got, wantPath)
+	}
+	if _, err := os.Stat(wantPath); err != nil {
+		t.Fatalf("hashed wasm not created: %v", err)
+	}
+	html, err := os.ReadFile(idx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(html), "/megaport."+hash+".wasm") {
+		t.Fatalf("index.html not pointed at hashed wasm:\n%s", html)
+	}
+}
+
+func TestRunTooFewArgs(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"wasmhash", "only-one-arg"}, &stdout, &stderr); code != 2 {
+		t.Fatalf("run code = %d, want 2", code)
+	}
+	if !strings.Contains(stderr.String(), "usage:") {
+		t.Fatalf("stderr missing usage line: %q", stderr.String())
+	}
+}
+
+func TestRunHashError(t *testing.T) {
+	dir := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"wasmhash", filepath.Join(dir, "nope.wasm"), filepath.Join(dir, "index.html")}, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("run code = %d, want 1", code)
+	}
+	if stderr.Len() == 0 {
+		t.Fatal("expected an error on stderr when the wasm file is missing")
+	}
+}
+
+func TestRunInjectError(t *testing.T) {
+	dir := t.TempDir()
+	wasmPath := filepath.Join(dir, "megaport.wasm")
+	if err := os.WriteFile(wasmPath, []byte("bytes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	idx := filepath.Join(dir, "index.html")
+	if err := os.WriteFile(idx, []byte("<html><body>no head</body></html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"wasmhash", wasmPath, idx}, &stdout, &stderr); code != 1 {
+		t.Fatalf("run code = %d, want 1", code)
+	}
+	if !strings.Contains(stderr.String(), "no </head>") {
+		t.Fatalf("stderr missing inject error: %q", stderr.String())
 	}
 }
