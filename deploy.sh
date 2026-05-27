@@ -44,7 +44,7 @@ echo ""
 # Build Vue frontend
 echo "🎨 Building Vue 3 frontend..."
 cd frontend-integration
-npm install --quiet
+npm ci --quiet
 npm run build:demo
 cd ..
 echo "✅ Vue frontend build successful"
