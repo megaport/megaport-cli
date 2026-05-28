@@ -691,11 +691,14 @@ func clearAuthCredentials(this js.Value, args []js.Value) interface{} {
 	}
 }
 
-// setAuthToken sets an external access token for authentication
-// This bypasses the OAuth flow and uses the token directly from the portal session
-// Use this when the portal already has a valid login token stored in the browser
-// Accepts hostname (e.g., window.location.hostname) to determine environment and API URL
-// Optionally accepts an explicit environment override as the 3rd argument:
+// setAuthToken sets an external access token for authentication.
+// This bypasses the OAuth flow and uses the token directly from the portal session.
+// Use this when the portal already has a valid login token stored in the browser.
+//
+// Accepts hostname (e.g. window.location.hostname) to derive environment and API URL.
+// Optionally accepts an explicit environment override as the 3rd argument; the
+// override must match [a-z0-9-]+ (see isValidEnvironmentName) and supersedes the
+// hostname-derived environment and API URL:
 //
 //	setAuthToken(token, hostname, environment)
 func setAuthToken(this js.Value, args []js.Value) interface{} {
@@ -723,10 +726,18 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 		}
 	}
 
-	// Optional explicit environment override (free text).
+	// Optional explicit environment override. Restricted to [a-z0-9-] to prevent
+	// hostname injection when interpolated into the API URL — values containing
+	// '/', '.', '@', or ':' could redirect the access token to a third-party host.
 	var explicitEnv string
 	if len(args) >= 3 {
 		explicitEnv = strings.ToLower(strings.TrimSpace(args[2].String()))
+	}
+	if explicitEnv != "" && !isValidEnvironmentName(explicitEnv) {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "environment must contain only lowercase letters, digits, and hyphens",
+		}
 	}
 
 	// Derive environment and API URL from hostname, but allow explicit override for flexibility.
@@ -745,7 +756,9 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 		apiURL = fmt.Sprintf("https://api-%s.megaport.com/", explicitEnv)
 	}
 
-	// Log the resolved environment and API URL, highlighting any mismatches between the derived environment and explicit override.
+	// Build a console-friendly description of the resolved environment, annotating
+	// whether it came from the hostname or from the override (and flagging
+	// mismatches between the two).
 	var environmentLog string
 	if explicitEnv == "" {
 		environmentLog = fmt.Sprintf("%s (derived from hostname)", environment)
@@ -796,6 +809,29 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 		"hostname":    hostname,
 		"apiURL":      apiURL,
 	}
+}
+
+// isValidEnvironmentName restricts the explicit environment override to a safe
+// character set ([a-z0-9-]). The value is interpolated into the API URL, so any
+// character that could terminate the host portion (/, ., @, :, etc.) must be
+// rejected to prevent hostname injection.
+func isValidEnvironmentName(s string) bool {
+	for _, c := range s {
+		// lowercase letter
+		if c >= 'a' && c <= 'z' {
+			continue
+		}
+		// digit
+		if c >= '0' && c <= '9' {
+			continue
+		}
+		// hyphen
+		if c == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // hostnameToEnvironment maps a hostname to the appropriate environment

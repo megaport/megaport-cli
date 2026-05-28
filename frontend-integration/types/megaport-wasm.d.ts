@@ -141,7 +141,7 @@ export interface MegaportWASM {
    * Use this when the portal already has a valid login token stored in the browser
    * @param token - The access token from the portal session
    * @param hostname - The current hostname (e.g., window.location.hostname) - environment and API URL are auto-detected
-  * @param environment - Optional explicit environment override (free text)
+   * @param environment - Optional explicit environment override. Must match [a-z0-9-]+ (e.g. "production", "staging", "qa"); invalid values are rejected with an error
    * @returns Result object with success status, detected environment, and derived API URL
    */
   setAuthToken(
