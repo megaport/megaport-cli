@@ -1,5 +1,4 @@
 //go:build js && wasm
-// +build js,wasm
 
 package utils
 
@@ -172,6 +171,53 @@ func TestWasmResourcePrompt(t *testing.T) {
 			result, err := wasmResourcePrompt(tt.resourceType, tt.message, tt.noColor)
 
 			// Assert
+			if tt.expectError && err == nil {
+				t.Error("Expected error but got none")
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+			if !tt.expectError && result != tt.mockResponse {
+				t.Errorf("Expected %q, got %q", tt.mockResponse, result)
+			}
+		})
+	}
+}
+
+func TestWasmSecretResourcePrompt(t *testing.T) {
+	tests := []struct {
+		name         string
+		resourceType string
+		message      string
+		noColor      bool
+		mockResponse string
+		expectError  bool
+	}{
+		{
+			name:         "mve admin password",
+			resourceType: "mve",
+			message:      "Enter admin password:",
+			noColor:      true,
+			mockResponse: "s3cr3t!",
+			expectError:  false,
+		},
+		{
+			name:         "empty secret allowed (optional field)",
+			resourceType: "mve",
+			message:      "Enter admin password (optional):",
+			noColor:      false,
+			mockResponse: "",
+			expectError:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupMockPromptHandler(t, tt.mockResponse)
+			defer cleanupMockPromptHandler()
+
+			result, err := wasmSecretResourcePrompt(tt.resourceType, tt.message, tt.noColor)
+
 			if tt.expectError && err == nil {
 				t.Error("Expected error but got none")
 			}
