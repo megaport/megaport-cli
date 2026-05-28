@@ -728,22 +728,43 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 		explicitEnv = strings.ToLower(strings.TrimSpace(args[2].String()))
 	}
 
-	// Map hostname to environment and API URL
-	// This allows new environments to auto-work by deriving API URL from hostname
-	environment := hostnameToEnvironment(hostname)
-	apiURL := hostnameToAPIURL(hostname)
+	// Derive environment and API URL from hostname, but allow explicit override for flexibility.
+	derivedEnv := hostnameToEnvironment(hostname)
+	derivedURL := hostnameToAPIURL(hostname)
 
-	if explicitEnv != "" {
+	var environment, apiURL string
+	if explicitEnv == "" {
+		environment = derivedEnv
+		apiURL = derivedURL
+	} else if explicitEnv == "production" {
+		environment = "production"
+		apiURL = "https://api.megaport.com/"
+	} else {
 		environment = explicitEnv
-		if explicitEnv == "production" {
-			environment = "production"
-			apiURL = "https://api.megaport.com/"
-		} else {
-			apiURL = fmt.Sprintf("https://api-%s.megaport.com/", explicitEnv)
-		}
+		apiURL = fmt.Sprintf("https://api-%s.megaport.com/", explicitEnv)
 	}
 
-	js.Global().Get("console").Call("log", fmt.Sprintf("🌐 Hostname '%s' mapped to environment '%s'", hostname, environment))
+	// Log the resolved environment and API URL, highlighting any mismatches between the derived environment and explicit override.
+	var environmentLog string
+	if explicitEnv == "" {
+		environmentLog = fmt.Sprintf("%s (derived from hostname)", environment)
+	} else if explicitEnv != derivedEnv {
+		environmentLog = environment + fmt.Sprintf(" (mismatch with provided hostname. Expected '%s')", derivedEnv)
+	} else {
+		environmentLog = environment
+	}
+
+	var statusEmoji string
+	if explicitEnv != derivedEnv {
+		statusEmoji = "🔴"
+	} else if environment == "production" {
+		statusEmoji = "🟠"
+	} else {
+		statusEmoji = "🟢"
+	}
+
+	js.Global().Get("console").Call("log", fmt.Sprintf("🌐 Hostname: %s", hostname))
+	js.Global().Get("console").Call("log", fmt.Sprintf("%s Environment: %s", statusEmoji, environmentLog))
 	js.Global().Get("console").Call("log", fmt.Sprintf("🔗 API URL: %s", apiURL))
 
 	// Store token and API URL in environment variables for Go code
