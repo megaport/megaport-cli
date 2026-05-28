@@ -16,6 +16,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const API_URL_PRODUCTION = "https://api.megaport.com/"
+
 var (
 	// Use a single buffer pair with mutex protection
 	stdoutBuffer bytes.Buffer
@@ -737,7 +739,7 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 		apiURL = derivedURL
 	} else if explicitEnv == "production" {
 		environment = "production"
-		apiURL = "https://api.megaport.com/"
+		apiURL = API_URL_PRODUCTION
 	} else {
 		environment = explicitEnv
 		apiURL = fmt.Sprintf("https://api-%s.megaport.com/", explicitEnv)
@@ -837,7 +839,7 @@ func megaportAPIURL(apiHost string) string {
 	if strings.HasSuffix(apiHost, ".megaport.com") {
 		return "https://" + apiHost + "/"
 	}
-	return "https://api.megaport.com/"
+	return API_URL_PRODUCTION
 }
 
 // hostnameToAPIURL maps a portal hostname to the corresponding Megaport API base URL.
@@ -851,7 +853,7 @@ func hostnameToAPIURL(hostname string) string {
 		hostname == "api.megaport.com" ||
 		hostname == "megaport.com" ||
 		hostname == "www.megaport.com" {
-		return "https://api.megaport.com/"
+		return API_URL_PRODUCTION
 	}
 
 	// Hostname is already an api-* subdomain within megaport.com.
@@ -869,7 +871,7 @@ func hostnameToAPIURL(hostname string) string {
 
 	// Only derive API URLs for recognised *.megaport.com portal hostnames.
 	if !strings.HasSuffix(hostname, ".megaport.com") {
-		return "https://api.megaport.com/"
+		return API_URL_PRODUCTION
 	}
 
 	// portal-<env>.megaport.com -> api-<env>.megaport.com
@@ -893,7 +895,7 @@ func hostnameToAPIURL(hostname string) string {
 	}
 
 	// Default to production for unknown .megaport.com subdomains.
-	return "https://api.megaport.com/"
+	return API_URL_PRODUCTION
 }
 
 // InstallCommandHooks registers JavaScript helper functions for command debugging.
