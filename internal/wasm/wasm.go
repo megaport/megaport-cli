@@ -744,16 +744,30 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 	derivedEnv := hostnameToEnvironment(hostname)
 	derivedURL := hostnameToAPIURL(hostname)
 
+	// Resolve the final environment and API URL, preferring an explicit override
+	// over the hostname-derived values. At the same time, record whether the
+	// override's environment bucket disagrees with what the hostname derived —
+	// hostnameToEnvironment only ever returns "production", "staging", or
+	// "development", and any override outside production/staging is treated as
+	// belonging to the development bucket. The mismatch flag drives the warning
+	// annotations on the console output below.
 	var environment, apiURL string
+	mismatch := false
 	if explicitEnv == "" {
 		environment = derivedEnv
 		apiURL = derivedURL
 	} else if explicitEnv == "production" {
 		environment = "production"
 		apiURL = API_URL_PRODUCTION
+		mismatch = derivedEnv != "production"
+	} else if explicitEnv == "staging" {
+		environment = "staging"
+		apiURL = fmt.Sprintf("https://api-%s.megaport.com/", explicitEnv)
+		mismatch = derivedEnv != "staging"
 	} else {
 		environment = explicitEnv
 		apiURL = fmt.Sprintf("https://api-%s.megaport.com/", explicitEnv)
+		mismatch = derivedEnv != "development"
 	}
 
 	// Build a console-friendly description of the resolved environment, annotating
@@ -762,23 +776,25 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 	var environmentLog string
 	if explicitEnv == "" {
 		environmentLog = fmt.Sprintf("%s (derived from hostname)", environment)
-	} else if explicitEnv != derivedEnv {
+	} else if mismatch {
 		environmentLog = environment + fmt.Sprintf(" (mismatch with provided hostname. Expected '%s')", derivedEnv)
 	} else {
 		environmentLog = environment
 	}
 
-	var statusEmoji string
-	if explicitEnv != derivedEnv {
-		statusEmoji = "🔴"
-	} else if environment == "production" {
-		statusEmoji = "🟠"
+	// At-a-glance status marker for the browser console:
+	// 🔴 override disagrees with hostname, 🟠 talking to production, 🟢 otherwise.
+	var environmentRiskStatus string
+	if mismatch {
+		environmentRiskStatus = "🔴"
+	} else if derivedEnv == "production" {
+		environmentRiskStatus = "🟠"
 	} else {
-		statusEmoji = "🟢"
+		environmentRiskStatus = "🟢"
 	}
 
 	js.Global().Get("console").Call("log", fmt.Sprintf("🌐 Hostname: %s", hostname))
-	js.Global().Get("console").Call("log", fmt.Sprintf("%s Environment: %s", statusEmoji, environmentLog))
+	js.Global().Get("console").Call("log", fmt.Sprintf("%s Environment: %s", environmentRiskStatus, environmentLog))
 	js.Global().Get("console").Call("log", fmt.Sprintf("🔗 API URL: %s", apiURL))
 
 	// Store token and API URL in environment variables for Go code
