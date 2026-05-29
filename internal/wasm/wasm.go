@@ -18,12 +18,82 @@ import (
 )
 
 const API_URL_PRODUCTION = "https://api.megaport.com/"
+const API_URL_NON_PRODUCTION_TEMPLATE = "https://api-%s.megaport.com/"
 
-// validEnvironmentName restricts the explicit environment override to a safe
-// character set. The value is interpolated into the API URL, so any character
-// that could terminate the host portion (/, ., @, :, etc.) must be rejected to
-// prevent hostname injection.
-var validEnvironmentName = regexp.MustCompile(`^[a-z0-9-]+$`)
+// Character-class fragments shared between environment-name validation and
+// the hostname patterns below. Keeping the env name in one place ensures the
+// validator and the hostname extractor can't drift apart.
+const (
+	envNamePattern = `[a-z0-9-]+` // env: lowercase, digits, hyphens (e.g. "qa", "mpone-dev")
+	appNamePattern = `[a-z0-9]+`  // app: lowercase, digits — no hyphens or dots
+)
+
+// validEnvironmentName restricts environment names to a safe character set.
+// Names are interpolated into the API URL, so any character that could
+// terminate the host portion (/, ., @, :, etc.) must be rejected to prevent
+// hostname injection.
+var validEnvironmentName = regexp.MustCompile(`^` + envNamePattern + `$`)
+
+// environmentToAPIURL is the single source of truth for translating an
+// environment name into a Megaport API base URL. "production" is the only
+// special case; everything else becomes api-<env>.megaport.com so that new
+// environments work without code changes.
+//
+// Callers must pass an already-validated environment name. The two upstream
+// sources (the explicit override checked against validEnvironmentName, and
+// the capture from appEnvHostnamePattern) both enforce envNamePattern, so the
+// value is guaranteed safe to interpolate by the time it gets here.
+func environmentToAPIURL(env string) string {
+	if env == "production" {
+		return API_URL_PRODUCTION
+	}
+	return fmt.Sprintf(API_URL_NON_PRODUCTION_TEMPLATE, env)
+}
+
+// production hostname pattern includes an optional subdomain for an app name
+// The app name is a single word (no hyphens)
+// ie: portal.megaport.com, www.megaport.com and megaport.com are valid (last two being the website), but api-qa.megaport.com is not
+var productionHostnamePattern = regexp.MustCompile(`^(?:` + appNamePattern + `\.)?megaport\.com$`)
+
+// environment specific hostname must contain a single word app name and an environment name
+// The environment name may contain hyphens, but the app name may not
+// ie: portal-qa.megaport.com, api-mpone-dev.megaport.com are valid, but portal.megaport.com is not
+// This pattern includes a capture group for the environment name so environmentFromHostname can extract it directly
+var appEnvHostnamePattern = regexp.MustCompile(`^` + appNamePattern + `-(` + envNamePattern + `)\.megaport\.com$`)
+
+// environmentFromHostname derives the environment name from a Megaport
+// hostname. It accepts the two conventions Megaport uses for its apps:
+//
+//   - <app>.megaport.com         → production (e.g. portal.megaport.com)
+//   - <app>-<env>.megaport.com   → <env>      (e.g. portal-qa.megaport.com,
+//                                              dashboard-staging.megaport.com,
+//                                              api-mpone-dev.megaport.com)
+//
+// Everything outside of megaport.com domains (localhost, private IPs, other non-Megaport domains) 
+// fails closed so callers must pass an explicit override
+func environmentFromHostname(hostname string) (string, bool) {
+	hostname = strings.ToLower(strings.TrimSpace(hostname))
+
+	if productionHostnamePattern.MatchString(hostname) {
+		return "production", true
+	}
+	if m := appEnvHostnamePattern.FindStringSubmatch(hostname); m != nil {
+		return m[1], true
+	}
+	return "", false
+}
+
+// restrictEnvironmentName collapses an environment name into one of the three
+// canonical values that downstream consumers of MEGAPORT_ENVIRONMENT understand
+// ("production" / "staging" / "development")
+// The exiting function `restrictEnvironmentName`, present in a few locations in this source code will
+// coherse to 'production' any other values that aren't these three.
+func restrictEnvironmentName(env string) string {
+	if env == "production" || env == "staging" {
+		return env
+	}
+	return "development"
+}
 
 var (
 	// Use a single buffer pair with mutex protection
@@ -702,12 +772,11 @@ func clearAuthCredentials(this js.Value, args []js.Value) interface{} {
 // This bypasses the OAuth flow and uses the token directly from the portal session.
 // Use this when the portal already has a valid login token stored in the browser.
 //
-// Accepts hostname (e.g. window.location.hostname) to derive environment and API URL.
-// Optionally accepts an explicit environment override as the 3rd argument; the
-// override must match [a-z0-9-]+ and supersedes the hostname-derived
-// environment and API URL:
-//
-//	setAuthToken(token, hostname, environment)
+// The environment is resolved with the following precedence:
+//  1. The explicit override passed as the 3rd argument (must match [a-z0-9-]+).
+//  2. The environment derived from the hostname via environmentFromHostname.
+//	setAuthToken(token, hostname)               // environment derived from hostname
+//	setAuthToken(token, hostname, environment)  // explicit environment override
 func setAuthToken(this js.Value, args []js.Value) interface{} {
 	if len(args) < 2 {
 		return map[string]interface{}{
@@ -747,46 +816,47 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 		}
 	}
 
-	// Derive environment and API URL from hostname, but allow explicit override for flexibility.
-	derivedEnv := hostnameToEnvironment(hostname)
-	derivedURL := hostnameToAPIURL(hostname)
-
-	// Resolve the final environment and API URL, preferring an explicit override
-	// over the hostname-derived values. At the same time, record whether the
-	// override's environment bucket disagrees with what the hostname derived —
-	// hostnameToEnvironment only ever returns "production", "staging", or
-	// "development", and any override outside production/staging is treated as
-	// belonging to the development bucket. The mismatch flag drives the warning
-	// annotations on the console output below.
-	var environment, apiURL string
-	mismatch := false
-	if explicitEnv == "" {
-		environment = derivedEnv
-		apiURL = derivedURL
-	} else if explicitEnv == "production" {
-		environment = "production"
-		apiURL = API_URL_PRODUCTION
-		mismatch = derivedEnv != "production"
-	} else if explicitEnv == "staging" {
-		environment = "staging"
-		apiURL = fmt.Sprintf("https://api-%s.megaport.com/", explicitEnv)
-		mismatch = derivedEnv != "staging"
-	} else {
+	// Resolve the environment. The override wins; otherwise we derive it from
+	// the hostname. If neither yields a value we fail closed and tell the caller
+	// to pass an explicit environment as the third argument — never default to
+	// production silently.
+	derivedEnv, derivedOK := environmentFromHostname(hostname)
+	var environment string
+	if explicitEnv != "" {
 		environment = explicitEnv
-		apiURL = fmt.Sprintf("https://api-%s.megaport.com/", explicitEnv)
-		mismatch = derivedEnv != "development"
+	} else if derivedOK {
+		environment = derivedEnv
+	} else {
+		return map[string]interface{}{
+			"success": false,
+			"error": fmt.Sprintf(
+				"could not determine environment from hostname %q. Pass an explicit environment as the third argument, e.g. setAuthToken(token, hostname, \"production\")",
+				hostname,
+			),
+		}
 	}
 
+	// Build the API URL from the resolved environment via the single helper, so
+	// the override path and the derived path can't drift apart. The env is
+	// already known-valid here (override passed validEnvironmentName above; the
+	// derived value came from appEnvHostnamePattern's env capture).
+	apiURL := environmentToAPIURL(environment)
+	// A mismatch is detected when the caller provides an explicit environment that disagrees with the hostname-derived environment. 
+	// This is a strong signal that something is misconfigured: either the caller is passing the wrong override, or the hostname doesn't match the expected pattern for that environment. 
+	// In either case we want to flag this clearly in the console logs so it's obvious to the user and can be easily debugged.
+	mismatch := explicitEnv != "" && derivedOK && explicitEnv != derivedEnv
+
 	// Build a console-friendly description of the resolved environment, annotating
-	// whether it came from the hostname or from the override (and flagging
-	// mismatches between the two).
+	// where it came from and flagging override-vs-hostname mismatches.
 	var environmentLog string
 	if explicitEnv == "" {
 		environmentLog = fmt.Sprintf("%s (derived from hostname)", environment)
 	} else if mismatch {
-		environmentLog = environment + fmt.Sprintf(" (mismatch with provided hostname. Expected '%s')", derivedEnv)
+		environmentLog = environment + fmt.Sprintf(" (mismatch with hostname-derived %q)", derivedEnv)
+	} else if derivedOK {
+		environmentLog = environment + " (override matches hostname)"
 	} else {
-		environmentLog = environment
+		environmentLog = environment + " (override; hostname not recognised)"
 	}
 
 	// At-a-glance status marker for the browser console:
@@ -794,7 +864,7 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 	var environmentRiskStatus string
 	if mismatch {
 		environmentRiskStatus = "🔴"
-	} else if derivedEnv == "production" {
+	} else if environment == "production" {
 		environmentRiskStatus = "🟠"
 	} else {
 		environmentRiskStatus = "🟢"
@@ -804,9 +874,14 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 	js.Global().Get("console").Call("log", fmt.Sprintf("%s Environment: %s", environmentRiskStatus, environmentLog))
 	js.Global().Get("console").Call("log", fmt.Sprintf("🔗 API URL: %s", apiURL))
 
-	// Store token and API URL in environment variables for Go code
+	// Store token, environment bucket, and API URL for downstream Go code.
+	// MEGAPORT_ENVIRONMENT is bucketed to one of "production"/"staging"/"development"
+	// because the downstream restrictEnvironmentName consumers (login.go, login_wasm.go,
+	// auth_actions.go) only understand those three values and would silently coerce
+	// anything else to "production". MEGAPORT_API_URL still carries the real per-env
+	// URL so the access token routes to the correct backend.
 	os.Setenv("MEGAPORT_ACCESS_TOKEN", token)
-	os.Setenv("MEGAPORT_ENVIRONMENT", environment)
+	os.Setenv("MEGAPORT_ENVIRONMENT", restrictEnvironmentName(environment))
 	os.Setenv("MEGAPORT_API_URL", apiURL)
 
 	// Clear any existing API key credentials to avoid confusion
@@ -832,106 +907,6 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 		"hostname":    hostname,
 		"apiURL":      apiURL,
 	}
-}
-
-// hostnameToEnvironment maps a hostname to the appropriate environment
-// Supports production, staging, and other environments based on hostname patterns
-func hostnameToEnvironment(hostname string) string {
-	hostname = strings.ToLower(hostname)
-
-	// Production patterns
-	if hostname == "portal.megaport.com" ||
-		hostname == "api.megaport.com" ||
-		hostname == "megaport.com" ||
-		(strings.HasSuffix(hostname, ".megaport.com") && !strings.Contains(hostname, "staging") && !strings.Contains(hostname, "dev") && !strings.Contains(hostname, "uat") && !strings.Contains(hostname, "qa")) {
-		return "production"
-	}
-
-	// Staging patterns
-	if strings.Contains(hostname, "staging") {
-		return "staging"
-	}
-
-	// Development/QA/UAT patterns - all map to development environment
-	if strings.Contains(hostname, "dev") ||
-		strings.Contains(hostname, "uat") ||
-		strings.Contains(hostname, "qa") ||
-		hostname == "localhost" ||
-		strings.HasPrefix(hostname, "127.") ||
-		strings.HasPrefix(hostname, "192.168.") ||
-		strings.HasPrefix(hostname, "10.") {
-		return "development"
-	}
-
-	// Default to production for unknown hostnames
-	return "production"
-}
-
-// megaportAPIURL constructs a Megaport API URL from apiHost, returning the
-// production fallback if the derived host does not end with .megaport.com.
-// This prevents hostname injection: an attacker-controlled hostname (e.g.
-// "portal-staging.attacker.com") cannot redirect API traffic to a third-party server.
-func megaportAPIURL(apiHost string) string {
-	if strings.HasSuffix(apiHost, ".megaport.com") {
-		return "https://" + apiHost + "/"
-	}
-	return API_URL_PRODUCTION
-}
-
-// hostnameToAPIURL maps a portal hostname to the corresponding Megaport API base URL.
-// Only hostnames that resolve to a *.megaport.com API host are accepted; all others
-// fall back to the production API to prevent open-redirect attacks.
-func hostnameToAPIURL(hostname string) string {
-	hostname = strings.ToLower(hostname)
-
-	// Explicit production patterns.
-	if hostname == "portal.megaport.com" ||
-		hostname == "api.megaport.com" ||
-		hostname == "megaport.com" ||
-		hostname == "www.megaport.com" {
-		return API_URL_PRODUCTION
-	}
-
-	// Hostname is already an api-* subdomain within megaport.com.
-	if strings.HasPrefix(hostname, "api-") && strings.HasSuffix(hostname, ".megaport.com") {
-		return "https://" + hostname + "/"
-	}
-
-	// Localhost/IP patterns — used for local development against staging.
-	if hostname == "localhost" ||
-		strings.HasPrefix(hostname, "127.") ||
-		strings.HasPrefix(hostname, "192.168.") ||
-		strings.HasPrefix(hostname, "10.") {
-		return "https://api-staging.megaport.com/"
-	}
-
-	// Only derive API URLs for recognised *.megaport.com portal hostnames.
-	if !strings.HasSuffix(hostname, ".megaport.com") {
-		return API_URL_PRODUCTION
-	}
-
-	// portal-<env>.megaport.com -> api-<env>.megaport.com
-	if strings.HasPrefix(hostname, "portal-") {
-		apiHost := strings.Replace(hostname, "portal-", "api-", 1)
-		return megaportAPIURL(apiHost)
-	}
-
-	// portal.<env>.megaport.com -> api.<env>.megaport.com
-	if strings.HasPrefix(hostname, "portal.") {
-		apiHost := strings.Replace(hostname, "portal.", "api.", 1)
-		return megaportAPIURL(apiHost)
-	}
-
-	// Known non-production environment keywords with hardcoded fallbacks.
-	switch {
-	case strings.Contains(hostname, "staging"):
-		return "https://api-staging.megaport.com/"
-	case strings.Contains(hostname, "dev") || strings.Contains(hostname, "uat") || strings.Contains(hostname, "qa"):
-		return "https://api-mpone-dev.megaport.com/"
-	}
-
-	// Default to production for unknown .megaport.com subdomains.
-	return API_URL_PRODUCTION
 }
 
 // InstallCommandHooks registers JavaScript helper functions for command debugging.

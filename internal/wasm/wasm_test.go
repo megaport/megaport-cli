@@ -519,166 +519,222 @@ func TestSetAuthToken(t *testing.T) {
 	RegisterJSFunctions()
 
 	tests := []struct {
-		name        string
-		token       string
-		hostname    string
-		explicitEnv string
-		expectError bool
-		expectedEnv string
-		expectedURL string
+		name           string
+		token          string
+		hostname       string
+		explicitEnv    string
+		expectError    bool
+		expectedEnv    string // real env name returned in the JS result
+		expectedURL    string
+		expectedBucket string // MEGAPORT_ENVIRONMENT — always one of production/staging/development
 	}{
+		// --- hostname-derived cases (no override) ---
 		{
-			name:        "valid token for production portal",
-			token:       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test",
-			hostname:    "portal.megaport.com",
-			explicitEnv: "",
-			expectError: false,
-			expectedEnv: "production",
-			expectedURL: "https://api.megaport.com/",
+			name:           "production portal host",
+			token:          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test",
+			hostname:       "portal.megaport.com",
+			expectedEnv:    "production",
+			expectedURL:    "https://api.megaport.com/",
+			expectedBucket: "production",
 		},
 		{
-			name:        "valid token for staging portal",
-			token:       "valid-staging-token-12345",
-			hostname:    "portal-staging.megaport.com",
-			explicitEnv: "",
-			expectError: false,
-			expectedEnv: "staging",
-			expectedURL: "https://api-staging.megaport.com/",
+			name:           "staging portal host",
+			token:          "valid-staging-token-12345",
+			hostname:       "portal-staging.megaport.com",
+			expectedEnv:    "staging",
+			expectedURL:    "https://api-staging.megaport.com/",
+			expectedBucket: "staging",
 		},
 		{
-			name:        "valid token for localhost (development)",
+			name:           "portal-qa returns real qa env, bucketed to development",
+			token:          "qa-token-12345",
+			hostname:       "portal-qa.megaport.com",
+			expectedEnv:    "qa",
+			expectedURL:    "https://api-qa.megaport.com/",
+			expectedBucket: "development",
+		},
+		{
+			name:           "portal-uat returns real uat env, bucketed to development",
+			token:          "uat-token-12345",
+			hostname:       "portal-uat.megaport.com",
+			expectedEnv:    "uat",
+			expectedURL:    "https://api-uat.megaport.com/",
+			expectedBucket: "development",
+		},
+		{
+			name:           "another app hostname (dashboard) derives env via app-env convention",
+			token:          "dashboard-token-12345",
+			hostname:       "dashboard-qa.megaport.com",
+			expectedEnv:    "qa",
+			expectedURL:    "https://api-qa.megaport.com/",
+			expectedBucket: "development",
+		},
+		{
+			name:           "another app at the apex (dashboard.megaport.com) is production",
+			token:          "dashboard-prod-token-12345",
+			hostname:       "dashboard.megaport.com",
+			expectedEnv:    "production",
+			expectedURL:    "https://api.megaport.com/",
+			expectedBucket: "production",
+		},
+		{
+			name:           "multi-segment env (api-mpone-dev) preserved",
+			token:          "mpone-dev-token-12345",
+			hostname:       "api-mpone-dev.megaport.com",
+			expectedEnv:    "mpone-dev",
+			expectedURL:    "https://api-mpone-dev.megaport.com/",
+			expectedBucket: "development",
+		},
+
+		// --- hostname-derived failure cases (no override) ---
+		{
+			name:        "localhost without override now errors (no silent staging fallback)",
 			token:       "dev-token-12345",
 			hostname:    "localhost",
-			explicitEnv: "",
-			expectError: false,
-			expectedEnv: "development",
-			expectedURL: "https://api-staging.megaport.com/",
+			expectError: true,
 		},
 		{
-			name:        "valid token for QA environment",
-			token:       "qa-token-12345",
-			hostname:    "portal-qa.megaport.com",
-			explicitEnv: "",
-			expectError: false,
-			expectedEnv: "development",
-			expectedURL: "https://api-qa.megaport.com/",
+			name:        "non-megaport hostname without override errors",
+			token:       "random-token-12345",
+			hostname:    "example.com",
+			expectError: true,
 		},
 		{
-			name:        "valid token for UAT environment",
-			token:       "uat-token-12345",
-			hostname:    "portal-uat.megaport.com",
-			explicitEnv: "",
-			expectError: false,
-			expectedEnv: "development",
-			expectedURL: "https://api-uat.megaport.com/",
+			name:        "look-alike hostname (megaport.com.attacker.com) fails closed",
+			token:       "lookalike-token-12345",
+			hostname:    "megaport.com.attacker.com",
+			expectError: true,
+		},
+
+		// --- explicit override cases ---
+		{
+			name:           "explicit qa override from production hostname (mismatch)",
+			token:          "explicit-env-token-12345",
+			hostname:       "portal.megaport.com",
+			explicitEnv:    "qa",
+			expectedEnv:    "qa",
+			expectedURL:    "https://api-qa.megaport.com/",
+			expectedBucket: "development",
 		},
 		{
-			name:        "explicit environment overrides hostname mapping with free text",
-			token:       "explicit-env-token-12345",
-			hostname:    "portal.megaport.com",
-			explicitEnv: "qa",
-			expectError: false,
-			expectedEnv: "qa",
-			expectedURL: "https://api-qa.megaport.com/",
+			name:           "explicit production override from staging hostname",
+			token:          "explicit-prod-token-12345",
+			hostname:       "portal-staging.megaport.com",
+			explicitEnv:    "production",
+			expectedEnv:    "production",
+			expectedURL:    "https://api.megaport.com/",
+			expectedBucket: "production",
 		},
 		{
-			name:        "explicit production environment uses production api",
-			token:       "explicit-prod-token-12345",
-			hostname:    "portal-staging.megaport.com",
-			explicitEnv: "production",
-			expectError: false,
-			expectedEnv: "production",
-			expectedURL: "https://api.megaport.com/",
+			name:           "explicit production override unblocks localhost",
+			token:          "local-override-token-12345",
+			hostname:       "localhost",
+			explicitEnv:    "production",
+			expectedEnv:    "production",
+			expectedURL:    "https://api.megaport.com/",
+			expectedBucket: "production",
 		},
 		{
-			name:        "explicit env overrides legacy localhost staging fallback",
-			token:       "local-override-token-12345",
-			hostname:    "localhost",
-			explicitEnv: "production",
-			expectError: false,
-			expectedEnv: "production",
-			expectedURL: "https://api.megaport.com/",
+			name:           "explicit qa override unblocks localhost",
+			token:          "local-qa-token-12345",
+			hostname:       "localhost",
+			explicitEnv:    "qa",
+			expectedEnv:    "qa",
+			expectedURL:    "https://api-qa.megaport.com/",
+			expectedBucket: "development",
 		},
 		{
-			name:        "explicit qa env from localhost",
-			token:       "local-qa-token-12345",
-			hostname:    "localhost",
-			explicitEnv: "qa",
-			expectError: false,
-			expectedEnv: "qa",
-			expectedURL: "https://api-qa.megaport.com/",
+			name:           "explicit override unblocks unrecognised host (non-megaport)",
+			token:          "unknown-override-token-12345",
+			hostname:       "example.com",
+			explicitEnv:    "qa",
+			expectedEnv:    "qa",
+			expectedURL:    "https://api-qa.megaport.com/",
+			expectedBucket: "development",
 		},
 		{
-			name:        "explicit env matching derived env (no mismatch)",
-			token:       "match-token-12345",
-			hostname:    "portal-staging.megaport.com",
-			explicitEnv: "staging",
-			expectError: false,
-			expectedEnv: "staging",
-			expectedURL: "https://api-staging.megaport.com/",
+			name:           "explicit override matching derived (no mismatch)",
+			token:          "match-token-12345",
+			hostname:       "portal-staging.megaport.com",
+			explicitEnv:    "staging",
+			expectedEnv:    "staging",
+			expectedURL:    "https://api-staging.megaport.com/",
+			expectedBucket: "staging",
 		},
 		{
-			name:        "whitespace-only explicit env is treated as no override",
-			token:       "ws-token-12345",
-			hostname:    "portal-staging.megaport.com",
-			explicitEnv: "   ",
-			expectError: false,
-			expectedEnv: "staging",
-			expectedURL: "https://api-staging.megaport.com/",
+			name:           "explicit development pin",
+			token:          "dev-pin-token-12345",
+			hostname:       "localhost",
+			explicitEnv:    "development",
+			expectedEnv:    "development",
+			expectedURL:    "https://api-development.megaport.com/",
+			expectedBucket: "development",
 		},
 		{
-			name:        "uppercase explicit env is normalized to lowercase",
-			token:       "case-token-12345",
-			hostname:    "portal.megaport.com",
-			explicitEnv: "PRODUCTION",
-			expectError: false,
-			expectedEnv: "production",
-			expectedURL: "https://api.megaport.com/",
+			name:           "unknown env like 'prod' is accepted but yields api-prod URL (buckets to development)",
+			token:          "prod-typo-token-12345",
+			hostname:       "portal.megaport.com",
+			explicitEnv:    "prod",
+			expectedEnv:    "prod",
+			expectedURL:    "https://api-prod.megaport.com/",
+			expectedBucket: "development",
+		},
+
+		// --- normalisation of override input ---
+		{
+			name:           "whitespace-only override is treated as no override",
+			token:          "ws-token-12345",
+			hostname:       "portal-staging.megaport.com",
+			explicitEnv:    "   ",
+			expectedEnv:    "staging",
+			expectedURL:    "https://api-staging.megaport.com/",
+			expectedBucket: "staging",
 		},
 		{
-			name:        "explicit env with hostname-injection chars is rejected",
+			name:           "uppercase override is lowercased",
+			token:          "case-token-12345",
+			hostname:       "portal.megaport.com",
+			explicitEnv:    "PRODUCTION",
+			expectedEnv:    "production",
+			expectedURL:    "https://api.megaport.com/",
+			expectedBucket: "production",
+		},
+
+		// --- injection rejection ---
+		{
+			name:        "override with host-injection chars is rejected",
 			token:       "inject-token-12345",
 			hostname:    "portal.megaport.com",
 			explicitEnv: "foo.attacker.com/",
 			expectError: true,
-			expectedEnv: "",
-			expectedURL: "",
 		},
 		{
-			name:        "explicit env with slash is rejected",
+			name:        "override with slash is rejected",
 			token:       "slash-token-12345",
 			hostname:    "portal.megaport.com",
 			explicitEnv: "qa/evil",
 			expectError: true,
-			expectedEnv: "",
-			expectedURL: "",
 		},
 		{
-			name:        "explicit env with @ is rejected",
+			name:        "override with @ is rejected",
 			token:       "at-token-12345",
 			hostname:    "portal.megaport.com",
 			explicitEnv: "qa@evil.com",
 			expectError: true,
-			expectedEnv: "",
-			expectedURL: "",
 		},
+
+		// --- empty-input errors ---
 		{
-			name:        "empty token should fail",
+			name:        "empty token errors",
 			token:       "",
 			hostname:    "portal.megaport.com",
-			explicitEnv: "",
 			expectError: true,
-			expectedEnv: "",
-			expectedURL: "",
 		},
 		{
-			name:        "empty hostname should fail",
+			name:        "empty hostname errors",
 			token:       "valid-token-12345",
 			hostname:    "",
-			explicitEnv: "",
 			expectError: true,
-			expectedEnv: "",
-			expectedURL: "",
 		},
 	}
 
@@ -702,10 +758,13 @@ func TestSetAuthToken(t *testing.T) {
 
 			if tt.expectError {
 				assert.False(t, success, "should fail for invalid input")
+				errMsg := result.Get("error").String()
+				assert.NotEmpty(t, errMsg, "error message should be set on failure to guide the caller")
 			} else {
 				assert.True(t, success, "should succeed for valid input")
 
-				// Verify returned environment matches expected
+				// The JS return surface carries the real resolved env name (e.g. "qa"),
+				// not the bucket — that's what the portal UI displays back to the user.
 				returnedEnv := result.Get("environment").String()
 				assert.Equal(t, tt.expectedEnv, returnedEnv, "returned environment should match expected")
 
@@ -719,8 +778,12 @@ func TestSetAuthToken(t *testing.T) {
 				tokenSet := authInfo.Get("accessTokenSet").Bool()
 				assert.True(t, tokenSet, "token should be marked as set")
 
-				env := authInfo.Get("environment").String()
-				assert.Equal(t, tt.expectedEnv, env, "environment should match expected")
+				// MEGAPORT_ENVIRONMENT (surfaced via debugAuthInfo) holds the *bucket*
+				// — one of production/staging/development — so downstream
+				// normalizeEnvironment consumers don't silently coerce non-canonical
+				// values to production.
+				envVar := authInfo.Get("environment").String()
+				assert.Equal(t, tt.expectedBucket, envVar, "MEGAPORT_ENVIRONMENT should be bucketed")
 
 				authMethod := authInfo.Get("authMethod").String()
 				assert.Equal(t, "token", authMethod, "authMethod should be 'token'")
@@ -729,88 +792,109 @@ func TestSetAuthToken(t *testing.T) {
 	}
 }
 
-// TestHostnameToEnvironment verifies hostname mapping logic
-func TestHostnameToEnvironment(t *testing.T) {
-	RegisterJSFunctions()
-
+// TestEnvironmentToAPIURL verifies the URL-builder helper. The helper assumes
+// its input has already been validated upstream (see envNamePattern), so it
+// is exercised only with values the upstream gates accept. Injection-vector
+// rejection is covered at the boundary in TestSetAuthToken.
+func TestEnvironmentToAPIURL(t *testing.T) {
 	tests := []struct {
-		hostname    string
-		expectedEnv string
+		env         string
+		expectedURL string
 	}{
-		// Production hostnames
-		{"portal.megaport.com", "production"},
-		{"api.megaport.com", "production"},
-		{"megaport.com", "production"},
-		{"www.megaport.com", "production"},
-
-		// Staging hostnames
-		{"portal-staging.megaport.com", "staging"},
-		{"api-staging.megaport.com", "staging"},
-		{"staging.megaport.com", "staging"},
-
-		// Development/QA/UAT hostnames
-		{"portal-dev.megaport.com", "development"},
-		{"portal-qa.megaport.com", "development"},
-		{"portal-uat.megaport.com", "development"},
-		{"localhost", "development"},
-		{"127.0.0.1", "development"},
-		{"192.168.1.100", "development"},
-		{"10.0.0.1", "development"},
+		{"production", "https://api.megaport.com/"},
+		{"staging", "https://api-staging.megaport.com/"},
+		{"development", "https://api-development.megaport.com/"},
+		{"qa", "https://api-qa.megaport.com/"},
+		{"uat", "https://api-uat.megaport.com/"},
+		{"mpone-dev", "https://api-mpone-dev.megaport.com/"},
+		{"prod", "https://api-prod.megaport.com/"}, // typo "prod" still passes envNamePattern; reviewer wanted coverage
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.hostname, func(t *testing.T) {
-			js.Global().Get("clearAuthCredentials").Invoke()
-
-			result := js.Global().Get("setAuthToken").Invoke("test-token", tt.hostname)
-
-			assert.True(t, result.Get("success").Bool(), "should succeed")
-			assert.Equal(t, tt.expectedEnv, result.Get("environment").String(),
-				"hostname %s should map to %s", tt.hostname, tt.expectedEnv)
+		t.Run(tt.env, func(t *testing.T) {
+			assert.Equal(t, tt.expectedURL, environmentToAPIURL(tt.env))
 		})
 	}
 }
 
-// TestHostnameToAPIURL verifies that hostnames are correctly mapped to API URLs
-func TestHostnameToAPIURL(t *testing.T) {
-	RegisterJSFunctions()
-
+// TestEnvironmentFromHostname verifies the hostname extractor against the two
+// conventions Megaport uses: <app>.megaport.com (production) and
+// <app>-<env>.megaport.com.
+func TestEnvironmentFromHostname(t *testing.T) {
 	tests := []struct {
 		hostname    string
-		expectedURL string
+		expectedEnv string
+		expectedOK  bool
 	}{
-		// Production hostnames -> production API
-		{"portal.megaport.com", "https://api.megaport.com/"},
-		{"api.megaport.com", "https://api.megaport.com/"},
-		{"megaport.com", "https://api.megaport.com/"},
-		{"www.megaport.com", "https://api.megaport.com/"},
+		// Production: apex, www, and any <app>.megaport.com.
+		{"megaport.com", "production", true},
+		{"www.megaport.com", "production", true},
+		{"portal.megaport.com", "production", true},
+		{"api.megaport.com", "production", true},
+		{"dashboard.megaport.com", "production", true},
+		{"tools.megaport.com", "production", true},
 
-		// Staging hostnames -> staging API (derived from hostname)
-		{"portal-staging.megaport.com", "https://api-staging.megaport.com/"},
-		{"api-staging.megaport.com", "https://api-staging.megaport.com/"},
+		// <app>-<env>.megaport.com — any app, env after the first hyphen.
+		{"portal-staging.megaport.com", "staging", true},
+		{"portal-qa.megaport.com", "qa", true},
+		{"portal-uat.megaport.com", "uat", true},
+		{"api-staging.megaport.com", "staging", true},
+		{"api-qa.megaport.com", "qa", true},
+		{"dashboard-staging.megaport.com", "staging", true},
+		{"tools-uat.megaport.com", "uat", true},
 
-		// QA/UAT/Dev hostnames -> derived API URL
-		{"portal-qa.megaport.com", "https://api-qa.megaport.com/"},
-		{"portal-uat.megaport.com", "https://api-uat.megaport.com/"},
-		{"portal-dev.megaport.com", "https://api-dev.megaport.com/"},
+		// Multi-segment env names (split on the FIRST hyphen).
+		{"api-mpone-dev.megaport.com", "mpone-dev", true},
+		{"portal-mpone-dev.megaport.com", "mpone-dev", true},
 
-		// API hostnames should return themselves (already an API URL)
-		{"api-qa.megaport.com", "https://api-qa.megaport.com/"},
-		{"api-uat.megaport.com", "https://api-uat.megaport.com/"},
+		// Case- and whitespace-insensitive.
+		{"PORTAL-QA.MEGAPORT.COM", "qa", true},
+		{"  portal-staging.megaport.com  ", "staging", true},
 
-		// Localhost -> staging API (used for local development against staging environment)
-		{"localhost", "https://api-staging.megaport.com/"},
+		// Fail closed for localhost and private IPs.
+		{"localhost", "", false},
+		{"127.0.0.1", "", false},
+		{"192.168.1.100", "", false},
+		{"10.0.0.1", "", false},
+
+		// Fail closed for non-.megaport.com hostnames.
+		{"example.com", "", false},
+		{"attacker.com", "", false},
+		// Sanity check the suffix guard: looks similar but isn't .megaport.com.
+		{"megaport.com.attacker.com", "", false},
+		{"xmegaport.com", "", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.hostname, func(t *testing.T) {
-			js.Global().Get("clearAuthCredentials").Invoke()
+			env, ok := environmentFromHostname(tt.hostname)
+			assert.Equal(t, tt.expectedOK, ok)
+			assert.Equal(t, tt.expectedEnv, env)
+		})
+	}
+}
 
-			result := js.Global().Get("setAuthToken").Invoke("test-token", tt.hostname)
+// TestRestrictEnvironmentName verifies the shim that collapses any
+// environment name into the three canonical values that downstream
+// MEGAPORT_ENVIRONMENT consumers understand.
+func TestRestrictEnvironmentName(t *testing.T) {
+	tests := []struct {
+		env      string
+		expected string
+	}{
+		{"production", "production"},
+		{"staging", "staging"},
+		{"development", "development"},
+		{"qa", "development"},
+		{"uat", "development"},
+		{"mpone-dev", "development"},
+		{"prod", "development"}, // not "production"
+		{"", "development"},     // shouldn't be called with empty, but defined behaviour
+	}
 
-			assert.True(t, result.Get("success").Bool(), "should succeed")
-			assert.Equal(t, tt.expectedURL, result.Get("apiURL").String(),
-				"hostname %s should map to API URL %s", tt.hostname, tt.expectedURL)
+	for _, tt := range tests {
+		t.Run(tt.env, func(t *testing.T) {
+			assert.Equal(t, tt.expected, restrictEnvironmentName(tt.env))
 		})
 	}
 }

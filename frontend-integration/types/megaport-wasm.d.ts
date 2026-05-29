@@ -136,13 +136,49 @@ export interface MegaportWASM {
   ): { success: boolean; error?: string };
 
   /**
-   * Set authentication using an existing token from the portal session
-   * This bypasses the OAuth flow and uses the token directly
-   * Use this when the portal already has a valid login token stored in the browser
+   * Set authentication using an existing token from the portal session,
+   * bypassing the OAuth flow. Use this when the host page already holds a
+   * valid Megaport access token (typically via SSO into the portal).
+   *
+   * ## Environment resolution
+   *
+   * The environment is resolved in this order:
+   *
+   * 1. The explicit `environment` argument, if non-empty.
+   * 2. The environment derived from `hostname` per the Megaport conventions:
+   *    - `megaport.com`, `www.megaport.com`, and any `<app>.megaport.com`
+   *      (single-word app, no hyphens) → `"production"`.
+   *    - `<app>-<env>.megaport.com` → `<env>` (env may contain further
+   *      hyphens, so `api-mpone-dev.megaport.com` resolves to `"mpone-dev"`).
+   *
+   * If neither yields a value (e.g. `hostname` is `"localhost"`, a private IP,
+   * or a non-Megaport domain), **the call fails**. The function never
+   * silently falls back to production.
+   *
+   * ## API URL
+   *
+   * The API URL is always built from the resolved environment:
+   * - `"production"` → `https://api.megaport.com/`.
+   * - anything else → `https://api-<env>.megaport.com/`.
+   *
+   * ## Validation
+   *
+   * The explicit `environment` argument must match `/^[a-z0-9-]+$/` — any
+   * other value (containing `/`, `.`, `@`, `:`, uppercase, etc.) is rejected
+   * with an error to prevent hostname injection into the API URL.
+   *
    * @param token - The access token from the portal session
-   * @param hostname - The current hostname (e.g., window.location.hostname) - environment and API URL are auto-detected
-   * @param environment - Optional explicit environment override. Must match [a-z0-9-]+ (e.g. "production", "staging", "qa"); invalid values are rejected with an error
-   * @returns Result object with success status, detected environment, and derived API URL
+   * @param hostname - The current hostname, e.g. `window.location.hostname`
+   * @param environment - Optional explicit environment override; supersedes the hostname-derived value. Useful when `hostname` is `"localhost"` or a non-portal host, or when the portal needs to talk to a specific backend regardless of where it's served
+   * @returns On success: `{ success: true, environment, hostname, apiURL }` where `environment` is the resolved env name (e.g. `"qa"`) and `apiURL` is the matching `api-<env>.megaport.com/` URL. On failure: `{ success: false, error }` with a human-readable message; the caller should surface the message to guide the user
+   *
+   * @example
+   * // Portal served from a recognised host — no override needed.
+   * setAuthToken(token, window.location.hostname);
+   *
+   * @example
+   * // Local development against the qa backend.
+   * setAuthToken(token, window.location.hostname, "qa");
    */
   setAuthToken(
     token: string,
@@ -244,6 +280,11 @@ declare global {
       secretKey: string,
       environment: string
     ) => { success: boolean; error?: string };
+    /**
+     * Global shim mirroring {@link MegaportWASM.setAuthToken}. See the
+     * interface JSDoc for the full contract, hostname conventions, validation
+     * rules, and examples.
+     */
     setAuthToken?: (
       token: string,
       hostname: string,
