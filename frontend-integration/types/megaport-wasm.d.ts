@@ -280,11 +280,6 @@ declare global {
       secretKey: string,
       environment: string
     ) => { success: boolean; error?: string };
-    /**
-     * Global shim mirroring {@link MegaportWASM.setAuthToken}. See the
-     * interface JSDoc for the full contract, hostname conventions, validation
-     * rules, and examples.
-     */
     setAuthToken?: (
       token: string,
       hostname: string,
