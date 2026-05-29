@@ -66,10 +66,10 @@ var appEnvHostnamePattern = regexp.MustCompile(`^` + appNamePattern + `-(` + env
 //
 //   - <app>.megaport.com         → production (e.g. portal.megaport.com)
 //   - <app>-<env>.megaport.com   → <env>      (e.g. portal-qa.megaport.com,
-//                                              dashboard-staging.megaport.com,
-//                                              api-mpone-dev.megaport.com)
+//     dashboard-staging.megaport.com,
+//     api-mpone-dev.megaport.com)
 //
-// Everything outside of megaport.com domains (localhost, private IPs, other non-Megaport domains) 
+// Everything outside of megaport.com domains (localhost, private IPs, other non-Megaport domains)
 // fails closed so callers must pass an explicit override
 func environmentFromHostname(hostname string) (string, bool) {
 	hostname = strings.ToLower(strings.TrimSpace(hostname))
@@ -85,9 +85,8 @@ func environmentFromHostname(hostname string) (string, bool) {
 
 // restrictEnvironmentName collapses an environment name into one of the three
 // canonical values that downstream consumers of MEGAPORT_ENVIRONMENT understand
-// ("production" / "staging" / "development")
-// The exiting function `restrictEnvironmentName`, present in a few locations in this source code will
-// coherse to 'production' any other values that aren't these three.
+// ("production" / "staging" / "development"). Anything that isn't "production"
+// or "staging" collapses to "development".
 func restrictEnvironmentName(env string) string {
 	if env == "production" || env == "staging" {
 		return env
@@ -775,8 +774,8 @@ func clearAuthCredentials(this js.Value, args []js.Value) interface{} {
 // The environment is resolved with the following precedence:
 //  1. The explicit override passed as the 3rd argument (must match [a-z0-9-]+).
 //  2. The environment derived from the hostname via environmentFromHostname.
-//	setAuthToken(token, hostname)               // environment derived from hostname
-//	setAuthToken(token, hostname, environment)  // explicit environment override
+//     setAuthToken(token, hostname)               // environment derived from hostname
+//     setAuthToken(token, hostname, environment)  // explicit environment override
 func setAuthToken(this js.Value, args []js.Value) interface{} {
 	if len(args) < 2 {
 		return map[string]interface{}{
@@ -841,8 +840,8 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 	// already known-valid here (override passed validEnvironmentName above; the
 	// derived value came from appEnvHostnamePattern's env capture).
 	apiURL := environmentToAPIURL(environment)
-	// A mismatch is detected when the caller provides an explicit environment that disagrees with the hostname-derived environment. 
-	// This is a strong signal that something is misconfigured: either the caller is passing the wrong override, or the hostname doesn't match the expected pattern for that environment. 
+	// A mismatch is detected when the caller provides an explicit environment that disagrees with the hostname-derived environment.
+	// This is a strong signal that something is misconfigured: either the caller is passing the wrong override, or the hostname doesn't match the expected pattern for that environment.
 	// In either case we want to flag this clearly in the console logs so it's obvious to the user and can be easily debugged.
 	mismatch := explicitEnv != "" && derivedOK && explicitEnv != derivedEnv
 
