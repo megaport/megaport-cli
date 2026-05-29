@@ -856,7 +856,7 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 	} else if derivedOK {
 		environmentLog = environment + " (override matches hostname)"
 	} else {
-		environmentLog = environment + " (override; hostname not recognised)"
+		environmentLog = environment
 	}
 
 	// At-a-glance status marker for the browser console:
