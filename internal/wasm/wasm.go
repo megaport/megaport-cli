@@ -804,8 +804,12 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 	// Optional explicit environment override. Restricted to [a-z0-9-] to prevent
 	// hostname injection when interpolated into the API URL — values containing
 	// '/', '.', '@', or ':' could redirect the access token to a third-party host.
+	// Only treat the third argument as an override when it's an actual string.
+	// JS callers commonly pass `undefined` or `null` when they don't want an
+	// override; Value.String() on those returns "<undefined>"/"<null>" which
+	// would then fail the regex below and surface a misleading error.
 	var explicitEnv string
-	if len(args) >= 3 {
+	if len(args) >= 3 && args[2].Type() == js.TypeString {
 		explicitEnv = strings.ToLower(strings.TrimSpace(args[2].String()))
 	}
 	if explicitEnv != "" && !validEnvironmentName.MatchString(explicitEnv) {
