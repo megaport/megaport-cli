@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -17,6 +18,12 @@ import (
 )
 
 const API_URL_PRODUCTION = "https://api.megaport.com/"
+
+// validEnvironmentName restricts the explicit environment override to a safe
+// character set. The value is interpolated into the API URL, so any character
+// that could terminate the host portion (/, ., @, :, etc.) must be rejected to
+// prevent hostname injection.
+var validEnvironmentName = regexp.MustCompile(`^[a-z0-9-]+$`)
 
 var (
 	// Use a single buffer pair with mutex protection
@@ -697,8 +704,8 @@ func clearAuthCredentials(this js.Value, args []js.Value) interface{} {
 //
 // Accepts hostname (e.g. window.location.hostname) to derive environment and API URL.
 // Optionally accepts an explicit environment override as the 3rd argument; the
-// override must match [a-z0-9-]+ (see isValidEnvironmentName) and supersedes the
-// hostname-derived environment and API URL:
+// override must match [a-z0-9-]+ and supersedes the hostname-derived
+// environment and API URL:
 //
 //	setAuthToken(token, hostname, environment)
 func setAuthToken(this js.Value, args []js.Value) interface{} {
@@ -733,7 +740,7 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 	if len(args) >= 3 {
 		explicitEnv = strings.ToLower(strings.TrimSpace(args[2].String()))
 	}
-	if explicitEnv != "" && !isValidEnvironmentName(explicitEnv) {
+	if explicitEnv != "" && !validEnvironmentName.MatchString(explicitEnv) {
 		return map[string]interface{}{
 			"success": false,
 			"error":   "environment must contain only lowercase letters, digits, and hyphens",
@@ -825,29 +832,6 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 		"hostname":    hostname,
 		"apiURL":      apiURL,
 	}
-}
-
-// isValidEnvironmentName restricts the explicit environment override to a safe
-// character set ([a-z0-9-]). The value is interpolated into the API URL, so any
-// character that could terminate the host portion (/, ., @, :, etc.) must be
-// rejected to prevent hostname injection.
-func isValidEnvironmentName(s string) bool {
-	for _, c := range s {
-		// lowercase letter
-		if c >= 'a' && c <= 'z' {
-			continue
-		}
-		// digit
-		if c >= '0' && c <= '9' {
-			continue
-		}
-		// hyphen
-		if c == '-' {
-			continue
-		}
-		return false
-	}
-	return true
 }
 
 // hostnameToEnvironment maps a hostname to the appropriate environment
