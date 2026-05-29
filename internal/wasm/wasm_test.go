@@ -792,6 +792,47 @@ func TestSetAuthToken(t *testing.T) {
 	}
 }
 
+// TestSetAuthToken_NonStringThirdArg verifies that JS callers passing
+// `undefined` or `null` (and other non-string values) as the third argument
+// are treated as if no override was provided — rather than having
+// Value.String() return "<undefined>"/"<null>" and triggering the regex
+// rejection with a misleading error.
+func TestSetAuthToken_NonStringThirdArg(t *testing.T) {
+	RegisterJSFunctions()
+	setAuthFunc := js.Global().Get("setAuthToken")
+
+	tests := []struct {
+		name     string
+		thirdArg js.Value
+	}{
+		{"undefined third arg", js.Undefined()},
+		{"null third arg", js.Null()},
+		{"number third arg", js.ValueOf(0)},
+		{"bool third arg", js.ValueOf(false)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			js.Global().Get("clearAuthCredentials").Invoke()
+
+			// Recognised host so the call should succeed when the third arg is ignored.
+			result := setAuthFunc.Invoke("tok", "portal-staging.megaport.com", tt.thirdArg)
+
+			assert.True(t, result.Get("success").Bool(), "non-string third arg should be ignored, not trigger validation")
+			assert.Equal(t, "staging", result.Get("environment").String(), "should fall through to hostname-derived env")
+		})
+	}
+
+	t.Run("undefined third arg + unrecognised host fails closed (not regex error)", func(t *testing.T) {
+		js.Global().Get("clearAuthCredentials").Invoke()
+		result := setAuthFunc.Invoke("tok", "localhost", js.Undefined())
+		assert.False(t, result.Get("success").Bool())
+		errMsg := result.Get("error").String()
+		assert.Contains(t, errMsg, "could not determine environment", "should hit fail-closed path, not regex validation")
+		assert.NotContains(t, errMsg, "lowercase letters", "must not surface the regex rejection message")
+	})
+}
+
 // TestEnvironmentToAPIURL verifies the URL-builder helper. The helper assumes
 // its input has already been validated upstream (see envNamePattern), so it
 // is exercised only with values the upstream gates accept. Injection-vector
