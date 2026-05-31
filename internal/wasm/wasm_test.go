@@ -768,10 +768,8 @@ func TestSetAuthToken(t *testing.T) {
 				returnedEnv := result.Get("environment").String()
 				assert.Equal(t, tt.expectedEnv, returnedEnv, "returned environment should match expected")
 
-				if tt.expectedURL != "" {
-					returnedURL := result.Get("apiURL").String()
-					assert.Equal(t, tt.expectedURL, returnedURL, "returned API URL should match expected")
-				}
+				returnedURL := result.Get("apiURL").String()
+				assert.Equal(t, tt.expectedURL, returnedURL, "returned API URL should match expected")
 
 				// Verify auth info shows token is set
 				authInfo := js.Global().Get("debugAuthInfo").Invoke()
@@ -831,6 +829,24 @@ func TestSetAuthToken_NonStringThirdArg(t *testing.T) {
 		assert.Contains(t, errMsg, "could not determine environment", "should hit fail-closed path, not regex validation")
 		assert.NotContains(t, errMsg, "lowercase letters", "must not surface the regex rejection message")
 	})
+}
+
+// TestSetAuthToken_TwoArgsSkipsValidation is a regression test for a bug
+// where a flipped comparison in setAuthToken caused the env-name regex
+// validation to fire on every no-override call, surfacing the misleading
+// "environment must contain only lowercase letters..." error instead of the
+// real fail-closed message. Two-argument calls must never reach validation.
+func TestSetAuthToken_TwoArgsSkipsValidation(t *testing.T) {
+	RegisterJSFunctions()
+	js.Global().Get("clearAuthCredentials").Invoke()
+
+	// Hostname that the derivation step rejects, so the call errors and we can
+	// inspect which error path produced the message.
+	result := js.Global().Get("setAuthToken").Invoke("tok", "localhost")
+	assert.False(t, result.Get("success").Bool())
+	errMsg := result.Get("error").String()
+	assert.NotContains(t, errMsg, "lowercase letters", "two-arg call must not reach env-name validation")
+	assert.Contains(t, errMsg, "could not determine environment", "two-arg call should hit the fail-closed path")
 }
 
 // TestEnvironmentToAPIURL verifies the URL-builder helper. The helper assumes
