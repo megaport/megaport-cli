@@ -2063,7 +2063,6 @@ func TestDeletePort_Comprehensive(t *testing.T) {
 	tests := []struct {
 		name             string
 		force            bool
-		deleteNow        bool
 		confirmResult    bool
 		deleteErr        error
 		isDeleting       bool
@@ -2101,13 +2100,6 @@ func TestDeletePort_Comprehensive(t *testing.T) {
 			isDeleting:       false,
 			expectedContains: "not successful",
 		},
-		{
-			name:             "delete now flag",
-			force:            true,
-			deleteNow:        true,
-			isDeleting:       true,
-			expectedContains: "port-123",
-		},
 	}
 
 	for _, tt := range tests {
@@ -2123,7 +2115,9 @@ func TestDeletePort_Comprehensive(t *testing.T) {
 				return tt.confirmResult
 			})
 
+			var capturedReq *megaport.DeletePortRequest
 			deletePortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.DeletePortRequest) (*megaport.DeletePortResponse, error) {
+				capturedReq = req
 				if tt.deleteErr != nil {
 					return nil, tt.deleteErr
 				}
@@ -2132,20 +2126,22 @@ func TestDeletePort_Comprehensive(t *testing.T) {
 
 			cmd := &cobra.Command{Use: "delete"}
 			cmd.Flags().Bool("force", false, "")
-			cmd.Flags().Bool("now", false, "")
 			cmd.Flags().Bool("safe-delete", false, "")
 
 			if tt.force {
 				require.NoError(t, cmd.Flags().Set("force", "true"))
-			}
-			if tt.deleteNow {
-				require.NoError(t, cmd.Flags().Set("now", "true"))
 			}
 
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
 				err = DeletePort(cmd, []string{"port-123"}, true)
 			})
+
+			// Ports must always be deleted immediately — the previous
+			// "terminate later" option is no longer supported.
+			if capturedReq != nil {
+				assert.True(t, capturedReq.DeleteNow, "DeletePort must always set DeleteNow=true")
+			}
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)

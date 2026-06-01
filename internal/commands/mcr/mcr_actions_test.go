@@ -136,7 +136,6 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 		name           string
 		mcrID          string
 		force          bool
-		deleteNow      bool
 		safeDelete     bool
 		promptResponse string
 		setupMock      func(*MockMCRService)
@@ -148,7 +147,6 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			name:           "confirm deletion",
 			mcrID:          "mcr-to-delete",
 			force:          false,
-			deleteNow:      false,
 			promptResponse: "y",
 			setupMock: func(m *MockMCRService) {
 				m.DeleteMCRResult = &megaport.DeleteMCRResponse{
@@ -162,7 +160,6 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			name:           "safe delete flag passed to request",
 			mcrID:          "mcr-safe-delete",
 			force:          true,
-			deleteNow:      false,
 			safeDelete:     true,
 			promptResponse: "",
 			setupMock: func(m *MockMCRService) {
@@ -174,24 +171,9 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			expectDeleted:  true,
 		},
 		{
-			name:           "confirm immediate deletion",
-			mcrID:          "mcr-to-delete-now",
-			force:          false,
-			deleteNow:      true,
-			promptResponse: "y",
-			setupMock: func(m *MockMCRService) {
-				m.DeleteMCRResult = &megaport.DeleteMCRResponse{
-					IsDeleting: true,
-				}
-			},
-			expectedOutput: "MCR deleted",
-			expectDeleted:  true,
-		},
-		{
-			name:      "force deletion",
-			mcrID:     "mcr-force-delete",
-			force:     true,
-			deleteNow: false,
+			name:  "force deletion",
+			mcrID: "mcr-force-delete",
+			force: true,
 			setupMock: func(m *MockMCRService) {
 				m.DeleteMCRResult = &megaport.DeleteMCRResponse{
 					IsDeleting: true,
@@ -250,11 +232,9 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 				},
 			}
 			cmd.Flags().BoolP("force", "f", false, "Force deletion without confirmation")
-			cmd.Flags().Bool("now", false, "Delete MCR immediately instead of at end of billing cycle")
 			cmd.Flags().Bool("safe-delete", false, "Fail if the resource has attached VXCs or other active services")
 			flags := map[string]string{
 				"force": fmt.Sprintf("%v", tt.force),
-				"now":   fmt.Sprintf("%v", tt.deleteNow),
 			}
 			if tt.safeDelete {
 				flags["safe-delete"] = "true"
@@ -276,6 +256,8 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 				if tt.expectDeleted {
 					assert.NotNil(t, mockMCRService.CapturedDeleteMCRUID)
 					assert.Equal(t, tt.mcrID, mockMCRService.CapturedDeleteMCRUID)
+					assert.True(t, mockMCRService.CapturedDeleteMCRRequest.DeleteNow,
+						"MCR delete must always send DeleteNow=true (SDK rejects deferred deletion)")
 					if tt.safeDelete {
 						assert.True(t, mockMCRService.CapturedDeleteMCRRequest.SafeDelete)
 					}

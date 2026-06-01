@@ -821,23 +821,35 @@ func TestDeleteIX(t *testing.T) {
 	}()
 
 	tests := []struct {
-		name           string
-		ixUID          string
-		force          bool
-		deleteNow      bool
-		promptResponse string
-		setupMock      func(*MockIXService)
-		expectedError  string
-		expectedOutput string
-		expectDeleted  bool
+		name              string
+		ixUID             string
+		force             bool
+		later             bool
+		promptResponse    string
+		setupMock         func(*MockIXService)
+		expectedError     string
+		expectedOutput    string
+		expectDeleted     bool
+		expectedDeleteNow *bool
 	}{
 		{
-			name:           "confirm deletion with force",
-			ixUID:          "ix-to-delete",
-			force:          true,
-			setupMock:      func(m *MockIXService) {},
-			expectedOutput: "IX deleted",
-			expectDeleted:  true,
+			name:              "force delete defaults to immediate",
+			ixUID:             "ix-to-delete",
+			force:             true,
+			setupMock:         func(m *MockIXService) {},
+			expectedOutput:    "IX deleted",
+			expectDeleted:     true,
+			expectedDeleteNow: boolPtr(true),
+		},
+		{
+			name:              "force with --later defers cancellation",
+			ixUID:             "ix-to-delete-later",
+			force:             true,
+			later:             true,
+			setupMock:         func(m *MockIXService) {},
+			expectedOutput:    "IX deleted",
+			expectDeleted:     true,
+			expectedDeleteNow: boolPtr(false),
 		},
 		{
 			name:           "confirm deletion with prompt",
@@ -893,14 +905,14 @@ func TestDeleteIX(t *testing.T) {
 				},
 			}
 			cmd.Flags().BoolP("force", "f", false, "Force deletion without confirmation")
-			cmd.Flags().Bool("now", false, "Delete IX immediately")
+			cmd.Flags().Bool("later", false, "Defer deletion to end of billing cycle")
 			err := cmd.Flags().Set("force", fmt.Sprintf("%v", tt.force))
 			if err != nil {
 				t.Fatalf("Failed to set force flag: %v", err)
 			}
-			err = cmd.Flags().Set("now", fmt.Sprintf("%v", tt.deleteNow))
+			err = cmd.Flags().Set("later", fmt.Sprintf("%v", tt.later))
 			if err != nil {
-				t.Fatalf("Failed to set now flag: %v", err)
+				t.Fatalf("Failed to set later flag: %v", err)
 			}
 
 			capturedOutput := output.CaptureOutput(func() {
@@ -917,10 +929,18 @@ func TestDeleteIX(t *testing.T) {
 				if tt.expectDeleted {
 					assert.Equal(t, tt.ixUID, mockService.capturedDeleteIXUID)
 				}
+				if tt.expectedDeleteNow != nil {
+					if assert.NotNil(t, mockService.capturedDeleteIXReq, "expected DeleteIX to be called") {
+						assert.Equal(t, *tt.expectedDeleteNow, mockService.capturedDeleteIXReq.DeleteNow,
+							"DeleteNow value does not match expectation")
+					}
+				}
 			}
 		})
 	}
 }
+
+func boolPtr(b bool) *bool { return &b }
 
 func TestGetIX(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})

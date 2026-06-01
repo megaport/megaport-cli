@@ -164,14 +164,14 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 	deleteVXCCmd := cmdbuilder.NewCommand("delete", "Delete an existing Virtual Cross Connect (VXC)").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(DeleteVXC).
-		WithDeleteFlags().
-		WithLongDesc("Delete an existing Virtual Cross Connect (VXC) through the Megaport API.\n\nThis command allows you to delete an existing VXC by providing its UID.").
+		WithDeferredDeleteFlags().
+		WithLongDesc("Delete an existing Virtual Cross Connect (VXC) through the Megaport API.\n\nThis command allows you to delete an existing VXC by providing its UID. Deletion is immediate by default; pass --later to schedule cancellation at the end of the current billing cycle instead.").
 		WithExample("megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
 		WithExample("megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --force").
-		WithExample("megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --now").
+		WithExample("megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --later").
+		WithImportantNote("Deletion is immediate by default; the VXC is disconnected and billing stops right away").
+		WithImportantNote("Use --later to defer cancellation to the end of the current billing cycle (not supported for Transit VXCs)").
 		WithImportantNote("Deletion is final and cannot be undone").
-		WithImportantNote("Billing for the VXC stops at the end of the current billing period").
-		WithImportantNote("The VXC is immediately disconnected upon deletion").
 		WithRootCmd(rootCmd).
 		WithAliases([]string{"rm"}).
 		Build()

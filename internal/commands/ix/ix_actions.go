@@ -366,10 +366,11 @@ func DeleteIX(cmd *cobra.Command, args []string, noColor bool) error {
 
 	ixUID := args[0]
 
-	deleteNow, err := cmd.Flags().GetBool("now")
+	later, err := cmd.Flags().GetBool("later")
 	if err != nil {
 		return err
 	}
+	deleteNow := !later
 
 	force, err := cmd.Flags().GetBool("force")
 	if err != nil {
