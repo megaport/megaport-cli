@@ -170,13 +170,13 @@ VXCs must be deleted before deleting their parent port or MCR:
 
 ```sh
 # Delete VXCs first
-megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --now
+megaport-cli vxc delete vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 # Then delete the port
-megaport-cli ports delete port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --now
+megaport-cli ports delete port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
-> **Note:** Omit `--now` to schedule deletion at the end of the current billing period instead of immediately.
+> **Note:** All `delete` commands now cancel resources immediately by default — billing stops right away. VXCs and IXs are the only resource types that still accept deferred cancellation; pass `--later` to schedule cancellation for the end of the current billing cycle instead.
 
 ### Manage billing contact
 
@@ -226,10 +226,10 @@ megaport-cli ports get port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --export > my-p
 
 ### Skip confirmation prompts in scripts
 
-Use `--force` to suppress interactive prompts and `--now` for immediate deletion:
+Use `--force` to suppress interactive prompts (ports are always deleted immediately):
 
 ```sh
-megaport-cli ports delete port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --now --force
+megaport-cli ports delete port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --force
 ```
 
 ### Get machine-readable output
@@ -319,11 +319,11 @@ VXCS=$(megaport-cli vxc list --a-end-uid "$PORT_UID" --output json \
 
 for uid in $VXCS; do
   echo "Deleting VXC ${uid}..."
-  megaport-cli vxc delete "$uid" --now --force --quiet
+  megaport-cli vxc delete "$uid" --force --quiet
 done
 
 echo "Deleting port ${PORT_UID}..."
-megaport-cli ports delete "$PORT_UID" --now --force --quiet
+megaport-cli ports delete "$PORT_UID" --force --quiet
 echo "Done."
 ```
 

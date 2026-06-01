@@ -6,14 +6,15 @@ Delete a port from your account
 
 Delete a port from your account in the Megaport API.
 
-This command allows you to delete an existing port by providing the UID of the port as an argument. By default, the port will be scheduled for deletion at the end of the current billing period.
+This command deletes an existing port by providing the UID of the port as an argument. Ports are deleted immediately; deferred cancellation at the end of the billing period is no longer supported.
 
 ### Optional Fields
   - `force`: Skip the confirmation prompt and proceed with deletion
-  - `now`: Delete the port immediately instead of waiting until the end of the billing period
+  - `safe-delete`: Fail if the resource has attached VXCs or other active services
 
 ### Important Notes
   - All VXCs associated with the port must be deleted before the port can be deleted
+  - Ports are deleted immediately; the previous 'terminate later' option is no longer available
   - You can restore a deleted port before it's fully decommissioned using the 'restore' command
   - Once a port is fully decommissioned, restoration is not possible
 
@@ -21,8 +22,7 @@ This command allows you to delete an existing port by providing the UID of the p
 
 ```sh
   megaport-cli ports delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p
-  megaport-cli ports delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now
-  megaport-cli ports delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now --force
+  megaport-cli ports delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --force
 ```
 
 ## Usage
@@ -44,7 +44,6 @@ megaport-cli ports delete [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 | `--force` | `-f` | `false` | Skip confirmation prompt | false |
-| `--now` |  | `false` | Delete resource immediately instead of at end of billing cycle | false |
 | `--safe-delete` |  | `false` | Fail if the resource has attached VXCs or other active services | false |
 
 ## Subcommands

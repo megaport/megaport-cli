@@ -114,12 +114,6 @@ func DeletePort(cmd *cobra.Command, args []string, noColor bool) error {
 
 	portUID := args[0]
 
-	deleteNow, err := cmd.Flags().GetBool("now")
-	if err != nil {
-		output.PrintError("Failed to get delete now flag: %v", noColor, err)
-		return err
-	}
-
 	force, err := cmd.Flags().GetBool("force")
 	if err != nil {
 		output.PrintError("Failed to get force flag: %v", noColor, err)
@@ -140,9 +134,13 @@ func DeletePort(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	// Ports only support immediate deletion (CANCEL_NOW). The previous
+	// "terminate later" option is no longer offered by the Megaport API,
+	// and DeletePort requests with DeleteNow=false are rejected by the SDK
+	// with ErrPortCancelLaterNotAllowed.
 	deleteRequest := &megaport.DeletePortRequest{
 		PortID:     portUID,
-		DeleteNow:  deleteNow,
+		DeleteNow:  true,
 		SafeDelete: safeDelete,
 	}
 
@@ -170,7 +168,7 @@ func DeletePort(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	if resp.IsDeleting {
-		output.PrintResourceDeleted("Port", portUID, deleteNow, noColor)
+		output.PrintResourceDeleted("Port", portUID, true, noColor)
 	} else {
 		output.PrintWarning("Port deletion request was not successful", noColor)
 	}
