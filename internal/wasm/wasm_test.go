@@ -671,13 +671,17 @@ func TestSetAuthToken(t *testing.T) {
 			expectedBucket: "development",
 		},
 		{
-			name:           "unknown env like 'prod' is accepted but yields api-prod URL (buckets to development)",
-			token:          "prod-typo-token-12345",
+			// "prod" passes the env-name regex and gets used as-is for the API URL
+			// (yielding api-prod.megaport.com/), but restrictEnvironmentName recognises
+			// it as an alias for production so MEGAPORT_ENVIRONMENT lands on
+			// "production". This mirrors normalizeEnvironment in config_shared.go.
+			name:           "'prod' alias buckets to production (matches normalizeEnvironment)",
+			token:          "prod-alias-token-12345",
 			hostname:       "portal.megaport.com",
 			explicitEnv:    "prod",
 			expectedEnv:    "prod",
 			expectedURL:    "https://api-prod.megaport.com/",
-			expectedBucket: "development",
+			expectedBucket: "production",
 		},
 
 		// --- normalisation of override input ---
@@ -945,7 +949,7 @@ func TestRestrictEnvironmentName(t *testing.T) {
 		{"qa", "development"},
 		{"uat", "development"},
 		{"mpone-dev", "development"},
-		{"prod", "development"}, // not "production"
+		{"prod", "production"}, // alias accepted, matches normalizeEnvironment
 		{"", "development"},     // shouldn't be called with empty, but defined behaviour
 	}
 

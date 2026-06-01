@@ -17,8 +17,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const API_URL_PRODUCTION = "https://api.megaport.com/"
-const API_URL_NON_PRODUCTION_TEMPLATE = "https://api-%s.megaport.com/"
+const apiURLProduction = "https://api.megaport.com/"
+const apiURLNonProductionTemplate = "https://api-%s.megaport.com/"
 
 // Character-class fragments shared between environment-name validation and
 // the hostname patterns below. Keeping the env name in one place ensures the
@@ -45,9 +45,9 @@ var validEnvironmentName = regexp.MustCompile(`^` + envNamePattern + `$`)
 // value is guaranteed safe to interpolate by the time it gets here.
 func environmentToAPIURL(env string) string {
 	if env == "production" {
-		return API_URL_PRODUCTION
+		return apiURLProduction
 	}
-	return fmt.Sprintf(API_URL_NON_PRODUCTION_TEMPLATE, env)
+	return fmt.Sprintf(apiURLNonProductionTemplate, env)
 }
 
 // production hostname pattern includes an optional subdomain for an app name
@@ -85,11 +85,24 @@ func environmentFromHostname(hostname string) (string, bool) {
 
 // restrictEnvironmentName collapses an environment name into one of the three
 // canonical values that downstream consumers of MEGAPORT_ENVIRONMENT understand
-// ("production" / "staging" / "development"). Anything that isn't "production"
-// or "staging" collapses to "development".
+// ("production" / "staging" / "development"). "prod" is accepted as an alias
+// for "production"; anything else collapses to "development".
+//
+// Related: normalizeEnvironment in internal/commands/config/config_shared.go
+// performs a similar canonicalisation for the native CLI path. The two
+// functions agree on "production"/"prod" → "production" and "staging" →
+// "staging", but their default cases differ: normalizeEnvironment defaults
+// unknown values to "production" (so a malformed --env still hits the live
+// API), while this function defaults to "development" (so the WASM portal
+// fails into a safer bucket when the resolved env isn't canonical). The
+// difference is intentional and the divergence is exercised by tests in both
+// packages.
 func restrictEnvironmentName(env string) string {
-	if env == "production" || env == "staging" {
-		return env
+	if env == "production" || env == "prod" {
+		return "production"
+	}
+	if env == "staging" {
+		return "staging"
 	}
 	return "development"
 }
@@ -855,7 +868,7 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 	if explicitEnv == "" {
 		environmentLog = fmt.Sprintf("%s (derived from hostname)", environment)
 	} else if mismatch {
-		environmentLog = environment + fmt.Sprintf(" (mismatch with hostname-derived %q)", derivedEnv)
+		environmentLog = fmt.Sprintf("%s (mismatch with hostname-derived %q)", environment, derivedEnv)
 	} else if derivedOK {
 		environmentLog = environment + " (override matches hostname)"
 	} else {
