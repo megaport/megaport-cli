@@ -245,16 +245,16 @@ func buildPortManagementCommands(rootCmd *cobra.Command) (list, get, status, del
 	deleteCmd = cmdbuilder.NewCommand("delete", "Delete a port from your account").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(DeletePort).
-		WithSafeDeleteFlags().
-		WithLongDesc("Delete a port from your account in the Megaport API.\n\nThis command allows you to delete an existing port by providing the UID of the port as an argument. By default, the port will be scheduled for deletion at the end of the current billing period.").
-		WithOptionalFlag("now", "Delete the port immediately instead of waiting until the end of the billing period").
+		WithImmediateSafeDeleteFlags().
+		WithLongDesc("Delete a port from your account in the Megaport API.\n\nThis command deletes an existing port by providing the UID of the port as an argument. Ports are deleted immediately; deferred cancellation at the end of the billing period is no longer supported.").
 		WithOptionalFlag("force", "Skip the confirmation prompt and proceed with deletion").
+		WithOptionalFlag("safe-delete", "Fail if the resource has attached VXCs or other active services").
 		WithImportantNote("All VXCs associated with the port must be deleted before the port can be deleted").
+		WithImportantNote("Ports are deleted immediately; the previous 'terminate later' option is no longer available").
 		WithImportantNote("You can restore a deleted port before it's fully decommissioned using the 'restore' command").
 		WithImportantNote("Once a port is fully decommissioned, restoration is not possible").
 		WithExample("megaport-cli ports delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
-		WithExample("megaport-cli ports delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now").
-		WithExample("megaport-cli ports delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --now --force").
+		WithExample("megaport-cli ports delete 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --force").
 		WithRootCmd(rootCmd).
 		WithAliases([]string{"rm"}).
 		Build()

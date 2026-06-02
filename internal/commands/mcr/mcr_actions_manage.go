@@ -22,11 +22,6 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	mcrUID := args[0]
 
-	deleteNow, err := cmd.Flags().GetBool("now")
-	if err != nil {
-		return err
-	}
-
 	force, err := cmd.Flags().GetBool("force")
 	if err != nil {
 		return err
@@ -40,9 +35,11 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("failed to get safe-delete flag: %w", err)
 	}
 
+	// MCRs only support immediate deletion (CANCEL_NOW); the SDK rejects
+	// DeleteNow=false with ErrMCRCancelLaterNotAllowed.
 	deleteRequest := &megaport.DeleteMCRRequest{
 		MCRID:      mcrUID,
-		DeleteNow:  deleteNow,
+		DeleteNow:  true,
 		SafeDelete: safeDelete,
 	}
 
@@ -63,7 +60,7 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	if resp.IsDeleting {
-		output.PrintResourceDeleted("MCR", mcrUID, deleteNow, noColor)
+		output.PrintResourceDeleted("MCR", mcrUID, true, noColor)
 	} else {
 		output.PrintError("MCR deletion request was not successful", noColor)
 	}

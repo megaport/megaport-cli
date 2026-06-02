@@ -136,11 +136,13 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 	del = cmdbuilder.NewCommand("delete", "Delete an MCR from your account").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(DeleteMCR).
-		WithSafeDeleteFlags().
-		WithLongDesc("Delete an MCR from your account.\n\nThis command allows you to delete an MCR from your account. By default, the MCR will be scheduled for deletion at the end of the current billing period.").
+		WithImmediateSafeDeleteFlags().
+		WithLongDesc("Delete an MCR from your account.\n\nMCRs are deleted immediately; deferred end-of-term cancellation is not supported by the API.").
 		WithExample("megaport-cli mcr delete [mcrUID]").
-		WithExample("megaport-cli mcr delete [mcrUID] --now").
-		WithExample("megaport-cli mcr delete [mcrUID] --now --force").
+		WithExample("megaport-cli mcr delete [mcrUID] --force").
+		WithExample("megaport-cli mcr delete [mcrUID] --force --safe-delete").
+		WithImportantNote("Deletion is immediate; billing stops right away").
+		WithImportantNote("Deletion is final and cannot be undone").
 		WithRootCmd(rootCmd).
 		WithAliases([]string{"rm"}).
 		Build()
