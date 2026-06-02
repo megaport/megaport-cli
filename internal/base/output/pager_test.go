@@ -151,10 +151,10 @@ func TestSetNoPager_RoundTrip(t *testing.T) {
 func TestSetConfig_NoPager(t *testing.T) {
 	t.Cleanup(ResetState)
 
-	SetConfig(OutputConfig{NoPager: true})
+	ApplyOutputConfig(OutputConfig{NoPager: true})
 	assert.True(t, GetNoPager())
 
-	SetConfig(OutputConfig{NoPager: false})
+	ApplyOutputConfig(OutputConfig{NoPager: false})
 	assert.False(t, GetNoPager())
 }
 

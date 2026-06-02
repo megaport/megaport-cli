@@ -156,10 +156,7 @@ func TestApplyDefaultSettings_CLIVerboseOverridesConfigQuiet(t *testing.T) {
 
 	defer func() {
 		output.ResetState()
-		quiet = false
-		verbose = false
-		_ = rootCmd.PersistentFlags().Set("quiet", "false")
-		_ = rootCmd.PersistentFlags().Set("verbose", "false")
+		resetVerbosityFlags(t)
 	}()
 
 	// Simulate the user passing --verbose on the CLI.
@@ -170,6 +167,8 @@ func TestApplyDefaultSettings_CLIVerboseOverridesConfigQuiet(t *testing.T) {
 
 	assert.True(t, verbose, "CLI-set --verbose should win over config quiet")
 	assert.False(t, quiet, "config-sourced quiet should be dropped when CLI set verbose")
+}
+
 // resetVerbosityFlags resets the quiet/verbose package vars, their cobra flag
 // values, and — critically — their Changed state so the mutually-exclusive
 // group check does not fire on subsequent tests that share the global rootCmd.
