@@ -118,6 +118,7 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 	if err != nil {
 		return nil, err
 	}
+	asnStr = strings.TrimSpace(asnStr)
 	if asnStr != "" {
 		asn, err := strconv.Atoi(asnStr)
 		if err != nil {

@@ -150,6 +150,30 @@ func TestPromptForUpdateMCRDetails_ASNOnly(t *testing.T) {
 	assert.Equal(t, 65020, *req.MCRAsn)
 }
 
+func TestPromptForUpdateMCRDetails_ASNWhitespaceTrimmed(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", "", "", "  65020  "}))
+
+	req, err := promptForUpdateMCRDetails("mcr-123", true)
+	assert.NoError(t, err)
+	require.NotNil(t, req)
+	require.NotNil(t, req.MCRAsn)
+	assert.Equal(t, 65020, *req.MCRAsn)
+}
+
+func TestPromptForUpdateMCRDetails_ASNWhitespaceOnlySkips(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", "", "", "   "}))
+
+	_, err := promptForUpdateMCRDetails("mcr-123", true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one field must be updated")
+}
+
 func TestPromptForUpdateMCRDetails_InvalidASN(t *testing.T) {
 	originalPrompt := utils.GetResourcePrompt()
 	defer func() { utils.SetResourcePrompt(originalPrompt) }()
