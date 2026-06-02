@@ -132,8 +132,10 @@ func TestPromptForUpdateMCRDetails_InvalidTerm(t *testing.T) {
 
 	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", "", "99"}))
 
+	// Invalid term returns before the ASN prompt, so 4 responses suffice.
 	_, err := promptForUpdateMCRDetails("mcr-123", true)
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "contract term")
 }
 
 func TestPromptForUpdateMCRDetails_ASNOnly(t *testing.T) {
