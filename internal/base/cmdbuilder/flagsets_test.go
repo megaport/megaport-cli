@@ -291,9 +291,9 @@ func TestWithMCRUpdateFlags(t *testing.T) {
 		if f != nil {
 			assert.Equal(t, expectedType, f.Value.Type(), "MCR update flag %q type", name)
 		}
-	expectedFlags := []string{"name", "cost-centre", "marketplace-visibility", "mcr-asn"}
-	expectedFlags := []string{"name", "cost-centre", "marketplace-visibility", "term", "mcr-asn"}
-	for _, flag := range expectedFlags {
+	}
+
+	for _, flag := range []string{"name", "cost-centre", "marketplace-visibility", "term", "mcr-asn"} {
 		assert.NotNil(t, cmd.Flags().Lookup(flag), "MCR update flag %q should exist", flag)
 	}
 
