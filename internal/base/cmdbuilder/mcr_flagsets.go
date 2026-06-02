@@ -27,6 +27,7 @@ func (b *CommandBuilder) WithMCRCreateFlags() *CommandBuilder {
 // WithMCRUpdateFlags adds flags for MCR updates
 func (b *CommandBuilder) WithMCRUpdateFlags() *CommandBuilder {
 
+	termDesc := fmt.Sprintf("The new contract term for the MCR (%s months)", validation.FormatIntSlice(validation.ValidContractTerms))
 	b.WithFlag("name", "", "The new name of the MCR (1-64 characters)").
 		WithFlag("cost-centre", "", "The new cost centre for the MCR").
 		WithBoolFlag("marketplace-visibility", false, "Whether the MCR is visible in the marketplace (true/false)").
@@ -35,10 +36,12 @@ func (b *CommandBuilder) WithMCRUpdateFlags() *CommandBuilder {
 		WithOptionalFlag("cost-centre", "The new cost centre for the MCR").
 		WithOptionalFlag("marketplace-visibility", "Whether the MCR is visible in the marketplace (true/false)").
 		WithOptionalFlag("term", fmt.Sprintf("The new contract term for the MCR (%s months)", validation.FormatIntSlice(validation.ValidContractTerms)))
+		WithIntFlag("term", 0, termDesc).
 		WithIntFlag("mcr-asn", 0, "The new BGP ASN for the MCR (64512-65534 for private ASN, or a public ASN)").
 		WithOptionalFlag("name", "The new name of the MCR (1-64 characters)").
 		WithOptionalFlag("cost-centre", "The new cost centre for the MCR").
 		WithOptionalFlag("marketplace-visibility", "Whether the MCR is visible in the marketplace (true/false)").
+		WithOptionalFlag("term", termDesc).
 		WithOptionalFlag("mcr-asn", "The new BGP ASN for the MCR (64512-65534 for private ASN, or a public ASN)")
 	return b
 }
