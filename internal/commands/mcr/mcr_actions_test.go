@@ -1851,6 +1851,41 @@ func TestUpdateMCR(t *testing.T) {
 			expectedOutput: "MCR updated mcr-123",
 		},
 		{
+			name: "success with term flag only",
+			args: []string{"mcr-789"},
+			flags: map[string]string{
+				"term": "24",
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				})
+			},
+			setupGetMCR: func() {
+				getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+					return &megaport.MCR{
+						UID:                mcrUID,
+						Name:               "Original MCR",
+						ProvisioningStatus: "LIVE",
+					}, nil
+				}
+			},
+			setupUpdateMCR: func() {
+				updateMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyMCRRequest) (*megaport.ModifyMCRResponse, error) {
+					if req.ContractTermMonths == nil {
+						return nil, fmt.Errorf("expected ContractTermMonths to be set")
+					}
+					if *req.ContractTermMonths != 24 {
+						return nil, fmt.Errorf("expected ContractTermMonths=24, got %d", *req.ContractTermMonths)
+					}
+					return &megaport.ModifyMCRResponse{IsUpdated: true}, nil
+				}
+			},
+			expectedOutput: "MCR updated mcr-789",
+		},
+		{
 			name: "success with JSON",
 			args: []string{"mcr-456"},
 			flags: map[string]string{

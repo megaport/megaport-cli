@@ -118,6 +118,7 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithLongDesc("Update an existing Megaport Cloud Router (MCR).\n\nThis command allows you to update the details of an existing MCR.").
 		WithExample("megaport-cli mcr update [mcrUID] --interactive").
 		WithExample("megaport-cli mcr update [mcrUID] --name \"Updated MCR\" --marketplace-visibility true --cost-centre \"Finance\"").
+		WithExample("megaport-cli mcr update [mcrUID] --term 24").
 		WithExample("megaport-cli mcr update [mcrUID] --json '{\"name\":\"Updated MCR\",\"marketplaceVisibility\":true,\"costCentre\":\"Finance\"}'").
 		WithExample("megaport-cli mcr update [mcrUID] --json-file ./update-mcr-config.json").
 		WithJSONExample(`{

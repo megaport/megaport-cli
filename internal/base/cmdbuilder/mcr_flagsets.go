@@ -30,9 +30,11 @@ func (b *CommandBuilder) WithMCRUpdateFlags() *CommandBuilder {
 	b.WithFlag("name", "", "The new name of the MCR (1-64 characters)").
 		WithFlag("cost-centre", "", "The new cost centre for the MCR").
 		WithBoolFlag("marketplace-visibility", false, "Whether the MCR is visible in the marketplace (true/false)").
+		WithIntFlag("term", 0, fmt.Sprintf("The new contract term for the MCR (%s months)", validation.FormatIntSlice(validation.ValidContractTerms))).
 		WithOptionalFlag("name", "The new name of the MCR (1-64 characters)").
 		WithOptionalFlag("cost-centre", "The new cost centre for the MCR").
-		WithOptionalFlag("marketplace-visibility", "Whether the MCR is visible in the marketplace (true/false)")
+		WithOptionalFlag("marketplace-visibility", "Whether the MCR is visible in the marketplace (true/false)").
+		WithOptionalFlag("term", fmt.Sprintf("The new contract term for the MCR (%s months)", validation.FormatIntSlice(validation.ValidContractTerms)))
 	return b
 }
 
