@@ -116,10 +116,6 @@ func (m *MockMCRService) WaitForMCRReady(ctx context.Context, mcrID string, time
 	return fmt.Errorf("mock: WaitForMCRReady not configured")
 }
 
-func (m *MockMCRService) WaitForMCRReady(_ context.Context, _ string, _ time.Duration) error {
-	return fmt.Errorf("mock: WaitForMCRReady not configured")
-}
-
 // MockMVEService satisfies megaport.MVEService for testing.
 type MockMVEService struct {
 	ListMVEsResult []*megaport.MVE
