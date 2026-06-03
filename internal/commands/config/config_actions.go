@@ -56,23 +56,27 @@ func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("profile '%s' already exists", profileName)
 	}
 
+	accessKey = strings.TrimSpace(accessKey)
 	if accessKey == "" {
 		accessKey, err = utils.SecretResourcePrompt("config", "Enter Megaport API access key: ", noColor)
 		if err != nil {
 			return fmt.Errorf("failed to read access key: %w", err)
 		}
-		if accessKey == "" {
+		if strings.TrimSpace(accessKey) == "" {
 			return fmt.Errorf("access key is required")
 		}
+		accessKey = strings.TrimSpace(accessKey)
 	}
+	secretKey = strings.TrimSpace(secretKey)
 	if secretKey == "" {
 		secretKey, err = utils.SecretResourcePrompt("config", "Enter Megaport API secret key: ", noColor)
 		if err != nil {
 			return fmt.Errorf("failed to read secret key: %w", err)
 		}
-		if secretKey == "" {
+		if strings.TrimSpace(secretKey) == "" {
 			return fmt.Errorf("secret key is required")
 		}
+		secretKey = strings.TrimSpace(secretKey)
 	}
 
 	if err := manager.CreateProfile(profileName, accessKey, secretKey, environment, description); err != nil {
@@ -107,28 +111,32 @@ func UpdateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	accessKey := ""
 	if accessKeyChanged {
 		accessKey, _ = cmd.Flags().GetString("access-key")
+		accessKey = strings.TrimSpace(accessKey)
 		if accessKey == "" {
 			accessKey, err = utils.SecretResourcePrompt("config", "Enter new Megaport API access key: ", noColor)
 			if err != nil {
 				return fmt.Errorf("failed to read access key: %w", err)
 			}
-			if accessKey == "" {
+			if strings.TrimSpace(accessKey) == "" {
 				return fmt.Errorf("access key cannot be empty")
 			}
+			accessKey = strings.TrimSpace(accessKey)
 		}
 	}
 
 	secretKey := ""
 	if secretKeyChanged {
 		secretKey, _ = cmd.Flags().GetString("secret-key")
+		secretKey = strings.TrimSpace(secretKey)
 		if secretKey == "" {
 			secretKey, err = utils.SecretResourcePrompt("config", "Enter new Megaport API secret key: ", noColor)
 			if err != nil {
 				return fmt.Errorf("failed to read secret key: %w", err)
 			}
-			if secretKey == "" {
+			if strings.TrimSpace(secretKey) == "" {
 				return fmt.Errorf("secret key cannot be empty")
 			}
+			secretKey = strings.TrimSpace(secretKey)
 		}
 	}
 
