@@ -15,8 +15,6 @@ import (
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/ports"
 	"github.com/megaport/megaport-cli/internal/testutil"
-	"github.com/megaport/megaport-cli/internal/utils"
-	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -180,7 +178,7 @@ func TestIntegration_IXListAndGet(t *testing.T) {
 }
 
 // TestIntegration_IXLifecycle exercises the full create → get → status → update → delete path.
-// It skips when no active IXs exist on staging (needed to discover a valid network-service-type).
+// Discovers a valid IX network-service-type from the IXP catalog and a matching location.
 // Expected runtime: up to ~25 minutes (two provisioning waits of up to 10 min each).
 func TestIntegration_IXLifecycle(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
@@ -190,43 +188,41 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	output.SetOutputFormat("table")
 	t.Cleanup(func() { output.SetOutputFormat(origFormat) })
 
-	// Discover a valid IX network-service-type and location from existing active IXs.
+	// Discover a valid IX network-service-type from the global IXP catalog,
+	// then find a Megaport location in the same metro to host the test port.
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
-	existingIXs, err := client.IXService.ListIXs(ctx, &megaport.ListIXsRequest{IncludeInactive: false})
-	require.NoError(t, err, "failed to list IXs for type discovery")
-	var firstIX *megaport.IX
-	for _, ix := range existingIXs {
-		if ix == nil {
-			continue
-		}
-		if ix.ProvisioningStatus == megaport.STATUS_DECOMMISSIONED ||
-			ix.ProvisioningStatus == megaport.STATUS_CANCELLED ||
-			ix.ProvisioningStatus == utils.StatusDecommissioning {
-			continue
-		}
-		firstIX = ix
-		break
-	}
-	if firstIX == nil {
-		t.Skip("no usable active IXs on staging — cannot determine a valid network-service-type for lifecycle test")
-	}
-	networkServiceType := firstIX.NetworkServiceType
-	locationID := firstIX.LocationID
-	rateLimit := firstIX.RateLimit
-	if rateLimit == 0 {
-		rateLimit = 1000
+	ixps, err := client.IXService.ListIXPs(ctx, nil)
+	require.NoError(t, err, "failed to list IXPs")
+	if len(ixps) == 0 {
+		t.Skip("no IXPs available on staging")
 	}
 
-	// Create the port that will serve as the A-end of the IX.
-	// Port speed must be >= rateLimit to pass IX order validation.
-	portSpeed := 1000
-	if rateLimit > 10000 {
-		portSpeed = 100000
-	} else if rateLimit > 1000 {
-		portSpeed = 10000
+	allLocs, err := client.LocationService.ListLocationsV3(ctx)
+	require.NoError(t, err, "failed to list locations")
+
+	var networkServiceType string
+	var locationID int
+	for _, ixp := range ixps {
+		if ixp == nil || ixp.Name == "" {
+			continue
+		}
+		matching := client.LocationService.FilterLocationsByMetroV3(ctx, ixp.Metro, allLocs)
+		if len(matching) == 0 {
+			continue
+		}
+		networkServiceType = ixp.Name
+		locationID = matching[0].ID
+		break
 	}
+	if networkServiceType == "" || locationID == 0 {
+		t.Skip("no IXP with a matching staging location found")
+	}
+	const rateLimit = 1000
+
+	// Create the port that will serve as the A-end of the IX.
+	const portSpeed = 1000
 	portName := fmt.Sprintf("CLI-Test-Port-IX-%s", generateUniqueID(t))
 	pCmd := integrationBuyPortCmd()
 	require.NoError(t, pCmd.Flags().Set("name", portName))
@@ -271,7 +267,7 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("product-uid", portUID))
 	require.NoError(t, buyCmd.Flags().Set("name", ixName))
 	require.NoError(t, buyCmd.Flags().Set("network-service-type", networkServiceType))
-	require.NoError(t, buyCmd.Flags().Set("asn", "65000"))
+	require.NoError(t, buyCmd.Flags().Set("asn", "12345"))
 	require.NoError(t, buyCmd.Flags().Set("mac-address", "00:11:22:33:44:55"))
 	require.NoError(t, buyCmd.Flags().Set("rate-limit", fmt.Sprintf("%d", rateLimit)))
 	require.NoError(t, buyCmd.Flags().Set("vlan", "100"))
