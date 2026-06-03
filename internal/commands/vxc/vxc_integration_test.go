@@ -174,7 +174,7 @@ func buyPortAndGetUID(t *testing.T, portName string) string {
 	sdkClient := testutil.SharedIntegrationClient(t)
 	deadline := time.Now().Add(30 * time.Second)
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		allPorts, err := sdkClient.PortService.ListPorts(ctx)
 		cancel()
 		require.NoErrorf(t, err, "ListPorts failed after creating port %q", portName)
