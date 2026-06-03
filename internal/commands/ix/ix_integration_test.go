@@ -201,6 +201,10 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	}
 	networkServiceType := firstIX.NetworkServiceType
 	locationID := firstIX.LocationID
+	rateLimit := firstIX.RateLimit
+	if rateLimit == 0 {
+		rateLimit = 1000
+	}
 
 	// Create the port that will serve as the A-end of the IX.
 	portName := fmt.Sprintf("CLI-Test-Port-IX-%s", generateUniqueID())
@@ -225,7 +229,10 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	t.Cleanup(func() {
 		output.SetOutputFormat("table")
 		delPortCmd := integrationDeletePortCmd()
-		_ = delPortCmd.Flags().Set("force", "true")
+		if err := delPortCmd.Flags().Set("force", "true"); err != nil {
+			t.Errorf("cleanup: failed to set --force flag on port delete: %v", err)
+			return
+		}
 		output.CaptureOutput(func() {
 			if err := ports.DeletePort(delPortCmd, []string{portUID}, true); err != nil {
 				t.Errorf("cleanup: failed to delete test port %s: %v", portUID, err)
@@ -241,7 +248,7 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("network-service-type", networkServiceType))
 	require.NoError(t, buyCmd.Flags().Set("asn", "65000"))
 	require.NoError(t, buyCmd.Flags().Set("mac-address", "00:11:22:33:44:55"))
-	require.NoError(t, buyCmd.Flags().Set("rate-limit", "1000"))
+	require.NoError(t, buyCmd.Flags().Set("rate-limit", fmt.Sprintf("%d", rateLimit)))
 	require.NoError(t, buyCmd.Flags().Set("vlan", "100"))
 	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
 
@@ -251,8 +258,7 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	})
 	if buyErr != nil {
 		errMsg := buyErr.Error()
-		if strings.Contains(errMsg, "not available") || strings.Contains(errMsg, "invalid") ||
-			strings.Contains(errMsg, "not supported") {
+		if strings.Contains(errMsg, "not available") || strings.Contains(errMsg, "not supported") {
 			t.Skipf("IX type %q not available at location %d on staging: %v", networkServiceType, locationID, buyErr)
 		}
 		require.NoError(t, buyErr, "failed to create test IX")
@@ -265,7 +271,10 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	t.Cleanup(func() {
 		output.SetOutputFormat("table")
 		delCmd := integrationDeleteIXCmd()
-		_ = delCmd.Flags().Set("force", "true")
+		if err := delCmd.Flags().Set("force", "true"); err != nil {
+			t.Errorf("cleanup: failed to set --force flag on IX delete: %v", err)
+			return
+		}
 		output.CaptureOutput(func() {
 			if err := DeleteIX(delCmd, []string{ixUID}, true); err != nil {
 				t.Errorf("cleanup: failed to delete test IX %s: %v", ixUID, err)
