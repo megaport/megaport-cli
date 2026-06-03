@@ -165,11 +165,16 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 
 	// Extract the UID from "✓ NAT Gateway created <uid>" and wire up cleanup immediately
 	// so the gateway is deleted even if a subsequent skip fires.
+	// Use Index rather than line-by-line CutPrefix: in TTY+table mode the spinner
+	// writes \r-overwrite frames to stdout before the success line, so the prefix
+	// may not appear at the start of a newline-split segment.
 	const createPrefix = "✓ NAT Gateway created "
-	for _, line := range strings.Split(createOut, "\n") {
-		if after, ok := strings.CutPrefix(line, createPrefix); ok {
+	if idx := strings.Index(createOut, createPrefix); idx >= 0 {
+		after := createOut[idx+len(createPrefix):]
+		if end := strings.IndexAny(after, "\r\n"); end >= 0 {
+			createdUID = strings.TrimSpace(after[:end])
+		} else {
 			createdUID = strings.TrimSpace(after)
-			break
 		}
 	}
 	require.NotEmpty(t, createdUID, "failed to parse NAT Gateway UID from create output: %q", createOut)
