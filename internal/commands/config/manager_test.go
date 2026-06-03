@@ -397,7 +397,9 @@ func TestCorruptedConfigFilePreservesOriginal(t *testing.T) {
 	// Append garbage to the valid config so unmarshal fails but the profile data is still present
 	original, err := os.ReadFile(configPath)
 	require.NoError(t, err)
-	corrupt := append(original, []byte(" *** CORRUPT ***")...)
+	corrupt := make([]byte, len(original), len(original)+16)
+	copy(corrupt, original)
+	corrupt = append(corrupt, []byte(" *** CORRUPT ***")...)
 	err = os.WriteFile(configPath, corrupt, 0600)
 	require.NoError(t, err)
 

@@ -56,17 +56,12 @@ func NewConfigManager() (*ConfigManager, error) {
 	var config ConfigFile
 	err = json.Unmarshal(configData, &config)
 	if err != nil {
-		backupPath := configPath + ".corrupt-" + time.Now().Format("20060102-150405")
+		backupPath := configPath + ".corrupt-" + time.Now().Format("20060102-150405.000000000")
 		if renameErr := os.Rename(configPath, backupPath); renameErr != nil {
 			return nil, fmt.Errorf("config file is corrupted and could not be preserved: %w", renameErr)
 		}
 		fmt.Fprintf(os.Stderr, "Warning: Config file is corrupted. Original preserved at %s\n", backupPath)
-		config = ConfigFile{
-			Version:       ConfigVersion,
-			ActiveProfile: "",
-			Profiles:      make(map[string]*Profile),
-			Defaults:      make(map[string]interface{}),
-		}
+		config = *NewConfigFile()
 
 		configData, err = json.MarshalIndent(config, "", "  ")
 		if err != nil {
