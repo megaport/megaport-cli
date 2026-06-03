@@ -31,6 +31,7 @@ func newTestCmd(use string) *cobra.Command {
 	cmd.Flags().Int("speed", 0, "")
 	cmd.Flags().Int("location-id", 0, "")
 	cmd.Flags().Int("session-count", 0, "")
+	cmd.Flags().Int("asn", 0, "")
 	cmd.Flags().String("diversity-zone", "", "")
 	cmd.Flags().String("promo-code", "", "")
 	cmd.Flags().String("service-level-reference", "", "")

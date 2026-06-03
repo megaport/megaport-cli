@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -128,10 +129,14 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	speedMbps := int(rawSpeed)
 
 	// Extract the first valid session count for the chosen speed tier.
-	rawCounts, ok := sessions[0]["session_counts"].([]interface{})
-	require.True(t, ok, "session_counts should be an array")
+	// The output formatter serialises SessionCount []int as a comma-separated
+	// string (e.g. "1000, 2000"), so parse the first token.
+	rawCounts, ok := sessions[0]["session_counts"].(string)
+	require.True(t, ok, "session_counts should be a string")
 	require.NotEmpty(t, rawCounts, "session_counts should not be empty")
-	sessionCount := int(rawCounts[0].(float64))
+	firstToken := strings.TrimSpace(strings.SplitN(rawCounts, ",", 2)[0])
+	sessionCount, err := strconv.Atoi(firstToken)
+	require.NoError(t, err, "failed to parse session count from %q", rawCounts)
 
 	// Find a location that supports NAT Gateway at this speed.
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
@@ -176,6 +181,7 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	require.NoError(t, createCmd.Flags().Set("speed", fmt.Sprintf("%d", speedMbps)))
 	require.NoError(t, createCmd.Flags().Set("location-id", fmt.Sprintf("%d", locationID)))
 	require.NoError(t, createCmd.Flags().Set("session-count", fmt.Sprintf("%d", sessionCount)))
+	require.NoError(t, createCmd.Flags().Set("asn", "64512"))
 	require.NoError(t, createCmd.Flags().Set("diversity-zone", diversityZone))
 	require.NoError(t, createCmd.Flags().Set("yes", "true"))
 
