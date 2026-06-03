@@ -12,6 +12,7 @@ type MockMVEService struct {
 	ListMVEsErr                          error
 	ListMVEsResult                       []*megaport.MVE
 	BuyMVEErr                            error
+	BuyMVENilResp                        bool
 	BuyMVEResult                         *megaport.BuyMVEResponse
 	DeleteMVEErr                         error
 	DeleteMVEResult                      *megaport.DeleteMVEResponse
@@ -65,6 +66,9 @@ func (m *MockMVEService) ListMVEs(ctx context.Context, req *megaport.ListMVEsReq
 
 func (m *MockMVEService) BuyMVE(ctx context.Context, req *megaport.BuyMVERequest) (*megaport.BuyMVEResponse, error) {
 	m.CapturedBuyMVERequest = req
+	if m.BuyMVENilResp {
+		return nil, nil
+	}
 	if m.BuyMVEErr != nil {
 		return nil, m.BuyMVEErr
 	}
@@ -148,6 +152,7 @@ func (m *MockMVEService) Reset() {
 	m.GetMVEErr = nil
 	m.ListMVEsErr = nil
 	m.BuyMVEErr = nil
+	m.BuyMVENilResp = false
 	m.DeleteMVEErr = nil
 	m.ModifyMVEErr = nil
 	m.ValidateMVEOrderErr = nil

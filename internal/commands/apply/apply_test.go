@@ -365,6 +365,32 @@ vxcs:
 	assert.Contains(t, captured, "Undeclared")
 }
 
+func TestApplyConfig_MVEAPIError(t *testing.T) {
+	mockMVE := &MockMVEService{BuyMVEErr: fmt.Errorf("MVE unavailable")}
+	defer setupMockClient(&MockPortService{}, &MockMCRService{}, mockMVE, &MockVXCService{})()
+
+	yaml := `
+mves:
+  - name: Bad-MVE
+    location_id: 1
+    term: 1
+    vendor_config:
+      vendor: 6wind
+      imageId: 42
+      productSize: SMALL
+      sshPublicKey: "ssh-rsa AAAA"
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "MVE unavailable")
+}
+
 func TestApplyConfig_MCRAPIError(t *testing.T) {
 	mockMCR := &MockMCRService{BuyMCRErr: fmt.Errorf("MCR unavailable")}
 	defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, &MockVXCService{})()
