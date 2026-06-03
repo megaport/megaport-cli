@@ -683,7 +683,7 @@ vxcs:
 	assert.Contains(t, captured, "port-vxcfail-uid")
 	assert.Contains(t, captured, "megaport-cli ports delete port-vxcfail-uid")
 	assert.Contains(t, captured, "mcr-vxcfail-uid")
-	assert.Contains(t, captured, "megaport-cli mcrs delete mcr-vxcfail-uid")
+	assert.Contains(t, captured, "megaport-cli mcr delete mcr-vxcfail-uid")
 }
 
 // --- helpers (also used by other test functions) ---

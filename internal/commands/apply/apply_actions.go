@@ -32,9 +32,9 @@ var templateRe = regexp.MustCompile(`\{\{\.(\w+)\.([^}]+)\}\}`)
 // deleteCLICommand maps resource type to the CLI subcommand used to delete it.
 var deleteCLICommand = map[string]string{
 	"Port": "ports",
-	"MCR":  "mcrs",
-	"MVE":  "mves",
-	"VXC":  "vxcs",
+	"MCR":  "mcr",
+	"MVE":  "mve",
+	"VXC":  "vxc",
 }
 
 // createdResource records a resource that was successfully provisioned during an apply run.
