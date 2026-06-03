@@ -127,6 +127,12 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	require.True(t, ok, "speed_mbps should be a number")
 	speedMbps := int(rawSpeed)
 
+	// Extract the first valid session count for the chosen speed tier.
+	rawCounts, ok := sessions[0]["session_counts"].([]interface{})
+	require.True(t, ok, "session_counts should be an array")
+	require.NotEmpty(t, rawCounts, "session_counts should not be empty")
+	sessionCount := int(rawCounts[0].(float64))
+
 	// Find a location that supports NAT Gateway at this speed.
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
@@ -136,7 +142,30 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	if len(eligible) == 0 {
 		t.Skipf("NAT Gateway not available at any staging location for %d Mbps", speedMbps)
 	}
-	locationID := eligible[0].ID
+	loc := eligible[0]
+	locationID := loc.ID
+
+	// Determine which diversity zone at this location supports the chosen speed.
+	diversityZone := ""
+	if loc.DiversityZones != nil {
+		if loc.DiversityZones.Red != nil {
+			for _, s := range loc.DiversityZones.Red.NATGatewaySpeedMbps {
+				if s == speedMbps {
+					diversityZone = "red"
+					break
+				}
+			}
+		}
+		if diversityZone == "" && loc.DiversityZones.Blue != nil {
+			for _, s := range loc.DiversityZones.Blue.NATGatewaySpeedMbps {
+				if s == speedMbps {
+					diversityZone = "blue"
+					break
+				}
+			}
+		}
+	}
+	require.NotEmpty(t, diversityZone, "no diversity zone at location %d supports speed %d Mbps", locationID, speedMbps)
 
 	// Create a uniquely-named NAT gateway.
 	testName := fmt.Sprintf("CLI-Test-NAT-%d", time.Now().UnixNano())
@@ -146,6 +175,8 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	require.NoError(t, createCmd.Flags().Set("term", "1"))
 	require.NoError(t, createCmd.Flags().Set("speed", fmt.Sprintf("%d", speedMbps)))
 	require.NoError(t, createCmd.Flags().Set("location-id", fmt.Sprintf("%d", locationID)))
+	require.NoError(t, createCmd.Flags().Set("session-count", fmt.Sprintf("%d", sessionCount)))
+	require.NoError(t, createCmd.Flags().Set("diversity-zone", diversityZone))
 	require.NoError(t, createCmd.Flags().Set("yes", "true"))
 
 	// Use table format so CreateNATGateway's "✓ NAT Gateway created <uid>" line goes to stdout.
