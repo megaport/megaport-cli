@@ -299,3 +299,7 @@ func (m *MockIXService) UpdateIX(_ context.Context, _ string, _ *megaport.Update
 func (m *MockIXService) DeleteIX(_ context.Context, _ string, _ *megaport.DeleteIXRequest) error {
 	return fmt.Errorf("mock: DeleteIX not configured")
 }
+
+func (m *MockIXService) ListIXPs(_ context.Context, _ *megaport.ListIXPsRequest) ([]*megaport.IXP, error) {
+	return nil, fmt.Errorf("mock: ListIXPs not configured")
+}
