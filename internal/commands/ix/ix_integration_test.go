@@ -179,7 +179,7 @@ func TestIntegration_IXListAndGet(t *testing.T) {
 
 // TestIntegration_IXLifecycle exercises the full create → get → status → update → delete path.
 // Discovers a valid IX network-service-type from the IXP catalog and a matching location.
-// Expected runtime: up to ~25 minutes (two provisioning waits of up to 10 min each).
+// Expected runtime: up to ~30 minutes (three provisioning waits of up to 10 min each: port buy, IX buy, IX update).
 func TestIntegration_IXLifecycle(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
 	t.Cleanup(testutil.LoginWithClient(t, client))
