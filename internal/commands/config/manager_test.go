@@ -458,7 +458,7 @@ func TestCorruptedConfigFile_RenameFailure(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "megaport-config-test")
 	require.NoError(t, err)
 	defer func() {
-		os.Chmod(tempDir, 0700)
+		_ = os.Chmod(tempDir, 0700)
 		os.RemoveAll(tempDir)
 	}()
 	t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
