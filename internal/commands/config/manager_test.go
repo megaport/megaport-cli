@@ -493,9 +493,12 @@ func TestCorruptedConfigFile_ChmodFailure(t *testing.T) {
 		return fmt.Errorf("chmod: operation not permitted")
 	}
 
-	_, err = NewConfigManager()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "could not be secured")
+	// chmod failure is non-fatal: the CLI should still succeed and create a fresh default.
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+	profiles, err := manager.ListProfiles()
+	require.NoError(t, err)
+	assert.Empty(t, profiles)
 }
 
 func TestCorruptedConfigFile_ConcurrentRecovery(t *testing.T) {

@@ -69,9 +69,12 @@ func NewConfigManager() (*ConfigManager, error) {
 			fmt.Fprintf(os.Stderr, "Warning: Config file is corrupted and was concurrently recovered.\n")
 		} else {
 			if chmodErr := chmodFile(backupPath, 0600); chmodErr != nil {
-				return nil, fmt.Errorf("config backup at %s could not be secured: %w", backupPath, chmodErr)
+				// chmod failure is non-fatal: the backup is preserved and the fresh
+				// default will still be created. Warn so the user can restrict manually.
+				fmt.Fprintf(os.Stderr, "Warning: Config file is corrupted. Original preserved at %s (run: chmod 0600 %s)\n", backupPath, backupPath)
+			} else {
+				fmt.Fprintf(os.Stderr, "Warning: Config file is corrupted. Original preserved at %s\n", backupPath)
 			}
-			fmt.Fprintf(os.Stderr, "Warning: Config file is corrupted. Original preserved at %s\n", backupPath)
 		}
 		config = *NewConfigFile()
 
