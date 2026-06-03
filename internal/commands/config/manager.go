@@ -60,6 +60,9 @@ func NewConfigManager() (*ConfigManager, error) {
 		if renameErr := os.Rename(configPath, backupPath); renameErr != nil {
 			return nil, fmt.Errorf("config file is corrupted and could not be preserved: %w", renameErr)
 		}
+		if chmodErr := os.Chmod(backupPath, 0600); chmodErr != nil {
+			return nil, fmt.Errorf("config backup at %s could not be secured: %w", backupPath, chmodErr)
+		}
 		fmt.Fprintf(os.Stderr, "Warning: Config file is corrupted. Original preserved at %s\n", backupPath)
 		config = *NewConfigFile()
 

@@ -436,9 +436,18 @@ func TestCorruptedConfigFile_Permissions(t *testing.T) {
 	_, err = NewConfigManager()
 	require.NoError(t, err)
 
+	// New default config must be 0600
 	info, err = os.Stat(configPath)
 	require.NoError(t, err)
 	assert.Equal(t, os.FileMode(0600), info.Mode().Perm(), "config file should have 0600 permissions after corruption recovery")
+
+	// Backup must also be 0600 regardless of the original file's permissions
+	matches, err := filepath.Glob(configPath + ".corrupt-*")
+	require.NoError(t, err)
+	require.Len(t, matches, 1, "Expected exactly one .corrupt- backup file")
+	info, err = os.Stat(matches[0])
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0600), info.Mode().Perm(), "backup file should have 0600 permissions")
 }
 
 func TestSpecialProfileNames(t *testing.T) {
