@@ -36,8 +36,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 			"Credentials are stored in ~/.megaport/config.json with secure file permissions.\n\n"+
 			"If --access-key or --secret-key are not provided, you will be prompted. "+
 			"On an interactive terminal input is masked; on piped/non-TTY stdin it is read without masking.").
-		WithFlag("access-key", "", "Megaport API access key (omit to be prompted securely)").
-		WithFlag("secret-key", "", "Megaport API secret key (omit to be prompted securely)").
+		WithFlag("access-key", "", "Megaport API access key (omit to be prompted; masked on TTY only)").
+		WithFlag("secret-key", "", "Megaport API secret key (omit to be prompted; masked on TTY only)").
 		WithFlag("environment", "production", "Target API environment: 'production', 'staging', or 'development'").
 		WithFlag("description", "", "Optional description for this profile").
 		WithExample("megaport-cli config create-profile production --environment production").
@@ -55,8 +55,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 			"(e.g. --secret-key \"\") and you will be prompted instead of providing the value on the command line. "+
 			"On an interactive terminal input is masked; on piped/non-TTY stdin it is read without masking. "+
 			"Alternatively, use env vars MEGAPORT_ACCESS_KEY / MEGAPORT_SECRET_KEY which always take precedence over stored profiles.").
-		WithFlag("access-key", "", "New Megaport API access key (pass empty string to be prompted securely)").
-		WithFlag("secret-key", "", "New Megaport API secret key (pass empty string to be prompted securely)").
+		WithFlag("access-key", "", "New Megaport API access key (pass empty string to be prompted; masked on TTY only)").
+		WithFlag("secret-key", "", "New Megaport API secret key (pass empty string to be prompted; masked on TTY only)").
 		WithFlag("environment", "", "Target API environment: 'production', 'staging', or 'development'").
 		WithFlag("description", "", "Profile description (use empty string to clear)").
 		WithExample("megaport-cli config update-profile myprofile --environment staging").

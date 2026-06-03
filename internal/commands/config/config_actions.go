@@ -39,13 +39,13 @@ func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	if accessKey == "" {
 		accessKey, err = utils.SecretResourcePrompt("config", "Enter Megaport API access key: ", noColor)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to read access key: %w", err)
 		}
 	}
 	if secretKey == "" {
 		secretKey, err = utils.SecretResourcePrompt("config", "Enter Megaport API secret key: ", noColor)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to read secret key: %w", err)
 		}
 	}
 
@@ -92,7 +92,7 @@ func UpdateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 		if accessKey == "" {
 			accessKey, err = utils.SecretResourcePrompt("config", "Enter new Megaport API access key: ", noColor)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to read access key: %w", err)
 			}
 			if accessKey == "" {
 				return fmt.Errorf("access key cannot be empty")
@@ -106,7 +106,7 @@ func UpdateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 		if secretKey == "" {
 			secretKey, err = utils.SecretResourcePrompt("config", "Enter new Megaport API secret key: ", noColor)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to read secret key: %w", err)
 			}
 			if secretKey == "" {
 				return fmt.Errorf("secret key cannot be empty")
