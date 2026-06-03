@@ -19,6 +19,8 @@ import (
 func TestIntegration_NATGatewayListSessions(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
 	defer testutil.LoginWithClient(t, client)()
+	origFmt := output.GetOutputFormat()
+	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
 
 	cmd := newTestCmd("list-sessions")
 
@@ -46,6 +48,8 @@ func TestIntegration_NATGatewayListSessions(t *testing.T) {
 func TestIntegration_NATGatewayListAndGet(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
 	defer testutil.LoginWithClient(t, client)()
+	origFmt := output.GetOutputFormat()
+	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
 
 	listCmd := newTestCmd("list")
 
@@ -88,6 +92,8 @@ func TestIntegration_NATGatewayListAndGet(t *testing.T) {
 func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
 	defer testutil.LoginWithClient(t, client)()
+	origFmt := output.GetOutputFormat()
+	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
 
 	// Discover a valid speed tier from the session options.
 	sessCmd := newTestCmd("list-sessions")
@@ -132,10 +138,7 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	require.NoError(t, createCmd.Flags().Set("location-id", fmt.Sprintf("%d", locationID)))
 	require.NoError(t, createCmd.Flags().Set("yes", "true"))
 
-	// Use table format so the "✓ NAT Gateway created <uid>" success line goes to stdout.
-	// Restore whatever format was active before so later CaptureOutput calls are unaffected.
-	origFmt := output.GetOutputFormat()
-	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
+	// Use table format so CreateNATGateway's "✓ NAT Gateway created <uid>" line goes to stdout.
 	output.SetOutputFormat("table")
 
 	// Register cleanup before create so the gateway is deleted regardless of any
