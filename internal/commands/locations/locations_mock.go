@@ -148,6 +148,6 @@ func (m *MockLocationsService) GetRoundTripTimes(_ context.Context, _, _, _ int)
 	return m.GetRoundTripTimesResult, nil
 }
 
-func (m *MockLocationsService) ListLocationsV3WithOptions(ctx context.Context, opts *megaport.ListLocationsV3Options) ([]*megaport.LocationV3, error) {
+func (m *MockLocationsService) ListLocationsV3WithOptions(_ context.Context, _ *megaport.ListLocationsV3Options) ([]*megaport.LocationV3, error) {
 	return nil, fmt.Errorf("mock: ListLocationsV3WithOptions not configured")
 }

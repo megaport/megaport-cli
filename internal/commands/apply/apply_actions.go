@@ -44,7 +44,7 @@ type createdResource struct {
 	uid     string
 }
 
-// ApplyConfig is the entry point for `megaport apply`.
+// ApplyConfig is the entry point for `megaport-cli apply`.
 func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
 
