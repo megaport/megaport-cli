@@ -1020,7 +1020,7 @@ func TestUpdateProfile_EmptyFlagTriggersPrompt(t *testing.T) {
 }
 
 func TestUpdateProfile_EmptyAccessKeyFlagTriggersPrompt(t *testing.T) {
-	setupTestConfig(t)
+	setupTestConfigEnv(t)
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
