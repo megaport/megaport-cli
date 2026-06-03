@@ -227,10 +227,13 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	require.NoError(t, portErr, "failed to create test port")
 
 	portUID, ok := extractCreatedUID(portOut, "Port")
-	require.True(t, ok, "could not extract port UID from output:\n%s", portOut)
-
-	// Port cleanup runs last (registered first — t.Cleanup is LIFO).
+	// Port cleanup runs last (registered first — t.Cleanup is LIFO). Registered
+	// before the assertion so any created port is cleaned up even if UID
+	// extraction fails.
 	t.Cleanup(func() {
+		if portUID == "" {
+			return
+		}
 		output.SetOutputFormat("table")
 		delPortCmd := integrationDeletePortCmd()
 		if err := delPortCmd.Flags().Set("force", "true"); err != nil {
@@ -243,6 +246,7 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 			}
 		})
 	})
+	require.True(t, ok, "could not extract port UID from output:\n%s", portOut)
 
 	// Buy the IX.
 	ixName := fmt.Sprintf("CLI-Test-IX-%s", generateUniqueID())
@@ -269,10 +273,12 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	}
 
 	ixUID, ok := extractCreatedUID(buyOut, "IX")
-	require.True(t, ok, "could not extract IX UID from buy output:\n%s", buyOut)
-
-	// IX cleanup runs first (registered second — LIFO).
+	// IX cleanup runs first (registered second — LIFO). Registered before the
+	// assertion so any created IX is cleaned up even if UID extraction fails.
 	t.Cleanup(func() {
+		if ixUID == "" {
+			return
+		}
 		output.SetOutputFormat("table")
 		delCmd := integrationDeleteIXCmd()
 		if err := delCmd.Flags().Set("force", "true"); err != nil {
@@ -285,6 +291,7 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 			}
 		})
 	})
+	require.True(t, ok, "could not extract IX UID from buy output:\n%s", buyOut)
 
 	// Verify IX fields via GetIX.
 	var getErr error
