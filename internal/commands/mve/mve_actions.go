@@ -326,8 +326,8 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	if resp == nil {
-		output.PrintError("MVE update returned no response", noColor)
-		return fmt.Errorf("MVE update returned no response")
+		output.PrintError("MVE update returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
 	}
 
 	if !resp.MVEUpdated {

@@ -411,6 +411,17 @@ func TestUpdateMVE(t *testing.T) {
 			},
 			expectedError: "MVE update request was not successful",
 		},
+		{
+			name: "nil response from API",
+			args: []string{"mve-123"},
+			flags: map[string]string{
+				"name": "Updated MVE",
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.ModifyMVENilResp = true
+			},
+			expectedError: "empty response from API",
+		},
 	}
 
 	for _, tt := range tests {
