@@ -35,6 +35,10 @@ func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	environment, _ := cmd.Flags().GetString("environment")
 	description, _ := cmd.Flags().GetString("description")
 
+	if environment != "production" && environment != "staging" && environment != "development" {
+		return fmt.Errorf("environment must be 'production', 'staging', or 'development'")
+	}
+
 	var err error
 	if accessKey == "" {
 		accessKey, err = utils.SecretResourcePrompt("config", "Enter Megaport API access key: ", noColor)
@@ -53,10 +57,6 @@ func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 		if secretKey == "" {
 			return fmt.Errorf("secret key is required")
 		}
-	}
-
-	if environment != "production" && environment != "staging" && environment != "development" {
-		return fmt.Errorf("environment must be 'production', 'staging', or 'development'")
 	}
 
 	manager, err := NewConfigManager()
@@ -78,6 +78,14 @@ func UpdateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	manager, err := NewConfigManager()
 	if err != nil {
 		return err
+	}
+
+	profiles, err := manager.ListProfiles()
+	if err != nil {
+		return err
+	}
+	if _, exists := profiles[profileName]; !exists {
+		return fmt.Errorf("profile '%s' not found", profileName)
 	}
 
 	accessKeyChanged := cmd.Flags().Changed("access-key")
