@@ -42,7 +42,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli config create-profile production --environment production").
 		WithExample("megaport-cli config create-profile staging --environment staging --description \"Staging credentials\"").
 		WithImportantNote("API credentials are stored with 0600 permissions (readable only by the current user)").
-		WithImportantNote("Passing --access-key or --secret-key on the command line exposes credentials in shell history and process listings. Omit them to be prompted securely, or use env vars MEGAPORT_ACCESS_KEY / MEGAPORT_SECRET_KEY instead.").
+		WithImportantNote("Passing --access-key or --secret-key on the command line exposes credentials in shell history and process listings. Omit them to be prompted securely, or use env vars MEGAPORT_ACCESS_KEY / MEGAPORT_SECRET_KEY instead. Note: the secure prompt masks input only on an interactive terminal; piped input is read without masking.").
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -50,8 +50,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(UpdateProfile).
 		WithLongDesc("Update an existing profile with new credentials or settings.\n\n"+
-			"To update credentials without exposing them in shell history, pass an empty value "+
-			"(e.g. --secret-key \"\") and you will be prompted securely. "+
+			"To avoid recording the secret value in shell history, pass an empty string "+
+			"(e.g. --secret-key \"\") and you will be prompted securely instead of providing the value on the command line. "+
 			"Alternatively, use env vars MEGAPORT_ACCESS_KEY / MEGAPORT_SECRET_KEY which always take precedence over stored profiles.").
 		WithFlag("access-key", "", "New Megaport API access key (pass empty string to be prompted securely)").
 		WithFlag("secret-key", "", "New Megaport API secret key (pass empty string to be prompted securely)").

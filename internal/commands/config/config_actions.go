@@ -90,10 +90,9 @@ func UpdateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	if accessKeyChanged {
 		accessKey, _ = cmd.Flags().GetString("access-key")
 		if accessKey == "" {
-			var promptErr error
-			accessKey, promptErr = utils.SecretResourcePrompt("config", "Enter new Megaport API access key: ", noColor)
-			if promptErr != nil {
-				return promptErr
+			accessKey, err = utils.SecretResourcePrompt("config", "Enter new Megaport API access key: ", noColor)
+			if err != nil {
+				return err
 			}
 			if accessKey == "" {
 				return fmt.Errorf("access key cannot be empty")
@@ -105,10 +104,9 @@ func UpdateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	if secretKeyChanged {
 		secretKey, _ = cmd.Flags().GetString("secret-key")
 		if secretKey == "" {
-			var promptErr error
-			secretKey, promptErr = utils.SecretResourcePrompt("config", "Enter new Megaport API secret key: ", noColor)
-			if promptErr != nil {
-				return promptErr
+			secretKey, err = utils.SecretResourcePrompt("config", "Enter new Megaport API secret key: ", noColor)
+			if err != nil {
+				return err
 			}
 			if secretKey == "" {
 				return fmt.Errorf("secret key cannot be empty")

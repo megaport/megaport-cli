@@ -935,7 +935,7 @@ func TestCreateProfile_FlagValueSkipsPrompt(t *testing.T) {
 	assert.Equal(t, "flag-secret", profiles["flag-profile"].SecretKey)
 }
 
-func TestCreateProfile_EmptyPromptReturnsError(t *testing.T) {
+func TestCreateProfile_EmptyAccessKeyPromptReturnsError(t *testing.T) {
 	setupTestConfigEnv(t)
 
 	orig := utils.GetSecretResourcePrompt()
@@ -955,6 +955,33 @@ func TestCreateProfile_EmptyPromptReturnsError(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "access key is required")
+}
+
+func TestCreateProfile_EmptySecretKeyPromptReturnsError(t *testing.T) {
+	setupTestConfigEnv(t)
+
+	orig := utils.GetSecretResourcePrompt()
+	defer utils.SetSecretResourcePrompt(orig)
+
+	calls := []string{"some-access-key", ""}
+	i := 0
+	utils.SetSecretResourcePrompt(func(_, _ string, _ bool) (string, error) {
+		v := calls[i]
+		i++
+		return v, nil
+	})
+
+	cmd, _ := setupTestCmd()
+	cmd.Flags().String("access-key", "", "")
+	cmd.Flags().String("secret-key", "", "")
+	cmd.Flags().String("environment", "production", "")
+	cmd.Flags().String("description", "", "")
+
+	_, err := captureOutputFromAction(func() error {
+		return CreateProfile(cmd, []string{"empty-secret-profile"}, false)
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "secret key is required")
 }
 
 func TestUpdateProfile_EmptyFlagTriggersPrompt(t *testing.T) {
