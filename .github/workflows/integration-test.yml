@@ -19,7 +19,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Run read-only integration tests
-        run: go test -tags integration -run '^TestIntegration_' -v -timeout 5m ./internal/commands/locations/...
+        run: go test -tags integration -run '^TestIntegration_' -v -timeout 5m ./internal/commands/locations/... ./internal/commands/partners/... ./internal/commands/servicekeys/... ./internal/commands/users/... ./internal/commands/managed_account/...
         env:
           MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
           MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}
