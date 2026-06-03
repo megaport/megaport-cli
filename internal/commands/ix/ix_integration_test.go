@@ -137,7 +137,8 @@ func integrationStatusIXCmd() *cobra.Command {
 func TestIntegration_IXListAndGet(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
 	t.Cleanup(testutil.LoginWithClient(t, client))
-	t.Cleanup(func() { output.SetOutputFormat("table") })
+	origFormat := output.GetOutputFormat()
+	t.Cleanup(func() { output.SetOutputFormat(origFormat) })
 
 	var listErr error
 	listOut := output.CaptureOutput(func() {
@@ -183,9 +184,10 @@ func TestIntegration_IXListAndGet(t *testing.T) {
 func TestIntegration_IXLifecycle(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
 	t.Cleanup(testutil.LoginWithClient(t, client))
+	origFormat := output.GetOutputFormat()
 	// Ensure table format so PrintResourceCreated writes to stdout, not stderr.
 	output.SetOutputFormat("table")
-	t.Cleanup(func() { output.SetOutputFormat("table") })
+	t.Cleanup(func() { output.SetOutputFormat(origFormat) })
 
 	// Discover a valid IX network-service-type and location from existing active IXs.
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
