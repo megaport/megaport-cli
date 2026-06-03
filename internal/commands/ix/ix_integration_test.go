@@ -15,6 +15,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/ports"
 	"github.com/megaport/megaport-cli/internal/testutil"
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -197,10 +198,16 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	require.NoError(t, err, "failed to list IXs for type discovery")
 	var firstIX *megaport.IX
 	for _, ix := range existingIXs {
-		if ix != nil {
-			firstIX = ix
-			break
+		if ix == nil {
+			continue
 		}
+		if ix.ProvisioningStatus == megaport.STATUS_DECOMMISSIONED ||
+			ix.ProvisioningStatus == megaport.STATUS_CANCELLED ||
+			ix.ProvisioningStatus == utils.StatusDecommissioning {
+			continue
+		}
+		firstIX = ix
+		break
 	}
 	if firstIX == nil {
 		t.Skip("no usable active IXs on staging — cannot determine a valid network-service-type for lifecycle test")
