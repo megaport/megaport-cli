@@ -157,9 +157,12 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 	require.NoError(t, buyErr, "buy MCR output: %s", buyOut)
 
 	mcrUID := parseCreatedUID(buyOut, "MCR")
-	require.NotEmpty(t, mcrUID, "could not parse MCR UID from: %s", buyOut)
-
+	// Register cleanup before asserting on mcrUID, so any created MCR is
+	// deleted even if the UID parse fails.
 	t.Cleanup(func() {
+		if mcrUID == "" {
+			return
+		}
 		delCmd := integrationMCRDeleteCmd()
 		_ = delCmd.Flags().Set("force", "true")
 		var delErr error
@@ -170,6 +173,7 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 		}
 		t.Logf("cleanup: delete MCR %s: %s", mcrUID, out)
 	})
+	require.NotEmpty(t, mcrUID, "could not parse MCR UID from: %s", buyOut)
 
 	// Get and verify the core fields are present.
 	mcr := getMCRJSON(t, mcrUID)
@@ -301,9 +305,12 @@ func TestIntegration_MCRJSONInputLifecycle(t *testing.T) {
 	require.NoError(t, buyErr, "buy MCR (JSON) output: %s", buyOut)
 
 	mcrUID := parseCreatedUID(buyOut, "MCR")
-	require.NotEmpty(t, mcrUID, "could not parse MCR UID from: %s", buyOut)
-
+	// Register cleanup before asserting on mcrUID, so any created MCR is
+	// deleted even if the UID parse fails.
 	t.Cleanup(func() {
+		if mcrUID == "" {
+			return
+		}
 		delCmd := integrationMCRDeleteCmd()
 		_ = delCmd.Flags().Set("force", "true")
 		var delErr error
@@ -314,6 +321,7 @@ func TestIntegration_MCRJSONInputLifecycle(t *testing.T) {
 		}
 		t.Logf("cleanup: delete MCR %s: %s", mcrUID, out)
 	})
+	require.NotEmpty(t, mcrUID, "could not parse MCR UID from: %s", buyOut)
 
 	mcr := getMCRJSON(t, mcrUID)
 	assert.Equal(t, mcrUID, mcr["uid"])
