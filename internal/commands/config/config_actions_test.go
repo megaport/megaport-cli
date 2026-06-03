@@ -1018,3 +1018,38 @@ func TestUpdateProfile_EmptyFlagTriggersPrompt(t *testing.T) {
 	assert.Equal(t, "new-secret-from-prompt", profiles["update-test"].SecretKey)
 	assert.Equal(t, "old-access", profiles["update-test"].AccessKey)
 }
+
+func TestUpdateProfile_EmptyAccessKeyFlagTriggersPrompt(t *testing.T) {
+	setupTestConfig(t)
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+	require.NoError(t, manager.CreateProfile("update-test", "old-access", "old-secret", "production", ""))
+
+	orig := utils.GetSecretResourcePrompt()
+	defer utils.SetSecretResourcePrompt(orig)
+	utils.SetSecretResourcePrompt(func(_, _ string, _ bool) (string, error) {
+		return "new-access-from-prompt", nil
+	})
+
+	cmd, _ := setupTestCmd()
+	cmd.Flags().String("access-key", "", "")
+	cmd.Flags().String("secret-key", "", "")
+	cmd.Flags().String("environment", "", "")
+	cmd.Flags().String("description", "", "")
+	// Pass --access-key="" to trigger the prompt path
+	require.NoError(t, cmd.ParseFlags([]string{"--access-key="}))
+
+	outputText, err := captureOutputFromAction(func() error {
+		return UpdateProfile(cmd, []string{"update-test"}, false)
+	})
+	require.NoError(t, err)
+	assert.Contains(t, outputText, "Profile 'update-test' updated successfully")
+
+	manager, err = NewConfigManager()
+	require.NoError(t, err)
+	profiles, err := manager.ListProfiles()
+	require.NoError(t, err)
+	assert.Equal(t, "new-access-from-prompt", profiles["update-test"].AccessKey)
+	assert.Equal(t, "old-secret", profiles["update-test"].SecretKey)
+}

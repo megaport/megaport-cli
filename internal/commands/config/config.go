@@ -34,7 +34,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 			"Profiles store your Megaport API access and secret keys along with environment settings for secure reuse. "+
 			"The profile name is case-sensitive and must be unique.\n\n"+
 			"Credentials are stored in ~/.megaport/config.json with secure file permissions.\n\n"+
-			"If --access-key or --secret-key are not provided, you will be prompted securely (input is not echoed).").
+			"If --access-key or --secret-key are not provided, you will be prompted. "+
+			"On an interactive terminal input is masked; on piped/non-TTY stdin it is read without masking.").
 		WithFlag("access-key", "", "Megaport API access key (omit to be prompted securely)").
 		WithFlag("secret-key", "", "Megaport API secret key (omit to be prompted securely)").
 		WithFlag("environment", "production", "Target API environment: 'production', 'staging', or 'development'").
