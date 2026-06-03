@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// integrationLocationID is the staging data centre used for all VXC lifecycle
+// integrationLocationID is the staging data center used for all VXC lifecycle
 // tests. Location 67 matches the canonical example used across the CLI test
 // suite and supports the 1G port speed these tests exercise.
 const integrationLocationID = 67
@@ -34,7 +34,7 @@ const (
 // integrationVXCBuyResponses lets parallel tests retrieve the BuyVXCResponse
 // for their VXC without scraping stdout. The init() hook below wraps
 // buyVXCFunc so the SDK response is stored under the request VXCName; tests
-// read the UID back from this map.
+// read the UID back from this map. key: req.VXCName (string), value: *megaport.BuyVXCResponse
 var integrationVXCBuyResponses sync.Map
 
 func init() {
@@ -57,8 +57,9 @@ func generateUniqueID(t *testing.T) string {
 }
 
 // buildPortCmd constructs a cobra.Command for ports.BuyPort with all required
-// flags pre-set. Tests call ports.BuyPort(buildPortCmd(...), nil, true).
-func buildPortCmd(name string, locationID int) *cobra.Command {
+// flags pre-set. Tests call ports.BuyPort(buildPortCmd(t, ...), nil, true).
+func buildPortCmd(t *testing.T, name string, locationID int) *cobra.Command {
+	t.Helper()
 	cmd := &cobra.Command{Use: "buy"}
 	cmd.Flags().Bool("interactive", false, "")
 	cmd.Flags().Bool("no-wait", false, "")
@@ -75,18 +76,19 @@ func buildPortCmd(name string, locationID int) *cobra.Command {
 	cmd.Flags().String("promo-code", "", "")
 	cmd.Flags().String("resource-tags", "", "")
 	cmd.Flags().Bool("cost-confirm", true, "")
-	_ = cmd.Flags().Set("name", name)
-	_ = cmd.Flags().Set("term", "1")
-	_ = cmd.Flags().Set("port-speed", "1000")
-	_ = cmd.Flags().Set("location-id", fmt.Sprintf("%d", locationID))
-	_ = cmd.Flags().Set("marketplace-visibility", "false")
-	_ = cmd.Flags().Set("yes", "true")
+	require.NoError(t, cmd.Flags().Set("name", name))
+	require.NoError(t, cmd.Flags().Set("term", "1"))
+	require.NoError(t, cmd.Flags().Set("port-speed", "1000"))
+	require.NoError(t, cmd.Flags().Set("location-id", fmt.Sprintf("%d", locationID)))
+	require.NoError(t, cmd.Flags().Set("marketplace-visibility", "false"))
+	require.NoError(t, cmd.Flags().Set("yes", "true"))
 	return cmd
 }
 
 // buildVXCCmd constructs a cobra.Command for BuyVXC with the given name,
-// endpoint UIDs, and rate limit pre-set. Tests call BuyVXC(buildVXCCmd(...), nil, true).
-func buildVXCCmd(name, aEndUID, bEndUID string, rateLimit int) *cobra.Command {
+// endpoint UIDs, and rate limit pre-set. Tests call BuyVXC(buildVXCCmd(t, ...), nil, true).
+func buildVXCCmd(t *testing.T, name, aEndUID, bEndUID string, rateLimit int) *cobra.Command {
+	t.Helper()
 	cmd := &cobra.Command{Use: "buy"}
 	cmd.Flags().Bool("interactive", false, "")
 	cmd.Flags().Bool("no-wait", false, "")
@@ -109,12 +111,12 @@ func buildVXCCmd(name, aEndUID, bEndUID string, rateLimit int) *cobra.Command {
 	cmd.Flags().String("cost-centre", "", "")
 	cmd.Flags().String("a-end-partner-config", "", "")
 	cmd.Flags().String("b-end-partner-config", "", "")
-	_ = cmd.Flags().Set("name", name)
-	_ = cmd.Flags().Set("a-end-uid", aEndUID)
-	_ = cmd.Flags().Set("b-end-uid", bEndUID)
-	_ = cmd.Flags().Set("rate-limit", fmt.Sprintf("%d", rateLimit))
-	_ = cmd.Flags().Set("term", "1")
-	_ = cmd.Flags().Set("yes", "true")
+	require.NoError(t, cmd.Flags().Set("name", name))
+	require.NoError(t, cmd.Flags().Set("a-end-uid", aEndUID))
+	require.NoError(t, cmd.Flags().Set("b-end-uid", bEndUID))
+	require.NoError(t, cmd.Flags().Set("rate-limit", fmt.Sprintf("%d", rateLimit)))
+	require.NoError(t, cmd.Flags().Set("term", "1"))
+	require.NoError(t, cmd.Flags().Set("yes", "true"))
 	return cmd
 }
 
@@ -166,7 +168,7 @@ func newUpdateVXCCmd() *cobra.Command {
 // from parallel tests is harmless.
 func buyPortAndGetUID(t *testing.T, portName string) string {
 	t.Helper()
-	cmd := buildPortCmd(portName, integrationLocationID)
+	cmd := buildPortCmd(t, portName, integrationLocationID)
 	require.NoErrorf(t, ports.BuyPort(cmd, nil, true), "BuyPort failed for %q", portName)
 
 	sdkClient := testutil.SharedIntegrationClient(t)
@@ -213,6 +215,7 @@ func registerPortCleanup(t *testing.T, uid string) {
 		require.NoError(t, delCmd.Flags().Set("force", "true"))
 		if err := ports.DeletePort(delCmd, []string{uid}, true); err != nil {
 			t.Errorf("cleanup: failed to delete port %s: %v", uid, err)
+			return
 		}
 	})
 }
@@ -286,7 +289,7 @@ func TestIntegration_VXCPortToPortLifecycle(t *testing.T) {
 	registerPortCleanup(t, portBUID)
 	t.Logf("Created port B: %s", portBUID)
 
-	vxcCmd := buildVXCCmd(vxcName, portAUID, portBUID, 100)
+	vxcCmd := buildVXCCmd(t, vxcName, portAUID, portBUID, 100)
 	vxcUID := runBuyVXC(t, vxcCmd, vxcName)
 	registerVXCCleanup(t, vxcUID)
 	t.Logf("Created VXC: %s", vxcUID)
@@ -322,7 +325,7 @@ func TestIntegration_VXCVLANModificationLifecycle(t *testing.T) {
 	portBUID := buyPortAndGetUID(t, portBName)
 	registerPortCleanup(t, portBUID)
 
-	vxcCmd := buildVXCCmd(vxcName, portAUID, portBUID, 100)
+	vxcCmd := buildVXCCmd(t, vxcName, portAUID, portBUID, 100)
 	require.NoError(t, vxcCmd.Flags().Set("a-end-vlan", "100"))
 	require.NoError(t, vxcCmd.Flags().Set("b-end-vlan", "200"))
 	vxcUID := runBuyVXC(t, vxcCmd, vxcName)
@@ -370,28 +373,7 @@ func TestIntegration_VXCJSONInputLifecycle(t *testing.T) {
 	buyJSON, err := json.Marshal(buyPayload)
 	require.NoError(t, err)
 
-	vxcCmd := &cobra.Command{Use: "buy"}
-	vxcCmd.Flags().Bool("interactive", false, "")
-	vxcCmd.Flags().Bool("no-wait", false, "")
-	vxcCmd.Flags().Bool("yes", false, "")
-	vxcCmd.Flags().String("json", "", "")
-	vxcCmd.Flags().String("json-file", "", "")
-	vxcCmd.Flags().String("name", "", "")
-	vxcCmd.Flags().String("a-end-uid", "", "")
-	vxcCmd.Flags().String("b-end-uid", "", "")
-	vxcCmd.Flags().Int("rate-limit", 0, "")
-	vxcCmd.Flags().Int("term", 0, "")
-	vxcCmd.Flags().Int("a-end-vlan", 0, "")
-	vxcCmd.Flags().Int("b-end-vlan", 0, "")
-	vxcCmd.Flags().Int("a-end-inner-vlan", 0, "")
-	vxcCmd.Flags().Int("b-end-inner-vlan", 0, "")
-	vxcCmd.Flags().Int("a-end-vnic-index", 0, "")
-	vxcCmd.Flags().Int("b-end-vnic-index", 0, "")
-	vxcCmd.Flags().String("promo-code", "", "")
-	vxcCmd.Flags().String("service-key", "", "")
-	vxcCmd.Flags().String("cost-centre", "", "")
-	vxcCmd.Flags().String("a-end-partner-config", "", "")
-	vxcCmd.Flags().String("b-end-partner-config", "", "")
+	vxcCmd := buildVXCCmd(t, "", "", "", 0)
 	require.NoError(t, vxcCmd.Flags().Set("json", string(buyJSON)))
 
 	vxcUID := runBuyVXC(t, vxcCmd, vxcName)
