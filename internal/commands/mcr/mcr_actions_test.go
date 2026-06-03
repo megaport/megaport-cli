@@ -1990,6 +1990,35 @@ func TestUpdateMCR(t *testing.T) {
 			},
 			expectedError: "API error: service unavailable",
 		},
+		{
+			name: "nil response from API",
+			args: []string{"mcr-nil"},
+			flags: map[string]string{
+				"name": "Updated MCR",
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				})
+			},
+			setupGetMCR: func() {
+				getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+					return &megaport.MCR{
+						UID:                mcrUID,
+						Name:               "Original MCR",
+						ProvisioningStatus: "LIVE",
+					}, nil
+				}
+			},
+			setupUpdateMCR: func() {
+				updateMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyMCRRequest) (*megaport.ModifyMCRResponse, error) {
+					return nil, nil
+				}
+			},
+			expectedError: "empty response from API",
+		},
 	}
 
 	for _, tt := range tests {

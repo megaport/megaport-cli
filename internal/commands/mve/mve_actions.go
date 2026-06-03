@@ -549,6 +549,11 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("failed to delete MVE: %w", err)
 	}
 
+	if resp == nil {
+		output.PrintError("MVE delete returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
+	}
+
 	// MVEs always delete immediately (SDK hardcodes DeleteNow: true).
 	if resp.IsDeleted {
 		output.PrintResourceDeleted("MVE", mveUID, true, noColor)
