@@ -219,10 +219,15 @@ func portsBySDKNameFilter(t *testing.T, nameSubstring string) []*megaport.Port {
 // buys, which encode the name inside the payload rather than on a cobra
 // flag, work the same way as flag-driven buys. It must match the Name in
 // the final BuyPortRequest the action sends to the SDK.
+//
+// Cleanup is registered here — immediately after the buy succeeds and before
+// uidFromBuyResponse asserts on the response — so that any created resources
+// are deleted even if UID extraction subsequently fails.
 func runBuyPort(t *testing.T, cmd *cobra.Command, portName string) string {
 	t.Helper()
 	require.NotEmpty(t, portName, "portName must be provided to runBuyPort")
 	require.NoErrorf(t, BuyPort(cmd, nil, true), "BuyPort failed for %q", portName)
+	registerBuyCleanups(t, portName)
 	return uidFromBuyResponse(t, portName)
 }
 
@@ -230,7 +235,29 @@ func runBuyLAGPort(t *testing.T, cmd *cobra.Command, portName string) string {
 	t.Helper()
 	require.NotEmpty(t, portName, "portName must be provided to runBuyLAGPort")
 	require.NoErrorf(t, BuyLAGPort(cmd, nil, true), "BuyLAGPort failed for %q", portName)
+	registerBuyCleanups(t, portName)
 	return uidFromBuyResponse(t, portName)
+}
+
+// registerBuyCleanups registers a cleanup for every UID in the buy response
+// stored under portName. It is called immediately after BuyPort/BuyLAGPort
+// returns so that created resources are cleaned up even if uidFromBuyResponse
+// subsequently fails (e.g. TechnicalServiceUIDs is unexpectedly empty).
+func registerBuyCleanups(t *testing.T, portName string) {
+	t.Helper()
+	v, ok := integrationBuyResponses.Load(portName)
+	if !ok {
+		return
+	}
+	resp, ok := v.(*megaport.BuyPortResponse)
+	if !ok {
+		return
+	}
+	for _, uid := range resp.TechnicalServiceUIDs {
+		if uid != "" {
+			registerPortCleanup(t, uid)
+		}
+	}
 }
 
 // uidFromBuyResponse returns the first technical service UID recorded for the
@@ -278,7 +305,6 @@ func TestIntegration_PortLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
 
 	uid := runBuyPort(t, buyCmd, portName)
-	registerPortCleanup(t, uid)
 	t.Logf("Created port with UID: %s", uid)
 
 	port := portFromSDK(t, uid)
@@ -320,7 +346,6 @@ func TestIntegration_LAGPortLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
 
 	uid := runBuyLAGPort(t, buyCmd, portName)
-	registerPortCleanup(t, uid)
 	t.Logf("Created LAG port with UID: %s", uid)
 
 	port := portFromSDK(t, uid)
@@ -355,7 +380,6 @@ func TestIntegration_PortJSONInputLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("json", string(buyJSON)))
 
 	uid := runBuyPort(t, buyCmd, portName)
-	registerPortCleanup(t, uid)
 	t.Logf("Created port (JSON input) with UID: %s", uid)
 
 	port := portFromSDK(t, uid)
@@ -396,7 +420,6 @@ func TestIntegration_PortJSONFileLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("json-file", buyFile))
 
 	uid := runBuyPort(t, buyCmd, portName)
-	registerPortCleanup(t, uid)
 	t.Logf("Created port (JSON file) with UID: %s", uid)
 
 	port := portFromSDK(t, uid)
