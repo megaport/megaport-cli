@@ -223,10 +223,13 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 
 	// Port cleanup runs last (registered first — t.Cleanup is LIFO).
 	t.Cleanup(func() {
+		output.SetOutputFormat("table")
 		delPortCmd := integrationDeletePortCmd()
 		_ = delPortCmd.Flags().Set("force", "true")
 		output.CaptureOutput(func() {
-			_ = ports.DeletePort(delPortCmd, []string{portUID}, true)
+			if err := ports.DeletePort(delPortCmd, []string{portUID}, true); err != nil {
+				t.Errorf("cleanup: failed to delete test port %s: %v", portUID, err)
+			}
 		})
 	})
 
@@ -260,10 +263,13 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 
 	// IX cleanup runs first (registered second — LIFO).
 	t.Cleanup(func() {
+		output.SetOutputFormat("table")
 		delCmd := integrationDeleteIXCmd()
 		_ = delCmd.Flags().Set("force", "true")
 		output.CaptureOutput(func() {
-			_ = DeleteIX(delCmd, []string{ixUID}, true)
+			if err := DeleteIX(delCmd, []string{ixUID}, true); err != nil {
+				t.Errorf("cleanup: failed to delete test IX %s: %v", ixUID, err)
+			}
 		})
 	})
 
