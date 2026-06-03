@@ -374,7 +374,10 @@ func handleFailure(ctx context.Context, client *megaport.Client, created []creat
 		// Delete in reverse provisioning order (VXCs before ports they depend on).
 		for i := len(created) - 1; i >= 0; i-- {
 			r := created[i]
-			if err := deleteResource(ctx, client, r); err != nil {
+			err := utils.WithRetry(ctx, func(ctx context.Context) error {
+				return deleteResource(ctx, client, r)
+			})
+			if err != nil {
 				output.PrintError("Rollback failed for %s %q (%s): %v", noColor, r.resType, r.name, r.uid, err)
 				output.PrintError("  To remove manually: megaport-cli %s delete %s", noColor, deleteCLICommand[r.resType], r.uid)
 			} else {

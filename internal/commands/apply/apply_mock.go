@@ -213,6 +213,8 @@ func (m *MockMVEService) UpdateMVEResourceTags(ctx context.Context, mveID string
 type MockVXCService struct {
 	BuyVXCResult        *megaport.BuyVXCResponse
 	BuyVXCErr           error
+	BuyVXCErrOnCall     int // if > 0, return BuyVXCErr only on this call number (1-based)
+	buyVXCCallCount     int
 	ValidateVXCOrderErr error
 	CapturedVXCRequest  *megaport.BuyVXCRequest
 	DeleteVXCErr        error
@@ -221,13 +223,14 @@ type MockVXCService struct {
 
 func (m *MockVXCService) BuyVXC(ctx context.Context, req *megaport.BuyVXCRequest) (*megaport.BuyVXCResponse, error) {
 	m.CapturedVXCRequest = req
-	if m.BuyVXCErr != nil {
+	m.buyVXCCallCount++
+	if m.BuyVXCErr != nil && (m.BuyVXCErrOnCall == 0 || m.buyVXCCallCount == m.BuyVXCErrOnCall) {
 		return nil, m.BuyVXCErr
 	}
 	if m.BuyVXCResult != nil {
 		return m.BuyVXCResult, nil
 	}
-	return &megaport.BuyVXCResponse{TechnicalServiceUID: "vxc-uid-mock"}, nil
+	return &megaport.BuyVXCResponse{TechnicalServiceUID: fmt.Sprintf("vxc-uid-mock-%d", m.buyVXCCallCount)}, nil
 }
 
 func (m *MockVXCService) ValidateVXCOrder(ctx context.Context, req *megaport.BuyVXCRequest) error {

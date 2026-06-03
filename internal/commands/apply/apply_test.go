@@ -686,6 +686,148 @@ vxcs:
 	assert.Contains(t, captured, "megaport-cli mcr delete mcr-vxcfail-uid")
 }
 
+// TestApplyConfig_RollbackOnFailure_MCR verifies that with --rollback-on-failure,
+// an MCR created before a VXC failure is deleted via DeleteMCR.
+func TestApplyConfig_RollbackOnFailure_MCR(t *testing.T) {
+	mockMCR := &MockMCRService{
+		BuyMCRResult: &megaport.BuyMCRResponse{TechnicalServiceUID: "mcr-rollback-uid"},
+	}
+	mockVXC := &MockVXCService{BuyVXCErr: fmt.Errorf("VXC quota exceeded")}
+	defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, mockVXC)()
+
+	cfg := `
+mcrs:
+  - name: Rollback-MCR
+    location_id: 1
+    speed: 1000
+    term: 12
+
+vxcs:
+  - name: Fail-VXC
+    rate_limit: 100
+    term: 12
+    a_end:
+      product_uid: "{{.mcr.Rollback-MCR}}"
+    b_end:
+      product_uid: "ext-uid"
+`
+	f := writeTempFile(t, "config.yaml", cfg)
+	cmd := applyCmdWithRollback(f)
+
+	var err error
+	output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "VXC quota exceeded")
+	require.Equal(t, []string{"mcr-rollback-uid"}, mockMCR.DeleteMCRCalledWith)
+}
+
+// TestApplyConfig_RollbackOnFailure_MVE verifies that with --rollback-on-failure,
+// an MVE created before a VXC failure is deleted via DeleteMVE.
+func TestApplyConfig_RollbackOnFailure_MVE(t *testing.T) {
+	mockMVE := &MockMVEService{
+		BuyMVEResult: &megaport.BuyMVEResponse{TechnicalServiceUID: "mve-rollback-uid"},
+	}
+	mockVXC := &MockVXCService{BuyVXCErr: fmt.Errorf("VXC quota exceeded")}
+	defer setupMockClient(&MockPortService{}, &MockMCRService{}, mockMVE, mockVXC)()
+
+	cfg := `
+mves:
+  - name: Rollback-MVE
+    location_id: 1
+    term: 12
+    vendor_config:
+      vendor: 6wind
+      imageId: 42
+      productSize: SMALL
+      sshPublicKey: "ssh-rsa AAAA"
+
+vxcs:
+  - name: Fail-VXC
+    rate_limit: 100
+    term: 12
+    a_end:
+      product_uid: "{{.mve.Rollback-MVE}}"
+    b_end:
+      product_uid: "ext-uid"
+`
+	f := writeTempFile(t, "config.yaml", cfg)
+	cmd := applyCmdWithRollback(f)
+
+	var err error
+	output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "VXC quota exceeded")
+	require.Equal(t, []string{"mve-rollback-uid"}, mockMVE.DeleteMVECalledWith)
+}
+
+// TestApplyConfig_RollbackOnFailure_VXC verifies that with --rollback-on-failure,
+// a successfully created VXC is deleted when a subsequent VXC fails.
+func TestApplyConfig_RollbackOnFailure_VXC(t *testing.T) {
+	mockMCR := &MockMCRService{
+		BuyMCRResult: &megaport.BuyMCRResponse{TechnicalServiceUID: "mcr-vxcroll-uid"},
+	}
+	// Second BuyVXC call fails; first succeeds with default UID "vxc-uid-mock-1".
+	mockVXC := &MockVXCService{
+		BuyVXCErr:       fmt.Errorf("second VXC failed"),
+		BuyVXCErrOnCall: 2,
+	}
+	defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, mockVXC)()
+
+	cfg := `
+mcrs:
+  - name: VXCRoll-MCR
+    location_id: 1
+    speed: 1000
+    term: 12
+
+vxcs:
+  - name: First-VXC
+    rate_limit: 100
+    term: 12
+    a_end:
+      product_uid: "{{.mcr.VXCRoll-MCR}}"
+    b_end:
+      product_uid: "ext-uid-1"
+  - name: Second-VXC
+    rate_limit: 100
+    term: 12
+    a_end:
+      product_uid: "{{.mcr.VXCRoll-MCR}}"
+    b_end:
+      product_uid: "ext-uid-2"
+`
+	f := writeTempFile(t, "config.yaml", cfg)
+	cmd := applyCmdWithRollback(f)
+
+	var err error
+	output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "second VXC failed")
+	// First VXC and the MCR must both be rolled back.
+	require.Equal(t, []string{"vxc-uid-mock-1"}, mockVXC.DeleteVXCCalledWith)
+	require.Equal(t, []string{"mcr-vxcroll-uid"}, mockMCR.DeleteMCRCalledWith)
+}
+
+// TestApplyModule_RegistersRollbackFlag checks that AddCommandsTo registers the
+// rollback-on-failure flag so Cobra exposes it to users.
+func TestApplyModule_RegistersRollbackFlag(t *testing.T) {
+	m := &Module{}
+	root := &cobra.Command{Use: "megaport-cli"}
+	m.RegisterCommands(root)
+	require.Len(t, root.Commands(), 1)
+	applyC := root.Commands()[0]
+	assert.NotNil(t, applyC.Flag("rollback-on-failure"))
+}
+
 // --- helpers (also used by other test functions) ---
 
 func TestResolveTemplates_NoTemplate(t *testing.T) {
