@@ -817,6 +817,47 @@ vxcs:
 	require.Equal(t, []string{"mcr-vxcroll-uid"}, mockMCR.DeleteMCRCalledWith)
 }
 
+// TestApplyConfig_OrphanReporting_JSONMode verifies that in --output json mode the
+// orphan details are embedded in the returned error (not emitted as plain-text lines)
+// so the JSON error envelope the wrapper prints is the only structured output on stderr.
+func TestApplyConfig_OrphanReporting_JSONMode(t *testing.T) {
+	mockPort := &MockPortService{
+		BuyPortResult: &megaport.BuyPortResponse{TechnicalServiceUIDs: []string{"port-json-uid"}},
+	}
+	mockMCR := &MockMCRService{BuyMCRErr: fmt.Errorf("MCR API down")}
+	defer setupMockClient(mockPort, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+	cfg := `
+ports:
+  - name: JSON-Port
+    location_id: 1
+    speed: 1000
+    term: 12
+    marketplace_visibility: false
+
+mcrs:
+  - name: Failing-MCR
+    location_id: 1
+    speed: 1000
+    term: 12
+`
+	f := writeTempFile(t, "config.yaml", cfg)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	captured := output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "json")
+	})
+
+	require.Error(t, err)
+	// Orphan details must be in the error, not in captured stdout/stderr text.
+	assert.Contains(t, err.Error(), "port-json-uid")
+	assert.Contains(t, err.Error(), "ARE BILLING")
+	assert.Contains(t, err.Error(), "megaport-cli ports delete port-json-uid")
+	// No plain-text billing lines should appear in the captured output.
+	assert.NotContains(t, captured, "ARE BILLING")
+}
+
 // TestApplyModule_RegistersRollbackFlag checks that AddCommandsTo registers the
 // rollback-on-failure flag so Cobra exposes it to users.
 func TestApplyModule_RegistersRollbackFlag(t *testing.T) {

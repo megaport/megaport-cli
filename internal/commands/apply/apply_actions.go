@@ -363,28 +363,51 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 // exact remediation commands.
 func handleFailure(ctx context.Context, client *megaport.Client, created []createdResource, results []ApplyResult, outputFormat string, noColor bool, rollback bool, failErr error) error {
 	_ = output.PrintOutput(results, outputFormat, noColor)
-	output.PrintError("Apply failed: %v", noColor, failErr)
+
+	jsonMode := outputFormat == "json"
+
+	if !jsonMode {
+		output.PrintError("Apply failed: %v", noColor, failErr)
+	}
 
 	if len(created) == 0 {
 		return failErr
 	}
 
 	if rollback {
-		output.PrintWarning("Rolling back %d created resource(s)...", noColor, len(created))
+		if !jsonMode {
+			output.PrintWarning("Rolling back %d created resource(s)...", noColor, len(created))
+		}
 		// Delete in reverse provisioning order (VXCs before ports they depend on).
+		var rollbackFailures []string
 		for i := len(created) - 1; i >= 0; i-- {
 			r := created[i]
 			err := utils.WithRetry(ctx, func(ctx context.Context) error {
 				return deleteResource(ctx, client, r)
 			})
 			if err != nil {
-				output.PrintError("Rollback failed for %s %q (%s): %v", noColor, r.resType, r.name, r.uid, err)
-				output.PrintError("  To remove manually: megaport-cli %s delete %s", noColor, deleteCLICommand[r.resType], r.uid)
-			} else {
+				if jsonMode {
+					rollbackFailures = append(rollbackFailures, fmt.Sprintf("rollback failed for %s %q (%s): %v; to remove: megaport-cli %s delete %s", r.resType, r.name, r.uid, err, deleteCLICommand[r.resType], r.uid))
+				} else {
+					output.PrintError("Rollback failed for %s %q (%s): %v", noColor, r.resType, r.name, r.uid, err)
+					output.PrintError("  To remove manually: megaport-cli %s delete %s", noColor, deleteCLICommand[r.resType], r.uid)
+				}
+			} else if !jsonMode {
 				output.PrintSuccess("Rolled back %s %q (%s)", noColor, r.resType, r.name, r.uid)
 			}
 		}
+		if jsonMode && len(rollbackFailures) > 0 {
+			return fmt.Errorf("%w; %s", failErr, strings.Join(rollbackFailures, "; "))
+		}
 		return failErr
+	}
+
+	if jsonMode {
+		parts := []string{"resources created and ARE BILLING:"}
+		for _, r := range created {
+			parts = append(parts, fmt.Sprintf("%s %q uid: %s; to remove: megaport-cli %s delete %s", r.resType, r.name, r.uid, deleteCLICommand[r.resType], r.uid))
+		}
+		return fmt.Errorf("%w; %s", failErr, strings.Join(parts, "; "))
 	}
 
 	output.PrintError("The following resources were created and ARE BILLING:", noColor)
