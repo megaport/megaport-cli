@@ -189,9 +189,12 @@ func TestIntegration_MVELifecycle(t *testing.T) {
 	require.NoError(t, buyErr, "buy MVE output: %s", buyOut)
 
 	mveUID := parseCreatedUID(buyOut, "MVE")
-	require.NotEmpty(t, mveUID, "could not parse MVE UID from: %s", buyOut)
-
+	// Register cleanup before asserting on mveUID, so any created MVE is
+	// cleaned up even if the UID assertion below fails.
 	t.Cleanup(func() {
+		if mveUID == "" {
+			return
+		}
 		delCmd := integrationMVEDeleteCmd()
 		_ = delCmd.Flags().Set("force", "true")
 		var delErr error
@@ -202,6 +205,7 @@ func TestIntegration_MVELifecycle(t *testing.T) {
 		}
 		t.Logf("cleanup: delete MVE %s: %s", mveUID, out)
 	})
+	require.NotEmpty(t, mveUID, "could not parse MVE UID from: %s", buyOut)
 
 	// Get and verify the core fields.
 	mve := getMVEJSON(t, mveUID)
@@ -260,9 +264,12 @@ func TestIntegration_MVEJSONInputLifecycle(t *testing.T) {
 	require.NoError(t, buyErr, "buy MVE (JSON) output: %s", buyOut)
 
 	mveUID := parseCreatedUID(buyOut, "MVE")
-	require.NotEmpty(t, mveUID, "could not parse MVE UID from: %s", buyOut)
-
+	// Register cleanup before asserting on mveUID, so any created MVE is
+	// cleaned up even if the UID assertion below fails.
 	t.Cleanup(func() {
+		if mveUID == "" {
+			return
+		}
 		delCmd := integrationMVEDeleteCmd()
 		_ = delCmd.Flags().Set("force", "true")
 		var delErr error
@@ -273,6 +280,7 @@ func TestIntegration_MVEJSONInputLifecycle(t *testing.T) {
 		}
 		t.Logf("cleanup: delete MVE %s: %s", mveUID, out)
 	})
+	require.NotEmpty(t, mveUID, "could not parse MVE UID from: %s", buyOut)
 
 	mve := getMVEJSON(t, mveUID)
 	assert.Equal(t, mveUID, mve["uid"])
