@@ -141,6 +141,11 @@ func TestIntegration_MVELifecycle(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
 	defer testutil.LoginWithClient(t, client)()
 
+	// Action functions mutate the process-wide output format; restore it so
+	// test order can't leak state between tests in this package.
+	origFmt := output.GetOutputFormat()
+	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
+
 	img := discoverArubaImage(t)
 	name := fmt.Sprintf("CLI-Test-MVE-%s", generateUniqueID())
 
@@ -201,6 +206,11 @@ func TestIntegration_MVELifecycle(t *testing.T) {
 func TestIntegration_MVEJSONInputLifecycle(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
 	defer testutil.LoginWithClient(t, client)()
+
+	// Action functions mutate the process-wide output format; restore it so
+	// test order can't leak state between tests in this package.
+	origFmt := output.GetOutputFormat()
+	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
 
 	img := discoverArubaImage(t)
 	name := fmt.Sprintf("CLI-JSON-MVE-%s", generateUniqueID())

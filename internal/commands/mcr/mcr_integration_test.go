@@ -124,6 +124,11 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
 	defer testutil.LoginWithClient(t, client)()
 
+	// Action functions mutate the process-wide output format; restore it so
+	// test order can't leak state between tests in this package.
+	origFmt := output.GetOutputFormat()
+	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
+
 	name := fmt.Sprintf("CLI-Test-MCR-%s", generateUniqueID())
 
 	// Buy a new MCR using flags. BuyMCR waits for provisioning (no --no-wait),
@@ -251,6 +256,11 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 func TestIntegration_MCRJSONInputLifecycle(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
 	defer testutil.LoginWithClient(t, client)()
+
+	// Action functions mutate the process-wide output format; restore it so
+	// test order can't leak state between tests in this package.
+	origFmt := output.GetOutputFormat()
+	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
 
 	name := fmt.Sprintf("CLI-JSON-MCR-%s", generateUniqueID())
 
