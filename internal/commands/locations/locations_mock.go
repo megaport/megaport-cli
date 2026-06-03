@@ -146,4 +146,3 @@ func (m *MockLocationsService) GetRoundTripTimes(_ context.Context, _, _, _ int)
 	}
 	return m.GetRoundTripTimesResult, nil
 }
-
