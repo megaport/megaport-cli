@@ -126,11 +126,18 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		})
 		if err != nil {
 			createSpinner.Stop()
+			err = utils.WrapAPIError(err, "Port", p.Name)
 			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
 			return printResultsAndError(results, outputFormat, noColor,
 				fmt.Errorf("failed to provision port %q: %w", p.Name, err))
 		}
 		createSpinner.Stop()
+		if resp == nil {
+			err := fmt.Errorf("empty response from API")
+			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
+			return printResultsAndError(results, outputFormat, noColor,
+				fmt.Errorf("failed to provision port %q: %w", p.Name, err))
+		}
 		if len(resp.TechnicalServiceUIDs) == 0 {
 			err := fmt.Errorf("API returned no UID")
 			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
@@ -180,11 +187,18 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		})
 		if err != nil {
 			createSpinner.Stop()
+			err = utils.WrapAPIError(err, "MCR", m.Name)
 			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
 			return printResultsAndError(results, outputFormat, noColor,
 				fmt.Errorf("failed to provision MCR %q: %w", m.Name, err))
 		}
 		createSpinner.Stop()
+		if resp == nil {
+			err := fmt.Errorf("empty response from API")
+			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
+			return printResultsAndError(results, outputFormat, noColor,
+				fmt.Errorf("failed to provision MCR %q: %w", m.Name, err))
+		}
 		uid := strings.TrimSpace(resp.TechnicalServiceUID)
 		if uid == "" {
 			err := fmt.Errorf("API returned empty UID")
@@ -245,11 +259,18 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		})
 		if err != nil {
 			createSpinner.Stop()
+			err = utils.WrapAPIError(err, "MVE", mv.Name)
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
 			return printResultsAndError(results, outputFormat, noColor,
 				fmt.Errorf("failed to provision MVE %q: %w", mv.Name, err))
 		}
 		createSpinner.Stop()
+		if resp == nil {
+			err := fmt.Errorf("empty response from API")
+			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
+			return printResultsAndError(results, outputFormat, noColor,
+				fmt.Errorf("failed to provision MVE %q: %w", mv.Name, err))
+		}
 		uid := strings.TrimSpace(resp.TechnicalServiceUID)
 		if uid == "" {
 			err := fmt.Errorf("API returned empty UID")
@@ -317,11 +338,18 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		})
 		if err != nil {
 			createSpinner.Stop()
+			err = utils.WrapAPIError(err, "VXC", v.Name)
 			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
 			return printResultsAndError(results, outputFormat, noColor,
 				fmt.Errorf("failed to provision VXC %q: %w", v.Name, err))
 		}
 		createSpinner.Stop()
+		if resp == nil {
+			err := fmt.Errorf("empty response from API")
+			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
+			return printResultsAndError(results, outputFormat, noColor,
+				fmt.Errorf("failed to provision VXC %q: %w", v.Name, err))
+		}
 		uid := strings.TrimSpace(resp.TechnicalServiceUID)
 		if uid == "" {
 			err := fmt.Errorf("API returned empty UID")

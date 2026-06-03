@@ -207,6 +207,11 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	if resp == nil {
+		output.PrintError("MVE created but no response returned", noColor)
+		return fmt.Errorf("MVE created but no response returned")
+	}
+
 	output.PrintResourceCreated("MVE", resp.TechnicalServiceUID, noColor)
 	return nil
 }
@@ -318,6 +323,11 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	if err != nil {
 		output.PrintError("Failed to update MVE: %v", noColor, err)
 		return err
+	}
+
+	if resp == nil {
+		output.PrintError("MVE update returned no response", noColor)
+		return fmt.Errorf("MVE update returned no response")
 	}
 
 	if !resp.MVEUpdated {

@@ -140,6 +140,11 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	if resp == nil {
+		output.PrintError("MCR created but no response returned", noColor)
+		return fmt.Errorf("MCR created but no response returned")
+	}
+
 	output.PrintResourceCreated("MCR", resp.TechnicalServiceUID, noColor)
 	return nil
 }

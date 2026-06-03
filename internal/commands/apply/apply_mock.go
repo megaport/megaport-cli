@@ -12,12 +12,16 @@ import (
 type MockPortService struct {
 	BuyPortResult        *megaport.BuyPortResponse
 	BuyPortErr           error
+	BuyPortNilResp       bool
 	ValidatePortOrderErr error
 	CapturedPortRequest  *megaport.BuyPortRequest
 }
 
 func (m *MockPortService) BuyPort(ctx context.Context, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
 	m.CapturedPortRequest = req
+	if m.BuyPortNilResp {
+		return nil, nil
+	}
 	if m.BuyPortErr != nil {
 		return nil, m.BuyPortErr
 	}
@@ -66,6 +70,7 @@ func (m *MockPortService) UpdatePortResourceTags(ctx context.Context, portID str
 type MockMCRService struct {
 	BuyMCRResult         *megaport.BuyMCRResponse
 	BuyMCRErr            error
+	BuyMCRNilResp        bool
 	ValidateMCROrderErr  error
 	CapturedMCRRequest   *megaport.BuyMCRRequest
 	WaitForMCRReadyDelay time.Duration
@@ -74,6 +79,9 @@ type MockMCRService struct {
 
 func (m *MockMCRService) BuyMCR(ctx context.Context, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
 	m.CapturedMCRRequest = req
+	if m.BuyMCRNilResp {
+		return nil, nil
+	}
 	if m.BuyMCRErr != nil {
 		return nil, m.BuyMCRErr
 	}
@@ -152,10 +160,14 @@ func (m *MockMCRService) WaitForMCRReady(ctx context.Context, mcrID string, time
 type MockMVEService struct {
 	BuyMVEResult        *megaport.BuyMVEResponse
 	BuyMVEErr           error
+	BuyMVENilResp       bool
 	ValidateMVEOrderErr error
 }
 
 func (m *MockMVEService) BuyMVE(ctx context.Context, req *megaport.BuyMVERequest) (*megaport.BuyMVEResponse, error) {
+	if m.BuyMVENilResp {
+		return nil, nil
+	}
 	if m.BuyMVEErr != nil {
 		return nil, m.BuyMVEErr
 	}
@@ -198,12 +210,16 @@ func (m *MockMVEService) UpdateMVEResourceTags(ctx context.Context, mveID string
 type MockVXCService struct {
 	BuyVXCResult        *megaport.BuyVXCResponse
 	BuyVXCErr           error
+	BuyVXCNilResp       bool
 	ValidateVXCOrderErr error
 	CapturedVXCRequest  *megaport.BuyVXCRequest
 }
 
 func (m *MockVXCService) BuyVXC(ctx context.Context, req *megaport.BuyVXCRequest) (*megaport.BuyVXCResponse, error) {
 	m.CapturedVXCRequest = req
+	if m.BuyVXCNilResp {
+		return nil, nil
+	}
 	if m.BuyVXCErr != nil {
 		return nil, m.BuyVXCErr
 	}

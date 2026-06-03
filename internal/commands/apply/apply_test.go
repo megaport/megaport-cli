@@ -499,6 +499,120 @@ mves:
 	assert.Contains(t, captured, "invalid")
 }
 
+func TestApplyConfig_PortNilResponse(t *testing.T) {
+	mockPort := &MockPortService{BuyPortNilResp: true}
+	defer setupMockClient(mockPort, &MockMCRService{}, &MockMVEService{}, &MockVXCService{})()
+
+	yaml := `
+ports:
+  - name: Nil-Port
+    location_id: 1
+    speed: 1000
+    term: 12
+    marketplace_visibility: false
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = ApplyConfig(cmd, nil, true, "table")
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
+}
+
+func TestApplyConfig_MCRNilResponse(t *testing.T) {
+	mockMCR := &MockMCRService{BuyMCRNilResp: true}
+	defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+	yaml := `
+mcrs:
+  - name: Nil-MCR
+    location_id: 1
+    speed: 1000
+    term: 12
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = ApplyConfig(cmd, nil, true, "table")
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
+}
+
+func TestApplyConfig_MVENilResponse(t *testing.T) {
+	mockMVE := &MockMVEService{BuyMVENilResp: true}
+	defer setupMockClient(&MockPortService{}, &MockMCRService{}, mockMVE, &MockVXCService{})()
+
+	yaml := `
+mves:
+  - name: Nil-MVE
+    location_id: 1
+    term: 1
+    vendor_config:
+      vendor: 6wind
+      imageId: 42
+      productSize: SMALL
+      sshPublicKey: "ssh-rsa AAAA"
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = ApplyConfig(cmd, nil, true, "table")
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
+}
+
+func TestApplyConfig_VXCNilResponse(t *testing.T) {
+	mockPort := &MockPortService{
+		BuyPortResult: &megaport.BuyPortResponse{TechnicalServiceUIDs: []string{"port-uid-abc"}},
+	}
+	mockVXC := &MockVXCService{BuyVXCNilResp: true}
+	defer setupMockClient(mockPort, &MockMCRService{}, &MockMVEService{}, mockVXC)()
+
+	yaml := `
+ports:
+  - name: Test-Port
+    location_id: 1
+    speed: 1000
+    term: 12
+    marketplace_visibility: false
+
+vxcs:
+  - name: Nil-VXC
+    rate_limit: 100
+    term: 12
+    a_end:
+      product_uid: "{{.port.Test-Port}}"
+    b_end:
+      product_uid: some-uid
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = ApplyConfig(cmd, nil, true, "table")
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
+}
+
 // --- helpers (also used by other test functions) ---
 
 func TestResolveTemplates_NoTemplate(t *testing.T) {
