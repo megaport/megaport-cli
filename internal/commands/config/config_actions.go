@@ -41,19 +41,18 @@ func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 		if err != nil {
 			return fmt.Errorf("failed to read access key: %w", err)
 		}
+		if accessKey == "" {
+			return fmt.Errorf("access key is required")
+		}
 	}
 	if secretKey == "" {
 		secretKey, err = utils.SecretResourcePrompt("config", "Enter Megaport API secret key: ", noColor)
 		if err != nil {
 			return fmt.Errorf("failed to read secret key: %w", err)
 		}
-	}
-
-	if accessKey == "" {
-		return fmt.Errorf("access key is required")
-	}
-	if secretKey == "" {
-		return fmt.Errorf("secret key is required")
+		if secretKey == "" {
+			return fmt.Errorf("secret key is required")
+		}
 	}
 
 	if environment != "production" && environment != "staging" && environment != "development" {
