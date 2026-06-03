@@ -71,7 +71,7 @@ func NewConfigManager() (*ConfigManager, error) {
 			if chmodErr := chmodFile(backupPath, 0600); chmodErr != nil {
 				// chmod failure is non-fatal: the backup is preserved and the fresh
 				// default will still be created. Warn so the user can restrict manually.
-				fmt.Fprintf(os.Stderr, "Warning: Config file is corrupted. Original preserved at %s (run: chmod 0600 %s)\n", backupPath, backupPath)
+				fmt.Fprintf(os.Stderr, "Warning: Config file is corrupted. Original preserved at %s (run: chmod 0600 -- %q)\n", backupPath, backupPath)
 			} else {
 				fmt.Fprintf(os.Stderr, "Warning: Config file is corrupted. Original preserved at %s\n", backupPath)
 			}
