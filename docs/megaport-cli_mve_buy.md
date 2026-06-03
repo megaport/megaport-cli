@@ -55,7 +55,7 @@ This command allows you to purchase an MVE by providing the necessary details.
     "manageLocally": true,
     "adminSshPublicKey": "ssh-rsa AAAA...",
     "sshPublicKey": "ssh-rsa AAAA...",
-    "adminPassword": "<your-admin-password>",
+    "adminPassword": "S3cretP@ss",
     "cloudInit": "#cloud-config\npackages:\n - nginx\n"
   },
   "vnics": [

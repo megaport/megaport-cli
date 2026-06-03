@@ -13,7 +13,7 @@ This command groups all operations related to Megaport NAT Gateways. NAT Gateway
 ```sh
   megaport-cli nat-gateway get [uid]
   megaport-cli nat-gateway list
-  megaport-cli nat-gateway create --interactive
+  megaport-cli nat-gateway create
   megaport-cli nat-gateway update [uid]
   megaport-cli nat-gateway delete [uid]
   megaport-cli nat-gateway validate [uid]
