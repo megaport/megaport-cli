@@ -150,10 +150,6 @@ func (m *MockMCRService) UpdateMCRIPsecAddOn(_ context.Context, _ string, _ stri
 	return fmt.Errorf("mock: UpdateMCRIPsecAddOn not configured")
 }
 
-func (m *MockMCRService) GetMCRIPsec(_ context.Context, _ string) (*megaport.MCRIPsecConfiguration, error) {
-	return nil, fmt.Errorf("mock: GetMCRIPsec not configured")
-}
-
 func (m *MockMCRService) WaitForMCRReady(_ context.Context, _ string, _ time.Duration) error {
 	return fmt.Errorf("mock: WaitForMCRReady not configured")
 }
