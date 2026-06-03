@@ -53,4 +53,5 @@ func TestPrintVXCs_XML(t *testing.T) {
 
 	assert.NotEmpty(t, out)
 	assert.Contains(t, out, "vxc-xml-1")
+	assert.Contains(t, out, "XMLTestVXC")
 }
