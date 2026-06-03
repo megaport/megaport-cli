@@ -35,6 +35,10 @@ func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	environment, _ := cmd.Flags().GetString("environment")
 	description, _ := cmd.Flags().GetString("description")
 
+	if strings.TrimSpace(profileName) == "" {
+		return fmt.Errorf("profile name cannot be empty or whitespace")
+	}
+
 	if environment != "production" && environment != "staging" && environment != "development" {
 		return fmt.Errorf("environment must be 'production', 'staging', or 'development'")
 	}
