@@ -94,6 +94,10 @@ func (m *MockLocationsService) ListLocationsV3(ctx context.Context) ([]*megaport
 	return m.ListLocationsV3Result, m.ListLocationsV3Err
 }
 
+func (m *MockLocationsService) ListLocationsV3WithOptions(ctx context.Context, opts *megaport.ListLocationsV3Options) ([]*megaport.LocationV3, error) {
+	return m.ListLocationsV3Result, m.ListLocationsV3Err
+}
+
 func (m *MockLocationsService) GetLocationByIDV3(ctx context.Context, locationID int) (*megaport.LocationV3, error) {
 	return m.GetLocationByIDV3Result, m.GetLocationByIDV3Err
 }
