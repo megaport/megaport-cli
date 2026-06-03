@@ -172,7 +172,15 @@ vxcs:
 }
 
 func TestApplyConfig_PortAPIError(t *testing.T) {
-	mockPort := &MockPortService{BuyPortErr: fmt.Errorf("API unavailable")}
+	apiErr := &megaport.ErrorResponse{
+		Response: &http.Response{
+			StatusCode: 403,
+			Header:     http.Header{},
+			Request:    &http.Request{},
+		},
+		Message: "forbidden",
+	}
+	mockPort := &MockPortService{BuyPortErr: apiErr}
 	defer setupMockClient(mockPort, &MockMCRService{}, &MockMVEService{}, &MockVXCService{})()
 
 	yaml := `
@@ -192,7 +200,7 @@ ports:
 	})
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "API unavailable")
+	assert.Contains(t, err.Error(), "permission denied")
 }
 
 func TestApplyConfig_UnresolvedTemplate(t *testing.T) {
@@ -410,7 +418,15 @@ mves:
 }
 
 func TestApplyConfig_MCRAPIError(t *testing.T) {
-	mockMCR := &MockMCRService{BuyMCRErr: fmt.Errorf("MCR unavailable")}
+	apiErr := &megaport.ErrorResponse{
+		Response: &http.Response{
+			StatusCode: 429,
+			Header:     http.Header{},
+			Request:    &http.Request{},
+		},
+		Message: "rate limited",
+	}
+	mockMCR := &MockMCRService{BuyMCRErr: apiErr}
 	defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, &MockVXCService{})()
 
 	yaml := `
@@ -428,14 +444,22 @@ mcrs:
 		err = ApplyConfig(cmd, nil, true, "table")
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "MCR unavailable")
+	assert.Contains(t, err.Error(), "rate limit exceeded")
 }
 
 func TestApplyConfig_VXCAPIError(t *testing.T) {
 	mockPort := &MockPortService{
 		BuyPortResult: &megaport.BuyPortResponse{TechnicalServiceUIDs: []string{"port-uid-abc"}},
 	}
-	mockVXC := &MockVXCService{BuyVXCErr: fmt.Errorf("VXC service down")}
+	vxcAPIErr := &megaport.ErrorResponse{
+		Response: &http.Response{
+			StatusCode: 401,
+			Header:     http.Header{},
+			Request:    &http.Request{},
+		},
+		Message: "unauthorized",
+	}
+	mockVXC := &MockVXCService{BuyVXCErr: vxcAPIErr}
 	defer setupMockClient(mockPort, &MockMCRService{}, &MockMVEService{}, mockVXC)()
 
 	yaml := `
@@ -463,7 +487,7 @@ vxcs:
 		err = ApplyConfig(cmd, nil, true, "table")
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "VXC service down")
+	assert.Contains(t, err.Error(), "authentication failed")
 }
 
 func TestApplyConfig_NoFileFlag(t *testing.T) {
