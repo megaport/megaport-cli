@@ -145,6 +145,10 @@ func TestIntegration_IXListAndGet(t *testing.T) {
 	})
 	require.NoError(t, listErr)
 
+	// JSON mode emits no output (not "[]") when the list is empty.
+	if strings.TrimSpace(listOut) == "" {
+		t.Skip("no IXs available on staging to test Get")
+	}
 	var ixs []map[string]interface{}
 	require.NoError(t, json.Unmarshal([]byte(listOut), &ixs), "ListIXs returned invalid JSON")
 	if len(ixs) == 0 {
