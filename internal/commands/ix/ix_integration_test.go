@@ -270,6 +270,7 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	for _, candidate := range candidateRateLimits {
 		probeReq := &megaport.BuyIXRequest{
 			ProductUID:         portUID,
+			Name:               "probe",
 			NetworkServiceType: networkServiceType,
 			ASN:                12345,
 			MACAddress:         "00:11:22:33:44:55",
