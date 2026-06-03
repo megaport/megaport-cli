@@ -14,9 +14,11 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRequiredFlag("file", "Path to config file (YAML or JSON)").
 		WithBoolFlag("dry-run", false, "Validate all orders without provisioning").
 		WithBoolFlagP("yes", "y", false, "Skip confirmation prompt").
+		WithBoolFlag("rollback-on-failure", false, "Delete any resources created during this run if provisioning fails").
 		WithExample(`megaport apply -f infrastructure.yaml`).
 		WithExample(`megaport apply -f infrastructure.yaml --dry-run`).
 		WithExample(`megaport apply -f infrastructure.yaml --yes`).
+		WithExample(`megaport apply -f infrastructure.yaml --rollback-on-failure`).
 		WithExample(`megaport apply -f infrastructure.json --output json`).
 		WithRootCmd(rootCmd).
 		Build()

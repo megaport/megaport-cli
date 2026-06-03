@@ -21,6 +21,7 @@ func applyCmd(file string, dryRun, yes bool) *cobra.Command {
 	cmd.Flags().StringP("file", "f", "", "")
 	cmd.Flags().Bool("dry-run", false, "")
 	cmd.Flags().BoolP("yes", "y", false, "")
+	cmd.Flags().Bool("rollback-on-failure", false, "")
 	_ = cmd.Flags().Set("file", file)
 	if dryRun {
 		_ = cmd.Flags().Set("dry-run", "true")
@@ -28,6 +29,13 @@ func applyCmd(file string, dryRun, yes bool) *cobra.Command {
 	if yes {
 		_ = cmd.Flags().Set("yes", "true")
 	}
+	return cmd
+}
+
+// applyCmdWithRollback builds a command with --rollback-on-failure enabled.
+func applyCmdWithRollback(file string) *cobra.Command {
+	cmd := applyCmd(file, false, true)
+	_ = cmd.Flags().Set("rollback-on-failure", "true")
 	return cmd
 }
 
@@ -429,6 +437,7 @@ func TestApplyConfig_NoFileFlag(t *testing.T) {
 	cmd.Flags().StringP("file", "f", "", "")
 	cmd.Flags().Bool("dry-run", false, "")
 	cmd.Flags().BoolP("yes", "y", false, "")
+	cmd.Flags().Bool("rollback-on-failure", false, "")
 	// file flag intentionally not set
 
 	var err error
@@ -497,6 +506,184 @@ mves:
 
 	require.NoError(t, err)
 	assert.Contains(t, captured, "invalid")
+}
+
+// --- orphan reporting and rollback tests ---
+
+// TestApplyConfig_OrphanReporting verifies that when a port succeeds but the MCR
+// fails, the output prominently lists the orphaned port UID and a delete command.
+func TestApplyConfig_OrphanReporting(t *testing.T) {
+	output.SetTerminalWidthForTesting(200)
+	defer output.SetTerminalWidthForTesting(0)
+
+	mockPort := &MockPortService{
+		BuyPortResult: &megaport.BuyPortResponse{TechnicalServiceUIDs: []string{"port-orphan-uid"}},
+	}
+	mockMCR := &MockMCRService{BuyMCRErr: fmt.Errorf("MCR API down")}
+	defer setupMockClient(mockPort, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+	cfg := `
+ports:
+  - name: Orphan-Port
+    location_id: 1
+    speed: 1000
+    term: 12
+    marketplace_visibility: false
+
+mcrs:
+  - name: Failing-MCR
+    location_id: 1
+    speed: 1000
+    term: 12
+`
+	f := writeTempFile(t, "config.yaml", cfg)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	captured := output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "MCR API down")
+	// Orphaned port must be reported with its UID and a remediation command.
+	assert.Contains(t, captured, "port-orphan-uid")
+	assert.Contains(t, captured, "megaport-cli ports delete port-orphan-uid")
+	assert.Contains(t, captured, "ARE BILLING")
+}
+
+// TestApplyConfig_RollbackOnFailure verifies that with --rollback-on-failure, the
+// port created before the MCR failure is deleted via DeletePort.
+func TestApplyConfig_RollbackOnFailure(t *testing.T) {
+	mockPort := &MockPortService{
+		BuyPortResult: &megaport.BuyPortResponse{TechnicalServiceUIDs: []string{"port-rollback-uid"}},
+	}
+	mockMCR := &MockMCRService{BuyMCRErr: fmt.Errorf("MCR API down")}
+	defer setupMockClient(mockPort, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+	cfg := `
+ports:
+  - name: Rollback-Port
+    location_id: 1
+    speed: 1000
+    term: 12
+    marketplace_visibility: false
+
+mcrs:
+  - name: Failing-MCR
+    location_id: 1
+    speed: 1000
+    term: 12
+`
+	f := writeTempFile(t, "config.yaml", cfg)
+	cmd := applyCmdWithRollback(f)
+
+	var err error
+	output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "MCR API down")
+	// DeletePort must have been called with the orphaned port's UID.
+	require.Equal(t, []string{"port-rollback-uid"}, mockPort.DeletePortCalledWith)
+}
+
+// TestApplyConfig_RollbackOnFailure_DeleteError verifies that when rollback itself
+// fails, the output instructs the user to delete manually.
+func TestApplyConfig_RollbackOnFailure_DeleteError(t *testing.T) {
+	output.SetTerminalWidthForTesting(200)
+	defer output.SetTerminalWidthForTesting(0)
+
+	mockPort := &MockPortService{
+		BuyPortResult: &megaport.BuyPortResponse{TechnicalServiceUIDs: []string{"port-stuck-uid"}},
+		DeletePortErr: fmt.Errorf("delete also failed"),
+	}
+	mockMCR := &MockMCRService{BuyMCRErr: fmt.Errorf("MCR API down")}
+	defer setupMockClient(mockPort, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+	cfg := `
+ports:
+  - name: Stuck-Port
+    location_id: 1
+    speed: 1000
+    term: 12
+    marketplace_visibility: false
+
+mcrs:
+  - name: Failing-MCR
+    location_id: 1
+    speed: 1000
+    term: 12
+`
+	f := writeTempFile(t, "config.yaml", cfg)
+	cmd := applyCmdWithRollback(f)
+
+	var err error
+	captured := output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+
+	require.Error(t, err)
+	// DeletePort was attempted.
+	require.Equal(t, []string{"port-stuck-uid"}, mockPort.DeletePortCalledWith)
+	// Manual remediation command must appear in output.
+	assert.Contains(t, captured, "megaport-cli ports delete port-stuck-uid")
+}
+
+// TestApplyConfig_VXCFailOrphanReporting verifies that when both a port and MCR
+// succeed but the VXC fails, both are reported as billing.
+func TestApplyConfig_VXCFailOrphanReporting(t *testing.T) {
+	output.SetTerminalWidthForTesting(200)
+	defer output.SetTerminalWidthForTesting(0)
+
+	mockPort := &MockPortService{
+		BuyPortResult: &megaport.BuyPortResponse{TechnicalServiceUIDs: []string{"port-vxcfail-uid"}},
+	}
+	mockMCR := &MockMCRService{
+		BuyMCRResult: &megaport.BuyMCRResponse{TechnicalServiceUID: "mcr-vxcfail-uid"},
+	}
+	mockVXC := &MockVXCService{BuyVXCErr: fmt.Errorf("VXC quota exceeded")}
+	defer setupMockClient(mockPort, mockMCR, &MockMVEService{}, mockVXC)()
+
+	cfg := `
+ports:
+  - name: VXCFail-Port
+    location_id: 1
+    speed: 1000
+    term: 12
+    marketplace_visibility: false
+
+mcrs:
+  - name: VXCFail-MCR
+    location_id: 1
+    speed: 1000
+    term: 12
+
+vxcs:
+  - name: Fail-VXC
+    rate_limit: 100
+    term: 12
+    a_end:
+      product_uid: "{{.port.VXCFail-Port}}"
+    b_end:
+      product_uid: "{{.mcr.VXCFail-MCR}}"
+`
+	f := writeTempFile(t, "config.yaml", cfg)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	captured := output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "VXC quota exceeded")
+	// Both the port and the MCR must appear in the billing warning.
+	assert.Contains(t, captured, "port-vxcfail-uid")
+	assert.Contains(t, captured, "megaport-cli ports delete port-vxcfail-uid")
+	assert.Contains(t, captured, "mcr-vxcfail-uid")
+	assert.Contains(t, captured, "megaport-cli mcrs delete mcr-vxcfail-uid")
 }
 
 // --- helpers (also used by other test functions) ---

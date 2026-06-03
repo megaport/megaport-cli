@@ -29,6 +29,21 @@ const (
 // templateRe matches {{.type.name}} references in config values.
 var templateRe = regexp.MustCompile(`\{\{\.(\w+)\.([^}]+)\}\}`)
 
+// deleteCLICommand maps resource type to the CLI subcommand used to delete it.
+var deleteCLICommand = map[string]string{
+	"Port": "ports",
+	"MCR":  "mcrs",
+	"MVE":  "mves",
+	"VXC":  "vxcs",
+}
+
+// createdResource records a resource that was successfully provisioned during an apply run.
+type createdResource struct {
+	resType string // "Port", "MCR", "MVE", or "VXC"
+	name    string
+	uid     string
+}
+
 // ApplyConfig is the entry point for `megaport apply`.
 func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
@@ -37,6 +52,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 	filePath, _ := cmd.Flags().GetString("file")
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 	yes, _ := cmd.Flags().GetBool("yes")
+	rollback, _ := cmd.Flags().GetBool("rollback-on-failure")
 
 	if filePath == "" {
 		output.PrintError("--file is required", noColor)
@@ -88,6 +104,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		"vxc":  {},
 	}
 	var results []ApplyResult
+	var created []createdResource // tracks successfully provisioned resources for orphan reporting
 
 	// 1. Ports
 	for _, p := range cfg.Ports {
@@ -105,14 +122,14 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		if err := validation.ValidatePortRequest(req); err != nil {
 			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("validation failed for port %q: %w", p.Name, err))
 		}
 		validateSpinner := output.PrintResourceValidating("Port", noColor)
 		if err := client.PortService.ValidatePortOrder(ctx, req); err != nil {
 			validateSpinner.Stop()
 			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("server-side validation failed for port %q: %w", p.Name, err))
 		}
 		validateSpinner.Stop()
@@ -127,18 +144,19 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		if err != nil {
 			createSpinner.Stop()
 			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision port %q: %w", p.Name, err))
 		}
 		createSpinner.Stop()
 		if len(resp.TechnicalServiceUIDs) == 0 {
 			err := fmt.Errorf("API returned no UID")
 			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision port %q: %w", p.Name, err))
 		}
 		uid := resp.TechnicalServiceUIDs[0]
 		uids["port"][p.Name] = uid
+		created = append(created, createdResource{resType: "Port", name: p.Name, uid: uid})
 		results = append(results, ApplyResult{Type: "Port", Name: p.Name, UID: uid, Status: "provisioned"})
 		output.PrintResourceCreated("Port", uid, noColor)
 	}
@@ -159,14 +177,14 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		if err := validation.ValidateMCRRequest(req); err != nil {
 			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("validation failed for MCR %q: %w", m.Name, err))
 		}
 		validateSpinner := output.PrintResourceValidating("MCR", noColor)
 		if err := client.MCRService.ValidateMCROrder(ctx, req); err != nil {
 			validateSpinner.Stop()
 			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("server-side validation failed for MCR %q: %w", m.Name, err))
 		}
 		validateSpinner.Stop()
@@ -181,7 +199,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		if err != nil {
 			createSpinner.Stop()
 			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision MCR %q: %w", m.Name, err))
 		}
 		createSpinner.Stop()
@@ -189,10 +207,11 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		if uid == "" {
 			err := fmt.Errorf("API returned empty UID")
 			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision MCR %q: %w", m.Name, err))
 		}
 		uids["mcr"][m.Name] = uid
+		created = append(created, createdResource{resType: "MCR", name: m.Name, uid: uid})
 		results = append(results, ApplyResult{Type: "MCR", Name: m.Name, UID: uid, Status: "provisioned"})
 		output.PrintResourceCreated("MCR", uid, noColor)
 	}
@@ -202,13 +221,13 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		normalizedVC, err := normalizeVendorConfigMap(mv.VendorConfig)
 		if err != nil {
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("invalid vendor_config for MVE %q: %w", mv.Name, err))
 		}
 		vendorCfg, err := mve.ParseVendorConfig(normalizedVC)
 		if err != nil {
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("invalid vendor_config for MVE %q: %w", mv.Name, err))
 		}
 		req := &megaport.BuyMVERequest{
@@ -224,14 +243,14 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		if err := validation.ValidateBuyMVERequest(req); err != nil {
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("validation failed for MVE %q: %w", mv.Name, err))
 		}
 		validateSpinner := output.PrintResourceValidating("MVE", noColor)
 		if err := client.MVEService.ValidateMVEOrder(ctx, req); err != nil {
 			validateSpinner.Stop()
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("server-side validation failed for MVE %q: %w", mv.Name, err))
 		}
 		validateSpinner.Stop()
@@ -246,7 +265,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		if err != nil {
 			createSpinner.Stop()
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision MVE %q: %w", mv.Name, err))
 		}
 		createSpinner.Stop()
@@ -254,10 +273,11 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		if uid == "" {
 			err := fmt.Errorf("API returned empty UID")
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision MVE %q: %w", mv.Name, err))
 		}
 		uids["mve"][mv.Name] = uid
+		created = append(created, createdResource{resType: "MVE", name: mv.Name, uid: uid})
 		results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, UID: uid, Status: "provisioned"})
 		output.PrintResourceCreated("MVE", uid, noColor)
 	}
@@ -267,13 +287,13 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		aUID, err := resolveTemplates(v.AEnd.ProductUID, uids)
 		if err != nil {
 			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("unresolved template in VXC %q a_end: %w", v.Name, err))
 		}
 		bUID, err := resolveTemplates(v.BEnd.ProductUID, uids)
 		if err != nil {
 			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("unresolved template in VXC %q b_end: %w", v.Name, err))
 		}
 		req := &megaport.BuyVXCRequest{
@@ -296,14 +316,14 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		if err := validation.ValidateVXCRequest(req); err != nil {
 			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("validation failed for VXC %q: %w", v.Name, err))
 		}
 		validateSpinner := output.PrintResourceValidating("VXC", noColor)
 		if err := client.VXCService.ValidateVXCOrder(ctx, req); err != nil {
 			validateSpinner.Stop()
 			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("server-side validation failed for VXC %q: %w", v.Name, err))
 		}
 		validateSpinner.Stop()
@@ -318,7 +338,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		if err != nil {
 			createSpinner.Stop()
 			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision VXC %q: %w", v.Name, err))
 		}
 		createSpinner.Stop()
@@ -326,15 +346,69 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		if uid == "" {
 			err := fmt.Errorf("API returned empty UID")
 			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
-			return printResultsAndError(results, outputFormat, noColor,
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision VXC %q: %w", v.Name, err))
 		}
 		uids["vxc"][v.Name] = uid
+		created = append(created, createdResource{resType: "VXC", name: v.Name, uid: uid})
 		results = append(results, ApplyResult{Type: "VXC", Name: v.Name, UID: uid, Status: "provisioned"})
 		output.PrintResourceCreated("VXC", uid, noColor)
 	}
 
 	return output.PrintOutput(results, outputFormat, noColor)
+}
+
+// handleFailure prints results, the failure error, and — when resources were already
+// provisioned — either attempts rollback or prints a prominent billing warning with
+// exact remediation commands.
+func handleFailure(ctx context.Context, client *megaport.Client, created []createdResource, results []ApplyResult, outputFormat string, noColor bool, rollback bool, failErr error) error {
+	_ = output.PrintOutput(results, outputFormat, noColor)
+	output.PrintError("Apply failed: %v", noColor, failErr)
+
+	if len(created) == 0 {
+		return failErr
+	}
+
+	if rollback {
+		output.PrintWarning("Rolling back %d created resource(s)...", noColor, len(created))
+		// Delete in reverse provisioning order (VXCs before ports they depend on).
+		for i := len(created) - 1; i >= 0; i-- {
+			r := created[i]
+			if err := deleteResource(ctx, client, r); err != nil {
+				output.PrintError("Rollback failed for %s %q (%s): %v", noColor, r.resType, r.name, r.uid, err)
+				output.PrintError("  To remove manually: megaport-cli %s delete %s", noColor, deleteCLICommand[r.resType], r.uid)
+			} else {
+				output.PrintSuccess("Rolled back %s %q (%s)", noColor, r.resType, r.name, r.uid)
+			}
+		}
+		return failErr
+	}
+
+	output.PrintWarning("The following resources were created and ARE BILLING:", noColor)
+	for _, r := range created {
+		output.PrintWarning("  %s %q  uid: %s", noColor, r.resType, r.name, r.uid)
+		output.PrintWarning("  To remove: megaport-cli %s delete %s", noColor, deleteCLICommand[r.resType], r.uid)
+	}
+	return failErr
+}
+
+// deleteResource deletes a single provisioned resource via the appropriate service client.
+func deleteResource(ctx context.Context, client *megaport.Client, r createdResource) error {
+	switch r.resType {
+	case "Port":
+		_, err := client.PortService.DeletePort(ctx, &megaport.DeletePortRequest{PortID: r.uid, DeleteNow: true})
+		return err
+	case "MCR":
+		_, err := client.MCRService.DeleteMCR(ctx, &megaport.DeleteMCRRequest{MCRID: r.uid, DeleteNow: true})
+		return err
+	case "MVE":
+		_, err := client.MVEService.DeleteMVE(ctx, &megaport.DeleteMVERequest{MVEID: r.uid})
+		return err
+	case "VXC":
+		return client.VXCService.DeleteVXC(ctx, r.uid, &megaport.DeleteVXCRequest{DeleteNow: true})
+	default:
+		return fmt.Errorf("unknown resource type %q", r.resType)
+	}
 }
 
 // validateAll runs SDK-level validation for every resource without provisioning.
@@ -547,11 +621,4 @@ func normalizeVendorConfigMap(m map[string]interface{}) (map[string]interface{},
 		return nil, fmt.Errorf("normalizing vendor config: %w", err)
 	}
 	return out, nil
-}
-
-// printResultsAndError prints the partial results table then returns err.
-func printResultsAndError(results []ApplyResult, outputFormat string, noColor bool, err error) error {
-	_ = output.PrintOutput(results, outputFormat, noColor)
-	output.PrintError("Apply failed: %v", noColor, err)
-	return err
 }
