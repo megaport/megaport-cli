@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -74,16 +75,14 @@ func TestBuildIXRequestFromJSON_FileNotFound(t *testing.T) {
 
 func TestBuildUpdateIXRequestFromJSON_PointerFields(t *testing.T) {
 	tests := []struct {
-		name    string
-		jsonStr string
-		check   func(t *testing.T)
+		name      string
+		jsonStr   string
+		checkFunc func(t *testing.T, req *megaport.UpdateIXRequest)
 	}{
 		{
 			name:    "publicGraph true",
 			jsonStr: `{"publicGraph":true}`,
-			check: func(t *testing.T) {
-				req, err := buildUpdateIXRequestFromJSON(`{"publicGraph":true}`, "")
-				require.NoError(t, err)
+			checkFunc: func(t *testing.T, req *megaport.UpdateIXRequest) {
 				require.NotNil(t, req.PublicGraph)
 				assert.True(t, *req.PublicGraph)
 			},
@@ -91,9 +90,7 @@ func TestBuildUpdateIXRequestFromJSON_PointerFields(t *testing.T) {
 		{
 			name:    "shutdown false explicit",
 			jsonStr: `{"shutdown":false}`,
-			check: func(t *testing.T) {
-				req, err := buildUpdateIXRequestFromJSON(`{"shutdown":false}`, "")
-				require.NoError(t, err)
+			checkFunc: func(t *testing.T, req *megaport.UpdateIXRequest) {
 				require.NotNil(t, req.Shutdown)
 				assert.False(t, *req.Shutdown)
 			},
@@ -101,9 +98,7 @@ func TestBuildUpdateIXRequestFromJSON_PointerFields(t *testing.T) {
 		{
 			name:    "aEndProductUid set",
 			jsonStr: `{"aEndProductUid":"port-new"}`,
-			check: func(t *testing.T) {
-				req, err := buildUpdateIXRequestFromJSON(`{"aEndProductUid":"port-new"}`, "")
-				require.NoError(t, err)
+			checkFunc: func(t *testing.T, req *megaport.UpdateIXRequest) {
 				require.NotNil(t, req.AEndProductUid)
 				assert.Equal(t, "port-new", *req.AEndProductUid)
 			},
@@ -111,7 +106,9 @@ func TestBuildUpdateIXRequestFromJSON_PointerFields(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.check(t)
+			req, err := buildUpdateIXRequestFromJSON(tt.jsonStr, "")
+			require.NoError(t, err)
+			tt.checkFunc(t, req)
 		})
 	}
 }
