@@ -218,6 +218,21 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	assert.Equal(t, uid, valItems[0]["uid"])
 	assert.Contains(t, valItems[0], "monthly_rate")
 
+	// Buy (provision) the gateway — this is the step that starts billing.
+	buyCmd := newTestCmd("buy")
+	require.NoError(t, buyCmd.Flags().Set("output", "json"))
+	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
+	var buyErr error
+	buyOut := output.CaptureOutput(func() {
+		buyErr = BuyNATGateway(buyCmd, []string{uid}, true)
+	})
+	require.NoError(t, buyErr)
+	var buyItems []map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(buyOut), &buyItems), "buy output should be valid JSON: %q", buyOut)
+	require.Len(t, buyItems, 1)
+	assert.Equal(t, uid, buyItems[0]["uid"])
+	assert.Contains(t, buyItems[0], "provisioning_status")
+
 	// Update the name.
 	updatedName := testName + "-upd"
 	updateCmd := newTestCmd("update")
