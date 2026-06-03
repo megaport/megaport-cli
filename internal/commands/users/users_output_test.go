@@ -25,6 +25,8 @@ func TestPrintUsers_XML(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	assert.NotEmpty(t, out)
+	assert.Contains(t, out, "<items>")
+	assert.Contains(t, out, "<employee_id>")
 	assert.Contains(t, out, "Alice")
 	assert.Contains(t, out, "alice@example.com")
 }

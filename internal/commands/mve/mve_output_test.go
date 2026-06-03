@@ -14,6 +14,8 @@ func TestPrintMVEs_XML(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	assert.NotEmpty(t, out)
+	assert.Contains(t, out, "<items>")
+	assert.Contains(t, out, "<uid>")
 	assert.Contains(t, out, "mve-1")
 	assert.Contains(t, out, "MyMVEOne")
 }

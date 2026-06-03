@@ -21,6 +21,8 @@ func TestServiceKeyOutput_XML(t *testing.T) {
 	})
 
 	assert.NotEmpty(t, out)
+	assert.Contains(t, out, "<items>")
+	assert.Contains(t, out, "<key_uid>")
 	assert.Contains(t, out, "abcd-1234-efgh-5678")
 	assert.Contains(t, out, "Product One")
 }
