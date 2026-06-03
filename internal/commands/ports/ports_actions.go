@@ -132,6 +132,11 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	if resp == nil {
+		output.PrintError("Port created but no response returned", noColor)
+		return fmt.Errorf("port created but no response returned")
+	}
+
 	if len(resp.TechnicalServiceUIDs) == 0 {
 		output.PrintError("Port created but no UID returned", noColor)
 		return fmt.Errorf("port created but no UID returned")
@@ -258,6 +263,11 @@ func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 	if err != nil {
 		output.PrintError("Failed to buy LAG port: %v", noColor, err)
 		return err
+	}
+
+	if resp == nil {
+		output.PrintError("LAG port created but no response returned", noColor)
+		return fmt.Errorf("LAG port created but no response returned")
 	}
 
 	if len(resp.TechnicalServiceUIDs) == 0 {
