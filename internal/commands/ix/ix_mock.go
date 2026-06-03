@@ -81,6 +81,10 @@ func (m *MockIXService) ListIXs(ctx context.Context, req *megaport.ListIXsReques
 	return []*megaport.IX{}, nil
 }
 
+func (m *MockIXService) ListIXPs(ctx context.Context, req *megaport.ListIXPsRequest) ([]*megaport.IXP, error) {
+	return []*megaport.IXP{}, nil
+}
+
 // Reset clears all configured results, errors, and captured requests.
 func (m *MockIXService) Reset() {
 	m.buyIXResponse = nil
