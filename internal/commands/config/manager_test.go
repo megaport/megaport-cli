@@ -450,6 +450,76 @@ func TestCorruptedConfigFile_Permissions(t *testing.T) {
 	assert.Equal(t, os.FileMode(0600), info.Mode().Perm(), "backup file should have 0600 permissions")
 }
 
+func TestCorruptedConfigFile_RenameFailure(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("Skipping test when running as root")
+	}
+
+	tempDir, err := os.MkdirTemp("", "megaport-config-test")
+	require.NoError(t, err)
+	defer func() {
+		os.Chmod(tempDir, 0700)
+		os.RemoveAll(tempDir)
+	}()
+	t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+
+	configPath, err := GetConfigFilePath()
+	require.NoError(t, err)
+
+	err = os.WriteFile(configPath, []byte("not valid json"), 0600)
+	require.NoError(t, err)
+
+	// Make the config directory read-only so rename fails
+	err = os.Chmod(tempDir, 0500)
+	require.NoError(t, err)
+
+	_, err = NewConfigManager()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "could not be preserved")
+}
+
+func TestCorruptedConfigFile_ChmodFailure(t *testing.T) {
+	setupTestConfig(t)
+
+	configPath, err := GetConfigFilePath()
+	require.NoError(t, err)
+
+	err = os.WriteFile(configPath, []byte("not valid json"), 0600)
+	require.NoError(t, err)
+
+	old := chmodFile
+	defer func() { chmodFile = old }()
+	chmodFile = func(_ string, _ os.FileMode) error {
+		return fmt.Errorf("chmod: operation not permitted")
+	}
+
+	_, err = NewConfigManager()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "could not be secured")
+}
+
+func TestCorruptedConfigFile_ConcurrentRecovery(t *testing.T) {
+	setupTestConfig(t)
+
+	configPath, err := GetConfigFilePath()
+	require.NoError(t, err)
+
+	err = os.WriteFile(configPath, []byte("not valid json"), 0600)
+	require.NoError(t, err)
+
+	// Simulate another process already having renamed the file before us.
+	err = os.Remove(configPath)
+	require.NoError(t, err)
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+
+	// Fresh default should be created and usable
+	profiles, err := manager.ListProfiles()
+	require.NoError(t, err)
+	assert.Empty(t, profiles)
+}
+
 func TestSpecialProfileNames(t *testing.T) {
 	setupTestConfig(t)
 
