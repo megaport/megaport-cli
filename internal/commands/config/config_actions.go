@@ -35,6 +35,27 @@ func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	environment, _ := cmd.Flags().GetString("environment")
 	description, _ := cmd.Flags().GetString("description")
 
+	var err error
+	if accessKey == "" {
+		accessKey, err = utils.SecretResourcePrompt("config", "Enter Megaport API access key: ", noColor)
+		if err != nil {
+			return err
+		}
+	}
+	if secretKey == "" {
+		secretKey, err = utils.SecretResourcePrompt("config", "Enter Megaport API secret key: ", noColor)
+		if err != nil {
+			return err
+		}
+	}
+
+	if accessKey == "" {
+		return fmt.Errorf("access key is required")
+	}
+	if secretKey == "" {
+		return fmt.Errorf("secret key is required")
+	}
+
 	if environment != "production" && environment != "staging" && environment != "development" {
 		return fmt.Errorf("environment must be 'production', 'staging', or 'development'")
 	}
@@ -68,11 +89,31 @@ func UpdateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	accessKey := ""
 	if accessKeyChanged {
 		accessKey, _ = cmd.Flags().GetString("access-key")
+		if accessKey == "" {
+			var promptErr error
+			accessKey, promptErr = utils.SecretResourcePrompt("config", "Enter new Megaport API access key: ", noColor)
+			if promptErr != nil {
+				return promptErr
+			}
+			if accessKey == "" {
+				return fmt.Errorf("access key cannot be empty")
+			}
+		}
 	}
 
 	secretKey := ""
 	if secretKeyChanged {
 		secretKey, _ = cmd.Flags().GetString("secret-key")
+		if secretKey == "" {
+			var promptErr error
+			secretKey, promptErr = utils.SecretResourcePrompt("config", "Enter new Megaport API secret key: ", noColor)
+			if promptErr != nil {
+				return promptErr
+			}
+			if secretKey == "" {
+				return fmt.Errorf("secret key cannot be empty")
+			}
+		}
 	}
 
 	environment := ""

@@ -20,7 +20,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 			"2. Environment variables (MEGAPORT_ACCESS_KEY, MEGAPORT_SECRET_KEY, etc.)\n" +
 			"3. Active profile in config file\n" +
 			"4. Default settings in config file (lowest precedence)").
-		WithExample("megaport-cli config create-profile production --access-key xxx --secret-key xxx --environment production").
+		WithExample("megaport-cli config create-profile production --environment production").
 		WithExample("megaport-cli config use-profile production").
 		WithImportantNote("Configuration contains sensitive credentials - ensure ~/.megaport directory has appropriate permissions").
 		WithImportantNote("Environment variables (MEGAPORT_ACCESS_KEY, MEGAPORT_SECRET_KEY) take precedence over stored profiles").
@@ -33,30 +33,34 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithLongDesc("Create a new profile with Megaport API credentials and environment settings.\n\n"+
 			"Profiles store your Megaport API access and secret keys along with environment settings for secure reuse. "+
 			"The profile name is case-sensitive and must be unique.\n\n"+
-			"Credentials are stored in ~/.megaport/config.json with secure file permissions.").
-		WithFlag("access-key", "", "Megaport API access key from the Megaport Portal").
-		WithRequiredFlag("access-key", "Megaport API access key from the Megaport Portal").
-		WithFlag("secret-key", "", "Megaport API secret key from the Megaport Portal").
-		WithRequiredFlag("secret-key", "Megaport API secret key from the Megaport Portal").
+			"Credentials are stored in ~/.megaport/config.json with secure file permissions.\n\n"+
+			"If --access-key or --secret-key are not provided, you will be prompted securely (input is not echoed).").
+		WithFlag("access-key", "", "Megaport API access key (omit to be prompted securely)").
+		WithFlag("secret-key", "", "Megaport API secret key (omit to be prompted securely)").
 		WithFlag("environment", "production", "Target API environment: 'production', 'staging', or 'development'").
 		WithFlag("description", "", "Optional description for this profile").
-		WithExample("megaport-cli config create-profile production --access-key xxx --secret-key xxx --environment production --description \"Production credentials\"").
-		WithExample("megaport-cli config create-profile staging --access-key yyy --secret-key yyy --environment staging").
+		WithExample("megaport-cli config create-profile production --environment production").
+		WithExample("megaport-cli config create-profile staging --environment staging --description \"Staging credentials\"").
 		WithImportantNote("API credentials are stored with 0600 permissions (readable only by the current user)").
+		WithImportantNote("Passing --access-key or --secret-key on the command line exposes credentials in shell history and process listings. Omit them to be prompted securely, or use env vars MEGAPORT_ACCESS_KEY / MEGAPORT_SECRET_KEY instead.").
 		WithRootCmd(rootCmd).
 		Build()
 
 	updateProfileCmd := cmdbuilder.NewCommand("update-profile", "Update an existing profile").
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(UpdateProfile).
-		WithLongDesc("Update an existing profile with new credentials or settings.").
-		WithFlag("access-key", "", "Megaport API access key").
-		WithFlag("secret-key", "", "Megaport API secret key").
+		WithLongDesc("Update an existing profile with new credentials or settings.\n\n"+
+			"To update credentials without exposing them in shell history, pass an empty value "+
+			"(e.g. --secret-key \"\") and you will be prompted securely. "+
+			"Alternatively, use env vars MEGAPORT_ACCESS_KEY / MEGAPORT_SECRET_KEY which always take precedence over stored profiles.").
+		WithFlag("access-key", "", "New Megaport API access key (pass empty string to be prompted securely)").
+		WithFlag("secret-key", "", "New Megaport API secret key (pass empty string to be prompted securely)").
 		WithFlag("environment", "", "Target API environment: 'production', 'staging', or 'development'").
 		WithFlag("description", "", "Profile description (use empty string to clear)").
-		WithExample("megaport-cli config update-profile myprofile --access-key xxx --secret-key xxx").
 		WithExample("megaport-cli config update-profile myprofile --environment staging").
+		WithExample("megaport-cli config update-profile myprofile --secret-key \"\"").
 		WithImportantNote("Keep your Megaport API credentials secure; they provide full account access").
+		WithImportantNote("Passing --access-key or --secret-key on the command line exposes credentials in shell history and process listings. Pass an empty value to be prompted securely instead.").
 		WithRootCmd(rootCmd).
 		Build()
 
