@@ -792,6 +792,20 @@ func TestBuyMVE(t *testing.T) {
 			expectedError: "purchase failed",
 		},
 		{
+			name: "nil response from API",
+			flags: map[string]string{
+				"name":          "Nil-MVE",
+				"term":          "12",
+				"location-id":   "1",
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
+				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.BuyMVENilResp = true
+			},
+			expectedError: "empty response from API",
+		},
+		{
 			name: "invalid JSON returns error",
 			flags: map[string]string{
 				"json": `{bad json}`,

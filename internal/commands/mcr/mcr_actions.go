@@ -141,8 +141,8 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	if resp == nil {
-		output.PrintError("MCR created but no response returned", noColor)
-		return fmt.Errorf("MCR created but no response returned")
+		output.PrintError("MCR buy returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
 	}
 
 	output.PrintResourceCreated("MCR", resp.TechnicalServiceUID, noColor)
