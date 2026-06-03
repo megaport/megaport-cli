@@ -303,7 +303,8 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 		assert.Contains(t, statusList[0], "status")
 	})
 
-	// Update the IX name.
+	// Update the IX name. Force table format so CaptureOutput captures update messages.
+	output.SetOutputFormat("table")
 	updatedName := ixName + "-upd"
 	updCmd := integrationUpdateIXCmd()
 	require.NoError(t, updCmd.Flags().Set("name", updatedName))
