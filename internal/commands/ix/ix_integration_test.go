@@ -136,7 +136,7 @@ func integrationStatusIXCmd() *cobra.Command {
 // TestIntegration_IXListAndGet is a fast read-only smoke test against staging.
 func TestIntegration_IXListAndGet(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
-	defer testutil.LoginWithClient(t, client)()
+	t.Cleanup(testutil.LoginWithClient(t, client))
 	t.Cleanup(func() { output.SetOutputFormat("table") })
 
 	var listErr error
@@ -182,7 +182,7 @@ func TestIntegration_IXListAndGet(t *testing.T) {
 // Expected runtime: up to ~25 minutes (two provisioning waits of up to 10 min each).
 func TestIntegration_IXLifecycle(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
-	defer testutil.LoginWithClient(t, client)()
+	t.Cleanup(testutil.LoginWithClient(t, client))
 	// Ensure table format so PrintResourceCreated writes to stdout, not stderr.
 	output.SetOutputFormat("table")
 	t.Cleanup(func() { output.SetOutputFormat("table") })
