@@ -249,8 +249,6 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	})
 	require.True(t, ok, "could not extract port UID from output:\n%s", portOut)
 
-	require.True(t, ok, "could not extract port UID from output:\n%s", portOut)
-
 	// Buy the IX.
 	ixName := fmt.Sprintf("CLI-Test-IX-%s", generateUniqueID())
 	buyCmd := integrationBuyIXCmd()
@@ -296,8 +294,6 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 			}
 		})
 	})
-	require.True(t, ok, "could not extract IX UID from buy output:\n%s", buyOut)
-
 	require.True(t, ok, "could not extract IX UID from buy output:\n%s", buyOut)
 
 	// Verify IX fields via GetIX.
