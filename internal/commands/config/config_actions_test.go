@@ -879,6 +879,9 @@ func TestCreateProfile_InteractivePrompt(t *testing.T) {
 	calls := []string{"prompted-access-key", "prompted-secret-key"}
 	i := 0
 	utils.SetSecretResourcePrompt(func(_, _ string, _ bool) (string, error) {
+		if i >= len(calls) {
+			t.Fatalf("unexpected extra prompt call %d (expected at most %d)", i+1, len(calls))
+		}
 		v := calls[i]
 		i++
 		return v, nil
@@ -966,6 +969,9 @@ func TestCreateProfile_EmptySecretKeyPromptReturnsError(t *testing.T) {
 	calls := []string{"some-access-key", ""}
 	i := 0
 	utils.SetSecretResourcePrompt(func(_, _ string, _ bool) (string, error) {
+		if i >= len(calls) {
+			t.Fatalf("unexpected extra prompt call %d (expected at most %d)", i+1, len(calls))
+		}
 		v := calls[i]
 		i++
 		return v, nil
