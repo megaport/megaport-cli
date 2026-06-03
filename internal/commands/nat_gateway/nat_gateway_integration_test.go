@@ -94,6 +94,10 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	defer testutil.LoginWithClient(t, client)()
 	origFmt := output.GetOutputFormat()
 	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
+	// Force normal verbosity so PrintResourceCreated always emits the UID to stdout;
+	// quiet mode would suppress it and leave createdUID empty, leaking the gateway.
+	output.SetVerbosity("normal")
+	t.Cleanup(func() { output.SetVerbosity("normal") })
 
 	// Discover a valid speed tier from the session options.
 	sessCmd := newTestCmd("list-sessions")
