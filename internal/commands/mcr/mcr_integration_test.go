@@ -65,7 +65,6 @@ func integrationMCRDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "delete"}
 	cmd.Flags().BoolP("force", "f", false, "")
 	cmd.Flags().Bool("safe-delete", false, "")
-	cmd.Flags().Bool("now", false, "")
 	return cmd
 }
 
@@ -148,7 +147,6 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 	t.Cleanup(func() {
 		delCmd := integrationMCRDeleteCmd()
 		_ = delCmd.Flags().Set("force", "true")
-		_ = delCmd.Flags().Set("now", "true")
 		out := output.CaptureOutput(func() { _ = DeleteMCR(delCmd, []string{mcrUID}, true) })
 		t.Logf("cleanup: delete MCR %s: %s", mcrUID, out)
 	})
@@ -278,7 +276,6 @@ func TestIntegration_MCRJSONInputLifecycle(t *testing.T) {
 	t.Cleanup(func() {
 		delCmd := integrationMCRDeleteCmd()
 		_ = delCmd.Flags().Set("force", "true")
-		_ = delCmd.Flags().Set("now", "true")
 		out := output.CaptureOutput(func() { _ = DeleteMCR(delCmd, []string{mcrUID}, true) })
 		t.Logf("cleanup: delete MCR %s: %s", mcrUID, out)
 	})

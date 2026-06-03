@@ -63,7 +63,6 @@ func integrationMVEDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "delete"}
 	cmd.Flags().BoolP("force", "f", false, "")
 	cmd.Flags().Bool("safe-delete", false, "")
-	cmd.Flags().Bool("now", false, "")
 	return cmd
 }
 
@@ -176,7 +175,6 @@ func TestIntegration_MVELifecycle(t *testing.T) {
 	t.Cleanup(func() {
 		delCmd := integrationMVEDeleteCmd()
 		_ = delCmd.Flags().Set("force", "true")
-		_ = delCmd.Flags().Set("now", "true")
 		out := output.CaptureOutput(func() { _ = DeleteMVE(delCmd, []string{mveUID}, true) })
 		t.Logf("cleanup: delete MVE %s: %s", mveUID, out)
 	})
@@ -236,7 +234,6 @@ func TestIntegration_MVEJSONInputLifecycle(t *testing.T) {
 	t.Cleanup(func() {
 		delCmd := integrationMVEDeleteCmd()
 		_ = delCmd.Flags().Set("force", "true")
-		_ = delCmd.Flags().Set("now", "true")
 		out := output.CaptureOutput(func() { _ = DeleteMVE(delCmd, []string{mveUID}, true) })
 		t.Logf("cleanup: delete MVE %s: %s", mveUID, out)
 	})
