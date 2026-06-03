@@ -198,7 +198,7 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 		delCmd := newTestCmd("delete")
 		_ = delCmd.Flags().Set("force", "true")
 		if err := DeleteNATGateway(delCmd, []string{createdUID}, true); err != nil {
-			t.Logf("cleanup: failed to delete NAT gateway %s: %v", createdUID, err)
+			t.Errorf("cleanup: failed to delete NAT gateway %s: %v", createdUID, err)
 		}
 	})
 
