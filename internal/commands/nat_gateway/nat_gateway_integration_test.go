@@ -192,6 +192,19 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	assert.Equal(t, testName, gw["name"])
 	assert.Contains(t, gw, "provisioning_status")
 
+	// Validate the gateway to confirm pricing data is accessible.
+	valCmd := newTestCmd("validate")
+	var valErr error
+	valOut := output.CaptureOutput(func() {
+		valErr = ValidateNATGateway(valCmd, []string{uid}, true, "json")
+	})
+	require.NoError(t, valErr)
+	var valItems []map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(valOut), &valItems), "validate output should be valid JSON: %q", valOut)
+	require.Len(t, valItems, 1)
+	assert.Equal(t, uid, valItems[0]["uid"])
+	assert.Contains(t, valItems[0], "monthly_rate")
+
 	// Update the name.
 	updatedName := testName + "-upd"
 	updateCmd := newTestCmd("update")
