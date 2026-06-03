@@ -158,20 +158,30 @@ func (m *MockMVEService) ListAvailableMVESizes(ctx context.Context) ([]*megaport
 
 func (m *MockMVEService) Reset() {
 	m.GetMVEErr = nil
+	m.GetMVEResult = nil
 	m.ListMVEsErr = nil
+	m.ListMVEsResult = nil
 	m.BuyMVEErr = nil
 	m.BuyMVENilResp = false
-	m.DeleteMVENilResp = false
+	m.BuyMVEResult = nil
 	m.DeleteMVEErr = nil
-	m.ModifyMVENilResp = false
+	m.DeleteMVENilResp = false
+	m.DeleteMVEResult = nil
 	m.ModifyMVEErr = nil
+	m.ModifyMVENilResp = false
+	m.ModifyMVEResult = nil
 	m.ValidateMVEOrderErr = nil
 	m.ListMVEResourceTagsErr = nil
+	m.ListMVEResourceTagsResult = nil
 	m.UpdateMVEResourceTagsErr = nil
 	m.ListMVEImagesErr = nil
+	m.ListMVEImagesResult = nil
 	m.ListAvailableMVESizesErr = nil
+	m.ListAvailableMVESizesResult = nil
+	m.ForceNilGetMVE = false
 	m.CapturedBuyMVERequest = nil
 	m.CapturedModifyMVERequest = nil
 	m.CapturedListMVEsRequest = nil
+	m.CapturedDeleteMVERequest = nil
 	m.CapturedUpdateMVEResourceTagsRequest = nil
 }
