@@ -183,7 +183,12 @@ func TestIntegration_MVELifecycle(t *testing.T) {
 	t.Cleanup(func() {
 		delCmd := integrationMVEDeleteCmd()
 		_ = delCmd.Flags().Set("force", "true")
-		out := output.CaptureOutput(func() { _ = DeleteMVE(delCmd, []string{mveUID}, true) })
+		var delErr error
+		out := output.CaptureOutput(func() { delErr = DeleteMVE(delCmd, []string{mveUID}, true) })
+		if delErr != nil {
+			t.Logf("cleanup: delete MVE %s failed: %v; output: %s", mveUID, delErr, out)
+			return
+		}
 		t.Logf("cleanup: delete MVE %s: %s", mveUID, out)
 	})
 
@@ -250,7 +255,12 @@ func TestIntegration_MVEJSONInputLifecycle(t *testing.T) {
 	t.Cleanup(func() {
 		delCmd := integrationMVEDeleteCmd()
 		_ = delCmd.Flags().Set("force", "true")
-		out := output.CaptureOutput(func() { _ = DeleteMVE(delCmd, []string{mveUID}, true) })
+		var delErr error
+		out := output.CaptureOutput(func() { delErr = DeleteMVE(delCmd, []string{mveUID}, true) })
+		if delErr != nil {
+			t.Logf("cleanup: delete MVE %s failed: %v; output: %s", mveUID, delErr, out)
+			return
+		}
 		t.Logf("cleanup: delete MVE %s: %s", mveUID, out)
 	})
 

@@ -155,7 +155,12 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 	t.Cleanup(func() {
 		delCmd := integrationMCRDeleteCmd()
 		_ = delCmd.Flags().Set("force", "true")
-		out := output.CaptureOutput(func() { _ = DeleteMCR(delCmd, []string{mcrUID}, true) })
+		var delErr error
+		out := output.CaptureOutput(func() { delErr = DeleteMCR(delCmd, []string{mcrUID}, true) })
+		if delErr != nil {
+			t.Logf("cleanup: delete MCR %s failed: %v; output: %s", mcrUID, delErr, out)
+			return
+		}
 		t.Logf("cleanup: delete MCR %s: %s", mcrUID, out)
 	})
 
@@ -201,9 +206,14 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 	// Best-effort cleanup. Registered after the MCR cleanup so it runs first
 	// (cleanups run LIFO) — the list must be gone before the MCR is deleted.
 	t.Cleanup(func() {
+		var delErr error
 		out := output.CaptureOutput(func() {
-			_ = DeleteMCRPrefixFilterList(&cobra.Command{Use: "delete"}, []string{mcrUID, pflID}, true)
+			delErr = DeleteMCRPrefixFilterList(&cobra.Command{Use: "delete"}, []string{mcrUID, pflID}, true)
 		})
+		if delErr != nil {
+			t.Logf("cleanup: delete prefix filter list %s failed: %v; output: %s", pflID, delErr, out)
+			return
+		}
 		t.Logf("cleanup: delete prefix filter list %s: %s", pflID, out)
 	})
 
@@ -292,7 +302,12 @@ func TestIntegration_MCRJSONInputLifecycle(t *testing.T) {
 	t.Cleanup(func() {
 		delCmd := integrationMCRDeleteCmd()
 		_ = delCmd.Flags().Set("force", "true")
-		out := output.CaptureOutput(func() { _ = DeleteMCR(delCmd, []string{mcrUID}, true) })
+		var delErr error
+		out := output.CaptureOutput(func() { delErr = DeleteMCR(delCmd, []string{mcrUID}, true) })
+		if delErr != nil {
+			t.Logf("cleanup: delete MCR %s failed: %v; output: %s", mcrUID, delErr, out)
+			return
+		}
 		t.Logf("cleanup: delete MCR %s: %s", mcrUID, out)
 	})
 
