@@ -146,7 +146,8 @@ func TestIntegration_IXListAndGet(t *testing.T) {
 	require.NoError(t, listErr)
 
 	var ixs []map[string]interface{}
-	if err := json.Unmarshal([]byte(listOut), &ixs); err != nil || len(ixs) == 0 {
+	require.NoError(t, json.Unmarshal([]byte(listOut), &ixs), "ListIXs returned invalid JSON")
+	if len(ixs) == 0 {
 		t.Skip("no IXs available on staging to test Get")
 	}
 
@@ -188,11 +189,18 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 
 	existingIXs, err := client.IXService.ListIXs(ctx, &megaport.ListIXsRequest{IncludeInactive: false})
 	require.NoError(t, err, "failed to list IXs for type discovery")
-	if len(existingIXs) == 0 {
-		t.Skip("no active IXs on staging — cannot determine a valid network-service-type for lifecycle test")
+	var firstIX *megaport.IX
+	for _, ix := range existingIXs {
+		if ix != nil {
+			firstIX = ix
+			break
+		}
 	}
-	networkServiceType := existingIXs[0].NetworkServiceType
-	locationID := existingIXs[0].LocationID
+	if firstIX == nil {
+		t.Skip("no usable active IXs on staging — cannot determine a valid network-service-type for lifecycle test")
+	}
+	networkServiceType := firstIX.NetworkServiceType
+	locationID := firstIX.LocationID
 
 	// Create the port that will serve as the A-end of the IX.
 	portName := fmt.Sprintf("CLI-Test-Port-IX-%s", generateUniqueID())
