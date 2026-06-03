@@ -3,6 +3,7 @@ package locations
 
 import (
 	"context"
+	"fmt"
 
 	megaport "github.com/megaport/megaportgo"
 )
@@ -145,4 +146,8 @@ func (m *MockLocationsService) GetRoundTripTimes(_ context.Context, _, _, _ int)
 		return nil, m.GetRoundTripTimesErr
 	}
 	return m.GetRoundTripTimesResult, nil
+}
+
+func (m *MockLocationsService) ListLocationsV3WithOptions(ctx context.Context, opts *megaport.ListLocationsV3Options) ([]*megaport.LocationV3, error) {
+	return nil, fmt.Errorf("mock: ListLocationsV3WithOptions not configured")
 }
