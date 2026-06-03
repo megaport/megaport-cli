@@ -245,6 +245,9 @@ func TestProcessJSONUpdateNATGatewayInput_ExplicitBoolFields(t *testing.T) {
 			if tt.wantAutoRenew {
 				assert.Equal(t, tt.autoRenewVal, req.AutoRenewTerm)
 			}
+			if tt.wantBGPShutdown {
+				assert.Equal(t, tt.bgpShutdownVal, req.Config.BGPShutdownDefault)
+			}
 		})
 	}
 }
