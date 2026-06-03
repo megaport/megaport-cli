@@ -379,7 +379,7 @@ func handleFailure(ctx context.Context, client *megaport.Client, created []creat
 			output.PrintWarning("Rolling back %d created resource(s)...", noColor, len(created))
 		}
 		// Delete in reverse provisioning order (VXCs before ports they depend on).
-		var rollbackFailures []string
+		var rollbackResults []string
 		for i := len(created) - 1; i >= 0; i-- {
 			r := created[i]
 			err := utils.WithRetry(ctx, func(ctx context.Context) error {
@@ -387,17 +387,21 @@ func handleFailure(ctx context.Context, client *megaport.Client, created []creat
 			})
 			if err != nil {
 				if jsonMode {
-					rollbackFailures = append(rollbackFailures, fmt.Sprintf("rollback failed for %s %q (%s): %v; to remove: megaport-cli %s delete %s", r.resType, r.name, r.uid, err, deleteCLICommand[r.resType], r.uid))
+					rollbackResults = append(rollbackResults, fmt.Sprintf("rollback failed for %s %q (%s): %v; to remove: megaport-cli %s delete %s", r.resType, r.name, r.uid, err, deleteCLICommand[r.resType], r.uid))
 				} else {
 					output.PrintError("Rollback failed for %s %q (%s): %v", noColor, r.resType, r.name, r.uid, err)
 					output.PrintError("  To remove manually: megaport-cli %s delete %s", noColor, deleteCLICommand[r.resType], r.uid)
 				}
-			} else if !jsonMode {
-				output.PrintSuccess("Rolled back %s %q (%s)", noColor, r.resType, r.name, r.uid)
+			} else {
+				if jsonMode {
+					rollbackResults = append(rollbackResults, fmt.Sprintf("rolled back %s %q (%s)", r.resType, r.name, r.uid))
+				} else {
+					output.PrintSuccess("Rolled back %s %q (%s)", noColor, r.resType, r.name, r.uid)
+				}
 			}
 		}
-		if jsonMode && len(rollbackFailures) > 0 {
-			return fmt.Errorf("%w; %s", failErr, strings.Join(rollbackFailures, "; "))
+		if jsonMode {
+			return fmt.Errorf("%w; %s", failErr, strings.Join(rollbackResults, "; "))
 		}
 		return failErr
 	}

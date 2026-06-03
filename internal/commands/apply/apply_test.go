@@ -817,6 +817,46 @@ vxcs:
 	require.Equal(t, []string{"mcr-vxcroll-uid"}, mockMCR.DeleteMCRCalledWith)
 }
 
+// TestApplyConfig_RollbackOnFailure_JSONMode verifies that in --output json mode with
+// --rollback-on-failure, both successful and failed rollbacks appear in the returned
+// error so JSON consumers get a complete picture of what was cleaned up.
+func TestApplyConfig_RollbackOnFailure_JSONMode(t *testing.T) {
+	mockPort := &MockPortService{
+		BuyPortResult: &megaport.BuyPortResponse{TechnicalServiceUIDs: []string{"port-json-roll-uid"}},
+	}
+	mockMCR := &MockMCRService{BuyMCRErr: fmt.Errorf("MCR API down")}
+	defer setupMockClient(mockPort, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+	cfg := `
+ports:
+  - name: JSON-Roll-Port
+    location_id: 1
+    speed: 1000
+    term: 12
+    marketplace_visibility: false
+
+mcrs:
+  - name: Failing-MCR
+    location_id: 1
+    speed: 1000
+    term: 12
+`
+	f := writeTempFile(t, "config.yaml", cfg)
+	cmd := applyCmdWithRollback(f)
+
+	var err error
+	captured := output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "json")
+	})
+
+	require.Error(t, err)
+	// Successful rollback must appear in the error for JSON consumers.
+	assert.Contains(t, err.Error(), "rolled back")
+	assert.Contains(t, err.Error(), "port-json-roll-uid")
+	// No plain-text rollback lines in captured output.
+	assert.NotContains(t, captured, "Rolled back")
+}
+
 // TestApplyConfig_OrphanReporting_JSONMode verifies that in --output json mode the
 // orphan details are embedded in the returned error (not emitted as plain-text lines)
 // so the JSON error envelope the wrapper prints is the only structured output on stderr.
