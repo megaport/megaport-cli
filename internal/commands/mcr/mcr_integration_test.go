@@ -259,7 +259,7 @@ func TestIntegration_MCRJSONInputLifecycle(t *testing.T) {
 		"term": 1,
 		"portSpeed": 1000,
 		"locationId": %d,
-		"marketPlaceVisibility": false
+		"marketplaceVisibility": false
 	}`, name, stagingMCRLocationID)
 
 	buyCmd := integrationMCRBuyCmd()
