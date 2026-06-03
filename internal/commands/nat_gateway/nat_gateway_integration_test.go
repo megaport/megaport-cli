@@ -169,9 +169,7 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	createOut := output.CaptureOutput(func() {
 		createErr = CreateNATGateway(createCmd, nil, true)
 	})
-	if createErr != nil {
-		t.Skipf("NAT Gateway not available at this staging location (ID %d): %v", locationID, createErr)
-	}
+	require.NoError(t, createErr, "CreateNATGateway failed at staging location %d (speed %d Mbps)", locationID, speedMbps)
 
 	// Extract the UID from "✓ NAT Gateway created <uid>" and wire up cleanup immediately
 	// so the gateway is deleted even if a subsequent skip fires.
