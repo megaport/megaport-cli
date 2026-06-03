@@ -139,7 +139,10 @@ func getMVEJSON(t *testing.T, uid string) map[string]interface{} {
 
 func TestIntegration_MVELifecycle(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
-	defer testutil.LoginWithClient(t, client)()
+	// Restore login via t.Cleanup, not defer: defers run before t.Cleanup, so a
+	// deferred restore would swap back the default login (wrong environment)
+	// before the resource-deletion cleanups below get to run.
+	t.Cleanup(testutil.LoginWithClient(t, client))
 
 	// Action functions mutate the process-wide output format; restore it so
 	// test order can't leak state between tests in this package.
@@ -205,7 +208,10 @@ func TestIntegration_MVELifecycle(t *testing.T) {
 
 func TestIntegration_MVEJSONInputLifecycle(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
-	defer testutil.LoginWithClient(t, client)()
+	// Restore login via t.Cleanup, not defer: defers run before t.Cleanup, so a
+	// deferred restore would swap back the default login (wrong environment)
+	// before the resource-deletion cleanups below get to run.
+	t.Cleanup(testutil.LoginWithClient(t, client))
 
 	// Action functions mutate the process-wide output format; restore it so
 	// test order can't leak state between tests in this package.
