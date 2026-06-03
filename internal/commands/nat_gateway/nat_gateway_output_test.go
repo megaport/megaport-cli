@@ -65,8 +65,10 @@ func TestPrintNATGateways_XML(t *testing.T) {
 
 func TestPrintNATGateways_Empty(t *testing.T) {
 	for _, format := range []string{"table", "json", "csv", "xml"} {
-		err := printNATGateways([]*megaport.NATGateway{}, format, true)
-		assert.NoError(t, err)
+		output.CaptureOutput(func() {
+			err := printNATGateways([]*megaport.NATGateway{}, format, true)
+			assert.NoError(t, err)
+		})
 	}
 }
 
@@ -104,8 +106,10 @@ func TestPrintNATGatewaySessions_XML(t *testing.T) {
 
 func TestPrintNATGatewaySessions_Empty(t *testing.T) {
 	for _, format := range []string{"table", "json", "csv", "xml"} {
-		err := printNATGatewaySessions([]*megaport.NATGatewaySession{}, format, true)
-		assert.NoError(t, err)
+		output.CaptureOutput(func() {
+			err := printNATGatewaySessions([]*megaport.NATGatewaySession{}, format, true)
+			assert.NoError(t, err)
+		})
 	}
 }
 

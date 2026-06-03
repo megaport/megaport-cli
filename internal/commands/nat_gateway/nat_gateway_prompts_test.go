@@ -85,12 +85,19 @@ func TestPromptForCreateNATGatewayDetails_AutoRenewNo(t *testing.T) {
 
 func TestPromptForCreateNATGatewayDetails_EmptyName(t *testing.T) {
 	origPrompt := utils.GetResourcePrompt()
-	defer utils.SetResourcePrompt(origPrompt)
+	origTags := utils.GetResourceTagsPrompt()
+	defer func() {
+		utils.SetResourcePrompt(origPrompt)
+		utils.SetResourceTagsPrompt(origTags)
+	}()
 
-	utils.SetResourcePrompt(mockNGPromptSequence([]string{""}))
+	// Provide valid responses for all prompts except name so validation can run.
+	utils.SetResourcePrompt(mockNGPromptSequence([]string{"", "1", "1000", "12", "", "", "", "", ""}))
+	utils.SetResourceTagsPrompt(noopTagsPrompt)
 
 	_, err := promptForCreateNATGatewayDetails(true)
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "name")
 }
 
 func TestPromptForCreateNATGatewayDetails_InvalidLocationID(t *testing.T) {
