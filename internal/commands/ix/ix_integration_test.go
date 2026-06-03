@@ -15,6 +15,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/ports"
 	"github.com/megaport/megaport-cli/internal/testutil"
+	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -219,7 +220,6 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	if networkServiceType == "" || locationID == 0 {
 		t.Skip("no IXP with a matching staging location found")
 	}
-	const rateLimit = 1000
 
 	// Create the port that will serve as the A-end of the IX.
 	const portSpeed = 1000
@@ -260,6 +260,30 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 		})
 	})
 	require.True(t, ok, "could not extract port UID from output:\n%s", portOut)
+
+	// Probe for a supported rate limit — each metro/IXP may only accept specific speeds,
+	// so validating before buy avoids environment-unrelated failures.
+	candidateRateLimits := []int{1000, 100, 500, 10000}
+	rateLimit := 0
+	probeCtx, probeCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer probeCancel()
+	for _, candidate := range candidateRateLimits {
+		probeReq := &megaport.BuyIXRequest{
+			ProductUID:         portUID,
+			NetworkServiceType: networkServiceType,
+			ASN:                12345,
+			MACAddress:         "00:11:22:33:44:55",
+			RateLimit:          candidate,
+			VLAN:               100,
+		}
+		if err := client.IXService.ValidateIXOrder(probeCtx, probeReq); err == nil {
+			rateLimit = candidate
+			break
+		}
+	}
+	if rateLimit == 0 {
+		t.Skipf("no candidate rate limit validated for IX type %q at location %d", networkServiceType, locationID)
+	}
 
 	// Buy the IX.
 	ixName := fmt.Sprintf("CLI-Test-IX-%s", generateUniqueID(t))
