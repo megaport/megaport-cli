@@ -14,8 +14,9 @@ import (
 var (
 	ErrProfileNotFound = errors.New("profile not found")
 
-	// chmodFile is a variable so tests can inject failures on the backup chmod call.
-	chmodFile = os.Chmod
+	// renameFile and chmodFile are variables so tests can inject errors into the backup path.
+	renameFile = os.Rename
+	chmodFile  = os.Chmod
 )
 
 func NewConfigManager() (*ConfigManager, error) {
@@ -60,7 +61,7 @@ func NewConfigManager() (*ConfigManager, error) {
 	err = json.Unmarshal(configData, &config)
 	if err != nil {
 		backupPath := configPath + ".corrupt-" + time.Now().Format("20060102-150405.000000000")
-		if renameErr := os.Rename(configPath, backupPath); renameErr != nil {
+		if renameErr := renameFile(configPath, backupPath); renameErr != nil {
 			if !os.IsNotExist(renameErr) {
 				return nil, fmt.Errorf("config file is corrupted and could not be preserved: %w", renameErr)
 			}

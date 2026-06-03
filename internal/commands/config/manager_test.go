@@ -507,9 +507,14 @@ func TestCorruptedConfigFile_ConcurrentRecovery(t *testing.T) {
 	err = os.WriteFile(configPath, []byte("not valid json"), 0600)
 	require.NoError(t, err)
 
-	// Simulate another process already having renamed the file before us.
-	err = os.Remove(configPath)
-	require.NoError(t, err)
+	// Simulate another process having renamed the corrupt file between our ReadFile
+	// and our Rename — inject ENOENT from the rename call while the corrupt file
+	// is still present so we reach the unmarshal-failure branch.
+	old := renameFile
+	defer func() { renameFile = old }()
+	renameFile = func(_, _ string) error {
+		return os.ErrNotExist
+	}
 
 	manager, err := NewConfigManager()
 	require.NoError(t, err)
