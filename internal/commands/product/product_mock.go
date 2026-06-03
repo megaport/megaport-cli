@@ -2,6 +2,7 @@ package product
 
 import (
 	"context"
+	"fmt"
 
 	megaport "github.com/megaport/megaportgo"
 )

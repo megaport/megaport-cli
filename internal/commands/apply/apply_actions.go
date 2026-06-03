@@ -384,10 +384,10 @@ func handleFailure(ctx context.Context, client *megaport.Client, created []creat
 		return failErr
 	}
 
-	output.PrintWarning("The following resources were created and ARE BILLING:", noColor)
+	output.PrintError("The following resources were created and ARE BILLING:", noColor)
 	for _, r := range created {
-		output.PrintWarning("  %s %q  uid: %s", noColor, r.resType, r.name, r.uid)
-		output.PrintWarning("  To remove: megaport-cli %s delete %s", noColor, deleteCLICommand[r.resType], r.uid)
+		output.PrintError("  %s %q  uid: %s", noColor, r.resType, r.name, r.uid)
+		output.PrintError("  To remove: megaport-cli %s delete %s", noColor, deleteCLICommand[r.resType], r.uid)
 	}
 	return failErr
 }
