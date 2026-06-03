@@ -511,11 +511,13 @@ func TestCorruptedConfigFile_ConcurrentRecovery(t *testing.T) {
 	require.NoError(t, err)
 
 	// Simulate another process having renamed the corrupt file between our ReadFile
-	// and our Rename — inject ENOENT from the rename call while the corrupt file
-	// is still present so we reach the unmarshal-failure branch.
+	// and our Rename: the stub moves the source file (as the other process would)
+	// then returns ENOENT so our code takes the concurrent-recovery branch.
+	simulatedBackup := configPath + ".corrupt-concurrent"
 	old := renameFile
 	defer func() { renameFile = old }()
-	renameFile = func(_, _ string) error {
+	renameFile = func(src, _ string) error {
+		_ = os.Rename(src, simulatedBackup)
 		return os.ErrNotExist
 	}
 
@@ -526,6 +528,10 @@ func TestCorruptedConfigFile_ConcurrentRecovery(t *testing.T) {
 	profiles, err := manager.ListProfiles()
 	require.NoError(t, err)
 	assert.Empty(t, profiles)
+
+	// The backup created by the "other process" should still be present
+	_, statErr := os.Stat(simulatedBackup)
+	assert.NoError(t, statErr, "Backup from concurrent process should still exist")
 }
 
 func TestSpecialProfileNames(t *testing.T) {
