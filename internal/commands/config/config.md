@@ -69,7 +69,7 @@ Profiles store API credentials and environment settings for convenient reuse. Cr
 megaport-cli config create-profile myprofile --environment production
 ```
 
-Omit `--access-key` and `--secret-key` to be prompted instead of passing secrets on the command line (input is masked on an interactive terminal).
+Omit `--access-key` and `--secret-key` to be prompted instead of passing secrets on the command line. Input is masked on an interactive terminal; on piped/non-TTY stdin it is read without masking.
 
 ### Switching Profiles
 
@@ -88,7 +88,7 @@ megaport-cli config update-profile myprofile --environment staging
 megaport-cli config update-profile myprofile --secret-key ""
 ```
 
-Pass an empty string for a key flag (e.g. `--secret-key ""`) to be prompted instead of providing the value on the command line.
+Pass an empty string for a key flag (e.g. `--secret-key ""`) to be prompted instead of providing the value on the command line. Input is masked on an interactive terminal; on piped/non-TTY stdin it is read without masking.
 
 Only specified fields will be updated, others remain unchanged.
 

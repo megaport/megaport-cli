@@ -63,6 +63,7 @@ megaport-cli ix update [flags]
 | `--a-end-product-uid` |  |  | Move the IX by changing the A-End of the IX | false |
 | `--asn` |  | `0` | ASN (Autonomous System Number) for BGP peering | false |
 | `--cost-centre` |  |  | Cost centre for invoicing purposes | false |
+| `--generate-skeleton` |  | `false` | Print a JSON skeleton template for --json or --json-file input and exit | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
