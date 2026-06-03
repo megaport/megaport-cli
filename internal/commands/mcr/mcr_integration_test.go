@@ -30,6 +30,14 @@ func generateUniqueID() string {
 	return hex.EncodeToString(buf)
 }
 
+// captureTableOutput captures stdout with the output format forced to "table",
+// since JSON mode routes success/info messages to stderr where CaptureOutput
+// can't see them.
+func captureTableOutput(f func()) string {
+	output.SetOutputFormat("table")
+	return output.CaptureOutput(f)
+}
+
 func integrationMCRBuyCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "buy"}
 	cmd.Flags().Bool("interactive", false, "")
@@ -144,9 +152,8 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("marketplace-visibility", "false"))
 	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
 
-	output.SetOutputFormat("table") // route the success message to stdout
 	var buyErr error
-	buyOut := output.CaptureOutput(func() { buyErr = BuyMCR(buyCmd, nil, true) })
+	buyOut := captureTableOutput(func() { buyErr = BuyMCR(buyCmd, nil, true) })
 	require.NoError(t, buyErr, "buy MCR output: %s", buyOut)
 
 	mcrUID := parseCreatedUID(buyOut, "MCR")
@@ -156,7 +163,7 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 		delCmd := integrationMCRDeleteCmd()
 		_ = delCmd.Flags().Set("force", "true")
 		var delErr error
-		out := output.CaptureOutput(func() { delErr = DeleteMCR(delCmd, []string{mcrUID}, true) })
+		out := captureTableOutput(func() { delErr = DeleteMCR(delCmd, []string{mcrUID}, true) })
 		if delErr != nil {
 			t.Logf("cleanup: delete MCR %s failed: %v; output: %s", mcrUID, delErr, out)
 			return
@@ -176,7 +183,7 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 	updCmd := integrationMCRUpdateCmd()
 	require.NoError(t, updCmd.Flags().Set("name", newName))
 	var updErr error
-	updOut := output.CaptureOutput(func() { updErr = UpdateMCR(updCmd, []string{mcrUID}, true) })
+	updOut := captureTableOutput(func() { updErr = UpdateMCR(updCmd, []string{mcrUID}, true) })
 	require.NoError(t, updErr, "update MCR output: %s", updOut)
 
 	assert.Equal(t, newName, getMCRJSON(t, mcrUID)["name"])
@@ -193,9 +200,8 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 
 	createCmd := integrationMCRPrefixFilterCmd()
 	require.NoError(t, createCmd.Flags().Set("json", createPFLJSON))
-	output.SetOutputFormat("table") // route the success message to stdout
 	var createErr error
-	createOut := output.CaptureOutput(func() {
+	createOut := captureTableOutput(func() {
 		createErr = CreateMCRPrefixFilterList(createCmd, []string{mcrUID}, true)
 	})
 	require.NoError(t, createErr, "create prefix filter list output: %s", createOut)
@@ -207,7 +213,7 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 	// (cleanups run LIFO) — the list must be gone before the MCR is deleted.
 	t.Cleanup(func() {
 		var delErr error
-		out := output.CaptureOutput(func() {
+		out := captureTableOutput(func() {
 			delErr = DeleteMCRPrefixFilterList(&cobra.Command{Use: "delete"}, []string{mcrUID, pflID}, true)
 		})
 		if delErr != nil {
@@ -240,7 +246,7 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 	updatePFLCmd := integrationMCRPrefixFilterCmd()
 	require.NoError(t, updatePFLCmd.Flags().Set("json", updatePFLJSON))
 	var updatePFLErr error
-	updatePFLOut := output.CaptureOutput(func() {
+	updatePFLOut := captureTableOutput(func() {
 		updatePFLErr = UpdateMCRPrefixFilterList(updatePFLCmd, []string{mcrUID, pflID}, true)
 	})
 	require.NoError(t, updatePFLErr, "update prefix filter list output: %s", updatePFLOut)
@@ -255,9 +261,8 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 	assert.Contains(t, verifyPFLOut, "192.168.0.0/16")
 
 	// Delete the prefix filter list and assert it is gone.
-	output.SetOutputFormat("table")
 	var deletePFLErr error
-	deletePFLOut := output.CaptureOutput(func() {
+	deletePFLOut := captureTableOutput(func() {
 		deletePFLErr = DeleteMCRPrefixFilterList(&cobra.Command{Use: "delete"}, []string{mcrUID, pflID}, true)
 	})
 	require.NoError(t, deletePFLErr, "delete prefix filter list output: %s", deletePFLOut)
@@ -291,9 +296,8 @@ func TestIntegration_MCRJSONInputLifecycle(t *testing.T) {
 	buyCmd := integrationMCRBuyCmd()
 	require.NoError(t, buyCmd.Flags().Set("json", buyJSON))
 
-	output.SetOutputFormat("table")
 	var buyErr error
-	buyOut := output.CaptureOutput(func() { buyErr = BuyMCR(buyCmd, nil, true) })
+	buyOut := captureTableOutput(func() { buyErr = BuyMCR(buyCmd, nil, true) })
 	require.NoError(t, buyErr, "buy MCR (JSON) output: %s", buyOut)
 
 	mcrUID := parseCreatedUID(buyOut, "MCR")
@@ -303,7 +307,7 @@ func TestIntegration_MCRJSONInputLifecycle(t *testing.T) {
 		delCmd := integrationMCRDeleteCmd()
 		_ = delCmd.Flags().Set("force", "true")
 		var delErr error
-		out := output.CaptureOutput(func() { delErr = DeleteMCR(delCmd, []string{mcrUID}, true) })
+		out := captureTableOutput(func() { delErr = DeleteMCR(delCmd, []string{mcrUID}, true) })
 		if delErr != nil {
 			t.Logf("cleanup: delete MCR %s failed: %v; output: %s", mcrUID, delErr, out)
 			return
@@ -319,7 +323,7 @@ func TestIntegration_MCRJSONInputLifecycle(t *testing.T) {
 	updCmd := integrationMCRUpdateCmd()
 	require.NoError(t, updCmd.Flags().Set("name", newName))
 	var updErr error
-	updOut := output.CaptureOutput(func() { updErr = UpdateMCR(updCmd, []string{mcrUID}, true) })
+	updOut := captureTableOutput(func() { updErr = UpdateMCR(updCmd, []string{mcrUID}, true) })
 	require.NoError(t, updErr, "update MCR output: %s", updOut)
 
 	assert.Equal(t, newName, getMCRJSON(t, mcrUID)["name"])

@@ -30,6 +30,14 @@ func generateUniqueID() string {
 	return hex.EncodeToString(buf)
 }
 
+// captureTableOutput captures stdout with the output format forced to "table",
+// since JSON mode routes success/info messages to stderr where CaptureOutput
+// can't see them.
+func captureTableOutput(f func()) string {
+	output.SetOutputFormat("table")
+	return output.CaptureOutput(f)
+}
+
 func integrationMVEBuyCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "buy"}
 	cmd.Flags().Bool("interactive", false, "")
@@ -172,9 +180,8 @@ func TestIntegration_MVELifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("vnics", vnics))
 	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
 
-	output.SetOutputFormat("table") // route the success message to stdout
 	var buyErr error
-	buyOut := output.CaptureOutput(func() { buyErr = BuyMVE(buyCmd, nil, true) })
+	buyOut := captureTableOutput(func() { buyErr = BuyMVE(buyCmd, nil, true) })
 	require.NoError(t, buyErr, "buy MVE output: %s", buyOut)
 
 	mveUID := parseCreatedUID(buyOut, "MVE")
@@ -184,7 +191,7 @@ func TestIntegration_MVELifecycle(t *testing.T) {
 		delCmd := integrationMVEDeleteCmd()
 		_ = delCmd.Flags().Set("force", "true")
 		var delErr error
-		out := output.CaptureOutput(func() { delErr = DeleteMVE(delCmd, []string{mveUID}, true) })
+		out := captureTableOutput(func() { delErr = DeleteMVE(delCmd, []string{mveUID}, true) })
 		if delErr != nil {
 			t.Logf("cleanup: delete MVE %s failed: %v; output: %s", mveUID, delErr, out)
 			return
@@ -205,7 +212,7 @@ func TestIntegration_MVELifecycle(t *testing.T) {
 	updCmd := integrationMVEUpdateCmd()
 	require.NoError(t, updCmd.Flags().Set("name", newName))
 	var updErr error
-	updOut := output.CaptureOutput(func() { updErr = UpdateMVE(updCmd, []string{mveUID}, true) })
+	updOut := captureTableOutput(func() { updErr = UpdateMVE(updCmd, []string{mveUID}, true) })
 	require.NoError(t, updErr, "update MVE output: %s", updOut)
 
 	assert.Equal(t, newName, getMVEJSON(t, mveUID)["name"])
@@ -244,9 +251,8 @@ func TestIntegration_MVEJSONInputLifecycle(t *testing.T) {
 	buyCmd := integrationMVEBuyCmd()
 	require.NoError(t, buyCmd.Flags().Set("json", buyJSON))
 
-	output.SetOutputFormat("table")
 	var buyErr error
-	buyOut := output.CaptureOutput(func() { buyErr = BuyMVE(buyCmd, nil, true) })
+	buyOut := captureTableOutput(func() { buyErr = BuyMVE(buyCmd, nil, true) })
 	require.NoError(t, buyErr, "buy MVE (JSON) output: %s", buyOut)
 
 	mveUID := parseCreatedUID(buyOut, "MVE")
@@ -256,7 +262,7 @@ func TestIntegration_MVEJSONInputLifecycle(t *testing.T) {
 		delCmd := integrationMVEDeleteCmd()
 		_ = delCmd.Flags().Set("force", "true")
 		var delErr error
-		out := output.CaptureOutput(func() { delErr = DeleteMVE(delCmd, []string{mveUID}, true) })
+		out := captureTableOutput(func() { delErr = DeleteMVE(delCmd, []string{mveUID}, true) })
 		if delErr != nil {
 			t.Logf("cleanup: delete MVE %s failed: %v; output: %s", mveUID, delErr, out)
 			return
@@ -274,7 +280,7 @@ func TestIntegration_MVEJSONInputLifecycle(t *testing.T) {
 	updCmd := integrationMVEUpdateCmd()
 	require.NoError(t, updCmd.Flags().Set("name", newName))
 	var updErr error
-	updOut := output.CaptureOutput(func() { updErr = UpdateMVE(updCmd, []string{mveUID}, true) })
+	updOut := captureTableOutput(func() { updErr = UpdateMVE(updCmd, []string{mveUID}, true) })
 	require.NoError(t, updErr, "update MVE output: %s", updOut)
 
 	assert.Equal(t, newName, getMVEJSON(t, mveUID)["name"])
