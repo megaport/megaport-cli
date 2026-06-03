@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -131,22 +132,14 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	require.NoError(t, createCmd.Flags().Set("location-id", fmt.Sprintf("%d", locationID)))
 	require.NoError(t, createCmd.Flags().Set("yes", "true"))
 
-	// Use table format so the "created <uid>" success line goes to stdout.
+	// Use table format so the "✓ NAT Gateway created <uid>" success line goes to stdout.
 	// Restore whatever format was active before so later CaptureOutput calls are unaffected.
 	origFmt := output.GetOutputFormat()
 	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
 	output.SetOutputFormat("table")
 
-	var createErr error
-	output.CaptureOutput(func() {
-		createErr = CreateNATGateway(createCmd, nil, true)
-	})
-	if createErr != nil {
-		t.Skipf("NAT Gateway not available at this staging location (ID %d): %v", locationID, createErr)
-	}
-
-	// Register cleanup immediately after a successful create so the gateway is
-	// deleted even if UID discovery or a later assertion aborts the test.
+	// Register cleanup before create so the gateway is deleted regardless of any
+	// subsequent skip or assertion failure before createdUID is assigned below.
 	var createdUID string
 	t.Cleanup(func() {
 		if createdUID == "" {
@@ -159,27 +152,25 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 		}
 	})
 
-	// Discover the UID by listing with the unique test name.
-	findCmd := newTestCmd("list")
-	require.NoError(t, findCmd.Flags().Set("name", testName))
-	require.NoError(t, findCmd.Flags().Set("include-inactive", "true"))
-
-	var findErr error
-	findOut := output.CaptureOutput(func() {
-		findErr = ListNATGateways(findCmd, nil, true, "json")
+	var createErr error
+	createOut := output.CaptureOutput(func() {
+		createErr = CreateNATGateway(createCmd, nil, true)
 	})
-	require.NoError(t, findErr)
-	if findOut == "" {
-		t.Skip("created NAT gateway not yet visible in listing")
+	if createErr != nil {
+		t.Skipf("NAT Gateway not available at this staging location (ID %d): %v", locationID, createErr)
 	}
 
-	var found []map[string]interface{}
-	require.NoError(t, json.Unmarshal([]byte(findOut), &found))
-	require.NotEmpty(t, found, "should find the newly created NAT gateway by name")
-
-	uid, ok := found[0]["uid"].(string)
-	require.True(t, ok, "created gateway should have a uid field")
-	createdUID = uid
+	// Extract the UID from "✓ NAT Gateway created <uid>" and wire up cleanup immediately
+	// so the gateway is deleted even if a subsequent skip fires.
+	const createPrefix = "✓ NAT Gateway created "
+	for _, line := range strings.Split(createOut, "\n") {
+		if after, ok := strings.CutPrefix(line, createPrefix); ok {
+			createdUID = strings.TrimSpace(after)
+			break
+		}
+	}
+	require.NotEmpty(t, createdUID, "failed to parse NAT Gateway UID from create output: %q", createOut)
+	uid := createdUID
 
 	// Verify the gateway can be retrieved.
 	getCmd := newTestCmd("get")
