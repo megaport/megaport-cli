@@ -23,7 +23,7 @@ Configuration Precedence:
 ### Example Usage
 
 ```sh
-  megaport-cli config create-profile production --access-key xxx --secret-key xxx --environment production
+  megaport-cli config create-profile production --environment production
   megaport-cli config use-profile production
 ```
 
