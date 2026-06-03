@@ -172,7 +172,7 @@ func TestIntegration_MVELifecycle(t *testing.T) {
 		"accountKey": "test",
 		"systemTag": "test"
 	}`, img.productSize(), img.ID)
-	vnics := `[{"description": "MVE VNIC 1", "vlan": 55}]`
+	vnics := `[{"description": "MVE VNIC 1", "vlan": 55}, {"description": "MVE VNIC 2", "vlan": 56}]`
 
 	// BuyMVE waits for provisioning (no --no-wait), so the MVE is ready once it
 	// returns.
@@ -249,7 +249,7 @@ func TestIntegration_MVEJSONInputLifecycle(t *testing.T) {
 			"accountKey": "test",
 			"systemTag": "test"
 		},
-		"vnics": [{"description": "MVE VNIC 1", "vlan": 55}]
+		"vnics": [{"description": "MVE VNIC 1", "vlan": 55}, {"description": "MVE VNIC 2", "vlan": 56}]
 	}`, name, stagingMVELocationID, img.productSize(), img.ID)
 
 	buyCmd := integrationMVEBuyCmd()
