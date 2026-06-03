@@ -3,6 +3,7 @@ package apply
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -375,7 +376,15 @@ vxcs:
 }
 
 func TestApplyConfig_MVEAPIError(t *testing.T) {
-	mockMVE := &MockMVEService{BuyMVEErr: fmt.Errorf("MVE unavailable")}
+	apiErr := &megaport.ErrorResponse{
+		Response: &http.Response{
+			StatusCode: 401,
+			Header:     http.Header{},
+			Request:    &http.Request{},
+		},
+		Message: "unauthorized",
+	}
+	mockMVE := &MockMVEService{BuyMVEErr: apiErr}
 	defer setupMockClient(&MockPortService{}, &MockMCRService{}, mockMVE, &MockVXCService{})()
 
 	yaml := `
@@ -397,7 +406,7 @@ mves:
 		err = ApplyConfig(cmd, nil, true, "table")
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "MVE unavailable")
+	assert.Contains(t, err.Error(), "authentication failed")
 }
 
 func TestApplyConfig_MCRAPIError(t *testing.T) {
