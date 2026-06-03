@@ -163,23 +163,30 @@ func newUpdateVXCCmd() *cobra.Command {
 }
 
 // buyPortAndGetUID calls ports.BuyPort (which blocks until the port is LIVE)
-// then finds the created port's UID by listing all ports via the SDK and
-// matching by name. Spinner output goes to real stdout — interleaved output
-// from parallel tests is harmless.
+// then finds the created port's UID by polling ListPorts until the port
+// appears by name. Polling guards against brief eventual-consistency lag
+// between the port reaching LIVE and appearing in the list API.
 func buyPortAndGetUID(t *testing.T, portName string) string {
 	t.Helper()
 	cmd := buildPortCmd(t, portName, integrationLocationID)
 	require.NoErrorf(t, ports.BuyPort(cmd, nil, true), "BuyPort failed for %q", portName)
 
 	sdkClient := testutil.SharedIntegrationClient(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	allPorts, err := sdkClient.PortService.ListPorts(ctx)
-	require.NoErrorf(t, err, "ListPorts failed after creating port %q", portName)
-	for _, p := range allPorts {
-		if p != nil && p.Name == portName {
-			return p.UID
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		allPorts, err := sdkClient.PortService.ListPorts(ctx)
+		cancel()
+		require.NoErrorf(t, err, "ListPorts failed after creating port %q", portName)
+		for _, p := range allPorts {
+			if p != nil && p.Name == portName {
+				return p.UID
+			}
 		}
+		if time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(2 * time.Second)
 	}
 	t.Fatalf("port %q not found in port list after creation", portName)
 	return ""
