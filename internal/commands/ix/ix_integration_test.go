@@ -333,7 +333,7 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 
 		var statusList []map[string]interface{}
 		require.NoError(t, json.Unmarshal([]byte(statusOut), &statusList))
-		require.NotEmpty(t, statusList)
+		require.Len(t, statusList, 1)
 		assert.Equal(t, ixUID, statusList[0]["uid"])
 		assert.Contains(t, statusList[0], "status")
 	})
