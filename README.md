@@ -184,7 +184,7 @@ The Megaport CLI uses a profile-based configuration system that securely stores 
 ### Basic Usage
 
 ```bash
-# Create a profile (omit --access-key / --secret-key to be prompted securely)
+# Create a profile (omit --access-key / --secret-key to be prompted; masked on TTY)
 megaport-cli config create-profile myprofile --environment production
 
 # Switch active profile
