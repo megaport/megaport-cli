@@ -21,11 +21,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func generateUniqueID() string {
+func generateUniqueID(t *testing.T) string {
+	t.Helper()
 	buf := make([]byte, 4)
-	if _, err := rand.Read(buf); err != nil {
-		panic(err)
-	}
+	_, err := rand.Read(buf)
+	require.NoError(t, err, "failed to read crypto/rand entropy")
 	return hex.EncodeToString(buf)
 }
 
@@ -213,11 +213,18 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	}
 
 	// Create the port that will serve as the A-end of the IX.
-	portName := fmt.Sprintf("CLI-Test-Port-IX-%s", generateUniqueID())
+	// Port speed must be >= rateLimit to pass IX order validation.
+	portSpeed := 1000
+	if rateLimit > 10000 {
+		portSpeed = 100000
+	} else if rateLimit > 1000 {
+		portSpeed = 10000
+	}
+	portName := fmt.Sprintf("CLI-Test-Port-IX-%s", generateUniqueID(t))
 	pCmd := integrationBuyPortCmd()
 	require.NoError(t, pCmd.Flags().Set("name", portName))
 	require.NoError(t, pCmd.Flags().Set("term", "1"))
-	require.NoError(t, pCmd.Flags().Set("port-speed", "1000"))
+	require.NoError(t, pCmd.Flags().Set("port-speed", fmt.Sprintf("%d", portSpeed)))
 	require.NoError(t, pCmd.Flags().Set("location-id", fmt.Sprintf("%d", locationID)))
 	require.NoError(t, pCmd.Flags().Set("marketplace-visibility", "false"))
 	require.NoError(t, pCmd.Flags().Set("yes", "true"))
@@ -252,7 +259,7 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	require.True(t, ok, "could not extract port UID from output:\n%s", portOut)
 
 	// Buy the IX.
-	ixName := fmt.Sprintf("CLI-Test-IX-%s", generateUniqueID())
+	ixName := fmt.Sprintf("CLI-Test-IX-%s", generateUniqueID(t))
 	buyCmd := integrationBuyIXCmd()
 	require.NoError(t, buyCmd.Flags().Set("product-uid", portUID))
 	require.NoError(t, buyCmd.Flags().Set("name", ixName))
