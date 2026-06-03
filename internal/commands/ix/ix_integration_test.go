@@ -123,10 +123,21 @@ func integrationDeletePortCmd() *cobra.Command {
 	return cmd
 }
 
+func integrationGetIXCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "get"}
+	cmd.Flags().Bool("export", false, "")
+	return cmd
+}
+
+func integrationStatusIXCmd() *cobra.Command {
+	return &cobra.Command{Use: "status"}
+}
+
 // TestIntegration_IXListAndGet is a fast read-only smoke test against staging.
 func TestIntegration_IXListAndGet(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
 	defer testutil.LoginWithClient(t, client)()
+	t.Cleanup(func() { output.SetOutputFormat("table") })
 
 	var listErr error
 	listOut := output.CaptureOutput(func() {
@@ -146,12 +157,9 @@ func TestIntegration_IXListAndGet(t *testing.T) {
 	uid, ok := first["uid"].(string)
 	require.True(t, ok && uid != "", "uid must be a non-empty string")
 
-	getCmd := &cobra.Command{Use: "get"}
-	getCmd.Flags().Bool("export", false, "")
-
 	var getErr error
 	getOut := output.CaptureOutput(func() {
-		getErr = GetIX(getCmd, []string{uid}, true, "json")
+		getErr = GetIX(integrationGetIXCmd(), []string{uid}, true, "json")
 	})
 	require.NoError(t, getErr)
 
@@ -166,9 +174,13 @@ func TestIntegration_IXListAndGet(t *testing.T) {
 
 // TestIntegration_IXLifecycle exercises the full create → get → status → update → delete path.
 // It skips when no active IXs exist on staging (needed to discover a valid network-service-type).
+// Expected runtime: up to ~25 minutes (two provisioning waits of up to 10 min each).
 func TestIntegration_IXLifecycle(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
 	defer testutil.LoginWithClient(t, client)()
+	// Ensure table format so PrintResourceCreated writes to stdout, not stderr.
+	output.SetOutputFormat("table")
+	t.Cleanup(func() { output.SetOutputFormat("table") })
 
 	// Discover a valid IX network-service-type and location from existing active IXs.
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
@@ -248,11 +260,9 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	})
 
 	// Verify IX fields via GetIX.
-	getCmd := &cobra.Command{Use: "get"}
-	getCmd.Flags().Bool("export", false, "")
 	var getErr error
 	getOut := output.CaptureOutput(func() {
-		getErr = GetIX(getCmd, []string{ixUID}, true, "json")
+		getErr = GetIX(integrationGetIXCmd(), []string{ixUID}, true, "json")
 	})
 	require.NoError(t, getErr)
 
@@ -266,10 +276,9 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 
 	// Status as a sub-test to avoid an extra IX.
 	t.Run("Status", func(t *testing.T) {
-		statusCmd := &cobra.Command{Use: "status"}
 		var statusErr error
 		statusOut := output.CaptureOutput(func() {
-			statusErr = GetIXStatus(statusCmd, []string{ixUID}, true, "json")
+			statusErr = GetIXStatus(integrationStatusIXCmd(), []string{ixUID}, true, "json")
 		})
 		require.NoError(t, statusErr)
 
@@ -291,11 +300,9 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	require.NoError(t, updateErr)
 
 	// Verify the name was updated.
-	getCmd2 := &cobra.Command{Use: "get"}
-	getCmd2.Flags().Bool("export", false, "")
 	var getErr2 error
 	getOut2 := output.CaptureOutput(func() {
-		getErr2 = GetIX(getCmd2, []string{ixUID}, true, "json")
+		getErr2 = GetIX(integrationGetIXCmd(), []string{ixUID}, true, "json")
 	})
 	require.NoError(t, getErr2)
 
