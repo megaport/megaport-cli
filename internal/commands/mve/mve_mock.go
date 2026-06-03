@@ -15,6 +15,7 @@ type MockMVEService struct {
 	BuyMVENilResp                        bool
 	BuyMVEResult                         *megaport.BuyMVEResponse
 	DeleteMVEErr                         error
+	DeleteMVENilResp                     bool
 	DeleteMVEResult                      *megaport.DeleteMVEResponse
 	CapturedDeleteMVERequest             *megaport.DeleteMVERequest
 	ModifyMVEErr                         error
@@ -86,6 +87,9 @@ func (m *MockMVEService) ValidateMVEOrder(ctx context.Context, req *megaport.Buy
 
 func (m *MockMVEService) DeleteMVE(ctx context.Context, req *megaport.DeleteMVERequest) (*megaport.DeleteMVEResponse, error) {
 	m.CapturedDeleteMVERequest = req
+	if m.DeleteMVENilResp {
+		return nil, nil
+	}
 	if m.DeleteMVEErr != nil {
 		return nil, m.DeleteMVEErr
 	}
@@ -153,6 +157,7 @@ func (m *MockMVEService) Reset() {
 	m.ListMVEsErr = nil
 	m.BuyMVEErr = nil
 	m.BuyMVENilResp = false
+	m.DeleteMVENilResp = false
 	m.DeleteMVEErr = nil
 	m.ModifyMVEErr = nil
 	m.ValidateMVEOrderErr = nil

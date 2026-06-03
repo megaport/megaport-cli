@@ -245,6 +245,11 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	if resp == nil {
+		output.PrintError("MCR update returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
+	}
+
 	if !resp.IsUpdated {
 		output.PrintError("MCR update request was not successful", noColor)
 		return fmt.Errorf("MCR update request was not successful")

@@ -520,6 +520,14 @@ func TestDeleteMVE(t *testing.T) {
 			forceFlag:      true,
 			expectedOutput: "MVE deleted mve-uid",
 		},
+		{
+			name: "nil response from API",
+			mockSetup: func(m *MockMVEService) {
+				m.DeleteMVENilResp = true
+			},
+			forceFlag:     true,
+			expectedError: "empty response from API",
+		},
 	}
 
 	for _, tt := range tests {
