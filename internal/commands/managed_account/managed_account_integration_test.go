@@ -4,6 +4,7 @@ package managed_account
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -32,7 +33,13 @@ func TestIntegration_ListManagedAccounts(t *testing.T) {
 		err = ListManagedAccounts(cmd, nil, true, "json")
 	})
 
-	require.NoError(t, err)
+	if err != nil {
+		if strings.Contains(err.Error(), "not configured to create managed companies") ||
+			strings.Contains(err.Error(), "403") {
+			t.Skip("staging account not configured for managed companies — skipping")
+		}
+		require.NoError(t, err)
+	}
 
 	// An empty result with json format produces no output — that's acceptable for
 	// staging accounts that have no managed accounts configured.
@@ -59,7 +66,13 @@ func TestIntegration_GetManagedAccount(t *testing.T) {
 	listOut := output.CaptureOutput(func() {
 		listErr = ListManagedAccounts(listCmd, nil, true, "json")
 	})
-	require.NoError(t, listErr)
+	if listErr != nil {
+		if strings.Contains(listErr.Error(), "not configured to create managed companies") ||
+			strings.Contains(listErr.Error(), "403") {
+			t.Skip("staging account not configured for managed companies — skipping")
+		}
+		require.NoError(t, listErr)
+	}
 
 	if listOut == "" {
 		t.Skip("no managed accounts on staging to test GetManagedAccount")
