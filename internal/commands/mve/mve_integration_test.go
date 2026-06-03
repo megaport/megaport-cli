@@ -13,6 +13,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/testutil"
+	"github.com/megaport/megaport-cli/internal/validation"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -118,14 +119,17 @@ func discoverArubaImage(t *testing.T) discoveredImage {
 }
 
 // productSize picks a size the image supports, preferring MEDIUM.
+// It normalizes label-format strings (e.g. "MVE 4/16") to their programmatic
+// equivalents (e.g. "MEDIUM") so the value is valid for the buy command.
 func (d discoveredImage) productSize() string {
 	for _, s := range d.AvailableSizes {
-		if strings.EqualFold(s, "MEDIUM") {
+		normalized := validation.NormalizeMVEProductSize(strings.ToUpper(s))
+		if normalized == "MEDIUM" {
 			return "MEDIUM"
 		}
 	}
 	if len(d.AvailableSizes) > 0 {
-		return d.AvailableSizes[0]
+		return validation.NormalizeMVEProductSize(strings.ToUpper(d.AvailableSizes[0]))
 	}
 	return "MEDIUM"
 }
