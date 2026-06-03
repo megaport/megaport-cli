@@ -227,11 +227,12 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	require.NoError(t, portErr, "failed to create test port")
 
 	portUID, ok := extractCreatedUID(portOut, "Port")
-	// Port cleanup runs last (registered first — t.Cleanup is LIFO). Registered
-	// before the assertion so any created port is cleaned up even if UID
-	// extraction fails.
+
+	// Port cleanup runs last (registered first — t.Cleanup is LIFO).
+	// Registered before require.True so it runs even if UID extraction fails.
 	t.Cleanup(func() {
 		if portUID == "" {
+			t.Errorf("cleanup: port UID is empty, staged port may have been leaked")
 			return
 		}
 		output.SetOutputFormat("table")
@@ -246,6 +247,8 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 			}
 		})
 	})
+	require.True(t, ok, "could not extract port UID from output:\n%s", portOut)
+
 	require.True(t, ok, "could not extract port UID from output:\n%s", portOut)
 
 	// Buy the IX.
@@ -273,10 +276,12 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 	}
 
 	ixUID, ok := extractCreatedUID(buyOut, "IX")
-	// IX cleanup runs first (registered second — LIFO). Registered before the
-	// assertion so any created IX is cleaned up even if UID extraction fails.
+
+	// IX cleanup runs first (registered second — LIFO).
+	// Registered before require.True so it runs even if UID extraction fails.
 	t.Cleanup(func() {
 		if ixUID == "" {
+			t.Errorf("cleanup: IX UID is empty, staged IX may have been leaked")
 			return
 		}
 		output.SetOutputFormat("table")
@@ -291,6 +296,8 @@ func TestIntegration_IXLifecycle(t *testing.T) {
 			}
 		})
 	})
+	require.True(t, ok, "could not extract IX UID from buy output:\n%s", buyOut)
+
 	require.True(t, ok, "could not extract IX UID from buy output:\n%s", buyOut)
 
 	// Verify IX fields via GetIX.
