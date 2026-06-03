@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 var (
@@ -55,7 +56,11 @@ func NewConfigManager() (*ConfigManager, error) {
 	var config ConfigFile
 	err = json.Unmarshal(configData, &config)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Config file is corrupted, creating a new default config\n")
+		backupPath := configPath + ".corrupt-" + time.Now().Format("20060102-150405")
+		if renameErr := os.Rename(configPath, backupPath); renameErr != nil {
+			return nil, fmt.Errorf("config file is corrupted and could not be preserved: %w", renameErr)
+		}
+		fmt.Fprintf(os.Stderr, "Warning: Config file is corrupted. Original preserved at %s\n", backupPath)
 		config = ConfigFile{
 			Version:       ConfigVersion,
 			ActiveProfile: "",

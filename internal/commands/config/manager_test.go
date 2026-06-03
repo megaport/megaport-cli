@@ -359,7 +359,8 @@ func TestCorruptedConfigFile(t *testing.T) {
 
 	configPath, err := GetConfigFilePath()
 	require.NoError(t, err)
-	err = os.WriteFile(configPath, []byte("{this is not valid json"), 0644)
+	corruptContent := []byte("{this is not valid json")
+	err = os.WriteFile(configPath, corruptContent, 0644)
 	require.NoError(t, err)
 
 	manager, err = NewConfigManager()
@@ -367,10 +368,52 @@ func TestCorruptedConfigFile(t *testing.T) {
 
 	profiles, err := manager.ListProfiles()
 	require.NoError(t, err)
-	assert.Empty(t, profiles, "Corrupted config should be replaced with default empty config")
+	assert.Empty(t, profiles, "New config after recovery should have empty profiles")
+
+	// The corrupt file must be preserved, not destroyed in place
+	matches, err := filepath.Glob(configPath + ".corrupt-*")
+	require.NoError(t, err)
+	require.Len(t, matches, 1, "Corrupt config should be preserved with a .corrupt- suffix")
+
+	preserved, err := os.ReadFile(matches[0])
+	require.NoError(t, err)
+	assert.Equal(t, corruptContent, preserved, "Preserved file should contain the original corrupt bytes")
 
 	err = manager.CreateProfile("new-profile", "access123", "secret123", "production", "")
 	require.NoError(t, err)
+}
+
+func TestCorruptedConfigFilePreservesOriginal(t *testing.T) {
+	setupTestConfig(t)
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+	err = manager.CreateProfile("my-profile", "AKIATEST123", "secretXYZ456", "production", "")
+	require.NoError(t, err)
+
+	configPath, err := GetConfigFilePath()
+	require.NoError(t, err)
+
+	// Append garbage to the valid config so unmarshal fails but the profile data is still present
+	original, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	corrupt := append(original, []byte(" *** CORRUPT ***")...)
+	err = os.WriteFile(configPath, corrupt, 0600)
+	require.NoError(t, err)
+
+	_, err = NewConfigManager()
+	require.NoError(t, err)
+
+	// Backup must exist and still contain the original profile data
+	matches, err := filepath.Glob(configPath + ".corrupt-*")
+	require.NoError(t, err)
+	require.Len(t, matches, 1, "Expected exactly one .corrupt- backup file")
+
+	preserved, err := os.ReadFile(matches[0])
+	require.NoError(t, err)
+	assert.Contains(t, string(preserved), "AKIATEST123", "Backup should contain original access key")
+	assert.Contains(t, string(preserved), "secretXYZ456", "Backup should contain original secret key")
+	assert.Contains(t, string(preserved), "my-profile", "Backup should contain original profile name")
 }
 
 func TestCorruptedConfigFile_Permissions(t *testing.T) {
