@@ -523,7 +523,7 @@ func TestCreateProfile_CMD(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		// Create same profile again — should overwrite
+		// Creating the same profile name again should now fail fast before prompting
 		cmd2, _ := setupTestCmd()
 		cmd2.Flags().String("access-key", "", "")
 		cmd2.Flags().String("secret-key", "", "")
@@ -540,18 +540,19 @@ func TestCreateProfile_CMD(t *testing.T) {
 		_, err = captureOutputFromAction(func() error {
 			return CreateProfile(cmd2, []string{"dup-profile"}, false)
 		})
-		require.NoError(t, err)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "already exists")
 
-		// Verify overwritten values
+		// Verify original profile is unchanged
 		manager, err := NewConfigManager()
 		require.NoError(t, err)
 		profiles, err := manager.ListProfiles()
 		require.NoError(t, err)
 		profile := profiles["dup-profile"]
-		assert.Equal(t, "key2", profile.AccessKey)
-		assert.Equal(t, "secret2", profile.SecretKey)
-		assert.Equal(t, "staging", profile.Environment)
-		assert.Equal(t, "Second", profile.Description)
+		assert.Equal(t, "key1", profile.AccessKey)
+		assert.Equal(t, "secret1", profile.SecretKey)
+		assert.Equal(t, "production", profile.Environment)
+		assert.Equal(t, "First", profile.Description)
 	})
 }
 

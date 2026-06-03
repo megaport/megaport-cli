@@ -39,7 +39,19 @@ func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("environment must be 'production', 'staging', or 'development'")
 	}
 
-	var err error
+	manager, err := NewConfigManager()
+	if err != nil {
+		return err
+	}
+
+	existingProfiles, err := manager.ListProfiles()
+	if err != nil {
+		return err
+	}
+	if _, exists := existingProfiles[profileName]; exists {
+		return fmt.Errorf("profile '%s' already exists", profileName)
+	}
+
 	if accessKey == "" {
 		accessKey, err = utils.SecretResourcePrompt("config", "Enter Megaport API access key: ", noColor)
 		if err != nil {
@@ -57,11 +69,6 @@ func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 		if secretKey == "" {
 			return fmt.Errorf("secret key is required")
 		}
-	}
-
-	manager, err := NewConfigManager()
-	if err != nil {
-		return err
 	}
 
 	if err := manager.CreateProfile(profileName, accessKey, secretKey, environment, description); err != nil {
