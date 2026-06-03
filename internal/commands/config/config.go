@@ -62,7 +62,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli config update-profile myprofile --environment staging").
 		WithExample("megaport-cli config update-profile myprofile --secret-key \"\"").
 		WithImportantNote("Keep your Megaport API credentials secure; they provide full account access").
-		WithImportantNote("Passing --access-key or --secret-key on the command line exposes credentials in shell history and process listings. Pass an empty value to be prompted instead (masked on a TTY; echoed on piped/non-TTY stdin).").
+		WithImportantNote("Passing --access-key or --secret-key on the command line exposes credentials in shell history and process listings. Pass an empty value to be prompted instead (masked on a TTY; read without masking on piped/non-TTY stdin).").
 		WithRootCmd(rootCmd).
 		Build()
 

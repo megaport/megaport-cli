@@ -10,7 +10,7 @@ To avoid recording the secret value in shell history, pass an empty string (e.g.
 
 ### Important Notes
   - Keep your Megaport API credentials secure; they provide full account access
-  - Passing --access-key or --secret-key on the command line exposes credentials in shell history and process listings. Pass an empty value to be prompted instead (masked on a TTY; echoed on piped/non-TTY stdin).
+  - Passing --access-key or --secret-key on the command line exposes credentials in shell history and process listings. Pass an empty value to be prompted instead (masked on a TTY; read without masking on piped/non-TTY stdin).
 
 ### Example Usage
 
