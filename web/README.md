@@ -73,6 +73,23 @@ shipping `.br`/`.gz`/identity as separate objects selected on `Accept-Encoding`.
 upload itself and the `Accept-Encoding` routing are owned by the infra/CDN tooling, not
 this repo.
 
+## Caching
+
+The wasm is content-hashed at build time (`cmd/wasmhash`) into `megaport.<hash>.wasm`,
+and `index.html` carries that hashed URL via `window.__MEGAPORT_WASM_URL__`. This only
+works if the CDN respects the right cache lifetimes, so the origin server
+(`cmd/server`) sets these and any CDN in front must preserve them:
+
+- `megaport.<hash>.wasm` (and its `.br`/`.gz` siblings): `Cache-Control: public,
+  max-age=31536000, immutable` — the hash changes when the content does, so it never
+  needs revalidating.
+- `index.html`: `no-cache` (short TTL at most) — it must be re-fetched so clients pick
+  up a new hashed wasm URL.
+- `wasm_exec.js`: `no-cache` — it is served from a fixed unhashed path, so it must
+  revalidate to stay paired with the wasm's Go runtime after a toolchain upgrade.
+
+A plain unhashed `megaport.wasm` must NOT be served immutable.
+
 ## Development
 
 The Charsm renderer uses the Charsm library (WebAssembly port of lipgloss) to provide styled terminal output in the browser.

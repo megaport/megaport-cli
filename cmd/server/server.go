@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -406,6 +407,11 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Proxy response status: %d, body size: %d bytes", resp.StatusCode, bytesCopied)
 }
 
+// hashedWasmRe matches the content-hashed wasm name wasmhash produces
+// (megaport.<16 hex>.wasm), so only that artifact is served immutable and a
+// plain megaport.wasm is not.
+var hashedWasmRe = regexp.MustCompile(`\.[0-9a-f]{16}\.wasm$`)
+
 func addCorsHeaders(fs http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Set proper MIME types
@@ -415,6 +421,16 @@ func addCorsHeaders(fs http.Handler) http.HandlerFunc {
 			w.Header().Set("Content-Type", "application/javascript")
 		} else if strings.HasSuffix(r.URL.Path, ".html") {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		}
+
+		// Cache-Control: the content-hashed wasm is safe to cache forever, but
+		// index.html (which carries the hashed URL) and wasm_exec.js (which must
+		// match the wasm's Go runtime) have to revalidate on every load.
+		switch {
+		case hashedWasmRe.MatchString(r.URL.Path):
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		case strings.HasSuffix(r.URL.Path, ".html") || strings.HasSuffix(r.URL.Path, "/wasm_exec.js"):
+			w.Header().Set("Cache-Control", "no-cache")
 		}
 
 		// CORS headers
