@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -331,23 +330,18 @@ func TestProfileOverrideLogin(t *testing.T) {
 		origBaseURL := utils.BaseURL
 		defer func() { utils.BaseURL = origBaseURL }()
 
-		var requestCount atomic.Int32
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			requestCount.Add(1)
-			w.WriteHeader(http.StatusUnauthorized)
-			_, _ = w.Write([]byte(`{"message":"unauthorized"}`))
-		}))
-		defer ts.Close()
-
 		utils.Env = "production"
 		utils.ProfileOverride = "staging"
-		utils.BaseURL = ts.URL
+		utils.BaseURL = "http://localhost:19999"
 
 		_, err := LoginWithOutput(context.Background(), "json")
+		// Credential resolution must have succeeded (no credential errors).
+		// The SDK's Authorize rejects unknown hosts, proving the custom base
+		// URL was applied rather than the env/profile environment.
 		assert.Error(t, err)
 		assert.NotContains(t, err.Error(), "access key not provided")
 		assert.NotContains(t, err.Error(), "secret key not provided")
-		assert.Positive(t, requestCount.Load(), "expected at least one request to reach the test server")
+		assert.Contains(t, err.Error(), "unknown API environment")
 	})
 
 	t.Run("no profile and no env vars returns credential error", func(t *testing.T) {
