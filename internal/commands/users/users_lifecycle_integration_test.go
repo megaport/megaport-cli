@@ -41,21 +41,6 @@ func newCreateUserCmd() *cobra.Command {
 	return cmd
 }
 
-func newUpdateUserCmd() *cobra.Command {
-	cmd := &cobra.Command{Use: "update"}
-	cmd.Flags().Bool("interactive", false, "")
-	cmd.Flags().String("json", "", "")
-	cmd.Flags().String("json-file", "", "")
-	cmd.Flags().String("first-name", "", "")
-	cmd.Flags().String("last-name", "", "")
-	cmd.Flags().String("email", "", "")
-	cmd.Flags().String("position", "", "")
-	cmd.Flags().String("phone", "", "")
-	cmd.Flags().Bool("active", false, "")
-	cmd.Flags().Bool("notification-enabled", false, "")
-	return cmd
-}
-
 func newDeleteUserCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "delete"}
 	cmd.Flags().Bool("force", false, "")
@@ -106,19 +91,22 @@ func userExistsByEmail(t *testing.T, client *megaport.Client, email string) bool
 	return false
 }
 
-// TestIntegration_UserLifecycle exercises the full create/get/update/delete path
-// of the user CLI actions against staging. The invited user is created with an
-// @example.com address (a reserved domain that never delivers mail) and is in a
-// pending-invitation state, which is the only state in which a user can be
-// deleted. A t.Cleanup safety net removes the user if the test fails before its
-// own delete step. This test carries the extra `provisioning` build tag so the
-// nightly read-only job never runs it; it runs in the manual provisioning job.
+// TestIntegration_UserLifecycle exercises the create/get/delete path of the user
+// CLI actions against staging. The invited user is created with an
+// @sink.megaport.com address (the sink domain the staging account requires; mail
+// to it is never delivered) and stays in a pending-invitation state. Update is
+// deliberately not exercised: staging rejects updates to a pending user, and a
+// test can't accept an emailed invitation. Delete, by contrast, is only allowed
+// while the invitation is pending. A t.Cleanup safety net removes the user if the
+// test fails before its own delete step. This test carries the extra
+// `provisioning` build tag so the nightly read-only job never runs it; it runs in
+// the manual provisioning job.
 func TestIntegration_UserLifecycle(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
 	defer testutil.LoginWithClient(t, client)()
 
 	suffix := uniqueSuffix(t)
-	email := fmt.Sprintf("cli-test-%s@example.com", suffix)
+	email := fmt.Sprintf("cli-test-%s@sink.megaport.com", suffix)
 	firstName := "CLITest"
 	lastName := "User-" + suffix
 
@@ -158,18 +146,6 @@ func TestIntegration_UserLifecycle(t *testing.T) {
 	require.NotEmpty(t, got)
 	assert.Equal(t, email, got[0]["email"])
 	assert.Equal(t, firstName, got[0]["first_name"])
-
-	newFirstName := "CLIUpdated"
-	updateCmd := newUpdateUserCmd()
-	require.NoError(t, updateCmd.Flags().Set("first-name", newFirstName))
-	require.NoError(t, UpdateUser(updateCmd, []string{idArg}, true), "UpdateUser failed")
-
-	updatedCtx, updatedCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	updated, err := client.UserManagementService.GetUser(updatedCtx, employeeID)
-	updatedCancel()
-	require.NoError(t, err, "SDK GetUser failed after update")
-	require.NotNil(t, updated)
-	assert.Equal(t, newFirstName, updated.FirstName, "first name should be updated")
 
 	deleteCmd := newDeleteUserCmd()
 	require.NoError(t, deleteCmd.Flags().Set("force", "true"))
