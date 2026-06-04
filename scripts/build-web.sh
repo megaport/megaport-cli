@@ -19,13 +19,9 @@ publish_dir="web/vue-demo"
 echo "==> Building Vue front end (frontend-integration -> $publish_dir)"
 (
   cd frontend-integration
-  # package-lock.json is gitignored, so npm ci (which requires a lockfile and
-  # errors out without one) won't work on a clean checkout — fall back to npm install.
-  if [ -f package-lock.json ]; then
-    npm ci --quiet
-  else
-    npm install --quiet
-  fi
+  # npm ci installs the exact versions from the committed lockfile, so the
+  # static artifact is reproducible across machines and runs.
+  npm ci --quiet
   npm run build:demo
 )
 
