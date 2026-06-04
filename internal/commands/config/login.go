@@ -199,10 +199,15 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 		return nil, fmt.Errorf("megaport API secret key not provided. Configure an active profile or set MEGAPORT_SECRET_KEY environment variable")
 	}
 
-	envOpt := environmentOption(env)
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 
-	opts := appendLogOpts([]megaport.ClientOpt{megaport.WithCredentials(accessKey, secretKey), envOpt, megaport.WithCustomHeaders(cliHeaders)})
+	baseOpts := []megaport.ClientOpt{megaport.WithCredentials(accessKey, secretKey), megaport.WithCustomHeaders(cliHeaders)}
+	if utils.BaseURL != "" {
+		baseOpts = append(baseOpts, megaport.WithBaseURL(utils.BaseURL))
+	} else {
+		baseOpts = append(baseOpts, environmentOption(env))
+	}
+	opts := appendLogOpts(baseOpts)
 	megaportClient, err := megaport.New(httpClient, opts...)
 	if err != nil {
 		return nil, err
@@ -229,14 +234,19 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 // newUnauthenticatedClientFunc creates a Megaport API client without authentication.
 // Used for public API endpoints (e.g., locations) that don't require credentials.
 var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
-	env, err := resolveEnvironment(true)
-	if err != nil {
-		return nil, err
-	}
-
-	envOpt := environmentOption(env)
 	httpClient := &http.Client{Timeout: 30 * time.Second}
-	opts := appendLogOpts([]megaport.ClientOpt{envOpt, megaport.WithCustomHeaders(cliHeaders)})
+
+	baseOpts := []megaport.ClientOpt{megaport.WithCustomHeaders(cliHeaders)}
+	if utils.BaseURL != "" {
+		baseOpts = append(baseOpts, megaport.WithBaseURL(utils.BaseURL))
+	} else {
+		env, err := resolveEnvironment(true)
+		if err != nil {
+			return nil, err
+		}
+		baseOpts = append(baseOpts, environmentOption(env))
+	}
+	opts := appendLogOpts(baseOpts)
 	return megaport.New(httpClient, opts...)
 }
 
