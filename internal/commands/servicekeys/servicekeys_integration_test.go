@@ -90,5 +90,3 @@ func TestIntegration_GetServiceKey(t *testing.T) {
 	assert.Equal(t, keyUID, got[0]["key_uid"])
 	assert.Contains(t, got[0], "product_uid")
 }
-
-// TODO: lifecycle test requires a live port as product-uid — skipping until one can be provisioned cheaply in CI.

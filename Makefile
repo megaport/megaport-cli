@@ -15,8 +15,10 @@ test-cover:
 	@rm -f coverage.out
 
 # Run integration tests against staging API (requires credentials — see docs/INTEGRATION_TESTING.md)
+# The `provisioning` tag also pulls in lifecycle tests that create and tear down
+# real staging resources (e.g. the service key test provisions a port).
 test-integration:
-	go test -tags integration -run '^TestIntegration_' -v -timeout 30m ./internal/commands/...
+	go test -tags 'integration provisioning' -run '^TestIntegration_' -v -timeout 30m ./internal/commands/...
 
 # Run only read-only integration tests — fast, no resources provisioned
 test-integration-readonly:
