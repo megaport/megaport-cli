@@ -8,7 +8,7 @@ Check if a VLAN is available on a port in the Megaport API.
 
 This command verifies whether a specific VLAN ID is available for use on a port. This is useful when planning new VXCs to ensure the VLAN ID you want to use is not already in use by another connection.
 
-VLAN ID must be between 2 and 4094 (inclusive).
+VLAN ID must be between 2 and 4093 (inclusive).
 
 ### Example Usage
 

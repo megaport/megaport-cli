@@ -9,14 +9,14 @@ Update an existing Virtual Cross Connect (VXC) through the Megaport API.
 This command allows you to update an existing VXC by providing the necessary details.
 
 ### Optional Fields
-  - `a-end-inner-vlan`: New inner VLAN for A-End (-1 or higher, only for QinQ)
+  - `a-end-inner-vlan`: New inner VLAN for A-End (0=none, -1=untagged, 2-4094 for specific VLAN (1 is reserved), only for QinQ)
   - `a-end-partner-config`: JSON string with A-End VRouter partner configuration
   - `a-end-uid`: New A-End product UID
-  - `a-end-vlan`: New VLAN for A-End (2-4093, except 4090)
-  - `b-end-inner-vlan`: New inner VLAN for B-End (-1 or higher, only for QinQ)
+  - `a-end-vlan`: New VLAN for A-End (0=auto-assign, -1=untagged, 2-4094 for specific VLAN (1 is reserved))
+  - `b-end-inner-vlan`: New inner VLAN for B-End (0=none, -1=untagged, 2-4094 for specific VLAN (1 is reserved), only for QinQ)
   - `b-end-partner-config`: JSON string with B-End VRouter partner configuration
   - `b-end-uid`: New B-End product UID
-  - `b-end-vlan`: New VLAN for B-End (2-4093, except 4090)
+  - `b-end-vlan`: New VLAN for B-End (0=auto-assign, -1=untagged, 2-4094 for specific VLAN (1 is reserved))
   - `cost-centre`: New cost centre for billing
   - `name`: New name for the VXC (1-64 characters)
   - `rate-limit`: New bandwidth in Mbps (50 - 10000)
@@ -66,17 +66,18 @@ megaport-cli vxc update [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| `--a-end-inner-vlan` |  | `0` | Inner VLAN for A-End (-1 or higher) | false |
+| `--a-end-inner-vlan` |  | `0` | Inner VLAN for A-End (0=none, -1=untagged, 2-4094 for specific VLAN (1 is reserved)) | false |
 | `--a-end-partner-config` |  |  | JSON string with A-End partner configuration | false |
 | `--a-end-uid` |  |  | UID of the A-End product | false |
-| `--a-end-vlan` |  | `0` | VLAN for A-End (0-4093, except 1) | false |
+| `--a-end-vlan` |  | `0` | VLAN for A-End (0=auto-assign, -1=untagged, 2-4094 for specific VLAN (1 is reserved)) | false |
 | `--a-vnic-index` |  | `-1` | New A-End vNIC index when moving a VXC on an MVE | false |
-| `--b-end-inner-vlan` |  | `0` | Inner VLAN for B-End (-1 or higher) | false |
+| `--b-end-inner-vlan` |  | `0` | Inner VLAN for B-End (0=none, -1=untagged, 2-4094 for specific VLAN (1 is reserved)) | false |
 | `--b-end-partner-config` |  |  | JSON string with B-End partner configuration | false |
 | `--b-end-uid` |  |  | UID of the B-End product | false |
-| `--b-end-vlan` |  | `0` | VLAN for B-End (0-4093, except 1) | false |
+| `--b-end-vlan` |  | `0` | VLAN for B-End (0=auto-assign, -1=untagged, 2-4094 for specific VLAN (1 is reserved)) | false |
 | `--b-vnic-index` |  | `-1` | New B-End vNIC index when moving a VXC on an MVE | false |
 | `--cost-centre` |  |  | Cost centre for billing | false |
+| `--generate-skeleton` |  | `false` | Print a JSON skeleton template for --json or --json-file input and exit | false |
 | `--interactive` |  | `false` | Use interactive mode | false |
 | `--is-approved` |  | `false` | Approve or reject a VXC via the Megaport Marketplace | false |
 | `--json` |  |  | JSON string containing configuration | false |

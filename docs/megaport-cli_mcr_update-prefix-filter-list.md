@@ -54,6 +54,7 @@ megaport-cli mcr update-prefix-filter-list [flags]
 | `--address-family` |  |  | Address family (IPv4 or IPv6) | false |
 | `--description` |  |  | Description of the prefix filter list | false |
 | `--entries` |  |  | JSON array of prefix filter entries | false |
+| `--generate-skeleton` |  | `false` | Print a JSON skeleton template for --json or --json-file input and exit | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |

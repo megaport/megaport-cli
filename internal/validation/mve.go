@@ -22,6 +22,25 @@ var (
 	}
 )
 
+// MVELabelToProductSize maps human-readable MVE size labels (as returned by the
+// images API in the availableSizes field) to their canonical programmatic names.
+var MVELabelToProductSize = map[string]string{
+	"MVE 2/8":   "SMALL",
+	"MVE 4/16":  "MEDIUM",
+	"MVE 8/32":  "LARGE",
+	"MVE 12/48": "X_LARGE_12",
+}
+
+// NormalizeMVEProductSize converts an MVE product size to its canonical form.
+// It accepts both programmatic names ("SMALL") and human-readable labels
+// ("MVE 2/8") as returned by the list-images API.
+func NormalizeMVEProductSize(size string) string {
+	if canonical, ok := MVELabelToProductSize[size]; ok {
+		return canonical
+	}
+	return size
+}
+
 // ValidateMVEProductSize validates the product size for an MVE (Megaport Virtual Edge) instance.
 // This function ensures the specified size is among the allowed values for MVE deployments.
 //
