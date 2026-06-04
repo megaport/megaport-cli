@@ -77,18 +77,22 @@ func employeeIDByEmail(t *testing.T, client *megaport.Client, email string) int 
 	}
 }
 
-func userExistsByEmail(t *testing.T, client *megaport.Client, email string) bool {
-	t.Helper()
+// userExistsByEmail reports whether a user with the given email is present. It
+// returns the list error rather than aborting so it is safe to call from a
+// t.Cleanup callback, where a FailNow would mask the original failure.
+func userExistsByEmail(client *megaport.Client, email string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	users, err := client.UserManagementService.ListCompanyUsers(ctx)
-	require.NoError(t, err, "SDK ListCompanyUsers failed")
+	if err != nil {
+		return false, err
+	}
 	for _, u := range users {
 		if u != nil && u.Email == email {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 // TestIntegration_UserLifecycle exercises the create/get/delete path of the user
@@ -123,8 +127,12 @@ func TestIntegration_UserLifecycle(t *testing.T) {
 
 	// Safety net: remove the user even if a later step fails. Best-effort —
 	// the happy path deletes the user itself, so this may find it already gone.
+	// On a list error we attempt the delete anyway rather than risk a leak.
 	t.Cleanup(func() {
-		if !userExistsByEmail(t, client, email) {
+		exists, err := userExistsByEmail(client, email)
+		if err != nil {
+			t.Logf("cleanup: could not list users to check %s: %v; attempting delete anyway", email, err)
+		} else if !exists {
 			return
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -151,5 +159,7 @@ func TestIntegration_UserLifecycle(t *testing.T) {
 	require.NoError(t, deleteCmd.Flags().Set("force", "true"))
 	require.NoError(t, DeleteUser(deleteCmd, []string{idArg}, true), "DeleteUser failed")
 
-	assert.False(t, userExistsByEmail(t, client, email), "user should be gone after delete")
+	stillExists, err := userExistsByEmail(client, email)
+	require.NoError(t, err, "SDK ListCompanyUsers failed")
+	assert.False(t, stillExists, "user should be gone after delete")
 }

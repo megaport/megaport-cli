@@ -20,9 +20,10 @@ test-cover:
 test-integration:
 	go test -tags 'integration provisioning' -run '^TestIntegration_' -v -timeout 30m ./internal/commands/...
 
-# Run only read-only integration tests — fast, no resources provisioned
+# Run only read-only integration tests — fast, no resources provisioned.
+# Package list mirrors the integration-readonly CI job.
 test-integration-readonly:
-	go test -tags integration -run '^TestIntegration_' -v -timeout 5m ./internal/commands/locations/...
+	go test -tags integration -run '^TestIntegration_' -v -timeout 5m ./internal/commands/locations/... ./internal/commands/partners/... ./internal/commands/servicekeys/... ./internal/commands/users/... ./internal/commands/managed_account/...
 
 # Run linter
 lint:
