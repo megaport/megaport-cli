@@ -125,10 +125,11 @@ func newUpdateServiceKeyCmd() *cobra.Command {
 }
 
 // TestIntegration_ServiceKeyLifecycle provisions a port, then exercises the full
-// create/get/update path of the service key CLI actions against it. The port and
-// any created resources are torn down in t.Cleanup. This test carries the extra
-// `provisioning` build tag so the nightly read-only job (which builds only
-// `-tags integration`) never runs it; it runs in the manual provisioning job.
+// create/get/update path of the service key CLI actions against it. Only the port
+// is torn down in t.Cleanup; service keys have no delete API and are left attached
+// to the (deleted) port. This test carries the extra `provisioning` build tag so
+// the nightly read-only job (which builds only `-tags integration`) never runs it;
+// it runs in the manual provisioning job.
 func TestIntegration_ServiceKeyLifecycle(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
 	defer testutil.LoginWithClient(t, client)()
