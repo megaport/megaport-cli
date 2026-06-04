@@ -47,26 +47,41 @@ func newDeleteUserCmd() *cobra.Command {
 	return cmd
 }
 
-// employeeIDByEmail polls the company user list for the user with the given
-// email and returns its employee ID (PartyId, falling back to PersonId — the
-// same derivation the get/list output uses). It retries briefly because a
-// freshly created user can take a moment to appear in the list.
+// findUserIDByEmail looks up the user with the given email and returns its
+// employee ID (PartyId, falling back to PersonId — the same derivation the
+// get/list output uses), with ok=false if no such user is present. It returns
+// the list error rather than aborting, so it is safe to call from a t.Cleanup
+// callback, where a FailNow would mask the original failure.
+func findUserIDByEmail(client *megaport.Client, email string) (id int, ok bool, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	users, err := client.UserManagementService.ListCompanyUsers(ctx)
+	if err != nil {
+		return 0, false, err
+	}
+	for _, u := range users {
+		if u == nil || u.Email != email {
+			continue
+		}
+		id := u.PartyId
+		if id == 0 {
+			id = u.PersonId
+		}
+		return id, true, nil
+	}
+	return 0, false, nil
+}
+
+// employeeIDByEmail polls until the user appears in the company user list and
+// returns its employee ID. It retries briefly because a freshly created user
+// can take a moment to appear.
 func employeeIDByEmail(t *testing.T, client *megaport.Client, email string) int {
 	t.Helper()
 	deadline := time.Now().Add(30 * time.Second)
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		users, err := client.UserManagementService.ListCompanyUsers(ctx)
-		cancel()
+		id, ok, err := findUserIDByEmail(client, email)
 		require.NoError(t, err, "SDK ListCompanyUsers failed")
-		for _, u := range users {
-			if u == nil || u.Email != email {
-				continue
-			}
-			id := u.PartyId
-			if id == 0 {
-				id = u.PersonId
-			}
+		if ok {
 			require.NotZerof(t, id, "user %s has no usable employee ID", email)
 			return id
 		}
@@ -75,24 +90,6 @@ func employeeIDByEmail(t *testing.T, client *megaport.Client, email string) int 
 		}
 		time.Sleep(2 * time.Second)
 	}
-}
-
-// userExistsByEmail reports whether a user with the given email is present. It
-// returns the list error rather than aborting so it is safe to call from a
-// t.Cleanup callback, where a FailNow would mask the original failure.
-func userExistsByEmail(client *megaport.Client, email string) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	users, err := client.UserManagementService.ListCompanyUsers(ctx)
-	if err != nil {
-		return false, err
-	}
-	for _, u := range users {
-		if u != nil && u.Email == email {
-			return true, nil
-		}
-	}
-	return false, nil
 }
 
 // TestIntegration_UserLifecycle exercises the create/get/delete path of the user
@@ -122,25 +119,28 @@ func TestIntegration_UserLifecycle(t *testing.T) {
 
 	require.NoError(t, CreateUser(createCmd, nil, true), "CreateUser failed")
 
-	employeeID := employeeIDByEmail(t, client, email)
-	t.Logf("created user %s with employee ID %d", email, employeeID)
-
-	// Safety net: remove the user even if a later step fails. Best-effort —
-	// the happy path deletes the user itself, so this may find it already gone.
-	// On a list error we attempt the delete anyway rather than risk a leak.
+	// Safety net registered before the ID lookup below can fail: if CreateUser
+	// succeeded but employeeIDByEmail times out, this still removes the user.
+	// It resolves the ID by email at cleanup time and is best-effort — the happy
+	// path deletes the user itself, so this often finds it already gone.
 	t.Cleanup(func() {
-		exists, err := userExistsByEmail(client, email)
+		id, ok, err := findUserIDByEmail(client, email)
 		if err != nil {
-			t.Logf("cleanup: could not list users to check %s: %v; attempting delete anyway", email, err)
-		} else if !exists {
+			t.Logf("cleanup: could not list users to find %s: %v", email, err)
+			return
+		}
+		if !ok {
 			return
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		if err := client.UserManagementService.DeleteUser(ctx, employeeID); err != nil {
-			t.Logf("cleanup: failed to delete user %d (%s): %v", employeeID, email, err)
+		if err := client.UserManagementService.DeleteUser(ctx, id); err != nil {
+			t.Logf("cleanup: failed to delete user %d (%s): %v", id, email, err)
 		}
 	})
+
+	employeeID := employeeIDByEmail(t, client, email)
+	t.Logf("created user %s with employee ID %d", email, employeeID)
 
 	idArg := strconv.Itoa(employeeID)
 
@@ -159,7 +159,7 @@ func TestIntegration_UserLifecycle(t *testing.T) {
 	require.NoError(t, deleteCmd.Flags().Set("force", "true"))
 	require.NoError(t, DeleteUser(deleteCmd, []string{idArg}, true), "DeleteUser failed")
 
-	stillExists, err := userExistsByEmail(client, email)
+	_, stillExists, err := findUserIDByEmail(client, email)
 	require.NoError(t, err, "SDK ListCompanyUsers failed")
 	assert.False(t, stillExists, "user should be gone after delete")
 }

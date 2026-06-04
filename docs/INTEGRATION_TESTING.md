@@ -62,7 +62,7 @@ This keeps them out of the nightly read-only job (which builds only `-tags integ
 Integration tests run in CI via `.github/workflows/integration-test.yml`:
 
 - **Read-only job**: runs nightly on `main` and on manual trigger, tests `locations`, `partners`, `servicekeys`, `users`, and `managed_account` (read-only `list`/`get` only). Fast, no resource cost.
-- **Provisioning job**: manual trigger only (`workflow_dispatch`), built with `-tags 'integration provisioning'`. Runs lifecycle tests for ports, VXC, MCR, MVE, IX, plus the service key and user lifecycles.
+- **Provisioning job**: manual trigger only (`workflow_dispatch`), built with `-tags 'integration provisioning'`. Runs lifecycle tests for ports, MCR, MVE, IX, plus the service key and user lifecycles. The `vxc` package is in the job's package list but has no lifecycle test yet, so nothing runs for it.
 
 ## Adding a new integration test
 
