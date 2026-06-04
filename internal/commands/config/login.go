@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -199,10 +200,16 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 		return nil, fmt.Errorf("megaport API secret key not provided. Configure an active profile or set MEGAPORT_SECRET_KEY environment variable")
 	}
 
-	envOpt := environmentOption(env)
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 
-	opts := appendLogOpts([]megaport.ClientOpt{megaport.WithCredentials(accessKey, secretKey), envOpt, megaport.WithCustomHeaders(cliHeaders)})
+	baseOpts := []megaport.ClientOpt{megaport.WithCredentials(accessKey, secretKey), megaport.WithCustomHeaders(cliHeaders)}
+	if utils.BaseURL != "" {
+		warnIfInsecureBaseURL(utils.BaseURL)
+		baseOpts = append(baseOpts, megaport.WithBaseURL(utils.BaseURL))
+	} else {
+		baseOpts = append(baseOpts, environmentOption(env))
+	}
+	opts := appendLogOpts(baseOpts)
 	megaportClient, err := megaport.New(httpClient, opts...)
 	if err != nil {
 		return nil, err
@@ -215,12 +222,13 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 		spinner.Stop()
 		return nil, err
 	} else {
-		// Capitalize the first letter of environment for display
-		envDisplay := env
-		if len(envDisplay) > 0 {
-			envDisplay = strings.ToUpper(envDisplay[:1]) + envDisplay[1:]
+		var target string
+		if utils.BaseURL != "" {
+			target = utils.BaseURL
+		} else {
+			target = strings.ToUpper(env[:1]) + env[1:]
 		}
-		spinner.StopWithSuccess(fmt.Sprintf("Successfully logged in to Megaport %s", envDisplay))
+		spinner.StopWithSuccess(fmt.Sprintf("Successfully logged in to Megaport %s", target))
 	}
 
 	return megaportClient, nil
@@ -229,15 +237,33 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 // newUnauthenticatedClientFunc creates a Megaport API client without authentication.
 // Used for public API endpoints (e.g., locations) that don't require credentials.
 var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
-	env, err := resolveEnvironment(true)
-	if err != nil {
-		return nil, err
-	}
-
-	envOpt := environmentOption(env)
 	httpClient := &http.Client{Timeout: 30 * time.Second}
-	opts := appendLogOpts([]megaport.ClientOpt{envOpt, megaport.WithCustomHeaders(cliHeaders)})
+
+	baseOpts := []megaport.ClientOpt{megaport.WithCustomHeaders(cliHeaders)}
+	if utils.BaseURL != "" {
+		baseOpts = append(baseOpts, megaport.WithBaseURL(utils.BaseURL))
+	} else {
+		env, err := resolveEnvironment(true)
+		if err != nil {
+			return nil, err
+		}
+		baseOpts = append(baseOpts, environmentOption(env))
+	}
+	opts := appendLogOpts(baseOpts)
 	return megaport.New(httpClient, opts...)
+}
+
+// warnIfInsecureBaseURL prints a warning to stderr when the --base-url scheme
+// is not HTTPS, since credentials will be sent in cleartext.
+func warnIfInsecureBaseURL(rawURL string) {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		fmt.Fprintf(os.Stderr, "Warning: invalid --base-url %q (expected an absolute URL like https://host)\n", rawURL)
+		return
+	}
+	if u.Scheme != "https" {
+		fmt.Fprintf(os.Stderr, "Warning: --base-url %q is not HTTPS; credentials will be sent in cleartext\n", rawURL)
+	}
 }
 
 // appendLogOpts appends HTTP debug logging options to the client option slice

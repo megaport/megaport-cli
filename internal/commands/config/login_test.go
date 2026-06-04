@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -322,6 +323,33 @@ func TestProfileOverrideLogin(t *testing.T) {
 		assert.NotContains(t, err.Error(), "not found")
 	})
 
+	t.Run("--base-url overrides env and profile environment", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+		origBaseURL := utils.BaseURL
+		defer func() { utils.BaseURL = origBaseURL }()
+
+		var requestCount atomic.Int32
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requestCount.Add(1)
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"message":"unauthorized"}`))
+		}))
+		defer ts.Close()
+
+		utils.Env = "production"
+		utils.ProfileOverride = "staging"
+		utils.BaseURL = ts.URL
+
+		_, err := LoginWithOutput(context.Background(), "json")
+		assert.Error(t, err)
+		assert.NotContains(t, err.Error(), "access key not provided")
+		assert.NotContains(t, err.Error(), "secret key not provided")
+		assert.Positive(t, requestCount.Load(), "expected at least one request to reach the test server")
+	})
+
 	t.Run("no profile and no env vars returns credential error", func(t *testing.T) {
 		origEnv := utils.Env
 		defer func() { utils.Env = origEnv }()
@@ -529,6 +557,24 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, client)
 		assert.Contains(t, client.BaseURL.String(), "api-mpone-dev.megaport.com")
+	})
+
+	t.Run("--base-url overrides env flag", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+		origBaseURL := utils.BaseURL
+		defer func() { utils.BaseURL = origBaseURL }()
+
+		utils.Env = "staging"
+		utils.ProfileOverride = ""
+		utils.BaseURL = "http://localhost:9999"
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "localhost:9999")
 	})
 }
 

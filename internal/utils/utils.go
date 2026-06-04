@@ -67,6 +67,9 @@ var (
 	// LogHTTP enables raw HTTP request/response logging to stderr. Set via --log-http flag.
 	LogHTTP bool
 
+	// BaseURL overrides the API base URL (e.g. http://localhost:8080). Set via --base-url flag.
+	BaseURL string
+
 	ValidFormats = []string{FormatTable, FormatJSON, FormatCSV, FormatXML, FormatGoTemplate}
 )
 
