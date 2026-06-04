@@ -72,7 +72,7 @@ func TestIntegration_ListPartners_FilterByConnectType(t *testing.T) {
 
 	for _, p := range partners {
 		ct, ok := p["connect_type"].(string)
-		assert.True(t, ok, "connect_type should be a string in result %v", p)
-		assert.True(t, strings.EqualFold("AWS", ct), "filtered results should all have connect_type AWS (case-insensitive), got %q", ct)
+		assert.Truef(t, ok, "connect_type should be a string in result %v", p)
+		assert.Truef(t, strings.EqualFold("AWS", ct), "filtered results should all have connect_type AWS (case-insensitive), got %q", ct)
 	}
 }
