@@ -32,12 +32,56 @@ func uniqueSuffix(t *testing.T) string {
 	return hex.EncodeToString(buf)
 }
 
+// findPortUIDByName looks up the port with the given name and returns its UID,
+// with ok=false if no live (non-decommissioned) port matches. It returns the
+// list error rather than aborting, so it is safe to call from a t.Cleanup
+// callback, where a FailNow would mask the original failure.
+func findPortUIDByName(client *megaport.Client, name string) (uid string, ok bool, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	ports, err := client.PortService.ListPorts(ctx)
+	if err != nil {
+		return "", false, err
+	}
+	for _, p := range ports {
+		if p == nil || p.Name != name || p.ProvisioningStatus == "DECOMMISSIONED" || p.ProvisioningStatus == "CANCELLED" {
+			continue
+		}
+		return p.UID, true, nil
+	}
+	return "", false, nil
+}
+
 // provisionPortForServiceKey buys a 1G port on staging via the SDK and registers
 // its teardown. A service key must reference an existing product (port), so the
 // lifecycle test provisions a real one and deletes it in t.Cleanup even on failure.
 func provisionPortForServiceKey(t *testing.T, client *megaport.Client) string {
 	t.Helper()
 	portName := fmt.Sprintf("CLI-Test-SvcKey-Port-%s", uniqueSuffix(t))
+
+	// Safety net registered before BuyPort: if the buy partially succeeds (e.g.
+	// the port is created but provisioning times out and BuyPort returns an
+	// error), this still removes the port. It resolves the UID by the unique
+	// name at cleanup time and is best-effort, so it is harmless when the port
+	// was never created or is already gone.
+	t.Cleanup(func() {
+		uid, ok, err := findPortUIDByName(client, portName)
+		if err != nil {
+			t.Logf("cleanup: could not list ports to find %s: %v", portName, err)
+			return
+		}
+		if !ok {
+			return
+		}
+		delCtx, delCancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer delCancel()
+		if _, err := client.PortService.DeletePort(delCtx, &megaport.DeletePortRequest{
+			PortID:    uid,
+			DeleteNow: true,
+		}); err != nil {
+			t.Errorf("cleanup: failed to delete port %s (%s): %v", uid, portName, err)
+		}
+	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
 	defer cancel()
@@ -54,17 +98,6 @@ func provisionPortForServiceKey(t *testing.T, client *megaport.Client) string {
 	require.NoError(t, err, "failed to provision port for service key test")
 	require.NotEmpty(t, resp.TechnicalServiceUIDs, "buy port returned no technical service UIDs")
 	portUID := resp.TechnicalServiceUIDs[0]
-
-	t.Cleanup(func() {
-		delCtx, delCancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer delCancel()
-		if _, err := client.PortService.DeletePort(delCtx, &megaport.DeletePortRequest{
-			PortID:    portUID,
-			DeleteNow: true,
-		}); err != nil {
-			t.Errorf("cleanup: failed to delete port %s: %v", portUID, err)
-		}
-	})
 
 	return portUID
 }
