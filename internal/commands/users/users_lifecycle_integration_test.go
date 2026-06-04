@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -60,7 +61,9 @@ func findUserIDByEmail(client *megaport.Client, email string) (id int, ok bool, 
 		return 0, false, err
 	}
 	for _, u := range users {
-		if u == nil || u.Email != email {
+		// Email match is case-insensitive: the API may normalize the
+		// local-part casing of the address we sent.
+		if u == nil || !strings.EqualFold(u.Email, email) {
 			continue
 		}
 		id := u.PartyId
@@ -107,7 +110,9 @@ func TestIntegration_UserLifecycle(t *testing.T) {
 	defer testutil.LoginWithClient(t, client)()
 
 	suffix := uniqueSuffix(t)
-	email := fmt.Sprintf("cli-test-%s@sink.megaport.com", suffix)
+	// CLI-Test- prefix matches the convention other provisioning tests use so
+	// leftover staging artifacts are easy to find.
+	email := fmt.Sprintf("CLI-Test-%s@sink.megaport.com", suffix)
 	firstName := "CLITest"
 	lastName := "User-" + suffix
 
@@ -152,7 +157,8 @@ func TestIntegration_UserLifecycle(t *testing.T) {
 	var got []map[string]interface{}
 	require.NoError(t, json.Unmarshal([]byte(getOut), &got), "get output should be valid JSON")
 	require.NotEmpty(t, got)
-	assert.Equal(t, email, got[0]["email"])
+	gotEmail, _ := got[0]["email"].(string)
+	assert.Truef(t, strings.EqualFold(email, gotEmail), "email mismatch: want %q got %q", email, gotEmail)
 	assert.Equal(t, firstName, got[0]["first_name"])
 
 	deleteCmd := newDeleteUserCmd()
