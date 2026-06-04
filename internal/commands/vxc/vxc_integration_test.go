@@ -163,33 +163,35 @@ func newUpdateVXCCmd() *cobra.Command {
 }
 
 // buyPortAndGetUID calls ports.BuyPort (which blocks until the port is LIVE)
-// then finds the created port's UID by polling ListPorts until the port
-// appears by name. Polling guards against brief eventual-consistency lag
-// between the port reaching LIVE and appearing in the list API.
+// then recovers the created port's UID from the BuyPortResponse captured by
+// the ports package's integration buy hook. Cleanup is registered immediately
+// after the buy succeeds and before the UID is asserted, so a billable port is
+// never leaked if UID recovery fails.
 func buyPortAndGetUID(t *testing.T, portName string) string {
 	t.Helper()
 	cmd := buildPortCmd(t, portName, integrationLocationID)
 	require.NoErrorf(t, ports.BuyPort(cmd, nil, true), "BuyPort failed for %q", portName)
 
-	sdkClient := testutil.SharedIntegrationClient(t)
-	deadline := time.Now().Add(30 * time.Second)
-	for {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		allPorts, err := sdkClient.PortService.ListPorts(ctx)
-		cancel()
-		require.NoErrorf(t, err, "ListPorts failed after creating port %q", portName)
-		for _, p := range allPorts {
-			if p != nil && p.Name == portName {
-				return p.UID
-			}
-		}
-		if time.Now().After(deadline) {
-			break
-		}
-		time.Sleep(2 * time.Second)
+	uid, ok := ports.IntegrationBuyPortUID(portName)
+	require.Truef(t, ok, "no port buy response captured for %q", portName)
+	registerPortCleanup(t, uid)
+	return uid
+}
+
+// vxcBuyResponseUID returns the TechnicalServiceUID captured by the init() hook
+// for the given VXC name without failing the test. ok is false if no response
+// was recorded or it carried no UID. Used to register cleanup before the
+// fail-able UID assertions in uidFromVXCBuyResponse.
+func vxcBuyResponseUID(vxcName string) (uid string, ok bool) {
+	v, loaded := integrationVXCBuyResponses.Load(vxcName)
+	if !loaded {
+		return "", false
 	}
-	t.Fatalf("port %q not found in port list after creation", portName)
-	return ""
+	resp, isResp := v.(*megaport.BuyVXCResponse)
+	if !isResp || resp.TechnicalServiceUID == "" {
+		return "", false
+	}
+	return resp.TechnicalServiceUID, true
 }
 
 // uidFromVXCBuyResponse returns the TechnicalServiceUID captured by the
@@ -205,9 +207,14 @@ func uidFromVXCBuyResponse(t *testing.T, vxcName string) string {
 }
 
 // runBuyVXC calls BuyVXC and returns the UID from the hook-captured response.
+// Cleanup is registered immediately after the buy succeeds and before the UID
+// is asserted, so a billable VXC is never leaked if UID extraction fails.
 func runBuyVXC(t *testing.T, cmd *cobra.Command, vxcName string) string {
 	t.Helper()
 	require.NoErrorf(t, BuyVXC(cmd, nil, true), "BuyVXC failed for %q", vxcName)
+	if uid, ok := vxcBuyResponseUID(vxcName); ok {
+		registerVXCCleanup(t, uid)
+	}
 	return uidFromVXCBuyResponse(t, vxcName)
 }
 
@@ -289,16 +296,13 @@ func TestIntegration_VXCPortToPortLifecycle(t *testing.T) {
 	vxcName := fmt.Sprintf("CLI-Test-VXC-%s", id)
 
 	portAUID := buyPortAndGetUID(t, portAName)
-	registerPortCleanup(t, portAUID)
 	t.Logf("Created port A: %s", portAUID)
 
 	portBUID := buyPortAndGetUID(t, portBName)
-	registerPortCleanup(t, portBUID)
 	t.Logf("Created port B: %s", portBUID)
 
 	vxcCmd := buildVXCCmd(t, vxcName, portAUID, portBUID, 100)
 	vxcUID := runBuyVXC(t, vxcCmd, vxcName)
-	registerVXCCleanup(t, vxcUID)
 	t.Logf("Created VXC: %s", vxcUID)
 
 	vxc := vxcFromSDK(t, vxcUID)
@@ -327,16 +331,13 @@ func TestIntegration_VXCVLANModificationLifecycle(t *testing.T) {
 	vxcName := fmt.Sprintf("CLI-Test-VLAN-%s", id)
 
 	portAUID := buyPortAndGetUID(t, portAName)
-	registerPortCleanup(t, portAUID)
 
 	portBUID := buyPortAndGetUID(t, portBName)
-	registerPortCleanup(t, portBUID)
 
 	vxcCmd := buildVXCCmd(t, vxcName, portAUID, portBUID, 100)
 	require.NoError(t, vxcCmd.Flags().Set("a-end-vlan", "100"))
 	require.NoError(t, vxcCmd.Flags().Set("b-end-vlan", "200"))
 	vxcUID := runBuyVXC(t, vxcCmd, vxcName)
-	registerVXCCleanup(t, vxcUID)
 	t.Logf("Created VXC: %s", vxcUID)
 
 	vxc := vxcFromSDK(t, vxcUID)
@@ -363,10 +364,8 @@ func TestIntegration_VXCJSONInputLifecycle(t *testing.T) {
 	vxcName := fmt.Sprintf("CLI-Test-VXCJ-%s", id)
 
 	portAUID := buyPortAndGetUID(t, portAName)
-	registerPortCleanup(t, portAUID)
 
 	portBUID := buyPortAndGetUID(t, portBName)
-	registerPortCleanup(t, portBUID)
 
 	buyPayload := map[string]any{
 		"portUid":   portAUID,
@@ -384,7 +383,6 @@ func TestIntegration_VXCJSONInputLifecycle(t *testing.T) {
 	require.NoError(t, vxcCmd.Flags().Set("json", string(buyJSON)))
 
 	vxcUID := runBuyVXC(t, vxcCmd, vxcName)
-	registerVXCCleanup(t, vxcUID)
 	t.Logf("Created VXC (JSON input): %s", vxcUID)
 
 	vxc := vxcFromSDK(t, vxcUID)
