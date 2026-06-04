@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -203,6 +204,7 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 
 	baseOpts := []megaport.ClientOpt{megaport.WithCredentials(accessKey, secretKey), megaport.WithCustomHeaders(cliHeaders)}
 	if utils.BaseURL != "" {
+		warnIfInsecureBaseURL(utils.BaseURL)
 		baseOpts = append(baseOpts, megaport.WithBaseURL(utils.BaseURL))
 	} else {
 		baseOpts = append(baseOpts, environmentOption(env))
@@ -248,6 +250,15 @@ var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 	}
 	opts := appendLogOpts(baseOpts)
 	return megaport.New(httpClient, opts...)
+}
+
+// warnIfInsecureBaseURL prints a warning to stderr when the --base-url scheme
+// is not HTTPS, since credentials will be sent in cleartext.
+func warnIfInsecureBaseURL(rawURL string) {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Scheme != "https" {
+		fmt.Fprintf(os.Stderr, "Warning: --base-url %q is not HTTPS; credentials will be sent in cleartext\n", rawURL)
+	}
 }
 
 // appendLogOpts appends HTTP debug logging options to the client option slice
