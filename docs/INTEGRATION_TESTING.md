@@ -47,7 +47,7 @@ Running `go test ./...` (without `-tags integration`) excludes these files entir
 
 ### The `provisioning` sub-tag
 
-Lifecycle tests that create and tear down real staging resources carry an extra `provisioning` tag alongside `integration`:
+A lifecycle test that lives in a package the nightly read-only job also runs carries an extra `provisioning` tag alongside `integration`:
 
 ```go
 //go:build integration && provisioning
@@ -55,7 +55,7 @@ Lifecycle tests that create and tear down real staging resources carry an extra 
 package servicekeys
 ```
 
-This keeps them out of the nightly read-only job (which builds only `-tags integration`) even when they live in a package the read-only job otherwise covers. For example, `servicekeys` and `users` run read-only `list`/`get` tests nightly, but their lifecycle tests provision resources (the service key test buys a port to use as its product) and only build under `-tags 'integration provisioning'` in the manual provisioning job.
+The nightly read-only job builds only `-tags integration`, so this tag keeps the mutating test out of it. It is needed only for packages that the read-only job runs — currently `servicekeys` and `users`, which have read-only `list`/`get` tests nightly but whose lifecycle tests provision resources (the service key test buys a port to use as its product). Lifecycle tests in packages the read-only job does not run (ports, VXC, MCR, MVE, IX) are excluded from nightly by package selection alone, so they stay `//go:build integration` only.
 
 ## CI
 
@@ -71,7 +71,7 @@ Integration tests run in CI via `.github/workflows/integration-test.yml`:
 3. Authenticate using one of the helpers below (see "Authentication helpers")
 4. Call action functions directly. For parallel tests, read state via `testutil.SharedIntegrationClient(t)` rather than `output.CaptureOutput` (see "Output capture and parallelism")
 5. Use `t.Cleanup()` for resource deletion (e.g. deleting staging ports/VXCs) so cleanup runs even on test failure; `defer` is fine for non-resource cleanup like restoring login state
-6. If the test creates or mutates real resources, add `&& provisioning` to the build tag and put it in its own file so the nightly read-only job skips it
+6. If the test mutates real resources *and* lives in a package the nightly read-only job runs (e.g. `servicekeys`, `users`), add `&& provisioning` to the build tag and put it in its own file so the read-only job skips it. A mutating test in a package the read-only job does not run needs only `//go:build integration` — package selection keeps it out of nightly
 7. Add the package to the provisioning job in `.github/workflows/integration-test.yml`
 
 See `internal/commands/locations/locations_integration_test.go` for a serial read-only example and `internal/commands/ports/ports_integration_test.go` for a parallel provisioning-lifecycle example.
