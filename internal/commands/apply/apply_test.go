@@ -91,7 +91,8 @@ ports:
 	assert.Equal(t, 1, mockPort.CapturedPortRequest.LocationId)
 	assert.Equal(t, 1000, mockPort.CapturedPortRequest.PortSpeed)
 	assert.Equal(t, 12, mockPort.CapturedPortRequest.Term)
-	assert.True(t, mockPort.CapturedPortRequest.WaitForProvision)
+	// Ordering no longer waits inline; apply tracks the UID then polls for readiness.
+	assert.False(t, mockPort.CapturedPortRequest.WaitForProvision)
 }
 
 func TestApplyConfig_ProvisionMCR(t *testing.T) {
@@ -815,6 +816,39 @@ vxcs:
 	// First VXC and the MCR must both be rolled back.
 	require.Equal(t, []string{"vxc-uid-mock-1"}, mockVXC.DeleteVXCCalledWith)
 	require.Equal(t, []string{"mcr-vxcroll-uid"}, mockMCR.DeleteMCRCalledWith)
+}
+
+// TestApplyConfig_RollbackOnFailure_ProvisionTimeout verifies that a resource whose
+// order succeeds but whose provision wait fails is tracked and rolled back. This is the
+// orphan window the no-wait-then-poll restructure closes: the order has placed billing
+// before provisioning completes, so the UID must already be recorded when the wait fails.
+func TestApplyConfig_RollbackOnFailure_ProvisionTimeout(t *testing.T) {
+	mockMCR := &MockMCRService{
+		BuyMCRResult: &megaport.BuyMCRResponse{TechnicalServiceUID: "mcr-provision-fail-uid"},
+		GetMCRErr:    fmt.Errorf("provisioning status check failed"),
+	}
+	defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+	cfg := `
+mcrs:
+  - name: Provision-Fail-MCR
+    location_id: 1
+    speed: 1000
+    term: 12
+`
+	f := writeTempFile(t, "config.yaml", cfg)
+	cmd := applyCmdWithRollback(f)
+
+	var err error
+	output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "provisioning status check failed")
+	// The order placed billing before provisioning completed, so the MCR must be
+	// rolled back even though it never reached a ready state.
+	require.Equal(t, []string{"mcr-provision-fail-uid"}, mockMCR.DeleteMCRCalledWith)
 }
 
 // TestApplyConfig_RollbackOnFailure_JSONMode verifies that in --output json mode with

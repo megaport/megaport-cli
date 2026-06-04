@@ -27,6 +27,13 @@ const (
 	statusError     = "error"
 )
 
+// provisionPollInterval is how often the provision-wait loop polls resource
+// status. Overridable in tests to avoid 30s sleeps.
+var provisionPollInterval = 30 * time.Second
+
+// readyStates are the provisioning states considered fully provisioned.
+var readyStates = []string{megaport.SERVICE_CONFIGURED, megaport.SERVICE_LIVE}
+
 // templateRe matches {{.type.name}} references in config values.
 var templateRe = regexp.MustCompile(`\{\{\.(\w+)\.([^}]+)\}\}`)
 
@@ -118,8 +125,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			DiversityZone:         p.DiversityZone,
 			CostCentre:            p.CostCentre,
 			ResourceTags:          p.ResourceTags,
-			WaitForProvision:      true,
-			WaitForTime:           defaultWaitTime,
+			WaitForProvision:      false,
 		}
 		if err := validation.ValidatePortRequest(req); err != nil {
 			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
@@ -148,8 +154,8 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision port %q: %w", p.Name, err))
 		}
-		createSpinner.Stop()
 		if len(resp.TechnicalServiceUIDs) == 0 {
+			createSpinner.Stop()
 			err := fmt.Errorf("API returned no UID")
 			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
 			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
@@ -157,7 +163,23 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		uid := resp.TechnicalServiceUIDs[0]
 		uids["port"][p.Name] = uid
+		// Track immediately: the order is placed and billing has started, even
+		// though provisioning has not completed. If the wait below fails, the
+		// resource must still be visible to rollback/orphan reporting.
 		created = append(created, createdResource{resType: "Port", name: p.Name, uid: uid})
+		if err := waitForProvision(ctx, "Port", p.Name, uid, func(ctx context.Context) (string, error) {
+			port, e := client.PortService.GetPort(ctx, uid)
+			if e != nil {
+				return "", e
+			}
+			return port.ProvisioningStatus, nil
+		}); err != nil {
+			createSpinner.Stop()
+			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+				fmt.Errorf("failed to provision port %q: %w", p.Name, err))
+		}
+		createSpinner.Stop()
 		results = append(results, ApplyResult{Type: "Port", Name: p.Name, UID: uid, Status: "provisioned"})
 		output.PrintResourceCreated("Port", uid, noColor)
 	}
@@ -173,8 +195,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			DiversityZone:    m.DiversityZone,
 			CostCentre:       m.CostCentre,
 			ResourceTags:     m.ResourceTags,
-			WaitForProvision: true,
-			WaitForTime:      defaultWaitTime,
+			WaitForProvision: false,
 		}
 		if err := validation.ValidateMCRRequest(req); err != nil {
 			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
@@ -203,9 +224,9 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision MCR %q: %w", m.Name, err))
 		}
-		createSpinner.Stop()
 		uid := strings.TrimSpace(resp.TechnicalServiceUID)
 		if uid == "" {
+			createSpinner.Stop()
 			err := fmt.Errorf("API returned empty UID")
 			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
 			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
@@ -213,6 +234,19 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		uids["mcr"][m.Name] = uid
 		created = append(created, createdResource{resType: "MCR", name: m.Name, uid: uid})
+		if err := waitForProvision(ctx, "MCR", m.Name, uid, func(ctx context.Context) (string, error) {
+			mcr, e := client.MCRService.GetMCR(ctx, uid)
+			if e != nil {
+				return "", e
+			}
+			return mcr.ProvisioningStatus, nil
+		}); err != nil {
+			createSpinner.Stop()
+			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+				fmt.Errorf("failed to provision MCR %q: %w", m.Name, err))
+		}
+		createSpinner.Stop()
 		results = append(results, ApplyResult{Type: "MCR", Name: m.Name, UID: uid, Status: "provisioned"})
 		output.PrintResourceCreated("MCR", uid, noColor)
 	}
@@ -239,8 +273,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			DiversityZone:    mv.DiversityZone,
 			CostCentre:       mv.CostCentre,
 			ResourceTags:     mv.ResourceTags,
-			WaitForProvision: true,
-			WaitForTime:      defaultWaitTime,
+			WaitForProvision: false,
 		}
 		if err := validation.ValidateBuyMVERequest(req); err != nil {
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
@@ -269,9 +302,9 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision MVE %q: %w", mv.Name, err))
 		}
-		createSpinner.Stop()
 		uid := strings.TrimSpace(resp.TechnicalServiceUID)
 		if uid == "" {
+			createSpinner.Stop()
 			err := fmt.Errorf("API returned empty UID")
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
 			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
@@ -279,6 +312,19 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		uids["mve"][mv.Name] = uid
 		created = append(created, createdResource{resType: "MVE", name: mv.Name, uid: uid})
+		if err := waitForProvision(ctx, "MVE", mv.Name, uid, func(ctx context.Context) (string, error) {
+			m, e := client.MVEService.GetMVE(ctx, uid)
+			if e != nil {
+				return "", e
+			}
+			return m.ProvisioningStatus, nil
+		}); err != nil {
+			createSpinner.Stop()
+			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+				fmt.Errorf("failed to provision MVE %q: %w", mv.Name, err))
+		}
+		createSpinner.Stop()
 		results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, UID: uid, Status: "provisioned"})
 		output.PrintResourceCreated("MVE", uid, noColor)
 	}
@@ -312,8 +358,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			},
 			CostCentre:       v.CostCentre,
 			ResourceTags:     v.ResourceTags,
-			WaitForProvision: true,
-			WaitForTime:      defaultWaitTime,
+			WaitForProvision: false,
 		}
 		if err := validation.ValidateVXCRequest(req); err != nil {
 			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
@@ -342,9 +387,9 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision VXC %q: %w", v.Name, err))
 		}
-		createSpinner.Stop()
 		uid := strings.TrimSpace(resp.TechnicalServiceUID)
 		if uid == "" {
+			createSpinner.Stop()
 			err := fmt.Errorf("API returned empty UID")
 			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
 			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
@@ -352,6 +397,19 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		uids["vxc"][v.Name] = uid
 		created = append(created, createdResource{resType: "VXC", name: v.Name, uid: uid})
+		if err := waitForProvision(ctx, "VXC", v.Name, uid, func(ctx context.Context) (string, error) {
+			vxc, e := client.VXCService.GetVXC(ctx, uid)
+			if e != nil {
+				return "", e
+			}
+			return vxc.ProvisioningStatus, nil
+		}); err != nil {
+			createSpinner.Stop()
+			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
+			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+				fmt.Errorf("failed to provision VXC %q: %w", v.Name, err))
+		}
+		createSpinner.Stop()
 		results = append(results, ApplyResult{Type: "VXC", Name: v.Name, UID: uid, Status: "provisioned"})
 		output.PrintResourceCreated("VXC", uid, noColor)
 	}
@@ -424,6 +482,42 @@ func doRollback(ctx context.Context, client *megaport.Client, created []createdR
 		return fmt.Errorf("%w; %s", failErr, strings.Join(rollbackResults, "; "))
 	}
 	return failErr
+}
+
+// waitForProvision polls getStatus until the resource reaches a ready state,
+// defaultWaitTime elapses, ctx is cancelled, or getStatus returns an error.
+// The order has already been placed by the time this runs, so the caller must
+// have recorded the resource as created before calling this.
+func waitForProvision(ctx context.Context, resType, name, uid string, getStatus func(ctx context.Context) (string, error)) error {
+	check := func() (bool, error) {
+		status, err := getStatus(ctx)
+		if err != nil {
+			return false, err
+		}
+		return slices.Contains(readyStates, status), nil
+	}
+
+	if ready, err := check(); err != nil || ready {
+		return err
+	}
+
+	ticker := time.NewTicker(provisionPollInterval)
+	defer ticker.Stop()
+	timer := time.NewTimer(defaultWaitTime)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context expired waiting for %s %q (%s) to provision: %w", resType, name, uid, ctx.Err())
+		case <-timer.C:
+			return fmt.Errorf("time expired waiting for %s %q (%s) to provision", resType, name, uid)
+		case <-ticker.C:
+			if ready, err := check(); err != nil || ready {
+				return err
+			}
+		}
+	}
 }
 
 // deleteResource deletes a single provisioned resource via the appropriate service client.
