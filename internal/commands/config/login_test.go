@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -330,7 +331,9 @@ func TestProfileOverrideLogin(t *testing.T) {
 		origBaseURL := utils.BaseURL
 		defer func() { utils.BaseURL = origBaseURL }()
 
+		var requestCount atomic.Int32
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requestCount.Add(1)
 			w.WriteHeader(http.StatusUnauthorized)
 			_, _ = w.Write([]byte(`{"message":"unauthorized"}`))
 		}))
@@ -341,12 +344,10 @@ func TestProfileOverrideLogin(t *testing.T) {
 		utils.BaseURL = ts.URL
 
 		_, err := LoginWithOutput(context.Background(), "json")
-		// The call must reach the test server (not production/staging) — a
-		// credential error means it never made a network request, so fail if we
-		// see one.
 		assert.Error(t, err)
 		assert.NotContains(t, err.Error(), "access key not provided")
 		assert.NotContains(t, err.Error(), "secret key not provided")
+		assert.Positive(t, requestCount.Load(), "expected at least one request to reach the test server")
 	})
 
 	t.Run("no profile and no env vars returns credential error", func(t *testing.T) {

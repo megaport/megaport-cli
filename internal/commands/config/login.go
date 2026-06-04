@@ -222,12 +222,13 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 		spinner.Stop()
 		return nil, err
 	} else {
-		// Capitalize the first letter of environment for display
-		envDisplay := env
-		if len(envDisplay) > 0 {
-			envDisplay = strings.ToUpper(envDisplay[:1]) + envDisplay[1:]
+		var target string
+		if utils.BaseURL != "" {
+			target = utils.BaseURL
+		} else {
+			target = strings.ToUpper(env[:1]) + env[1:]
 		}
-		spinner.StopWithSuccess(fmt.Sprintf("Successfully logged in to Megaport %s", envDisplay))
+		spinner.StopWithSuccess(fmt.Sprintf("Successfully logged in to Megaport %s", target))
 	}
 
 	return megaportClient, nil
@@ -256,7 +257,11 @@ var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 // is not HTTPS, since credentials will be sent in cleartext.
 func warnIfInsecureBaseURL(rawURL string) {
 	u, err := url.Parse(rawURL)
-	if err != nil || u.Scheme != "https" {
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		fmt.Fprintf(os.Stderr, "Warning: invalid --base-url %q (expected an absolute URL like https://host)\n", rawURL)
+		return
+	}
+	if u.Scheme != "https" {
 		fmt.Fprintf(os.Stderr, "Warning: --base-url %q is not HTTPS; credentials will be sent in cleartext\n", rawURL)
 	}
 }

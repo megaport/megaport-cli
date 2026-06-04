@@ -99,7 +99,7 @@ func InitializeCommon() {
 	rootCmd.PersistentFlags().BoolVar(&utils.NoRetry, "no-retry", false, "Disable automatic retry on transient API failures")
 	rootCmd.PersistentFlags().IntVar(&utils.MaxRetries, "max-retries", 3, "Maximum number of retries for transient API failures")
 	rootCmd.PersistentFlags().BoolVar(&utils.LogHTTP, "log-http", false, "Log raw HTTP requests/responses to stderr for debugging (may include sensitive data such as auth tokens)")
-	rootCmd.PersistentFlags().StringVar(&utils.BaseURL, "base-url", "", "Override the API base URL (e.g. http://localhost:8080); takes precedence over --env")
+	rootCmd.PersistentFlags().StringVar(&utils.BaseURL, "base-url", "", "Override the API base URL (e.g. http://localhost:8080); takes precedence over --env and any profile environment")
 	rootCmd.PersistentFlags().BoolVar(&noHeader, "no-header", false, "Suppress table and CSV column headers (useful for scripting)")
 	rootCmd.PersistentFlags().BoolVar(&noPager, "no-pager", false, "Disable pager for long table output")
 	rootCmd.MarkFlagsMutuallyExclusive("quiet", "verbose")
