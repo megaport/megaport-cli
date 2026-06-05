@@ -595,6 +595,48 @@ func TestBaseURLWithTokenURL(t *testing.T) {
 		assert.Contains(t, client.BaseURL.String(), ts.Listener.Addr().String())
 	})
 
+	t.Run("--token-url without --base-url warns and still applies the override", func(t *testing.T) {
+		var tokenEndpointHit bool
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/oauth2/token" {
+				tokenEndpointHit = true
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = fmt.Fprint(w, `{"access_token":"test-token","token_type":"Bearer","expires_in":3600}`)
+				return
+			}
+			http.NotFound(w, r)
+		}))
+		defer ts.Close()
+
+		t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+		t.Setenv("MEGAPORT_ACCESS_KEY", "test-key")
+		t.Setenv("MEGAPORT_SECRET_KEY", "test-secret")
+		t.Setenv("MEGAPORT_ENVIRONMENT", "staging")
+
+		utils.BaseURL = ""
+		utils.TokenURL = ts.URL + "/oauth2/token"
+		utils.Env = "staging"
+		utils.ProfileOverride = ""
+
+		// Capture stderr to verify the warning is emitted.
+		origStderr := os.Stderr
+		r, w, _ := os.Pipe()
+		os.Stderr = w
+
+		client, loginErr := LoginWithOutput(context.Background(), "")
+
+		w.Close()
+		os.Stderr = origStderr
+		var stderrBuf bytes.Buffer
+		_, _ = stderrBuf.ReadFrom(r)
+		stderrOut := stderrBuf.String()
+
+		assert.NoError(t, loginErr)
+		assert.NotNil(t, client)
+		assert.True(t, tokenEndpointHit, "token endpoint should have been called")
+		assert.Contains(t, stderrOut, "--token-url is set without --base-url")
+	})
+
 	t.Run("--base-url without --token-url fails with unknown environment", func(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
