@@ -322,12 +322,6 @@ func TestProfileOverrideLogin(t *testing.T) {
 		assert.NotContains(t, err.Error(), "not found")
 	})
 
-	// The authenticated path's --base-url branch is structurally identical to
-	// the unauthenticated path, which is covered in TestNewUnauthenticatedClient.
-	// We can't assert end-to-end auth against a custom host here because the SDK's
-	// Authorize rejects unknown hosts before making a request; real coverage will
-	// come once --base-url is paired with token injection via WithTokenProvider.
-
 	t.Run("no profile and no env vars returns credential error", func(t *testing.T) {
 		origEnv := utils.Env
 		defer func() { utils.Env = origEnv }()
@@ -553,6 +547,72 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, client)
 		assert.Contains(t, client.BaseURL.String(), "localhost:9999")
+	})
+}
+
+func TestBaseURLWithTokenURL(t *testing.T) {
+	origBaseURL := utils.BaseURL
+	origTokenURL := utils.TokenURL
+	origEnv := utils.Env
+	origProfile := utils.ProfileOverride
+	defer func() {
+		utils.BaseURL = origBaseURL
+		utils.TokenURL = origTokenURL
+		utils.Env = origEnv
+		utils.ProfileOverride = origProfile
+	}()
+
+	tempDir, err := os.MkdirTemp("", "megaport-baseurl-auth-test")
+	assert.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
+
+	t.Run("authenticated login succeeds with --base-url and --token-url", func(t *testing.T) {
+		var tokenEndpointHit bool
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/oauth2/token" {
+				tokenEndpointHit = true
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = fmt.Fprint(w, `{"access_token":"test-token","token_type":"Bearer","expires_in":3600}`)
+				return
+			}
+			http.NotFound(w, r)
+		}))
+		defer ts.Close()
+
+		t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+		t.Setenv("MEGAPORT_ACCESS_KEY", "test-key")
+		t.Setenv("MEGAPORT_SECRET_KEY", "test-secret")
+
+		utils.BaseURL = ts.URL
+		utils.TokenURL = ts.URL + "/oauth2/token"
+		utils.Env = ""
+		utils.ProfileOverride = ""
+
+		client, err := LoginWithOutput(context.Background(), "")
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.True(t, tokenEndpointHit, "token endpoint should have been called")
+		assert.Contains(t, client.BaseURL.String(), ts.Listener.Addr().String())
+	})
+
+	t.Run("--base-url without --token-url fails with unknown environment", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer ts.Close()
+
+		t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+		t.Setenv("MEGAPORT_ACCESS_KEY", "test-key")
+		t.Setenv("MEGAPORT_SECRET_KEY", "test-secret")
+
+		utils.BaseURL = ts.URL
+		utils.TokenURL = ""
+		utils.Env = ""
+		utils.ProfileOverride = ""
+
+		_, err := LoginWithOutput(context.Background(), "")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown API environment")
 	})
 }
 

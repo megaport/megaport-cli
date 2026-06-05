@@ -209,6 +209,9 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 	} else {
 		baseOpts = append(baseOpts, environmentOption(env))
 	}
+	if utils.TokenURL != "" {
+		baseOpts = append(baseOpts, megaport.WithTokenURL(utils.TokenURL))
+	}
 	opts := appendLogOpts(baseOpts)
 	megaportClient, err := megaport.New(httpClient, opts...)
 	if err != nil {
