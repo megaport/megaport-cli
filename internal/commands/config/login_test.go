@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -567,10 +568,10 @@ func TestBaseURLWithTokenURL(t *testing.T) {
 	t.Cleanup(func() { os.RemoveAll(tempDir) })
 
 	t.Run("authenticated login succeeds with --base-url and --token-url", func(t *testing.T) {
-		var tokenEndpointHit bool
+		var tokenEndpointHit atomic.Bool
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/oauth2/token" {
-				tokenEndpointHit = true
+				tokenEndpointHit.Store(true)
 				w.Header().Set("Content-Type", "application/json")
 				_, _ = fmt.Fprint(w, `{"access_token":"test-token","token_type":"Bearer","expires_in":3600}`)
 				return
@@ -591,15 +592,13 @@ func TestBaseURLWithTokenURL(t *testing.T) {
 		client, err := LoginWithOutput(context.Background(), "")
 		assert.NoError(t, err)
 		assert.NotNil(t, client)
-		assert.True(t, tokenEndpointHit, "token endpoint should have been called")
+		assert.True(t, tokenEndpointHit.Load(), "token endpoint should have been called")
 		assert.Contains(t, client.BaseURL.String(), ts.Listener.Addr().String())
 	})
 
 	t.Run("--token-url without --base-url warns and still applies the override", func(t *testing.T) {
-		var tokenEndpointHit bool
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/oauth2/token" {
-				tokenEndpointHit = true
 				w.Header().Set("Content-Type", "application/json")
 				_, _ = fmt.Fprint(w, `{"access_token":"test-token","token_type":"Bearer","expires_in":3600}`)
 				return
@@ -620,21 +619,21 @@ func TestBaseURLWithTokenURL(t *testing.T) {
 
 		// Capture stderr to verify the warning is emitted.
 		origStderr := os.Stderr
-		r, w, _ := os.Pipe()
-		os.Stderr = w
+		pr, pw, err := os.Pipe()
+		assert.NoError(t, err)
+		os.Stderr = pw
 
 		client, loginErr := LoginWithOutput(context.Background(), "")
 
-		w.Close()
+		pw.Close()
 		os.Stderr = origStderr
 		var stderrBuf bytes.Buffer
-		_, _ = stderrBuf.ReadFrom(r)
-		stderrOut := stderrBuf.String()
+		_, _ = stderrBuf.ReadFrom(pr)
+		pr.Close()
 
 		assert.NoError(t, loginErr)
 		assert.NotNil(t, client)
-		assert.True(t, tokenEndpointHit, "token endpoint should have been called")
-		assert.Contains(t, stderrOut, "--token-url is set without --base-url")
+		assert.Contains(t, stderrBuf.String(), "--token-url is set without --base-url")
 	})
 
 	t.Run("--base-url without --token-url fails with unknown environment", func(t *testing.T) {
