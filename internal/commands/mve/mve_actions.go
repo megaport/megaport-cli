@@ -207,6 +207,11 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	if resp == nil {
+		output.PrintError("MVE buy returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
+	}
+
 	output.PrintResourceCreated("MVE", resp.TechnicalServiceUID, noColor)
 	return nil
 }
@@ -318,6 +323,11 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	if err != nil {
 		output.PrintError("Failed to update MVE: %v", noColor, err)
 		return err
+	}
+
+	if resp == nil {
+		output.PrintError("MVE update returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
 	}
 
 	if !resp.MVEUpdated {
@@ -537,6 +547,11 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		err = utils.WrapAPIError(err, "MVE", mveUID)
 		output.PrintError("Failed to delete MVE: %v", noColor, err)
 		return fmt.Errorf("failed to delete MVE: %w", err)
+	}
+
+	if resp == nil {
+		output.PrintError("MVE delete returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
 	}
 
 	// MVEs always delete immediately (SDK hardcodes DeleteNow: true).
