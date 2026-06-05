@@ -2,8 +2,8 @@
 
 [![codecov](https://codecov.io/gh/megaport/megaport-cli/branch/main/graph/badge.svg)](https://codecov.io/gh/megaport/megaport-cli)
 
-> [!CAUTION]
-> The Megaport CLI tool is currently an unsupported alpha, we're excited for feedback but please know that functionality and features may change drastically, and there may be bugs.
+> [!NOTE]
+> The Megaport CLI is currently in alpha, with a beta release coming soon. We're excited for feedback, but please know that functionality and features may still change and there may be bugs.
 
 ## Table of Contents
 
@@ -244,12 +244,24 @@ Key architectural components:
 - `mve`: Manage Megaport Virtual Edge instances
 - `vxc`: Manage Virtual Cross Connects
 - `ix`: Manage Internet Exchange connections
+- `nat-gateway`: Manage NAT Gateways
 - `partners`: List and search partner ports
+- `product`: List products and look up product types by UID
 - `servicekeys`: Manage service keys
 - `users`: Manage company users
 - `managed-account`: Manage partner managed accounts (sub-companies)
 - `billing-market`: View and configure billing market details
 - `status`: Show a dashboard of all resources
+- `topology`: Show a tree of resources and their VXC connections
+- `apply`: Provision multiple resources from a declarative YAML or JSON config
+
+### Authentication & Configuration
+
+- `auth status` / `whoami`: Display the currently authenticated identity
+- `config`: Manage credential profiles and default settings
+- `completion`: Generate shell completion scripts
+- `generate-docs`: Generate Markdown documentation for the CLI
+- `version`: Print the CLI version
 
 ### Output Formats
 
@@ -259,6 +271,7 @@ All commands support multiple output formats:
 - `--output json`
 - `--output csv`
 - `--output xml`
+- `--output go-template` — render results through a Go template supplied via `--template`
 
 ### Examples
 
@@ -620,9 +633,10 @@ megaport-cli managed-account update COMPANY_UID --account-name "New Name"
 
 ### Authentication Errors
 If you see "401 Unauthorized", check:
-- Your API credentials are correct: `megaport config view`
-- Your active profile is set: `megaport config list-profiles`
+- Your API credentials are correct: `megaport-cli config view`
+- Your active profile is set: `megaport-cli config list-profiles`
 - Environment variables aren't overriding your profile (unset `MEGAPORT_ACCESS_KEY` / `MEGAPORT_SECRET_KEY` to use the profile)
+- Confirm which identity is in effect: `megaport-cli whoami`
 
 ### Command Not Found
 Ensure the binary is in your `PATH`:
@@ -634,8 +648,8 @@ If you see 429 errors, the Megaport API rate limit has been hit. Add delays betw
 
 ### Slow Commands / Large Accounts
 List operations fetch all resources. Use filters to narrow results:
-- `megaport ports list --port-name "Sydney"`
-- `megaport vxc list --a-end-uid <portUID>`
+- `megaport-cli ports list --port-name "SYD"`
+- `megaport-cli vxc list --a-end-uid <portUID>`
 
 ### Display Issues
 Use `--no-color` if terminal colors cause display problems, or pipe output to a file.
@@ -704,7 +718,7 @@ Contributions via pull request are welcome. Familiarize yourself with these guid
 
 All contributions are subject to the Megaport Contributor Licence Agreement.
 
-The CLA clarifies the terms of the Mozilla Public Licence 2.0 used to Open Source this repository and ensures that contributors are explicitly informed of the conditions. Megaport requires all contributors to accept these terms to ensure that the Megaport Terraform Provider remains available and licensed for the community.
+The CLA clarifies the terms of the Mozilla Public License 2.0 used to open source this repository and ensures that contributors are explicitly informed of the conditions. Megaport requires all contributors to accept these terms to ensure that the Megaport CLI remains available and licensed for the community.
 
 When you open a Pull Request, all authors of the contributions are required to comment on the Pull Request confirming acceptance of the CLA terms. Pull Requests cannot be merged until this is complete.
 

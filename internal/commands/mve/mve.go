@@ -54,7 +54,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
     "manageLocally": true,
     "adminSshPublicKey": "ssh-rsa AAAA...",
     "sshPublicKey": "ssh-rsa AAAA...",
-    "adminPassword": "S3cretP@ss",
+    "adminPassword": "<your-admin-password>",
     "cloudInit": "#cloud-config\npackages:\n - nginx\n"
   },
   "vnics": [
@@ -68,6 +68,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
   }
 }`).
 		WithImportantNote("For production deployments, you may want to use a JSON file to manage complex configurations").
+		WithImportantNote("Treat fields like adminPassword, adminSshPublicKey, sshPublicKey, accountKey, and any other credentials as secrets — replace the placeholders in these examples and avoid committing populated config files to source control.").
 		WithImportantNote("To list available images and their IDs, use: megaport-cli mve list-images").
 		WithImportantNote("To list available sizes, use: megaport-cli mve list-sizes").
 		WithImportantNote("Location IDs can be retrieved with: megaport-cli locations list").
