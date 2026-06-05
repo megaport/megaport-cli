@@ -28,8 +28,8 @@ const (
 )
 
 // provisionPollInterval is how often the provision-wait loop polls resource
-// status. Overridable in tests to avoid 30s sleeps.
-var provisionPollInterval = 30 * time.Second
+// status. Overridable in tests to avoid 10s sleeps.
+var provisionPollInterval = 10 * time.Second
 
 // readyStates are the provisioning states considered fully provisioned.
 var readyStates = []string{megaport.SERVICE_CONFIGURED, megaport.SERVICE_LIVE}
@@ -501,17 +501,16 @@ func waitForProvision(ctx context.Context, resType, name, uid string, getStatus 
 		return err
 	}
 
+	ctx, cancel := context.WithTimeout(ctx, defaultWaitTime)
+	defer cancel()
+
 	ticker := time.NewTicker(provisionPollInterval)
 	defer ticker.Stop()
-	timer := time.NewTimer(defaultWaitTime)
-	defer timer.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("context expired waiting for %s %q (%s) to provision: %w", resType, name, uid, ctx.Err())
-		case <-timer.C:
-			return fmt.Errorf("time expired waiting for %s %q (%s) to provision", resType, name, uid)
+			return fmt.Errorf("timed out waiting for %s %q (%s) to provision: %w", resType, name, uid, ctx.Err())
 		case <-ticker.C:
 			if ready, err := check(); err != nil || ready {
 				return err
