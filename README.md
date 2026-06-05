@@ -1,5 +1,7 @@
 # Megaport CLI
 
+THIS IS A TEST CHANGE, DON'T MERGE ME
+
 [![codecov](https://codecov.io/gh/megaport/megaport-cli/branch/main/graph/badge.svg)](https://codecov.io/gh/megaport/megaport-cli)
 
 > [!NOTE]
