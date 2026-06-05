@@ -266,10 +266,10 @@ var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 func warnIfInsecureURL(flagName, rawURL string) {
 	u, err := url.Parse(rawURL)
 	if err != nil || u.Scheme == "" || u.Host == "" {
-		fmt.Fprintf(os.Stderr, "Warning: invalid %s %q (expected an absolute URL like https://host)\n", flagName, rawURL)
+		fmt.Fprintf(os.Stderr, "Warning: invalid %s %q (expected an absolute URL like https://host/path)\n", flagName, rawURL)
 		return
 	}
-	if u.Scheme != "https" {
+	if !strings.EqualFold(u.Scheme, "https") {
 		fmt.Fprintf(os.Stderr, "Warning: %s %q is not HTTPS; credentials will be sent in cleartext\n", flagName, rawURL)
 	}
 }
