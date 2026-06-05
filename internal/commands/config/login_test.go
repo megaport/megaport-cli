@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -589,6 +590,12 @@ func TestBaseURLWithTokenURL(t *testing.T) {
 		utils.Env = ""
 		utils.ProfileOverride = ""
 
+		origStderr := os.Stderr
+		devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+		assert.NoError(t, err)
+		os.Stderr = devNull
+		t.Cleanup(func() { os.Stderr = origStderr; _ = devNull.Close() })
+
 		client, err := LoginWithOutput(context.Background(), "")
 		assert.NoError(t, err)
 		assert.NotNil(t, client)
@@ -617,18 +624,26 @@ func TestBaseURLWithTokenURL(t *testing.T) {
 		utils.Env = "staging"
 		utils.ProfileOverride = ""
 
-		// Capture stderr to verify the warning is emitted.
+		// Capture stderr concurrently to avoid filling the pipe buffer and
+		// deadlocking LoginWithOutput if the spinner writes frequently.
 		origStderr := os.Stderr
-		pr, pw, err := os.Pipe()
-		assert.NoError(t, err)
+		pr, pw, pipeErr := os.Pipe()
+		assert.NoError(t, pipeErr)
 		os.Stderr = pw
+		t.Cleanup(func() { os.Stderr = origStderr })
+
+		var stderrBuf bytes.Buffer
+		drainDone := make(chan struct{})
+		go func() {
+			_, _ = io.Copy(&stderrBuf, pr)
+			close(drainDone)
+		}()
 
 		client, loginErr := LoginWithOutput(context.Background(), "")
 
 		pw.Close()
 		os.Stderr = origStderr
-		var stderrBuf bytes.Buffer
-		_, _ = stderrBuf.ReadFrom(pr)
+		<-drainDone
 		pr.Close()
 
 		assert.NoError(t, loginErr)
@@ -651,7 +666,13 @@ func TestBaseURLWithTokenURL(t *testing.T) {
 		utils.Env = ""
 		utils.ProfileOverride = ""
 
-		_, err := LoginWithOutput(context.Background(), "")
+		origStderr := os.Stderr
+		devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+		assert.NoError(t, err)
+		os.Stderr = devNull
+		t.Cleanup(func() { os.Stderr = origStderr; _ = devNull.Close() })
+
+		_, err = LoginWithOutput(context.Background(), "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "unknown API environment")
 	})
