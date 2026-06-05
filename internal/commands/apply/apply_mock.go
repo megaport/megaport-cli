@@ -14,6 +14,10 @@ type MockPortService struct {
 	BuyPortErr           error
 	ValidatePortOrderErr error
 	CapturedPortRequest  *megaport.BuyPortRequest
+	DeletePortErr        error
+	DeletePortCalledWith []string
+	GetPortStatus        string // provisioning status returned by GetPort (default ready)
+	GetPortErr           error  // error returned by GetPort (simulates a provision-wait failure)
 }
 
 func (m *MockPortService) BuyPort(ctx context.Context, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
@@ -35,13 +39,24 @@ func (m *MockPortService) ListPorts(ctx context.Context) ([]*megaport.Port, erro
 	return nil, fmt.Errorf("mock: ListPorts not configured")
 }
 func (m *MockPortService) GetPort(ctx context.Context, portId string) (*megaport.Port, error) {
-	return nil, fmt.Errorf("mock: GetPort not configured")
+	if m.GetPortErr != nil {
+		return nil, m.GetPortErr
+	}
+	status := m.GetPortStatus
+	if status == "" {
+		status = megaport.SERVICE_LIVE
+	}
+	return &megaport.Port{UID: portId, ProvisioningStatus: status}, nil
 }
 func (m *MockPortService) ModifyPort(ctx context.Context, req *megaport.ModifyPortRequest) (*megaport.ModifyPortResponse, error) {
 	return nil, fmt.Errorf("mock: ModifyPort not configured")
 }
 func (m *MockPortService) DeletePort(ctx context.Context, req *megaport.DeletePortRequest) (*megaport.DeletePortResponse, error) {
-	return nil, fmt.Errorf("mock: DeletePort not configured")
+	m.DeletePortCalledWith = append(m.DeletePortCalledWith, req.PortID)
+	if m.DeletePortErr != nil {
+		return nil, m.DeletePortErr
+	}
+	return &megaport.DeletePortResponse{}, nil
 }
 func (m *MockPortService) RestorePort(ctx context.Context, portId string) (*megaport.RestorePortResponse, error) {
 	return nil, fmt.Errorf("mock: RestorePort not configured")
@@ -70,6 +85,10 @@ type MockMCRService struct {
 	CapturedMCRRequest   *megaport.BuyMCRRequest
 	WaitForMCRReadyDelay time.Duration
 	WaitForMCRReadyErr   error
+	DeleteMCRErr         error
+	DeleteMCRCalledWith  []string
+	GetMCRStatus         string // provisioning status returned by GetMCR (default ready)
+	GetMCRErr            error  // error returned by GetMCR (simulates a provision-wait failure)
 }
 
 func (m *MockMCRService) BuyMCR(ctx context.Context, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
@@ -91,7 +110,14 @@ func (m *MockMCRService) ListMCRs(ctx context.Context, req *megaport.ListMCRsReq
 	return nil, fmt.Errorf("mock: ListMCRs not configured")
 }
 func (m *MockMCRService) GetMCR(ctx context.Context, mcrId string) (*megaport.MCR, error) {
-	return nil, fmt.Errorf("mock: GetMCR not configured")
+	if m.GetMCRErr != nil {
+		return nil, m.GetMCRErr
+	}
+	status := m.GetMCRStatus
+	if status == "" {
+		status = megaport.SERVICE_LIVE
+	}
+	return &megaport.MCR{UID: mcrId, ProvisioningStatus: status}, nil
 }
 func (m *MockMCRService) CreatePrefixFilterList(ctx context.Context, req *megaport.CreateMCRPrefixFilterListRequest) (*megaport.CreateMCRPrefixFilterListResponse, error) {
 	return nil, fmt.Errorf("mock: CreatePrefixFilterList not configured")
@@ -112,7 +138,11 @@ func (m *MockMCRService) ModifyMCR(ctx context.Context, req *megaport.ModifyMCRR
 	return nil, fmt.Errorf("mock: ModifyMCR not configured")
 }
 func (m *MockMCRService) DeleteMCR(ctx context.Context, req *megaport.DeleteMCRRequest) (*megaport.DeleteMCRResponse, error) {
-	return nil, fmt.Errorf("mock: DeleteMCR not configured")
+	m.DeleteMCRCalledWith = append(m.DeleteMCRCalledWith, req.MCRID)
+	if m.DeleteMCRErr != nil {
+		return nil, m.DeleteMCRErr
+	}
+	return &megaport.DeleteMCRResponse{}, nil
 }
 func (m *MockMCRService) RestoreMCR(ctx context.Context, mcrId string) (*megaport.RestoreMCRResponse, error) {
 	return nil, fmt.Errorf("mock: RestoreMCR not configured")
@@ -126,15 +156,12 @@ func (m *MockMCRService) UpdateMCRResourceTags(ctx context.Context, mcrID string
 func (m *MockMCRService) GetMCRPrefixFilterLists(ctx context.Context, mcrId string) ([]*megaport.PrefixFilterList, error) {
 	return nil, fmt.Errorf("mock: GetMCRPrefixFilterLists not configured")
 }
-
 func (m *MockMCRService) UpdateMCRWithAddOn(ctx context.Context, mcrID string, req megaport.MCRAddOnRequest) error {
 	return fmt.Errorf("mock: UpdateMCRWithAddOn not configured")
 }
-
 func (m *MockMCRService) UpdateMCRIPsecAddOn(ctx context.Context, mcrID string, addOnUID string, tunnelCount int) error {
 	return fmt.Errorf("mock: UpdateMCRIPsecAddOn not configured")
 }
-
 func (m *MockMCRService) WaitForMCRReady(ctx context.Context, mcrID string, timeout time.Duration) error {
 	if m.WaitForMCRReadyDelay > 0 {
 		t := time.NewTimer(m.WaitForMCRReadyDelay)
@@ -153,6 +180,10 @@ type MockMVEService struct {
 	BuyMVEResult        *megaport.BuyMVEResponse
 	BuyMVEErr           error
 	ValidateMVEOrderErr error
+	DeleteMVEErr        error
+	DeleteMVECalledWith []string
+	GetMVEStatus        string // provisioning status returned by GetMVE (default ready)
+	GetMVEErr           error  // error returned by GetMVE (simulates a provision-wait failure)
 }
 
 func (m *MockMVEService) BuyMVE(ctx context.Context, req *megaport.BuyMVERequest) (*megaport.BuyMVEResponse, error) {
@@ -173,13 +204,24 @@ func (m *MockMVEService) ListMVEs(ctx context.Context, req *megaport.ListMVEsReq
 	return nil, fmt.Errorf("mock: ListMVEs not configured")
 }
 func (m *MockMVEService) GetMVE(ctx context.Context, mveId string) (*megaport.MVE, error) {
-	return nil, fmt.Errorf("mock: GetMVE not configured")
+	if m.GetMVEErr != nil {
+		return nil, m.GetMVEErr
+	}
+	status := m.GetMVEStatus
+	if status == "" {
+		status = megaport.SERVICE_LIVE
+	}
+	return &megaport.MVE{UID: mveId, ProvisioningStatus: status}, nil
 }
 func (m *MockMVEService) ModifyMVE(ctx context.Context, req *megaport.ModifyMVERequest) (*megaport.ModifyMVEResponse, error) {
 	return nil, fmt.Errorf("mock: ModifyMVE not configured")
 }
 func (m *MockMVEService) DeleteMVE(ctx context.Context, req *megaport.DeleteMVERequest) (*megaport.DeleteMVEResponse, error) {
-	return nil, fmt.Errorf("mock: DeleteMVE not configured")
+	m.DeleteMVECalledWith = append(m.DeleteMVECalledWith, req.MVEID)
+	if m.DeleteMVEErr != nil {
+		return nil, m.DeleteMVEErr
+	}
+	return &megaport.DeleteMVEResponse{}, nil
 }
 func (m *MockMVEService) ListMVEImages(ctx context.Context) ([]*megaport.MVEImage, error) {
 	return nil, fmt.Errorf("mock: ListMVEImages not configured")
@@ -198,19 +240,26 @@ func (m *MockMVEService) UpdateMVEResourceTags(ctx context.Context, mveID string
 type MockVXCService struct {
 	BuyVXCResult        *megaport.BuyVXCResponse
 	BuyVXCErr           error
+	BuyVXCErrOnCall     int // if > 0, return BuyVXCErr only on this call number (1-based)
+	buyVXCCallCount     int
 	ValidateVXCOrderErr error
 	CapturedVXCRequest  *megaport.BuyVXCRequest
+	DeleteVXCErr        error
+	DeleteVXCCalledWith []string
+	GetVXCStatus        string // provisioning status returned by GetVXC (default ready)
+	GetVXCErr           error  // error returned by GetVXC (simulates a provision-wait failure)
 }
 
 func (m *MockVXCService) BuyVXC(ctx context.Context, req *megaport.BuyVXCRequest) (*megaport.BuyVXCResponse, error) {
 	m.CapturedVXCRequest = req
-	if m.BuyVXCErr != nil {
+	m.buyVXCCallCount++
+	if m.BuyVXCErr != nil && (m.BuyVXCErrOnCall == 0 || m.buyVXCCallCount == m.BuyVXCErrOnCall) {
 		return nil, m.BuyVXCErr
 	}
 	if m.BuyVXCResult != nil {
 		return m.BuyVXCResult, nil
 	}
-	return &megaport.BuyVXCResponse{TechnicalServiceUID: "vxc-uid-mock"}, nil
+	return &megaport.BuyVXCResponse{TechnicalServiceUID: fmt.Sprintf("vxc-uid-mock-%d", m.buyVXCCallCount)}, nil
 }
 
 func (m *MockVXCService) ValidateVXCOrder(ctx context.Context, req *megaport.BuyVXCRequest) error {
@@ -221,10 +270,18 @@ func (m *MockVXCService) ListVXCs(ctx context.Context, req *megaport.ListVXCsReq
 	return nil, fmt.Errorf("mock: ListVXCs not configured")
 }
 func (m *MockVXCService) GetVXC(ctx context.Context, id string) (*megaport.VXC, error) {
-	return nil, fmt.Errorf("mock: GetVXC not configured")
+	if m.GetVXCErr != nil {
+		return nil, m.GetVXCErr
+	}
+	status := m.GetVXCStatus
+	if status == "" {
+		status = megaport.SERVICE_LIVE
+	}
+	return &megaport.VXC{UID: id, ProvisioningStatus: status}, nil
 }
 func (m *MockVXCService) DeleteVXC(ctx context.Context, id string, req *megaport.DeleteVXCRequest) error {
-	return fmt.Errorf("mock: DeleteVXC not configured")
+	m.DeleteVXCCalledWith = append(m.DeleteVXCCalledWith, id)
+	return m.DeleteVXCErr
 }
 func (m *MockVXCService) UpdateVXC(ctx context.Context, id string, req *megaport.UpdateVXCRequest) (*megaport.VXC, error) {
 	return nil, fmt.Errorf("mock: UpdateVXC not configured")
