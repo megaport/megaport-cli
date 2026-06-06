@@ -1,0 +1,11 @@
+# Role documentation for megaport-cli megatest scenarios.
+#
+# Lists the megatest user aliases the scenarios in this directory expect to
+# find in megatest/api-tester/credentials.yml. No credentials live here;
+# this file documents who the alias maps to and why.
+
+admin:
+    description: |
+        Standard staging admin used by the lifecycle scenarios. Must own
+        permission to buy, list, and delete ports in the staging
+        environment.

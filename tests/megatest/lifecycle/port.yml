@@ -1,0 +1,88 @@
+# Canonical port lifecycle scenario.
+#
+# Drives a single 1Gbps port through buy -> verify -> list -> delete ->
+# verify-gone using the megaport-cli binary, with HTTP cross-checks against
+# the same staging API megatest authenticates to.
+#
+# Pre-reqs: megatest's api-tester runner on PATH (python3 runner.py),
+# MEGAPORT_ENV=staging, megaport-cli on PATH, and the staging credentials
+# resolved via megatest's credentials.yml (or MEGAPORT_ACCESS_TOKEN passed
+# through the env block on the cli steps).
+
+user: admin
+description: 'Buy a 1Gbps port, verify via API, list, delete, verify gone'
+stop_on_failure: true
+
+steps:
+    - type: cli
+      description: 'Buy a 1Gbps port (no-wait, skip confirmation)'
+      cmd:
+          - megaport-cli
+          - ports
+          - buy
+          - --name
+          - 'megatest-{run_uid}'
+          - --term
+          - '1'
+          - --port-speed
+          - '1000'
+          - --location-id
+          - '67'
+          - --marketplace-visibility
+          - 'false'
+          - --yes
+          - --no-wait
+          - --output
+          - json
+      expect:
+          exit: 0
+          stderr:
+              _text: { contains: 'megatest-{run_uid}' }
+
+    - type: cli
+      description: 'List ports and capture the new port UID by name'
+      cmd: ['megaport-cli', 'ports', 'list', '--output', 'json']
+      expect:
+          exit: 0
+      capture:
+          port_uid: "$[?(@.name=='megatest-{run_uid}')].uid"
+
+    - method: GET
+      path: /v2/product/{port_uid}
+      description: 'Staging API agrees the port exists and is in a live state'
+      expect:
+          status: 200
+          body:
+              data.productUid: '{port_uid}'
+              data.provisioningStatus:
+                  { in: ['DEPLOYABLE', 'CONFIGURING', 'CONFIGURED', 'LIVE'] }
+
+    - type: cli
+      description: 'Re-list and assert the new port UID is present in stdout'
+      cmd: ['megaport-cli', 'ports', 'list', '--output', 'json']
+      expect:
+          exit: 0
+          stdout:
+              _text: { contains: '{port_uid}' }
+
+    - type: cli
+      description: 'Delete the port (force, no confirmation)'
+      cmd:
+          - megaport-cli
+          - ports
+          - delete
+          - '{port_uid}'
+          - --force
+          - --output
+          - json
+      expect:
+          exit: 0
+
+    - method: GET
+      path: /v2/product/{port_uid}
+      description: 'Staging API reflects the cancellation'
+      expect:
+          status: 200
+          body:
+              data.provisioningStatus:
+                  { in: ['CANCELLED', 'CANCELLED_PARENT', 'DECOMMISSIONED', 'DECOMMISSIONING'] }

@@ -1,0 +1,80 @@
+name: megatest-scenarios
+on:
+  schedule:
+    - cron: '0 3 * * *'  # Nightly, 03:00 UTC (one hour after integration-tests)
+  workflow_dispatch:       # Allow manual trigger from GitHub UI
+
+permissions:
+  contents: read
+
+env:
+  # Pinned megatest ref. Bump deliberately when upstream changes the
+  # api-tester runner contract.
+  MEGATEST_REF: main
+
+jobs:
+  megatest-lifecycle:
+    name: megatest lifecycle scenarios
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout megaport-cli
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+        with:
+          path: megaport-cli
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5.6.0
+        with:
+          go-version-file: megaport-cli/go.mod
+
+      - name: Build megaport-cli
+        working-directory: megaport-cli
+        run: |
+          go build -o megaport-cli .
+          echo "$PWD" >> "$GITHUB_PATH"
+
+      - name: Checkout megatest
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+        with:
+          repository: megaport/megatest
+          ref: ${{ env.MEGATEST_REF }}
+          path: megatest
+          token: ${{ secrets.MEGATEST_REPO_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: '3.12'
+
+      - name: Install api-tester deps
+        working-directory: megatest/api-tester
+        run: pip install -r requirements.txt
+
+      - name: Write .env for megatest
+        working-directory: megatest
+        run: |
+          cat > .env <<EOF
+          MEGAPORT_ENV=staging
+          EOF
+
+      - name: Run lifecycle scenarios
+        working-directory: megatest
+        env:
+          MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
+          MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}
+          MEGAPORT_ENVIRONMENT: staging
+        run: |
+          python3 api-tester/runner.py \
+            ../megaport-cli/tests/megatest/lifecycle/port.yml
+
+      - name: Upload run archive on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: megatest-runs
+          path: |
+            megaport-cli/tests/megatest/**/runs/
+            megatest/api-tester/tests/**/runs/
+          if-no-files-found: ignore
+          retention-days: 14

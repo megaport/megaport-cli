@@ -1,0 +1,15 @@
+# Placeholder/product config for megaport-cli megatest scenarios.
+#
+# Anything declared here becomes a {placeholder} token the runner can
+# substitute into step fields. Keep this list small and curated to the
+# constants the lifecycle smokes reference.
+
+# Canonical staging location used by the CLI's Go integration tests.
+# Keep in sync with internal/commands/ports/ports_integration_test.go.
+location_id: 67
+
+# Default port speed for lifecycle smokes (1Gbps).
+port_speed: 1000
+
+# Default contract term in months (1 = month-to-month).
+term: 1
