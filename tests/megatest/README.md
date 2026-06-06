@@ -42,6 +42,23 @@ MEGAPORT_ENV=staging MEGAPORT_ENVIRONMENT=staging \
 The runner writes archived results under `runs/run-NN/` next to the
 scenario file.
 
+## Pointing the CLI at a non-standard backend
+
+The CLI binary reads `MEGAPORT_BASE_URL` and `MEGAPORT_TOKEN_URL` as
+fallbacks when `--base-url` / `--token-url` are not passed. The api-tester
+runner forwards the parent process's environment into each `type: cli`
+step, so exporting either var in the shell before invoking the runner is
+enough to redirect every cli step in the scenario:
+
+```bash
+export MEGAPORT_BASE_URL=https://my-backend.example.com
+export MEGAPORT_TOKEN_URL=https://my-backend.example.com/oauth2/token
+python3 api-tester/runner.py \
+    ../megaport-cli/tests/megatest/lifecycle/port.yml
+```
+
+The `--base-url` and `--token-url` flags still win when set explicitly.
+
 ## Authoring new scenarios
 
 For ad hoc lifecycle smokes keep them under `lifecycle/<resource>.yml`.

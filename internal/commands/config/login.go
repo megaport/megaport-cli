@@ -202,19 +202,22 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 
+	baseURL := resolveBaseURL()
+	tokenURL := resolveTokenURL()
+
 	baseOpts := []megaport.ClientOpt{megaport.WithCredentials(accessKey, secretKey), megaport.WithCustomHeaders(cliHeaders)}
-	if utils.BaseURL != "" {
-		warnIfInsecureBaseURL(utils.BaseURL)
-		baseOpts = append(baseOpts, megaport.WithBaseURL(utils.BaseURL))
+	if baseURL != "" {
+		warnIfInsecureBaseURL(baseURL)
+		baseOpts = append(baseOpts, megaport.WithBaseURL(baseURL))
 	} else {
 		baseOpts = append(baseOpts, environmentOption(env))
 	}
-	if utils.TokenURL != "" {
-		warnIfInsecureURL("--token-url", utils.TokenURL)
-		if utils.BaseURL == "" {
-			fmt.Fprintf(os.Stderr, "Warning: --token-url is set without --base-url; credentials will be sent to %q instead of the standard auth host\n", utils.TokenURL)
+	if tokenURL != "" {
+		warnIfInsecureURL("--token-url", tokenURL)
+		if baseURL == "" {
+			fmt.Fprintf(os.Stderr, "Warning: --token-url is set without --base-url; credentials will be sent to %q instead of the standard auth host\n", tokenURL)
 		}
-		baseOpts = append(baseOpts, megaport.WithTokenURL(utils.TokenURL))
+		baseOpts = append(baseOpts, megaport.WithTokenURL(tokenURL))
 	}
 	opts := appendLogOpts(baseOpts)
 	megaportClient, err := megaport.New(httpClient, opts...)
@@ -230,8 +233,8 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 		return nil, err
 	} else {
 		var target string
-		if utils.BaseURL != "" {
-			target = utils.BaseURL
+		if baseURL != "" {
+			target = baseURL
 		} else {
 			target = strings.ToUpper(env[:1]) + env[1:]
 		}
@@ -247,8 +250,8 @@ var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 
 	baseOpts := []megaport.ClientOpt{megaport.WithCustomHeaders(cliHeaders)}
-	if utils.BaseURL != "" {
-		baseOpts = append(baseOpts, megaport.WithBaseURL(utils.BaseURL))
+	if baseURL := resolveBaseURL(); baseURL != "" {
+		baseOpts = append(baseOpts, megaport.WithBaseURL(baseURL))
 	} else {
 		env, err := resolveEnvironment(true)
 		if err != nil {
@@ -276,6 +279,24 @@ func warnIfInsecureURL(flagName, rawURL string) {
 
 // warnIfInsecureBaseURL is a convenience wrapper for the --base-url flag.
 func warnIfInsecureBaseURL(rawURL string) { warnIfInsecureURL("--base-url", rawURL) }
+
+// resolveBaseURL returns the --base-url flag value if set, else MEGAPORT_BASE_URL.
+// Lets external runners (e.g. megatest) point the CLI at any backend without
+// editing scenario YAML.
+func resolveBaseURL() string {
+	if utils.BaseURL != "" {
+		return utils.BaseURL
+	}
+	return os.Getenv("MEGAPORT_BASE_URL")
+}
+
+// resolveTokenURL returns the --token-url flag value if set, else MEGAPORT_TOKEN_URL.
+func resolveTokenURL() string {
+	if utils.TokenURL != "" {
+		return utils.TokenURL
+	}
+	return os.Getenv("MEGAPORT_TOKEN_URL")
+}
 
 // appendLogOpts appends HTTP debug logging options to the client option slice
 // when --log-http is enabled. Logs go to stderr at DEBUG level with sensitive

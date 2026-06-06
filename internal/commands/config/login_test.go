@@ -618,6 +618,8 @@ func TestBaseURLWithTokenURL(t *testing.T) {
 		t.Setenv("MEGAPORT_ACCESS_KEY", "test-key")
 		t.Setenv("MEGAPORT_SECRET_KEY", "test-secret")
 		t.Setenv("MEGAPORT_ENVIRONMENT", "staging")
+		t.Setenv("MEGAPORT_BASE_URL", "")
+		t.Setenv("MEGAPORT_TOKEN_URL", "")
 
 		utils.BaseURL = ""
 		utils.TokenURL = ts.URL + "/oauth2/token"
@@ -660,6 +662,8 @@ func TestBaseURLWithTokenURL(t *testing.T) {
 		t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
 		t.Setenv("MEGAPORT_ACCESS_KEY", "test-key")
 		t.Setenv("MEGAPORT_SECRET_KEY", "test-secret")
+		t.Setenv("MEGAPORT_BASE_URL", "")
+		t.Setenv("MEGAPORT_TOKEN_URL", "")
 
 		utils.BaseURL = ts.URL
 		utils.TokenURL = ""
@@ -675,6 +679,130 @@ func TestBaseURLWithTokenURL(t *testing.T) {
 		_, err = LoginWithOutput(context.Background(), "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "unknown API environment")
+	})
+}
+
+func TestResolveBaseURLAndTokenURL(t *testing.T) {
+	origBaseURL := utils.BaseURL
+	origTokenURL := utils.TokenURL
+	defer func() {
+		utils.BaseURL = origBaseURL
+		utils.TokenURL = origTokenURL
+	}()
+
+	t.Run("flag value wins over env var", func(t *testing.T) {
+		t.Setenv("MEGAPORT_BASE_URL", "http://env.example.com")
+		t.Setenv("MEGAPORT_TOKEN_URL", "http://env.example.com/oauth2/token")
+		utils.BaseURL = "http://flag.example.com"
+		utils.TokenURL = "http://flag.example.com/oauth2/token"
+
+		assert.Equal(t, "http://flag.example.com", resolveBaseURL())
+		assert.Equal(t, "http://flag.example.com/oauth2/token", resolveTokenURL())
+	})
+
+	t.Run("env var fills in when flag is empty", func(t *testing.T) {
+		t.Setenv("MEGAPORT_BASE_URL", "http://env.example.com")
+		t.Setenv("MEGAPORT_TOKEN_URL", "http://env.example.com/oauth2/token")
+		utils.BaseURL = ""
+		utils.TokenURL = ""
+
+		assert.Equal(t, "http://env.example.com", resolveBaseURL())
+		assert.Equal(t, "http://env.example.com/oauth2/token", resolveTokenURL())
+	})
+
+	t.Run("both empty returns empty", func(t *testing.T) {
+		t.Setenv("MEGAPORT_BASE_URL", "")
+		t.Setenv("MEGAPORT_TOKEN_URL", "")
+		utils.BaseURL = ""
+		utils.TokenURL = ""
+
+		assert.Equal(t, "", resolveBaseURL())
+		assert.Equal(t, "", resolveTokenURL())
+	})
+}
+
+func TestBaseURLEnvVarFallback(t *testing.T) {
+	origBaseURL := utils.BaseURL
+	origTokenURL := utils.TokenURL
+	origEnv := utils.Env
+	origProfile := utils.ProfileOverride
+	defer func() {
+		utils.BaseURL = origBaseURL
+		utils.TokenURL = origTokenURL
+		utils.Env = origEnv
+		utils.ProfileOverride = origProfile
+	}()
+
+	tempDir, err := os.MkdirTemp("", "megaport-baseurl-env-test")
+	assert.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
+
+	t.Run("MEGAPORT_BASE_URL drives the authenticated client when --base-url is unset", func(t *testing.T) {
+		var tokenEndpointHit atomic.Bool
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/oauth2/token" {
+				tokenEndpointHit.Store(true)
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = fmt.Fprint(w, `{"access_token":"test-token","token_type":"Bearer","expires_in":3600}`)
+				return
+			}
+			http.NotFound(w, r)
+		}))
+		defer ts.Close()
+
+		t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+		t.Setenv("MEGAPORT_ACCESS_KEY", "test-key")
+		t.Setenv("MEGAPORT_SECRET_KEY", "test-secret")
+		t.Setenv("MEGAPORT_BASE_URL", ts.URL)
+		t.Setenv("MEGAPORT_TOKEN_URL", ts.URL+"/oauth2/token")
+
+		utils.BaseURL = ""
+		utils.TokenURL = ""
+		utils.Env = ""
+		utils.ProfileOverride = ""
+
+		origStderr := os.Stderr
+		devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+		assert.NoError(t, err)
+		os.Stderr = devNull
+		t.Cleanup(func() { os.Stderr = origStderr; _ = devNull.Close() })
+
+		client, err := LoginWithOutput(context.Background(), "")
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.True(t, tokenEndpointHit.Load(), "token endpoint should have been called")
+		assert.Contains(t, client.BaseURL.String(), ts.Listener.Addr().String())
+	})
+
+	t.Run("MEGAPORT_BASE_URL drives the unauthenticated client when --base-url is unset", func(t *testing.T) {
+		t.Setenv("MEGAPORT_BASE_URL", "http://env-only.example.com")
+		t.Setenv("MEGAPORT_TOKEN_URL", "")
+
+		utils.BaseURL = ""
+		utils.TokenURL = ""
+		utils.Env = "staging"
+		utils.ProfileOverride = ""
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "env-only.example.com")
+	})
+
+	t.Run("--base-url flag takes precedence over MEGAPORT_BASE_URL env var", func(t *testing.T) {
+		t.Setenv("MEGAPORT_BASE_URL", "http://should-be-ignored.example.com")
+		t.Setenv("MEGAPORT_TOKEN_URL", "")
+
+		utils.BaseURL = "http://from-flag.example.com"
+		utils.TokenURL = ""
+		utils.Env = "staging"
+		utils.ProfileOverride = ""
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "from-flag.example.com")
+		assert.NotContains(t, client.BaseURL.String(), "should-be-ignored.example.com")
 	})
 }
 
