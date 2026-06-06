@@ -8,8 +8,9 @@ permissions:
   contents: read
 
 env:
-  # Pinned megatest ref. Bump deliberately when upstream changes the
-  # api-tester runner contract.
+  # Megatest ref the workflow checks out. Tracks `main` by default;
+  # override via workflow_dispatch input or bump here when the upstream
+  # api-tester contract changes.
   MEGATEST_REF: main
 
 jobs:
