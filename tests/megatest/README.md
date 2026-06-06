@@ -30,7 +30,12 @@ cp ../megatest/tests/credentials-example.yml ../megatest/api-tester/credentials.
 
 # 4. Run a scenario
 cd ../megatest
-MEGAPORT_ENV=staging python3 api-tester/runner.py \
+# MEGAPORT_ENV scopes the api-tester's HTTP base URL.
+# MEGAPORT_ENVIRONMENT pins the CLI binary to staging too, in case a
+# scenario forgets to set it per-step. Without it the CLI defaults to
+# production.
+MEGAPORT_ENV=staging MEGAPORT_ENVIRONMENT=staging \
+    python3 api-tester/runner.py \
     ../megaport-cli/tests/megatest/lifecycle/port.yml
 ```
 

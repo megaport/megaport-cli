@@ -4,10 +4,15 @@
 # verify-gone using the megaport-cli binary, with HTTP cross-checks against
 # the same staging API megatest authenticates to.
 #
-# Pre-reqs: megatest's api-tester runner on PATH (python3 runner.py),
-# MEGAPORT_ENV=staging, megaport-cli on PATH, and the staging credentials
-# resolved via megatest's credentials.yml (or MEGAPORT_ACCESS_TOKEN passed
-# through the env block on the cli steps).
+# Pre-reqs:
+# - megatest's api-tester runner (`python3 runner.py`) plus `MEGAPORT_ENV=staging`
+#   so the runner's HTTP steps target the staging API.
+# - megaport-cli on PATH. Each `cli` step below pins `MEGAPORT_ENVIRONMENT=staging`
+#   in its own `env:` block so the binary cannot accidentally fall through to
+#   its `production` default even when the operator forgets to export it.
+# - Staging credentials resolved via megatest's `credentials.yml` (or
+#   `MEGAPORT_ACCESS_KEY` / `MEGAPORT_SECRET_KEY` / `MEGAPORT_ACCESS_TOKEN`
+#   forwarded into the per-step env block).
 
 user: admin
 description: 'Buy a 1Gbps port, verify via API, list, delete, verify gone'
@@ -19,6 +24,8 @@ config:
 steps:
     - type: cli
       description: 'Buy a 1Gbps port (no-wait, skip confirmation)'
+      env:
+          MEGAPORT_ENVIRONMENT: staging
       cmd:
           - megaport-cli
           - ports
@@ -44,6 +51,8 @@ steps:
 
     - type: cli
       description: 'List ports and capture the new port UID by name'
+      env:
+          MEGAPORT_ENVIRONMENT: staging
       cmd: ['megaport-cli', 'ports', 'list', '--output', 'json']
       expect:
           exit: 0
@@ -62,6 +71,8 @@ steps:
 
     - type: cli
       description: 'Re-list and assert the new port UID is present in stdout'
+      env:
+          MEGAPORT_ENVIRONMENT: staging
       cmd: ['megaport-cli', 'ports', 'list', '--output', 'json']
       expect:
           exit: 0
@@ -70,6 +81,8 @@ steps:
 
     - type: cli
       description: 'Delete the port (force, no confirmation)'
+      env:
+          MEGAPORT_ENVIRONMENT: staging
       cmd:
           - megaport-cli
           - ports
