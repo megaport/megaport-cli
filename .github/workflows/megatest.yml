@@ -1,7 +1,5 @@
 name: megatest-scenarios
 on:
-  schedule:
-    - cron: '0 3 * * *'  # Nightly, 03:00 UTC (one hour after integration-tests)
   workflow_dispatch:
     inputs:
       megatest_ref:
@@ -13,11 +11,11 @@ permissions:
   contents: read
 
 env:
-  # Megatest ref the workflow checks out. Tracks `main` today because the
+  # Megatest ref the workflow checks out. Defaults to `main` because the
   # cli step type the scenarios depend on has not yet merged upstream;
-  # once it lands, pin this to a tag or SHA for reproducible nightly runs
-  # and bump deliberately. `workflow_dispatch` exposes `megatest_ref` so
-  # manual runs can point at a feature branch without editing the file.
+  # once it lands, bump this to a tag or SHA for reproducible runs.
+  # `workflow_dispatch` exposes `megatest_ref` so an operator can point a
+  # run at a feature branch from the GitHub UI without editing the file.
   MEGATEST_REF: ${{ github.event.inputs.megatest_ref || 'main' }}
 
 jobs:
