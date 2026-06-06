@@ -215,7 +215,7 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 	if tokenURL != "" {
 		warnIfInsecureURL("--token-url", tokenURL)
 		if baseURL == "" {
-			fmt.Fprintf(os.Stderr, "Warning: --token-url is set without --base-url; credentials will be sent to %q instead of the standard auth host\n", tokenURL)
+			fmt.Fprintf(os.Stderr, "Warning: --token-url is set without --base-url (via flag or MEGAPORT_BASE_URL env var); credentials will be sent to %q instead of the standard auth host\n", tokenURL)
 		}
 		baseOpts = append(baseOpts, megaport.WithTokenURL(tokenURL))
 	}
