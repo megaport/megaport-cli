@@ -184,5 +184,4 @@ func (m *MockMVEService) Reset() {
 	m.CapturedListMVEsRequest = nil
 	m.CapturedDeleteMVERequest = nil
 	m.CapturedUpdateMVEResourceTagsRequest = nil
-	m.ForceNilGetMVE = false
 }
