@@ -3,6 +3,7 @@
 package mve
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/testutil"
@@ -62,7 +64,8 @@ func integrationMVEUpdateCmd() *cobra.Command {
 	cmd.Flags().Bool("interactive", false, "")
 	cmd.Flags().String("name", "", "")
 	cmd.Flags().String("cost-centre", "", "")
-	cmd.Flags().Int("contract-term", 0, "")
+	cmd.Flags().Int("term", 0, "")
+	cmd.Flags().String("vnics", "", "")
 	cmd.Flags().String("json", "", "")
 	cmd.Flags().String("json-file", "", "")
 	return cmd
@@ -224,6 +227,26 @@ func TestIntegration_MVELifecycle(t *testing.T) {
 	require.NoError(t, updErr, "update MVE output: %s", updOut)
 
 	assert.Equal(t, newName, getMVEJSON(t, mveUID)["name"])
+
+	// Update the vNIC descriptions via --vnics and verify they took effect.
+	// The count and VLANs are immutable, so the update array must have one
+	// entry per existing vNIC, applied in order.
+	vnicUpdate := `[{"description": "MVE VNIC 1 updated"}, {"description": "MVE VNIC 2 updated"}]`
+	vnicCmd := integrationMVEUpdateCmd()
+	require.NoError(t, vnicCmd.Flags().Set("vnics", vnicUpdate))
+	var vnicErr error
+	vnicOut := captureTableOutput(func() { vnicErr = UpdateMVE(vnicCmd, []string{mveUID}, true) })
+	require.NoError(t, vnicErr, "update MVE vNICs output: %s", vnicOut)
+
+	// The CLI's JSON output doesn't expose vNIC descriptions, so read them
+	// back through the SDK client directly.
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	refreshed, err := client.MVEService.GetMVE(ctx, mveUID)
+	require.NoError(t, err, "get MVE via SDK after vNIC update")
+	require.Len(t, refreshed.NetworkInterfaces, 2)
+	assert.Equal(t, "MVE VNIC 1 updated", refreshed.NetworkInterfaces[0].Description)
+	assert.Equal(t, "MVE VNIC 2 updated", refreshed.NetworkInterfaces[1].Description)
 }
 
 func TestIntegration_MVEJSONInputLifecycle(t *testing.T) {
