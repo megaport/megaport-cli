@@ -7,6 +7,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func mockPromptSequence(responses []string) func(string, string, bool) (string, error) {
@@ -104,7 +105,7 @@ func TestPromptForUpdateMVEDetails_Success(t *testing.T) {
 		"NewName", "", "",
 	}))
 
-	req, err := promptForUpdateMVEDetails("mve-123", true)
+	req, err := promptForUpdateMVEDetails("mve-123", nil, true)
 	assert.NoError(t, err)
 	assert.Equal(t, "mve-123", req.MVEID)
 	assert.Equal(t, "NewName", req.Name)
@@ -118,7 +119,7 @@ func TestPromptForUpdateMVEDetails_NoChanges(t *testing.T) {
 
 	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", ""}))
 
-	_, err := promptForUpdateMVEDetails("mve-123", true)
+	_, err := promptForUpdateMVEDetails("mve-123", nil, true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "at least one field must be provided for update")
 }
@@ -129,9 +130,127 @@ func TestPromptForUpdateMVEDetails_InvalidContractTerm(t *testing.T) {
 
 	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", "abc"}))
 
-	_, err := promptForUpdateMVEDetails("mve-123", true)
+	_, err := promptForUpdateMVEDetails("mve-123", nil, true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid contract term")
+}
+
+func TestPromptForUpdateMVEDetails_UpdateVnicDescriptions(t *testing.T) {
+	original := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(original) }()
+
+	// name, costCentre, contractTerm, updateVnics?, vnic[0], vnic[1]
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"", "", "",
+		"y",
+		"New Data Plane", "", // second is left empty → keeps "Mgmt"
+	}))
+
+	currentVnics := []*megaport.MVENetworkInterface{
+		{Description: "Data Plane"},
+		{Description: "Mgmt"},
+	}
+	req, err := promptForUpdateMVEDetails("mve-123", currentVnics, true)
+	require.NoError(t, err)
+	require.Len(t, req.Vnics, 2)
+	assert.Equal(t, "New Data Plane", req.Vnics[0].Description)
+	assert.Equal(t, "Mgmt", req.Vnics[1].Description)
+}
+
+func TestPromptForUpdateMVEDetails_DeclineVnicUpdate(t *testing.T) {
+	original := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(original) }()
+
+	// name update, no cost-centre, no term, "n" to vnics
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"NewName", "", "",
+		"n",
+	}))
+
+	currentVnics := []*megaport.MVENetworkInterface{{Description: "Data Plane"}}
+	req, err := promptForUpdateMVEDetails("mve-123", currentVnics, true)
+	require.NoError(t, err)
+	assert.Equal(t, "NewName", req.Name)
+	assert.Empty(t, req.Vnics)
+}
+
+func TestPromptForUpdateMVEDetails_VnicYesNoPromptError(t *testing.T) {
+	original := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(original) }()
+
+	// First three prompts (name/cost/term) succeed; fourth (y/N) returns an error.
+	calls := 0
+	utils.SetResourcePrompt(func(_, _ string, _ bool) (string, error) {
+		calls++
+		if calls == 4 {
+			return "", fmt.Errorf("stdin closed")
+		}
+		return "", nil
+	})
+
+	currentVnics := []*megaport.MVENetworkInterface{{Description: "Data Plane"}}
+	_, err := promptForUpdateMVEDetails("mve-123", currentVnics, true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "stdin closed")
+}
+
+func TestPromptForUpdateMVEDetails_VnicDescriptionPromptError(t *testing.T) {
+	original := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(original) }()
+
+	// name/cost/term empty, "y" to update vnics, then error on first description prompt.
+	calls := 0
+	utils.SetResourcePrompt(func(_, _ string, _ bool) (string, error) {
+		calls++
+		switch calls {
+		case 1, 2, 3:
+			return "", nil
+		case 4:
+			return "y", nil
+		default:
+			return "", fmt.Errorf("stdin closed")
+		}
+	})
+
+	currentVnics := []*megaport.MVENetworkInterface{{Description: "Data Plane"}}
+	_, err := promptForUpdateMVEDetails("mve-123", currentVnics, true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "stdin closed")
+}
+
+func TestPromptForUpdateMVEDetails_VnicNilEntryDefaultsToEmpty(t *testing.T) {
+	original := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(original) }()
+
+	// name, cost, term, accept vnic update, description for nil vnic
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"", "", "",
+		"yes",
+		"New Description",
+	}))
+
+	currentVnics := []*megaport.MVENetworkInterface{nil}
+	req, err := promptForUpdateMVEDetails("mve-123", currentVnics, true)
+	require.NoError(t, err)
+	require.Len(t, req.Vnics, 1)
+	assert.Equal(t, "New Description", req.Vnics[0].Description)
+}
+
+func TestPromptForUpdateMVEDetails_VnicEmptyCurrentEmptyInputErrors(t *testing.T) {
+	original := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(original) }()
+
+	// name, cost, term, accept vnic update, empty description for vnic with empty current desc
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"", "", "",
+		"yes",
+		"",
+	}))
+
+	currentVnics := []*megaport.MVENetworkInterface{{Description: ""}}
+	_, err := promptForUpdateMVEDetails("mve-123", currentVnics, true)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "vnics[0].description must not be empty")
 }
 
 // promptMVEVnics tests

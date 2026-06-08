@@ -74,5 +74,23 @@ func displayMVEChanges(original, updated *megaport.MVE, noColor bool) {
 		{Label: "Contract Term", OldValue: fmt.Sprintf("%d months", original.ContractTermMonths), NewValue: fmt.Sprintf("%d months", updated.ContractTermMonths)},
 		{Label: "Marketplace Visibility", OldValue: output.FormatBool(original.MarketplaceVisibility), NewValue: output.FormatBool(updated.MarketplaceVisibility)},
 	}
+	limit := len(original.NetworkInterfaces)
+	if len(updated.NetworkInterfaces) < limit {
+		limit = len(updated.NetworkInterfaces)
+	}
+	for i := 0; i < limit; i++ {
+		var oldDesc, newDesc string
+		if original.NetworkInterfaces[i] != nil {
+			oldDesc = original.NetworkInterfaces[i].Description
+		}
+		if updated.NetworkInterfaces[i] != nil {
+			newDesc = updated.NetworkInterfaces[i].Description
+		}
+		changes = append(changes, output.FieldChange{
+			Label:    fmt.Sprintf("vNIC[%d] Description", i),
+			OldValue: oldDesc,
+			NewValue: newDesc,
+		})
+	}
 	output.DisplayChanges(changes, noColor)
 }

@@ -209,6 +209,13 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 	} else {
 		baseOpts = append(baseOpts, environmentOption(env))
 	}
+	if utils.TokenURL != "" {
+		warnIfInsecureURL("--token-url", utils.TokenURL)
+		if utils.BaseURL == "" {
+			fmt.Fprintf(os.Stderr, "Warning: --token-url is set without --base-url; credentials will be sent to %q instead of the standard auth host\n", utils.TokenURL)
+		}
+		baseOpts = append(baseOpts, megaport.WithTokenURL(utils.TokenURL))
+	}
 	opts := appendLogOpts(baseOpts)
 	megaportClient, err := megaport.New(httpClient, opts...)
 	if err != nil {
@@ -253,18 +260,22 @@ var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 	return megaport.New(httpClient, opts...)
 }
 
-// warnIfInsecureBaseURL prints a warning to stderr when the --base-url scheme
-// is not HTTPS, since credentials will be sent in cleartext.
-func warnIfInsecureBaseURL(rawURL string) {
+// warnIfInsecureURL prints a warning to stderr when the given URL's scheme is
+// not HTTPS, since credentials will be sent in cleartext. flagName is used in
+// the message so callers can name the flag that supplied the URL.
+func warnIfInsecureURL(flagName, rawURL string) {
 	u, err := url.Parse(rawURL)
 	if err != nil || u.Scheme == "" || u.Host == "" {
-		fmt.Fprintf(os.Stderr, "Warning: invalid --base-url %q (expected an absolute URL like https://host)\n", rawURL)
+		fmt.Fprintf(os.Stderr, "Warning: invalid %s %q (expected an absolute URL like https://host/path)\n", flagName, rawURL)
 		return
 	}
-	if u.Scheme != "https" {
-		fmt.Fprintf(os.Stderr, "Warning: --base-url %q is not HTTPS; credentials will be sent in cleartext\n", rawURL)
+	if !strings.EqualFold(u.Scheme, "https") {
+		fmt.Fprintf(os.Stderr, "Warning: %s %q is not HTTPS; credentials will be sent in cleartext\n", flagName, rawURL)
 	}
 }
+
+// warnIfInsecureBaseURL is a convenience wrapper for the --base-url flag.
+func warnIfInsecureBaseURL(rawURL string) { warnIfInsecureURL("--base-url", rawURL) }
 
 // appendLogOpts appends HTTP debug logging options to the client option slice
 // when --log-http is enabled. Logs go to stderr at DEBUG level with sensitive

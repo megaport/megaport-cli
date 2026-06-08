@@ -3,6 +3,7 @@ package apply
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -171,7 +172,15 @@ vxcs:
 }
 
 func TestApplyConfig_PortAPIError(t *testing.T) {
-	mockPort := &MockPortService{BuyPortErr: fmt.Errorf("API unavailable")}
+	apiErr := &megaport.ErrorResponse{
+		Response: &http.Response{
+			StatusCode: 403,
+			Header:     http.Header{},
+			Request:    &http.Request{},
+		},
+		Message: "forbidden",
+	}
+	mockPort := &MockPortService{BuyPortErr: apiErr}
 	defer setupMockClient(mockPort, &MockMCRService{}, &MockMVEService{}, &MockVXCService{})()
 
 	yaml := `
@@ -191,7 +200,7 @@ ports:
 	})
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "API unavailable")
+	assert.Contains(t, err.Error(), "permission denied")
 }
 
 func TestApplyConfig_UnresolvedTemplate(t *testing.T) {
@@ -374,8 +383,50 @@ vxcs:
 	assert.Contains(t, captured, "Undeclared")
 }
 
+func TestApplyConfig_MVEAPIError(t *testing.T) {
+	apiErr := &megaport.ErrorResponse{
+		Response: &http.Response{
+			StatusCode: 401,
+			Header:     http.Header{},
+			Request:    &http.Request{},
+		},
+		Message: "unauthorized",
+	}
+	mockMVE := &MockMVEService{BuyMVEErr: apiErr}
+	defer setupMockClient(&MockPortService{}, &MockMCRService{}, mockMVE, &MockVXCService{})()
+
+	yaml := `
+mves:
+  - name: Bad-MVE
+    location_id: 1
+    term: 1
+    vendor_config:
+      vendor: 6wind
+      imageId: 42
+      productSize: SMALL
+      sshPublicKey: "ssh-rsa AAAA"
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "authentication failed")
+}
+
 func TestApplyConfig_MCRAPIError(t *testing.T) {
-	mockMCR := &MockMCRService{BuyMCRErr: fmt.Errorf("MCR unavailable")}
+	apiErr := &megaport.ErrorResponse{
+		Response: &http.Response{
+			StatusCode: 429,
+			Header:     http.Header{},
+			Request:    &http.Request{},
+		},
+		Message: "rate limited",
+	}
+	mockMCR := &MockMCRService{BuyMCRErr: apiErr}
 	defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, &MockVXCService{})()
 
 	yaml := `
@@ -393,14 +444,22 @@ mcrs:
 		err = ApplyConfig(cmd, nil, true, "table")
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "MCR unavailable")
+	assert.Contains(t, err.Error(), "rate limit exceeded")
 }
 
 func TestApplyConfig_VXCAPIError(t *testing.T) {
 	mockPort := &MockPortService{
 		BuyPortResult: &megaport.BuyPortResponse{TechnicalServiceUIDs: []string{"port-uid-abc"}},
 	}
-	mockVXC := &MockVXCService{BuyVXCErr: fmt.Errorf("VXC service down")}
+	vxcAPIErr := &megaport.ErrorResponse{
+		Response: &http.Response{
+			StatusCode: 401,
+			Header:     http.Header{},
+			Request:    &http.Request{},
+		},
+		Message: "unauthorized",
+	}
+	mockVXC := &MockVXCService{BuyVXCErr: vxcAPIErr}
 	defer setupMockClient(mockPort, &MockMCRService{}, &MockMVEService{}, mockVXC)()
 
 	yaml := `
@@ -428,7 +487,7 @@ vxcs:
 		err = ApplyConfig(cmd, nil, true, "table")
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "VXC service down")
+	assert.Contains(t, err.Error(), "authentication failed")
 }
 
 func TestApplyConfig_NoFileFlag(t *testing.T) {
@@ -941,6 +1000,122 @@ func TestApplyModule_RegistersRollbackFlag(t *testing.T) {
 	require.Len(t, root.Commands(), 1)
 	applyC := root.Commands()[0]
 	assert.NotNil(t, applyC.Flag("rollback-on-failure"))
+}
+
+// --- nil API response tests ---
+
+func TestApplyConfig_PortNilResponse(t *testing.T) {
+	mockPort := &MockPortService{BuyPortNilResp: true}
+	defer setupMockClient(mockPort, &MockMCRService{}, &MockMVEService{}, &MockVXCService{})()
+
+	yaml := `
+ports:
+  - name: Nil-Port
+    location_id: 1
+    speed: 1000
+    term: 12
+    marketplace_visibility: false
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = ApplyConfig(cmd, nil, true, "table")
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
+}
+
+func TestApplyConfig_MCRNilResponse(t *testing.T) {
+	mockMCR := &MockMCRService{BuyMCRNilResp: true}
+	defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+	yaml := `
+mcrs:
+  - name: Nil-MCR
+    location_id: 1
+    speed: 1000
+    term: 12
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = ApplyConfig(cmd, nil, true, "table")
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
+}
+
+func TestApplyConfig_MVENilResponse(t *testing.T) {
+	mockMVE := &MockMVEService{BuyMVENilResp: true}
+	defer setupMockClient(&MockPortService{}, &MockMCRService{}, mockMVE, &MockVXCService{})()
+
+	yaml := `
+mves:
+  - name: Nil-MVE
+    location_id: 1
+    term: 1
+    vendor_config:
+      vendor: 6wind
+      imageId: 42
+      productSize: SMALL
+      sshPublicKey: "ssh-rsa AAAA"
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = ApplyConfig(cmd, nil, true, "table")
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
+}
+
+func TestApplyConfig_VXCNilResponse(t *testing.T) {
+	mockPort := &MockPortService{
+		BuyPortResult: &megaport.BuyPortResponse{TechnicalServiceUIDs: []string{"port-uid-abc"}},
+	}
+	mockVXC := &MockVXCService{BuyVXCNilResp: true}
+	defer setupMockClient(mockPort, &MockMCRService{}, &MockMVEService{}, mockVXC)()
+
+	yaml := `
+ports:
+  - name: Test-Port
+    location_id: 1
+    speed: 1000
+    term: 12
+    marketplace_visibility: false
+
+vxcs:
+  - name: Nil-VXC
+    rate_limit: 100
+    term: 12
+    a_end:
+      product_uid: "{{.port.Test-Port}}"
+    b_end:
+      product_uid: some-uid
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = ApplyConfig(cmd, nil, true, "table")
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
 }
 
 // --- helpers (also used by other test functions) ---
