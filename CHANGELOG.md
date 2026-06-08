@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Docker image for the native CLI binary, published to GitHub Container Registry
-- Aggregate status dashboard (`megaport status`) showing all resources in one view
+- Aggregate status dashboard (`megaport-cli status`) showing all resources in one view
 - Improved API error messages for 401, 403, 404, and 429 HTTP responses
 
 ### Fixed

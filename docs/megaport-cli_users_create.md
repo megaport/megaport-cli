@@ -56,6 +56,7 @@ megaport-cli users create [flags]
 |------|-----------|---------|-------------|----------|
 | `--email` |  |  | Email address of the user | true |
 | `--first-name` |  |  | First name of the user | true |
+| `--generate-skeleton` |  | `false` | Print a JSON skeleton template for --json or --json-file input and exit | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |

@@ -42,15 +42,15 @@ megaport-cli vxc validate [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| `--a-end-inner-vlan` |  | `0` | Inner VLAN for A-End (-1 or higher) | false |
+| `--a-end-inner-vlan` |  | `0` | Inner VLAN for A-End (0=none, -1=untagged, 2-4094 for specific VLAN (1 is reserved)) | false |
 | `--a-end-partner-config` |  |  | JSON string with A-End partner configuration | false |
 | `--a-end-uid` |  |  | UID of the A-End product | true |
-| `--a-end-vlan` |  | `0` | VLAN for A-End (0-4093, except 1) | false |
+| `--a-end-vlan` |  | `0` | VLAN for A-End (0=auto-assign, -1=untagged, 2-4094 for specific VLAN (1 is reserved)) | false |
 | `--a-end-vnic-index` |  | `0` | vNIC index for A-End MVE | false |
-| `--b-end-inner-vlan` |  | `0` | Inner VLAN for B-End (-1 or higher) | false |
+| `--b-end-inner-vlan` |  | `0` | Inner VLAN for B-End (0=none, -1=untagged, 2-4094 for specific VLAN (1 is reserved)) | false |
 | `--b-end-partner-config` |  |  | JSON string with B-End partner configuration | false |
 | `--b-end-uid` |  |  | UID of the B-End product | false |
-| `--b-end-vlan` |  | `0` | VLAN for B-End (0-4093, except 1) | false |
+| `--b-end-vlan` |  | `0` | VLAN for B-End (0=auto-assign, -1=untagged, 2-4094 for specific VLAN (1 is reserved)) | false |
 | `--b-end-vnic-index` |  | `0` | vNIC index for B-End MVE | false |
 | `--cost-centre` |  |  | Cost centre for billing | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |

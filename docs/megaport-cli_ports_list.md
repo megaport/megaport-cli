@@ -6,13 +6,14 @@ List all ports with optional filters
 
 List all ports available in the Megaport API.
 
-This command fetches and displays a list of ports with details such as port ID, name, location, speed, and status. By default, only active ports are shown.
+This command fetches and displays a list of ports with details such as port ID, name, location, speed, and status. By default, only active ports are shown. You can also filter by resource tags.
 
 ### Optional Fields
   - `include-inactive`: Include ports in CANCELLED, DECOMMISSIONED, or DECOMMISSIONING states
   - `location-id`: Filter ports by location ID
   - `port-name`: Filter ports by port name
   - `port-speed`: Filter ports by port speed
+  - `tag`: Filter by resource tag (format: key=value or key; repeatable, AND logic)
 
 ### Example Usage
 
@@ -23,6 +24,8 @@ This command fetches and displays a list of ports with details such as port ID, 
   megaport-cli ports list --port-name "Data Center Primary"
   megaport-cli ports list --include-inactive
   megaport-cli ports list --location-id 1 --port-speed 10000 --port-name "Data Center Primary"
+  megaport-cli ports list --tag env=prod
+  megaport-cli ports list --tag env=prod --tag team=network
 ```
 
 ## Usage
@@ -48,6 +51,7 @@ megaport-cli ports list [flags]
 | `--location-id` |  | `0` | Filter ports by location ID | false |
 | `--port-name` |  |  | Filter ports by port name | false |
 | `--port-speed` |  | `0` | Filter ports by port speed | false |
+| `--tag` |  | `[]` | Filter by resource tag (format: key=value or key; repeatable, AND logic) | false |
 
 ## Subcommands
 * [docs](megaport-cli_ports_list_docs.md)

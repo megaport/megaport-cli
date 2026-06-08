@@ -397,7 +397,7 @@ func promptMVEVnics(noColor bool) ([]megaport.MVENetworkInterface, error) {
 	return vnics, nil
 }
 
-func promptForUpdateMVEDetails(mveUID string, noColor bool) (*megaport.ModifyMVERequest, error) {
+func promptForUpdateMVEDetails(mveUID string, currentVnics []*megaport.MVENetworkInterface, noColor bool) (*megaport.ModifyMVERequest, error) {
 	req := &megaport.ModifyMVERequest{
 		MVEID: mveUID,
 	}
@@ -428,6 +428,41 @@ func promptForUpdateMVEDetails(mveUID string, noColor bool) (*megaport.ModifyMVE
 			return nil, fmt.Errorf("invalid contract term: %w", err)
 		}
 		req.ContractTermMonths = &contractTerm
+	}
+
+	if len(currentVnics) > 0 {
+		updateVnicsStr, err := utils.ResourcePrompt("mve", fmt.Sprintf("Update vNIC descriptions? (y/N, %d vNICs): ", len(currentVnics)), noColor)
+		if err != nil {
+			return nil, err
+		}
+		if answer := strings.ToLower(strings.TrimSpace(updateVnicsStr)); answer == "y" || answer == "yes" {
+			vnics := make([]megaport.MVEVnicUpdate, len(currentVnics))
+			for i, current := range currentVnics {
+				currentDesc := ""
+				if current != nil {
+					currentDesc = current.Description
+				}
+				var promptMsg string
+				if currentDesc == "" {
+					promptMsg = fmt.Sprintf("Description for vNIC[%d] (no current value, must be non-empty): ", i)
+				} else {
+					promptMsg = fmt.Sprintf("Description for vNIC[%d] (current: %q, leave empty to keep): ", i, currentDesc)
+				}
+				desc, err := utils.ResourcePrompt("mve", promptMsg, noColor)
+				if err != nil {
+					return nil, err
+				}
+				desc = strings.TrimSpace(desc)
+				if desc == "" {
+					if currentDesc == "" {
+						return nil, fmt.Errorf("vnics[%d].description must not be empty", i)
+					}
+					desc = currentDesc
+				}
+				vnics[i] = megaport.MVEVnicUpdate{Description: desc}
+			}
+			req.Vnics = vnics
+		}
 	}
 
 	if err := validation.ValidateUpdateMVERequest(req); err != nil {

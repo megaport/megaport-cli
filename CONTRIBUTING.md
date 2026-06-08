@@ -6,7 +6,7 @@ Thank you for your interest in contributing to megaport-cli! This guide will hel
 
 ### Prerequisites
 
-- Go 1.21 or later
+- Go 1.25 or later (matches `go.mod`)
 - Git
 
 ### Initial Setup
@@ -108,12 +108,12 @@ Examples:
 
 We support convenient shorthand aliases for frequently-used commands:
 
-| Full Command | Alias | Example                  |
-| ------------ | ----- | ------------------------ |
-| list         | ls    | `megaport ports ls`      |
-| get          | show  | `megaport vxc show <id>` |
-| delete       | rm    | `megaport mcr rm <id>`   |
-| status       | st    | `megaport st`            |
+| Full Command | Alias | Example                      |
+| ------------ | ----- | ---------------------------- |
+| list         | ls    | `megaport-cli ports ls`      |
+| get          | show  | `megaport-cli vxc show <id>` |
+| delete       | rm    | `megaport-cli mcr rm <id>`   |
+| status       | st    | `megaport-cli st`            |
 
 When adding new commands, consider adding aliases if appropriate.
 
