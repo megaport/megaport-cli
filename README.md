@@ -407,7 +407,7 @@ megaport-cli mve buy --json '{"name":"My Versa MVE","term":1,"locationId":67,"ve
 
 # Update an existing MVE
 megaport-cli mve update MVE_UID --interactive
-megaport-cli mve update MVE_UID --name "Updated MVE Name" --cost-centre "New Cost Centre" --contract-term 24
+megaport-cli mve update MVE_UID --name "Updated MVE Name" --cost-centre "New Cost Centre" --term 24
 megaport-cli mve update MVE_UID --json '{"name": "New MVE Name", "costCentre": "New Cost Centre", "contractTermMonths": 24}'
 
 # Delete an MVE (immediate)

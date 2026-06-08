@@ -34,6 +34,7 @@ func (b *CommandBuilder) WithMVEUpdateFlags() *CommandBuilder {
 	b.WithFlag("name", "", "The new name of the MVE (1-64 characters)")
 	b.WithFlag("cost-centre", "", "The new cost centre for billing purposes")
 	b.WithIntFlag("term", 0, fmt.Sprintf("New contract term in months (%s)", validation.FormatIntSlice(validation.ValidContractTerms)))
+	b.WithFlag("vnics", "", "JSON array of vNIC updates — one entry per existing vNIC, in order. Only `description` is mutable, e.g. `[{\"description\":\"Data Plane\"}]`. The vNIC count cannot change after provisioning.")
 	return b
 }
 
