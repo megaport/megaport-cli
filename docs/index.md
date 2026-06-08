@@ -1,6 +1,6 @@
 # Megaport CLI Documentation
 
-> Generated on April 13, 2026 for version v0.7.1
+> Generated on June 3, 2026 for version v0.10.0
 
 ## Available Commands
 
@@ -113,6 +113,16 @@
 | [megaport-cli mcr list-tags docs](megaport-cli_mcr_list-tags_docs.md) | Show documentation for this command |
 | [megaport-cli mcr lock](megaport-cli_mcr_lock.md) | Lock an MCR |
 | [megaport-cli mcr lock docs](megaport-cli_mcr_lock_docs.md) | Show documentation for this command |
+| [megaport-cli mcr looking-glass](megaport-cli_mcr_looking-glass.md) | MCR Looking Glass diagnostic commands |
+| [megaport-cli mcr looking-glass bgp-neighbor-routes](megaport-cli_mcr_looking-glass_bgp-neighbor-routes.md) | List routes advertised to or received from a BGP neighbor |
+| [megaport-cli mcr looking-glass bgp-neighbor-routes docs](megaport-cli_mcr_looking-glass_bgp-neighbor-routes_docs.md) | Show documentation for this command |
+| [megaport-cli mcr looking-glass bgp-routes](megaport-cli_mcr_looking-glass_bgp-routes.md) | List BGP routes with full BGP attributes |
+| [megaport-cli mcr looking-glass bgp-routes docs](megaport-cli_mcr_looking-glass_bgp-routes_docs.md) | Show documentation for this command |
+| [megaport-cli mcr looking-glass bgp-sessions](megaport-cli_mcr_looking-glass_bgp-sessions.md) | List BGP sessions configured on the MCR |
+| [megaport-cli mcr looking-glass bgp-sessions docs](megaport-cli_mcr_looking-glass_bgp-sessions_docs.md) | Show documentation for this command |
+| [megaport-cli mcr looking-glass docs](megaport-cli_mcr_looking-glass_docs.md) | Show documentation for this command |
+| [megaport-cli mcr looking-glass ip-routes](megaport-cli_mcr_looking-glass_ip-routes.md) | List IP routes from the MCR routing table |
+| [megaport-cli mcr looking-glass ip-routes docs](megaport-cli_mcr_looking-glass_ip-routes_docs.md) | Show documentation for this command |
 | [megaport-cli mcr restore](megaport-cli_mcr_restore.md) | Restore a deleted MCR |
 | [megaport-cli mcr restore docs](megaport-cli_mcr_restore_docs.md) | Show documentation for this command |
 | [megaport-cli mcr status](megaport-cli_mcr_status.md) | Check the provisioning status of an MCR |
@@ -159,6 +169,26 @@
 | [megaport-cli mve update-tags docs](megaport-cli_mve_update-tags_docs.md) | Show documentation for this command |
 | [megaport-cli mve validate](megaport-cli_mve_validate.md) | Validate an MVE order without purchasing |
 | [megaport-cli mve validate docs](megaport-cli_mve_validate_docs.md) | Show documentation for this command |
+| [megaport-cli nat-gateway](megaport-cli_nat-gateway.md) | Manage NAT Gateways in the Megaport API |
+| [megaport-cli nat-gateway buy](megaport-cli_nat-gateway_buy.md) | Purchase a NAT Gateway design to begin provisioning |
+| [megaport-cli nat-gateway buy docs](megaport-cli_nat-gateway_buy_docs.md) | Show documentation for this command |
+| [megaport-cli nat-gateway create](megaport-cli_nat-gateway_create.md) | Create a new NAT Gateway |
+| [megaport-cli nat-gateway create docs](megaport-cli_nat-gateway_create_docs.md) | Show documentation for this command |
+| [megaport-cli nat-gateway delete](megaport-cli_nat-gateway_delete.md) | Delete a NAT Gateway |
+| [megaport-cli nat-gateway delete docs](megaport-cli_nat-gateway_delete_docs.md) | Show documentation for this command |
+| [megaport-cli nat-gateway docs](megaport-cli_nat-gateway_docs.md) | Show documentation for this command |
+| [megaport-cli nat-gateway get](megaport-cli_nat-gateway_get.md) | Get details for a single NAT Gateway |
+| [megaport-cli nat-gateway get docs](megaport-cli_nat-gateway_get_docs.md) | Show documentation for this command |
+| [megaport-cli nat-gateway list](megaport-cli_nat-gateway_list.md) | List all NAT Gateways |
+| [megaport-cli nat-gateway list docs](megaport-cli_nat-gateway_list_docs.md) | Show documentation for this command |
+| [megaport-cli nat-gateway list-sessions](megaport-cli_nat-gateway_list-sessions.md) | List available NAT Gateway speed/session-count combinations |
+| [megaport-cli nat-gateway list-sessions docs](megaport-cli_nat-gateway_list-sessions_docs.md) | Show documentation for this command |
+| [megaport-cli nat-gateway telemetry](megaport-cli_nat-gateway_telemetry.md) | Get telemetry data for a NAT Gateway |
+| [megaport-cli nat-gateway telemetry docs](megaport-cli_nat-gateway_telemetry_docs.md) | Show documentation for this command |
+| [megaport-cli nat-gateway update](megaport-cli_nat-gateway_update.md) | Update an existing NAT Gateway |
+| [megaport-cli nat-gateway update docs](megaport-cli_nat-gateway_update_docs.md) | Show documentation for this command |
+| [megaport-cli nat-gateway validate](megaport-cli_nat-gateway_validate.md) | Validate a NAT Gateway design without purchasing |
+| [megaport-cli nat-gateway validate docs](megaport-cli_nat-gateway_validate_docs.md) | Show documentation for this command |
 | [megaport-cli partners](megaport-cli_partners.md) | Manage partner ports in the Megaport API |
 | [megaport-cli partners docs](megaport-cli_partners_docs.md) | Show documentation for this command |
 | [megaport-cli partners find](megaport-cli_partners_find.md) | Find partner ports interactively |

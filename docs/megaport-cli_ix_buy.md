@@ -64,6 +64,7 @@ megaport-cli ix buy [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 | `--asn` |  | `0` | ASN (Autonomous System Number) for BGP peering | true |
+| `--generate-skeleton` |  | `false` | Print a JSON skeleton template for --json or --json-file input and exit | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |

@@ -45,6 +45,7 @@ megaport-cli mcr update-ipsec-addon [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
+| `--generate-skeleton` |  | `false` | Print a JSON skeleton template for --json or --json-file input and exit | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |

@@ -80,6 +80,7 @@ megaport-cli mcr buy [flags]
 |------|-----------|---------|-------------|----------|
 | `--cost-centre` |  |  | The cost centre for billing purposes | false |
 | `--diversity-zone` |  |  | The diversity zone for the MCR | false |
+| `--generate-skeleton` |  | `false` | Print a JSON skeleton template for --json or --json-file input and exit | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
 | `--ipsec-tunnel-count` |  | `0` | IPSec tunnel count for an add-on (10, 20, or 30) | false |
 | `--json` |  |  | JSON string containing configuration | false |

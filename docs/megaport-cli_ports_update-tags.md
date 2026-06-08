@@ -20,6 +20,7 @@ megaport-cli ports update-tags [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
+| `--force` |  | `false` | Skip the confirmation prompt | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
