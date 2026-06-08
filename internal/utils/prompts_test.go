@@ -436,6 +436,27 @@ func TestAccessors(t *testing.T) {
 		assert.True(t, result)
 	})
 
+	t.Run("DesignConfirmPrompt", func(t *testing.T) {
+		original := GetDesignConfirmPrompt()
+		defer SetDesignConfirmPrompt(original)
+
+		called := false
+		var gotResource string
+		var gotDetails []BuyConfirmDetail
+		SetDesignConfirmPrompt(func(resource string, details []BuyConfirmDetail, _ bool) bool {
+			called = true
+			gotResource = resource
+			gotDetails = details
+			return true
+		})
+		details := []BuyConfirmDetail{{Key: "Name", Value: "test"}}
+		result := DesignConfirmPrompt("NAT Gateway", details, true)
+		assert.True(t, called)
+		assert.True(t, result)
+		assert.Equal(t, "NAT Gateway", gotResource)
+		assert.Equal(t, details, gotDetails)
+	})
+
 	t.Run("SecretResourcePrompt", func(t *testing.T) {
 		original := GetSecretResourcePrompt()
 		defer SetSecretResourcePrompt(original)
@@ -474,6 +495,29 @@ func TestAccessors(t *testing.T) {
 		assert.Equal(t, "tag", tags["new"])
 		assert.Equal(t, "tag", tags["old"])
 	})
+}
+
+// TestDesignConfirmPrompt_DefaultRendering verifies the default
+// designConfirmPromptFn renders design-stage wording instead of
+// BuyConfirmPrompt's purchase wording.
+func TestDesignConfirmPrompt_DefaultRendering(t *testing.T) {
+	details := []BuyConfirmDetail{
+		{Key: "Name", Value: "test-gw"},
+		{Key: "Speed", Value: "1000 Mbps"},
+	}
+
+	out := withMockedIO("y\n", func() {
+		result := DesignConfirmPrompt("NAT Gateway", details, true)
+		assert.True(t, result)
+	})
+
+	assert.Contains(t, out, "Design Summary:")
+	assert.Contains(t, out, "Proceed with creation?")
+	assert.Contains(t, out, "Resource Type: NAT Gateway")
+	assert.Contains(t, out, "Name: test-gw")
+	assert.Contains(t, out, "Speed: 1000 Mbps")
+	assert.NotContains(t, out, "Purchase Summary")
+	assert.NotContains(t, out, "Proceed with purchase")
 }
 
 // Integration test that actually runs the real functions

@@ -13,9 +13,12 @@ The CLI allows you to manage Megaport resources such as ports, VXCs, MCRs, MVEs,
   - `--help`: Show help for any command
   - `--max-retries`: Maximum number of retries for transient API failures (default 3)
   - `--no-color`: Disable colored output
+  - `--no-header`: Suppress table and CSV column headers (useful for scripting)
+  - `--no-pager`: Disable pager for long table output
   - `--no-retry`: Disable automatic retry on transient API failures
-  - `--output`: Output format (json, yaml, table, csv, xml)
+  - `--output`: Output format (table, json, csv, xml, go-template)
   - `--quiet`: Suppress informational output, only show errors and data
+  - `--template`: Go template string for --output go-template
   - `--verbose`: Show additional debug information
 
 ### Important Notes
@@ -49,11 +52,14 @@ megaport-cli [flags]
 | `--log-http` |  | `false` | Log raw HTTP requests/responses to stderr for debugging (may include sensitive data such as auth tokens) | false |
 | `--max-retries` |  | `3` | Maximum number of retries for transient API failures | false |
 | `--no-color` |  | `false` | Disable colorful output | false |
+| `--no-header` |  | `false` | Suppress table and CSV column headers (useful for scripting) | false |
+| `--no-pager` |  | `false` | Disable pager for long table output | false |
 | `--no-retry` |  | `false` | Disable automatic retry on transient API failures | false |
-| `--output` | `-o` | `table` | Output format (table, json, csv, xml) | false |
+| `--output` | `-o` | `table` | Output format (table, json, csv, xml, go-template; requires --template when using go-template) | false |
 | `--profile` |  |  | Use a specific config profile for this command | false |
 | `--query` |  |  | JMESPath query to filter JSON output (requires --output json) | false |
 | `--quiet` | `-q` | `false` | Suppress informational output, only show errors and data | false |
+| `--template` |  |  | Go template string for --output go-template (e.g. '{{range .}}{{.Name}}{{"\n"}}{{end}}') | false |
 | `--timeout` |  | `0s` | Request timeout duration (e.g., 30s, 2m, 5m); 0 uses the internal default of 90s | false |
 | `--verbose` | `-v` | `false` | Show additional debug information | false |
 
@@ -69,6 +75,7 @@ megaport-cli [flags]
 * [managed-account](megaport-cli_managed-account.md)
 * [mcr](megaport-cli_mcr.md)
 * [mve](megaport-cli_mve.md)
+* [nat-gateway](megaport-cli_nat-gateway.md)
 * [partners](megaport-cli_partners.md)
 * [ports](megaport-cli_ports.md)
 * [product](megaport-cli_product.md)

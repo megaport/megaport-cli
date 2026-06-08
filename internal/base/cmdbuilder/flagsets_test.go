@@ -351,7 +351,7 @@ func TestWithVXCFilterFlags(t *testing.T) {
 func TestWithMVEUpdateFlags(t *testing.T) {
 	cmd := NewCommand("test", "test").WithMVEUpdateFlags().Build()
 
-	expectedFlags := []string{"name", "cost-centre", "term"}
+	expectedFlags := []string{"name", "cost-centre", "term", "vnics"}
 	for _, flag := range expectedFlags {
 		assert.NotNil(t, cmd.Flags().Lookup(flag), "MVE update flag %q should exist", flag)
 	}

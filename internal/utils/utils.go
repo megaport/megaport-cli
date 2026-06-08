@@ -67,6 +67,13 @@ var (
 	// LogHTTP enables raw HTTP request/response logging to stderr. Set via --log-http flag.
 	LogHTTP bool
 
+	// BaseURL overrides the API base URL (e.g. http://localhost:8080). Set via --base-url flag.
+	BaseURL string
+
+	// TokenURL overrides the OAuth token endpoint. Use with --base-url when the token server
+	// is not one of the three standard Megaport auth hosts. Set via --token-url flag.
+	TokenURL string
+
 	ValidFormats = []string{FormatTable, FormatJSON, FormatCSV, FormatXML, FormatGoTemplate}
 )
 

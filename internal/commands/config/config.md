@@ -41,7 +41,7 @@ The configuration file is stored at `~/.megaport/config.json` by default, or at 
 
 ### Key Components
 
-- **version**: Config file format version (currently 2)
+- **version**: Config file format version (currently 1)
 - **active_profile**: Name of the currently selected profile
 - **profiles**: Map of profile names to profile configurations
   - **access_key**: Megaport API access key
@@ -66,8 +66,10 @@ Settings are applied in the following order (highest to lowest precedence):
 Profiles store API credentials and environment settings for convenient reuse. Create them with:
 
 ```
-megaport-cli config create-profile myprofile --access-key xxx --secret-key xxx --environment production
+megaport-cli config create-profile myprofile --environment production
 ```
+
+Omit `--access-key` and `--secret-key` to be prompted instead of passing secrets on the command line. Input is masked on an interactive terminal; on piped/non-TTY stdin it is read without masking.
 
 ### Switching Profiles
 
@@ -82,8 +84,11 @@ megaport-cli config use-profile myprofile
 Update an existing profile with:
 
 ```
-megaport-cli config update-profile myprofile --access-key xxx --environment staging
+megaport-cli config update-profile myprofile --environment staging
+megaport-cli config update-profile myprofile --secret-key ""
 ```
+
+Pass an empty string for a key flag (e.g. `--secret-key ""`) to be prompted instead of providing the value on the command line. Input is masked on an interactive terminal; on piped/non-TTY stdin it is read without masking.
 
 Only specified fields will be updated, others remain unchanged.
 

@@ -207,6 +207,11 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	if resp == nil {
+		output.PrintError("MVE buy returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
+	}
+
 	output.PrintResourceCreated("MVE", resp.TechnicalServiceUID, noColor)
 	return nil
 }
@@ -266,6 +271,10 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("Failed to get original MVE details: %v", noColor, err)
 		return fmt.Errorf("failed to get MVE details: %w", err)
 	}
+	if originalMVE == nil {
+		output.PrintError("MVE %s not found", noColor, mveUID)
+		return fmt.Errorf("MVE %s not found", mveUID)
+	}
 
 	interactive, _ := cmd.Flags().GetBool("interactive")
 	jsonStr, _ := cmd.Flags().GetString("json")
@@ -273,7 +282,8 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 
 	flagsProvided := cmd.Flags().Changed("name") ||
 		cmd.Flags().Changed("cost-centre") ||
-		cmd.Flags().Changed("contract-term")
+		cmd.Flags().Changed("term") ||
+		cmd.Flags().Changed("vnics")
 
 	var req *megaport.ModifyMVERequest
 
@@ -291,7 +301,7 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 	} else if interactive {
 		output.PrintInfo("Starting interactive mode for MVE %s", noColor, formattedUID)
-		req, err = promptForUpdateMVEDetails(mveUID, noColor)
+		req, err = promptForUpdateMVEDetails(mveUID, originalMVE.NetworkInterfaces, noColor)
 		if err != nil {
 			output.PrintError("Failed to get MVE details interactively: %v", noColor, err)
 			return fmt.Errorf("failed to get MVE details interactively: %w", err)
@@ -299,6 +309,12 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	} else {
 		output.PrintError("No input provided", noColor)
 		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify MVE update details")
+	}
+
+	if req.Vnics != nil && len(req.Vnics) != len(originalMVE.NetworkInterfaces) {
+		msg := fmt.Sprintf("vnics length (%d) must match the MVE's existing vNIC count (%d) — the vNIC count cannot change after provisioning", len(req.Vnics), len(originalMVE.NetworkInterfaces))
+		output.PrintError("%s", noColor, msg)
+		return fmt.Errorf("%s", msg)
 	}
 
 	req.WaitForUpdate = true
@@ -318,6 +334,11 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	if err != nil {
 		output.PrintError("Failed to update MVE: %v", noColor, err)
 		return err
+	}
+
+	if resp == nil {
+		output.PrintError("MVE update returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
 	}
 
 	if !resp.MVEUpdated {
@@ -537,6 +558,11 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		err = utils.WrapAPIError(err, "MVE", mveUID)
 		output.PrintError("Failed to delete MVE: %v", noColor, err)
 		return fmt.Errorf("failed to delete MVE: %w", err)
+	}
+
+	if resp == nil {
+		output.PrintError("MVE delete returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
 	}
 
 	// MVEs always delete immediately (SDK hardcodes DeleteNow: true).

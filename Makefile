@@ -39,7 +39,7 @@ check: lint test
 
 # Build WASM binary
 wasm:
-	GOOS=js GOARCH=wasm go build -tags js,wasm -o web/megaport.wasm .
+	GOOS=js GOARCH=wasm go build -trimpath -tags js,wasm -ldflags="-s -w" -o web/megaport.wasm .
 
 # Build the static browser/WASM site into web/vue-demo/ (for CDN hosting)
 web-static:

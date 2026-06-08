@@ -870,6 +870,20 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			expectedError: "API error: service unavailable",
 		},
 		{
+			name: "nil response from API",
+			flags: map[string]string{
+				"name":        "Test MCR",
+				"term":        "12",
+				"port-speed":  "10000",
+				"location-id": "123",
+				"mcr-asn":     "65000",
+			},
+			setupMock: func(m *MockMCRService) {
+				// BuyMCRResult left nil → mock returns (nil, nil)
+			},
+			expectedError: "empty response from API",
+		},
+		{
 			name:          "no input provided",
 			expectedError: "no input provided",
 		},
@@ -1975,6 +1989,35 @@ func TestUpdateMCR(t *testing.T) {
 				}
 			},
 			expectedError: "API error: service unavailable",
+		},
+		{
+			name: "nil response from API",
+			args: []string{"mcr-nil"},
+			flags: map[string]string{
+				"name": "Updated MCR",
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				})
+			},
+			setupGetMCR: func() {
+				getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+					return &megaport.MCR{
+						UID:                mcrUID,
+						Name:               "Original MCR",
+						ProvisioningStatus: "LIVE",
+					}, nil
+				}
+			},
+			setupUpdateMCR: func() {
+				updateMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyMCRRequest) (*megaport.ModifyMCRResponse, error) {
+					return nil, nil
+				}
+			},
+			expectedError: "empty response from API",
 		},
 	}
 

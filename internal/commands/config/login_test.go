@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -529,6 +531,150 @@ func TestNewUnauthenticatedClient(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, client)
 		assert.Contains(t, client.BaseURL.String(), "api-mpone-dev.megaport.com")
+	})
+
+	t.Run("--base-url overrides env flag", func(t *testing.T) {
+		origEnv := utils.Env
+		defer func() { utils.Env = origEnv }()
+		origProfile := utils.ProfileOverride
+		defer func() { utils.ProfileOverride = origProfile }()
+		origBaseURL := utils.BaseURL
+		defer func() { utils.BaseURL = origBaseURL }()
+
+		utils.Env = "staging"
+		utils.ProfileOverride = ""
+		utils.BaseURL = "http://localhost:9999"
+
+		client, err := NewUnauthenticatedClient()
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.Contains(t, client.BaseURL.String(), "localhost:9999")
+	})
+}
+
+func TestBaseURLWithTokenURL(t *testing.T) {
+	origBaseURL := utils.BaseURL
+	origTokenURL := utils.TokenURL
+	origEnv := utils.Env
+	origProfile := utils.ProfileOverride
+	defer func() {
+		utils.BaseURL = origBaseURL
+		utils.TokenURL = origTokenURL
+		utils.Env = origEnv
+		utils.ProfileOverride = origProfile
+	}()
+
+	tempDir, err := os.MkdirTemp("", "megaport-baseurl-auth-test")
+	assert.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
+
+	t.Run("authenticated login succeeds with --base-url and --token-url", func(t *testing.T) {
+		var tokenEndpointHit atomic.Bool
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/oauth2/token" {
+				tokenEndpointHit.Store(true)
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = fmt.Fprint(w, `{"access_token":"test-token","token_type":"Bearer","expires_in":3600}`)
+				return
+			}
+			http.NotFound(w, r)
+		}))
+		defer ts.Close()
+
+		t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+		t.Setenv("MEGAPORT_ACCESS_KEY", "test-key")
+		t.Setenv("MEGAPORT_SECRET_KEY", "test-secret")
+
+		utils.BaseURL = ts.URL
+		utils.TokenURL = ts.URL + "/oauth2/token"
+		utils.Env = ""
+		utils.ProfileOverride = ""
+
+		origStderr := os.Stderr
+		devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+		assert.NoError(t, err)
+		os.Stderr = devNull
+		t.Cleanup(func() { os.Stderr = origStderr; _ = devNull.Close() })
+
+		client, err := LoginWithOutput(context.Background(), "")
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+		assert.True(t, tokenEndpointHit.Load(), "token endpoint should have been called")
+		assert.Contains(t, client.BaseURL.String(), ts.Listener.Addr().String())
+	})
+
+	t.Run("--token-url without --base-url warns and still applies the override", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/oauth2/token" {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = fmt.Fprint(w, `{"access_token":"test-token","token_type":"Bearer","expires_in":3600}`)
+				return
+			}
+			http.NotFound(w, r)
+		}))
+		defer ts.Close()
+
+		t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+		t.Setenv("MEGAPORT_ACCESS_KEY", "test-key")
+		t.Setenv("MEGAPORT_SECRET_KEY", "test-secret")
+		t.Setenv("MEGAPORT_ENVIRONMENT", "staging")
+
+		utils.BaseURL = ""
+		utils.TokenURL = ts.URL + "/oauth2/token"
+		utils.Env = "staging"
+		utils.ProfileOverride = ""
+
+		// Capture stderr concurrently to avoid filling the pipe buffer and
+		// deadlocking LoginWithOutput if the spinner writes frequently.
+		origStderr := os.Stderr
+		pr, pw, pipeErr := os.Pipe()
+		assert.NoError(t, pipeErr)
+		os.Stderr = pw
+		t.Cleanup(func() { os.Stderr = origStderr })
+
+		var stderrBuf bytes.Buffer
+		drainDone := make(chan struct{})
+		go func() {
+			_, _ = io.Copy(&stderrBuf, pr)
+			close(drainDone)
+		}()
+
+		client, loginErr := LoginWithOutput(context.Background(), "")
+
+		pw.Close()
+		os.Stderr = origStderr
+		<-drainDone
+		pr.Close()
+
+		assert.NoError(t, loginErr)
+		assert.NotNil(t, client)
+		assert.Contains(t, stderrBuf.String(), "--token-url is set without --base-url")
+	})
+
+	t.Run("--base-url without --token-url fails with unknown environment", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer ts.Close()
+
+		t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+		t.Setenv("MEGAPORT_ACCESS_KEY", "test-key")
+		t.Setenv("MEGAPORT_SECRET_KEY", "test-secret")
+
+		utils.BaseURL = ts.URL
+		utils.TokenURL = ""
+		utils.Env = ""
+		utils.ProfileOverride = ""
+
+		origStderr := os.Stderr
+		devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+		assert.NoError(t, err)
+		os.Stderr = devNull
+		t.Cleanup(func() { os.Stderr = origStderr; _ = devNull.Close() })
+
+		_, err = LoginWithOutput(context.Background(), "")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown API environment")
 	})
 }
 
