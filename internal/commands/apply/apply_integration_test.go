@@ -272,3 +272,58 @@ func TestIntegration_ApplyDryRun(t *testing.T) {
 	created := portsByPrefix(t, prefix)
 	assert.Emptyf(t, created, "dry-run must not provision any ports; found %d", len(created))
 }
+
+// vxcOnPortByName polls GetPort(portUID).AssociatedVXCs for a VXC with the given
+// name and returns its UID. The VXC is attached immediately after provisioning,
+// but the association can lag a poll or two, so this retries briefly.
+func vxcOnPortByName(t *testing.T, portUID, vxcName string) string {
+	t.Helper()
+	deadline := time.Now().Add(60 * time.Second)
+	for {
+		p := portFromSDK(t, portUID)
+		for _, vxc := range p.AssociatedVXCs {
+			if vxc != nil && vxc.Name == vxcName {
+				return vxc.UID
+			}
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("VXC %q not found on port %s within timeout", vxcName, portUID)
+		}
+		time.Sleep(2 * time.Second)
+	}
+}
+
+func TestIntegration_ApplyLifecycle(t *testing.T) {
+	testutil.RequireSharedIntegrationClient(t)
+
+	prefix := fmt.Sprintf("CLI-Apply-Test-%s", generateUniqueID(t))
+	registerSweepCleanup(t, prefix)
+
+	yamlContent, portAName, portBName, vxcName := twoPortVXCConfig(prefix)
+	cfgPath := writeApplyConfig(t, yamlContent)
+	cmd := applyIntegrationCmd(t, cfgPath, false /*dryRun*/, true /*yes*/, false /*rollback*/)
+
+	require.NoError(t, ApplyConfig(cmd, nil, true, "table"), "apply should provision all resources")
+
+	// Both ports exist.
+	portA := portByExactName(t, prefix, portAName)
+	require.NotNilf(t, portA, "port %q not found after apply", portAName)
+	portB := portByExactName(t, prefix, portBName)
+	require.NotNilf(t, portB, "port %q not found after apply", portBName)
+	assert.NotEmpty(t, portA.UID)
+	assert.NotEmpty(t, portB.UID)
+	assert.NotEmpty(t, portA.ProvisioningStatus)
+
+	// The VXC exists, attached to port A, with endpoints wired to the two
+	// provisioned port UIDs — proving end-to-end {{.port.X}} template resolution.
+	vxcUID := vxcOnPortByName(t, portA.UID, vxcName)
+	client := testutil.SharedIntegrationClient(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	vxc, err := client.VXCService.GetVXC(ctx, vxcUID)
+	require.NoError(t, err, "SDK GetVXC failed")
+	require.NotNil(t, vxc)
+	assert.Equal(t, vxcName, vxc.Name)
+	assert.Equal(t, portA.UID, vxc.AEndConfiguration.UID, "VXC a_end should resolve to port A")
+	assert.Equal(t, portB.UID, vxc.BEndConfiguration.UID, "VXC b_end should resolve to port B")
+}
