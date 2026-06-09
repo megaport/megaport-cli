@@ -649,17 +649,18 @@ mcrs:
 	require.Equal(t, []string{"port-rollback-uid"}, mockPort.DeletePortCalledWith)
 }
 
-// TestApplyConfig_RollbackUsesFreshContext guards the fix where rollback must not
-// reuse the (often-expired) provisioning context. A 1ns --timeout leaves the
-// provisioning context already expired by rollback time; the mock's DeletePort
-// returns ctx.Err() on a cancelled context without recording the call. If rollback
-// reused that expired context the delete would be skipped and the port leaked.
-func TestApplyConfig_RollbackUsesFreshContext(t *testing.T) {
+// TestApplyConfig_RollbackSurvivesProvisionTimeout guards the fix where rollback
+// must not reuse the provisioning context. The port is bought but never reaches a
+// ready state, so the short --timeout trips waitForProvision and the provisioning
+// context expires. If rollback reused that expired context, the mock's DeletePort
+// would see ctx.Err() and the port would leak; rollback must start a fresh context
+// (with the same configured timeout) so the delete still fires.
+func TestApplyConfig_RollbackSurvivesProvisionTimeout(t *testing.T) {
 	mockPort := &MockPortService{
 		BuyPortResult: &megaport.BuyPortResponse{TechnicalServiceUIDs: []string{"port-rollback-uid"}},
+		GetPortStatus: "CONFIGURING", // never reaches CONFIGURED/LIVE, so the wait times out
 	}
-	mockMCR := &MockMCRService{BuyMCRErr: fmt.Errorf("MCR API down")}
-	defer setupMockClient(mockPort, mockMCR, &MockMVEService{}, &MockVXCService{})()
+	defer setupMockClient(mockPort, &MockMCRService{}, &MockMVEService{}, &MockVXCService{})()
 
 	cfg := `
 ports:
@@ -668,17 +669,11 @@ ports:
     speed: 1000
     term: 12
     marketplace_visibility: false
-
-mcrs:
-  - name: Failing-MCR
-    location_id: 1
-    speed: 1000
-    term: 12
 `
 	f := writeTempFile(t, "config.yaml", cfg)
 	cmd := applyCmdWithRollback(f)
 	cmd.Flags().Duration("timeout", 0, "")
-	_ = cmd.Flags().Set("timeout", "1ns")
+	require.NoError(t, cmd.Flags().Set("timeout", "100ms"))
 
 	var err error
 	output.CaptureOutput(func() {
