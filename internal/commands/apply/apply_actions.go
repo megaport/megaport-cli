@@ -760,7 +760,7 @@ func parseConfigFile(filePath string) (*InfraConfig, error) {
 		return nil, fmt.Errorf("reading config file: %w", err)
 	}
 	if len(data) > maxConfigFileSize {
-		return nil, fmt.Errorf("config file exceeds maximum size of %d bytes", maxConfigFileSize)
+		return nil, fmt.Errorf("config file %q exceeds maximum size of %d bytes", filePath, maxConfigFileSize)
 	}
 
 	cfg := &InfraConfig{}
