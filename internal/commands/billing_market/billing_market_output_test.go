@@ -61,13 +61,19 @@ func TestBillingMarketOutput_XML(t *testing.T) {
 }
 
 func TestBillingMarketOutput_EmptySlice(t *testing.T) {
-	for _, format := range []string{"table", "json", "csv", "xml"} {
+	cases := map[string]func(string){
+		"table": func(out string) { assert.Contains(t, out, "SUPPLIER NAME") },
+		"json":  func(out string) { assert.Equal(t, "[]\n", out) },
+		"csv":   func(out string) { assert.Contains(t, out, "id,supplier_name,currency") },
+		"xml":   func(out string) { assert.Contains(t, out, "<items></items>") },
+	}
+	for format, check := range cases {
 		t.Run(format, func(t *testing.T) {
 			out := output.CaptureOutput(func() {
 				err := output.PrintOutput([]billingMarketOutput{}, format, true)
 				assert.NoError(t, err)
 			})
-			assert.NotPanics(t, func() { _ = out })
+			check(out)
 		})
 	}
 }
