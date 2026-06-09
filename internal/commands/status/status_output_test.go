@@ -8,6 +8,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// printDashboard's helpers (PrintPlain/PrintWarning/PrintNewline) route to
+// stdout or stderr based on output's *global* format, which only StatusDashboard
+// sets. Calling printDashboard directly leaves that global state to whatever a
+// prior test set, so pin it here to keep CaptureOutput (stdout-only) reliable.
+func withOutputFormat(t *testing.T, format string) {
+	t.Helper()
+	prev := op.GetOutputFormat()
+	op.SetOutputFormat(format)
+	t.Cleanup(func() { op.SetOutputFormat(prev) })
+}
+
 func statusTestDashboard(t *testing.T) dashboardOutput {
 	t.Helper()
 	port := &megaport.Port{UID: "port-1", Name: "Port One", ProvisioningStatus: "LIVE", PortSpeed: 1000, LocationID: 1}
@@ -56,6 +67,7 @@ func TestBuildDashboard_FieldMapping(t *testing.T) {
 }
 
 func TestPrintDashboard_Table(t *testing.T) {
+	withOutputFormat(t, "table")
 	dashboard := statusTestDashboard(t)
 	out := op.CaptureOutput(func() {
 		err := printDashboard(dashboard, "table", true)
@@ -71,6 +83,7 @@ func TestPrintDashboard_Table(t *testing.T) {
 }
 
 func TestPrintDashboard_JSON(t *testing.T) {
+	withOutputFormat(t, "json")
 	dashboard := statusTestDashboard(t)
 	out := op.CaptureOutput(func() {
 		err := printDashboard(dashboard, "json", true)
@@ -84,6 +97,7 @@ func TestPrintDashboard_JSON(t *testing.T) {
 }
 
 func TestPrintDashboard_CSV(t *testing.T) {
+	withOutputFormat(t, "csv")
 	dashboard := statusTestDashboard(t)
 	out := op.CaptureOutput(func() {
 		err := printDashboard(dashboard, "csv", true)
@@ -97,6 +111,7 @@ func TestPrintDashboard_CSV(t *testing.T) {
 }
 
 func TestPrintDashboard_XML(t *testing.T) {
+	withOutputFormat(t, "xml")
 	dashboard := statusTestDashboard(t)
 	out := op.CaptureOutput(func() {
 		err := printDashboard(dashboard, "xml", true)
@@ -116,6 +131,7 @@ func TestPrintDashboard_Empty(t *testing.T) {
 
 	for _, format := range []string{"table", "json", "csv", "xml"} {
 		t.Run(format, func(t *testing.T) {
+			withOutputFormat(t, format)
 			out := op.CaptureOutput(func() {
 				err := printDashboard(dashboard, format, true)
 				assert.NoError(t, err)
