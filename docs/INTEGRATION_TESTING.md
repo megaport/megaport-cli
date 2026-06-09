@@ -14,7 +14,7 @@ export MEGAPORT_ENVIRONMENT=staging
 
 Credentials can be obtained from the relevant Megaport portal. `MEGAPORT_ENVIRONMENT` selects the target API: `staging` (default), `production`, or `development`. The test helper (`testutil.IntegrationEnvironment`) defaults to staging when the variable is empty or unrecognized, so a typo can never silently point the suite at production. The credentials must match the chosen environment.
 
-The read-only smoke tests discover resources dynamically and run in any environment. The provisioning lifecycle tests use hardcoded staging location IDs, so they only work against staging.
+The read-only smoke tests discover resources dynamically and run in any environment. The provisioning lifecycle tests use hardcoded staging location IDs and are staging-only: they skip automatically (via `testutil.RequireStagingForProvisioning`) whenever `MEGAPORT_ENVIRONMENT` is anything other than staging, so they can never create real resources in production or development.
 
 ## Running tests
 

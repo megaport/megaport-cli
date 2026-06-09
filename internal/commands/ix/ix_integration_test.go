@@ -196,6 +196,7 @@ func TestIntegration_IXReadOnly(t *testing.T) {
 // Discovers a valid IX network-service-type from the IXP catalog and a matching location.
 // Expected runtime: up to ~30 minutes (three provisioning waits of up to 10 min each: port buy, IX buy, IX update).
 func TestIntegration_IXLifecycle(t *testing.T) {
+	testutil.RequireStagingForProvisioning(t)
 	client := testutil.SetupIntegrationClient(t)
 	t.Cleanup(testutil.LoginWithClient(t, client))
 	origFormat := output.GetOutputFormat()

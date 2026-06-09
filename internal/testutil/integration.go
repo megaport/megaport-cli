@@ -31,6 +31,17 @@ func IntegrationEnvironment() (megaport.Environment, string) {
 	}
 }
 
+// RequireStagingForProvisioning skips the test unless the resolved environment
+// is staging. Provisioning lifecycle tests use hardcoded staging location IDs
+// and must never create real resources in production or development, so they
+// opt out of the configurable environment that read-only tests support.
+func RequireStagingForProvisioning(t *testing.T) {
+	t.Helper()
+	if _, name := IntegrationEnvironment(); name != "staging" {
+		t.Skipf("provisioning lifecycle tests are staging-only (hardcoded location IDs); MEGAPORT_ENVIRONMENT=%s", name)
+	}
+}
+
 // SetupIntegrationClient reads credentials from environment variables,
 // authorises against the environment named by MEGAPORT_ENVIRONMENT (staging by
 // default), and returns a ready-to-use *megaport.Client. Skips the test if

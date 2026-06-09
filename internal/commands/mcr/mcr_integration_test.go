@@ -129,6 +129,7 @@ func getMCRJSON(t *testing.T, uid string) map[string]interface{} {
 }
 
 func TestIntegration_MCRLifecycle(t *testing.T) {
+	testutil.RequireStagingForProvisioning(t)
 	client := testutil.SetupIntegrationClient(t)
 	// Restore login via t.Cleanup, not defer: defers run before t.Cleanup, so a
 	// deferred restore would swap back the default login (wrong environment)
@@ -276,6 +277,7 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 }
 
 func TestIntegration_MCRJSONInputLifecycle(t *testing.T) {
+	testutil.RequireStagingForProvisioning(t)
 	client := testutil.SetupIntegrationClient(t)
 	// Restore login via t.Cleanup, not defer: defers run before t.Cleanup, so a
 	// deferred restore would swap back the default login (wrong environment)

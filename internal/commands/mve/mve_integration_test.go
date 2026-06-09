@@ -153,6 +153,7 @@ func getMVEJSON(t *testing.T, uid string) map[string]interface{} {
 }
 
 func TestIntegration_MVELifecycle(t *testing.T) {
+	testutil.RequireStagingForProvisioning(t)
 	client := testutil.SetupIntegrationClient(t)
 	// Restore login via t.Cleanup, not defer: defers run before t.Cleanup, so a
 	// deferred restore would swap back the default login (wrong environment)
@@ -250,6 +251,7 @@ func TestIntegration_MVELifecycle(t *testing.T) {
 }
 
 func TestIntegration_MVEJSONInputLifecycle(t *testing.T) {
+	testutil.RequireStagingForProvisioning(t)
 	client := testutil.SetupIntegrationClient(t)
 	// Restore login via t.Cleanup, not defer: defers run before t.Cleanup, so a
 	// deferred restore would swap back the default login (wrong environment)

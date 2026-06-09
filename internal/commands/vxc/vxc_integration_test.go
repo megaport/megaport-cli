@@ -288,6 +288,7 @@ func vxcFromSDK(t *testing.T, uid string) *megaport.VXC {
 
 func TestIntegration_VXCPortToPortLifecycle(t *testing.T) {
 	t.Parallel()
+	testutil.RequireStagingForProvisioning(t)
 	testutil.RequireSharedIntegrationClient(t)
 
 	id := generateUniqueID(t)
@@ -323,6 +324,7 @@ func TestIntegration_VXCPortToPortLifecycle(t *testing.T) {
 
 func TestIntegration_VXCVLANModificationLifecycle(t *testing.T) {
 	t.Parallel()
+	testutil.RequireStagingForProvisioning(t)
 	testutil.RequireSharedIntegrationClient(t)
 
 	id := generateUniqueID(t)
@@ -356,6 +358,7 @@ func TestIntegration_VXCVLANModificationLifecycle(t *testing.T) {
 
 func TestIntegration_VXCJSONInputLifecycle(t *testing.T) {
 	t.Parallel()
+	testutil.RequireStagingForProvisioning(t)
 	testutil.RequireSharedIntegrationClient(t)
 
 	id := generateUniqueID(t)
