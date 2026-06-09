@@ -256,19 +256,19 @@ func TestIntegration_ApplyDryRun(t *testing.T) {
 	cfgPath := writeApplyConfig(t, yamlContent)
 	cmd := applyIntegrationCmd(t, cfgPath, true /*dryRun*/, true /*yes*/, false /*rollback*/)
 
+	// Assert against JSON output: the table renderer wraps long resource names
+	// across rows, so full names never appear contiguously in table text.
 	out := output.CaptureOutput(func() {
-		require.NoError(t, ApplyConfig(cmd, nil, true, "table"), "dry-run apply should succeed")
+		require.NoError(t, ApplyConfig(cmd, nil, true, "json"), "dry-run apply should succeed")
 	})
 
 	// Validation results are reported; the VXC's template endpoints cannot be
 	// validated server-side without provisioning, so it is reported as skipped.
-	// Table rendering may wrap long cell values, so assert on substrings that
-	// survive wrapping rather than the full status string.
 	assert.Contains(t, out, portAName, "dry-run should report port A")
 	assert.Contains(t, out, portBName, "dry-run should report port B")
-	assert.Contains(t, out, "valid", "dry-run should report port validation results")
+	assert.Contains(t, out, `"valid"`, "dry-run should report port validation results")
 	assert.NotContains(t, out, "invalid", "no resource should fail validation in this config")
-	assert.Contains(t, out, "skipped: requires", "templated VXC should be skipped in dry-run")
+	assert.Contains(t, out, "skipped: requires provisioning", "templated VXC should be skipped in dry-run")
 
 	// Crucially, nothing was provisioned.
 	created := portsByPrefix(t, prefix)
