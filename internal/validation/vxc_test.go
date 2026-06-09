@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	megaport "github.com/megaport/megaportgo"
@@ -62,8 +63,9 @@ func TestValidateBGPConnectionConfig(t *testing.T) {
 			wantErr: true,
 			errText: "Invalid vRouter interface [0] BGP connection [0] peer ASN: <nil> - is required",
 		},
-		// ASN boundary cases. Valid ASNs are 1-4294967295; values inside that
-		// range are accepted, zero is "required", and out-of-range is rejected.
+		// ASN boundary cases. Valid ASNs are 1-4294967295; the min, zero, and
+		// negative are covered here. The 32-bit-max boundaries use values that
+		// overflow int on 32-bit targets, so they live in a separate test.
 		{
 			name: "ASN 1 (min non-zero)",
 			conn: megaport.BgpConnectionConfig{
@@ -101,15 +103,6 @@ func TestValidateBGPConnectionConfig(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "ASN 4294967295 (32-bit max)",
-			conn: megaport.BgpConnectionConfig{
-				PeerAsn:        4294967295,
-				LocalIpAddress: "192.168.1.1",
-				PeerIpAddress:  "192.168.1.2",
-			},
-			wantErr: false,
-		},
-		{
 			name: "ASN negative rejected",
 			conn: megaport.BgpConnectionConfig{
 				PeerAsn:        -1,
@@ -118,16 +111,6 @@ func TestValidateBGPConnectionConfig(t *testing.T) {
 			},
 			wantErr: true,
 			errText: "Invalid vRouter interface [0] BGP connection [0] peer ASN: -1 - must be between 1-4294967295",
-		},
-		{
-			name: "ASN above 32-bit max rejected",
-			conn: megaport.BgpConnectionConfig{
-				PeerAsn:        4294967296,
-				LocalIpAddress: "192.168.1.1",
-				PeerIpAddress:  "192.168.1.2",
-			},
-			wantErr: true,
-			errText: "Invalid vRouter interface [0] BGP connection [0] peer ASN: 4294967296 - must be between 1-4294967295",
 		},
 		{
 			name: "Invalid peer IP",
@@ -172,6 +155,48 @@ func TestValidateBGPConnectionConfig(t *testing.T) {
 			if err != nil && tt.wantErr {
 				assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
 				assert.Equal(t, tt.errText, err.Error(), "Error message mismatch")
+			}
+		})
+	}
+}
+
+// The 32-bit-max ASN boundaries (max valid and max+1) use values that overflow
+// int on 32-bit targets like js/wasm, so they can't live as constants in the
+// main table. Build them at runtime and skip where int is too narrow.
+func TestValidateBGPConnectionConfig_HighASN(t *testing.T) {
+	if int64(math.MaxInt) < int64(math.MaxUint32) {
+		t.Skip("int is narrower than the 32-bit ASN range on this platform")
+	}
+	// Convert from a variable so these are runtime conversions, not constant
+	// conversions that would overflow int at compile time on 32-bit targets.
+	max64 := MaxASN
+	maxValid := int(max64)     // 4294967295
+	aboveMax := int(max64) + 1 // 4294967296
+	tests := []struct {
+		name    string
+		peerAsn int
+		wantErr bool
+		errText string
+	}{
+		{"ASN 4294967295 (32-bit max)", maxValid, false, ""},
+		{"ASN above 32-bit max rejected", aboveMax, true,
+			fmt.Sprintf("Invalid vRouter interface [0] BGP connection [0] peer ASN: %d - must be between 1-4294967295", aboveMax)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conn := megaport.BgpConnectionConfig{
+				PeerAsn:        tt.peerAsn,
+				LocalIpAddress: "192.168.1.1",
+				PeerIpAddress:  "192.168.1.2",
+			}
+			err := ValidateBGPConnectionConfig(conn, 0, 0)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateBGPConnectionConfig() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.IsType(t, &ValidationError{}, err)
+				assert.Equal(t, tt.errText, err.Error())
 			}
 		})
 	}
