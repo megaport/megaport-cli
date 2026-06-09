@@ -61,7 +61,7 @@ Integration tests run in CI via `.github/workflows/integration-test.yml`:
 
 These tests need an MCR whose Looking Glass reports at least one BGP session in the UP state. They discover one automatically by listing MCRs and probing each one's BGP-sessions endpoint; the first MCR with an active session is used and the result is cached per run. If none qualifies, all four tests `t.Skip` with a clear message rather than failing.
 
-Staging prerequisite: at the time of writing, the `/lookingGlass/*` endpoints return 404 for every MCR on staging, so these tests skip by design there. To exercise the assertions, an MCR with an active BGP peering session must exist in the target environment; the discovery step then finds it with no test changes needed.
+Staging prerequisite: at the time of writing, the `/lookingGlass/*` endpoints return 404 for every MCR on staging, so these tests skip by design there. To exercise the assertions, an MCR with an active BGP peering session must exist in whichever environment the suite targets (set via `MEGAPORT_ENVIRONMENT`, staging by default); the discovery step then finds it automatically.
 
 ## Adding a new integration test
 
