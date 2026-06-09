@@ -20,8 +20,9 @@ Staging credentials can be obtained from the Megaport staging portal. The stagin
 # Read-only tests only — fast (< 5 min), no resources provisioned
 make test-integration-readonly
 
-# Full suite including any provisioning lifecycle tests (~20–30 min)
-# Currently only read-only tests exist; provisioning tests will be added incrementally.
+# Full suite including provisioning lifecycle tests (~20–30 min)
+# Provisioning tests (e.g. ports) create and tear down real staging resources;
+# more provisioning coverage is added incrementally.
 make test-integration
 
 # A single package
@@ -30,9 +31,9 @@ go test -tags integration -run '^TestIntegration_' -v -timeout 30m ./internal/co
 
 ## What gets created on staging
 
-Once provisioning lifecycle tests are written (ports, VXC, MCR, MVE, IX, NAT Gateway), they will create real resources on the staging account. All test resources will be named with the prefix `CLI-Test-` for easy identification.
+Provisioning lifecycle tests (ports today, with VXC, MCR, MVE, IX, and NAT Gateway added incrementally) create real resources on the staging account. All test resources are named with the prefix `CLI-Test-` for easy identification.
 
-Resources will be cleaned up automatically via `t.Cleanup()` at the end of each test, even when the test fails. However, if a test run is interrupted (e.g. `Ctrl+C`), cleanup may not run. In that case, log in to the staging portal and delete any resources prefixed with `CLI-Test-`.
+Resources are cleaned up automatically via `t.Cleanup()` at the end of each test, even when the test fails. However, if a test run is interrupted (e.g. `Ctrl+C`), cleanup may not run. In that case, log in to the staging portal and delete any resources prefixed with `CLI-Test-`.
 
 The read-only smoke tests for ports, VXC, MCR, MVE, and IX (alongside `locations`) provision nothing — they list/get/status existing resources and skip cleanly when the account has none. Resources are only created by the provisioning lifecycle tests in the manual job.
 
