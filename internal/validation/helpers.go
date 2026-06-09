@@ -61,7 +61,7 @@ func ValidateCIDR(cidr string, fieldName string) error {
 	}
 	ip, _, err := net.ParseCIDR(cidr)
 	if err != nil || ip.To4() == nil || strings.Contains(cidr, ":") {
-		return NewValidationError(fieldName, cidr, "must be a valid CIDR notation")
+		return NewValidationError(fieldName, cidr, "must be a valid IPv4 CIDR notation")
 	}
 	return nil
 }

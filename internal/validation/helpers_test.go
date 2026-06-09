@@ -142,7 +142,7 @@ func TestIsValidationError(t *testing.T) {
 		{"validation error", NewValidationError("f", 1, "bad"), true},
 		{"plain error", errors.New("boom"), false},
 		{"nil error", nil, false},
-		{"wrapped validation error not unwrapped", errors.New("wrap: " + NewValidationError("f", 1, "bad").Error()), false},
+		{"plain error containing validation message string", errors.New("wrap: " + NewValidationError("f", 1, "bad").Error()), false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

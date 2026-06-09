@@ -62,8 +62,8 @@ func TestValidateBGPConnectionConfig(t *testing.T) {
 			wantErr: true,
 			errText: "Invalid vRouter interface [0] BGP connection [0] peer ASN: <nil> - is required",
 		},
-		// ASN boundary cases. The validator only gates on zero (required);
-		// any other value passes, so each of these is accepted.
+		// ASN boundary cases. Valid ASNs are 1-4294967295; values inside that
+		// range are accepted, zero is "required", and out-of-range is rejected.
 		{
 			name: "ASN 1 (min non-zero)",
 			conn: megaport.BgpConnectionConfig{
@@ -199,7 +199,7 @@ func TestValidateIPRouteConfig(t *testing.T) {
 				NextHop: "192.168.1.1",
 			},
 			wantErr: true,
-			errText: "Invalid vRouter interface [0] IP route [0] prefix: 10.0.0.0 - must be a valid CIDR notation",
+			errText: "Invalid vRouter interface [0] IP route [0] prefix: 10.0.0.0 - must be a valid IPv4 CIDR notation",
 		},
 		{
 			name: "Invalid next hop",
@@ -549,7 +549,7 @@ func TestValidateAWSPartnerConfig(t *testing.T) {
 			asn:               65000,
 			customerIPAddress: "invalid-ip",
 			wantErr:           true,
-			errText:           "Invalid AWS customer IP address: invalid-ip - must be a valid CIDR notation", // Updated error message
+			errText:           "Invalid AWS customer IP address: invalid-ip - must be a valid IPv4 CIDR notation", // Updated error message
 		},
 		{
 			name:            "Invalid Amazon IP CIDR",
@@ -558,7 +558,7 @@ func TestValidateAWSPartnerConfig(t *testing.T) {
 			asn:             65000,
 			amazonIPAddress: "192.168.1.2/33", // Invalid mask
 			wantErr:         true,
-			errText:         "Invalid AWS Amazon IP address: 192.168.1.2/33 - must be a valid CIDR notation", // Updated error message
+			errText:         "Invalid AWS Amazon IP address: 192.168.1.2/33 - must be a valid IPv4 CIDR notation", // Updated error message
 		},
 		{
 			name:         "AWS name too long",
@@ -727,14 +727,14 @@ func TestValidateIBMPartnerConfig(t *testing.T) {
 			accountID:         validAccountID,
 			customerIPAddress: "invalid-ip",
 			wantErr:           true,
-			errText:           "Invalid IBM customer IP address: invalid-ip - must be a valid CIDR notation",
+			errText:           "Invalid IBM customer IP address: invalid-ip - must be a valid IPv4 CIDR notation",
 		},
 		{
 			name:              "Invalid provider IP",
 			accountID:         validAccountID,
 			providerIPAddress: "10.1.1.2/33", // Invalid mask
 			wantErr:           true,
-			errText:           "Invalid IBM provider IP address: 10.1.1.2/33 - must be a valid CIDR notation",
+			errText:           "Invalid IBM provider IP address: 10.1.1.2/33 - must be a valid IPv4 CIDR notation",
 		},
 	}
 
