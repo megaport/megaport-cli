@@ -120,6 +120,16 @@ func TestValidateBGPConnectionConfig(t *testing.T) {
 			errText: "Invalid vRouter interface [0] BGP connection [0] peer ASN: -1 - must be between 1-4294967295",
 		},
 		{
+			name: "ASN above 32-bit max rejected",
+			conn: megaport.BgpConnectionConfig{
+				PeerAsn:        4294967296,
+				LocalIpAddress: "192.168.1.1",
+				PeerIpAddress:  "192.168.1.2",
+			},
+			wantErr: true,
+			errText: "Invalid vRouter interface [0] BGP connection [0] peer ASN: 4294967296 - must be between 1-4294967295",
+		},
+		{
 			name: "Invalid peer IP",
 			conn: megaport.BgpConnectionConfig{
 				PeerAsn:        65000,
@@ -482,6 +492,20 @@ func TestValidateAWSPartnerConfig(t *testing.T) {
 			awsName:           "MyAWSConnection",
 			awsType:           "private",
 			wantErr:           false,
+		},
+		{
+			name:              "AWS ASN out of range",
+			connectType:       "private",
+			ownerAccount:      "123456789012",
+			asn:               -1,
+			amazonAsn:         64512,
+			authKey:           "authkey123",
+			customerIPAddress: "192.168.1.1/30",
+			amazonIPAddress:   "192.168.1.2/30",
+			awsName:           "MyAWSConnection",
+			awsType:           "private",
+			wantErr:           true,
+			errText:           "Invalid ASN: -1 - must be between 1-4294967295",
 		},
 		{
 			name:              "Valid AWSHC config",
