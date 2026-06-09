@@ -327,3 +327,54 @@ func TestIntegration_ApplyLifecycle(t *testing.T) {
 	assert.Equal(t, portA.UID, vxc.AEndConfiguration.UID, "VXC a_end should resolve to port A")
 	assert.Equal(t, portB.UID, vxc.BEndConfiguration.UID, "VXC b_end should resolve to port B")
 }
+
+func TestIntegration_ApplyRollbackOnFailure(t *testing.T) {
+	testutil.RequireSharedIntegrationClient(t)
+
+	prefix := fmt.Sprintf("CLI-Apply-Test-%s", generateUniqueID(t))
+	registerSweepCleanup(t, prefix) // safety net if rollback itself fails
+
+	portName := prefix + "-Port"
+	vxcName := prefix + "-VXC"
+	// One valid port, then a VXC whose b_end references a non-existent resource.
+	// The port provisions for real; the VXC stage fails at template resolution,
+	// triggering rollback that must delete the just-created port.
+	yamlContent := fmt.Sprintf(`ports:
+  - name: %s
+    location_id: %d
+    speed: 1000
+    term: 1
+    marketplace_visibility: false
+vxcs:
+  - name: %s
+    rate_limit: 100
+    term: 1
+    a_end:
+      product_uid: "{{.port.%s}}"
+    b_end:
+      product_uid: "{{.port.DoesNotExist}}"
+`, portName, integrationLocationID, vxcName, portName)
+
+	cfgPath := writeApplyConfig(t, yamlContent)
+	cmd := applyIntegrationCmd(t, cfgPath, false /*dryRun*/, true /*yes*/, true /*rollback*/)
+
+	err := ApplyConfig(cmd, nil, true, "table")
+	require.Error(t, err, "apply should fail on the unresolved VXC template")
+
+	// The port created before the failure must be rolled back: gone or
+	// decommissioning.
+	deadline := time.Now().Add(cleanupStatusTimeout)
+	for {
+		p := portByExactName(t, prefix, portName)
+		if p == nil {
+			break // rolled back and already gone
+		}
+		if strings.Contains(p.ProvisioningStatus, "DECOMMISSION") {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("port %q was not rolled back within %s (status %q)", portName, cleanupStatusTimeout, p.ProvisioningStatus)
+		}
+		time.Sleep(cleanupStatusInterval)
+	}
+}
