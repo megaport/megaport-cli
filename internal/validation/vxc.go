@@ -190,6 +190,7 @@ func ValidateVXCRequest(req *megaport.BuyVXCRequest) error {
 // Validation checks include:
 //   - Connect type must be provided and be one of the valid types ('AWS', 'AWSHC', 'private', 'public')
 //   - Owner account must be provided (AWS account ID)
+//   - ASN must be provided and within the valid range (1-4294967295)
 //   - If customer IP address is provided, it must be in valid CIDR notation
 //   - If Amazon IP address is provided, it must be in valid CIDR notation
 //   - If connection name is provided, it must not exceed 255 characters
@@ -501,7 +502,7 @@ func ValidateVXCPartnerConfig(config megaport.VXCPartnerConfiguration) error {
 //   - connIndex: The index of this BGP connection within the interface (used for error messages)
 //
 // Validation checks include:
-//   - Peer ASN must be provided (non-zero)
+//   - Peer ASN must be provided and within the valid range (1-4294967295)
 //   - Local IP address must be provided and be a valid IPv4 address or CIDR
 //   - Peer IP address must be provided and be a valid IPv4 address or CIDR
 //   - If Peer Type is provided, it must be one of the predefined values (NON_CLOUD, PRIV_CLOUD, PUB_CLOUD)
