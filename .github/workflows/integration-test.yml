@@ -18,8 +18,21 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5.6.0
         with:
           go-version-file: 'go.mod'
-      - name: Run read-only integration tests
+      - name: Run read-only integration tests (locations)
         run: go test -tags integration -run '^TestIntegration_' -v -timeout 5m ./internal/commands/locations/...
+        env:
+          MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
+          MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}
+          MEGAPORT_ENVIRONMENT: staging
+      # ReadOnly-suffixed tests only — never the *Lifecycle provisioning tests in these packages.
+      - name: Run read-only integration tests (core resources)
+        run: |
+          go test -tags integration -run 'TestIntegration_.*ReadOnly$' -v -timeout 5m \
+            ./internal/commands/ix/... \
+            ./internal/commands/mcr/... \
+            ./internal/commands/mve/... \
+            ./internal/commands/ports/... \
+            ./internal/commands/vxc/...
         env:
           MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
           MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}

@@ -34,7 +34,7 @@ Once provisioning lifecycle tests are written (ports, VXC, MCR, MVE, IX, NAT Gat
 
 Resources will be cleaned up automatically via `t.Cleanup()` at the end of each test, even when the test fails. However, if a test run is interrupted (e.g. `Ctrl+C`), cleanup may not run. In that case, log in to the staging portal and delete any resources prefixed with `CLI-Test-`.
 
-Currently, only read-only integration tests exist (`locations`). No resources are provisioned.
+The read-only smoke tests for ports, VXC, MCR, MVE, and IX (alongside `locations`) provision nothing — they list/get/status existing resources and skip cleanly when the account has none. Resources are only created by the provisioning lifecycle tests in the manual job.
 
 ## Build tag
 
@@ -52,7 +52,7 @@ Running `go test ./...` (without `-tags integration`) excludes these files entir
 
 Integration tests run in CI via `.github/workflows/integration-test.yml`:
 
-- **Read-only job**: runs nightly on `main` and on manual trigger, tests `locations` (and additional packages as read-only integration tests are written). Fast, no resource cost.
+- **Read-only job**: runs nightly on `main` and on manual trigger. Tests `locations`, plus read-only smoke tests (`list`/`get`/`status`) for ports, VXC, MCR, MVE, and IX selected via `-run 'TestIntegration_.*ReadOnly$'` so the provisioning lifecycle tests in those packages never run nightly. Fast, no resource cost.
 - **Provisioning job**: manual trigger only (`workflow_dispatch`). Runs lifecycle tests for ports, VXC, MCR, MVE, and additional resources as they are added.
 
 ## Adding a new integration test

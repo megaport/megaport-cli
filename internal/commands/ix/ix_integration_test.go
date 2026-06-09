@@ -133,8 +133,10 @@ func integrationStatusIXCmd() *cobra.Command {
 	return &cobra.Command{Use: "status"}
 }
 
-// TestIntegration_IXListAndGet is a fast read-only smoke test against staging.
-func TestIntegration_IXListAndGet(t *testing.T) {
+// TestIntegration_IXReadOnly is a fast read-only smoke test against staging:
+// list, then get + status on the first IX. Skips cleanly when the account has
+// no IXs. Performs no mutation.
+func TestIntegration_IXReadOnly(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
 	t.Cleanup(testutil.LoginWithClient(t, client))
 	origFormat := output.GetOutputFormat()
@@ -176,6 +178,18 @@ func TestIntegration_IXListAndGet(t *testing.T) {
 	assert.Equal(t, uid, gotIX["uid"])
 	assert.Contains(t, gotIX, "name")
 	assert.Contains(t, gotIX, "status")
+
+	var statusErr error
+	statusOut := output.CaptureOutput(func() {
+		statusErr = GetIXStatus(integrationStatusIXCmd(), []string{uid}, true, "json")
+	})
+	require.NoError(t, statusErr)
+
+	var statusList []map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(statusOut), &statusList), "GetIXStatus JSON output must be valid")
+	require.Len(t, statusList, 1)
+	assert.Equal(t, uid, statusList[0]["uid"])
+	assert.Contains(t, statusList[0], "status")
 }
 
 // TestIntegration_IXLifecycle exercises the full create → get → status → update → delete path.

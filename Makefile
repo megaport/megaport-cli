@@ -18,9 +18,17 @@ test-cover:
 test-integration:
 	go test -tags integration -run '^TestIntegration_' -v -timeout 30m ./internal/commands/...
 
-# Run only read-only integration tests — fast, no resources provisioned
+# Run only read-only integration tests — fast, no resources provisioned.
+# Locations has only read-only tests; core packages also hold provisioning
+# lifecycle tests, so they are scoped to the ReadOnly-suffixed names.
 test-integration-readonly:
 	go test -tags integration -run '^TestIntegration_' -v -timeout 5m ./internal/commands/locations/...
+	go test -tags integration -run 'TestIntegration_.*ReadOnly$$' -v -timeout 5m \
+		./internal/commands/ix/... \
+		./internal/commands/mcr/... \
+		./internal/commands/mve/... \
+		./internal/commands/ports/... \
+		./internal/commands/vxc/...
 
 # Run linter
 lint:
