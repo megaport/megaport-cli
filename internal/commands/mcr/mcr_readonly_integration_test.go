@@ -42,8 +42,7 @@ func readOnlyStatusMCRCmd() *cobra.Command {
 // list, then get + status on the first MCR. Skips cleanly when the account has
 // no MCRs. Performs no mutation.
 func TestIntegration_MCRReadOnly(t *testing.T) {
-	client := testutil.SetupIntegrationClient(t)
-	t.Cleanup(testutil.LoginWithClient(t, client))
+	testutil.RequireSharedIntegrationClient(t)
 	origFormat := output.GetOutputFormat()
 	t.Cleanup(func() { output.SetOutputFormat(origFormat) })
 

@@ -45,8 +45,7 @@ func readOnlyStatusVXCCmd() *cobra.Command {
 // list, then get + status on the first VXC. Skips cleanly when the account has
 // no VXCs. Performs no mutation.
 func TestIntegration_VXCReadOnly(t *testing.T) {
-	client := testutil.SetupIntegrationClient(t)
-	t.Cleanup(testutil.LoginWithClient(t, client))
+	testutil.RequireSharedIntegrationClient(t)
 	origFormat := output.GetOutputFormat()
 	t.Cleanup(func() { output.SetOutputFormat(origFormat) })
 

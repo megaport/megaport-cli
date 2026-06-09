@@ -137,8 +137,7 @@ func integrationStatusIXCmd() *cobra.Command {
 // list, then get + status on the first IX. Skips cleanly when the account has
 // no IXs. Performs no mutation.
 func TestIntegration_IXReadOnly(t *testing.T) {
-	client := testutil.SetupIntegrationClient(t)
-	t.Cleanup(testutil.LoginWithClient(t, client))
+	testutil.RequireSharedIntegrationClient(t)
 	origFormat := output.GetOutputFormat()
 	t.Cleanup(func() { output.SetOutputFormat(origFormat) })
 

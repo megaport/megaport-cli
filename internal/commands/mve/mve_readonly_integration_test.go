@@ -42,8 +42,7 @@ func readOnlyStatusMVECmd() *cobra.Command {
 // list, then get + status on the first MVE. Skips cleanly when the account has
 // no MVEs. Performs no mutation.
 func TestIntegration_MVEReadOnly(t *testing.T) {
-	client := testutil.SetupIntegrationClient(t)
-	t.Cleanup(testutil.LoginWithClient(t, client))
+	testutil.RequireSharedIntegrationClient(t)
 	origFormat := output.GetOutputFormat()
 	t.Cleanup(func() { output.SetOutputFormat(origFormat) })
 
