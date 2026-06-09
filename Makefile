@@ -23,7 +23,16 @@ test-integration:
 # Run only read-only integration tests — fast, no resources provisioned.
 # Package list mirrors the integration-readonly CI job.
 test-integration-readonly:
-	go test -tags integration -run '^TestIntegration_' -v -timeout 5m ./internal/commands/locations/... ./internal/commands/partners/... ./internal/commands/servicekeys/... ./internal/commands/users/... ./internal/commands/managed_account/...
+	go test -tags integration -run '^TestIntegration_' -v -timeout 5m \
+		./internal/commands/billing_market/... \
+		./internal/commands/locations/... \
+		./internal/commands/managed_account/... \
+		./internal/commands/partners/... \
+		./internal/commands/product/... \
+		./internal/commands/servicekeys/... \
+		./internal/commands/status/... \
+		./internal/commands/topology/... \
+		./internal/commands/users/...
 
 # Run linter
 lint:

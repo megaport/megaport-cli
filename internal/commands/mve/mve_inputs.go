@@ -637,9 +637,21 @@ func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.
 		req.CostCentre = costCentre
 	}
 
-	if contractTermMonths, ok := jsonData["contractTermMonths"].(float64); ok && contractTermMonths > 0 {
+	if contractTermMonths, ok := jsonData["contractTermMonths"].(float64); ok {
 		termMonths := int(contractTermMonths)
 		req.ContractTermMonths = &termMonths
+	}
+
+	if rawVnics, exists := jsonData["vnics"]; exists {
+		vnicsData, ok := rawVnics.([]interface{})
+		if !ok {
+			return nil, fmt.Errorf("vnics must be an array of objects with a description field")
+		}
+		vnics, err := parseVnicUpdates(vnicsData)
+		if err != nil {
+			return nil, err
+		}
+		req.Vnics = vnics
 	}
 
 	if err := validation.ValidateUpdateMVERequest(req); err != nil {
@@ -652,7 +664,8 @@ func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.
 func processFlagUpdateMVEInput(cmd *cobra.Command, mveUID string) (*megaport.ModifyMVERequest, error) {
 	name, _ := cmd.Flags().GetString("name")
 	costCentre, _ := cmd.Flags().GetString("cost-centre")
-	contractTerm, _ := cmd.Flags().GetInt("contract-term")
+	contractTerm, _ := cmd.Flags().GetInt("term")
+	vnicsStr, _ := cmd.Flags().GetString("vnics")
 
 	req := &megaport.ModifyMVERequest{
 		MVEID: mveUID,
@@ -666,8 +679,23 @@ func processFlagUpdateMVEInput(cmd *cobra.Command, mveUID string) (*megaport.Mod
 		req.CostCentre = costCentre
 	}
 
-	if contractTerm > 0 {
+	if cmd.Flags().Changed("term") {
 		req.ContractTermMonths = &contractTerm
+	}
+
+	if cmd.Flags().Changed("vnics") {
+		if strings.TrimSpace(vnicsStr) == "" {
+			return nil, fmt.Errorf("vnics must be a non-empty JSON array of objects with a description field")
+		}
+		var vnicsData []interface{}
+		if err := json.Unmarshal([]byte(vnicsStr), &vnicsData); err != nil {
+			return nil, fmt.Errorf("failed to parse vnics JSON string: %w", err)
+		}
+		vnics, err := parseVnicUpdates(vnicsData)
+		if err != nil {
+			return nil, err
+		}
+		req.Vnics = vnics
 	}
 
 	if err := validation.ValidateUpdateMVERequest(req); err != nil {
@@ -675,4 +703,38 @@ func processFlagUpdateMVEInput(cmd *cobra.Command, mveUID string) (*megaport.Mod
 	}
 
 	return req, nil
+}
+
+// parseVnicUpdates decodes a slice of {description: string} maps into
+// []megaport.MVEVnicUpdate. Order is preserved — the API applies updates
+// positionally to the existing vNICs. Only description can be updated;
+// unknown keys are rejected so callers don't silently lose input. An
+// empty array is rejected so callers don't get a misleading
+// "at least one field must be provided" error.
+func parseVnicUpdates(vnicsData []interface{}) ([]megaport.MVEVnicUpdate, error) {
+	if len(vnicsData) == 0 {
+		return nil, fmt.Errorf("vnics must contain at least one object with a description field")
+	}
+	vnics := make([]megaport.MVEVnicUpdate, 0, len(vnicsData))
+	for i, vnicData := range vnicsData {
+		vnicMap, ok := vnicData.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("vnics[%d] must be an object with a description field", i)
+		}
+		for k := range vnicMap {
+			if k != "description" {
+				return nil, fmt.Errorf("vnics[%d].%s is not supported; only description can be updated", i, k)
+			}
+		}
+		description, ok := vnicMap["description"].(string)
+		if !ok {
+			return nil, fmt.Errorf("vnics[%d].description is required and must be a string", i)
+		}
+		description = strings.TrimSpace(description)
+		if description == "" {
+			return nil, fmt.Errorf("vnics[%d].description must not be empty", i)
+		}
+		vnics = append(vnics, megaport.MVEVnicUpdate{Description: description})
+	}
+	return vnics, nil
 }

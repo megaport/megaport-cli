@@ -66,8 +66,8 @@ func CreateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 		if req.Config.SessionCount > 0 {
 			details = append(details, utils.BuyConfirmDetail{Key: "Session Count", Value: fmt.Sprintf("%d", req.Config.SessionCount)})
 		}
-		if !utils.BuyConfirmPrompt("NAT Gateway", details, noColor) {
-			output.PrintInfo("Purchase cancelled", noColor)
+		if !utils.DesignConfirmPrompt("NAT Gateway", details, noColor) {
+			output.PrintInfo("Create cancelled", noColor)
 			return exitcodes.New(exitcodes.Cancelled, fmt.Errorf("cancelled by user"))
 		}
 	}

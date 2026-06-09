@@ -33,6 +33,8 @@ The provisioning lifecycle tests create real resources on the staging account: p
 
 Resources are cleaned up automatically via `t.Cleanup()` at the end of each test, even when the test fails. However, if a test run is interrupted (e.g. `Ctrl+C`), cleanup may not run. In that case, log in to the staging portal and delete any leftover resources prefixed with `CLI-Test-`.
 
+The read-only integration tests cover `billing_market`, `locations`, `managed_account`, `partners`, `product`, `servicekeys`, `status`, `topology`, and `users`. No resources are provisioned.
+
 ## Build tag
 
 All integration test files use the `//go:build integration` build tag:
@@ -61,7 +63,7 @@ The nightly read-only job builds only `-tags integration`, so this tag keeps the
 
 Integration tests run in CI via `.github/workflows/integration-test.yml`:
 
-- **Read-only job**: runs nightly on `main` and on manual trigger, tests `locations`, `partners`, `servicekeys`, `users`, and `managed_account` (read-only `list`/`get` only). Fast, no resource cost.
+- **Read-only job**: runs nightly on `main` and on manual trigger, tests `billing_market`, `locations`, `managed_account`, `partners`, `product`, `servicekeys`, `status`, `topology`, and `users` (read-only `list`/`get` only, plus additional packages as read-only integration tests are written). Fast, no resource cost.
 - **Provisioning job**: manual trigger only (`workflow_dispatch`), built with `-tags 'integration provisioning'`. Runs lifecycle tests for ports, MCR, MVE, IX, plus the service key and user lifecycles. The `vxc` package is in the job's package list but has no lifecycle test yet, so nothing runs for it.
 
 ## Adding a new integration test

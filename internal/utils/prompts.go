@@ -61,11 +61,21 @@ type BuyConfirmDetail struct {
 
 // BuyConfirmPrompt displays a resource purchase summary and asks for confirmation.
 var buyConfirmPromptFn = func(resourceType string, details []BuyConfirmDetail, noColor bool) bool {
+	return printConfirmSummary("Purchase Summary:", resourceType, details, "Proceed with purchase?", noColor)
+}
+
+// designConfirmPromptFn renders the confirmation for design-stage operations
+// (e.g. nat-gateway create) that produce a non-billable DESIGN-state record.
+var designConfirmPromptFn = func(resourceType string, details []BuyConfirmDetail, noColor bool) bool {
+	return printConfirmSummary("Design Summary:", resourceType, details, "Proceed with creation?", noColor)
+}
+
+func printConfirmSummary(header, resourceType string, details []BuyConfirmDetail, question string, noColor bool) bool {
 	fmt.Println()
 	if !noColor {
-		fmt.Println(color.New(color.FgHiWhite, color.Bold).Sprint("Purchase Summary:"))
+		fmt.Println(color.New(color.FgHiWhite, color.Bold).Sprint(header))
 	} else {
-		fmt.Println("Purchase Summary:")
+		fmt.Println(header)
 	}
 	fmt.Printf("  Resource Type: %s\n", resourceType)
 	for _, d := range details {
@@ -74,7 +84,7 @@ var buyConfirmPromptFn = func(resourceType string, details []BuyConfirmDetail, n
 		}
 	}
 	fmt.Println()
-	return ConfirmPrompt("Proceed with purchase?", noColor)
+	return ConfirmPrompt(question, noColor)
 }
 
 var resourcePromptFn = func(resourceType string, msg string, noColor bool) (string, error) {
@@ -296,6 +306,17 @@ func BuyConfirmPrompt(resourceType string, details []BuyConfirmDetail, noColor b
 	return fn(resourceType, details, noColor)
 }
 
+// DesignConfirmPrompt displays a design summary and asks for confirmation.
+// Use this for commands that create a DESIGN-state resource without billing
+// (e.g. nat-gateway create) — BuyConfirmPrompt's purchase wording is
+// reserved for commands that actually trigger billing.
+func DesignConfirmPrompt(resourceType string, details []BuyConfirmDetail, noColor bool) bool {
+	promptFuncMu.RLock()
+	fn := designConfirmPromptFn
+	promptFuncMu.RUnlock()
+	return fn(resourceType, details, noColor)
+}
+
 // ResourcePrompt asks the user for resource-specific input.
 func ResourcePrompt(resourceType string, msg string, noColor bool) (string, error) {
 	promptFuncMu.RLock()
@@ -350,6 +371,12 @@ func GetBuyConfirmPrompt() func(string, []BuyConfirmDetail, bool) bool {
 	return buyConfirmPromptFn
 }
 
+func GetDesignConfirmPrompt() func(string, []BuyConfirmDetail, bool) bool {
+	promptFuncMu.RLock()
+	defer promptFuncMu.RUnlock()
+	return designConfirmPromptFn
+}
+
 func GetResourcePrompt() func(string, string, bool) (string, error) {
 	promptFuncMu.RLock()
 	defer promptFuncMu.RUnlock()
@@ -392,6 +419,12 @@ func SetBuyConfirmPrompt(fn func(string, []BuyConfirmDetail, bool) bool) {
 	promptFuncMu.Lock()
 	defer promptFuncMu.Unlock()
 	buyConfirmPromptFn = fn
+}
+
+func SetDesignConfirmPrompt(fn func(string, []BuyConfirmDetail, bool) bool) {
+	promptFuncMu.Lock()
+	defer promptFuncMu.Unlock()
+	designConfirmPromptFn = fn
 }
 
 func SetResourcePrompt(fn func(string, string, bool) (string, error)) {

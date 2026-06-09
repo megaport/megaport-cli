@@ -82,7 +82,7 @@ megaport-cli nat-gateway create [flags]
 | `--session-count` |  | `0` | The number of NAT sessions (optional) | false |
 | `--speed` |  | `0` | The speed of the NAT Gateway in Mbps | true |
 | `--term` |  | `0` | The contract term in months (1, 12, 24, or 36) | true |
-| `--yes` | `-y` | `false` | Skip confirmation prompt for purchase | false |
+| `--yes` | `-y` | `false` | Skip the confirmation prompt for creating the NAT Gateway design (no charges are incurred until 'nat-gateway buy') | false |
 
 ## Subcommands
 * [docs](megaport-cli_nat-gateway_create_docs.md)

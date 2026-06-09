@@ -113,7 +113,7 @@ func ValidateBuyMVERequest(req *megaport.BuyMVERequest) error {
 //   - req: The ModifyMVERequest object containing the fields to update
 //
 // Validation checks:
-//   - At least one updateable field must be provided (name, cost center, or contract term)
+//   - At least one updateable field must be provided (name, cost center, contract term, or vNICs)
 //   - If contract term is provided, it must be valid (typically 1, 12, 24, or 36 months)
 //
 // Returns:
@@ -121,7 +121,7 @@ func ValidateBuyMVERequest(req *megaport.BuyMVERequest) error {
 //   - nil if all validation checks pass
 func ValidateUpdateMVERequest(req *megaport.ModifyMVERequest) error {
 	// Check if any update fields are provided
-	if req.Name == "" && req.CostCentre == "" && req.ContractTermMonths == nil {
+	if req.Name == "" && req.CostCentre == "" && req.ContractTermMonths == nil && len(req.Vnics) == 0 {
 		return NewValidationError("update request", req, "at least one field must be provided for update")
 	}
 
@@ -131,6 +131,12 @@ func ValidateUpdateMVERequest(req *megaport.ModifyMVERequest) error {
 		err := ValidateContractTerm(term)
 		if err != nil {
 			return err
+		}
+	}
+
+	for i, v := range req.Vnics {
+		if v.Description == "" {
+			return NewValidationError(fmt.Sprintf("vnics[%d].description", i), v.Description, "must not be empty")
 		}
 	}
 

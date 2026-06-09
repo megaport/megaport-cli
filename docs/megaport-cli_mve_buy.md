@@ -24,6 +24,7 @@ This command allows you to purchase an MVE by providing the necessary details.
 
 ### Important Notes
   - For production deployments, you may want to use a JSON file to manage complex configurations
+  - Treat fields like adminPassword, accountKey, and any other credentials as secrets — replace the placeholders in these examples and avoid committing populated config files to source control.
   - To list available images and their IDs, use: megaport-cli mve list-images
   - To list available sizes, use: megaport-cli mve list-sizes
   - Location IDs can be retrieved with: megaport-cli locations list
