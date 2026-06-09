@@ -164,6 +164,37 @@ func TestResetAllFlags_WithoutReset_BugReproduction(t *testing.T) {
 	assert.True(t, countryChanged, "without reset, Changed state persists (this is the bug)")
 }
 
+// TestResetAllFlags_StringArrayStaysEmpty guards against the WASM "No ports
+// found" bug: a StringArray flag's DefValue stringifies to "[]" and Set
+// appends, so the old Set(DefValue) reset injected a literal "[]" element.
+// That made an unused --tag filter non-empty, triggering tag filtering that
+// dropped every result.
+func TestResetAllFlags_StringArrayStaysEmpty(t *testing.T) {
+	root := &cobra.Command{Use: "root"}
+	list := &cobra.Command{Use: "list", RunE: func(cmd *cobra.Command, args []string) error { return nil }}
+	list.Flags().StringArray("tag", nil, "filter by resource tag (repeatable)")
+	root.AddCommand(list)
+
+	// Reset on a pristine tree must not fabricate a tag value.
+	resetAllFlags(root)
+	tags, _ := list.Flags().GetStringArray("tag")
+	assert.Empty(t, tags, "tag should be empty after reset, not contain a literal \"[]\"")
+
+	// User supplies --tag once.
+	root.SetArgs([]string{"list", "--tag", "env=prod"})
+	require.NoError(t, root.Execute())
+	tags, _ = list.Flags().GetStringArray("tag")
+	assert.Equal(t, []string{"env=prod"}, tags)
+
+	// Next run without --tag must see no tags, and repeated resets must not
+	// accumulate "[]" elements.
+	resetAllFlags(root)
+	resetAllFlags(root)
+	tags, _ = list.Flags().GetStringArray("tag")
+	assert.Empty(t, tags, "tag must be empty on the next run, with no carryover or fabricated elements")
+	assert.False(t, list.Flags().Lookup("tag").Changed)
+}
+
 // TestEnableTraversalForAllCommands verifies that traversal is enabled on
 // the entire command tree recursively.
 func TestEnableTraversalForAllCommands(t *testing.T) {
