@@ -68,7 +68,7 @@ const output = ref('');
 setAuth('your-access-key', 'your-secret-key', 'staging');
 
 const listPorts = async () => {
-  const result = await execute('port list --output json');
+  const result = await execute('ports list --output json');
   output.value = result.output || result.error;
 };
 </script>
@@ -155,19 +155,21 @@ Vue composable for WASM integration.
 
 ### Available Commands
 
-All standard Megaport CLI commands are supported:
+The browser/WASM build registers a subset of the native CLI's modules: `ports`, `vxc`, `mcr`, `mve`, `locations`, `partners`, and `servicekeys`. Other modules (`auth`, `config`, `completion`, `generate-docs`, `version`, `nat-gateway`, `ix`, `users`, `status`, `topology`, `apply`, `product`, `managed-account`, `billing-market`) are not available in the browser. See [`WASM_README.md`](../WASM_README.md#available-commands) for the authoritative list.
+
+Within each available module, the same subcommands the native CLI provides are exposed (so `partners` is still `list` / `find`, `locations` is still `list` / `get`, etc.). Common examples:
 
 ```bash
 # Resource Management
-port list [--output json|table|csv]
-vxc list [--output json|table|csv]
-mcr list [--output json|table|csv]
-mve list [--output json|table|csv]
+ports list [--output json|table|csv|xml]
+vxc list [--output json|table|csv|xml]
+mcr list [--output json|table|csv|xml]
+mve list [--output json|table|csv|xml]
 
 # Information
-location list
-partner list
-servicekey list
+locations list
+partners list
+servicekeys list
 
 # Terminal Commands
 help        # Show help
@@ -259,9 +261,9 @@ npm run dev
 Try these commands in the terminal:
 
 ```bash
-location list
+locations list
 help
-port list --output json
+ports list --output json
 ```
 
 ### 3. Verify Output
@@ -506,7 +508,7 @@ export const useMegaportStore = defineStore('megaport', () => {
   const wasm = useMegaportWASM();
 
   const listPorts = async () => {
-    const result = await wasm.execute('port list --output json');
+    const result = await wasm.execute('ports list --output json');
     return JSON.parse(result.output);
   };
 

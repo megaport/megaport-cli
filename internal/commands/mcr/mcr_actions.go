@@ -140,6 +140,11 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	if resp == nil {
+		output.PrintError("MCR buy returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
+	}
+
 	output.PrintResourceCreated("MCR", resp.TechnicalServiceUID, noColor)
 	return nil
 }
@@ -238,6 +243,11 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	if err != nil {
 		output.PrintError("Failed to update MCR: %v", noColor, err)
 		return err
+	}
+
+	if resp == nil {
+		output.PrintError("MCR update returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
 	}
 
 	if !resp.IsUpdated {

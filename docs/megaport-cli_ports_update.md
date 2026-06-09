@@ -22,8 +22,18 @@ This command allows you to update the details of an existing port by providing t
 ```sh
   megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive
   megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --name "Updated Port" --marketplace-visibility true --cost-centre "Finance"
-  megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{"name":"Updated Port","marketplaceVisibility":true,"costCentre":"Finance"}'
+  megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{"name":"Updated Port","marketPlaceVisibility":true,"costCentre":"Finance"}'
   megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json-file ./update-port-config.json
+```
+### JSON Format Example
+```json
+{
+  "name": "Updated Port",
+  "marketPlaceVisibility": true,
+  "costCentre": "IT-2024",
+  "contractTermMonths": 24
+}
+
 ```
 
 ## Usage
@@ -41,6 +51,7 @@ megaport-cli ports update [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 | `--cost-centre` |  |  | Cost centre for billing | false |
+| `--generate-skeleton` |  | `false` | Print a JSON skeleton template for --json or --json-file input and exit | false |
 | `--interactive` | `-i` | `false` | Use interactive mode with prompts | false |
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
