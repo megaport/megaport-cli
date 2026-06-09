@@ -55,6 +55,14 @@ Integration tests run in CI via `.github/workflows/integration-test.yml`:
 - **Read-only job**: runs nightly on `main` and on manual trigger, tests `locations` (and additional packages as read-only integration tests are written). Fast, no resource cost.
 - **Provisioning job**: manual trigger only (`workflow_dispatch`). Runs lifecycle tests for ports, VXC, MCR, MVE, and additional resources as they are added.
 
+### MCR Looking Glass tests
+
+`internal/commands/mcr/mcr_looking_glass_integration_test.go` covers the four read-only Looking Glass diagnostics (`ip-routes`, `bgp-routes`, `bgp-sessions`, `bgp-neighbor-routes`). They are read-only but live in the `mcr` package alongside the provisioning lifecycle tests, so they run under the manual provisioning job (`mcr` is already listed there) and never run nightly. They are deliberately kept out of the nightly read-only job: that job runs `-run '^TestIntegration_'` across whole packages, and adding `mcr` there would also run the MCR provisioning lifecycle tests every night.
+
+These tests need an MCR whose Looking Glass reports at least one BGP session in the UP state. They discover one automatically by listing MCRs and probing each one's BGP-sessions endpoint; the first MCR with an active session is used and the result is cached per run. If none qualifies, all four tests `t.Skip` with a clear message rather than failing.
+
+Staging prerequisite: at the time of writing, the `/lookingGlass/*` endpoints return 404 for every MCR on staging, so these tests skip by design there. To exercise the assertions, an MCR with an active BGP peering session must exist in the target environment; the discovery step then finds it with no test changes needed.
+
 ## Adding a new integration test
 
 1. Create `internal/commands/<resource>/<resource>_integration_test.go`
