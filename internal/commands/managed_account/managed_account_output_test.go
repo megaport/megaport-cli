@@ -2,12 +2,14 @@ package managed_account
 
 import (
 	"encoding/xml"
+	"io"
 	"strings"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPrintManagedAccounts_Table(t *testing.T) {
@@ -88,10 +90,10 @@ func TestPrintManagedAccounts_XML(t *testing.T) {
 	decoder := xml.NewDecoder(strings.NewReader(out))
 	for {
 		_, err := decoder.Token()
-		if err != nil {
-			assert.ErrorContains(t, err, "EOF")
+		if err == io.EOF {
 			break
 		}
+		require.NoError(t, err)
 	}
 }
 
