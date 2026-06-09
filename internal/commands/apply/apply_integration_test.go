@@ -23,6 +23,8 @@ import (
 // suite and supports the 1G port speed these tests exercise.
 const integrationLocationID = 67
 
+// 90s allows for apply's sequential teardown: VXCs are deleted and polled to
+// DECOMMISSIONING before the ports they sit on can be removed.
 const (
 	cleanupStatusTimeout  = 90 * time.Second
 	cleanupStatusInterval = 2 * time.Second
@@ -44,21 +46,22 @@ func generateUniqueID(t *testing.T) string {
 }
 
 // applyIntegrationCmd builds a cobra.Command carrying the flags ApplyConfig reads.
-func applyIntegrationCmd(file string, dryRun, yes, rollback bool) *cobra.Command {
+func applyIntegrationCmd(t *testing.T, file string, dryRun, yes, rollback bool) *cobra.Command {
+	t.Helper()
 	cmd := &cobra.Command{Use: "apply"}
 	cmd.Flags().StringP("file", "f", "", "")
 	cmd.Flags().Bool("dry-run", false, "")
 	cmd.Flags().BoolP("yes", "y", false, "")
 	cmd.Flags().Bool("rollback-on-failure", false, "")
-	_ = cmd.Flags().Set("file", file)
+	require.NoError(t, cmd.Flags().Set("file", file))
 	if dryRun {
-		_ = cmd.Flags().Set("dry-run", "true")
+		require.NoError(t, cmd.Flags().Set("dry-run", "true"))
 	}
 	if yes {
-		_ = cmd.Flags().Set("yes", "true")
+		require.NoError(t, cmd.Flags().Set("yes", "true"))
 	}
 	if rollback {
-		_ = cmd.Flags().Set("rollback-on-failure", "true")
+		require.NoError(t, cmd.Flags().Set("rollback-on-failure", "true"))
 	}
 	return cmd
 }
@@ -148,20 +151,38 @@ func registerSweepCleanup(t *testing.T, prefix string) {
 	t.Cleanup(func() {
 		client := testutil.SharedIntegrationClient(t)
 
-		matched := portsByPrefix(t, prefix)
+		listCtx, listCancel := context.WithTimeout(context.Background(), 60*time.Second)
+		all, err := client.PortService.ListPorts(listCtx)
+		listCancel()
+		if err != nil {
+			t.Logf("cleanup: ListPorts failed, resources may be orphaned: %v", err)
+			return
+		}
+		var matched []*megaport.Port
+		for _, p := range all {
+			if p != nil && strings.HasPrefix(p.Name, prefix) {
+				matched = append(matched, p)
+			}
+		}
 
 		// 1. Delete attached VXCs first (dedup across both ports of a VXC).
 		seenVXC := map[string]bool{}
 		for _, p := range matched {
-			full := portFromSDK(t, p.UID)
+			getCtx, getCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			full, err := client.PortService.GetPort(getCtx, p.UID)
+			getCancel()
+			if err != nil || full == nil {
+				t.Logf("cleanup: GetPort %s: %v (skipping VXC collection)", p.UID, err)
+				continue
+			}
 			for _, vxc := range full.AssociatedVXCs {
 				if vxc == nil || vxc.UID == "" || seenVXC[vxc.UID] {
 					continue
 				}
 				seenVXC[vxc.UID] = true
-				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-				err := client.VXCService.DeleteVXC(ctx, vxc.UID, &megaport.DeleteVXCRequest{DeleteNow: true})
-				cancel()
+				delCtx, delCancel := context.WithTimeout(context.Background(), 30*time.Second)
+				err := client.VXCService.DeleteVXC(delCtx, vxc.UID, &megaport.DeleteVXCRequest{DeleteNow: true})
+				delCancel()
 				if err != nil {
 					t.Logf("cleanup: delete VXC %s: %v", vxc.UID, err)
 				}
@@ -182,9 +203,9 @@ func registerSweepCleanup(t *testing.T, prefix string) {
 
 		// 2. Delete ports.
 		for _, p := range matched {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			_, err := client.PortService.DeletePort(ctx, &megaport.DeletePortRequest{PortID: p.UID, DeleteNow: true})
-			cancel()
+			delCtx, delCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			_, err := client.PortService.DeletePort(delCtx, &megaport.DeletePortRequest{PortID: p.UID, DeleteNow: true})
+			delCancel()
 			if err != nil {
 				t.Logf("cleanup: delete port %s: %v", p.UID, err)
 			}
