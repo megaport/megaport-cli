@@ -20,7 +20,12 @@ test-integration:
 
 # Run only read-only integration tests — fast, no resources provisioned
 test-integration-readonly:
-	go test -tags integration -run '^TestIntegration_' -v -timeout 5m ./internal/commands/locations/...
+	go test -tags integration -run '^TestIntegration_' -v -timeout 5m \
+		./internal/commands/billing_market/... \
+		./internal/commands/locations/... \
+		./internal/commands/product/... \
+		./internal/commands/status/... \
+		./internal/commands/topology/...
 
 # Run linter
 lint:
