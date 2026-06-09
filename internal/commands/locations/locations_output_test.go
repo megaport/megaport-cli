@@ -76,13 +76,15 @@ func TestPrintLocations_XML(t *testing.T) {
 
 func TestPrintLocations_NilEntriesSkipped(t *testing.T) {
 	locs := []*megaport.LocationV3{nil, testLocations[0], nil}
-	assert.NotPanics(t, func() {
-		out := op.CaptureOutput(func() {
-			err := printLocations(locs, "csv", noColor)
-			assert.NoError(t, err)
+	for _, format := range []string{"csv", "table"} {
+		assert.NotPanics(t, func() {
+			out := op.CaptureOutput(func() {
+				err := printLocations(locs, format, noColor)
+				assert.NoError(t, err)
+			})
+			assert.Contains(t, out, "Sydney")
 		})
-		assert.Contains(t, out, "Sydney")
-	})
+	}
 }
 
 func TestPrintCountries_AllFormats(t *testing.T) {
