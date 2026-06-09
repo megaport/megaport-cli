@@ -5,6 +5,7 @@ package mcr
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -27,14 +28,19 @@ type lookingGlassTarget struct {
 var (
 	lookingGlassTargetOnce sync.Once
 	lookingGlassTargetVal  *lookingGlassTarget
+	lookingGlassDiscErr    error
 )
 
 // discoverLookingGlassTarget lists MCRs on staging and returns the first one
 // whose Looking Glass reports at least one BGP session in the UP state.
-// Returns nil when no such MCR exists (e.g. the Looking Glass endpoint is not
-// available on staging, in which case every MCR returns 404). The result is
-// cached per process so the (slow) discovery scan runs once.
-func discoverLookingGlassTarget(t *testing.T, client *megaport.Client) *lookingGlassTarget {
+//
+// It distinguishes "no target available" (nil target, nil error — skip) from a
+// real environment problem (non-nil error — fail). A 404/not-found from the
+// Looking Glass endpoint means it isn't available for that MCR and the scan
+// continues; any other error (auth, 5xx) aborts and surfaces so CI fails rather
+// than silently skipping coverage. The result is cached per process so the
+// (slow) discovery scan runs once.
+func discoverLookingGlassTarget(t *testing.T, client *megaport.Client) (*lookingGlassTarget, error) {
 	t.Helper()
 	lookingGlassTargetOnce.Do(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -42,18 +48,29 @@ func discoverLookingGlassTarget(t *testing.T, client *megaport.Client) *lookingG
 
 		mcrs, err := client.MCRService.ListMCRs(ctx, &megaport.ListMCRsRequest{})
 		if err != nil {
-			t.Logf("looking-glass discovery: ListMCRs failed: %v", err)
+			lookingGlassDiscErr = fmt.Errorf("ListMCRs failed during looking-glass discovery: %w", err)
 			return
 		}
 
 		for _, m := range mcrs {
-			sessions, err := client.MCRLookingGlassService.ListBGPSessions(ctx, m.UID)
-			if err != nil {
-				// The Looking Glass endpoint may not exist for this MCR
-				// (404) or be transiently unavailable; skip and keep scanning.
+			if m == nil {
 				continue
 			}
+			sessions, err := client.MCRLookingGlassService.ListBGPSessions(ctx, m.UID)
+			if err != nil {
+				if megaport.IsServiceNotFoundError(err) {
+					// Looking Glass not available for this MCR; keep scanning.
+					continue
+				}
+				// Auth/5xx/etc — a real failure, not "no target". Abort so the
+				// test fails instead of skipping with a misleading message.
+				lookingGlassDiscErr = fmt.Errorf("ListBGPSessions failed for MCR %s: %w", m.UID, err)
+				return
+			}
 			for _, s := range sessions {
+				if s == nil {
+					continue
+				}
 				if s.Status == megaport.BGPSessionStatusUp {
 					lookingGlassTargetVal = &lookingGlassTarget{
 						mcrUID:    m.UID,
@@ -64,14 +81,15 @@ func discoverLookingGlassTarget(t *testing.T, client *megaport.Client) *lookingG
 			}
 		}
 	})
-	return lookingGlassTargetVal
+	return lookingGlassTargetVal, lookingGlassDiscErr
 }
 
-// requireLookingGlassTarget returns a BGP-enabled MCR or skips the test with a
-// clear message when none is available on staging.
+// requireLookingGlassTarget returns a BGP-enabled MCR, fails the test on a real
+// discovery error, or skips when staging simply has no BGP-enabled MCR.
 func requireLookingGlassTarget(t *testing.T, client *megaport.Client) *lookingGlassTarget {
 	t.Helper()
-	target := discoverLookingGlassTarget(t, client)
+	target, err := discoverLookingGlassTarget(t, client)
+	require.NoError(t, err, "looking-glass target discovery failed")
 	if target == nil {
 		t.Skip("no BGP-enabled MCR available on staging (no MCR reports an active Looking Glass BGP session); skipping Looking Glass integration test")
 	}
