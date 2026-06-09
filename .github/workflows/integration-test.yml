@@ -19,8 +19,14 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5.6.0
         with:
           go-version-file: 'go.mod'
-      - name: Run read-only integration tests (locations)
-        run: go test -tags integration -run '^TestIntegration_' -v -timeout 5m ./internal/commands/locations/...
+      - name: Run read-only integration tests
+        run: |
+          go test -tags integration -run '^TestIntegration_' -v -timeout 5m \
+            ./internal/commands/billing_market/... \
+            ./internal/commands/locations/... \
+            ./internal/commands/product/... \
+            ./internal/commands/status/... \
+            ./internal/commands/topology/...
         env:
           MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
           MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}

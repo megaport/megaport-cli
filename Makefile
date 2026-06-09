@@ -22,7 +22,12 @@ test-integration:
 # The locations package has only read-only tests; core packages also hold
 # provisioning lifecycle tests, so they are scoped to the ReadOnly-suffixed names.
 test-integration-readonly:
-	go test -tags integration -run '^TestIntegration_' -v -timeout 5m ./internal/commands/locations/...
+	go test -tags integration -run '^TestIntegration_' -v -timeout 5m \
+		./internal/commands/billing_market/... \
+		./internal/commands/locations/... \
+		./internal/commands/product/... \
+		./internal/commands/status/... \
+		./internal/commands/topology/...
 	go test -tags integration -run 'TestIntegration_.*ReadOnly$$' -v -timeout 5m \
 		./internal/commands/ix/... \
 		./internal/commands/mcr/... \

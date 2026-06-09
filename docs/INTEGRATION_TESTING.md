@@ -37,7 +37,7 @@ Provisioning lifecycle tests (ports, VXC, MCR, MVE, and IX, with more resources 
 
 Resources are cleaned up automatically via `t.Cleanup()` at the end of each test, even when the test fails. However, if a test run is interrupted (e.g. `Ctrl+C`), cleanup may not run. In that case, log in to the staging portal and delete any resources prefixed with `CLI-Test-`.
 
-The read-only smoke tests for ports, VXC, MCR, MVE, and IX (alongside `locations`) provision nothing — they list/get/status existing resources and skip cleanly when the account has none. Only the provisioning lifecycle tests create resources, never these read-only tests.
+The read-only integration tests cover `billing_market`, `locations`, `product`, `status`, and `topology` outright, plus read-only smoke tests for ports, VXC, MCR, MVE, and IX. They provision nothing — they list/get/status existing resources and skip cleanly when the account has none. Only the provisioning lifecycle tests create resources, never these read-only tests.
 
 ## Build tag
 
@@ -55,7 +55,7 @@ Running `go test ./...` (without `-tags integration`) excludes these files entir
 
 Integration tests run in CI via `.github/workflows/integration-test.yml`:
 
-- **Read-only job**: runs nightly on `main` and on manual trigger. Tests `locations`, plus read-only smoke tests (`list`/`get`/`status`) for ports, VXC, MCR, MVE, and IX selected via `-run 'TestIntegration_.*ReadOnly$'` so the provisioning lifecycle tests in those packages never run nightly. Fast, no resource cost.
+- **Read-only job**: runs nightly on `main` and on manual trigger. Tests `billing_market`, `locations`, `product`, `status`, and `topology` outright, plus read-only smoke tests (`list`/`get`/`status`) for ports, VXC, MCR, MVE, and IX selected via `-run 'TestIntegration_.*ReadOnly$'` so the provisioning lifecycle tests in those packages never run nightly. Fast, no resource cost.
 - **Provisioning job**: manual trigger only (`workflow_dispatch`). Runs lifecycle tests for ports, VXC, MCR, MVE, and additional resources as they are added.
 
 ## Adding a new integration test
