@@ -31,11 +31,11 @@ go test -tags integration -run '^TestIntegration_' -v -timeout 30m ./internal/co
 
 ## What gets created on staging
 
-Provisioning lifecycle tests (ports today, with VXC, MCR, MVE, IX, and NAT Gateway added incrementally) create real resources on the staging account. All test resources are named with the prefix `CLI-Test-` for easy identification.
+Provisioning lifecycle tests (ports, VXC, MCR, MVE, and IX, with more resources such as NAT Gateway added incrementally) create real resources on the staging account. They run whenever the full suite runs — locally via `make test-integration` and in the manual provisioning CI job — never in the nightly read-only job. All test resources are named with the prefix `CLI-Test-` for easy identification.
 
 Resources are cleaned up automatically via `t.Cleanup()` at the end of each test, even when the test fails. However, if a test run is interrupted (e.g. `Ctrl+C`), cleanup may not run. In that case, log in to the staging portal and delete any resources prefixed with `CLI-Test-`.
 
-The read-only smoke tests for ports, VXC, MCR, MVE, and IX (alongside `locations`) provision nothing — they list/get/status existing resources and skip cleanly when the account has none. Resources are only created by the provisioning lifecycle tests in the manual job.
+The read-only smoke tests for ports, VXC, MCR, MVE, and IX (alongside `locations`) provision nothing — they list/get/status existing resources and skip cleanly when the account has none. Only the provisioning lifecycle tests create resources, never these read-only tests.
 
 ## Build tag
 
