@@ -38,7 +38,7 @@ func IntegrationEnvironment() (megaport.Environment, string) {
 func RequireStagingForProvisioning(t *testing.T) {
 	t.Helper()
 	if _, name := IntegrationEnvironment(); name != "staging" {
-		t.Skipf("provisioning lifecycle tests are staging-only (hardcoded location IDs); MEGAPORT_ENVIRONMENT=%s", name)
+		t.Skipf("provisioning lifecycle tests are staging-only (hardcoded location IDs); MEGAPORT_ENVIRONMENT=%q resolved to %s", os.Getenv("MEGAPORT_ENVIRONMENT"), name)
 	}
 }
 
