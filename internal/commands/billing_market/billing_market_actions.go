@@ -38,6 +38,9 @@ func GetBillingMarkets(cmd *cobra.Command, args []string, noColor bool, outputFo
 
 	outputs := make([]billingMarketOutput, 0, len(markets))
 	for _, m := range markets {
+		if m == nil {
+			continue
+		}
 		outputs = append(outputs, toBillingMarketOutput(m))
 	}
 
