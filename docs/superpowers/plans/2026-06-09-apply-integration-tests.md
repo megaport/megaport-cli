@@ -6,7 +6,7 @@
 
 **Architecture:** A single `//go:build integration` test file in package `apply` that drives `ApplyConfig` against the staging API via `testutil.RequireSharedIntegrationClient`. Because `ApplyConfig` returns only `error` (not created UIDs), tests use unique name prefixes and discover/clean up resources by name through the SDK (`ListPorts` + `GetPort` → `AssociatedVXCs`). Tests run serially (no `t.Parallel()`) to avoid the documented `CaptureOutput`/stdout-swap race.
 
-**Tech Stack:** Go, `//go:build integration` tag, `testify`, cobra, `megaportgo` SDK v1.9.1.
+**Tech Stack:** Go, `//go:build integration` tag, `testify`, cobra, `megaportgo` SDK v1.13.0.
 
 **Spec:** `docs/superpowers/specs/2026-06-09-apply-integration-tests-design.md`
 
@@ -588,5 +588,5 @@ git commit -m "test(ESD-1380): lint fixes for apply integration tests"
 ## Self-Review Notes
 
 - **Spec coverage:** dry-run (Task 3), lifecycle (Task 4), rollback-on-failure (Task 5), name-based discovery + sweep cleanup (Task 2), `provisionPollInterval` override (Task 1), CI wiring (Task 6). All spec sections mapped.
-- **Type consistency:** `applyIntegrationCmd`, `writeApplyConfig`, `twoPortVXCConfig`, `portsByPrefix`, `portByExactName`, `portFromSDK`, `vxcOnPortByName`, `waitForDecommission`, `registerSweepCleanup`, `generateUniqueID` used with consistent signatures across tasks. SDK calls match v1.9.1: `DeletePortRequest{PortID, DeleteNow}`, `DeleteVXCRequest{DeleteNow}`, `VXCService.DeleteVXC(ctx, uid, req)`, `Port.AssociatedVXCs`, `VXC.AEndConfiguration.UID`.
+- **Type consistency:** `applyIntegrationCmd`, `writeApplyConfig`, `twoPortVXCConfig`, `portsByPrefix`, `portByExactName`, `portFromSDK`, `vxcOnPortByName`, `waitForDecommission`, `registerSweepCleanup`, `generateUniqueID` used with consistent signatures across tasks. SDK calls match v1.13.0: `DeletePortRequest{PortID, DeleteNow}`, `DeleteVXCRequest{DeleteNow}`, `VXCService.DeleteVXC(ctx, uid, req)`, `Port.AssociatedVXCs`, `VXC.AEndConfiguration.UID`.
 - **Unused-import caveat:** flagged in Tasks 1-2 — commit the scaffold and helpers together (and fold Task 3 in if `fmt`/`output`/`assert` are still unused) so no commit leaves an uncompilable file.

@@ -24,9 +24,11 @@ The repo already has a mature integration suite:
   parallel-safe via `sync.Once`.
 - Per-resource lifecycle tests (ports, mcr, mve, vxc, ix, locations) that buy →
   assert via the SDK → clean up via `t.Cleanup`.
-- The suite deliberately avoids `output.CaptureOutput` on hot paths and reads
-  state directly through the SDK, because `CaptureOutput` swaps global
-  `os.Stdout` and races with parallel tests' spinner goroutines.
+- The suite prefers reading state directly through the SDK over asserting on
+  captured CLI output. `output.CaptureOutput` swaps global `os.Stdout`, so it
+  races with spinner goroutines when tests run in parallel within the same
+  package process; serial tests may still use it to validate user-facing
+  messaging (the apply dry-run test does exactly this).
 - `Makefile`: `test-integration` runs
   `go test -tags integration -run '^TestIntegration_' ./internal/commands/...`
   (apply is picked up by the glob automatically).

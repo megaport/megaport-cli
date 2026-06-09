@@ -539,9 +539,9 @@ func doRollback(client *megaport.Client, created []createdResource, jsonMode boo
 }
 
 // waitForProvision polls getStatus until the resource reaches a ready state,
-// defaultWaitTime elapses, ctx is cancelled, or getStatus returns an error.
-// The order has already been placed by the time this runs, so the caller must
-// have recorded the resource as created before calling this.
+// the caller's deadline elapses, ctx is cancelled, or getStatus returns an
+// error. The order has already been placed by the time this runs, so the
+// caller must have recorded the resource as created before calling this.
 func waitForProvision(ctx context.Context, resType, name, uid string, getStatus func(ctx context.Context) (string, error)) error {
 	check := func() (bool, error) {
 		status, err := getStatus(ctx)
@@ -558,8 +558,13 @@ func waitForProvision(ctx context.Context, resType, name, uid string, getStatus 
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, defaultWaitTime)
-	defer cancel()
+	// Respect the caller's deadline (e.g. from --timeout); only impose the
+	// default cap when the caller passed an open-ended context.
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, defaultWaitTime)
+		defer cancel()
+	}
 
 	ticker := time.NewTicker(provisionPollInterval)
 	defer ticker.Stop()
