@@ -204,8 +204,16 @@ func registerSweepCleanup(t *testing.T, prefix string) {
 			})
 		}
 
-		// 2. Delete ports.
+		// 2. Delete ports. Skip any already torn down (e.g. by a rollback under
+		// test) — deleting them again returns a 409 that reads as a failure.
+		alreadyGone := map[string]bool{
+			"CANCELLED": true, "CANCELLED_PARENT": true,
+			"DECOMMISSIONING": true, "DECOMMISSIONED": true,
+		}
 		for _, p := range matched {
+			if alreadyGone[p.ProvisioningStatus] {
+				continue
+			}
 			delCtx, delCancel := context.WithTimeout(context.Background(), 30*time.Second)
 			_, err := client.PortService.DeletePort(delCtx, &megaport.DeletePortRequest{PortID: p.UID, DeleteNow: true})
 			delCancel()
