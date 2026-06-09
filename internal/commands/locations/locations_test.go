@@ -210,6 +210,13 @@ func TestFilterLocations_EmptySlice(t *testing.T) {
 	assert.Equal(t, 0, len(result), "Expected no results for empty input")
 }
 
+func TestFilterLocations_NilElementsSkipped(t *testing.T) {
+	source := []*megaport.LocationV3{nil, testLocations[0], nil}
+	result := filterLocations(source, map[string]string{})
+	assert.Len(t, result, 1)
+	assert.Equal(t, testLocations[0].ID, result[0].ID)
+}
+
 func TestPrintLocations_EmptySlice(t *testing.T) {
 	var emptyLocations []*megaport.LocationV3
 
