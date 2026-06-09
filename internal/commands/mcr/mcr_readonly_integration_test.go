@@ -38,7 +38,8 @@ func readOnlyStatusMCRCmd() *cobra.Command {
 	return cmd
 }
 
-// TestIntegration_MCRReadOnly is a fast read-only smoke test against staging:
+// TestIntegration_MCRReadOnly is a fast read-only smoke test against the
+// configured environment (staging by default):
 // list, then get + status on the first MCR. Skips cleanly when the account has
 // no MCRs. Performs no mutation.
 func TestIntegration_MCRReadOnly(t *testing.T) {
@@ -53,12 +54,12 @@ func TestIntegration_MCRReadOnly(t *testing.T) {
 	require.NoError(t, listErr)
 
 	if strings.TrimSpace(listOut) == "" {
-		t.Skip("no MCRs on staging account")
+		t.Skip("no MCRs on the account")
 	}
 	var mcrList []map[string]interface{}
 	require.NoError(t, json.Unmarshal([]byte(listOut), &mcrList), "ListMCRs returned invalid JSON")
 	if len(mcrList) == 0 {
-		t.Skip("no MCRs on staging account")
+		t.Skip("no MCRs on the account")
 	}
 
 	first := mcrList[0]

@@ -38,10 +38,11 @@ func readOnlyStatusPortCmd() *cobra.Command {
 	return cmd
 }
 
-// TestIntegration_PortsReadOnly is a fast read-only smoke test against staging:
+// TestIntegration_PortReadOnly is a fast read-only smoke test against the
+// configured environment (staging by default):
 // list, then get + status on the first port. Skips cleanly when the account has
 // no ports. Performs no mutation.
-func TestIntegration_PortsReadOnly(t *testing.T) {
+func TestIntegration_PortReadOnly(t *testing.T) {
 	testutil.RequireSharedIntegrationClient(t)
 	origFormat := output.GetOutputFormat()
 	t.Cleanup(func() { output.SetOutputFormat(origFormat) })
@@ -53,12 +54,12 @@ func TestIntegration_PortsReadOnly(t *testing.T) {
 	require.NoError(t, listErr)
 
 	if strings.TrimSpace(listOut) == "" {
-		t.Skip("no ports on staging account")
+		t.Skip("no ports on the account")
 	}
 	var portsList []map[string]interface{}
 	require.NoError(t, json.Unmarshal([]byte(listOut), &portsList), "ListPorts returned invalid JSON")
 	if len(portsList) == 0 {
-		t.Skip("no ports on staging account")
+		t.Skip("no ports on the account")
 	}
 
 	first := portsList[0]

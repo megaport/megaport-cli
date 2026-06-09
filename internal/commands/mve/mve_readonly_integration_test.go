@@ -38,7 +38,8 @@ func readOnlyStatusMVECmd() *cobra.Command {
 	return cmd
 }
 
-// TestIntegration_MVEReadOnly is a fast read-only smoke test against staging:
+// TestIntegration_MVEReadOnly is a fast read-only smoke test against the
+// configured environment (staging by default):
 // list, then get + status on the first MVE. Skips cleanly when the account has
 // no MVEs. Performs no mutation.
 func TestIntegration_MVEReadOnly(t *testing.T) {
@@ -53,12 +54,12 @@ func TestIntegration_MVEReadOnly(t *testing.T) {
 	require.NoError(t, listErr)
 
 	if strings.TrimSpace(listOut) == "" {
-		t.Skip("no MVEs on staging account")
+		t.Skip("no MVEs on the account")
 	}
 	var mveList []map[string]interface{}
 	require.NoError(t, json.Unmarshal([]byte(listOut), &mveList), "ListMVEs returned invalid JSON")
 	if len(mveList) == 0 {
-		t.Skip("no MVEs on staging account")
+		t.Skip("no MVEs on the account")
 	}
 
 	first := mveList[0]

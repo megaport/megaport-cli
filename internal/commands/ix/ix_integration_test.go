@@ -133,7 +133,8 @@ func integrationStatusIXCmd() *cobra.Command {
 	return &cobra.Command{Use: "status"}
 }
 
-// TestIntegration_IXReadOnly is a fast read-only smoke test against staging:
+// TestIntegration_IXReadOnly is a fast read-only smoke test against the
+// configured environment (staging by default):
 // list, then get + status on the first IX. Skips cleanly when the account has
 // no IXs. Performs no mutation.
 func TestIntegration_IXReadOnly(t *testing.T) {
@@ -149,12 +150,12 @@ func TestIntegration_IXReadOnly(t *testing.T) {
 
 	// JSON mode emits no output (not "[]") when the list is empty.
 	if strings.TrimSpace(listOut) == "" {
-		t.Skip("no IXs available on staging to test Get")
+		t.Skip("no IXs available on the account to test Get")
 	}
 	var ixs []map[string]interface{}
 	require.NoError(t, json.Unmarshal([]byte(listOut), &ixs), "ListIXs returned invalid JSON")
 	if len(ixs) == 0 {
-		t.Skip("no IXs available on staging to test Get")
+		t.Skip("no IXs available on the account to test Get")
 	}
 
 	first := ixs[0]

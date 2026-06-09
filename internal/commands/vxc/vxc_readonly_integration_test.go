@@ -41,7 +41,8 @@ func readOnlyStatusVXCCmd() *cobra.Command {
 	return cmd
 }
 
-// TestIntegration_VXCReadOnly is a fast read-only smoke test against staging:
+// TestIntegration_VXCReadOnly is a fast read-only smoke test against the
+// configured environment (staging by default):
 // list, then get + status on the first VXC. Skips cleanly when the account has
 // no VXCs. Performs no mutation.
 func TestIntegration_VXCReadOnly(t *testing.T) {
@@ -56,12 +57,12 @@ func TestIntegration_VXCReadOnly(t *testing.T) {
 	require.NoError(t, listErr)
 
 	if strings.TrimSpace(listOut) == "" {
-		t.Skip("no VXCs on staging account")
+		t.Skip("no VXCs on the account")
 	}
 	var vxcList []map[string]interface{}
 	require.NoError(t, json.Unmarshal([]byte(listOut), &vxcList), "ListVXCs returned invalid JSON")
 	if len(vxcList) == 0 {
-		t.Skip("no VXCs on staging account")
+		t.Skip("no VXCs on the account")
 	}
 
 	first := vxcList[0]

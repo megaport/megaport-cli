@@ -1,6 +1,6 @@
 # Integration Testing
 
-Integration tests run against the Megaport staging API and verify that CLI commands work correctly end-to-end. They are separate from unit tests, which use mocks and run on every PR.
+Integration tests run against a Megaport API environment (staging by default) and verify that CLI commands work correctly end-to-end. They are separate from unit tests, which use mocks and run on every PR.
 
 ## Prerequisites
 
@@ -12,7 +12,9 @@ export MEGAPORT_SECRET_KEY=<your-staging-secret-key>
 export MEGAPORT_ENVIRONMENT=staging
 ```
 
-Staging credentials can be obtained from the Megaport staging portal. The staging environment is hardcoded in the test helper (`testutil.SetupIntegrationClient`) — it is not possible to accidentally target production through the test suite. `MEGAPORT_ENVIRONMENT=staging` is passed to the CI runner for consistency with local usage, but is not read by the test helper itself.
+Credentials can be obtained from the relevant Megaport portal. `MEGAPORT_ENVIRONMENT` selects the target API: `staging` (default), `production`, or `development`. The test helper (`testutil.IntegrationEnvironment`) defaults to staging when the variable is empty or unrecognized, so a typo can never silently point the suite at production. The credentials must match the chosen environment.
+
+The read-only smoke tests discover resources dynamically and run in any environment. The provisioning lifecycle tests use hardcoded staging location IDs, so they only work against staging.
 
 ## Running tests
 
@@ -69,7 +71,7 @@ See `internal/commands/locations/locations_integration_test.go` for a serial rea
 
 ### Authentication helpers
 
-Two helpers in `internal/testutil` handle staging authentication. Pick based on whether your tests use `t.Parallel()`.
+Two helpers in `internal/testutil` handle authentication against the configured environment. Pick based on whether your tests use `t.Parallel()`.
 
 **Serial tests** (no `t.Parallel()`): use `testutil.SetupIntegrationClient` plus `testutil.LoginWithClient`. The login override is saved on entry and restored on cleanup:
 
@@ -81,7 +83,7 @@ func TestIntegration_Foo(t *testing.T) {
 }
 ```
 
-**Parallel tests** (`t.Parallel()`): use `testutil.RequireSharedIntegrationClient`. It authorises once per process via `sync.Once` and installs the login override exactly once; it never restores. All callers share a single authorised `*megaport.Client`, which is safe because they all target the same staging environment.
+**Parallel tests** (`t.Parallel()`): use `testutil.RequireSharedIntegrationClient`. It authorises once per process via `sync.Once` and installs the login override exactly once; it never restores. All callers share a single authorised `*megaport.Client`, which is safe because they all target the same environment.
 
 ```go
 func TestIntegration_Foo(t *testing.T) {
