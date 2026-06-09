@@ -6,15 +6,18 @@ import (
 	"context"
 	crypto_rand "crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/testutil"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -211,4 +214,60 @@ func registerSweepCleanup(t *testing.T, prefix string) {
 			}
 		}
 	})
+}
+
+// twoPortVXCConfig returns a YAML apply config with two ports and one
+// port-to-port VXC whose endpoints reference the ports via {{.port.<name>}}
+// templates. Names are derived from prefix so a single sweep cleans them up.
+func twoPortVXCConfig(prefix string) (yaml, portAName, portBName, vxcName string) {
+	portAName = prefix + "-PortA"
+	portBName = prefix + "-PortB"
+	vxcName = prefix + "-VXC"
+	yaml = fmt.Sprintf(`ports:
+  - name: %s
+    location_id: %d
+    speed: 1000
+    term: 1
+    marketplace_visibility: false
+  - name: %s
+    location_id: %d
+    speed: 1000
+    term: 1
+    marketplace_visibility: false
+vxcs:
+  - name: %s
+    rate_limit: 100
+    term: 1
+    a_end:
+      product_uid: "{{.port.%s}}"
+    b_end:
+      product_uid: "{{.port.%s}}"
+`, portAName, integrationLocationID, portBName, integrationLocationID, vxcName, portAName, portBName)
+	return yaml, portAName, portBName, vxcName
+}
+
+func TestIntegration_ApplyDryRun(t *testing.T) {
+	testutil.RequireSharedIntegrationClient(t)
+
+	prefix := fmt.Sprintf("CLI-Apply-Test-%s", generateUniqueID(t))
+	registerSweepCleanup(t, prefix) // safety net; dry-run should create nothing
+
+	yaml, _, _, _ := twoPortVXCConfig(prefix)
+	cfgPath := writeApplyConfig(t, yaml)
+	cmd := applyIntegrationCmd(t, cfgPath, true /*dryRun*/, true /*yes*/, false /*rollback*/)
+
+	out := output.CaptureOutput(func() {
+		require.NoError(t, ApplyConfig(cmd, nil, true, "table"), "dry-run apply should succeed")
+	})
+
+	// Validation results are reported; the VXC's template endpoints cannot be
+	// validated server-side without provisioning, so it is reported as skipped.
+	// Table rendering may wrap long cell values, so assert on substrings that
+	// survive wrapping rather than the full status string.
+	assert.Contains(t, out, "valid", "dry-run should report port validation results")
+	assert.Contains(t, out, "skipped: requires", "templated VXC should be skipped in dry-run")
+
+	// Crucially, nothing was provisioned.
+	created := portsByPrefix(t, prefix)
+	assert.Emptyf(t, created, "dry-run must not provision any ports; found %d", len(created))
 }
