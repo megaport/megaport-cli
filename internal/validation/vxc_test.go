@@ -62,6 +62,62 @@ func TestValidateBGPConnectionConfig(t *testing.T) {
 			wantErr: true,
 			errText: "Invalid vRouter interface [0] BGP connection [0] peer ASN: <nil> - is required",
 		},
+		// ASN boundary cases. The validator only gates on zero (required);
+		// any other value passes, so each of these is accepted.
+		{
+			name: "ASN 1 (min non-zero)",
+			conn: megaport.BgpConnectionConfig{
+				PeerAsn:        1,
+				LocalIpAddress: "192.168.1.1",
+				PeerIpAddress:  "192.168.1.2",
+			},
+			wantErr: false,
+		},
+		{
+			name: "ASN 65535 (16-bit max)",
+			conn: megaport.BgpConnectionConfig{
+				PeerAsn:        65535,
+				LocalIpAddress: "192.168.1.1",
+				PeerIpAddress:  "192.168.1.2",
+			},
+			wantErr: false,
+		},
+		{
+			name: "ASN 64512 (private range low)",
+			conn: megaport.BgpConnectionConfig{
+				PeerAsn:        64512,
+				LocalIpAddress: "192.168.1.1",
+				PeerIpAddress:  "192.168.1.2",
+			},
+			wantErr: false,
+		},
+		{
+			name: "ASN 65534 (private range high)",
+			conn: megaport.BgpConnectionConfig{
+				PeerAsn:        65534,
+				LocalIpAddress: "192.168.1.1",
+				PeerIpAddress:  "192.168.1.2",
+			},
+			wantErr: false,
+		},
+		{
+			name: "ASN 4294967295 (32-bit max)",
+			conn: megaport.BgpConnectionConfig{
+				PeerAsn:        4294967295,
+				LocalIpAddress: "192.168.1.1",
+				PeerIpAddress:  "192.168.1.2",
+			},
+			wantErr: false,
+		},
+		{
+			name: "ASN negative still passes (only zero is gated)",
+			conn: megaport.BgpConnectionConfig{
+				PeerAsn:        -1,
+				LocalIpAddress: "192.168.1.1",
+				PeerIpAddress:  "192.168.1.2",
+			},
+			wantErr: false,
+		},
 		{
 			name: "Invalid peer IP",
 			conn: megaport.BgpConnectionConfig{
