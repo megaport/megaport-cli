@@ -7,9 +7,9 @@ Integration tests run against a Megaport API environment (staging by default) an
 Set the following environment variables before running integration tests:
 
 ```bash
-export MEGAPORT_ACCESS_KEY=<your-staging-access-key>
-export MEGAPORT_SECRET_KEY=<your-staging-secret-key>
-export MEGAPORT_ENVIRONMENT=staging
+export MEGAPORT_ACCESS_KEY=<your-access-key>
+export MEGAPORT_SECRET_KEY=<your-secret-key>
+export MEGAPORT_ENVIRONMENT=staging  # staging (default), production, or development
 ```
 
 Credentials can be obtained from the relevant Megaport portal. `MEGAPORT_ENVIRONMENT` selects the target API: `staging` (default), `production`, or `development`. The test helper (`testutil.IntegrationEnvironment`) defaults to staging when the variable is empty or unrecognized, so a typo can never silently point the suite at production. The credentials must match the chosen environment.
