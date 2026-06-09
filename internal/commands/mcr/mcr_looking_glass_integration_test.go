@@ -12,6 +12,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/testutil"
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -56,6 +57,13 @@ func discoverLookingGlassTarget(t *testing.T, client *megaport.Client) (*looking
 			if m == nil {
 				continue
 			}
+			// Skip decommissioned/cancelled MCRs, as the list commands do. Looking
+			// Glass calls against an inactive MCR can return non-404 errors that
+			// would otherwise abort discovery.
+			switch m.ProvisioningStatus {
+			case megaport.STATUS_DECOMMISSIONED, megaport.STATUS_CANCELLED, utils.StatusDecommissioning:
+				continue
+			}
 			sessions, err := client.MCRLookingGlassService.ListBGPSessions(ctx, m.UID)
 			if err != nil {
 				if megaport.IsServiceNotFoundError(err) {
@@ -71,7 +79,9 @@ func discoverLookingGlassTarget(t *testing.T, client *megaport.Client) (*looking
 				if s == nil {
 					continue
 				}
-				if s.Status == megaport.BGPSessionStatusUp {
+				// Require a usable SessionID — the bgp-neighbor-routes test needs
+				// it, so a target without one is no better than no target.
+				if s.Status == megaport.BGPSessionStatusUp && s.SessionID != "" {
 					lookingGlassTargetVal = &lookingGlassTarget{
 						mcrUID:    m.UID,
 						sessionID: s.SessionID,
