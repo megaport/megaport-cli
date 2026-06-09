@@ -110,13 +110,14 @@ func TestValidateBGPConnectionConfig(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "ASN negative still passes (only zero is gated)",
+			name: "ASN negative rejected",
 			conn: megaport.BgpConnectionConfig{
 				PeerAsn:        -1,
 				LocalIpAddress: "192.168.1.1",
 				PeerIpAddress:  "192.168.1.2",
 			},
-			wantErr: false,
+			wantErr: true,
+			errText: "Invalid vRouter interface [0] BGP connection [0] peer ASN: -1 - must be between 1-4294967295",
 		},
 		{
 			name: "Invalid peer IP",

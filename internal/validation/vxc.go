@@ -25,6 +25,9 @@ const (
 	// MaxMED is the maximum Multi-Exit Discriminator value for BGP routing.
 	// Using int64 to avoid overflow on 32-bit platforms.
 	MaxMED int64 = 4294967295
+	// MinASN and MaxASN bound a valid 32-bit BGP autonomous system number.
+	MinASN       = 1
+	MaxASN int64 = 4294967295
 	// BGPPeerNonCloud identifies a non-cloud BGP peer type.
 	BGPPeerNonCloud = "NON_CLOUD"
 	// BGPPeerPrivCloud identifies a private cloud BGP peer type.
@@ -234,6 +237,9 @@ func ValidateAWSPartnerConfig(config *megaport.VXCPartnerConfigAWS) error {
 	}
 	if config.ASN == 0 {
 		return NewValidationError("ASN", config.ASN, "cannot be empty")
+	}
+	if config.ASN < MinASN || int64(config.ASN) > MaxASN {
+		return NewValidationError("ASN", config.ASN, fmt.Sprintf("must be between %d-%d", MinASN, MaxASN))
 	}
 	return nil
 }
@@ -510,6 +516,9 @@ func ValidateBGPConnectionConfig(conn megaport.BgpConnectionConfig, ifaceIndex, 
 	fieldPrefix := fmt.Sprintf("vRouter interface [%d] BGP connection [%d]", ifaceIndex, connIndex)
 	if conn.PeerAsn == 0 {
 		return NewValidationError(fmt.Sprintf("%s peer ASN", fieldPrefix), nil, "is required")
+	}
+	if conn.PeerAsn < MinASN || int64(conn.PeerAsn) > MaxASN {
+		return NewValidationError(fmt.Sprintf("%s peer ASN", fieldPrefix), conn.PeerAsn, fmt.Sprintf("must be between %d-%d", MinASN, MaxASN))
 	}
 	if conn.LocalIpAddress == "" {
 		return NewValidationError(fmt.Sprintf("%s local IP address", fieldPrefix), conn.LocalIpAddress, "cannot be empty")

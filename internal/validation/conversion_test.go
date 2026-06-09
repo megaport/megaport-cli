@@ -17,7 +17,7 @@ func TestGetIntFromInterface(t *testing.T) {
 		{"negative int", -7, -7, true},
 		{"zero int", 0, 0, true},
 		{"float64 whole", float64(10), 10, true},
-		{"float64 truncates", float64(3.9), 3, true},
+		{"float64 fractional rejected", float64(3.9), 0, false},
 		{"numeric string", "123", 123, true},
 		{"negative numeric string", "-5", -5, true},
 		{"empty string", "", 0, false},

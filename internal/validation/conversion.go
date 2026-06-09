@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"math"
 	"strconv"
 	"strings"
 )
@@ -12,6 +13,11 @@ func GetIntFromInterface(value interface{}) (int, bool) {
 	case int:
 		return v, true
 	case float64:
+		// Reject fractional or out-of-range values rather than silently truncating
+		// JSON-derived numbers (e.g. 3.9 -> 3).
+		if v != math.Trunc(v) || v < math.MinInt64 || v > math.MaxInt64 {
+			return 0, false
+		}
 		return int(v), true
 	case string:
 		if i, err := strconv.Atoi(v); err == nil {
