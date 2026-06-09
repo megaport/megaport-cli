@@ -29,7 +29,7 @@ jobs:
   integration-provisioning:
     name: Integration Tests (Provisioning)
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     if: github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
@@ -60,7 +60,7 @@ jobs:
           echo "Discovered tests:"
           echo "$discovered"
       - name: Run provisioning integration tests
-        run: go test -tags integration -run '^TestIntegration_' -v -timeout 30m ./internal/commands/ports/... ./internal/commands/vxc/... ./internal/commands/mcr/... ./internal/commands/mve/... ./internal/commands/apply/...
+        run: go test -tags integration -run '^TestIntegration_' -v -timeout 40m ./internal/commands/ports/... ./internal/commands/vxc/... ./internal/commands/mcr/... ./internal/commands/mve/... ./internal/commands/apply/...
         env:
           MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
           MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}

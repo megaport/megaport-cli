@@ -3,7 +3,9 @@ package apply
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -25,6 +27,11 @@ import (
 const (
 	defaultWaitTime = 10 * time.Minute
 	statusError     = "error"
+
+	// maxConfigFileSize caps how much of a config file is read into memory. Real
+	// infra configs are kilobytes; this guards against pointing --file at a huge
+	// or pathological file (e.g. /dev/zero) and exhausting memory.
+	maxConfigFileSize = 10 * 1024 * 1024
 )
 
 // provisionPollInterval is how often the provision-wait loop polls resource
@@ -33,6 +40,10 @@ var provisionPollInterval = 10 * time.Second
 
 // readyStates are the provisioning states considered fully provisioned.
 var readyStates = []string{megaport.SERVICE_CONFIGURED, megaport.SERVICE_LIVE}
+
+// failedStates are terminal states that mean provisioning will never succeed,
+// so the wait loop should fail fast instead of polling until the timeout.
+var failedStates = []string{megaport.STATUS_DECOMMISSIONED, megaport.STATUS_CANCELLED}
 
 // templateRe matches {{.type.name}} references in config values.
 var templateRe = regexp.MustCompile(`\{\{\.(\w+)\.([^}]+)\}\}`)
@@ -129,14 +140,14 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		if err := validation.ValidatePortRequest(req); err != nil {
 			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("validation failed for port %q: %w", p.Name, err))
 		}
 		validateSpinner := output.PrintResourceValidating("Port", noColor)
 		if err := client.PortService.ValidatePortOrder(ctx, req); err != nil {
 			validateSpinner.Stop()
 			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("server-side validation failed for port %q: %w", p.Name, err))
 		}
 		validateSpinner.Stop()
@@ -152,21 +163,21 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			createSpinner.Stop()
 			err = utils.WrapAPIError(err, "Port", p.Name)
 			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision port %q: %w", p.Name, err))
 		}
 		if resp == nil {
 			createSpinner.Stop()
 			err := fmt.Errorf("empty response from API")
 			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision port %q: %w", p.Name, err))
 		}
 		if len(resp.TechnicalServiceUIDs) == 0 {
 			createSpinner.Stop()
 			err := fmt.Errorf("API returned no UID")
 			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision port %q: %w", p.Name, err))
 		}
 		uid := resp.TechnicalServiceUIDs[0]
@@ -184,7 +195,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}); err != nil {
 			createSpinner.Stop()
 			results = append(results, ApplyResult{Type: "Port", Name: p.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision port %q: %w", p.Name, err))
 		}
 		createSpinner.Stop()
@@ -207,14 +218,14 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		if err := validation.ValidateMCRRequest(req); err != nil {
 			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("validation failed for MCR %q: %w", m.Name, err))
 		}
 		validateSpinner := output.PrintResourceValidating("MCR", noColor)
 		if err := client.MCRService.ValidateMCROrder(ctx, req); err != nil {
 			validateSpinner.Stop()
 			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("server-side validation failed for MCR %q: %w", m.Name, err))
 		}
 		validateSpinner.Stop()
@@ -230,14 +241,14 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			createSpinner.Stop()
 			err = utils.WrapAPIError(err, "MCR", m.Name)
 			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision MCR %q: %w", m.Name, err))
 		}
 		if resp == nil {
 			createSpinner.Stop()
 			err := fmt.Errorf("empty response from API")
 			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision MCR %q: %w", m.Name, err))
 		}
 		uid := strings.TrimSpace(resp.TechnicalServiceUID)
@@ -245,7 +256,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			createSpinner.Stop()
 			err := fmt.Errorf("API returned empty UID")
 			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision MCR %q: %w", m.Name, err))
 		}
 		uids["mcr"][m.Name] = uid
@@ -259,7 +270,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}); err != nil {
 			createSpinner.Stop()
 			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision MCR %q: %w", m.Name, err))
 		}
 		createSpinner.Stop()
@@ -272,13 +283,13 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		normalizedVC, err := normalizeVendorConfigMap(mv.VendorConfig)
 		if err != nil {
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("invalid vendor_config for MVE %q: %w", mv.Name, err))
 		}
 		vendorCfg, err := mve.ParseVendorConfig(normalizedVC)
 		if err != nil {
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("invalid vendor_config for MVE %q: %w", mv.Name, err))
 		}
 		req := &megaport.BuyMVERequest{
@@ -293,14 +304,14 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		if err := validation.ValidateBuyMVERequest(req); err != nil {
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("validation failed for MVE %q: %w", mv.Name, err))
 		}
 		validateSpinner := output.PrintResourceValidating("MVE", noColor)
 		if err := client.MVEService.ValidateMVEOrder(ctx, req); err != nil {
 			validateSpinner.Stop()
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("server-side validation failed for MVE %q: %w", mv.Name, err))
 		}
 		validateSpinner.Stop()
@@ -316,14 +327,14 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			createSpinner.Stop()
 			err = utils.WrapAPIError(err, "MVE", mv.Name)
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision MVE %q: %w", mv.Name, err))
 		}
 		if resp == nil {
 			createSpinner.Stop()
 			err := fmt.Errorf("empty response from API")
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision MVE %q: %w", mv.Name, err))
 		}
 		uid := strings.TrimSpace(resp.TechnicalServiceUID)
@@ -331,7 +342,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			createSpinner.Stop()
 			err := fmt.Errorf("API returned empty UID")
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision MVE %q: %w", mv.Name, err))
 		}
 		uids["mve"][mv.Name] = uid
@@ -345,7 +356,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}); err != nil {
 			createSpinner.Stop()
 			results = append(results, ApplyResult{Type: "MVE", Name: mv.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision MVE %q: %w", mv.Name, err))
 		}
 		createSpinner.Stop()
@@ -358,13 +369,13 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		aUID, err := resolveTemplates(v.AEnd.ProductUID, uids)
 		if err != nil {
 			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("unresolved template in VXC %q a_end: %w", v.Name, err))
 		}
 		bUID, err := resolveTemplates(v.BEnd.ProductUID, uids)
 		if err != nil {
 			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("unresolved template in VXC %q b_end: %w", v.Name, err))
 		}
 		req := &megaport.BuyVXCRequest{
@@ -386,14 +397,14 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		if err := validation.ValidateVXCRequest(req); err != nil {
 			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("validation failed for VXC %q: %w", v.Name, err))
 		}
 		validateSpinner := output.PrintResourceValidating("VXC", noColor)
 		if err := client.VXCService.ValidateVXCOrder(ctx, req); err != nil {
 			validateSpinner.Stop()
 			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("server-side validation failed for VXC %q: %w", v.Name, err))
 		}
 		validateSpinner.Stop()
@@ -409,14 +420,14 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			createSpinner.Stop()
 			err = utils.WrapAPIError(err, "VXC", v.Name)
 			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision VXC %q: %w", v.Name, err))
 		}
 		if resp == nil {
 			createSpinner.Stop()
 			err := fmt.Errorf("empty response from API")
 			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision VXC %q: %w", v.Name, err))
 		}
 		uid := strings.TrimSpace(resp.TechnicalServiceUID)
@@ -424,7 +435,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			createSpinner.Stop()
 			err := fmt.Errorf("API returned empty UID")
 			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision VXC %q: %w", v.Name, err))
 		}
 		uids["vxc"][v.Name] = uid
@@ -438,7 +449,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}); err != nil {
 			createSpinner.Stop()
 			results = append(results, ApplyResult{Type: "VXC", Name: v.Name, Status: statusError + ": " + err.Error()})
-			return handleFailure(ctx, client, created, results, outputFormat, noColor, rollback,
+			return handleFailure(client, created, results, outputFormat, noColor, rollback,
 				fmt.Errorf("failed to provision VXC %q: %w", v.Name, err))
 		}
 		createSpinner.Stop()
@@ -452,7 +463,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 // handleFailure prints results, the failure error, and — when resources were already
 // provisioned — either attempts rollback or prints a prominent billing warning with
 // exact remediation commands.
-func handleFailure(ctx context.Context, client *megaport.Client, created []createdResource, results []ApplyResult, outputFormat string, noColor bool, rollback bool, failErr error) error {
+func handleFailure(client *megaport.Client, created []createdResource, results []ApplyResult, outputFormat string, noColor bool, rollback bool, failErr error) error {
 	_ = output.PrintOutput(results, outputFormat, noColor)
 
 	jsonMode := outputFormat == "json"
@@ -466,7 +477,7 @@ func handleFailure(ctx context.Context, client *megaport.Client, created []creat
 	}
 
 	if rollback {
-		return doRollback(ctx, client, created, jsonMode, noColor, failErr)
+		return doRollback(client, created, jsonMode, noColor, failErr)
 	}
 
 	if jsonMode {
@@ -485,8 +496,15 @@ func handleFailure(ctx context.Context, client *megaport.Client, created []creat
 	return failErr
 }
 
-// doRollback deletes created resources in reverse provisioning order.
-func doRollback(ctx context.Context, client *megaport.Client, created []createdResource, jsonMode bool, noColor bool, failErr error) error {
+// doRollback deletes created resources in reverse provisioning order. It uses a
+// fresh context rather than the provisioning context: the most common rollback
+// trigger is a provisioning timeout, which leaves that context already expired —
+// reusing it would make every delete fail with "context deadline exceeded" and
+// orphan the billing resources rollback exists to clean up.
+func doRollback(client *megaport.Client, created []createdResource, jsonMode bool, noColor bool, failErr error) error {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultWaitTime)
+	defer cancel()
+
 	if !jsonMode {
 		output.PrintWarning("Rolling back %d created resource(s)...", noColor, len(created))
 	}
@@ -525,6 +543,9 @@ func waitForProvision(ctx context.Context, resType, name, uid string, getStatus 
 		status, err := getStatus(ctx)
 		if err != nil {
 			return false, err
+		}
+		if slices.Contains(failedStates, status) {
+			return false, fmt.Errorf("%s %q (%s) entered terminal state %q during provisioning", resType, name, uid, status)
 		}
 		return slices.Contains(readyStates, status), nil
 	}
@@ -660,6 +681,7 @@ func validateAll(ctx context.Context, client *megaport.Client, cfg *InfraConfig,
 		"port": {},
 		"mcr":  {},
 		"mve":  {},
+		"vxc":  {},
 	}
 	const dryRunPlaceholder = "00000000-0000-0000-0000-000000000000"
 	for _, p := range cfg.Ports {
@@ -725,9 +747,20 @@ func validateAll(ctx context.Context, client *megaport.Client, cfg *InfraConfig,
 // parseConfigFile reads filePath and decodes it into InfraConfig.
 // It detects YAML vs JSON by file extension.
 func parseConfigFile(filePath string) (*InfraConfig, error) {
-	data, err := os.ReadFile(filePath)
+	f, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("reading config file: %w", err)
+	}
+	defer f.Close()
+
+	// Read one byte past the cap so an over-limit file is detected rather than
+	// silently truncated.
+	data, err := io.ReadAll(io.LimitReader(f, maxConfigFileSize+1))
+	if err != nil {
+		return nil, fmt.Errorf("reading config file: %w", err)
+	}
+	if len(data) > maxConfigFileSize {
+		return nil, fmt.Errorf("config file exceeds maximum size of %d bytes", maxConfigFileSize)
 	}
 
 	cfg := &InfraConfig{}
@@ -759,7 +792,7 @@ func resolveTemplates(s string, uids map[string]map[string]string) (string, erro
 				return uid
 			}
 		}
-		resolveErr = fmt.Errorf("no UID found for reference %q (type=%q name=%q)", match, resType, resName)
+		resolveErr = errors.Join(resolveErr, fmt.Errorf("no UID found for reference %q (type=%q name=%q)", match, resType, resName))
 		return match
 	})
 	return result, resolveErr

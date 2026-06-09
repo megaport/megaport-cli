@@ -252,7 +252,7 @@ func TestIntegration_ApplyDryRun(t *testing.T) {
 	prefix := fmt.Sprintf("CLI-Apply-Test-%s", generateUniqueID(t))
 	registerSweepCleanup(t, prefix) // safety net; dry-run should create nothing
 
-	yamlContent, _, _, _ := twoPortVXCConfig(prefix)
+	yamlContent, portAName, portBName, _ := twoPortVXCConfig(prefix)
 	cfgPath := writeApplyConfig(t, yamlContent)
 	cmd := applyIntegrationCmd(t, cfgPath, true /*dryRun*/, true /*yes*/, false /*rollback*/)
 
@@ -264,6 +264,8 @@ func TestIntegration_ApplyDryRun(t *testing.T) {
 	// validated server-side without provisioning, so it is reported as skipped.
 	// Table rendering may wrap long cell values, so assert on substrings that
 	// survive wrapping rather than the full status string.
+	assert.Contains(t, out, portAName, "dry-run should report port A")
+	assert.Contains(t, out, portBName, "dry-run should report port B")
 	assert.Contains(t, out, "valid", "dry-run should report port validation results")
 	assert.NotContains(t, out, "invalid", "no resource should fail validation in this config")
 	assert.Contains(t, out, "skipped: requires", "templated VXC should be skipped in dry-run")
@@ -337,8 +339,9 @@ func TestIntegration_ApplyRollbackOnFailure(t *testing.T) {
 	portName := prefix + "-Port"
 	vxcName := prefix + "-VXC"
 	// One valid port, then a VXC whose b_end references a non-existent resource.
-	// The port provisions for real; the VXC stage fails at template resolution,
-	// triggering rollback that must delete the just-created port.
+	// The port provisions for real; the VXC stage fails at template resolution
+	// before any VXC order is placed, so only the port is ever created. Rollback
+	// must therefore delete that one port, and the sweep has no VXC to catch.
 	yamlContent := fmt.Sprintf(`ports:
   - name: %s
     location_id: %d
