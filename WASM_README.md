@@ -213,9 +213,9 @@ The Portal loads the WASM binary from `s3://media.megaport.com/portal/megaport-c
 ### Steps
 
 ```bash
-# 1. Verify AWS SSO auth is active
+# 1. Ensure AWS SSO auth is active (login if needed)
+aws sso login
 aws sts get-caller-identity
-
 # 2. Build the WASM binary
 GOOS=js GOARCH=wasm go build -tags js,wasm -o web/megaport.wasm .
 
