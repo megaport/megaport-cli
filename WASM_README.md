@@ -219,14 +219,9 @@ aws sts get-caller-identity
 # 2. Build the WASM binary
 GOOS=js GOARCH=wasm go build -tags js,wasm -o web/megaport.wasm .
 
-# 3. Copy wasm_exec.js from your Go installation
-#    (Go 1.25+ uses lib/wasm; older versions use misc/wasm)
-cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" web/wasm_exec.js \
-  || cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" web/wasm_exec.js
-
-# 4. Upload both files
-aws s3 cp web/megaport.wasm   s3://media.megaport.com/portal/megaport-cli/megaport.wasm
-aws s3 cp web/wasm_exec.js    s3://media.megaport.com/portal/megaport-cli/wasm_exec.js
+# 3. Upload the WASM binary and the (already checked-in) wasm_exec.js loader
+aws s3 cp web/megaport.wasm s3://media.megaport.com/portal/megaport-cli/megaport.wasm
+aws s3 cp web/wasm_exec.js  s3://media.megaport.com/portal/megaport-cli/wasm_exec.js
 ```
 
 ## API Endpoints
