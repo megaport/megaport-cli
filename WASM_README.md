@@ -210,6 +210,32 @@ go build -o server ./cmd/server/server.go
 ./server --port 8080 --dir web --session-duration 1h
 ```
 
+## Publishing to the Portal
+
+The Portal loads the WASM binary from `s3://media.megaport.com/portal/megaport-cli/`. Publishing is currently manual.
+
+### Prerequisites
+
+- AWS CLI configured with SSO for the `ProductionDeveloper` role.
+
+### Steps
+
+```bash
+# 1. Ensure AWS SSO auth is active (login if needed)
+aws sso login
+aws sts get-caller-identity
+# 2. Build the WASM binary
+GOOS=js GOARCH=wasm go build -tags js,wasm -o web/megaport.wasm .
+
+# 3. Upload the WASM binary and the (already checked-in) wasm_exec.js loader.
+#    `--content-type application/wasm` is required so the file isn't served as
+#    application/octet-stream — `WebAssembly.instantiateStreaming` rejects
+#    anything else, which would break the standalone loader in web/script.js.
+aws s3 cp web/megaport.wasm s3://media.megaport.com/portal/megaport-cli/megaport.wasm \
+    --content-type application/wasm
+aws s3 cp web/wasm_exec.js  s3://media.megaport.com/portal/megaport-cli/wasm_exec.js
+```
+
 ## API Endpoints
 
 ### Authentication
