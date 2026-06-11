@@ -207,7 +207,14 @@ func main() {
 	log.Printf("  - POST /auth/logout   - Customer logout")
 	log.Printf("  - GET  /auth/check    - Check session validity")
 	log.Printf("  - *    /api/*         - Authenticated API proxy")
-	httpServer := &http.Server{Addr: addr, Handler: http.DefaultServeMux}
+	httpServer := &http.Server{
+		Addr:              addr,
+		Handler:           http.DefaultServeMux,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      120 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
 	log.Fatal(httpServer.ListenAndServe())
 }
 
