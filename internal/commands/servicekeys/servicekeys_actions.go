@@ -84,6 +84,10 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 	key := args[0]
 
+	if cmd.Flags().Changed("product-uid") && cmd.Flags().Changed("product-id") {
+		return fmt.Errorf("--product-uid and --product-id cannot both be set")
+	}
+
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
@@ -96,8 +100,8 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 	// didn't ask to change.
 	current, err := client.ServiceKeyService.GetServiceKey(ctx, key)
 	if err != nil {
-		output.PrintError("Failed to get service key: %v", noColor, err)
-		return fmt.Errorf("failed to get service key: %w", err)
+		output.PrintError("Failed to fetch current service key: %v", noColor, err)
+		return fmt.Errorf("failed to fetch current service key: %w", err)
 	}
 
 	req := &megaport.UpdateServiceKeyRequest{

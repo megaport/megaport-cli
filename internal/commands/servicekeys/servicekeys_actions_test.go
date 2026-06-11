@@ -225,7 +225,7 @@ func TestUpdateServiceKey(t *testing.T) {
 			mockService: &MockServiceKeyService{
 				GetServiceKeyError: fmt.Errorf("key not found"),
 			},
-			expectedErr: "failed to get service key",
+			expectedErr: "failed to fetch current service key",
 		},
 		{
 			name:        "login error",
@@ -267,6 +267,29 @@ func TestUpdateServiceKey(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUpdateServiceKey_BothProductFlagsRejected(t *testing.T) {
+	mockService := &MockServiceKeyService{}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.ServiceKeyService = mockService
+	})
+	defer cleanup()
+
+	cmd := newUpdateServiceKeyCmd()
+	testutil.SetFlags(t, cmd, map[string]string{
+		"product-uid": "prod-uid",
+		"product-id":  "42",
+	})
+
+	var err error
+	output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, []string{"test-key-123"})
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot both be set")
+	assert.Nil(t, mockService.CapturedUpdateServiceKeyRequest)
 }
 
 func TestUpdateServiceKey_MergesUnsetFlags(t *testing.T) {
