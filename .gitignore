@@ -60,4 +60,4 @@ Thumbs.db
 
 # Claude Code
 .claude/
-server
+/server
