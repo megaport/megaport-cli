@@ -36,33 +36,6 @@ func redirectClientTo(backend *httptest.Server) *http.Client {
 	}
 }
 
-func TestIsAllowedProxyHost(t *testing.T) {
-	tests := []struct {
-		host    string
-		allowed bool
-	}{
-		{"api.megaport.com", true},
-		{"api-staging.megaport.com", true},
-		{"api-mpone-dev.megaport.com", true},
-		{"custom.megaport.com", true},
-		{"API.MEGAPORT.COM", true},   // case insensitive
-		{" api.megaport.com ", true}, // trimmed
-		{"evil.com", false},
-		{"megaport.com.evil.com", false},
-		{"api.megaport.com.evil.com", false},
-		{"", false},
-		{"localhost", false},
-		{"192.168.1.1", false},
-		{"internal-network.local", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.host, func(t *testing.T) {
-			assert.Equal(t, tt.allowed, isAllowedProxyHost(tt.host))
-		})
-	}
-}
-
 func TestIsAllowedOrigin(t *testing.T) {
 	tests := []struct {
 		origin  string
@@ -124,37 +97,6 @@ func TestSetCORSHeaders(t *testing.T) {
 	})
 }
 
-func TestProxyHandler_SSRFProtection(t *testing.T) {
-	t.Run("rejects disallowed host", func(t *testing.T) {
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest("GET", "/proxy/test?base=evil.com", nil)
-
-		proxyHandler(w, r)
-
-		assert.Equal(t, http.StatusForbidden, w.Code)
-		assert.Contains(t, w.Body.String(), "proxy target must be a *.megaport.com host")
-	})
-
-	t.Run("rejects missing base parameter", func(t *testing.T) {
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest("GET", "/proxy/test", nil)
-
-		proxyHandler(w, r)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("rejects internal network hosts", func(t *testing.T) {
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest("GET", "/proxy/test?base=192.168.1.1", nil)
-
-		proxyHandler(w, r)
-
-		assert.Equal(t, http.StatusForbidden, w.Code)
-	})
-}
-
-// newTestServer creates a server.Server for testing with a 1-hour session duration.
 func newTestServer() *server.Server {
 	return server.NewServer(1*time.Hour, log.New(io.Discard, "", 0))
 }
@@ -358,118 +300,6 @@ func TestAuthenticatedProxyHandler_ExpiredSession(t *testing.T) {
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 	assert.Contains(t, w.Body.String(), "Invalid or expired session")
-}
-
-func TestProxyHandler_SuccessfulProxy(t *testing.T) {
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/v2/products", r.URL.Path)
-		assert.Equal(t, "10", r.URL.Query().Get("limit"))
-		// 'base' param should have been stripped
-		assert.Empty(t, r.URL.Query().Get("base"))
-		w.Header().Set("X-Backend-Header", "present")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"data":[]}`))
-	}))
-	defer backend.Close()
-
-	origClient := optimizedHTTPClient
-	defer func() { optimizedHTTPClient = origClient }()
-	optimizedHTTPClient = redirectClientTo(backend)
-
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest("GET", "/proxy/v2/products?base=api.megaport.com&limit=10", nil)
-	r.Header.Set("Origin", "http://localhost:8080")
-
-	proxyHandler(w, r)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "present", w.Header().Get("X-Backend-Header"))
-	assert.Contains(t, w.Body.String(), `{"data":[]}`)
-	// CORS headers should be set
-	assert.Equal(t, "http://localhost:8080", w.Header().Get("Access-Control-Allow-Origin"))
-}
-
-func TestProxyHandler_POSTSetsContentType(t *testing.T) {
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer backend.Close()
-
-	origClient := optimizedHTTPClient
-	defer func() { optimizedHTTPClient = origClient }()
-	optimizedHTTPClient = redirectClientTo(backend)
-
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest("POST", "/proxy/v2/products?base=api.megaport.com", strings.NewReader(`{}`))
-
-	proxyHandler(w, r)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestProxyHandler_CopiesRequestHeaders(t *testing.T) {
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "Bearer mytoken", r.Header.Get("Authorization"))
-		// Host header should NOT be forwarded
-		assert.NotEqual(t, "evil-host.com", r.Host)
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer backend.Close()
-
-	origClient := optimizedHTTPClient
-	defer func() { optimizedHTTPClient = origClient }()
-	optimizedHTTPClient = redirectClientTo(backend)
-
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest("GET", "/proxy/v2/products?base=api.megaport.com", nil)
-	r.Header.Set("Authorization", "Bearer mytoken")
-	r.Host = "evil-host.com"
-
-	proxyHandler(w, r)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestProxyHandler_NoQueryParamsExceptBase(t *testing.T) {
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// No extra query params — query string should be empty
-		assert.Empty(t, r.URL.RawQuery)
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer backend.Close()
-
-	origClient := optimizedHTTPClient
-	defer func() { optimizedHTTPClient = origClient }()
-	optimizedHTTPClient = redirectClientTo(backend)
-
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest("GET", "/proxy/v2/test?base=api.megaport.com", nil)
-
-	proxyHandler(w, r)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestProxyHandler_ForwardsQueryParams(t *testing.T) {
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "10", r.URL.Query().Get("limit"))
-		assert.Empty(t, r.URL.Query().Get("base"))
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer backend.Close()
-
-	origClient := optimizedHTTPClient
-	defer func() { optimizedHTTPClient = origClient }()
-	optimizedHTTPClient = redirectClientTo(backend)
-
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest("GET", "/proxy/v2/products?base=api.megaport.com&limit=10", nil)
-
-	proxyHandler(w, r)
-
-	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestAddCorsHeaders_OptionsPreflightReturns200(t *testing.T) {

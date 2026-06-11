@@ -74,7 +74,7 @@ fi
 echo "🚀 Starting container..."
 docker run -d \
     --name megaport-cli-wasm \
-    -p 8080:8080 \
+    -p 127.0.0.1:8080:8080 \
     megaport-cli-wasm:latest
 
 echo ""
