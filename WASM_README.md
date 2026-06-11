@@ -204,7 +204,7 @@ go build -o server ./cmd/server/server.go
 
 ## Publishing to the Portal
 
-The portal loads the WASM binary from `s3://media.megaport.com/portal/megaport-cli/`. Publishing is currently manual.
+The Portal loads the WASM binary from `s3://media.megaport.com/portal/megaport-cli/`. Publishing is currently manual.
 
 ### Prerequisites
 
