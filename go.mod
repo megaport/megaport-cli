@@ -7,7 +7,7 @@ toolchain go1.26.4
 require (
 	github.com/charmbracelet/glamour v1.0.0
 	github.com/fatih/color v1.19.0
-	github.com/jedib0t/go-pretty/v6 v6.8.0
+	github.com/jedib0t/go-pretty/v6 v6.8.1
 	github.com/jmespath/go-jmespath v0.4.0
 	github.com/megaport/megaportgo v1.13.1
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d
