@@ -22,17 +22,24 @@ test-cover-html:
 	@echo "Coverage report written to coverage.html"
 
 # Run integration tests against staging API (requires credentials — see docs/INTEGRATION_TESTING.md)
+# The `provisioning` tag also pulls in lifecycle tests that create and tear down
+# real staging resources (e.g. the service key test provisions a port).
 test-integration:
-	go test -tags integration -run '^TestIntegration_' -v -timeout 30m ./internal/commands/...
+	go test -tags 'integration provisioning' -run '^TestIntegration_' -v -timeout 30m ./internal/commands/...
 
-# Run only read-only integration tests — fast, no resources provisioned
+# Run only read-only integration tests — fast, no resources provisioned.
+# Package list mirrors the integration-readonly CI job.
 test-integration-readonly:
 	go test -tags integration -run '^TestIntegration_' -v -timeout 5m \
 		./internal/commands/billing_market/... \
 		./internal/commands/locations/... \
+		./internal/commands/managed_account/... \
+		./internal/commands/partners/... \
 		./internal/commands/product/... \
+		./internal/commands/servicekeys/... \
 		./internal/commands/status/... \
-		./internal/commands/topology/...
+		./internal/commands/topology/... \
+		./internal/commands/users/...
 
 # Run native-binary black-box e2e tests (built behind the `e2e` build tag).
 # Placeholder: the harness and specs land in a later PR. Until then this compiles

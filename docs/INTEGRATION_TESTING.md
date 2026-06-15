@@ -20,8 +20,7 @@ Staging credentials can be obtained from the Megaport staging portal. The stagin
 # Read-only tests only — fast (< 5 min), no resources provisioned
 make test-integration-readonly
 
-# Full suite including any provisioning lifecycle tests (~20–30 min)
-# Currently only read-only tests exist; provisioning tests will be added incrementally.
+# Full suite including provisioning lifecycle tests (~15 min against staging)
 make test-integration
 
 # A single package
@@ -30,11 +29,11 @@ go test -tags integration -run '^TestIntegration_' -v -timeout 30m ./internal/co
 
 ## What gets created on staging
 
-Once provisioning lifecycle tests are written (ports, VXC, MCR, MVE, IX, NAT Gateway), they will create real resources on the staging account. All test resources will be named with the prefix `CLI-Test-` for easy identification.
+The provisioning lifecycle tests create real resources on the staging account: ports, MCR, MVE, IX, a service key (against a port the test buys), and a pending-invite user. Most test resources are named with the prefix `CLI-Test-` for easy identification. VXC and NAT Gateway lifecycle tests do not exist yet.
 
-Resources will be cleaned up automatically via `t.Cleanup()` at the end of each test, even when the test fails. However, if a test run is interrupted (e.g. `Ctrl+C`), cleanup may not run. In that case, log in to the staging portal and delete any resources prefixed with `CLI-Test-`.
+Resources are cleaned up automatically via `t.Cleanup()` at the end of each test, even when the test fails. However, if a test run is interrupted (e.g. `Ctrl+C`), cleanup may not run. In that case, log in to the staging portal and delete any leftover resources prefixed with `CLI-Test-`.
 
-The read-only integration tests cover `billing_market`, `locations`, `product`, `status`, and `topology`. No resources are provisioned.
+The read-only integration tests cover `billing_market`, `locations`, `managed_account`, `partners`, `product`, `servicekeys`, `status`, `topology`, and `users`. No resources are provisioned.
 
 ## Build tag
 
@@ -48,12 +47,24 @@ package ports
 
 Running `go test ./...` (without `-tags integration`) excludes these files entirely. They only compile and run when `-tags integration` is passed explicitly.
 
+### The `provisioning` sub-tag
+
+A lifecycle test that lives in a package the nightly read-only job also runs carries an extra `provisioning` tag alongside `integration`:
+
+```go
+//go:build integration && provisioning
+
+package servicekeys
+```
+
+The nightly read-only job builds only `-tags integration`, so this tag keeps the mutating test out of it. It is needed only for packages that the read-only job runs — currently `servicekeys` and `users`, which have read-only `list`/`get` tests nightly but whose lifecycle tests provision resources (the service key test buys a port to use as its product). Lifecycle tests in packages the read-only job does not run (ports, VXC, MCR, MVE, IX) are excluded from nightly by package selection alone, so they stay `//go:build integration` only.
+
 ## CI
 
 Integration tests run in CI via `.github/workflows/integration-test.yml`:
 
-- **Read-only job**: runs nightly on `main` and on manual trigger, tests `billing_market`, `locations`, `product`, `status`, and `topology` (and additional packages as read-only integration tests are written). Fast, no resource cost.
-- **Provisioning job**: manual trigger only (`workflow_dispatch`). Runs lifecycle tests for ports, VXC, MCR, MVE, and additional resources as they are added.
+- **Read-only job**: runs nightly on `main` and on manual trigger, tests `billing_market`, `locations`, `managed_account`, `partners`, `product`, `servicekeys`, `status`, `topology`, and `users` (read-only `list`/`get` only, plus additional packages as read-only integration tests are written). Fast, no resource cost.
+- **Provisioning job**: manual trigger only (`workflow_dispatch`), built with `-tags 'integration provisioning'`. Runs lifecycle tests for ports, MCR, MVE, IX, plus the service key and user lifecycles. The `vxc` package is in the job's package list but has no lifecycle test yet, so nothing runs for it.
 
 ## Adding a new integration test
 
@@ -62,7 +73,8 @@ Integration tests run in CI via `.github/workflows/integration-test.yml`:
 3. Authenticate using one of the helpers below (see "Authentication helpers")
 4. Call action functions directly. For parallel tests, read state via `testutil.SharedIntegrationClient(t)` rather than `output.CaptureOutput` (see "Output capture and parallelism")
 5. Use `t.Cleanup()` for resource deletion (e.g. deleting staging ports/VXCs) so cleanup runs even on test failure; `defer` is fine for non-resource cleanup like restoring login state
-6. Add the package to the provisioning job in `.github/workflows/integration-test.yml`
+6. If the test mutates real resources *and* lives in a package the nightly read-only job runs (e.g. `servicekeys`, `users`), add `&& provisioning` to the build tag and put it in its own file so the read-only job skips it. A mutating test in a package the read-only job does not run needs only `//go:build integration` — package selection keeps it out of nightly
+7. Add the package to the provisioning job in `.github/workflows/integration-test.yml`
 
 See `internal/commands/locations/locations_integration_test.go` for a serial read-only example and `internal/commands/ports/ports_integration_test.go` for a parallel provisioning-lifecycle example.
 
