@@ -236,6 +236,7 @@ func ValidateAWSPartnerConfig(config *megaport.VXCPartnerConfigAWS) error {
 	if config.ASN == 0 {
 		return NewValidationError("ASN", config.ASN, "cannot be empty")
 	}
+	// Delegate to ValidateASN for the platform-aware bound; re-wrap to keep field name and message format.
 	if err := ValidateASN(config.ASN); err != nil {
 		return NewValidationError("ASN", config.ASN, fmt.Sprintf("must be between %d-%d", MinASN, maxSupportedASNForInt()))
 	}
@@ -515,6 +516,7 @@ func ValidateBGPConnectionConfig(conn megaport.BgpConnectionConfig, ifaceIndex, 
 	if conn.PeerAsn == 0 {
 		return NewValidationError(fmt.Sprintf("%s peer ASN", fieldPrefix), nil, "is required")
 	}
+	// Delegate to ValidateASN for the platform-aware bound; re-wrap to keep field name and message format.
 	if err := ValidateASN(conn.PeerAsn); err != nil {
 		return NewValidationError(fmt.Sprintf("%s peer ASN", fieldPrefix), conn.PeerAsn, fmt.Sprintf("must be between %d-%d", MinASN, maxSupportedASNForInt()))
 	}
