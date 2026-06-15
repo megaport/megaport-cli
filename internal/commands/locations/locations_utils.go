@@ -13,6 +13,9 @@ var timeNow = time.Now
 
 func filterLocations(locations []*megaport.LocationV3, filters map[string]string) []*megaport.LocationV3 {
 	return utils.Filter(locations, func(loc *megaport.LocationV3) bool {
+		if loc == nil {
+			return false
+		}
 		if metro, ok := filters["metro"]; ok && loc.Metro != metro {
 			return false
 		}

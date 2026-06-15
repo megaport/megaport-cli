@@ -137,6 +137,13 @@ func TestFilterPartners(t *testing.T) {
 	}
 }
 
+func TestFilterPartners_NilElementsSkipped(t *testing.T) {
+	source := []*megaport.PartnerMegaport{nil, testPartners[0], nil}
+	result := filterPartners(source, "", "", "", 0, "")
+	assert.Len(t, result, 1)
+	assert.Equal(t, "uid1", result[0].ProductUID)
+}
+
 func TestPrintPartners_Table(t *testing.T) {
 	output := output.CaptureOutput(func() {
 		err := printPartnersFunc(testPartners, "table", noColor)
