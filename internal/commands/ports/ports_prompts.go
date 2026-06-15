@@ -17,8 +17,8 @@ func promptForPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	if err != nil {
 		return nil, err
 	}
-	if name == "" {
-		return nil, fmt.Errorf("port name is required")
+	if err := validation.ValidatePortName(name); err != nil {
+		return nil, err
 	}
 	req.Name = name
 
@@ -99,8 +99,8 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	if err != nil {
 		return nil, err
 	}
-	if name == "" {
-		return nil, fmt.Errorf("port name is required")
+	if err := validation.ValidatePortName(name); err != nil {
+		return nil, err
 	}
 	req.Name = name
 

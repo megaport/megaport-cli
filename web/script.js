@@ -609,6 +609,7 @@ WebAssembly.instantiateStreaming(fetch('megaport.wasm'), go.importObject)
 
               let currentInput = '';
               let disposable;
+              const isPassword = promptRequest.type === 'password';
 
               const inputHandler = (data) => {
                 // Handle Enter key
@@ -655,7 +656,7 @@ WebAssembly.instantiateStreaming(fetch('megaport.wasm'), go.importObject)
                   data <= String.fromCharCode(0x7e)
                 ) {
                   currentInput += data;
-                  terminal.write(data);
+                  terminal.write(isPassword ? '*' : data);
                 }
               };
 

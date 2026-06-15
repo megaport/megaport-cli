@@ -21,8 +21,8 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 	}
 
 	rateLimit, _ := cmd.Flags().GetInt("rate-limit")
-	if rateLimit <= 0 {
-		return nil, fmt.Errorf("rate-limit must be greater than 0")
+	if err := validation.ValidateRateLimit(rateLimit); err != nil {
+		return nil, err
 	}
 
 	term, _ := cmd.Flags().GetInt("term")

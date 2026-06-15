@@ -4,13 +4,15 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - '${PORT:-8080}:8080'
+      - '127.0.0.1:${PORT:-8080}:8080'
     environment:
       - TZ=${TZ:-UTC}
       - SESSION_DURATION=${SESSION_DURATION:-1h}
     command:
       [
         './server',
+        '--bind',
+        '0.0.0.0',
         '--port',
         '8080',
         '--dir',
@@ -33,7 +35,7 @@ services:
           '--no-verbose',
           '--tries=1',
           '--spider',
-          'http://localhost:8080/',
+          'http://127.0.0.1:8080/',
         ]
       interval: 30s
       timeout: 3s
