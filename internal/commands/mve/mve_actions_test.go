@@ -327,9 +327,9 @@ func TestUpdateMVE(t *testing.T) {
 			name: "flag mode success",
 			args: []string{"mve-123"},
 			flags: map[string]string{
-				"name":          "Flag Updated MVE",
-				"cost-centre":   "Flag Cost Centre",
-				"contract-term": "36",
+				"name":        "Flag Updated MVE",
+				"cost-centre": "Flag Cost Centre",
+				"term":        "36",
 			},
 			mockSetup: func(m *MockMVEService) {
 				m.ModifyMVEResult = &megaport.ModifyMVEResponse{
@@ -391,7 +391,7 @@ func TestUpdateMVE(t *testing.T) {
 			name: "invalid contract term",
 			args: []string{"mve-123"},
 			flags: map[string]string{
-				"contract-term": "13",
+				"term": "13",
 			},
 			expectedError: "Invalid contract term: 13 - must be one of: [1 12 24 36]",
 		},
@@ -410,6 +410,85 @@ func TestUpdateMVE(t *testing.T) {
 				}
 			},
 			expectedError: "MVE update request was not successful",
+		},
+		{
+			name: "nil response from API",
+			args: []string{"mve-123"},
+			flags: map[string]string{
+				"name": "Updated MVE",
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.ModifyMVENilResp = true
+			},
+			expectedError: "empty response from API",
+		},
+		{
+			name: "original MVE not found",
+			args: []string{"mve-123"},
+			flags: map[string]string{
+				"name": "Updated MVE",
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.ForceNilGetMVE = true
+			},
+			expectedError: "MVE mve-123 not found",
+		},
+		{
+			name: "vnic count mismatch",
+			args: []string{"mve-123"},
+			flags: map[string]string{
+				"vnics": `[{"description":"Only One"}]`,
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.GetMVEResult = &megaport.MVE{
+					Name: "Mock MVE",
+					NetworkInterfaces: []*megaport.MVENetworkInterface{
+						{Description: "Data Plane"},
+						{Description: "Management"},
+					},
+				}
+			},
+			expectedError: "vnics length (1) must match the MVE's existing vNIC count (2)",
+		},
+		{
+			name: "explicit empty vnics array rejected alongside other updates",
+			args: []string{"mve-123"},
+			flags: map[string]string{
+				"name":  "Renamed",
+				"vnics": `[]`,
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.GetMVEResult = &megaport.MVE{
+					Name: "Mock MVE",
+					NetworkInterfaces: []*megaport.MVENetworkInterface{
+						{Description: "Data Plane"},
+					},
+				}
+			},
+			expectedError: "vnics must contain at least one object",
+		},
+		{
+			name: "vnic count match success",
+			args: []string{"mve-123"},
+			flags: map[string]string{
+				"vnics": `[{"description":"Data Plane Renamed"},{"description":"Mgmt"}]`,
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.ModifyMVEResult = &megaport.ModifyMVEResponse{MVEUpdated: true}
+				m.GetMVEResult = &megaport.MVE{
+					Name: "Mock MVE",
+					NetworkInterfaces: []*megaport.MVENetworkInterface{
+						{Description: "Data Plane"},
+						{Description: "Management"},
+					},
+				}
+			},
+			expectedOutput: "MVE updated mve-123",
+			validateRequest: func(t *testing.T, req *megaport.ModifyMVERequest) {
+				assert.Len(t, req.Vnics, 2)
+				assert.Equal(t, "Data Plane Renamed", req.Vnics[0].Description)
+				assert.Equal(t, "Mgmt", req.Vnics[1].Description)
+			},
 		},
 	}
 
@@ -436,7 +515,8 @@ func TestUpdateMVE(t *testing.T) {
 			cmd.Flags().String("json-file", "", "")
 			cmd.Flags().String("name", "", "")
 			cmd.Flags().String("cost-centre", "", "")
-			cmd.Flags().Int("contract-term", 0, "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().String("vnics", "", "")
 
 			testutil.SetFlags(t, cmd, tt.flags)
 
@@ -519,6 +599,14 @@ func TestDeleteMVE(t *testing.T) {
 			},
 			forceFlag:      true,
 			expectedOutput: "MVE deleted mve-uid",
+		},
+		{
+			name: "nil response from API",
+			mockSetup: func(m *MockMVEService) {
+				m.DeleteMVENilResp = true
+			},
+			forceFlag:     true,
+			expectedError: "empty response from API",
 		},
 	}
 
@@ -790,6 +878,20 @@ func TestBuyMVE(t *testing.T) {
 				m.BuyMVEErr = fmt.Errorf("purchase failed")
 			},
 			expectedError: "purchase failed",
+		},
+		{
+			name: "nil response from API",
+			flags: map[string]string{
+				"name":          "Nil-MVE",
+				"term":          "12",
+				"location-id":   "1",
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
+				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.BuyMVENilResp = true
+			},
+			expectedError: "empty response from API",
 		},
 		{
 			name: "invalid JSON returns error",

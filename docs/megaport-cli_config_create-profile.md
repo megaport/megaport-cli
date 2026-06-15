@@ -10,18 +10,17 @@ Profiles store your Megaport API access and secret keys along with environment s
 
 Credentials are stored in ~/.megaport/config.json with secure file permissions.
 
-### Required Fields
-  - `access-key`: Megaport API access key from the Megaport Portal
-  - `secret-key`: Megaport API secret key from the Megaport Portal
+If --access-key or --secret-key are not provided, you will be prompted. On an interactive terminal input is masked; on piped/non-TTY stdin it is read without masking.
 
 ### Important Notes
   - API credentials are stored with 0600 permissions (readable only by the current user)
+  - Passing --access-key or --secret-key on the command line exposes credentials in shell history and process listings. Omit them to be prompted securely, or use env vars MEGAPORT_ACCESS_KEY / MEGAPORT_SECRET_KEY instead. Note: the secure prompt masks input only on an interactive terminal; piped input is read without masking.
 
 ### Example Usage
 
 ```sh
-  megaport-cli config create-profile production --access-key xxx --secret-key xxx --environment production --description "Production credentials"
-  megaport-cli config create-profile staging --access-key yyy --secret-key yyy --environment staging
+  megaport-cli config create-profile production --environment production
+  megaport-cli config create-profile staging --environment staging --description "Staging credentials"
 ```
 
 ## Usage
@@ -38,10 +37,10 @@ megaport-cli config create-profile [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
-| `--access-key` |  |  | Megaport API access key from the Megaport Portal | true |
+| `--access-key` |  |  | Megaport API access key (omit to be prompted; masked on TTY only) | false |
 | `--description` |  |  | Optional description for this profile | false |
 | `--environment` |  | `production` | Target API environment: 'production', 'staging', or 'development' | false |
-| `--secret-key` |  |  | Megaport API secret key from the Megaport Portal | true |
+| `--secret-key` |  |  | Megaport API secret key (omit to be prompted; masked on TTY only) | false |
 
 ## Subcommands
 * [docs](megaport-cli_config_create-profile_docs.md)

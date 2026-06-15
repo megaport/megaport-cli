@@ -1,3 +1,30 @@
+# Codecov configuration.
+#
+# Coverage is uploaded by .github/workflows/test.yml on every PR and every push
+# to main (go test -coverprofile=coverage.out -covermode=atomic ./...). This repo
+# is public, so Codecov tokenless upload currently works and no CODECOV_TOKEN is
+# required. If uploads ever start failing (e.g. a Codecov/GitHub integration or
+# policy change), add CODECOV_TOKEN as a repo Actions secret and pass it to the
+# codecov-action step in test.yml.
+#
+# The status blocks below turn measurement into enforcement so each PR proves its
+# coverage delta:
+#   - project: the floor is whatever main currently measures (target: auto) and
+#     ratchets up as new tests land; it can never silently regress.
+#   - patch:   the new/changed lines in a PR must themselves be well covered.
 coverage:
+  status:
+    project:
+      default:
+        target: auto       # floor = current coverage on main; ratchets up
+        threshold: 0.5%    # tolerance for measurement noise
+    patch:
+      default:
+        target: 80%        # new/changed lines in a PR must be >=80% covered
   ignore:
     - "**/*_mock.go"
+    - "**/*_integration_test.go"   # integration tests are not part of the unit coverage profile
+
+comment:
+  layout: "reach, diff, files"
+  require_changes: false

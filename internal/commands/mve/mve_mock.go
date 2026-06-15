@@ -12,11 +12,14 @@ type MockMVEService struct {
 	ListMVEsErr                          error
 	ListMVEsResult                       []*megaport.MVE
 	BuyMVEErr                            error
+	BuyMVENilResp                        bool
 	BuyMVEResult                         *megaport.BuyMVEResponse
 	DeleteMVEErr                         error
+	DeleteMVENilResp                     bool
 	DeleteMVEResult                      *megaport.DeleteMVEResponse
 	CapturedDeleteMVERequest             *megaport.DeleteMVERequest
 	ModifyMVEErr                         error
+	ModifyMVENilResp                     bool
 	ModifyMVEResult                      *megaport.ModifyMVEResponse
 	ValidateMVEOrderErr                  error
 	ListMVEResourceTagsErr               error
@@ -65,6 +68,9 @@ func (m *MockMVEService) ListMVEs(ctx context.Context, req *megaport.ListMVEsReq
 
 func (m *MockMVEService) BuyMVE(ctx context.Context, req *megaport.BuyMVERequest) (*megaport.BuyMVEResponse, error) {
 	m.CapturedBuyMVERequest = req
+	if m.BuyMVENilResp {
+		return nil, nil
+	}
 	if m.BuyMVEErr != nil {
 		return nil, m.BuyMVEErr
 	}
@@ -82,6 +88,9 @@ func (m *MockMVEService) ValidateMVEOrder(ctx context.Context, req *megaport.Buy
 
 func (m *MockMVEService) DeleteMVE(ctx context.Context, req *megaport.DeleteMVERequest) (*megaport.DeleteMVEResponse, error) {
 	m.CapturedDeleteMVERequest = req
+	if m.DeleteMVENilResp {
+		return nil, nil
+	}
 	if m.DeleteMVEErr != nil {
 		return nil, m.DeleteMVEErr
 	}
@@ -95,6 +104,9 @@ func (m *MockMVEService) DeleteMVE(ctx context.Context, req *megaport.DeleteMVER
 
 func (m *MockMVEService) ModifyMVE(ctx context.Context, req *megaport.ModifyMVERequest) (*megaport.ModifyMVEResponse, error) {
 	m.CapturedModifyMVERequest = req
+	if m.ModifyMVENilResp {
+		return nil, nil
+	}
 	if m.ModifyMVEErr != nil {
 		return nil, m.ModifyMVEErr
 	}
@@ -146,17 +158,30 @@ func (m *MockMVEService) ListAvailableMVESizes(ctx context.Context) ([]*megaport
 
 func (m *MockMVEService) Reset() {
 	m.GetMVEErr = nil
+	m.GetMVEResult = nil
 	m.ListMVEsErr = nil
+	m.ListMVEsResult = nil
 	m.BuyMVEErr = nil
+	m.BuyMVENilResp = false
+	m.BuyMVEResult = nil
 	m.DeleteMVEErr = nil
+	m.DeleteMVENilResp = false
+	m.DeleteMVEResult = nil
 	m.ModifyMVEErr = nil
+	m.ModifyMVENilResp = false
+	m.ModifyMVEResult = nil
 	m.ValidateMVEOrderErr = nil
 	m.ListMVEResourceTagsErr = nil
+	m.ListMVEResourceTagsResult = nil
 	m.UpdateMVEResourceTagsErr = nil
 	m.ListMVEImagesErr = nil
+	m.ListMVEImagesResult = nil
 	m.ListAvailableMVESizesErr = nil
+	m.ListAvailableMVESizesResult = nil
+	m.ForceNilGetMVE = false
 	m.CapturedBuyMVERequest = nil
 	m.CapturedModifyMVERequest = nil
 	m.CapturedListMVEsRequest = nil
+	m.CapturedDeleteMVERequest = nil
 	m.CapturedUpdateMVEResourceTagsRequest = nil
 }

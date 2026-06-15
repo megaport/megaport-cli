@@ -17,6 +17,9 @@ type partnerOutput struct {
 }
 
 func toPartnerOutput(p *megaport.PartnerMegaport) partnerOutput {
+	if p == nil {
+		return partnerOutput{}
+	}
 	return partnerOutput{
 		ProductName:   p.ProductName,
 		UID:           p.ProductUID,
@@ -31,6 +34,9 @@ func toPartnerOutput(p *megaport.PartnerMegaport) partnerOutput {
 var printPartnersFunc = func(partners []*megaport.PartnerMegaport, format string, noColor bool) error {
 	outputs := make([]partnerOutput, 0, len(partners))
 	for _, partner := range partners {
+		if partner == nil {
+			continue
+		}
 		outputs = append(outputs, toPartnerOutput(partner))
 	}
 	return output.PrintOutput(outputs, format, noColor)

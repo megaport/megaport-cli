@@ -950,7 +950,7 @@ func TestRestrictEnvironmentName(t *testing.T) {
 		{"uat", "development"},
 		{"mpone-dev", "development"},
 		{"prod", "production"}, // alias accepted, matches normalizeEnvironment
-		{"", "development"},     // shouldn't be called with empty, but defined behaviour
+		{"", "development"},    // shouldn't be called with empty, but defined behaviour
 	}
 
 	for _, tt := range tests {

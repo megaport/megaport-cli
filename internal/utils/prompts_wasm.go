@@ -16,6 +16,7 @@ func init() {
 	// Override the default prompt functions with WASM-specific ones
 	SetPrompt(wasmPrompt)
 	SetConfirmPrompt(wasmConfirmPrompt)
+	SetPasswordPrompt(wasmPasswordPrompt)
 	SetResourcePrompt(wasmResourcePrompt)
 	SetSecretResourcePrompt(wasmSecretResourcePrompt)
 	SetResourceTagsPrompt(wasmResourceTagsPrompt)
@@ -38,6 +39,10 @@ func wasmConfirmPrompt(question string, noColor bool) bool {
 
 	response = strings.ToLower(strings.TrimSpace(response))
 	return response == "y" || response == "yes"
+}
+
+func wasmPasswordPrompt(msg string, noColor bool) (string, error) {
+	return wasm.PromptForInput(msg, "password", "")
 }
 
 func wasmResourcePrompt(resourceType string, msg string, noColor bool) (string, error) {

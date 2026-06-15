@@ -63,12 +63,12 @@ func calculateDynamicWidth(termWidth int, minWidth, maxPercentage int) int {
 	return maxWidth
 }
 
-func printTable[T OutputFields](data []T, noColor bool) error {
+func printTable[T OutputFields](data []T, noColor bool, opts printOptions) error {
 	headers, jsonNames, fieldIndices, err := getStructTypeInfo(data)
 	if err != nil {
 		return err
 	}
-	if tableFields := getOutputFields(); len(tableFields) > 0 {
+	if tableFields := opts.fields; len(tableFields) > 0 {
 		headers, _, fieldIndices, err = filterByFields(headers, jsonNames, fieldIndices, tableFields)
 		if err != nil {
 			return err
@@ -141,7 +141,7 @@ func printTable[T OutputFields](data []T, noColor bool) error {
 	for _, header := range headers {
 		headerRow = append(headerRow, strings.ToUpper(header))
 	}
-	if !getNoHeader() {
+	if !opts.noHeader {
 		t.AppendHeader(headerRow)
 	}
 	for _, item := range data {

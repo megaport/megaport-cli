@@ -8,6 +8,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestPrintMVEs_XML(t *testing.T) {
+	out := op.CaptureOutput(func() {
+		err := printMVEs(testMVEs, "xml", noColor)
+		assert.NoError(t, err)
+	})
+	assert.NotEmpty(t, out)
+	assert.Contains(t, out, "<items>")
+	assert.Contains(t, out, "<uid>")
+	assert.Contains(t, out, "mve-1")
+	assert.Contains(t, out, "MyMVEOne")
+}
+
 func TestToMVEOutput_NilMVE(t *testing.T) {
 	_, err := toMVEOutput(nil)
 	assert.Error(t, err)
@@ -84,6 +96,60 @@ func TestDisplayMVEChanges(t *testing.T) {
 			original:         &megaport.MVE{Name: "Old", ContractTermMonths: 12},
 			updated:          &megaport.MVE{Name: "New", ContractTermMonths: 24},
 			expectedContains: []string{"Name", "Contract Term"},
+		},
+		{
+			name: "vnic description changed",
+			original: &megaport.MVE{
+				NetworkInterfaces: []*megaport.MVENetworkInterface{
+					{Description: "Data Plane"},
+					{Description: "Mgmt"},
+				},
+			},
+			updated: &megaport.MVE{
+				NetworkInterfaces: []*megaport.MVENetworkInterface{
+					{Description: "Data Plane Renamed"},
+					{Description: "Mgmt"},
+				},
+			},
+			expectedContains: []string{"vNIC[0] Description", "Data Plane Renamed"},
+		},
+		{
+			name: "vnic count differs uses min length",
+			original: &megaport.MVE{
+				NetworkInterfaces: []*megaport.MVENetworkInterface{{Description: "Only"}},
+			},
+			updated: &megaport.MVE{
+				NetworkInterfaces: []*megaport.MVENetworkInterface{
+					{Description: "Only Renamed"},
+					{Description: "Extra"},
+				},
+			},
+			expectedContains: []string{"vNIC[0] Description", "Only Renamed"},
+		},
+		{
+			name: "nil vnic entry is rendered as empty",
+			original: &megaport.MVE{
+				NetworkInterfaces: []*megaport.MVENetworkInterface{nil},
+			},
+			updated: &megaport.MVE{
+				NetworkInterfaces: []*megaport.MVENetworkInterface{{Description: "Set"}},
+			},
+			expectedContains: []string{"vNIC[0] Description", "Set"},
+		},
+		{
+			name: "updated has fewer vnics than original",
+			original: &megaport.MVE{
+				NetworkInterfaces: []*megaport.MVENetworkInterface{
+					{Description: "Old"},
+					{Description: "Drop"},
+				},
+			},
+			updated: &megaport.MVE{
+				NetworkInterfaces: []*megaport.MVENetworkInterface{
+					{Description: "New"},
+				},
+			},
+			expectedContains: []string{"vNIC[0] Description", "New"},
 		},
 	}
 

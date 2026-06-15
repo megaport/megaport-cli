@@ -2,17 +2,19 @@ module github.com/megaport/megaport-cli
 
 go 1.25.0
 
+toolchain go1.26.4
+
 require (
 	github.com/charmbracelet/glamour v1.0.0
 	github.com/fatih/color v1.19.0
-	github.com/jedib0t/go-pretty/v6 v6.7.10
+	github.com/jedib0t/go-pretty/v6 v6.8.1
 	github.com/jmespath/go-jmespath v0.4.0
-	github.com/megaport/megaportgo v1.12.1
+	github.com/megaport/megaportgo v1.13.1
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/term v0.43.0
+	golang.org/x/term v0.44.0
 )
 
 require (
@@ -53,8 +55,8 @@ require (
 	github.com/yuin/goldmark-emoji v1.0.6 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546 // indirect
-	golang.org/x/net v0.50.0 // indirect
-	golang.org/x/sys v0.44.0 // indirect
-	golang.org/x/text v0.34.0 // indirect
+	golang.org/x/net v0.56.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )

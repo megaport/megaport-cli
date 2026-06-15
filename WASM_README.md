@@ -11,7 +11,7 @@ This is the **WASM browser version** of the Megaport CLI that:
 - **Deployed with Docker** - Easy deployment with a containerized web server
 - **Session-based authentication** - Secure login using customer's Megaport credentials
 - **XTerm.js Terminal** - Full-featured terminal emulator with ANSI support
-- **Early Release** - Currently supports locations and ports commands (more coming soon!)
+- **Early Release** - Covers the main resource modules (ports, MCR, MVE, VXC, locations, partners, service keys). Auth, config, completion, `generate-docs`, and `version` are not applicable in the browser.
 
 ## Quick Start (One Command!)
 
@@ -46,20 +46,28 @@ That's it! The script will:
 3. Click **Login**
 4. Start using the CLI!
 
-### Available Commands (Current)
+### Available Commands
 
-⚠️ **Note**: This is a very early release of the WASM version. Currently supported commands:
+The WASM build registers the following modules. Each module exposes the same subcommands it provides in the native CLI (so `partners` is still `list` / `find`, `locations` is still `list` / `get`, and so on), subject to the constraints of running in the browser:
 
-- `locations list` - List all Megaport locations
-- `locations get <locationId>` - Get details for a specific location
-- `ports list` - List your ports
-- `ports get <portId>` - Get details for a specific port
+- `locations` - Find Megaport locations and metros
+- `ports` - Manage Megaport ports (including LAG ports)
+- `mcr` - Manage Megaport Cloud Routers
+- `mve` - Manage Megaport Virtual Edge devices
+- `vxc` - Manage Virtual Cross Connects
+- `partners` - Look up cloud partner ports
+- `servicekeys` - Manage service keys
 
-**Output Formats**: All standard output formats are supported:
+Any module not in that list is unavailable in the WASM build — including `auth`, `config`, `completion`, `generate-docs`, `version`, `nat-gateway`, `ix`, `users`, `status`, `topology`, `apply`, `product`, `managed-account`, and `billing-market`. Some rely on the local filesystem (profile storage, completion scripts); others have simply not been wired into the browser build yet. Authentication in WASM is session-based via the web UI login form.
+
+**Output Formats**: The WASM build supports the following output formats:
 
 - `--output table` (default) - Formatted table with styled output
 - `--output json` - JSON format for programmatic use
 - `--output csv` - CSV format for data export
+- `--output xml` - XML format
+
+`--output go-template` is not supported in WASM/browser builds.
 
 **Example Commands**:
 
@@ -67,10 +75,10 @@ That's it! The script will:
 megaport-cli locations list
 megaport-cli locations list --output json
 megaport-cli ports list
-megaport-cli ports get abc123
+megaport-cli ports get <portUID>
+megaport-cli vxc list --status LIVE
+megaport-cli partners list --company-name "Amazon Web Services"
 ```
-
-More commands will be added in future releases!
 
 ### Session Management
 
@@ -97,6 +105,51 @@ docker rm megaport-cli-wasm
 # Rebuild and redeploy
 ./deploy.sh
 ```
+
+## Static Build (CDN Hosting)
+
+The Docker flow above runs a Go server that does more than serve files — it
+also handles the login/session endpoints and proxies API calls (see
+`cmd/server/server.go`). To host the browser CLI on a CDN (S3 + CloudFront)
+instead, build just the static front-end assets and sync the output dir:
+
+```bash
+make web-static          # or: ./scripts/build-web.sh
+```
+
+Needs the Go toolchain and Node/npm on `PATH` — the build compiles the WASM
+binary and bundles the Vue front end.
+
+This produces a self-contained **`web/vue-demo/`** directory (Vue build +
+`megaport.wasm` + `wasm_exec.js`). Publish it with:
+
+```bash
+aws s3 sync web/vue-demo/ s3://<bucket>/<prefix>/ --delete
+```
+
+`--delete` prunes stale hashed assets from old builds, so point it at a prefix
+dedicated to this site — it removes anything else under that prefix.
+
+### Notes for the CDN/S3 side
+
+- A static deployment serves the **front-end assets only**. It does not include
+  the login/session and API-proxy endpoints that the Docker server provides, so
+  the auth/API path for a server-less deployment has to be handled separately
+  (out of scope here — see the infra ticket).
+- The build assumes the app is served from the **site root**. The demo's vite
+  config doesn't set `base`, so the bundled `assets/` resolve from root. Serving
+  under a path (e.g. `media.megaport.com/cli/`) needs source changes, not just
+  config: setting `base` in `frontend-integration/vite.demo.config.ts` would
+  rewrite the bundled `assets/`, but `megaport.wasm` and `wasm_exec.js` are
+  fetched from hardcoded absolute paths (`wasm-path`/`wasm-exec-path` in
+  `frontend-integration/demo/App.vue`) and would still 404. Confirm root
+  hosting, or budget for those edits.
+- `megaport.wasm` is ~32 MB uncompressed — serve it compressed (brotli `-q11`
+  gets it to ~4.7 MB over the wire, gzip `-9` ~6.8 MB). S3 must set
+  `Content-Type: application/wasm` explicitly; it won't be inferred.
+- The wasm file keeps a fixed name (it isn't content-hashed like vite's
+  `assets/`), so invalidate it on every deploy. Serve `index.html` `no-cache`;
+  the hashed files under `assets/` can cache long/immutable.
 
 ## Configuration
 
@@ -202,6 +255,34 @@ go build -o server ./cmd/server/server.go
 ./server --port 8080 --dir web --session-duration 1h
 ```
 
+The server binds `127.0.0.1` by default. To expose it on other interfaces (e.g. inside a container), pass `--bind 0.0.0.0`.
+
+## Publishing to the Portal
+
+The Portal loads the WASM binary from `s3://media.megaport.com/portal/megaport-cli/`. Publishing is currently manual.
+
+### Prerequisites
+
+- AWS CLI configured with SSO for the `ProductionDeveloper` role.
+
+### Steps
+
+```bash
+# 1. Ensure AWS SSO auth is active (login if needed)
+aws sso login
+aws sts get-caller-identity
+# 2. Build the WASM binary
+GOOS=js GOARCH=wasm go build -tags js,wasm -o web/megaport.wasm .
+
+# 3. Upload the WASM binary and the (already checked-in) wasm_exec.js loader.
+#    `--content-type application/wasm` is required so the file isn't served as
+#    application/octet-stream — `WebAssembly.instantiateStreaming` rejects
+#    anything else, which would break the standalone loader in web/script.js.
+aws s3 cp web/megaport.wasm s3://media.megaport.com/portal/megaport-cli/megaport.wasm \
+    --content-type application/wasm
+aws s3 cp web/wasm_exec.js  s3://media.megaport.com/portal/megaport-cli/wasm_exec.js
+```
+
 ## API Endpoints
 
 ### Authentication
@@ -248,7 +329,7 @@ X-Session-Token: abc123...
 ### Can't build WASM
 
 ```bash
-# Make sure you have Go 1.21 or later
+# Make sure you have Go 1.25 or later (matches go.mod)
 go version
 
 # Check WASM support

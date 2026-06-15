@@ -8,10 +8,15 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 var (
 	ErrProfileNotFound = errors.New("profile not found")
+
+	// renameFile and chmodFile are variables so tests can inject errors into the backup path.
+	renameFile = os.Rename
+	chmodFile  = os.Chmod
 )
 
 func NewConfigManager() (*ConfigManager, error) {
@@ -55,13 +60,23 @@ func NewConfigManager() (*ConfigManager, error) {
 	var config ConfigFile
 	err = json.Unmarshal(configData, &config)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Config file is corrupted, creating a new default config\n")
-		config = ConfigFile{
-			Version:       ConfigVersion,
-			ActiveProfile: "",
-			Profiles:      make(map[string]*Profile),
-			Defaults:      make(map[string]interface{}),
+		backupPath := configPath + ".corrupt-" + time.Now().Format("20060102-150405.000000000")
+		if renameErr := renameFile(configPath, backupPath); renameErr != nil {
+			if !os.IsNotExist(renameErr) {
+				return nil, fmt.Errorf("config file is corrupted and could not be preserved: %w", renameErr)
+			}
+			// Another process already recovered the file; create a fresh default below.
+			fmt.Fprintf(os.Stderr, "Warning: Config file is corrupted and was concurrently recovered.\n")
+		} else {
+			if chmodErr := chmodFile(backupPath, 0600); chmodErr != nil {
+				// chmod failure is non-fatal: the backup is preserved and the fresh
+				// default will still be created. Warn so the user can restrict manually.
+				fmt.Fprintf(os.Stderr, "Warning: Config file is corrupted. Original preserved at %s (run: chmod 0600 -- %q)\n", backupPath, backupPath)
+			} else {
+				fmt.Fprintf(os.Stderr, "Warning: Config file is corrupted. Original preserved at %s\n", backupPath)
+			}
 		}
+		config = *NewConfigFile()
 
 		configData, err = json.MarshalIndent(config, "", "  ")
 		if err != nil {

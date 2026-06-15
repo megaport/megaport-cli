@@ -22,6 +22,25 @@ var (
 	}
 )
 
+// MVELabelToProductSize maps human-readable MVE size labels (as returned by the
+// images API in the availableSizes field) to their canonical programmatic names.
+var MVELabelToProductSize = map[string]string{
+	"MVE 2/8":   "SMALL",
+	"MVE 4/16":  "MEDIUM",
+	"MVE 8/32":  "LARGE",
+	"MVE 12/48": "X_LARGE_12",
+}
+
+// NormalizeMVEProductSize converts an MVE product size to its canonical form.
+// It accepts both programmatic names ("SMALL") and human-readable labels
+// ("MVE 2/8") as returned by the list-images API.
+func NormalizeMVEProductSize(size string) string {
+	if canonical, ok := MVELabelToProductSize[size]; ok {
+		return canonical
+	}
+	return size
+}
+
 // ValidateMVEProductSize validates the product size for an MVE (Megaport Virtual Edge) instance.
 // This function ensures the specified size is among the allowed values for MVE deployments.
 //
@@ -94,7 +113,7 @@ func ValidateBuyMVERequest(req *megaport.BuyMVERequest) error {
 //   - req: The ModifyMVERequest object containing the fields to update
 //
 // Validation checks:
-//   - At least one updateable field must be provided (name, cost center, or contract term)
+//   - At least one updateable field must be provided (name, cost center, contract term, or vNICs)
 //   - If contract term is provided, it must be valid (typically 1, 12, 24, or 36 months)
 //
 // Returns:
@@ -102,7 +121,7 @@ func ValidateBuyMVERequest(req *megaport.BuyMVERequest) error {
 //   - nil if all validation checks pass
 func ValidateUpdateMVERequest(req *megaport.ModifyMVERequest) error {
 	// Check if any update fields are provided
-	if req.Name == "" && req.CostCentre == "" && req.ContractTermMonths == nil {
+	if req.Name == "" && req.CostCentre == "" && req.ContractTermMonths == nil && len(req.Vnics) == 0 {
 		return NewValidationError("update request", req, "at least one field must be provided for update")
 	}
 
@@ -112,6 +131,12 @@ func ValidateUpdateMVERequest(req *megaport.ModifyMVERequest) error {
 		err := ValidateContractTerm(term)
 		if err != nil {
 			return err
+		}
+	}
+
+	for i, v := range req.Vnics {
+		if v.Description == "" {
+			return NewValidationError(fmt.Sprintf("vnics[%d].description", i), v.Description, "must not be empty")
 		}
 	}
 

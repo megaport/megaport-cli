@@ -331,6 +331,55 @@ func TestBuyLAGPort_EmptyUIDs(t *testing.T) {
 	assert.Contains(t, err.Error(), "no UID returned")
 }
 
+func TestBuyLAGPort_NilResponse(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+	originalBuyPortFunc := buyPortFunc
+	defer func() {
+		buyPortFunc = originalBuyPortFunc
+	}()
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	mockService := &MockPortService{}
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.PortService = mockService
+		return client, nil
+	})
+	buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
+		return nil, nil
+	}
+
+	cmd := &cobra.Command{Use: "buy-lag"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("name", "test-lag", "")
+	cmd.Flags().Int("term", 12, "")
+	cmd.Flags().Int("port-speed", 10000, "")
+	cmd.Flags().Int("location-id", 1, "")
+	cmd.Flags().Int("lag-count", 2, "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
+	cmd.Flags().String("diversity-zone", "", "")
+	cmd.Flags().Bool("cost-confirm", true, "")
+	require.NoError(t, cmd.Flags().Set("name", "test-lag"))
+	require.NoError(t, cmd.Flags().Set("term", "12"))
+	require.NoError(t, cmd.Flags().Set("port-speed", "10000"))
+	require.NoError(t, cmd.Flags().Set("location-id", "1"))
+	require.NoError(t, cmd.Flags().Set("lag-count", "2"))
+	require.NoError(t, cmd.Flags().Set("marketplace-visibility", "true"))
+
+	var err error
+	output.CaptureOutput(func() {
+		err = BuyLAGPort(cmd, nil, true)
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response from API")
+}
+
 func TestDeletePort_SafeDeleteFlag(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
@@ -829,6 +878,21 @@ func TestBuyPort(t *testing.T) {
 				return nil, fmt.Errorf("buy port failed")
 			},
 			expectedError: "buy port failed",
+		},
+		{
+			name: "nil response from buyPortFunc",
+			flags: map[string]string{
+				"name":                   "test-port",
+				"term":                   "12",
+				"port-speed":             "1000",
+				"location-id":            "1",
+				"marketplace-visibility": "true",
+			},
+			setupMock: func(m *MockPortService) {},
+			buyPortOverride: func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
+				return nil, nil
+			},
+			expectedError: "empty response from API",
 		},
 		{
 			name: "validation error",
