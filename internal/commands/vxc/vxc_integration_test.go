@@ -286,6 +286,61 @@ func vxcFromSDK(t *testing.T, uid string) *megaport.VXC {
 	return vxc
 }
 
+func newUpdateVXCTagsCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "update-tags"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().BoolP("force", "f", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	return cmd
+}
+
+// vxcTagsFromSDK reads a VXC's resource tags via the shared SDK client (the same
+// call the list-tags command makes underneath). Used instead of capturing the
+// command's stdout because these tests run under t.Parallel().
+func vxcTagsFromSDK(t *testing.T, uid string) map[string]string {
+	t.Helper()
+	sdkClient := testutil.SharedIntegrationClient(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	tags, err := sdkClient.VXCService.ListVXCResourceTags(ctx, uid)
+	require.NoErrorf(t, err, "SDK ListVXCResourceTags failed for %s", uid)
+	return tags
+}
+
+// runVXCTagRoundTrip exercises update-tags then list-tags on an existing
+// lifecycle VXC: it sets two tags via the update-tags command, reads them back
+// through the SDK, then clears them and confirms they are gone. It rides on the
+// VXC the caller already provisioned, so it needs no separate cleanup.
+func runVXCTagRoundTrip(t *testing.T, uid string) {
+	t.Helper()
+	want := map[string]string{"env": "cli-integration", "owner": "esd-1392"}
+	tagJSON, err := json.Marshal(want)
+	require.NoError(t, err)
+
+	setCmd := newUpdateVXCTagsCmd()
+	require.NoError(t, setCmd.Flags().Set("json", string(tagJSON)))
+	require.NoError(t, setCmd.Flags().Set("force", "true"))
+	require.NoErrorf(t, UpdateVXCResourceTags(setCmd, []string{uid}, true), "UpdateVXCResourceTags failed for %s", uid)
+
+	// Assert our tags round-tripped without requiring the map to contain only
+	// them, so an API-injected tag can't make this flaky.
+	got := vxcTagsFromSDK(t, uid)
+	for k, v := range want {
+		assert.Equalf(t, v, got[k], "tag %q should round-trip", k)
+	}
+
+	clearCmd := newUpdateVXCTagsCmd()
+	require.NoError(t, clearCmd.Flags().Set("json", "{}"))
+	require.NoError(t, clearCmd.Flags().Set("force", "true"))
+	require.NoErrorf(t, UpdateVXCResourceTags(clearCmd, []string{uid}, true), "clearing VXC tags failed for %s", uid)
+
+	cleared := vxcTagsFromSDK(t, uid)
+	for k := range want {
+		assert.NotContainsf(t, cleared, k, "tag %q should be cleared", k)
+	}
+}
+
 func TestIntegration_VXCPortToPortLifecycle(t *testing.T) {
 	t.Parallel()
 	testutil.RequireSharedIntegrationClient(t)
@@ -319,6 +374,8 @@ func TestIntegration_VXCPortToPortLifecycle(t *testing.T) {
 
 	updated := vxcFromSDK(t, vxcUID)
 	assert.Equal(t, newName, updated.Name)
+
+	runVXCTagRoundTrip(t, vxcUID)
 }
 
 func TestIntegration_VXCVLANModificationLifecycle(t *testing.T) {

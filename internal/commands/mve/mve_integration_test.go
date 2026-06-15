@@ -78,6 +78,15 @@ func integrationMVEDeleteCmd() *cobra.Command {
 	return cmd
 }
 
+func integrationMVETagCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "update-tags"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().BoolP("force", "f", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	return cmd
+}
+
 // parseCreatedUID pulls the resource UID out of a "<resource> created <uid>"
 // success message.
 func parseCreatedUID(out, resource string) string {
@@ -227,6 +236,40 @@ func TestIntegration_MVELifecycle(t *testing.T) {
 	require.NoError(t, updErr, "update MVE output: %s", updOut)
 
 	assert.Equal(t, newName, getMVEJSON(t, mveUID)["name"])
+
+	// Resource tag round-trip (ESD-1392): set tags via update-tags, read them
+	// back via list-tags, then clear them. Rides on the lifecycle MVE, so no
+	// extra cleanup is needed.
+	setTagsCmd := integrationMVETagCmd()
+	require.NoError(t, setTagsCmd.Flags().Set("json", `{"env":"cli-integration","owner":"esd-1392"}`))
+	require.NoError(t, setTagsCmd.Flags().Set("force", "true"))
+	var setTagsErr error
+	setTagsOut := captureTableOutput(func() { setTagsErr = UpdateMVEResourceTags(setTagsCmd, []string{mveUID}, true) })
+	require.NoError(t, setTagsErr, "update MVE tags output: %s", setTagsOut)
+
+	var listTagsErr error
+	listTagsOut := output.CaptureOutput(func() {
+		listTagsErr = ListMVEResourceTags(&cobra.Command{Use: "list-tags"}, []string{mveUID}, true, "json")
+	})
+	require.NoError(t, listTagsErr, "list MVE tags output: %s", listTagsOut)
+	assert.Contains(t, listTagsOut, "cli-integration")
+	assert.Contains(t, listTagsOut, "esd-1392")
+
+	// Clear the tags so the MVE is left clean for the steps that follow.
+	clearTagsCmd := integrationMVETagCmd()
+	require.NoError(t, clearTagsCmd.Flags().Set("json", "{}"))
+	require.NoError(t, clearTagsCmd.Flags().Set("force", "true"))
+	var clearTagsErr error
+	clearTagsOut := captureTableOutput(func() { clearTagsErr = UpdateMVEResourceTags(clearTagsCmd, []string{mveUID}, true) })
+	require.NoError(t, clearTagsErr, "clear MVE tags output: %s", clearTagsOut)
+
+	var verifyTagsErr error
+	verifyTagsOut := output.CaptureOutput(func() {
+		verifyTagsErr = ListMVEResourceTags(&cobra.Command{Use: "list-tags"}, []string{mveUID}, true, "json")
+	})
+	require.NoError(t, verifyTagsErr, "list MVE tags after clear output: %s", verifyTagsOut)
+	assert.NotContains(t, verifyTagsOut, "cli-integration")
+	assert.NotContains(t, verifyTagsOut, "esd-1392")
 
 	// Update the vNIC descriptions via --vnics and verify they took effect.
 	// The count and VLANs are immutable, so the update array must have one
