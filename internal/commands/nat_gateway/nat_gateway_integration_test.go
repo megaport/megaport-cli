@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIntegration_NATGatewayListSessions(t *testing.T) {
+func TestIntegration_NATGatewayListSessionsReadOnly(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
 	defer testutil.LoginWithClient(t, client)()
 	origFmt := output.GetOutputFormat()
@@ -46,7 +46,7 @@ func TestIntegration_NATGatewayListSessions(t *testing.T) {
 	}
 }
 
-func TestIntegration_NATGatewayListAndGet(t *testing.T) {
+func TestIntegration_NATGatewayListAndGetReadOnly(t *testing.T) {
 	client := testutil.SetupIntegrationClient(t)
 	defer testutil.LoginWithClient(t, client)()
 	origFmt := output.GetOutputFormat()

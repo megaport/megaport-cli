@@ -19,7 +19,9 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Run read-only integration tests
-        run: go test -tags integration -run '^TestIntegration_' -v -timeout 5m ./internal/commands/locations/...
+        run: |
+          go test -tags integration -run '^TestIntegration_' -v -timeout 5m ./internal/commands/locations/...
+          go test -tags integration -run 'TestIntegration_.*ReadOnly$' -v -timeout 5m ./internal/commands/nat_gateway/...
         env:
           MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
           MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}
@@ -45,7 +47,8 @@ jobs:
             ./internal/commands/ports/... \
             ./internal/commands/vxc/... \
             ./internal/commands/mcr/... \
-            ./internal/commands/mve/... 2>&1); then
+            ./internal/commands/mve/... \
+            ./internal/commands/nat_gateway/... 2>&1); then
             echo "::error::go test -list failed — see build/compile errors below."
             echo "$list_output"
             exit 1
@@ -59,7 +62,7 @@ jobs:
           echo "Discovered tests:"
           echo "$discovered"
       - name: Run provisioning integration tests
-        run: go test -tags integration -run '^TestIntegration_' -v -timeout 30m ./internal/commands/ports/... ./internal/commands/vxc/... ./internal/commands/mcr/... ./internal/commands/mve/...
+        run: go test -tags integration -run '^TestIntegration_' -v -timeout 30m ./internal/commands/ports/... ./internal/commands/vxc/... ./internal/commands/mcr/... ./internal/commands/mve/... ./internal/commands/nat_gateway/...
         env:
           MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
           MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}
