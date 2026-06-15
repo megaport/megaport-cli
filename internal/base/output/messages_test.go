@@ -170,8 +170,9 @@ func TestSpinner(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping timing-sensitive spinner test")
 	}
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	spinner := NewSpinner(true)
 	assert.NotNil(t, spinner)
@@ -190,8 +191,9 @@ func TestPrintResourceSpinners(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping timing-sensitive resource spinner test")
 	}
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	tests := []struct {
 		name         string
@@ -251,8 +253,9 @@ func TestPrintResourceListing(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping timing-sensitive resource listing test")
 	}
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	output := captureOutput(func() {
 		spinner := PrintResourceListing("Port", true)
@@ -436,16 +439,23 @@ func TestFormatNewValue(t *testing.T) {
 	assert.Contains(t, StripANSIColors(result), "new-value")
 }
 
-// TestOutputFormatConcurrency verifies that SetOutputFormat, getOutputFormat,
-// Print* helpers, and spinner creation can be called concurrently without a
-// data race. Run with: go test -race ./internal/base/output/...
+// TestOutputFormatConcurrency verifies that concurrent reads and writes to the
+// output config via GetOutputFormat, SetVerbosity, and the Print* helpers do
+// not cause data races. Unlike tests that only vary a single field, this one
+// has odd-numbered goroutines write Format while even-numbered goroutines write
+// Verbosity — exercising concurrent writes to different fields simultaneously.
+// Run with: go test -race ./internal/base/output/...
 func TestOutputFormatConcurrency(t *testing.T) {
 	const goroutines = 10
 	const iterations = 50
 
-	// Restore original format after the test.
-	origFormat := getOutputFormat()
-	defer SetOutputFormat(origFormat)
+	orig := GetOutputConfig()
+	t.Cleanup(func() { ApplyOutputConfig(orig) })
+
+	// Seed both fields that goroutines will cycle through so assertions
+	// cannot observe a value from a previous test.
+	SetOutputFormat("table")
+	SetVerbosity("normal")
 
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
@@ -454,24 +464,35 @@ func TestOutputFormatConcurrency(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			for j := 0; j < iterations; j++ {
-				// Alternate between formats to maximize contention.
-				if j%2 == 0 {
-					SetOutputFormat("json")
+				if id%2 == 0 {
+					// Even goroutines write Format.
+					if j%2 == 0 {
+						SetOutputFormat("json")
+					} else {
+						SetOutputFormat("table")
+					}
 				} else {
-					SetOutputFormat("table")
+					// Odd goroutines write Verbosity — different field, same mutex.
+					if j%2 == 0 {
+						SetVerbosity("quiet")
+					} else {
+						SetVerbosity("normal")
+					}
 				}
 
-				// Read the format (the main thing under test).
-				f := getOutputFormat()
-				assert.Contains(t, []string{"json", "table"}, f)
+				// All goroutines read back through the struct — any lost write
+				// or torn read will be caught by the race detector.
+				cfg := GetOutputConfig()
+				assert.Contains(t, []string{"json", "table"}, cfg.Format)
+				assert.Contains(t, []string{"quiet", "normal"}, cfg.Verbosity)
 
-				// Exercise Print* helpers that read the atomic value.
+				// Exercise Print* helpers that read the config.
 				PrintSuccess("concurrent %d", true, id)
 				PrintError("concurrent %d", true, id)
 				PrintWarning("concurrent %d", true, id)
 				PrintInfo("concurrent %d", true, id)
 
-				// Exercise spinner creation which also reads the format.
+				// Exercise spinner creation which also reads the config.
 				s := PrintResourceListing("Port", true)
 				s.Stop()
 			}
@@ -485,8 +506,9 @@ func TestPrintResourceProvisioning(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping timing-sensitive provisioning test")
 	}
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	t.Run("shows provisioning message with elapsed time", func(t *testing.T) {
 		output := captureOutput(func() {
@@ -500,7 +522,7 @@ func TestPrintResourceProvisioning(t *testing.T) {
 
 	t.Run("quiet mode returns no-op spinner", func(t *testing.T) {
 		SetVerbosity("quiet")
-		defer SetVerbosity("normal")
+		t.Cleanup(func() { ResetState() })
 		spinner := PrintResourceProvisioning("Port", "port-123", true)
 		assert.NotNil(t, spinner)
 		assert.True(t, spinner.stopped)
@@ -511,8 +533,9 @@ func TestStartWithElapsed(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping timing-sensitive elapsed timer test")
 	}
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	t.Run("appends elapsed time to message", func(t *testing.T) {
 		spinner := NewSpinner(true)
@@ -570,8 +593,9 @@ func TestSpinnerStopWithSuccess(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping timing-sensitive spinner stop test")
 	}
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	output := captureOutput(func() {
 		spinner := NewSpinner(true)
@@ -583,9 +607,7 @@ func TestSpinnerStopWithSuccess(t *testing.T) {
 }
 
 func TestShouldSuppressSpinner(t *testing.T) {
-	origFormat := getOutputFormat()
-	defer SetOutputFormat(origFormat)
-	defer SetVerbosity("normal")
+	t.Cleanup(func() { ResetState() })
 
 	tests := []struct {
 		name     string
@@ -617,7 +639,7 @@ func TestShouldSuppressSpinner(t *testing.T) {
 
 func TestShouldSuppressSpinnerForFormat(t *testing.T) {
 	// Ensure normal verbosity so IsQuiet() doesn't interfere.
-	defer SetVerbosity("normal")
+	t.Cleanup(func() { ResetState() })
 	SetVerbosity("normal")
 
 	assert.False(t, shouldSuppressSpinnerForFormat("table"))
@@ -631,7 +653,7 @@ func TestShouldSuppressSpinnerForFormat(t *testing.T) {
 // to restore it, avoiding hard-coded assumptions about initial state.
 func saveOutputFormat(t *testing.T) {
 	t.Helper()
-	orig := getOutputFormat()
+	orig := GetOutputFormat()
 	t.Cleanup(func() { SetOutputFormat(orig) })
 }
 
@@ -666,8 +688,9 @@ func TestSpinnerActiveForTable(t *testing.T) {
 	}
 	saveOutputFormat(t)
 	SetOutputFormat("table")
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	spinner := PrintResourceListing("test", true)
 	assert.False(t, spinner.stopped, "spinner should be active for table format")
@@ -696,14 +719,70 @@ func TestAllSpinnerFunctionsSuppressedForCSV(t *testing.T) {
 	}
 }
 
+// TestSpinnersNotSuppressedForTable covers the non-suppressed code paths in
+// PrintListingResourceTags, PrintResourceValidating, and PrintCustomSpinner —
+// specifically the GetOutputFormat() call and spinner creation that are only
+// reached when the output format is "table" and a terminal is active.
+func TestSpinnersNotSuppressedForTable(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping spinner test in short mode")
+	}
+	t.Cleanup(func() { ResetState() })
+	SetOutputFormat("table")
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
+	SetIsTerminal(true)
+
+	s1 := PrintListingResourceTags("Port", "uid-1", true)
+	assert.False(t, s1.stopped, "PrintListingResourceTags should not be suppressed for table format")
+	s1.Stop()
+
+	s2 := PrintResourceValidating("VXC", true)
+	assert.False(t, s2.stopped, "PrintResourceValidating should not be suppressed for table format")
+	s2.Stop()
+
+	s3 := PrintCustomSpinner("Syncing", "uid-2", true)
+	assert.False(t, s3.stopped, "PrintCustomSpinner should not be suppressed for table format")
+	s3.Stop()
+}
+
+// TestPrintResourceGettingWithOutput_EmptyFormatFallback covers the
+// outputFormat = GetOutputFormat() fallback when an empty string is passed.
+func TestPrintResourceGettingWithOutput_EmptyFormatFallback(t *testing.T) {
+	t.Cleanup(func() { ResetState() })
+	SetOutputFormat("csv") // suppresses spinner so the test is fast
+
+	s := PrintResourceGettingWithOutput("Port", "uid-1", true, "")
+	assert.True(t, s.stopped, "spinner should be suppressed when format falls back to csv")
+	assert.Equal(t, "csv", s.outputFormat)
+}
+
+// TestPrintLoggingInWithOutput_EmptyFormatFallback covers the
+// outputFormat = GetOutputFormat() fallback when an empty string is passed.
+func TestPrintLoggingInWithOutput_EmptyFormatFallback(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping spinner test in short mode")
+	}
+	t.Cleanup(func() { ResetState() })
+	SetOutputFormat("table")
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
+	SetIsTerminal(true)
+
+	s := PrintLoggingInWithOutput(true, "")
+	assert.False(t, s.stopped, "login spinner should not be suppressed when format falls back to table")
+	s.Stop()
+}
+
 func TestLoginSpinnersNotSuppressedForCSV(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping spinner test in short mode")
 	}
 	saveOutputFormat(t)
 	SetOutputFormat("csv")
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	// Login spinners should still show regardless of output format
 	spinner := PrintLoggingIn(true)
@@ -718,8 +797,9 @@ func TestLoginSpinnersNotSuppressedForCSV(t *testing.T) {
 func TestStopWithSuccessDoesNotWriteToStdoutForCSV(t *testing.T) {
 	saveOutputFormat(t)
 	SetOutputFormat("csv")
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	spinner := PrintResourceListing("test", true)
 
@@ -740,8 +820,9 @@ func TestStopWithSuccessDoesNotWriteToStdoutForCSV(t *testing.T) {
 func TestStopWithSuccessDoesNotWriteToStdoutForXML(t *testing.T) {
 	saveOutputFormat(t)
 	SetOutputFormat("xml")
+	orig := isTerminalCached.Load()
+	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
-	defer SetIsTerminal(false)
 
 	spinner := PrintResourceGetting("test", "uid", true)
 

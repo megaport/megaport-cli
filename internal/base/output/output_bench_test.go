@@ -49,7 +49,7 @@ func BenchmarkPrintTable(b *testing.B) {
 	defer cleanup()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if err := printTable(data, true); err != nil {
+		if err := printTable(data, true, currentPrintOptions()); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -61,7 +61,7 @@ func BenchmarkPrintJSON(b *testing.B) {
 	defer cleanup()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if err := printJSON(data); err != nil {
+		if err := printJSON(data, currentPrintOptions()); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -73,7 +73,7 @@ func BenchmarkPrintCSV(b *testing.B) {
 	defer cleanup()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if err := printCSV(data); err != nil {
+		if err := printCSV(data, currentPrintOptions()); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -85,7 +85,7 @@ func BenchmarkPrintXML(b *testing.B) {
 	defer cleanup()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if err := printXML(data); err != nil {
+		if err := printXML(data, currentPrintOptions()); err != nil {
 			b.Fatal(err)
 		}
 	}

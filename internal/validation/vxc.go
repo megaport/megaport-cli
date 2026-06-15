@@ -187,8 +187,9 @@ func ValidateVXCRequest(req *megaport.BuyVXCRequest) error {
 // Validation checks include:
 //   - Connect type must be provided and be one of the valid types ('AWS', 'AWSHC', 'private', 'public')
 //   - Owner account must be provided (AWS account ID)
-//   - If customer IP address is provided, it must be in valid CIDR notation
-//   - If Amazon IP address is provided, it must be in valid CIDR notation
+//   - ASN must be provided and within the valid range (1-4294967295)
+//   - If customer IP address is provided, it must be in valid IPv4 CIDR notation
+//   - If Amazon IP address is provided, it must be in valid IPv4 CIDR notation
 //   - If connection name is provided, it must not exceed 255 characters
 //   - For 'AWS' connect type with a specified connection type, it must be 'private' or 'public'
 //
@@ -234,6 +235,9 @@ func ValidateAWSPartnerConfig(config *megaport.VXCPartnerConfigAWS) error {
 	}
 	if config.ASN == 0 {
 		return NewValidationError("ASN", config.ASN, "cannot be empty")
+	}
+	if int64(config.ASN) < MinASN || int64(config.ASN) > MaxASN {
+		return NewValidationError("ASN", config.ASN, fmt.Sprintf("must be between %d-%d", MinASN, MaxASN))
 	}
 	return nil
 }
@@ -331,8 +335,8 @@ func ValidateOraclePartnerConfig(config *megaport.VXCPartnerConfigOracle) error 
 //   - Account ID must contain only hexadecimal characters (0-9, a-f, A-F)
 //   - If connection name is provided, it must not exceed the maximum length (MaxIBMNameLength)
 //   - If connection name is provided, it must contain only allowed characters (0-9, a-z, A-Z, /, -, _, ,)
-//   - If customer IP address is provided, it must be in valid CIDR notation
-//   - If provider IP address is provided, it must be in valid CIDR notation
+//   - If customer IP address is provided, it must be in valid IPv4 CIDR notation
+//   - If provider IP address is provided, it must be in valid IPv4 CIDR notation
 //
 // Returns:
 //   - A ValidationError if any validation check fails
@@ -389,8 +393,8 @@ func isValidIBMName(name string) bool {
 //   - At least one interface must be provided
 //   - For each interface:
 //   - If VLAN is specified, it must be within allowed range
-//   - All IP addresses must be in valid CIDR notation
-//   - All NAT IP addresses must be in valid CIDR notation
+//   - All IP addresses must be in valid IPv4 CIDR notation
+//   - All NAT IP addresses must be in valid IPv4 CIDR notation
 //   - All IP routes must be valid (calls ValidateIPRouteConfig)
 //   - BFD configuration must be valid (calls ValidateBFDConfig)
 //   - All BGP connections must be valid (calls ValidateBGPConnectionConfig)
@@ -495,9 +499,9 @@ func ValidateVXCPartnerConfig(config megaport.VXCPartnerConfiguration) error {
 //   - connIndex: The index of this BGP connection within the interface (used for error messages)
 //
 // Validation checks include:
-//   - Peer ASN must be provided (non-zero)
-//   - Local IP address must be provided and be a valid IPv4 address or CIDR
-//   - Peer IP address must be provided and be a valid IPv4 address or CIDR
+//   - Peer ASN must be provided and within the valid range (1-4294967295)
+//   - Local IP address must be provided and be a valid IPv4 address or IPv4 CIDR
+//   - Peer IP address must be provided and be a valid IPv4 address or IPv4 CIDR
 //   - If Peer Type is provided, it must be one of the predefined values (NON_CLOUD, PRIV_CLOUD, PUB_CLOUD)
 //   - If MED values (Multi-Exit Discriminator) are provided, they must be within allowed range (0-4294967295)
 //   - If AS path prepend count is provided, it must be within allowed range (0-10)
@@ -510,6 +514,9 @@ func ValidateBGPConnectionConfig(conn megaport.BgpConnectionConfig, ifaceIndex, 
 	fieldPrefix := fmt.Sprintf("vRouter interface [%d] BGP connection [%d]", ifaceIndex, connIndex)
 	if conn.PeerAsn == 0 {
 		return NewValidationError(fmt.Sprintf("%s peer ASN", fieldPrefix), nil, "is required")
+	}
+	if int64(conn.PeerAsn) < MinASN || int64(conn.PeerAsn) > MaxASN {
+		return NewValidationError(fmt.Sprintf("%s peer ASN", fieldPrefix), conn.PeerAsn, fmt.Sprintf("must be between %d-%d", MinASN, MaxASN))
 	}
 	if conn.LocalIpAddress == "" {
 		return NewValidationError(fmt.Sprintf("%s local IP address", fieldPrefix), conn.LocalIpAddress, "cannot be empty")
@@ -584,7 +591,7 @@ func ValidateBGPConnectionConfig(conn megaport.BgpConnectionConfig, ifaceIndex, 
 //   - routeIndex: The index of this route within the interface (used for error messages)
 //
 // Validation checks include:
-//   - Prefix must be provided and be a valid CIDR notation (e.g., "10.0.0.0/24")
+//   - Prefix must be provided and be a valid IPv4 CIDR notation (e.g., "10.0.0.0/24")
 //   - Next hop must be provided and be a valid IPv4 address (not a CIDR)
 //   - Next hop must be in the standard IPv4 format (e.g., "192.168.1.1")
 //

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -20,6 +21,19 @@ func buildIXRequestFromFlags(cmd *cobra.Command) (*megaport.BuyIXRequest, error)
 	vlan, _ := cmd.Flags().GetInt("vlan")
 	shutdown, _ := cmd.Flags().GetBool("shutdown")
 	promoCode, _ := cmd.Flags().GetString("promo-code")
+
+	if err := validation.ValidateASN(asn); err != nil {
+		return nil, err
+	}
+	if err := validation.ValidateMACAddress(macAddress); err != nil {
+		return nil, err
+	}
+	if err := validation.ValidateRateLimit(rateLimit); err != nil {
+		return nil, err
+	}
+	if err := validation.ValidateVLAN(vlan); err != nil {
+		return nil, err
+	}
 
 	req := &megaport.BuyIXRequest{
 		ProductUID:         productUID,
@@ -47,6 +61,19 @@ func buildIXRequestFromJSON(jsonStr, jsonFile string) (*megaport.BuyIXRequest, e
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
+	if err := validation.ValidateASN(req.ASN); err != nil {
+		return nil, err
+	}
+	if err := validation.ValidateMACAddress(req.MACAddress); err != nil {
+		return nil, err
+	}
+	if err := validation.ValidateRateLimit(req.RateLimit); err != nil {
+		return nil, err
+	}
+	if err := validation.ValidateVLAN(req.VLAN); err != nil {
+		return nil, err
+	}
+
 	return req, nil
 }
 
@@ -60,6 +87,9 @@ func buildUpdateIXRequestFromFlags(cmd *cobra.Command) (*megaport.UpdateIXReques
 
 	if cmd.Flags().Changed("rate-limit") {
 		rateLimit, _ := cmd.Flags().GetInt("rate-limit")
+		if err := validation.ValidateRateLimit(rateLimit); err != nil {
+			return nil, err
+		}
 		req.RateLimit = &rateLimit
 	}
 
@@ -70,16 +100,25 @@ func buildUpdateIXRequestFromFlags(cmd *cobra.Command) (*megaport.UpdateIXReques
 
 	if cmd.Flags().Changed("vlan") {
 		vlan, _ := cmd.Flags().GetInt("vlan")
+		if err := validation.ValidateVLAN(vlan); err != nil {
+			return nil, err
+		}
 		req.VLAN = &vlan
 	}
 
 	if cmd.Flags().Changed("mac-address") {
 		macAddress, _ := cmd.Flags().GetString("mac-address")
+		if err := validation.ValidateMACAddress(macAddress); err != nil {
+			return nil, err
+		}
 		req.MACAddress = &macAddress
 	}
 
 	if cmd.Flags().Changed("asn") {
 		asn, _ := cmd.Flags().GetInt("asn")
+		if err := validation.ValidateASN(asn); err != nil {
+			return nil, err
+		}
 		req.ASN = &asn
 	}
 
@@ -120,6 +159,27 @@ func buildUpdateIXRequestFromJSON(jsonStr, jsonFile string) (*megaport.UpdateIXR
 	req := &megaport.UpdateIXRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+	}
+
+	if req.ASN != nil {
+		if err := validation.ValidateASN(*req.ASN); err != nil {
+			return nil, err
+		}
+	}
+	if req.MACAddress != nil {
+		if err := validation.ValidateMACAddress(*req.MACAddress); err != nil {
+			return nil, err
+		}
+	}
+	if req.RateLimit != nil {
+		if err := validation.ValidateRateLimit(*req.RateLimit); err != nil {
+			return nil, err
+		}
+	}
+	if req.VLAN != nil {
+		if err := validation.ValidateVLAN(*req.VLAN); err != nil {
+			return nil, err
+		}
 	}
 
 	return req, nil

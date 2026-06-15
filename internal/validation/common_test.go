@@ -165,6 +165,88 @@ func TestValidateRateLimit(t *testing.T) {
 	}
 }
 
+func TestValidateASN(t *testing.T) {
+	maxAllowed := maxSupportedASNForInt()
+
+	tests := []struct {
+		name    string
+		asn     int
+		wantErr bool
+		errText string
+	}{
+		{"Valid min ASN", int(MinASN), false, ""},
+		{"Valid typical ASN", 65000, false, ""},
+		{"Valid 4-byte ASN", 400000, false, ""},
+		{"Valid max ASN", int(maxAllowed), false, ""},
+		{"Invalid zero", 0, true, fmt.Sprintf("Invalid ASN: 0 - must be between %d and %d", MinASN, maxAllowed)},
+		{"Invalid negative", -1, true, fmt.Sprintf("Invalid ASN: -1 - must be between %d and %d", MinASN, maxAllowed)},
+	}
+
+	// Only test "max+1" when the next int value is representable on this target.
+	if maxAllowed < int64(^uint(0)>>1) {
+		overflow := int(maxAllowed) + 1
+		tests = append(tests, struct {
+			name    string
+			asn     int
+			wantErr bool
+			errText string
+		}{
+			"Invalid max ASN plus one",
+			overflow,
+			true,
+			fmt.Sprintf("Invalid ASN: %d - must be between %d and %d", overflow, MinASN, maxAllowed),
+		})
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateASN(tt.asn)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateASN() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
+				assert.Equal(t, tt.errText, err.Error(), "Error message mismatch")
+			}
+		})
+	}
+}
+
+func TestValidateMACAddress(t *testing.T) {
+	tests := []struct {
+		name    string
+		mac     string
+		wantErr bool
+		errText string
+	}{
+		{"Valid colon-separated lowercase", "00:11:22:33:44:55", false, ""},
+		{"Valid colon-separated uppercase", "AA:BB:CC:DD:EE:FF", false, ""},
+		{"Valid colon-separated mixed case", "aA:bB:cC:dD:eE:fF", false, ""},
+		{"Valid hyphen-separated", "00-11-22-33-44-55", false, ""},
+		{"Invalid empty", "", true, "Invalid MAC address:  - cannot be empty"},
+		{"Invalid too short", "00:11:22:33:44", true, "Invalid MAC address: 00:11:22:33:44 - must be a valid MAC address (e.g. 00:11:22:33:44:55)"},
+		{"Invalid too long", "00:11:22:33:44:55:66", true, "Invalid MAC address: 00:11:22:33:44:55:66 - must be a valid MAC address (e.g. 00:11:22:33:44:55)"},
+		{"Invalid EUI-64", "00:11:22:33:44:55:66:77", true, "Invalid MAC address: 00:11:22:33:44:55:66:77 - must be a 6-byte (EUI-48) MAC address"},
+		{"Invalid hex chars", "GG:HH:II:JJ:KK:LL", true, "Invalid MAC address: GG:HH:II:JJ:KK:LL - must be a valid MAC address (e.g. 00:11:22:33:44:55)"},
+		{"Invalid format", "not-a-mac", true, "Invalid MAC address: not-a-mac - must be a valid MAC address (e.g. 00:11:22:33:44:55)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateMACAddress(tt.mac)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateMACAddress() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
+				assert.Equal(t, tt.errText, err.Error(), "Error message mismatch")
+			}
+		})
+	}
+}
+
 func TestValidateMVEProductSize(t *testing.T) {
 	tests := []struct {
 		name    string
