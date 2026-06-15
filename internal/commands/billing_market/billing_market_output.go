@@ -29,6 +29,9 @@ type billingMarketOutput struct {
 }
 
 func toBillingMarketOutput(m *megaport.BillingMarket) billingMarketOutput {
+	if m == nil {
+		return billingMarketOutput{}
+	}
 	return billingMarketOutput{
 		ID:                  m.ID,
 		SupplierName:        m.SupplierName,

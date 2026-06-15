@@ -14,6 +14,9 @@ func filterPartners(
 	diversityZone string,
 ) []*megaport.PartnerMegaport {
 	return utils.Filter(partners, func(partner *megaport.PartnerMegaport) bool {
+		if partner == nil {
+			return false
+		}
 		if productName != "" && !strings.EqualFold(partner.ProductName, productName) {
 			return false
 		}
