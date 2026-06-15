@@ -171,6 +171,7 @@ var optimizedHTTPClient = &http.Client{
 
 func main() {
 	port := flag.String("port", "8080", "Port to serve on")
+	bind := flag.String("bind", "127.0.0.1", "Address to bind to (use 0.0.0.0 to expose on all interfaces)")
 	webDir := flag.String("dir", "web", "Directory to serve files from")
 	sessionDuration := flag.Duration("session-duration", 1*time.Hour, "Session duration")
 	flag.Parse()
@@ -203,14 +204,12 @@ func main() {
 		authenticatedProxyHandler(w, r, srv)
 	}))
 
-	// Legacy proxy handler (backward compatible)
-	http.HandleFunc("/proxy/", withSecurityHeaders(proxyHandler))
-
 	// Static file server for everything else
 	fs := http.FileServer(http.Dir(*webDir))
 	http.Handle("/", withSecurityHeaders(addCorsHeaders(fs)))
 
-	log.Printf("Starting Megaport CLI WASM Server on http://localhost:%s", *port)
+	addr := net.JoinHostPort(*bind, *port)
+	log.Printf("Starting Megaport CLI WASM Server on http://%s", addr)
 	log.Printf("Serving files from: %s", *webDir)
 	log.Printf("Session duration: %v", *sessionDuration)
 	log.Printf("\nEndpoints:")
@@ -218,8 +217,15 @@ func main() {
 	log.Printf("  - POST /auth/logout   - Customer logout")
 	log.Printf("  - GET  /auth/check    - Check session validity")
 	log.Printf("  - *    /api/*         - Authenticated API proxy")
-	log.Printf("  - *    /proxy/*       - Legacy direct proxy")
-	log.Fatal(http.ListenAndServe(":"+*port, nil))
+	httpServer := &http.Server{
+		Addr:              addr,
+		Handler:           http.DefaultServeMux,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      120 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+	log.Fatal(httpServer.ListenAndServe())
 }
 
 func authenticatedProxyHandler(w http.ResponseWriter, r *http.Request, srv *server.Server) {

@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	megaport "github.com/megaport/megaportgo"
@@ -220,8 +221,9 @@ func TestValidatePortName(t *testing.T) {
 	}{
 		{"Valid port name", "Test Port", false},
 		{"Empty port name", "", true},
-		{"64 character port name", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", false},
-		{"65 character port name", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", true},
+		{"Single character (min non-empty)", "A", false},
+		{"64 character port name", strings.Repeat("A", MaxPortNameLength), false},
+		{"65 character port name", strings.Repeat("A", MaxPortNameLength+1), true},
 	}
 
 	for _, tt := range tests {

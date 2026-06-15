@@ -138,6 +138,10 @@ var secretResourcePromptFn = func(resourceType string, msg string, noColor bool)
 	return strings.TrimSpace(input), nil
 }
 
+// passwordPromptFn is set by the platform-specific init in prompts_native.go
+// (native terminal) or prompts_wasm.go (browser).
+var passwordPromptFn func(msg string, noColor bool) (string, error)
+
 var resourceTagsPromptFn = func(noColor bool) (map[string]string, error) {
 	addTags := ConfirmPrompt("Would you like to add resource tags?", noColor)
 	if !addTags {
@@ -317,6 +321,14 @@ func DesignConfirmPrompt(resourceType string, details []BuyConfirmDetail, noColo
 	return fn(resourceType, details, noColor)
 }
 
+// PasswordPrompt asks the user for sensitive input with masked terminal echo.
+func PasswordPrompt(msg string, noColor bool) (string, error) {
+	promptFuncMu.RLock()
+	fn := passwordPromptFn
+	promptFuncMu.RUnlock()
+	return fn(msg, noColor)
+}
+
 // ResourcePrompt asks the user for resource-specific input.
 func ResourcePrompt(resourceType string, msg string, noColor bool) (string, error) {
 	promptFuncMu.RLock()
@@ -377,6 +389,12 @@ func GetDesignConfirmPrompt() func(string, []BuyConfirmDetail, bool) bool {
 	return designConfirmPromptFn
 }
 
+func GetPasswordPrompt() func(string, bool) (string, error) {
+	promptFuncMu.RLock()
+	defer promptFuncMu.RUnlock()
+	return passwordPromptFn
+}
+
 func GetResourcePrompt() func(string, string, bool) (string, error) {
 	promptFuncMu.RLock()
 	defer promptFuncMu.RUnlock()
@@ -425,6 +443,12 @@ func SetDesignConfirmPrompt(fn func(string, []BuyConfirmDetail, bool) bool) {
 	promptFuncMu.Lock()
 	defer promptFuncMu.Unlock()
 	designConfirmPromptFn = fn
+}
+
+func SetPasswordPrompt(fn func(string, bool) (string, error)) {
+	promptFuncMu.Lock()
+	defer promptFuncMu.Unlock()
+	passwordPromptFn = fn
 }
 
 func SetResourcePrompt(fn func(string, string, bool) (string, error)) {

@@ -3,6 +3,7 @@ package validation
 import (
 	"fmt"
 	"net"
+	"strings"
 )
 
 // IsValidationError checks if an error is an instance of ValidationError.
@@ -43,22 +44,24 @@ func ValidateIPv4(ip string, fieldName string) error {
 	if ip == "" {
 		return NewValidationError(fieldName, ip, "cannot be empty")
 	}
+	// net.ParseIP(...).To4() also succeeds for IPv4-mapped IPv6 forms
+	// (e.g. "::ffff:1.2.3.4"); reject anything carrying a colon.
 	parsedIP := net.ParseIP(ip)
-	if parsedIP == nil || parsedIP.To4() == nil {
+	if parsedIP == nil || parsedIP.To4() == nil || strings.Contains(ip, ":") {
 		return NewValidationError(fieldName, ip, "must be a valid IPv4 address")
 	}
 	return nil
 }
 
-// ValidateCIDR validates that a string is in valid CIDR notation.
-// Returns a ValidationError if the string is empty or not in valid CIDR format.
+// ValidateCIDR validates that a string is in valid IPv4 CIDR notation.
+// Returns a ValidationError if the string is empty or not a valid IPv4 CIDR.
 func ValidateCIDR(cidr string, fieldName string) error {
 	if cidr == "" {
 		return NewValidationError(fieldName, cidr, "cannot be empty")
 	}
-	_, _, err := net.ParseCIDR(cidr)
-	if err != nil {
-		return NewValidationError(fieldName, cidr, "must be a valid CIDR notation")
+	ip, _, err := net.ParseCIDR(cidr)
+	if err != nil || ip.To4() == nil || strings.Contains(cidr, ":") {
+		return NewValidationError(fieldName, cidr, "must be a valid IPv4 CIDR notation")
 	}
 	return nil
 }

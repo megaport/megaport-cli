@@ -12,53 +12,53 @@ import (
 
 // statusPortOutput represents a port in the status dashboard.
 type statusPortOutput struct {
-	output.Output `json:"-" header:"-"`
-	UID           string `json:"uid" header:"UID"`
-	Name          string `json:"name" header:"Name"`
-	Status        string `json:"status" header:"Status"`
-	Speed         int    `json:"speed" header:"Speed"`
-	LocationID    int    `json:"location_id" header:"Location ID"`
+	output.Output `json:"-" header:"-" xml:"-"`
+	UID           string `json:"uid" header:"UID" xml:"uid"`
+	Name          string `json:"name" header:"Name" xml:"name"`
+	Status        string `json:"status" header:"Status" xml:"status"`
+	Speed         int    `json:"speed" header:"Speed" xml:"speed"`
+	LocationID    int    `json:"location_id" header:"Location ID" xml:"location_id"`
 }
 
 // statusMCROutput represents an MCR in the status dashboard.
 type statusMCROutput struct {
-	output.Output `json:"-" header:"-"`
-	UID           string `json:"uid" header:"UID"`
-	Name          string `json:"name" header:"Name"`
-	Status        string `json:"status" header:"Status"`
-	Speed         int    `json:"speed" header:"Speed"`
-	ASN           int    `json:"asn" header:"ASN"`
+	output.Output `json:"-" header:"-" xml:"-"`
+	UID           string `json:"uid" header:"UID" xml:"uid"`
+	Name          string `json:"name" header:"Name" xml:"name"`
+	Status        string `json:"status" header:"Status" xml:"status"`
+	Speed         int    `json:"speed" header:"Speed" xml:"speed"`
+	ASN           int    `json:"asn" header:"ASN" xml:"asn"`
 }
 
 // statusMVEOutput represents an MVE in the status dashboard.
 type statusMVEOutput struct {
-	output.Output `json:"-" header:"-"`
-	UID           string `json:"uid" header:"UID"`
-	Name          string `json:"name" header:"Name"`
-	Status        string `json:"status" header:"Status"`
-	Vendor        string `json:"vendor" header:"Vendor"`
-	Size          string `json:"size" header:"Size"`
+	output.Output `json:"-" header:"-" xml:"-"`
+	UID           string `json:"uid" header:"UID" xml:"uid"`
+	Name          string `json:"name" header:"Name" xml:"name"`
+	Status        string `json:"status" header:"Status" xml:"status"`
+	Vendor        string `json:"vendor" header:"Vendor" xml:"vendor"`
+	Size          string `json:"size" header:"Size" xml:"size"`
 }
 
 // statusVXCOutput represents a VXC in the status dashboard.
 type statusVXCOutput struct {
-	output.Output `json:"-" header:"-"`
-	UID           string `json:"uid" header:"UID"`
-	Name          string `json:"name" header:"Name"`
-	Status        string `json:"status" header:"Status"`
-	RateLimit     int    `json:"rate_limit" header:"Rate Limit"`
-	AEndUID       string `json:"a_end_uid" header:"A-End UID"`
-	BEndUID       string `json:"b_end_uid" header:"B-End UID"`
+	output.Output `json:"-" header:"-" xml:"-"`
+	UID           string `json:"uid" header:"UID" xml:"uid"`
+	Name          string `json:"name" header:"Name" xml:"name"`
+	Status        string `json:"status" header:"Status" xml:"status"`
+	RateLimit     int    `json:"rate_limit" header:"Rate Limit" xml:"rate_limit"`
+	AEndUID       string `json:"a_end_uid" header:"A-End UID" xml:"a_end_uid"`
+	BEndUID       string `json:"b_end_uid" header:"B-End UID" xml:"b_end_uid"`
 }
 
 // statusIXOutput represents an IX in the status dashboard.
 type statusIXOutput struct {
-	output.Output `json:"-" header:"-"`
-	UID           string `json:"uid" header:"UID"`
-	Name          string `json:"name" header:"Name"`
-	Status        string `json:"status" header:"Status"`
-	ASN           int    `json:"asn" header:"ASN"`
-	RateLimit     int    `json:"rate_limit" header:"Rate Limit"`
+	output.Output `json:"-" header:"-" xml:"-"`
+	UID           string `json:"uid" header:"UID" xml:"uid"`
+	Name          string `json:"name" header:"Name" xml:"name"`
+	Status        string `json:"status" header:"Status" xml:"status"`
+	ASN           int    `json:"asn" header:"ASN" xml:"asn"`
+	RateLimit     int    `json:"rate_limit" header:"Rate Limit" xml:"rate_limit"`
 }
 
 // dashboardSummary holds resource counts.

@@ -8,6 +8,29 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestPrintUsers_XML(t *testing.T) {
+	users := []*megaport.User{
+		{
+			PartyId:   1,
+			FirstName: "Alice",
+			LastName:  "Smith",
+			Email:     "alice@example.com",
+			Position:  "Admin",
+			Active:    true,
+		},
+	}
+
+	out := op.CaptureOutput(func() {
+		err := printUsers(users, "xml", true)
+		assert.NoError(t, err)
+	})
+	assert.NotEmpty(t, out)
+	assert.Contains(t, out, "<items>")
+	assert.Contains(t, out, "<employee_id>")
+	assert.Contains(t, out, "Alice")
+	assert.Contains(t, out, "alice@example.com")
+}
+
 func TestToUserOutput_NilUser(t *testing.T) {
 	_, err := toUserOutput(nil)
 	assert.Error(t, err)

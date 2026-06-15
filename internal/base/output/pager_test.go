@@ -137,8 +137,10 @@ func TestRunWithPager_PropagatesFnError(t *testing.T) {
 func TestSetNoPager_RoundTrip(t *testing.T) {
 	SetNoPager(true)
 	assert.True(t, getNoPager())
+	assert.True(t, GetNoPager())
 	SetNoPager(false)
 	assert.False(t, getNoPager())
+	assert.False(t, GetNoPager())
 }
 
 // TestSetConfig_NoPager covers the NoPager field of SetConfig on native
@@ -149,10 +151,10 @@ func TestSetNoPager_RoundTrip(t *testing.T) {
 func TestSetConfig_NoPager(t *testing.T) {
 	t.Cleanup(ResetState)
 
-	SetConfig(OutputConfig{NoPager: true})
+	ApplyOutputConfig(OutputConfig{NoPager: true})
 	assert.True(t, GetNoPager())
 
-	SetConfig(OutputConfig{NoPager: false})
+	ApplyOutputConfig(OutputConfig{NoPager: false})
 	assert.False(t, GetNoPager())
 }
 
