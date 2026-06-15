@@ -217,6 +217,47 @@ func TestGetBillingMarketsAction_Empty(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetBillingMarketsAction_NilEntriesSkipped(t *testing.T) {
+	mockSvc := &MockBillingMarketService{
+		GetBillingMarketsResult: []*megaport.BillingMarket{nil, mockBillingMarkets[0], nil},
+	}
+
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.BillingMarketService = mockSvc
+	})
+	defer cleanup()
+
+	cmd := &cobra.Command{Use: "get"}
+
+	assert.NotPanics(t, func() {
+		out := output.CaptureOutput(func() {
+			err := GetBillingMarkets(cmd, []string{}, true, "json")
+			assert.NoError(t, err)
+		})
+		assert.Contains(t, out, "Megaport US")
+	})
+}
+
+func TestGetBillingMarketsAction_AllNilWarns(t *testing.T) {
+	mockSvc := &MockBillingMarketService{
+		GetBillingMarketsResult: []*megaport.BillingMarket{nil, nil},
+	}
+
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.BillingMarketService = mockSvc
+	})
+	defer cleanup()
+
+	cmd := &cobra.Command{Use: "get"}
+
+	out := output.CaptureOutput(func() {
+		err := GetBillingMarkets(cmd, []string{}, true, "table")
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, out, "No billing markets found")
+}
+
 func TestSetBillingMarketAction(t *testing.T) {
 	mockSvc := &MockBillingMarketService{}
 

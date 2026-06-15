@@ -230,7 +230,7 @@ func TestVerbosePrintVerboseWithJSONFormat(t *testing.T) {
 	resetVerbosity(t)
 	SetVerbosity("verbose")
 
-	oldFormat := getOutputFormat()
+	oldFormat := GetOutputFormat()
 	SetOutputFormat("json")
 	defer SetOutputFormat(oldFormat)
 
@@ -263,7 +263,7 @@ func TestPrintNewlineWritesToStdout(t *testing.T) {
 func TestPrintNewlineWithJSONFormat(t *testing.T) {
 	resetVerbosity(t)
 
-	oldFormat := getOutputFormat()
+	oldFormat := GetOutputFormat()
 	SetOutputFormat("json")
 	defer SetOutputFormat(oldFormat)
 
@@ -299,7 +299,7 @@ func TestPrintPlainWritesToStdout(t *testing.T) {
 func TestPrintPlainWithJSONFormat(t *testing.T) {
 	resetVerbosity(t)
 
-	oldFormat := getOutputFormat()
+	oldFormat := GetOutputFormat()
 	SetOutputFormat("json")
 	defer SetOutputFormat(oldFormat)
 

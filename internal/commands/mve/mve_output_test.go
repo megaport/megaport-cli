@@ -8,6 +8,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestPrintMVEs_XML(t *testing.T) {
+	out := op.CaptureOutput(func() {
+		err := printMVEs(testMVEs, "xml", noColor)
+		assert.NoError(t, err)
+	})
+	assert.NotEmpty(t, out)
+	assert.Contains(t, out, "<items>")
+	assert.Contains(t, out, "<uid>")
+	assert.Contains(t, out, "mve-1")
+	assert.Contains(t, out, "MyMVEOne")
+}
+
 func TestToMVEOutput_NilMVE(t *testing.T) {
 	_, err := toMVEOutput(nil)
 	assert.Error(t, err)

@@ -8,6 +8,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestPrintMCRs_XML(t *testing.T) {
+	out := op.CaptureOutput(func() {
+		err := printMCRs(testMCRs, "xml", noColor)
+		assert.NoError(t, err)
+	})
+	assert.NotEmpty(t, out)
+	assert.Contains(t, out, "<items>")
+	assert.Contains(t, out, "<uid>")
+	assert.Contains(t, out, "mcr-1")
+	assert.Contains(t, out, "MyMCROne")
+}
+
 func TestToMCROutput_NilMCR(t *testing.T) {
 	_, err := toMCROutput(nil)
 	assert.Error(t, err)

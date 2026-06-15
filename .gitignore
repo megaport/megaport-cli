@@ -24,6 +24,8 @@ node_modules/
 web/node_modules/
 package-lock.json
 web/package-lock.json
+# Committed so browser/WASM builds resolve identical dependency versions via npm ci.
+!frontend-integration/package-lock.json
 
 # Go build artifacts
 /megaport-cli
@@ -60,3 +62,4 @@ Thumbs.db
 
 # Claude Code
 .claude/
+/server

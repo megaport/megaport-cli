@@ -74,7 +74,8 @@ var (
 	// is not one of the three standard Megaport auth hosts. Set via --token-url flag.
 	TokenURL string
 
-	ValidFormats = []string{FormatTable, FormatJSON, FormatCSV, FormatXML, FormatGoTemplate}
+	ValidFormats     = []string{FormatTable, FormatJSON, FormatCSV, FormatXML, FormatGoTemplate}
+	ValidFormatsWASM = []string{FormatTable, FormatJSON, FormatCSV, FormatXML}
 )
 
 func ShouldDisableColors() bool {

@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	megaport "github.com/megaport/megaportgo"
@@ -62,6 +63,55 @@ func TestValidateBGPConnectionConfig(t *testing.T) {
 			wantErr: true,
 			errText: "Invalid vRouter interface [0] BGP connection [0] peer ASN: <nil> - is required",
 		},
+		// ASN boundary cases. Valid ASNs are 1-4294967295; the min, zero, and
+		// negative are covered here. The 32-bit-max boundaries use values that
+		// overflow int on 32-bit targets, so they live in a separate test.
+		{
+			name: "ASN 1 (min non-zero)",
+			conn: megaport.BgpConnectionConfig{
+				PeerAsn:        1,
+				LocalIpAddress: "192.168.1.1",
+				PeerIpAddress:  "192.168.1.2",
+			},
+			wantErr: false,
+		},
+		{
+			name: "ASN 65535 (16-bit max)",
+			conn: megaport.BgpConnectionConfig{
+				PeerAsn:        65535,
+				LocalIpAddress: "192.168.1.1",
+				PeerIpAddress:  "192.168.1.2",
+			},
+			wantErr: false,
+		},
+		{
+			name: "ASN 64512 (private range low)",
+			conn: megaport.BgpConnectionConfig{
+				PeerAsn:        64512,
+				LocalIpAddress: "192.168.1.1",
+				PeerIpAddress:  "192.168.1.2",
+			},
+			wantErr: false,
+		},
+		{
+			name: "ASN 65534 (private range high)",
+			conn: megaport.BgpConnectionConfig{
+				PeerAsn:        65534,
+				LocalIpAddress: "192.168.1.1",
+				PeerIpAddress:  "192.168.1.2",
+			},
+			wantErr: false,
+		},
+		{
+			name: "ASN negative rejected",
+			conn: megaport.BgpConnectionConfig{
+				PeerAsn:        -1,
+				LocalIpAddress: "192.168.1.1",
+				PeerIpAddress:  "192.168.1.2",
+			},
+			wantErr: true,
+			errText: "Invalid vRouter interface [0] BGP connection [0] peer ASN: -1 - must be between 1-4294967295",
+		},
 		{
 			name: "Invalid peer IP",
 			conn: megaport.BgpConnectionConfig{
@@ -110,6 +160,48 @@ func TestValidateBGPConnectionConfig(t *testing.T) {
 	}
 }
 
+// The 32-bit-max ASN boundaries (max valid and max+1) use values that overflow
+// int on 32-bit targets like js/wasm, so they can't live as constants in the
+// main table. Build them at runtime and skip where int is too narrow.
+func TestValidateBGPConnectionConfig_HighASN(t *testing.T) {
+	if int64(math.MaxInt) < int64(math.MaxUint32) {
+		t.Skip("int is narrower than the 32-bit ASN range on this platform")
+	}
+	// Convert from a variable so these are runtime conversions, not constant
+	// conversions that would overflow int at compile time on 32-bit targets.
+	max64 := MaxASN
+	maxValid := int(max64)     // 4294967295
+	aboveMax := int(max64) + 1 // 4294967296
+	tests := []struct {
+		name    string
+		peerAsn int
+		wantErr bool
+		errText string
+	}{
+		{"ASN 4294967295 (32-bit max)", maxValid, false, ""},
+		{"ASN above 32-bit max rejected", aboveMax, true,
+			fmt.Sprintf("Invalid vRouter interface [0] BGP connection [0] peer ASN: %d - must be between 1-4294967295", aboveMax)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conn := megaport.BgpConnectionConfig{
+				PeerAsn:        tt.peerAsn,
+				LocalIpAddress: "192.168.1.1",
+				PeerIpAddress:  "192.168.1.2",
+			}
+			err := ValidateBGPConnectionConfig(conn, 0, 0)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateBGPConnectionConfig() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.IsType(t, &ValidationError{}, err)
+				assert.Equal(t, tt.errText, err.Error())
+			}
+		})
+	}
+}
+
 func TestValidateIPRouteConfig(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -132,7 +224,7 @@ func TestValidateIPRouteConfig(t *testing.T) {
 				NextHop: "192.168.1.1",
 			},
 			wantErr: true,
-			errText: "Invalid vRouter interface [0] IP route [0] prefix: 10.0.0.0 - must be a valid CIDR notation",
+			errText: "Invalid vRouter interface [0] IP route [0] prefix: 10.0.0.0 - must be a valid IPv4 CIDR notation",
 		},
 		{
 			name: "Invalid next hop",
@@ -427,6 +519,20 @@ func TestValidateAWSPartnerConfig(t *testing.T) {
 			wantErr:           false,
 		},
 		{
+			name:              "AWS ASN out of range",
+			connectType:       "private",
+			ownerAccount:      "123456789012",
+			asn:               -1,
+			amazonAsn:         64512,
+			authKey:           "authkey123",
+			customerIPAddress: "192.168.1.1/30",
+			amazonIPAddress:   "192.168.1.2/30",
+			awsName:           "MyAWSConnection",
+			awsType:           "private",
+			wantErr:           true,
+			errText:           "Invalid ASN: -1 - must be between 1-4294967295",
+		},
+		{
 			name:              "Valid AWSHC config",
 			connectType:       "public",
 			ownerAccount:      "123456789012",
@@ -468,7 +574,7 @@ func TestValidateAWSPartnerConfig(t *testing.T) {
 			asn:               65000,
 			customerIPAddress: "invalid-ip",
 			wantErr:           true,
-			errText:           "Invalid AWS customer IP address: invalid-ip - must be a valid CIDR notation", // Updated error message
+			errText:           "Invalid AWS customer IP address: invalid-ip - must be a valid IPv4 CIDR notation", // Updated error message
 		},
 		{
 			name:            "Invalid Amazon IP CIDR",
@@ -477,7 +583,7 @@ func TestValidateAWSPartnerConfig(t *testing.T) {
 			asn:             65000,
 			amazonIPAddress: "192.168.1.2/33", // Invalid mask
 			wantErr:         true,
-			errText:         "Invalid AWS Amazon IP address: 192.168.1.2/33 - must be a valid CIDR notation", // Updated error message
+			errText:         "Invalid AWS Amazon IP address: 192.168.1.2/33 - must be a valid IPv4 CIDR notation", // Updated error message
 		},
 		{
 			name:         "AWS name too long",
@@ -646,14 +752,14 @@ func TestValidateIBMPartnerConfig(t *testing.T) {
 			accountID:         validAccountID,
 			customerIPAddress: "invalid-ip",
 			wantErr:           true,
-			errText:           "Invalid IBM customer IP address: invalid-ip - must be a valid CIDR notation",
+			errText:           "Invalid IBM customer IP address: invalid-ip - must be a valid IPv4 CIDR notation",
 		},
 		{
 			name:              "Invalid provider IP",
 			accountID:         validAccountID,
 			providerIPAddress: "10.1.1.2/33", // Invalid mask
 			wantErr:           true,
-			errText:           "Invalid IBM provider IP address: 10.1.1.2/33 - must be a valid CIDR notation",
+			errText:           "Invalid IBM provider IP address: 10.1.1.2/33 - must be a valid IPv4 CIDR notation",
 		},
 	}
 

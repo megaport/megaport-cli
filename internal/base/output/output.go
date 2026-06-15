@@ -13,8 +13,8 @@ import (
 	"text/template"
 )
 
-func printGoTemplate[T OutputFields](data []T) error {
-	tmplStr := GetTemplateString()
+func printGoTemplate[T OutputFields](data []T, opts printOptions) error {
+	tmplStr := opts.template
 	funcMap := template.FuncMap{
 		"join":  strings.Join,
 		"upper": strings.ToUpper,
@@ -32,12 +32,12 @@ func printGoTemplate[T OutputFields](data []T) error {
 	return tmpl.Execute(os.Stdout, data)
 }
 
-func printJSON[T OutputFields](data []T) error {
+func printJSON[T OutputFields](data []T, opts printOptions) error {
 	if data == nil {
 		data = []T{}
 	}
 
-	toEncode, err := prepareJSONData(data)
+	toEncode, err := prepareJSONData(data, opts)
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func calculateColumnWidths(rows [][]string) []int {
 	return colWidths
 }
 
-func printCSV[T OutputFields](data []T) error {
+func printCSV[T OutputFields](data []T, opts printOptions) error {
 	w := csv.NewWriter(os.Stdout)
 	defer w.Flush()
 
@@ -71,7 +71,7 @@ func printCSV[T OutputFields](data []T) error {
 	if err != nil {
 		return err
 	}
-	if csvFields := getOutputFields(); len(csvFields) > 0 {
+	if csvFields := opts.fields; len(csvFields) > 0 {
 		headers, _, fieldIndices, err = filterByFields(headers, jsonNames, fieldIndices, csvFields)
 		if err != nil {
 			return err
@@ -80,7 +80,7 @@ func printCSV[T OutputFields](data []T) error {
 	if len(headers) == 0 {
 		return nil
 	}
-	if !getNoHeader() {
+	if !opts.noHeader {
 		if err := w.Write(headers); err != nil {
 			return err
 		}
@@ -97,7 +97,7 @@ func printCSV[T OutputFields](data []T) error {
 	return nil
 }
 
-func printXML[T OutputFields](data []T) error {
+func printXML[T OutputFields](data []T, opts printOptions) error {
 	if data == nil {
 		data = []T{}
 	}
@@ -113,7 +113,7 @@ func printXML[T OutputFields](data []T) error {
 		return nil
 	}
 
-	if xmlFields := getOutputFields(); len(xmlFields) > 0 {
+	if xmlFields := opts.fields; len(xmlFields) > 0 {
 		_, jsonNames, fieldIndices, err = filterByFields(headers, jsonNames, fieldIndices, xmlFields)
 		if err != nil {
 			return err
