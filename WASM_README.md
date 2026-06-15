@@ -106,6 +106,51 @@ docker rm megaport-cli-wasm
 ./deploy.sh
 ```
 
+## Static Build (CDN Hosting)
+
+The Docker flow above runs a Go server that does more than serve files — it
+also handles the login/session endpoints and proxies API calls (see
+`cmd/server/server.go`). To host the browser CLI on a CDN (S3 + CloudFront)
+instead, build just the static front-end assets and sync the output dir:
+
+```bash
+make web-static          # or: ./scripts/build-web.sh
+```
+
+Needs the Go toolchain and Node/npm on `PATH` — the build compiles the WASM
+binary and bundles the Vue front end.
+
+This produces a self-contained **`web/vue-demo/`** directory (Vue build +
+`megaport.wasm` + `wasm_exec.js`). Publish it with:
+
+```bash
+aws s3 sync web/vue-demo/ s3://<bucket>/<prefix>/ --delete
+```
+
+`--delete` prunes stale hashed assets from old builds, so point it at a prefix
+dedicated to this site — it removes anything else under that prefix.
+
+### Notes for the CDN/S3 side
+
+- A static deployment serves the **front-end assets only**. It does not include
+  the login/session and API-proxy endpoints that the Docker server provides, so
+  the auth/API path for a server-less deployment has to be handled separately
+  (out of scope here — see the infra ticket).
+- The build assumes the app is served from the **site root**. The demo's vite
+  config doesn't set `base`, so the bundled `assets/` resolve from root. Serving
+  under a path (e.g. `media.megaport.com/cli/`) needs source changes, not just
+  config: setting `base` in `frontend-integration/vite.demo.config.ts` would
+  rewrite the bundled `assets/`, but `megaport.wasm` and `wasm_exec.js` are
+  fetched from hardcoded absolute paths (`wasm-path`/`wasm-exec-path` in
+  `frontend-integration/demo/App.vue`) and would still 404. Confirm root
+  hosting, or budget for those edits.
+- `megaport.wasm` is ~32 MB uncompressed — serve it compressed (brotli `-q11`
+  gets it to ~4.7 MB over the wire, gzip `-9` ~6.8 MB). S3 must set
+  `Content-Type: application/wasm` explicitly; it won't be inferred.
+- The wasm file keeps a fixed name (it isn't content-hashed like vite's
+  `assets/`), so invalidate it on every deploy. Serve `index.html` `no-cache`;
+  the hashed files under `assets/` can cache long/immutable.
+
 ## Configuration
 
 ### Environment Variables

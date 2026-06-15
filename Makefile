@@ -1,4 +1,4 @@
-.PHONY: build test test-cover test-cover-html test-integration test-integration-readonly e2e lint fmt vet check clean wasm
+.PHONY: build test test-cover test-cover-html test-integration test-integration-readonly e2e lint fmt vet check clean wasm web-static
 
 # Build the CLI binary
 build:
@@ -66,6 +66,10 @@ check: lint test
 wasm:
 	GOOS=js GOARCH=wasm go build -trimpath -tags js,wasm -ldflags="-s -w" -o web/megaport.wasm .
 
+# Build the static browser/WASM site into web/vue-demo/ (for CDN hosting)
+web-static:
+	./scripts/build-web.sh
+
 # Clean build artifacts
 clean:
-	rm -f megaport-cli cover*.out coverage*.out coverage.html web/megaport.wasm
+	rm -f megaport-cli cover*.out coverage*.out coverage.html web/megaport.wasm web/vue-demo/megaport.wasm
