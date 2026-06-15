@@ -46,7 +46,7 @@ func TestPrintJSON_WASM(t *testing.T) {
 	js.Global().Delete("wasmJSONOutput")
 
 	// Print JSON
-	err := printJSON(data)
+	err := printJSON(data, currentPrintOptions())
 	assert.NoError(t, err)
 
 	// Verify buffer has content
@@ -74,7 +74,7 @@ func TestPrintJSON_WASM_EmptyData(t *testing.T) {
 
 	WasmJSONWriter.Reset()
 
-	err := printJSON(data)
+	err := printJSON(data, currentPrintOptions())
 	assert.NoError(t, err)
 
 	output := WasmJSONWriter.String()
@@ -96,7 +96,7 @@ func TestPrintJSON_WASM_ComplexData(t *testing.T) {
 
 	WasmJSONWriter.Reset()
 
-	err := printJSON(data)
+	err := printJSON(data, currentPrintOptions())
 	assert.NoError(t, err)
 
 	output := WasmJSONWriter.String()
@@ -118,7 +118,7 @@ func TestPrintCSV_WASM(t *testing.T) {
 	js.Global().Delete("wasmCSVOutput")
 
 	// Print CSV
-	err := printCSV(data)
+	err := printCSV(data, currentPrintOptions())
 	assert.NoError(t, err)
 
 	// Verify buffer has content
@@ -139,7 +139,7 @@ func TestPrintCSV_WASM_EmptyData(t *testing.T) {
 
 	WasmCSVWriter.Reset()
 
-	err := printCSV(data)
+	err := printCSV(data, currentPrintOptions())
 	assert.NoError(t, err)
 
 	output := WasmCSVWriter.String()
@@ -155,7 +155,7 @@ func TestPrintCSV_WASM_SpecialCharacters(t *testing.T) {
 
 	WasmCSVWriter.Reset()
 
-	err := printCSV(data)
+	err := printCSV(data, currentPrintOptions())
 	assert.NoError(t, err)
 
 	output := WasmCSVWriter.String()
@@ -334,16 +334,16 @@ func TestConsoleLogging(t *testing.T) {
 	// All print functions should handle console.log gracefully
 	assert.NotPanics(t, func() {
 		WasmJSONWriter.Reset()
-		_ = printJSON(data)
+		_ = printJSON(data, currentPrintOptions())
 	})
 
 	assert.NotPanics(t, func() {
 		WasmCSVWriter.Reset()
-		_ = printCSV(data)
+		_ = printCSV(data, currentPrintOptions())
 	})
 
 	assert.NotPanics(t, func() {
 		WasmTableWriter.Reset()
-		_ = printTable(data, false)
+		_ = printTable(data, false, currentPrintOptions())
 	})
 }

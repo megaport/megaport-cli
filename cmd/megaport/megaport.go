@@ -31,9 +31,6 @@ func init() {
 			noColor = true
 			_ = cmd.Flags().Set("no-color", "true")
 		}
-		output.SetNoHeader(noHeader)
-		output.SetNoPager(noPager)
-
 		format := strings.ToLower(outputFormat)
 		validFmt := false
 		for _, vf := range utils.ValidFormats {
@@ -48,14 +45,18 @@ func init() {
 		}
 		output.SetOutputFormat(format)
 
-		// Set verbosity level based on flags
+		verbosity := "normal"
 		if quiet {
-			output.SetVerbosity("quiet")
+			verbosity = "quiet"
 		} else if verbose {
-			output.SetVerbosity("verbose")
-		} else {
-			output.SetVerbosity("normal")
+			verbosity = "verbose"
 		}
+		cfg := output.GetOutputConfig()
+		cfg.NoHeader = noHeader
+		cfg.NoPager = noPager
+		cfg.Verbosity = verbosity
+		cfg.Format = format // normalized to lower-case above
+		output.ApplyOutputConfig(cfg)
 
 		// Emit config-default warnings now that output format and verbosity are
 		// configured, so PrintWarning routes to stderr under --output json and
