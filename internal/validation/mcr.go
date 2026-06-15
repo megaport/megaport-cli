@@ -37,6 +37,24 @@ func ValidateIPSecTunnelCount(count int, allowZeroDisable bool) error {
 	return fmt.Errorf("invalid IPSec tunnel count %d: must be %s (0 uses the API default of 10)", count, validStr)
 }
 
+// MCR BGP ASN bounds. The lower bound rejects 0/negatives; the upper bound is
+// the maximum 32-bit ASN. Private ASNs (64512-65534) and public ASNs both fall
+// within this range, so the check only catches values that are out of range
+// entirely, leaving assignment policy to the API.
+const (
+	MinASN int64 = 1
+	MaxASN int64 = 4294967295
+)
+
+// ValidateMCRASN validates an explicit BGP ASN for an MCR. The argument is taken
+// as int64 so a full 32-bit ASN is compared safely regardless of platform int width.
+func ValidateMCRASN(asn int64) error {
+	if asn < MinASN || asn > MaxASN {
+		return NewValidationError("MCR ASN", asn, fmt.Sprintf("must be between %d and %d", MinASN, MaxASN))
+	}
+	return nil
+}
+
 // ValidateMCRRequest validates a request to buy/provision a new MCR (Megaport Cloud Router).
 // This function ensures all parameters meet the requirements for creating a new MCR.
 //
@@ -64,6 +82,12 @@ func ValidateMCRRequest(req *megaport.BuyMCRRequest) error {
 	}
 	if req.LocationID <= 0 {
 		return NewValidationError("location ID", req.LocationID, "must be a positive integer")
+	}
+	// ASN is optional on buy; 0 means "let the API assign a private ASN".
+	if req.MCRAsn != 0 {
+		if err := ValidateMCRASN(int64(req.MCRAsn)); err != nil {
+			return err
+		}
 	}
 	return nil
 }

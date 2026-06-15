@@ -124,6 +124,9 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 		if err != nil {
 			return nil, fmt.Errorf("invalid ASN: %w", err)
 		}
+		if err := validation.ValidateMCRASN(int64(asn)); err != nil {
+			return nil, err
+		}
 		req.MCRAsn = &asn
 		fieldsUpdated = true
 	}

@@ -171,8 +171,13 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 		}
 	}
 
-	if _, provided := jsonMap["mcrAsn"]; provided && req.MCRAsn == nil {
-		return nil, fmt.Errorf("invalid MCR ASN: null value")
+	if _, provided := jsonMap["mcrAsn"]; provided {
+		if req.MCRAsn == nil {
+			return nil, fmt.Errorf("invalid MCR ASN: null value")
+		}
+		if err := validation.ValidateMCRASN(int64(*req.MCRAsn)); err != nil {
+			return nil, err
+		}
 	}
 
 	return req, nil
@@ -221,6 +226,9 @@ func processFlagUpdateMCRInput(cmd *cobra.Command, mcrUID string) (*megaport.Mod
 
 	if mcrAsnSet {
 		asn, _ := cmd.Flags().GetInt("mcr-asn")
+		if err := validation.ValidateMCRASN(int64(asn)); err != nil {
+			return nil, err
+		}
 		req.MCRAsn = &asn
 	}
 
