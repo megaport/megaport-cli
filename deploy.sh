@@ -74,14 +74,14 @@ fi
 echo "🚀 Starting container..."
 docker run -d \
     --name megaport-cli-wasm \
-    -p 8080:8080 \
+    -p "127.0.0.1:${PORT:-8080}:8080" \
     megaport-cli-wasm:latest
 
 echo ""
 echo "✅ Deployment successful!"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🌐 Access the Vue 3 CLI at: http://localhost:8080"
+echo "🌐 Access the Vue 3 CLI at: http://localhost:${PORT:-8080}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "📦 Frontend Build Info:"
@@ -97,7 +97,7 @@ echo "  🛑 Stop:             docker stop megaport-cli-wasm"
 echo "  🗑️  Remove:           docker rm megaport-cli-wasm"
 echo ""
 echo "To login:"
-echo "  1. Open http://localhost:8080 in your browser"
+echo "  1. Open http://localhost:${PORT:-8080} in your browser"
 echo "  2. Click 'Login' to authenticate with Megaport"
 echo "  3. Start using the CLI in your browser!"
 echo ""

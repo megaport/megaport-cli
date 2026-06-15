@@ -210,6 +210,8 @@ go build -o server ./cmd/server/server.go
 ./server --port 8080 --dir web --session-duration 1h
 ```
 
+The server binds `127.0.0.1` by default. To expose it on other interfaces (e.g. inside a container), pass `--bind 0.0.0.0`.
+
 ## Publishing to the Portal
 
 The Portal loads the WASM binary from `s3://media.megaport.com/portal/megaport-cli/`. Publishing is currently manual.
