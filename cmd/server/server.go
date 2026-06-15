@@ -18,15 +18,6 @@ import (
 	"github.com/megaport/megaport-cli/internal/server"
 )
 
-// isAllowedProxyHost validates that the proxy target is a Megaport API host.
-func isAllowedProxyHost(host string) bool {
-	host = strings.ToLower(strings.TrimSpace(host))
-	return host == "api.megaport.com" ||
-		host == "api-staging.megaport.com" ||
-		host == "api-mpone-dev.megaport.com" ||
-		strings.HasSuffix(host, ".megaport.com")
-}
-
 // isAllowedOrigin checks whether the CORS origin is from localhost.
 func isAllowedOrigin(origin string) bool {
 	if origin == "" {
@@ -204,9 +195,6 @@ func main() {
 		authenticatedProxyHandler(w, r, srv)
 	}))
 
-	// Unauthenticated proxy for Megaport API hosts (SSRF-guarded)
-	http.HandleFunc("/proxy/", withSecurityHeaders(proxyHandler))
-
 	// Static file server for everything else
 	fs := http.FileServer(http.Dir(*webDir))
 	http.Handle("/", withSecurityHeaders(addCorsHeaders(fs)))
@@ -332,94 +320,10 @@ func authenticatedProxyHandler(w http.ResponseWriter, r *http.Request, srv *serv
 	}
 }
 
-func proxyHandler(w http.ResponseWriter, r *http.Request) {
-	// Extract the target host from query parameter
-	targetHost := r.URL.Query().Get("base")
-	if targetHost == "" {
-		http.Error(w, "Missing 'base' query parameter", http.StatusBadRequest)
-		return
-	}
-
-	// Validate target host against allowlist to prevent SSRF
-	if !isAllowedProxyHost(targetHost) {
-		log.Printf("Rejected proxy request to disallowed host: %s", targetHost)
-		http.Error(w, "Forbidden: proxy target must be a *.megaport.com host", http.StatusForbidden)
-		return
-	}
-
-	// Extract the path after /proxy/
-	path := strings.TrimPrefix(r.URL.Path, "/proxy/")
-
-	// Build the target URL with query parameters (excluding 'base')
-	targetURL := "https://" + targetHost + "/" + path
-
-	// Forward all query parameters except 'base'
-	query := r.URL.Query()
-	query.Del("base")
-	if len(query) > 0 {
-		targetURL += "?" + query.Encode()
-	}
-
-	log.Printf("Proxying %s request to: %s", r.Method, targetURL)
-
-	// Create new request
-	proxyReq, err := http.NewRequest(r.Method, targetURL, r.Body)
-	if err != nil {
-		log.Printf("Failed to create proxy request for %s %s: %v", r.Method, targetURL, err)
-		http.Error(w, "Failed to create proxy request", http.StatusInternalServerError)
-		return
-	}
-
-	// Copy headers from original request (except Host)
-	for key, values := range r.Header {
-		if key != "Host" {
-			for _, value := range values {
-				proxyReq.Header.Add(key, value)
-			}
-		}
-	}
-
-	// Set proper Content-Type for OAuth requests
-	if proxyReq.Header.Get("Content-Type") == "" && r.Method == "POST" {
-		proxyReq.Header.Set("Content-Type", "application/json")
-	}
-
-	// Make the request using optimized client with connection pooling
-	resp, err := optimizedHTTPClient.Do(proxyReq)
-	if err != nil {
-		log.Printf("Proxy request failed: %v", err)
-		http.Error(w, "Proxy request failed", http.StatusBadGateway)
-		return
-	}
-	defer resp.Body.Close()
-
-	// Copy response headers before writing status
-	for key, values := range resp.Header {
-		for _, value := range values {
-			w.Header().Add(key, value)
-		}
-	}
-
-	// Add CORS headers and re-apply security headers after upstream header copy
-	// to ensure upstream cannot override our security policy
-	setCORSHeaders(w, r, "Content-Type, Authorization")
-	setSecurityHeaders(w)
-
-	// Write status code
-	w.WriteHeader(resp.StatusCode)
-
-	// Stream response body to client, counting bytes for logging
-	bytesCopied, err := io.Copy(w, resp.Body)
-	if err != nil {
-		log.Printf("Error streaming response body: %v", err)
-	}
-	log.Printf("Proxy response status: %d, body size: %d bytes", resp.StatusCode, bytesCopied)
-}
-
 // hashedWasmRe matches the content-hashed wasm name wasmhash produces
-// (megaport.<16 hex>.wasm), so only that artifact is served immutable and a
-// plain megaport.wasm is not.
-var hashedWasmRe = regexp.MustCompile(`\.[0-9a-f]{16}\.wasm$`)
+// (megaport.<16 hex>.wasm) and its precompressed .br/.gz siblings, so only
+// those artifacts are served immutable and a plain megaport.wasm is not.
+var hashedWasmRe = regexp.MustCompile(`\.[0-9a-f]{16}\.wasm(\.(br|gz))?$`)
 
 func addCorsHeaders(fs http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
