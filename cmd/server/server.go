@@ -204,6 +204,9 @@ func main() {
 		authenticatedProxyHandler(w, r, srv)
 	}))
 
+	// Unauthenticated proxy for Megaport API hosts (SSRF-guarded)
+	http.HandleFunc("/proxy/", withSecurityHeaders(proxyHandler))
+
 	// Static file server for everything else
 	fs := http.FileServer(http.Dir(*webDir))
 	http.Handle("/", withSecurityHeaders(addCorsHeaders(fs)))
