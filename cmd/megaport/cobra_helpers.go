@@ -10,17 +10,23 @@ import (
 // WASM invocation would appear as "Changed" in subsequent invocations even
 // when the user did not supply them.
 func resetAllFlags(cmd *cobra.Command) {
-	cmd.Flags().VisitAll(func(f *pflag.Flag) {
-		_ = f.Value.Set(f.DefValue)
-		f.Changed = false
-	})
-	cmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
-		_ = f.Value.Set(f.DefValue)
-		f.Changed = false
-	})
+	cmd.Flags().VisitAll(resetFlag)
+	cmd.PersistentFlags().VisitAll(resetFlag)
 	for _, subCmd := range cmd.Commands() {
 		resetAllFlags(subCmd)
 	}
+}
+
+// resetFlag restores a single flag to its default. Slice/array flags need
+// Replace: their DefValue stringifies to "[]" and Set appends, so re-Setting
+// DefValue would inject a literal "[]" element instead of clearing them.
+func resetFlag(f *pflag.Flag) {
+	if sv, ok := f.Value.(pflag.SliceValue); ok {
+		_ = sv.Replace([]string{})
+	} else {
+		_ = f.Value.Set(f.DefValue)
+	}
+	f.Changed = false
 }
 
 // enableTraversalForAllCommands enables subcommand traversal on all commands

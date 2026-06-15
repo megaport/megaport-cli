@@ -36,6 +36,10 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage"
   },
+  "engines": {
+    "node": ">=20",
+    "npm": ">=9"
+  },
   "peerDependencies": {
     "vue": "^3.3.0"
   },

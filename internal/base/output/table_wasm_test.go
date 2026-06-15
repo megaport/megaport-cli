@@ -45,7 +45,7 @@ func TestPrintTable_WASM(t *testing.T) {
 	js.Global().Delete("wasmTableOutput")
 
 	// Print table
-	err := printTable(data, false)
+	err := printTable(data, false, currentPrintOptions())
 	assert.NoError(t, err)
 
 	// Verify buffer has content
@@ -72,7 +72,7 @@ func TestPrintTable_WASM_NoColor(t *testing.T) {
 	WasmTableWriter.Reset()
 
 	// Print with noColor=true
-	err := printTable(data, true)
+	err := printTable(data, true, currentPrintOptions())
 	assert.NoError(t, err)
 
 	output := WasmTableWriter.String()
@@ -93,7 +93,7 @@ func TestPrintTable_WASM_WithColor(t *testing.T) {
 	WasmTableWriter.Reset()
 
 	// Print with noColor=false (colors enabled)
-	err := printTable(data, false)
+	err := printTable(data, false, currentPrintOptions())
 	assert.NoError(t, err)
 
 	output := WasmTableWriter.String()
@@ -110,7 +110,7 @@ func TestPrintTable_WASM_EmptyData(t *testing.T) {
 
 	WasmTableWriter.Reset()
 
-	err := printTable(data, false)
+	err := printTable(data, false, currentPrintOptions())
 	assert.NoError(t, err)
 
 	output := WasmTableWriter.String()
@@ -135,7 +135,7 @@ func TestPrintTable_WASM_ComplexData(t *testing.T) {
 
 	WasmTableWriter.Reset()
 
-	err := printTable(data, false)
+	err := printTable(data, false, currentPrintOptions())
 	assert.NoError(t, err)
 
 	output := WasmTableWriter.String()
@@ -205,7 +205,7 @@ func TestPrintTable_WASM_ColumnWidths(t *testing.T) {
 
 	WasmTableWriter.Reset()
 
-	err := printTable(data, false)
+	err := printTable(data, false, currentPrintOptions())
 	assert.NoError(t, err)
 
 	output := WasmTableWriter.String()
@@ -228,7 +228,7 @@ func TestPrintTable_WASM_BoxDrawing(t *testing.T) {
 
 	WasmTableWriter.Reset()
 
-	err := printTable(data, false)
+	err := printTable(data, false, currentPrintOptions())
 	assert.NoError(t, err)
 
 	output := WasmTableWriter.String()
@@ -253,7 +253,7 @@ func TestPrintTable_WASM_HeaderFormatting(t *testing.T) {
 
 	WasmTableWriter.Reset()
 
-	err := printTable(data, false)
+	err := printTable(data, false, currentPrintOptions())
 	assert.NoError(t, err)
 
 	output := WasmTableWriter.String()
@@ -286,7 +286,7 @@ func TestPrintTable_WASM_GlobalVariable(t *testing.T) {
 	WasmTableWriter.Reset()
 
 	// Print table
-	err := printTable(data, false)
+	err := printTable(data, false, currentPrintOptions())
 	assert.NoError(t, err)
 
 	// Verify global is set
@@ -310,7 +310,7 @@ func TestPrintTable_WASM_ConsoleLogging(t *testing.T) {
 
 	// This should not panic or error even with console.log calls
 	assert.NotPanics(t, func() {
-		err := printTable(data, false)
+		err := printTable(data, false, currentPrintOptions())
 		assert.NoError(t, err)
 	})
 }
@@ -324,7 +324,7 @@ func TestPrintTable_WASM_MegaportStyle(t *testing.T) {
 
 	WasmTableWriter.Reset()
 
-	err := printTable(data, false)
+	err := printTable(data, false, currentPrintOptions())
 	assert.NoError(t, err)
 
 	output := WasmTableWriter.String()
