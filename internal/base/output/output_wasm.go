@@ -29,7 +29,7 @@ var WasmCSVWriter = &bytes.Buffer{}
 var WasmXMLWriter = &bytes.Buffer{}
 
 // printJSON is the WASM-specific implementation that properly captures JSON output
-func printJSON[T OutputFields](data []T) error {
+func printJSON[T OutputFields](data []T, opts printOptions) error {
 	wasmBufMu.Lock()
 	defer wasmBufMu.Unlock()
 	WasmJSONWriter.Reset()
@@ -38,7 +38,7 @@ func printJSON[T OutputFields](data []T) error {
 		data = []T{}
 	}
 
-	toEncode, err := prepareJSONData(data)
+	toEncode, err := prepareJSONData(data, opts)
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func printJSON[T OutputFields](data []T) error {
 }
 
 // printCSV is the WASM-specific implementation that properly captures CSV output
-func printCSV[T OutputFields](data []T) error {
+func printCSV[T OutputFields](data []T, opts printOptions) error {
 	wasmBufMu.Lock()
 	defer wasmBufMu.Unlock()
 	WasmCSVWriter.Reset()
@@ -126,7 +126,7 @@ func printCSV[T OutputFields](data []T) error {
 	}
 
 	// Apply --fields filter if set.
-	if csvFields := getOutputFields(); len(csvFields) > 0 {
+	if csvFields := opts.fields; len(csvFields) > 0 {
 		var err error
 		headers, _, fieldIndices, err = filterByFields(headers, jsonNames, fieldIndices, csvFields)
 		if err != nil {
@@ -137,7 +137,7 @@ func printCSV[T OutputFields](data []T) error {
 		return nil
 	}
 
-	if !getNoHeader() {
+	if !opts.noHeader {
 		if err := w.Write(headers); err != nil {
 			return err
 		}
@@ -184,7 +184,7 @@ func printCSV[T OutputFields](data []T) error {
 }
 
 // printXML is the WASM-specific implementation that properly captures XML output
-func printXML[T OutputFields](data []T) error {
+func printXML[T OutputFields](data []T, opts printOptions) error {
 	wasmBufMu.Lock()
 	defer wasmBufMu.Unlock()
 	WasmXMLWriter.Reset()
@@ -263,7 +263,7 @@ func printXML[T OutputFields](data []T) error {
 	}
 
 	// Apply --fields filter if set.
-	if xmlFields := getOutputFields(); len(xmlFields) > 0 {
+	if xmlFields := opts.fields; len(xmlFields) > 0 {
 		xmlHeaders := make([]string, len(fields))
 		xmlJSONNames := make([]string, len(fields))
 		xmlIndices := make([]int, len(fields))
@@ -353,7 +353,7 @@ func printXML[T OutputFields](data []T) error {
 
 // printGoTemplate is not supported in the WASM build.
 // The error message begins with "invalid output format" so classifyError maps it to exitcodes.Usage.
-func printGoTemplate[T OutputFields](_ []T) error {
+func printGoTemplate[T OutputFields](_ []T, _ printOptions) error {
 	return fmt.Errorf("invalid output format: go-template is not supported in the browser version")
 }
 

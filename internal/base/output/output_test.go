@@ -73,7 +73,7 @@ func TestPrintCSV_SimpleStruct(t *testing.T) {
 	}
 
 	output := CaptureOutput(func() {
-		err := printCSV(data)
+		err := printCSV(data, currentPrintOptions())
 		assert.NoError(t, err)
 	})
 
@@ -101,7 +101,7 @@ func TestPrintCSV_ComplexStruct(t *testing.T) {
 	}
 
 	output := CaptureOutput(func() {
-		err := printCSV(data)
+		err := printCSV(data, currentPrintOptions())
 		assert.NoError(t, err)
 	})
 
@@ -113,7 +113,7 @@ func TestPrintCSV_EmptySlice(t *testing.T) {
 	data := []SimpleStruct{}
 
 	output := CaptureOutput(func() {
-		err := printCSV(data)
+		err := printCSV(data, currentPrintOptions())
 		assert.NoError(t, err)
 	})
 
@@ -125,12 +125,12 @@ func TestPrintCSV_NilSlice(t *testing.T) {
 	var data []SimpleStruct = nil
 
 	_ = CaptureOutput(func() {
-		err := printCSV(data)
+		err := printCSV(data, currentPrintOptions())
 		assert.NoError(t, err)
 	})
 
 	assert.NotPanics(t, func() {
-		_ = printCSV(data)
+		_ = printCSV(data, currentPrintOptions())
 	})
 }
 
@@ -142,7 +142,7 @@ func TestPrintCSV_PointerStruct(t *testing.T) {
 	data := []*SimpleStruct{s1, s2, s3}
 
 	output := CaptureOutput(func() {
-		err := printCSV(data)
+		err := printCSV(data, currentPrintOptions())
 		assert.NoError(t, err)
 	})
 
@@ -158,7 +158,7 @@ func TestPrintCSV_NoTagStruct(t *testing.T) {
 	data := []NoTagStruct{{ID: 1, Name: "Test"}}
 
 	output := CaptureOutput(func() {
-		err := printCSV(data)
+		err := printCSV(data, currentPrintOptions())
 		assert.NoError(t, err)
 	})
 
@@ -173,7 +173,7 @@ func TestPrintJSON(t *testing.T) {
 	}
 
 	output := CaptureOutput(func() {
-		err := printJSON(data)
+		err := printJSON(data, currentPrintOptions())
 		assert.NoError(t, err)
 	})
 
@@ -824,7 +824,7 @@ func TestPrintXML_SimpleStruct(t *testing.T) {
 	}
 
 	output := CaptureOutput(func() {
-		err := printXML(data)
+		err := printXML(data, currentPrintOptions())
 		assert.NoError(t, err)
 	})
 
@@ -844,7 +844,7 @@ func TestPrintXML_EmptySlice(t *testing.T) {
 	data := []SimpleStruct{}
 
 	output := CaptureOutput(func() {
-		err := printXML(data)
+		err := printXML(data, currentPrintOptions())
 		assert.NoError(t, err)
 	})
 
@@ -859,7 +859,7 @@ func TestPrintXML_NilSlice(t *testing.T) {
 
 	assert.NotPanics(t, func() {
 		output := CaptureOutput(func() {
-			err := printXML(data)
+			err := printXML(data, currentPrintOptions())
 			assert.NoError(t, err)
 		})
 		assert.Contains(t, output, "<items>")
@@ -882,7 +882,7 @@ func TestPrintXML_ComplexStruct(t *testing.T) {
 	}
 
 	output := CaptureOutput(func() {
-		err := printXML(data)
+		err := printXML(data, currentPrintOptions())
 		assert.NoError(t, err)
 	})
 
@@ -911,7 +911,7 @@ func TestPrintXML_PointerStruct(t *testing.T) {
 	data := []*SimpleStruct{s1, s2, s3}
 
 	output := CaptureOutput(func() {
-		err := printXML(data)
+		err := printXML(data, currentPrintOptions())
 		assert.NoError(t, err)
 	})
 
@@ -930,7 +930,7 @@ func TestPrintXML_CustomTagStruct(t *testing.T) {
 	}
 
 	output := CaptureOutput(func() {
-		err := printXML(data)
+		err := printXML(data, currentPrintOptions())
 		assert.NoError(t, err)
 	})
 
@@ -945,7 +945,7 @@ func TestPrintXML_NoTagStruct(t *testing.T) {
 	}
 
 	output := CaptureOutput(func() {
-		err := printXML(data)
+		err := printXML(data, currentPrintOptions())
 		assert.NoError(t, err)
 	})
 
@@ -960,7 +960,7 @@ func TestPrintXML_SpecialCharacters(t *testing.T) {
 	}
 
 	output := CaptureOutput(func() {
-		err := printXML(data)
+		err := printXML(data, currentPrintOptions())
 		assert.NoError(t, err)
 	})
 
@@ -1013,7 +1013,7 @@ func TestPrintXML_Parseable(t *testing.T) {
 	}
 
 	output := CaptureOutput(func() {
-		err := printXML(data)
+		err := printXML(data, currentPrintOptions())
 		assert.NoError(t, err)
 	})
 

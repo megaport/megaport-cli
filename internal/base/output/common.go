@@ -86,28 +86,14 @@ func SetOutputFields(fields []string) {
 	updateOutputConfig(func(c *OutputConfig) { c.Fields = cp })
 }
 
-func getOutputFields() []string { return GetOutputConfig().Fields }
-
 // SetOutputQuery sets the JMESPath query applied by printJSON. Pass "" to disable.
 func SetOutputQuery(query string) {
 	updateOutputConfig(func(c *OutputConfig) { c.Query = query })
 }
 
-func getOutputQuery() string {
-	outputCfgMu.RLock()
-	defer outputCfgMu.RUnlock()
-	return outputCfg.Query
-}
-
 // SetNoHeader sets whether table and CSV output should suppress column headers.
 func SetNoHeader(v bool) {
 	updateOutputConfig(func(c *OutputConfig) { c.NoHeader = v })
-}
-
-func getNoHeader() bool {
-	outputCfgMu.RLock()
-	defer outputCfgMu.RUnlock()
-	return outputCfg.NoHeader
 }
 
 // SetTemplateString sets the Go template string applied by printGoTemplate.
@@ -139,6 +125,31 @@ type errorEnvelope struct {
 // Intended for the WASM entry point to prevent state bleed between invocations.
 func ResetState() { ApplyOutputConfig(defaultOutputConfig()) }
 
+// printOptions is the per-call snapshot of the field/query/header/template
+// settings that the data-output path consults. PrintOutput reads the config
+// once into a printOptions and threads it down through the formatters, so the
+// individual formatters never reach into global state (and never take a lock)
+// mid-render.
+type printOptions struct {
+	fields   []string
+	query    string
+	noHeader bool
+	template string
+}
+
+// currentPrintOptions snapshots the output config into a printOptions with a
+// single locked read. Called once per PrintOutput invocation on the calling
+// goroutine.
+func currentPrintOptions() printOptions {
+	cfg := GetOutputConfig()
+	return printOptions{
+		fields:   cfg.Fields,
+		query:    cfg.Query,
+		noHeader: cfg.NoHeader,
+		template: cfg.Template,
+	}
+}
+
 // applyJMESPath applies a JMESPath query to v and returns the result.
 // v must be a JSON-compatible value (e.g. []T or []map[string]interface{}).
 // The marshal→unmarshal round-trip is intentional: go-jmespath operates on an
@@ -163,9 +174,9 @@ func applyJMESPath(query string, v interface{}) (interface{}, error) {
 // prepareJSONData applies --fields filtering and --query (JMESPath) to data,
 // returning the value ready for JSON encoding. This shared logic is used by
 // both native and WASM printJSON implementations.
-func prepareJSONData[T OutputFields](data []T) (interface{}, error) {
-	fields := getOutputFields()
-	query := getOutputQuery()
+func prepareJSONData[T OutputFields](data []T, opts printOptions) (interface{}, error) {
+	fields := opts.fields
+	query := opts.query
 
 	var toEncode interface{}
 	if len(fields) > 0 {
@@ -244,18 +255,19 @@ func PrintOutput[T OutputFields](data []T, format string, noColor bool) error {
 	if !validFormats[format] {
 		return fmt.Errorf("invalid output format: %s", format)
 	}
+	opts := currentPrintOptions()
 	switch format {
 	case "json":
-		return printJSON(data)
+		return printJSON(data, opts)
 	case "csv":
-		return printCSV(data)
+		return printCSV(data, opts)
 	case "xml":
-		return printXML(data)
+		return printXML(data, opts)
 	case "go-template":
-		return printGoTemplate(data)
+		return printGoTemplate(data, opts)
 	default:
 		return RunWithPager(func() error {
-			return printTable(data, noColor)
+			return printTable(data, noColor, opts)
 		})
 	}
 }
