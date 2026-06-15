@@ -8,6 +8,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestPrintPorts_XML(t *testing.T) {
+	out := op.CaptureOutput(func() {
+		err := printPorts(testPorts, "xml", true)
+		assert.NoError(t, err)
+	})
+	assert.NotEmpty(t, out)
+	assert.Contains(t, out, "<items>")
+	assert.Contains(t, out, "<uid>")
+	assert.Contains(t, out, "port-1")
+	assert.Contains(t, out, "MyPortOne")
+}
+
 func TestDisplayPortChanges(t *testing.T) {
 	tests := []struct {
 		name             string
