@@ -158,10 +158,8 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 		serviceKeys = serviceKeys[:limit]
 	}
 
-	if len(serviceKeys) == 0 {
-		if outputFormat == utils.FormatTable {
-			output.PrintInfo("No service keys found.", noColor)
-		}
+	if len(serviceKeys) == 0 && outputFormat == utils.FormatTable {
+		output.PrintInfo("No service keys found.", noColor)
 		return nil
 	}
 

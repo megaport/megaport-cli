@@ -3,8 +3,10 @@ package nat_gateway
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/testutil"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -145,9 +147,21 @@ func TestListNATGatewaySessions_Empty(t *testing.T) {
 	}
 	defer setupMockNATGateway(mock)()
 
-	cmd := newTestCmd("list-sessions")
-	err := ListNATGatewaySessions(cmd, nil, true, "table")
-	assert.NoError(t, err)
+	t.Run("table prints info message", func(t *testing.T) {
+		cmd := newTestCmd("list-sessions")
+		out := output.CaptureOutput(func() {
+			assert.NoError(t, ListNATGatewaySessions(cmd, nil, true, "table"))
+		})
+		assert.Contains(t, out, "No NAT Gateway session options found")
+	})
+
+	t.Run("json emits empty array", func(t *testing.T) {
+		cmd := newTestCmd("list-sessions")
+		out := output.CaptureOutput(func() {
+			assert.NoError(t, ListNATGatewaySessions(cmd, nil, true, "json"))
+		})
+		assert.Equal(t, "[]", strings.TrimSpace(out))
+	})
 }
 
 func TestListNATGateways_IncludeInactive(t *testing.T) {
