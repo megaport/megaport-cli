@@ -342,7 +342,7 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	if !resp.MVEUpdated {
-		output.PrintWarning("MVE update request was not successful", noColor)
+		output.PrintError("MVE update request was not successful", noColor)
 		return fmt.Errorf("MVE update request was not successful")
 	}
 
