@@ -5,6 +5,7 @@ package output
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"reflect"
 	"strings"
 	"sync/atomic"
@@ -47,6 +48,30 @@ func calculateDynamicWidth(termWidth int, minWidth, maxPercentage int) int {
 func printTable[T OutputFields](data []T, noColor bool, opts printOptions) error {
 	wasmBufMu.Lock()
 	defer wasmBufMu.Unlock()
+
+	// In WASM, render into the global WasmTableWriter so the rendered table is
+	// available to the JS-accessible wasmTableOutput global that the web UI reads.
+	WasmTableWriter.Reset()
+	if err := printTableToWriter(WasmTableWriter, data, noColor, opts); err != nil {
+		return err
+	}
+
+	tableOutput := WasmTableWriter.String()
+
+	// Write the table output to stdout so it can be captured by wasm buffers.
+	fmt.Print(tableOutput)
+
+	// Also write to a JavaScript-accessible global variable.
+	js.Global().Set("wasmTableOutput", tableOutput)
+
+	return nil
+}
+
+// printTableToWriter renders data as a table directly to w with no global side
+// effects. printTable wraps it for the JS-global capture path; the status
+// dashboard calls it (via PrintTableToWriter) to compose several tables into one
+// writer without the per-call global being overwritten.
+func printTableToWriter[T OutputFields](w io.Writer, data []T, noColor bool, opts printOptions) error {
 	headers, jsonNames, fieldIndices, err := getStructTypeInfo(data)
 	if err != nil {
 		return err
@@ -63,11 +88,7 @@ func printTable[T OutputFields](data []T, noColor bool, opts printOptions) error
 
 	// Create table writer
 	t := prettytable.NewWriter()
-
-	// CRITICAL FIX: In WASM, write ONLY to WasmTableWriter
-	// Don't write to os.Stdout as it causes capture issues
-	WasmTableWriter.Reset() // Clear previous content
-	t.SetOutputMirror(WasmTableWriter)
+	t.SetOutputMirror(w)
 
 	// WASM-specific table configuration with improved column widths
 	// This ensures consistent, readable column distribution in the browser
@@ -192,16 +213,5 @@ func printTable[T OutputFields](data []T, noColor bool, opts printOptions) error
 	}
 
 	t.Render()
-
-	// Get the rendered table output
-	tableOutput := WasmTableWriter.String()
-
-	// Write the table output to stdout so it can be captured by wasm buffers
-	// This is the key: write the buffered content to stdout
-	fmt.Print(tableOutput)
-
-	// Also write to a JavaScript-accessible global variable
-	js.Global().Set("wasmTableOutput", tableOutput)
-
 	return nil
 }
