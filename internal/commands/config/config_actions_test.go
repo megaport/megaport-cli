@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -253,6 +254,29 @@ func TestListProfiles_MasksAccessKey(t *testing.T) {
 
 	assert.NotContains(t, listOutput, "my-secret-access-key-12345", "full access key should not appear in list output")
 	assert.Contains(t, listOutput, "my-s...2345", "masked access key should appear in list output")
+}
+
+func TestListProfiles_Empty(t *testing.T) {
+	t.Run("table prints info message", func(t *testing.T) {
+		setupTestConfigEnv(t)
+		out, err := captureOutputFromAction(func() error {
+			cmd, _ := setupTestCmd()
+			return ListProfiles(cmd, nil, true, "table")
+		})
+		require.NoError(t, err)
+		assert.Contains(t, out, "No profiles found")
+	})
+
+	t.Run("json emits empty array", func(t *testing.T) {
+		setupTestConfigEnv(t)
+		defer output.SetOutputFormat("table")
+		out, err := captureOutputFromAction(func() error {
+			cmd, _ := setupTestCmd()
+			return ListProfiles(cmd, nil, true, "json")
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "[]", strings.TrimSpace(out))
+	})
 }
 
 func TestDeleteProfile_CMD(t *testing.T) {

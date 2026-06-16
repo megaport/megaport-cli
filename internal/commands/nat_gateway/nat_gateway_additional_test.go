@@ -156,6 +156,7 @@ func TestListNATGatewaySessions_Empty(t *testing.T) {
 	})
 
 	t.Run("json emits empty array", func(t *testing.T) {
+		defer output.SetOutputFormat("table")
 		cmd := newTestCmd("list-sessions")
 		out := output.CaptureOutput(func() {
 			assert.NoError(t, ListNATGatewaySessions(cmd, nil, true, "json"))
