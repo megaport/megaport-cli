@@ -1098,6 +1098,12 @@ func TestRestorePort(t *testing.T) {
 			expectedError: "restore service unavailable",
 		},
 		{
+			name:          "unsuccessful",
+			portUID:       "port-restore-fail",
+			restoreResp:   &megaport.RestorePortResponse{IsRestored: false},
+			expectedError: "restoration request was not successful",
+		},
+		{
 			name:          "login error",
 			portUID:       "port-restore-login",
 			loginErr:      fmt.Errorf("authentication failed"),
@@ -1181,6 +1187,12 @@ func TestLockPort(t *testing.T) {
 			expectedError: "lock service unavailable",
 		},
 		{
+			name:          "unsuccessful",
+			portUID:       "port-lock-fail",
+			lockResp:      &megaport.LockPortResponse{IsLocking: false},
+			expectedError: "lock request was not successful",
+		},
+		{
 			name:          "login error",
 			portUID:       "port-lock-login",
 			loginErr:      fmt.Errorf("invalid token"),
@@ -1262,6 +1274,12 @@ func TestUnlockPort(t *testing.T) {
 			portUID:       "port-unlock-err",
 			unlockErr:     fmt.Errorf("unlock service unavailable"),
 			expectedError: "unlock service unavailable",
+		},
+		{
+			name:          "unsuccessful",
+			portUID:       "port-unlock-fail",
+			unlockResp:    &megaport.UnlockPortResponse{IsUnlocking: false},
+			expectedError: "unlock request was not successful",
 		},
 		{
 			name:          "login error",
@@ -2159,10 +2177,10 @@ func TestDeletePort_Comprehensive(t *testing.T) {
 			expectedError: "API failure",
 		},
 		{
-			name:             "delete returns not deleting",
-			force:            true,
-			isDeleting:       false,
-			expectedContains: "not successful",
+			name:          "delete returns not deleting",
+			force:         true,
+			isDeleting:    false,
+			expectedError: "not successful",
 		},
 	}
 

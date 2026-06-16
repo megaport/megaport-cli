@@ -151,6 +151,7 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 		output.PrintSuccess("Prefix filter list updated successfully - ID: %d", noColor, prefixFilterListID)
 	} else {
 		output.PrintError("Prefix filter list update request was not successful", noColor)
+		return fmt.Errorf("prefix filter list update request was not successful")
 	}
 	return nil
 }
@@ -257,6 +258,7 @@ func DeleteMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 		output.PrintSuccess("Prefix filter list deleted successfully - ID: %d", noColor, prefixFilterListID)
 	} else {
 		output.PrintError("Prefix filter list deletion request was not successful", noColor)
+		return fmt.Errorf("prefix filter list deletion request was not successful")
 	}
 
 	return nil

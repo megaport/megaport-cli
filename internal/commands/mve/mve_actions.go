@@ -569,7 +569,8 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	if resp.IsDeleted {
 		output.PrintResourceDeleted("MVE", mveUID, true, noColor)
 	} else {
-		output.PrintWarning("MVE delete failed", noColor)
+		output.PrintError("MVE deletion request was not successful", noColor)
+		return fmt.Errorf("MVE deletion request was not successful")
 	}
 	return nil
 }

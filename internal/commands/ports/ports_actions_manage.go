@@ -164,7 +164,8 @@ func DeletePort(cmd *cobra.Command, args []string, noColor bool) error {
 	if resp.IsDeleting {
 		output.PrintResourceDeleted("Port", portUID, true, noColor)
 	} else {
-		output.PrintWarning("Port deletion request was not successful", noColor)
+		output.PrintError("Port deletion request was not successful", noColor)
+		return fmt.Errorf("port deletion request was not successful")
 	}
 	return nil
 }
@@ -199,7 +200,8 @@ func RestorePort(cmd *cobra.Command, args []string, noColor bool) error {
 	if resp.IsRestored {
 		output.PrintInfo("Port %s restored successfully", noColor, formattedUID)
 	} else {
-		output.PrintWarning("Port restoration request was not successful", noColor)
+		output.PrintError("Port restoration request was not successful", noColor)
+		return fmt.Errorf("port restoration request was not successful")
 	}
 	return nil
 }
@@ -234,7 +236,8 @@ func LockPort(cmd *cobra.Command, args []string, noColor bool) error {
 	if resp.IsLocking {
 		output.PrintInfo("Port %s locked successfully", noColor, formattedUID)
 	} else {
-		output.PrintWarning("Port lock request was not successful", noColor)
+		output.PrintError("Port lock request was not successful", noColor)
+		return fmt.Errorf("port lock request was not successful")
 	}
 	return nil
 }
@@ -269,7 +272,8 @@ func UnlockPort(cmd *cobra.Command, args []string, noColor bool) error {
 	if resp.IsUnlocking {
 		output.PrintInfo("Port %s unlocked successfully", noColor, formattedUID)
 	} else {
-		output.PrintWarning("Port unlock request was not successful", noColor)
+		output.PrintError("Port unlock request was not successful", noColor)
+		return fmt.Errorf("port unlock request was not successful")
 	}
 	return nil
 }

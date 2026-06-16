@@ -313,9 +313,8 @@ func isCobraUsageError(msg string) bool {
 		"unknown command",
 		"unknown flag",
 		"unknown shorthand flag",
-		"accepts between",
-		"accepts at most",
-		"accepts at least",
+		"arg(s), received",
+		"arg(s), only received",
 		"required flag(s)",
 	}
 	for _, p := range cobraPatterns {

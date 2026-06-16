@@ -586,6 +586,16 @@ func TestDeleteMVE(t *testing.T) {
 			expectedError: "deletion failed",
 		},
 		{
+			name: "deletion unsuccessful",
+			mockSetup: func(m *MockMVEService) {
+				m.DeleteMVEResult = &megaport.DeleteMVEResponse{
+					IsDeleted: false,
+				}
+			},
+			confirmDelete: true,
+			expectedError: "MVE deletion request was not successful",
+		},
+		{
 			name: "deletion cancelled",
 			mockSetup: func(m *MockMVEService) {
 			},
