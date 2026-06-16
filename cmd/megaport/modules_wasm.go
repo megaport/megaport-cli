@@ -3,6 +3,7 @@
 package megaport
 
 import (
+	"github.com/megaport/megaport-cli/internal/commands/ix"
 	"github.com/megaport/megaport-cli/internal/commands/locations"
 	"github.com/megaport/megaport-cli/internal/commands/mcr"
 	"github.com/megaport/megaport-cli/internal/commands/mve"
@@ -29,6 +30,7 @@ func registerModules() {
 	moduleRegistry.Register(vxc.NewModule())
 	moduleRegistry.Register(mcr.NewModule())
 	moduleRegistry.Register(mve.NewModule())
+	moduleRegistry.Register(ix.NewModule())
 	moduleRegistry.Register(nat_gateway.NewModule())
 	moduleRegistry.Register(locations.NewModule())
 	moduleRegistry.Register(partners.NewModule())
