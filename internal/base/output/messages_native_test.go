@@ -105,6 +105,21 @@ func TestPrintErrorPlainAlwaysWritesStderr(t *testing.T) {
 	assert.False(t, ErrorWasPrinted())
 }
 
+func TestPrintErrorPlainColorWritesStderr(t *testing.T) {
+	saveOutputFormat(t)
+	SetOutputFormat("table")
+	ResetErrorPrinted()
+
+	stderr := captureStderr(t, func() {
+		PrintErrorPlain("something broke", false)
+	})
+	// The colored branch may emit ANSI escapes depending on the terminal, so
+	// assert on the message content rather than an exact byte match.
+	assert.Contains(t, stderr, "✗ ")
+	assert.Contains(t, stderr, "something broke")
+	assert.False(t, ErrorWasPrinted())
+}
+
 func TestResetErrorPrinted(t *testing.T) {
 	saveOutputFormat(t)
 	SetOutputFormat("table")

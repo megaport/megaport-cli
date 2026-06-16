@@ -707,6 +707,41 @@ func TestCaptureOutput_TempFileFailure(t *testing.T) {
 	assert.Empty(t, result, "result should be empty when temp file creation fails")
 }
 
+func TestCaptureStdout_CapturesStdoutExcludesStderr(t *testing.T) {
+	out := CaptureStdout(func() {
+		fmt.Fprint(os.Stdout, "data-line")
+		fmt.Fprint(os.Stderr, "status-line")
+	})
+
+	assert.Equal(t, "data-line", out, "CaptureStdout should return only stdout")
+	assert.NotContains(t, out, "status-line", "stderr must not leak into the captured data stream")
+}
+
+func TestCaptureStdout_RestoresStdout(t *testing.T) {
+	originalStdout := os.Stdout
+
+	out := CaptureStdout(func() {
+		fmt.Print("hello")
+	})
+
+	assert.Equal(t, "hello", out)
+	assert.Equal(t, originalStdout, os.Stdout, "os.Stdout should be restored after CaptureStdout returns")
+}
+
+func TestCaptureStdout_TempFileFailure(t *testing.T) {
+	orig := createTempFile
+	createTempFile = func() (*os.File, error) {
+		return nil, errors.New("temp file unavailable")
+	}
+	defer func() { createTempFile = orig }()
+
+	called := false
+	result := CaptureStdout(func() { called = true })
+
+	assert.True(t, called, "f should still be called when temp file creation fails")
+	assert.Empty(t, result, "result should be empty when temp file creation fails")
+}
+
 func TestCaptureOutputErr_RestoresStdoutOnError(t *testing.T) {
 	originalStdout := os.Stdout
 
