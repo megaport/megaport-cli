@@ -157,32 +157,62 @@ func applyFieldsFilter(cmd *cobra.Command) {
 	}
 }
 
+// emitError reports a command failure on the correct stream and returns the
+// resolved exit code. JSON output emits only the structured envelope; other
+// formats print a human line to stderr, but only when the action did not
+// already print the error itself, so nothing is shown twice and no failure is
+// silent.
+func emitError(cmd *cobra.Command, format string, err error) int {
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	code := classifyError(err)
+	if format == FormatJSON {
+		output.PrintErrorJSON(code, err.Error())
+		cmd.Root().SilenceErrors = true
+		return code
+	}
+	if !output.ErrorWasPrinted() {
+		noColor, _ := cmd.Root().PersistentFlags().GetBool("no-color")
+		output.PrintErrorPlain(err.Error(), noColor)
+	}
+	return code
+}
+
+// reportGuardError surfaces a pre-run guard failure (invalid flag combination)
+// and returns it unchanged so callers keep the original usage error and code.
+func reportGuardError(cmd *cobra.Command, format string, err error) error {
+	emitError(cmd, format, err)
+	return err
+}
+
+// reportActionError surfaces a failed action. The returned error keeps the
+// verbose, help-pointing wording for non-JSON formats; JSON returns the bare
+// error so the envelope stays the single representation.
+func reportActionError(cmd *cobra.Command, args []string, format string, err error) error {
+	code := emitError(cmd, format, err)
+	if format == FormatJSON {
+		return exitcodes.New(code, err)
+	}
+	wrapped := fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag", cmd.Name(), err, cmd.Name(), args)
+	return exitcodes.New(code, wrapped)
+}
+
 // WrapRunE wraps a RunE function to set SilenceUsage to true if an error occurs and formats the error message.
 func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
+		output.ResetErrorPrinted()
 		applyFieldsFilter(cmd)
 		applyTemplateFilter(cmd)
 		rawFormat, _ := cmd.Root().PersistentFlags().GetString("output")
 		format := strings.ToLower(rawFormat)
 		if format == FormatGoTemplate && output.GetTemplateString() == "" {
-			cmd.SilenceUsage = true
-			return exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used"))
+			return reportGuardError(cmd, format, exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used")))
 		}
 		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
-			return err
+			return reportGuardError(cmd, format, err)
 		}
-		err := runE(cmd, args)
-		if err != nil {
-			cmd.SilenceUsage = true
-			cmd.SilenceErrors = true
-			code := classifyError(err)
-			if format == FormatJSON {
-				output.PrintErrorJSON(code, err.Error())
-				cmd.Root().SilenceErrors = true
-				return exitcodes.New(code, err)
-			}
-			wrapped := fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag", cmd.Name(), err, cmd.Name(), args)
-			return exitcodes.New(code, wrapped)
+		if err := runE(cmd, args); err != nil {
+			return reportActionError(cmd, args, format, err)
 		}
 		return nil
 	}
@@ -192,16 +222,16 @@ func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobr
 // and passing the noColor flag to command functions.
 func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
+		output.ResetErrorPrinted()
 		applyFieldsFilter(cmd)
 		applyTemplateFilter(cmd)
 		rawFormat, _ := cmd.Root().PersistentFlags().GetString("output")
 		format := strings.ToLower(rawFormat)
 		if format == FormatGoTemplate && output.GetTemplateString() == "" {
-			cmd.SilenceUsage = true
-			return exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used"))
+			return reportGuardError(cmd, format, exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used")))
 		}
 		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
-			return err
+			return reportGuardError(cmd, format, err)
 		}
 		// Get noColor value from root command
 		noColor, err := cmd.Root().PersistentFlags().GetBool("no-color")
@@ -209,22 +239,8 @@ func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool)
 			noColor = false // Default to color if flag not found
 		}
 
-		// Call the function with the noColor parameter
-		err = fn(cmd, args, noColor)
-
-		// Error handling from WrapRunE
-		if err != nil {
-			cmd.SilenceUsage = true
-			cmd.SilenceErrors = true
-			code := classifyError(err)
-			if format == FormatJSON {
-				output.PrintErrorJSON(code, err.Error())
-				cmd.Root().SilenceErrors = true
-				return exitcodes.New(code, err)
-			}
-			wrapped := fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag",
-				cmd.Name(), err, cmd.Name(), args)
-			return exitcodes.New(code, wrapped)
+		if err := fn(cmd, args, noColor); err != nil {
+			return reportActionError(cmd, args, format, err)
 		}
 		return nil
 	}
@@ -234,6 +250,7 @@ func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool)
 // This wrapper takes a function that needs both output format and noColor parameters.
 func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor bool, format string) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
+		output.ResetErrorPrinted()
 		// Get noColor value from root command
 		noColor, err := cmd.Root().PersistentFlags().GetBool("no-color")
 		if err != nil {
@@ -255,17 +272,12 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 			}
 		}
 		if !validFormat {
-			// If an invalid format is provided, return an error
-			cmd.SilenceUsage = true
-			cmd.SilenceErrors = true
-			return exitcodes.NewUsageError(fmt.Errorf("invalid output format: %s. Must be one of: %v", format, ValidFormats))
+			return reportGuardError(cmd, format, exitcodes.NewUsageError(fmt.Errorf("invalid output format: %s. Must be one of: %v", format, ValidFormats)))
 		}
 
 		applyTemplateFilter(cmd)
 		if format == FormatGoTemplate && output.GetTemplateString() == "" {
-			cmd.SilenceUsage = true
-			cmd.SilenceErrors = true
-			return exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used"))
+			return reportGuardError(cmd, format, exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used")))
 		}
 
 		applyFieldsFilter(cmd)
@@ -273,25 +285,11 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 		// re-read --output from the root persistent flags (which could differ
 		// if the subcommand defines its own local --output override).
 		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
-			return err
+			return reportGuardError(cmd, format, err)
 		}
 
-		// Call the function with both parameters
-		err = fn(cmd, args, noColor, format)
-
-		// Error handling from WrapRunE
-		if err != nil {
-			cmd.SilenceUsage = true
-			cmd.SilenceErrors = true
-			code := classifyError(err)
-			if format == FormatJSON {
-				output.PrintErrorJSON(code, err.Error())
-				cmd.Root().SilenceErrors = true
-				return exitcodes.New(code, err)
-			}
-			wrapped := fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag",
-				cmd.Name(), err, cmd.Name(), args)
-			return exitcodes.New(code, wrapped)
+		if err := fn(cmd, args, noColor, format); err != nil {
+			return reportActionError(cmd, args, format, err)
 		}
 		return nil
 	}

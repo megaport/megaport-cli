@@ -2331,7 +2331,7 @@ func TestGetPort_Export(t *testing.T) {
 	require.NoError(t, cmd.Flags().Set("export", "true"))
 
 	var err error
-	capturedOutput := output.CaptureOutput(func() {
+	capturedOutput := output.CaptureStdout(func() {
 		err = testutil.OutputAdapter(GetPort)(cmd, []string{"port-export-123"})
 	})
 

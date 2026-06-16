@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,6 +44,34 @@ func captureStderr(t *testing.T, fn func()) (result string) {
 	defer func() {
 		_ = w.Close() // signal EOF to the goroutine
 		<-done        // wait for all data to be read
+		_ = r.Close()
+		result = buf.String()
+	}()
+
+	fn()
+	return
+}
+
+// captureStdout captures what the function writes to os.Stdout.
+// Not parallel-safe: it redirects the global os.Stdout via os.Pipe.
+func captureStdout(t *testing.T, fn func()) (result string) {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stdout = w
+	defer func() { os.Stdout = old }()
+
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_, _ = io.Copy(&buf, r)
+	}()
+
+	defer func() {
+		_ = w.Close()
+		<-done
 		_ = r.Close()
 		result = buf.String()
 	}()
@@ -671,4 +701,64 @@ func TestWrapOutputFormatRunE_JSONErrorOutput(t *testing.T) {
 	assert.Equal(t, exitcodes.API, code)
 	assert.Equal(t, "api_error", errType)
 	assert.Equal(t, "failed to get port: not found", msg)
+}
+
+// ESD-1421 repro: an action that returns an error without printing anything
+// itself must still surface that error to stderr in a non-JSON format.
+func TestWrapOutputFormatRunE_SilentActionPrintsToStderr(t *testing.T) {
+	output.ResetErrorPrinted()
+	wrapped := WrapOutputFormatRunE(func(cmd *cobra.Command, args []string, noColor bool, format string) error {
+		return errors.New("strconv.Atoi: parsing \"notanumber\": invalid syntax")
+	})
+	child := buildJSONChild("table")
+
+	var stdout string
+	stderr := captureStderr(t, func() {
+		stdout = captureStdout(t, func() {
+			err := wrapped(child, []string{})
+			require.Error(t, err)
+		})
+	})
+
+	assert.Contains(t, stderr, "invalid syntax", "silent action error must reach stderr")
+	assert.Empty(t, stdout, "error output must not pollute stdout")
+}
+
+// AC4: when the action already printed the error via output.PrintError, the
+// wrapper must not print it a second time.
+func TestWrapOutputFormatRunE_DoesNotDoublePrintWhenActionPrinted(t *testing.T) {
+	output.ResetErrorPrinted()
+	wrapped := WrapOutputFormatRunE(func(cmd *cobra.Command, args []string, noColor bool, format string) error {
+		output.PrintError("action said boom", true)
+		return errors.New("action said boom")
+	})
+	child := buildJSONChild("table")
+
+	stderr := captureStderr(t, func() {
+		err := wrapped(child, []string{})
+		require.Error(t, err)
+	})
+
+	assert.Equal(t, 1, strings.Count(stderr, "✗"), "error must be printed exactly once")
+}
+
+// ESD-1421 repro: `--output JSON` (uppercase) is an invalid format. The guard
+// error must reach stderr rather than exiting silently.
+func TestWrapOutputFormatRunE_UppercaseInvalidFormatPrintsToStderr(t *testing.T) {
+	output.ResetErrorPrinted()
+	wrapped := WrapOutputFormatRunE(func(cmd *cobra.Command, args []string, noColor bool, format string) error {
+		return nil
+	})
+	child := buildJSONChild("JSON")
+
+	var stdout string
+	stderr := captureStderr(t, func() {
+		stdout = captureStdout(t, func() {
+			err := wrapped(child, []string{})
+			require.Error(t, err)
+		})
+	})
+
+	assert.Contains(t, stderr, "invalid output format: JSON", "invalid-format guard must print to stderr")
+	assert.Empty(t, stdout, "guard error must not pollute stdout")
 }

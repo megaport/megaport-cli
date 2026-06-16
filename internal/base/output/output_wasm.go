@@ -396,6 +396,12 @@ func CaptureOutput(f func()) string {
 	return string(out)
 }
 
+// CaptureStdout mirrors the native helper. In WASM all output already flows
+// through a single buffer, so there is no separate data stream to isolate.
+func CaptureStdout(f func()) string {
+	return CaptureOutput(f)
+}
+
 // CaptureOutputErr runs a function and captures its stdout output, also returning any error.
 // Must not be called reentrantly (the global stdoutMu is not reentrant).
 func CaptureOutputErr(f func() error) (string, error) {

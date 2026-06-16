@@ -214,6 +214,11 @@ func PrintSuccess(format string, noColor bool, args ...interface{}) {
 
 // PrintError overrides the base function for WASM to capture output
 func PrintError(format string, noColor bool, args ...interface{}) {
+	markErrorPrinted()
+	// In JSON mode the structured envelope is the single error representation.
+	if GetOutputFormat() == "json" {
+		return
+	}
 	msg := fmt.Sprintf(format, args...)
 	var output string
 	if noColor {
@@ -222,6 +227,19 @@ func PrintError(format string, noColor bool, args ...interface{}) {
 		output = color.RedString("✗ ") + msg + "\n"
 	}
 	wasm.WasmOutputBuffer.Write([]byte(output))
+}
+
+// PrintErrorPlain writes a human-readable error line unconditionally,
+// regardless of output format. Used by the RunE wrappers to surface a failure
+// the action did not print itself; it does not mark the printed-error flag.
+func PrintErrorPlain(message string, noColor bool) {
+	var out string
+	if noColor {
+		out = fmt.Sprintf("✗ %s\n", message)
+	} else {
+		out = color.RedString("✗ ") + message + "\n"
+	}
+	wasm.WasmOutputBuffer.Write([]byte(out))
 }
 
 // PrintWarning overrides the base function for WASM to capture output

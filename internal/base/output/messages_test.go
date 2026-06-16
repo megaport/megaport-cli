@@ -32,6 +32,25 @@ func captureOutput(f func()) string {
 	return buf.String()
 }
 
+// captureMessages captures stderr, where the Print* status helpers now write.
+func captureMessages(f func()) string {
+	old := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	f()
+
+	w.Close()
+	os.Stderr = old
+
+	var buf bytes.Buffer
+	_, err := io.Copy(&buf, r)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to copy from pipe: %v", err))
+	}
+	return buf.String()
+}
+
 func TestPrintSuccess(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -58,7 +77,7 @@ func TestPrintSuccess(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := captureOutput(func() {
+			output := captureMessages(func() {
 				PrintSuccess(tt.format, tt.noColor, tt.args...)
 			})
 			assert.Contains(t, output, tt.expectedContains)
@@ -107,7 +126,7 @@ func TestPrintResourceSuccess(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := captureOutput(func() {
+			output := captureMessages(func() {
 				PrintResourceSuccess(tt.resourceType, tt.action, tt.uid, tt.noColor)
 			})
 			assert.Equal(t, tt.expected, output)
@@ -116,14 +135,14 @@ func TestPrintResourceSuccess(t *testing.T) {
 }
 
 func TestPrintResourceCreated(t *testing.T) {
-	output := captureOutput(func() {
+	output := captureMessages(func() {
 		PrintResourceCreated("Port", "port-123", true)
 	})
 	assert.Equal(t, "✓ Port created port-123\n", output)
 }
 
 func TestPrintResourceUpdated(t *testing.T) {
-	output := captureOutput(func() {
+	output := captureMessages(func() {
 		PrintResourceUpdated("Port", "port-123", true)
 	})
 	assert.Equal(t, "✓ Port updated port-123\n", output)
@@ -158,7 +177,7 @@ func TestPrintResourceDeleted(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := captureOutput(func() {
+			output := captureMessages(func() {
 				PrintResourceDeleted(tt.resourceType, tt.uid, tt.immediate, tt.noColor)
 			})
 			assert.Equal(t, tt.expected, output)
@@ -266,36 +285,36 @@ func TestPrintResourceListing(t *testing.T) {
 }
 
 func TestPrintError(t *testing.T) {
-	output := captureOutput(func() {
+	output := captureMessages(func() {
 		PrintError("Test %s message", true, "error")
 	})
 	assert.Equal(t, "✗ Test error message\n", output)
 
-	output = captureOutput(func() {
+	output = captureMessages(func() {
 		PrintError("Test %s message", false, "error")
 	})
 	assert.Contains(t, output, "Test error message")
 }
 
 func TestPrintWarning(t *testing.T) {
-	output := captureOutput(func() {
+	output := captureMessages(func() {
 		PrintWarning("Test %s message", true, "warning")
 	})
 	assert.Equal(t, "⚠ Test warning message\n", output)
 
-	output = captureOutput(func() {
+	output = captureMessages(func() {
 		PrintWarning("Test %s message", false, "warning")
 	})
 	assert.Contains(t, output, "Test warning message")
 }
 
 func TestPrintInfo(t *testing.T) {
-	output := captureOutput(func() {
+	output := captureMessages(func() {
 		PrintInfo("Test %s message", true, "info")
 	})
 	assert.Equal(t, "ℹ Test info message\n", output)
 
-	output = captureOutput(func() {
+	output = captureMessages(func() {
 		PrintInfo("Test %s message", false, "info")
 	})
 	assert.Contains(t, output, "Test info message")

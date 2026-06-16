@@ -402,7 +402,7 @@ func TestGetLocation(t *testing.T) {
 			defer output.SetOutputFormat("table")
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedOutput := output.CaptureStdout(func() {
 				err = GetLocation(cmd, tt.args, true, "json")
 			})
 

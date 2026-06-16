@@ -66,6 +66,36 @@ func SetOutputFormat(format string) {
 	updateOutputConfig(func(c *OutputConfig) { c.Format = format })
 }
 
+var (
+	errorPrintedMu sync.Mutex
+	errorPrinted   bool
+)
+
+// markErrorPrinted records that PrintError emitted a human-readable error line
+// during the current command. The RunE wrappers consult this so they don't
+// print the same error a second time.
+func markErrorPrinted() {
+	errorPrintedMu.Lock()
+	errorPrinted = true
+	errorPrintedMu.Unlock()
+}
+
+// ErrorWasPrinted reports whether an action already printed an error this
+// invocation.
+func ErrorWasPrinted() bool {
+	errorPrintedMu.Lock()
+	defer errorPrintedMu.Unlock()
+	return errorPrinted
+}
+
+// ResetErrorPrinted clears the printed-error flag. Called at the start of each
+// command (and on every re-entry in the long-lived WASM process).
+func ResetErrorPrinted() {
+	errorPrintedMu.Lock()
+	errorPrinted = false
+	errorPrintedMu.Unlock()
+}
+
 // GetOutputFormat returns the currently active output format (e.g. "table", "json").
 func GetOutputFormat() string {
 	outputCfgMu.RLock()

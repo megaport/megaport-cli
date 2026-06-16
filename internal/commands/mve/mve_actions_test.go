@@ -2433,7 +2433,7 @@ func TestGetMVE_Export(t *testing.T) {
 	assert.NoError(t, cmd.Flags().Set("export", "true"))
 
 	var err error
-	capturedOutput := output.CaptureOutput(func() {
+	capturedOutput := output.CaptureStdout(func() {
 		err = GetMVE(cmd, []string{"mve-export-123"}, true, "table")
 	})
 

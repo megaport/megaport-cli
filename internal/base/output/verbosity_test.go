@@ -113,7 +113,7 @@ func TestQuietDoesNotSuppressPrintError(t *testing.T) {
 	resetVerbosity(t)
 	SetVerbosity("quiet")
 
-	out := captureStdout(t, func() {
+	out := captureStderr(t, func() {
 		PrintError("error message", true)
 	})
 	assert.Contains(t, out, "error message", "PrintError should still produce output in quiet mode")
@@ -205,22 +205,22 @@ func TestQuietSuppressesPrintVerbose(t *testing.T) {
 func TestNormalModeShowsAllMessages(t *testing.T) {
 	resetVerbosity(t)
 
-	infoOut := captureStdout(t, func() {
+	infoOut := captureStderr(t, func() {
 		PrintInfo("info message", true)
 	})
 	assert.Contains(t, infoOut, "info message", "PrintInfo should produce output in normal mode")
 
-	successOut := captureStdout(t, func() {
+	successOut := captureStderr(t, func() {
 		PrintSuccess("success message", true)
 	})
 	assert.Contains(t, successOut, "success message", "PrintSuccess should produce output in normal mode")
 
-	warningOut := captureStdout(t, func() {
+	warningOut := captureStderr(t, func() {
 		PrintWarning("warning message", true)
 	})
 	assert.Contains(t, warningOut, "warning message", "PrintWarning should produce output in normal mode")
 
-	errorOut := captureStdout(t, func() {
+	errorOut := captureStderr(t, func() {
 		PrintError("error message", true)
 	})
 	assert.Contains(t, errorOut, "error message", "PrintError should produce output in normal mode")
