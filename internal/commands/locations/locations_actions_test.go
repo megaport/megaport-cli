@@ -1,10 +1,13 @@
 package locations
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -257,14 +260,14 @@ func TestListLocationsCommand(t *testing.T) {
 	})
 
 	t.Run("NoMatchingLocations", func(t *testing.T) {
-		output := output.CaptureOutput(func() {
+		stderr := captureStderr(t, func() {
 			cmd := newListCmd()
 			testutil.SetFlags(t, cmd, map[string]string{"name": "Non-existent Location"})
 			err := ListLocations(cmd, []string{}, true, "table")
 			assert.NoError(t, err)
 		})
 
-		assert.Contains(t, output, "No locations found matching your filters.")
+		assert.Contains(t, stderr, "No locations found matching your filters.")
 	})
 
 	t.Run("LimitResults", func(t *testing.T) {
@@ -712,4 +715,21 @@ func TestSearchLocations(t *testing.T) {
 			}
 		})
 	}
+}
+
+func captureStderr(t *testing.T, fn func()) (result string) {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	defer func() { os.Stderr = old }()
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() { defer close(done); _, _ = io.Copy(&buf, r) }()
+	defer func() { _ = w.Close(); <-done; _ = r.Close(); result = buf.String() }()
+	fn()
+	return
 }

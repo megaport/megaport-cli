@@ -1,8 +1,11 @@
 package managed_account
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -211,9 +214,13 @@ func TestListManagedAccounts(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, []string{})
+			var stderrOutput string
+			stdoutOutput := output.CaptureOutput(func() {
+				stderrOutput = captureStderr(t, func() {
+					err = cmd.RunE(cmd, []string{})
+				})
 			})
+			capturedOutput := stdoutOutput + stderrOutput
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
@@ -547,9 +554,13 @@ func TestCreateManagedAccount(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, []string{})
+			var stderrOutput string
+			stdoutOutput := output.CaptureOutput(func() {
+				stderrOutput = captureStderr(t, func() {
+					err = cmd.RunE(cmd, []string{})
+				})
 			})
+			capturedOutput := stdoutOutput + stderrOutput
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
@@ -903,9 +914,13 @@ func TestUpdateManagedAccount(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, []string{tt.companyUID})
+			var stderrOutput string
+			stdoutOutput := output.CaptureOutput(func() {
+				stderrOutput = captureStderr(t, func() {
+					err = cmd.RunE(cmd, []string{tt.companyUID})
+				})
 			})
+			capturedOutput := stdoutOutput + stderrOutput
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
@@ -1091,4 +1106,21 @@ func TestGetManagedAccountFunc_Error(t *testing.T) {
 	assert.Contains(t, err.Error(), "managed account not found")
 	assert.Equal(t, "uid-123", mockService.capturedGetCompanyUID)
 	assert.Equal(t, "Nonexistent", mockService.capturedGetAccountName)
+}
+
+func captureStderr(t *testing.T, fn func()) (result string) {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	defer func() { os.Stderr = old }()
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() { defer close(done); _, _ = io.Copy(&buf, r) }()
+	defer func() { _ = w.Close(); <-done; _ = r.Close(); result = buf.String() }()
+	fn()
+	return
 }

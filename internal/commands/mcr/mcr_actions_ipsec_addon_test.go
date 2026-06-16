@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/testutil"
 	megaport "github.com/megaport/megaportgo"
@@ -75,7 +74,7 @@ func TestAddMCRIPSecAddOn_Flags(t *testing.T) {
 			_ = cmd.Flags().Set("tunnel-count", fmt.Sprintf("%d", tt.tunnelCount))
 
 			var err error
-			out := output.CaptureOutput(func() {
+			out := captureStderr(t, func() {
 				err = AddMCRIPSecAddOn(cmd, []string{tt.mcrUID}, false)
 			})
 
@@ -115,7 +114,7 @@ func TestAddMCRIPSecAddOn_JSON(t *testing.T) {
 	cmd.Flags().Int("tunnel-count", 0, "")
 
 	var err error
-	out := output.CaptureOutput(func() {
+	out := captureStderr(t, func() {
 		err = AddMCRIPSecAddOn(cmd, []string{"mcr-json"}, false)
 	})
 
@@ -147,7 +146,7 @@ func TestAddMCRIPSecAddOn_NoInput(t *testing.T) {
 	cmd.Flags().Int("tunnel-count", 0, "")
 
 	var err error
-	out := output.CaptureOutput(func() {
+	out := captureStderr(t, func() {
 		err = AddMCRIPSecAddOn(cmd, []string{"mcr-abc"}, false)
 	})
 	assert.NoError(t, err)
@@ -221,7 +220,7 @@ func TestUpdateMCRIPSecAddOn_Flags(t *testing.T) {
 			_ = cmd.Flags().Set("tunnel-count", fmt.Sprintf("%d", tt.tunnelCount))
 
 			var err error
-			out := output.CaptureOutput(func() {
+			out := captureStderr(t, func() {
 				err = UpdateMCRIPSecAddOn(cmd, []string{tt.mcrUID, tt.addOnUID}, false)
 			})
 
@@ -257,7 +256,7 @@ func TestUpdateMCRIPSecAddOn_JSON(t *testing.T) {
 	cmd.Flags().Int("tunnel-count", 0, "")
 
 	var err error
-	out := output.CaptureOutput(func() {
+	out := captureStderr(t, func() {
 		err = UpdateMCRIPSecAddOn(cmd, []string{"mcr-json", "addon-json"}, false)
 	})
 

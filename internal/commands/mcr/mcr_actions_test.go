@@ -242,7 +242,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			testutil.SetFlags(t, cmd, flags)
 
 			var err error
-			output := output.CaptureOutput(func() {
+			output := captureStderr(t, func() {
 				err = cmd.RunE(cmd, []string{tt.mcrID})
 			})
 
@@ -327,7 +327,7 @@ func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
 			}
 
 			var err error
-			output := output.CaptureOutput(func() {
+			output := captureStderr(t, func() {
 				err = restoreMCRCmd.RunE(restoreMCRCmd, []string{tt.mcrID})
 			})
 
@@ -652,7 +652,7 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 			})
 
 			var err error
-			output := output.CaptureOutput(func() {
+			output := captureStderr(t, func() {
 				err = cmd.RunE(cmd, []string{tt.mcrUID, fmt.Sprintf("%d", tt.prefixListID)})
 			})
 
@@ -955,7 +955,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			testutil.SetFlags(t, cmd, flags)
 
 			var err error
-			output := output.CaptureOutput(func() {
+			output := captureStderr(t, func() {
 				err = cmd.RunE(cmd, tt.args)
 			})
 
@@ -1375,8 +1375,11 @@ func TestListMCRsCmd_WithMockClient(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, []string{})
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = cmd.RunE(cmd, []string{})
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -1413,7 +1416,7 @@ func TestListMCRsCmd_WithMockClient(t *testing.T) {
 
 				// Check warning message when no results found
 				if len(tt.expectedMCRs) == 0 && tt.expectedError == "" {
-					assert.Contains(t, capturedOutput, "No MCRs found. Create one with 'megaport mcr buy'.")
+					assert.Contains(t, capturedStderr, "No MCRs found. Create one with 'megaport mcr buy'.")
 				}
 			}
 
@@ -1794,7 +1797,7 @@ func TestUpdateMCRResourceTagsCmd(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedOutput := captureStderr(t, func() {
 				err = cmd.RunE(cmd, []string{tt.mcrUID})
 			})
 
@@ -2054,7 +2057,7 @@ func TestUpdateMCR(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedOutput := captureStderr(t, func() {
 				err = cmd.RunE(cmd, tt.args)
 			})
 
@@ -2198,7 +2201,7 @@ func TestCreateMCRPrefixFilterList(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedOutput := captureStderr(t, func() {
 				err = cmd.RunE(cmd, tt.args)
 			})
 
@@ -2371,7 +2374,7 @@ func TestUpdateMCRPrefixFilterList(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedOutput := captureStderr(t, func() {
 				err = cmd.RunE(cmd, tt.args)
 			})
 
@@ -2432,7 +2435,7 @@ func TestLockMCRCmd_WithMockClient(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedOutput := captureStderr(t, func() {
 				err = lockMCRCmd.RunE(lockMCRCmd, []string{tt.mcrID})
 			})
 
@@ -2491,7 +2494,7 @@ func TestUnlockMCRCmd_WithMockClient(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedOutput := captureStderr(t, func() {
 				err = unlockMCRCmd.RunE(unlockMCRCmd, []string{tt.mcrID})
 			})
 
@@ -2657,7 +2660,7 @@ func TestBuyMCR_Confirmation(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedOutput := captureStderr(t, func() {
 				err = cmd.RunE(cmd, nil)
 			})
 
@@ -2875,7 +2878,7 @@ func TestValidateMCR(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedOutput := captureStderr(t, func() {
 				err = ValidateMCR(cmd, nil, true)
 			})
 
@@ -2982,13 +2985,16 @@ func TestListMCRs_TagFilter(t *testing.T) {
 			}
 
 			var listErr error
-			capturedOutput := output.CaptureOutput(func() {
-				listErr = ListMCRs(cmd, nil, true, "table")
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					listErr = ListMCRs(cmd, nil, true, "table")
+				})
 			})
 			assert.NoError(t, listErr)
 
 			for _, expected := range tt.expectedOutputs {
-				assert.Contains(t, capturedOutput, expected)
+				assert.Contains(t, capturedOutput+capturedStderr, expected)
 			}
 			for _, notExp := range tt.notExpected {
 				assert.NotContains(t, capturedOutput, notExp)

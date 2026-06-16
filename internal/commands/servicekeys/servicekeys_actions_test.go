@@ -1,9 +1,12 @@
 package servicekeys
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -244,7 +247,7 @@ func TestUpdateServiceKey(t *testing.T) {
 			})
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedErr := captureStderr(t, func() {
 				err = cmd.RunE(cmd, []string{"test-key-123"})
 			})
 
@@ -254,7 +257,7 @@ func TestUpdateServiceKey(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				if tt.expectWarn {
-					assert.Contains(t, capturedOutput, "update request was not successful")
+					assert.Contains(t, capturedErr, "update request was not successful")
 				}
 			}
 		})
@@ -383,15 +386,18 @@ func TestListServiceKeys_EmptyResult(t *testing.T) {
 				testutil.SetFlags(t, cmd, map[string]string{"output": tt.outputFormat})
 			}
 
+			var capturedErr string
 			capturedOutput := output.CaptureOutput(func() {
-				_ = cmd.RunE(cmd, []string{})
+				capturedErr = captureStderr(t, func() {
+					_ = cmd.RunE(cmd, []string{})
+				})
 			})
 
 			if tt.expectedOutput != "" {
-				assert.Contains(t, capturedOutput, tt.expectedOutput)
+				assert.Contains(t, capturedOutput+capturedErr, tt.expectedOutput)
 			}
 			if tt.notExpected != "" {
-				assert.NotContains(t, capturedOutput, tt.notExpected)
+				assert.NotContains(t, capturedOutput+capturedErr, tt.notExpected)
 			}
 		})
 	}
@@ -456,4 +462,21 @@ func TestListServiceKeys_NegativeLimit(t *testing.T) {
 	err := cmd.RunE(cmd, []string{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--limit must be a non-negative integer")
+}
+
+func captureStderr(t *testing.T, fn func()) (result string) {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	defer func() { os.Stderr = old }()
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() { defer close(done); _, _ = io.Copy(&buf, r) }()
+	defer func() { _ = w.Close(); <-done; _ = r.Close(); result = buf.String() }()
+	fn()
+	return
 }

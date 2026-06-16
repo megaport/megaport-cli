@@ -1,8 +1,11 @@
 package users
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -262,8 +265,11 @@ func TestCreateUser(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = CreateUser(cmd, nil, true)
+			var capturedOutput string
+			capturedErr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = CreateUser(cmd, nil, true)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -272,7 +278,7 @@ func TestCreateUser(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				if tt.expectedContains != "" {
-					assert.Contains(t, capturedOutput, tt.expectedContains)
+					assert.Contains(t, capturedOutput+capturedErr, tt.expectedContains)
 				}
 			}
 		})
@@ -354,8 +360,11 @@ func TestUpdateUser(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = UpdateUser(cmd, []string{"12345"}, true)
+			var capturedOutput string
+			capturedErr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = UpdateUser(cmd, []string{"12345"}, true)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -364,7 +373,7 @@ func TestUpdateUser(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				if tt.expectedContains != "" {
-					assert.Contains(t, capturedOutput, tt.expectedContains)
+					assert.Contains(t, capturedOutput+capturedErr, tt.expectedContains)
 				}
 			}
 		})
@@ -438,8 +447,11 @@ func TestDeleteUser(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = DeleteUser(cmd, []string{"12345"}, true)
+			var capturedOutput string
+			capturedErr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = DeleteUser(cmd, []string{"12345"}, true)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -448,7 +460,7 @@ func TestDeleteUser(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				if tt.expectedContains != "" {
-					assert.Contains(t, capturedOutput, tt.expectedContains)
+					assert.Contains(t, capturedOutput+capturedErr, tt.expectedContains)
 				}
 			}
 		})
@@ -515,8 +527,11 @@ func TestDeactivateUser(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = DeactivateUser(cmd, []string{"12345"}, true)
+			var capturedOutput string
+			capturedErr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = DeactivateUser(cmd, []string{"12345"}, true)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -525,7 +540,7 @@ func TestDeactivateUser(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				if tt.expectedContains != "" {
-					assert.Contains(t, capturedOutput, tt.expectedContains)
+					assert.Contains(t, capturedOutput+capturedErr, tt.expectedContains)
 				}
 			}
 		})
@@ -606,4 +621,21 @@ func TestFilterUsers(t *testing.T) {
 	assert.Len(t, filterUsers(users, "Company Admin", false, false), 2)
 	assert.Len(t, filterUsers(users, "Company Admin", true, false), 1)
 	assert.Len(t, filterUsers(nil, "", false, false), 0)
+}
+
+func captureStderr(t *testing.T, fn func()) (result string) {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	defer func() { os.Stderr = old }()
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() { defer close(done); _, _ = io.Copy(&buf, r) }()
+	defer func() { _ = w.Close(); <-done; _ = r.Close(); result = buf.String() }()
+	fn()
+	return
 }

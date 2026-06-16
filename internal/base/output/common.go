@@ -121,9 +121,44 @@ type errorEnvelope struct {
 	Error errorBody `json:"error"`
 }
 
+// errorEmitted latches once a user-facing error message has been printed for
+// the current command invocation. The RunE wrappers reset it before running an
+// action and consult it afterward so they print their own error only when the
+// action did not already surface one, avoiding a double-printed error.
+var (
+	errorEmitted   bool
+	errorEmittedMu sync.Mutex
+)
+
+// markErrorEmitted records that an error message was shown to the user.
+func markErrorEmitted() {
+	errorEmittedMu.Lock()
+	errorEmitted = true
+	errorEmittedMu.Unlock()
+}
+
+// ErrorEmitted reports whether an error message has been printed since the last
+// ResetErrorEmitted call.
+func ErrorEmitted() bool {
+	errorEmittedMu.Lock()
+	defer errorEmittedMu.Unlock()
+	return errorEmitted
+}
+
+// ResetErrorEmitted clears the error-emitted latch. Called at the start of each
+// RunE wrapper invocation.
+func ResetErrorEmitted() {
+	errorEmittedMu.Lock()
+	errorEmitted = false
+	errorEmittedMu.Unlock()
+}
+
 // ResetState clears all output configuration back to defaults.
 // Intended for the WASM entry point to prevent state bleed between invocations.
-func ResetState() { ApplyOutputConfig(defaultOutputConfig()) }
+func ResetState() {
+	ApplyOutputConfig(defaultOutputConfig())
+	ResetErrorEmitted()
+}
 
 // printOptions is the per-call snapshot of the field/query/header/template
 // settings that the data-output path consults. PrintOutput reads the config
