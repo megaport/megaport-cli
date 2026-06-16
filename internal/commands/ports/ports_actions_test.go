@@ -1107,7 +1107,7 @@ func TestRestorePort(t *testing.T) {
 			name:          "not successful",
 			portUID:       "port-restore-fail",
 			restoreResp:   &megaport.RestorePortResponse{IsRestored: false},
-			expectedError: "not successful",
+			expectedError: "not successful for port-restore-fail",
 		},
 	}
 
@@ -1196,7 +1196,7 @@ func TestLockPort(t *testing.T) {
 			name:          "not successful",
 			portUID:       "port-lock-fail",
 			lockResp:      &megaport.LockPortResponse{IsLocking: false},
-			expectedError: "not successful",
+			expectedError: "not successful for port-lock-fail",
 		},
 	}
 
@@ -1285,7 +1285,7 @@ func TestUnlockPort(t *testing.T) {
 			name:          "not successful",
 			portUID:       "port-unlock-fail",
 			unlockResp:    &megaport.UnlockPortResponse{IsUnlocking: false},
-			expectedError: "not successful",
+			expectedError: "not successful for port-unlock-fail",
 		},
 	}
 
@@ -2180,7 +2180,7 @@ func TestDeletePort_Comprehensive(t *testing.T) {
 			name:          "delete returns not deleting",
 			force:         true,
 			isDeleting:    false,
-			expectedError: "not successful",
+			expectedError: "not successful for port-123",
 		},
 	}
 

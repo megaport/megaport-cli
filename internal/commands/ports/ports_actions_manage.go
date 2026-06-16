@@ -198,7 +198,7 @@ func RestorePort(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	if !resp.IsRestored {
-		output.PrintError("Port restoration request was not successful for %s", noColor, formattedUID)
+		output.PrintError("Port restoration request was not successful for %s", noColor, portUID)
 		return fmt.Errorf("port restoration request was not successful for %s", portUID)
 	}
 
@@ -234,7 +234,7 @@ func LockPort(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	if !resp.IsLocking {
-		output.PrintError("Port lock request was not successful for %s", noColor, formattedUID)
+		output.PrintError("Port lock request was not successful for %s", noColor, portUID)
 		return fmt.Errorf("port lock request was not successful for %s", portUID)
 	}
 
@@ -270,7 +270,7 @@ func UnlockPort(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	if !resp.IsUnlocking {
-		output.PrintError("Port unlock request was not successful for %s", noColor, formattedUID)
+		output.PrintError("Port unlock request was not successful for %s", noColor, portUID)
 		return fmt.Errorf("port unlock request was not successful for %s", portUID)
 	}
 

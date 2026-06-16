@@ -211,7 +211,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 					IsDeleting: false,
 				}
 			},
-			expectedError: "not successful",
+			expectedError: "not successful for mcr-not-deleting",
 			expectDeleted: false,
 		},
 	}
@@ -316,7 +316,7 @@ func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
 					IsRestored: false,
 				}
 			},
-			expectedError: "not successful",
+			expectedError: "not successful for mcr-fail",
 		},
 	}
 
@@ -644,7 +644,7 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 					IsDeleted: false,
 				}
 			},
-			expectedError: "not successful",
+			expectedError: "not successful for ID 1",
 		},
 	}
 
@@ -2392,7 +2392,7 @@ func TestUpdateMCRPrefixFilterList(t *testing.T) {
 					return &megaport.ModifyMCRPrefixFilterListResponse{IsUpdated: false}, nil
 				}
 			},
-			expectedError: "not successful",
+			expectedError: "not successful for ID 456",
 		},
 	}
 

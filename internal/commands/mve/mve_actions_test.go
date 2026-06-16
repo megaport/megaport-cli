@@ -616,7 +616,7 @@ func TestDeleteMVE(t *testing.T) {
 				}
 			},
 			forceFlag:     true,
-			expectedError: "not successful",
+			expectedError: "not successful for mve-uid",
 		},
 	}
 
