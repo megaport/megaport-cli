@@ -430,6 +430,20 @@ func TestWithOrderRetry_NoRetryOn502(t *testing.T) {
 	assert.Equal(t, 1, calls, "a buy must not be retried on an ambiguous 502")
 }
 
+func TestWithOrderRetry_NoRetryFlag(t *testing.T) {
+	oldNoRetry := NoRetry
+	defer func() { NoRetry = oldNoRetry }()
+	NoRetry = true
+
+	calls := 0
+	err := WithOrderRetry(context.Background(), func(ctx context.Context) error {
+		calls++
+		return apiError(429, "")
+	})
+	assert.Error(t, err)
+	assert.Equal(t, 1, calls, "--no-retry should disable order retries")
+}
+
 func TestOrderSafeRetry_RetriesOn429ThenSucceeds(t *testing.T) {
 	opts := fastOpts()
 	opts.OrderSafe = true

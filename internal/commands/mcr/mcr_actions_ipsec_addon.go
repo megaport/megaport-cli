@@ -75,7 +75,7 @@ func AddMCRIPSecAddOn(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	spinner := output.PrintResourceCreating("IPSec Add-On", mcrUID, noColor)
-	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
 		return updateMCRWithAddOnFunc(ctx, client, mcrUID, req)
 	})
 	spinner.Stop()
