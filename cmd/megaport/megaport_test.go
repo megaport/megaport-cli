@@ -231,7 +231,7 @@ func TestExitCodeFromError(t *testing.T) {
 		{"cobra unknown command", errors.New(`unknown command "foo" for "megaport-cli"`), exitcodes.Usage},
 		{"cobra unknown flag", errors.New(`unknown flag: --bogus`), exitcodes.Usage},
 		{"cobra unknown shorthand flag", errors.New(`unknown shorthand flag: 'x' in -x`), exitcodes.Usage},
-		{"cobra accepts at most", errors.New(`accepts at most 1 arg(s), received 2`), exitcodes.Usage},
+		{"cobra accepts at most (MaximumNArgs)", errors.New(`accepts at most 1 arg(s), received 2`), exitcodes.Usage},
 		{"cobra accepts exact (ExactArgs)", errors.New(`accepts 1 arg(s), received 0`), exitcodes.Usage},
 		{"cobra accepts between (RangeArgs)", errors.New(`accepts between 1 and 2 arg(s), received 3`), exitcodes.Usage},
 		{"cobra requires at least (MinimumNArgs)", errors.New(`requires at least 1 arg(s), only received 0`), exitcodes.Usage},
