@@ -59,12 +59,12 @@ func DeleteMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("failed to delete MCR: %w", err)
 	}
 
-	if resp.IsDeleting {
-		output.PrintResourceDeleted("MCR", mcrUID, true, noColor)
-	} else {
-		output.PrintError("MCR deletion request was not successful", noColor)
+	if !resp.IsDeleting {
+		output.PrintError("MCR deletion request was not successful for %s", noColor, mcrUID)
+		return fmt.Errorf("MCR deletion request was not successful for %s", mcrUID)
 	}
 
+	output.PrintResourceDeleted("MCR", mcrUID, true, noColor)
 	return nil
 }
 
@@ -90,12 +90,12 @@ func RestoreMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("failed to restore MCR: %w", err)
 	}
 
-	if resp.IsRestored {
-		output.PrintSuccess("MCR %s restored successfully", noColor, mcrUID)
-	} else {
-		output.PrintError("MCR restoration request was not successful", noColor)
+	if !resp.IsRestored {
+		output.PrintError("MCR restoration request was not successful for %s", noColor, mcrUID)
+		return fmt.Errorf("MCR restoration request was not successful for %s", mcrUID)
 	}
 
+	output.PrintSuccess("MCR %s restored successfully", noColor, mcrUID)
 	return nil
 }
 

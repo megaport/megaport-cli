@@ -313,9 +313,9 @@ func isCobraUsageError(msg string) bool {
 		"unknown command",
 		"unknown flag",
 		"unknown shorthand flag",
-		"accepts between",
-		"accepts at most",
-		"accepts at least",
+		// Covers every cobra arg-count validator: ExactArgs, MinimumNArgs,
+		// MaximumNArgs, and RangeArgs all phrase their error as "... arg(s) ...".
+		"arg(s)",
 		"required flag(s)",
 	}
 	for _, p := range cobraPatterns {
