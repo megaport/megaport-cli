@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"os"
+	"io"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	megaport "github.com/megaport/megaportgo"
@@ -214,13 +214,15 @@ func buildDashboard(
 	return dashboard, nil
 }
 
-// printDashboard dispatches to the appropriate format printer.
-func printDashboard(dashboard dashboardOutput, format string, noColor bool) error {
+// printDashboard dispatches to the appropriate format printer. w receives the
+// JSON/XML output so it is captured by the cobra writer (the WASM output buffer
+// in the browser build); table/CSV go through the output package directly.
+func printDashboard(w io.Writer, dashboard dashboardOutput, format string, noColor bool) error {
 	switch format {
 	case "json":
-		return printDashboardJSON(dashboard)
+		return printDashboardJSON(w, dashboard)
 	case "xml":
-		return printDashboardXML(dashboard)
+		return printDashboardXML(w, dashboard)
 	case "csv":
 		return printDashboardCSV(dashboard, noColor)
 	default:
@@ -292,13 +294,13 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	return nil
 }
 
-func printDashboardJSON(dashboard dashboardOutput) error {
-	encoder := json.NewEncoder(os.Stdout)
+func printDashboardJSON(w io.Writer, dashboard dashboardOutput) error {
+	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(dashboard)
 }
 
-func printDashboardXML(dashboard dashboardOutput) error {
+func printDashboardXML(w io.Writer, dashboard dashboardOutput) error {
 	type xmlDashboard struct {
 		XMLName xml.Name           `xml:"dashboard"`
 		Ports   []statusPortOutput `xml:"ports>port"`
@@ -316,12 +318,12 @@ func printDashboardXML(dashboard dashboardOutput) error {
 		IXs:     dashboard.IXs,
 		Summary: dashboard.Summary,
 	}
-	encoder := xml.NewEncoder(os.Stdout)
+	encoder := xml.NewEncoder(w)
 	encoder.Indent("", "  ")
 	if err := encoder.Encode(out); err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stdout)
+	fmt.Fprintln(w)
 	return nil
 }
 

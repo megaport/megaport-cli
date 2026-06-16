@@ -107,11 +107,11 @@ func ShowTopology(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 		if err != nil {
 			return fmt.Errorf("failed to marshal topology: %w", err)
 		}
-		fmt.Println(string(jsonBytes))
+		fmt.Fprintln(cmd.OutOrStdout(), string(jsonBytes))
 	case "csv", "xml":
 		return fmt.Errorf("output format %q is not supported for topology — use table (default) or json", outputFormat)
 	default:
-		fmt.Print(renderTree(nodes, noColor))
+		fmt.Fprint(cmd.OutOrStdout(), renderTree(nodes, noColor))
 	}
 
 	return nil

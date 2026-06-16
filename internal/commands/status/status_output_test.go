@@ -1,6 +1,7 @@
 package status
 
 import (
+	"os"
 	"testing"
 
 	op "github.com/megaport/megaport-cli/internal/base/output"
@@ -70,7 +71,7 @@ func TestPrintDashboard_Table(t *testing.T) {
 	withOutputFormat(t, "table")
 	dashboard := statusTestDashboard(t)
 	out := op.CaptureOutput(func() {
-		err := printDashboard(dashboard, "table", true)
+		err := printDashboard(os.Stdout, dashboard, "table", true)
 		assert.NoError(t, err)
 	})
 
@@ -86,7 +87,7 @@ func TestPrintDashboard_JSON(t *testing.T) {
 	withOutputFormat(t, "json")
 	dashboard := statusTestDashboard(t)
 	out := op.CaptureOutput(func() {
-		err := printDashboard(dashboard, "json", true)
+		err := printDashboard(os.Stdout, dashboard, "json", true)
 		assert.NoError(t, err)
 	})
 
@@ -100,7 +101,7 @@ func TestPrintDashboard_CSV(t *testing.T) {
 	withOutputFormat(t, "csv")
 	dashboard := statusTestDashboard(t)
 	out := op.CaptureOutput(func() {
-		err := printDashboard(dashboard, "csv", true)
+		err := printDashboard(os.Stdout, dashboard, "csv", true)
 		assert.NoError(t, err)
 	})
 
@@ -114,7 +115,7 @@ func TestPrintDashboard_XML(t *testing.T) {
 	withOutputFormat(t, "xml")
 	dashboard := statusTestDashboard(t)
 	out := op.CaptureOutput(func() {
-		err := printDashboard(dashboard, "xml", true)
+		err := printDashboard(os.Stdout, dashboard, "xml", true)
 		assert.NoError(t, err)
 	})
 
@@ -133,7 +134,7 @@ func TestPrintDashboard_Empty(t *testing.T) {
 		t.Run(format, func(t *testing.T) {
 			withOutputFormat(t, format)
 			out := op.CaptureOutput(func() {
-				err := printDashboard(dashboard, format, true)
+				err := printDashboard(os.Stdout, dashboard, format, true)
 				assert.NoError(t, err)
 			})
 			assert.NotEmpty(t, out)
