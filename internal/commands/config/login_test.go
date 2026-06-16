@@ -897,6 +897,45 @@ func TestRedactingHandler(t *testing.T) {
 		assert.Contains(t, output, "[REDACTED]")
 	})
 
+	// Fail-closed: a credential key the allowlist never enumerated (the SDK's
+	// authorization_header) must still be redacted via substring matching.
+	t.Run("redacts unlisted authorization_header", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "login request",
+			slog.String("authorization_header", "Basic YWNjZXNzOnNlY3JldA=="),
+		)
+		output := buf.String()
+		assert.NotContains(t, output, "Basic YWNjZXNzOnNlY3JldA==")
+		assert.NotContains(t, output, "YWNjZXNzOnNlY3JldA==")
+		assert.Contains(t, output, "[REDACTED]")
+	})
+
+	t.Run("redaction is case-insensitive", func(t *testing.T) {
+		for _, key := range []string{"Authorization", "X-Access-Key", "Secret_Key", "ACCESS_TOKEN"} {
+			assert.True(t, isSensitiveKey(key), "expected %q to be treated as sensitive", key)
+		}
+	})
+
+	t.Run("preserves non-credential keys", func(t *testing.T) {
+		for _, key := range []string{"method", "path", "api_host", "trace_id", "content_type", "status_code"} {
+			assert.False(t, isSensitiveKey(key), "expected %q to be preserved", key)
+		}
+	})
+
+	t.Run("redacts credential-family substrings", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "auth",
+			slog.String("client_secret", "shh-secret"),
+			slog.String("refresh_token", "refresh-me"),
+			slog.String("api_key_id", "key-id-leak"),
+		)
+		output := buf.String()
+		assert.NotContains(t, output, "shh-secret")
+		assert.NotContains(t, output, "refresh-me")
+		assert.NotContains(t, output, "key-id-leak")
+		assert.Contains(t, output, "[REDACTED]")
+	})
+
 	t.Run("redacts inside group attributes", func(t *testing.T) {
 		buf.Reset()
 		logger.DebugContext(context.Background(), "api call",

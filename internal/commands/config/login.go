@@ -290,14 +290,36 @@ func appendLogOpts(opts []megaport.ClientOpt) []megaport.ClientOpt {
 	return result
 }
 
-// sensitiveKeys lists slog attribute keys whose values should be redacted.
-var sensitiveKeys = map[string]bool{
-	"access_key":            true,
-	"secret_key":            true,
+// sensitiveKeySubstrings are matched case-insensitively against slog attribute
+// keys. Substring matching fails closed: any current or future log key carrying
+// a credential family (authorization headers, access/secret keys, tokens) is
+// redacted even if the SDK adds a new key name we never enumerated.
+var sensitiveKeySubstrings = []string{
+	"authorization",
+	"key",
+	"token",
+	"secret",
+}
+
+// sensitiveExactKeys lists keys to redact that the substring families above
+// don't catch, such as encoded response bodies that may embed credentials.
+var sensitiveExactKeys = map[string]bool{
 	"response_body_base_64": true,
-	"authorization":         true,
-	"x-authorization":       true,
-	"access_token":          true,
+}
+
+// isSensitiveKey reports whether an slog attribute key should have its value
+// redacted, matching credential families as case-insensitive substrings.
+func isSensitiveKey(key string) bool {
+	lower := strings.ToLower(key)
+	if sensitiveExactKeys[lower] {
+		return true
+	}
+	for _, sub := range sensitiveKeySubstrings {
+		if strings.Contains(lower, sub) {
+			return true
+		}
+	}
+	return false
 }
 
 // redactingHandler wraps an slog.Handler to replace sensitive attribute values
@@ -335,7 +357,7 @@ func (h *redactingHandler) WithGroup(name string) slog.Handler {
 // For group attributes (like the SDK's "api_request" group), it recurses
 // into the group's attributes.
 func redactAttr(a slog.Attr) slog.Attr {
-	if sensitiveKeys[a.Key] {
+	if isSensitiveKey(a.Key) {
 		return slog.String(a.Key, "[REDACTED]")
 	}
 	// Recurse into group attributes
