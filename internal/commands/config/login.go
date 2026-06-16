@@ -278,8 +278,8 @@ func warnIfInsecureURL(flagName, rawURL string) {
 func warnIfInsecureBaseURL(rawURL string) { warnIfInsecureURL("--base-url", rawURL) }
 
 // appendLogOpts appends HTTP debug logging options to the client option slice
-// when --log-http is enabled. Logs go to stderr at DEBUG level with sensitive
-// fields (access keys, tokens, and all response bodies) redacted.
+// when --log-http is enabled. Logs go to stderr at DEBUG level; the
+// redactingHandler scrubs credential-bearing fields and response bodies.
 func appendLogOpts(opts []megaport.ClientOpt) []megaport.ClientOpt {
 	result := append([]megaport.ClientOpt(nil), opts...)
 	if utils.LogHTTP {
@@ -307,10 +307,20 @@ var sensitiveExactKeys = map[string]bool{
 	"response_body_base_64": true,
 }
 
+// nonSensitiveExactKeys lists keys that match a substring family but carry no
+// credential and are useful for --log-http debugging, so they stay visible.
+// token_url is the constant OAuth endpoint, not the token itself.
+var nonSensitiveExactKeys = map[string]bool{
+	"token_url": true,
+}
+
 // isSensitiveKey reports whether an slog attribute key should have its value
 // redacted, matching credential families as case-insensitive substrings.
 func isSensitiveKey(key string) bool {
 	lower := strings.ToLower(key)
+	if nonSensitiveExactKeys[lower] {
+		return false
+	}
 	if sensitiveExactKeys[lower] {
 		return true
 	}
@@ -320,6 +330,14 @@ func isSensitiveKey(key string) bool {
 		}
 	}
 	return false
+}
+
+// looksLikeAuthValue reports whether a string value carries an HTTP
+// Authorization credential. Scanning the value (not just the key) keeps
+// redaction fail-closed when a credential is logged under an unrecognized key.
+func looksLikeAuthValue(v string) bool {
+	lower := strings.ToLower(strings.TrimSpace(v))
+	return strings.HasPrefix(lower, "basic ") || strings.HasPrefix(lower, "bearer ")
 }
 
 // redactingHandler wraps an slog.Handler to replace sensitive attribute values
@@ -368,6 +386,10 @@ func redactAttr(a slog.Attr) slog.Attr {
 			cleaned[i] = redactAttr(ga)
 		}
 		return slog.Group(a.Key, attrsToAny(cleaned)...)
+	}
+	// Fail closed on credential-shaped values under unrecognized keys.
+	if a.Value.Kind() == slog.KindString && looksLikeAuthValue(a.Value.String()) {
+		return slog.String(a.Key, "[REDACTED]")
 	}
 	return a
 }

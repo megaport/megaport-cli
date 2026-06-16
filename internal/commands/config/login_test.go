@@ -922,6 +922,31 @@ func TestRedactingHandler(t *testing.T) {
 		}
 	})
 
+	// token_url is the constant OAuth endpoint, not the token, and is the most
+	// useful field when debugging --log-http auth issues; keep it visible.
+	t.Run("preserves token_url despite token substring", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "login request",
+			slog.String("token_url", "https://auth.megaport.com/oauth2/token"),
+		)
+		output := buf.String()
+		assert.Contains(t, output, "https://auth.megaport.com/oauth2/token")
+		assert.NotContains(t, output, "[REDACTED]")
+	})
+
+	// Fail closed on a credential-shaped value even when its key is unknown.
+	t.Run("redacts auth value under unrecognized key", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "request",
+			slog.String("custom_header", "Basic YWNjZXNzOnNlY3JldA=="),
+			slog.String("bearer_field", "Bearer eyJ-token-value"),
+		)
+		output := buf.String()
+		assert.NotContains(t, output, "YWNjZXNzOnNlY3JldA==")
+		assert.NotContains(t, output, "eyJ-token-value")
+		assert.Contains(t, output, "[REDACTED]")
+	})
+
 	t.Run("redacts credential-family substrings", func(t *testing.T) {
 		buf.Reset()
 		logger.DebugContext(context.Background(), "auth",
