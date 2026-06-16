@@ -853,8 +853,8 @@ func TestCLIHeadersSentOnRequests(t *testing.T) {
 	assert.Equal(t, "cli", capturedHeaders.Get("x-app"))
 }
 
-// stringerValue is a fmt.Stringer so slog.Any produces a non-string (KindAny)
-// attribute value, exercising the value-level redaction path.
+// stringerValue is a fmt.Stringer wrapped via slog.Any, exercising the
+// value-level redaction path for a value that isn't a plain slog string.
 type stringerValue string
 
 func (s stringerValue) String() string { return string(s) }
