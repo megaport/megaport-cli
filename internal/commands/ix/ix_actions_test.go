@@ -2004,11 +2004,15 @@ func TestMockIXServiceReset(t *testing.T) {
 // ambiguous 502, which could double-submit the order and duplicate billing.
 func TestBuyIX_NoRetryOnAmbiguousError(t *testing.T) {
 	originalBuyIXFunc := buyIXFunc
+	originalMaxRetries := utils.MaxRetries
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer func() {
 		cleanup()
 		buyIXFunc = originalBuyIXFunc
+		utils.MaxRetries = originalMaxRetries
 	}()
+	// Retries are available; the order-safe policy must still refuse to use them on a 502.
+	utils.MaxRetries = 3
 	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
 	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
 	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })

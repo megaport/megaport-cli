@@ -413,8 +413,13 @@ func TestIsOrderRetryable(t *testing.T) {
 
 func TestWithOrderRetry_NoRetryOn502(t *testing.T) {
 	oldNoRetry := NoRetry
-	defer func() { NoRetry = oldNoRetry }()
+	oldMaxRetries := MaxRetries
+	defer func() {
+		NoRetry = oldNoRetry
+		MaxRetries = oldMaxRetries
+	}()
 	NoRetry = false
+	MaxRetries = 3 // retries are available; the order-safe policy must still refuse to use them on a 502
 
 	calls := 0
 	err := WithOrderRetry(context.Background(), func(ctx context.Context) error {
