@@ -859,6 +859,13 @@ type stringerValue string
 
 func (s stringerValue) String() string { return string(s) }
 
+// logValuerLeak exposes its credential only through LogValue(); its plain fmt
+// form ("{...}") hides the scheme prefix, so the value scan must Resolve()
+// before inspecting or the inner handler prints the resolved credential.
+type logValuerLeak struct{ token string }
+
+func (l logValuerLeak) LogValue() slog.Value { return slog.StringValue("Bearer " + l.token) }
+
 func TestRedactingHandler(t *testing.T) {
 	var buf bytes.Buffer
 	inner := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
@@ -962,6 +969,18 @@ func TestRedactingHandler(t *testing.T) {
 		)
 		output := buf.String()
 		assert.NotContains(t, output, "opaque-secret-token")
+		assert.Contains(t, output, "[REDACTED]")
+	})
+
+	// A LogValuer's credential is only visible after Resolve(); the scan must
+	// resolve before inspecting or the inner handler prints it in cleartext.
+	t.Run("redacts auth value from LogValuer attr", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "request",
+			slog.Any("lazy", logValuerLeak{token: "lazy-secret-token"}),
+		)
+		output := buf.String()
+		assert.NotContains(t, output, "lazy-secret-token")
 		assert.Contains(t, output, "[REDACTED]")
 	})
 

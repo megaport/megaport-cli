@@ -378,9 +378,13 @@ func redactAttr(a slog.Attr) slog.Attr {
 	if isSensitiveKey(a.Key) {
 		return slog.String(a.Key, "[REDACTED]")
 	}
+	// Resolve LogValuer values so group recursion and value scanning see the
+	// real logged value rather than its unresolved wrapper, which otherwise
+	// lets a credential resolved by the inner handler slip past the scan.
+	val := a.Value.Resolve()
 	// Recurse into group attributes
-	if a.Value.Kind() == slog.KindGroup {
-		attrs := a.Value.Group()
+	if val.Kind() == slog.KindGroup {
+		attrs := val.Group()
 		cleaned := make([]slog.Attr, len(attrs))
 		for i, ga := range attrs {
 			cleaned[i] = redactAttr(ga)
@@ -388,8 +392,8 @@ func redactAttr(a slog.Attr) slog.Attr {
 		return slog.Group(a.Key, attrsToAny(cleaned)...)
 	}
 	// Fail closed on credential-shaped values under unrecognized keys,
-	// regardless of the attribute's value kind (String, Any, Stringer, ...).
-	if looksLikeAuthValue(a.Value.String()) {
+	// regardless of the attribute's value kind (String, Any, LogValuer, ...).
+	if looksLikeAuthValue(val.String()) {
 		return slog.String(a.Key, "[REDACTED]")
 	}
 	return a
