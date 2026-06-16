@@ -853,6 +853,12 @@ func TestCLIHeadersSentOnRequests(t *testing.T) {
 	assert.Equal(t, "cli", capturedHeaders.Get("x-app"))
 }
 
+// stringerValue is a fmt.Stringer so slog.Any produces a non-string (KindAny)
+// attribute value, exercising the value-level redaction path.
+type stringerValue string
+
+func (s stringerValue) String() string { return string(s) }
+
 func TestRedactingHandler(t *testing.T) {
 	var buf bytes.Buffer
 	inner := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
@@ -944,6 +950,18 @@ func TestRedactingHandler(t *testing.T) {
 		output := buf.String()
 		assert.NotContains(t, output, "YWNjZXNzOnNlY3JldA==")
 		assert.NotContains(t, output, "eyJ-token-value")
+		assert.Contains(t, output, "[REDACTED]")
+	})
+
+	// A credential carried by a non-string value (slog.Any over a Stringer)
+	// must still be caught by the value-level scan.
+	t.Run("redacts auth value from non-string attr", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "request",
+			slog.Any("opaque", stringerValue("Bearer opaque-secret-token")),
+		)
+		output := buf.String()
+		assert.NotContains(t, output, "opaque-secret-token")
 		assert.Contains(t, output, "[REDACTED]")
 	})
 

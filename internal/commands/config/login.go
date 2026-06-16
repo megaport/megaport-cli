@@ -387,8 +387,9 @@ func redactAttr(a slog.Attr) slog.Attr {
 		}
 		return slog.Group(a.Key, attrsToAny(cleaned)...)
 	}
-	// Fail closed on credential-shaped values under unrecognized keys.
-	if a.Value.Kind() == slog.KindString && looksLikeAuthValue(a.Value.String()) {
+	// Fail closed on credential-shaped values under unrecognized keys,
+	// regardless of the attribute's value kind (String, Any, Stringer, ...).
+	if looksLikeAuthValue(a.Value.String()) {
 		return slog.String(a.Key, "[REDACTED]")
 	}
 	return a
