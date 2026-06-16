@@ -278,6 +278,8 @@ func PrintOutput[T OutputFields](data []T, format string, noColor bool) error {
 // Use it to compose several tables into one writer (e.g. the status dashboard)
 // so the full output is captured in order, including under the WASM transport
 // where PrintOutput("table") would otherwise only retain the last section.
+// Touching no shared globals, it needs no output-package locking; the caller
+// owns w.
 func PrintTableToWriter[T OutputFields](w io.Writer, data []T, noColor bool) error {
 	return printTableToWriter(w, data, noColor, currentPrintOptions())
 }

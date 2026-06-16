@@ -234,8 +234,13 @@ func printDashboard(w io.Writer, dashboard dashboardOutput, format string, noCol
 // printDashboardTable renders every section's table into w via
 // PrintTableToWriter rather than PrintOutput("table"). Under the WASM transport
 // PrintOutput overwrites a single per-call table global, so only the last
-// section would survive; rendering each table into w keeps them all, in order,
-// alongside the section headers (PrintPlain also targets the WASM buffer).
+// section would survive; rendering each table into w keeps them all, in order.
+//
+// w must be cmd.OutOrStdout() so it matches where the output.Print* helpers send
+// the section headers and summary (os.Stdout natively, the WASM output buffer in
+// the browser); otherwise headers and tables would land in different places. The
+// headers stay on PrintPlain/PrintWarning so they keep quiet-mode and JSON-stderr
+// gating, which a raw write to w would drop.
 func printDashboardTable(w io.Writer, dashboard dashboardOutput, noColor bool) error {
 	// PORTS
 	output.PrintNewline()
