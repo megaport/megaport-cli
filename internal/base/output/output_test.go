@@ -385,6 +385,38 @@ func TestPrintPrettyTable_SimpleStruct(t *testing.T) {
 	assert.Contains(t, output, " true ")
 }
 
+func TestPrintTableToWriter(t *testing.T) {
+	data := []SimpleStruct{
+		{ID: 1, Name: "Item 1", Active: true},
+		{ID: 2, Name: "Item 2", Active: false},
+	}
+
+	var buf strings.Builder
+	err := PrintTableToWriter(&buf, data, true)
+	assert.NoError(t, err)
+
+	out := buf.String()
+	assert.Contains(t, out, "ID")
+	assert.Contains(t, out, "NAME")
+	assert.Contains(t, out, "Item 1")
+	assert.Contains(t, out, "Item 2")
+}
+
+func TestPrintTableToWriter_EmptySlice(t *testing.T) {
+	var buf strings.Builder
+	err := PrintTableToWriter(&buf, []SimpleStruct{}, true)
+	assert.NoError(t, err)
+}
+
+func TestPrintTableToWriter_UnknownFieldErrors(t *testing.T) {
+	SetOutputFields([]string{"definitely_not_a_field"})
+	defer SetOutputFields(nil)
+
+	var buf strings.Builder
+	err := PrintTableToWriter(&buf, []SimpleStruct{{ID: 1, Name: "Item 1"}}, true)
+	assert.Error(t, err)
+}
+
 func TestPrintPrettyTable_ComplexStruct(t *testing.T) {
 	reference := SimpleStruct{ID: 100, Name: "Reference", Active: true}
 	now := time.Now()

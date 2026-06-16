@@ -1,6 +1,7 @@
 package status
 
 import (
+	"io"
 	"os"
 	"testing"
 
@@ -124,6 +125,48 @@ func TestPrintDashboard_XML(t *testing.T) {
 	assert.Contains(t, out, "<asn>65000</asn>")
 	assert.Contains(t, out, "<a_end_uid>a-end</a_end_uid>")
 	assert.Contains(t, out, "<summary>")
+}
+
+// TestPrintDashboardTable_SectionError verifies that a table-render failure in
+// any section is propagated. Setting an unknown --fields makes
+// PrintTableToWriter fail, and each subtest populates exactly one section so the
+// error originates from that section's render call.
+func TestPrintDashboardTable_SectionError(t *testing.T) {
+	withOutputFormat(t, "table")
+
+	port := &megaport.Port{UID: "port-1", Name: "Port One", ProvisioningStatus: "LIVE"}
+	mcr := &megaport.MCR{UID: "mcr-1", Name: "MCR One", ProvisioningStatus: "LIVE"}
+	mve := &megaport.MVE{UID: "mve-1", Name: "MVE One", ProvisioningStatus: "LIVE"}
+	vxc := &megaport.VXC{UID: "vxc-1", Name: "VXC One", ProvisioningStatus: "LIVE"}
+	ix := &megaport.IX{ProductUID: "ix-1", ProductName: "IX One", ProvisioningStatus: "LIVE"}
+
+	cases := []struct {
+		name  string
+		ports []*megaport.Port
+		mcrs  []*megaport.MCR
+		mves  []*megaport.MVE
+		vxcs  []*megaport.VXC
+		ixs   []*megaport.IX
+	}{
+		{name: "ports", ports: []*megaport.Port{port}},
+		{name: "mcrs", mcrs: []*megaport.MCR{mcr}},
+		{name: "mves", mves: []*megaport.MVE{mve}},
+		{name: "vxcs", vxcs: []*megaport.VXC{vxc}},
+		{name: "ixs", ixs: []*megaport.IX{ix}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dashboard, err := buildDashboard(tc.ports, tc.mcrs, tc.mves, tc.vxcs, tc.ixs)
+			assert.NoError(t, err)
+
+			op.SetOutputFields([]string{"definitely_not_a_field"})
+			t.Cleanup(func() { op.SetOutputFields(nil) })
+
+			err = printDashboard(io.Discard, dashboard, "table", true)
+			assert.Error(t, err)
+		})
+	}
 }
 
 func TestPrintDashboard_Empty(t *testing.T) {
