@@ -388,6 +388,88 @@ func TestLogRetry_NonVerboseEarlyAttempt(t *testing.T) {
 	logRetry(1, 3, 100*time.Millisecond, fmt.Errorf("test error"))
 }
 
+func TestIsOrderRetryable(t *testing.T) {
+	tests := []struct {
+		name      string
+		err       error
+		retryable bool
+	}{
+		{"429 Too Many Requests", apiError(429, ""), true},
+		{"502 Bad Gateway", apiError(502, ""), false},
+		{"503 Service Unavailable", apiError(503, ""), false},
+		{"504 Gateway Timeout", apiError(504, ""), false},
+		{"400 Bad Request", apiError(400, ""), false},
+		{"connection refused (pre-send)", fmt.Errorf("dial: %w", syscall.ECONNREFUSED), true},
+		{"connection reset (ambiguous)", fmt.Errorf("write: %w", syscall.ECONNRESET), false},
+		{"io.EOF (ambiguous)", io.EOF, false},
+		{"timeout (ambiguous)", &net.DNSError{IsTimeout: true}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.retryable, isOrderRetryable(tt.err))
+		})
+	}
+}
+
+func TestWithOrderRetry_NoRetryOn502(t *testing.T) {
+	oldNoRetry := NoRetry
+	defer func() { NoRetry = oldNoRetry }()
+	NoRetry = false
+
+	calls := 0
+	err := WithOrderRetry(context.Background(), func(ctx context.Context) error {
+		calls++
+		return apiError(502, "")
+	})
+	assert.Error(t, err)
+	assert.Equal(t, 1, calls, "a buy must not be retried on an ambiguous 502")
+}
+
+func TestOrderSafeRetry_RetriesOn429ThenSucceeds(t *testing.T) {
+	opts := fastOpts()
+	opts.OrderSafe = true
+
+	calls := 0
+	err := RetryWithBackoff(context.Background(), opts, func(ctx context.Context) error {
+		calls++
+		if calls == 1 {
+			return apiError(429, "")
+		}
+		return nil
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 2, calls, "a buy should retry once on 429 and then succeed")
+}
+
+func TestOrderSafeRetry_RetriesOnConnectionRefused(t *testing.T) {
+	opts := fastOpts()
+	opts.OrderSafe = true
+
+	calls := 0
+	err := RetryWithBackoff(context.Background(), opts, func(ctx context.Context) error {
+		calls++
+		if calls == 1 {
+			return fmt.Errorf("dial tcp: %w", syscall.ECONNREFUSED)
+		}
+		return nil
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 2, calls, "connection-refused-before-send is safe to retry")
+}
+
+func TestOrderSafeRetry_NoRetryOnAmbiguousNetworkError(t *testing.T) {
+	opts := fastOpts()
+	opts.OrderSafe = true
+
+	calls := 0
+	err := RetryWithBackoff(context.Background(), opts, func(ctx context.Context) error {
+		calls++
+		return fmt.Errorf("read tcp: %w", syscall.ECONNRESET)
+	})
+	assert.Error(t, err)
+	assert.Equal(t, 1, calls, "connection reset is ambiguous and must not retry a buy")
+}
+
 // fastOpts returns retry options with minimal delays for fast tests.
 func fastOpts() RetryOpts {
 	return RetryOpts{

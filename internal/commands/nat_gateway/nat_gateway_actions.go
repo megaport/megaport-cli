@@ -75,7 +75,7 @@ func CreateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 	spinner := output.PrintResourceCreating("NAT Gateway", req.ProductName, noColor)
 
 	var gw *megaport.NATGateway
-	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
 		var e error
 		gw, e = createNATGatewayFunc(ctx, client, req)
 		return e
@@ -460,7 +460,7 @@ func BuyNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 
 	spinner := output.PrintResourceCreating("NAT Gateway", uid, noColor)
 	var res *megaport.NATGatewayBuyResult
-	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
 		var e error
 		res, e = buyNATGatewayFunc(ctx, client, uid)
 		return e
