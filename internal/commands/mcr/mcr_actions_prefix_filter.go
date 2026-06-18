@@ -3,12 +3,12 @@ package mcr
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -77,9 +77,9 @@ func CreateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 
 func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) error {
 	mcrUID := args[0]
-	prefixFilterListID, err := strconv.Atoi(args[1])
+	prefixFilterListID, err := validation.ParseInt("prefix filter list ID", args[1])
 	if err != nil {
-		return fmt.Errorf("invalid prefix filter list ID: %w", err)
+		return err
 	}
 
 	interactive, _ := cmd.Flags().GetBool("interactive")
@@ -198,9 +198,9 @@ func GetMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool, out
 	defer cancel()
 
 	mcrUID := args[0]
-	prefixFilterListID, err := strconv.Atoi(args[1])
+	prefixFilterListID, err := validation.ParseInt("prefix filter list ID", args[1])
 	if err != nil {
-		return fmt.Errorf("invalid prefix filter list ID: %w", err)
+		return err
 	}
 
 	spinner := output.PrintResourceGetting("Prefix filter list", fmt.Sprintf("%d", prefixFilterListID), noColor)
@@ -234,9 +234,9 @@ func DeleteMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	defer cancel()
 
 	mcrUID := args[0]
-	prefixFilterListID, err := strconv.Atoi(args[1])
+	prefixFilterListID, err := validation.ParseInt("prefix filter list ID", args[1])
 	if err != nil {
-		return fmt.Errorf("invalid prefix filter list ID: %w", err)
+		return err
 	}
 
 	spinner := output.PrintResourceDeleting("Prefix filter list", fmt.Sprintf("%d", prefixFilterListID), noColor)
