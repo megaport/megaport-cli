@@ -2,11 +2,11 @@ package locations
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -311,10 +311,10 @@ func GetLocation(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 		return fmt.Errorf("failed to create API client: %w", err)
 	}
 
-	locationID, err := strconv.Atoi(args[0])
+	locationID, err := validation.ParseInt("location ID", args[0])
 	if err != nil {
-		output.PrintError("Invalid location ID: %v", noColor, err)
-		return fmt.Errorf("invalid location ID: %w", err)
+		output.PrintError("%v", noColor, err)
+		return err
 	}
 
 	spinner := output.PrintResourceGetting("Location", fmt.Sprintf("%d", locationID), noColor)

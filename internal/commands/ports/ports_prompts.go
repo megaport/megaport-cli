@@ -26,9 +26,9 @@ func promptForPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	if err != nil {
 		return nil, err
 	}
-	term, err := strconv.Atoi(termStr)
+	term, err := validation.ParseInt("term", termStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid term: %w", err)
+		return nil, err
 	}
 	if err := validation.ValidateContractTerm(term); err != nil {
 		return nil, err
@@ -108,9 +108,9 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	if err != nil {
 		return nil, err
 	}
-	term, err := strconv.Atoi(termStr)
+	term, err := validation.ParseInt("term", termStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid term: %w", err)
+		return nil, err
 	}
 	if err := validation.ValidateContractTerm(term); err != nil {
 		return nil, err
@@ -221,9 +221,9 @@ func promptForUpdatePortDetails(portUID string, noColor bool) (*megaport.ModifyP
 		return nil, err
 	}
 	if termStr != "" {
-		term, err := strconv.Atoi(termStr)
+		term, err := validation.ParseInt("term", termStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid term: %w", err)
+			return nil, err
 		}
 		if err := validation.ValidateContractTerm(term); err != nil {
 			return nil, err

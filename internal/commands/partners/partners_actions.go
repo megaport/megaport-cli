@@ -6,6 +6,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	"github.com/spf13/cobra"
 )
 
@@ -110,9 +111,10 @@ func FindPartners(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 	if locationIDStr != "" {
-		if _, err := fmt.Sscanf(locationIDStr, "%d", &locationID); err != nil {
-			output.PrintError("Invalid location ID format: %v", noColor, err)
-			return fmt.Errorf("invalid location ID format: %w", err)
+		locationID, err = validation.ParseInt("location ID", locationIDStr)
+		if err != nil {
+			output.PrintError("%v", noColor, err)
+			return err
 		}
 	}
 

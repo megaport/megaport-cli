@@ -24,9 +24,9 @@ func promptForIPSecTunnelCount(noColor bool) (int, error) {
 	if input == "" {
 		return 0, nil
 	}
-	count, err := strconv.Atoi(strings.TrimSpace(input))
+	count, err := validation.ParseInt("tunnel count", strings.TrimSpace(input))
 	if err != nil {
-		return 0, fmt.Errorf("invalid tunnel count: %w", err)
+		return 0, err
 	}
 	return count, nil
 }
@@ -43,9 +43,9 @@ func promptForIPSecTunnelCountUpdate(noColor bool) (int, error) {
 	if input == "" {
 		return 0, fmt.Errorf("tunnel count is required for update (use 0 to disable IPSec)")
 	}
-	count, err := strconv.Atoi(input)
+	count, err := validation.ParseInt("tunnel count", input)
 	if err != nil {
-		return 0, fmt.Errorf("invalid tunnel count: %w", err)
+		return 0, err
 	}
 	return count, nil
 }
@@ -100,9 +100,9 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 		return nil, err
 	}
 	if termStr != "" {
-		term, err := strconv.Atoi(termStr)
+		term, err := validation.ParseInt("term", termStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid term: %w", err)
+			return nil, err
 		}
 
 		if err := validation.ValidateContractTerm(term); err != nil {
@@ -136,18 +136,18 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 	if err != nil {
 		return nil, err
 	}
-	term, err := strconv.Atoi(termStr)
+	term, err := validation.ParseInt("term", termStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid term: %w", err)
+		return nil, err
 	}
 
 	portSpeedStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter port speed - valid port speeds are %s Mbps (required): ", validation.FormatIntSlice(validation.ValidMCRPortSpeeds)), noColor)
 	if err != nil {
 		return nil, err
 	}
-	portSpeed, err := strconv.Atoi(portSpeedStr)
+	portSpeed, err := validation.ParseInt("port speed", portSpeedStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid port speed: %w", err)
+		return nil, err
 	}
 	if err := validation.ValidateMCRPortSpeed(portSpeed); err != nil {
 		return nil, err
@@ -156,9 +156,9 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 	if err != nil {
 		return nil, err
 	}
-	locationID, err := strconv.Atoi(locationIDStr)
+	locationID, err := validation.ParseInt("location ID", locationIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid location ID: %w", err)
+		return nil, err
 	}
 
 	asnStr, err := utils.ResourcePrompt("mcr", "Enter MCR ASN (optional): ", noColor)
@@ -168,9 +168,9 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 
 	var asn int
 	if asnStr != "" {
-		asnValue, err := strconv.Atoi(asnStr)
+		asnValue, err := validation.ParseInt("ASN", asnStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid ASN: %w", err)
+			return nil, err
 		}
 		asn = asnValue
 	}

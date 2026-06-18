@@ -3,7 +3,6 @@ package ports
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -279,10 +278,10 @@ func CheckPortVLANAvailability(cmd *cobra.Command, args []string, noColor bool) 
 	defer cancel()
 
 	portUID := args[0]
-	vlan, err := strconv.Atoi(args[1])
+	vlan, err := validation.ParseInt("VLAN ID", args[1])
 	if err != nil {
-		output.PrintError("Invalid VLAN ID: %v", noColor, err)
-		return fmt.Errorf("invalid VLAN ID")
+		output.PrintError("%v", noColor, err)
+		return err
 	}
 	if err := validation.ValidatePortVLANAvailability(vlan); err != nil {
 		output.PrintError("Invalid VLAN ID: %v", noColor, err)
