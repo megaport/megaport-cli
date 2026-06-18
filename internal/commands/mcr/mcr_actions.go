@@ -128,7 +128,7 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		buySpinner = output.PrintResourceCreating("MCR", req.Name, noColor)
 	}
 	var resp *megaport.BuyMCRResponse
-	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
+	err = utils.WithOrderOnceRetry(ctx, func(ctx context.Context) error {
 		var e error
 		resp, e = buyMCRFunc(ctx, client, req)
 		return e
