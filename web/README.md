@@ -54,6 +54,25 @@ Coverage reports are generated in the `coverage/` directory after running `npm t
 - `wasm_exec.js` - Go WASM execution runtime
 - `megaport.wasm` - Compiled WASM binary
 
+## Pre-compressed WASM artifacts
+
+`megaport.wasm` is ~18.5 MiB raw, above CloudFront's 10 MB auto-compression cap, so the
+build pre-compresses it at the origin. `cmd/wasmcompress` writes two sibling objects
+next to the wasm:
+
+- `megaport.wasm.br` — brotli, quality 11 (~2.95 MiB; preferred)
+- `megaport.wasm.gz` — gzip -9 (~4.4 MiB; fallback)
+
+This runs in the **build**, not the CDN sync — `make wasm-compress`, the `deploy.sh`
+static build, and the Docker `go-builder` stage all invoke it. The raw identity object
+is kept for clients that accept neither encoding.
+
+Whatever uploads these to the CDN origin must serve the compressed objects with
+`Content-Type: application/wasm` and the matching `Content-Encoding` (`br` / `gzip`),
+shipping `.br`/`.gz`/identity as separate objects selected on `Accept-Encoding`. The
+upload itself and the `Accept-Encoding` routing are owned by the infra/CDN tooling, not
+this repo.
+
 ## Development
 
 The Charsm renderer uses the Charsm library (WebAssembly port of lipgloss) to provide styled terminal output in the browser.
