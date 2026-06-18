@@ -527,13 +527,13 @@ func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 	defer cleanup()
 
 	tests := []struct {
-		name              string
-		mcrUID            string
-		prefixListID      int
-		rawPrefixListID   string
-		setupMock         func(*MockMCRService)
-		expectedError     string
-		expectedOutput    string
+		name            string
+		mcrUID          string
+		prefixListID    int
+		rawPrefixListID string
+		setupMock       func(*MockMCRService)
+		expectedError   string
+		expectedOutput  string
 	}{
 		{
 			name:         "successful get prefix filter list",
