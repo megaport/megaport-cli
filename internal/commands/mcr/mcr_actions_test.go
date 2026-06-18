@@ -527,12 +527,13 @@ func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 	defer cleanup()
 
 	tests := []struct {
-		name           string
-		mcrUID         string
-		prefixListID   int
-		setupMock      func(*MockMCRService)
-		expectedError  string
-		expectedOutput string
+		name            string
+		mcrUID          string
+		prefixListID    int
+		rawPrefixListID string
+		setupMock       func(*MockMCRService)
+		expectedError   string
+		expectedOutput  string
 	}{
 		{
 			name:         "successful get prefix filter list",
@@ -555,6 +556,13 @@ func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 			},
 			expectedError: "API error: service unavailable",
 		},
+		{
+			name:            "invalid prefix filter list ID",
+			mcrUID:          "mcr-123",
+			rawPrefixListID: "abc",
+			setupMock:       func(m *MockMCRService) {},
+			expectedError:   "invalid prefix filter list ID",
+		},
 	}
 
 	for _, tt := range tests {
@@ -568,6 +576,11 @@ func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 				return client, nil
 			})
 
+			idStr := tt.rawPrefixListID
+			if idStr == "" {
+				idStr = fmt.Sprintf("%d", tt.prefixListID)
+			}
+
 			cmd := &cobra.Command{
 				Use:  "get-mcr-prefix-filter-list [mcrUID] [prefixListID]",
 				Args: cobra.ExactArgs(2),
@@ -577,7 +590,7 @@ func TestGetMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 			}
 			var err error
 			output := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, []string{tt.mcrUID, fmt.Sprintf("%d", tt.prefixListID)})
+				err = cmd.RunE(cmd, []string{tt.mcrUID, idStr})
 			})
 
 			if tt.expectedError != "" {
@@ -600,14 +613,15 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 	}()
 
 	tests := []struct {
-		name           string
-		mcrUID         string
-		prefixListID   int
-		force          bool
-		promptResponse string
-		setupMock      func(*MockMCRService)
-		expectedError  string
-		expectedOutput string
+		name            string
+		mcrUID          string
+		prefixListID    int
+		rawPrefixListID string
+		force           bool
+		promptResponse  string
+		setupMock       func(*MockMCRService)
+		expectedError   string
+		expectedOutput  string
 	}{
 		{
 			name:           "successful delete prefix filter list",
@@ -646,6 +660,14 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 			},
 			expectedError: "not successful for ID 1",
 		},
+		{
+			name:            "invalid prefix filter list ID",
+			mcrUID:          "mcr-123",
+			rawPrefixListID: "abc",
+			force:           true,
+			setupMock:       func(m *MockMCRService) {},
+			expectedError:   "invalid prefix filter list ID",
+		},
 	}
 
 	for _, tt := range tests {
@@ -663,6 +685,11 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 				return tt.promptResponse, nil
 			})
 
+			idStr := tt.rawPrefixListID
+			if idStr == "" {
+				idStr = fmt.Sprintf("%d", tt.prefixListID)
+			}
+
 			cmd := &cobra.Command{
 				Use: "delete-mcr-prefix-filter-list [mcrUID] [prefixListID]",
 				RunE: func(cmd *cobra.Command, args []string) error {
@@ -677,8 +704,8 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 			})
 
 			var err error
-			output := captureStderr(t, func() {
-				err = cmd.RunE(cmd, []string{tt.mcrUID, fmt.Sprintf("%d", tt.prefixListID)})
+			output := output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{tt.mcrUID, idStr})
 			})
 
 			if tt.expectedError != "" {

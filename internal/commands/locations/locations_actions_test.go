@@ -412,6 +412,9 @@ func TestGetLocation(t *testing.T) {
 			if tt.expectedErr != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedErr)
+				// Parse failures must not leak strconv internals to the user.
+				assert.NotContains(t, err.Error(), "strconv")
+				assert.NotContains(t, capturedOutput, "strconv")
 			} else {
 				assert.NoError(t, err)
 				var parsed []map[string]interface{}
