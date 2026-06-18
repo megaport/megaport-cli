@@ -9,8 +9,10 @@ import (
 // ApplyLimitAndPrint handles the common post-filter pipeline for all List
 // commands: validate and apply --limit, check for empty results, and print.
 //
-// Returns nil (no error) when items is empty. If outputFormat is table,
-// it also prints an informational message.
+// For table output an empty result prints a human-readable message instead of
+// an empty table. For machine formats (json/csv/xml/go-template) it always
+// calls printFunc so an empty result still emits a valid document ([] for json,
+// header-only or empty for csv, <items></items> for xml) rather than zero bytes.
 func ApplyLimitAndPrint[T any](
 	items []T,
 	limit int,
@@ -26,10 +28,8 @@ func ApplyLimitAndPrint[T any](
 		items = items[:limit]
 	}
 
-	if len(items) == 0 {
-		if outputFormat == FormatTable {
-			output.PrintInfo(emptyMessage, noColor)
-		}
+	if len(items) == 0 && outputFormat == FormatTable {
+		output.PrintInfo(emptyMessage, noColor)
 		return nil
 	}
 

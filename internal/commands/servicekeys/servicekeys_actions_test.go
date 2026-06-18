@@ -474,9 +474,10 @@ func TestListServiceKeys_EmptyResult(t *testing.T) {
 			expectedOutput: "No service keys found.",
 		},
 		{
-			name:         "json format returns empty array without message",
-			outputFormat: "json",
-			notExpected:  "No service keys found.",
+			name:           "json format returns empty array without message",
+			outputFormat:   "json",
+			expectedOutput: "[]",
+			notExpected:    "No service keys found.",
 		},
 	}
 

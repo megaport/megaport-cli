@@ -396,7 +396,7 @@ func ListNATGatewaySessions(cmd *cobra.Command, args []string, noColor bool, out
 		return fmt.Errorf("failed to list NAT Gateway sessions: %w", err)
 	}
 
-	if len(sessions) == 0 {
+	if len(sessions) == 0 && outputFormat == utils.FormatTable {
 		output.PrintInfo("No NAT Gateway session options found", noColor)
 		return nil
 	}
