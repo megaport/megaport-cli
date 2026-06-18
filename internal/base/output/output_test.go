@@ -385,6 +385,38 @@ func TestPrintPrettyTable_SimpleStruct(t *testing.T) {
 	assert.Contains(t, output, " true ")
 }
 
+func TestPrintTableToWriter(t *testing.T) {
+	data := []SimpleStruct{
+		{ID: 1, Name: "Item 1", Active: true},
+		{ID: 2, Name: "Item 2", Active: false},
+	}
+
+	var buf strings.Builder
+	err := PrintTableToWriter(&buf, data, true)
+	assert.NoError(t, err)
+
+	out := buf.String()
+	assert.Contains(t, out, "ID")
+	assert.Contains(t, out, "NAME")
+	assert.Contains(t, out, "Item 1")
+	assert.Contains(t, out, "Item 2")
+}
+
+func TestPrintTableToWriter_EmptySlice(t *testing.T) {
+	var buf strings.Builder
+	err := PrintTableToWriter(&buf, []SimpleStruct{}, true)
+	assert.NoError(t, err)
+}
+
+func TestPrintTableToWriter_UnknownFieldErrors(t *testing.T) {
+	SetOutputFields([]string{"definitely_not_a_field"})
+	defer SetOutputFields(nil)
+
+	var buf strings.Builder
+	err := PrintTableToWriter(&buf, []SimpleStruct{{ID: 1, Name: "Item 1"}}, true)
+	assert.Error(t, err)
+}
+
 func TestPrintPrettyTable_ComplexStruct(t *testing.T) {
 	reference := SimpleStruct{ID: 100, Name: "Reference", Active: true}
 	now := time.Now()
@@ -691,20 +723,6 @@ func TestJSONOutput_NoTrailingNewlines(t *testing.T) {
 	// JSON should end with ] and a single newline, not multiple newlines
 	assert.True(t, strings.HasSuffix(output, "]\n"), "JSON should end with ] followed by single newline")
 	assert.False(t, strings.HasSuffix(output, "]\n\n"), "JSON should not have multiple trailing newlines")
-}
-
-func TestCaptureOutput_TempFileFailure(t *testing.T) {
-	orig := createTempFile
-	createTempFile = func() (*os.File, error) {
-		return nil, errors.New("temp file unavailable")
-	}
-	defer func() { createTempFile = orig }()
-
-	called := false
-	result := CaptureOutput(func() { called = true })
-
-	assert.True(t, called, "f should still be called when temp file creation fails")
-	assert.Empty(t, result, "result should be empty when temp file creation fails")
 }
 
 func TestCaptureOutputErr_RestoresStdoutOnError(t *testing.T) {

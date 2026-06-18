@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"os"
+	"io"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	megaport "github.com/megaport/megaportgo"
@@ -214,28 +214,41 @@ func buildDashboard(
 	return dashboard, nil
 }
 
-// printDashboard dispatches to the appropriate format printer.
-func printDashboard(dashboard dashboardOutput, format string, noColor bool) error {
+// printDashboard dispatches to the appropriate format printer. JSON/XML/table
+// output all go to w (the cobra writer, which is the WASM output buffer in the
+// browser build) so the full dashboard is captured in order; CSV goes through
+// the output package directly.
+func printDashboard(w io.Writer, dashboard dashboardOutput, format string, noColor bool) error {
 	switch format {
 	case "json":
-		return printDashboardJSON(dashboard)
+		return printDashboardJSON(w, dashboard)
 	case "xml":
-		return printDashboardXML(dashboard)
+		return printDashboardXML(w, dashboard)
 	case "csv":
 		return printDashboardCSV(dashboard, noColor)
 	default:
-		return printDashboardTable(dashboard, noColor)
+		return printDashboardTable(w, dashboard, noColor)
 	}
 }
 
-func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
+// printDashboardTable renders every section's table into w via
+// PrintTableToWriter rather than PrintOutput("table"). Under the WASM transport
+// PrintOutput overwrites a single per-call table global, so only the last
+// section would survive; rendering each table into w keeps them all, in order.
+//
+// w must be cmd.OutOrStdout() so it matches where the output.Print* helpers send
+// the section headers and summary (os.Stdout natively, the WASM output buffer in
+// the browser); otherwise headers and tables would land in different places. The
+// headers stay on PrintPlain/PrintWarning so they keep quiet-mode and JSON-stderr
+// gating, which a raw write to w would drop.
+func printDashboardTable(w io.Writer, dashboard dashboardOutput, noColor bool) error {
 	// PORTS
 	output.PrintNewline()
 	output.PrintPlain("PORTS (%d)", noColor, len(dashboard.Ports))
 	if len(dashboard.Ports) == 0 {
 		output.PrintWarning("No ports found.", noColor)
 	} else {
-		if err := output.PrintOutput(dashboard.Ports, "table", noColor); err != nil {
+		if err := output.PrintTableToWriter(w, dashboard.Ports, noColor); err != nil {
 			return err
 		}
 	}
@@ -246,7 +259,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	if len(dashboard.MCRs) == 0 {
 		output.PrintWarning("No MCRs found.", noColor)
 	} else {
-		if err := output.PrintOutput(dashboard.MCRs, "table", noColor); err != nil {
+		if err := output.PrintTableToWriter(w, dashboard.MCRs, noColor); err != nil {
 			return err
 		}
 	}
@@ -257,7 +270,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	if len(dashboard.MVEs) == 0 {
 		output.PrintWarning("No MVEs found.", noColor)
 	} else {
-		if err := output.PrintOutput(dashboard.MVEs, "table", noColor); err != nil {
+		if err := output.PrintTableToWriter(w, dashboard.MVEs, noColor); err != nil {
 			return err
 		}
 	}
@@ -268,7 +281,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	if len(dashboard.VXCs) == 0 {
 		output.PrintWarning("No VXCs found.", noColor)
 	} else {
-		if err := output.PrintOutput(dashboard.VXCs, "table", noColor); err != nil {
+		if err := output.PrintTableToWriter(w, dashboard.VXCs, noColor); err != nil {
 			return err
 		}
 	}
@@ -279,7 +292,7 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	if len(dashboard.IXs) == 0 {
 		output.PrintWarning("No IXs found.", noColor)
 	} else {
-		if err := output.PrintOutput(dashboard.IXs, "table", noColor); err != nil {
+		if err := output.PrintTableToWriter(w, dashboard.IXs, noColor); err != nil {
 			return err
 		}
 	}
@@ -292,13 +305,13 @@ func printDashboardTable(dashboard dashboardOutput, noColor bool) error {
 	return nil
 }
 
-func printDashboardJSON(dashboard dashboardOutput) error {
-	encoder := json.NewEncoder(os.Stdout)
+func printDashboardJSON(w io.Writer, dashboard dashboardOutput) error {
+	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(dashboard)
 }
 
-func printDashboardXML(dashboard dashboardOutput) error {
+func printDashboardXML(w io.Writer, dashboard dashboardOutput) error {
 	type xmlDashboard struct {
 		XMLName xml.Name           `xml:"dashboard"`
 		Ports   []statusPortOutput `xml:"ports>port"`
@@ -316,12 +329,12 @@ func printDashboardXML(dashboard dashboardOutput) error {
 		IXs:     dashboard.IXs,
 		Summary: dashboard.Summary,
 	}
-	encoder := xml.NewEncoder(os.Stdout)
+	encoder := xml.NewEncoder(w)
 	encoder.Indent("", "  ")
 	if err := encoder.Encode(out); err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stdout)
+	fmt.Fprintln(w)
 	return nil
 }
 
