@@ -28,10 +28,10 @@ func TestE2E_Contract(t *testing.T) {
 		stderrAbsent   []string
 	}{
 		{
-			name:           "version exits zero with a version line",
+			name:           "version subcommand exits zero with a version line",
 			args:           []string{"version"},
 			wantExit:       exitcodes.Success,
-			stdoutContains: []string{"Version"},
+			stdoutContains: []string{"Megaport CLI Version:"},
 		},
 		{
 			name:           "root help lists usage and known subcommands",
@@ -40,10 +40,10 @@ func TestE2E_Contract(t *testing.T) {
 			stdoutContains: []string{"Usage:", "ports", "vxc", "mcr", "mve", "completion", "version"},
 		},
 		{
-			name:           "subcommand help exits zero",
+			name:           "subcommand help exits zero with a full help page",
 			args:           []string{"ports", "--help"},
 			wantExit:       exitcodes.Success,
-			stdoutContains: []string{"ports"},
+			stdoutContains: []string{"Usage:", "ports"},
 		},
 		{
 			name:           "completion bash emits the bash marker",
@@ -56,6 +56,12 @@ func TestE2E_Contract(t *testing.T) {
 			args:           []string{"completion", "zsh"},
 			wantExit:       exitcodes.Success,
 			stdoutContains: []string{"#compdef megaport-cli"},
+		},
+		{
+			name:           "completion fish emits the fish marker",
+			args:           []string{"completion", "fish"},
+			wantExit:       exitcodes.Success,
+			stdoutContains: []string{"fish completion for megaport-cli"},
 		},
 		{
 			name:           "unknown command is a usage error",
@@ -76,12 +82,14 @@ func TestE2E_Contract(t *testing.T) {
 			stderrContains: []string{"arg(s)"},
 		},
 		{
-			// Buy enforces required flags only when not interactive and not --json,
-			// so this must fail at flag validation before any login is attempted.
-			name:           "buy without flags fails at validation before login",
-			args:           []string{"ports", "buy"},
-			wantExit:       exitcodes.Usage,
-			stderrContains: []string{"required flag", "interactive or JSON input"},
+			// The purchase command enforces required flags only when not interactive
+			// and not --json, so it must fail at flag validation before any login.
+			name:     "purchase without flags fails at validation before login",
+			args:     []string{"ports", "buy"},
+			wantExit: exitcodes.Usage,
+			// Match the full composite message to avoid false positives from two
+			// independent substrings accidentally both appearing in unrelated output.
+			stderrContains: []string{"not set when not using interactive or JSON input"},
 			stderrAbsent:   []string{"Logging in"},
 		},
 		{
@@ -97,7 +105,9 @@ func TestE2E_Contract(t *testing.T) {
 			t.Parallel()
 			res := Run(t, tc.args...)
 
-			assert.Equalf(t, tc.wantExit, res.Exit,
+			// Use require so a wrong exit code stops the subtest immediately
+			// rather than cascading into confusing stdout/stderr failures.
+			require.Equalf(t, tc.wantExit, res.Exit,
 				"exit code\nstdout: %s\nstderr: %s", res.Stdout, res.Stderr)
 			for _, want := range tc.stdoutContains {
 				assert.Containsf(t, res.Stdout, want, "stdout missing %q\nstdout: %s", want, res.Stdout)
@@ -113,10 +123,9 @@ func TestE2E_Contract(t *testing.T) {
 }
 
 // TestE2E_JSONErrorEnvelope verifies that under --output json an erroring command
-// emits a structured JSON envelope on stderr whose type matches the exit code.
-// ports buy parses --json before any login, so an unparseable payload triggers
-// the envelope hermetically. Human progress lines precede the JSON on stderr, so
-// the envelope is decoded starting at the first brace.
+// emits a structured JSON envelope on stderr whose code and type reflect a usage
+// error. The purchase command parses --json before any login, so an unparseable
+// payload triggers the envelope hermetically.
 func TestE2E_JSONErrorEnvelope(t *testing.T) {
 	t.Parallel()
 
@@ -125,8 +134,12 @@ func TestE2E_JSONErrorEnvelope(t *testing.T) {
 	require.Equalf(t, exitcodes.Usage, res.Exit, "invalid JSON payload should be a usage error (exit 2)\nstderr: %s", res.Stderr)
 	assert.NotContains(t, res.Stderr, "Logging in", "should fail before any login attempt")
 
-	start := strings.Index(res.Stderr, "{")
-	require.GreaterOrEqualf(t, start, 0, "no JSON object found on stderr: %s", res.Stderr)
+	// The JSON encoder uses SetIndent so the envelope opens with a bare {
+	// on its own line. Anchoring on \n{ rather than a bare { guards against
+	// a future progress line whose text happens to contain a { character.
+	idx := strings.Index(res.Stderr, "\n{")
+	require.NotEqualf(t, -1, idx, "no JSON envelope found on stderr: %s", res.Stderr)
+	start := idx + 1 // skip past the newline to the opening {
 
 	var envelope struct {
 		Error struct {
@@ -138,7 +151,7 @@ func TestE2E_JSONErrorEnvelope(t *testing.T) {
 	dec := json.NewDecoder(strings.NewReader(res.Stderr[start:]))
 	require.NoErrorf(t, dec.Decode(&envelope), "envelope should be valid JSON: %s", res.Stderr[start:])
 
-	assert.Equal(t, res.Exit, envelope.Error.Code, "envelope code should match the process exit code")
-	assert.Equal(t, exitcodes.TypeName(res.Exit), envelope.Error.Type, "envelope type should match TypeName(exit code)")
+	assert.Equal(t, exitcodes.Usage, envelope.Error.Code, "envelope code should be 2 (usage error)")
+	assert.Equal(t, "usage_error", envelope.Error.Type, "envelope type should be usage_error")
 	assert.NotEmpty(t, envelope.Error.Message, "envelope should carry an error message")
 }
