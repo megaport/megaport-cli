@@ -28,7 +28,8 @@ test-integration:
 	go test -tags 'integration provisioning' -run '^TestIntegration_' -v -timeout 30m ./internal/commands/...
 
 # Run only read-only integration tests — fast, no resources provisioned.
-# Package list mirrors the integration-readonly CI job.
+# The locations-style packages have only read-only tests; core packages also hold
+# provisioning lifecycle tests, so they are scoped to the ReadOnly-suffixed names.
 test-integration-readonly:
 	go test -tags integration -run '^TestIntegration_' -v -timeout 5m \
 		./internal/commands/billing_market/... \
@@ -40,6 +41,12 @@ test-integration-readonly:
 		./internal/commands/status/... \
 		./internal/commands/topology/... \
 		./internal/commands/users/...
+	go test -tags integration -run 'TestIntegration_.*ReadOnly$$' -v -timeout 5m \
+		./internal/commands/ix/... \
+		./internal/commands/mcr/... \
+		./internal/commands/mve/... \
+		./internal/commands/ports/... \
+		./internal/commands/vxc/...
 
 # Run native-binary black-box e2e tests (built behind the `e2e` build tag).
 # Placeholder: the harness and specs land in a later PR. Until then this compiles

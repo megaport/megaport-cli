@@ -351,6 +351,7 @@ func runPortTagRoundTrip(t *testing.T, uid string) {
 
 func TestIntegration_PortLifecycle(t *testing.T) {
 	t.Parallel()
+	testutil.RequireStagingForProvisioning(t)
 	testutil.RequireSharedIntegrationClient(t)
 
 	portName := fmt.Sprintf("CLI-Test-Port-%s", generateUniqueID(t))
@@ -393,6 +394,7 @@ func TestIntegration_PortLifecycle(t *testing.T) {
 
 func TestIntegration_LAGPortLifecycle(t *testing.T) {
 	t.Parallel()
+	testutil.RequireStagingForProvisioning(t)
 	testutil.RequireSharedIntegrationClient(t)
 
 	portName := fmt.Sprintf("CLI-Test-LAG-%s", generateUniqueID(t))
@@ -423,6 +425,7 @@ func TestIntegration_LAGPortLifecycle(t *testing.T) {
 
 func TestIntegration_PortJSONInputLifecycle(t *testing.T) {
 	t.Parallel()
+	testutil.RequireStagingForProvisioning(t)
 	testutil.RequireSharedIntegrationClient(t)
 
 	portName := fmt.Sprintf("CLI-Test-Port-JSON-%s", generateUniqueID(t))
@@ -460,6 +463,7 @@ func TestIntegration_PortJSONInputLifecycle(t *testing.T) {
 
 func TestIntegration_PortJSONFileLifecycle(t *testing.T) {
 	t.Parallel()
+	testutil.RequireStagingForProvisioning(t)
 	testutil.RequireSharedIntegrationClient(t)
 
 	portName := fmt.Sprintf("CLI-Test-Port-JSONFile-%s", generateUniqueID(t))

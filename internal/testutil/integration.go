@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -15,9 +16,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// SetupIntegrationClient reads staging credentials from environment variables,
-// authorises against the staging API, and returns a ready-to-use *megaport.Client.
-// Skips the test if MEGAPORT_ACCESS_KEY or MEGAPORT_SECRET_KEY are not set.
+// IntegrationEnvironment resolves the target API environment from
+// MEGAPORT_ENVIRONMENT, returning the SDK environment and its display name. It
+// defaults to staging when the variable is empty or unrecognized, so a typo
+// can never silently point the suite at production.
+func IntegrationEnvironment() (megaport.Environment, string) {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("MEGAPORT_ENVIRONMENT"))) {
+	case "production", "prod":
+		return megaport.EnvironmentProduction, "production"
+	case "development", "dev":
+		return megaport.EnvironmentDevelopment, "development"
+	default:
+		return megaport.EnvironmentStaging, "staging"
+	}
+}
+
+// RequireStagingForProvisioning skips the test unless the resolved environment
+// is staging. Provisioning lifecycle tests use hardcoded staging location IDs
+// and must never create real resources in production or development, so they
+// opt out of the configurable environment that read-only tests support.
+func RequireStagingForProvisioning(t *testing.T) {
+	t.Helper()
+	if _, name := IntegrationEnvironment(); name != "staging" {
+		t.Skipf("provisioning lifecycle tests are staging-only (hardcoded location IDs); MEGAPORT_ENVIRONMENT=%q resolved to %s", os.Getenv("MEGAPORT_ENVIRONMENT"), name)
+	}
+}
+
+// SetupIntegrationClient reads credentials from environment variables,
+// authorises against the environment named by MEGAPORT_ENVIRONMENT (staging by
+// default), and returns a ready-to-use *megaport.Client. Skips the test if
+// MEGAPORT_ACCESS_KEY or MEGAPORT_SECRET_KEY are not set.
 //
 // Suitable for serial read-only tests. For tests that use t.Parallel(), prefer
 // RequireSharedIntegrationClient which installs the login function exactly
@@ -31,17 +59,19 @@ func SetupIntegrationClient(t *testing.T) *megaport.Client {
 		t.Skip("MEGAPORT_ACCESS_KEY and MEGAPORT_SECRET_KEY required for integration tests")
 	}
 
+	env, envName := IntegrationEnvironment()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
 	client, err := megaport.New(nil,
 		megaport.WithCredentials(accessKey, secretKey),
-		megaport.WithEnvironment(megaport.EnvironmentStaging),
+		megaport.WithEnvironment(env),
 	)
 	require.NoError(t, err, "failed to create megaport client")
 
 	_, err = client.Authorize(ctx)
-	require.NoError(t, err, "failed to authorize against staging API")
+	require.NoError(t, err, "failed to authorize against %s API", envName)
 
 	return client
 }
@@ -67,17 +97,17 @@ var (
 	sharedIntegrationClientErr  error
 )
 
-// RequireSharedIntegrationClient installs a process-wide staging client
-// suitable for parallel integration tests. Unlike SetupIntegrationClient +
-// LoginWithClient, it authorises against staging and installs
-// config.SetLoginFunc exactly once via sync.Once and never restores. This
-// avoids a race in which two t.Parallel() tests concurrently capture and
-// restore config.LoginFunc, leaving the global pointing at a stale closure.
+// RequireSharedIntegrationClient installs a process-wide client suitable for
+// parallel integration tests, targeting the environment named by
+// MEGAPORT_ENVIRONMENT (staging by default). Unlike SetupIntegrationClient +
+// LoginWithClient, it authorises and installs config.SetLoginFunc exactly once
+// via sync.Once and never restores. This avoids a race in which two
+// t.Parallel() tests concurrently capture and restore config.LoginFunc,
+// leaving the global pointing at a stale closure.
 //
 // Sharing one authorised client across parallel tests is safe because they
-// all target the same staging environment. Subsequent callers reuse the
-// cached client. Skips when MEGAPORT_ACCESS_KEY or MEGAPORT_SECRET_KEY are
-// not set.
+// all target the same environment. Subsequent callers reuse the cached
+// client. Skips when MEGAPORT_ACCESS_KEY or MEGAPORT_SECRET_KEY are not set.
 func RequireSharedIntegrationClient(t *testing.T) {
 	t.Helper()
 	sharedIntegrationClientOnce.Do(func() {
@@ -87,19 +117,21 @@ func RequireSharedIntegrationClient(t *testing.T) {
 			return
 		}
 
+		env, envName := IntegrationEnvironment()
+
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer cancel()
 
 		client, err := megaport.New(nil,
 			megaport.WithCredentials(accessKey, secretKey),
-			megaport.WithEnvironment(megaport.EnvironmentStaging),
+			megaport.WithEnvironment(env),
 		)
 		if err != nil {
 			sharedIntegrationClientErr = fmt.Errorf("failed to create megaport client: %w", err)
 			return
 		}
 		if _, err := client.Authorize(ctx); err != nil {
-			sharedIntegrationClientErr = fmt.Errorf("failed to authorize against staging API: %w", err)
+			sharedIntegrationClientErr = fmt.Errorf("failed to authorize against %s API: %w", envName, err)
 			return
 		}
 		sharedIntegrationClient = client
@@ -115,7 +147,7 @@ func RequireSharedIntegrationClient(t *testing.T) {
 	}
 }
 
-// SharedIntegrationClient returns the process-wide staging client installed by
+// SharedIntegrationClient returns the process-wide client installed by
 // RequireSharedIntegrationClient. Tests use it to read state directly from the
 // SDK in assertions, avoiding output.CaptureOutput on hot paths where parallel
 // goroutines would race on the global os.Stdout swap. Callers must invoke

@@ -133,10 +133,12 @@ func integrationStatusIXCmd() *cobra.Command {
 	return &cobra.Command{Use: "status"}
 }
 
-// TestIntegration_IXListAndGet is a fast read-only smoke test against staging.
-func TestIntegration_IXListAndGet(t *testing.T) {
-	client := testutil.SetupIntegrationClient(t)
-	t.Cleanup(testutil.LoginWithClient(t, client))
+// TestIntegration_IXReadOnly is a fast read-only smoke test against the
+// configured environment (staging by default):
+// list, then get + status on the first IX. Skips cleanly when the account has
+// no IXs. Performs no mutation.
+func TestIntegration_IXReadOnly(t *testing.T) {
+	testutil.RequireSharedIntegrationClient(t)
 	origFormat := output.GetOutputFormat()
 	t.Cleanup(func() { output.SetOutputFormat(origFormat) })
 
@@ -148,12 +150,12 @@ func TestIntegration_IXListAndGet(t *testing.T) {
 
 	// JSON mode emits no output (not "[]") when the list is empty.
 	if strings.TrimSpace(listOut) == "" {
-		t.Skip("no IXs available on staging to test Get")
+		t.Skip("no IXs available on the account to test Get")
 	}
 	var ixs []map[string]interface{}
 	require.NoError(t, json.Unmarshal([]byte(listOut), &ixs), "ListIXs returned invalid JSON")
 	if len(ixs) == 0 {
-		t.Skip("no IXs available on staging to test Get")
+		t.Skip("no IXs available on the account to test Get")
 	}
 
 	first := ixs[0]
@@ -176,12 +178,25 @@ func TestIntegration_IXListAndGet(t *testing.T) {
 	assert.Equal(t, uid, gotIX["uid"])
 	assert.Contains(t, gotIX, "name")
 	assert.Contains(t, gotIX, "status")
+
+	var statusErr error
+	statusOut := output.CaptureOutput(func() {
+		statusErr = GetIXStatus(integrationStatusIXCmd(), []string{uid}, true, "json")
+	})
+	require.NoError(t, statusErr)
+
+	var statusList []map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(statusOut), &statusList), "GetIXStatus JSON output must be valid")
+	require.Len(t, statusList, 1)
+	assert.Equal(t, uid, statusList[0]["uid"])
+	assert.Contains(t, statusList[0], "status")
 }
 
 // TestIntegration_IXLifecycle exercises the full create → get → status → update → delete path.
 // Discovers a valid IX network-service-type from the IXP catalog and a matching location.
 // Expected runtime: up to ~30 minutes (three provisioning waits of up to 10 min each: port buy, IX buy, IX update).
 func TestIntegration_IXLifecycle(t *testing.T) {
+	testutil.RequireStagingForProvisioning(t)
 	client := testutil.SetupIntegrationClient(t)
 	t.Cleanup(testutil.LoginWithClient(t, client))
 	origFormat := output.GetOutputFormat()
