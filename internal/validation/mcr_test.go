@@ -114,6 +114,40 @@ func TestValidateMCRRequest(t *testing.T) {
 			wantErr: true,
 			errText: "Invalid location ID: -1 - must be a positive integer", // Use ValidationError format
 		},
+		{
+			name: "Zero ASN is allowed (API auto-assigns)",
+			req: &megaport.BuyMCRRequest{
+				Name:       "Test MCR",
+				Term:       12,
+				PortSpeed:  5000,
+				LocationID: 100,
+				MCRAsn:     0,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid explicit ASN",
+			req: &megaport.BuyMCRRequest{
+				Name:       "Test MCR",
+				Term:       12,
+				PortSpeed:  5000,
+				LocationID: 100,
+				MCRAsn:     65000,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Negative ASN",
+			req: &megaport.BuyMCRRequest{
+				Name:       "Test MCR",
+				Term:       12,
+				PortSpeed:  5000,
+				LocationID: 100,
+				MCRAsn:     -1,
+			},
+			wantErr: true,
+			errText: fmt.Sprintf("Invalid MCR ASN: -1 - must be between %d and %d", MinASN, MaxASN),
+		},
 	}
 
 	for _, tt := range tests {
@@ -129,6 +163,33 @@ func TestValidateMCRRequest(t *testing.T) {
 				assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
 				// Check the error message
 				assert.Equal(t, tt.errText, err.Error(), "Error message mismatch")
+			}
+		})
+	}
+}
+
+func TestValidateMCRASN(t *testing.T) {
+	tests := []struct {
+		name    string
+		asn     int64
+		wantErr bool
+	}{
+		{name: "minimum valid", asn: MinASN, wantErr: false},
+		{name: "private ASN", asn: 65000, wantErr: false},
+		{name: "maximum valid", asn: MaxASN, wantErr: false},
+		{name: "zero rejected", asn: 0, wantErr: true},
+		{name: "negative rejected", asn: -1, wantErr: true},
+		{name: "above 32-bit max rejected", asn: MaxASN + 1, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateMCRASN(tt.asn)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.IsType(t, &ValidationError{}, err)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}

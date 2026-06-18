@@ -188,7 +188,8 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	jsonFile, _ := cmd.Flags().GetString("json-file")
 
 	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("cost-centre") ||
-		cmd.Flags().Changed("marketplace-visibility") || cmd.Flags().Changed("term")
+		cmd.Flags().Changed("marketplace-visibility") || cmd.Flags().Changed("term") ||
+		cmd.Flags().Changed("mcr-asn")
 
 	var req *megaport.ModifyMCRRequest
 	var err error

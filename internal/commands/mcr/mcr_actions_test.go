@@ -1900,6 +1900,41 @@ func TestUpdateMCR(t *testing.T) {
 			expectedOutput: "MCR updated mcr-789",
 		},
 		{
+			name: "success with mcr-asn flag only",
+			args: []string{"mcr-789"},
+			flags: map[string]string{
+				"mcr-asn": "65020",
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				})
+			},
+			setupGetMCR: func() {
+				getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+					return &megaport.MCR{
+						UID:                mcrUID,
+						Name:               "Original MCR",
+						ProvisioningStatus: "LIVE",
+					}, nil
+				}
+			},
+			setupUpdateMCR: func() {
+				updateMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyMCRRequest) (*megaport.ModifyMCRResponse, error) {
+					if req.MCRAsn == nil {
+						return nil, fmt.Errorf("expected MCRAsn to be set")
+					}
+					if *req.MCRAsn != 65020 {
+						return nil, fmt.Errorf("expected MCRAsn=65020, got %d", *req.MCRAsn)
+					}
+					return &megaport.ModifyMCRResponse{IsUpdated: true}, nil
+				}
+			},
+			expectedOutput: "MCR updated mcr-789",
+		},
+		{
 			name: "success with JSON",
 			args: []string{"mcr-456"},
 			flags: map[string]string{
@@ -2050,6 +2085,7 @@ func TestUpdateMCR(t *testing.T) {
 			cmd.Flags().String("cost-centre", "", "")
 			cmd.Flags().Bool("marketplace-visibility", false, "")
 			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("mcr-asn", 0, "")
 
 			testutil.SetFlags(t, cmd, tt.flags)
 
