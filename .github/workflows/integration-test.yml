@@ -39,7 +39,7 @@ jobs:
   integration-provisioning:
     name: Integration Tests (Provisioning)
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     if: github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
@@ -58,7 +58,8 @@ jobs:
             ./internal/commands/mve/... \
             ./internal/commands/ix/... \
             ./internal/commands/servicekeys/... \
-            ./internal/commands/users/... 2>&1); then
+            ./internal/commands/users/... \
+            ./internal/commands/apply/... 2>&1); then
             echo "::error::go test -list failed — see build/compile errors below."
             echo "$list_output"
             exit 1
@@ -72,7 +73,7 @@ jobs:
           echo "Discovered tests:"
           echo "$discovered"
       - name: Run provisioning integration tests
-        run: go test -tags 'integration provisioning' -run '^TestIntegration_' -v -timeout 30m ./internal/commands/ports/... ./internal/commands/vxc/... ./internal/commands/mcr/... ./internal/commands/mve/... ./internal/commands/ix/... ./internal/commands/servicekeys/... ./internal/commands/users/...
+        run: go test -tags 'integration provisioning' -run '^TestIntegration_' -v -timeout 40m ./internal/commands/ports/... ./internal/commands/vxc/... ./internal/commands/mcr/... ./internal/commands/mve/... ./internal/commands/ix/... ./internal/commands/servicekeys/... ./internal/commands/users/... ./internal/commands/apply/...
         env:
           MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
           MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}
