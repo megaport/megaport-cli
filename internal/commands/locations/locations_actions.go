@@ -3,6 +3,7 @@ package locations
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
@@ -148,6 +149,16 @@ func ListMarketCodes(cmd *cobra.Command, args []string, noColor bool, outputForm
 		output.PrintError("Failed to retrieve market codes: %v", noColor, err)
 		return fmt.Errorf("failed to list market codes: %w", err)
 	}
+
+	// The API includes countries with no (or whitespace-only) market prefix;
+	// drop them so the list doesn't render a blank entry.
+	filtered := make([]string, 0, len(marketCodes))
+	for _, mc := range marketCodes {
+		if strings.TrimSpace(mc) != "" {
+			filtered = append(filtered, mc)
+		}
+	}
+	marketCodes = filtered
 
 	if len(marketCodes) == 0 {
 		output.PrintWarning("No market codes found", noColor)
