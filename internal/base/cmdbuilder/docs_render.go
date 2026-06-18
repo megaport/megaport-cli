@@ -1,9 +1,11 @@
+//go:build !js || !wasm
+
 package cmdbuilder
 
 import (
-	"embed"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -14,34 +16,31 @@ import (
 // DocsDirectory is the fallback location for markdown documentation files
 var DocsDirectory = "./docs"
 
-// embeddedDocsFS holds the embedded documentation files
-var embeddedDocsFS embed.FS
-
-// RegisterEmbeddedDocs registers the embedded documentation filesystem
-func RegisterEmbeddedDocs(docs embed.FS) {
-	embeddedDocsFS = docs
-}
-
 // FindDocFile locates the markdown file for a specific command
 func FindDocFile(cmd *cobra.Command) (string, error) {
 	cmdPath := getCommandPath(cmd)
 	docName := cmdPath + ".md"
 
-	// First try to read from embedded docs
-	embeddedPath := filepath.Join("docs", docName)
+	// First try to read from embedded docs. embed.FS paths are always
+	// slash-separated, so use path.Join, not filepath.Join (\ on Windows).
+	embeddedPath := path.Join("docs", docName)
 	content, err := embeddedDocsFS.ReadFile(embeddedPath)
 	if err == nil {
-		// Create a temporary file to store the content for rendering
+		// Stage the embedded content in a temp file; RenderDocFile reads it back
+		// by path and the caller removes it after rendering.
 		tempFile, err := os.CreateTemp("", "megaport-docs-*.md")
 		if err != nil {
 			return "", fmt.Errorf("failed to create temporary file: %w", err)
 		}
-		defer tempFile.Close()
-
 		if _, err := tempFile.Write(content); err != nil {
+			_ = tempFile.Close()
+			_ = os.Remove(tempFile.Name())
 			return "", fmt.Errorf("failed to write to temporary file: %w", err)
 		}
-
+		if err := tempFile.Close(); err != nil {
+			_ = os.Remove(tempFile.Name())
+			return "", fmt.Errorf("failed to close temporary file: %w", err)
+		}
 		return tempFile.Name(), nil
 	}
 
@@ -99,25 +98,6 @@ func ShowDocumentation(cmd *cobra.Command) error {
 		return err
 	}
 
-	// Print the rendered documentation
-	fmt.Println(rendered)
-	return nil
-}
-
-// getCommandPath returns the file path-style name for a command (e.g., "megaport-cli_mcr_buy")
-func getCommandPath(cmd *cobra.Command) string {
-	if cmd.Parent() == nil {
-		return "megaport-cli"
-	}
-
-	// Build the full path
-	path := cmd.Name()
-	parent := cmd.Parent()
-
-	for parent != nil && parent.Name() != "" && parent.Name() != "megaport-cli" {
-		path = parent.Name() + "_" + path
-		parent = parent.Parent()
-	}
-
-	return "megaport-cli_" + path
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), rendered)
+	return err
 }
