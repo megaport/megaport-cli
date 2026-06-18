@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/commands/mcr"
 	"github.com/megaport/megaport-cli/internal/commands/ports"
 	"github.com/megaport/megaport-cli/internal/testutil"
 	megaport "github.com/megaport/megaportgo"
@@ -286,6 +287,90 @@ func vxcFromSDK(t *testing.T, uid string) *megaport.VXC {
 	return vxc
 }
 
+// vxcFromSDKEventually polls GetVXC until cond holds or the cleanup status
+// budget elapses, returning the last-read VXC either way. VLAN and inner-VLAN
+// fields can lag the LIVE transition by a short propagation delay, so callers
+// poll for them rather than asserting on the immediate post-buy response.
+func vxcFromSDKEventually(t *testing.T, uid string, cond func(*megaport.VXC) bool) *megaport.VXC {
+	t.Helper()
+	deadline := time.Now().Add(cleanupStatusTimeout)
+	for {
+		vxc := vxcFromSDK(t, uid)
+		if cond(vxc) || time.Now().After(deadline) {
+			return vxc
+		}
+		time.Sleep(cleanupStatusInterval)
+	}
+}
+
+// buildMCRCmd constructs a cobra.Command for mcr.BuyMCR with all required flags
+// pre-set. BuyMCR blocks until the MCR is LIVE (no --no-wait), so the MCR is
+// ready to attach a VXC once the call returns.
+func buildMCRCmd(t *testing.T, name string, locationID int) *cobra.Command {
+	t.Helper()
+	cmd := &cobra.Command{Use: "buy"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().Bool("yes", false, "")
+	cmd.Flags().Bool("no-wait", false, "")
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().Int("term", 0, "")
+	cmd.Flags().Int("port-speed", 0, "")
+	cmd.Flags().Int("location-id", 0, "")
+	cmd.Flags().Int("mcr-asn", 0, "")
+	cmd.Flags().String("diversity-zone", "", "")
+	cmd.Flags().String("cost-centre", "", "")
+	cmd.Flags().String("promo-code", "", "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	require.NoError(t, cmd.Flags().Set("name", name))
+	require.NoError(t, cmd.Flags().Set("term", "1"))
+	require.NoError(t, cmd.Flags().Set("port-speed", "1000"))
+	require.NoError(t, cmd.Flags().Set("location-id", fmt.Sprintf("%d", locationID)))
+	require.NoError(t, cmd.Flags().Set("marketplace-visibility", "false"))
+	require.NoError(t, cmd.Flags().Set("yes", "true"))
+	return cmd
+}
+
+func newDeleteMCRCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "delete"}
+	cmd.Flags().BoolP("force", "f", false, "")
+	cmd.Flags().Bool("safe-delete", false, "")
+	return cmd
+}
+
+// buyMCRAndGetUID calls mcr.BuyMCR (which blocks until the MCR is LIVE) then
+// recovers the created MCR's UID from the BuyMCRResponse captured by the mcr
+// package's integration buy hook. Cleanup is registered immediately after the
+// buy succeeds and before the UID is asserted, so a billable MCR is never
+// leaked if UID recovery fails.
+func buyMCRAndGetUID(t *testing.T, mcrName string) string {
+	t.Helper()
+	cmd := buildMCRCmd(t, mcrName, integrationLocationID)
+	require.NoErrorf(t, mcr.BuyMCR(cmd, nil, true), "BuyMCR failed for %q", mcrName)
+
+	uid, ok := mcr.IntegrationBuyMCRUID(mcrName)
+	require.Truef(t, ok, "no MCR buy response captured for %q", mcrName)
+	registerMCRCleanup(t, uid)
+	return uid
+}
+
+// registerMCRCleanup schedules a best-effort delete of the MCR. Register before
+// registering VXC cleanup so MCR deletion runs after VXC deletion (t.Cleanup is
+// LIFO); registerVXCCleanup polls for DECOMMISSIONING before returning, so the
+// VXC is gone by the time this runs.
+func registerMCRCleanup(t *testing.T, uid string) {
+	t.Helper()
+	t.Cleanup(func() {
+		delCmd := newDeleteMCRCmd()
+		require.NoError(t, delCmd.Flags().Set("force", "true"))
+		if err := mcr.DeleteMCR(delCmd, []string{uid}, true); err != nil {
+			t.Errorf("cleanup: failed to delete MCR %s: %v", uid, err)
+			return
+		}
+	})
+}
+
 func newUpdateVXCTagsCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "update-tags"}
 	cmd.Flags().Bool("interactive", false, "")
@@ -377,6 +462,77 @@ func TestIntegration_VXCPortToPortLifecycle(t *testing.T) {
 	assert.Equal(t, newName, updated.Name)
 
 	runVXCTagRoundTrip(t, vxcUID)
+}
+
+// TestIntegration_VXCMCRVrouterInnerVLANLifecycle covers the MCR-attached
+// (vrouter) provisioning path and the inner-VLAN (Q-in-Q) path, neither of
+// which the port-to-port lifecycle tests reach. The A-End is an MCR carrying a
+// vrouter partner config (exercises parsePartnerConfigFromJSON ->
+// parseVRouterConfig in vxc_inputs_partner.go); the B-End is a port with an
+// outer and inner VLAN (exercises the VXCOrderMVEConfig inner-VLAN build path in
+// vxc_inputs.go). Inner VLAN sits on the port end because Q-in-Q is a customer
+// handoff feature of the port, mirroring the terraform provider's port
+// inner_vlan acceptance coverage.
+//
+// Out of scope: cloud partner VXCs (AWS/Azure/Google/Oracle/IBM). Those require
+// live cloud-provider accounts on staging and are tracked separately.
+func TestIntegration_VXCMCRVrouterInnerVLANLifecycle(t *testing.T) {
+	t.Parallel()
+	testutil.RequireSharedIntegrationClient(t)
+
+	id := generateUniqueID(t)
+	mcrName := fmt.Sprintf("CLI-Test-VXC-MCR-%s", id)
+	portName := fmt.Sprintf("CLI-Test-VXC-MCRPort-%s", id)
+	vxcName := fmt.Sprintf("CLI-Test-VXC-MCRVrouter-%s", id)
+
+	mcrUID := buyMCRAndGetUID(t, mcrName)
+	t.Logf("Created MCR (A-End): %s", mcrUID)
+
+	portUID := buyPortAndGetUID(t, portName)
+	t.Logf("Created port (B-End): %s", portUID)
+
+	const (
+		aEndVLAN      = 100
+		bEndVLAN      = 200
+		bEndInnerVLAN = 300
+	)
+
+	// VROUTER A-End partner config: one sub-interface with an IP address and a
+	// static route. This is the minimal shape parseVRouterConfig builds from the
+	// a-end-partner-config flag.
+	vrouterConfig := `{
+		"connectType": "VROUTER",
+		"interfaces": [
+			{
+				"ipAddresses": ["10.0.0.1/30"],
+				"ipRoutes": [
+					{"prefix": "10.0.0.0/30", "description": "CLI-Test static route", "nextHop": "10.0.0.2"}
+				]
+			}
+		]
+	}`
+
+	vxcCmd := buildVXCCmd(t, vxcName, mcrUID, portUID, 100)
+	require.NoError(t, vxcCmd.Flags().Set("a-end-vlan", fmt.Sprintf("%d", aEndVLAN)))
+	require.NoError(t, vxcCmd.Flags().Set("a-end-partner-config", vrouterConfig))
+	require.NoError(t, vxcCmd.Flags().Set("b-end-vlan", fmt.Sprintf("%d", bEndVLAN)))
+	require.NoError(t, vxcCmd.Flags().Set("b-end-inner-vlan", fmt.Sprintf("%d", bEndInnerVLAN)))
+
+	vxcUID := runBuyVXC(t, vxcCmd, vxcName)
+	t.Logf("Created VXC (MCR/vrouter A-End, inner VLAN B-End): %s", vxcUID)
+
+	// VLAN and inner VLAN can settle slightly after the VXC reaches LIVE, so
+	// poll for the requested values before asserting.
+	vxc := vxcFromSDKEventually(t, vxcUID, func(v *megaport.VXC) bool {
+		return v.BEndConfiguration.VLAN == bEndVLAN && v.BEndConfiguration.InnerVLAN == bEndInnerVLAN
+	})
+	assert.Equal(t, vxcUID, vxc.UID)
+	assert.Equal(t, vxcName, vxc.Name)
+	assert.Equal(t, 100, vxc.RateLimit)
+	assert.Equal(t, mcrUID, vxc.AEndConfiguration.UID)
+	assert.Equal(t, portUID, vxc.BEndConfiguration.UID)
+	assert.Equal(t, bEndVLAN, vxc.BEndConfiguration.VLAN)
+	assert.Equal(t, bEndInnerVLAN, vxc.BEndConfiguration.InnerVLAN)
 }
 
 func TestIntegration_VXCVLANModificationLifecycle(t *testing.T) {
