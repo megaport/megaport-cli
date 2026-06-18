@@ -43,7 +43,12 @@ if (typeof globalThis.Go !== 'function') fail('wasm_exec.js did not define globa
 
 const go = new globalThis.Go();
 // os.Getenv inside the Go wasm process reads from go.env, not the host's env.
-go.env = { ...process.env, MEGAPORT_ENVIRONMENT: environment };
+// Pass only the keys the WASM module actually reads rather than the full host env.
+go.env = {
+  MEGAPORT_ENVIRONMENT: environment,
+  MEGAPORT_ACCESS_KEY: process.env.MEGAPORT_ACCESS_KEY || '',
+  MEGAPORT_SECRET_KEY: process.env.MEGAPORT_SECRET_KEY || '',
+};
 
 const { instance } = await WebAssembly.instantiate(fs.readFileSync(wasmPath), go.importObject);
 
@@ -51,6 +56,7 @@ const { instance } = await WebAssembly.instantiate(fs.readFileSync(wasmPath), go
 go.run(instance);
 
 // Wait for main() to register the JS bridge before calling into it.
+// WASM startup typically completes in <500ms; 5s (100 x 50ms) is a generous ceiling.
 let ready = false;
 for (let i = 0; i < 100 && !ready; i++) {
   ready = typeof globalThis.executeMegaportCommandAsync === 'function';

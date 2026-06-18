@@ -11,7 +11,7 @@ This is the **WASM browser version** of the Megaport CLI that:
 - **Deployed with Docker** - Easy deployment with a containerized web server
 - **Session-based authentication** - Secure login using customer's Megaport credentials
 - **XTerm.js Terminal** - Full-featured terminal emulator with ANSI support
-- **Early Release** - Covers the main resource modules (ports, MCR, MVE, VXC, locations, partners, service keys). Auth, config, completion, `generate-docs`, and `version` are not applicable in the browser.
+- **Early Release** - Covers all registered resource modules (see Available Commands below). Auth, config, completion, `generate-docs`, and `version` are not applicable in the browser.
 
 ## Quick Start (One Command!)
 
@@ -248,27 +248,31 @@ Every module follows the same recipe to go from native-only to browser-enabled:
    the module pulls in anything that does not compile under `js/wasm` (native
    filesystem, `os/exec`, `syscall`, etc.). CI runs the same step on every PR.
 
-3. **Add a `_wasm` override only if needed.** Most read-only commands work
-   unchanged because the API call already routes through the WASM fetch
-   transport. A module needs a `<module>_actions_wasm.go`
-   (`//go:build js && wasm`) only when its native path does something the
-   browser can't, such as reading the local filesystem or building its own HTTP
-   client. The pattern is to override the action's function variable in `init()`
-   and build the client via `wasmhttp.NewWasmHTTPClient()` (or
-   `config.NewUnauthenticatedClient()` for public endpoints). See
-   `internal/commands/locations/locations_actions_wasm.go` for a minimal example.
+3. **Add a `_wasm` override only if needed.** Most commands work unchanged
+   because the API call already routes through the WASM fetch transport. A
+   module needs a `<module>_actions_wasm.go` (`//go:build js && wasm`) only
+   when its native path does something the browser can't, such as reading the
+   local filesystem or using a custom HTTP client. The pattern is to override
+   the action's function variable in `init()`, using
+   `config.NewUnauthenticatedClient()` for public endpoints or
+   `config.Login(ctx)` for authenticated ones. See
+   `internal/commands/locations/locations_actions_wasm.go` for a minimal
+   example.
 
 4. **Smoke-test it.** Run `make wasm-smoke` to round-trip a command through the
    browser fetch transport against a live API (defaults to `locations list`
-   against staging, no credentials needed). To exercise a specific module:
+   against staging, no credentials needed). Requires Node.js 20+ on `PATH`. To
+   exercise a specific module:
 
    ```bash
    WASM_SMOKE_COMMAND='locations list --output json' make wasm-smoke
    ```
 
-   The command must emit JSON (`--output json`) and return a non-empty array.
-   Use a read-only command and, for anything that needs auth, set
-   `MEGAPORT_ACCESS_KEY` / `MEGAPORT_SECRET_KEY` in the environment first.
+   The command must emit JSON (`--output json`) and return a non-empty JSON
+   array (use a `list` subcommand, not a single-resource `get`). For anything
+   that needs auth, set `MEGAPORT_ACCESS_KEY` / `MEGAPORT_SECRET_KEY` in the
+   environment first (local use only; do not add credentials to the CI smoke
+   job).
 
 ### Local Development with Hot Reload
 
