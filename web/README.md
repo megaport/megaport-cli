@@ -88,7 +88,62 @@ works if the CDN respects the right cache lifetimes, so the origin server
 - `wasm_exec.js`: `no-cache` — it is served from a fixed unhashed path, so it must
   revalidate to stay paired with the wasm's Go runtime after a toolchain upgrade.
 
-A plain unhashed `megaport.wasm` must NOT be served immutable.
+A plain unhashed `megaport.wasm` must NOT be served immutable at a flat, unversioned
+path. (The S3 publish flow below does serve an unhashed `megaport.wasm`, but only under
+a per-version prefix where the path itself is unique, so immutable caching is safe
+there.)
+
+## Publishing to S3 (CDN) and portal integration
+
+`.github/workflows/wasm-publish.yaml` builds the static site and publishes it to the
+`media.megaport.com` S3 bucket (fronted by CloudFront). Trigger it manually
+(`workflow_dispatch`) or by pushing a `v*` tag.
+
+### Layout
+
+Each run publishes the whole static site under two prefixes inside `portal/megaport-cli/`:
+
+- `portal/megaport-cli/<version>/`: immutable (`max-age=31536000, immutable`). The
+  version comes from the tag, a manual input, or `git describe`.
+- `portal/megaport-cli/latest/`: short TTL (`max-age=300`), refreshed on every run.
+
+### Stable filenames, not content-hashed
+
+Unlike the `cmd/server` / Docker flow above, this flow does NOT run `cmd/wasmhash`. The
+portal loads `megaport.wasm` and `wasm_exec.js` by static config URL and does not read
+our `index.html`, so a changing filename would break it. The `<version>/` and `latest/`
+prefixes provide the cache-busting instead: a given versioned URL never changes content,
+so it is safe to serve immutable.
+
+### What gets uploaded
+
+`megaport.wasm` (brotli-compressed, served with `Content-Encoding: br`), `wasm_exec.js`,
+`index.html`, and the Vue assets.
+
+### Portal integration
+
+The portal's `wasmUrl` / `wasmExecUrl` point at the `latest/` prefix while the
+integration is evolving, then pin to a specific `<version>/` prefix once it is stable:
+
+```js
+megaportCli: {
+  wasmUrl:     'https://media.megaport.com/portal/megaport-cli/latest/megaport.wasm',
+  wasmExecUrl: 'https://media.megaport.com/portal/megaport-cli/latest/wasm_exec.js',
+}
+```
+
+### Required GitHub config
+
+The workflow authenticates to AWS via OIDC (no long-lived keys) and fails early until
+these are set:
+
+| Setting | Kind | Value |
+|---|---|---|
+| `AWS_ROLE_ARN` | secret | OIDC role with write access to the bucket prefix |
+| `AWS_REGION` | var | `ap-southeast-2` |
+| `WASM_S3_BUCKET` | var | `media.megaport.com` |
+| `WASM_S3_PREFIX` | var | `portal/megaport-cli` |
+| `WASM_CLOUDFRONT_DISTRIBUTION_ID` | var | optional; if set, published paths are invalidated, otherwise `latest/` self-refreshes within its TTL |
 
 ## Development
 
