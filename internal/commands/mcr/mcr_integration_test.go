@@ -76,6 +76,29 @@ func integrationMCRDeleteCmd() *cobra.Command {
 	return cmd
 }
 
+func integrationMCRTagCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "update-tags"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().BoolP("force", "f", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	return cmd
+}
+
+// tagsFromListJSON parses the JSON output of list-tags (an array of {key,value}
+// objects) into a map, so assertions can check key->value pairs instead of
+// substring-matching the rendered blob.
+func tagsFromListJSON(t *testing.T, out string) map[string]string {
+	t.Helper()
+	var tags []output.ResourceTag
+	require.NoErrorf(t, json.Unmarshal([]byte(out), &tags), "parse list-tags JSON: %s", out)
+	m := make(map[string]string, len(tags))
+	for _, tag := range tags {
+		m[tag.Key] = tag.Value
+	}
+	return m
+}
+
 func integrationMCRPrefixFilterCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "prefix-filter-list"}
 	cmd.Flags().Bool("interactive", false, "")
@@ -191,6 +214,49 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 	require.NoError(t, updErr, "update MCR output: %s", updOut)
 
 	assert.Equal(t, newName, getMCRJSON(t, mcrUID)["name"])
+
+	// Resource tag round-trip (ESD-1392): set tags via update-tags, read them
+	// back via list-tags, then clear them. Rides on the lifecycle MCR, so no
+	// extra cleanup is needed.
+	want := map[string]string{"env": "cli-integration", "owner": "esd-1392"}
+	setTagsJSON, err := json.Marshal(want)
+	require.NoError(t, err)
+	setTagsCmd := integrationMCRTagCmd()
+	require.NoError(t, setTagsCmd.Flags().Set("json", string(setTagsJSON)))
+	require.NoError(t, setTagsCmd.Flags().Set("force", "true"))
+	var setTagsErr error
+	setTagsOut := captureTableOutput(func() { setTagsErr = UpdateMCRResourceTags(setTagsCmd, []string{mcrUID}, true) })
+	require.NoError(t, setTagsErr, "update MCR tags output: %s", setTagsOut)
+
+	var listTagsErr error
+	listTagsOut := output.CaptureOutput(func() {
+		listTagsErr = ListMCRResourceTags(&cobra.Command{Use: "list-tags"}, []string{mcrUID}, true, "json")
+	})
+	require.NoError(t, listTagsErr, "list MCR tags output: %s", listTagsOut)
+	// Assert our tags round-tripped without requiring the map to contain only
+	// them, so an API-injected tag can't make this flaky.
+	got := tagsFromListJSON(t, listTagsOut)
+	for k, v := range want {
+		assert.Equalf(t, v, got[k], "tag %q should round-trip", k)
+	}
+
+	// Clear the tags so the MCR is left clean for the steps that follow.
+	clearTagsCmd := integrationMCRTagCmd()
+	require.NoError(t, clearTagsCmd.Flags().Set("json", "{}"))
+	require.NoError(t, clearTagsCmd.Flags().Set("force", "true"))
+	var clearTagsErr error
+	clearTagsOut := captureTableOutput(func() { clearTagsErr = UpdateMCRResourceTags(clearTagsCmd, []string{mcrUID}, true) })
+	require.NoError(t, clearTagsErr, "clear MCR tags output: %s", clearTagsOut)
+
+	var verifyTagsErr error
+	verifyTagsOut := output.CaptureOutput(func() {
+		verifyTagsErr = ListMCRResourceTags(&cobra.Command{Use: "list-tags"}, []string{mcrUID}, true, "json")
+	})
+	require.NoError(t, verifyTagsErr, "list MCR tags after clear output: %s", verifyTagsOut)
+	cleared := tagsFromListJSON(t, verifyTagsOut)
+	for k := range want {
+		assert.NotContainsf(t, cleared, k, "tag %q should be cleared", k)
+	}
 
 	// Prefix filter list lifecycle (create -> get -> update -> delete).
 	createPFLJSON := `{
