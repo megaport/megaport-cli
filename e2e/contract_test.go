@@ -1,0 +1,144 @@
+//go:build e2e
+
+package e2e
+
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// TestE2E_Contract drives the compiled binary via argv and asserts its CLI
+// contract: exit codes plus stdout/stderr substrings. Every case is hermetic
+// (no network, no credentials) and runs in its own process. Substrings are
+// asserted rather than full output snapshots, which would be too brittle.
+func TestE2E_Contract(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name           string
+		args           []string
+		wantExit       int
+		stdoutContains []string
+		stderrContains []string
+		stderrAbsent   []string
+	}{
+		{
+			name:           "version exits zero with a version line",
+			args:           []string{"version"},
+			wantExit:       exitcodes.Success,
+			stdoutContains: []string{"Version"},
+		},
+		{
+			name:           "root help lists usage and known subcommands",
+			args:           []string{"--help"},
+			wantExit:       exitcodes.Success,
+			stdoutContains: []string{"Usage:", "ports", "vxc", "mcr", "mve", "completion", "version"},
+		},
+		{
+			name:           "subcommand help exits zero",
+			args:           []string{"ports", "--help"},
+			wantExit:       exitcodes.Success,
+			stdoutContains: []string{"ports"},
+		},
+		{
+			name:           "completion bash emits the bash marker",
+			args:           []string{"completion", "bash"},
+			wantExit:       exitcodes.Success,
+			stdoutContains: []string{"bash completion for megaport-cli"},
+		},
+		{
+			name:           "completion zsh emits the zsh marker",
+			args:           []string{"completion", "zsh"},
+			wantExit:       exitcodes.Success,
+			stdoutContains: []string{"#compdef megaport-cli"},
+		},
+		{
+			name:           "unknown command is a usage error",
+			args:           []string{"boguscommand"},
+			wantExit:       exitcodes.Usage,
+			stderrContains: []string{"unknown command"},
+		},
+		{
+			name:           "unknown flag is a usage error",
+			args:           []string{"ports", "list", "--nope"},
+			wantExit:       exitcodes.Usage,
+			stderrContains: []string{"unknown flag"},
+		},
+		{
+			name:           "wrong arg count is a usage error",
+			args:           []string{"ports", "get"},
+			wantExit:       exitcodes.Usage,
+			stderrContains: []string{"arg(s)"},
+		},
+		{
+			// Buy enforces required flags only when not interactive and not --json,
+			// so this must fail at flag validation before any login is attempted.
+			name:           "buy without flags fails at validation before login",
+			args:           []string{"ports", "buy"},
+			wantExit:       exitcodes.Usage,
+			stderrContains: []string{"required flag", "interactive or JSON input"},
+			stderrAbsent:   []string{"Logging in"},
+		},
+		{
+			name:           "invalid output format is a usage error",
+			args:           []string{"version", "--output", "bogus"},
+			wantExit:       exitcodes.Usage,
+			stderrContains: []string{"invalid output format"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			res := Run(t, tc.args...)
+
+			assert.Equalf(t, tc.wantExit, res.Exit,
+				"exit code\nstdout: %s\nstderr: %s", res.Stdout, res.Stderr)
+			for _, want := range tc.stdoutContains {
+				assert.Containsf(t, res.Stdout, want, "stdout missing %q\nstdout: %s", want, res.Stdout)
+			}
+			for _, want := range tc.stderrContains {
+				assert.Containsf(t, res.Stderr, want, "stderr missing %q\nstderr: %s", want, res.Stderr)
+			}
+			for _, absent := range tc.stderrAbsent {
+				assert.NotContainsf(t, res.Stderr, absent, "stderr unexpectedly contains %q\nstderr: %s", absent, res.Stderr)
+			}
+		})
+	}
+}
+
+// TestE2E_JSONErrorEnvelope verifies that under --output json an erroring command
+// emits a structured JSON envelope on stderr whose type matches the exit code.
+// ports buy parses --json before any login, so an unparseable payload triggers
+// the envelope hermetically. Human progress lines precede the JSON on stderr, so
+// the envelope is decoded starting at the first brace.
+func TestE2E_JSONErrorEnvelope(t *testing.T) {
+	t.Parallel()
+
+	res := Run(t, "ports", "buy", "--json", "this-is-not-json", "--output", "json")
+
+	require.NotEqualf(t, exitcodes.Success, res.Exit, "expected a non-zero exit\nstderr: %s", res.Stderr)
+	assert.NotContains(t, res.Stderr, "Logging in", "should fail before any login attempt")
+
+	start := strings.Index(res.Stderr, "{")
+	require.GreaterOrEqualf(t, start, 0, "no JSON object found on stderr: %s", res.Stderr)
+
+	var envelope struct {
+		Error struct {
+			Code    int    `json:"code"`
+			Type    string `json:"type"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	dec := json.NewDecoder(strings.NewReader(res.Stderr[start:]))
+	require.NoErrorf(t, dec.Decode(&envelope), "envelope should be valid JSON: %s", res.Stderr[start:])
+
+	assert.Equal(t, res.Exit, envelope.Error.Code, "envelope code should match the process exit code")
+	assert.Equal(t, exitcodes.TypeName(res.Exit), envelope.Error.Type, "envelope type should match TypeName(exit code)")
+	assert.NotEmpty(t, envelope.Error.Message, "envelope should carry an error message")
+}
