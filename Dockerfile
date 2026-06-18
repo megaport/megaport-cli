@@ -33,12 +33,17 @@ COPY frontend-integration/ ./
 RUN npm run build:demo
 
 # Go builder stage
-FROM golang:1.24-bookworm AS go-builder
+FROM golang:1.25-bookworm AS go-builder
 
 WORKDIR /app
 
 # Copy source code (includes go.mod, go.sum, and vendor directory)
 COPY . .
+
+# The builds below compile offline with -mod=vendor, so vendor/ must already be
+# in the context (it's gitignored). deploy.sh runs `go mod vendor` first; fail
+# clearly here rather than with a cryptic vendoring error.
+RUN test -d vendor || { echo "error: vendor/ is missing — run 'go mod vendor' (or use deploy.sh) before docker build" >&2; exit 1; }
 
 # Build the WASM binary using vendored dependencies
 RUN GOOS=js GOARCH=wasm go build -mod=vendor -tags js,wasm -o web/megaport.wasm .
