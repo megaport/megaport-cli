@@ -6,15 +6,23 @@ name: Publish WASM to S3
 #   The repository has no AWS access yet. Set these before this workflow can run:
 #     secrets.AWS_ROLE_ARN              OIDC role to assume (trust policy must allow this repo)
 #     vars.AWS_REGION                   e.g. ap-southeast-2
-#     vars.WASM_S3_BUCKET               target bucket
-#     vars.WASM_S3_PREFIX               key prefix within the bucket (e.g. portal/megaport-cli)
-#     vars.WASM_CLOUDFRONT_DISTRIBUTION_ID   distribution to invalidate
+#     vars.WASM_S3_BUCKET               target bucket (media.megaport.com)
+#     vars.WASM_S3_PREFIX               key prefix within the bucket (portal/megaport-cli)
+#   Optional:
+#     vars.WASM_CLOUDFRONT_DISTRIBUTION_ID   if set, the latest/ + version paths are
+#                                            invalidated; if unset, latest/ self-refreshes
+#                                            within its short TTL.
 #   See the "Check required configuration" step, which fails early with a clear message.
 #
-# WASM FILENAME:
-#   cmd/wasmhash content-hashes the wasm binary (megaport.<hash>.wasm) and injects
-#   window.__MEGAPORT_WASM_URL__ into index.html so the CDN can serve it immutable.
-#   The portal config URL must be updated to the new path after each release.
+# WHAT GETS PUBLISHED:
+#   Stable filenames under each prefix: megaport.wasm (brotli, Content-Encoding: br),
+#   wasm_exec.js, and the rest of the static site. The portal references megaport.wasm
+#   and wasm_exec.js by URL, so the names are kept stable rather than content-hashed;
+#   the version/latest prefix provides the cache-busting instead.
+#
+# PORTAL INTEGRATION:
+#   Point the portal's wasmUrl/wasmExecUrl at the latest/ alias while iterating, then
+#   pin to a specific <version>/ prefix once the integration is stable.
 
 on:
   workflow_dispatch:
@@ -50,13 +58,13 @@ jobs:
           AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
           AWS_REGION: ${{ vars.AWS_REGION }}
           WASM_S3_BUCKET: ${{ vars.WASM_S3_BUCKET }}
-          WASM_CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.WASM_CLOUDFRONT_DISTRIBUTION_ID }}
+          WASM_S3_PREFIX: ${{ vars.WASM_S3_PREFIX }}
         run: |
           missing=()
           [ -z "$AWS_ROLE_ARN" ] && missing+=("secrets.AWS_ROLE_ARN")
           [ -z "$AWS_REGION" ] && missing+=("vars.AWS_REGION")
           [ -z "$WASM_S3_BUCKET" ] && missing+=("vars.WASM_S3_BUCKET")
-          [ -z "$WASM_CLOUDFRONT_DISTRIBUTION_ID" ] && missing+=("vars.WASM_CLOUDFRONT_DISTRIBUTION_ID")
+          [ -z "$WASM_S3_PREFIX" ] && missing+=("vars.WASM_S3_PREFIX")
           if [ ${#missing[@]} -ne 0 ]; then
             echo "::error::Missing required configuration: ${missing[*]}. See ESD-1506 / the header comment in this workflow."
             exit 1
@@ -104,22 +112,13 @@ jobs:
       - name: Build static site
         run: make web-static
 
-      - name: Content-hash WASM filename
-        id: wasmhash
-        run: |
-          set -euo pipefail
-          # Renames megaport.wasm -> megaport.<hash>.wasm and injects
-          # window.__MEGAPORT_WASM_URL__ into index.html (ESD-1272).
-          hashed=$(GOWORK=off go run ./cmd/wasmhash web/vue-demo/megaport.wasm web/vue-demo/index.html)
-          echo "path=$hashed" >> "$GITHUB_OUTPUT"
-          echo "Hashed WASM: $hashed"
-
       - name: Compress WASM
         run: |
           set -euo pipefail
-          # cmd/wasmcompress writes .br and .gz next to the source file (ESD-1268).
-          # CloudFront auto-compression caps at 10 MB; the raw wasm is well over that.
-          GOWORK=off go run ./cmd/wasmcompress "${{ steps.wasmhash.outputs.path }}"
+          # cmd/wasmcompress writes .br (and .gz) next to the source file (ESD-1268).
+          # CloudFront auto-compression caps at 10 MB; the raw wasm is well over that,
+          # so it must be pre-compressed at origin and served with Content-Encoding: br.
+          GOWORK=off go run ./cmd/wasmcompress web/vue-demo/megaport.wasm
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4.3.1
@@ -132,31 +131,29 @@ jobs:
           BUCKET: ${{ vars.WASM_S3_BUCKET }}
           PREFIX: ${{ vars.WASM_S3_PREFIX }}
           VERSION: ${{ steps.version.outputs.version }}
-          HASHED_WASM_PATH: ${{ steps.wasmhash.outputs.path }}
           PUBLISH_LATEST: ${{ github.event_name == 'push' || inputs.publish_latest }}
         run: |
           set -euo pipefail
           src=web/vue-demo
-          wasm_base="$(basename "$HASHED_WASM_PATH")"
 
           publish() {
             local dest="s3://${BUCKET}/${PREFIX}/$1"
             local cache="$2"
             echo "==> Publishing to ${dest}"
-            # Sync non-wasm assets; wasm variants uploaded separately to set correct headers.
+            # Sync the site (incl. wasm_exec.js); the wasm is uploaded separately below
+            # so we can set Content-Encoding on the brotli copy.
             aws s3 sync "$src/" "$dest/" --delete \
-              --exclude "${wasm_base}" \
-              --exclude "${wasm_base}.br" \
-              --exclude "${wasm_base}.gz" \
+              --exclude 'megaport.wasm' \
+              --exclude 'megaport.wasm.br' \
+              --exclude 'megaport.wasm.gz' \
               --cache-control "$cache"
-            # Serve the brotli-compressed wasm under the hashed key with Content-Encoding: br.
-            aws s3 cp "$src/${wasm_base}.br" "$dest/${wasm_base}" \
+            aws s3 cp "$src/megaport.wasm.br" "$dest/megaport.wasm" \
               --content-type application/wasm \
               --content-encoding br \
               --cache-control "$cache"
           }
 
-          # Versioned prefix is immutable; latest is short-lived so index.html is always fresh.
+          # Versioned prefix is immutable; latest is short-lived so the portal picks up rebuilds.
           publish "$VERSION" 'public, max-age=31536000, immutable'
           if [ "$PUBLISH_LATEST" = "true" ]; then
             publish latest 'public, max-age=300'
@@ -170,6 +167,10 @@ jobs:
           PUBLISH_LATEST: ${{ github.event_name == 'push' || inputs.publish_latest }}
         run: |
           set -euo pipefail
+          if [ -z "$DISTRIBUTION_ID" ]; then
+            echo "WASM_CLOUDFRONT_DISTRIBUTION_ID not set; skipping invalidation (latest/ self-refreshes within its TTL)."
+            exit 0
+          fi
           paths="/${PREFIX}/${VERSION}/*"
           if [ "$PUBLISH_LATEST" = "true" ]; then
             paths="$paths /${PREFIX}/latest/*"
@@ -181,13 +182,12 @@ jobs:
         env:
           PREFIX: ${{ vars.WASM_S3_PREFIX }}
           VERSION: ${{ steps.version.outputs.version }}
-          HASHED_WASM_PATH: ${{ steps.wasmhash.outputs.path }}
           PUBLISH_LATEST: ${{ github.event_name == 'push' || inputs.publish_latest }}
         run: |
           {
             echo "### WASM published"
             echo ""
             echo "- Version prefix: \`${PREFIX}/${VERSION}/\`"
-            echo "- WASM key: \`$(basename "$HASHED_WASM_PATH")\`"
+            echo "- Files: \`megaport.wasm\`, \`wasm_exec.js\`"
             [ "$PUBLISH_LATEST" = "true" ] && echo "- Latest alias: \`${PREFIX}/latest/\`"
           } >> "$GITHUB_STEP_SUMMARY"
