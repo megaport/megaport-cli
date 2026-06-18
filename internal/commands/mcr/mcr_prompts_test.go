@@ -103,6 +103,7 @@ func TestPromptForMCRDetails_InvalidPortSpeedNotNumeric(t *testing.T) {
 	_, err := promptForMCRDetails(true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid port speed")
+	assert.NotContains(t, err.Error(), "strconv")
 }
 
 func TestPromptForMCRDetails_InvalidASN(t *testing.T) {
@@ -114,6 +115,7 @@ func TestPromptForMCRDetails_InvalidASN(t *testing.T) {
 	_, err := promptForMCRDetails(true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid ASN")
+	assert.NotContains(t, err.Error(), "strconv")
 }
 
 func TestPromptForUpdateMCRDetails_Success(t *testing.T) {
@@ -169,6 +171,7 @@ func TestPromptForUpdateMCRDetails_InvalidTermNotNumeric(t *testing.T) {
 	_, err := promptForUpdateMCRDetails("mcr-123", true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid term")
+	assert.NotContains(t, err.Error(), "strconv")
 }
 
 func TestPromptForUpdateMCRDetails_ASNOnly(t *testing.T) {
@@ -218,6 +221,7 @@ func TestPromptForUpdateMCRDetails_InvalidASN(t *testing.T) {
 	_, err := promptForUpdateMCRDetails("mcr-123", true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid ASN")
+	assert.NotContains(t, err.Error(), "strconv")
 }
 
 func TestPromptForUpdateMCRDetails_ASNPromptError(t *testing.T) {

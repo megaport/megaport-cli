@@ -218,6 +218,7 @@ func TestPromptForUpdatePortDetails_InvalidTermNotNumeric(t *testing.T) {
 	_, err := promptForUpdatePortDetails("port-123", true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid term")
+	assert.NotContains(t, err.Error(), "strconv")
 }
 
 func TestPromptForLAGPortDetails_InvalidTerm(t *testing.T) {
@@ -229,6 +230,7 @@ func TestPromptForLAGPortDetails_InvalidTerm(t *testing.T) {
 	_, err := promptForLAGPortDetails(true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid term")
+	assert.NotContains(t, err.Error(), "strconv")
 }
 
 func TestPromptForLAGPortDetails_InvalidLocationID(t *testing.T) {
@@ -240,4 +242,5 @@ func TestPromptForLAGPortDetails_InvalidLocationID(t *testing.T) {
 	_, err := promptForLAGPortDetails(true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid location ID")
+	assert.NotContains(t, err.Error(), "strconv")
 }

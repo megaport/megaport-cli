@@ -269,6 +269,7 @@ func TestCreateUser(t *testing.T) {
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
+				assert.NotContains(t, err.Error(), "strconv")
 			} else {
 				assert.NoError(t, err)
 				if tt.expectedContains != "" {
@@ -373,6 +374,7 @@ func TestUpdateUser(t *testing.T) {
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
+				assert.NotContains(t, err.Error(), "strconv")
 			} else {
 				assert.NoError(t, err)
 				if tt.expectedContains != "" {
@@ -470,6 +472,7 @@ func TestDeleteUser(t *testing.T) {
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
+				assert.NotContains(t, err.Error(), "strconv")
 			} else {
 				assert.NoError(t, err)
 				if tt.expectedContains != "" {
@@ -560,6 +563,7 @@ func TestDeactivateUser(t *testing.T) {
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
+				assert.NotContains(t, err.Error(), "strconv")
 			} else {
 				assert.NoError(t, err)
 				if tt.expectedContains != "" {

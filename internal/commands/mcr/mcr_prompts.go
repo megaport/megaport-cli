@@ -120,9 +120,9 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 	}
 	asnStr = strings.TrimSpace(asnStr)
 	if asnStr != "" {
-		asn, err := strconv.Atoi(asnStr)
+		asn, err := validation.ParseInt("ASN", asnStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid ASN: %w", err)
+			return nil, err
 		}
 		if err := validation.ValidateMCRASN(int64(asn)); err != nil {
 			return nil, err
