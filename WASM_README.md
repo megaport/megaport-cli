@@ -264,7 +264,7 @@ Every module follows the same recipe to go from native-only to browser-enabled:
 
 4. **Smoke-test it.** Run `make wasm-smoke` to round-trip a command through the
    browser fetch transport against a live API (defaults to `locations list`
-   against staging, no credentials needed). Requires Node.js 20+ on `PATH`. To
+   against staging, no credentials needed). Requires Node.js 22+ on `PATH`. To
    exercise a specific module:
 
    ```bash
