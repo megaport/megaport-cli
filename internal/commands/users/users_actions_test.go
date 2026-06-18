@@ -285,6 +285,7 @@ func TestUpdateUser(t *testing.T) {
 
 	tests := []struct {
 		name             string
+		args             []string
 		flags            map[string]string
 		jsonInput        string
 		setupMock        func(*MockUserManagementService)
@@ -321,6 +322,12 @@ func TestUpdateUser(t *testing.T) {
 			},
 			expectedError: "update failed",
 		},
+		{
+			name:          "invalid employee ID",
+			args:          []string{"abc"},
+			setupMock:     func(m *MockUserManagementService) {},
+			expectedError: "invalid employee ID",
+		},
 	}
 
 	for _, tt := range tests {
@@ -353,9 +360,14 @@ func TestUpdateUser(t *testing.T) {
 				require.NoError(t, cmd.Flags().Set(k, v))
 			}
 
+			args := tt.args
+			if len(args) == 0 {
+				args = []string{"12345"}
+			}
+
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
-				err = UpdateUser(cmd, []string{"12345"}, true)
+				err = UpdateUser(cmd, args, true)
 			})
 
 			if tt.expectedError != "" {
@@ -380,6 +392,7 @@ func TestDeleteUser(t *testing.T) {
 
 	tests := []struct {
 		name             string
+		args             []string
 		force            bool
 		confirmResult    bool
 		setupMock        func(*MockUserManagementService)
@@ -414,6 +427,13 @@ func TestDeleteUser(t *testing.T) {
 			},
 			expectedError: "delete failed",
 		},
+		{
+			name:          "invalid employee ID",
+			args:          []string{"abc"},
+			force:         true,
+			setupMock:     func(m *MockUserManagementService) {},
+			expectedError: "invalid employee ID",
+		},
 	}
 
 	for _, tt := range tests {
@@ -437,9 +457,14 @@ func TestDeleteUser(t *testing.T) {
 				require.NoError(t, cmd.Flags().Set("force", "true"))
 			}
 
+			args := tt.args
+			if len(args) == 0 {
+				args = []string{"12345"}
+			}
+
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
-				err = DeleteUser(cmd, []string{"12345"}, true)
+				err = DeleteUser(cmd, args, true)
 			})
 
 			if tt.expectedError != "" {
@@ -464,6 +489,7 @@ func TestDeactivateUser(t *testing.T) {
 
 	tests := []struct {
 		name             string
+		args             []string
 		force            bool
 		confirmResult    bool
 		setupMock        func(*MockUserManagementService)
@@ -491,6 +517,13 @@ func TestDeactivateUser(t *testing.T) {
 			},
 			expectedError: "deactivation failed",
 		},
+		{
+			name:          "invalid employee ID",
+			args:          []string{"abc"},
+			force:         true,
+			setupMock:     func(m *MockUserManagementService) {},
+			expectedError: "invalid employee ID",
+		},
 	}
 
 	for _, tt := range tests {
@@ -514,9 +547,14 @@ func TestDeactivateUser(t *testing.T) {
 				require.NoError(t, cmd.Flags().Set("force", "true"))
 			}
 
+			args := tt.args
+			if len(args) == 0 {
+				args = []string{"12345"}
+			}
+
 			var err error
 			capturedOutput := output.CaptureOutput(func() {
-				err = DeactivateUser(cmd, []string{"12345"}, true)
+				err = DeactivateUser(cmd, args, true)
 			})
 
 			if tt.expectedError != "" {

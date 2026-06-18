@@ -94,6 +94,28 @@ func TestPromptForMCRDetails_InvalidLocationID(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid location ID")
 }
 
+func TestPromptForMCRDetails_InvalidPortSpeedNotNumeric(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	utils.SetResourcePrompt(mockPromptSequence([]string{"MCR", "12", "abc"}))
+
+	_, err := promptForMCRDetails(true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid port speed")
+}
+
+func TestPromptForMCRDetails_InvalidASN(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	utils.SetResourcePrompt(mockPromptSequence([]string{"MCR", "12", "5000", "1", "abc"}))
+
+	_, err := promptForMCRDetails(true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid ASN")
+}
+
 func TestPromptForUpdateMCRDetails_Success(t *testing.T) {
 	originalPrompt := utils.GetResourcePrompt()
 	defer func() { utils.SetResourcePrompt(originalPrompt) }()
@@ -136,6 +158,17 @@ func TestPromptForUpdateMCRDetails_InvalidTerm(t *testing.T) {
 	_, err := promptForUpdateMCRDetails("mcr-123", true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "contract term")
+}
+
+func TestPromptForUpdateMCRDetails_InvalidTermNotNumeric(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", "", "abc"}))
+
+	_, err := promptForUpdateMCRDetails("mcr-123", true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid term")
 }
 
 func TestPromptForUpdateMCRDetails_ASNOnly(t *testing.T) {
