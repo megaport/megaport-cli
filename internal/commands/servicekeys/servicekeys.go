@@ -11,7 +11,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli servicekeys list").
 		WithExample("megaport-cli servicekeys get [key]").
 		WithExample("megaport-cli servicekeys create --product-uid \"product-uid\" --description \"My service key\"").
-		WithExample("megaport-cli servicekeys update [key] --description \"Updated description\"").
+		WithExample("megaport-cli servicekeys update [key] --active=false").
 		WithRootCmd(rootCmd).
 		Build()
 
@@ -30,8 +30,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithLongDesc("Update an existing service key for the Megaport API.\n\nThis command allows you to modify the details of an existing service key. You need to specify the key identifier as an argument, and provide any updated values as flags.").
 		WithColorAwareRunFunc(UpdateServiceKey).
 		WithServiceKeyUpdateFlags().
-		WithExample("megaport-cli servicekeys update a1b2c3d4-e5f6-7890-1234-567890abcdef --description \"Updated description\"").
 		WithExample("megaport-cli servicekeys update a1b2c3d4-e5f6-7890-1234-567890abcdef --active").
+		WithExample("megaport-cli servicekeys update a1b2c3d4-e5f6-7890-1234-567890abcdef --active=false").
 		WithExample("megaport-cli servicekeys update a1b2c3d4-e5f6-7890-1234-567890abcdef --product-uid \"new-product-uid\"").
 		WithRootCmd(rootCmd).
 		Build()

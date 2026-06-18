@@ -83,10 +83,10 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 
 func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 	key := args[0]
-	productUID, _ := cmd.Flags().GetString("product-uid")
-	productID, _ := cmd.Flags().GetInt("product-id")
-	singleUse, _ := cmd.Flags().GetBool("single-use")
-	active, _ := cmd.Flags().GetBool("active")
+
+	if cmd.Flags().Changed("product-uid") && cmd.Flags().Changed("product-id") {
+		return fmt.Errorf("--product-uid and --product-id cannot both be set")
+	}
 
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
@@ -95,12 +95,35 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 	defer cancel()
 
+	// SingleUse and Active are always serialized by the SDK (no omitempty),
+	// so merge from the current key to avoid resetting fields the user
+	// didn't ask to change.
+	current, err := client.ServiceKeyService.GetServiceKey(ctx, key)
+	if err != nil {
+		output.PrintError("Failed to fetch current service key: %v", noColor, err)
+		return fmt.Errorf("failed to fetch current service key: %w", err)
+	}
+
 	req := &megaport.UpdateServiceKeyRequest{
-		Key:        key,
-		ProductUID: productUID,
-		ProductID:  productID,
-		SingleUse:  singleUse,
-		Active:     active,
+		Key:       key,
+		SingleUse: current.SingleUse,
+		Active:    current.Active,
+	}
+	if cmd.Flags().Changed("single-use") {
+		req.SingleUse, _ = cmd.Flags().GetBool("single-use")
+	}
+	if cmd.Flags().Changed("active") {
+		req.Active, _ = cmd.Flags().GetBool("active")
+	}
+	// The SDK rejects requests with both ProductUID and ProductID set, so
+	// preserve the current ProductUID only when the user provided neither.
+	switch {
+	case cmd.Flags().Changed("product-uid"):
+		req.ProductUID, _ = cmd.Flags().GetString("product-uid")
+	case cmd.Flags().Changed("product-id"):
+		req.ProductID, _ = cmd.Flags().GetInt("product-id")
+	default:
+		req.ProductUID = current.ProductUID
 	}
 
 	spinner := output.PrintResourceUpdating("Service Key", key, noColor)
@@ -114,11 +137,12 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("failed to update service key: %w", err)
 	}
 
-	if resp.IsUpdated {
-		output.PrintResourceUpdated("Service Key", key, noColor)
-	} else {
-		output.PrintWarning("Service key update request was not successful", noColor)
+	if !resp.IsUpdated {
+		output.PrintError("Service key update was not applied", noColor)
+		return fmt.Errorf("service key update was not applied")
 	}
+
+	output.PrintResourceUpdated("Service Key", key, noColor)
 	return nil
 }
 
