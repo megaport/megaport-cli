@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"testing"
 
@@ -1996,4 +1998,75 @@ func TestMockIXServiceReset(t *testing.T) {
 	assert.Nil(t, m.getIXError)
 	assert.Nil(t, m.deleteIXError)
 	assert.False(t, m.forceNilGetIX)
+}
+
+// TestBuyIX_NoRetryOnAmbiguousError ensures a buy is never re-submitted after an
+// ambiguous 502, which could double-submit the order and duplicate billing.
+func TestBuyIX_NoRetryOnAmbiguousError(t *testing.T) {
+	originalBuyIXFunc := buyIXFunc
+	originalMaxRetries := utils.MaxRetries
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer func() {
+		cleanup()
+		buyIXFunc = originalBuyIXFunc
+		utils.MaxRetries = originalMaxRetries
+	}()
+	// Retries are available; the order-safe policy must still refuse to use them on a 502.
+	utils.MaxRetries = 3
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.IXService = &MockIXService{}
+		return client, nil
+	})
+
+	calls := 0
+	buyIXFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyIXRequest) (*megaport.BuyIXResponse, error) {
+		calls++
+		return nil, &megaport.ErrorResponse{
+			Response: &http.Response{
+				StatusCode: http.StatusBadGateway,
+				Header:     http.Header{},
+				Request:    &http.Request{URL: &url.URL{}},
+			},
+			Message: "bad gateway",
+		}
+	}
+
+	cmd := &cobra.Command{Use: "buy", RunE: testutil.NoColorAdapter(BuyIX)}
+	cmd.Flags().BoolP("interactive", "i", false, "")
+	cmd.Flags().Bool("no-wait", false, "")
+	cmd.Flags().String("product-uid", "", "")
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().String("network-service-type", "", "")
+	cmd.Flags().Int("asn", 0, "")
+	cmd.Flags().String("mac-address", "", "")
+	cmd.Flags().Int("rate-limit", 0, "")
+	cmd.Flags().Int("vlan", 0, "")
+	cmd.Flags().Bool("shutdown", false, "")
+	cmd.Flags().String("promo-code", "", "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+
+	testutil.SetFlags(t, cmd, map[string]string{
+		"product-uid":          "port-uid-123",
+		"name":                 "Test IX",
+		"network-service-type": "Los Angeles IX",
+		"asn":                  "65000",
+		"mac-address":          "00:11:22:33:44:55",
+		"rate-limit":           "1000",
+		"vlan":                 "100",
+	})
+	assert.NoError(t, cmd.Flags().Set("no-wait", "true"))
+
+	var err error
+	output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, nil)
+	})
+
+	assert.Error(t, err)
+	assert.Equal(t, 1, calls, "buy must not retry on an ambiguous 502")
 }

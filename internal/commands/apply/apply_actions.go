@@ -157,7 +157,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 
 		createSpinner := output.PrintResourceCreating("Port", p.Name, noColor)
 		var resp *megaport.BuyPortResponse
-		err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
 			var e error
 			resp, e = client.PortService.BuyPort(ctx, req)
 			return e
@@ -235,7 +235,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 
 		createSpinner := output.PrintResourceCreating("MCR", m.Name, noColor)
 		var resp *megaport.BuyMCRResponse
-		err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
 			var e error
 			resp, e = client.MCRService.BuyMCR(ctx, req)
 			return e
@@ -321,7 +321,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 
 		createSpinner := output.PrintResourceCreating("MVE", mv.Name, noColor)
 		var resp *megaport.BuyMVEResponse
-		err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
 			var e error
 			resp, e = client.MVEService.BuyMVE(ctx, req)
 			return e
@@ -414,7 +414,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 
 		createSpinner := output.PrintResourceCreating("VXC", v.Name, noColor)
 		var resp *megaport.BuyVXCResponse
-		err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
 			var e error
 			resp, e = client.VXCService.BuyVXC(ctx, req)
 			return e
