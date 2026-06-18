@@ -132,7 +132,7 @@ func serviceKeyFromSDK(t *testing.T, client *megaport.Client, keyUID string) *me
 	return sk
 }
 
-func newCreateServiceKeyCmd() *cobra.Command {
+func newCreateServiceKeyCmdLifecycle() *cobra.Command {
 	cmd := &cobra.Command{Use: "create"}
 	cmd.Flags().String("product-uid", "", "")
 	cmd.Flags().Int("product-id", 0, "")
@@ -147,7 +147,7 @@ func newCreateServiceKeyCmd() *cobra.Command {
 	return cmd
 }
 
-func newUpdateServiceKeyCmd() *cobra.Command {
+func newUpdateServiceKeyCmdLifecycle() *cobra.Command {
 	cmd := &cobra.Command{Use: "update"}
 	cmd.Flags().String("product-uid", "", "")
 	cmd.Flags().Int("product-id", 0, "")
@@ -172,7 +172,7 @@ func TestIntegration_ServiceKeyLifecycle(t *testing.T) {
 
 	description := fmt.Sprintf("CLI-Test-Key-%s", uniqueSuffix(t))
 
-	createCmd := newCreateServiceKeyCmd()
+	createCmd := newCreateServiceKeyCmdLifecycle()
 	require.NoError(t, createCmd.Flags().Set("product-uid", portUID))
 	require.NoError(t, createCmd.Flags().Set("description", description))
 	require.NoError(t, createCmd.Flags().Set("max-speed", "1000"))
@@ -194,7 +194,7 @@ func TestIntegration_ServiceKeyLifecycle(t *testing.T) {
 	assert.Equal(t, portUID, got[0]["product_uid"])
 	assert.Equal(t, description, got[0]["description"])
 
-	updateCmd := newUpdateServiceKeyCmd()
+	updateCmd := newUpdateServiceKeyCmdLifecycle()
 	require.NoError(t, updateCmd.Flags().Set("active", "true"))
 	require.NoError(t, UpdateServiceKey(updateCmd, []string{keyUID}, true), "UpdateServiceKey failed")
 
