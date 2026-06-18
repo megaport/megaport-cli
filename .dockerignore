@@ -37,7 +37,8 @@ web/node_modules/
 web/package.json
 web/package-lock.json
 
-# Host build artifacts (the image rebuilds these in its own stages)
+# Host build artifacts (the image rebuilds these in its own stages).
+# Excluding the possibly stale committed vue-demo copy keeps old hashed assets out.
 frontend-integration/node_modules/
 web/vue-demo/
 

@@ -50,6 +50,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { useMegaportWASM } from '../composables/useMegaportWASM';
+import { resolveWasmUrl } from '../utils/wasmUrl';
 import { TERMINAL_CONFIG, WASM_CONFIG } from '../constants/megaportWASM';
 import type { MegaportPromptRequest } from '../types/megaport-wasm';
 
@@ -73,7 +74,7 @@ export interface MegaportTerminalProps {
 }
 
 const props = withDefaults(defineProps<MegaportTerminalProps>(), {
-  wasmPath: '/megaport.wasm',
+  wasmPath: resolveWasmUrl(),
   wasmExecPath: '/wasm_exec.js',
   welcomeMessage:
     'Welcome to Megaport CLI (WebAssembly)\nType "help" for available commands.\n',

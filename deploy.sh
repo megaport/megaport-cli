@@ -33,9 +33,16 @@ echo "📦 Vendoring Go dependencies for the Docker build..."
 GOWORK=off go mod vendor
 echo ""
 
-# Pre-compress the WASM for CDN serving (CloudFront skips auto-compression >10MB)
+# Content-hash the wasm filename and point index.html at it, so the CDN can serve it
+# immutable and only index.html is ever invalidated.
+echo "🔖 Content-hashing WASM filename..."
+HASHED_WASM=$(GOWORK=off go run -mod=vendor ./cmd/wasmhash web/vue-demo/megaport.wasm web/vue-demo/index.html)
+echo "✅ Hashed WASM: $HASHED_WASM"
+echo ""
+
+# Pre-compress the hashed WASM for CDN serving (CloudFront skips auto-compression >10MB)
 echo "🗜️  Pre-compressing WASM (brotli + gzip)..."
-GOWORK=off go run -mod=vendor ./cmd/wasmcompress web/vue-demo/megaport.wasm
+GOWORK=off go run -mod=vendor ./cmd/wasmcompress "$HASHED_WASM"
 echo "✅ Compressed artifacts created (.br, .gz)"
 echo ""
 

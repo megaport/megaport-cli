@@ -299,6 +299,8 @@ declare global {
     cancelPrompt?: (id: string) => void;
     getPendingPrompts?: () => MegaportPromptRequest[];
     Go?: new () => GoWASM;
+    // Content-hashed wasm URL injected into index.html at build time (ESD-1272).
+    __MEGAPORT_WASM_URL__?: string;
   }
 }
 

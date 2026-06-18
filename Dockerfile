@@ -48,9 +48,6 @@ RUN test -d vendor || { echo "error: vendor/ is missing — run 'go mod vendor' 
 # Build the WASM binary using vendored dependencies
 RUN GOOS=js GOARCH=wasm go build -mod=vendor -tags js,wasm -o web/megaport.wasm .
 
-# Pre-compress the WASM for CDN serving (CloudFront skips auto-compression >10MB)
-RUN go run -mod=vendor ./cmd/wasmcompress web/megaport.wasm
-
 # Build the server binary using vendored dependencies
 RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -o server ./cmd/server/server.go
 
@@ -62,6 +59,16 @@ RUN if [ -f "$(go env GOROOT)/lib/wasm/wasm_exec.js" ]; then \
     else \
         echo "Warning: wasm_exec.js not found"; \
     fi
+
+# Pull in the built Vue demo so the wasm and index.html can be hashed together (the
+# final runtime stage has no Go toolchain). Then content-hash the wasm filename, point
+# index.html at it, and pre-compress the hashed file for CDN serving (CloudFront skips
+# auto-compression >10MB).
+COPY --from=frontend-builder /app/web/vue-demo ./web/vue-demo
+RUN cp web/megaport.wasm web/vue-demo/ && \
+    cp web/wasm_exec.js web/vue-demo/ && \
+    HASHED_WASM=$(go run -mod=vendor ./cmd/wasmhash web/vue-demo/megaport.wasm web/vue-demo/index.html) && \
+    go run -mod=vendor ./cmd/wasmcompress "$HASHED_WASM"
 
 # Final stage - minimal runtime image
 FROM debian:bookworm-slim
@@ -76,14 +83,9 @@ WORKDIR /app
 # Copy server binary from Go builder
 COPY --from=go-builder /app/server .
 
-# Copy Vue frontend build from frontend builder (vite builds to ../web/vue-demo from frontend-integration)
-COPY --from=frontend-builder /app/web/vue-demo ./web
-
-# Copy WASM files from Go builder to Vue build directory
-COPY --from=go-builder /app/web/megaport.wasm ./web/
-COPY --from=go-builder /app/web/megaport.wasm.br ./web/
-COPY --from=go-builder /app/web/megaport.wasm.gz ./web/
-COPY --from=go-builder /app/web/wasm_exec.js ./web/
+# Copy the assembled web tree from the Go builder: the Vue build plus the
+# content-hashed wasm (+ .br/.gz), rewritten index.html and wasm_exec.js.
+COPY --from=go-builder /app/web/vue-demo ./web
 
 # Expose port
 EXPOSE 8080
