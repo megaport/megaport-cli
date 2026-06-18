@@ -1,0 +1,177 @@
+name: Publish WASM to S3
+
+# Builds the browser/WASM CLI static site and publishes it to S3 + CloudFront.
+#
+# CONFIGURATION REQUIRED BEFORE MERGE (ESD-1506):
+#   The repository has no AWS access yet. Set these before this workflow can run:
+#     secrets.AWS_ROLE_ARN              OIDC role to assume (trust policy must allow this repo)
+#     vars.AWS_REGION                   e.g. ap-southeast-2
+#     vars.WASM_S3_BUCKET               target bucket
+#     vars.WASM_S3_PREFIX               key prefix (default: megaport-cli-wasm)
+#     vars.WASM_CLOUDFRONT_DISTRIBUTION_ID   distribution to invalidate
+#   See the "Check required configuration" step, which fails early with a clear message.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version label for the S3 prefix (default: git describe / short SHA)'
+        required: false
+        type: string
+      publish_latest:
+        description: 'Also update the moving latest/ alias'
+        required: false
+        default: true
+        type: boolean
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write  # required for AWS OIDC
+
+# Don't let two publishes race a --delete sync / invalidation against the same ref.
+concurrency:
+  group: wasm-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required configuration
+        env:
+          AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          WASM_S3_BUCKET: ${{ vars.WASM_S3_BUCKET }}
+          WASM_CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.WASM_CLOUDFRONT_DISTRIBUTION_ID }}
+        run: |
+          missing=()
+          [ -z "$AWS_ROLE_ARN" ] && missing+=("secrets.AWS_ROLE_ARN")
+          [ -z "$AWS_REGION" ] && missing+=("vars.AWS_REGION")
+          [ -z "$WASM_S3_BUCKET" ] && missing+=("vars.WASM_S3_BUCKET")
+          [ -z "$WASM_CLOUDFRONT_DISTRIBUTION_ID" ] && missing+=("vars.WASM_CLOUDFRONT_DISTRIBUTION_ID")
+          if [ ${#missing[@]} -ne 0 ]; then
+            echo "::error::Missing required configuration: ${missing[*]}. See ESD-1506 / the header comment in this workflow."
+            exit 1
+          fi
+
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          fetch-depth: 0  # need tags for `git describe` version fallback
+
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend-integration/package-lock.json
+
+      - name: Resolve version label
+        id: version
+        env:
+          # Passed via env (not inlined into the script) to avoid expression injection.
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [ "$REF_TYPE" = "tag" ]; then
+            version="$REF_NAME"
+          elif [ -n "$INPUT_VERSION" ]; then
+            version="$INPUT_VERSION"
+          else
+            version="$(git describe --tags --always --dirty 2>/dev/null || git rev-parse --short HEAD)"
+          fi
+          # version becomes an S3 key and a CloudFront invalidation path, so keep it strict.
+          if ! printf '%s' "$version" | grep -Eq '^[A-Za-z0-9._-]+$'; then
+            echo "::error::Invalid version label '$version'; must match [A-Za-z0-9._-]+"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Publishing version: $version"
+
+      - name: Install brotli
+        run: sudo apt-get update && sudo apt-get install -y brotli
+
+      - name: Build static site
+        run: make web-static
+
+      - name: Pre-compress WASM (brotli)
+        run: |
+          set -euo pipefail
+          # CloudFront auto-compression caps at 10 MB and the raw .wasm is well over
+          # that, so it must be compressed at origin and served with Content-Encoding: br.
+          brotli --version
+          brotli -q 11 -f -o web/vue-demo/megaport.wasm.br web/vue-demo/megaport.wasm
+          ls -lh web/vue-demo/megaport.wasm web/vue-demo/megaport.wasm.br
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4.3.1
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Publish to S3
+        env:
+          BUCKET: ${{ vars.WASM_S3_BUCKET }}
+          PREFIX: ${{ vars.WASM_S3_PREFIX || 'megaport-cli-wasm' }}
+          VERSION: ${{ steps.version.outputs.version }}
+          PUBLISH_LATEST: ${{ github.event_name == 'push' || inputs.publish_latest }}
+        run: |
+          set -euo pipefail
+          src=web/vue-demo
+
+          publish() {
+            local dest="s3://${BUCKET}/${PREFIX}/$1"
+            local cache="$2"
+            echo "==> Publishing to ${dest}"
+            # Sync everything except the wasm; the brotli copy is uploaded separately
+            # so we can set Content-Encoding on it.
+            aws s3 sync "$src/" "$dest/" --delete \
+              --exclude 'megaport.wasm' --exclude 'megaport.wasm.br' \
+              --cache-control "$cache"
+            aws s3 cp "$src/megaport.wasm.br" "$dest/megaport.wasm" \
+              --content-type application/wasm \
+              --content-encoding br \
+              --cache-control "$cache"
+          }
+
+          # Versioned prefix is immutable; latest is short-lived so the portal picks up rebuilds.
+          publish "$VERSION" 'public, max-age=31536000, immutable'
+          if [ "$PUBLISH_LATEST" = "true" ]; then
+            publish latest 'public, max-age=300'
+          fi
+
+      - name: Invalidate CloudFront
+        env:
+          DISTRIBUTION_ID: ${{ vars.WASM_CLOUDFRONT_DISTRIBUTION_ID }}
+          PREFIX: ${{ vars.WASM_S3_PREFIX || 'megaport-cli-wasm' }}
+          VERSION: ${{ steps.version.outputs.version }}
+          PUBLISH_LATEST: ${{ github.event_name == 'push' || inputs.publish_latest }}
+        run: |
+          set -euo pipefail
+          paths="/${PREFIX}/${VERSION}/*"
+          if [ "$PUBLISH_LATEST" = "true" ]; then
+            paths="$paths /${PREFIX}/latest/*"
+          fi
+          # shellcheck disable=SC2086
+          aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths $paths
+
+      - name: Summary
+        env:
+          PREFIX: ${{ vars.WASM_S3_PREFIX || 'megaport-cli-wasm' }}
+          VERSION: ${{ steps.version.outputs.version }}
+          PUBLISH_LATEST: ${{ github.event_name == 'push' || inputs.publish_latest }}
+        run: |
+          {
+            echo "### WASM published"
+            echo ""
+            echo "- Version prefix: \`${PREFIX}/${VERSION}/\`"
+            [ "$PUBLISH_LATEST" = "true" ] && echo "- Latest alias: \`${PREFIX}/latest/\`"
+          } >> "$GITHUB_STEP_SUMMARY"
