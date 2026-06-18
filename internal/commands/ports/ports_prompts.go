@@ -49,9 +49,9 @@ func promptForPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	if err != nil {
 		return nil, err
 	}
-	locationID, err := strconv.Atoi(locationIDStr)
+	locationID, err := validation.ParseInt("location ID", locationIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid location ID")
+		return nil, err
 	}
 	req.LocationId = locationID
 
@@ -131,9 +131,9 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	if err != nil {
 		return nil, err
 	}
-	locationID, err := strconv.Atoi(locationIDStr)
+	locationID, err := validation.ParseInt("location ID", locationIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid location ID")
+		return nil, err
 	}
 	req.LocationId = locationID
 

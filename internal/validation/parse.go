@@ -9,9 +9,9 @@ import (
 // friendly error naming the field and the offending value, instead of leaking
 // strconv internals like `strconv.Atoi: parsing "x": invalid syntax`.
 //
-// The message stays lowercase ("invalid <field>: ...") so existing exit-code
-// classification (which matches a lowercase "invalid"/"ID" substring) and error
-// wrapping keep working.
+// The message keeps the lowercase "invalid <field>" prefix so exit-code
+// classification still tags it as a usage error. For ID arguments the field
+// should contain "ID" (e.g. "location ID") so that classification holds.
 func ParseInt(field, value string) (int, error) {
 	n, err := strconv.Atoi(value)
 	if err != nil {
