@@ -56,11 +56,11 @@ const { instance } = await WebAssembly.instantiate(fs.readFileSync(wasmPath), go
 go.run(instance);
 
 // Wait for main() to register the JS bridge before calling into it.
-// WASM startup typically completes in <500ms; 5s (100 x 50ms) is a generous ceiling.
+// JIT-compiling a 20MB binary on a cold CI runner can take >5s; 20s ceiling is safe.
 let ready = false;
-for (let i = 0; i < 100 && !ready; i++) {
+for (let i = 0; i < 200 && !ready; i++) {
   ready = typeof globalThis.executeMegaportCommandAsync === 'function';
-  if (!ready) await sleep(50);
+  if (!ready) await sleep(100);
 }
 if (!ready) fail('executeMegaportCommandAsync was not registered by the WASM module');
 

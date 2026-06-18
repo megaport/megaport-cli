@@ -248,16 +248,19 @@ Every module follows the same recipe to go from native-only to browser-enabled:
    the module pulls in anything that does not compile under `js/wasm` (native
    filesystem, `os/exec`, `syscall`, etc.). CI runs the same step on every PR.
 
-3. **Add a `_wasm` override only if needed.** Most commands work unchanged
-   because the API call already routes through the WASM fetch transport. A
-   module needs a `<module>_actions_wasm.go` (`//go:build js && wasm`) only
-   when its native path does something the browser can't, such as reading the
-   local filesystem or using a custom HTTP client. The pattern is to override
-   the action's function variable in `init()`, using
+3. **Add a `_wasm` override only if needed.** An override is needed when the
+   native action builds its own `http.Client` instead of going through
+   `config.Login(ctx)` or `config.NewUnauthenticatedClient()` — the WASM
+   versions of those functions already use the browser fetch transport, so any
+   module that calls them directly needs no override. A module needs a
+   `<module>_actions_wasm.go` (`//go:build js && wasm`) only when its native
+   path does something the browser can't, such as reading the local filesystem
+   or constructing its own `http.Client`. The pattern is to override the
+   action's function variable in `init()`, using
    `config.NewUnauthenticatedClient()` for public endpoints or
-   `config.Login(ctx)` for authenticated ones. See
-   `internal/commands/locations/locations_actions_wasm.go` for a minimal
-   example.
+   `config.Login(ctx)` for authenticated ones. If you need a reference,
+   `internal/commands/ports/ports_actions_wasm.go` shows the authenticated
+   pattern.
 
 4. **Smoke-test it.** Run `make wasm-smoke` to round-trip a command through the
    browser fetch transport against a live API (defaults to `locations list`
