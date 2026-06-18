@@ -3,6 +3,9 @@
 
 set -e  # Exit on error
 
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$repo_root"
+
 echo "🏗️  Megaport CLI WASM - Vue 3 Frontend Deployment"
 echo "=================================================="
 echo ""
@@ -14,47 +17,20 @@ if ! docker info > /dev/null 2>&1; then
     exit 1
 fi
 
-# Check if npm is installed
-if ! command -v npm &> /dev/null; then
-    echo "❌ Error: npm is not installed"
-    echo "Please install Node.js and npm to continue"
-    exit 1
-fi
-
-# Build WASM first (to check for errors)
-echo "📦 Building WASM binary..."
-GOWORK=off GOOS=js GOARCH=wasm go build -mod=vendor -tags js,wasm -o web/megaport.wasm .
-echo "✅ WASM build successful"
+# Build the static assets (Vue + WASM) into web/vue-demo/. Shared with
+# build-web.sh / make web-static so the two flows can't drift, and doubles as a
+# fast pre-flight that surfaces build errors before the slow Docker build.
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=scripts/lib/web-assets.sh
+source "$repo_root/scripts/lib/web-assets.sh"
+build_static_assets
 echo ""
 
-# Copy wasm_exec.js to web directory
-echo "📋 Copying wasm_exec.js..."
-# Try new location (Go 1.25+) first, fall back to old location
-if [ -f "$(go env GOROOT)/lib/wasm/wasm_exec.js" ]; then
-    cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" web/
-elif [ -f "$(go env GOROOT)/misc/wasm/wasm_exec.js" ]; then
-    cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" web/
-else
-    echo "❌ Error: Could not find wasm_exec.js in Go installation"
-    exit 1
-fi
-echo "✅ wasm_exec.js copied"
-echo ""
-
-# Build Vue frontend
-echo "🎨 Building Vue 3 frontend..."
-cd frontend-integration
-npm install --quiet
-npm run build:demo
-cd ..
-echo "✅ Vue frontend build successful"
-echo ""
-
-# Copy WASM files to Vue build output
-echo "📦 Copying WASM files to Vue build..."
-cp web/megaport.wasm web/vue-demo/
-cp web/wasm_exec.js web/vue-demo/
-echo "✅ WASM files copied to Vue build"
+# The Docker build compiles offline with -mod=vendor (the golang base image has
+# no module-proxy access in restricted networks). vendor/ is gitignored, so
+# regenerate it on the host before building the image.
+echo "📦 Vendoring Go dependencies for the Docker build..."
+GOWORK=off go mod vendor
 echo ""
 
 # Content-hash the wasm filename and point index.html at it, so the CDN can serve it
