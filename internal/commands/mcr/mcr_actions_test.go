@@ -202,6 +202,18 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			expectedError: "failed to delete MCR",
 			expectDeleted: false,
 		},
+		{
+			name:  "deletion not successful",
+			mcrID: "mcr-not-deleting",
+			force: true,
+			setupMock: func(m *MockMCRService) {
+				m.DeleteMCRResult = &megaport.DeleteMCRResponse{
+					IsDeleting: false,
+				}
+			},
+			expectedError: "not successful for mcr-not-deleting",
+			expectDeleted: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -304,7 +316,7 @@ func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
 					IsRestored: false,
 				}
 			},
-			expectedOut: "MCR restoration request was not successful",
+			expectedError: "not successful for mcr-fail",
 		},
 	}
 
@@ -620,6 +632,19 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 				m.DeleteMCRPrefixFilterListErr = fmt.Errorf("API error: service unavailable")
 			},
 			expectedError: "API error: service unavailable",
+		},
+		{
+			name:           "not successful",
+			mcrUID:         "mcr-123",
+			prefixListID:   1,
+			force:          true,
+			promptResponse: "y",
+			setupMock: func(m *MockMCRService) {
+				m.DeleteMCRPrefixFilterListResult = &megaport.DeleteMCRPrefixFilterListResponse{
+					IsDeleted: false,
+				}
+			},
+			expectedError: "not successful for ID 1",
 		},
 	}
 
@@ -2372,6 +2397,38 @@ func TestUpdateMCRPrefixFilterList(t *testing.T) {
 				}
 			},
 			expectedError: "API error: update failed",
+		},
+		{
+			name: "not successful",
+			args: []string{"mcr-123", "456"},
+			flags: map[string]string{
+				"description": "Updated Prefix List",
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				})
+			},
+			setupGetPrefixFL: func() {
+				getMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrUID string, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
+					return &megaport.MCRPrefixFilterList{
+						ID:            456,
+						Description:   "Original Prefix List",
+						AddressFamily: "IPv4",
+						Entries: []*megaport.MCRPrefixListEntry{
+							{Action: "permit", Prefix: "10.0.0.0/8"},
+						},
+					}, nil
+				}
+			},
+			setupModify: func() {
+				modifyMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrID string, prefixFilterListID int, prefixFilterList *megaport.MCRPrefixFilterList) (*megaport.ModifyMCRPrefixFilterListResponse, error) {
+					return &megaport.ModifyMCRPrefixFilterListResponse{IsUpdated: false}, nil
+				}
+			},
+			expectedError: "not successful for ID 456",
 		},
 	}
 
