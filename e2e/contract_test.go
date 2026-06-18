@@ -122,7 +122,7 @@ func TestE2E_JSONErrorEnvelope(t *testing.T) {
 
 	res := Run(t, "ports", "buy", "--json", "this-is-not-json", "--output", "json")
 
-	require.NotEqualf(t, exitcodes.Success, res.Exit, "expected a non-zero exit\nstderr: %s", res.Stderr)
+	require.Equalf(t, exitcodes.Usage, res.Exit, "invalid JSON payload should be a usage error (exit 2)\nstderr: %s", res.Stderr)
 	assert.NotContains(t, res.Stderr, "Logging in", "should fail before any login attempt")
 
 	start := strings.Index(res.Stderr, "{")

@@ -343,6 +343,9 @@ func classifyError(err error) int {
 		"at least one field must be updated",
 		"at least one of these flags",
 		"invalid location ID",
+		// A malformed --json argument is caller error, not an API failure.
+		// Matched before the "failed to parse" API pattern below.
+		"failed to parse JSON",
 	}
 	for _, p := range usagePatterns {
 		if strings.Contains(msg, p) {

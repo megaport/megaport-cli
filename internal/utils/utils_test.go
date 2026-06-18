@@ -500,6 +500,8 @@ func TestClassifyError(t *testing.T) {
 		{"usage - at least one of these flags", "at least one of these flags must be set: name, term", exitcodes.Usage},
 		{"usage - invalid location ID", "invalid location ID: abc", exitcodes.Usage},
 		{"usage - invalid ID combo", "invalid port ID provided", exitcodes.Usage},
+		{"usage - failed to parse JSON", "failed to parse JSON: invalid character 'h' in literal true", exitcodes.Usage},
+		{"usage - failed to parse JSON file", "failed to parse JSON file: unexpected end of JSON input", exitcodes.Usage},
 
 		// API patterns
 		{"api - error listing", "failed to list ports", exitcodes.API},
