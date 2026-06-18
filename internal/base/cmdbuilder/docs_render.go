@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/charmbracelet/glamour"
 	"github.com/spf13/cobra"
@@ -22,49 +21,30 @@ func RegisterEmbeddedDocs(docs embed.FS) {
 	embeddedDocsFS = docs
 }
 
-// FindDocFile locates the markdown file for a specific command
-func FindDocFile(cmd *cobra.Command) (string, error) {
+// FindDocContent returns the raw markdown documentation for a command,
+// preferring the embedded docs and falling back to the local docs directory.
+func FindDocContent(cmd *cobra.Command) ([]byte, error) {
 	cmdPath := getCommandPath(cmd)
 	docName := cmdPath + ".md"
 
 	// First try to read from embedded docs
 	embeddedPath := filepath.Join("docs", docName)
-	content, err := embeddedDocsFS.ReadFile(embeddedPath)
-	if err == nil {
-		// Create a temporary file to store the content for rendering
-		tempFile, err := os.CreateTemp("", "megaport-docs-*.md")
-		if err != nil {
-			return "", fmt.Errorf("failed to create temporary file: %w", err)
-		}
-		defer tempFile.Close()
-
-		if _, err := tempFile.Write(content); err != nil {
-			return "", fmt.Errorf("failed to write to temporary file: %w", err)
-		}
-
-		return tempFile.Name(), nil
+	if content, err := embeddedDocsFS.ReadFile(embeddedPath); err == nil {
+		return content, nil
 	}
 
 	// If embedded file not found, try local docs directory as fallback
 	docPath := filepath.Join(DocsDirectory, docName)
-
-	// Check if the file exists
-	if _, err := os.Stat(docPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("documentation file not found for %s: %w", cmdPath, err)
+	content, err := os.ReadFile(docPath)
+	if err != nil {
+		return nil, fmt.Errorf("documentation file not found for %s: %w", cmdPath, err)
 	}
 
-	return docPath, nil
+	return content, nil
 }
 
-// RenderDocFile reads and renders a markdown file using Glamour
-func RenderDocFile(filePath string) (string, error) {
-	// Read the markdown file
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read documentation file: %w", err)
-	}
-
-	// Create a glamour renderer with default style
+// RenderMarkdown renders markdown content using Glamour
+func RenderMarkdown(content []byte) (string, error) {
 	renderer, err := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
 		glamour.WithWordWrap(100),
@@ -73,7 +53,6 @@ func RenderDocFile(filePath string) (string, error) {
 		return "", fmt.Errorf("failed to create markdown renderer: %w", err)
 	}
 
-	// Render the markdown content
 	rendered, err := renderer.Render(string(content))
 	if err != nil {
 		return "", fmt.Errorf("failed to render documentation: %w", err)
@@ -84,17 +63,12 @@ func RenderDocFile(filePath string) (string, error) {
 
 // ShowDocumentation displays rendered documentation for a command
 func ShowDocumentation(cmd *cobra.Command) error {
-	docPath, err := FindDocFile(cmd)
+	content, err := FindDocContent(cmd)
 	if err != nil {
 		return err
 	}
 
-	// If we created a temporary file, ensure it gets deleted
-	if strings.Contains(docPath, "megaport-docs-") {
-		defer os.Remove(docPath)
-	}
-
-	rendered, err := RenderDocFile(docPath)
+	rendered, err := RenderMarkdown(content)
 	if err != nil {
 		return err
 	}
