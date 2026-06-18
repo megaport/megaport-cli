@@ -1,9 +1,11 @@
+//go:build !js || !wasm
+
 package cmdbuilder
 
 import (
-	"embed"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/charmbracelet/glamour"
@@ -13,29 +15,20 @@ import (
 // DocsDirectory is the fallback location for markdown documentation files
 var DocsDirectory = "./docs"
 
-// embeddedDocsFS holds the embedded documentation files
-var embeddedDocsFS embed.FS
-
-// RegisterEmbeddedDocs registers the embedded documentation filesystem
-func RegisterEmbeddedDocs(docs embed.FS) {
-	embeddedDocsFS = docs
-}
-
 // FindDocContent returns the raw markdown documentation for a command,
 // preferring the embedded docs and falling back to the local docs directory.
 func FindDocContent(cmd *cobra.Command) ([]byte, error) {
 	cmdPath := getCommandPath(cmd)
 	docName := cmdPath + ".md"
 
-	// First try to read from embedded docs
-	embeddedPath := filepath.Join("docs", docName)
-	if content, err := embeddedDocsFS.ReadFile(embeddedPath); err == nil {
+	// embed.FS paths are always slash-separated, so use path.Join, not
+	// filepath.Join (\ on Windows).
+	if content, err := embeddedDocsFS.ReadFile(path.Join("docs", docName)); err == nil {
 		return content, nil
 	}
 
 	// If embedded file not found, try local docs directory as fallback
-	docPath := filepath.Join(DocsDirectory, docName)
-	content, err := os.ReadFile(docPath)
+	content, err := os.ReadFile(filepath.Join(DocsDirectory, docName))
 	if err != nil {
 		return nil, fmt.Errorf("documentation file not found for %s: %w", cmdPath, err)
 	}
@@ -73,25 +66,6 @@ func ShowDocumentation(cmd *cobra.Command) error {
 		return err
 	}
 
-	// Print the rendered documentation
-	fmt.Println(rendered)
-	return nil
-}
-
-// getCommandPath returns the file path-style name for a command (e.g., "megaport-cli_mcr_buy")
-func getCommandPath(cmd *cobra.Command) string {
-	if cmd.Parent() == nil {
-		return "megaport-cli"
-	}
-
-	// Build the full path
-	path := cmd.Name()
-	parent := cmd.Parent()
-
-	for parent != nil && parent.Name() != "" && parent.Name() != "megaport-cli" {
-		path = parent.Name() + "_" + path
-		parent = parent.Parent()
-	}
-
-	return "megaport-cli_" + path
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), rendered)
+	return err
 }
