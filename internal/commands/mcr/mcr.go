@@ -120,15 +120,19 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithExample("megaport-cli mcr update [mcrUID] --name \"Updated MCR\" --marketplace-visibility true --cost-centre \"Finance\"").
 		WithExample("megaport-cli mcr update [mcrUID] --term 24").
 		WithExample("megaport-cli mcr update [mcrUID] --json '{\"name\":\"Updated MCR\",\"marketplaceVisibility\":true,\"costCentre\":\"Finance\"}'").
+		WithExample("megaport-cli mcr update [mcrUID] --mcr-asn 65020").
+		WithExample("megaport-cli mcr update [mcrUID] --json '{\"name\":\"Updated MCR\",\"marketplaceVisibility\":true,\"costCentre\":\"Finance\",\"mcrAsn\":65020}'").
 		WithExample("megaport-cli mcr update [mcrUID] --json-file ./update-mcr-config.json").
 		WithJSONExample(`{
   "name": "Updated MCR",
   "marketplaceVisibility": true,
   "costCentre": "Finance",
-  "contractTermMonths": 24
+  "contractTermMonths": 24,
+  "mcrAsn": 65020
 }`).
 		WithImportantNote("The MCR UID cannot be changed").
 		WithImportantNote("Only specified fields will be updated; unspecified fields will remain unchanged").
+		WithImportantNote("Updating mcr-asn re-runs BGP setup on the MCR; existing peering sessions may flap during the change").
 		WithImportantNote("Ensure the JSON file is correctly formatted").
 		WithRootCmd(rootCmd).
 		Build()

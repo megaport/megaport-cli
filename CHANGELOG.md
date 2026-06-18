@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `servicekeys update` now exits non-zero when the API reports the update was not applied (previously it warned and exited 0)
+
+### Fixed
+- `servicekeys update` no longer resets `active` and `single-use` to false when those flags are omitted
+- `servicekeys update`: passing both `--product-uid` and `--product-id` now errors instead of being sent to the SDK
+- Removed the non-functional `--description` flag from `servicekeys update`
+
 ## [v0.5.5] — 2026-04-02
 
 ### Added

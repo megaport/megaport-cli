@@ -236,8 +236,9 @@ func ValidateAWSPartnerConfig(config *megaport.VXCPartnerConfigAWS) error {
 	if config.ASN == 0 {
 		return NewValidationError("ASN", config.ASN, "cannot be empty")
 	}
-	if int64(config.ASN) < MinASN || int64(config.ASN) > MaxASN {
-		return NewValidationError("ASN", config.ASN, fmt.Sprintf("must be between %d-%d", MinASN, MaxASN))
+	// Delegate to ValidateASN for the platform-aware bound; re-wrap to keep field name and message format.
+	if err := ValidateASN(config.ASN); err != nil {
+		return NewValidationError("ASN", config.ASN, fmt.Sprintf("must be between %d-%d", MinASN, maxSupportedASNForInt()))
 	}
 	return nil
 }
@@ -515,8 +516,9 @@ func ValidateBGPConnectionConfig(conn megaport.BgpConnectionConfig, ifaceIndex, 
 	if conn.PeerAsn == 0 {
 		return NewValidationError(fmt.Sprintf("%s peer ASN", fieldPrefix), nil, "is required")
 	}
-	if int64(conn.PeerAsn) < MinASN || int64(conn.PeerAsn) > MaxASN {
-		return NewValidationError(fmt.Sprintf("%s peer ASN", fieldPrefix), conn.PeerAsn, fmt.Sprintf("must be between %d-%d", MinASN, MaxASN))
+	// Delegate to ValidateASN for the platform-aware bound; re-wrap to keep field name and message format.
+	if err := ValidateASN(conn.PeerAsn); err != nil {
+		return NewValidationError(fmt.Sprintf("%s peer ASN", fieldPrefix), conn.PeerAsn, fmt.Sprintf("must be between %d-%d", MinASN, maxSupportedASNForInt()))
 	}
 	if conn.LocalIpAddress == "" {
 		return NewValidationError(fmt.Sprintf("%s local IP address", fieldPrefix), conn.LocalIpAddress, "cannot be empty")

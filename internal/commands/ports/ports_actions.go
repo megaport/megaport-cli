@@ -119,7 +119,7 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	var resp *megaport.BuyPortResponse
-	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
 		var e error
 		resp, e = buyPortFunc(ctx, client, req)
 		return e
@@ -256,7 +256,12 @@ func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 		spinner = output.PrintResourceCreating("LAG Port", req.Name, noColor)
 	}
 
-	resp, err := buyPortFunc(ctx, client, req)
+	var resp *megaport.BuyPortResponse
+	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = buyPortFunc(ctx, client, req)
+		return e
+	})
 
 	spinner.Stop()
 

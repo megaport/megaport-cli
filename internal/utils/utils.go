@@ -241,10 +241,13 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 		}
 
 		// Get output format value from command
-		format, err := cmd.Flags().GetString("output")
+		rawFormat, err := cmd.Flags().GetString("output")
 		if err != nil {
-			format = FormatTable // Default to table format if flag not found
+			rawFormat = FormatTable // Default to table format if flag not found
 		}
+		// Lowercase to match WrapRunE / root PersistentPreRunE, so "--output JSON"
+		// is accepted everywhere "--output json" is.
+		format := strings.ToLower(rawFormat)
 
 		// Validate format
 		validFormat := false

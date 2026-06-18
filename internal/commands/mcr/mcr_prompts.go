@@ -113,6 +113,24 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 		fieldsUpdated = true
 	}
 
+	asnPrompt := "Enter new MCR ASN (leave empty to skip): "
+	asnStr, err := utils.ResourcePrompt("mcr", asnPrompt, noColor)
+	if err != nil {
+		return nil, err
+	}
+	asnStr = strings.TrimSpace(asnStr)
+	if asnStr != "" {
+		asn, err := strconv.Atoi(asnStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid ASN: %w", err)
+		}
+		if err := validation.ValidateMCRASN(int64(asn)); err != nil {
+			return nil, err
+		}
+		req.MCRAsn = &asn
+		fieldsUpdated = true
+	}
+
 	if !fieldsUpdated {
 		return nil, fmt.Errorf("at least one field must be updated")
 	}

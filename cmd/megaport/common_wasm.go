@@ -57,7 +57,7 @@ var (
 				return
 			}
 			// No args - just show help
-			cmd.Help()
+			_ = cmd.Help()
 		},
 	}
 

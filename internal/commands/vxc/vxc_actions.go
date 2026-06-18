@@ -301,7 +301,7 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	var resp *megaport.BuyVXCResponse
-	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
 		var e error
 		resp, e = buyVXCFunc(ctx, client, req)
 		return e

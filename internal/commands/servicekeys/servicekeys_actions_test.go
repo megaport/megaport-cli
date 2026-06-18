@@ -10,6 +10,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/testutil"
 	megaport "github.com/megaport/megaportgo"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -179,13 +180,21 @@ func TestListServiceKeys_ProductUIDFilter(t *testing.T) {
 	}
 }
 
+func newUpdateServiceKeyCmd() *cobra.Command {
+	cmd := testutil.NewCommand("update", testutil.NoColorAdapter(UpdateServiceKey))
+	cmd.Flags().String("product-uid", "", "")
+	cmd.Flags().Int("product-id", 0, "")
+	cmd.Flags().Bool("single-use", false, "")
+	cmd.Flags().Bool("active", false, "")
+	return cmd
+}
+
 func TestUpdateServiceKey(t *testing.T) {
 	tests := []struct {
 		name        string
 		mockService *MockServiceKeyService
 		loginErr    error
 		expectedErr string
-		expectWarn  bool
 	}{
 		{
 			name: "success - IsUpdated true",
@@ -196,13 +205,13 @@ func TestUpdateServiceKey(t *testing.T) {
 			},
 		},
 		{
-			name: "IsUpdated false",
+			name: "IsUpdated false returns error",
 			mockService: &MockServiceKeyService{
 				UpdateServiceKeyResult: &megaport.UpdateServiceKeyResponse{
 					IsUpdated: false,
 				},
 			},
-			expectWarn: true,
+			expectedErr: "service key update was not applied",
 		},
 		{
 			name: "API error",
@@ -210,6 +219,13 @@ func TestUpdateServiceKey(t *testing.T) {
 				UpdateServiceKeyError: fmt.Errorf("API failure"),
 			},
 			expectedErr: "failed to update service key",
+		},
+		{
+			name: "get current key error",
+			mockService: &MockServiceKeyService{
+				GetServiceKeyError: fmt.Errorf("key not found"),
+			},
+			expectedErr: "failed to fetch current service key",
 		},
 		{
 			name:        "login error",
@@ -233,18 +249,13 @@ func TestUpdateServiceKey(t *testing.T) {
 				return client, nil
 			})
 
-			cmd := testutil.NewCommand("update", testutil.NoColorAdapter(UpdateServiceKey))
-			cmd.Flags().String("product-uid", "", "")
-			cmd.Flags().Int("product-id", 0, "")
-			cmd.Flags().Bool("single-use", false, "")
-			cmd.Flags().Bool("active", false, "")
-
+			cmd := newUpdateServiceKeyCmd()
 			testutil.SetFlags(t, cmd, map[string]string{
 				"active": "true",
 			})
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			output.CaptureOutput(func() {
 				err = cmd.RunE(cmd, []string{"test-key-123"})
 			})
 
@@ -253,9 +264,114 @@ func TestUpdateServiceKey(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedErr)
 			} else {
 				assert.NoError(t, err)
-				if tt.expectWarn {
-					assert.Contains(t, capturedOutput, "update request was not successful")
-				}
+			}
+		})
+	}
+}
+
+func TestUpdateServiceKey_BothProductFlagsRejected(t *testing.T) {
+	mockService := &MockServiceKeyService{}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.ServiceKeyService = mockService
+	})
+	defer cleanup()
+
+	cmd := newUpdateServiceKeyCmd()
+	testutil.SetFlags(t, cmd, map[string]string{
+		"product-uid": "prod-uid",
+		"product-id":  "42",
+	})
+
+	var err error
+	output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, []string{"test-key-123"})
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot both be set")
+	assert.Nil(t, mockService.CapturedUpdateServiceKeyRequest)
+}
+
+func TestUpdateServiceKey_MergesUnsetFlags(t *testing.T) {
+	currentKey := &megaport.ServiceKey{
+		Key:        "test-key-123",
+		ProductUID: "current-prod-uid",
+		SingleUse:  true,
+		Active:     true,
+	}
+
+	tests := []struct {
+		name              string
+		flags             map[string]string
+		expectedSingleUse bool
+		expectedActive    bool
+		expectedUID       string
+		expectedID        int
+	}{
+		{
+			name:              "no flags preserves current values",
+			flags:             map[string]string{},
+			expectedSingleUse: true,
+			expectedActive:    true,
+			expectedUID:       "current-prod-uid",
+		},
+		{
+			name:              "product-uid only preserves bools",
+			flags:             map[string]string{"product-uid": "new-prod-uid"},
+			expectedSingleUse: true,
+			expectedActive:    true,
+			expectedUID:       "new-prod-uid",
+		},
+		{
+			name:              "explicit active=false is honored",
+			flags:             map[string]string{"active": "false"},
+			expectedSingleUse: true,
+			expectedActive:    false,
+			expectedUID:       "current-prod-uid",
+		},
+		{
+			name:              "explicit single-use=false is honored",
+			flags:             map[string]string{"single-use": "false"},
+			expectedSingleUse: false,
+			expectedActive:    true,
+			expectedUID:       "current-prod-uid",
+		},
+		{
+			name:              "product-id replaces current product-uid",
+			flags:             map[string]string{"product-id": "42"},
+			expectedSingleUse: true,
+			expectedActive:    true,
+			expectedUID:       "",
+			expectedID:        42,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockServiceKeyService{
+				GetServiceKeyResult: currentKey,
+			}
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+				c.ServiceKeyService = mockService
+			})
+			defer cleanup()
+
+			cmd := newUpdateServiceKeyCmd()
+			testutil.SetFlags(t, cmd, tt.flags)
+
+			var err error
+			output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{"test-key-123"})
+			})
+
+			assert.NoError(t, err)
+			req := mockService.CapturedUpdateServiceKeyRequest
+			if assert.NotNil(t, req) {
+				assert.Equal(t, "test-key-123", req.Key)
+				assert.Equal(t, tt.expectedSingleUse, req.SingleUse)
+				assert.Equal(t, tt.expectedActive, req.Active)
+				assert.Equal(t, tt.expectedUID, req.ProductUID)
+				assert.Equal(t, tt.expectedID, req.ProductID)
 			}
 		})
 	}
@@ -358,9 +474,10 @@ func TestListServiceKeys_EmptyResult(t *testing.T) {
 			expectedOutput: "No service keys found.",
 		},
 		{
-			name:         "json format returns empty array without message",
-			outputFormat: "json",
-			notExpected:  "No service keys found.",
+			name:           "json format returns empty array without message",
+			outputFormat:   "json",
+			expectedOutput: "[]",
+			notExpected:    "No service keys found.",
 		},
 	}
 

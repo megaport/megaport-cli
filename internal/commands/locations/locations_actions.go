@@ -2,6 +2,7 @@ package locations
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
@@ -67,26 +68,8 @@ func ListLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	filteredLocations := filterLocations(locations, filters)
 
 	limit, _ := cmd.Flags().GetInt("limit")
-	if limit < 0 {
-		return fmt.Errorf("--limit must be a non-negative integer")
-	}
-	if limit > 0 && len(filteredLocations) > limit {
-		filteredLocations = filteredLocations[:limit]
-	}
-
-	if len(filteredLocations) == 0 {
-		if outputFormat == utils.FormatTable {
-			output.PrintInfo("No locations found matching your filters.", noColor)
-		}
-		return nil
-	}
-
-	err = printLocations(filteredLocations, outputFormat, noColor)
-	if err != nil {
-		output.PrintError("Failed to print locations: %v", noColor, err)
-		return fmt.Errorf("failed to print locations: %w", err)
-	}
-	return nil
+	return utils.ApplyLimitAndPrint(filteredLocations, limit, outputFormat, noColor,
+		"No locations found matching your filters.", printLocations)
 }
 
 func ListCountries(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
@@ -148,6 +131,16 @@ func ListMarketCodes(cmd *cobra.Command, args []string, noColor bool, outputForm
 		output.PrintError("Failed to retrieve market codes: %v", noColor, err)
 		return fmt.Errorf("failed to list market codes: %w", err)
 	}
+
+	// The API includes countries with no (or whitespace-only) market prefix;
+	// drop them so the list doesn't render a blank entry.
+	filtered := make([]string, 0, len(marketCodes))
+	for _, mc := range marketCodes {
+		if strings.TrimSpace(mc) != "" {
+			filtered = append(filtered, mc)
+		}
+	}
+	marketCodes = filtered
 
 	if len(marketCodes) == 0 {
 		output.PrintWarning("No market codes found", noColor)

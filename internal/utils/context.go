@@ -33,14 +33,18 @@ func ContextFromCmd(cmd *cobra.Command) (context.Context, context.CancelFunc) {
 // is zero or negative. Use this for long-running operations (e.g. provisioning)
 // where the operation-appropriate default differs from the global 90-second default.
 func ContextFromCmdWithDefault(cmd *cobra.Command, defaultTimeout time.Duration) (context.Context, context.CancelFunc) {
-	timeout := defaultTimeout
+	return context.WithTimeout(context.Background(), TimeoutFromCmd(cmd, defaultTimeout))
+}
 
-	// Try to read the timeout flag; user-supplied value always wins.
+// TimeoutFromCmd returns the effective timeout duration from the command's
+// --timeout flag, falling back to defaultTimeout when the flag is not set or is
+// zero or negative. Use it when you need the duration itself rather than a
+// context (e.g. to start a fresh context with the same configured timeout).
+func TimeoutFromCmd(cmd *cobra.Command, defaultTimeout time.Duration) time.Duration {
 	if cmd != nil {
 		if val, err := cmd.Flags().GetDuration("timeout"); err == nil && val > 0 {
-			timeout = val
+			return val
 		}
 	}
-
-	return context.WithTimeout(context.Background(), timeout)
+	return defaultTimeout
 }

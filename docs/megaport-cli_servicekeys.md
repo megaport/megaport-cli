@@ -14,7 +14,7 @@ This command groups all operations related to service keys. You can use its subc
   megaport-cli servicekeys list
   megaport-cli servicekeys get [key]
   megaport-cli servicekeys create --product-uid "product-uid" --description "My service key"
-  megaport-cli servicekeys update [key] --description "Updated description"
+  megaport-cli servicekeys update [key] --active=false
 ```
 
 ## Usage

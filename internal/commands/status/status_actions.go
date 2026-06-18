@@ -152,7 +152,7 @@ func StatusDashboard(cmd *cobra.Command, args []string, noColor bool, outputForm
 		return fmt.Errorf("failed to build dashboard: %w", err)
 	}
 
-	if err := printDashboard(dashboard, outputFormat, noColor); err != nil {
+	if err := printDashboard(cmd.OutOrStdout(), dashboard, outputFormat, noColor); err != nil {
 		output.PrintError("Failed to print dashboard: %v", noColor, err)
 		return fmt.Errorf("failed to print dashboard: %w", err)
 	}

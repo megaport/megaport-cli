@@ -38,26 +38,8 @@ func ListManagedAccounts(cmd *cobra.Command, args []string, noColor bool, output
 	filteredAccounts := filterManagedAccounts(accounts, accountName, accountRef)
 
 	limit, _ := cmd.Flags().GetInt("limit")
-	if limit < 0 {
-		return fmt.Errorf("--limit must be a non-negative integer")
-	}
-	if limit > 0 && len(filteredAccounts) > limit {
-		filteredAccounts = filteredAccounts[:limit]
-	}
-
-	if len(filteredAccounts) == 0 {
-		if outputFormat == utils.FormatTable {
-			output.PrintInfo("No managed accounts found.", noColor)
-		}
-		return nil
-	}
-
-	err = printManagedAccounts(filteredAccounts, outputFormat, noColor)
-	if err != nil {
-		output.PrintError("Failed to print managed accounts: %v", noColor, err)
-		return fmt.Errorf("failed to print managed accounts: %w", err)
-	}
-	return nil
+	return utils.ApplyLimitAndPrint(filteredAccounts, limit, outputFormat, noColor,
+		"No managed accounts found.", printManagedAccounts)
 }
 
 func GetManagedAccount(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
