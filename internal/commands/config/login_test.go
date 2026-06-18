@@ -853,6 +853,19 @@ func TestCLIHeadersSentOnRequests(t *testing.T) {
 	assert.Equal(t, "cli", capturedHeaders.Get("x-app"))
 }
 
+// stringerValue is a fmt.Stringer wrapped via slog.Any, exercising the
+// value-level redaction path for a value that isn't a plain slog string.
+type stringerValue string
+
+func (s stringerValue) String() string { return string(s) }
+
+// logValuerLeak exposes its credential only through LogValue(); its plain fmt
+// form ("{...}") hides the scheme prefix, so the value scan must Resolve()
+// before inspecting or the inner handler prints the resolved credential.
+type logValuerLeak struct{ token string }
+
+func (l logValuerLeak) LogValue() slog.Value { return slog.StringValue("Bearer " + l.token) }
+
 func TestRedactingHandler(t *testing.T) {
 	var buf bytes.Buffer
 	inner := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
@@ -894,6 +907,94 @@ func TestRedactingHandler(t *testing.T) {
 		)
 		output := buf.String()
 		assert.NotContains(t, output, "eyJhY2Nlc3NfdG9rZW4iOiJzZWNyZXQifQ==")
+		assert.Contains(t, output, "[REDACTED]")
+	})
+
+	// Fail-closed: a credential key the allowlist never enumerated (the SDK's
+	// authorization_header) must still be redacted via substring matching.
+	t.Run("redacts unlisted authorization_header", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "login request",
+			slog.String("authorization_header", "Basic YWNjZXNzOnNlY3JldA=="),
+		)
+		output := buf.String()
+		assert.NotContains(t, output, "Basic YWNjZXNzOnNlY3JldA==")
+		assert.NotContains(t, output, "YWNjZXNzOnNlY3JldA==")
+		assert.Contains(t, output, "[REDACTED]")
+	})
+
+	t.Run("redaction is case-insensitive", func(t *testing.T) {
+		for _, key := range []string{"Authorization", "X-Access-Key", "Secret_Key", "ACCESS_TOKEN"} {
+			assert.True(t, isSensitiveKey(key), "expected %q to be treated as sensitive", key)
+		}
+	})
+
+	t.Run("preserves non-credential keys", func(t *testing.T) {
+		for _, key := range []string{"method", "path", "api_host", "trace_id", "content_type", "status_code"} {
+			assert.False(t, isSensitiveKey(key), "expected %q to be preserved", key)
+		}
+	})
+
+	// token_url is the constant OAuth endpoint, not the token, and is the most
+	// useful field when debugging --log-http auth issues; keep it visible.
+	t.Run("preserves token_url despite token substring", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "login request",
+			slog.String("token_url", "https://auth.megaport.com/oauth2/token"),
+		)
+		output := buf.String()
+		assert.Contains(t, output, "https://auth.megaport.com/oauth2/token")
+		assert.NotContains(t, output, "[REDACTED]")
+	})
+
+	// Fail closed on a credential-shaped value even when its key is unknown.
+	t.Run("redacts auth value under unrecognized key", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "request",
+			slog.String("custom_header", "Basic YWNjZXNzOnNlY3JldA=="),
+			slog.String("bearer_field", "Bearer eyJ-token-value"),
+		)
+		output := buf.String()
+		assert.NotContains(t, output, "YWNjZXNzOnNlY3JldA==")
+		assert.NotContains(t, output, "eyJ-token-value")
+		assert.Contains(t, output, "[REDACTED]")
+	})
+
+	// A credential carried by a non-string value (slog.Any over a Stringer)
+	// must still be caught by the value-level scan.
+	t.Run("redacts auth value from non-string attr", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "request",
+			slog.Any("opaque", stringerValue("Bearer opaque-secret-token")),
+		)
+		output := buf.String()
+		assert.NotContains(t, output, "opaque-secret-token")
+		assert.Contains(t, output, "[REDACTED]")
+	})
+
+	// A LogValuer's credential is only visible after Resolve(); the scan must
+	// resolve before inspecting or the inner handler prints it in cleartext.
+	t.Run("redacts auth value from LogValuer attr", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "request",
+			slog.Any("lazy", logValuerLeak{token: "lazy-secret-token"}),
+		)
+		output := buf.String()
+		assert.NotContains(t, output, "lazy-secret-token")
+		assert.Contains(t, output, "[REDACTED]")
+	})
+
+	t.Run("redacts credential-family substrings", func(t *testing.T) {
+		buf.Reset()
+		logger.DebugContext(context.Background(), "auth",
+			slog.String("client_secret", "shh-secret"),
+			slog.String("refresh_token", "refresh-me"),
+			slog.String("api_key_id", "key-id-leak"),
+		)
+		output := buf.String()
+		assert.NotContains(t, output, "shh-secret")
+		assert.NotContains(t, output, "refresh-me")
+		assert.NotContains(t, output, "key-id-leak")
 		assert.Contains(t, output, "[REDACTED]")
 	})
 

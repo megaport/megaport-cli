@@ -405,7 +405,7 @@ func TestGetLocation(t *testing.T) {
 			defer output.SetOutputFormat("table")
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedOutput := output.CaptureStdout(func() {
 				err = GetLocation(cmd, tt.args, true, "json")
 			})
 
@@ -542,6 +542,20 @@ func TestListMarketCodes(t *testing.T) {
 				m.ListMarketCodesResult = []string{}
 			},
 			expectedOutput: "[]",
+		},
+		{
+			name: "filters blank market codes",
+			setupMock: func(m *MockLocationsService) {
+				m.ListMarketCodesResult = []string{"AU", "", "  ", "US"}
+			},
+			expectedOutput: `[
+  {
+    "market_code": "AU"
+  },
+  {
+    "market_code": "US"
+  }
+]`,
 		},
 		{
 			name:        "client creation error",

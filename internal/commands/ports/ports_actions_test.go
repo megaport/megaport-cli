@@ -1117,6 +1117,12 @@ func TestRestorePort(t *testing.T) {
 			loginErr:      fmt.Errorf("authentication failed"),
 			expectedError: "authentication failed",
 		},
+		{
+			name:          "not successful",
+			portUID:       "port-restore-fail",
+			restoreResp:   &megaport.RestorePortResponse{IsRestored: false},
+			expectedError: "not successful for port-restore-fail",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1204,6 +1210,12 @@ func TestLockPort(t *testing.T) {
 			loginErr:      fmt.Errorf("invalid token"),
 			expectedError: "invalid token",
 		},
+		{
+			name:          "not successful",
+			portUID:       "port-lock-fail",
+			lockResp:      &megaport.LockPortResponse{IsLocking: false},
+			expectedError: "not successful for port-lock-fail",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1290,6 +1302,12 @@ func TestUnlockPort(t *testing.T) {
 			portUID:       "port-unlock-login",
 			loginErr:      fmt.Errorf("session expired"),
 			expectedError: "session expired",
+		},
+		{
+			name:          "not successful",
+			portUID:       "port-unlock-fail",
+			unlockResp:    &megaport.UnlockPortResponse{IsUnlocking: false},
+			expectedError: "not successful for port-unlock-fail",
 		},
 	}
 
@@ -2209,10 +2227,10 @@ func TestDeletePort_Comprehensive(t *testing.T) {
 			expectedError: "API failure",
 		},
 		{
-			name:             "delete returns not deleting",
-			force:            true,
-			isDeleting:       false,
-			expectedContains: "not successful",
+			name:          "delete returns not deleting",
+			force:         true,
+			isDeleting:    false,
+			expectedError: "not successful for port-123",
 		},
 	}
 
@@ -2385,7 +2403,7 @@ func TestGetPort_Export(t *testing.T) {
 	require.NoError(t, cmd.Flags().Set("export", "true"))
 
 	var err error
-	capturedOutput := output.CaptureOutput(func() {
+	capturedOutput := output.CaptureStdout(func() {
 		err = testutil.OutputAdapter(GetPort)(cmd, []string{"port-export-123"})
 	})
 

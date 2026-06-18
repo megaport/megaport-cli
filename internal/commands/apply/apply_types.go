@@ -35,12 +35,11 @@ type MCRConfig struct {
 }
 
 // MVEConfig describes an MVE to provision.
-// VendorConfig holds vendor-specific fields (e.g. vendor, imageId, productSize).
 type MVEConfig struct {
 	Name          string                 `yaml:"name" json:"name"`
 	LocationID    int                    `yaml:"location_id" json:"location_id"`
 	Term          int                    `yaml:"term" json:"term"`
-	VendorConfig  map[string]interface{} `yaml:"vendor_config" json:"vendor_config"`
+	VendorConfig  map[string]interface{} `yaml:"vendor_config" json:"vendor_config"` // vendor-specific fields (e.g. vendor, imageId, productSize)
 	DiversityZone string                 `yaml:"diversity_zone" json:"diversity_zone"`
 	CostCentre    string                 `yaml:"cost_centre" json:"cost_centre"`
 	ResourceTags  map[string]string      `yaml:"resource_tags" json:"resource_tags"`

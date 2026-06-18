@@ -66,7 +66,7 @@ func TestPrintError_RoutesToStderrNotStdout(t *testing.T) {
 
 			var stdout string
 			stderr := captureStderr(t, func() {
-				stdout = CaptureOutput(func() {
+				stdout = CaptureStdout(func() {
 					PrintError("boom %d", true, 1)
 				})
 			})
@@ -82,7 +82,7 @@ func TestPrintSuccessWarningInfo_RouteToStderrNotStdout(t *testing.T) {
 
 	var stdout string
 	stderr := captureStderr(t, func() {
-		stdout = CaptureOutput(func() {
+		stdout = CaptureStdout(func() {
 			PrintSuccess("ok", true)
 			PrintWarning("careful", true)
 			PrintInfo("fyi", true)

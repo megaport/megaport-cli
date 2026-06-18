@@ -1,6 +1,7 @@
 package ix
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -240,7 +241,12 @@ func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
 	} else {
 		buySpinner = output.PrintResourceCreating("IX", req.Name, noColor)
 	}
-	resp, err := buyIXFunc(ctx, client, req)
+	var resp *megaport.BuyIXResponse
+	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
+		var e error
+		resp, e = buyIXFunc(ctx, client, req)
+		return e
+	})
 	buySpinner.Stop()
 
 	if err != nil {
@@ -339,7 +345,12 @@ func UpdateIX(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	updateSpinner := output.PrintResourceUpdating("IX", ixUID, noColor)
-	updatedIX, err := updateIXFunc(ctx, client, ixUID, req)
+	var updatedIX *megaport.IX
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		var e error
+		updatedIX, e = updateIXFunc(ctx, client, ixUID, req)
+		return e
+	})
 	updateSpinner.Stop()
 
 	if err != nil {
@@ -386,7 +397,9 @@ func DeleteIX(cmd *cobra.Command, args []string, noColor bool) error {
 
 	spinner := output.PrintResourceDeleting("IX", ixUID, noColor)
 
-	err = deleteIXFunc(ctx, client, ixUID, deleteRequest)
+	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+		return deleteIXFunc(ctx, client, ixUID, deleteRequest)
+	})
 
 	spinner.Stop()
 

@@ -202,6 +202,18 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			expectedError: "failed to delete MCR",
 			expectDeleted: false,
 		},
+		{
+			name:  "deletion not successful",
+			mcrID: "mcr-not-deleting",
+			force: true,
+			setupMock: func(m *MockMCRService) {
+				m.DeleteMCRResult = &megaport.DeleteMCRResponse{
+					IsDeleting: false,
+				}
+			},
+			expectedError: "not successful for mcr-not-deleting",
+			expectDeleted: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -304,7 +316,7 @@ func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
 					IsRestored: false,
 				}
 			},
-			expectedOut: "MCR restoration request was not successful",
+			expectedError: "not successful for mcr-fail",
 		},
 	}
 
@@ -620,6 +632,19 @@ func TestDeleteMCRPrefixFilterListCmd_WithMockClient(t *testing.T) {
 				m.DeleteMCRPrefixFilterListErr = fmt.Errorf("API error: service unavailable")
 			},
 			expectedError: "API error: service unavailable",
+		},
+		{
+			name:           "not successful",
+			mcrUID:         "mcr-123",
+			prefixListID:   1,
+			force:          true,
+			promptResponse: "y",
+			setupMock: func(m *MockMCRService) {
+				m.DeleteMCRPrefixFilterListResult = &megaport.DeleteMCRPrefixFilterListResponse{
+					IsDeleted: false,
+				}
+			},
+			expectedError: "not successful for ID 1",
 		},
 	}
 
@@ -1377,7 +1402,7 @@ func TestListMCRsCmd_WithMockClient(t *testing.T) {
 			var err error
 			var capturedOutput string
 			capturedStderr := captureStderr(t, func() {
-				capturedOutput = output.CaptureOutput(func() {
+				capturedOutput = output.CaptureStdout(func() {
 					err = cmd.RunE(cmd, []string{})
 				})
 			})
@@ -1903,6 +1928,41 @@ func TestUpdateMCR(t *testing.T) {
 			expectedOutput: "MCR updated mcr-789",
 		},
 		{
+			name: "success with mcr-asn flag only",
+			args: []string{"mcr-789"},
+			flags: map[string]string{
+				"mcr-asn": "65020",
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				})
+			},
+			setupGetMCR: func() {
+				getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+					return &megaport.MCR{
+						UID:                mcrUID,
+						Name:               "Original MCR",
+						ProvisioningStatus: "LIVE",
+					}, nil
+				}
+			},
+			setupUpdateMCR: func() {
+				updateMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyMCRRequest) (*megaport.ModifyMCRResponse, error) {
+					if req.MCRAsn == nil {
+						return nil, fmt.Errorf("expected MCRAsn to be set")
+					}
+					if *req.MCRAsn != 65020 {
+						return nil, fmt.Errorf("expected MCRAsn=65020, got %d", *req.MCRAsn)
+					}
+					return &megaport.ModifyMCRResponse{IsUpdated: true}, nil
+				}
+			},
+			expectedOutput: "MCR updated mcr-789",
+		},
+		{
 			name: "success with JSON",
 			args: []string{"mcr-456"},
 			flags: map[string]string{
@@ -2053,6 +2113,7 @@ func TestUpdateMCR(t *testing.T) {
 			cmd.Flags().String("cost-centre", "", "")
 			cmd.Flags().Bool("marketplace-visibility", false, "")
 			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("mcr-asn", 0, "")
 
 			testutil.SetFlags(t, cmd, tt.flags)
 
@@ -2339,6 +2400,38 @@ func TestUpdateMCRPrefixFilterList(t *testing.T) {
 				}
 			},
 			expectedError: "API error: update failed",
+		},
+		{
+			name: "not successful",
+			args: []string{"mcr-123", "456"},
+			flags: map[string]string{
+				"description": "Updated Prefix List",
+			},
+			setupLogin: func() {
+				config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+					client := &megaport.Client{}
+					client.MCRService = &MockMCRService{}
+					return client, nil
+				})
+			},
+			setupGetPrefixFL: func() {
+				getMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrUID string, prefixFilterListID int) (*megaport.MCRPrefixFilterList, error) {
+					return &megaport.MCRPrefixFilterList{
+						ID:            456,
+						Description:   "Original Prefix List",
+						AddressFamily: "IPv4",
+						Entries: []*megaport.MCRPrefixListEntry{
+							{Action: "permit", Prefix: "10.0.0.0/8"},
+						},
+					}, nil
+				}
+			},
+			setupModify: func() {
+				modifyMCRPrefixFilterListFunc = func(ctx context.Context, client *megaport.Client, mcrID string, prefixFilterListID int, prefixFilterList *megaport.MCRPrefixFilterList) (*megaport.ModifyMCRPrefixFilterListResponse, error) {
+					return &megaport.ModifyMCRPrefixFilterListResponse{IsUpdated: false}, nil
+				}
+			},
+			expectedError: "not successful for ID 456",
 		},
 	}
 
@@ -2735,7 +2828,7 @@ func TestGetMCR_Export(t *testing.T) {
 	assert.NoError(t, cmd.Flags().Set("export", "true"))
 
 	var err error
-	capturedOutput := output.CaptureOutput(func() {
+	capturedOutput := output.CaptureStdout(func() {
 		err = GetMCR(cmd, []string{"mcr-export-123"}, true, "table")
 	})
 

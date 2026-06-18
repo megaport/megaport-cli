@@ -352,6 +352,38 @@ func TestAddCorsHeaders_SetsMIMETypes(t *testing.T) {
 	}
 }
 
+func TestAddCorsHeaders_CacheControl(t *testing.T) {
+	tests := []struct {
+		path         string
+		cacheControl string
+	}{
+		{"/megaport.0123456789abcdef.wasm", "public, max-age=31536000, immutable"},
+		{"/megaport.wasm", ""},
+		{"/index.html", "no-cache"},
+		{"/wasm_exec.js", "no-cache"},
+		{"/script.js", ""},
+		{"/style.css", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, tt.cacheControl, w.Header().Get("Cache-Control"))
+			})
+
+			handler := addCorsHeaders(inner)
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest("GET", tt.path, nil)
+			r.Header.Set("Origin", "http://localhost:8080")
+
+			handler.ServeHTTP(w, r)
+
+			assert.Equal(t, tt.cacheControl, w.Header().Get("Cache-Control"))
+		})
+	}
+}
+
 func TestAddCorsHeaders_NoMIMETypeOverrideForOtherFiles(t *testing.T) {
 	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Content-Type should NOT be pre-set for .css files

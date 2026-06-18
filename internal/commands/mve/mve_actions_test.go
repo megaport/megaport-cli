@@ -642,6 +642,16 @@ func TestDeleteMVE(t *testing.T) {
 			forceFlag:     true,
 			expectedError: "empty response from API",
 		},
+		{
+			name: "delete not successful",
+			mockSetup: func(m *MockMVEService) {
+				m.DeleteMVEResult = &megaport.DeleteMVEResponse{
+					IsDeleted: false,
+				}
+			},
+			forceFlag:     true,
+			expectedError: "not successful for mve-uid",
+		},
 	}
 
 	for _, tt := range tests {
@@ -2494,7 +2504,7 @@ func TestGetMVE_Export(t *testing.T) {
 	assert.NoError(t, cmd.Flags().Set("export", "true"))
 
 	var err error
-	capturedOutput := output.CaptureOutput(func() {
+	capturedOutput := output.CaptureStdout(func() {
 		err = GetMVE(cmd, []string{"mve-export-123"}, true, "table")
 	})
 

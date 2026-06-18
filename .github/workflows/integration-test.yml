@@ -12,7 +12,8 @@ jobs:
   integration-readonly:
     name: Integration Tests (Read-only)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Two 5m test steps; allow headroom for checkout/setup-go and API slowness.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
@@ -34,12 +35,25 @@ jobs:
           MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
           MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}
           MEGAPORT_ENVIRONMENT: staging
+      # ReadOnly-suffixed tests only — never the *Lifecycle provisioning tests in these packages.
+      - name: Run read-only integration tests (core resources)
+        run: |
+          go test -tags integration -run 'TestIntegration_.*ReadOnly$' -v -timeout 5m \
+            ./internal/commands/ix/... \
+            ./internal/commands/mcr/... \
+            ./internal/commands/mve/... \
+            ./internal/commands/ports/... \
+            ./internal/commands/vxc/...
+        env:
+          MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
+          MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}
+          MEGAPORT_ENVIRONMENT: staging
 
   # Provisioning lifecycle tests — manual trigger only until all tests are written
   integration-provisioning:
     name: Integration Tests (Provisioning)
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     if: github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
@@ -58,7 +72,8 @@ jobs:
             ./internal/commands/mve/... \
             ./internal/commands/ix/... \
             ./internal/commands/servicekeys/... \
-            ./internal/commands/users/... 2>&1); then
+            ./internal/commands/users/... \
+            ./internal/commands/apply/... 2>&1); then
             echo "::error::go test -list failed — see build/compile errors below."
             echo "$list_output"
             exit 1
@@ -72,7 +87,7 @@ jobs:
           echo "Discovered tests:"
           echo "$discovered"
       - name: Run provisioning integration tests
-        run: go test -tags 'integration provisioning' -run '^TestIntegration_' -v -timeout 30m ./internal/commands/ports/... ./internal/commands/vxc/... ./internal/commands/mcr/... ./internal/commands/mve/... ./internal/commands/ix/... ./internal/commands/servicekeys/... ./internal/commands/users/...
+        run: go test -tags 'integration provisioning' -run '^TestIntegration_' -v -timeout 40m ./internal/commands/ports/... ./internal/commands/vxc/... ./internal/commands/mcr/... ./internal/commands/mve/... ./internal/commands/ix/... ./internal/commands/servicekeys/... ./internal/commands/users/... ./internal/commands/apply/...
         env:
           MEGAPORT_ACCESS_KEY: ${{ secrets.MEGAPORT_ACCESS_KEY }}
           MEGAPORT_SECRET_KEY: ${{ secrets.MEGAPORT_SECRET_KEY }}

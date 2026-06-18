@@ -1,18 +1,20 @@
 # Integration Testing
 
-Integration tests run against the Megaport staging API and verify that CLI commands work correctly end-to-end. They are separate from unit tests, which use mocks and run on every PR.
+Integration tests run against a Megaport API environment (staging by default) and verify that CLI commands work correctly end-to-end. They are separate from unit tests, which use mocks and run on every PR.
 
 ## Prerequisites
 
 Set the following environment variables before running integration tests:
 
 ```bash
-export MEGAPORT_ACCESS_KEY=<your-staging-access-key>
-export MEGAPORT_SECRET_KEY=<your-staging-secret-key>
-export MEGAPORT_ENVIRONMENT=staging
+export MEGAPORT_ACCESS_KEY=<your-access-key>
+export MEGAPORT_SECRET_KEY=<your-secret-key>
+export MEGAPORT_ENVIRONMENT=staging  # staging (default), production, or development
 ```
 
-Staging credentials can be obtained from the Megaport staging portal. The staging environment is hardcoded in the test helper (`testutil.SetupIntegrationClient`) — it is not possible to accidentally target production through the test suite. `MEGAPORT_ENVIRONMENT=staging` is passed to the CI runner for consistency with local usage, but is not read by the test helper itself.
+Credentials can be obtained from the relevant Megaport portal. `MEGAPORT_ENVIRONMENT` selects the target API: `staging` (default), `production`, or `development`. The test helper (`testutil.IntegrationEnvironment`) defaults to staging when the variable is empty or unrecognized, so a typo can never silently point the suite at production. The credentials must match the chosen environment.
+
+The read-only smoke tests discover resources dynamically and run in any environment. The provisioning lifecycle tests use hardcoded staging location IDs and are staging-only: they skip automatically (via `testutil.RequireStagingForProvisioning`) whenever `MEGAPORT_ENVIRONMENT` is anything other than staging, so they can never create real resources in production or development.
 
 ## Running tests
 
@@ -20,7 +22,9 @@ Staging credentials can be obtained from the Megaport staging portal. The stagin
 # Read-only tests only — fast (< 5 min), no resources provisioned
 make test-integration-readonly
 
-# Full suite including provisioning lifecycle tests (~15 min against staging)
+# Full suite including provisioning lifecycle tests (~20-30 min against staging)
+# Provisioning tests create and tear down real staging resources;
+# more provisioning coverage is added incrementally.
 make test-integration
 
 # A single package
@@ -29,11 +33,11 @@ go test -tags integration -run '^TestIntegration_' -v -timeout 30m ./internal/co
 
 ## What gets created on staging
 
-The provisioning lifecycle tests create real resources on the staging account: ports, MCR, MVE, IX, a service key (against a port the test buys), and a pending-invite user. Most test resources are named with the prefix `CLI-Test-` for easy identification. VXC and NAT Gateway lifecycle tests do not exist yet.
+The provisioning lifecycle tests create real resources on the staging account: ports, VXC, MCR, MVE, and IX, plus a service key (against a port the test buys) and a pending-invite user. More resources such as NAT Gateway are added incrementally. They run whenever the full suite runs, locally via `make test-integration` and in the manual provisioning CI job, never in the nightly read-only job. All test resources are named with the prefix `CLI-Test-` for easy identification.
 
 Resources are cleaned up automatically via `t.Cleanup()` at the end of each test, even when the test fails. However, if a test run is interrupted (e.g. `Ctrl+C`), cleanup may not run. In that case, log in to the staging portal and delete any leftover resources prefixed with `CLI-Test-`.
 
-The read-only integration tests cover `billing_market`, `locations`, `managed_account`, `partners`, `product`, `servicekeys`, `status`, `topology`, and `users`. No resources are provisioned.
+The read-only integration tests cover `billing_market`, `locations`, `managed_account`, `partners`, `product`, `servicekeys`, `status`, `topology`, and `users` outright, plus read-only smoke tests for ports, VXC, MCR, MVE, and IX. They provision nothing: they list/get/status existing resources and skip cleanly when the account has none.
 
 ## Build tag
 
@@ -63,8 +67,8 @@ The nightly read-only job builds only `-tags integration`, so this tag keeps the
 
 Integration tests run in CI via `.github/workflows/integration-test.yml`:
 
-- **Read-only job**: runs nightly on `main` and on manual trigger, tests `billing_market`, `locations`, `managed_account`, `partners`, `product`, `servicekeys`, `status`, `topology`, and `users` (read-only `list`/`get` only, plus additional packages as read-only integration tests are written). Fast, no resource cost.
-- **Provisioning job**: manual trigger only (`workflow_dispatch`), built with `-tags 'integration provisioning'`. Runs lifecycle tests for ports, MCR, MVE, IX, plus the service key and user lifecycles. The `vxc` package is in the job's package list but has no lifecycle test yet, so nothing runs for it.
+- **Read-only job**: runs nightly on `main` and on manual trigger. Tests `billing_market`, `locations`, `managed_account`, `partners`, `product`, `servicekeys`, `status`, `topology`, and `users` outright, plus read-only smoke tests (`list`/`get`/`status`) for ports, VXC, MCR, MVE, and IX selected via `-run 'TestIntegration_.*ReadOnly$'` so the provisioning lifecycle tests in those packages never run nightly. Fast, no resource cost.
+- **Provisioning job**: manual trigger only (`workflow_dispatch`), built with `-tags 'integration provisioning'`. Runs lifecycle tests for ports, VXC, MCR, MVE, and IX, plus the service key and user lifecycles, and additional resources as they are added.
 
 ## Adding a new integration test
 
@@ -80,7 +84,7 @@ See `internal/commands/locations/locations_integration_test.go` for a serial rea
 
 ### Authentication helpers
 
-Two helpers in `internal/testutil` handle staging authentication. Pick based on whether your tests use `t.Parallel()`.
+Two helpers in `internal/testutil` handle authentication against the configured environment. Pick based on whether your tests use `t.Parallel()`.
 
 **Serial tests** (no `t.Parallel()`): use `testutil.SetupIntegrationClient` plus `testutil.LoginWithClient`. The login override is saved on entry and restored on cleanup:
 
@@ -92,7 +96,7 @@ func TestIntegration_Foo(t *testing.T) {
 }
 ```
 
-**Parallel tests** (`t.Parallel()`): use `testutil.RequireSharedIntegrationClient`. It authorises once per process via `sync.Once` and installs the login override exactly once; it never restores. All callers share a single authorised `*megaport.Client`, which is safe because they all target the same staging environment.
+**Parallel tests** (`t.Parallel()`): use `testutil.RequireSharedIntegrationClient`. It authorises once per process via `sync.Once` and installs the login override exactly once; it never restores. All callers share a single authorised `*megaport.Client`, which is safe because they all target the same environment.
 
 ```go
 func TestIntegration_Foo(t *testing.T) {

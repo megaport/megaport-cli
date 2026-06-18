@@ -455,6 +455,29 @@ func TestWrapOutputFormatRunE(t *testing.T) {
 		require.True(t, errors.As(err, &cliErr))
 		assert.Equal(t, exitcodes.Usage, cliErr.Code)
 	})
+
+	t.Run("uppercase output format is accepted and lowercased", func(t *testing.T) {
+		for _, raw := range []string{"JSON", "Json", "CSV", "XML", "Table"} {
+			var capturedFormat string
+			wrapped := WrapOutputFormatRunE(func(cmd *cobra.Command, args []string, noColor bool, format string) error {
+				capturedFormat = format
+				return nil
+			})
+
+			root := &cobra.Command{Use: "root"}
+			root.PersistentFlags().Bool("no-color", false, "")
+			root.PersistentFlags().String("fields", "", "")
+			root.PersistentFlags().String("query", "", "")
+			root.PersistentFlags().String("template", "", "")
+			child := &cobra.Command{Use: "list"}
+			child.Flags().String("output", raw, "")
+			root.AddCommand(child)
+
+			err := wrapped(child, []string{})
+			assert.NoError(t, err, "format %q should be accepted", raw)
+			assert.Equal(t, strings.ToLower(raw), capturedFormat, "format %q should be lowercased", raw)
+		}
+	})
 }
 
 func TestClassifyError(t *testing.T) {

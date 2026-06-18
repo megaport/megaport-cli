@@ -46,26 +46,8 @@ func ListProducts(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 	filtered := filterProducts(products, includeInactive)
 
 	limit, _ := cmd.Flags().GetInt("limit")
-	if limit < 0 {
-		return fmt.Errorf("--limit must be a non-negative integer")
-	}
-	if limit > 0 && len(filtered) > limit {
-		filtered = filtered[:limit]
-	}
-
-	if len(filtered) == 0 {
-		if outputFormat == utils.FormatTable {
-			output.PrintInfo("No products found.", noColor)
-		}
-		return nil
-	}
-
-	err = printProducts(filtered, outputFormat, noColor)
-	if err != nil {
-		output.PrintError("Failed to print products: %v", noColor, err)
-		return fmt.Errorf("failed to print products: %w", err)
-	}
-	return nil
+	return utils.ApplyLimitAndPrint(filtered, limit, outputFormat, noColor,
+		"No products found.", printProducts)
 }
 
 func GetProductType(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {

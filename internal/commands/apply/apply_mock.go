@@ -56,6 +56,9 @@ func (m *MockPortService) ModifyPort(ctx context.Context, req *megaport.ModifyPo
 	return nil, fmt.Errorf("mock: ModifyPort not configured")
 }
 func (m *MockPortService) DeletePort(ctx context.Context, req *megaport.DeletePortRequest) (*megaport.DeletePortResponse, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	m.DeletePortCalledWith = append(m.DeletePortCalledWith, req.PortID)
 	if m.DeletePortErr != nil {
 		return nil, m.DeletePortErr

@@ -3,6 +3,7 @@ package output
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"reflect"
 	"strings"
 	"sync"
@@ -305,6 +306,17 @@ func PrintOutput[T OutputFields](data []T, format string, noColor bool) error {
 			return printTable(data, noColor, opts)
 		})
 	}
+}
+
+// PrintTableToWriter renders data as a table directly to w with no global side
+// effects: it does not page, write to os.Stdout, or set the WASM table global.
+// Use it to compose several tables into one writer (e.g. the status dashboard)
+// so the full output is captured in order, including under the WASM transport
+// where PrintOutput("table") would otherwise only retain the last section.
+// Touching no shared globals, it needs no output-package locking; the caller
+// owns w.
+func PrintTableToWriter[T OutputFields](w io.Writer, data []T, noColor bool) error {
+	return printTableToWriter(w, data, noColor, currentPrintOptions())
 }
 
 // getStructTypeInfo extracts header names, json names, and field indices from a struct type.

@@ -106,6 +106,10 @@ func TestProcessJSONUpdateMCRInput(t *testing.T) {
 			name:      "valid JSON file",
 			writeFile: `{"name":"file-update"}`,
 		},
+		{
+			name:    "mcrAsn only",
+			jsonStr: `{"mcrAsn":65000}`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -131,6 +135,33 @@ func TestProcessJSONUpdateMCRInput(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProcessJSONUpdateMCRInput_MCRAsnSet(t *testing.T) {
+	req, err := processJSONUpdateMCRInput(`{"mcrAsn":65010}`, "")
+	assert.NoError(t, err)
+	require.NotNil(t, req)
+	require.NotNil(t, req.MCRAsn, "MCRAsn should be set when mcrAsn is provided in JSON")
+	assert.Equal(t, 65010, *req.MCRAsn)
+}
+
+func TestProcessJSONUpdateMCRInput_MCRAsnOutOfRangeRejected(t *testing.T) {
+	_, err := processJSONUpdateMCRInput(`{"mcrAsn":0}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "MCR ASN")
+}
+
+func TestProcessJSONUpdateMCRInput_MCRAsnUnsetWhenKeyAbsent(t *testing.T) {
+	req, err := processJSONUpdateMCRInput(`{"name":"only-name"}`, "")
+	assert.NoError(t, err)
+	require.NotNil(t, req)
+	assert.Nil(t, req.MCRAsn, "MCRAsn should remain nil when mcrAsn key is absent")
+}
+
+func TestProcessJSONUpdateMCRInput_MCRAsnNullRejected(t *testing.T) {
+	_, err := processJSONUpdateMCRInput(`{"mcrAsn":null}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid MCR ASN: null value")
 }
 
 func TestProcessFlagUpdateMCRInput(t *testing.T) {
@@ -174,6 +205,10 @@ func TestProcessFlagUpdateMCRInput(t *testing.T) {
 			name:  "multiple fields",
 			flags: map[string]string{"name": "new", "cost-centre": "IT", "term": "12"},
 		},
+		{
+			name:  "mcr-asn only",
+			flags: map[string]string{"mcr-asn": "65000"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -183,6 +218,7 @@ func TestProcessFlagUpdateMCRInput(t *testing.T) {
 			cmd.Flags().String("cost-centre", "", "")
 			cmd.Flags().Bool("marketplace-visibility", false, "")
 			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("mcr-asn", 0, "")
 
 			for k, v := range tt.flags {
 				require.NoError(t, cmd.Flags().Set(k, v))
@@ -199,6 +235,54 @@ func TestProcessFlagUpdateMCRInput(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProcessFlagUpdateMCRInput_MCRAsnSet(t *testing.T) {
+	cmd := &cobra.Command{Use: "test"}
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().String("cost-centre", "", "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
+	cmd.Flags().Int("term", 0, "")
+	cmd.Flags().Int("mcr-asn", 0, "")
+
+	require.NoError(t, cmd.Flags().Set("mcr-asn", "65001"))
+
+	req, err := processFlagUpdateMCRInput(cmd, "mcr-123")
+	assert.NoError(t, err)
+	require.NotNil(t, req)
+	require.NotNil(t, req.MCRAsn, "MCRAsn should be set when --mcr-asn flag is provided")
+	assert.Equal(t, 65001, *req.MCRAsn)
+}
+
+func TestProcessFlagUpdateMCRInput_MCRAsnOutOfRangeRejected(t *testing.T) {
+	cmd := &cobra.Command{Use: "test"}
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().String("cost-centre", "", "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
+	cmd.Flags().Int("term", 0, "")
+	cmd.Flags().Int("mcr-asn", 0, "")
+
+	require.NoError(t, cmd.Flags().Set("mcr-asn", "0"))
+
+	_, err := processFlagUpdateMCRInput(cmd, "mcr-123")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "MCR ASN")
+}
+
+func TestProcessFlagUpdateMCRInput_MCRAsnUnsetWhenFlagAbsent(t *testing.T) {
+	cmd := &cobra.Command{Use: "test"}
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().String("cost-centre", "", "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
+	cmd.Flags().Int("term", 0, "")
+	cmd.Flags().Int("mcr-asn", 0, "")
+
+	require.NoError(t, cmd.Flags().Set("name", "stays"))
+
+	req, err := processFlagUpdateMCRInput(cmd, "mcr-123")
+	assert.NoError(t, err)
+	require.NotNil(t, req)
+	assert.Nil(t, req.MCRAsn, "MCRAsn should remain nil when --mcr-asn flag is not changed")
 }
 
 func TestProcessJSONPrefixFilterListInput(t *testing.T) {

@@ -194,7 +194,7 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	var resp *megaport.BuyMVEResponse
-	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
 		var e error
 		resp, e = client.MVEService.BuyMVE(ctx, req)
 		return e
@@ -566,11 +566,12 @@ func DeleteMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	// MVEs always delete immediately (SDK hardcodes DeleteNow: true).
-	if resp.IsDeleted {
-		output.PrintResourceDeleted("MVE", mveUID, true, noColor)
-	} else {
-		output.PrintWarning("MVE delete failed", noColor)
+	if !resp.IsDeleted {
+		output.PrintError("MVE deletion request was not successful for %s", noColor, mveUID)
+		return fmt.Errorf("MVE deletion request was not successful for %s", mveUID)
 	}
+
+	output.PrintResourceDeleted("MVE", mveUID, true, noColor)
 	return nil
 }
 

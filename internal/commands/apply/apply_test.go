@@ -669,6 +669,41 @@ mcrs:
 	require.Equal(t, []string{"port-rollback-uid"}, mockPort.DeletePortCalledWith)
 }
 
+// TestApplyConfig_RollbackSurvivesProvisionTimeout guards the fix where rollback
+// must not reuse the provisioning context. The port is bought but never reaches a
+// ready state, so the short --timeout trips waitForProvision and the provisioning
+// context expires. If rollback reused that expired context, the mock's DeletePort
+// would see ctx.Err() and the port would leak; rollback must start a fresh context
+// (with the same configured timeout) so the delete still fires.
+func TestApplyConfig_RollbackSurvivesProvisionTimeout(t *testing.T) {
+	mockPort := &MockPortService{
+		BuyPortResult: &megaport.BuyPortResponse{TechnicalServiceUIDs: []string{"port-rollback-uid"}},
+		GetPortStatus: "CONFIGURING", // never reaches CONFIGURED/LIVE, so the wait times out
+	}
+	defer setupMockClient(mockPort, &MockMCRService{}, &MockMVEService{}, &MockVXCService{})()
+
+	cfg := `
+ports:
+  - name: Rollback-Port
+    location_id: 1
+    speed: 1000
+    term: 12
+    marketplace_visibility: false
+`
+	f := writeTempFile(t, "config.yaml", cfg)
+	cmd := applyCmdWithRollback(f)
+	cmd.Flags().Duration("timeout", 0, "")
+	require.NoError(t, cmd.Flags().Set("timeout", "100ms"))
+
+	var err error
+	output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+
+	require.Error(t, err)
+	require.Equal(t, []string{"port-rollback-uid"}, mockPort.DeletePortCalledWith)
+}
+
 // TestApplyConfig_RollbackOnFailure_DeleteError verifies that when rollback itself
 // fails, the output instructs the user to delete manually.
 func TestApplyConfig_RollbackOnFailure_DeleteError(t *testing.T) {
