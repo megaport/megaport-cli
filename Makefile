@@ -1,4 +1,4 @@
-.PHONY: build test test-cover test-cover-html test-integration test-integration-readonly e2e lint fmt vet check clean wasm web-static
+.PHONY: build test test-cover test-cover-html test-integration test-integration-readonly e2e lint fmt vet check clean wasm wasm-compress web-static
 
 # Build the CLI binary
 build:
@@ -28,7 +28,8 @@ test-integration:
 	go test -tags 'integration provisioning' -run '^TestIntegration_' -v -timeout 30m ./internal/commands/...
 
 # Run only read-only integration tests — fast, no resources provisioned.
-# Package list mirrors the integration-readonly CI job.
+# The locations-style packages have only read-only tests; core packages also hold
+# provisioning lifecycle tests, so they are scoped to the ReadOnly-suffixed names.
 test-integration-readonly:
 	go test -tags integration -run '^TestIntegration_' -v -timeout 5m \
 		./internal/commands/billing_market/... \
@@ -40,6 +41,12 @@ test-integration-readonly:
 		./internal/commands/status/... \
 		./internal/commands/topology/... \
 		./internal/commands/users/...
+	go test -tags integration -run 'TestIntegration_.*ReadOnly$$' -v -timeout 5m \
+		./internal/commands/ix/... \
+		./internal/commands/mcr/... \
+		./internal/commands/mve/... \
+		./internal/commands/ports/... \
+		./internal/commands/vxc/...
 
 # Run native-binary black-box e2e tests (built behind the `e2e` build tag).
 # Placeholder: the harness and specs land in a later PR. Until then this compiles
@@ -66,10 +73,14 @@ check: lint test
 wasm:
 	GOOS=js GOARCH=wasm go build -trimpath -tags js,wasm -ldflags="-s -w" -o web/megaport.wasm .
 
+# Pre-compress the WASM artifact (brotli q11 + gzip -9) for CDN serving
+wasm-compress: wasm
+	go run ./cmd/wasmcompress web/megaport.wasm
+
 # Build the static browser/WASM site into web/vue-demo/ (for CDN hosting)
 web-static:
 	./scripts/build-web.sh
 
 # Clean build artifacts
 clean:
-	rm -f megaport-cli cover*.out coverage*.out coverage.html web/megaport.wasm web/vue-demo/megaport.wasm
+	rm -f megaport-cli cover*.out coverage*.out coverage.html web/megaport.wasm web/megaport.wasm.br web/megaport.wasm.gz web/vue-demo/megaport.wasm web/vue-demo/megaport.wasm.br web/vue-demo/megaport.wasm.gz

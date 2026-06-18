@@ -3,6 +3,7 @@
 package output
 
 import (
+	"io"
 	"os"
 	"reflect"
 	"strings"
@@ -64,6 +65,10 @@ func calculateDynamicWidth(termWidth int, minWidth, maxPercentage int) int {
 }
 
 func printTable[T OutputFields](data []T, noColor bool, opts printOptions) error {
+	return printTableToWriter(os.Stdout, data, noColor, opts)
+}
+
+func printTableToWriter[T OutputFields](w io.Writer, data []T, noColor bool, opts printOptions) error {
 	headers, jsonNames, fieldIndices, err := getStructTypeInfo(data)
 	if err != nil {
 		return err
@@ -78,7 +83,7 @@ func printTable[T OutputFields](data []T, noColor bool, opts printOptions) error
 		return nil
 	}
 	t := prettytable.NewWriter()
-	t.SetOutputMirror(os.Stdout)
+	t.SetOutputMirror(w)
 	termWidth := getTerminalWidth()
 	columnConfigs := make([]prettytable.ColumnConfig, len(headers))
 	for i := range headers {

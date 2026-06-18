@@ -541,6 +541,20 @@ func TestListMarketCodes(t *testing.T) {
 			expectedOutput: "[]",
 		},
 		{
+			name: "filters blank market codes",
+			setupMock: func(m *MockLocationsService) {
+				m.ListMarketCodesResult = []string{"AU", "", "  ", "US"}
+			},
+			expectedOutput: `[
+  {
+    "market_code": "AU"
+  },
+  {
+    "market_code": "US"
+  }
+]`,
+		},
+		{
 			name:        "client creation error",
 			setupMock:   func(m *MockLocationsService) {},
 			clientErr:   fmt.Errorf("config error"),

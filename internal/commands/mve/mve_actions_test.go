@@ -608,6 +608,16 @@ func TestDeleteMVE(t *testing.T) {
 			forceFlag:     true,
 			expectedError: "empty response from API",
 		},
+		{
+			name: "delete not successful",
+			mockSetup: func(m *MockMVEService) {
+				m.DeleteMVEResult = &megaport.DeleteMVEResponse{
+					IsDeleted: false,
+				}
+			},
+			forceFlag:     true,
+			expectedError: "not successful for mve-uid",
+		},
 	}
 
 	for _, tt := range tests {

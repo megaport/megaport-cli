@@ -26,10 +26,13 @@ func (b *CommandBuilder) WithServiceKeyListFlags() *CommandBuilder {
 	return b
 }
 
-// WithServiceKeyUpdateFlags adds flags for updating a service key
+// WithServiceKeyUpdateFlags adds flags for updating a service key.
+// No description flag: the update API does not support it.
 func (b *CommandBuilder) WithServiceKeyUpdateFlags() *CommandBuilder {
-	b.WithServiceKeyCommonFlags()
-	b.WithBoolFlag("active", false, "Activate the service key")
+	b.WithFlag("product-uid", "", "Product UID for the service key")
+	b.WithIntFlag("product-id", 0, "Product ID for the service key")
+	b.WithBoolFlag("single-use", false, "Single-use service key")
+	b.WithBoolFlag("active", false, "Activate or deactivate the service key")
 	return b
 }
 

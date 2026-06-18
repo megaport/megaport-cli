@@ -12,6 +12,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -232,6 +233,8 @@ func TestExitCodeFromError(t *testing.T) {
 		{"cobra unknown flag", errors.New(`unknown flag: --bogus`), exitcodes.Usage},
 		{"cobra unknown shorthand flag", errors.New(`unknown shorthand flag: 'x' in -x`), exitcodes.Usage},
 		{"cobra accepts at most", errors.New(`accepts at most 1 arg(s), received 2`), exitcodes.Usage},
+		{"cobra exact args", errors.New(`accepts 1 arg(s), received 0`), exitcodes.Usage},
+		{"cobra minimum n args", errors.New(`requires at least 2 arg(s), only received 1`), exitcodes.Usage},
 		{"cobra required flag(s)", errors.New(`required flag(s) "name" not set`), exitcodes.Usage},
 
 		// PersistentPreRunE format validation
@@ -244,6 +247,38 @@ func TestExitCodeFromError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.wantCode, exitCodeFromError(tt.err))
+		})
+	}
+}
+
+// TestExitCodeFromError_CobraArgValidators drives cobra's own argument
+// validators so the asserted exit code is checked against the exact error
+// strings cobra produces, not a hand-copied approximation.
+func TestExitCodeFromError_CobraArgValidators(t *testing.T) {
+	tests := []struct {
+		name string
+		args cobra.PositionalArgs
+		argv []string
+	}{
+		{"ExactArgs too few", cobra.ExactArgs(1), []string{}},
+		{"ExactArgs too many", cobra.ExactArgs(1), []string{"a", "b"}},
+		{"MinimumNArgs", cobra.MinimumNArgs(2), []string{"a"}},
+		{"MaximumNArgs", cobra.MaximumNArgs(1), []string{"a", "b"}},
+		{"RangeArgs", cobra.RangeArgs(1, 2), []string{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &cobra.Command{
+				Use:           "get",
+				Args:          tt.args,
+				RunE:          func(cmd *cobra.Command, args []string) error { return nil },
+				SilenceUsage:  true,
+				SilenceErrors: true,
+			}
+			cmd.SetArgs(tt.argv)
+			err := cmd.Execute()
+			require.Error(t, err)
+			assert.Equal(t, exitcodes.Usage, exitCodeFromError(err), "cobra error: %v", err)
 		})
 	}
 }

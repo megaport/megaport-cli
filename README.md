@@ -516,8 +516,8 @@ megaport-cli servicekeys get SERVICE_KEY_UID --output json
 # Create a new service key
 megaport-cli servicekeys create --product-uid PRODUCT_UID --description "My Service Key" --max-speed 1000
 
-# Update an existing service key
-megaport-cli servicekeys update SERVICE_KEY_UID --description "Updated Description"
+# Deactivate an existing service key
+megaport-cli servicekeys update SERVICE_KEY_UID --active=false
 ```
 
 #### IX (Internet Exchange)

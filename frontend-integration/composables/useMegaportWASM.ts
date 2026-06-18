@@ -14,6 +14,7 @@ import {
   isValidCommand,
   getErrorMessage,
 } from '../utils/type-guards';
+import { resolveWasmUrl } from '../utils/wasmUrl';
 
 interface MegaportCommandResult {
   output?: string;
@@ -34,7 +35,7 @@ interface MegaportWASMConfig {
 
 export function useMegaportWASM(config: MegaportWASMConfig = {}) {
   const {
-    wasmPath = '/megaport.wasm',
+    wasmPath = resolveWasmUrl(),
     wasmExecPath = '/wasm_exec.js',
     debug = false,
     initTimeout = WASM_CONFIG.INIT_TIMEOUT,

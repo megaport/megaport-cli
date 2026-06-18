@@ -143,6 +143,17 @@ describe('useMegaportWASM', () => {
       const { isLoading } = composable;
       expect(isLoading.value).toBe(true);
     });
+
+    it('fetches the build-time injected wasm URL when no wasmPath is given', async () => {
+      (window as any).__MEGAPORT_WASM_URL__ = '/megaport.deadbeef.wasm';
+      try {
+        const { composable } = createComposableTestWrapper();
+        await waitForReady(composable.isReady);
+        expect(global.fetch).toHaveBeenCalledWith('/megaport.deadbeef.wasm');
+      } finally {
+        delete (window as any).__MEGAPORT_WASM_URL__;
+      }
+    });
   });
 
   describe('Authentication', () => {

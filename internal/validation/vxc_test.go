@@ -631,6 +631,50 @@ func TestValidateAWSPartnerConfig(t *testing.T) {
 	}
 }
 
+// TestValidateAWSPartnerConfig_HighASN mirrors TestValidateBGPConnectionConfig_HighASN:
+// it confirms the AWS validator agrees with ValidateASN at the 32-bit max boundary.
+func TestValidateAWSPartnerConfig_HighASN(t *testing.T) {
+	if int64(math.MaxInt) < int64(math.MaxUint32) {
+		t.Skip("int is narrower than the 32-bit ASN range on this platform")
+	}
+	max64 := MaxASN
+	maxValid := int(max64)     // 4294967295
+	aboveMax := int(max64) + 1 // 4294967296
+	tests := []struct {
+		name    string
+		asn     int
+		wantErr bool
+		errText string
+	}{
+		{"ASN 4294967295 (32-bit max)", maxValid, false, ""},
+		{"ASN above 32-bit max rejected", aboveMax, true,
+			fmt.Sprintf("Invalid ASN: %d - must be between 1-4294967295", aboveMax)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			awsConfig := &megaport.VXCPartnerConfigAWS{
+				ConnectType:       "private",
+				OwnerAccount:      "123456789012",
+				ASN:               tt.asn,
+				AmazonASN:         64512,
+				CustomerIPAddress: "192.168.1.1/30",
+				AmazonIPAddress:   "192.168.1.2/30",
+				ConnectionName:    "test",
+				Type:              "private",
+			}
+			err := ValidateAWSPartnerConfig(awsConfig)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateAWSPartnerConfig() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.IsType(t, &ValidationError{}, err)
+				assert.Equal(t, tt.errText, err.Error())
+			}
+		})
+	}
+}
+
 func TestValidateGooglePartnerConfig(t *testing.T) {
 	tests := []struct {
 		name       string

@@ -59,7 +59,7 @@ func CreateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	}
 	spinner := output.PrintResourceCreating("Prefix Filter List", req.PrefixFilterList.Description, noColor)
 	var resp *megaport.CreateMCRPrefixFilterListResponse
-	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
 		var e error
 		resp, e = createMCRPrefixFilterListFunc(ctx, client, req)
 		return e
@@ -147,11 +147,12 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 		return err
 	}
 
-	if resp.IsUpdated {
-		output.PrintSuccess("Prefix filter list updated successfully - ID: %d", noColor, prefixFilterListID)
-	} else {
-		output.PrintError("Prefix filter list update request was not successful", noColor)
+	if !resp.IsUpdated {
+		output.PrintError("Prefix filter list update request was not successful for ID %d", noColor, prefixFilterListID)
+		return fmt.Errorf("prefix filter list update request was not successful for ID %d", prefixFilterListID)
 	}
+
+	output.PrintSuccess("Prefix filter list updated successfully - ID: %d", noColor, prefixFilterListID)
 	return nil
 }
 
@@ -253,11 +254,11 @@ func DeleteMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 		return fmt.Errorf("failed to delete prefix filter list: %w", err)
 	}
 
-	if resp.IsDeleted {
-		output.PrintSuccess("Prefix filter list deleted successfully - ID: %d", noColor, prefixFilterListID)
-	} else {
-		output.PrintError("Prefix filter list deletion request was not successful", noColor)
+	if !resp.IsDeleted {
+		output.PrintError("Prefix filter list deletion request was not successful for ID %d", noColor, prefixFilterListID)
+		return fmt.Errorf("prefix filter list deletion request was not successful for ID %d", prefixFilterListID)
 	}
 
+	output.PrintSuccess("Prefix filter list deleted successfully - ID: %d", noColor, prefixFilterListID)
 	return nil
 }

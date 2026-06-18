@@ -229,7 +229,7 @@ func ListProfiles(cmd *cobra.Command, args []string, noColor bool, outputFormat 
 		})
 	}
 
-	if len(profileOutputs) == 0 {
+	if len(profileOutputs) == 0 && outputFormat == utils.FormatTable {
 		output.PrintInfo("No profiles found", noColor)
 		return nil
 	}

@@ -75,7 +75,7 @@ func CreateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 	spinner := output.PrintResourceCreating("NAT Gateway", req.ProductName, noColor)
 
 	var gw *megaport.NATGateway
-	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
 		var e error
 		gw, e = createNATGatewayFunc(ctx, client, req)
 		return e
@@ -396,7 +396,7 @@ func ListNATGatewaySessions(cmd *cobra.Command, args []string, noColor bool, out
 		return fmt.Errorf("failed to list NAT Gateway sessions: %w", err)
 	}
 
-	if len(sessions) == 0 {
+	if len(sessions) == 0 && outputFormat == utils.FormatTable {
 		output.PrintInfo("No NAT Gateway session options found", noColor)
 		return nil
 	}
@@ -460,7 +460,7 @@ func BuyNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 
 	spinner := output.PrintResourceCreating("NAT Gateway", uid, noColor)
 	var res *megaport.NATGatewayBuyResult
-	err = utils.WithRetry(ctx, func(ctx context.Context) error {
+	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
 		var e error
 		res, e = buyNATGatewayFunc(ctx, client, uid)
 		return e

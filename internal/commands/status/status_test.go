@@ -8,6 +8,7 @@ import (
 	"os"
 	"testing"
 
+	op "github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/testutil"
 	megaport "github.com/megaport/megaportgo"
@@ -390,6 +391,28 @@ func TestStatusDashboard_CSVOutput(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, buf.String(), "# PORTS")
 	assert.Contains(t, buf.String(), "port-1")
+}
+
+// TestStatusDashboard_PrintError verifies a print failure propagates. An unknown
+// --fields makes the table render fail, exercising the printDashboard error path.
+func TestStatusDashboard_PrintError(t *testing.T) {
+	cleanup := setupMocks(
+		&MockPortService{ListPortsResult: []*megaport.Port{
+			{UID: "port-1", Name: "P1", ProvisioningStatus: "LIVE", PortSpeed: 1000, LocationID: 1},
+		}},
+		&MockMCRService{},
+		&MockMVEService{},
+		&MockVXCService{},
+		&MockIXService{},
+	)
+	defer cleanup()
+
+	op.SetOutputFields([]string{"definitely_not_a_field"})
+	defer op.SetOutputFields(nil)
+
+	cmd := newStatusCmd()
+	err := StatusDashboard(cmd, nil, true, "table")
+	assert.Error(t, err)
 }
 
 // TestBuildDashboard_NilPort verifies buildDashboard returns an error for a nil port.
