@@ -3,7 +3,6 @@ package ix
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
@@ -39,9 +38,9 @@ func buildIXRequestFromPrompt(_ context.Context, noColor bool) (*megaport.BuyIXR
 	if err != nil {
 		return nil, err
 	}
-	asn, err := strconv.Atoi(asnStr)
+	asn, err := validation.ParseInt("ASN", asnStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid ASN: %w", err)
+		return nil, err
 	}
 	if err := validation.ValidateASN(asn); err != nil {
 		return nil, err
@@ -59,9 +58,9 @@ func buildIXRequestFromPrompt(_ context.Context, noColor bool) (*megaport.BuyIXR
 	if err != nil {
 		return nil, err
 	}
-	rateLimit, err := strconv.Atoi(rateLimitStr)
+	rateLimit, err := validation.ParseInt("rate limit", rateLimitStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid rate limit: %w", err)
+		return nil, err
 	}
 	if err := validation.ValidateRateLimit(rateLimit); err != nil {
 		return nil, err
@@ -71,9 +70,9 @@ func buildIXRequestFromPrompt(_ context.Context, noColor bool) (*megaport.BuyIXR
 	if err != nil {
 		return nil, err
 	}
-	vlan, err := strconv.Atoi(vlanStr)
+	vlan, err := validation.ParseInt("VLAN", vlanStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid VLAN: %w", err)
+		return nil, err
 	}
 	if err := validation.ValidateVLAN(vlan); err != nil {
 		return nil, err
@@ -116,9 +115,9 @@ func buildUpdateIXRequestFromPrompt(_ string, noColor bool) (*megaport.UpdateIXR
 		return nil, err
 	}
 	if rateLimitStr != "" {
-		rateLimit, err := strconv.Atoi(rateLimitStr)
+		rateLimit, err := validation.ParseInt("rate limit", rateLimitStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid rate limit: %w", err)
+			return nil, err
 		}
 		if err := validation.ValidateRateLimit(rateLimit); err != nil {
 			return nil, err
@@ -141,9 +140,9 @@ func buildUpdateIXRequestFromPrompt(_ string, noColor bool) (*megaport.UpdateIXR
 		return nil, err
 	}
 	if vlanStr != "" {
-		vlan, err := strconv.Atoi(vlanStr)
+		vlan, err := validation.ParseInt("VLAN", vlanStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid VLAN: %w", err)
+			return nil, err
 		}
 		if err := validation.ValidateVLAN(vlan); err != nil {
 			return nil, err
@@ -169,9 +168,9 @@ func buildUpdateIXRequestFromPrompt(_ string, noColor bool) (*megaport.UpdateIXR
 		return nil, err
 	}
 	if asnStr != "" {
-		asn, err := strconv.Atoi(asnStr)
+		asn, err := validation.ParseInt("ASN", asnStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid ASN: %w", err)
+			return nil, err
 		}
 		if err := validation.ValidateASN(asn); err != nil {
 			return nil, err
