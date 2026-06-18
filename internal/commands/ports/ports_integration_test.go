@@ -114,6 +114,18 @@ func newDeletePortCmd() *cobra.Command {
 	return cmd
 }
 
+func newUpdatePortTagsCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "update-tags"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().BoolP("force", "f", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("tags", "", "")
+	cmd.Flags().String("tags-file", "", "")
+	cmd.Flags().String("resource-tags", "", "")
+	return cmd
+}
+
 // cleanupStatusTimeout bounds how long registerPortCleanup will poll the SDK
 // for the port to enter DECOMMISSIONING/DECOMMISSIONED after DeletePort.
 // DeletePort only submits the cancellation request; the API can take a few
@@ -290,6 +302,53 @@ func runUpdatePortWithFlag(t *testing.T, uid, flagName, flagValue string) {
 	require.NoErrorf(t, UpdatePort(cmd, []string{uid}, true), "UpdatePort failed for %s", uid)
 }
 
+// portTagsFromSDK reads a port's resource tags via the shared SDK client. This
+// is the same call the list-tags command makes underneath; it is used instead
+// of capturing the command's stdout because these tests run under t.Parallel()
+// (see the package comment on CaptureOutput).
+func portTagsFromSDK(t *testing.T, uid string) map[string]string {
+	t.Helper()
+	client := testutil.SharedIntegrationClient(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	tags, err := client.PortService.ListPortResourceTags(ctx, uid)
+	require.NoErrorf(t, err, "SDK ListPortResourceTags failed for %s", uid)
+	return tags
+}
+
+// runPortTagRoundTrip exercises update-tags then list-tags on an existing
+// lifecycle port: it sets two tags via the update-tags command, reads them back
+// through the SDK, then clears them and confirms they are gone. It rides on the
+// port the caller already provisioned, so it needs no separate cleanup.
+func runPortTagRoundTrip(t *testing.T, uid string) {
+	t.Helper()
+	want := map[string]string{"env": "cli-integration", "owner": "esd-1392"}
+	tagJSON, err := json.Marshal(want)
+	require.NoError(t, err)
+
+	setCmd := newUpdatePortTagsCmd()
+	require.NoError(t, setCmd.Flags().Set("json", string(tagJSON)))
+	require.NoError(t, setCmd.Flags().Set("force", "true"))
+	require.NoErrorf(t, UpdatePortResourceTags(setCmd, []string{uid}, true), "UpdatePortResourceTags failed for %s", uid)
+
+	// Assert our tags round-tripped without requiring the map to contain only
+	// them, so an API-injected tag can't make this flaky.
+	got := portTagsFromSDK(t, uid)
+	for k, v := range want {
+		assert.Equalf(t, v, got[k], "tag %q should round-trip", k)
+	}
+
+	clearCmd := newUpdatePortTagsCmd()
+	require.NoError(t, clearCmd.Flags().Set("json", "{}"))
+	require.NoError(t, clearCmd.Flags().Set("force", "true"))
+	require.NoErrorf(t, UpdatePortResourceTags(clearCmd, []string{uid}, true), "clearing port tags failed for %s", uid)
+
+	cleared := portTagsFromSDK(t, uid)
+	for k := range want {
+		assert.NotContainsf(t, cleared, k, "tag %q should be cleared", k)
+	}
+}
+
 func TestIntegration_PortLifecycle(t *testing.T) {
 	t.Parallel()
 	testutil.RequireSharedIntegrationClient(t)
@@ -328,6 +387,8 @@ func TestIntegration_PortLifecycle(t *testing.T) {
 
 	updated := portFromSDK(t, uid)
 	assert.Equal(t, newName, updated.Name)
+
+	runPortTagRoundTrip(t, uid)
 }
 
 func TestIntegration_LAGPortLifecycle(t *testing.T) {
