@@ -6,8 +6,8 @@ name: Publish WASM to S3
 #   AWS access is provisioned via the shared github_runners_iam Terraform module in
 #   megaport/aws-infrastructure (production-legacy/github_runners_iam.tf): add
 #   megaport/megaport-cli to github_repo_to_s3_prod_deploy_role_mappings granting the
-#   media.megaport.com bucket (model on aws-infrastructure PR #951). That provisions
-#   this repo's standard AWS_S3_PROD_DEPLOY_ROLE. Then set as repo variables:
+#   media.megaport.com bucket. That provisions this repo's standard
+#   AWS_S3_PROD_DEPLOY_ROLE. Then set as repo variables:
 #     vars.AWS_S3_PROD_DEPLOY_ROLE     role ARN to assume (org-standard name)
 #     vars.AWS_S3_PROD_DEPLOY_REGION   e.g. ap-southeast-2 (org-standard name)
 #     vars.WASM_S3_BUCKET              target bucket (media.megaport.com)
