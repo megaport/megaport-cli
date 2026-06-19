@@ -147,13 +147,16 @@ megaportCli: {
 
 ### Required GitHub config
 
-The workflow authenticates to AWS via OIDC (no long-lived keys) and fails early until
-these are set:
+The workflow authenticates to AWS via OIDC (no long-lived keys) using the shared prod
+S3 deploy role. That role is provisioned by adding `megaport/megaport-cli` to the
+`github_repo_to_s3_prod_deploy_role_mappings` map in `megaport/aws-infrastructure`
+(`production-legacy/github_runners_iam.tf`), granting the `media.megaport.com` bucket.
+The workflow then fails early until these repo variables are set:
 
 | Setting | Kind | Value |
 |---|---|---|
-| `AWS_ROLE_ARN` | secret | OIDC role with write access to the bucket prefix |
-| `AWS_REGION` | var | `ap-southeast-2` |
+| `AWS_S3_PROD_DEPLOY_ROLE` | var | ARN of the shared prod S3 deploy role (from `megaport/aws-infrastructure`) |
+| `AWS_S3_PROD_DEPLOY_REGION` | var | `ap-southeast-2` |
 | `WASM_S3_BUCKET` | var | `media.megaport.com` |
 | `WASM_S3_PREFIX` | var | `portal/megaport-cli` |
 | `WASM_CLOUDFRONT_DISTRIBUTION_ID` | var | optional; if set, published paths are invalidated, otherwise `latest/` self-refreshes within its TTL |

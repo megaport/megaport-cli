@@ -3,11 +3,15 @@ name: Publish WASM to S3
 # Builds the browser/WASM CLI static site and publishes it to S3 + CloudFront.
 #
 # CONFIGURATION REQUIRED BEFORE MERGE (ESD-1506):
-#   The repository has no AWS access yet. Set these before this workflow can run:
-#     secrets.AWS_ROLE_ARN              OIDC role to assume (trust policy must allow this repo)
-#     vars.AWS_REGION                   e.g. ap-southeast-2
-#     vars.WASM_S3_BUCKET               target bucket (media.megaport.com)
-#     vars.WASM_S3_PREFIX               key prefix within the bucket (portal/megaport-cli)
+#   AWS access is provisioned via the shared github_runners_iam Terraform module in
+#   megaport/aws-infrastructure (production-legacy/github_runners_iam.tf): add
+#   megaport/megaport-cli to github_repo_to_s3_prod_deploy_role_mappings granting the
+#   media.megaport.com bucket (model on aws-infrastructure PR #951). That provisions
+#   this repo's standard AWS_S3_PROD_DEPLOY_ROLE. Then set as repo variables:
+#     vars.AWS_S3_PROD_DEPLOY_ROLE     role ARN to assume (org-standard name)
+#     vars.AWS_S3_PROD_DEPLOY_REGION   e.g. ap-southeast-2 (org-standard name)
+#     vars.WASM_S3_BUCKET              target bucket (media.megaport.com)
+#     vars.WASM_S3_PREFIX             key prefix within the bucket (portal/megaport-cli)
 #   Optional:
 #     vars.WASM_CLOUDFRONT_DISTRIBUTION_ID   if set, the latest/ + version paths are
 #                                            invalidated; if unset, latest/ self-refreshes
@@ -26,8 +30,9 @@ name: Publish WASM to S3
 #
 # SAFETY:
 #   A v* tag push auto-publishes to the production bucket. The job runs in the
-#   `production` GitHub environment; add required reviewers there to gate deploys,
-#   and scope the OIDC role's trust policy to that environment.
+#   `production` GitHub environment, so add required reviewers there to gate the
+#   auto-deploy. The shared deploy role trusts the whole repo, so this GitHub-side
+#   approval is what guards production.
 
 on:
   workflow_dispatch:
@@ -61,15 +66,15 @@ jobs:
     steps:
       - name: Check required configuration
         env:
-          AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
-          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_ROLE_ARN: ${{ vars.AWS_S3_PROD_DEPLOY_ROLE }}
+          AWS_REGION: ${{ vars.AWS_S3_PROD_DEPLOY_REGION }}
           WASM_S3_BUCKET: ${{ vars.WASM_S3_BUCKET }}
           WASM_S3_PREFIX: ${{ vars.WASM_S3_PREFIX }}
         run: |
           set -euo pipefail
           missing=()
-          [ -z "$AWS_ROLE_ARN" ] && missing+=("secrets.AWS_ROLE_ARN")
-          [ -z "$AWS_REGION" ] && missing+=("vars.AWS_REGION")
+          [ -z "$AWS_ROLE_ARN" ] && missing+=("vars.AWS_S3_PROD_DEPLOY_ROLE")
+          [ -z "$AWS_REGION" ] && missing+=("vars.AWS_S3_PROD_DEPLOY_REGION")
           [ -z "$WASM_S3_BUCKET" ] && missing+=("vars.WASM_S3_BUCKET")
           [ -z "$WASM_S3_PREFIX" ] && missing+=("vars.WASM_S3_PREFIX")
           if [ ${#missing[@]} -ne 0 ]; then
@@ -130,8 +135,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4.3.1
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: ${{ vars.AWS_S3_PROD_DEPLOY_ROLE }}
+          aws-region: ${{ vars.AWS_S3_PROD_DEPLOY_REGION }}
 
       - name: Publish to S3
         env:
