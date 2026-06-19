@@ -23,6 +23,11 @@ name: Publish WASM to S3
 # PORTAL INTEGRATION:
 #   Point the portal's wasmUrl/wasmExecUrl at the latest/ alias while iterating, then
 #   pin to a specific <version>/ prefix once the integration is stable.
+#
+# SAFETY:
+#   A v* tag push auto-publishes to the production bucket. The job runs in the
+#   `production` GitHub environment; add required reviewers there to gate deploys,
+#   and scope the OIDC role's trust policy to that environment.
 
 on:
   workflow_dispatch:
@@ -52,6 +57,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Check required configuration
         env:
@@ -60,6 +66,7 @@ jobs:
           WASM_S3_BUCKET: ${{ vars.WASM_S3_BUCKET }}
           WASM_S3_PREFIX: ${{ vars.WASM_S3_PREFIX }}
         run: |
+          set -euo pipefail
           missing=()
           [ -z "$AWS_ROLE_ARN" ] && missing+=("secrets.AWS_ROLE_ARN")
           [ -z "$AWS_REGION" ] && missing+=("vars.AWS_REGION")
@@ -147,6 +154,9 @@ jobs:
               --exclude 'megaport.wasm.br' \
               --exclude 'megaport.wasm.gz' \
               --cache-control "$cache"
+            # Brotli only: the portal's browser audience always sends Accept-Encoding: br,
+            # so we don't upload a gzip/identity fallback (unlike the general guidance in
+            # web/README.md, which serves .br/.gz/identity as separate objects).
             aws s3 cp "$src/megaport.wasm.br" "$dest/megaport.wasm" \
               --content-type application/wasm \
               --content-encoding br \

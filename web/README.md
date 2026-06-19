@@ -107,6 +107,12 @@ Each run publishes the whole static site under two prefixes inside `portal/megap
   version comes from the tag, a manual input, or `git describe`.
 - `portal/megaport-cli/latest/`: short TTL (`max-age=300`), refreshed on every run.
 
+Every file under a prefix (including `wasm_exec.js`) inherits that prefix's cache
+lifetime. This differs from the fixed-path `cmd/server` model in the Caching section
+above, where `wasm_exec.js` is `no-cache`: here the `<version>/` path is unique so
+immutable caching is safe, and `latest/`'s short TTL gives the same freshness `no-cache`
+would.
+
 ### Stable filenames, not content-hashed
 
 Unlike the `cmd/server` / Docker flow above, this flow does NOT run `cmd/wasmhash`. The
@@ -117,8 +123,15 @@ so it is safe to serve immutable.
 
 ### What gets uploaded
 
-`megaport.wasm` (brotli-compressed, served with `Content-Encoding: br`), `wasm_exec.js`,
-`index.html`, and the Vue assets.
+The whole static site is synced, but the portal only loads two files by URL:
+`megaport.wasm` (brotli-compressed, served with `Content-Encoding: br`) and `wasm_exec.js`.
+`index.html` and the Vue `assets/` are uploaded as a byproduct of the sync, not as a
+browsable site: the built `index.html` references its assets with absolute `/assets/...`
+paths, which do not resolve under a versioned prefix.
+
+Only the brotli copy is published as `megaport.wasm` (with `Content-Encoding: br`); no
+gzip or identity fallback is uploaded, because the portal's browser audience always
+accepts brotli.
 
 ### Portal integration
 
