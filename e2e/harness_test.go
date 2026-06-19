@@ -88,6 +88,9 @@ func sandboxEnv(t *testing.T, passthrough []string) []string {
 	env := []string{
 		"HOME=" + t.TempDir(),
 		"PATH=/usr/bin:/bin",
+		// Suppress the GitHub update-check HTTP call so hermetic tests remain
+		// network-free even when MEGAPORT_CLI_E2E_BIN points at a versioned binary.
+		"NO_UPDATE_CHECK=1",
 	}
 	for _, name := range passthrough {
 		if v, ok := os.LookupEnv(name); ok {
