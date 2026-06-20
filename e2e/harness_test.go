@@ -8,6 +8,8 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -76,23 +78,17 @@ func run(t *testing.T, envSpec []string, args []string) Result {
 	return Result{Stdout: stdout.String(), Stderr: stderr.String(), Exit: exit}
 }
 
-// sandboxEnv builds the subprocess environment: an isolated HOME so the CLI
+// sandboxEnv builds the subprocess environment: an isolated home dir so the CLI
 // never reads the developer's ~/.megaport/config.json, a minimal PATH, and the
 // requested environment spec applied on top. Everything else, including all
 // MEGAPORT_* config, is dropped so tests are hermetic by default.
 func sandboxEnv(t *testing.T, envSpec []string) []string {
 	t.Helper()
-	// A fixed minimal PATH keeps the sandbox hermetic. The standard system dirs
-	// cover the few tools the CLI may shell out to on its darwin and linux build
-	// targets; git (used for the version string) is best-effort and degrades
-	// gracefully when unresolved.
-	env := []string{
-		"HOME=" + t.TempDir(),
-		"PATH=/usr/bin:/bin",
+	env := append(baseSandboxEnv(t.TempDir()),
 		// Suppress the GitHub update-check HTTP call so hermetic tests remain
 		// network-free even when MEGAPORT_CLI_E2E_BIN points at a versioned binary.
 		"NO_UPDATE_CHECK=1",
-	}
+	)
 	for _, entry := range envSpec {
 		// An explicit NAME=value entry is set verbatim; a bare NAME is forwarded
 		// from the host only when it is actually set.
@@ -105,4 +101,36 @@ func sandboxEnv(t *testing.T, envSpec []string) []string {
 		}
 	}
 	return env
+}
+
+// baseSandboxEnv returns the OS-appropriate isolated home and minimal PATH. The
+// CLI resolves its config dir via os.UserHomeDir, which reads HOME on Unix and
+// USERPROFILE on Windows, so each OS needs its own variable pointed at the temp
+// dir. The minimal PATH covers the few tools the CLI may shell out to; git (used
+// for the version string) is best-effort and degrades gracefully when unresolved.
+func baseSandboxEnv(home string) []string {
+	if runtime.GOOS == "windows" {
+		systemRoot := os.Getenv("SystemRoot")
+		if systemRoot == "" {
+			systemRoot = `C:\Windows`
+		}
+		drive := filepath.VolumeName(home)
+		// USERPROFILE is the var os.UserHomeDir reads; HOMEDRIVE/HOMEPATH and
+		// TEMP/TMP point any child tooling and its temp files at the same isolated
+		// home so the sandbox stays hermetic.
+		return []string{
+			"USERPROFILE=" + home,
+			"HOMEDRIVE=" + drive,
+			"HOMEPATH=" + strings.TrimPrefix(home, drive),
+			"TEMP=" + home,
+			"TMP=" + home,
+			// Many Windows programs misbehave without SystemRoot in the environment.
+			"SystemRoot=" + systemRoot,
+			"PATH=" + systemRoot + `\System32;` + systemRoot,
+		}
+	}
+	return []string{
+		"HOME=" + home,
+		"PATH=/usr/bin:/bin",
+	}
 }
