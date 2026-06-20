@@ -38,3 +38,14 @@ jobs:
         run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
       - name: Run golangci-lint
         run: golangci-lint run --timeout=5m
+
+  e2e-hermetic:
+    name: E2E Tests (Hermetic)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
+        with:
+          go-version-file: 'go.mod'
+      - name: Run hermetic e2e tests
+        run: make e2e
