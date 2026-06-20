@@ -32,22 +32,24 @@ func Run(t *testing.T, args ...string) Result {
 	return run(t, nil, args)
 }
 
-// RunWithEnv is like Run but also forwards the named host environment variables
-// into the sandbox when they are set. The staging tier uses it to pass the
-// MEGAPORT_* credentials through; hermetic tests do not.
-func RunWithEnv(t *testing.T, passthrough []string, args ...string) Result {
+// RunWithEnv is like Run but also seeds the sandbox from the given environment
+// spec. Each entry is either a bare NAME, forwarded from the host only when it
+// is set, or an explicit NAME=value, set verbatim. The staging tier uses it to
+// forward the MEGAPORT_* credentials and to pin MEGAPORT_ENVIRONMENT; hermetic
+// tests do not.
+func RunWithEnv(t *testing.T, envSpec []string, args ...string) Result {
 	t.Helper()
-	return run(t, passthrough, args)
+	return run(t, envSpec, args)
 }
 
-func run(t *testing.T, passthrough []string, args []string) Result {
+func run(t *testing.T, envSpec []string, args []string) Result {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), runTimeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, cliBinary, args...)
-	cmd.Env = sandboxEnv(t, passthrough)
+	cmd.Env = sandboxEnv(t, envSpec)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -75,11 +77,10 @@ func run(t *testing.T, passthrough []string, args []string) Result {
 }
 
 // sandboxEnv builds the subprocess environment: an isolated HOME so the CLI
-// never reads the developer's ~/.megaport/config.json, a minimal PATH, and any
-// requested passthrough variables that are actually set on the host. Everything
-// else, including all MEGAPORT_* config, is dropped so tests are hermetic by
-// default.
-func sandboxEnv(t *testing.T, passthrough []string) []string {
+// never reads the developer's ~/.megaport/config.json, a minimal PATH, and the
+// requested environment spec applied on top. Everything else, including all
+// MEGAPORT_* config, is dropped so tests are hermetic by default.
+func sandboxEnv(t *testing.T, envSpec []string) []string {
 	t.Helper()
 	// A fixed minimal PATH keeps the sandbox hermetic. The standard system dirs
 	// cover the few tools the CLI may shell out to on its darwin and linux build
@@ -92,9 +93,15 @@ func sandboxEnv(t *testing.T, passthrough []string) []string {
 		// network-free even when MEGAPORT_CLI_E2E_BIN points at a versioned binary.
 		"NO_UPDATE_CHECK=1",
 	}
-	for _, name := range passthrough {
-		if v, ok := os.LookupEnv(name); ok {
-			env = append(env, name+"="+v)
+	for _, entry := range envSpec {
+		// An explicit NAME=value entry is set verbatim; a bare NAME is forwarded
+		// from the host only when it is actually set.
+		if strings.Contains(entry, "=") {
+			env = append(env, entry)
+			continue
+		}
+		if v, ok := os.LookupEnv(entry); ok {
+			env = append(env, entry+"="+v)
 		}
 	}
 	return env
