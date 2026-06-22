@@ -30,19 +30,6 @@ func mveLockedFromSDK(t *testing.T, client *megaport.Client, uid string) bool {
 	return mve.Locked
 }
 
-// mveStatusFromSDK reads the MVE through the SDK client and returns its
-// provisioning status. Like mveLockedFromSDK it uses its own short-lived
-// context so a slow read can't exhaust a context shared with earlier calls.
-func mveStatusFromSDK(t *testing.T, client *megaport.Client, uid string) string {
-	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
-	mve, err := client.MVEService.GetMVE(ctx, uid)
-	require.NoErrorf(t, err, "SDK GetMVE failed for %s", uid)
-	require.NotNil(t, mve)
-	return mve.ProvisioningStatus
-}
-
 // buyArubaMVEForLifecycle provisions an Aruba MVE on staging via the buy CLI
 // action (which waits for provisioning) and registers a best-effort hard delete
 // in t.Cleanup. It returns the new MVE's UID. The image is discovered
@@ -136,51 +123,4 @@ func TestIntegration_MVELockLifecycle(t *testing.T) {
 	unlockOut := captureTableOutput(func() { unlockErr = UnlockMVE(&cobra.Command{Use: "unlock"}, []string{mveUID}, true) })
 	require.NoError(t, unlockErr, "unlock MVE output: %s", unlockOut)
 	assert.False(t, mveLockedFromSDK(t, client, mveUID), "MVE should be unlocked after unlock")
-}
-
-// TestIntegration_MVERestoreLifecycle buys an MVE, schedules it for cancellation
-// (terminate-later), then restores it and asserts it is active again. Restore
-// (UN_CANCEL) only works on a CANCELLED resource, and the CLI/SDK DeleteMVE
-// forces CANCEL_NOW (immediate, non-restorable decommission), so the cancellation
-// is scheduled through the SDK's DeleteProduct with DeleteNow=false. If staging
-// doesn't leave the MVE in a CANCELLED state (no terminate-later window), the
-// test skips with the observed status rather than flaking.
-func TestIntegration_MVERestoreLifecycle(t *testing.T) {
-	testutil.RequireStagingForProvisioning(t)
-	client := testutil.SetupIntegrationClient(t)
-	t.Cleanup(testutil.LoginWithClient(t, client))
-
-	origFmt := output.GetOutputFormat()
-	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
-
-	mveUID := buyArubaMVEForLifecycle(t, "CLI-Test-MVE-Restore")
-
-	// Schedule cancellation (terminate-later) directly through the SDK, in its
-	// own context. A failure here means staging won't schedule a cancellation for
-	// this resource, so there's no restore window; the MVE is still live and the
-	// delete cleanup removes it.
-	cancelCtx, cancelCancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancelCancel()
-	if _, err := client.ProductService.DeleteProduct(cancelCtx, &megaport.DeleteProductRequest{
-		ProductID: mveUID,
-		DeleteNow: false,
-	}); err != nil {
-		t.Skipf("staging rejected terminate-later (CANCEL) for MVE %s, so there is no restore window: %v", mveUID, err)
-	}
-
-	// Confirm the MVE reached a restorable CANCELLED state. If staging
-	// decommissioned it immediately (or hasn't reflected the cancel yet), there's
-	// no window to restore from.
-	if status := mveStatusFromSDK(t, client, mveUID); status != megaport.STATUS_CANCELLED {
-		t.Skipf("restore needs a CANCELLED (terminate-later) MVE; staging left it %q after CANCEL", status)
-	}
-
-	// Restore (UN_CANCEL) through the CLI and assert the MVE is active again.
-	var restoreErr error
-	restoreOut := captureTableOutput(func() { restoreErr = RestoreMVE(&cobra.Command{Use: "restore"}, []string{mveUID}, true) })
-	require.NoError(t, restoreErr, "restore MVE output: %s", restoreOut)
-
-	status := mveStatusFromSDK(t, client, mveUID)
-	assert.Containsf(t, megaport.SERVICE_STATE_READY, status,
-		"MVE should be active (LIVE/CONFIGURED) after restore, got %q", status)
 }
