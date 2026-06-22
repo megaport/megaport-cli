@@ -549,11 +549,10 @@ func TestIntegration_MCRIPv6PrefixFilterLifecycle(t *testing.T) {
 
 	pflID := parsePrefixFilterListID(createOut)
 	require.NotEmpty(t, pflID, "could not parse prefix filter list ID from: %s", createOut)
-	pflIDInt, err := strconv.Atoi(pflID)
-	require.NoErrorf(t, err, "prefix filter list ID %q should be numeric", pflID)
 
-	// Best-effort cleanup. Registered after the MCR cleanup so it runs first
-	// (cleanups run LIFO) — the list must be gone before the MCR is deleted.
+	// Best-effort cleanup, registered right after parsing the ID so a later
+	// failure can't leak the list. Registered after the MCR cleanup so it runs
+	// first (cleanups run LIFO), ensuring the list is gone before the MCR.
 	t.Cleanup(func() {
 		var delErr error
 		out := captureTableOutput(func() {
@@ -565,6 +564,9 @@ func TestIntegration_MCRIPv6PrefixFilterLifecycle(t *testing.T) {
 		}
 		t.Logf("cleanup: delete prefix filter list %s: %s", pflID, out)
 	})
+
+	pflIDInt, err := strconv.Atoi(pflID)
+	require.NoErrorf(t, err, "prefix filter list ID %q should be numeric", pflID)
 
 	// Assert the created list via the SDK (authoritative read).
 	created := getPrefixFilterListViaSDK(t, client, mcrUID, pflIDInt)
