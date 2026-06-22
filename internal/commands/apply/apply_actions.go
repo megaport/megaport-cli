@@ -84,10 +84,16 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		return err
 	}
 
-	// rollbackTimeout mirrors the provisioning timeout so a fresh rollback context
-	// gets the same budget the user configured via --timeout, not a fixed default.
-	rollbackTimeout := utils.TimeoutFromCmd(cmd, defaultWaitTime)
-	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, defaultWaitTime)
+	// provisionTimeout is the per-resource provisioning budget; rollbackTimeout
+	// reuses it for a fresh rollback context.
+	provisionTimeout := utils.TimeoutFromCmd(cmd, defaultWaitTime)
+	rollbackTimeout := provisionTimeout
+
+	// No run-wide deadline: each resource's provisioning wait applies
+	// provisionTimeout on its own context, so --timeout bounds each resource rather
+	// than the whole run sharing one budget. Individual API calls stay bounded by
+	// the SDK HTTP client timeout.
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	spinner := output.PrintLoggingInWithOutput(noColor, outputFormat)
@@ -189,7 +195,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		// though provisioning has not completed. If the wait below fails, the
 		// resource must still be visible to rollback/orphan reporting.
 		created = append(created, createdResource{resType: "Port", name: p.Name, uid: uid})
-		if err := waitForProvision(ctx, "Port", p.Name, uid, func(ctx context.Context) (string, error) {
+		if err := waitForProvision(ctx, provisionTimeout, "Port", p.Name, uid, func(ctx context.Context) (string, error) {
 			port, e := client.PortService.GetPort(ctx, uid)
 			if e != nil {
 				return "", e
@@ -264,7 +270,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		uids["mcr"][m.Name] = uid
 		created = append(created, createdResource{resType: "MCR", name: m.Name, uid: uid})
-		if err := waitForProvision(ctx, "MCR", m.Name, uid, func(ctx context.Context) (string, error) {
+		if err := waitForProvision(ctx, provisionTimeout, "MCR", m.Name, uid, func(ctx context.Context) (string, error) {
 			mcr, e := client.MCRService.GetMCR(ctx, uid)
 			if e != nil {
 				return "", e
@@ -350,7 +356,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		uids["mve"][mv.Name] = uid
 		created = append(created, createdResource{resType: "MVE", name: mv.Name, uid: uid})
-		if err := waitForProvision(ctx, "MVE", mv.Name, uid, func(ctx context.Context) (string, error) {
+		if err := waitForProvision(ctx, provisionTimeout, "MVE", mv.Name, uid, func(ctx context.Context) (string, error) {
 			m, e := client.MVEService.GetMVE(ctx, uid)
 			if e != nil {
 				return "", e
@@ -443,7 +449,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		uids["vxc"][v.Name] = uid
 		created = append(created, createdResource{resType: "VXC", name: v.Name, uid: uid})
-		if err := waitForProvision(ctx, "VXC", v.Name, uid, func(ctx context.Context) (string, error) {
+		if err := waitForProvision(ctx, provisionTimeout, "VXC", v.Name, uid, func(ctx context.Context) (string, error) {
 			vxc, e := client.VXCService.GetVXC(ctx, uid)
 			if e != nil {
 				return "", e
@@ -538,11 +544,16 @@ func doRollback(client *megaport.Client, created []createdResource, jsonMode boo
 	return failErr
 }
 
-// waitForProvision polls getStatus until the resource reaches a ready state,
-// the caller's deadline elapses, ctx is cancelled, or getStatus returns an
-// error. The order has already been placed by the time this runs, so the
-// caller must have recorded the resource as created before calling this.
-func waitForProvision(ctx context.Context, resType, name, uid string, getStatus func(ctx context.Context) (string, error)) error {
+// waitForProvision polls getStatus until the resource reaches a ready state, its
+// per-resource timeout elapses, ctx is cancelled, or getStatus returns an error.
+// The timeout is applied on a context derived here, so each resource gets its own
+// provisioning budget rather than sharing one across the whole run. The order has
+// already been placed by the time this runs, so the caller must have recorded the
+// resource as created before calling this.
+func waitForProvision(ctx context.Context, timeout time.Duration, resType, name, uid string, getStatus func(ctx context.Context) (string, error)) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	check := func() (bool, error) {
 		status, err := getStatus(ctx)
 		if err != nil {
@@ -556,14 +567,6 @@ func waitForProvision(ctx context.Context, resType, name, uid string, getStatus 
 
 	if ready, err := check(); err != nil || ready {
 		return err
-	}
-
-	// Respect the caller's deadline (e.g. from --timeout); only impose the
-	// default cap when the caller passed an open-ended context.
-	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, defaultWaitTime)
-		defer cancel()
 	}
 
 	ticker := time.NewTicker(provisionPollInterval)

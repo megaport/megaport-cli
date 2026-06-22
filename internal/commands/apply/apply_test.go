@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
@@ -682,6 +683,70 @@ ports:
 
 	require.Error(t, err)
 	require.Equal(t, []string{"port-rollback-uid"}, mockPort.DeletePortCalledWith)
+}
+
+// TestApplyConfig_PerResourceTimeout verifies that --timeout bounds each resource's
+// provisioning wait independently, not the whole run. Two resources each take most of
+// the per-resource budget to go ready, so their combined wait exceeds a single shared
+// budget. Under the old shared-context behavior the second resource would time out;
+// the test passes only when each resource gets its own deadline.
+func TestApplyConfig_PerResourceTimeout(t *testing.T) {
+	oldInterval := provisionPollInterval
+	provisionPollInterval = 2 * time.Millisecond
+	defer func() { provisionPollInterval = oldInterval }()
+
+	// readyAfter reports CONFIGURING until d has elapsed since its first call, then
+	// LIVE — simulating a resource that consumes ~d of its provisioning budget.
+	readyAfter := func(d time.Duration) func() string {
+		var start time.Time
+		return func() string {
+			if start.IsZero() {
+				start = time.Now()
+			}
+			if time.Since(start) >= d {
+				return megaport.SERVICE_LIVE
+			}
+			return "CONFIGURING"
+		}
+	}
+
+	const perResourceConsume = 180 * time.Millisecond
+	mockPort := &MockPortService{
+		BuyPortResult:     &megaport.BuyPortResponse{TechnicalServiceUIDs: []string{"slow-port-uid"}},
+		GetPortStatusFunc: readyAfter(perResourceConsume),
+	}
+	mockMCR := &MockMCRService{
+		BuyMCRResult:     &megaport.BuyMCRResponse{TechnicalServiceUID: "slow-mcr-uid"},
+		GetMCRStatusFunc: readyAfter(perResourceConsume),
+	}
+	defer setupMockClient(mockPort, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+	cfg := `
+ports:
+  - name: Slow-Port
+    location_id: 1
+    speed: 1000
+    term: 12
+    marketplace_visibility: false
+
+mcrs:
+  - name: Slow-MCR
+    location_id: 1
+    speed: 1000
+    term: 12
+`
+	f := writeTempFile(t, "config.yaml", cfg)
+	cmd := applyCmd(f, false, true)
+	// Per-resource budget of 300ms. Each resource takes ~180ms, so the two together
+	// (~360ms) exceed a single shared 300ms budget but each stays within its own.
+	cmd.Flags().Duration("timeout", 0, "")
+	require.NoError(t, cmd.Flags().Set("timeout", "300ms"))
+
+	var err error
+	output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+	require.NoError(t, err)
 }
 
 // TestApplyConfig_RollbackOnFailure_DeleteError verifies that when rollback itself

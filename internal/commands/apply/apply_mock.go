@@ -17,8 +17,9 @@ type MockPortService struct {
 	CapturedPortRequest  *megaport.BuyPortRequest
 	DeletePortErr        error
 	DeletePortCalledWith []string
-	GetPortStatus        string // provisioning status returned by GetPort (default ready)
-	GetPortErr           error  // error returned by GetPort (simulates a provision-wait failure)
+	GetPortStatus        string        // provisioning status returned by GetPort (default ready)
+	GetPortStatusFunc    func() string // dynamic status for GetPort; takes precedence over GetPortStatus
+	GetPortErr           error         // error returned by GetPort (simulates a provision-wait failure)
 }
 
 func (m *MockPortService) BuyPort(ctx context.Context, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
@@ -47,7 +48,9 @@ func (m *MockPortService) GetPort(ctx context.Context, portId string) (*megaport
 		return nil, m.GetPortErr
 	}
 	status := m.GetPortStatus
-	if status == "" {
+	if m.GetPortStatusFunc != nil {
+		status = m.GetPortStatusFunc()
+	} else if status == "" {
 		status = megaport.SERVICE_LIVE
 	}
 	return &megaport.Port{UID: portId, ProvisioningStatus: status}, nil
@@ -95,8 +98,9 @@ type MockMCRService struct {
 	WaitForMCRReadyErr   error
 	DeleteMCRErr         error
 	DeleteMCRCalledWith  []string
-	GetMCRStatus         string // provisioning status returned by GetMCR (default ready)
-	GetMCRErr            error  // error returned by GetMCR (simulates a provision-wait failure)
+	GetMCRStatus         string        // provisioning status returned by GetMCR (default ready)
+	GetMCRStatusFunc     func() string // dynamic status for GetMCR; takes precedence over GetMCRStatus
+	GetMCRErr            error         // error returned by GetMCR (simulates a provision-wait failure)
 }
 
 func (m *MockMCRService) BuyMCR(ctx context.Context, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
@@ -125,7 +129,9 @@ func (m *MockMCRService) GetMCR(ctx context.Context, mcrId string) (*megaport.MC
 		return nil, m.GetMCRErr
 	}
 	status := m.GetMCRStatus
-	if status == "" {
+	if m.GetMCRStatusFunc != nil {
+		status = m.GetMCRStatusFunc()
+	} else if status == "" {
 		status = megaport.SERVICE_LIVE
 	}
 	return &megaport.MCR{UID: mcrId, ProvisioningStatus: status}, nil
