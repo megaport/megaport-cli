@@ -2723,3 +2723,88 @@ func TestListVXCs_TagFilter(t *testing.T) {
 		})
 	}
 }
+
+// TestBuyVXC_OrderAndProvisionFailures covers the order-response and
+// provisioning-poll failure branches: an empty API response, a missing UID, and
+// the VXC vanishing during the provisioning poll.
+func TestBuyVXC_OrderAndProvisionFailures(t *testing.T) {
+	originalBuyVXCFunc := buyVXCFunc
+	originalGetVXCFunc := getVXCFunc
+	originalBuildFromFlags := buildVXCRequestFromFlags
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer func() {
+		cleanup()
+		buyVXCFunc = originalBuyVXCFunc
+		getVXCFunc = originalGetVXCFunc
+		buildVXCRequestFromFlags = originalBuildFromFlags
+	}()
+
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		return &megaport.Client{VXCService: &MockVXCService{}}, nil
+	})
+	buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc megaport.VXCService) (*megaport.BuyVXCRequest, error) {
+		return &megaport.BuyVXCRequest{
+			PortUID:           "dcc-12345",
+			VXCName:           "Test VXC",
+			RateLimit:         500,
+			Term:              12,
+			AEndConfiguration: megaport.VXCOrderEndpointConfiguration{VLAN: 100},
+			BEndConfiguration: megaport.VXCOrderEndpointConfiguration{ProductUID: "dcc-67890", VLAN: 200},
+		}, nil
+	}
+
+	tests := []struct {
+		name     string
+		buyResp  *megaport.BuyVXCResponse
+		getNil   bool
+		errMatch string
+	}{
+		{name: "empty API response", buyResp: nil, errMatch: "empty response from API"},
+		{name: "no UID returned", buyResp: &megaport.BuyVXCResponse{}, errMatch: "no UID returned"},
+		{name: "VXC not found during provisioning poll", buyResp: &megaport.BuyVXCResponse{TechnicalServiceUID: "vxc-uid-123"}, getNil: true, errMatch: "not found while waiting for provisioning"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buyVXCFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyVXCRequest) (*megaport.BuyVXCResponse, error) {
+				return tt.buyResp, nil
+			}
+			getVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string) (*megaport.VXC, error) {
+				if tt.getNil {
+					return nil, nil
+				}
+				return &megaport.VXC{UID: vxcUID, ProvisioningStatus: "LIVE"}, nil
+			}
+
+			cmd := &cobra.Command{}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().String("a-end-uid", "", "")
+			cmd.Flags().String("b-end-uid", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("rate-limit", 0, "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("a-end-vlan", 0, "")
+			cmd.Flags().Int("b-end-vlan", 0, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			testutil.SetFlags(t, cmd, map[string]string{
+				"a-end-uid": "dcc-12345",
+				"name":      "Test VXC",
+			})
+
+			var err error
+			output.CaptureOutput(func() {
+				err = BuyVXC(cmd, nil, true)
+			})
+
+			if assert.Error(t, err) {
+				assert.Contains(t, err.Error(), tt.errMatch)
+			}
+		})
+	}
+}

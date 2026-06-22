@@ -3212,3 +3212,83 @@ func TestListMCRs_TagFilter(t *testing.T) {
 		})
 	}
 }
+
+// TestBuyMCR_OrderAndProvisionFailures covers the order-response and
+// provisioning-poll failure branches: an empty API response, a missing UID, and
+// the MCR vanishing during the provisioning poll.
+func TestBuyMCR_OrderAndProvisionFailures(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	originalBuyMCRFunc := buyMCRFunc
+	originalGetMCRFunc := getMCRFunc
+	defer func() {
+		cleanup()
+		buyMCRFunc = originalBuyMCRFunc
+		getMCRFunc = originalGetMCRFunc
+	}()
+
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.MCRService = &MockMCRService{}
+		return client, nil
+	})
+
+	tests := []struct {
+		name     string
+		buyResp  *megaport.BuyMCRResponse
+		getNil   bool
+		errMatch string
+	}{
+		{name: "empty API response", buyResp: nil, errMatch: "empty response from API"},
+		{name: "no UID returned", buyResp: &megaport.BuyMCRResponse{}, errMatch: "no UID returned"},
+		{name: "MCR not found during provisioning poll", buyResp: &megaport.BuyMCRResponse{TechnicalServiceUID: "mcr-uid-123"}, getNil: true, errMatch: "not found while waiting for provisioning"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buyMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
+				return tt.buyResp, nil
+			}
+			getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+				if tt.getNil {
+					return nil, nil
+				}
+				return &megaport.MCR{UID: mcrUID, ProvisioningStatus: "LIVE"}, nil
+			}
+
+			cmd := &cobra.Command{Use: "buy"}
+			cmd.Flags().BoolP("interactive", "i", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().BoolP("yes", "y", false, "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Int("mcr-asn", 0, "")
+			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().String("promo-code", "", "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			testutil.SetFlags(t, cmd, map[string]string{
+				"name":        "Test MCR",
+				"term":        "12",
+				"port-speed":  "10000",
+				"location-id": "123",
+				"mcr-asn":     "65000",
+			})
+
+			var err error
+			output.CaptureOutput(func() {
+				err = BuyMCR(cmd, nil, true)
+			})
+
+			if assert.Error(t, err) {
+				assert.Contains(t, err.Error(), tt.errMatch)
+			}
+		})
+	}
+}

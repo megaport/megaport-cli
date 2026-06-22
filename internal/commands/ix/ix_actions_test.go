@@ -2166,3 +2166,85 @@ func TestBuyIX_NoResubmitOnPollRetryableError(t *testing.T) {
 	assert.Error(t, err, "a retryable error during the provisioning poll must surface as an error")
 	assert.Equal(t, 1, buyCalls, "the order must be submitted exactly once; a poll-phase 429 must not re-submit it")
 }
+
+// TestBuyIX_OrderAndProvisionFailures covers the order-response and
+// provisioning-poll failure branches: an empty API response, a missing UID, and
+// the IX vanishing during the provisioning poll.
+func TestBuyIX_OrderAndProvisionFailures(t *testing.T) {
+	originalBuyIXFunc := buyIXFunc
+	originalGetIXFunc := getIXFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer func() {
+		cleanup()
+		buyIXFunc = originalBuyIXFunc
+		getIXFunc = originalGetIXFunc
+	}()
+
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.IXService = &MockIXService{}
+		return client, nil
+	})
+
+	tests := []struct {
+		name     string
+		buyResp  *megaport.BuyIXResponse
+		getNil   bool
+		errMatch string
+	}{
+		{name: "empty API response", buyResp: nil, errMatch: "empty response from API"},
+		{name: "no UID returned", buyResp: &megaport.BuyIXResponse{}, errMatch: "no UID returned"},
+		{name: "IX not found during provisioning poll", buyResp: &megaport.BuyIXResponse{TechnicalServiceUID: "ix-uid-123"}, getNil: true, errMatch: "not found while waiting for provisioning"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buyIXFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyIXRequest) (*megaport.BuyIXResponse, error) {
+				return tt.buyResp, nil
+			}
+			getIXFunc = func(ctx context.Context, client *megaport.Client, ixUID string) (*megaport.IX, error) {
+				if tt.getNil {
+					return nil, nil
+				}
+				return &megaport.IX{ProvisioningStatus: "LIVE"}, nil
+			}
+
+			cmd := &cobra.Command{Use: "buy"}
+			cmd.Flags().BoolP("interactive", "i", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().String("product-uid", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().String("network-service-type", "", "")
+			cmd.Flags().Int("asn", 0, "")
+			cmd.Flags().String("mac-address", "", "")
+			cmd.Flags().Int("rate-limit", 0, "")
+			cmd.Flags().Int("vlan", 0, "")
+			cmd.Flags().Bool("shutdown", false, "")
+			cmd.Flags().String("promo-code", "", "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			testutil.SetFlags(t, cmd, map[string]string{
+				"product-uid":          "port-uid-123",
+				"name":                 "Test IX",
+				"network-service-type": "Los Angeles IX",
+				"asn":                  "65000",
+				"mac-address":          "00:11:22:33:44:55",
+				"rate-limit":           "1000",
+				"vlan":                 "100",
+			})
+
+			var err error
+			output.CaptureOutput(func() {
+				err = BuyIX(cmd, nil, true)
+			})
+
+			if assert.Error(t, err) {
+				assert.Contains(t, err.Error(), tt.errMatch)
+			}
+		})
+	}
+}

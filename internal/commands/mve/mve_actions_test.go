@@ -2648,3 +2648,65 @@ func TestListMVEs_TagFilter(t *testing.T) {
 		})
 	}
 }
+
+// TestBuyMVE_OrderAndProvisionFailures covers the order-response and
+// provisioning-poll failure branches: an empty API response, a missing UID, and
+// the MVE vanishing during the provisioning poll.
+func TestBuyMVE_OrderAndProvisionFailures(t *testing.T) {
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	tests := []struct {
+		name     string
+		nilResp  bool
+		buyResp  *megaport.BuyMVEResponse
+		getNil   bool
+		errMatch string
+	}{
+		{name: "empty API response", nilResp: true, errMatch: "empty response from API"},
+		{name: "no UID returned", buyResp: &megaport.BuyMVEResponse{}, errMatch: "no UID returned"},
+		{name: "MVE not found during provisioning poll", buyResp: &megaport.BuyMVEResponse{TechnicalServiceUID: "mve-uid-123"}, getNil: true, errMatch: "not found while waiting for provisioning"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockMVEService{
+				BuyMVENilResp:  tt.nilResp,
+				BuyMVEResult:   tt.buyResp,
+				ForceNilGetMVE: tt.getNil,
+			}
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+				c.MVEService = mockService
+			})
+			defer cleanup()
+
+			cmd := &cobra.Command{Use: "buy"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().String("vendor-config", "", "")
+			cmd.Flags().String("vnics", "", "")
+
+			testutil.SetFlags(t, cmd, map[string]string{
+				"name":          "Test MVE",
+				"term":          "12",
+				"location-id":   "123",
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
+				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
+			})
+
+			var err error
+			output.CaptureOutput(func() {
+				err = BuyMVE(cmd, nil, true)
+			})
+
+			if assert.Error(t, err) {
+				assert.Contains(t, err.Error(), tt.errMatch)
+			}
+		})
+	}
+}
