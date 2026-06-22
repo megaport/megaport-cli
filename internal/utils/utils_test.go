@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
+	"github.com/megaport/megaport-cli/internal/validation"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -560,6 +561,18 @@ func TestClassifyError_SDKErrors(t *testing.T) {
 			assert.Equal(t, tt.wantCode, code)
 		})
 	}
+}
+
+func TestClassifyError_ValidationError(t *testing.T) {
+	// A raw ValidationError must map to the usage exit code. Its message is
+	// "Invalid <field>: ..." (capital I), which the lowercase "invalid" heuristic
+	// misses, so the type check carries it.
+	verr := validation.NewValidationError("name", "", "must not be empty")
+	assert.Equal(t, exitcodes.Usage, classifyError(verr))
+
+	// errors.As traverses wrapping, so a wrapped ValidationError classifies the same.
+	wrapped := fmt.Errorf("validation failed for port: %w", verr)
+	assert.Equal(t, exitcodes.Usage, classifyError(wrapped))
 }
 
 func TestWrapRunE_CancelledError(t *testing.T) {
