@@ -34,17 +34,6 @@ const (
 	maxConfigFileSize = 10 * 1024 * 1024
 )
 
-// provisionPollInterval is how often the provision-wait loop polls resource
-// status. Overridable in tests to avoid 10s sleeps.
-var provisionPollInterval = 10 * time.Second
-
-// readyStates are the provisioning states considered fully provisioned.
-var readyStates = []string{megaport.SERVICE_CONFIGURED, megaport.SERVICE_LIVE}
-
-// failedStates are terminal states that mean provisioning will never succeed,
-// so the wait loop should fail fast instead of polling until the timeout.
-var failedStates = []string{megaport.STATUS_DECOMMISSIONED, megaport.STATUS_CANCELLED}
-
 // templateRe matches {{.type.name}} references in config values.
 var templateRe = regexp.MustCompile(`\{\{\.(\w+)\.([^}]+)\}\}`)
 
@@ -189,7 +178,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		// though provisioning has not completed. If the wait below fails, the
 		// resource must still be visible to rollback/orphan reporting.
 		created = append(created, createdResource{resType: "Port", name: p.Name, uid: uid})
-		if err := waitForProvision(ctx, "Port", p.Name, uid, func(ctx context.Context) (string, error) {
+		if err := utils.WaitForProvision(ctx, "Port", p.Name, uid, func(ctx context.Context) (string, error) {
 			port, e := client.PortService.GetPort(ctx, uid)
 			if e != nil {
 				return "", e
@@ -264,7 +253,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		uids["mcr"][m.Name] = uid
 		created = append(created, createdResource{resType: "MCR", name: m.Name, uid: uid})
-		if err := waitForProvision(ctx, "MCR", m.Name, uid, func(ctx context.Context) (string, error) {
+		if err := utils.WaitForProvision(ctx, "MCR", m.Name, uid, func(ctx context.Context) (string, error) {
 			mcr, e := client.MCRService.GetMCR(ctx, uid)
 			if e != nil {
 				return "", e
@@ -350,7 +339,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		uids["mve"][mv.Name] = uid
 		created = append(created, createdResource{resType: "MVE", name: mv.Name, uid: uid})
-		if err := waitForProvision(ctx, "MVE", mv.Name, uid, func(ctx context.Context) (string, error) {
+		if err := utils.WaitForProvision(ctx, "MVE", mv.Name, uid, func(ctx context.Context) (string, error) {
 			m, e := client.MVEService.GetMVE(ctx, uid)
 			if e != nil {
 				return "", e
@@ -443,7 +432,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		uids["vxc"][v.Name] = uid
 		created = append(created, createdResource{resType: "VXC", name: v.Name, uid: uid})
-		if err := waitForProvision(ctx, "VXC", v.Name, uid, func(ctx context.Context) (string, error) {
+		if err := utils.WaitForProvision(ctx, "VXC", v.Name, uid, func(ctx context.Context) (string, error) {
 			vxc, e := client.VXCService.GetVXC(ctx, uid)
 			if e != nil {
 				return "", e
@@ -536,49 +525,6 @@ func doRollback(client *megaport.Client, created []createdResource, jsonMode boo
 		return fmt.Errorf("%w; %s", failErr, strings.Join(rollbackResults, "; "))
 	}
 	return failErr
-}
-
-// waitForProvision polls getStatus until the resource reaches a ready state,
-// the caller's deadline elapses, ctx is cancelled, or getStatus returns an
-// error. The order has already been placed by the time this runs, so the
-// caller must have recorded the resource as created before calling this.
-func waitForProvision(ctx context.Context, resType, name, uid string, getStatus func(ctx context.Context) (string, error)) error {
-	check := func() (bool, error) {
-		status, err := getStatus(ctx)
-		if err != nil {
-			return false, err
-		}
-		if slices.Contains(failedStates, status) {
-			return false, fmt.Errorf("%s %q (%s) entered terminal state %q during provisioning", resType, name, uid, status)
-		}
-		return slices.Contains(readyStates, status), nil
-	}
-
-	if ready, err := check(); err != nil || ready {
-		return err
-	}
-
-	// Respect the caller's deadline (e.g. from --timeout); only impose the
-	// default cap when the caller passed an open-ended context.
-	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, defaultWaitTime)
-		defer cancel()
-	}
-
-	ticker := time.NewTicker(provisionPollInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("timed out waiting for %s %q (%s) to provision: %w", resType, name, uid, ctx.Err())
-		case <-ticker.C:
-			if ready, err := check(); err != nil || ready {
-				return err
-			}
-		}
-	}
 }
 
 // deleteResource deletes a single provisioned resource via the appropriate service client.
