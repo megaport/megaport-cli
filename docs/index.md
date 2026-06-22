@@ -157,8 +157,6 @@
 | [megaport-cli mve list-tags docs](megaport-cli_mve_list-tags_docs.md) | Show documentation for this command |
 | [megaport-cli mve lock](megaport-cli_mve_lock.md) | Lock an MVE |
 | [megaport-cli mve lock docs](megaport-cli_mve_lock_docs.md) | Show documentation for this command |
-| [megaport-cli mve restore](megaport-cli_mve_restore.md) | Restore a deleted MVE |
-| [megaport-cli mve restore docs](megaport-cli_mve_restore_docs.md) | Show documentation for this command |
 | [megaport-cli mve status](megaport-cli_mve_status.md) | Check the provisioning status of an MVE |
 | [megaport-cli mve status docs](megaport-cli_mve_status_docs.md) | Show documentation for this command |
 | [megaport-cli mve unlock](megaport-cli_mve_unlock.md) | Unlock an MVE |
