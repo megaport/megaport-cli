@@ -614,6 +614,64 @@ func TestBuyIX(t *testing.T) {
 	}
 }
 
+func TestBuyIX_NilResponse(t *testing.T) {
+	originalBuyIXFunc := buyIXFunc
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer func() {
+		cleanup()
+		buyIXFunc = originalBuyIXFunc
+	}()
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.IXService = &MockIXService{}
+		return client, nil
+	})
+
+	buyIXFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyIXRequest) (*megaport.BuyIXResponse, error) {
+		return nil, nil
+	}
+
+	cmd := &cobra.Command{
+		Use:  "buy",
+		RunE: testutil.NoColorAdapter(BuyIX),
+	}
+	cmd.Flags().BoolP("interactive", "i", false, "")
+	cmd.Flags().Bool("no-wait", false, "")
+	cmd.Flags().String("product-uid", "", "")
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().String("network-service-type", "", "")
+	cmd.Flags().Int("asn", 0, "")
+	cmd.Flags().String("mac-address", "", "")
+	cmd.Flags().Int("rate-limit", 0, "")
+	cmd.Flags().Int("vlan", 0, "")
+	cmd.Flags().Bool("shutdown", false, "")
+	cmd.Flags().String("promo-code", "", "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+
+	testutil.SetFlags(t, cmd, map[string]string{
+		"product-uid":          "port-uid-123",
+		"name":                 "Test IX",
+		"network-service-type": "Los Angeles IX",
+		"asn":                  "65000",
+		"mac-address":          "00:11:22:33:44:55",
+		"rate-limit":           "1000",
+		"vlan":                 "100",
+	})
+
+	var err error
+	output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, nil)
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response from API")
+}
+
 func TestBuyIX_NoWaitFlag(t *testing.T) {
 	originalBuyIXFunc := buyIXFunc
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})

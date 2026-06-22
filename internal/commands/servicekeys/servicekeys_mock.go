@@ -9,6 +9,7 @@ import (
 type MockServiceKeyService struct {
 	CreateServiceKeyError           error
 	CreateServiceKeyResult          *megaport.CreateServiceKeyResponse
+	CreateServiceKeyReturnNil       bool
 	CapturedCreateServiceKeyRequest *megaport.CreateServiceKeyRequest
 
 	ListServiceKeysError           error
@@ -21,6 +22,7 @@ type MockServiceKeyService struct {
 
 	GetServiceKeyError         error
 	GetServiceKeyResult        *megaport.ServiceKey
+	GetServiceKeyReturnNil     bool
 	CapturedGetServiceKeyKeyID string
 }
 
@@ -28,6 +30,9 @@ func (m *MockServiceKeyService) CreateServiceKey(ctx context.Context, req *megap
 	m.CapturedCreateServiceKeyRequest = req
 	if m.CreateServiceKeyError != nil {
 		return nil, m.CreateServiceKeyError
+	}
+	if m.CreateServiceKeyReturnNil {
+		return nil, nil
 	}
 	if m.CreateServiceKeyResult != nil {
 		return m.CreateServiceKeyResult, nil
@@ -84,6 +89,9 @@ func (m *MockServiceKeyService) GetServiceKey(ctx context.Context, keyId string)
 	m.CapturedGetServiceKeyKeyID = keyId
 	if m.GetServiceKeyError != nil {
 		return nil, m.GetServiceKeyError
+	}
+	if m.GetServiceKeyReturnNil {
+		return nil, nil
 	}
 	if m.GetServiceKeyResult != nil {
 		return m.GetServiceKeyResult, nil

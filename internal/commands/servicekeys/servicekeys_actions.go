@@ -77,6 +77,11 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("failed to create service key: %w", err)
 	}
 
+	if resp == nil {
+		output.PrintError("Service key create returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
+	}
+
 	output.PrintResourceCreated("Service Key", resp.ServiceKeyUID, noColor)
 	return nil
 }
@@ -102,6 +107,11 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 	if err != nil {
 		output.PrintError("Failed to fetch current service key: %v", noColor, err)
 		return fmt.Errorf("failed to fetch current service key: %w", err)
+	}
+
+	if current == nil {
+		output.PrintError("Service key get returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
 	}
 
 	req := &megaport.UpdateServiceKeyRequest{
@@ -221,6 +231,11 @@ func GetServiceKey(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	if err != nil {
 		output.PrintError("Failed to get service key: %v", noColor, err)
 		return fmt.Errorf("failed to get service key: %w", err)
+	}
+
+	if resp == nil {
+		output.PrintError("Service key get returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
 	}
 
 	op, err := toServiceKeyOutput(resp)
