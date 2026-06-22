@@ -1,18 +1,22 @@
-//go:build integration
+//go:build integration && provisioning
 
 package mcr
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/netip"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/testutil"
+	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -403,4 +407,211 @@ func TestIntegration_MCRJSONInputLifecycle(t *testing.T) {
 	require.NoError(t, updErr, "update MCR output: %s", updOut)
 
 	assert.Equal(t, newName, getMCRJSON(t, mcrUID)["name"])
+}
+
+// prefixEntry is the expected shape of one prefix-filter-list entry, used for
+// SDK-level assertions.
+type prefixEntry struct {
+	action string
+	prefix string
+	ge     int
+	le     int
+}
+
+// canonicalPrefix normalizes an IP prefix so textual differences (IPv6 case,
+// zero compression) can't cause spurious mismatches when pairing entries.
+func canonicalPrefix(t *testing.T, p string) string {
+	t.Helper()
+	parsed, err := netip.ParsePrefix(p)
+	if err != nil {
+		return p
+	}
+	return parsed.Masked().String()
+}
+
+// getPrefixFilterListViaSDK reads a prefix filter list straight from the SDK so
+// assertions check authoritative API state rather than scraped CLI output.
+func getPrefixFilterListViaSDK(t *testing.T, client *megaport.Client, mcrUID string, pflID int) *megaport.MCRPrefixFilterList {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	list, err := client.MCRService.GetMCRPrefixFilterList(ctx, mcrUID, pflID)
+	require.NoErrorf(t, err, "SDK get prefix filter list %d", pflID)
+	require.NotNil(t, list, "SDK returned nil prefix filter list")
+	return list
+}
+
+// assertPrefixEntries checks the SDK-returned entries match the expected set.
+// Prefixes are paired in canonical form so IPv6 normalization is tolerated;
+// order is not assumed. ge/le are compared exactly, on the assumption the API
+// echoes them back unchanged; staging normalizing them would surface here.
+func assertPrefixEntries(t *testing.T, got []*megaport.MCRPrefixListEntry, want []prefixEntry) {
+	t.Helper()
+	require.Len(t, got, len(want), "entry count")
+
+	byPrefix := make(map[string]*megaport.MCRPrefixListEntry, len(got))
+	for _, e := range got {
+		byPrefix[canonicalPrefix(t, e.Prefix)] = e
+	}
+	for _, w := range want {
+		e, ok := byPrefix[canonicalPrefix(t, w.prefix)]
+		if !assert.Truef(t, ok, "expected an entry for prefix %s", w.prefix) {
+			continue
+		}
+		assert.Equalf(t, w.action, e.Action, "action for %s", w.prefix)
+		assert.Equalf(t, w.ge, e.Ge, "ge for %s", w.prefix)
+		assert.Equalf(t, w.le, e.Le, "le for %s", w.prefix)
+	}
+}
+
+// TestIntegration_MCRIPv6PrefixFilterLifecycle mirrors the IPv4 prefix-filter
+// coverage in TestIntegration_MCRLifecycle but for an IPv6 list: buy an MCR,
+// create an IPv6 prefix filter list, then get/update/delete it. Each step is
+// driven through the CLI action functions and asserted against the SDK.
+//
+// Routing/BGP scope (ESD-1531): the CLI exposes no standalone command to
+// configure static IP routes or BGP peering on an MCR, and neither does the
+// SDK's MCRService. Those are set through a VXC's A-end MCR partner config:
+// static IP routes are exercised by the VXC MCR-vrouter integration test, while
+// BGP peering is configured the same way but is not yet covered by an
+// integration test. The MCR looking-glass route/BGP commands are read-only
+// diagnostics. So prefix filter lists are the only standalone MCR routing config
+// to cover here, and there is no TestIntegration_MCRRouteConfigLifecycle. See
+// docs/INTEGRATION_TESTING.md.
+func TestIntegration_MCRIPv6PrefixFilterLifecycle(t *testing.T) {
+	testutil.RequireStagingForProvisioning(t)
+	client := testutil.SetupIntegrationClient(t)
+	// Restore login via t.Cleanup, not defer: defers run before t.Cleanup, so a
+	// deferred restore would swap back the default login before the
+	// resource-deletion cleanups below get to run.
+	t.Cleanup(testutil.LoginWithClient(t, client))
+
+	// Action functions mutate the process-wide output format; restore it so
+	// test order can't leak state between tests in this package.
+	origFmt := output.GetOutputFormat()
+	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
+
+	name := fmt.Sprintf("CLI-Test-MCR-IPv6-%s", generateUniqueID())
+
+	// Buy a new MCR using flags. BuyMCR waits for provisioning (no --no-wait),
+	// so the MCR is ready for prefix-filter-list operations once it returns.
+	buyCmd := integrationMCRBuyCmd()
+	require.NoError(t, buyCmd.Flags().Set("name", name))
+	require.NoError(t, buyCmd.Flags().Set("term", "1"))
+	require.NoError(t, buyCmd.Flags().Set("port-speed", "1000"))
+	require.NoError(t, buyCmd.Flags().Set("location-id", strconv.Itoa(stagingMCRLocationID)))
+	require.NoError(t, buyCmd.Flags().Set("marketplace-visibility", "false"))
+	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
+
+	var buyErr error
+	buyOut := captureTableOutput(func() { buyErr = BuyMCR(buyCmd, nil, true) })
+	require.NoError(t, buyErr, "buy MCR output: %s", buyOut)
+
+	mcrUID := parseCreatedUID(buyOut, "MCR")
+	// Register cleanup before asserting on mcrUID, so any created MCR is
+	// deleted even if the UID parse fails.
+	t.Cleanup(func() {
+		if mcrUID == "" {
+			return
+		}
+		delCmd := integrationMCRDeleteCmd()
+		_ = delCmd.Flags().Set("force", "true")
+		var delErr error
+		out := captureTableOutput(func() { delErr = DeleteMCR(delCmd, []string{mcrUID}, true) })
+		if delErr != nil {
+			t.Logf("cleanup: delete MCR %s failed: %v; output: %s", mcrUID, delErr, out)
+			return
+		}
+		t.Logf("cleanup: delete MCR %s: %s", mcrUID, out)
+	})
+	require.NotEmpty(t, mcrUID, "could not parse MCR UID from: %s", buyOut)
+
+	// Create an IPv6 prefix filter list via the CLI. Uses RFC 3849
+	// documentation prefixes (2001:db8::/32) so the entries are realistic but
+	// never collide with real address space. ge is set above each prefix
+	// length to avoid the ge==prefix-length edge case.
+	createPFLJSON := `{
+		"description": "Test IPv6 Prefix Filter List",
+		"addressFamily": "IPv6",
+		"entries": [
+			{"action": "permit", "prefix": "2001:db8::/32", "ge": 48, "le": 64},
+			{"action": "deny", "prefix": "2001:db8:abcd::/48", "ge": 56, "le": 64}
+		]
+	}`
+
+	createCmd := integrationMCRPrefixFilterCmd()
+	require.NoError(t, createCmd.Flags().Set("json", createPFLJSON))
+	var createErr error
+	createOut := captureTableOutput(func() {
+		createErr = CreateMCRPrefixFilterList(createCmd, []string{mcrUID}, true)
+	})
+	require.NoError(t, createErr, "create IPv6 prefix filter list output: %s", createOut)
+
+	pflID := parsePrefixFilterListID(createOut)
+	require.NotEmpty(t, pflID, "could not parse prefix filter list ID from: %s", createOut)
+	pflIDInt, err := strconv.Atoi(pflID)
+	require.NoErrorf(t, err, "prefix filter list ID %q should be numeric", pflID)
+
+	// Best-effort cleanup. Registered after the MCR cleanup so it runs first
+	// (cleanups run LIFO) — the list must be gone before the MCR is deleted.
+	t.Cleanup(func() {
+		var delErr error
+		out := captureTableOutput(func() {
+			delErr = DeleteMCRPrefixFilterList(&cobra.Command{Use: "delete"}, []string{mcrUID, pflID}, true)
+		})
+		if delErr != nil {
+			t.Logf("cleanup: delete prefix filter list %s failed: %v; output: %s", pflID, delErr, out)
+			return
+		}
+		t.Logf("cleanup: delete prefix filter list %s: %s", pflID, out)
+	})
+
+	// Assert the created list via the SDK (authoritative read).
+	created := getPrefixFilterListViaSDK(t, client, mcrUID, pflIDInt)
+	assert.Equal(t, "IPv6", created.AddressFamily, "address family should be IPv6")
+	assert.Equal(t, "Test IPv6 Prefix Filter List", created.Description)
+	assertPrefixEntries(t, created.Entries, []prefixEntry{
+		{action: "permit", prefix: "2001:db8::/32", ge: 48, le: 64},
+		{action: "deny", prefix: "2001:db8:abcd::/48", ge: 56, le: 64},
+	})
+
+	// Update the list via the CLI, adding a third IPv6 entry.
+	updatePFLJSON := `{
+		"description": "Test IPv6 Prefix Filter List Updated",
+		"addressFamily": "IPv6",
+		"entries": [
+			{"action": "permit", "prefix": "2001:db8::/32", "ge": 48, "le": 64},
+			{"action": "deny", "prefix": "2001:db8:abcd::/48", "ge": 56, "le": 64},
+			{"action": "permit", "prefix": "2001:db8:1234::/48", "ge": 56, "le": 64}
+		]
+	}`
+	updateCmd := integrationMCRPrefixFilterCmd()
+	require.NoError(t, updateCmd.Flags().Set("json", updatePFLJSON))
+	var updateErr error
+	updateOut := captureTableOutput(func() {
+		updateErr = UpdateMCRPrefixFilterList(updateCmd, []string{mcrUID, pflID}, true)
+	})
+	require.NoError(t, updateErr, "update IPv6 prefix filter list output: %s", updateOut)
+
+	// Assert the update landed via the SDK.
+	updated := getPrefixFilterListViaSDK(t, client, mcrUID, pflIDInt)
+	assert.Equal(t, "IPv6", updated.AddressFamily, "address family should remain IPv6")
+	assert.Equal(t, "Test IPv6 Prefix Filter List Updated", updated.Description)
+	assertPrefixEntries(t, updated.Entries, []prefixEntry{
+		{action: "permit", prefix: "2001:db8::/32", ge: 48, le: 64},
+		{action: "deny", prefix: "2001:db8:abcd::/48", ge: 56, le: 64},
+		{action: "permit", prefix: "2001:db8:1234::/48", ge: 56, le: 64},
+	})
+
+	// Delete via the CLI and assert it is gone via the SDK.
+	var deleteErr error
+	deleteOut := captureTableOutput(func() {
+		deleteErr = DeleteMCRPrefixFilterList(&cobra.Command{Use: "delete"}, []string{mcrUID, pflID}, true)
+	})
+	require.NoError(t, deleteErr, "delete IPv6 prefix filter list output: %s", deleteOut)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	_, getErr := client.MCRService.GetMCRPrefixFilterList(ctx, mcrUID, pflIDInt)
+	assert.Error(t, getErr, "IPv6 prefix filter list should no longer exist")
 }
