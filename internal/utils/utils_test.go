@@ -630,6 +630,21 @@ func TestWrapRunE_APIError(t *testing.T) {
 	assert.Equal(t, exitcodes.API, cliErr.Code)
 }
 
+func TestWrapRunE_ValidationError(t *testing.T) {
+	// A command that fails with a ValidationError must exit with the usage code,
+	// end to end through the wrapper, not just at classifyError.
+	wrapped := WrapRunE(func(cmd *cobra.Command, args []string) error {
+		return validation.NewValidationError("name", "", "must not be empty")
+	})
+	cmd := &cobra.Command{Use: "test"}
+	err := wrapped(cmd, []string{})
+	require.Error(t, err)
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
+}
+
 // parseErrorJSON unmarshals a JSON error envelope from s.
 func parseErrorJSON(t *testing.T, s string) (code int, errType, message string) {
 	t.Helper()
