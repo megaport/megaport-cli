@@ -16,6 +16,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestListIXs(t *testing.T) {
@@ -664,8 +665,10 @@ func TestBuyIX_NilResponse(t *testing.T) {
 	})
 
 	var err error
-	output.CaptureOutput(func() {
-		err = cmd.RunE(cmd, nil)
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = cmd.RunE(cmd, nil)
+		})
 	})
 
 	assert.Error(t, err)

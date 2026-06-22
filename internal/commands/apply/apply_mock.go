@@ -19,6 +19,7 @@ type MockPortService struct {
 	DeletePortCalledWith []string
 	GetPortStatus        string // provisioning status returned by GetPort (default ready)
 	GetPortErr           error  // error returned by GetPort (simulates a provision-wait failure)
+	GetPortReturnNil     bool   // GetPort returns (nil, nil) (simulates an empty API response)
 }
 
 func (m *MockPortService) BuyPort(ctx context.Context, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
@@ -45,6 +46,9 @@ func (m *MockPortService) ListPorts(ctx context.Context) ([]*megaport.Port, erro
 func (m *MockPortService) GetPort(ctx context.Context, portId string) (*megaport.Port, error) {
 	if m.GetPortErr != nil {
 		return nil, m.GetPortErr
+	}
+	if m.GetPortReturnNil {
+		return nil, nil
 	}
 	status := m.GetPortStatus
 	if status == "" {
@@ -97,6 +101,7 @@ type MockMCRService struct {
 	DeleteMCRCalledWith  []string
 	GetMCRStatus         string // provisioning status returned by GetMCR (default ready)
 	GetMCRErr            error  // error returned by GetMCR (simulates a provision-wait failure)
+	GetMCRReturnNil      bool   // GetMCR returns (nil, nil) (simulates an empty API response)
 }
 
 func (m *MockMCRService) BuyMCR(ctx context.Context, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
@@ -123,6 +128,9 @@ func (m *MockMCRService) ListMCRs(ctx context.Context, req *megaport.ListMCRsReq
 func (m *MockMCRService) GetMCR(ctx context.Context, mcrId string) (*megaport.MCR, error) {
 	if m.GetMCRErr != nil {
 		return nil, m.GetMCRErr
+	}
+	if m.GetMCRReturnNil {
+		return nil, nil
 	}
 	status := m.GetMCRStatus
 	if status == "" {
@@ -196,6 +204,7 @@ type MockMVEService struct {
 	DeleteMVECalledWith []string
 	GetMVEStatus        string // provisioning status returned by GetMVE (default ready)
 	GetMVEErr           error  // error returned by GetMVE (simulates a provision-wait failure)
+	GetMVEReturnNil     bool   // GetMVE returns (nil, nil) (simulates an empty API response)
 }
 
 func (m *MockMVEService) BuyMVE(ctx context.Context, req *megaport.BuyMVERequest) (*megaport.BuyMVEResponse, error) {
@@ -221,6 +230,9 @@ func (m *MockMVEService) ListMVEs(ctx context.Context, req *megaport.ListMVEsReq
 func (m *MockMVEService) GetMVE(ctx context.Context, mveId string) (*megaport.MVE, error) {
 	if m.GetMVEErr != nil {
 		return nil, m.GetMVEErr
+	}
+	if m.GetMVEReturnNil {
+		return nil, nil
 	}
 	status := m.GetMVEStatus
 	if status == "" {
@@ -264,6 +276,7 @@ type MockVXCService struct {
 	DeleteVXCCalledWith []string
 	GetVXCStatus        string // provisioning status returned by GetVXC (default ready)
 	GetVXCErr           error  // error returned by GetVXC (simulates a provision-wait failure)
+	GetVXCReturnNil     bool   // GetVXC returns (nil, nil) (simulates an empty API response)
 }
 
 func (m *MockVXCService) BuyVXC(ctx context.Context, req *megaport.BuyVXCRequest) (*megaport.BuyVXCResponse, error) {
@@ -291,6 +304,9 @@ func (m *MockVXCService) ListVXCs(ctx context.Context, req *megaport.ListVXCsReq
 func (m *MockVXCService) GetVXC(ctx context.Context, id string) (*megaport.VXC, error) {
 	if m.GetVXCErr != nil {
 		return nil, m.GetVXCErr
+	}
+	if m.GetVXCReturnNil {
+		return nil, nil
 	}
 	status := m.GetVXCStatus
 	if status == "" {

@@ -14,6 +14,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBuyVXC_NilResponse(t *testing.T) {
@@ -44,8 +45,10 @@ func TestBuyVXC_NilResponse(t *testing.T) {
 	})
 
 	var err error
-	output.CaptureOutput(func() {
-		err = BuyVXC(cmd, nil, true)
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = BuyVXC(cmd, nil, true)
+		})
 	})
 
 	assert.Error(t, err)
