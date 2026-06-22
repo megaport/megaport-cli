@@ -14,10 +14,12 @@ type MockServiceKeyService struct {
 
 	ListServiceKeysError           error
 	ListServiceKeysResult          *megaport.ListServiceKeysResponse
+	ListServiceKeysReturnNil       bool
 	CapturedListServiceKeysRequest *megaport.ListServiceKeysRequest
 
 	UpdateServiceKeyError           error
 	UpdateServiceKeyResult          *megaport.UpdateServiceKeyResponse
+	UpdateServiceKeyReturnNil       bool
 	CapturedUpdateServiceKeyRequest *megaport.UpdateServiceKeyRequest
 
 	GetServiceKeyError         error
@@ -46,6 +48,9 @@ func (m *MockServiceKeyService) ListServiceKeys(ctx context.Context, req *megapo
 	m.CapturedListServiceKeysRequest = req
 	if m.ListServiceKeysError != nil {
 		return nil, m.ListServiceKeysError
+	}
+	if m.ListServiceKeysReturnNil {
+		return nil, nil
 	}
 	if m.ListServiceKeysResult != nil {
 		return m.ListServiceKeysResult, nil
@@ -76,6 +81,9 @@ func (m *MockServiceKeyService) UpdateServiceKey(ctx context.Context, req *megap
 	m.CapturedUpdateServiceKeyRequest = req
 	if m.UpdateServiceKeyError != nil {
 		return nil, m.UpdateServiceKeyError
+	}
+	if m.UpdateServiceKeyReturnNil {
+		return nil, nil
 	}
 	if m.UpdateServiceKeyResult != nil {
 		return m.UpdateServiceKeyResult, nil

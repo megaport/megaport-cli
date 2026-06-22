@@ -147,6 +147,11 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("failed to update service key: %w", err)
 	}
 
+	if resp == nil {
+		output.PrintError("Service key update returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
+	}
+
 	if !resp.IsUpdated {
 		output.PrintError("Service key update was not applied", noColor)
 		return fmt.Errorf("service key update was not applied")
@@ -180,6 +185,11 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 	if err != nil {
 		output.PrintError("Failed to list service keys: %v", noColor, err)
 		return fmt.Errorf("failed to list service keys: %w", err)
+	}
+
+	if resp == nil {
+		output.PrintError("Service key list returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
 	}
 
 	serviceKeys := resp.ServiceKeys
