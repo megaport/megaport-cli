@@ -157,9 +157,10 @@ The workflow authenticates to AWS via OIDC (no long-lived keys) using the shared
 S3 deploy role. That role is provisioned by adding `megaport/megaport-cli` to the
 `github_repo_to_s3_prod_deploy_role_mappings` map in `megaport/aws-infrastructure`
 (`production-legacy/github_runners_iam.tf`), granting the `media.megaport.com` bucket.
-The workflow then fails early until these repo settings are present (the role ARN is
-stored as a secret to keep the AWS account id out of the plaintext variables list; the
-rest are plain variables):
+The workflow then fails early until these repo settings are present. The role ARN is
+stored as a secret so its embedded AWS account id stays masked in this public repo's
+world-readable Actions logs (OIDC trust is the real guard, so this is just defense in
+depth); the rest are plain variables:
 
 | Setting | Kind | Value |
 |---|---|---|

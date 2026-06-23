@@ -8,8 +8,10 @@ name: Publish WASM to S3
 #   megaport/megaport-cli to github_repo_to_s3_prod_deploy_role_mappings granting the
 #   media.megaport.com bucket. That provisions this repo's standard
 #   AWS_S3_PROD_DEPLOY_ROLE. Then set this repo config:
-#     secrets.AWS_S3_PROD_DEPLOY_ROLE  role ARN to assume (a secret only to keep the AWS
-#                                      account id out of the plaintext variables list)
+#     secrets.AWS_S3_PROD_DEPLOY_ROLE  role ARN to assume (a secret so the embedded AWS
+#                                      account id stays masked in this public repo's
+#                                      world-readable Actions logs; OIDC trust is the real
+#                                      guard, this is just defense in depth)
 #     vars.AWS_S3_PROD_DEPLOY_REGION   e.g. ap-southeast-2 (org-standard name)
 #     vars.WASM_S3_BUCKET              target bucket (media.megaport.com)
 #     vars.WASM_S3_PREFIX             key prefix within the bucket (portal/megaport-cli)
