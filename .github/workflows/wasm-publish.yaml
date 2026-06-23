@@ -121,9 +121,13 @@ jobs:
           else
             version="$(git describe --tags --always 2>/dev/null || git rev-parse --short HEAD)"
           fi
-          # version becomes an S3 key and a CloudFront invalidation path, so keep it strict.
-          if ! printf '%s' "$version" | grep -Eq '^[A-Za-z0-9._-]+$'; then
-            echo "::error::Invalid version label '$version'; must match [A-Za-z0-9._-]+"
+          # version becomes an S3 key and a CloudFront invalidation path, so keep it strict:
+          # leading alphanumeric, only [A-Za-z0-9._-], and no '..' segment.
+          case "$version" in
+            *..*) echo "::error::Invalid version label '$version'; must not contain '..'"; exit 1 ;;
+          esac
+          if ! printf '%s' "$version" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*$'; then
+            echo "::error::Invalid version label '$version'; must start with an alphanumeric and match [A-Za-z0-9._-]"
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -160,12 +164,14 @@ jobs:
             local dest="s3://${BUCKET}/${PREFIX}/$1"
             local cache="$2"
             echo "==> Publishing to ${dest}"
-            # Sync the site (incl. wasm_exec.js); the wasm is uploaded separately below
-            # so we can set Content-Encoding on the brotli copy.
+            # Sync the static site; the wasm and wasm_exec.js are uploaded separately below
+            # so we can pin their Content-Type/Content-Encoding instead of relying on
+            # aws s3 sync's MIME inference.
             aws s3 sync "$src/" "$dest/" --delete \
               --exclude 'megaport.wasm' \
               --exclude 'megaport.wasm.br' \
               --exclude 'megaport.wasm.gz' \
+              --exclude 'wasm_exec.js' \
               --cache-control "$cache"
             # Brotli only: the portal's browser audience always sends Accept-Encoding: br,
             # so we don't upload a gzip/identity fallback (unlike the general guidance in
@@ -173,6 +179,11 @@ jobs:
             aws s3 cp "$src/megaport.wasm.br" "$dest/megaport.wasm" \
               --content-type application/wasm \
               --content-encoding br \
+              --cache-control "$cache"
+            # Pin the JS MIME type so a strict CDN (X-Content-Type-Options: nosniff) can't
+            # reject the <script src> load over a misinferred content-type.
+            aws s3 cp "$src/wasm_exec.js" "$dest/wasm_exec.js" \
+              --content-type text/javascript \
               --cache-control "$cache"
           }
 

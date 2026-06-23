@@ -151,6 +151,13 @@ megaportCli: {
 }
 ```
 
+The portal loads the wasm with a cross-origin `fetch().arrayBuffer()`, so the
+`media.megaport.com` bucket/CloudFront must return `Access-Control-Allow-Origin` for the
+portal's origin. CORS is bucket-level config owned by infra, not something this workflow
+sets; the bucket already serves the portal's existing assets, so this is normally already
+in place, but confirm it before treating the integration as ready. (`wasm_exec.js` is
+loaded via `<script src>` and does not need CORS.)
+
 ### Required GitHub config
 
 The workflow authenticates to AWS via OIDC (no long-lived keys) using the shared prod
