@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -34,6 +35,20 @@ func ContextFromCmd(cmd *cobra.Command) (context.Context, context.CancelFunc) {
 // where the operation-appropriate default differs from the global 90-second default.
 func ContextFromCmdWithDefault(cmd *cobra.Command, defaultTimeout time.Duration) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), TimeoutFromCmd(cmd, defaultTimeout))
+}
+
+// ValidateTimeoutFlag rejects an explicitly supplied --timeout that is not
+// positive. An unset flag is valid: each command falls back to its own default.
+// Only an explicit zero or negative value (e.g. --timeout 0) is an error, since
+// silently substituting a default for it would hide the user's mistake.
+func ValidateTimeoutFlag(cmd *cobra.Command) error {
+	if cmd == nil || !cmd.Flags().Changed("timeout") {
+		return nil
+	}
+	if val, err := cmd.Flags().GetDuration("timeout"); err == nil && val <= 0 {
+		return fmt.Errorf("--timeout must be greater than 0, got %s", val)
+	}
+	return nil
 }
 
 // TimeoutFromCmd returns the effective timeout duration from the command's
