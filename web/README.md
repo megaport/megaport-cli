@@ -93,98 +93,26 @@ path. (The S3 publish flow below does serve an unhashed `megaport.wasm`, but onl
 a per-version prefix where the path itself is unique, so immutable caching is safe
 there.)
 
-## Publishing to S3 (CDN) and portal integration
+## Publishing to S3 (CDN)
 
-`.github/workflows/wasm-publish.yaml` builds the static site and publishes it to the
-`media.megaport.com` S3 bucket (fronted by CloudFront). It is manual-only: trigger it
-from the Actions tab (`workflow_dispatch`), optionally selecting a tag to run from. There
-is deliberately no automatic tag-push trigger, since this writes to a production bucket.
+`.github/workflows/wasm-publish.yaml` builds the static site and publishes it to a
+CloudFront-fronted S3 bucket. It is manual-only (`workflow_dispatch`): a production
+publish is always a deliberate action, never an automatic tag push.
 
-### Layout
+Each run uploads the whole static site under two prefixes:
 
-Each run publishes the whole static site under two prefixes inside `portal/megaport-cli/`:
+- `<version>/`: immutable, long-lived cache. Treat a version label as write-once, so use
+  a fresh tag or `version` input per release.
+- `latest/`: short TTL, refreshed on every run.
 
-- `portal/megaport-cli/<version>/`: immutable (`max-age=31536000, immutable`). The
-  version comes from the `version` input, the ref the run was dispatched from (e.g. a
-  tag), or `git describe`.
-- `portal/megaport-cli/latest/`: short TTL (`max-age=300`), refreshed on every run.
+The portal loads `megaport.wasm` (brotli, served with `Content-Encoding: br`) and
+`wasm_exec.js` by static config URL, so unlike the `cmd/server` flow above these
+filenames are kept stable rather than content-hashed; the version/latest prefix is the
+cache-buster instead.
 
-Treat a `<version>` label as write-once: its objects can be cached ~forever, so
-re-publishing the same label with different content would serve stale bytes. Use a fresh
-tag or `version` input per release.
-
-Every file under a prefix (including `wasm_exec.js`) inherits that prefix's cache
-lifetime. This differs from the fixed-path `cmd/server` model in the Caching section
-above, where `wasm_exec.js` is `no-cache`: here the `<version>/` path is unique so
-immutable caching is safe, and `latest/`'s short TTL gives the same freshness `no-cache`
-would.
-
-### Stable filenames, not content-hashed
-
-Unlike the `cmd/server` / Docker flow above, this flow does NOT run `cmd/wasmhash`. The
-portal loads `megaport.wasm` and `wasm_exec.js` by static config URL and does not read
-our `index.html`, so a changing filename would break it. The `<version>/` and `latest/`
-prefixes provide the cache-busting instead: a given versioned URL never changes content,
-so it is safe to serve immutable.
-
-### What gets uploaded
-
-The whole static site is synced, but the portal only loads two files by URL:
-`megaport.wasm` (brotli-compressed, served with `Content-Encoding: br`) and `wasm_exec.js`.
-`index.html` and the Vue `assets/` are uploaded as a byproduct of the sync, not as a
-browsable site: the built `index.html` references its assets with absolute `/assets/...`
-paths, which do not resolve under a versioned prefix.
-
-Only the brotli copy is published as `megaport.wasm` (with `Content-Encoding: br`); no
-gzip or identity fallback is uploaded, because the portal's browser audience always
-accepts brotli.
-
-### Portal integration
-
-The portal's `wasmUrl` / `wasmExecUrl` point at the `latest/` prefix while the
-integration is evolving, then pin to a specific `<version>/` prefix once it is stable:
-
-```js
-megaportCli: {
-  wasmUrl:     'https://media.megaport.com/portal/megaport-cli/latest/megaport.wasm',
-  wasmExecUrl: 'https://media.megaport.com/portal/megaport-cli/latest/wasm_exec.js',
-}
-```
-
-The portal loads the wasm with a cross-origin `fetch().arrayBuffer()`, so the
-`media.megaport.com` bucket/CloudFront must return `Access-Control-Allow-Origin` for the
-portal's origin. CORS is bucket-level config owned by infra, not something this workflow
-sets; the bucket already serves the portal's existing assets, so this is normally already
-in place, but confirm it before treating the integration as ready. (`wasm_exec.js` is
-loaded via `<script src>` and does not need CORS.)
-
-### Required GitHub config
-
-The workflow authenticates to AWS via OIDC (no long-lived keys) using the shared prod
-S3 deploy role. That role is provisioned by adding `megaport/megaport-cli` to the
-`github_repo_to_s3_prod_deploy_role_mappings` map in `megaport/aws-infrastructure`
-(`production-legacy/github_runners_iam.tf`), granting the `media.megaport.com` bucket.
-The workflow then fails early until these repo settings are present. The role ARN is
-stored as a secret so its embedded AWS account id stays masked in this public repo's
-world-readable Actions logs (OIDC trust is the real guard, so this is just defense in
-depth); the rest are plain variables:
-
-| Setting | Kind | Value |
-|---|---|---|
-| `AWS_S3_PROD_DEPLOY_ROLE` | secret | ARN of the shared prod S3 deploy role (from `megaport/aws-infrastructure`) |
-| `AWS_S3_PROD_DEPLOY_REGION` | var | `ap-southeast-2` |
-| `WASM_S3_BUCKET` | var | `media.megaport.com` |
-| `WASM_S3_PREFIX` | var | `portal/megaport-cli` |
-| `WASM_CLOUDFRONT_DISTRIBUTION_ID` | var | optional; if set, published paths are invalidated, otherwise `latest/` self-refreshes within its TTL. The shared deploy role has no CloudFront permission, so do not set this until that IAM policy is extended with `cloudfront:CreateInvalidation`, or the publish job fails with `AccessDenied` after the upload. |
-
-### Deploy safety
-
-The deploy role trusts the whole repo, so anyone with write access who can run the
-workflow can publish to the production bucket. The workflow is therefore manual-only
-(`workflow_dispatch`, no automatic tag-push trigger), so a deploy is always a deliberate
-action by a known user. To add a stronger required-reviewers approval gate, a repo admin
-can create a `production` GitHub environment with required reviewers, after which adding
-`environment: production` back to the publish job makes every run wait for approval.
+Authentication uses GitHub OIDC (no long-lived keys). The workflow fails fast with a
+clear message if its required repo configuration is missing; see the workflow file for
+the expected secrets and variables.
 
 ## Development
 
