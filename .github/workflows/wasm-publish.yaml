@@ -34,11 +34,13 @@ name: Publish WASM to S3
 #   pin to a specific <version>/ prefix once the integration is stable.
 #
 # SAFETY:
-#   A v* tag push auto-publishes to the production bucket. The job runs in the
-#   `production` GitHub environment, so add required reviewers there to gate the
-#   auto-deploy. The shared deploy role trusts the whole repo, so this GitHub-side
-#   approval is what guards production.
+#   This deploys to the production bucket, so it is manual-only (workflow_dispatch),
+#   never an automatic tag push: a deploy is always a deliberate action by someone with
+#   write access. The shared deploy role trusts the whole repo, so to add a required-
+#   reviewers approval gate, move this job into a `production` GitHub environment (needs a
+#   repo admin to create it) and re-add `environment: production` to the job.
 
+# Manual-only by design: do not add an automatic tag-push trigger (see SAFETY above).
 on:
   workflow_dispatch:
     inputs:
@@ -51,17 +53,14 @@ on:
         required: false
         default: true
         type: boolean
-  push:
-    tags:
-      - 'v*'
 
 permissions:
   contents: read
   id-token: write  # required for AWS OIDC
 
 # One constant group serializes every publish, so two runs can't race a --delete sync
-# against the shared latest/ prefix (e.g. a v* tag push and a manual dispatch on a branch
-# land on different refs but the same bucket). cancel-in-progress: false queues them.
+# against the shared latest/ prefix (two manual dispatches on different refs would
+# otherwise land on the same bucket). cancel-in-progress: false queues them.
 concurrency:
   group: wasm-publish
   cancel-in-progress: false
@@ -69,7 +68,6 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    environment: production
     steps:
       - name: Check required configuration
         env:
@@ -150,7 +148,7 @@ jobs:
           BUCKET: ${{ vars.WASM_S3_BUCKET }}
           PREFIX: ${{ vars.WASM_S3_PREFIX }}
           VERSION: ${{ steps.version.outputs.version }}
-          PUBLISH_LATEST: ${{ github.event_name == 'push' || inputs.publish_latest }}
+          PUBLISH_LATEST: ${{ inputs.publish_latest }}
         run: |
           set -euo pipefail
           src=web/vue-demo
@@ -188,7 +186,7 @@ jobs:
           DISTRIBUTION_ID: ${{ vars.WASM_CLOUDFRONT_DISTRIBUTION_ID }}
           PREFIX: ${{ vars.WASM_S3_PREFIX }}
           VERSION: ${{ steps.version.outputs.version }}
-          PUBLISH_LATEST: ${{ github.event_name == 'push' || inputs.publish_latest }}
+          PUBLISH_LATEST: ${{ inputs.publish_latest }}
         run: |
           set -euo pipefail
           # The shared s3-prod-deploy role has no cloudfront:* permission; setting
@@ -209,7 +207,7 @@ jobs:
         env:
           PREFIX: ${{ vars.WASM_S3_PREFIX }}
           VERSION: ${{ steps.version.outputs.version }}
-          PUBLISH_LATEST: ${{ github.event_name == 'push' || inputs.publish_latest }}
+          PUBLISH_LATEST: ${{ inputs.publish_latest }}
         run: |
           {
             echo "### WASM published"

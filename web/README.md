@@ -96,15 +96,17 @@ there.)
 ## Publishing to S3 (CDN) and portal integration
 
 `.github/workflows/wasm-publish.yaml` builds the static site and publishes it to the
-`media.megaport.com` S3 bucket (fronted by CloudFront). Trigger it manually
-(`workflow_dispatch`) or by pushing a `v*` tag.
+`media.megaport.com` S3 bucket (fronted by CloudFront). It is manual-only: trigger it
+from the Actions tab (`workflow_dispatch`), optionally selecting a tag to run from. There
+is deliberately no automatic tag-push trigger, since this writes to a production bucket.
 
 ### Layout
 
 Each run publishes the whole static site under two prefixes inside `portal/megaport-cli/`:
 
 - `portal/megaport-cli/<version>/`: immutable (`max-age=31536000, immutable`). The
-  version comes from the tag, a manual input, or `git describe`.
+  version comes from the `version` input, the ref the run was dispatched from (e.g. a
+  tag), or `git describe`.
 - `portal/megaport-cli/latest/`: short TTL (`max-age=300`), refreshed on every run.
 
 Treat a `<version>` label as write-once: its objects can be cached ~forever, so
@@ -165,9 +167,14 @@ The workflow then fails early until these repo variables are set:
 | `WASM_S3_PREFIX` | var | `portal/megaport-cli` |
 | `WASM_CLOUDFRONT_DISTRIBUTION_ID` | var | optional; if set, published paths are invalidated, otherwise `latest/` self-refreshes within its TTL. The shared deploy role has no CloudFront permission, so do not set this until that IAM policy is extended with `cloudfront:CreateInvalidation`, or the publish job fails with `AccessDenied` after the upload. |
 
-The publish job runs in the `production` GitHub environment. Add required reviewers to
-that environment so a `v*` tag push cannot auto-deploy unreviewed: the deploy role trusts
-the whole repo, so this GitHub-side approval is the gate that guards production.
+### Deploy safety
+
+The deploy role trusts the whole repo, so anyone with write access who can run the
+workflow can publish to the production bucket. The workflow is therefore manual-only
+(`workflow_dispatch`, no automatic tag-push trigger), so a deploy is always a deliberate
+action by a known user. To add a stronger required-reviewers approval gate, a repo admin
+can create a `production` GitHub environment with required reviewers, after which adding
+`environment: production` back to the publish job makes every run wait for approval.
 
 ## Development
 
