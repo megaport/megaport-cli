@@ -33,9 +33,13 @@ grep -q '^\[Unreleased\]: ' "$changelog" || { echo "error: no '[Unreleased]:' re
 
 date="${CHANGELOG_DATE:-$(date -u +%F)}"
 
-# Previous version = the base of the current [Unreleased] compare link. Assumes
-# the prior release's changelog PR has merged; out-of-order PRs can skip a version.
-prev="$(sed -n 's#^\[Unreleased\]:.*/compare/\(v[0-9A-Za-z.\-]*\)\.\.\.HEAD.*#\1#p' "$changelog" | head -n1)"
+# Previous version: prefer PREV_VERSION (the release workflow passes the previous
+# git tag, which is authoritative even if an earlier changelog PR hasn't merged
+# yet). Fall back to the base of the current [Unreleased] compare link.
+prev="${PREV_VERSION:-}"
+if [ -z "$prev" ]; then
+  prev="$(sed -n 's#^\[Unreleased\]:.*/compare/\(v[0-9A-Za-z.\-]*\)\.\.\.HEAD.*#\1#p' "$changelog" | head -n1)"
+fi
 
 # Transform the generated notes into the version's section body:
 #   - drop GoReleaser's "## Changelog" header

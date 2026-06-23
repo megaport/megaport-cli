@@ -96,6 +96,12 @@ jobs:
         run: |
           notes="$(mktemp)"
           gh release view "$TAG" --json body --jq '.body // ""' > "$notes"
+          # Authoritative previous version: the version tag before this one. Beats
+          # reading the changelog link, which can be stale if an earlier release's
+          # changelog PR hasn't merged. Empty on the first release; the script then
+          # falls back to the changelog link.
+          PREV_VERSION="$(git describe --tags --abbrev=0 --match 'v*' "${TAG}^" 2>/dev/null || true)"
+          export PREV_VERSION
           bash scripts/update-changelog.sh "$TAG" "$notes"
 
       - name: Open a PR with the CHANGELOG.md update
