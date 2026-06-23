@@ -83,6 +83,29 @@ func TestNoPagerDefaultApplied(t *testing.T) {
 	assert.True(t, output.GetNoPager(), "output.GetNoPager() should be true after PersistentPreRunE wires NoPager via ApplyOutputConfig")
 }
 
+// TestTimeoutFlagRejectsNonPositive verifies that an explicit non-positive
+// --timeout is rejected as a usage error through PersistentPreRunE, rather than
+// silently falling back to a default.
+func TestTimeoutFlagRejectsNonPositive(t *testing.T) {
+	// Reset the shared persistent flag so the explicit value (and Changed state)
+	// doesn't leak into sibling tests that run through rootCmd.
+	defer func() {
+		f := rootCmd.PersistentFlags().Lookup("timeout")
+		_ = f.Value.Set("0s")
+		f.Changed = false
+	}()
+
+	rootCmd.SetArgs([]string{"version", "--timeout", "0"})
+	var execErr error
+	_ = output.CaptureOutput(func() {
+		execErr = rootCmd.Execute()
+	})
+
+	require.Error(t, execErr)
+	assert.Equal(t, exitcodes.Usage, exitCodeFromError(execErr))
+	assert.Contains(t, execErr.Error(), "--timeout must be greater than 0")
+}
+
 // TestApplyDefaultSettings_WarnsOnConfigLoadFailure verifies that when
 // NewConfigManager fails (e.g. the configured config dir cannot be created),
 // applyDefaultSettings returns a warning message instead of silently skipping.
