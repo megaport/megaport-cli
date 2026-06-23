@@ -15,7 +15,12 @@ name: Publish WASM to S3
 #   Optional:
 #     vars.WASM_CLOUDFRONT_DISTRIBUTION_ID   if set, the latest/ + version paths are
 #                                            invalidated; if unset, latest/ self-refreshes
-#                                            within its short TTL.
+#                                            within its short TTL. WARNING: the shared
+#                                            s3-prod-deploy role has NO CloudFront
+#                                            permissions, so do not set this until that IAM
+#                                            policy is extended with cloudfront:CreateInvalidation,
+#                                            or the job fails with AccessDenied after the
+#                                            S3 upload has already run.
 #   See the "Check required configuration" step, which fails early with a clear message.
 #
 # WHAT GETS PUBLISHED:
@@ -54,9 +59,11 @@ permissions:
   contents: read
   id-token: write  # required for AWS OIDC
 
-# Don't let two publishes race a --delete sync / invalidation against the same ref.
+# One constant group serializes every publish, so two runs can't race a --delete sync
+# against the shared latest/ prefix (e.g. a v* tag push and a manual dispatch on a branch
+# land on different refs but the same bucket). cancel-in-progress: false queues them.
 concurrency:
-  group: wasm-publish-${{ github.ref }}
+  group: wasm-publish
   cancel-in-progress: false
 
 jobs:
@@ -111,7 +118,7 @@ jobs:
           elif [ -n "$INPUT_VERSION" ]; then
             version="$INPUT_VERSION"
           else
-            version="$(git describe --tags --always --dirty 2>/dev/null || git rev-parse --short HEAD)"
+            version="$(git describe --tags --always 2>/dev/null || git rev-parse --short HEAD)"
           fi
           # version becomes an S3 key and a CloudFront invalidation path, so keep it strict.
           if ! printf '%s' "$version" | grep -Eq '^[A-Za-z0-9._-]+$'; then
@@ -169,6 +176,8 @@ jobs:
           }
 
           # Versioned prefix is immutable; latest is short-lived so the portal picks up rebuilds.
+          # Never reuse a version label for different content: the immutable objects can be
+          # cached ~forever, so re-publishing the same <version>/ would serve stale bytes.
           publish "$VERSION" 'public, max-age=31536000, immutable'
           if [ "$PUBLISH_LATEST" = "true" ]; then
             publish latest 'public, max-age=300'
@@ -182,6 +191,9 @@ jobs:
           PUBLISH_LATEST: ${{ github.event_name == 'push' || inputs.publish_latest }}
         run: |
           set -euo pipefail
+          # The shared s3-prod-deploy role has no cloudfront:* permission; setting
+          # WASM_CLOUDFRONT_DISTRIBUTION_ID without first extending that IAM policy will
+          # fail this step with AccessDenied (the S3 publish above has already run).
           if [ -z "$DISTRIBUTION_ID" ]; then
             echo "WASM_CLOUDFRONT_DISTRIBUTION_ID not set; skipping invalidation (latest/ self-refreshes within its TTL)."
             exit 0

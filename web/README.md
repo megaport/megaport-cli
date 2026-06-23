@@ -107,6 +107,10 @@ Each run publishes the whole static site under two prefixes inside `portal/megap
   version comes from the tag, a manual input, or `git describe`.
 - `portal/megaport-cli/latest/`: short TTL (`max-age=300`), refreshed on every run.
 
+Treat a `<version>` label as write-once: its objects can be cached ~forever, so
+re-publishing the same label with different content would serve stale bytes. Use a fresh
+tag or `version` input per release.
+
 Every file under a prefix (including `wasm_exec.js`) inherits that prefix's cache
 lifetime. This differs from the fixed-path `cmd/server` model in the Caching section
 above, where `wasm_exec.js` is `no-cache`: here the `<version>/` path is unique so
@@ -159,7 +163,11 @@ The workflow then fails early until these repo variables are set:
 | `AWS_S3_PROD_DEPLOY_REGION` | var | `ap-southeast-2` |
 | `WASM_S3_BUCKET` | var | `media.megaport.com` |
 | `WASM_S3_PREFIX` | var | `portal/megaport-cli` |
-| `WASM_CLOUDFRONT_DISTRIBUTION_ID` | var | optional; if set, published paths are invalidated, otherwise `latest/` self-refreshes within its TTL |
+| `WASM_CLOUDFRONT_DISTRIBUTION_ID` | var | optional; if set, published paths are invalidated, otherwise `latest/` self-refreshes within its TTL. The shared deploy role has no CloudFront permission, so do not set this until that IAM policy is extended with `cloudfront:CreateInvalidation`, or the publish job fails with `AccessDenied` after the upload. |
+
+The publish job runs in the `production` GitHub environment. Add required reviewers to
+that environment so a `v*` tag push cannot auto-deploy unreviewed: the deploy role trusts
+the whole repo, so this GitHub-side approval is the gate that guards production.
 
 ## Development
 
