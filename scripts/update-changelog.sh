@@ -33,7 +33,8 @@ grep -q '^\[Unreleased\]: ' "$changelog" || { echo "error: no '[Unreleased]:' re
 
 date="${CHANGELOG_DATE:-$(date -u +%F)}"
 
-# Previous version is whatever the [Unreleased] compare link currently points at.
+# Previous version = the base of the current [Unreleased] compare link. Assumes
+# the prior release's changelog PR has merged; out-of-order PRs can skip a version.
 prev="$(sed -n 's#^\[Unreleased\]:.*/compare/\(v[0-9A-Za-z.\-]*\)\.\.\.HEAD.*#\1#p' "$changelog" | head -n1)"
 
 # Transform the generated notes into the version's section body:
