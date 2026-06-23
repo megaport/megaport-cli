@@ -7,8 +7,9 @@ name: Publish WASM to S3
 #   megaport/aws-infrastructure (production-legacy/github_runners_iam.tf): add
 #   megaport/megaport-cli to github_repo_to_s3_prod_deploy_role_mappings granting the
 #   media.megaport.com bucket. That provisions this repo's standard
-#   AWS_S3_PROD_DEPLOY_ROLE. Then set as repo variables:
-#     vars.AWS_S3_PROD_DEPLOY_ROLE     role ARN to assume (org-standard name)
+#   AWS_S3_PROD_DEPLOY_ROLE. Then set this repo config:
+#     secrets.AWS_S3_PROD_DEPLOY_ROLE  role ARN to assume (a secret only to keep the AWS
+#                                      account id out of the plaintext variables list)
 #     vars.AWS_S3_PROD_DEPLOY_REGION   e.g. ap-southeast-2 (org-standard name)
 #     vars.WASM_S3_BUCKET              target bucket (media.megaport.com)
 #     vars.WASM_S3_PREFIX             key prefix within the bucket (portal/megaport-cli)
@@ -71,14 +72,14 @@ jobs:
     steps:
       - name: Check required configuration
         env:
-          AWS_ROLE_ARN: ${{ vars.AWS_S3_PROD_DEPLOY_ROLE }}
+          AWS_ROLE_ARN: ${{ secrets.AWS_S3_PROD_DEPLOY_ROLE }}
           AWS_REGION: ${{ vars.AWS_S3_PROD_DEPLOY_REGION }}
           WASM_S3_BUCKET: ${{ vars.WASM_S3_BUCKET }}
           WASM_S3_PREFIX: ${{ vars.WASM_S3_PREFIX }}
         run: |
           set -euo pipefail
           missing=()
-          [ -z "$AWS_ROLE_ARN" ] && missing+=("vars.AWS_S3_PROD_DEPLOY_ROLE")
+          [ -z "$AWS_ROLE_ARN" ] && missing+=("secrets.AWS_S3_PROD_DEPLOY_ROLE")
           [ -z "$AWS_REGION" ] && missing+=("vars.AWS_S3_PROD_DEPLOY_REGION")
           [ -z "$WASM_S3_BUCKET" ] && missing+=("vars.WASM_S3_BUCKET")
           [ -z "$WASM_S3_PREFIX" ] && missing+=("vars.WASM_S3_PREFIX")
@@ -140,7 +141,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4.3.1
         with:
-          role-to-assume: ${{ vars.AWS_S3_PROD_DEPLOY_ROLE }}
+          role-to-assume: ${{ secrets.AWS_S3_PROD_DEPLOY_ROLE }}
           aws-region: ${{ vars.AWS_S3_PROD_DEPLOY_REGION }}
 
       - name: Publish to S3

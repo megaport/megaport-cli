@@ -157,11 +157,13 @@ The workflow authenticates to AWS via OIDC (no long-lived keys) using the shared
 S3 deploy role. That role is provisioned by adding `megaport/megaport-cli` to the
 `github_repo_to_s3_prod_deploy_role_mappings` map in `megaport/aws-infrastructure`
 (`production-legacy/github_runners_iam.tf`), granting the `media.megaport.com` bucket.
-The workflow then fails early until these repo variables are set:
+The workflow then fails early until these repo settings are present (the role ARN is
+stored as a secret to keep the AWS account id out of the plaintext variables list; the
+rest are plain variables):
 
 | Setting | Kind | Value |
 |---|---|---|
-| `AWS_S3_PROD_DEPLOY_ROLE` | var | ARN of the shared prod S3 deploy role (from `megaport/aws-infrastructure`) |
+| `AWS_S3_PROD_DEPLOY_ROLE` | secret | ARN of the shared prod S3 deploy role (from `megaport/aws-infrastructure`) |
 | `AWS_S3_PROD_DEPLOY_REGION` | var | `ap-southeast-2` |
 | `WASM_S3_BUCKET` | var | `media.megaport.com` |
 | `WASM_S3_PREFIX` | var | `portal/megaport-cli` |
