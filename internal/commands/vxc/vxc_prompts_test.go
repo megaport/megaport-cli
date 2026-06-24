@@ -972,6 +972,41 @@ func TestBuildUpdateVXCRequestFromPrompt(t *testing.T) {
 				// WaitForTime is set by the caller (UpdateVXC), not the prompt builder
 			},
 		},
+		{
+			// Regression: previously the A-End config was assigned to req.BEndPartnerConfig.
+			name: "A-End VRouter config goes to AEndPartnerConfig not BEndPartnerConfig",
+			responses: []string{
+				"no",  // update name
+				"no",  // update rate limit
+				"no",  // update term
+				"no",  // update cost centre
+				"no",  // update shutdown
+				"no",  // update A-End VLAN
+				"no",  // update B-End VLAN
+				"no",  // update A-End inner VLAN
+				"no",  // update B-End inner VLAN
+				"no",  // update A-End UID
+				"no",  // update B-End UID
+				"yes", // configure A-End VRouter partner config
+				"1",   // number of interfaces
+				"",    // VLAN (untagged)
+				"no",  // add IP addresses
+				"no",  // add IP routes
+				"no",  // add NAT IPs
+				"no",  // configure BFD
+				"no",  // configure BGP
+				"",    // interface type (default subInterface)
+				"no",  // configure B-End VRouter partner config
+			},
+			verify: func(t *testing.T, req *megaport.UpdateVXCRequest) {
+				assert.NotNil(t, req.AEndPartnerConfig, "A-End config must be set")
+				assert.Nil(t, req.BEndPartnerConfig, "B-End config must be nil")
+				vrouterCfg, ok := req.AEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig)
+				assert.True(t, ok)
+				assert.Len(t, vrouterCfg.Interfaces, 1)
+				assert.Equal(t, -1, vrouterCfg.Interfaces[0].VLAN)
+			},
+		},
 	}
 
 	for _, tc := range tests {

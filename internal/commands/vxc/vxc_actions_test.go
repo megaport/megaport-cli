@@ -1405,6 +1405,72 @@ func TestBuildUpdateVXCRequestFromFlags_NewFields_InvalidVNICIndex(t *testing.T)
 	}
 }
 
+func TestBuildUpdateVXCRequestFromFlags_PartnerConfig(t *testing.T) {
+	makeCmd := func() *cobra.Command {
+		cmd := &cobra.Command{Use: "update [vxcUID]"}
+		cmd.Flags().String("name", "", "")
+		cmd.Flags().Int("rate-limit", 0, "")
+		cmd.Flags().Int("term", 0, "")
+		cmd.Flags().String("cost-centre", "", "")
+		cmd.Flags().Bool("shutdown", false, "")
+		cmd.Flags().Int("a-end-vlan", 0, "")
+		cmd.Flags().Int("b-end-vlan", 0, "")
+		cmd.Flags().Int("a-end-inner-vlan", 0, "")
+		cmd.Flags().Int("b-end-inner-vlan", 0, "")
+		cmd.Flags().String("a-end-uid", "", "")
+		cmd.Flags().String("b-end-uid", "", "")
+		cmd.Flags().String("a-end-partner-config", "", "")
+		cmd.Flags().String("b-end-partner-config", "", "")
+		cmd.Flags().Bool("is-approved", false, "")
+		cmd.Flags().Int("a-vnic-index", -1, "")
+		cmd.Flags().Int("b-vnic-index", -1, "")
+		return cmd
+	}
+
+	t.Run("valid vRouter A-End config accepted", func(t *testing.T) {
+		cmd := makeCmd()
+		testutil.SetFlags(t, cmd, map[string]string{
+			"a-end-partner-config": `{"connectType":"VROUTER","interfaces":[{"vlan":100,"ipAddresses":["10.0.0.1/30"]}]}`,
+		})
+		req, err := buildUpdateVXCRequestFromFlags(cmd)
+		assert.NoError(t, err)
+		assert.NotNil(t, req.AEndPartnerConfig)
+		assert.Nil(t, req.BEndPartnerConfig)
+	})
+
+	t.Run("non-VRouter A-End config rejected", func(t *testing.T) {
+		cmd := makeCmd()
+		testutil.SetFlags(t, cmd, map[string]string{
+			"a-end-partner-config": `{"connectType":"AWS","ownerAccount":"123456789012"}`,
+		})
+		_, err := buildUpdateVXCRequestFromFlags(cmd)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "VRouter")
+	})
+
+	t.Run("IPsec tunnel validation enforced via flags", func(t *testing.T) {
+		cmd := makeCmd()
+		// Missing PSK should be rejected
+		testutil.SetFlags(t, cmd, map[string]string{
+			"a-end-partner-config": `{"connectType":"VROUTER","interfaces":[{"interfaceType":"ipSecTunnel","ipSecTunnelOptions":[{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1"}]}]}`,
+		})
+		_, err := buildUpdateVXCRequestFromFlags(cmd)
+		assert.Error(t, err)
+		assert.NotContains(t, err.Error(), "192.0.2.1")
+	})
+
+	t.Run("valid vRouter B-End config accepted", func(t *testing.T) {
+		cmd := makeCmd()
+		testutil.SetFlags(t, cmd, map[string]string{
+			"b-end-partner-config": `{"connectType":"VROUTER","interfaces":[{"ipAddresses":["10.0.0.1/30"]}]}`,
+		})
+		req, err := buildUpdateVXCRequestFromFlags(cmd)
+		assert.NoError(t, err)
+		assert.Nil(t, req.AEndPartnerConfig)
+		assert.NotNil(t, req.BEndPartnerConfig)
+	})
+}
+
 func TestBuildUpdateVXCRequestFromJSON_NewFields_Invalid(t *testing.T) {
 	tests := []struct {
 		name string

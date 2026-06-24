@@ -27,7 +27,7 @@ func promptVRouterConfig(noColor bool) (*megaport.VXCOrderVrouterPartnerConfig, 
 	for i := 0; i < interfaceCount; i++ {
 		iface := megaport.PartnerConfigInterface{}
 
-		vlanStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("VLAN (0-%d, except %d, optional - press Enter for no VLAN): ", validation.MaxVLAN, validation.ReservedVLAN), noColor)
+		vlanStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("VLAN (%d=auto-assign, %d=untagged, %d-%d; press Enter for untagged): ", validation.AutoAssignVLAN, validation.UntaggedVLAN, validation.MinAssignableVLAN, validation.MaxVLAN), noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -37,13 +37,14 @@ func promptVRouterConfig(noColor bool) (*megaport.VXCOrderVrouterPartnerConfig, 
 			if err != nil {
 				return nil, fmt.Errorf("VLAN must be a valid integer")
 			}
-			if vlan < 0 || vlan > validation.MaxVLAN || vlan == validation.ReservedVLAN {
+			if err := validation.ValidateVLAN(vlan); err != nil {
 				return nil, validation.NewValidationError("VRouter interface VLAN", vlan,
-					fmt.Sprintf("must be %d or between %d-%d (%d is reserved)", validation.AutoAssignVLAN, validation.MinAssignableVLAN, validation.MaxVLAN, validation.ReservedVLAN))
+					fmt.Sprintf("must be %d for auto-assign, %d for untagged, or %d-%d (%d is reserved)",
+						validation.AutoAssignVLAN, validation.UntaggedVLAN, validation.MinAssignableVLAN, validation.MaxVLAN, validation.ReservedVLAN))
 			}
 			iface.VLAN = vlan
 		} else {
-			iface.VLAN = -1
+			iface.VLAN = validation.UntaggedVLAN
 		}
 
 		ipAddrs, err := promptIPAddresses("IP Addresses (CIDR notation, e.g., 192.168.1.1/30)", noColor)
@@ -544,8 +545,16 @@ func promptIPsecTunnelOptional(tunnel *megaport.IPsecTunnelConfig, noColor bool)
 		return err
 	}
 	if passiveStr != "" {
-		passive := strings.ToLower(passiveStr) == "yes"
-		tunnel.Passive = &passive
+		switch strings.ToLower(passiveStr) {
+		case "yes":
+			v := true
+			tunnel.Passive = &v
+		case "no":
+			v := false
+			tunnel.Passive = &v
+		default:
+			return fmt.Errorf("passive mode must be 'yes' or 'no'")
+		}
 	}
 
 	localID, err := utils.ResourcePrompt("vxc", "Enter local ID (optional): ", noColor)

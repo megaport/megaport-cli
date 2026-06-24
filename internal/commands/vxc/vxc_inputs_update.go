@@ -281,13 +281,14 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse A-End partner config: %w", err)
 			}
-			if vrouterConfig, ok := aEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig); ok {
-				if err := validation.ValidateVrouterPartnerConfig(vrouterConfig); err != nil {
-					return nil, err
-				}
+			vrouterConfigA, ok := aEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig)
+			if !ok {
+				return nil, fmt.Errorf("only VRouter partner configurations can be updated")
 			}
-
-			req.AEndPartnerConfig = aEndPartnerConfig
+			if err := validation.ValidateVrouterPartnerConfig(vrouterConfigA); err != nil {
+				return nil, err
+			}
+			req.AEndPartnerConfig = vrouterConfigA
 		} else {
 			return nil, fmt.Errorf("only VRouter partner configurations can be updated")
 		}
@@ -299,13 +300,14 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse B-End partner config: %w", err)
 			}
-			if vrouterConfig, ok := bEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig); ok {
-				if err := validation.ValidateVrouterPartnerConfig(vrouterConfig); err != nil {
-					return nil, err
-				}
+			vrouterConfigB, ok := bEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig)
+			if !ok {
+				return nil, fmt.Errorf("only VRouter partner configurations can be updated")
 			}
-
-			req.BEndPartnerConfig = bEndPartnerConfig
+			if err := validation.ValidateVrouterPartnerConfig(vrouterConfigB); err != nil {
+				return nil, err
+			}
+			req.BEndPartnerConfig = vrouterConfigB
 		} else {
 			return nil, fmt.Errorf("only VRouter partner configurations can be updated")
 		}
