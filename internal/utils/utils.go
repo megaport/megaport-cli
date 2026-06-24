@@ -8,6 +8,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -306,6 +307,13 @@ func classifyError(err error) int {
 	var cliErr *exitcodes.CLIError
 	if errors.As(err, &cliErr) {
 		return cliErr.Code
+	}
+
+	// A validation failure is caller error, so map it to the usage code. Type
+	// matching avoids depending on the "Invalid %s" message wording.
+	var validationErr *validation.ValidationError
+	if errors.As(err, &validationErr) {
+		return exitcodes.Usage
 	}
 
 	// Type-safe SDK error inspection first

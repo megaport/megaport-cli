@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
+	"github.com/megaport/megaport-cli/internal/validation"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -562,6 +563,18 @@ func TestClassifyError_SDKErrors(t *testing.T) {
 	}
 }
 
+func TestClassifyError_ValidationError(t *testing.T) {
+	// A raw ValidationError must map to the usage exit code. Its message is
+	// "Invalid <field>: ..." (capital I), which the lowercase "invalid" heuristic
+	// misses, so the type check carries it.
+	verr := validation.NewValidationError("name", "", "must not be empty")
+	assert.Equal(t, exitcodes.Usage, classifyError(verr))
+
+	// errors.As traverses wrapping, so a wrapped ValidationError classifies the same.
+	wrapped := fmt.Errorf("validation failed for port: %w", verr)
+	assert.Equal(t, exitcodes.Usage, classifyError(wrapped))
+}
+
 func TestWrapRunE_CancelledError(t *testing.T) {
 	// WrapRunE must preserve the Cancelled code when the action function
 	// returns a CLIError that already carries it.
@@ -615,6 +628,21 @@ func TestWrapRunE_APIError(t *testing.T) {
 	var cliErr *exitcodes.CLIError
 	require.True(t, errors.As(err, &cliErr))
 	assert.Equal(t, exitcodes.API, cliErr.Code)
+}
+
+func TestWrapRunE_ValidationError(t *testing.T) {
+	// A command that fails with a ValidationError must exit with the usage code,
+	// end to end through the wrapper, not just at classifyError.
+	wrapped := WrapRunE(func(cmd *cobra.Command, args []string) error {
+		return validation.NewValidationError("name", "", "must not be empty")
+	})
+	cmd := &cobra.Command{Use: "test"}
+	err := wrapped(cmd, []string{})
+	require.Error(t, err)
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
 
 // parseErrorJSON unmarshals a JSON error envelope from s.

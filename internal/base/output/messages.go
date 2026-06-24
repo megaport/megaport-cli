@@ -239,6 +239,14 @@ func (s *Spinner) renderFrame(i int) string {
 	return color.CyanString(frame)
 }
 
+// nonInteractive reports whether the spinner's sink is non-interactive: a
+// machine-readable output format, or output not attached to a TTY. In those
+// sinks the carriage-return/clear-line escapes don't collapse anything, so the
+// spinner emits a single plain status line rather than animating frame-by-frame.
+func (s *Spinner) nonInteractive() bool {
+	return (s.outputFormat != "" && s.outputFormat != "table") || !IsTerminal()
+}
+
 // runLoop is the shared spinner goroutine logic. If startTime is non-nil,
 // an elapsed duration is appended to the message on each tick.
 func (s *Spinner) runLoop(prefix string, startTime *time.Time) {
@@ -254,6 +262,11 @@ func (s *Spinner) runLoop(prefix string, startTime *time.Time) {
 		return
 	}
 	s.mu.Unlock()
+
+	if s.nonInteractive() {
+		fmt.Fprintf(os.Stderr, "%s\n", prefix)
+		return
+	}
 
 	go func() {
 		for i := 0; ; i++ {
@@ -275,11 +288,7 @@ func (s *Spinner) runLoop(prefix string, startTime *time.Time) {
 					msg = fmt.Sprintf("%s (%s elapsed)", prefix, elapsed)
 				}
 
-				if (s.outputFormat != "" && s.outputFormat != "table") || !IsTerminal() {
-					fmt.Fprintf(os.Stderr, "\r\033[K%s %s", styledFrame, msg)
-				} else {
-					fmt.Printf("\r\033[K%s %s", styledFrame, msg)
-				}
+				fmt.Printf("\r\033[K%s %s", styledFrame, msg)
 				s.mu.Unlock()
 				time.Sleep(s.frameRate)
 			}
@@ -306,9 +315,9 @@ func (s *Spinner) Stop() {
 	s.stopped = true
 	s.mu.Unlock()
 	s.stop <- true
-	if (s.outputFormat != "" && s.outputFormat != "table") || !IsTerminal() {
-		fmt.Fprint(os.Stderr, "\r\033[K")
-	} else {
+	// Only the animated TTY path leaves a frame on stdout to clear; in a
+	// non-interactive sink a bare clear sequence would just be junk in logs.
+	if !s.nonInteractive() {
 		fmt.Print("\r\033[K")
 	}
 }
@@ -318,9 +327,9 @@ func (s *Spinner) StopWithSuccess(msg string) {
 	if IsQuiet() {
 		return
 	}
-	// Write success message to stderr for non-table formats to avoid corrupting
-	// machine-readable output streams.
-	if (s.outputFormat != "" && s.outputFormat != "table") || !IsTerminal() {
+	// Write success message to stderr for non-interactive sinks to avoid
+	// corrupting machine-readable output streams.
+	if s.nonInteractive() {
 		if s.noColor {
 			fmt.Fprintf(os.Stderr, "✓ %s\n", msg)
 		} else {
