@@ -309,6 +309,254 @@ func TestValidateBFDConfig(t *testing.T) {
 	}
 }
 
+func ptrInt(v int) *int { return &v }
+
+func TestValidateIPsecTunnelConfig(t *testing.T) {
+	tests := []struct {
+		name    string
+		tunnel  megaport.IPsecTunnelConfig
+		wantErr bool
+		errText string
+	}{
+		{
+			name: "Valid minimal tunnel",
+			tunnel: megaport.IPsecTunnelConfig{
+				SourceIpAddress:      "192.0.2.1",
+				DestinationIpAddress: "198.51.100.1",
+				PreSharedKey:         "psk",
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid tunnel with lifetimes",
+			tunnel: megaport.IPsecTunnelConfig{
+				SourceIpAddress:      "192.0.2.1",
+				DestinationIpAddress: "198.51.100.1",
+				PreSharedKey:         "psk",
+				Phase1Lifetime:       ptrInt(28800),
+				Phase2Lifetime:       ptrInt(3600),
+			},
+			wantErr: false,
+		},
+		{
+			name: "Missing source IP",
+			tunnel: megaport.IPsecTunnelConfig{
+				DestinationIpAddress: "198.51.100.1",
+				PreSharedKey:         "psk",
+			},
+			wantErr: true,
+			errText: "Invalid vRouter interface [0] IPsec tunnel [0] source IP address:  - cannot be empty",
+		},
+		{
+			name: "Source IP not IPv4",
+			tunnel: megaport.IPsecTunnelConfig{
+				SourceIpAddress:      "not-an-ip",
+				DestinationIpAddress: "198.51.100.1",
+				PreSharedKey:         "psk",
+			},
+			wantErr: true,
+			errText: "Invalid vRouter interface [0] IPsec tunnel [0] source IP address: not-an-ip - must be a valid IPv4 address",
+		},
+		{
+			name: "Missing destination IP",
+			tunnel: megaport.IPsecTunnelConfig{
+				SourceIpAddress: "192.0.2.1",
+				PreSharedKey:    "psk",
+			},
+			wantErr: true,
+			errText: "Invalid vRouter interface [0] IPsec tunnel [0] destination IP address:  - cannot be empty",
+		},
+		{
+			name: "Missing pre-shared key",
+			tunnel: megaport.IPsecTunnelConfig{
+				SourceIpAddress:      "192.0.2.1",
+				DestinationIpAddress: "198.51.100.1",
+			},
+			wantErr: true,
+			errText: "Invalid vRouter interface [0] IPsec tunnel [0] pre-shared key: <nil> - cannot be empty",
+		},
+		{
+			name: "Phase 1 lifetime too low",
+			tunnel: megaport.IPsecTunnelConfig{
+				SourceIpAddress:      "192.0.2.1",
+				DestinationIpAddress: "198.51.100.1",
+				PreSharedKey:         "psk",
+				Phase1Lifetime:       ptrInt(60),
+			},
+			wantErr: true,
+			errText: fmt.Sprintf("Invalid vRouter interface [0] IPsec tunnel [0] phase 1 lifetime: 60 - must be between %d-%d seconds", MinIPsecPhase1Lifetime, MaxIPsecPhase1Lifetime),
+		},
+		{
+			name: "Phase 2 lifetime too high",
+			tunnel: megaport.IPsecTunnelConfig{
+				SourceIpAddress:      "192.0.2.1",
+				DestinationIpAddress: "198.51.100.1",
+				PreSharedKey:         "psk",
+				Phase2Lifetime:       ptrInt(100000),
+			},
+			wantErr: true,
+			errText: fmt.Sprintf("Invalid vRouter interface [0] IPsec tunnel [0] phase 2 lifetime: 100000 - must be between %d-%d seconds", MinIPsecPhase2Lifetime, MaxIPsecPhase2Lifetime),
+		},
+		{
+			name: "Phase 2 not less than phase 1",
+			tunnel: megaport.IPsecTunnelConfig{
+				SourceIpAddress:      "192.0.2.1",
+				DestinationIpAddress: "198.51.100.1",
+				PreSharedKey:         "psk",
+				Phase1Lifetime:       ptrInt(3600),
+				Phase2Lifetime:       ptrInt(3600),
+			},
+			wantErr: true,
+			errText: "Invalid vRouter interface [0] IPsec tunnel [0] phase 2 lifetime: 3600 - must be less than phase 1 lifetime",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateIPsecTunnelConfig(tt.tunnel, 0, 0)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateIPsecTunnelConfig() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
+				assert.Equal(t, tt.errText, err.Error(), "Error message mismatch")
+			}
+		})
+	}
+}
+
+// TestValidateIPsecTunnelConfig_PSKNotEchoed guards the rule that the
+// pre-shared key value never appears in a validation error, even when the
+// tunnel that fails validation has one set.
+func TestValidateIPsecTunnelConfig_PSKNotEchoed(t *testing.T) {
+	const psk = "super-secret-psk-value"
+	tunnel := megaport.IPsecTunnelConfig{
+		SourceIpAddress:      "192.0.2.1",
+		DestinationIpAddress: "198.51.100.1",
+		PreSharedKey:         psk,
+		Phase1Lifetime:       ptrInt(3600),
+		Phase2Lifetime:       ptrInt(3600), // not < phase1, so this fails validation
+	}
+	err := ValidateIPsecTunnelConfig(tunnel, 0, 0)
+	assert.Error(t, err)
+	assert.NotContains(t, err.Error(), psk, "PSK must never appear in a validation error")
+}
+
+func TestValidateVrouterPartnerConfig_IPsec(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  *megaport.VXCOrderVrouterPartnerConfig
+		wantErr bool
+		errText string
+	}{
+		{
+			name: "tunnels without ipSecTunnel interface type",
+			config: &megaport.VXCOrderVrouterPartnerConfig{
+				Interfaces: []megaport.PartnerConfigInterface{
+					{
+						IpSecTunnelOptions: []megaport.IPsecTunnelConfig{
+							{SourceIpAddress: "192.0.2.1", DestinationIpAddress: "198.51.100.1", PreSharedKey: "psk"},
+						},
+					},
+				},
+			},
+			wantErr: true,
+			errText: "requires interface type 'ipSecTunnel'",
+		},
+		{
+			name: "unknown interface type",
+			config: &megaport.VXCOrderVrouterPartnerConfig{
+				Interfaces: []megaport.PartnerConfigInterface{
+					{InterfaceType: "bogus"},
+				},
+			},
+			wantErr: true,
+			errText: "must be 'subInterface' or 'ipSecTunnel'",
+		},
+		{
+			name: "valid ipSecTunnel interface with tunnel",
+			config: &megaport.VXCOrderVrouterPartnerConfig{
+				Interfaces: []megaport.PartnerConfigInterface{
+					{
+						InterfaceType: "ipSecTunnel",
+						IpSecTunnelOptions: []megaport.IPsecTunnelConfig{
+							{SourceIpAddress: "192.0.2.1", DestinationIpAddress: "198.51.100.1", PreSharedKey: "psk"},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid tunnel surfaced through interface validation",
+			config: &megaport.VXCOrderVrouterPartnerConfig{
+				Interfaces: []megaport.PartnerConfigInterface{
+					{
+						InterfaceType: "ipSecTunnel",
+						IpSecTunnelOptions: []megaport.IPsecTunnelConfig{
+							{DestinationIpAddress: "198.51.100.1", PreSharedKey: "psk"}, // missing source IP
+						},
+					},
+				},
+			},
+			wantErr: true,
+			errText: "source IP address",
+		},
+		{
+			name: "ipSecTunnel interface with no tunnels",
+			config: &megaport.VXCOrderVrouterPartnerConfig{
+				Interfaces: []megaport.PartnerConfigInterface{
+					{InterfaceType: "ipSecTunnel"},
+				},
+			},
+			wantErr: true,
+			errText: "at least one tunnel is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateVrouterPartnerConfig(tt.config)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateVrouterPartnerConfig() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.Contains(t, err.Error(), tt.errText)
+			}
+		})
+	}
+}
+
+func TestValidateVrouterPartnerConfig_VLAN(t *testing.T) {
+	tests := []struct {
+		name    string
+		vlan    int
+		wantErr bool
+	}{
+		{"auto-assign", AutoAssignVLAN, false},
+		{"untagged", UntaggedVLAN, false},
+		{"min assignable", MinAssignableVLAN, false},
+		{"max assignable", MaxVLAN, false},
+		{"reserved", ReservedVLAN, true},
+		{"above max", MaxVLAN + 1, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &megaport.VXCOrderVrouterPartnerConfig{
+				Interfaces: []megaport.PartnerConfigInterface{{VLAN: tt.vlan}},
+			}
+			err := ValidateVrouterPartnerConfig(config)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestValidateVXCEndVLAN(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -940,7 +1188,7 @@ func TestValidateVXCPartnerConfig(t *testing.T) {
 				},
 			},
 			wantErr: true,
-			errText: fmt.Sprintf("Invalid vRouter interface [0] VLAN: 1 - must be between %d-%d (%d is reserved)", AutoAssignVLAN, MaxVLAN, ReservedVLAN),
+			errText: fmt.Sprintf("Invalid vRouter interface [0] VLAN: 1 - must be valid (%d for auto-assign, %d for untagged, or %d-%d except %d)", AutoAssignVLAN, UntaggedVLAN, MinAssignableVLAN, MaxVLAN, ReservedVLAN),
 		},
 	}
 

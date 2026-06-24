@@ -247,9 +247,10 @@ func TestPromptBFDConfig(t *testing.T) {
 
 func TestPromptBGPConnections(t *testing.T) {
 	tests := []struct {
-		name      string
-		responses []string
-		verify    func(t *testing.T, conns []megaport.BgpConnectionConfig)
+		name            string
+		responses       []string
+		secretResponses []string
+		verify          func(t *testing.T, conns []megaport.BgpConnectionConfig)
 	}{
 		{
 			name:      "no connections",
@@ -266,7 +267,6 @@ func TestPromptBGPConnections(t *testing.T) {
 				"10.0.0.1", // localIP
 				"10.0.0.2", // peerIP
 				"",         // localAsn (optional)
-				"",         // password (optional)
 				"no",       // shutdown
 				"",         // description (optional)
 				"no",       // bfdEnabled
@@ -283,6 +283,9 @@ func TestPromptBGPConnections(t *testing.T) {
 				"",         // exportBlacklist
 				"no",       // add another
 			},
+			secretResponses: []string{
+				"", // password (read without echo)
+			},
 			verify: func(t *testing.T, conns []megaport.BgpConnectionConfig) {
 				assert.Len(t, conns, 1)
 				assert.Equal(t, 65000, conns[0].PeerAsn)
@@ -296,7 +299,7 @@ func TestPromptBGPConnections(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cleanup := mockPrompts(tc.responses)
+			cleanup := mockPromptsAndSecrets(tc.responses, tc.secretResponses)
 			defer cleanup()
 
 			conns, err := promptBGPConnections(true)
@@ -549,9 +552,8 @@ func TestPromptPartnerConfig(t *testing.T) {
 }
 
 func TestPromptBGPOptionalConfig_WithValues(t *testing.T) {
-	cleanup := mockPrompts([]string{
+	cleanup := mockPromptsAndSecrets([]string{
 		"64512",     // localAsn
-		"secret",    // password
 		"yes",       // shutdown
 		"my bgp",    // description
 		"yes",       // bfdEnabled
@@ -560,6 +562,8 @@ func TestPromptBGPOptionalConfig_WithValues(t *testing.T) {
 		"100",       // medIn
 		"200",       // medOut
 		"3",         // asPathPrepend
+	}, []string{
+		"secret", // password (read without echo)
 	})
 	defer cleanup()
 
@@ -618,9 +622,10 @@ func TestPromptBGPPrefixLists_WithValues(t *testing.T) {
 
 func TestPromptVRouterConfig(t *testing.T) {
 	tests := []struct {
-		name      string
-		responses []string
-		verify    func(t *testing.T, cfg *megaport.VXCOrderVrouterPartnerConfig)
+		name            string
+		responses       []string
+		secretResponses []string
+		verify          func(t *testing.T, cfg *megaport.VXCOrderVrouterPartnerConfig)
 	}{
 		{
 			name: "single interface minimal",
@@ -632,6 +637,7 @@ func TestPromptVRouterConfig(t *testing.T) {
 				"no",  // NAT
 				"no",  // BFD
 				"no",  // BGP
+				"",    // interface type (default subInterface)
 			},
 			verify: func(t *testing.T, cfg *megaport.VXCOrderVrouterPartnerConfig) {
 				assert.Len(t, cfg.Interfaces, 1)
@@ -641,47 +647,50 @@ func TestPromptVRouterConfig(t *testing.T) {
 		{
 			name: "interface with routes NAT BFD and BGP",
 			responses: []string{
-				"1",           // num interfaces
-				"200",         // vlan
-				"yes",         // add IP address
-				"10.0.0.1/30", // IP address
-				"no",          // more IPs
-				"yes",         // add routes
-				"yes",         // add route
-				"10.1.0.0/24", // prefix
-				"10.0.0.2",    // next hop
-				"route1",      // description
-				"no",          // more routes
-				"yes",         // NAT IPs
-				"yes",         // add NAT IP
-				"172.16.0.1",  // NAT IP
-				"no",          // more NAT IPs
-				"yes",         // BFD
-				"400",         // tx interval
-				"400",         // rx interval
-				"5",           // multiplier
-				"yes",         // BGP
-				"yes",         // add BGP connection
-				"65000",       // peer ASN
-				"10.0.0.1",    // local IP
-				"10.0.0.2",    // peer IP
-				"",            // local ASN (optional)
-				"",            // password
-				"no",          // shutdown
-				"",            // description
-				"no",          // BFD enabled
-				"",            // export policy
-				"",            // peer type
-				"",            // MED in
-				"",            // MED out
-				"",            // AS path prepend
-				"no",          // permit export to
-				"no",          // deny export to
-				"",            // import whitelist
-				"",            // import blacklist
-				"",            // export whitelist
-				"",            // export blacklist
-				"no",          // more BGP connections
+				"1",             // num interfaces
+				"200",           // vlan
+				"yes",           // add IP address
+				"10.0.0.1/30",   // IP address
+				"no",            // more IPs
+				"yes",           // add routes
+				"yes",           // add route
+				"10.1.0.0/24",   // prefix
+				"10.0.0.2",      // next hop
+				"route1",        // description
+				"no",            // more routes
+				"yes",           // NAT IPs
+				"yes",           // add NAT IP
+				"172.16.0.1/32", // NAT IP (CIDR notation)
+				"no",            // more NAT IPs
+				"yes",           // BFD
+				"400",           // tx interval
+				"400",           // rx interval
+				"5",             // multiplier
+				"yes",           // BGP
+				"yes",           // add BGP connection
+				"65000",         // peer ASN
+				"10.0.0.1",      // local IP
+				"10.0.0.2",      // peer IP
+				"",              // local ASN (optional)
+				"no",            // shutdown
+				"",              // description
+				"no",            // BFD enabled
+				"",              // export policy
+				"",              // peer type
+				"",              // MED in
+				"",              // MED out
+				"",              // AS path prepend
+				"no",            // permit export to
+				"no",            // deny export to
+				"",              // import whitelist
+				"",              // import blacklist
+				"",              // export whitelist
+				"",              // export blacklist
+				"no",            // more BGP connections
+				"",              // interface type (default subInterface)
+			},
+			secretResponses: []string{
+				"", // BGP password (read without echo)
 			},
 			verify: func(t *testing.T, cfg *megaport.VXCOrderVrouterPartnerConfig) {
 				assert.Len(t, cfg.Interfaces, 1)
@@ -691,7 +700,7 @@ func TestPromptVRouterConfig(t *testing.T) {
 				assert.Len(t, iface.IpRoutes, 1)
 				assert.Equal(t, "10.1.0.0/24", iface.IpRoutes[0].Prefix)
 				assert.Equal(t, "10.0.0.2", iface.IpRoutes[0].NextHop)
-				assert.Equal(t, []string{"172.16.0.1"}, iface.NatIpAddresses)
+				assert.Equal(t, []string{"172.16.0.1/32"}, iface.NatIpAddresses)
 				assert.Equal(t, 400, iface.Bfd.TxInterval)
 				assert.Equal(t, 400, iface.Bfd.RxInterval)
 				assert.Equal(t, 5, iface.Bfd.Multiplier)
@@ -703,7 +712,7 @@ func TestPromptVRouterConfig(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cleanup := mockPrompts(tc.responses)
+			cleanup := mockPromptsAndSecrets(tc.responses, tc.secretResponses)
 			defer cleanup()
 
 			cfg, err := promptVRouterConfig(true)
@@ -711,6 +720,111 @@ func TestPromptVRouterConfig(t *testing.T) {
 			assert.NotNil(t, cfg)
 			tc.verify(t, cfg)
 		})
+	}
+}
+
+// mockPromptsAndSecrets feeds the regular prompt queue and the no-echo secret
+// prompt queue separately, in call order. The PSK is collected via
+// SecretResourcePrompt, so it pulls from secretResponses.
+func mockPromptsAndSecrets(responses, secretResponses []string) func() {
+	origPrompt := utils.GetResourcePrompt()
+	origSecret := utils.GetSecretResourcePrompt()
+	idx := 0
+	utils.SetResourcePrompt(func(_, _ string, _ bool) (string, error) {
+		if idx < len(responses) {
+			r := responses[idx]
+			idx++
+			return r, nil
+		}
+		return "", fmt.Errorf("unexpected prompt call at index %d", idx)
+	})
+	sIdx := 0
+	utils.SetSecretResourcePrompt(func(_, _ string, _ bool) (string, error) {
+		if sIdx < len(secretResponses) {
+			r := secretResponses[sIdx]
+			sIdx++
+			return r, nil
+		}
+		return "", fmt.Errorf("unexpected secret prompt call at index %d", sIdx)
+	})
+	return func() {
+		utils.SetResourcePrompt(origPrompt)
+		utils.SetSecretResourcePrompt(origSecret)
+	}
+}
+
+func TestPromptVRouterConfigIPsec(t *testing.T) {
+	responses := []string{
+		"1",            // num interfaces
+		"",             // vlan (none)
+		"no",           // ip addresses
+		"no",           // routes
+		"no",           // NAT
+		"no",           // BFD
+		"no",           // BGP
+		"ipSecTunnel",  // interface type
+		"yes",          // add an IPsec tunnel
+		"192.0.2.1",    // source IP
+		"198.51.100.1", // destination IP
+		"yes",          // passive
+		"local-x",      // local ID
+		"remote-x",     // remote ID
+		"28800",        // phase 1 lifetime
+		"3600",         // phase 2 lifetime
+		"no",           // add another tunnel
+	}
+	secretResponses := []string{"topsecret"}
+
+	cleanup := mockPromptsAndSecrets(responses, secretResponses)
+	defer cleanup()
+
+	cfg, err := promptVRouterConfig(true)
+	assert.NoError(t, err)
+	assert.NotNil(t, cfg)
+	assert.Len(t, cfg.Interfaces, 1)
+
+	iface := cfg.Interfaces[0]
+	assert.Equal(t, "ipSecTunnel", iface.InterfaceType)
+	assert.Len(t, iface.IpSecTunnelOptions, 1)
+
+	tunnel := iface.IpSecTunnelOptions[0]
+	assert.Equal(t, "192.0.2.1", tunnel.SourceIpAddress)
+	assert.Equal(t, "198.51.100.1", tunnel.DestinationIpAddress)
+	assert.Equal(t, "topsecret", tunnel.PreSharedKey)
+	assert.Equal(t, "local-x", tunnel.LocalId)
+	assert.Equal(t, "remote-x", tunnel.RemoteId)
+	if assert.NotNil(t, tunnel.Passive) {
+		assert.True(t, *tunnel.Passive)
+	}
+	if assert.NotNil(t, tunnel.Phase1Lifetime) {
+		assert.Equal(t, 28800, *tunnel.Phase1Lifetime)
+	}
+	if assert.NotNil(t, tunnel.Phase2Lifetime) {
+		assert.Equal(t, 3600, *tunnel.Phase2Lifetime)
+	}
+}
+
+// Selecting the ipSecTunnel interface type but adding no tunnels must be
+// rejected by the validation the prompt path now runs before returning.
+func TestPromptVRouterConfigIPsecNoTunnels(t *testing.T) {
+	responses := []string{
+		"1",           // num interfaces
+		"",            // vlan (none)
+		"no",          // ip addresses
+		"no",          // routes
+		"no",          // NAT
+		"no",          // BFD
+		"no",          // BGP
+		"ipSecTunnel", // interface type
+		"no",          // add an IPsec tunnel? -> none
+	}
+
+	cleanup := mockPromptsAndSecrets(responses, nil)
+	defer cleanup()
+
+	_, err := promptVRouterConfig(true)
+	if assert.Error(t, err) {
+		assert.Contains(t, err.Error(), "at least one tunnel is required")
 	}
 }
 

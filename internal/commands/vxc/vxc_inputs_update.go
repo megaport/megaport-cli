@@ -124,10 +124,14 @@ var buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateV
 			}
 
 			// Verify it's a VRouter config which is the only updatable partner config
-			if _, ok := aEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig); !ok {
+			vrouterConfig, ok := aEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig)
+			if !ok {
 				return nil, fmt.Errorf("only VRouter partner configurations can be updated")
 			}
-			req.AEndPartnerConfig = aEndPartnerConfig
+			if err := validation.ValidateVrouterPartnerConfig(vrouterConfig); err != nil {
+				return nil, err
+			}
+			req.AEndPartnerConfig = vrouterConfig
 		}
 	}
 
@@ -140,10 +144,14 @@ var buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateV
 			}
 
 			// Verify it's a VRouter config which is the only updatable partner config
-			if _, ok := bEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig); !ok {
+			vrouterConfig, ok := bEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig)
+			if !ok {
 				return nil, fmt.Errorf("only VRouter partner configurations can be updated")
 			}
-			req.BEndPartnerConfig = bEndPartnerConfig
+			if err := validation.ValidateVrouterPartnerConfig(vrouterConfig); err != nil {
+				return nil, err
+			}
+			req.BEndPartnerConfig = vrouterConfig
 		}
 	}
 
@@ -273,6 +281,11 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse A-End partner config: %w", err)
 			}
+			if vrouterConfig, ok := aEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig); ok {
+				if err := validation.ValidateVrouterPartnerConfig(vrouterConfig); err != nil {
+					return nil, err
+				}
+			}
 
 			req.AEndPartnerConfig = aEndPartnerConfig
 		} else {
@@ -285,6 +298,11 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 			bEndPartnerConfig, err := parsePartnerConfigFromMap(bEndPartnerConfigRaw)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse B-End partner config: %w", err)
+			}
+			if vrouterConfig, ok := bEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig); ok {
+				if err := validation.ValidateVrouterPartnerConfig(vrouterConfig); err != nil {
+					return nil, err
+				}
 			}
 
 			req.BEndPartnerConfig = bEndPartnerConfig

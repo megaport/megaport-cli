@@ -21,6 +21,9 @@ This command allows you to create a VXC by providing the necessary details.
   - `resource-tags`: Resource tags as a JSON string (e.g. {"key1":"value1","key2":"value2"})
   - `resource-tags-file`: Path to JSON file containing resource tags
 
+### Important Notes
+  - To order an MCR IPsec tunnel, set interfaceType "ipSecTunnel" on the vRouter interface and provide ipSecTunnelOptions; treat the preSharedKey as a secret and avoid committing populated config files to source control
+
 ### Example Usage
 
 ```sh
@@ -28,6 +31,7 @@ This command allows you to create a VXC by providing the necessary details.
   megaport-cli vxc buy --name "My VXC" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200
   megaport-cli vxc buy --name "My VXC" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200 --resource-tags '{"environment":"production","team":"networking"}'
   megaport-cli vxc buy --json '{"vxcName":"My VXC","rateLimit":1000,"term":12,"portUid":"port-123","aEndConfiguration":{"vlan":100},"bEndConfiguration":{"productUID":"port-456","vlan":200},"resourceTags":{"environment":"production","owner":"network-team"}}'
+  megaport-cli vxc buy --name "IPsec VXC" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-partner-config '{"interfaces":[{"interfaceType":"ipSecTunnel","ipSecTunnelOptions":[{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1","preSharedKey":"<your-psk>","phase1Lifetime":28800,"phase2Lifetime":3600}]}]}'
   megaport-cli vxc buy --json-file ./vxc-config.json
 ```
 ### JSON Format Example

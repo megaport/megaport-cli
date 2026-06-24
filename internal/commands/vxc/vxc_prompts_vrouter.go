@@ -100,7 +100,30 @@ func promptVRouterConfig(noColor bool) (*megaport.VXCOrderVrouterPartnerConfig, 
 			iface.BgpConnections = bgpConns
 		}
 
+		interfaceType, err := utils.ResourcePrompt("vxc", fmt.Sprintf("Interface type (%s/%s, default %s): ", megaport.InterfaceTypeSubInterface, megaport.InterfaceTypeIPSecTunnel, megaport.InterfaceTypeSubInterface), noColor)
+		if err != nil {
+			return nil, err
+		}
+		if interfaceType != "" && interfaceType != megaport.InterfaceTypeSubInterface && interfaceType != megaport.InterfaceTypeIPSecTunnel {
+			return nil, fmt.Errorf("interface type must be %s or %s", megaport.InterfaceTypeSubInterface, megaport.InterfaceTypeIPSecTunnel)
+		}
+		iface.InterfaceType = interfaceType
+
+		if interfaceType == megaport.InterfaceTypeIPSecTunnel {
+			tunnels, err := promptIPsecTunnels(noColor)
+			if err != nil {
+				return nil, err
+			}
+			iface.IpSecTunnelOptions = tunnels
+		}
+
 		config.Interfaces = append(config.Interfaces, iface)
+	}
+
+	// Validate before returning so the interactive path rejects bad input with a
+	// clear message before any API call, matching the flag and JSON paths.
+	if err := validation.ValidateVrouterPartnerConfig(config); err != nil {
+		return nil, err
 	}
 
 	return config, nil
@@ -302,7 +325,7 @@ func promptBGPOptionalConfig(bgp *megaport.BgpConnectionConfig, noColor bool) er
 		bgp.LocalAsn = &localAsn
 	}
 
-	password, err := utils.ResourcePrompt("vxc", "Enter password (optional): ", noColor)
+	password, err := utils.SecretResourcePrompt("vxc", "Enter password (optional): ", noColor)
 	if err != nil {
 		return err
 	}
@@ -468,6 +491,97 @@ func promptBGPPrefixLists(bgp *megaport.BgpConnectionConfig, noColor bool) error
 			return fmt.Errorf("export blacklist must be an integer")
 		}
 		bgp.ExportBlacklist = exportBlacklist
+	}
+
+	return nil
+}
+
+func promptIPsecTunnels(noColor bool) ([]megaport.IPsecTunnelConfig, error) {
+	var tunnels []megaport.IPsecTunnelConfig
+
+	for {
+		addTunnel, err := utils.ResourcePrompt("vxc", "Add an IPsec tunnel? (yes/no): ", noColor)
+		if err != nil {
+			return nil, err
+		}
+		if strings.ToLower(addTunnel) != "yes" {
+			break
+		}
+
+		tunnel := megaport.IPsecTunnelConfig{}
+
+		sourceIP, err := utils.ResourcePrompt("vxc", "Enter source IP address (required): ", noColor)
+		if err != nil {
+			return nil, err
+		}
+		tunnel.SourceIpAddress = sourceIP
+
+		destIP, err := utils.ResourcePrompt("vxc", "Enter destination IP address (required): ", noColor)
+		if err != nil {
+			return nil, err
+		}
+		tunnel.DestinationIpAddress = destIP
+
+		psk, err := utils.SecretResourcePrompt("vxc", "Enter pre-shared key (required): ", noColor)
+		if err != nil {
+			return nil, err
+		}
+		tunnel.PreSharedKey = psk
+
+		if err := promptIPsecTunnelOptional(&tunnel, noColor); err != nil {
+			return nil, err
+		}
+
+		tunnels = append(tunnels, tunnel)
+	}
+
+	return tunnels, nil
+}
+
+func promptIPsecTunnelOptional(tunnel *megaport.IPsecTunnelConfig, noColor bool) error {
+	passiveStr, err := utils.ResourcePrompt("vxc", "Passive mode? (yes/no, optional - press Enter for API default): ", noColor)
+	if err != nil {
+		return err
+	}
+	if passiveStr != "" {
+		passive := strings.ToLower(passiveStr) == "yes"
+		tunnel.Passive = &passive
+	}
+
+	localID, err := utils.ResourcePrompt("vxc", "Enter local ID (optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	tunnel.LocalId = localID
+
+	remoteID, err := utils.ResourcePrompt("vxc", "Enter remote ID (optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	tunnel.RemoteId = remoteID
+
+	phase1Str, err := utils.ResourcePrompt("vxc", "Enter phase 1 lifetime in seconds (3600-604800, optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	if phase1Str != "" {
+		phase1, err := strconv.Atoi(phase1Str)
+		if err != nil {
+			return fmt.Errorf("phase 1 lifetime must be an integer")
+		}
+		tunnel.Phase1Lifetime = &phase1
+	}
+
+	phase2Str, err := utils.ResourcePrompt("vxc", "Enter phase 2 lifetime in seconds (600-86400, optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	if phase2Str != "" {
+		phase2, err := strconv.Atoi(phase2Str)
+		if err != nil {
+			return fmt.Errorf("phase 2 lifetime must be an integer")
+		}
+		tunnel.Phase2Lifetime = &phase2
 	}
 
 	return nil

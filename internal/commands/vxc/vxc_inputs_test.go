@@ -574,6 +574,294 @@ func TestParseVRouterConfig(t *testing.T) {
 	}
 }
 
+func TestParseVRouterConfigIPsec(t *testing.T) {
+	tests := []struct {
+		name          string
+		config        map[string]interface{}
+		expectedError string
+		validate      func(*testing.T, *megaport.VXCOrderVrouterPartnerConfig)
+	}{
+		{
+			name: "ipSecTunnel interface with multiple tunnels",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"interfaceType": "ipSecTunnel",
+						"ipSecTunnelOptions": []interface{}{
+							map[string]interface{}{
+								"sourceIpAddress":      "192.0.2.1",
+								"destinationIpAddress": "198.51.100.1",
+								"preSharedKey":         "secret-one",
+								"passive":              false,
+								"localId":              "local-1",
+								"remoteId":             "remote-1",
+								"phase1Lifetime":       28800.0,
+								"phase2Lifetime":       3600.0,
+							},
+							map[string]interface{}{
+								"sourceIpAddress":      "192.0.2.2",
+								"destinationIpAddress": "198.51.100.2",
+								"preSharedKey":         "secret-two",
+							},
+						},
+					},
+				},
+			},
+			validate: func(t *testing.T, cfg *megaport.VXCOrderVrouterPartnerConfig) {
+				assert.Len(t, cfg.Interfaces, 1)
+				iface := cfg.Interfaces[0]
+				assert.Equal(t, "ipSecTunnel", iface.InterfaceType)
+				// Both tunnels must parse: a regression to a single object fails here.
+				assert.Len(t, iface.IpSecTunnelOptions, 2)
+
+				t0 := iface.IpSecTunnelOptions[0]
+				assert.Equal(t, "192.0.2.1", t0.SourceIpAddress)
+				assert.Equal(t, "198.51.100.1", t0.DestinationIpAddress)
+				assert.Equal(t, "secret-one", t0.PreSharedKey)
+				assert.Equal(t, "local-1", t0.LocalId)
+				assert.Equal(t, "remote-1", t0.RemoteId)
+				if assert.NotNil(t, t0.Passive) {
+					assert.False(t, *t0.Passive)
+				}
+				if assert.NotNil(t, t0.Phase1Lifetime) {
+					assert.Equal(t, 28800, *t0.Phase1Lifetime)
+				}
+				if assert.NotNil(t, t0.Phase2Lifetime) {
+					assert.Equal(t, 3600, *t0.Phase2Lifetime)
+				}
+
+				t1 := iface.IpSecTunnelOptions[1]
+				assert.Equal(t, "192.0.2.2", t1.SourceIpAddress)
+				assert.Equal(t, "secret-two", t1.PreSharedKey)
+				// Optional pointer fields stay nil when the key is absent.
+				assert.Nil(t, t1.Passive)
+				assert.Nil(t, t1.Phase1Lifetime)
+				assert.Nil(t, t1.Phase2Lifetime)
+			},
+		},
+		{
+			name: "ipSecTunnelOptions not an array",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"interfaceType":      "ipSecTunnel",
+						"ipSecTunnelOptions": "nope",
+					},
+				},
+			},
+			expectedError: "ipSecTunnelOptions must be an array",
+		},
+		{
+			name: "tunnel not an object",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"interfaceType":      "ipSecTunnel",
+						"ipSecTunnelOptions": []interface{}{123},
+					},
+				},
+			},
+			expectedError: "must be an object",
+		},
+		{
+			name: "phase1Lifetime wrong type",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"interfaceType": "ipSecTunnel",
+						"ipSecTunnelOptions": []interface{}{
+							map[string]interface{}{
+								"sourceIpAddress":      "192.0.2.1",
+								"destinationIpAddress": "198.51.100.1",
+								"preSharedKey":         "secret",
+								"phase1Lifetime":       "lots",
+							},
+						},
+					},
+				},
+			},
+			expectedError: "phase1Lifetime must be a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseVRouterConfig(tt.config)
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.validate != nil {
+					tt.validate(t, result)
+				}
+			}
+		})
+	}
+}
+
+func TestParseVRouterConfigBGP(t *testing.T) {
+	tests := []struct {
+		name          string
+		config        map[string]interface{}
+		expectedError string
+		validate      func(*testing.T, *megaport.VXCOrderVrouterPartnerConfig)
+	}{
+		{
+			name: "interface with fully populated BGP connection",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"vlan": 100.0,
+						"bgpConnections": []interface{}{
+							map[string]interface{}{
+								"peerAsn":            65000.0,
+								"localAsn":           64512.0,
+								"localIpAddress":     "192.168.1.1",
+								"peerIpAddress":      "192.168.1.2",
+								"password":           "bgppassword",
+								"shutdown":           false,
+								"description":        "primary",
+								"medIn":              100.0,
+								"medOut":             200.0,
+								"bfdEnabled":         true,
+								"exportPolicy":       "permit",
+								"permitExportTo":     []interface{}{"10.0.0.0/8", "172.16.0.0/12"},
+								"denyExportTo":       []interface{}{"192.0.2.0/24"},
+								"importWhitelist":    101.0,
+								"importBlacklist":    102.0,
+								"exportWhitelist":    201.0,
+								"exportBlacklist":    202.0,
+								"asPathPrependCount": 3.0,
+								"peerType":           "NON_CLOUD",
+							},
+						},
+					},
+				},
+			},
+			validate: func(t *testing.T, cfg *megaport.VXCOrderVrouterPartnerConfig) {
+				assert.Len(t, cfg.Interfaces, 1)
+				// A regression to silently dropping bgpConnections fails here.
+				assert.Len(t, cfg.Interfaces[0].BgpConnections, 1)
+				conn := cfg.Interfaces[0].BgpConnections[0]
+				assert.Equal(t, 65000, conn.PeerAsn)
+				if assert.NotNil(t, conn.LocalAsn) {
+					assert.Equal(t, 64512, *conn.LocalAsn)
+				}
+				assert.Equal(t, "192.168.1.1", conn.LocalIpAddress)
+				assert.Equal(t, "192.168.1.2", conn.PeerIpAddress)
+				assert.Equal(t, "bgppassword", conn.Password)
+				assert.False(t, conn.Shutdown)
+				assert.Equal(t, "primary", conn.Description)
+				assert.Equal(t, 100, conn.MedIn)
+				assert.Equal(t, 200, conn.MedOut)
+				assert.True(t, conn.BfdEnabled)
+				assert.Equal(t, "permit", conn.ExportPolicy)
+				assert.Equal(t, []string{"10.0.0.0/8", "172.16.0.0/12"}, conn.PermitExportTo)
+				assert.Equal(t, []string{"192.0.2.0/24"}, conn.DenyExportTo)
+				assert.Equal(t, 101, conn.ImportWhitelist)
+				assert.Equal(t, 102, conn.ImportBlacklist)
+				assert.Equal(t, 201, conn.ExportWhitelist)
+				assert.Equal(t, 202, conn.ExportBlacklist)
+				assert.Equal(t, 3, conn.AsPathPrependCount)
+				assert.Equal(t, "NON_CLOUD", conn.PeerType)
+			},
+		},
+		{
+			name: "minimal BGP connection leaves optional pointer nil",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"bgpConnections": []interface{}{
+							map[string]interface{}{
+								"peerAsn":        65000.0,
+								"localIpAddress": "192.168.1.1",
+								"peerIpAddress":  "192.168.1.2",
+							},
+						},
+					},
+				},
+			},
+			validate: func(t *testing.T, cfg *megaport.VXCOrderVrouterPartnerConfig) {
+				conn := cfg.Interfaces[0].BgpConnections[0]
+				assert.Equal(t, 65000, conn.PeerAsn)
+				assert.Nil(t, conn.LocalAsn)
+				assert.Nil(t, conn.PermitExportTo)
+				assert.Nil(t, conn.DenyExportTo)
+			},
+		},
+		{
+			name: "bgpConnections not an array",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{"bgpConnections": "nope"},
+				},
+			},
+			expectedError: "bgpConnections must be an array",
+		},
+		{
+			name: "BGP connection not an object",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{"bgpConnections": []interface{}{123}},
+				},
+			},
+			expectedError: "must be an object",
+		},
+		{
+			name: "peerAsn wrong type",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"bgpConnections": []interface{}{
+							map[string]interface{}{"peerAsn": "lots"},
+						},
+					},
+				},
+			},
+			expectedError: "peerAsn must be a number",
+		},
+		{
+			name: "permitExportTo not an array",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"bgpConnections": []interface{}{
+							map[string]interface{}{"permitExportTo": "nope"},
+						},
+					},
+				},
+			},
+			expectedError: "permitExportTo must be an array",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseVRouterConfig(tt.config)
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				if tt.validate != nil {
+					tt.validate(t, result)
+				}
+			}
+		})
+	}
+}
+
 func TestParseVXCEndpointConfig(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -748,6 +1036,27 @@ func TestBuildUpdateVXCRequestFromJSON_PartnerConfigs(t *testing.T) {
 			name:          "non-VRouter B-End partner config",
 			json:          `{"bEndPartnerConfig":{"connectType":"IBM","accountID":"123"}}`,
 			expectedError: "only VRouter",
+		},
+		{
+			name: "valid VRouter A-End IPsec tunnel config",
+			json: `{"aEndPartnerConfig":{"connectType":"VROUTER","interfaces":[{"interfaceType":"ipSecTunnel","ipSecTunnelOptions":[{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1","preSharedKey":"topsecret"}]}]}}`,
+			validate: func(t *testing.T, req *megaport.UpdateVXCRequest) {
+				vrouterCfg, ok := req.AEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig)
+				assert.True(t, ok, "expected *megaport.VXCOrderVrouterPartnerConfig")
+				assert.Len(t, vrouterCfg.Interfaces, 1)
+				assert.Equal(t, megaport.InterfaceTypeIPSecTunnel, vrouterCfg.Interfaces[0].InterfaceType)
+				assert.Len(t, vrouterCfg.Interfaces[0].IpSecTunnelOptions, 1)
+			},
+		},
+		{
+			name:          "IPsec tunnel options without ipSecTunnel interface type rejected",
+			json:          `{"aEndPartnerConfig":{"connectType":"VROUTER","interfaces":[{"ipSecTunnelOptions":[{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1","preSharedKey":"topsecret"}]}]}}`,
+			expectedError: "requires interface type",
+		},
+		{
+			name:          "IPsec tunnel missing pre-shared key rejected",
+			json:          `{"aEndPartnerConfig":{"connectType":"VROUTER","interfaces":[{"interfaceType":"ipSecTunnel","ipSecTunnelOptions":[{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1"}]}]}}`,
+			expectedError: "pre-shared key",
 		},
 	}
 

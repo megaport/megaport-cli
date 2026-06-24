@@ -26,6 +26,7 @@ This command allows you to update an existing VXC by providing the necessary det
 ### Important Notes
   - Only VRouter partner configurations can be updated after creation
   - CSP partner configurations (AWS, Azure, etc.) cannot be changed after creation
+  - IPsec tunnels require interfaceType "ipSecTunnel" on the interface; treat the preSharedKey as a secret and avoid committing populated config files to source control
   - Changing the rate limit may result in additional charges
   - Updating VLANs will cause temporary disruption to the VXC connectivity
 
@@ -36,6 +37,7 @@ This command allows you to update an existing VXC by providing the necessary det
   megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --name "New VXC Name" --rate-limit 2000 --cost-centre "New Cost Centre"
   megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --a-end-vlan 200 --b-end-vlan 300
   megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --b-end-partner-config '{"interfaces":[{"vlan":100,"ipAddresses":["192.168.1.1/30"],"bgpConnections":[{"peerAsn":65000,"localAsn":64512,"localIpAddress":"192.168.1.1","peerIpAddress":"192.168.1.2","password":"bgppassword","shutdown":false,"bfdEnabled":true}]}]}'
+  megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --a-end-partner-config '{"interfaces":[{"interfaceType":"ipSecTunnel","ipSecTunnelOptions":[{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1","preSharedKey":"<your-psk>","phase1Lifetime":28800,"phase2Lifetime":3600}]}]}'
   megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{"name":"Updated VXC Name","rateLimit":2000,"costCentre":"New Cost Centre","aEndVlan":200,"bEndVlan":300,"term":24,"shutdown":false}'
 ```
 ### JSON Format Example
