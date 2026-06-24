@@ -291,6 +291,9 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.Buy
 			}
 			req.ResourceTags[k] = strValue
 		}
+		if err := utils.RejectEmptyTagKeys(req.ResourceTags); err != nil {
+			return nil, err
+		}
 	}
 
 	// Handle A-End configuration

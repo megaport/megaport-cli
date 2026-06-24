@@ -3,6 +3,7 @@ package vxc
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	megaport "github.com/megaport/megaportgo"
@@ -790,6 +791,29 @@ func TestBuildVXCRequestFromJSON(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildVXCRequestFromJSON_RejectsEmptyTagKey(t *testing.T) {
+	const payload = `{"portUid":"port-1","vxcName":"Test VXC","rateLimit":1000,"term":12,"resourceTags":{"":"x"},"bEndConfiguration":{"productUID":"port-2"}}`
+
+	t.Run("via json", func(t *testing.T) {
+		_, err := buildVXCRequestFromJSON(payload, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tag key must not be empty")
+	})
+
+	t.Run("via json-file", func(t *testing.T) {
+		tmp, err := os.CreateTemp("", "vxc-emptytag-*.json")
+		require.NoError(t, err)
+		defer os.Remove(tmp.Name())
+		_, err = tmp.WriteString(payload)
+		require.NoError(t, err)
+		require.NoError(t, tmp.Close())
+
+		_, err = buildVXCRequestFromJSON("", tmp.Name())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tag key must not be empty")
+	})
 }
 
 func TestBuildUpdateVXCRequestFromJSON_PartnerConfigs(t *testing.T) {
