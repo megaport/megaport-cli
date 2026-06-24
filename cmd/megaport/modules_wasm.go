@@ -4,6 +4,7 @@ package megaport
 
 import (
 	"github.com/megaport/megaport-cli/internal/commands/billing_market"
+	"github.com/megaport/megaport-cli/internal/commands/ix"
 	"github.com/megaport/megaport-cli/internal/commands/locations"
 	"github.com/megaport/megaport-cli/internal/commands/managed_account"
 	"github.com/megaport/megaport-cli/internal/commands/mcr"
@@ -32,6 +33,7 @@ func registerModules() {
 	moduleRegistry.Register(vxc.NewModule())
 	moduleRegistry.Register(mcr.NewModule())
 	moduleRegistry.Register(mve.NewModule())
+	moduleRegistry.Register(ix.NewModule())
 	moduleRegistry.Register(nat_gateway.NewModule())
 	moduleRegistry.Register(locations.NewModule())
 	moduleRegistry.Register(partners.NewModule())
