@@ -109,3 +109,52 @@ func TestContextFromCmd(t *testing.T) {
 		assertDeadlineWithin(t, deadline, start, 90*time.Second)
 	})
 }
+
+func TestValidateTimeoutFlag(t *testing.T) {
+	t.Run("nil command is valid", func(t *testing.T) {
+		assert.NoError(t, ValidateTimeoutFlag(nil))
+	})
+
+	t.Run("missing timeout flag is valid", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "test"}
+		assert.NoError(t, ValidateTimeoutFlag(cmd))
+	})
+
+	t.Run("unset timeout flag is valid", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "test"}
+		cmd.Flags().Duration("timeout", 0, "")
+		assert.NoError(t, ValidateTimeoutFlag(cmd))
+	})
+
+	t.Run("positive timeout is valid", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "test"}
+		cmd.Flags().Duration("timeout", 0, "")
+		require.NoError(t, cmd.Flags().Set("timeout", "2m"))
+		assert.NoError(t, ValidateTimeoutFlag(cmd))
+	})
+
+	t.Run("explicit zero timeout is rejected", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "test"}
+		cmd.Flags().Duration("timeout", 0, "")
+		require.NoError(t, cmd.Flags().Set("timeout", "0s"))
+		err := ValidateTimeoutFlag(cmd)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--timeout must be greater than 0")
+	})
+
+	t.Run("explicit negative timeout is rejected", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "test"}
+		cmd.Flags().Duration("timeout", 0, "")
+		require.NoError(t, cmd.Flags().Set("timeout", "-5s"))
+		assert.Error(t, ValidateTimeoutFlag(cmd))
+	})
+
+	t.Run("explicit zero on inherited persistent flag is rejected", func(t *testing.T) {
+		root := &cobra.Command{Use: "root"}
+		child := &cobra.Command{Use: "child"}
+		root.PersistentFlags().Duration("timeout", 0, "")
+		root.AddCommand(child)
+		require.NoError(t, child.ParseFlags([]string{"--timeout", "0"}))
+		assert.Error(t, ValidateTimeoutFlag(child))
+	})
+}

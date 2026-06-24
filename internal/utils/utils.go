@@ -8,6 +8,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -311,6 +312,13 @@ func classifyError(err error) int {
 		return cliErr.Code
 	}
 
+	// A validation failure is caller error, so map it to the usage code. Type
+	// matching avoids depending on the "Invalid %s" message wording.
+	var validationErr *validation.ValidationError
+	if errors.As(err, &validationErr) {
+		return exitcodes.Usage
+	}
+
 	// Type-safe SDK error inspection first
 	var apiErr *megaport.ErrorResponse
 	if errors.As(err, &apiErr) {
@@ -346,6 +354,9 @@ func classifyError(err error) int {
 		"at least one field must be updated",
 		"at least one of these flags",
 		"invalid location ID",
+		// A malformed --json argument is caller error, not an API failure.
+		// Matched before the "failed to parse" API pattern below.
+		"failed to parse JSON",
 	}
 	for _, p := range usagePatterns {
 		if strings.Contains(msg, p) {
