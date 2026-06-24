@@ -16,7 +16,6 @@ func init() {
 	listMVEResourceTagsFunc = listMVEResourceTagsWasmImpl
 	lockMVEFunc = lockMVEWasmImpl
 	unlockMVEFunc = unlockMVEWasmImpl
-	restoreMVEFunc = restoreMVEWasmImpl
 }
 
 // isAuthError checks if the error is an authentication/authorization error
@@ -119,36 +118,5 @@ func unlockMVEWasmImpl(ctx context.Context, client *megaport.Client, mveUID stri
 	}
 
 	js.Global().Get("console").Call("log", "✅ SDK ManageProductLock (unlock) successful")
-	return response, nil
-}
-
-// restoreMVEWasmImpl uses the SDK's ProductService.RestoreProduct() method
-func restoreMVEWasmImpl(ctx context.Context, client *megaport.Client, mveUID string) (*megaport.RestoreProductResponse, error) {
-	js.Global().Get("console").Call("log", fmt.Sprintf("🚀 Using SDK ProductService.RestoreProduct() for MVE %s", mveUID))
-
-	if client == nil {
-		var err error
-		client, err = config.Login(ctx)
-		if err != nil {
-			js.Global().Get("console").Call("error", fmt.Sprintf("❌ Login failed: %v", err))
-			return nil, fmt.Errorf("failed to log in: %w", err)
-		}
-	}
-
-	js.Global().Get("console").Call("log", "📡 Calling SDK ProductService.RestoreProduct()...")
-	response, err := client.ProductService.RestoreProduct(ctx, mveUID)
-	if err != nil {
-		js.Global().Get("console").Call("error", fmt.Sprintf("❌ SDK RestoreProduct failed: %v", err))
-
-		if isAuthError(err) {
-			js.Global().Get("console").Call("warn", "🔓 Authentication token expired or invalid, clearing cache")
-			config.ClearCachedToken()
-			return nil, fmt.Errorf("authentication token expired. Please run the command again to re-authenticate")
-		}
-
-		return nil, fmt.Errorf("failed to restore MVE: %w", err)
-	}
-
-	js.Global().Get("console").Call("log", "✅ SDK RestoreProduct successful")
 	return response, nil
 }
