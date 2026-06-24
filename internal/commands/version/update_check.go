@@ -18,9 +18,13 @@ type updateCheckCache struct {
 }
 
 // checkForUpdate returns the latest version and whether it differs from currentVersion.
-// Fails silently — never returns an error. Returns ("", false) for "dev" builds.
+// Fails silently — never returns an error. Returns ("", false) for "dev" builds or when
+// NO_UPDATE_CHECK is set (used by the e2e hermetic sandbox).
 func checkForUpdate(currentVersion string, client *http.Client, cacheDir string) (string, bool) {
 	if currentVersion == "dev" || currentVersion == "" {
+		return "", false
+	}
+	if os.Getenv("NO_UPDATE_CHECK") != "" {
 		return "", false
 	}
 	cacheFile := filepath.Join(cacheDir, "update-check.json")

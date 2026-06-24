@@ -20,6 +20,13 @@ jobs:
           go-version-file: 'go.mod'
       - name: Compile js/wasm target
         run: make wasm-build-guard
+      - name: Run WASM unit tests
+        # Only ./cmd/megaport runs under the bare go_js_wasm_exec (node) runtime.
+        # The other WASM test packages need a browser host (fetch, JS bridge
+        # globals, stdin pipes) and are verified manually in-browser.
+        run: |
+          export PATH="$PATH:$(go env GOROOT)/lib/wasm"
+          GOOS=js GOARCH=wasm go test -v -tags js,wasm ./cmd/megaport
 
   smoke:
     name: Browser Fetch Smoke

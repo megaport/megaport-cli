@@ -51,7 +51,7 @@ test-integration-readonly:
 # Run the hermetic native-binary e2e tests (built behind the `e2e` build tag).
 # Builds the CLI binary and drives it via argv; no credentials needed.
 e2e:
-	go test -tags e2e -run '^TestE2E_' -skip 'Staging' -v ./e2e/...
+	go test -tags e2e -run '^TestE2E_' -skip '^TestE2E_Staging_' -v ./e2e/...
 
 # Run the live staging e2e tests (read-only, requires MEGAPORT_* credentials).
 e2e-staging:

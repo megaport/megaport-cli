@@ -208,3 +208,39 @@ func TestPromptForUpdatePortDetails_NoChanges(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "at least one field must be updated")
 }
+
+func TestPromptForUpdatePortDetails_InvalidTermNotNumeric(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	utils.SetResourcePrompt(mockPromptSequence([]string{"Updated Name", "true", "IT-Updated", "abc"}))
+
+	_, err := promptForUpdatePortDetails("port-123", true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid term")
+	assert.NotContains(t, err.Error(), "strconv")
+}
+
+func TestPromptForLAGPortDetails_InvalidTerm(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	utils.SetResourcePrompt(mockPromptSequence([]string{"LAG", "abc"}))
+
+	_, err := promptForLAGPortDetails(true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid term")
+	assert.NotContains(t, err.Error(), "strconv")
+}
+
+func TestPromptForLAGPortDetails_InvalidLocationID(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	utils.SetResourcePrompt(mockPromptSequence([]string{"LAG", "12", "10000", "abc"}))
+
+	_, err := promptForLAGPortDetails(true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid location ID")
+	assert.NotContains(t, err.Error(), "strconv")
+}

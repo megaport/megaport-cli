@@ -194,7 +194,7 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	var resp *megaport.BuyMVEResponse
-	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
+	err = utils.WithOrderOnceRetry(ctx, func(ctx context.Context) error {
 		var e error
 		resp, e = client.MVEService.BuyMVE(ctx, req)
 		return e
@@ -728,29 +728,5 @@ func UnlockMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	output.PrintSuccess("MVE %s unlocked successfully", noColor, mveUID)
-	return nil
-}
-
-func RestoreMVE(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
-	if err != nil {
-		output.PrintError("Failed to log in: %v", noColor, err)
-		return err
-	}
-	defer cancel()
-
-	mveUID := args[0]
-
-	output.PrintInfo("Restoring MVE %s...", noColor, mveUID)
-
-	err = utils.WithRetry(ctx, func(ctx context.Context) error {
-		_, e := restoreMVEFunc(ctx, client, mveUID)
-		return e
-	})
-	if err != nil {
-		return fmt.Errorf("failed to restore MVE: %w", err)
-	}
-
-	output.PrintSuccess("MVE %s restored successfully", noColor, mveUID)
 	return nil
 }

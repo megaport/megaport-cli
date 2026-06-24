@@ -1,4 +1,4 @@
-//go:build integration
+//go:build integration && provisioning
 
 package ports
 
@@ -506,4 +506,71 @@ func TestIntegration_PortJSONFileLifecycle(t *testing.T) {
 
 	updated := portFromSDK(t, uid)
 	assert.Equal(t, newName, updated.Name)
+}
+
+// TestIntegration_LAGPortUpdateLifecycle exercises the LAG port update path
+// that TestIntegration_LAGPortLifecycle (name-only) does not.
+//
+// Immutable via the update action: the LAG member count (--lag-count) and the
+// port speed (--port-speed). Neither is a field on megaport.ModifyPortRequest,
+// and neither has an update flag (see WithPortUpdateFlags and
+// processFlagUpdatePortInput), so `ports update` cannot change them post-buy;
+// changing either means a buy/replace, not an update. Mutable via the update
+// action: name, marketplace visibility, cost centre, and contract term. Name
+// is already covered by TestIntegration_LAGPortLifecycle, and a term change can
+// apply at renewal rather than immediately, so this test asserts the two
+// attributes that flip and read back deterministically on a LAG primary:
+// marketplace visibility and cost centre.
+func TestIntegration_LAGPortUpdateLifecycle(t *testing.T) {
+	t.Parallel()
+	testutil.RequireStagingForProvisioning(t)
+	testutil.RequireSharedIntegrationClient(t)
+
+	portName := fmt.Sprintf("CLI-Test-LAG-Update-%s", generateUniqueID(t))
+
+	buyCmd := newBuyLAGPortCmd()
+	require.NoError(t, buyCmd.Flags().Set("name", portName))
+	require.NoError(t, buyCmd.Flags().Set("term", "1"))
+	require.NoError(t, buyCmd.Flags().Set("port-speed", "10000"))
+	require.NoError(t, buyCmd.Flags().Set("location-id", fmt.Sprintf("%d", integrationLocationID)))
+	require.NoError(t, buyCmd.Flags().Set("lag-count", "1"))
+	require.NoError(t, buyCmd.Flags().Set("marketplace-visibility", "false"))
+	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
+
+	uid := runBuyLAGPort(t, buyCmd, portName)
+	t.Logf("Created LAG port with UID: %s", uid)
+
+	// Baseline read. We assert the buy landed the values the updates move away
+	// from, so each assertion below proves a real change rather than passing
+	// trivially. LAGPrimary/speed are captured to confirm the attribute updates
+	// leave the LAG topology untouched.
+	port := portFromSDK(t, uid)
+	assert.Equal(t, uid, port.UID)
+	assert.Equal(t, portName, port.Name)
+	require.False(t, port.MarketplaceVisibility, "buy set marketplace visibility to false")
+	require.Equal(t, 10000, port.PortSpeed, "buy requested a 10G LAG port")
+	initialLAGPrimary := port.LAGPrimary
+	t.Logf("LAG port baseline: lagPrimary=%t lagId=%d", port.LAGPrimary, port.LAGID)
+
+	// Update 1: marketplace visibility false -> true.
+	runUpdatePortWithFlag(t, uid, "marketplace-visibility", "true")
+	afterMV := portFromSDK(t, uid)
+	assert.True(t, afterMV.MarketplaceVisibility, "marketplace visibility should be true after update")
+
+	// Update 2: set a cost centre and read it back.
+	costCentre := "CLI-ESD-1528-" + generateUniqueID(t)
+	runUpdatePortWithFlag(t, uid, "cost-centre", costCentre)
+	afterCC := portFromSDK(t, uid)
+	assert.Equal(t, costCentre, afterCC.CostCentre, "cost centre should round-trip after update")
+	// The cost-centre-only update must not clobber the earlier visibility flip.
+	assert.True(t, afterCC.MarketplaceVisibility, "marketplace visibility should persist across the cost-centre update")
+
+	// LAG count and speed are immutable via the update action; confirm the
+	// attribute updates left the LAG topology and speed untouched.
+	assert.Equal(t, initialLAGPrimary, afterCC.LAGPrimary, "LAG primary status should be unchanged by attribute updates")
+	assert.Equal(t, 10000, afterCC.PortSpeed, "port speed should be unchanged by attribute updates")
+
+	// Delete and decommissioning are asserted by the cleanup registered in
+	// runBuyLAGPort: registerPortCleanup deletes the port and polls the SDK
+	// until it reaches DECOMMISSIONING/DECOMMISSIONED.
 }

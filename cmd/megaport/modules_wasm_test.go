@@ -39,3 +39,35 @@ func TestReadOnlyModulesRegistered(t *testing.T) {
 		})
 	}
 }
+
+// TestAccountPartnerAdminModulesRegistered verifies the users, managed-account,
+// and billing-market modules are wired into the WASM command tree (ESD-1287).
+// Like the read-only check above, each case is help-only so no network call is
+// made and subtests can share the global rootCmd without leaking flag state.
+func TestAccountPartnerAdminModulesRegistered(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		// usage anchors on the "Usage:" block so a parent's "Example usage"
+		// prose can't satisfy the match for a removed subcommand.
+		usage string
+	}{
+		{"users", []string{"megaport-cli", "users", "--help"}, "Usage:\n  megaport-cli users"},
+		{"users list", []string{"megaport-cli", "users", "list", "--help"}, "Usage:\n  megaport-cli users list"},
+		{"managed-account", []string{"megaport-cli", "managed-account", "--help"}, "Usage:\n  megaport-cli managed-account"},
+		{"managed-account list", []string{"megaport-cli", "managed-account", "list", "--help"}, "Usage:\n  megaport-cli managed-account list"},
+		{"billing-market", []string{"megaport-cli", "billing-market", "--help"}, "Usage:\n  megaport-cli billing-market"},
+		{"billing-market get", []string{"megaport-cli", "billing-market", "get", "--help"}, "Usage:\n  megaport-cli billing-market get"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			wasm.ResetOutputBuffers()
+			ExecuteWithArgs(tc.args)
+			out := wasm.GetCapturedOutput()
+			// An unregistered command falls back to root help, which lacks
+			// this command's Usage: block, so Contains is the real check.
+			assert.Contains(t, out, tc.usage, "%v should be registered and show its usage path", tc.args)
+		})
+	}
+}
