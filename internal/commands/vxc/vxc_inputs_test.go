@@ -1541,3 +1541,24 @@ func TestBuildVXCRequestFromFlags_PartnerConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestParseBGPConnections_PasswordNotEchoed(t *testing.T) {
+	const password = "super-secret-bgp-password"
+	cfg := map[string]interface{}{
+		"connectType": "VROUTER",
+		"interfaces": []interface{}{
+			map[string]interface{}{
+				"bgpConnections": []interface{}{
+					map[string]interface{}{
+						"password": password,
+						// localAsn wrong type triggers a type error before password is used
+						"localAsn": "not-a-number",
+					},
+				},
+			},
+		},
+	}
+	_, err := parseVRouterConfig(cfg)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), password, "BGP password must never appear in a parse error")
+}

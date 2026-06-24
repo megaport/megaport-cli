@@ -696,6 +696,10 @@ func ValidateIPsecTunnelConfig(tunnel megaport.IPsecTunnelConfig, ifaceIndex, tu
 			return NewValidationError(fmt.Sprintf("%s phase 2 lifetime", fieldPrefix), *tunnel.Phase2Lifetime, fmt.Sprintf("must be between %d-%d seconds", MinIPsecPhase2Lifetime, MaxIPsecPhase2Lifetime))
 		}
 	}
+	// Only cross-check when both are explicitly set. When one is omitted the API
+	// applies its default (phase1=28800s, phase2=3600s). A value like phase2=40000
+	// with no phase1 passes here but violates the constraint at the API level —
+	// this is a known gap that requires knowledge of API defaults to close properly.
 	if tunnel.Phase1Lifetime != nil && tunnel.Phase2Lifetime != nil && *tunnel.Phase2Lifetime >= *tunnel.Phase1Lifetime {
 		return NewValidationError(fmt.Sprintf("%s phase 2 lifetime", fieldPrefix), *tunnel.Phase2Lifetime, "must be less than phase 1 lifetime")
 	}

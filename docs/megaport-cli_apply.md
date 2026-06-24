@@ -14,10 +14,11 @@ Resources are provisioned sequentially in dependency order: ports and MCRs first
 ### Example Usage
 
 ```sh
-  megaport apply -f infrastructure.yaml
-  megaport apply -f infrastructure.yaml --dry-run
-  megaport apply -f infrastructure.yaml --yes
-  megaport apply -f infrastructure.json --output json
+  megaport-cli apply -f infrastructure.yaml
+  megaport-cli apply -f infrastructure.yaml --dry-run
+  megaport-cli apply -f infrastructure.yaml --yes
+  megaport-cli apply -f infrastructure.yaml --rollback-on-failure
+  megaport-cli apply -f infrastructure.json --output json
 ```
 
 ## Usage
@@ -33,6 +34,7 @@ megaport-cli apply [flags]
 |------|-----------|---------|-------------|----------|
 | `--dry-run` |  | `false` | Validate all orders without provisioning | false |
 | `--file` | `-f` |  | Path to config file (YAML or JSON) | true |
+| `--rollback-on-failure` |  | `false` | Delete any resources created during this run if provisioning fails | false |
 | `--yes` | `-y` | `false` | Skip confirmation prompt | false |
 
 ## Subcommands
