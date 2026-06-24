@@ -2,7 +2,6 @@ package mve
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -51,9 +50,9 @@ func promptMVEBaseDetails(noColor bool) (*megaport.BuyMVERequest, string, int, s
 	if err != nil {
 		return nil, "", 0, "", "", err
 	}
-	term, err := strconv.Atoi(termStr)
+	term, err := validation.ParseInt("term", termStr)
 	if err != nil {
-		return nil, "", 0, "", "", fmt.Errorf("invalid term: %w", err)
+		return nil, "", 0, "", "", err
 	}
 	req.Term = term
 
@@ -61,9 +60,9 @@ func promptMVEBaseDetails(noColor bool) (*megaport.BuyMVERequest, string, int, s
 	if err != nil {
 		return nil, "", 0, "", "", err
 	}
-	locationID, err := strconv.Atoi(locationIDStr)
+	locationID, err := validation.ParseInt("location ID", locationIDStr)
 	if err != nil {
-		return nil, "", 0, "", "", fmt.Errorf("invalid location ID: %w", err)
+		return nil, "", 0, "", "", err
 	}
 	req.LocationID = locationID
 
@@ -97,9 +96,9 @@ func promptMVEBaseDetails(noColor bool) (*megaport.BuyMVERequest, string, int, s
 	if err != nil {
 		return nil, "", 0, "", "", err
 	}
-	imageID, err := strconv.Atoi(imageIDStr)
+	imageID, err := validation.ParseInt("image ID", imageIDStr)
 	if err != nil {
-		return nil, "", 0, "", "", fmt.Errorf("invalid image ID: %w", err)
+		return nil, "", 0, "", "", err
 	}
 
 	productSize, err := utils.ResourcePrompt("mve", "Enter product size (required): ", noColor)
@@ -378,9 +377,9 @@ func promptMVEVnics(noColor bool) ([]megaport.MVENetworkInterface, error) {
 		}
 		vlan := 0
 		if vlanStr != "" {
-			vlan, err = strconv.Atoi(vlanStr)
+			vlan, err = validation.ParseInt("VLAN ID", vlanStr)
 			if err != nil {
-				return nil, fmt.Errorf("invalid VLAN ID: %w", err)
+				return nil, err
 			}
 		}
 
@@ -423,9 +422,9 @@ func promptForUpdateMVEDetails(mveUID string, currentVnics []*megaport.MVENetwor
 		return nil, err
 	}
 	if contractTermStr != "" {
-		contractTerm, err := strconv.Atoi(contractTermStr)
+		contractTerm, err := validation.ParseInt("contract term", contractTermStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid contract term: %w", err)
+			return nil, err
 		}
 		req.ContractTermMonths = &contractTerm
 	}

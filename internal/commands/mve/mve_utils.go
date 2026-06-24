@@ -58,7 +58,3 @@ var lockMVEFunc = func(ctx context.Context, client *megaport.Client, mveUID stri
 var unlockMVEFunc = func(ctx context.Context, client *megaport.Client, mveUID string) (*megaport.ManageProductLockResponse, error) {
 	return client.ProductService.ManageProductLock(ctx, &megaport.ManageProductLockRequest{ProductID: mveUID, ShouldLock: false})
 }
-
-var restoreMVEFunc = func(ctx context.Context, client *megaport.Client, mveUID string) (*megaport.RestoreProductResponse, error) {
-	return client.ProductService.RestoreProduct(ctx, mveUID)
-}

@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -57,6 +58,9 @@ func setupAndRun(m *testing.M) (int, error) {
 	defer os.RemoveAll(tmp)
 
 	bin := filepath.Join(tmp, "megaport-cli")
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
 	build := exec.Command("go", "build", "-o", bin, ".")
 	build.Dir = root
 	// Build from the module's own definition, ignoring any ambient go.work, so the

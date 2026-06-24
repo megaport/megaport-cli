@@ -34,10 +34,10 @@ type RetryOpts struct {
 	// RetryNetworkErrors enables retrying on ambiguous network failures
 	// (connection reset, EOF, timeout). Only set this for idempotent operations.
 	RetryNetworkErrors bool
-	// OrderSafe restricts retries to errors that prove the request never reached
+	// OrderOnce restricts retries to errors that prove the request never reached
 	// processing (HTTP 429, connection-refused-before-send). Set this for
 	// non-idempotent buy/order calls so an ambiguous failure cannot double-submit.
-	OrderSafe bool
+	OrderOnce bool
 }
 
 // DefaultRetryOpts returns sensible defaults for API retry behaviour.
@@ -79,18 +79,18 @@ func WithIdempotentRetry(ctx context.Context, fn func(ctx context.Context) error
 	return RetryWithBackoff(ctx, opts, fn)
 }
 
-// WithOrderRetry wraps fn with a retry policy safe for non-idempotent buy/order
+// WithOrderOnceRetry wraps fn with a retry policy safe for non-idempotent buy/order
 // operations. It retries ONLY when the request provably never reached
 // processing: HTTP 429, or a connection-refused error raised before the request
 // was sent. It never retries on 5xx or other ambiguous-outcome errors, which
 // could double-submit an order and cause duplicate billing.
 // If --no-retry was set globally, fn is called exactly once.
-func WithOrderRetry(ctx context.Context, fn func(ctx context.Context) error) error {
+func WithOrderOnceRetry(ctx context.Context, fn func(ctx context.Context) error) error {
 	if NoRetry {
 		return fn(ctx)
 	}
 	opts := DefaultRetryOpts()
-	opts.OrderSafe = true
+	opts.OrderOnce = true
 	return RetryWithBackoff(ctx, opts, fn)
 }
 
@@ -111,8 +111,8 @@ func RetryWithBackoff(ctx context.Context, opts RetryOpts, fn func(ctx context.C
 		}
 
 		retryable := isRetryable(err, opts.RetryNetworkErrors)
-		if opts.OrderSafe {
-			retryable = isOrderRetryable(err)
+		if opts.OrderOnce {
+			retryable = isRetryableOrderOnce(err)
 		}
 
 		if !retryable {
@@ -217,12 +217,12 @@ func isRetryable(err error, retryNetworkErrors bool) bool {
 	return false
 }
 
-// isOrderRetryable returns true only for errors that prove a buy/order request
+// isRetryableOrderOnce returns true only for errors that prove a buy/order request
 // never reached processing: HTTP 429, or connection-refused raised during the
 // TCP handshake (the request bytes never left the client). Ambiguous outcomes
 // (5xx, connection reset, timeout, EOF) are never retried because the order may
 // already have been accepted upstream.
-func isOrderRetryable(err error) bool {
+func isRetryableOrderOnce(err error) bool {
 	var apiErr *megaport.ErrorResponse
 	if errors.As(err, &apiErr) && apiErr.Response != nil {
 		return apiErr.Response.StatusCode == http.StatusTooManyRequests

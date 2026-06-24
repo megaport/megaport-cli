@@ -406,7 +406,7 @@ func TestIsOrderRetryable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.retryable, isOrderRetryable(tt.err))
+			assert.Equal(t, tt.retryable, isRetryableOrderOnce(tt.err))
 		})
 	}
 }
@@ -422,7 +422,7 @@ func TestWithOrderRetry_NoRetryOn502(t *testing.T) {
 	MaxRetries = 3 // retries are available; the order-safe policy must still refuse to use them on a 502
 
 	calls := 0
-	err := WithOrderRetry(context.Background(), func(ctx context.Context) error {
+	err := WithOrderOnceRetry(context.Background(), func(ctx context.Context) error {
 		calls++
 		return apiError(502, "")
 	})
@@ -436,7 +436,7 @@ func TestWithOrderRetry_NoRetryFlag(t *testing.T) {
 	NoRetry = true
 
 	calls := 0
-	err := WithOrderRetry(context.Background(), func(ctx context.Context) error {
+	err := WithOrderOnceRetry(context.Background(), func(ctx context.Context) error {
 		calls++
 		return apiError(429, "")
 	})
@@ -446,7 +446,7 @@ func TestWithOrderRetry_NoRetryFlag(t *testing.T) {
 
 func TestOrderSafeRetry_RetriesOn429ThenSucceeds(t *testing.T) {
 	opts := fastOpts()
-	opts.OrderSafe = true
+	opts.OrderOnce = true
 
 	calls := 0
 	err := RetryWithBackoff(context.Background(), opts, func(ctx context.Context) error {
@@ -462,7 +462,7 @@ func TestOrderSafeRetry_RetriesOn429ThenSucceeds(t *testing.T) {
 
 func TestOrderSafeRetry_RetriesOnConnectionRefused(t *testing.T) {
 	opts := fastOpts()
-	opts.OrderSafe = true
+	opts.OrderOnce = true
 
 	calls := 0
 	err := RetryWithBackoff(context.Background(), opts, func(ctx context.Context) error {
@@ -478,7 +478,7 @@ func TestOrderSafeRetry_RetriesOnConnectionRefused(t *testing.T) {
 
 func TestOrderSafeRetry_NoRetryOnAmbiguousNetworkError(t *testing.T) {
 	opts := fastOpts()
-	opts.OrderSafe = true
+	opts.OrderOnce = true
 
 	calls := 0
 	err := RetryWithBackoff(context.Background(), opts, func(ctx context.Context) error {

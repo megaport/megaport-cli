@@ -242,7 +242,7 @@ func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
 		buySpinner = output.PrintResourceCreating("IX", req.Name, noColor)
 	}
 	var resp *megaport.BuyIXResponse
-	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
+	err = utils.WithOrderOnceRetry(ctx, func(ctx context.Context) error {
 		var e error
 		resp, e = buyIXFunc(ctx, client, req)
 		return e
