@@ -686,6 +686,69 @@ func TestParseVRouterConfigIPsec(t *testing.T) {
 			},
 			expectedError: "phase1Lifetime must be a number",
 		},
+		{
+			name: "sourceIpAddress wrong type",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"interfaceType":      "ipSecTunnel",
+						"ipSecTunnelOptions": []interface{}{map[string]interface{}{"sourceIpAddress": 123}},
+					},
+				},
+			},
+			expectedError: "sourceIpAddress must be a string",
+		},
+		{
+			name: "passive wrong type",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"interfaceType": "ipSecTunnel",
+						"ipSecTunnelOptions": []interface{}{
+							map[string]interface{}{
+								"sourceIpAddress":      "192.0.2.1",
+								"destinationIpAddress": "198.51.100.1",
+								"preSharedKey":         "secret",
+								"passive":              "yes",
+							},
+						},
+					},
+				},
+			},
+			expectedError: "passive must be a boolean",
+		},
+		{
+			name: "phase2Lifetime wrong type",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"interfaceType": "ipSecTunnel",
+						"ipSecTunnelOptions": []interface{}{
+							map[string]interface{}{
+								"sourceIpAddress":      "192.0.2.1",
+								"destinationIpAddress": "198.51.100.1",
+								"preSharedKey":         "secret",
+								"phase2Lifetime":       "forever",
+							},
+						},
+					},
+				},
+			},
+			expectedError: "phase2Lifetime must be a number",
+		},
+		{
+			name: "interfaceType wrong type",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{"interfaceType": 123},
+				},
+			},
+			expectedError: "interfaceType must be a string",
+		},
 	}
 
 	for _, tt := range tests {
@@ -700,6 +763,36 @@ func TestParseVRouterConfigIPsec(t *testing.T) {
 					tt.validate(t, result)
 				}
 			}
+		})
+	}
+
+	// Field-type error coverage: one entry per IPsec tunnel field. Each entry
+	// only sets the target field wrong; all earlier fields are absent.
+	ipsecFieldTypeErrors := []struct {
+		field string
+		value interface{}
+		want  string
+	}{
+		{"destinationIpAddress", 123, "destinationIpAddress must be a string"},
+		{"preSharedKey", 123, "preSharedKey must be a string"},
+		{"localId", 123, "localId must be a string"},
+		{"remoteId", 123, "remoteId must be a string"},
+	}
+	for _, tc := range ipsecFieldTypeErrors {
+		tc := tc
+		t.Run("IPsec tunnel field "+tc.field+" wrong type", func(t *testing.T) {
+			cfg := map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"interfaceType":      "ipSecTunnel",
+						"ipSecTunnelOptions": []interface{}{map[string]interface{}{tc.field: tc.value}},
+					},
+				},
+			}
+			_, err := parseVRouterConfig(cfg)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), tc.want)
 		})
 	}
 }
@@ -844,6 +937,76 @@ func TestParseVRouterConfigBGP(t *testing.T) {
 			},
 			expectedError: "permitExportTo must be an array",
 		},
+		{
+			name: "localIpAddress wrong type triggers strField error path",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"bgpConnections": []interface{}{
+							map[string]interface{}{"localIpAddress": 123},
+						},
+					},
+				},
+			},
+			expectedError: "localIpAddress must be a string",
+		},
+		{
+			name: "shutdown wrong type triggers boolField error path",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"bgpConnections": []interface{}{
+							map[string]interface{}{"shutdown": "yes"},
+						},
+					},
+				},
+			},
+			expectedError: "shutdown must be a boolean",
+		},
+		{
+			name: "permitExportTo element not a string",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"bgpConnections": []interface{}{
+							map[string]interface{}{"permitExportTo": []interface{}{123}},
+						},
+					},
+				},
+			},
+			expectedError: "permitExportTo[0] must be a string",
+		},
+		{
+			name: "denyExportTo not an array",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"bgpConnections": []interface{}{
+							map[string]interface{}{"denyExportTo": "nope"},
+						},
+					},
+				},
+			},
+			expectedError: "denyExportTo must be an array",
+		},
+		{
+			name: "importWhitelist wrong type",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"bgpConnections": []interface{}{
+							map[string]interface{}{"importWhitelist": "nope"},
+						},
+					},
+				},
+			},
+			expectedError: "importWhitelist must be a number",
+		},
 	}
 
 	for _, tt := range tests {
@@ -858,6 +1021,47 @@ func TestParseVRouterConfigBGP(t *testing.T) {
 					tt.validate(t, result)
 				}
 			}
+		})
+	}
+
+	// Field-type error coverage: one entry per BGP field that has its own call-site
+	// error branch. Each entry only sets the target field (wrong type) so all
+	// preceding fields are absent and do not trigger an earlier return.
+	bgpFieldTypeErrors := []struct {
+		field string
+		value interface{}
+		want  string
+	}{
+		{"localAsn", "wrong", "localAsn must be a number"},
+		{"peerIpAddress", 123, "peerIpAddress must be a string"},
+		{"password", 123, "password must be a string"},
+		{"description", 123, "description must be a string"},
+		{"medIn", "lots", "medIn must be a number"},
+		{"medOut", "lots", "medOut must be a number"},
+		{"bfdEnabled", "yes", "bfdEnabled must be a boolean"},
+		{"exportPolicy", 123, "exportPolicy must be a string"},
+		{"importBlacklist", "nope", "importBlacklist must be a number"},
+		{"exportWhitelist", "nope", "exportWhitelist must be a number"},
+		{"exportBlacklist", "nope", "exportBlacklist must be a number"},
+		{"asPathPrependCount", "lots", "asPathPrependCount must be a number"},
+		{"peerType", 123, "peerType must be a string"},
+	}
+	for _, tc := range bgpFieldTypeErrors {
+		tc := tc
+		t.Run("BGP field "+tc.field+" wrong type", func(t *testing.T) {
+			cfg := map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"bgpConnections": []interface{}{
+							map[string]interface{}{tc.field: tc.value},
+						},
+					},
+				},
+			}
+			_, err := parseVRouterConfig(cfg)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), tc.want)
 		})
 	}
 }
@@ -1057,6 +1261,32 @@ func TestBuildUpdateVXCRequestFromJSON_PartnerConfigs(t *testing.T) {
 			name:          "IPsec tunnel missing pre-shared key rejected",
 			json:          `{"aEndPartnerConfig":{"connectType":"VROUTER","interfaces":[{"interfaceType":"ipSecTunnel","ipSecTunnelOptions":[{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1"}]}]}}`,
 			expectedError: "pre-shared key",
+		},
+		{
+			name: "valid VRouter B-End partner config",
+			json: `{"bEndPartnerConfig":{"connectType":"VROUTER","interfaces":[{"vlan":200,"ipAddresses":["10.0.1.1/30"]}]}}`,
+			validate: func(t *testing.T, req *megaport.UpdateVXCRequest) {
+				assert.Nil(t, req.AEndPartnerConfig)
+				assert.NotNil(t, req.BEndPartnerConfig)
+				vrouterCfg, ok := req.BEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig)
+				assert.True(t, ok)
+				assert.Len(t, vrouterCfg.Interfaces, 1)
+			},
+		},
+		{
+			name:          "B-End IPsec tunnel missing pre-shared key rejected",
+			json:          `{"bEndPartnerConfig":{"connectType":"VROUTER","interfaces":[{"interfaceType":"ipSecTunnel","ipSecTunnelOptions":[{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1"}]}]}}`,
+			expectedError: "pre-shared key",
+		},
+		{
+			name:          "A-End VROUTER with unparseable interfaces rejected",
+			json:          `{"aEndPartnerConfig":{"connectType":"VROUTER","interfaces":"not-an-array"}}`,
+			expectedError: "failed to parse A-End",
+		},
+		{
+			name:          "B-End VROUTER with unparseable interfaces rejected",
+			json:          `{"bEndPartnerConfig":{"connectType":"VROUTER","interfaces":"not-an-array"}}`,
+			expectedError: "failed to parse B-End",
 		},
 	}
 

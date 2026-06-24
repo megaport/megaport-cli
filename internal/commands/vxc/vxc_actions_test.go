@@ -1469,6 +1469,46 @@ func TestBuildUpdateVXCRequestFromFlags_PartnerConfig(t *testing.T) {
 		assert.Nil(t, req.AEndPartnerConfig)
 		assert.NotNil(t, req.BEndPartnerConfig)
 	})
+
+	t.Run("non-VRouter B-End config rejected", func(t *testing.T) {
+		cmd := makeCmd()
+		testutil.SetFlags(t, cmd, map[string]string{
+			"b-end-partner-config": `{"connectType":"AWS","ownerAccount":"123456789012"}`,
+		})
+		_, err := buildUpdateVXCRequestFromFlags(cmd)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "VRouter")
+	})
+
+	t.Run("B-End validation error via flags", func(t *testing.T) {
+		cmd := makeCmd()
+		testutil.SetFlags(t, cmd, map[string]string{
+			"b-end-partner-config": `{"connectType":"VROUTER","interfaces":[{"interfaceType":"ipSecTunnel","ipSecTunnelOptions":[{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1"}]}]}`,
+		})
+		_, err := buildUpdateVXCRequestFromFlags(cmd)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "pre-shared key")
+	})
+
+	t.Run("A-End malformed JSON rejected", func(t *testing.T) {
+		cmd := makeCmd()
+		testutil.SetFlags(t, cmd, map[string]string{
+			"a-end-partner-config": `{not valid json`,
+		})
+		_, err := buildUpdateVXCRequestFromFlags(cmd)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to parse a-end-partner-config")
+	})
+
+	t.Run("B-End malformed JSON rejected", func(t *testing.T) {
+		cmd := makeCmd()
+		testutil.SetFlags(t, cmd, map[string]string{
+			"b-end-partner-config": `{not valid json`,
+		})
+		_, err := buildUpdateVXCRequestFromFlags(cmd)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to parse b-end-partner-config")
+	})
 }
 
 func TestBuildUpdateVXCRequestFromJSON_NewFields_Invalid(t *testing.T) {
