@@ -56,8 +56,9 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 		VLAN: aEndVLAN,
 	}
 
-	// Set MVE config if needed
-	if aEndInnerVLAN != 0 || aEndVNICIndex > 0 {
+	// Set MVE config if needed. vNIC index 0 is valid, so gate on whether the
+	// flag was set rather than on a non-zero value.
+	if aEndInnerVLAN != 0 || cmd.Flags().Changed("a-end-vnic-index") {
 		aEndConfig.VXCOrderMVEConfig = &megaport.VXCOrderMVEConfig{
 			InnerVLAN:             aEndInnerVLAN,
 			NetworkInterfaceIndex: aEndVNICIndex,
@@ -120,8 +121,9 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 	bEndConfig.ProductUID = bEndUID
 	bEndConfig.VLAN = bEndVLAN
 
-	// Set MVE config if needed
-	if bEndInnerVLAN != 0 || bEndVNICIndex > 0 {
+	// Set MVE config if needed. vNIC index 0 is valid, so gate on whether the
+	// flag was set rather than on a non-zero value.
+	if bEndInnerVLAN != 0 || cmd.Flags().Changed("b-end-vnic-index") {
 		bEndConfig.VXCOrderMVEConfig = &megaport.VXCOrderMVEConfig{
 			InnerVLAN:             bEndInnerVLAN,
 			NetworkInterfaceIndex: bEndVNICIndex,
