@@ -1,6 +1,9 @@
 package billing_market
 
 import (
+	"bytes"
+	"io"
+	"os"
 	"strings"
 	"testing"
 
@@ -10,6 +13,23 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
+
+func captureStderr(t *testing.T, fn func()) (result string) {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	defer func() { os.Stderr = old }()
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() { defer close(done); _, _ = io.Copy(&buf, r) }()
+	defer func() { _ = w.Close(); <-done; _ = r.Close(); result = buf.String() }()
+	fn()
+	return
+}
 
 var mockBillingMarkets = []*megaport.BillingMarket{
 	{
@@ -250,7 +270,7 @@ func TestGetBillingMarketsAction_AllNilWarns(t *testing.T) {
 
 	cmd := &cobra.Command{Use: "get"}
 
-	out := output.CaptureOutput(func() {
+	out := captureStderr(t, func() {
 		err := GetBillingMarkets(cmd, []string{}, true, "table")
 		assert.NoError(t, err)
 	})

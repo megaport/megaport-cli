@@ -212,8 +212,14 @@ func PrintSuccess(format string, noColor bool, args ...interface{}) {
 	wasm.WasmOutputBuffer.Write([]byte(output))
 }
 
-// PrintError overrides the base function for WASM to capture output
+// PrintError overrides the base function for WASM to capture output. In json
+// mode it is a no-op (the RunE wrapper owns the single structured envelope);
+// otherwise it writes the line and latches that an error was shown so the
+// wrapper does not print a duplicate.
 func PrintError(format string, noColor bool, args ...interface{}) {
+	if GetOutputFormat() == "json" {
+		return
+	}
 	msg := fmt.Sprintf(format, args...)
 	var output string
 	if noColor {
@@ -222,6 +228,7 @@ func PrintError(format string, noColor bool, args ...interface{}) {
 		output = color.RedString("✗ ") + msg + "\n"
 	}
 	wasm.WasmOutputBuffer.Write([]byte(output))
+	markErrorEmitted()
 }
 
 // PrintWarning overrides the base function for WASM to capture output

@@ -1,9 +1,11 @@
 package vxc
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -19,6 +21,36 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// captureStderr captures what fn writes to os.Stderr, draining the read end
+// concurrently so fn cannot block on a full pipe buffer.
+func captureStderr(t *testing.T, fn func()) (result string) {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	defer func() { os.Stderr = old }()
+
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_, _ = io.Copy(&buf, r)
+	}()
+
+	defer func() {
+		_ = w.Close()
+		<-done
+		_ = r.Close()
+		result = buf.String()
+	}()
+
+	fn()
+	return
+}
 
 func TestBuyVXC_NilResponse(t *testing.T) {
 	originalBuyVXCFunc := buyVXCFunc
@@ -778,7 +810,7 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 			}
 
 			var err error
-			output := output.CaptureOutput(func() {
+			capturedStderr := captureStderr(t, func() {
 				err = cmd.RunE(cmd, []string{tt.vxcUID})
 			})
 
@@ -787,7 +819,7 @@ func TestUpdateVXCResourceTagsCmd(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, output, tt.expectedOutput)
+				assert.Contains(t, capturedStderr, tt.expectedOutput)
 
 				if tt.expectedCapturedTags != nil {
 					assert.Equal(t, tt.expectedCapturedTags, mockService.CapturedUpdateVXCResourceTagsRequest)
@@ -1251,8 +1283,11 @@ func TestListVXCs(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, []string{})
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureStdout(func() {
+					err = cmd.RunE(cmd, []string{})
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -1289,7 +1324,7 @@ func TestListVXCs(t *testing.T) {
 				}
 
 				if len(tt.expectedVXCs) == 0 && tt.expectedError == "" {
-					assert.Contains(t, capturedOutput, "No VXCs found. Create one with 'megaport vxc buy'.")
+					assert.Contains(t, capturedStderr, "No VXCs found. Create one with 'megaport vxc buy'.")
 				}
 			}
 
@@ -2010,7 +2045,7 @@ func TestUpdateVXC(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedStderr := captureStderr(t, func() {
 				err = UpdateVXC(cmd, []string{tt.vxcUID}, true)
 			})
 
@@ -2019,7 +2054,7 @@ func TestUpdateVXC(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, capturedOutput, tt.expectedOutput)
+				assert.Contains(t, capturedStderr, tt.expectedOutput)
 			}
 		})
 	}
@@ -2139,7 +2174,7 @@ func TestDeleteVXC(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedStderr := captureStderr(t, func() {
 				err = DeleteVXC(cmd, []string{tt.vxcUID}, true)
 			})
 
@@ -2148,7 +2183,7 @@ func TestDeleteVXC(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, capturedOutput, tt.expectedOutput)
+				assert.Contains(t, capturedStderr, tt.expectedOutput)
 			}
 		})
 	}
@@ -2393,8 +2428,11 @@ func TestBuyVXC_Confirmation(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = BuyVXC(cmd, nil, true)
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = BuyVXC(cmd, nil, true)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -2403,7 +2441,7 @@ func TestBuyVXC_Confirmation(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				if tt.expectedContains != "" {
-					assert.Contains(t, capturedOutput, tt.expectedContains)
+					assert.Contains(t, capturedOutput+capturedStderr, tt.expectedContains)
 				}
 				if tt.expectedNotContains != "" {
 					assert.NotContains(t, capturedOutput, tt.expectedNotContains)
@@ -2485,7 +2523,7 @@ func TestGetVXC_Export(t *testing.T) {
 	assert.NoError(t, cmd.Flags().Set("export", "true"))
 
 	var err error
-	capturedOutput := output.CaptureOutput(func() {
+	capturedOutput := output.CaptureStdout(func() {
 		err = GetVXC(cmd, []string{"vxc-export-123"}, true, "table")
 	})
 
@@ -2624,7 +2662,7 @@ func TestValidateVXC(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedStderr := captureStderr(t, func() {
 				err = ValidateVXC(cmd, nil, true)
 			})
 
@@ -2634,7 +2672,7 @@ func TestValidateVXC(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				if tt.expectedContains != "" {
-					assert.Contains(t, capturedOutput, tt.expectedContains)
+					assert.Contains(t, capturedStderr, tt.expectedContains)
 				}
 			}
 		})
@@ -2748,13 +2786,19 @@ func TestListVXCs_TagFilter(t *testing.T) {
 			}
 
 			var listErr error
-			capturedOutput := output.CaptureOutput(func() {
-				listErr = ListVXCs(cmd, nil, true, "table")
+			var capturedOutput string
+			// Status/warning messages route to stderr; the table data goes to
+			// stdout. Capture both so each assertion checks the right stream.
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					listErr = ListVXCs(cmd, nil, true, "table")
+				})
 			})
 			assert.NoError(t, listErr)
 
+			combined := capturedOutput + capturedStderr
 			for _, expected := range tt.expectedOutputs {
-				assert.Contains(t, capturedOutput, expected)
+				assert.Contains(t, combined, expected)
 			}
 			for _, notExp := range tt.notExpected {
 				assert.NotContains(t, capturedOutput, notExp)

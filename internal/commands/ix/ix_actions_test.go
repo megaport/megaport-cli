@@ -1,9 +1,11 @@
 package ix
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -367,8 +369,11 @@ func TestListIXs(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
+			var capturedStderr string
 			capturedOutput := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, []string{})
+				capturedStderr = captureStderr(t, func() {
+					err = cmd.RunE(cmd, []string{})
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -401,7 +406,7 @@ func TestListIXs(t *testing.T) {
 				}
 
 				if len(tt.expectedIXs) == 0 && tt.expectedError == "" {
-					assert.Contains(t, capturedOutput, "No IX connections found. Create one with 'megaport ix buy'.")
+					assert.Contains(t, capturedStderr, "No IX connections found. Create one with 'megaport ix buy'.")
 				}
 			}
 
@@ -591,8 +596,11 @@ func TestBuyIX(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
+			var capturedStderr string
 			capturedOutput := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, tt.args)
+				capturedStderr = captureStderr(t, func() {
+					err = cmd.RunE(cmd, tt.args)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -600,7 +608,7 @@ func TestBuyIX(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, capturedOutput, tt.expectedOutput)
+				assert.Contains(t, capturedOutput+capturedStderr, tt.expectedOutput)
 
 				if mockService.capturedBuyIXRequest != nil {
 					req := mockService.capturedBuyIXRequest
@@ -990,8 +998,11 @@ func TestDeleteIX(t *testing.T) {
 				t.Fatalf("Failed to set later flag: %v", err)
 			}
 
+			var capturedStderr string
 			capturedOutput := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, []string{tt.ixUID})
+				capturedStderr = captureStderr(t, func() {
+					err = cmd.RunE(cmd, []string{tt.ixUID})
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -999,7 +1010,7 @@ func TestDeleteIX(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, capturedOutput, tt.expectedOutput)
+				assert.Contains(t, capturedOutput+capturedStderr, tt.expectedOutput)
 
 				if tt.expectDeleted {
 					assert.Equal(t, tt.ixUID, mockService.capturedDeleteIXUID)
@@ -1426,8 +1437,11 @@ func TestUpdateIX(t *testing.T) {
 			}
 
 			var err error
+			var capturedStderr string
 			capturedOutput := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, args)
+				capturedStderr = captureStderr(t, func() {
+					err = cmd.RunE(cmd, args)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -1435,7 +1449,7 @@ func TestUpdateIX(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, capturedOutput, tt.expectedOutput)
+				assert.Contains(t, capturedOutput+capturedStderr, tt.expectedOutput)
 
 				// Verify the mock captured the update request
 				if mockService.capturedUpdateIXUID != "" {
@@ -1530,13 +1544,16 @@ func TestBuyIX_JSONStringMode(t *testing.T) {
 	_ = cmd.Flags().Set("json", jsonInput)
 
 	var err error
+	var capturedStderr string
 	capturedOutput := output.CaptureOutput(func() {
-		err = cmd.RunE(cmd, []string{})
+		capturedStderr = captureStderr(t, func() {
+			err = cmd.RunE(cmd, []string{})
+		})
 	})
 
 	assert.NoError(t, err)
-	assert.Contains(t, capturedOutput, "IX created")
-	assert.Contains(t, capturedOutput, "ix-json-abc")
+	assert.Contains(t, capturedOutput+capturedStderr, "IX created")
+	assert.Contains(t, capturedOutput+capturedStderr, "ix-json-abc")
 
 	// Verify captured request fields
 	assert.NotNil(t, mockService.capturedBuyIXRequest)
@@ -1763,8 +1780,11 @@ func TestBuyIX_Confirmation(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
+			var capturedStderr string
 			capturedOutput := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, nil)
+				capturedStderr = captureStderr(t, func() {
+					err = cmd.RunE(cmd, nil)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -1772,7 +1792,7 @@ func TestBuyIX_Confirmation(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, capturedOutput, tt.expectedOutput)
+				assert.Contains(t, capturedOutput+capturedStderr, tt.expectedOutput)
 			}
 			assert.Equal(t, tt.expectBuyCalled, buyCalled, "buy function called mismatch")
 			assert.Equal(t, tt.promptShouldBeCalled, promptCalled, "BuyConfirmPrompt called expectation mismatch")
@@ -1896,7 +1916,7 @@ func TestGetIX_Export(t *testing.T) {
 	assert.NoError(t, cmd.Flags().Set("export", "true"))
 
 	var err error
-	capturedOutput := output.CaptureOutput(func() {
+	capturedOutput := output.CaptureStdout(func() {
 		err = GetIX(cmd, []string{"ix-export-123"}, true, "table")
 	})
 
@@ -2044,8 +2064,11 @@ func TestValidateIX(t *testing.T) {
 			}
 
 			var err error
+			var capturedStderr string
 			capturedOutput := output.CaptureOutput(func() {
-				err = ValidateIX(cmd, nil, true)
+				capturedStderr = captureStderr(t, func() {
+					err = ValidateIX(cmd, nil, true)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -2054,7 +2077,7 @@ func TestValidateIX(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				if tt.expectedContains != "" {
-					assert.Contains(t, capturedOutput, tt.expectedContains)
+					assert.Contains(t, capturedOutput+capturedStderr, tt.expectedContains)
 				}
 			}
 		})
@@ -2073,6 +2096,23 @@ func TestMockIXServiceReset(t *testing.T) {
 	assert.Nil(t, m.getIXError)
 	assert.Nil(t, m.deleteIXError)
 	assert.False(t, m.forceNilGetIX)
+}
+
+func captureStderr(t *testing.T, fn func()) (result string) {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	defer func() { os.Stderr = old }()
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() { defer close(done); _, _ = io.Copy(&buf, r) }()
+	defer func() { _ = w.Close(); <-done; _ = r.Close(); result = buf.String() }()
+	fn()
+	return
 }
 
 // TestBuyIX_NoRetryOnAmbiguousError ensures a buy is never re-submitted after an
