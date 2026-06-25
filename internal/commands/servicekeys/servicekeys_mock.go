@@ -9,18 +9,22 @@ import (
 type MockServiceKeyService struct {
 	CreateServiceKeyError           error
 	CreateServiceKeyResult          *megaport.CreateServiceKeyResponse
+	CreateServiceKeyReturnNil       bool
 	CapturedCreateServiceKeyRequest *megaport.CreateServiceKeyRequest
 
 	ListServiceKeysError           error
 	ListServiceKeysResult          *megaport.ListServiceKeysResponse
+	ListServiceKeysReturnNil       bool
 	CapturedListServiceKeysRequest *megaport.ListServiceKeysRequest
 
 	UpdateServiceKeyError           error
 	UpdateServiceKeyResult          *megaport.UpdateServiceKeyResponse
+	UpdateServiceKeyReturnNil       bool
 	CapturedUpdateServiceKeyRequest *megaport.UpdateServiceKeyRequest
 
 	GetServiceKeyError         error
 	GetServiceKeyResult        *megaport.ServiceKey
+	GetServiceKeyReturnNil     bool
 	CapturedGetServiceKeyKeyID string
 }
 
@@ -28,6 +32,9 @@ func (m *MockServiceKeyService) CreateServiceKey(ctx context.Context, req *megap
 	m.CapturedCreateServiceKeyRequest = req
 	if m.CreateServiceKeyError != nil {
 		return nil, m.CreateServiceKeyError
+	}
+	if m.CreateServiceKeyReturnNil {
+		return nil, nil
 	}
 	if m.CreateServiceKeyResult != nil {
 		return m.CreateServiceKeyResult, nil
@@ -41,6 +48,9 @@ func (m *MockServiceKeyService) ListServiceKeys(ctx context.Context, req *megapo
 	m.CapturedListServiceKeysRequest = req
 	if m.ListServiceKeysError != nil {
 		return nil, m.ListServiceKeysError
+	}
+	if m.ListServiceKeysReturnNil {
+		return nil, nil
 	}
 	if m.ListServiceKeysResult != nil {
 		return m.ListServiceKeysResult, nil
@@ -72,6 +82,9 @@ func (m *MockServiceKeyService) UpdateServiceKey(ctx context.Context, req *megap
 	if m.UpdateServiceKeyError != nil {
 		return nil, m.UpdateServiceKeyError
 	}
+	if m.UpdateServiceKeyReturnNil {
+		return nil, nil
+	}
 	if m.UpdateServiceKeyResult != nil {
 		return m.UpdateServiceKeyResult, nil
 	}
@@ -84,6 +97,9 @@ func (m *MockServiceKeyService) GetServiceKey(ctx context.Context, keyId string)
 	m.CapturedGetServiceKeyKeyID = keyId
 	if m.GetServiceKeyError != nil {
 		return nil, m.GetServiceKeyError
+	}
+	if m.GetServiceKeyReturnNil {
+		return nil, nil
 	}
 	if m.GetServiceKeyResult != nil {
 		return m.GetServiceKeyResult, nil

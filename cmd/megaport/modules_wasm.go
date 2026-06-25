@@ -3,7 +3,10 @@
 package megaport
 
 import (
+	"github.com/megaport/megaport-cli/internal/commands/billing_market"
+	"github.com/megaport/megaport-cli/internal/commands/ix"
 	"github.com/megaport/megaport-cli/internal/commands/locations"
+	"github.com/megaport/megaport-cli/internal/commands/managed_account"
 	"github.com/megaport/megaport-cli/internal/commands/mcr"
 	"github.com/megaport/megaport-cli/internal/commands/mve"
 	"github.com/megaport/megaport-cli/internal/commands/nat_gateway"
@@ -13,6 +16,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/commands/servicekeys"
 	"github.com/megaport/megaport-cli/internal/commands/status"
 	"github.com/megaport/megaport-cli/internal/commands/topology"
+	"github.com/megaport/megaport-cli/internal/commands/users"
 	"github.com/megaport/megaport-cli/internal/commands/vxc"
 )
 
@@ -29,6 +33,7 @@ func registerModules() {
 	moduleRegistry.Register(vxc.NewModule())
 	moduleRegistry.Register(mcr.NewModule())
 	moduleRegistry.Register(mve.NewModule())
+	moduleRegistry.Register(ix.NewModule())
 	moduleRegistry.Register(nat_gateway.NewModule())
 	moduleRegistry.Register(locations.NewModule())
 	moduleRegistry.Register(partners.NewModule())
@@ -36,4 +41,7 @@ func registerModules() {
 	moduleRegistry.Register(servicekeys.NewModule())
 	moduleRegistry.Register(status.NewModule())
 	moduleRegistry.Register(topology.NewModule())
+	moduleRegistry.Register(users.NewModule())
+	moduleRegistry.Register(managed_account.NewModule())
+	moduleRegistry.Register(billing_market.NewModule())
 }

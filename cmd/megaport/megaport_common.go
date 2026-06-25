@@ -93,7 +93,7 @@ func InitializeCommon() {
 	rootCmd.PersistentFlags().StringVar(&utils.ProfileOverride, "profile", "", "Use a specific config profile for this command")
 	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "Suppress informational output, only show errors and data")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Show additional debug information")
-	rootCmd.PersistentFlags().Duration("timeout", 0, "Request timeout duration (e.g., 30s, 2m, 5m); 0 uses the internal default of 90s")
+	rootCmd.PersistentFlags().Duration("timeout", 0, "Timeout for the operation (e.g., 30s, 2m, 5m); must be positive. Omit to use each command's built-in default (see the command's own help)")
 	rootCmd.PersistentFlags().String("fields", "", "Comma-separated list of fields to include in output (e.g., uid,name,status); use an unknown name to list available fields")
 	rootCmd.PersistentFlags().String("query", "", "JMESPath query to filter JSON output (requires --output json)")
 	rootCmd.PersistentFlags().BoolVar(&utils.NoRetry, "no-retry", false, "Disable automatic retry on transient API failures")

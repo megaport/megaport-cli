@@ -280,6 +280,41 @@ func TestCreateUser(t *testing.T) {
 	}
 }
 
+func TestCreateUser_NilResponse(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockService := &MockUserManagementService{ForceNilCreateUser: true}
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.UserManagementService = mockService
+		return client, nil
+	})
+
+	cmd := &cobra.Command{Use: "create"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("first-name", "", "")
+	cmd.Flags().String("last-name", "", "")
+	cmd.Flags().String("email", "", "")
+	cmd.Flags().String("position", "", "")
+	cmd.Flags().String("phone", "", "")
+	require.NoError(t, cmd.Flags().Set("first-name", "John"))
+	require.NoError(t, cmd.Flags().Set("last-name", "Doe"))
+	require.NoError(t, cmd.Flags().Set("email", "john@example.com"))
+	require.NoError(t, cmd.Flags().Set("position", "Technical Admin"))
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = CreateUser(cmd, nil, true)
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
+}
+
 func TestUpdateUser(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()

@@ -3,6 +3,7 @@ package vxc
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	megaport "github.com/megaport/megaportgo"
@@ -639,6 +640,26 @@ func TestParseVXCEndpointConfig(t *testing.T) {
 			},
 			expectedError: "partner config",
 		},
+		{
+			name:          "vlan wrong type rejected",
+			config:        map[string]interface{}{"vlan": "one hundred"},
+			expectedError: "vlan must be a number",
+		},
+		{
+			name:          "productUID wrong type rejected",
+			config:        map[string]interface{}{"productUID": 123.0},
+			expectedError: "productUID must be a string",
+		},
+		{
+			name:          "partnerConfig wrong type rejected",
+			config:        map[string]interface{}{"partnerConfig": "not-an-object"},
+			expectedError: "partnerConfig must be an object",
+		},
+		{
+			name:          "innerVlan wrong type rejected",
+			config:        map[string]interface{}{"innerVlan": "x"},
+			expectedError: "innerVlan must be a number",
+		},
 	}
 
 	for _, tt := range tests {
@@ -704,6 +725,56 @@ func TestBuildVXCRequestFromJSON(t *testing.T) {
 			jsonFilePath:  "",
 			expectedError: "either json or json-file must be provided",
 		},
+		{
+			name:          "fractional rateLimit rejected",
+			jsonStr:       `{"portUid":"port-1","rateLimit":10.9,"term":12}`,
+			expectedError: "rateLimit must be a whole number",
+		},
+		{
+			name:          "fractional term rejected",
+			jsonStr:       `{"portUid":"port-1","rateLimit":1000,"term":10.9}`,
+			expectedError: "term must be a whole number",
+		},
+		{
+			name:          "rateLimit wrong type rejected",
+			jsonStr:       `{"portUid":"port-1","rateLimit":"fast","term":12}`,
+			expectedError: "rateLimit must be a number",
+		},
+		{
+			name:          "term wrong type rejected",
+			jsonStr:       `{"portUid":"port-1","rateLimit":1000,"term":"yearly"}`,
+			expectedError: "term must be a number",
+		},
+		{
+			name:          "vxcName wrong type rejected",
+			jsonStr:       `{"portUid":"port-1","vxcName":123,"rateLimit":1000,"term":12}`,
+			expectedError: "vxcName must be a string",
+		},
+		{
+			name:          "costCentre wrong type rejected",
+			jsonStr:       `{"portUid":"port-1","rateLimit":1000,"term":12,"costCentre":true}`,
+			expectedError: "costCentre must be a string",
+		},
+		{
+			name:          "shutdown wrong type rejected",
+			jsonStr:       `{"portUid":"port-1","rateLimit":1000,"term":12,"shutdown":"yes"}`,
+			expectedError: "shutdown must be a boolean",
+		},
+		{
+			name:          "portUid wrong type rejected",
+			jsonStr:       `{"portUid":123,"rateLimit":1000,"term":12}`,
+			expectedError: "portUid must be a string",
+		},
+		{
+			name:          "resourceTags value wrong type rejected",
+			jsonStr:       `{"portUid":"port-1","rateLimit":1000,"term":12,"resourceTags":{"env":123}}`,
+			expectedError: "resourceTags value for key \"env\" must be a string",
+		},
+		{
+			name:          "aEndConfiguration wrong type rejected",
+			jsonStr:       `{"portUid":"port-1","rateLimit":1000,"term":12,"aEndConfiguration":"not-an-object"}`,
+			expectedError: "aEndConfiguration must be an object",
+		},
 	}
 
 	for _, tt := range tests {
@@ -720,6 +791,29 @@ func TestBuildVXCRequestFromJSON(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildVXCRequestFromJSON_RejectsEmptyTagKey(t *testing.T) {
+	const payload = `{"portUid":"port-1","vxcName":"Test VXC","rateLimit":1000,"term":12,"resourceTags":{"":"x"},"bEndConfiguration":{"productUID":"port-2"}}`
+
+	t.Run("via json", func(t *testing.T) {
+		_, err := buildVXCRequestFromJSON(payload, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tag key must not be empty")
+	})
+
+	t.Run("via json-file", func(t *testing.T) {
+		tmp, err := os.CreateTemp("", "vxc-emptytag-*.json")
+		require.NoError(t, err)
+		defer os.Remove(tmp.Name())
+		_, err = tmp.WriteString(payload)
+		require.NoError(t, err)
+		require.NoError(t, tmp.Close())
+
+		_, err = buildVXCRequestFromJSON("", tmp.Name())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tag key must not be empty")
+	})
 }
 
 func TestBuildUpdateVXCRequestFromJSON_PartnerConfigs(t *testing.T) {
@@ -765,6 +859,19 @@ func TestBuildUpdateVXCRequestFromJSON_PartnerConfigs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildUpdateVXCRequestFromJSON_FractionalRateLimit(t *testing.T) {
+	_, err := buildUpdateVXCRequestFromJSON(`{"rateLimit":10.9}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rateLimit must be a whole number")
+}
+
+func TestBuildUpdateVXCRequestFromJSON_WholeRateLimit(t *testing.T) {
+	req, err := buildUpdateVXCRequestFromJSON(`{"rateLimit":2000}`, "")
+	require.NoError(t, err)
+	require.NotNil(t, req.RateLimit)
+	assert.Equal(t, 2000, *req.RateLimit)
 }
 
 func TestResolvePartnerPortUID(t *testing.T) {
@@ -850,6 +957,69 @@ func TestResolvePartnerPortUID(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildVXCRequestFromFlags_VNICIndexZero(t *testing.T) {
+	newBuyCmd := func() *cobra.Command {
+		cmd := &cobra.Command{Use: "buy"}
+		cmd.Flags().String("a-end-uid", "", "")
+		cmd.Flags().String("b-end-uid", "", "")
+		cmd.Flags().String("name", "", "")
+		cmd.Flags().Int("rate-limit", 0, "")
+		cmd.Flags().Int("term", 0, "")
+		cmd.Flags().Int("a-end-vlan", 0, "")
+		cmd.Flags().Int("b-end-vlan", 0, "")
+		cmd.Flags().Int("a-end-inner-vlan", 0, "")
+		cmd.Flags().Int("b-end-inner-vlan", 0, "")
+		cmd.Flags().Int("a-end-vnic-index", 0, "")
+		cmd.Flags().Int("b-end-vnic-index", 0, "")
+		cmd.Flags().String("promo-code", "", "")
+		cmd.Flags().String("service-key", "", "")
+		cmd.Flags().String("cost-centre", "", "")
+		cmd.Flags().String("a-end-partner-config", "", "")
+		cmd.Flags().String("b-end-partner-config", "", "")
+		return cmd
+	}
+
+	setRequired := func(t *testing.T, cmd *cobra.Command) {
+		require.NoError(t, cmd.Flags().Set("name", "Test VXC"))
+		require.NoError(t, cmd.Flags().Set("a-end-uid", "a-end-uid-123"))
+		require.NoError(t, cmd.Flags().Set("b-end-uid", "b-end-uid-123"))
+		require.NoError(t, cmd.Flags().Set("rate-limit", "100"))
+		require.NoError(t, cmd.Flags().Set("term", "1"))
+	}
+
+	t.Run("A-End vNIC index 0 set via flag builds MVE config", func(t *testing.T) {
+		cmd := newBuyCmd()
+		setRequired(t, cmd)
+		require.NoError(t, cmd.Flags().Set("a-end-vnic-index", "0"))
+
+		req, err := buildVXCRequestFromFlags(cmd, context.Background(), &MockVXCService{})
+		require.NoError(t, err)
+		require.NotNil(t, req.AEndConfiguration.VXCOrderMVEConfig)
+		assert.Equal(t, 0, req.AEndConfiguration.NetworkInterfaceIndex)
+	})
+
+	t.Run("B-End vNIC index 0 set via flag builds MVE config", func(t *testing.T) {
+		cmd := newBuyCmd()
+		setRequired(t, cmd)
+		require.NoError(t, cmd.Flags().Set("b-end-vnic-index", "0"))
+
+		req, err := buildVXCRequestFromFlags(cmd, context.Background(), &MockVXCService{})
+		require.NoError(t, err)
+		require.NotNil(t, req.BEndConfiguration.VXCOrderMVEConfig)
+		assert.Equal(t, 0, req.BEndConfiguration.NetworkInterfaceIndex)
+	})
+
+	t.Run("vNIC index not set leaves MVE config nil", func(t *testing.T) {
+		cmd := newBuyCmd()
+		setRequired(t, cmd)
+
+		req, err := buildVXCRequestFromFlags(cmd, context.Background(), &MockVXCService{})
+		require.NoError(t, err)
+		assert.Nil(t, req.AEndConfiguration.VXCOrderMVEConfig)
+		assert.Nil(t, req.BEndConfiguration.VXCOrderMVEConfig)
+	})
 }
 
 func TestBuildVXCRequestFromFlags_PartnerConfig(t *testing.T) {

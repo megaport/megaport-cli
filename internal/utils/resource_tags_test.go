@@ -59,6 +59,11 @@ func TestParseResourceTagsInput(t *testing.T) {
 			flags:       map[string]string{},
 			expectError: "no input provided",
 		},
+		{
+			name:        "empty tag key rejected",
+			flags:       map[string]string{"json": `{"":"x"}`},
+			expectError: "tag key must not be empty",
+		},
 	}
 
 	for _, tt := range tests {
@@ -192,6 +197,11 @@ func TestParseResourceTagsInputExtended(t *testing.T) {
 			name:     "json takes precedence over tags",
 			flags:    map[string]string{"json": `{"from":"json"}`, "tags": `{"from":"tags"}`},
 			expected: map[string]string{"from": "json"},
+		},
+		{
+			name:        "empty tag key rejected via tags flag",
+			flags:       map[string]string{"tags": `{"":"x"}`},
+			expectError: "tag key must not be empty",
 		},
 	}
 

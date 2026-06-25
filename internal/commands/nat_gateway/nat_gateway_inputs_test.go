@@ -87,6 +87,36 @@ func TestProcessJSONCreateNATGatewayInput_WithBooleanFields(t *testing.T) {
 	assert.True(t, req.AutoRenewTerm)
 }
 
+func TestProcessJSONCreateNATGatewayInput_RejectsEmptyTagKey(t *testing.T) {
+	_, err := processJSONCreateNATGatewayInput(
+		`{"name":"GW","term":12,"speed":1000,"locationId":1,"resourceTags":{"":"x"}}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tag key must not be empty")
+}
+
+func TestProcessJSONCreateNATGatewayInput_RejectsEmptyTagKeyFromFile(t *testing.T) {
+	content := `{"name":"GW","term":12,"speed":1000,"locationId":1,"resourceTags":{"":"x"}}`
+	tmp, err := os.CreateTemp("", "ng-create-emptytag-*.json")
+	require.NoError(t, err)
+	defer os.Remove(tmp.Name())
+	_, err = tmp.WriteString(content)
+	require.NoError(t, err)
+	require.NoError(t, tmp.Close())
+
+	_, err = processJSONCreateNATGatewayInput("", tmp.Name())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tag key must not be empty")
+}
+
+func TestProcessJSONCreateNATGatewayInput_ValidResourceTags(t *testing.T) {
+	req, err := processJSONCreateNATGatewayInput(
+		`{"name":"GW","term":12,"speed":1000,"locationId":1,"resourceTags":{"env":"prod"}}`, "")
+	require.NoError(t, err)
+	require.Len(t, req.ResourceTags, 1)
+	assert.Equal(t, "env", req.ResourceTags[0].Key)
+	assert.Equal(t, "prod", req.ResourceTags[0].Value)
+}
+
 // ---- processFlagCreateNATGatewayInput ----
 
 func TestProcessFlagCreateNATGatewayInput_Valid(t *testing.T) {
@@ -160,6 +190,22 @@ func TestProcessFlagCreateNATGatewayInput_ValidResourceTags(t *testing.T) {
 }
 
 // ---- processJSONUpdateNATGatewayInput ----
+
+func TestProcessJSONUpdateNATGatewayInput_RejectsEmptyTagKey(t *testing.T) {
+	_, _, err := processJSONUpdateNATGatewayInput(
+		`{"name":"GW","resourceTags":{"":"x"}}`, "", "uid-empty-tag")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tag key must not be empty")
+}
+
+func TestProcessJSONUpdateNATGatewayInput_ValidResourceTags(t *testing.T) {
+	req, _, err := processJSONUpdateNATGatewayInput(
+		`{"name":"GW","resourceTags":{"env":"prod"}}`, "", "uid-valid-tag")
+	require.NoError(t, err)
+	require.Len(t, req.ResourceTags, 1)
+	assert.Equal(t, "env", req.ResourceTags[0].Key)
+	assert.Equal(t, "prod", req.ResourceTags[0].Value)
+}
 
 func TestProcessJSONUpdateNATGatewayInput_Valid(t *testing.T) {
 	req, explicit, err := processJSONUpdateNATGatewayInput(

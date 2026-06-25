@@ -51,7 +51,31 @@ lifetimes, so whatever serves these files (the CDN or origin) must apply them:
 - `wasm_exec.js`: `no-cache`. It is served from a fixed unhashed path, so it must
   revalidate to stay paired with the wasm's Go runtime after a toolchain upgrade.
 
-A plain unhashed `megaport.wasm` must NOT be served immutable.
+A plain unhashed `megaport.wasm` must NOT be served immutable at a flat, unversioned
+path. (The S3 publish flow below does serve an unhashed `megaport.wasm`, but only under
+a per-version prefix where the path itself is unique, so immutable caching is safe
+there.)
+
+## Publishing to S3 (CDN)
+
+`.github/workflows/wasm-publish.yaml` builds the static site and publishes it to a
+CloudFront-fronted S3 bucket. It is manual-only (`workflow_dispatch`): a production
+publish is always a deliberate action, never an automatic tag push.
+
+Each run uploads the whole static site under two prefixes:
+
+- `<version>/`: immutable, long-lived cache. Treat a version label as write-once, so use
+  a fresh tag or `version` input per release.
+- `latest/`: short TTL, refreshed on every run.
+
+The portal loads `megaport.wasm` (brotli, served with `Content-Encoding: br`) and
+`wasm_exec.js` by static config URL, so unlike the `cmd/server` flow above these
+filenames are kept stable rather than content-hashed; the version/latest prefix is the
+cache-buster instead.
+
+Authentication uses GitHub OIDC (no long-lived keys). The workflow fails fast with a
+clear message if its required repo configuration is missing; see the workflow file for
+the expected secrets and variables.
 
 ## Local preview
 
