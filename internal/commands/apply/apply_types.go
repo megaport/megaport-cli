@@ -29,6 +29,7 @@ type MCRConfig struct {
 	Speed         int               `yaml:"speed" json:"speed"`
 	Term          int               `yaml:"term" json:"term"`
 	ASN           int               `yaml:"asn" json:"asn"`
+	TunnelCount   int               `yaml:"tunnel_count" json:"tunnel_count"` // IPsec add-on tunnel count (10, 20, or 30); 0 = no IPsec add-on
 	DiversityZone string            `yaml:"diversity_zone" json:"diversity_zone"`
 	CostCentre    string            `yaml:"cost_centre" json:"cost_centre"`
 	ResourceTags  map[string]string `yaml:"resource_tags" json:"resource_tags"`

@@ -90,18 +90,19 @@ func (m *MockPortService) UpdatePortResourceTags(ctx context.Context, portID str
 
 // MockMCRService implements megaport.MCRService for testing.
 type MockMCRService struct {
-	BuyMCRResult         *megaport.BuyMCRResponse
-	BuyMCRErr            error
-	BuyMCRNilResp        bool
-	ValidateMCROrderErr  error
-	CapturedMCRRequest   *megaport.BuyMCRRequest
-	WaitForMCRReadyDelay time.Duration
-	WaitForMCRReadyErr   error
-	DeleteMCRErr         error
-	DeleteMCRCalledWith  []string
-	GetMCRStatus         string // provisioning status returned by GetMCR (default ready)
-	GetMCRErr            error  // error returned by GetMCR (simulates a provision-wait failure)
-	GetMCRReturnNil      bool   // GetMCR returns (nil, nil) (simulates an empty API response)
+	BuyMCRResult               *megaport.BuyMCRResponse
+	BuyMCRErr                  error
+	BuyMCRNilResp              bool
+	ValidateMCROrderErr        error
+	CapturedMCRRequest         *megaport.BuyMCRRequest
+	CapturedValidateMCRRequest *megaport.BuyMCRRequest
+	WaitForMCRReadyDelay       time.Duration
+	WaitForMCRReadyErr         error
+	DeleteMCRErr               error
+	DeleteMCRCalledWith        []string
+	GetMCRStatus               string // provisioning status returned by GetMCR (default ready)
+	GetMCRErr                  error  // error returned by GetMCR (simulates a provision-wait failure)
+	GetMCRReturnNil            bool   // GetMCR returns (nil, nil) (simulates an empty API response)
 }
 
 func (m *MockMCRService) BuyMCR(ctx context.Context, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
@@ -119,6 +120,7 @@ func (m *MockMCRService) BuyMCR(ctx context.Context, req *megaport.BuyMCRRequest
 }
 
 func (m *MockMCRService) ValidateMCROrder(ctx context.Context, req *megaport.BuyMCRRequest) error {
+	m.CapturedValidateMCRRequest = req
 	return m.ValidateMCROrderErr
 }
 
