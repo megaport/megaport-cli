@@ -167,6 +167,16 @@ func TestProcessJSONPortInput(t *testing.T) {
 			name:      "valid JSON file",
 			writeFile: `{"name":"file-test","term":12,"portSpeed":10000,"locationId":1,"marketPlaceVisibility":true}`,
 		},
+		{
+			name:          "empty tag key rejected",
+			jsonStr:       `{"name":"test","term":12,"portSpeed":10000,"locationId":1,"marketPlaceVisibility":true,"resourceTags":{"":"x"}}`,
+			expectedError: "tag key must not be empty",
+		},
+		{
+			name:          "empty tag key rejected via file",
+			writeFile:     `{"name":"test","term":12,"portSpeed":10000,"locationId":1,"marketPlaceVisibility":true,"resourceTags":{"":"x"}}`,
+			expectedError: "tag key must not be empty",
+		},
 	}
 
 	for _, tt := range tests {
@@ -184,7 +194,7 @@ func TestProcessJSONPortInput(t *testing.T) {
 
 			req, err := processJSONPortInput(tt.jsonStr, jsonFile)
 			if tt.expectedError != "" {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
@@ -192,6 +202,13 @@ func TestProcessJSONPortInput(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProcessJSONPortInput_ValidResourceTags(t *testing.T) {
+	req, err := processJSONPortInput(`{"name":"test","term":12,"portSpeed":10000,"locationId":1,"marketPlaceVisibility":true,"resourceTags":{"env":"prod"}}`, "")
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	assert.Equal(t, "prod", req.ResourceTags["env"])
 }
 
 func TestProcessJSONUpdatePortInput(t *testing.T) {

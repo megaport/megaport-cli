@@ -169,6 +169,9 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	req := &megaport.UpdateVXCRequest{}
 
 	if rateLimit, ok := rawData["rateLimit"].(float64); ok {
+		if rateLimit != math.Trunc(rateLimit) {
+			return nil, fmt.Errorf("rateLimit must be a whole number, got %v", rateLimit)
+		}
 		rateLimitInt := int(rateLimit)
 		if rateLimitInt < 0 {
 			return nil, fmt.Errorf("rateLimit must be greater than or equal to 0")

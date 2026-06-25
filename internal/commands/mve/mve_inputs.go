@@ -24,31 +24,45 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 
 	req := &megaport.BuyMVERequest{}
 
-	if name, ok := jsonData["name"].(string); ok && name != "" {
+	if name, present, err := utils.JSONString(jsonData, "name"); err != nil {
+		return nil, err
+	} else if present && name != "" {
 		req.Name = name
 	}
 
-	if term, ok := jsonData["term"].(float64); ok && term > 0 {
+	if term, present, err := utils.JSONNumber(jsonData, "term"); err != nil {
+		return nil, err
+	} else if present && term > 0 {
 		req.Term = int(term)
 	}
 
-	if locationID, ok := jsonData["locationId"].(float64); ok && locationID > 0 {
+	if locationID, present, err := utils.JSONNumber(jsonData, "locationId"); err != nil {
+		return nil, err
+	} else if present && locationID > 0 {
 		req.LocationID = int(locationID)
 	}
 
-	if diversityZone, ok := jsonData["diversityZone"].(string); ok {
+	if diversityZone, present, err := utils.JSONString(jsonData, "diversityZone"); err != nil {
+		return nil, err
+	} else if present {
 		req.DiversityZone = diversityZone
 	}
 
-	if promoCode, ok := jsonData["promoCode"].(string); ok {
+	if promoCode, present, err := utils.JSONString(jsonData, "promoCode"); err != nil {
+		return nil, err
+	} else if present {
 		req.PromoCode = promoCode
 	}
 
-	if costCentre, ok := jsonData["costCentre"].(string); ok {
+	if costCentre, present, err := utils.JSONString(jsonData, "costCentre"); err != nil {
+		return nil, err
+	} else if present {
 		req.CostCentre = costCentre
 	}
 
-	if vendorConfigMap, ok := jsonData["vendorConfig"].(map[string]interface{}); ok {
+	if vendorConfigMap, present, err := utils.JSONObject(jsonData, "vendorConfig"); err != nil {
+		return nil, err
+	} else if present {
 		vendorConfig, err := ParseVendorConfig(vendorConfigMap)
 		if err != nil {
 			return nil, err
@@ -56,22 +70,30 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 		req.VendorConfig = vendorConfig
 	}
 
-	if vnicsData, ok := jsonData["vnics"].([]interface{}); ok {
+	if vnicsData, present, err := utils.JSONArray(jsonData, "vnics"); err != nil {
+		return nil, err
+	} else if present {
 		vnics := make([]megaport.MVENetworkInterface, 0, len(vnicsData))
-		for _, vnicData := range vnicsData {
-			if vnicMap, ok := vnicData.(map[string]interface{}); ok {
-				vnic := megaport.MVENetworkInterface{}
-
-				if description, ok := vnicMap["description"].(string); ok {
-					vnic.Description = description
-				}
-
-				if vlan, ok := vnicMap["vlan"].(float64); ok {
-					vnic.VLAN = int(vlan)
-				}
-
-				vnics = append(vnics, vnic)
+		for i, vnicData := range vnicsData {
+			vnicMap, ok := vnicData.(map[string]interface{})
+			if !ok {
+				return nil, fmt.Errorf("vnics[%d] must be an object", i)
 			}
+			vnic := megaport.MVENetworkInterface{}
+
+			if description, present, err := utils.JSONString(vnicMap, "description"); err != nil {
+				return nil, fmt.Errorf("vnics[%d] %w", i, err)
+			} else if present {
+				vnic.Description = description
+			}
+
+			if vlan, present, err := utils.JSONNumber(vnicMap, "vlan"); err != nil {
+				return nil, fmt.Errorf("vnics[%d] %w", i, err)
+			} else if present {
+				vnic.VLAN = int(vlan)
+			}
+
+			vnics = append(vnics, vnic)
 		}
 		req.Vnics = vnics
 	}
@@ -629,15 +651,21 @@ func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.
 		MVEID: mveUID,
 	}
 
-	if name, ok := jsonData["name"].(string); ok && name != "" {
+	if name, present, err := utils.JSONString(jsonData, "name"); err != nil {
+		return nil, err
+	} else if present && name != "" {
 		req.Name = name
 	}
 
-	if costCentre, ok := jsonData["costCentre"].(string); ok && costCentre != "" {
+	if costCentre, present, err := utils.JSONString(jsonData, "costCentre"); err != nil {
+		return nil, err
+	} else if present && costCentre != "" {
 		req.CostCentre = costCentre
 	}
 
-	if contractTermMonths, ok := jsonData["contractTermMonths"].(float64); ok {
+	if contractTermMonths, present, err := utils.JSONNumber(jsonData, "contractTermMonths"); err != nil {
+		return nil, err
+	} else if present {
 		termMonths := int(contractTermMonths)
 		req.ContractTermMonths = &termMonths
 	}
