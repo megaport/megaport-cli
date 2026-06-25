@@ -65,8 +65,10 @@ func buyMCRWithIPsecAndGetUID(t *testing.T, mcrName string, tunnelCount int) str
 	require.NoErrorf(t, mcr.BuyMCR(cmd, nil, true), "BuyMCR with IPsec add-on failed for %q", mcrName)
 
 	uid, ok := mcr.IntegrationBuyMCRUID(mcrName)
+	if ok {
+		registerMCRCleanup(t, uid)
+	}
 	require.Truef(t, ok, "no MCR buy response captured for %q", mcrName)
-	registerMCRCleanup(t, uid)
 	return uid
 }
 
