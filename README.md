@@ -29,16 +29,9 @@ The Megaport CLI provides a command-line interface for managing Megaport resourc
 
 ### 🌐 WebAssembly Browser Version Available!
 
-Try the Megaport CLI directly in your browser - no installation required! The WASM version runs entirely in your browser and can be deployed with Docker.
+Try the Megaport CLI directly in your browser, no installation required. The CLI is compiled to WebAssembly and runs entirely in the browser, authenticating against the Megaport API directly with no server-side component.
 
-👉 **[See WASM_README.md](WASM_README.md) for deployment instructions**
-
-**Quick Deploy:**
-
-```bash
-./deploy.sh
-# Then open http://localhost:8080
-```
+👉 **[See WASM_README.md](WASM_README.md)** for how the browser build works, how to build it, and how it is published.
 
 ---
 
@@ -222,7 +215,7 @@ export MEGAPORT_ENVIRONMENT=production
 
 For complete documentation on configuration options, profile management, import/export functionality, and troubleshooting, see the [Configuration Guide](internal/commands/config/config.md).
 
-> **Note**: Configuration profiles are only available in the standard CLI version. The WASM/browser version uses session-based authentication via the web UI login form.
+> **Note**: Configuration profiles are only available in the standard CLI version. The WASM/browser version authenticates in-browser, holding credentials or a portal session token in memory; it does not use the profile config system.
 
 ## Architecture
 

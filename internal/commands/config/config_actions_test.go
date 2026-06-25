@@ -4,6 +4,7 @@ package config
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,6 +26,35 @@ func captureOutputFromAction(action func() error) (string, error) {
 	})
 
 	return outputText, err
+}
+
+func captureStderr(t *testing.T, fn func()) (result string) {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	defer func() { os.Stderr = old }()
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() { defer close(done); _, _ = io.Copy(&buf, r) }()
+	defer func() { _ = w.Close(); <-done; _ = r.Close(); result = buf.String() }()
+	fn()
+	return
+}
+
+// captureBothFromAction captures stdout (data) and stderr (status messages)
+// while running action, returning their concatenation for message assertions.
+func captureBothFromAction(t *testing.T, action func() error) (string, error) {
+	t.Helper()
+	var stdout string
+	var err error
+	stderr := captureStderr(t, func() {
+		stdout, err = captureOutputFromAction(action)
+	})
+	return stdout + stderr, err
 }
 
 func setupTestCmd() (*cobra.Command, *bytes.Buffer) {
@@ -64,7 +94,7 @@ func TestUpdateProfile_CMD(t *testing.T) {
 	err = cmd.ParseFlags([]string{"--access-key=new-access", "--environment=staging"})
 	require.NoError(t, err)
 
-	outputText, err := captureOutputFromAction(func() error {
+	outputText, err := captureBothFromAction(t, func() error {
 		return UpdateProfile(cmd, []string{"test-profile"}, false)
 	})
 	require.NoError(t, err)
@@ -90,7 +120,7 @@ func TestUpdateProfile_CMD(t *testing.T) {
 	err = cmd.ParseFlags([]string{"--description=New description"})
 	require.NoError(t, err)
 
-	outputText, err = captureOutputFromAction(func() error {
+	outputText, err = captureBothFromAction(t, func() error {
 		return UpdateProfile(cmd, []string{"test-profile"}, false)
 	})
 	require.NoError(t, err)
@@ -119,7 +149,7 @@ func TestUseProfile_CMD(t *testing.T) {
 
 	// Test switching to profile1
 	cmd, _ := setupTestCmd()
-	outputText, err := captureOutputFromAction(func() error {
+	outputText, err := captureBothFromAction(t, func() error {
 		return UseProfile(cmd, []string{"profile1"}, false)
 	})
 	require.NoError(t, err)
@@ -136,7 +166,7 @@ func TestUseProfile_CMD(t *testing.T) {
 
 	// Test switching to profile2
 	cmd, _ = setupTestCmd()
-	outputText, err = captureOutputFromAction(func() error {
+	outputText, err = captureBothFromAction(t, func() error {
 		return UseProfile(cmd, []string{"profile2"}, false)
 	})
 	require.NoError(t, err)
@@ -153,7 +183,7 @@ func TestUseProfile_CMD(t *testing.T) {
 
 	// Test switching to non-existent profile
 	cmd, _ = setupTestCmd()
-	outputText, err = captureOutputFromAction(func() error {
+	outputText, err = captureBothFromAction(t, func() error {
 		return UseProfile(cmd, []string{"non-existent"}, false)
 	})
 	assert.Error(t, err)
@@ -303,7 +333,7 @@ func TestDeleteProfile_CMD(t *testing.T) {
 
 	// Test deleting non-active profile
 	cmd, _ := setupTestCmd()
-	outputText, err := captureOutputFromAction(func() error {
+	outputText, err := captureBothFromAction(t, func() error {
 		return DeleteProfile(cmd, []string{"test-profile"}, false)
 	})
 	require.NoError(t, err)
@@ -349,7 +379,7 @@ func TestExportImportConfig(t *testing.T) {
 	err = cmd.ParseFlags([]string{"--file=" + exportPath})
 	require.NoError(t, err)
 
-	outputText, err := captureOutputFromAction(func() error {
+	outputText, err := captureBothFromAction(t, func() error {
 		return ExportConfig(cmd, nil, false)
 	})
 	require.NoError(t, err)
@@ -415,7 +445,7 @@ func TestExportImportConfig(t *testing.T) {
 	})
 	defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
 
-	outputText, err = captureOutputFromAction(func() error {
+	outputText, err = captureBothFromAction(t, func() error {
 		return ImportConfig(cmd, nil, false)
 	})
 
@@ -463,7 +493,7 @@ func TestCreateProfile_CMD(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		outputText, err := captureOutputFromAction(func() error {
+		outputText, err := captureBothFromAction(t, func() error {
 			return CreateProfile(cmd, []string{"new-profile"}, false)
 		})
 		require.NoError(t, err)
@@ -585,7 +615,7 @@ func TestSetDefault(t *testing.T) {
 		setupTestConfigEnv(t)
 
 		cmd, _ := setupTestCmd()
-		outputText, err := captureOutputFromAction(func() error {
+		outputText, err := captureBothFromAction(t, func() error {
 			return SetDefault(cmd, []string{"output", "json"}, false)
 		})
 		require.NoError(t, err)
@@ -637,7 +667,7 @@ func TestSetDefault_NoPager(t *testing.T) {
 		setupTestConfigEnv(t)
 
 		cmd, _ := setupTestCmd()
-		outputText, err := captureOutputFromAction(func() error {
+		outputText, err := captureBothFromAction(t, func() error {
 			return SetDefault(cmd, []string{"no-pager", "true"}, false)
 		})
 		require.NoError(t, err)
@@ -654,7 +684,7 @@ func TestSetDefault_NoPager(t *testing.T) {
 		setupTestConfigEnv(t)
 
 		cmd, _ := setupTestCmd()
-		outputText, err := captureOutputFromAction(func() error {
+		outputText, err := captureBothFromAction(t, func() error {
 			return SetDefault(cmd, []string{"no-pager", "false"}, false)
 		})
 		require.NoError(t, err)
@@ -729,7 +759,7 @@ func TestRemoveDefault(t *testing.T) {
 
 		// Remove it
 		rmCmd, _ := setupTestCmd()
-		outputText, err := captureOutputFromAction(func() error {
+		outputText, err := captureBothFromAction(t, func() error {
 			return RemoveDefault(rmCmd, []string{"output"}, false)
 		})
 		require.NoError(t, err)
@@ -746,7 +776,7 @@ func TestRemoveDefault(t *testing.T) {
 		setupTestConfigEnv(t)
 
 		cmd, _ := setupTestCmd()
-		outputText, err := captureOutputFromAction(func() error {
+		outputText, err := captureBothFromAction(t, func() error {
 			return RemoveDefault(cmd, []string{"nonexistent"}, false)
 		})
 		// RemoveDefault does not error for non-existent keys
@@ -758,7 +788,7 @@ func TestRemoveDefault(t *testing.T) {
 		setupTestConfigEnv(t)
 
 		cmd, _ := setupTestCmd()
-		outputText, err := captureOutputFromAction(func() error {
+		outputText, err := captureBothFromAction(t, func() error {
 			return RemoveDefault(cmd, []string{""}, false)
 		})
 		require.NoError(t, err)
@@ -786,7 +816,7 @@ func TestClearDefaults(t *testing.T) {
 		defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
 
 		cmd, _ := setupTestCmd()
-		outputText, err := captureOutputFromAction(func() error {
+		outputText, err := captureBothFromAction(t, func() error {
 			return ClearDefaults(cmd, nil, false)
 		})
 		require.NoError(t, err)
@@ -818,7 +848,7 @@ func TestClearDefaults(t *testing.T) {
 		defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
 
 		cmd, _ := setupTestCmd()
-		outputText, err := captureOutputFromAction(func() error {
+		outputText, err := captureBothFromAction(t, func() error {
 			return ClearDefaults(cmd, nil, false)
 		})
 		require.Error(t, err)
@@ -844,7 +874,7 @@ func TestClearDefaults(t *testing.T) {
 		defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
 
 		cmd, _ := setupTestCmd()
-		outputText, err := captureOutputFromAction(func() error {
+		outputText, err := captureBothFromAction(t, func() error {
 			return ClearDefaults(cmd, nil, false)
 		})
 		require.NoError(t, err)
@@ -864,7 +894,7 @@ func TestDeleteProfile_Cancelled(t *testing.T) {
 	defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
 
 	cmd, _ := setupTestCmd()
-	outputText, err := captureOutputFromAction(func() error {
+	outputText, err := captureBothFromAction(t, func() error {
 		return DeleteProfile(cmd, []string{"to-keep"}, false)
 	})
 	require.Error(t, err)
@@ -887,7 +917,7 @@ func TestImportConfig_Cancelled(t *testing.T) {
 	cmd.Flags().String("file", importPath, "")
 	require.NoError(t, cmd.ParseFlags([]string{"--file=" + importPath}))
 
-	outputText, err := captureOutputFromAction(func() error {
+	outputText, err := captureBothFromAction(t, func() error {
 		return ImportConfig(cmd, nil, false)
 	})
 	require.Error(t, err)
@@ -918,7 +948,7 @@ func TestCreateProfile_InteractivePrompt(t *testing.T) {
 	cmd.Flags().String("environment", "production", "")
 	cmd.Flags().String("description", "", "")
 
-	outputText, err := captureOutputFromAction(func() error {
+	outputText, err := captureBothFromAction(t, func() error {
 		return CreateProfile(cmd, []string{"prompted-profile"}, false)
 	})
 	require.NoError(t, err)
@@ -949,7 +979,7 @@ func TestCreateProfile_FlagValueSkipsPrompt(t *testing.T) {
 	cmd.Flags().String("description", "", "")
 	require.NoError(t, cmd.ParseFlags([]string{"--access-key=flag-access", "--secret-key=flag-secret"}))
 
-	outputText, err := captureOutputFromAction(func() error {
+	outputText, err := captureBothFromAction(t, func() error {
 		return CreateProfile(cmd, []string{"flag-profile"}, false)
 	})
 	require.NoError(t, err)
@@ -1036,7 +1066,7 @@ func TestUpdateProfile_EmptyFlagTriggersPrompt(t *testing.T) {
 	// Pass --secret-key="" to trigger the prompt path
 	require.NoError(t, cmd.ParseFlags([]string{"--secret-key="}))
 
-	outputText, err := captureOutputFromAction(func() error {
+	outputText, err := captureBothFromAction(t, func() error {
 		return UpdateProfile(cmd, []string{"update-test"}, false)
 	})
 	require.NoError(t, err)
@@ -1071,7 +1101,7 @@ func TestUpdateProfile_EmptyAccessKeyFlagTriggersPrompt(t *testing.T) {
 	// Pass --access-key="" to trigger the prompt path
 	require.NoError(t, cmd.ParseFlags([]string{"--access-key="}))
 
-	outputText, err := captureOutputFromAction(func() error {
+	outputText, err := captureBothFromAction(t, func() error {
 		return UpdateProfile(cmd, []string{"update-test"}, false)
 	})
 	require.NoError(t, err)

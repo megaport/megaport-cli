@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Shared build step for the browser/WASM CLI. Source this and call
-# build_static_assets from the repo root; the CDN (build-web.sh) and Docker
-# (deploy.sh) flows layer their own packaging on top.
+# build_static_assets from the repo root; build-web.sh wraps it to produce the
+# static site for CDN publishing.
 
 build_static_assets() {
   local publish_dir="web/vue-demo"

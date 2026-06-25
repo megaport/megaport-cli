@@ -1,12 +1,17 @@
 package mve
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
@@ -18,6 +23,35 @@ import (
 )
 
 var noColor = true // Disable color for testing
+
+// captureStderr captures what fn writes to os.Stderr, draining the read end
+// concurrently so fn cannot block on a full pipe buffer.
+func captureStderr(t *testing.T, fn func()) (result string) {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	defer func() { os.Stderr = old }()
+
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_, _ = io.Copy(&buf, r)
+	}()
+
+	defer func() {
+		_ = w.Close()
+		<-done
+		_ = r.Close()
+		result = buf.String()
+	}()
+	fn()
+	return
+}
 
 var testMVEImages = []*megaport.MVEImage{
 	{
@@ -521,8 +555,11 @@ func TestUpdateMVE(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			output := output.CaptureOutput(func() {
-				err = UpdateMVE(cmd, tt.args, noColor)
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = UpdateMVE(cmd, tt.args, noColor)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -530,7 +567,7 @@ func TestUpdateMVE(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, output, tt.expectedOutput)
+				assert.Contains(t, capturedOutput+capturedStderr, tt.expectedOutput)
 
 				if tt.validateRequest != nil {
 					tt.validateRequest(t, mockService.CapturedModifyMVERequest)
@@ -650,8 +687,11 @@ func TestDeleteMVE(t *testing.T) {
 			}
 
 			var err error
-			output := output.CaptureOutput(func() {
-				err = cmd.Execute()
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = cmd.Execute()
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -659,7 +699,7 @@ func TestDeleteMVE(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, output, tt.expectedOutput)
+				assert.Contains(t, capturedOutput+capturedStderr, tt.expectedOutput)
 				if tt.safeDeleteFlag {
 					assert.NotNil(t, mockService.CapturedDeleteMVERequest)
 					assert.True(t, mockService.CapturedDeleteMVERequest.SafeDelete)
@@ -976,8 +1016,11 @@ func TestBuyMVE(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			output := output.CaptureOutput(func() {
-				err = BuyMVE(cmd, tt.args, tt.interactive)
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = BuyMVE(cmd, tt.args, tt.interactive)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -985,7 +1028,7 @@ func TestBuyMVE(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, output, tt.expectedOutput)
+				assert.Contains(t, capturedOutput+capturedStderr, tt.expectedOutput)
 
 				if tt.validateRequest != nil {
 					tt.validateRequest(t, mockService.CapturedBuyMVERequest)
@@ -1001,19 +1044,19 @@ func TestBuyMVE_NoWaitFlag(t *testing.T) {
 	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	tests := []struct {
-		name                     string
-		noWait                   bool
-		expectedWaitForProvision bool
+		name       string
+		noWait     bool
+		expectPoll bool
 	}{
 		{
-			name:                     "default waits for provisioning",
-			noWait:                   false,
-			expectedWaitForProvision: true,
+			name:       "default waits for provisioning",
+			noWait:     false,
+			expectPoll: true,
 		},
 		{
-			name:                     "no-wait skips provisioning wait",
-			noWait:                   true,
-			expectedWaitForProvision: false,
+			name:       "no-wait skips provisioning wait",
+			noWait:     true,
+			expectPoll: false,
 		},
 	}
 
@@ -1059,9 +1102,79 @@ func TestBuyMVE_NoWaitFlag(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.NotNil(t, mockService.CapturedBuyMVERequest)
-			assert.Equal(t, tt.expectedWaitForProvision, mockService.CapturedBuyMVERequest.WaitForProvision)
+			// The SDK must never poll; provisioning is awaited outside the order retry.
+			assert.False(t, mockService.CapturedBuyMVERequest.WaitForProvision)
+			if tt.expectPoll {
+				assert.Positive(t, mockService.GetMVECallCount, "expected a provisioning poll when not using --no-wait")
+			} else {
+				assert.Zero(t, mockService.GetMVECallCount, "no provisioning poll expected with --no-wait")
+			}
 		})
 	}
+}
+
+// TestBuyMVE_NoResubmitOnPollRetryableError proves the order is submitted exactly
+// once even when a retryable error (429) surfaces during the provisioning poll.
+func TestBuyMVE_NoResubmitOnPollRetryableError(t *testing.T) {
+	originalMaxRetries := utils.MaxRetries
+	originalPollInterval := utils.ProvisionPollInterval
+	originalNoRetry := utils.NoRetry
+	defer func() {
+		utils.MaxRetries = originalMaxRetries
+		utils.ProvisionPollInterval = originalPollInterval
+		utils.NoRetry = originalNoRetry
+	}()
+	utils.MaxRetries = 3
+	utils.NoRetry = false
+	utils.ProvisionPollInterval = time.Millisecond
+
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	mockService := &MockMVEService{}
+	mockService.BuyMVEResult = &megaport.BuyMVEResponse{TechnicalServiceUID: "mve-uid-123"}
+	mockService.GetMVEErr = &megaport.ErrorResponse{
+		Response: &http.Response{
+			StatusCode: http.StatusTooManyRequests,
+			Header:     http.Header{},
+			Request:    &http.Request{URL: &url.URL{}},
+		},
+		Message: "too many requests",
+	}
+
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.MVEService = mockService
+	})
+	defer cleanup()
+
+	cmd := &cobra.Command{Use: "buy"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().Bool("no-wait", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().Int("term", 0, "")
+	cmd.Flags().Int("location-id", 0, "")
+	cmd.Flags().String("vendor-config", "", "")
+	cmd.Flags().String("vnics", "", "")
+
+	testutil.SetFlags(t, cmd, map[string]string{
+		"name":          "Test MVE",
+		"term":          "12",
+		"location-id":   "123",
+		"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
+		"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
+	})
+	// no-wait stays false: the provisioning poll must run.
+
+	var err error
+	output.CaptureOutput(func() {
+		err = BuyMVE(cmd, nil, true)
+	})
+
+	assert.Error(t, err, "a retryable error during the provisioning poll must surface as an error")
+	assert.Equal(t, 1, mockService.BuyMVECallCount, "the order must be submitted exactly once; a poll-phase 429 must not re-submit it")
 }
 
 func TestListMVEsCmd_WithMockClient(t *testing.T) {
@@ -1244,8 +1357,11 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 			err := cmd.Flags().Set("output", tt.outputFormat)
 			assert.NoError(t, err)
 
-			out, err := output.CaptureOutputErr(func() error {
-				return ListMVEs(cmd, []string{}, true, tt.outputFormat)
+			var out string
+			capturedStderr := captureStderr(t, func() {
+				out, err = output.CaptureOutputErr(func() error {
+					return ListMVEs(cmd, []string{}, true, tt.outputFormat)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -1255,7 +1371,7 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 				assert.NoError(t, err)
 
 				for _, expected := range tt.expectedOutput {
-					assert.Contains(t, out, expected)
+					assert.Contains(t, out+capturedStderr, expected)
 				}
 
 				for _, unexpected := range tt.unexpectedOutput {
@@ -1583,8 +1699,11 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 			}
 
 			var err error
-			output := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, []string{tt.mveUID})
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = cmd.RunE(cmd, []string{tt.mveUID})
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -1592,7 +1711,7 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, output, tt.expectedOutput)
+				assert.Contains(t, capturedOutput+capturedStderr, tt.expectedOutput)
 
 				if tt.expectedCapturedTags != nil {
 					assert.NotNil(t, mockMVEService.CapturedUpdateMVEResourceTagsRequest)
@@ -1869,8 +1988,11 @@ func TestLockMVECmd_WithMockClient(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = lockMVECmd.RunE(lockMVECmd, []string{tt.mveID})
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = lockMVECmd.RunE(lockMVECmd, []string{tt.mveID})
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -1878,7 +2000,7 @@ func TestLockMVECmd_WithMockClient(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, capturedOutput, tt.expectedOut)
+				assert.Contains(t, capturedOutput+capturedStderr, tt.expectedOut)
 			}
 		})
 	}
@@ -1928,8 +2050,11 @@ func TestUnlockMVECmd_WithMockClient(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = unlockMVECmd.RunE(unlockMVECmd, []string{tt.mveID})
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = unlockMVECmd.RunE(unlockMVECmd, []string{tt.mveID})
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -1937,66 +2062,7 @@ func TestUnlockMVECmd_WithMockClient(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, capturedOutput, tt.expectedOut)
-			}
-		})
-	}
-}
-
-func TestRestoreMVECmd_WithMockClient(t *testing.T) {
-	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
-	defer cleanup()
-
-	tests := []struct {
-		name          string
-		mveID         string
-		restoreErr    error
-		expectedError string
-		expectedOut   string
-	}{
-		{
-			name:        "restore MVE success",
-			mveID:       "mve-to-restore",
-			expectedOut: "MVE mve-to-restore restored successfully",
-		},
-		{
-			name:          "restore MVE error",
-			mveID:         "mve-error",
-			restoreErr:    fmt.Errorf("failed to restore MVE"),
-			expectedError: "failed to restore MVE",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			origFunc := restoreMVEFunc
-			defer func() { restoreMVEFunc = origFunc }()
-
-			restoreMVEFunc = func(ctx context.Context, client *megaport.Client, mveUID string) (*megaport.RestoreProductResponse, error) {
-				if tt.restoreErr != nil {
-					return nil, tt.restoreErr
-				}
-				return &megaport.RestoreProductResponse{}, nil
-			}
-
-			restoreMVECmd := &cobra.Command{
-				Use: "restore [mveUID]",
-				RunE: func(cmd *cobra.Command, args []string) error {
-					return RestoreMVE(cmd, args, false)
-				},
-			}
-
-			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = restoreMVECmd.RunE(restoreMVECmd, []string{tt.mveID})
-			})
-
-			if tt.expectedError != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError)
-			} else {
-				assert.NoError(t, err)
-				assert.Contains(t, capturedOutput, tt.expectedOut)
+				assert.Contains(t, capturedOutput+capturedStderr, tt.expectedOut)
 			}
 		})
 	}
@@ -2024,19 +2090,6 @@ func TestUnlockMVECmd_LoginError(t *testing.T) {
 
 	cmd := &cobra.Command{}
 	err := UnlockMVE(cmd, []string{"mve-123"}, false)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to log in")
-}
-
-func TestRestoreMVECmd_LoginError(t *testing.T) {
-	originalLoginFunc := config.GetLoginFunc()
-	defer func() { config.SetLoginFunc(originalLoginFunc) }()
-	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
-		return nil, fmt.Errorf("login failed")
-	})
-
-	cmd := &cobra.Command{}
-	err := RestoreMVE(cmd, []string{"mve-123"}, false)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to log in")
 }
@@ -2143,8 +2196,11 @@ func TestBuyMVE_Confirmation(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = BuyMVE(cmd, nil, noColor)
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = BuyMVE(cmd, nil, noColor)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -2152,7 +2208,7 @@ func TestBuyMVE_Confirmation(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, capturedOutput, tt.expectedOutput)
+				assert.Contains(t, capturedOutput+capturedStderr, tt.expectedOutput)
 			}
 
 			if tt.expectBuyCalled {
@@ -2287,8 +2343,11 @@ func TestValidateMVE(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = ValidateMVE(cmd, nil, true)
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = ValidateMVE(cmd, nil, true)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -2297,7 +2356,7 @@ func TestValidateMVE(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				if tt.expectedContains != "" {
-					assert.Contains(t, capturedOutput, tt.expectedContains)
+					assert.Contains(t, capturedOutput+capturedStderr, tt.expectedContains)
 				}
 			}
 		})
@@ -2443,7 +2502,7 @@ func TestGetMVE_Export(t *testing.T) {
 	assert.NoError(t, cmd.Flags().Set("export", "true"))
 
 	var err error
-	capturedOutput := output.CaptureOutput(func() {
+	capturedOutput := output.CaptureStdout(func() {
 		err = GetMVE(cmd, []string{"mve-export-123"}, true, "table")
 	})
 
@@ -2561,16 +2620,81 @@ func TestListMVEs_TagFilter(t *testing.T) {
 			}
 
 			var listErr error
-			capturedOutput := output.CaptureOutput(func() {
-				listErr = ListMVEs(cmd, nil, true, "table")
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					listErr = ListMVEs(cmd, nil, true, "table")
+				})
 			})
 			assert.NoError(t, listErr)
 
 			for _, expected := range tt.expectedOutputs {
-				assert.Contains(t, capturedOutput, expected)
+				assert.Contains(t, capturedOutput+capturedStderr, expected)
 			}
 			for _, notExp := range tt.notExpected {
 				assert.NotContains(t, capturedOutput, notExp)
+			}
+		})
+	}
+}
+
+// TestBuyMVE_OrderAndProvisionFailures covers the order-response and
+// provisioning-poll failure branches: an empty API response, a missing UID, and
+// the MVE vanishing during the provisioning poll.
+func TestBuyMVE_OrderAndProvisionFailures(t *testing.T) {
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	tests := []struct {
+		name     string
+		nilResp  bool
+		buyResp  *megaport.BuyMVEResponse
+		getNil   bool
+		errMatch string
+	}{
+		{name: "empty API response", nilResp: true, errMatch: "empty response from API"},
+		{name: "no UID returned", buyResp: &megaport.BuyMVEResponse{}, errMatch: "no UID returned"},
+		{name: "MVE not found during provisioning poll", buyResp: &megaport.BuyMVEResponse{TechnicalServiceUID: "mve-uid-123"}, getNil: true, errMatch: "not found while waiting for provisioning"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockMVEService{
+				BuyMVENilResp:  tt.nilResp,
+				BuyMVEResult:   tt.buyResp,
+				ForceNilGetMVE: tt.getNil,
+			}
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+				c.MVEService = mockService
+			})
+			defer cleanup()
+
+			cmd := &cobra.Command{Use: "buy"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().String("vendor-config", "", "")
+			cmd.Flags().String("vnics", "", "")
+
+			testutil.SetFlags(t, cmd, map[string]string{
+				"name":          "Test MVE",
+				"term":          "12",
+				"location-id":   "123",
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
+				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
+			})
+
+			var err error
+			output.CaptureOutput(func() {
+				err = BuyMVE(cmd, nil, true)
+			})
+
+			if assert.Error(t, err) {
+				assert.Contains(t, err.Error(), tt.errMatch)
 			}
 		})
 	}

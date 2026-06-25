@@ -180,40 +180,75 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		}
 	}
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	noWait, _ := cmd.Flags().GetBool("no-wait")
-	if !noWait {
-		req.WaitForProvision = true
-		req.WaitForTime = utils.DefaultProvisionTimeout
-	}
+	// Only the order submission is wrapped in WithOrderOnceRetry below, so the SDK
+	// must not also poll for provisioning: a 429 raised during polling would
+	// otherwise re-submit the order. Provisioning is awaited separately afterwards.
+	req.WaitForProvision = false
 
 	var spinner *output.Spinner
-	if req.WaitForProvision {
-		spinner = output.PrintResourceProvisioning("MVE", req.Name, noColor)
-	} else {
+	if noWait {
 		spinner = output.PrintResourceCreating("MVE", req.Name, noColor)
+	} else {
+		spinner = output.PrintResourceProvisioning("MVE", req.Name, noColor)
 	}
 
 	var resp *megaport.BuyMVEResponse
-	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
+	err = utils.WithOrderOnceRetry(ctx, func(ctx context.Context) error {
 		var e error
 		resp, e = client.MVEService.BuyMVE(ctx, req)
 		return e
 	})
-
-	spinner.Stop()
-
 	if err != nil {
+		spinner.Stop()
 		output.PrintError("Failed to buy MVE: %v", noColor, err)
 		return err
 	}
 
 	if resp == nil {
+		spinner.Stop()
 		output.PrintError("MVE buy returned an empty API response", noColor)
 		return fmt.Errorf("empty response from API")
 	}
 
-	output.PrintResourceCreated("MVE", resp.TechnicalServiceUID, noColor)
+	if resp.TechnicalServiceUID == "" {
+		spinner.Stop()
+		output.PrintError("MVE created but no UID returned", noColor)
+		return fmt.Errorf("MVE created but no UID returned")
+	}
+
+	uid := resp.TechnicalServiceUID
+
+	if !noWait {
+		if err := waitForMVEProvision(ctx, client, req.Name, uid); err != nil {
+			spinner.Stop()
+			output.PrintError("MVE %s failed to provision: %v", noColor, uid, err)
+			return err
+		}
+	}
+
+	spinner.Stop()
+	output.PrintResourceCreated("MVE", uid, noColor)
 	return nil
+}
+
+// waitForMVEProvision polls the MVE's status until it is provisioned, bounding
+// the wait by DefaultProvisionTimeout. It runs after the order is placed, so it
+// must never be wrapped in an order-submission retry.
+func waitForMVEProvision(ctx context.Context, client *megaport.Client, name, uid string) error {
+	pollCtx, cancel := context.WithTimeout(ctx, utils.DefaultProvisionTimeout)
+	defer cancel()
+	return utils.WaitForProvision(pollCtx, "MVE", name, uid, func(ctx context.Context) (string, error) {
+		m, err := client.MVEService.GetMVE(ctx, uid)
+		if err != nil {
+			return "", err
+		}
+		if m == nil {
+			return "", fmt.Errorf("MVE %s not found while waiting for provisioning", uid)
+		}
+		return m.ProvisioningStatus, nil
+	})
 }
 
 func ValidateMVE(cmd *cobra.Command, args []string, noColor bool) error {
@@ -728,29 +763,5 @@ func UnlockMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	output.PrintSuccess("MVE %s unlocked successfully", noColor, mveUID)
-	return nil
-}
-
-func RestoreMVE(cmd *cobra.Command, args []string, noColor bool) error {
-	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
-	if err != nil {
-		output.PrintError("Failed to log in: %v", noColor, err)
-		return err
-	}
-	defer cancel()
-
-	mveUID := args[0]
-
-	output.PrintInfo("Restoring MVE %s...", noColor, mveUID)
-
-	err = utils.WithRetry(ctx, func(ctx context.Context) error {
-		_, e := restoreMVEFunc(ctx, client, mveUID)
-		return e
-	})
-	if err != nil {
-		return fmt.Errorf("failed to restore MVE: %w", err)
-	}
-
-	output.PrintSuccess("MVE %s restored successfully", noColor, mveUID)
 	return nil
 }

@@ -82,10 +82,10 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 
 	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	noWait, _ := cmd.Flags().GetBool("no-wait")
-	if !noWait {
-		req.WaitForProvision = true
-		req.WaitForTime = utils.DefaultProvisionTimeout
-	}
+	// Only the order submission is wrapped in WithOrderOnceRetry below, so the SDK
+	// must not also poll for provisioning: a 429 raised during polling would
+	// otherwise re-submit the order. Provisioning is awaited separately afterwards.
+	req.WaitForProvision = false
 
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -122,31 +122,66 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	var buySpinner *output.Spinner
-	if req.WaitForProvision {
-		buySpinner = output.PrintResourceProvisioning("MCR", req.Name, noColor)
-	} else {
+	if noWait {
 		buySpinner = output.PrintResourceCreating("MCR", req.Name, noColor)
+	} else {
+		buySpinner = output.PrintResourceProvisioning("MCR", req.Name, noColor)
 	}
 	var resp *megaport.BuyMCRResponse
-	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
+	err = utils.WithOrderOnceRetry(ctx, func(ctx context.Context) error {
 		var e error
 		resp, e = buyMCRFunc(ctx, client, req)
 		return e
 	})
-	buySpinner.Stop()
-
 	if err != nil {
+		buySpinner.Stop()
 		output.PrintError("Failed to buy MCR: %v", noColor, err)
 		return err
 	}
 
 	if resp == nil {
+		buySpinner.Stop()
 		output.PrintError("MCR buy returned an empty API response", noColor)
 		return fmt.Errorf("empty response from API")
 	}
 
-	output.PrintResourceCreated("MCR", resp.TechnicalServiceUID, noColor)
+	if resp.TechnicalServiceUID == "" {
+		buySpinner.Stop()
+		output.PrintError("MCR created but no UID returned", noColor)
+		return fmt.Errorf("MCR created but no UID returned")
+	}
+
+	uid := resp.TechnicalServiceUID
+
+	if !noWait {
+		if err := waitForMCRProvision(ctx, client, req.Name, uid); err != nil {
+			buySpinner.Stop()
+			output.PrintError("MCR %s failed to provision: %v", noColor, uid, err)
+			return err
+		}
+	}
+
+	buySpinner.Stop()
+	output.PrintResourceCreated("MCR", uid, noColor)
 	return nil
+}
+
+// waitForMCRProvision polls the MCR's status until it is provisioned, bounding
+// the wait by DefaultProvisionTimeout. It runs after the order is placed, so it
+// must never be wrapped in an order-submission retry.
+func waitForMCRProvision(ctx context.Context, client *megaport.Client, name, uid string) error {
+	pollCtx, cancel := context.WithTimeout(ctx, utils.DefaultProvisionTimeout)
+	defer cancel()
+	return utils.WaitForProvision(pollCtx, "MCR", name, uid, func(ctx context.Context) (string, error) {
+		m, err := getMCRFunc(ctx, client, uid)
+		if err != nil {
+			return "", err
+		}
+		if m == nil {
+			return "", fmt.Errorf("MCR %s not found while waiting for provisioning", uid)
+		}
+		return m.ProvisioningStatus, nil
+	})
 }
 
 func ValidateMCR(cmd *cobra.Command, args []string, noColor bool) error {

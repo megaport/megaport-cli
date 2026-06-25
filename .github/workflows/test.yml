@@ -38,3 +38,26 @@ jobs:
         run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
       - name: Run golangci-lint
         run: golangci-lint run --timeout=5m
+
+  e2e-hermetic:
+    name: E2E Tests (Hermetic)
+    # Run on Unix and Windows so OS-specific regressions in the cross-platform
+    # sandbox are caught.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    # Caps a stuck build or run; the suite itself finishes in well under a minute.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
+        with:
+          go-version-file: 'go.mod'
+      # Call go test directly rather than `make e2e`: make is absent on the
+      # windows-latest runner, and bash keeps the argument quoting identical on
+      # both OSes.
+      - name: Run hermetic e2e tests
+        shell: bash
+        run: go test -tags e2e -run '^TestE2E_' -skip '^TestE2E_Staging_' -v ./e2e/...

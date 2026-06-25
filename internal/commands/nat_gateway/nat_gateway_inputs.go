@@ -36,6 +36,10 @@ func processJSONCreateNATGatewayInput(jsonStr, jsonFile string) (*megaport.Creat
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
+	if err := utils.RejectEmptyTagKeys(raw.ResourceTags); err != nil {
+		return nil, err
+	}
+
 	req := &megaport.CreateNATGatewayRequest{
 		ProductName:           raw.Name,
 		LocationID:            raw.LocationID,
@@ -167,6 +171,10 @@ func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.
 	}
 	if err := json.Unmarshal(jsonData, &raw); err != nil {
 		return nil, updateExplicitFields{}, fmt.Errorf("failed to parse JSON: %w", err)
+	}
+
+	if err := utils.RejectEmptyTagKeys(raw.ResourceTags); err != nil {
+		return nil, updateExplicitFields{}, err
 	}
 
 	explicit := updateExplicitFields{

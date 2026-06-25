@@ -9,21 +9,15 @@ echo "Building Megaport CLI WASM version..."
 # Create web directory if it doesn't exist
 mkdir -p web
 
-# Install npm dependencies if package.json exists
-if [ -f "web/package.json" ]; then
-  echo "Installing npm dependencies..."
-  cd web && npm install && cd ..
-  echo "✅ npm dependencies installed"
-fi
-
 # Build the WASM binary
 GOOS=js GOARCH=wasm go build -o web/megaport.wasm ./main_wasm.go
 
 # Find and copy wasm_exec.js
 GO_ROOT=$(go env GOROOT)
 
-# Try multiple known locations
+# Try multiple known locations (lib/wasm is the Go 1.21+ location)
 POSSIBLE_PATHS=(
+  "$GO_ROOT/lib/wasm/wasm_exec.js"
   "$GO_ROOT/misc/wasm/wasm_exec.js"
   "$GO_ROOT/js/wasm/wasm_exec.js"
   "$GO_ROOT/src/syscall/js/wasm_exec.js"
@@ -81,7 +75,7 @@ fi
 
 if [ "$FOUND" = true ]; then
   echo "Build complete. Files in ./web/ directory."
-  echo "Serve with: cd web && go run ../cmd/server/server.go"
+  echo "For a browser preview: cd frontend-integration && npm run dev:demo"
 else
   echo "Build incomplete. Missing wasm_exec.js"
   exit 1

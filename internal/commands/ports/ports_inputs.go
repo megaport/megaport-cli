@@ -167,6 +167,10 @@ func processJSONPortInput(jsonStr, jsonFile string) (*megaport.BuyPortRequest, e
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
+	if err := utils.RejectEmptyTagKeys(req.ResourceTags); err != nil {
+		return nil, err
+	}
+
 	if err := validation.ValidatePortRequest(req); err != nil {
 		return nil, err
 	}

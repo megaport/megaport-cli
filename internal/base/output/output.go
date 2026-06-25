@@ -176,11 +176,44 @@ var createTempFile = func() (*os.File, error) {
 	return os.CreateTemp("", "capture-stdout-*")
 }
 
-// CaptureOutput runs f and returns everything it writes to stdout.
+// CaptureOutput runs f and returns everything it writes to stdout and stderr
+// combined. Status messages route to stderr and data to stdout, so a test that
+// wants all user-facing output captures both. Use CaptureStdout when asserting
+// that the data stream alone is clean.
 // Uses a temporary file instead of an OS pipe to avoid deadlocking when
 // f() produces more output than the pipe buffer can hold.
 // Must not be called reentrantly (the global stdoutMu is not reentrant).
 func CaptureOutput(f func()) string {
+	stdoutMu.Lock()
+	defer stdoutMu.Unlock()
+
+	oldOut, oldErr := os.Stdout, os.Stderr
+	tmp, err := createTempFile()
+	if err != nil {
+		f()
+		return ""
+	}
+	defer os.Remove(tmp.Name())
+	defer tmp.Close()
+
+	os.Stdout = tmp
+	os.Stderr = tmp
+	defer func() { os.Stdout = oldOut; os.Stderr = oldErr }()
+
+	f()
+
+	// Read back captured output.
+	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
+		return ""
+	}
+	data, _ := io.ReadAll(tmp)
+	return string(data)
+}
+
+// CaptureStdout runs f and returns only what it writes to stdout. Use this when
+// a test needs the clean data stream (for example parsing exported JSON/CSV)
+// without the status messages that route to stderr.
+func CaptureStdout(f func()) string {
 	stdoutMu.Lock()
 	defer stdoutMu.Unlock()
 
@@ -198,7 +231,6 @@ func CaptureOutput(f func()) string {
 
 	f()
 
-	// Read back captured output.
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
 		return ""
 	}
@@ -206,11 +238,13 @@ func CaptureOutput(f func()) string {
 	return string(data)
 }
 
+// CaptureOutputErr is the error-returning counterpart to CaptureOutput: it
+// captures both stdout and stderr.
 func CaptureOutputErr(f func() error) (string, error) {
 	stdoutMu.Lock()
 	defer stdoutMu.Unlock()
 
-	old := os.Stdout
+	oldOut, oldErr := os.Stdout, os.Stderr
 	tmp, err := createTempFile()
 	if err != nil {
 		runErr := f()
@@ -220,7 +254,8 @@ func CaptureOutputErr(f func() error) (string, error) {
 	defer tmp.Close()
 
 	os.Stdout = tmp
-	defer func() { os.Stdout = old }()
+	os.Stderr = tmp
+	defer func() { os.Stdout = oldOut; os.Stderr = oldErr }()
 
 	runErr := f()
 

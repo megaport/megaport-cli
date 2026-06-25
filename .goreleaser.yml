@@ -129,4 +129,31 @@ release:
   # If you want to manually examine the release before its live, uncomment this line:
   draft: true
 changelog:
-  disable: true
+  use: git
+  sort: asc
+  abbrev: -1
+  filters:
+    exclude:
+      - '^docs'
+      - '^test'
+      - '^chore'
+      - '^ci'
+      - '^build'
+      - '^style'
+      - '^refactor'
+      - '^Merge '
+      - '^Revert '
+  groups:
+    - title: Added
+      regexp: '^.*?feat(\(.+\))??!?:.*$'
+      order: 0
+    - title: Changed
+      regexp: '^.*?perf(\(.+\))??!?:.*$'
+      order: 1
+    - title: Fixed
+      regexp: '^.*?fix(\(.+\))??!?:.*$'
+      order: 2
+    # Catch-all (no regexp) so non-conventional subjects, e.g. ESD-XXXX, are kept
+    # in a titled section instead of being dropped or left heading-less.
+    - title: Other Changes
+      order: 999

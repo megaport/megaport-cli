@@ -113,7 +113,7 @@ func TestQuietDoesNotSuppressPrintError(t *testing.T) {
 	resetVerbosity(t)
 	SetVerbosity("quiet")
 
-	out := captureStdout(t, func() {
+	out := captureStderr(t, func() {
 		PrintError("error message", true)
 	})
 	assert.Contains(t, out, "error message", "PrintError should still produce output in quiet mode")
@@ -205,25 +205,32 @@ func TestQuietSuppressesPrintVerbose(t *testing.T) {
 func TestNormalModeShowsAllMessages(t *testing.T) {
 	resetVerbosity(t)
 
-	infoOut := captureStdout(t, func() {
-		PrintInfo("info message", true)
+	// Status/error messages go to stderr in every format; stdout stays clean.
+	var infoStdout, successStdout, warningStdout, errorStdout string
+
+	infoOut := captureStderr(t, func() {
+		infoStdout = captureStdout(t, func() { PrintInfo("info message", true) })
 	})
 	assert.Contains(t, infoOut, "info message", "PrintInfo should produce output in normal mode")
+	assert.Empty(t, infoStdout, "PrintInfo must not write to stdout")
 
-	successOut := captureStdout(t, func() {
-		PrintSuccess("success message", true)
+	successOut := captureStderr(t, func() {
+		successStdout = captureStdout(t, func() { PrintSuccess("success message", true) })
 	})
 	assert.Contains(t, successOut, "success message", "PrintSuccess should produce output in normal mode")
+	assert.Empty(t, successStdout, "PrintSuccess must not write to stdout")
 
-	warningOut := captureStdout(t, func() {
-		PrintWarning("warning message", true)
+	warningOut := captureStderr(t, func() {
+		warningStdout = captureStdout(t, func() { PrintWarning("warning message", true) })
 	})
 	assert.Contains(t, warningOut, "warning message", "PrintWarning should produce output in normal mode")
+	assert.Empty(t, warningStdout, "PrintWarning must not write to stdout")
 
-	errorOut := captureStdout(t, func() {
-		PrintError("error message", true)
+	errorOut := captureStderr(t, func() {
+		errorStdout = captureStdout(t, func() { PrintError("error message", true) })
 	})
 	assert.Contains(t, errorOut, "error message", "PrintError should produce output in normal mode")
+	assert.Empty(t, errorStdout, "PrintError must not write to stdout")
 }
 
 func TestVerbosePrintVerboseWithJSONFormat(t *testing.T) {

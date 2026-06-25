@@ -1,8 +1,10 @@
 package apply
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -15,6 +17,24 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// captureStderr captures everything written to os.Stderr while fn runs.
+func captureStderr(t *testing.T, fn func()) (result string) {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	defer func() { os.Stderr = old }()
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() { defer close(done); _, _ = io.Copy(&buf, r) }()
+	defer func() { _ = w.Close(); <-done; _ = r.Close(); result = buf.String() }()
+	fn()
+	return
+}
 
 // applyCmd builds a minimal cobra.Command with the flags ApplyConfig reads.
 func applyCmd(file string, dryRun, yes bool) *cobra.Command {
@@ -600,7 +620,7 @@ mcrs:
 	cmd := applyCmd(f, false, true)
 
 	var err error
-	captured := output.CaptureOutput(func() {
+	captured := captureStderr(t, func() {
 		err = ApplyConfig(cmd, nil, true, "table")
 	})
 
@@ -651,7 +671,7 @@ mcrs:
 
 // TestApplyConfig_RollbackSurvivesProvisionTimeout guards the fix where rollback
 // must not reuse the provisioning context. The port is bought but never reaches a
-// ready state, so the short --timeout trips waitForProvision and the provisioning
+// ready state, so the short --timeout trips the provisioning wait and the provisioning
 // context expires. If rollback reused that expired context, the mock's DeletePort
 // would see ctx.Err() and the port would leak; rollback must start a fresh context
 // (with the same configured timeout) so the delete still fires.
@@ -715,7 +735,7 @@ mcrs:
 	cmd := applyCmdWithRollback(f)
 
 	var err error
-	captured := output.CaptureOutput(func() {
+	captured := captureStderr(t, func() {
 		err = ApplyConfig(cmd, nil, true, "table")
 	})
 
@@ -768,7 +788,7 @@ vxcs:
 	cmd := applyCmd(f, false, true)
 
 	var err error
-	captured := output.CaptureOutput(func() {
+	captured := captureStderr(t, func() {
 		err = ApplyConfig(cmd, nil, true, "table")
 	})
 
@@ -1153,6 +1173,121 @@ vxcs:
 	assert.Contains(t, err.Error(), "empty response")
 }
 
+// --- nil provisioning-poll response tests ---
+// These cover the GetPort/GetMCR/GetMVE/GetVXC paths inside waitForProvision,
+// where the SDK can return (nil, nil) and the status was read off the nil pointer.
+
+func TestApplyConfig_PortProvisionNilResponse(t *testing.T) {
+	mockPort := &MockPortService{GetPortReturnNil: true}
+	defer setupMockClient(mockPort, &MockMCRService{}, &MockMVEService{}, &MockVXCService{})()
+
+	yaml := `
+ports:
+  - name: Nil-Provision-Port
+    location_id: 1
+    speed: 1000
+    term: 12
+    marketplace_visibility: false
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = ApplyConfig(cmd, nil, true, "table")
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
+}
+
+func TestApplyConfig_MCRProvisionNilResponse(t *testing.T) {
+	mockMCR := &MockMCRService{GetMCRReturnNil: true}
+	defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+	yaml := `
+mcrs:
+  - name: Nil-Provision-MCR
+    location_id: 1
+    speed: 1000
+    term: 12
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = ApplyConfig(cmd, nil, true, "table")
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
+}
+
+func TestApplyConfig_MVEProvisionNilResponse(t *testing.T) {
+	mockMVE := &MockMVEService{GetMVEReturnNil: true}
+	defer setupMockClient(&MockPortService{}, &MockMCRService{}, mockMVE, &MockVXCService{})()
+
+	yaml := `
+mves:
+  - name: Nil-Provision-MVE
+    location_id: 1
+    term: 1
+    vendor_config:
+      vendor: 6wind
+      imageId: 42
+      productSize: SMALL
+      sshPublicKey: "ssh-rsa AAAA"
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = ApplyConfig(cmd, nil, true, "table")
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
+}
+
+func TestApplyConfig_VXCProvisionNilResponse(t *testing.T) {
+	mockVXC := &MockVXCService{GetVXCReturnNil: true}
+	defer setupMockClient(&MockPortService{}, &MockMCRService{}, &MockMVEService{}, mockVXC)()
+
+	yaml := `
+ports:
+  - name: VXCProvision-Port
+    location_id: 1
+    speed: 1000
+    term: 12
+    marketplace_visibility: false
+
+vxcs:
+  - name: Nil-Provision-VXC
+    rate_limit: 100
+    term: 12
+    a_end:
+      product_uid: "{{.port.VXCProvision-Port}}"
+    b_end:
+      product_uid: some-uid
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = ApplyConfig(cmd, nil, true, "table")
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
+}
+
 // --- helpers (also used by other test functions) ---
 
 func TestResolveTemplates_NoTemplate(t *testing.T) {
@@ -1299,4 +1434,436 @@ func writeTempFile(t *testing.T, name, content string) string {
 	path := filepath.Join(dir, name)
 	require.NoError(t, os.WriteFile(path, []byte(content), 0600))
 	return path
+}
+
+func TestApplyConfig_ProvisionMCRWithIPsecTunnelCount(t *testing.T) {
+	mockMCR := &MockMCRService{}
+	defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+	yaml := `
+mcrs:
+  - name: IPsec-MCR
+    location_id: 2
+    speed: 1000
+    term: 12
+    asn: 65000
+    tunnel_count: 10
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, mockMCR.CapturedMCRRequest)
+	require.Len(t, mockMCR.CapturedMCRRequest.AddOns, 1)
+	ipsec, ok := mockMCR.CapturedMCRRequest.AddOns[0].(*megaport.MCRAddOnIPsecConfig)
+	require.True(t, ok, "expected an IPsec add-on")
+	assert.Equal(t, 10, ipsec.TunnelCount)
+	assert.Equal(t, megaport.AddOnTypeIPsec, ipsec.AddOnType)
+}
+
+func TestApplyConfig_DryRunMCRWithIPsecTunnelCount(t *testing.T) {
+	mockMCR := &MockMCRService{}
+	defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+	yaml := `
+mcrs:
+  - name: IPsec-MCR
+    location_id: 2
+    speed: 1000
+    term: 12
+    asn: 65000
+    tunnel_count: 20
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, true, false)
+
+	var err error
+	output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+
+	require.NoError(t, err)
+	// Dry-run validates the order but must not buy.
+	assert.Nil(t, mockMCR.CapturedMCRRequest)
+	require.NotNil(t, mockMCR.CapturedValidateMCRRequest)
+	require.Len(t, mockMCR.CapturedValidateMCRRequest.AddOns, 1)
+	ipsec, ok := mockMCR.CapturedValidateMCRRequest.AddOns[0].(*megaport.MCRAddOnIPsecConfig)
+	require.True(t, ok, "expected an IPsec add-on")
+	assert.Equal(t, 20, ipsec.TunnelCount)
+	assert.Equal(t, megaport.AddOnTypeIPsec, ipsec.AddOnType)
+}
+
+func TestMCRAddOns(t *testing.T) {
+	tests := []struct {
+		name        string
+		tunnelCount int
+		wantAddOn   bool
+	}{
+		{"zero means no add-on", 0, false},
+		{"negative means no add-on", -5, false},
+		{"ten tunnels", 10, true},
+		{"twenty tunnels", 20, true},
+		{"thirty tunnels", 30, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			addOns := mcrAddOns(tt.tunnelCount)
+			if !tt.wantAddOn {
+				assert.Empty(t, addOns)
+				return
+			}
+			require.Len(t, addOns, 1)
+			ipsec, ok := addOns[0].(*megaport.MCRAddOnIPsecConfig)
+			require.True(t, ok, "expected an IPsec add-on")
+			assert.Equal(t, megaport.AddOnTypeIPsec, ipsec.AddOnType)
+			assert.Equal(t, tt.tunnelCount, ipsec.TunnelCount)
+		})
+	}
+}
+
+// A mistyped key (camelCase tunnelCount) or a stray key must be a clear error
+// rather than silently dropped, which is the failure mode behind issue #439.
+func TestParseConfigFile_RejectsUnknownField(t *testing.T) {
+	tests := []struct {
+		name    string
+		file    string
+		content string
+	}{
+		{
+			name: "yaml camelCase tunnelCount",
+			file: "config.yaml",
+			content: `
+mcrs:
+  - name: MCR
+    location_id: 2
+    speed: 1000
+    term: 12
+    tunnelCount: 10
+`,
+		},
+		{
+			name:    "json camelCase tunnelCount",
+			file:    "config.json",
+			content: `{"mcrs":[{"name":"MCR","location_id":2,"speed":1000,"term":12,"tunnelCount":10}]}`,
+		},
+		{
+			name: "yaml unknown top-level key",
+			file: "config.yaml",
+			content: `
+version: "1.0"
+mcrs: []
+`,
+		},
+		{
+			name: "yaml unknown port field",
+			file: "config.yaml",
+			content: `
+ports:
+  - name: P
+    location_id: 1
+    speed: 1000
+    term: 12
+    locationId: 1
+`,
+		},
+		{
+			name:    "json unknown vxc field",
+			file:    "config.json",
+			content: `{"vxcs":[{"name":"V","rate_limit":100,"term":12,"rateLimit":100}]}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := writeTempFile(t, tt.file, tt.content)
+			_, err := parseConfigFile(f)
+			assert.Error(t, err, "unknown key should be a clear error, not silently dropped")
+		})
+	}
+}
+
+func TestApplyConfig_ProvisionMCRNoTunnelCount(t *testing.T) {
+	mockMCR := &MockMCRService{}
+	defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+	yaml := `
+mcrs:
+  - name: Plain-MCR
+    location_id: 2
+    speed: 1000
+    term: 12
+    asn: 65000
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, mockMCR.CapturedMCRRequest)
+	assert.Empty(t, mockMCR.CapturedMCRRequest.AddOns, "no tunnel_count must mean no IPsec add-on")
+}
+
+func TestApplyConfig_ProvisionMCRWithIPsecTunnelCountJSON(t *testing.T) {
+	mockMCR := &MockMCRService{}
+	defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+	jsonCfg := `{"mcrs":[{"name":"IPsec-MCR","location_id":2,"speed":1000,"term":12,"asn":65000,"tunnel_count":30}]}`
+	f := writeTempFile(t, "config.json", jsonCfg)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, mockMCR.CapturedMCRRequest)
+	require.Len(t, mockMCR.CapturedMCRRequest.AddOns, 1)
+	ipsec, ok := mockMCR.CapturedMCRRequest.AddOns[0].(*megaport.MCRAddOnIPsecConfig)
+	require.True(t, ok, "expected an IPsec add-on")
+	assert.Equal(t, 30, ipsec.TunnelCount)
+	assert.Equal(t, megaport.AddOnTypeIPsec, ipsec.AddOnType)
+}
+
+func TestApplyConfig_MCRInvalidTunnelCount(t *testing.T) {
+	tests := []struct {
+		name        string
+		tunnelCount int
+	}{
+		{"not a valid multiple", 15},
+		{"negative", -5},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockMCR := &MockMCRService{}
+			defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+			yaml := fmt.Sprintf(`
+mcrs:
+  - name: IPsec-MCR
+    location_id: 2
+    speed: 1000
+    term: 12
+    asn: 65000
+    tunnel_count: %d
+`, tt.tunnelCount)
+			f := writeTempFile(t, "config.yaml", yaml)
+			cmd := applyCmd(f, false, true)
+
+			var err error
+			output.CaptureOutput(func() {
+				err = ApplyConfig(cmd, nil, true, "table")
+			})
+
+			require.Error(t, err, "invalid tunnel count should fail")
+			assert.Contains(t, err.Error(), "tunnel count", "error should name the offending field")
+			assert.Nil(t, mockMCR.CapturedMCRRequest, "invalid tunnel count must not reach BuyMCR")
+		})
+	}
+}
+
+func TestApplyConfig_DryRunMCRInvalidTunnelCount(t *testing.T) {
+	mockMCR := &MockMCRService{}
+	defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+	yaml := `
+mcrs:
+  - name: IPsec-MCR
+    location_id: 2
+    speed: 1000
+    term: 12
+    asn: 65000
+    tunnel_count: 15
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, true, false)
+
+	var err error
+	captured := output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+
+	require.NoError(t, err)
+	// Validation short-circuits before the SDK validate call is made.
+	assert.Nil(t, mockMCR.CapturedValidateMCRRequest)
+	assert.Contains(t, captured, "invalid")
+}
+
+func TestParseConfigFile_RejectsTrailingJSON(t *testing.T) {
+	// json.NewDecoder reads only the first value; trailing data must be rejected so
+	// a duplicated or concatenated config body isn't silently half-applied.
+	jsonCfg := `{"mcrs":[{"name":"M","location_id":2,"speed":1000,"term":12}]}{"mcrs":[]}`
+	f := writeTempFile(t, "config.json", jsonCfg)
+	_, err := parseConfigFile(f)
+	assert.Error(t, err, "trailing JSON data should be rejected, not silently ignored")
+}
+
+func TestParseConfigFile_RejectsMultipleYAMLDocuments(t *testing.T) {
+	// A second ---separated document would otherwise be silently dropped.
+	yaml := `
+mcrs:
+  - name: First
+    location_id: 2
+    speed: 1000
+    term: 12
+---
+mcrs:
+  - name: Second
+    location_id: 2
+    speed: 1000
+    term: 12
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	_, err := parseConfigFile(f)
+	assert.Error(t, err, "multiple YAML documents should be rejected, not silently dropped")
+}
+
+func TestParseConfigFile_AllowsBenignTrailingContent(t *testing.T) {
+	// A trailing document marker or comment carries no data, so it must be accepted.
+	// Only a second document with real content is rejected (see RejectsMultipleYAMLDocuments).
+	tests := []struct {
+		name    string
+		file    string
+		content string
+	}{
+		{
+			name: "yaml trailing bare separator",
+			file: "config.yaml",
+			content: `
+mcrs:
+  - name: Only
+    location_id: 2
+    speed: 1000
+    term: 12
+---
+`,
+		},
+		{
+			name: "yaml trailing separator then comment",
+			file: "config.yaml",
+			content: `
+mcrs:
+  - name: Only
+    location_id: 2
+    speed: 1000
+    term: 12
+---
+# nothing here
+`,
+		},
+		{
+			name:    "json trailing whitespace",
+			file:    "config.json",
+			content: "{\"mcrs\":[{\"name\":\"Only\",\"location_id\":2,\"speed\":1000,\"term\":12}]}\n   \n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := writeTempFile(t, tt.file, tt.content)
+			cfg, err := parseConfigFile(f)
+			require.NoError(t, err, "benign trailing content should be accepted")
+			require.Len(t, cfg.MCRs, 1, "the first document's data must survive")
+		})
+	}
+}
+
+func TestParseConfigFile_AllowsFreeformMapKeys(t *testing.T) {
+	// resource_tags and vendor_config are map types, so their inner keys are not
+	// subject to strict field checking — arbitrary (incl. camelCase) keys must survive.
+	yaml := `
+ports:
+  - name: P
+    location_id: 1
+    speed: 1000
+    term: 12
+    resource_tags:
+      ownerTeam: networking
+      costCenter: "1234"
+mves:
+  - name: M
+    location_id: 1
+    term: 12
+    vendor_config:
+      vendor: cisco
+      imageId: 42
+      productSize: SMALL
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cfg, err := parseConfigFile(f)
+	require.NoError(t, err)
+	require.Len(t, cfg.Ports, 1)
+	assert.Equal(t, "networking", cfg.Ports[0].ResourceTags["ownerTeam"])
+	assert.Equal(t, "1234", cfg.Ports[0].ResourceTags["costCenter"])
+	require.Len(t, cfg.MVEs, 1)
+	assert.Equal(t, "cisco", cfg.MVEs[0].VendorConfig["vendor"])
+	assert.Contains(t, cfg.MVEs[0].VendorConfig, "imageId")
+}
+
+func TestApplyConfig_ProvisionMCRExplicitZeroTunnelCount(t *testing.T) {
+	// Explicit tunnel_count: 0 means no IPsec add-on, same as omitting it.
+	mockMCR := &MockMCRService{}
+	defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+	yaml := `
+mcrs:
+  - name: Zero-MCR
+    location_id: 2
+    speed: 1000
+    term: 12
+    asn: 65000
+    tunnel_count: 0
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, mockMCR.CapturedMCRRequest)
+	assert.Empty(t, mockMCR.CapturedMCRRequest.AddOns, "explicit tunnel_count: 0 must mean no IPsec add-on")
+}
+
+func TestApplyConfig_DryRunMixedMCRTunnelCounts(t *testing.T) {
+	// An invalid MCR is flagged while a later valid MCR still reaches SDK validation
+	// (dry-run continues rather than aborting on the first bad entry).
+	mockMCR := &MockMCRService{}
+	defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+	yaml := `
+mcrs:
+  - name: Bad-MCR
+    location_id: 2
+    speed: 1000
+    term: 12
+    asn: 65000
+    tunnel_count: 15
+  - name: Good-MCR
+    location_id: 2
+    speed: 1000
+    term: 12
+    asn: 65000
+    tunnel_count: 10
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, true, false)
+
+	var err error
+	captured := output.CaptureOutput(func() {
+		err = ApplyConfig(cmd, nil, true, "table")
+	})
+
+	require.NoError(t, err)
+	assert.Contains(t, captured, "invalid", "the invalid MCR should be flagged")
+	require.NotNil(t, mockMCR.CapturedValidateMCRRequest, "the valid MCR should still reach SDK validation")
 }

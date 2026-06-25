@@ -1,4 +1,4 @@
-.PHONY: build test test-cover test-cover-html test-integration test-integration-readonly e2e lint fmt vet check clean wasm wasm-compress web-static
+.PHONY: build test test-cover test-cover-html test-integration test-integration-readonly e2e e2e-staging lint fmt vet check clean wasm wasm-build-guard wasm-smoke wasm-compress web-static
 
 # Build the CLI binary
 build:
@@ -48,11 +48,14 @@ test-integration-readonly:
 		./internal/commands/ports/... \
 		./internal/commands/vxc/...
 
-# Run native-binary black-box e2e tests (built behind the `e2e` build tag).
-# Placeholder: the harness and specs land in a later PR. Until then this compiles
-# cleanly and reports no matching tests, so it is safe to wire into CI now.
+# Run the hermetic native-binary e2e tests (built behind the `e2e` build tag).
+# Builds the CLI binary and drives it via argv; no credentials needed.
 e2e:
-	go test -tags e2e -run '^TestE2E_' -v ./...
+	go test -tags e2e -run '^TestE2E_' -skip '^TestE2E_Staging_' -v ./e2e/...
+
+# Run the live staging e2e tests (read-only, requires MEGAPORT_* credentials).
+e2e-staging:
+	go test -tags e2e -run '^TestE2E_Staging_' -v -timeout 15m ./e2e/...
 
 # Run linter
 lint:
@@ -72,6 +75,17 @@ check: lint test
 # Build WASM binary
 wasm:
 	GOOS=js GOARCH=wasm go build -trimpath -tags js,wasm -ldflags="-s -w" -o web/megaport.wasm .
+
+# Compile-only guard for the browser target. Fails fast if the WASM build breaks.
+wasm-build-guard:
+	GOOS=js GOARCH=wasm go build -tags js,wasm -o /dev/null .
+
+# Smoke-test a read-only command end-to-end through the browser fetch transport.
+# Builds the WASM binary, then runs it under Node against a live API (default: staging).
+# wasm_exec.js is copied to /tmp to avoid dirtying the working tree.
+wasm-smoke: wasm
+	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" /tmp/wasm_exec_smoke.js
+	WASM_EXEC_JS=/tmp/wasm_exec_smoke.js node scripts/wasm-smoke.mjs
 
 # Pre-compress the WASM artifact (brotli q11 + gzip -9) for CDN serving
 wasm-compress: wasm

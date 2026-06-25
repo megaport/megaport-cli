@@ -75,10 +75,10 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 
 	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	noWait, _ := cmd.Flags().GetBool("no-wait")
-	if !noWait {
-		req.WaitForProvision = true
-		req.WaitForTime = utils.DefaultProvisionTimeout
-	}
+	// Only the order submission is wrapped in WithOrderOnceRetry below, so the SDK
+	// must not also poll for provisioning: a 429 raised during polling would
+	// otherwise re-submit the order. Provisioning is awaited separately afterwards.
+	req.WaitForProvision = false
 
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -112,37 +112,48 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	var spinner *output.Spinner
-	if req.WaitForProvision {
-		spinner = output.PrintResourceProvisioning("Port", req.Name, noColor)
-	} else {
+	if noWait {
 		spinner = output.PrintResourceCreating("Port", req.Name, noColor)
+	} else {
+		spinner = output.PrintResourceProvisioning("Port", req.Name, noColor)
 	}
 
 	var resp *megaport.BuyPortResponse
-	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
+	err = utils.WithOrderOnceRetry(ctx, func(ctx context.Context) error {
 		var e error
 		resp, e = buyPortFunc(ctx, client, req)
 		return e
 	})
-
-	spinner.Stop()
-
 	if err != nil {
+		spinner.Stop()
 		output.PrintError("Failed to buy port: %v", noColor, err)
 		return err
 	}
 
 	if resp == nil {
+		spinner.Stop()
 		output.PrintError("Port buy returned an empty API response", noColor)
 		return fmt.Errorf("empty response from API")
 	}
 
 	if len(resp.TechnicalServiceUIDs) == 0 {
+		spinner.Stop()
 		output.PrintError("Port created but no UID returned", noColor)
 		return fmt.Errorf("port created but no UID returned")
 	}
 
-	output.PrintResourceCreated("Port", resp.TechnicalServiceUIDs[0], noColor)
+	uid := resp.TechnicalServiceUIDs[0]
+
+	if !noWait {
+		if err := waitForPortProvision(ctx, client, "Port", req.Name, uid); err != nil {
+			spinner.Stop()
+			output.PrintError("Port %s failed to provision: %v", noColor, uid, err)
+			return err
+		}
+	}
+
+	spinner.Stop()
+	output.PrintResourceCreated("Port", uid, noColor)
 	return nil
 }
 
@@ -212,10 +223,10 @@ func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	noWait, _ := cmd.Flags().GetBool("no-wait")
-	if !noWait {
-		req.WaitForProvision = true
-		req.WaitForTime = utils.DefaultProvisionTimeout
-	}
+	// Only the order submission is wrapped in WithOrderOnceRetry below, so the SDK
+	// must not also poll for provisioning: a 429 raised during polling would
+	// otherwise re-submit the order. Provisioning is awaited separately afterwards.
+	req.WaitForProvision = false
 
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -250,38 +261,67 @@ func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	var spinner *output.Spinner
-	if req.WaitForProvision {
-		spinner = output.PrintResourceProvisioning("LAG Port", req.Name, noColor)
-	} else {
+	if noWait {
 		spinner = output.PrintResourceCreating("LAG Port", req.Name, noColor)
+	} else {
+		spinner = output.PrintResourceProvisioning("LAG Port", req.Name, noColor)
 	}
 
 	var resp *megaport.BuyPortResponse
-	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
+	err = utils.WithOrderOnceRetry(ctx, func(ctx context.Context) error {
 		var e error
 		resp, e = buyPortFunc(ctx, client, req)
 		return e
 	})
-
-	spinner.Stop()
-
 	if err != nil {
+		spinner.Stop()
 		output.PrintError("Failed to buy LAG port: %v", noColor, err)
 		return err
 	}
 
 	if resp == nil {
+		spinner.Stop()
 		output.PrintError("LAG port buy returned an empty API response", noColor)
 		return fmt.Errorf("empty response from API")
 	}
 
 	if len(resp.TechnicalServiceUIDs) == 0 {
+		spinner.Stop()
 		output.PrintError("LAG port created but no UID returned", noColor)
 		return fmt.Errorf("LAG port created but no UID returned")
 	}
 
-	output.PrintResourceCreated("LAG Port", resp.TechnicalServiceUIDs[0], noColor)
+	uid := resp.TechnicalServiceUIDs[0]
+
+	if !noWait {
+		if err := waitForPortProvision(ctx, client, "LAG Port", req.Name, uid); err != nil {
+			spinner.Stop()
+			output.PrintError("LAG port %s failed to provision: %v", noColor, uid, err)
+			return err
+		}
+	}
+
+	spinner.Stop()
+	output.PrintResourceCreated("LAG Port", uid, noColor)
 	return nil
+}
+
+// waitForPortProvision polls the port's status until it is provisioned, bounding
+// the wait by DefaultProvisionTimeout. It runs after the order is placed, so it
+// must never be wrapped in an order-submission retry.
+func waitForPortProvision(ctx context.Context, client *megaport.Client, resType, name, uid string) error {
+	pollCtx, cancel := context.WithTimeout(ctx, utils.DefaultProvisionTimeout)
+	defer cancel()
+	return utils.WaitForProvision(pollCtx, resType, name, uid, func(ctx context.Context) (string, error) {
+		p, err := getPortFunc(ctx, client, uid)
+		if err != nil {
+			return "", err
+		}
+		if p == nil {
+			return "", fmt.Errorf("port %s not found while waiting for provisioning", uid)
+		}
+		return p.ProvisioningStatus, nil
+	})
 }
 
 // listPortsFunc is a variable that can be overridden by WASM builds

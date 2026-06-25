@@ -180,6 +180,15 @@ func UpdateResourceTags(opts UpdateTagsOptions) error {
 	return nil
 }
 
+// RejectEmptyTagKeys rejects a tag map with an empty key, matching the
+// interactive tag entry which treats an empty key as "stop" rather than a tag.
+func RejectEmptyTagKeys(tags map[string]string) error {
+	if _, ok := tags[""]; ok {
+		return fmt.Errorf("tag key must not be empty")
+	}
+	return nil
+}
+
 // ParseResourceTagsInput reads resource tags from --json or --json-file flags.
 func ParseResourceTagsInput(cmd *cobra.Command) (map[string]string, error) {
 	jsonStr, _ := cmd.Flags().GetString("json")
@@ -201,6 +210,10 @@ func ParseResourceTagsInput(cmd *cobra.Command) (map[string]string, error) {
 		}
 	} else {
 		return nil, fmt.Errorf("no input provided, use --interactive, --json, or --json-file to specify resource tags")
+	}
+
+	if err := RejectEmptyTagKeys(resourceTags); err != nil {
+		return nil, err
 	}
 
 	return resourceTags, nil
@@ -248,6 +261,10 @@ func parseResourceTagsInputExtended(cmd *cobra.Command) (map[string]string, erro
 		}
 	default:
 		return nil, fmt.Errorf("no input provided, use --interactive, --json, --json-file, --tags, --resource-tags, or --tags-file to specify resource tags")
+	}
+
+	if err := RejectEmptyTagKeys(resourceTags); err != nil {
+		return nil, err
 	}
 
 	return resourceTags, nil

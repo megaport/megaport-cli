@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 )
 
@@ -109,7 +110,7 @@ func promptAWSConfig(noColor bool) (*megaport.VXCPartnerConfigAWS, error) {
 	}
 	var asn int
 	if asnStr != "" {
-		asn, err = strconv.Atoi(asnStr)
+		asn, err = validation.ParseInt("ASN", asnStr)
 		if err != nil {
 			return nil, err
 		}
@@ -121,7 +122,7 @@ func promptAWSConfig(noColor bool) (*megaport.VXCPartnerConfigAWS, error) {
 	}
 	var amazonASN int
 	if amazonASNStr != "" {
-		amazonASN, err = strconv.Atoi(amazonASNStr)
+		amazonASN, err = validation.ParseInt("Amazon ASN", amazonASNStr)
 		if err != nil {
 			return nil, err
 		}
@@ -337,7 +338,7 @@ func promptIBMConfig(noColor bool) (*megaport.VXCPartnerConfigIBM, error) {
 	if err != nil {
 		return nil, err
 	}
-	customerASN, err = strconv.Atoi(customerASNStr)
+	customerASN, err = validation.ParseInt("customer ASN", customerASNStr)
 	if err != nil {
 		return nil, err
 	}

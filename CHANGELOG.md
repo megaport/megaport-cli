@@ -5,15 +5,190 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+<!-- Released sections below are generated from the release notes by the release
+workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries under
+[Unreleased]; anything placed there is overwritten on the next release. -->
+
 ## [Unreleased]
+
+## [v0.13.0] - 2026-06-23
+
+### Added
+- MCR ASN updates via `mcr update --mcr-asn`, with ASN range validation on buy and update paths
+- One-command static web build for CDN hosting, with a content-hashed WASM filename for immutable caching
+- WASM build now includes the `nat-gateway` module and the read-only `status`, `topology`, and `product` modules
 
 ### Changed
 - `servicekeys update` now exits non-zero when the API reports the update was not applied (previously it warned and exited 0)
+- Local web server hardened: binds to loopback by default, adds a documented `--bind` flag, and sets HTTP server timeouts
+- Updated the Go toolchain to 1.26.4 and `golang.org/x/net` to v0.56.0
+- Updated megaportgo to v1.13.1
+
+### Removed
+- `mve restore` command. It called the SDK's `RestoreProduct` (an un-cancel action), which requires a `CANCELLED` resource, but MVEs can only be deleted immediately (straight to `DECOMMISSIONED`) and the API rejects the terminate-later cancellation that would reach `CANCELLED`, so the command could never succeed.
 
 ### Fixed
 - `servicekeys update` no longer resets `active` and `single-use` to false when those flags are omitted
 - `servicekeys update`: passing both `--product-uid` and `--product-id` now errors instead of being sent to the SDK
-- Removed the non-functional `--description` flag from `servicekeys update`
+- Client-side validation added for IX ASN, MAC address, VLAN, and rate limit
+- Failed resource mutations now return a non-zero error instead of reporting success
+- Usage errors (wrong argument count, `--json` parse failures, invalid integer arguments) now exit with code 2
+- Buy and order calls are no longer retried on ambiguous errors, avoiding duplicate orders
+- Password input masked in the WASM terminal prompt
+- `apply` rollback now respects `--timeout` and uses a fresh context
+- `list-market-codes` no longer emits blank market codes
+- Credential keys redacted in `--log-http` output
+
+### Removed
+- Non-functional `--description` flag from `servicekeys update` (the update API does not support it)
+
+## [v0.12.0] - 2026-06-11
+
+### Added
+- In-place vNIC description updates for MVE via `mve update --vnics`, with validation of vNIC entries
+
+### Fixed
+- `mve update` now honors the registered `--term` flag
+- WASM: slice-valued flags (such as `--tag`) now reset correctly between invocations
+
+## [v0.11.0] - 2026-06-05
+
+### Added
+- MCR Looking Glass commands for IP route, BGP route, and BGP session diagnostics
+- `--base-url` flag to override the API base URL, with `--token-url` for authenticated login against it
+- `--rollback-on-failure` flag on `apply`, with reporting of orphaned resources
+- MVE `adminPassword` support for Cisco and Palo Alto vendor configs
+- WASM `setAuthToken` now accepts an explicit environment override, with validation
+
+### Changed
+- Config profile commands now prompt securely for credentials (masked input, validated before prompting)
+- Corrupt config files are preserved as `.corrupt-<timestamp>` instead of being overwritten, and backups are restricted to `0600`
+- Updated megaportgo to v1.13.0
+
+### Fixed
+- `mcr update` now registers the `--term` flag
+- MVE size labels such as "MVE 2/8" are normalized before validation
+- `apply` rollback now covers provision-timeout failures
+- Ports no longer experience delayed cancellation
+- WASM secret prompts are routed through the JS callback in browser builds
+
+## [v0.10.0] - 2026-05-04
+
+### Added
+- `nat-gateway buy` and `nat-gateway validate` subcommands
+- `--yes` accepted as an alias for `--force` on `nat-gateway delete`
+
+### Changed
+- Output formatting unified through the output package for consistent spacing, with icon-free `PrintPlain` used for CSV section headers
+
+### Fixed
+- Closed a TOCTOU window in the tags-file size check and hardened file reads
+- DNS temporary-error detection now uses a type assertion
+
+## [v0.9.4] - 2026-04-30
+
+### Fixed
+- Homebrew tap update sets the head branch and PR base so the formula bump opens a pull request
+
+## [v0.9.3] - 2026-04-29
+
+### Changed
+- Homebrew tap formula updates now open a pull request, authenticated with a minted app token
+
+## [v0.9.2] - 2026-04-28
+
+### Changed
+- Updated megaportgo to v1.10.1
+
+## [v0.9.1] - 2026-04-27
+
+### Added
+- SLSA build provenance attestation in the release workflow
+
+## [v0.9.0] - 2026-04-24
+
+### Added
+- `--generate-skeleton` flag on buy and update commands to emit a JSON template
+- `--output go-template` support for scriptable output
+- `--tag` filter on `ports`, `vxc`, `mcr`, and `mve` list commands
+- `--no-header` flag to suppress table and CSV column headers
+- Structured JSON errors when `--output json` is active
+- Pager integration and consistent "did you mean" command suggestions
+
+### Changed
+- Tag fetches parallelized with bounded concurrency
+
+### Fixed
+- VLAN help text and validation aligned across commands, with corrected inner-VLAN prompt text
+- `--output` value normalized to lowercase and resolved from the executed command to handle local flag shadowing
+- Output without a trailing newline preserved, and real TTY width preserved during pager buffering
+- Context cancellation respected during tag fetches
+- Redundant client-side name filter removed from VXC list in favor of SDK filtering
+
+## [v0.8.0] - 2026-04-13
+
+### Added
+- `nat-gateway` command group with full CRUD, telemetry, and session listing
+- `locations rtt` command for round-trip time queries
+- `--log-http` global flag for API request/response debugging
+
+### Fixed
+- Spinner suppressed for CSV and XML output to prevent stream corruption
+- `--log-http` redacts sensitive fields
+- `x-app: cli` header sent on all API requests
+- `locations rtt` defaults to the previous month, since data publishes after month end
+- Auto-renew prompts accept `y`/`yes`/`n`/`no`
+
+## [v0.7.1] - 2026-04-10
+
+### Added
+- `auth status` and `auth whoami` commands
+- MCR IPSec add-on support
+
+### Fixed
+- IPSec tunnel count: consistent 0/omit semantics across `buy` and `add-ipsec-addon`, applied in interactive mode, with clearer help text
+
+## [v0.7.0] - 2026-04-09
+
+### Changed
+- CSV and XML output now share deduplicated reflection logic
+
+### Fixed
+- `--watch`: `--interval` validated to prevent a ticker panic, with timeout handling added and duplicate error output on timeout removed
+- CSV header fallback no longer includes JSON struct-tag options
+- Login error messages no longer double-wrapped, and VXC input validation restored
+- WASM proxy server applies security headers on all routes and sanitizes auth error messages
+
+## [v0.6.0] - 2026-04-05
+
+### Added
+- `apply` command for bulk provisioning from a config file
+- `topology` command showing a resource relationship tree
+- `product` command group (`list`, `get-type`)
+- `--query` flag with JMESPath support for filtering JSON output
+- `--fields` flag for selecting output columns
+- `--limit` flag on all list commands
+- `--watch` flag for continuous status monitoring
+- `--export` flag on get commands to emit recreatable JSON config
+- Global `--timeout` flag for configurable request timeouts
+- Shorthand command aliases (`ls`, `rm`, `show`, `st`)
+- Version-update check when running `megaport version`
+- Man page generation in the `generate-docs` command
+- Automatic retry with exponential backoff for transient API failures
+- Color-coded resource status values in table output
+- Helpful messages when list commands return no results
+- New `Cancelled` exit code returned when the user aborts an operation
+- Elapsed time shown on the provisioning spinner
+- Homebrew tap auto-update on release
+
+### Changed
+- Locations API commands no longer require authentication
+
+### Fixed
+- Race conditions, deadlocks, and panics resolved in the output package
+- WASM proxy server hardened with a hostname allowlist, restricted CORS origins, and response bodies no longer logged
+- `--limit` now rejects negative values
+- Provisioning operations now use a 15-minute default timeout
 
 ## [v0.5.5] — 2026-04-02
 
@@ -242,7 +417,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Credential support via environment variables (`MEGAPORT_ACCESS_KEY`, `MEGAPORT_SECRET_KEY`, `MEGAPORT_ENVIRONMENT`)
 - Automated CI with golangci-lint and Go test suite
 
-[Unreleased]: https://github.com/megaport/megaport-cli/compare/v0.5.5...HEAD
+[Unreleased]: https://github.com/megaport/megaport-cli/compare/v0.13.0...HEAD
+[v0.13.0]: https://github.com/megaport/megaport-cli/compare/v0.12.0...v0.13.0
+[v0.12.0]: https://github.com/megaport/megaport-cli/compare/v0.11.0...v0.12.0
+[v0.11.0]: https://github.com/megaport/megaport-cli/compare/v0.10.0...v0.11.0
+[v0.10.0]: https://github.com/megaport/megaport-cli/compare/v0.9.4...v0.10.0
+[v0.9.4]: https://github.com/megaport/megaport-cli/compare/v0.9.3...v0.9.4
+[v0.9.3]: https://github.com/megaport/megaport-cli/compare/v0.9.2...v0.9.3
+[v0.9.2]: https://github.com/megaport/megaport-cli/compare/v0.9.1...v0.9.2
+[v0.9.1]: https://github.com/megaport/megaport-cli/compare/v0.9.0...v0.9.1
+[v0.9.0]: https://github.com/megaport/megaport-cli/compare/v0.8.0...v0.9.0
+[v0.8.0]: https://github.com/megaport/megaport-cli/compare/v0.7.1...v0.8.0
+[v0.7.1]: https://github.com/megaport/megaport-cli/compare/v0.7.0...v0.7.1
+[v0.7.0]: https://github.com/megaport/megaport-cli/compare/v0.6.0...v0.7.0
+[v0.6.0]: https://github.com/megaport/megaport-cli/compare/v0.5.5...v0.6.0
 [v0.5.5]: https://github.com/megaport/megaport-cli/compare/v0.5.4...v0.5.5
 [v0.5.4]: https://github.com/megaport/megaport-cli/compare/v0.5.3...v0.5.4
 [v0.5.3]: https://github.com/megaport/megaport-cli/compare/v0.5.2...v0.5.3

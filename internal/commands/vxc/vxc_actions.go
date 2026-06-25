@@ -262,10 +262,10 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	noWait, _ := cmd.Flags().GetBool("no-wait")
-	if !noWait {
-		req.WaitForProvision = true
-		req.WaitForTime = utils.DefaultProvisionTimeout
-	}
+	// Only the order submission is wrapped in WithOrderOnceRetry below, so the SDK
+	// must not also poll for provisioning: a 429 raised during polling would
+	// otherwise re-submit the order. Provisioning is awaited separately afterwards.
+	req.WaitForProvision = false
 
 	validateSpinner := output.PrintResourceValidating("VXC", noColor)
 
@@ -294,28 +294,67 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	var spinner *output.Spinner
-	if req.WaitForProvision {
-		spinner = output.PrintResourceProvisioning("VXC", req.VXCName, noColor)
-	} else {
+	if noWait {
 		spinner = output.PrintResourceCreating("VXC", req.VXCName, noColor)
+	} else {
+		spinner = output.PrintResourceProvisioning("VXC", req.VXCName, noColor)
 	}
 
 	var resp *megaport.BuyVXCResponse
-	err = utils.WithOrderRetry(ctx, func(ctx context.Context) error {
+	err = utils.WithOrderOnceRetry(ctx, func(ctx context.Context) error {
 		var e error
 		resp, e = buyVXCFunc(ctx, client, req)
 		return e
 	})
-
-	spinner.Stop()
-
 	if err != nil {
+		spinner.Stop()
 		output.PrintError("Failed to buy VXC: %v", noColor, err)
 		return err
 	}
 
-	output.PrintResourceCreated("VXC", resp.TechnicalServiceUID, noColor)
+	if resp == nil {
+		spinner.Stop()
+		output.PrintError("VXC buy returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
+	}
+
+	if resp.TechnicalServiceUID == "" {
+		spinner.Stop()
+		output.PrintError("VXC created but no UID returned", noColor)
+		return fmt.Errorf("VXC created but no UID returned")
+	}
+
+	uid := resp.TechnicalServiceUID
+
+	if !noWait {
+		if err := waitForVXCProvision(ctx, client, req.VXCName, uid); err != nil {
+			spinner.Stop()
+			output.PrintError("VXC %s failed to provision: %v", noColor, uid, err)
+			return err
+		}
+	}
+
+	spinner.Stop()
+	output.PrintResourceCreated("VXC", uid, noColor)
 	return nil
+}
+
+// waitForVXCProvision polls the VXC's status until it is provisioned, bounding
+// the wait by DefaultProvisionTimeout. It runs after the order is placed, so it
+// must never be wrapped in an order-submission retry.
+func waitForVXCProvision(ctx context.Context, client *megaport.Client, name, uid string) error {
+	pollCtx, cancel := context.WithTimeout(ctx, utils.DefaultProvisionTimeout)
+	defer cancel()
+	return utils.WaitForProvision(pollCtx, "VXC", name, uid, func(ctx context.Context) (string, error) {
+		v, err := getVXCFunc(ctx, client, uid)
+		if err != nil {
+			return "", err
+		}
+		if v == nil {
+			return "", fmt.Errorf("VXC %s not found while waiting for provisioning", uid)
+		}
+		return v.ProvisioningStatus, nil
+	})
 }
 
 func ValidateVXC(cmd *cobra.Command, args []string, noColor bool) error {

@@ -58,7 +58,7 @@ func TestPrintSuccess(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := captureOutput(func() {
+			output := captureStderr(t, func() {
 				PrintSuccess(tt.format, tt.noColor, tt.args...)
 			})
 			assert.Contains(t, output, tt.expectedContains)
@@ -107,7 +107,7 @@ func TestPrintResourceSuccess(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := captureOutput(func() {
+			output := captureStderr(t, func() {
 				PrintResourceSuccess(tt.resourceType, tt.action, tt.uid, tt.noColor)
 			})
 			assert.Equal(t, tt.expected, output)
@@ -116,14 +116,14 @@ func TestPrintResourceSuccess(t *testing.T) {
 }
 
 func TestPrintResourceCreated(t *testing.T) {
-	output := captureOutput(func() {
+	output := captureStderr(t, func() {
 		PrintResourceCreated("Port", "port-123", true)
 	})
 	assert.Equal(t, "✓ Port created port-123\n", output)
 }
 
 func TestPrintResourceUpdated(t *testing.T) {
-	output := captureOutput(func() {
+	output := captureStderr(t, func() {
 		PrintResourceUpdated("Port", "port-123", true)
 	})
 	assert.Equal(t, "✓ Port updated port-123\n", output)
@@ -158,7 +158,7 @@ func TestPrintResourceDeleted(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := captureOutput(func() {
+			output := captureStderr(t, func() {
 				PrintResourceDeleted(tt.resourceType, tt.uid, tt.immediate, tt.noColor)
 			})
 			assert.Equal(t, tt.expected, output)
@@ -266,36 +266,36 @@ func TestPrintResourceListing(t *testing.T) {
 }
 
 func TestPrintError(t *testing.T) {
-	output := captureOutput(func() {
+	output := captureStderr(t, func() {
 		PrintError("Test %s message", true, "error")
 	})
 	assert.Equal(t, "✗ Test error message\n", output)
 
-	output = captureOutput(func() {
+	output = captureStderr(t, func() {
 		PrintError("Test %s message", false, "error")
 	})
 	assert.Contains(t, output, "Test error message")
 }
 
 func TestPrintWarning(t *testing.T) {
-	output := captureOutput(func() {
+	output := captureStderr(t, func() {
 		PrintWarning("Test %s message", true, "warning")
 	})
 	assert.Equal(t, "⚠ Test warning message\n", output)
 
-	output = captureOutput(func() {
+	output = captureStderr(t, func() {
 		PrintWarning("Test %s message", false, "warning")
 	})
 	assert.Contains(t, output, "Test warning message")
 }
 
 func TestPrintInfo(t *testing.T) {
-	output := captureOutput(func() {
+	output := captureStderr(t, func() {
 		PrintInfo("Test %s message", true, "info")
 	})
 	assert.Equal(t, "ℹ Test info message\n", output)
 
-	output = captureOutput(func() {
+	output = captureStderr(t, func() {
 		PrintInfo("Test %s message", false, "info")
 	})
 	assert.Contains(t, output, "Test info message")
@@ -572,7 +572,7 @@ func TestStartWithElapsed(t *testing.T) {
 		assert.Contains(t, output, "elapsed")
 	})
 
-	t.Run("json output format writes to stderr", func(t *testing.T) {
+	t.Run("non-table format writes a single plain line to stderr", func(t *testing.T) {
 		spinner := NewSpinnerWithOutput(true, "json")
 		// Capture stderr by redirecting os.Stderr
 		r, w, _ := os.Pipe()
@@ -585,7 +585,11 @@ func TestStartWithElapsed(t *testing.T) {
 		os.Stderr = oldStderr
 		var buf bytes.Buffer
 		_, _ = io.Copy(&buf, r)
-		assert.Contains(t, buf.String(), "elapsed")
+		out := buf.String()
+		assert.Contains(t, out, "Provisioning...")
+		assert.NotContains(t, out, "elapsed", "non-interactive sink must not animate the elapsed counter")
+		assert.NotContains(t, out, "\r", "non-interactive sink must not emit carriage returns")
+		assert.NotContains(t, out, "\x1b[K", "non-interactive sink must not emit clear-line escapes")
 	})
 }
 

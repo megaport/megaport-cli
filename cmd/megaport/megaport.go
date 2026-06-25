@@ -70,6 +70,11 @@ func init() {
 			return exitcodes.NewUsageError(fmt.Errorf("--max-retries must be >= 0, got %d", utils.MaxRetries))
 		}
 
+		// Reject an explicit non-positive --timeout; omitting it uses the default.
+		if err := utils.ValidateTimeoutFlag(cmd); err != nil {
+			return exitcodes.NewUsageError(err)
+		}
+
 		return nil
 	}
 

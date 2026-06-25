@@ -9,6 +9,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
@@ -122,10 +123,10 @@ func ListUsers(cmd *cobra.Command, args []string, noColor bool, outputFormat str
 func GetUser(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
 	output.SetOutputFormat(outputFormat)
 
-	employeeID, err := strconv.Atoi(args[0])
+	employeeID, err := validation.ParseInt("employee ID", args[0])
 	if err != nil {
-		output.PrintError("Invalid employee ID: %v", noColor, err)
-		return fmt.Errorf("invalid employee ID: %w", err)
+		output.PrintError("%v", noColor, err)
+		return err
 	}
 
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
@@ -178,6 +179,11 @@ func CreateUser(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	if resp == nil {
+		output.PrintError("User create returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
+	}
+
 	output.PrintResourceCreated("User", strconv.Itoa(resp.EmployeeID), noColor)
 	return nil
 }
@@ -186,10 +192,10 @@ func UpdateUser(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
-	employeeID, err := strconv.Atoi(args[0])
+	employeeID, err := validation.ParseInt("employee ID", args[0])
 	if err != nil {
-		output.PrintError("Invalid employee ID: %v", noColor, err)
-		return fmt.Errorf("invalid employee ID: %w", err)
+		output.PrintError("%v", noColor, err)
+		return err
 	}
 
 	req, err := buildUpdateUserRequest(cmd, noColor)
@@ -233,10 +239,10 @@ func DeleteUser(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
-	employeeID, err := strconv.Atoi(args[0])
+	employeeID, err := validation.ParseInt("employee ID", args[0])
 	if err != nil {
-		output.PrintError("Invalid employee ID: %v", noColor, err)
-		return fmt.Errorf("invalid employee ID: %w", err)
+		output.PrintError("%v", noColor, err)
+		return err
 	}
 
 	force, _ := cmd.Flags().GetBool("force")
@@ -273,10 +279,10 @@ func DeactivateUser(cmd *cobra.Command, args []string, noColor bool) error {
 	ctx, cancel := utils.ContextFromCmd(cmd)
 	defer cancel()
 
-	employeeID, err := strconv.Atoi(args[0])
+	employeeID, err := validation.ParseInt("employee ID", args[0])
 	if err != nil {
-		output.PrintError("Invalid employee ID: %v", noColor, err)
-		return fmt.Errorf("invalid employee ID: %w", err)
+		output.PrintError("%v", noColor, err)
+		return err
 	}
 
 	force, _ := cmd.Flags().GetBool("force")

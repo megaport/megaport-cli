@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
@@ -56,8 +57,9 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 		VLAN: aEndVLAN,
 	}
 
-	// Set MVE config if needed
-	if aEndInnerVLAN != 0 || aEndVNICIndex > 0 {
+	// Set MVE config if needed. vNIC index 0 is valid, so gate on whether the
+	// flag was set rather than on a non-zero value.
+	if aEndInnerVLAN != 0 || cmd.Flags().Changed("a-end-vnic-index") {
 		aEndConfig.VXCOrderMVEConfig = &megaport.VXCOrderMVEConfig{
 			InnerVLAN:             aEndInnerVLAN,
 			NetworkInterfaceIndex: aEndVNICIndex,
@@ -120,8 +122,9 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 	bEndConfig.ProductUID = bEndUID
 	bEndConfig.VLAN = bEndVLAN
 
-	// Set MVE config if needed
-	if bEndInnerVLAN != 0 || bEndVNICIndex > 0 {
+	// Set MVE config if needed. vNIC index 0 is valid, so gate on whether the
+	// flag was set rather than on a non-zero value.
+	if bEndInnerVLAN != 0 || cmd.Flags().Changed("b-end-vnic-index") {
 		bEndConfig.VXCOrderMVEConfig = &megaport.VXCOrderMVEConfig{
 			InnerVLAN:             bEndInnerVLAN,
 			NetworkInterfaceIndex: bEndVNICIndex,
@@ -143,20 +146,28 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 func parseVXCEndpointConfig(endConfigRaw map[string]interface{}, endLabel string) (megaport.VXCOrderEndpointConfiguration, error) {
 	config := megaport.VXCOrderEndpointConfiguration{}
 
-	if productUID, ok := endConfigRaw["productUID"].(string); ok {
+	if productUID, present, err := utils.JSONString(endConfigRaw, "productUID"); err != nil {
+		return config, fmt.Errorf("%s: %w", endLabel, err)
+	} else if present {
 		config.ProductUID = productUID
 	}
 
-	if vlan, ok := endConfigRaw["vlan"].(float64); ok {
+	if vlan, present, err := utils.JSONNumber(endConfigRaw, "vlan"); err != nil {
+		return config, fmt.Errorf("%s: %w", endLabel, err)
+	} else if present {
 		config.VLAN = int(vlan)
 	}
 
-	if diversityZone, ok := endConfigRaw["diversityZone"].(string); ok {
+	if diversityZone, present, err := utils.JSONString(endConfigRaw, "diversityZone"); err != nil {
+		return config, fmt.Errorf("%s: %w", endLabel, err)
+	} else if present {
 		config.DiversityZone = diversityZone
 	}
 
 	// Handle partner config - directly use map data
-	if partnerConfigRaw, ok := endConfigRaw["partnerConfig"].(map[string]interface{}); ok {
+	if partnerConfigRaw, present, err := utils.JSONObject(endConfigRaw, "partnerConfig"); err != nil {
+		return config, fmt.Errorf("%s: %w", endLabel, err)
+	} else if present {
 		partnerConfig, err := parsePartnerConfigFromMap(partnerConfigRaw)
 		if err != nil {
 			return config, fmt.Errorf("failed to parse %s partner config: %w", endLabel, err)
@@ -166,8 +177,14 @@ func parseVXCEndpointConfig(endConfigRaw map[string]interface{}, endLabel string
 	}
 
 	// Handle MVE config
-	innerVLAN, hasInnerVLAN := endConfigRaw["innerVlan"].(float64)
-	vNicIndex, hasVNicIndex := endConfigRaw["vNicIndex"].(float64)
+	innerVLAN, hasInnerVLAN, err := utils.JSONNumber(endConfigRaw, "innerVlan")
+	if err != nil {
+		return config, fmt.Errorf("%s: %w", endLabel, err)
+	}
+	vNicIndex, hasVNicIndex, err := utils.JSONNumber(endConfigRaw, "vNicIndex")
+	if err != nil {
+		return config, fmt.Errorf("%s: %w", endLabel, err)
+	}
 
 	if hasInnerVLAN || hasVNicIndex {
 		mveConfig := &megaport.VXCOrderMVEConfig{}
@@ -202,8 +219,11 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.Buy
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
-	portUID, ok := rawData["portUid"].(string)
-	if !ok {
+	portUID, present, err := utils.JSONString(rawData, "portUid")
+	if err != nil {
+		return nil, err
+	}
+	if !present {
 		return nil, validation.NewValidationError("portUid", "", "Port UID is required")
 	}
 
@@ -213,46 +233,75 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.Buy
 	}
 
 	// Set simple fields
-	if vxcName, ok := rawData["vxcName"].(string); ok {
+	if vxcName, present, err := utils.JSONString(rawData, "vxcName"); err != nil {
+		return nil, err
+	} else if present {
 		req.VXCName = vxcName
 	}
 
-	if rateLimit, ok := rawData["rateLimit"].(float64); ok {
+	if rateLimit, present, err := utils.JSONNumber(rawData, "rateLimit"); err != nil {
+		return nil, err
+	} else if present {
+		if rateLimit != math.Trunc(rateLimit) {
+			return nil, fmt.Errorf("rateLimit must be a whole number, got %v", rateLimit)
+		}
 		req.RateLimit = int(rateLimit)
 	}
 
-	if term, ok := rawData["term"].(float64); ok {
+	if term, present, err := utils.JSONNumber(rawData, "term"); err != nil {
+		return nil, err
+	} else if present {
+		if term != math.Trunc(term) {
+			return nil, fmt.Errorf("term must be a whole number, got %v", term)
+		}
 		req.Term = int(term)
 	}
 
-	if shutdown, ok := rawData["shutdown"].(bool); ok {
+	if shutdown, present, err := utils.JSONBool(rawData, "shutdown"); err != nil {
+		return nil, err
+	} else if present {
 		req.Shutdown = shutdown
 	}
 
-	if promoCode, ok := rawData["promoCode"].(string); ok {
+	if promoCode, present, err := utils.JSONString(rawData, "promoCode"); err != nil {
+		return nil, err
+	} else if present {
 		req.PromoCode = promoCode
 	}
 
-	if serviceKey, ok := rawData["serviceKey"].(string); ok {
+	if serviceKey, present, err := utils.JSONString(rawData, "serviceKey"); err != nil {
+		return nil, err
+	} else if present {
 		req.ServiceKey = serviceKey
 	}
 
-	if costCentre, ok := rawData["costCentre"].(string); ok {
+	if costCentre, present, err := utils.JSONString(rawData, "costCentre"); err != nil {
+		return nil, err
+	} else if present {
 		req.CostCentre = costCentre
 	}
 
 	// Handle resource tags if they exist
-	if resourceTags, ok := rawData["resourceTags"].(map[string]interface{}); ok {
+	if resourceTags, present, err := utils.JSONObject(rawData, "resourceTags"); err != nil {
+		return nil, err
+	} else if present {
 		req.ResourceTags = make(map[string]string)
 		for k, v := range resourceTags {
-			if strValue, ok := v.(string); ok {
-				req.ResourceTags[k] = strValue
+			strValue, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("resourceTags value for key %q must be a string", k)
 			}
+			req.ResourceTags[k] = strValue
+		}
+		if err := utils.RejectEmptyTagKeys(req.ResourceTags); err != nil {
+			return nil, err
 		}
 	}
 
 	// Handle A-End configuration
-	if aEndConfigRaw, ok := rawData["aEndConfiguration"].(map[string]interface{}); ok {
+	if aEndConfigRaw, present, err := utils.JSONObject(rawData, "aEndConfiguration"); err != nil {
+		return nil, err
+	} else if present {
 		aEndConfig, err := parseVXCEndpointConfig(aEndConfigRaw, "A-End")
 		if err != nil {
 			return nil, err
@@ -261,7 +310,9 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.Buy
 	}
 
 	// Handle B-End configuration
-	if bEndConfigRaw, ok := rawData["bEndConfiguration"].(map[string]interface{}); ok {
+	if bEndConfigRaw, present, err := utils.JSONObject(rawData, "bEndConfiguration"); err != nil {
+		return nil, err
+	} else if present {
 		bEndConfig, err := parseVXCEndpointConfig(bEndConfigRaw, "B-End")
 		if err != nil {
 			return nil, err

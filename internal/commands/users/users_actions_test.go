@@ -1,8 +1,11 @@
 package users
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -262,21 +265,60 @@ func TestCreateUser(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = CreateUser(cmd, nil, true)
+			var capturedOutput string
+			capturedErr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = CreateUser(cmd, nil, true)
+				})
 			})
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
+				assert.NotContains(t, err.Error(), "strconv")
 			} else {
 				assert.NoError(t, err)
 				if tt.expectedContains != "" {
-					assert.Contains(t, capturedOutput, tt.expectedContains)
+					assert.Contains(t, capturedOutput+capturedErr, tt.expectedContains)
 				}
 			}
 		})
 	}
+}
+
+func TestCreateUser_NilResponse(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockService := &MockUserManagementService{ForceNilCreateUser: true}
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.UserManagementService = mockService
+		return client, nil
+	})
+
+	cmd := &cobra.Command{Use: "create"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("first-name", "", "")
+	cmd.Flags().String("last-name", "", "")
+	cmd.Flags().String("email", "", "")
+	cmd.Flags().String("position", "", "")
+	cmd.Flags().String("phone", "", "")
+	require.NoError(t, cmd.Flags().Set("first-name", "John"))
+	require.NoError(t, cmd.Flags().Set("last-name", "Doe"))
+	require.NoError(t, cmd.Flags().Set("email", "john@example.com"))
+	require.NoError(t, cmd.Flags().Set("position", "Technical Admin"))
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = CreateUser(cmd, nil, true)
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
 }
 
 func TestUpdateUser(t *testing.T) {
@@ -285,6 +327,7 @@ func TestUpdateUser(t *testing.T) {
 
 	tests := []struct {
 		name             string
+		args             []string
 		flags            map[string]string
 		jsonInput        string
 		setupMock        func(*MockUserManagementService)
@@ -321,6 +364,12 @@ func TestUpdateUser(t *testing.T) {
 			},
 			expectedError: "update failed",
 		},
+		{
+			name:          "invalid employee ID",
+			args:          []string{"abc"},
+			setupMock:     func(m *MockUserManagementService) {},
+			expectedError: "invalid employee ID",
+		},
 	}
 
 	for _, tt := range tests {
@@ -353,18 +402,27 @@ func TestUpdateUser(t *testing.T) {
 				require.NoError(t, cmd.Flags().Set(k, v))
 			}
 
+			args := tt.args
+			if len(args) == 0 {
+				args = []string{"12345"}
+			}
+
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = UpdateUser(cmd, []string{"12345"}, true)
+			var capturedOutput string
+			capturedErr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = UpdateUser(cmd, args, true)
+				})
 			})
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
+				assert.NotContains(t, err.Error(), "strconv")
 			} else {
 				assert.NoError(t, err)
 				if tt.expectedContains != "" {
-					assert.Contains(t, capturedOutput, tt.expectedContains)
+					assert.Contains(t, capturedOutput+capturedErr, tt.expectedContains)
 				}
 			}
 		})
@@ -380,6 +438,7 @@ func TestDeleteUser(t *testing.T) {
 
 	tests := []struct {
 		name             string
+		args             []string
 		force            bool
 		confirmResult    bool
 		setupMock        func(*MockUserManagementService)
@@ -414,6 +473,13 @@ func TestDeleteUser(t *testing.T) {
 			},
 			expectedError: "delete failed",
 		},
+		{
+			name:          "invalid employee ID",
+			args:          []string{"abc"},
+			force:         true,
+			setupMock:     func(m *MockUserManagementService) {},
+			expectedError: "invalid employee ID",
+		},
 	}
 
 	for _, tt := range tests {
@@ -437,18 +503,27 @@ func TestDeleteUser(t *testing.T) {
 				require.NoError(t, cmd.Flags().Set("force", "true"))
 			}
 
+			args := tt.args
+			if len(args) == 0 {
+				args = []string{"12345"}
+			}
+
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = DeleteUser(cmd, []string{"12345"}, true)
+			var capturedOutput string
+			capturedErr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = DeleteUser(cmd, args, true)
+				})
 			})
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
+				assert.NotContains(t, err.Error(), "strconv")
 			} else {
 				assert.NoError(t, err)
 				if tt.expectedContains != "" {
-					assert.Contains(t, capturedOutput, tt.expectedContains)
+					assert.Contains(t, capturedOutput+capturedErr, tt.expectedContains)
 				}
 			}
 		})
@@ -464,6 +539,7 @@ func TestDeactivateUser(t *testing.T) {
 
 	tests := []struct {
 		name             string
+		args             []string
 		force            bool
 		confirmResult    bool
 		setupMock        func(*MockUserManagementService)
@@ -491,6 +567,13 @@ func TestDeactivateUser(t *testing.T) {
 			},
 			expectedError: "deactivation failed",
 		},
+		{
+			name:          "invalid employee ID",
+			args:          []string{"abc"},
+			force:         true,
+			setupMock:     func(m *MockUserManagementService) {},
+			expectedError: "invalid employee ID",
+		},
 	}
 
 	for _, tt := range tests {
@@ -514,18 +597,27 @@ func TestDeactivateUser(t *testing.T) {
 				require.NoError(t, cmd.Flags().Set("force", "true"))
 			}
 
+			args := tt.args
+			if len(args) == 0 {
+				args = []string{"12345"}
+			}
+
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = DeactivateUser(cmd, []string{"12345"}, true)
+			var capturedOutput string
+			capturedErr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = DeactivateUser(cmd, args, true)
+				})
 			})
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
+				assert.NotContains(t, err.Error(), "strconv")
 			} else {
 				assert.NoError(t, err)
 				if tt.expectedContains != "" {
-					assert.Contains(t, capturedOutput, tt.expectedContains)
+					assert.Contains(t, capturedOutput+capturedErr, tt.expectedContains)
 				}
 			}
 		})
@@ -606,4 +698,21 @@ func TestFilterUsers(t *testing.T) {
 	assert.Len(t, filterUsers(users, "Company Admin", false, false), 2)
 	assert.Len(t, filterUsers(users, "Company Admin", true, false), 1)
 	assert.Len(t, filterUsers(nil, "", false, false), 0)
+}
+
+func captureStderr(t *testing.T, fn func()) (result string) {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	defer func() { os.Stderr = old }()
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() { defer close(done); _, _ = io.Copy(&buf, r) }()
+	defer func() { _ = w.Close(); <-done; _ = r.Close(); result = buf.String() }()
+	fn()
+	return
 }
