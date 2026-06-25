@@ -345,7 +345,7 @@ func TestValidateIPsecTunnelConfig(t *testing.T) {
 				PreSharedKey:         "psk",
 			},
 			wantErr: true,
-			errText: "Invalid vRouter interface [0] IPsec tunnel [0] source IP address:  - cannot be empty",
+			errText: "Invalid vRouter interface [0] IPsec tunnel source IP address:  - cannot be empty",
 		},
 		{
 			name: "Source IP not IPv4",
@@ -355,7 +355,7 @@ func TestValidateIPsecTunnelConfig(t *testing.T) {
 				PreSharedKey:         "psk",
 			},
 			wantErr: true,
-			errText: "Invalid vRouter interface [0] IPsec tunnel [0] source IP address: not-an-ip - must be a valid IPv4 address",
+			errText: "Invalid vRouter interface [0] IPsec tunnel source IP address: not-an-ip - must be a valid IPv4 address",
 		},
 		{
 			name: "Missing destination IP",
@@ -364,7 +364,7 @@ func TestValidateIPsecTunnelConfig(t *testing.T) {
 				PreSharedKey:    "psk",
 			},
 			wantErr: true,
-			errText: "Invalid vRouter interface [0] IPsec tunnel [0] destination IP address:  - cannot be empty",
+			errText: "Invalid vRouter interface [0] IPsec tunnel destination IP address:  - cannot be empty",
 		},
 		{
 			name: "Missing pre-shared key",
@@ -373,7 +373,7 @@ func TestValidateIPsecTunnelConfig(t *testing.T) {
 				DestinationIpAddress: "198.51.100.1",
 			},
 			wantErr: true,
-			errText: "Invalid vRouter interface [0] IPsec tunnel [0] pre-shared key: <nil> - cannot be empty",
+			errText: "Invalid vRouter interface [0] IPsec tunnel pre-shared key: <nil> - cannot be empty",
 		},
 		{
 			name: "Phase 1 lifetime too low",
@@ -384,7 +384,7 @@ func TestValidateIPsecTunnelConfig(t *testing.T) {
 				Phase1Lifetime:       ptrInt(60),
 			},
 			wantErr: true,
-			errText: fmt.Sprintf("Invalid vRouter interface [0] IPsec tunnel [0] phase 1 lifetime: 60 - must be between %d-%d seconds", MinIPsecPhase1Lifetime, MaxIPsecPhase1Lifetime),
+			errText: fmt.Sprintf("Invalid vRouter interface [0] IPsec tunnel phase 1 lifetime: 60 - must be between %d-%d seconds", MinIPsecPhase1Lifetime, MaxIPsecPhase1Lifetime),
 		},
 		{
 			name: "Phase 2 lifetime too high",
@@ -395,7 +395,7 @@ func TestValidateIPsecTunnelConfig(t *testing.T) {
 				Phase2Lifetime:       ptrInt(100000),
 			},
 			wantErr: true,
-			errText: fmt.Sprintf("Invalid vRouter interface [0] IPsec tunnel [0] phase 2 lifetime: 100000 - must be between %d-%d seconds", MinIPsecPhase2Lifetime, MaxIPsecPhase2Lifetime),
+			errText: fmt.Sprintf("Invalid vRouter interface [0] IPsec tunnel phase 2 lifetime: 100000 - must be between %d-%d seconds", MinIPsecPhase2Lifetime, MaxIPsecPhase2Lifetime),
 		},
 		{
 			name: "Phase 2 not less than phase 1",
@@ -407,13 +407,13 @@ func TestValidateIPsecTunnelConfig(t *testing.T) {
 				Phase2Lifetime:       ptrInt(3600),
 			},
 			wantErr: true,
-			errText: "Invalid vRouter interface [0] IPsec tunnel [0] phase 2 lifetime: 3600 - must be less than phase 1 lifetime",
+			errText: "Invalid vRouter interface [0] IPsec tunnel phase 2 lifetime: 3600 - must be less than phase 1 lifetime",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateIPsecTunnelConfig(tt.tunnel, 0, 0)
+			err := ValidateIPsecTunnelConfig(tt.tunnel, 0)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateIPsecTunnelConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -438,7 +438,7 @@ func TestValidateIPsecTunnelConfig_PSKNotEchoed(t *testing.T) {
 		Phase1Lifetime:       ptrInt(3600),
 		Phase2Lifetime:       ptrInt(3600), // not < phase1, so this fails validation
 	}
-	err := ValidateIPsecTunnelConfig(tunnel, 0, 0)
+	err := ValidateIPsecTunnelConfig(tunnel, 0)
 	assert.Error(t, err)
 	assert.NotContains(t, err.Error(), psk, "PSK must never appear in a validation error")
 }
@@ -451,12 +451,12 @@ func TestValidateVrouterPartnerConfig_IPsec(t *testing.T) {
 		errText string
 	}{
 		{
-			name: "tunnels without ipSecTunnel interface type",
+			name: "tunnel without ipSecTunnel interface type",
 			config: &megaport.VXCOrderVrouterPartnerConfig{
 				Interfaces: []megaport.PartnerConfigInterface{
 					{
-						IpSecTunnelOptions: []megaport.IPsecTunnelConfig{
-							{SourceIpAddress: "192.0.2.1", DestinationIpAddress: "198.51.100.1", PreSharedKey: "psk"},
+						IpSecTunnelOptions: &megaport.IPsecTunnelConfig{
+							SourceIpAddress: "192.0.2.1", DestinationIpAddress: "198.51.100.1", PreSharedKey: "psk",
 						},
 					},
 				},
@@ -480,8 +480,28 @@ func TestValidateVrouterPartnerConfig_IPsec(t *testing.T) {
 				Interfaces: []megaport.PartnerConfigInterface{
 					{
 						InterfaceType: "ipSecTunnel",
-						IpSecTunnelOptions: []megaport.IPsecTunnelConfig{
-							{SourceIpAddress: "192.0.2.1", DestinationIpAddress: "198.51.100.1", PreSharedKey: "psk"},
+						IpSecTunnelOptions: &megaport.IPsecTunnelConfig{
+							SourceIpAddress: "192.0.2.1", DestinationIpAddress: "198.51.100.1", PreSharedKey: "psk",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "multiple ipSecTunnel interfaces each with one tunnel",
+			config: &megaport.VXCOrderVrouterPartnerConfig{
+				Interfaces: []megaport.PartnerConfigInterface{
+					{
+						InterfaceType: "ipSecTunnel",
+						IpSecTunnelOptions: &megaport.IPsecTunnelConfig{
+							SourceIpAddress: "192.0.2.1", DestinationIpAddress: "198.51.100.1", PreSharedKey: "psk1",
+						},
+					},
+					{
+						InterfaceType: "ipSecTunnel",
+						IpSecTunnelOptions: &megaport.IPsecTunnelConfig{
+							SourceIpAddress: "192.0.2.2", DestinationIpAddress: "198.51.100.2", PreSharedKey: "psk2",
 						},
 					},
 				},
@@ -494,8 +514,8 @@ func TestValidateVrouterPartnerConfig_IPsec(t *testing.T) {
 				Interfaces: []megaport.PartnerConfigInterface{
 					{
 						InterfaceType: "ipSecTunnel",
-						IpSecTunnelOptions: []megaport.IPsecTunnelConfig{
-							{DestinationIpAddress: "198.51.100.1", PreSharedKey: "psk"}, // missing source IP
+						IpSecTunnelOptions: &megaport.IPsecTunnelConfig{
+							DestinationIpAddress: "198.51.100.1", PreSharedKey: "psk", // missing source IP
 						},
 					},
 				},
@@ -504,14 +524,14 @@ func TestValidateVrouterPartnerConfig_IPsec(t *testing.T) {
 			errText: "source IP address",
 		},
 		{
-			name: "ipSecTunnel interface with no tunnels",
+			name: "ipSecTunnel interface with no tunnel",
 			config: &megaport.VXCOrderVrouterPartnerConfig{
 				Interfaces: []megaport.PartnerConfigInterface{
 					{InterfaceType: "ipSecTunnel"},
 				},
 			},
 			wantErr: true,
-			errText: "at least one tunnel is required",
+			errText: "a tunnel is required",
 		},
 	}
 

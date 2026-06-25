@@ -582,28 +582,21 @@ func TestParseVRouterConfigIPsec(t *testing.T) {
 		validate      func(*testing.T, *megaport.VXCOrderVrouterPartnerConfig)
 	}{
 		{
-			name: "ipSecTunnel interface with multiple tunnels",
+			name: "ipSecTunnel interface with a single tunnel object",
 			config: map[string]interface{}{
 				"connectType": "VROUTER",
 				"interfaces": []interface{}{
 					map[string]interface{}{
 						"interfaceType": "ipSecTunnel",
-						"ipSecTunnelOptions": []interface{}{
-							map[string]interface{}{
-								"sourceIpAddress":      "192.0.2.1",
-								"destinationIpAddress": "198.51.100.1",
-								"preSharedKey":         "secret-one",
-								"passive":              false,
-								"localId":              "local-1",
-								"remoteId":             "remote-1",
-								"phase1Lifetime":       28800.0,
-								"phase2Lifetime":       3600.0,
-							},
-							map[string]interface{}{
-								"sourceIpAddress":      "192.0.2.2",
-								"destinationIpAddress": "198.51.100.2",
-								"preSharedKey":         "secret-two",
-							},
+						"ipSecTunnelOptions": map[string]interface{}{
+							"sourceIpAddress":      "192.0.2.1",
+							"destinationIpAddress": "198.51.100.1",
+							"preSharedKey":         "secret-one",
+							"passive":              false,
+							"localId":              "local-1",
+							"remoteId":             "remote-1",
+							"phase1Lifetime":       28800.0,
+							"phase2Lifetime":       3600.0,
 						},
 					},
 				},
@@ -612,36 +605,64 @@ func TestParseVRouterConfigIPsec(t *testing.T) {
 				assert.Len(t, cfg.Interfaces, 1)
 				iface := cfg.Interfaces[0]
 				assert.Equal(t, "ipSecTunnel", iface.InterfaceType)
-				// Both tunnels must parse: a regression to a single object fails here.
-				assert.Len(t, iface.IpSecTunnelOptions, 2)
-
-				t0 := iface.IpSecTunnelOptions[0]
-				assert.Equal(t, "192.0.2.1", t0.SourceIpAddress)
-				assert.Equal(t, "198.51.100.1", t0.DestinationIpAddress)
-				assert.Equal(t, "secret-one", t0.PreSharedKey)
-				assert.Equal(t, "local-1", t0.LocalId)
-				assert.Equal(t, "remote-1", t0.RemoteId)
-				if assert.NotNil(t, t0.Passive) {
-					assert.False(t, *t0.Passive)
-				}
-				if assert.NotNil(t, t0.Phase1Lifetime) {
-					assert.Equal(t, 28800, *t0.Phase1Lifetime)
-				}
-				if assert.NotNil(t, t0.Phase2Lifetime) {
-					assert.Equal(t, 3600, *t0.Phase2Lifetime)
+				if !assert.NotNil(t, iface.IpSecTunnelOptions) {
+					return
 				}
 
-				t1 := iface.IpSecTunnelOptions[1]
-				assert.Equal(t, "192.0.2.2", t1.SourceIpAddress)
-				assert.Equal(t, "secret-two", t1.PreSharedKey)
-				// Optional pointer fields stay nil when the key is absent.
-				assert.Nil(t, t1.Passive)
-				assert.Nil(t, t1.Phase1Lifetime)
-				assert.Nil(t, t1.Phase2Lifetime)
+				tunnel := iface.IpSecTunnelOptions
+				assert.Equal(t, "192.0.2.1", tunnel.SourceIpAddress)
+				assert.Equal(t, "198.51.100.1", tunnel.DestinationIpAddress)
+				assert.Equal(t, "secret-one", tunnel.PreSharedKey)
+				assert.Equal(t, "local-1", tunnel.LocalId)
+				assert.Equal(t, "remote-1", tunnel.RemoteId)
+				if assert.NotNil(t, tunnel.Passive) {
+					assert.False(t, *tunnel.Passive)
+				}
+				if assert.NotNil(t, tunnel.Phase1Lifetime) {
+					assert.Equal(t, 28800, *tunnel.Phase1Lifetime)
+				}
+				if assert.NotNil(t, tunnel.Phase2Lifetime) {
+					assert.Equal(t, 3600, *tunnel.Phase2Lifetime)
+				}
 			},
 		},
 		{
-			name: "ipSecTunnelOptions not an array",
+			name: "multiple ipSecTunnel interfaces each with one tunnel object",
+			config: map[string]interface{}{
+				"connectType": "VROUTER",
+				"interfaces": []interface{}{
+					map[string]interface{}{
+						"interfaceType": "ipSecTunnel",
+						"ipSecTunnelOptions": map[string]interface{}{
+							"sourceIpAddress":      "192.0.2.1",
+							"destinationIpAddress": "198.51.100.1",
+							"preSharedKey":         "secret-one",
+						},
+					},
+					map[string]interface{}{
+						"interfaceType": "ipSecTunnel",
+						"ipSecTunnelOptions": map[string]interface{}{
+							"sourceIpAddress":      "192.0.2.2",
+							"destinationIpAddress": "198.51.100.2",
+							"preSharedKey":         "secret-two",
+						},
+					},
+				},
+			},
+			validate: func(t *testing.T, cfg *megaport.VXCOrderVrouterPartnerConfig) {
+				assert.Len(t, cfg.Interfaces, 2)
+				if assert.NotNil(t, cfg.Interfaces[0].IpSecTunnelOptions) {
+					assert.Equal(t, "192.0.2.1", cfg.Interfaces[0].IpSecTunnelOptions.SourceIpAddress)
+					assert.Equal(t, "secret-one", cfg.Interfaces[0].IpSecTunnelOptions.PreSharedKey)
+				}
+				if assert.NotNil(t, cfg.Interfaces[1].IpSecTunnelOptions) {
+					assert.Equal(t, "192.0.2.2", cfg.Interfaces[1].IpSecTunnelOptions.SourceIpAddress)
+					assert.Equal(t, "secret-two", cfg.Interfaces[1].IpSecTunnelOptions.PreSharedKey)
+				}
+			},
+		},
+		{
+			name: "ipSecTunnelOptions not an object",
 			config: map[string]interface{}{
 				"connectType": "VROUTER",
 				"interfaces": []interface{}{
@@ -651,20 +672,20 @@ func TestParseVRouterConfigIPsec(t *testing.T) {
 					},
 				},
 			},
-			expectedError: "ipSecTunnelOptions must be an array",
+			expectedError: "ipSecTunnelOptions must be an object",
 		},
 		{
-			name: "tunnel not an object",
+			name: "ipSecTunnelOptions is an array",
 			config: map[string]interface{}{
 				"connectType": "VROUTER",
 				"interfaces": []interface{}{
 					map[string]interface{}{
 						"interfaceType":      "ipSecTunnel",
-						"ipSecTunnelOptions": []interface{}{123},
+						"ipSecTunnelOptions": []interface{}{map[string]interface{}{"sourceIpAddress": "192.0.2.1"}},
 					},
 				},
 			},
-			expectedError: "must be an object",
+			expectedError: "ipSecTunnelOptions must be an object",
 		},
 		{
 			name: "phase1Lifetime wrong type",
@@ -673,13 +694,11 @@ func TestParseVRouterConfigIPsec(t *testing.T) {
 				"interfaces": []interface{}{
 					map[string]interface{}{
 						"interfaceType": "ipSecTunnel",
-						"ipSecTunnelOptions": []interface{}{
-							map[string]interface{}{
-								"sourceIpAddress":      "192.0.2.1",
-								"destinationIpAddress": "198.51.100.1",
-								"preSharedKey":         "secret",
-								"phase1Lifetime":       "lots",
-							},
+						"ipSecTunnelOptions": map[string]interface{}{
+							"sourceIpAddress":      "192.0.2.1",
+							"destinationIpAddress": "198.51.100.1",
+							"preSharedKey":         "secret",
+							"phase1Lifetime":       "lots",
 						},
 					},
 				},
@@ -693,7 +712,7 @@ func TestParseVRouterConfigIPsec(t *testing.T) {
 				"interfaces": []interface{}{
 					map[string]interface{}{
 						"interfaceType":      "ipSecTunnel",
-						"ipSecTunnelOptions": []interface{}{map[string]interface{}{"sourceIpAddress": 123}},
+						"ipSecTunnelOptions": map[string]interface{}{"sourceIpAddress": 123},
 					},
 				},
 			},
@@ -706,13 +725,11 @@ func TestParseVRouterConfigIPsec(t *testing.T) {
 				"interfaces": []interface{}{
 					map[string]interface{}{
 						"interfaceType": "ipSecTunnel",
-						"ipSecTunnelOptions": []interface{}{
-							map[string]interface{}{
-								"sourceIpAddress":      "192.0.2.1",
-								"destinationIpAddress": "198.51.100.1",
-								"preSharedKey":         "secret",
-								"passive":              "yes",
-							},
+						"ipSecTunnelOptions": map[string]interface{}{
+							"sourceIpAddress":      "192.0.2.1",
+							"destinationIpAddress": "198.51.100.1",
+							"preSharedKey":         "secret",
+							"passive":              "yes",
 						},
 					},
 				},
@@ -726,13 +743,11 @@ func TestParseVRouterConfigIPsec(t *testing.T) {
 				"interfaces": []interface{}{
 					map[string]interface{}{
 						"interfaceType": "ipSecTunnel",
-						"ipSecTunnelOptions": []interface{}{
-							map[string]interface{}{
-								"sourceIpAddress":      "192.0.2.1",
-								"destinationIpAddress": "198.51.100.1",
-								"preSharedKey":         "secret",
-								"phase2Lifetime":       "forever",
-							},
+						"ipSecTunnelOptions": map[string]interface{}{
+							"sourceIpAddress":      "192.0.2.1",
+							"destinationIpAddress": "198.51.100.1",
+							"preSharedKey":         "secret",
+							"phase2Lifetime":       "forever",
 						},
 					},
 				},
@@ -786,7 +801,7 @@ func TestParseVRouterConfigIPsec(t *testing.T) {
 				"interfaces": []interface{}{
 					map[string]interface{}{
 						"interfaceType":      "ipSecTunnel",
-						"ipSecTunnelOptions": []interface{}{map[string]interface{}{tc.field: tc.value}},
+						"ipSecTunnelOptions": map[string]interface{}{tc.field: tc.value},
 					},
 				},
 			}
@@ -1243,23 +1258,23 @@ func TestBuildUpdateVXCRequestFromJSON_PartnerConfigs(t *testing.T) {
 		},
 		{
 			name: "valid VRouter A-End IPsec tunnel config",
-			json: `{"aEndPartnerConfig":{"connectType":"VROUTER","interfaces":[{"interfaceType":"ipSecTunnel","ipSecTunnelOptions":[{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1","preSharedKey":"topsecret"}]}]}}`,
+			json: `{"aEndPartnerConfig":{"connectType":"VROUTER","interfaces":[{"interfaceType":"ipSecTunnel","ipSecTunnelOptions":{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1","preSharedKey":"topsecret"}}]}}`,
 			validate: func(t *testing.T, req *megaport.UpdateVXCRequest) {
 				vrouterCfg, ok := req.AEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig)
 				assert.True(t, ok, "expected *megaport.VXCOrderVrouterPartnerConfig")
 				assert.Len(t, vrouterCfg.Interfaces, 1)
 				assert.Equal(t, megaport.InterfaceTypeIPSecTunnel, vrouterCfg.Interfaces[0].InterfaceType)
-				assert.Len(t, vrouterCfg.Interfaces[0].IpSecTunnelOptions, 1)
+				assert.NotNil(t, vrouterCfg.Interfaces[0].IpSecTunnelOptions)
 			},
 		},
 		{
 			name:          "IPsec tunnel options without ipSecTunnel interface type rejected",
-			json:          `{"aEndPartnerConfig":{"connectType":"VROUTER","interfaces":[{"ipSecTunnelOptions":[{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1","preSharedKey":"topsecret"}]}]}}`,
+			json:          `{"aEndPartnerConfig":{"connectType":"VROUTER","interfaces":[{"ipSecTunnelOptions":{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1","preSharedKey":"topsecret"}}]}}`,
 			expectedError: "requires interface type",
 		},
 		{
 			name:          "IPsec tunnel missing pre-shared key rejected",
-			json:          `{"aEndPartnerConfig":{"connectType":"VROUTER","interfaces":[{"interfaceType":"ipSecTunnel","ipSecTunnelOptions":[{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1"}]}]}}`,
+			json:          `{"aEndPartnerConfig":{"connectType":"VROUTER","interfaces":[{"interfaceType":"ipSecTunnel","ipSecTunnelOptions":{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1"}}]}}`,
 			expectedError: "pre-shared key",
 		},
 		{
@@ -1275,7 +1290,7 @@ func TestBuildUpdateVXCRequestFromJSON_PartnerConfigs(t *testing.T) {
 		},
 		{
 			name:          "B-End IPsec tunnel missing pre-shared key rejected",
-			json:          `{"bEndPartnerConfig":{"connectType":"VROUTER","interfaces":[{"interfaceType":"ipSecTunnel","ipSecTunnelOptions":[{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1"}]}]}}`,
+			json:          `{"bEndPartnerConfig":{"connectType":"VROUTER","interfaces":[{"interfaceType":"ipSecTunnel","ipSecTunnelOptions":{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1"}}]}}`,
 			expectedError: "pre-shared key",
 		},
 		{

@@ -1452,7 +1452,7 @@ func TestBuildUpdateVXCRequestFromFlags_PartnerConfig(t *testing.T) {
 		cmd := makeCmd()
 		// Missing PSK should be rejected
 		testutil.SetFlags(t, cmd, map[string]string{
-			"a-end-partner-config": `{"connectType":"VROUTER","interfaces":[{"interfaceType":"ipSecTunnel","ipSecTunnelOptions":[{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1"}]}]}`,
+			"a-end-partner-config": `{"connectType":"VROUTER","interfaces":[{"interfaceType":"ipSecTunnel","ipSecTunnelOptions":{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1"}}]}`,
 		})
 		_, err := buildUpdateVXCRequestFromFlags(cmd)
 		assert.Error(t, err)
@@ -1483,7 +1483,7 @@ func TestBuildUpdateVXCRequestFromFlags_PartnerConfig(t *testing.T) {
 	t.Run("B-End validation error via flags", func(t *testing.T) {
 		cmd := makeCmd()
 		testutil.SetFlags(t, cmd, map[string]string{
-			"b-end-partner-config": `{"connectType":"VROUTER","interfaces":[{"interfaceType":"ipSecTunnel","ipSecTunnelOptions":[{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1"}]}]}`,
+			"b-end-partner-config": `{"connectType":"VROUTER","interfaces":[{"interfaceType":"ipSecTunnel","ipSecTunnelOptions":{"sourceIpAddress":"192.0.2.1","destinationIpAddress":"198.51.100.1"}}]}`,
 		})
 		_, err := buildUpdateVXCRequestFromFlags(cmd)
 		assert.Error(t, err)

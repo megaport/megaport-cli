@@ -492,12 +492,12 @@ func parseVRouterConfig(config map[string]interface{}) (*megaport.VXCOrderVroute
 				iface.InterfaceType = interfaceType
 			}
 
-			if tunnelsRawVal, exists := ifaceMap["ipSecTunnelOptions"]; exists {
-				tunnels, err := parseIPsecTunnelOptions(tunnelsRawVal, i)
+			if tunnelRawVal, exists := ifaceMap["ipSecTunnelOptions"]; exists {
+				tunnel, err := parseIPsecTunnelOptions(tunnelRawVal, i)
 				if err != nil {
 					return nil, err
 				}
-				iface.IpSecTunnelOptions = tunnels
+				iface.IpSecTunnelOptions = tunnel
 			}
 
 			interfaces = append(interfaces, iface)
@@ -683,93 +683,84 @@ func parseBGPConnections(raw interface{}, ifaceIndex int) ([]megaport.BgpConnect
 	return conns, nil
 }
 
-// parseIPsecTunnelOptions parses the ipSecTunnelOptions array of a vRouter
-// interface from decoded JSON. ifaceIndex is the parent interface index, used
-// only for error messages. The pre-shared key is read as a plain string and is
-// never echoed back in an error message.
-func parseIPsecTunnelOptions(raw interface{}, ifaceIndex int) ([]megaport.IPsecTunnelConfig, error) {
-	tunnelsRaw, ok := raw.([]interface{})
+// parseIPsecTunnelOptions parses the ipSecTunnelOptions object of a vRouter
+// interface from decoded JSON. One ipSecTunnel interface carries exactly one
+// tunnel object. ifaceIndex is the parent interface index, used only for error
+// messages. The pre-shared key is read as a plain string and is never echoed
+// back in an error message.
+func parseIPsecTunnelOptions(raw interface{}, ifaceIndex int) (*megaport.IPsecTunnelConfig, error) {
+	tunnelMap, ok := raw.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("ipSecTunnelOptions must be an array in interface at index %d", ifaceIndex)
+		return nil, fmt.Errorf("ipSecTunnelOptions must be an object in interface at index %d", ifaceIndex)
 	}
 
-	var tunnels []megaport.IPsecTunnelConfig
-	for j, tunnelRaw := range tunnelsRaw {
-		tunnelMap, ok := tunnelRaw.(map[string]interface{})
+	tunnel := &megaport.IPsecTunnelConfig{}
+
+	if sourceVal, exists := tunnelMap["sourceIpAddress"]; exists {
+		source, ok := sourceVal.(string)
 		if !ok {
-			return nil, fmt.Errorf("IPsec tunnel at index %d in interface %d must be an object", j, ifaceIndex)
+			return nil, fmt.Errorf("sourceIpAddress must be a string in ipSecTunnelOptions of interface %d", ifaceIndex)
 		}
-
-		tunnel := megaport.IPsecTunnelConfig{}
-
-		if sourceVal, exists := tunnelMap["sourceIpAddress"]; exists {
-			source, ok := sourceVal.(string)
-			if !ok {
-				return nil, fmt.Errorf("sourceIpAddress must be a string in IPsec tunnel %d of interface %d", j, ifaceIndex)
-			}
-			tunnel.SourceIpAddress = source
-		}
-
-		if destVal, exists := tunnelMap["destinationIpAddress"]; exists {
-			dest, ok := destVal.(string)
-			if !ok {
-				return nil, fmt.Errorf("destinationIpAddress must be a string in IPsec tunnel %d of interface %d", j, ifaceIndex)
-			}
-			tunnel.DestinationIpAddress = dest
-		}
-
-		if pskVal, exists := tunnelMap["preSharedKey"]; exists {
-			psk, ok := pskVal.(string)
-			if !ok {
-				return nil, fmt.Errorf("preSharedKey must be a string in IPsec tunnel %d of interface %d", j, ifaceIndex)
-			}
-			tunnel.PreSharedKey = psk
-		}
-
-		if passiveVal, exists := tunnelMap["passive"]; exists {
-			passive, ok := passiveVal.(bool)
-			if !ok {
-				return nil, fmt.Errorf("passive must be a boolean in IPsec tunnel %d of interface %d", j, ifaceIndex)
-			}
-			tunnel.Passive = &passive
-		}
-
-		if localIDVal, exists := tunnelMap["localId"]; exists {
-			localID, ok := localIDVal.(string)
-			if !ok {
-				return nil, fmt.Errorf("localId must be a string in IPsec tunnel %d of interface %d", j, ifaceIndex)
-			}
-			tunnel.LocalId = localID
-		}
-
-		if remoteIDVal, exists := tunnelMap["remoteId"]; exists {
-			remoteID, ok := remoteIDVal.(string)
-			if !ok {
-				return nil, fmt.Errorf("remoteId must be a string in IPsec tunnel %d of interface %d", j, ifaceIndex)
-			}
-			tunnel.RemoteId = remoteID
-		}
-
-		if phase1Val, exists := tunnelMap["phase1Lifetime"]; exists {
-			phase1, ok := phase1Val.(float64)
-			if !ok {
-				return nil, fmt.Errorf("phase1Lifetime must be a number in IPsec tunnel %d of interface %d", j, ifaceIndex)
-			}
-			phase1Int := int(phase1)
-			tunnel.Phase1Lifetime = &phase1Int
-		}
-
-		if phase2Val, exists := tunnelMap["phase2Lifetime"]; exists {
-			phase2, ok := phase2Val.(float64)
-			if !ok {
-				return nil, fmt.Errorf("phase2Lifetime must be a number in IPsec tunnel %d of interface %d", j, ifaceIndex)
-			}
-			phase2Int := int(phase2)
-			tunnel.Phase2Lifetime = &phase2Int
-		}
-
-		tunnels = append(tunnels, tunnel)
+		tunnel.SourceIpAddress = source
 	}
 
-	return tunnels, nil
+	if destVal, exists := tunnelMap["destinationIpAddress"]; exists {
+		dest, ok := destVal.(string)
+		if !ok {
+			return nil, fmt.Errorf("destinationIpAddress must be a string in ipSecTunnelOptions of interface %d", ifaceIndex)
+		}
+		tunnel.DestinationIpAddress = dest
+	}
+
+	if pskVal, exists := tunnelMap["preSharedKey"]; exists {
+		psk, ok := pskVal.(string)
+		if !ok {
+			return nil, fmt.Errorf("preSharedKey must be a string in ipSecTunnelOptions of interface %d", ifaceIndex)
+		}
+		tunnel.PreSharedKey = psk
+	}
+
+	if passiveVal, exists := tunnelMap["passive"]; exists {
+		passive, ok := passiveVal.(bool)
+		if !ok {
+			return nil, fmt.Errorf("passive must be a boolean in ipSecTunnelOptions of interface %d", ifaceIndex)
+		}
+		tunnel.Passive = &passive
+	}
+
+	if localIDVal, exists := tunnelMap["localId"]; exists {
+		localID, ok := localIDVal.(string)
+		if !ok {
+			return nil, fmt.Errorf("localId must be a string in ipSecTunnelOptions of interface %d", ifaceIndex)
+		}
+		tunnel.LocalId = localID
+	}
+
+	if remoteIDVal, exists := tunnelMap["remoteId"]; exists {
+		remoteID, ok := remoteIDVal.(string)
+		if !ok {
+			return nil, fmt.Errorf("remoteId must be a string in ipSecTunnelOptions of interface %d", ifaceIndex)
+		}
+		tunnel.RemoteId = remoteID
+	}
+
+	if phase1Val, exists := tunnelMap["phase1Lifetime"]; exists {
+		phase1, ok := phase1Val.(float64)
+		if !ok {
+			return nil, fmt.Errorf("phase1Lifetime must be a number in ipSecTunnelOptions of interface %d", ifaceIndex)
+		}
+		phase1Int := int(phase1)
+		tunnel.Phase1Lifetime = &phase1Int
+	}
+
+	if phase2Val, exists := tunnelMap["phase2Lifetime"]; exists {
+		phase2, ok := phase2Val.(float64)
+		if !ok {
+			return nil, fmt.Errorf("phase2Lifetime must be a number in ipSecTunnelOptions of interface %d", ifaceIndex)
+		}
+		phase2Int := int(phase2)
+		tunnel.Phase2Lifetime = &phase2Int
+	}
+
+	return tunnel, nil
 }

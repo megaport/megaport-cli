@@ -47,60 +47,6 @@ func promptVRouterConfig(noColor bool) (*megaport.VXCOrderVrouterPartnerConfig, 
 			iface.VLAN = validation.UntaggedVLAN
 		}
 
-		ipAddrs, err := promptIPAddresses("IP Addresses (CIDR notation, e.g., 192.168.1.1/30)", noColor)
-		if err != nil {
-			return nil, err
-		}
-		iface.IpAddresses = ipAddrs
-
-		hasRoutes, err := utils.ResourcePrompt("vxc", "Do you want to add IP routes? (yes/no): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if strings.ToLower(hasRoutes) == "yes" {
-			routes, err := promptIPRoutes(noColor)
-			if err != nil {
-				return nil, err
-			}
-			iface.IpRoutes = routes
-		}
-
-		hasNatIPs, err := utils.ResourcePrompt("vxc", "Do you want to add NAT IP addresses? (yes/no): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if strings.ToLower(hasNatIPs) == "yes" {
-			natIPs, err := promptNATIPAddresses(noColor)
-			if err != nil {
-				return nil, err
-			}
-			iface.NatIpAddresses = natIPs
-		}
-
-		hasBFD, err := utils.ResourcePrompt("vxc", "Do you want to configure BFD? (yes/no): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if strings.ToLower(hasBFD) == "yes" {
-			bfd, err := promptBFDConfig(noColor)
-			if err != nil {
-				return nil, err
-			}
-			iface.Bfd = bfd
-		}
-
-		hasBGP, err := utils.ResourcePrompt("vxc", "Do you want to configure BGP connections? (yes/no): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if strings.ToLower(hasBGP) == "yes" {
-			bgpConns, err := promptBGPConnections(noColor)
-			if err != nil {
-				return nil, err
-			}
-			iface.BgpConnections = bgpConns
-		}
-
 		interfaceType, err := utils.ResourcePrompt("vxc", fmt.Sprintf("Interface type (%s/%s, default %s): ", megaport.InterfaceTypeSubInterface, megaport.InterfaceTypeIPSecTunnel, megaport.InterfaceTypeSubInterface), noColor)
 		if err != nil {
 			return nil, err
@@ -110,12 +56,16 @@ func promptVRouterConfig(noColor bool) (*megaport.VXCOrderVrouterPartnerConfig, 
 		}
 		iface.InterfaceType = interfaceType
 
+		// An ipSecTunnel interface carries only its tunnel; the source IP lives on
+		// a separate subInterface, so the IP/route/NAT/BFD/BGP prompts are skipped.
 		if interfaceType == megaport.InterfaceTypeIPSecTunnel {
-			tunnels, err := promptIPsecTunnels(noColor)
+			tunnel, err := promptIPsecTunnel(noColor)
 			if err != nil {
 				return nil, err
 			}
-			iface.IpSecTunnelOptions = tunnels
+			iface.IpSecTunnelOptions = tunnel
+		} else if err := promptVRouterSubInterface(&iface, noColor); err != nil {
+			return nil, err
 		}
 
 		config.Interfaces = append(config.Interfaces, iface)
@@ -128,6 +78,66 @@ func promptVRouterConfig(noColor bool) (*megaport.VXCOrderVrouterPartnerConfig, 
 	}
 
 	return config, nil
+}
+
+// promptVRouterSubInterface collects the IP addresses, routes, NAT IPs, BFD, and
+// BGP connections that apply to a subInterface but not to an ipSecTunnel interface.
+func promptVRouterSubInterface(iface *megaport.PartnerConfigInterface, noColor bool) error {
+	ipAddrs, err := promptIPAddresses("IP Addresses (CIDR notation, e.g., 192.168.1.1/30)", noColor)
+	if err != nil {
+		return err
+	}
+	iface.IpAddresses = ipAddrs
+
+	hasRoutes, err := utils.ResourcePrompt("vxc", "Do you want to add IP routes? (yes/no): ", noColor)
+	if err != nil {
+		return err
+	}
+	if strings.ToLower(hasRoutes) == "yes" {
+		routes, err := promptIPRoutes(noColor)
+		if err != nil {
+			return err
+		}
+		iface.IpRoutes = routes
+	}
+
+	hasNatIPs, err := utils.ResourcePrompt("vxc", "Do you want to add NAT IP addresses? (yes/no): ", noColor)
+	if err != nil {
+		return err
+	}
+	if strings.ToLower(hasNatIPs) == "yes" {
+		natIPs, err := promptNATIPAddresses(noColor)
+		if err != nil {
+			return err
+		}
+		iface.NatIpAddresses = natIPs
+	}
+
+	hasBFD, err := utils.ResourcePrompt("vxc", "Do you want to configure BFD? (yes/no): ", noColor)
+	if err != nil {
+		return err
+	}
+	if strings.ToLower(hasBFD) == "yes" {
+		bfd, err := promptBFDConfig(noColor)
+		if err != nil {
+			return err
+		}
+		iface.Bfd = bfd
+	}
+
+	hasBGP, err := utils.ResourcePrompt("vxc", "Do you want to configure BGP connections? (yes/no): ", noColor)
+	if err != nil {
+		return err
+	}
+	if strings.ToLower(hasBGP) == "yes" {
+		bgpConns, err := promptBGPConnections(noColor)
+		if err != nil {
+			return err
+		}
+		iface.BgpConnections = bgpConns
+	}
+
+	return nil
 }
 
 func promptIPRoutes(noColor bool) ([]megaport.IpRoute, error) {
@@ -497,46 +507,34 @@ func promptBGPPrefixLists(bgp *megaport.BgpConnectionConfig, noColor bool) error
 	return nil
 }
 
-func promptIPsecTunnels(noColor bool) ([]megaport.IPsecTunnelConfig, error) {
-	var tunnels []megaport.IPsecTunnelConfig
+// promptIPsecTunnel collects the single IPsec tunnel carried by one ipSecTunnel
+// interface. To configure multiple tunnels, add multiple ipSecTunnel interfaces.
+func promptIPsecTunnel(noColor bool) (*megaport.IPsecTunnelConfig, error) {
+	tunnel := &megaport.IPsecTunnelConfig{}
 
-	for {
-		addTunnel, err := utils.ResourcePrompt("vxc", "Add an IPsec tunnel? (yes/no): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if strings.ToLower(addTunnel) != "yes" {
-			break
-		}
+	sourceIP, err := utils.ResourcePrompt("vxc", "Enter source IP address (required): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	tunnel.SourceIpAddress = sourceIP
 
-		tunnel := megaport.IPsecTunnelConfig{}
+	destIP, err := utils.ResourcePrompt("vxc", "Enter destination IP address (required): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	tunnel.DestinationIpAddress = destIP
 
-		sourceIP, err := utils.ResourcePrompt("vxc", "Enter source IP address (required): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		tunnel.SourceIpAddress = sourceIP
+	psk, err := utils.SecretResourcePrompt("vxc", "Enter pre-shared key (required): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	tunnel.PreSharedKey = psk
 
-		destIP, err := utils.ResourcePrompt("vxc", "Enter destination IP address (required): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		tunnel.DestinationIpAddress = destIP
-
-		psk, err := utils.SecretResourcePrompt("vxc", "Enter pre-shared key (required): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		tunnel.PreSharedKey = psk
-
-		if err := promptIPsecTunnelOptional(&tunnel, noColor); err != nil {
-			return nil, err
-		}
-
-		tunnels = append(tunnels, tunnel)
+	if err := promptIPsecTunnelOptional(tunnel, noColor); err != nil {
+		return nil, err
 	}
 
-	return tunnels, nil
+	return tunnel, nil
 }
 
 func promptIPsecTunnelOptional(tunnel *megaport.IPsecTunnelConfig, noColor bool) error {

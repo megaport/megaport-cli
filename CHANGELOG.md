@@ -8,10 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- IPsec tunnel config on VXC vRouter interfaces. Set `interfaceType: ipSecTunnel` and one or more `ipSecTunnelOptions` (source IP, destination IP, pre-shared key, and optional `passive`, `localId`, `remoteId`, `phase1Lifetime`, `phase2Lifetime`) when buying or updating a VXC via JSON, the `--a-end-partner-config` / `--b-end-partner-config` flags, or the interactive prompts. The pre-shared key is read without echo and never printed.
+- IPsec tunnel config on VXC vRouter interfaces. Set `interfaceType: ipSecTunnel` on an interface and give it one `ipSecTunnelOptions` object (source IP, destination IP, pre-shared key, and optional `passive`, `localId`, `remoteId`, `phase1Lifetime`, `phase2Lifetime`). Each `ipSecTunnel` interface carries exactly one tunnel; attach multiple `ipSecTunnel` interfaces to configure multiple tunnels. Works when buying or updating a VXC via JSON, the `--a-end-partner-config` / `--b-end-partner-config` flags, or the interactive prompts. The pre-shared key is read without echo and never printed.
 
 ### Changed
-- Bumped the megaportgo SDK to v1.14.0, which fixes the IPsec tunnel order shape so tunnels are actually configured by the API
+- Bumped the megaportgo SDK to v1.14.1, which models `ipSecTunnelOptions` as a single object per `ipSecTunnel` interface (one tunnel each) instead of an array
 - `servicekeys update` now exits non-zero when the API reports the update was not applied (previously it warned and exited 0)
 
 ### Removed

@@ -94,7 +94,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli vxc buy --name \"My VXC\" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200").
 		WithExample("megaport-cli vxc buy --name \"My VXC\" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200 --resource-tags '{\"environment\":\"production\",\"team\":\"networking\"}'").
 		WithExample("megaport-cli vxc buy --json '{\"vxcName\":\"My VXC\",\"rateLimit\":1000,\"term\":12,\"portUid\":\"port-123\",\"aEndConfiguration\":{\"vlan\":100},\"bEndConfiguration\":{\"productUID\":\"port-456\",\"vlan\":200},\"resourceTags\":{\"environment\":\"production\",\"owner\":\"network-team\"}}'").
-		WithExample("megaport-cli vxc buy --name \"IPsec VXC\" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-partner-config '{\"connectType\":\"VROUTER\",\"interfaces\":[{\"interfaceType\":\"ipSecTunnel\",\"ipSecTunnelOptions\":[{\"sourceIpAddress\":\"192.0.2.1\",\"destinationIpAddress\":\"198.51.100.1\",\"preSharedKey\":\"<your-psk>\",\"phase1Lifetime\":28800,\"phase2Lifetime\":3600}]}]}'").
+		WithExample("megaport-cli vxc buy --name \"IPsec VXC\" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-partner-config '{\"connectType\":\"VROUTER\",\"interfaces\":[{\"interfaceType\":\"ipSecTunnel\",\"ipSecTunnelOptions\":{\"sourceIpAddress\":\"192.0.2.1\",\"destinationIpAddress\":\"198.51.100.1\",\"preSharedKey\":\"<your-psk>\",\"phase1Lifetime\":28800,\"phase2Lifetime\":3600}}]}'").
 		WithExample("megaport-cli vxc buy --json-file ./vxc-config.json").
 		WithJSONExample(`{
   "vxcName": "My VXC",
@@ -145,7 +145,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --name \"New VXC Name\" --rate-limit 2000 --cost-centre \"New Cost Centre\"").
 		WithExample("megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --a-end-vlan 200 --b-end-vlan 300").
 		WithExample("megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --b-end-partner-config '{\"connectType\":\"VROUTER\",\"interfaces\":[{\"vlan\":100,\"ipAddresses\":[\"192.168.1.1/30\"],\"bgpConnections\":[{\"peerAsn\":65000,\"localAsn\":64512,\"localIpAddress\":\"192.168.1.1\",\"peerIpAddress\":\"192.168.1.2\",\"password\":\"<your-bgp-password>\",\"shutdown\":false,\"bfdEnabled\":true}]}]}'").
-		WithExample("megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --a-end-partner-config '{\"connectType\":\"VROUTER\",\"interfaces\":[{\"interfaceType\":\"ipSecTunnel\",\"ipSecTunnelOptions\":[{\"sourceIpAddress\":\"192.0.2.1\",\"destinationIpAddress\":\"198.51.100.1\",\"preSharedKey\":\"<your-psk>\",\"phase1Lifetime\":28800,\"phase2Lifetime\":3600}]}]}'").
+		WithExample("megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --a-end-partner-config '{\"connectType\":\"VROUTER\",\"interfaces\":[{\"interfaceType\":\"ipSecTunnel\",\"ipSecTunnelOptions\":{\"sourceIpAddress\":\"192.0.2.1\",\"destinationIpAddress\":\"198.51.100.1\",\"preSharedKey\":\"<your-psk>\",\"phase1Lifetime\":28800,\"phase2Lifetime\":3600}}]}'").
 		WithExample("megaport-cli vxc update vxc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{\"name\":\"Updated VXC Name\",\"rateLimit\":2000,\"costCentre\":\"New Cost Centre\",\"aEndVlan\":200,\"bEndVlan\":300,\"term\":24,\"shutdown\":false}'").
 		WithJSONExample(`{
   "name": "Updated VXC Name",

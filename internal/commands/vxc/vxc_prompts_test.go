@@ -632,12 +632,12 @@ func TestPromptVRouterConfig(t *testing.T) {
 			responses: []string{
 				"1",   // num interfaces
 				"100", // vlan
+				"",    // interface type (default subInterface)
 				"no",  // ip addresses
 				"no",  // routes
 				"no",  // NAT
 				"no",  // BFD
 				"no",  // BGP
-				"",    // interface type (default subInterface)
 			},
 			verify: func(t *testing.T, cfg *megaport.VXCOrderVrouterPartnerConfig) {
 				assert.Len(t, cfg.Interfaces, 1)
@@ -649,6 +649,7 @@ func TestPromptVRouterConfig(t *testing.T) {
 			responses: []string{
 				"1",             // num interfaces
 				"200",           // vlan
+				"",              // interface type (default subInterface)
 				"yes",           // add IP address
 				"10.0.0.1/30",   // IP address
 				"no",            // more IPs
@@ -687,7 +688,6 @@ func TestPromptVRouterConfig(t *testing.T) {
 				"",              // export whitelist
 				"",              // export blacklist
 				"no",            // more BGP connections
-				"",              // interface type (default subInterface)
 			},
 			secretResponses: []string{
 				"", // BGP password (read without echo)
@@ -757,13 +757,7 @@ func TestPromptVRouterConfigIPsec(t *testing.T) {
 	responses := []string{
 		"1",            // num interfaces
 		"",             // vlan (none)
-		"no",           // ip addresses
-		"no",           // routes
-		"no",           // NAT
-		"no",           // BFD
-		"no",           // BGP
 		"ipSecTunnel",  // interface type
-		"yes",          // add an IPsec tunnel
 		"192.0.2.1",    // source IP
 		"198.51.100.1", // destination IP
 		"yes",          // passive
@@ -771,7 +765,6 @@ func TestPromptVRouterConfigIPsec(t *testing.T) {
 		"remote-x",     // remote ID
 		"28800",        // phase 1 lifetime
 		"3600",         // phase 2 lifetime
-		"no",           // add another tunnel
 	}
 	secretResponses := []string{"topsecret"}
 
@@ -785,9 +778,11 @@ func TestPromptVRouterConfigIPsec(t *testing.T) {
 
 	iface := cfg.Interfaces[0]
 	assert.Equal(t, "ipSecTunnel", iface.InterfaceType)
-	assert.Len(t, iface.IpSecTunnelOptions, 1)
+	if !assert.NotNil(t, iface.IpSecTunnelOptions) {
+		return
+	}
 
-	tunnel := iface.IpSecTunnelOptions[0]
+	tunnel := iface.IpSecTunnelOptions
 	assert.Equal(t, "192.0.2.1", tunnel.SourceIpAddress)
 	assert.Equal(t, "198.51.100.1", tunnel.DestinationIpAddress)
 	assert.Equal(t, "topsecret", tunnel.PreSharedKey)
@@ -804,27 +799,29 @@ func TestPromptVRouterConfigIPsec(t *testing.T) {
 	}
 }
 
-// Selecting the ipSecTunnel interface type but adding no tunnels must be
-// rejected by the validation the prompt path now runs before returning.
-func TestPromptVRouterConfigIPsecNoTunnels(t *testing.T) {
+// Selecting the ipSecTunnel interface type but leaving the pre-shared key empty
+// must be rejected by the validation the prompt path runs before returning.
+func TestPromptVRouterConfigIPsecMissingPSK(t *testing.T) {
 	responses := []string{
-		"1",           // num interfaces
-		"",            // vlan (none)
-		"no",          // ip addresses
-		"no",          // routes
-		"no",          // NAT
-		"no",          // BFD
-		"no",          // BGP
-		"ipSecTunnel", // interface type
-		"no",          // add an IPsec tunnel? -> none
+		"1",            // num interfaces
+		"",             // vlan (none)
+		"ipSecTunnel",  // interface type
+		"192.0.2.1",    // source IP
+		"198.51.100.1", // destination IP
+		"",             // passive (API default)
+		"",             // local ID
+		"",             // remote ID
+		"",             // phase 1 lifetime
+		"",             // phase 2 lifetime
 	}
+	secretResponses := []string{""} // empty PSK
 
-	cleanup := mockPromptsAndSecrets(responses, nil)
+	cleanup := mockPromptsAndSecrets(responses, secretResponses)
 	defer cleanup()
 
 	_, err := promptVRouterConfig(true)
 	if assert.Error(t, err) {
-		assert.Contains(t, err.Error(), "at least one tunnel is required")
+		assert.Contains(t, err.Error(), "pre-shared key")
 	}
 }
 
@@ -990,12 +987,12 @@ func TestBuildUpdateVXCRequestFromPrompt(t *testing.T) {
 				"yes", // configure A-End VRouter partner config
 				"1",   // number of interfaces
 				"",    // VLAN (untagged)
+				"",    // interface type (default subInterface)
 				"no",  // add IP addresses
 				"no",  // add IP routes
 				"no",  // add NAT IPs
 				"no",  // configure BFD
 				"no",  // configure BGP
-				"",    // interface type (default subInterface)
 				"no",  // configure B-End VRouter partner config
 			},
 			verify: func(t *testing.T, req *megaport.UpdateVXCRequest) {

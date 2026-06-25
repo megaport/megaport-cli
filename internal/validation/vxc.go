@@ -394,8 +394,8 @@ func isValidIBMName(name string) bool {
 // ValidateVrouterPartnerConfig validates a vRouter partner configuration: it
 // requires at least one interface and validates each interface's VLAN, IP
 // addresses, NAT IPs, routes, BFD, BGP connections, interface type, and IPsec
-// tunnels. An ipSecTunnel interface must carry at least one tunnel, and tunnels
-// may only appear on an ipSecTunnel interface.
+// tunnel. An ipSecTunnel interface carries exactly one tunnel, and a tunnel may
+// only appear on an ipSecTunnel interface.
 func ValidateVrouterPartnerConfig(config *megaport.VXCOrderVrouterPartnerConfig) error {
 	if config == nil {
 		return NewValidationError("vRouter partner config", nil, "cannot be nil")
@@ -443,17 +443,15 @@ func ValidateVrouterPartnerConfig(config *megaport.VXCOrderVrouterPartnerConfig)
 		if iface.InterfaceType != "" && iface.InterfaceType != megaport.InterfaceTypeSubInterface && iface.InterfaceType != megaport.InterfaceTypeIPSecTunnel {
 			return NewValidationError(fmt.Sprintf("vRouter interface [%d] interface type", i), iface.InterfaceType, fmt.Sprintf("must be '%s' or '%s'", megaport.InterfaceTypeSubInterface, megaport.InterfaceTypeIPSecTunnel))
 		}
-		if iface.InterfaceType == megaport.InterfaceTypeIPSecTunnel && len(iface.IpSecTunnelOptions) == 0 {
-			return NewValidationError(fmt.Sprintf("vRouter interface [%d] ipSecTunnelOptions", i), nil, fmt.Sprintf("at least one tunnel is required when interface type is '%s'", megaport.InterfaceTypeIPSecTunnel))
+		if iface.InterfaceType == megaport.InterfaceTypeIPSecTunnel && iface.IpSecTunnelOptions == nil {
+			return NewValidationError(fmt.Sprintf("vRouter interface [%d] ipSecTunnelOptions", i), nil, fmt.Sprintf("a tunnel is required when interface type is '%s'", megaport.InterfaceTypeIPSecTunnel))
 		}
-		if len(iface.IpSecTunnelOptions) > 0 {
+		if iface.IpSecTunnelOptions != nil {
 			if iface.InterfaceType != megaport.InterfaceTypeIPSecTunnel {
 				return NewValidationError(fmt.Sprintf("vRouter interface [%d] ipSecTunnelOptions", i), iface.InterfaceType, fmt.Sprintf("requires interface type '%s'", megaport.InterfaceTypeIPSecTunnel))
 			}
-			for j, tunnel := range iface.IpSecTunnelOptions {
-				if err := ValidateIPsecTunnelConfig(tunnel, i, j); err != nil {
-					return err
-				}
+			if err := ValidateIPsecTunnelConfig(*iface.IpSecTunnelOptions, i); err != nil {
+				return err
 			}
 		}
 	}
@@ -667,8 +665,8 @@ func ValidateBFDConfig(bfd megaport.BfdConfig, ifaceIndex int) error {
 // ValidateIPsecTunnelConfig validates a single IPsec tunnel: source IP,
 // destination IP, and PSK are required; lifetimes are optional but range-checked,
 // and phase 2 must be shorter than phase 1. The PSK is never echoed in an error.
-func ValidateIPsecTunnelConfig(tunnel megaport.IPsecTunnelConfig, ifaceIndex, tunnelIndex int) error {
-	fieldPrefix := fmt.Sprintf("vRouter interface [%d] IPsec tunnel [%d]", ifaceIndex, tunnelIndex)
+func ValidateIPsecTunnelConfig(tunnel megaport.IPsecTunnelConfig, ifaceIndex int) error {
+	fieldPrefix := fmt.Sprintf("vRouter interface [%d] IPsec tunnel", ifaceIndex)
 
 	if tunnel.SourceIpAddress == "" {
 		return NewValidationError(fmt.Sprintf("%s source IP address", fieldPrefix), tunnel.SourceIpAddress, "cannot be empty")
