@@ -11,7 +11,7 @@ This is the **WASM browser version** of the Megaport CLI that:
 - **Deployed with Docker** - Easy deployment with a containerized web server
 - **Session-based authentication** - Secure login using customer's Megaport credentials
 - **XTerm.js Terminal** - Full-featured terminal emulator with ANSI support
-- **Early Release** - Covers the main resource modules (ports, MCR, MVE, VXC, locations, partners, service keys). Auth, config, completion, `generate-docs`, and `version` are not applicable in the browser.
+- **Early Release** - Covers all registered resource modules (see Available Commands below). Auth, config, completion, `generate-docs`, and `version` are not applicable in the browser.
 
 ## Quick Start (One Command!)
 
@@ -55,10 +55,14 @@ The WASM build registers the following modules. Each module exposes the same sub
 - `mcr` - Manage Megaport Cloud Routers
 - `mve` - Manage Megaport Virtual Edge devices
 - `vxc` - Manage Virtual Cross Connects
+- `nat-gateway` - Manage NAT gateways
 - `partners` - Look up cloud partner ports
+- `product` - Inspect provisioned products
 - `servicekeys` - Manage service keys
+- `status` - Check resource provisioning status
+- `topology` - View network topology
 
-Any module not in that list is unavailable in the WASM build — including `auth`, `config`, `completion`, `generate-docs`, `version`, `nat-gateway`, `ix`, `users`, `status`, `topology`, `apply`, `product`, `managed-account`, and `billing-market`. Some rely on the local filesystem (profile storage, completion scripts); others have simply not been wired into the browser build yet. Authentication in WASM is session-based via the web UI login form.
+The registered list is the source of truth in `cmd/megaport/modules_wasm.go`. Any module not registered there is unavailable in the WASM build, including `auth`, `config`, `completion`, `generate-docs`, `version`, `ix`, `users`, `apply`, `managed-account`, and `billing-market`. Some rely on the local filesystem (profile storage, completion scripts); others have simply not been wired into the browser build yet. Authentication in WASM is session-based via the web UI login form.
 
 **Output Formats**: The WASM build supports the following output formats:
 
@@ -229,6 +233,49 @@ Customer Browser                Docker Container
 > Authentication in WASM is **session-based** via the web UI login form, not profile-based.
 
 ## Development
+
+### Enabling a Module for WASM
+
+Every module follows the same recipe to go from native-only to browser-enabled:
+
+1. **Register it.** Add the module to `registerModules()` in
+   `cmd/megaport/modules_wasm.go` (import the package and call
+   `moduleRegistry.Register(<module>.NewModule())`). This file is the source of
+   truth for what ships in the browser build.
+
+2. **Build the guard.** Run `make wasm-build-guard`
+   (`GOOS=js GOARCH=wasm go build -tags js,wasm -o /dev/null .`). This fails if
+   the module pulls in anything that does not compile under `js/wasm` (native
+   filesystem, `os/exec`, `syscall`, etc.). CI runs the same step on every PR.
+
+3. **Add a `_wasm` override only if needed.** An override is needed when the
+   native action builds its own `http.Client` instead of going through
+   `config.Login(ctx)` or `config.NewUnauthenticatedClient()` — the WASM
+   versions of those functions already use the browser fetch transport, so any
+   module that calls them directly needs no override. A module needs a
+   `<module>_actions_wasm.go` (`//go:build js && wasm`) only when its native
+   path does something the browser can't, such as reading the local filesystem
+   or constructing its own `http.Client`. The pattern is to override the
+   action's function variable in `init()`, using
+   `config.NewUnauthenticatedClient()` for public endpoints or
+   `config.Login(ctx)` for authenticated ones. If you need a reference,
+   `internal/commands/ports/ports_actions_wasm.go` shows the authenticated
+   pattern.
+
+4. **Smoke-test it.** Run `make wasm-smoke` to round-trip a command through the
+   browser fetch transport against a live API (defaults to `locations list`
+   against staging, no credentials needed). Requires Node.js 22+ on `PATH`. To
+   exercise a specific module:
+
+   ```bash
+   WASM_SMOKE_COMMAND='locations list --output json' make wasm-smoke
+   ```
+
+   The command must emit JSON (`--output json`) and return a non-empty JSON
+   array (use a `list` subcommand, not a single-resource `get`). For anything
+   that needs auth, set `MEGAPORT_ACCESS_KEY` / `MEGAPORT_SECRET_KEY` in the
+   environment first (local use only; do not add credentials to the CI smoke
+   job).
 
 ### Local Development with Hot Reload
 

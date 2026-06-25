@@ -3,6 +3,7 @@ package vxc
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	megaport "github.com/megaport/megaportgo"
@@ -639,6 +640,26 @@ func TestParseVXCEndpointConfig(t *testing.T) {
 			},
 			expectedError: "partner config",
 		},
+		{
+			name:          "vlan wrong type rejected",
+			config:        map[string]interface{}{"vlan": "one hundred"},
+			expectedError: "vlan must be a number",
+		},
+		{
+			name:          "productUID wrong type rejected",
+			config:        map[string]interface{}{"productUID": 123.0},
+			expectedError: "productUID must be a string",
+		},
+		{
+			name:          "partnerConfig wrong type rejected",
+			config:        map[string]interface{}{"partnerConfig": "not-an-object"},
+			expectedError: "partnerConfig must be an object",
+		},
+		{
+			name:          "innerVlan wrong type rejected",
+			config:        map[string]interface{}{"innerVlan": "x"},
+			expectedError: "innerVlan must be a number",
+		},
 	}
 
 	for _, tt := range tests {
@@ -704,6 +725,56 @@ func TestBuildVXCRequestFromJSON(t *testing.T) {
 			jsonFilePath:  "",
 			expectedError: "either json or json-file must be provided",
 		},
+		{
+			name:          "fractional rateLimit rejected",
+			jsonStr:       `{"portUid":"port-1","rateLimit":10.9,"term":12}`,
+			expectedError: "rateLimit must be a whole number",
+		},
+		{
+			name:          "fractional term rejected",
+			jsonStr:       `{"portUid":"port-1","rateLimit":1000,"term":10.9}`,
+			expectedError: "term must be a whole number",
+		},
+		{
+			name:          "rateLimit wrong type rejected",
+			jsonStr:       `{"portUid":"port-1","rateLimit":"fast","term":12}`,
+			expectedError: "rateLimit must be a number",
+		},
+		{
+			name:          "term wrong type rejected",
+			jsonStr:       `{"portUid":"port-1","rateLimit":1000,"term":"yearly"}`,
+			expectedError: "term must be a number",
+		},
+		{
+			name:          "vxcName wrong type rejected",
+			jsonStr:       `{"portUid":"port-1","vxcName":123,"rateLimit":1000,"term":12}`,
+			expectedError: "vxcName must be a string",
+		},
+		{
+			name:          "costCentre wrong type rejected",
+			jsonStr:       `{"portUid":"port-1","rateLimit":1000,"term":12,"costCentre":true}`,
+			expectedError: "costCentre must be a string",
+		},
+		{
+			name:          "shutdown wrong type rejected",
+			jsonStr:       `{"portUid":"port-1","rateLimit":1000,"term":12,"shutdown":"yes"}`,
+			expectedError: "shutdown must be a boolean",
+		},
+		{
+			name:          "portUid wrong type rejected",
+			jsonStr:       `{"portUid":123,"rateLimit":1000,"term":12}`,
+			expectedError: "portUid must be a string",
+		},
+		{
+			name:          "resourceTags value wrong type rejected",
+			jsonStr:       `{"portUid":"port-1","rateLimit":1000,"term":12,"resourceTags":{"env":123}}`,
+			expectedError: "resourceTags value for key \"env\" must be a string",
+		},
+		{
+			name:          "aEndConfiguration wrong type rejected",
+			jsonStr:       `{"portUid":"port-1","rateLimit":1000,"term":12,"aEndConfiguration":"not-an-object"}`,
+			expectedError: "aEndConfiguration must be an object",
+		},
 	}
 
 	for _, tt := range tests {
@@ -720,6 +791,29 @@ func TestBuildVXCRequestFromJSON(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildVXCRequestFromJSON_RejectsEmptyTagKey(t *testing.T) {
+	const payload = `{"portUid":"port-1","vxcName":"Test VXC","rateLimit":1000,"term":12,"resourceTags":{"":"x"},"bEndConfiguration":{"productUID":"port-2"}}`
+
+	t.Run("via json", func(t *testing.T) {
+		_, err := buildVXCRequestFromJSON(payload, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tag key must not be empty")
+	})
+
+	t.Run("via json-file", func(t *testing.T) {
+		tmp, err := os.CreateTemp("", "vxc-emptytag-*.json")
+		require.NoError(t, err)
+		defer os.Remove(tmp.Name())
+		_, err = tmp.WriteString(payload)
+		require.NoError(t, err)
+		require.NoError(t, tmp.Close())
+
+		_, err = buildVXCRequestFromJSON("", tmp.Name())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tag key must not be empty")
+	})
 }
 
 func TestBuildUpdateVXCRequestFromJSON_PartnerConfigs(t *testing.T) {
@@ -765,6 +859,19 @@ func TestBuildUpdateVXCRequestFromJSON_PartnerConfigs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildUpdateVXCRequestFromJSON_FractionalRateLimit(t *testing.T) {
+	_, err := buildUpdateVXCRequestFromJSON(`{"rateLimit":10.9}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rateLimit must be a whole number")
+}
+
+func TestBuildUpdateVXCRequestFromJSON_WholeRateLimit(t *testing.T) {
+	req, err := buildUpdateVXCRequestFromJSON(`{"rateLimit":2000}`, "")
+	require.NoError(t, err)
+	require.NotNil(t, req.RateLimit)
+	assert.Equal(t, 2000, *req.RateLimit)
 }
 
 func TestResolvePartnerPortUID(t *testing.T) {

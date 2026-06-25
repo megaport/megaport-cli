@@ -6,8 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
@@ -1004,29 +1007,31 @@ func TestBuyPort(t *testing.T) {
 
 func TestBuyPort_NoWaitFlag(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
-	defer cleanup()
 	originalBuyPortFunc := buyPortFunc
+	originalGetPortFunc := getPortFunc
 	defer func() {
+		cleanup()
 		buyPortFunc = originalBuyPortFunc
+		getPortFunc = originalGetPortFunc
 	}()
 	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
 	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
 	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	tests := []struct {
-		name                     string
-		noWait                   bool
-		expectedWaitForProvision bool
+		name       string
+		noWait     bool
+		expectPoll bool
 	}{
 		{
-			name:                     "default waits for provisioning",
-			noWait:                   false,
-			expectedWaitForProvision: true,
+			name:       "default waits for provisioning",
+			noWait:     false,
+			expectPoll: true,
 		},
 		{
-			name:                     "no-wait skips provisioning wait",
-			noWait:                   true,
-			expectedWaitForProvision: false,
+			name:       "no-wait skips provisioning wait",
+			noWait:     true,
+			expectPoll: false,
 		},
 	}
 
@@ -1046,6 +1051,11 @@ func TestBuyPort_NoWaitFlag(t *testing.T) {
 				return &megaport.BuyPortResponse{
 					TechnicalServiceUIDs: []string{"port-uid-123"},
 				}, nil
+			}
+			getPortCalls := 0
+			getPortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.Port, error) {
+				getPortCalls++
+				return &megaport.Port{UID: portUID, ProvisioningStatus: "LIVE"}, nil
 			}
 
 			cmd := &cobra.Command{Use: "buy"}
@@ -1077,7 +1087,13 @@ func TestBuyPort_NoWaitFlag(t *testing.T) {
 
 			assert.NoError(t, err)
 			require.NotNil(t, capturedReq)
-			assert.Equal(t, tt.expectedWaitForProvision, capturedReq.WaitForProvision)
+			// The SDK must never poll; provisioning is awaited outside the order retry.
+			assert.False(t, capturedReq.WaitForProvision)
+			if tt.expectPoll {
+				assert.Positive(t, getPortCalls, "expected a provisioning poll when not using --no-wait")
+			} else {
+				assert.Zero(t, getPortCalls, "no provisioning poll expected with --no-wait")
+			}
 		})
 	}
 }
@@ -1764,29 +1780,31 @@ func TestBuyPort_Confirmation(t *testing.T) {
 
 func TestBuyLAGPort_NoWaitFlag(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
-	defer cleanup()
 	originalBuyPortFunc := buyPortFunc
+	originalGetPortFunc := getPortFunc
 	defer func() {
+		cleanup()
 		buyPortFunc = originalBuyPortFunc
+		getPortFunc = originalGetPortFunc
 	}()
 	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
 	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
 	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	tests := []struct {
-		name                     string
-		noWait                   bool
-		expectedWaitForProvision bool
+		name       string
+		noWait     bool
+		expectPoll bool
 	}{
 		{
-			name:                     "default waits for provisioning",
-			noWait:                   false,
-			expectedWaitForProvision: true,
+			name:       "default waits for provisioning",
+			noWait:     false,
+			expectPoll: true,
 		},
 		{
-			name:                     "no-wait skips provisioning wait",
-			noWait:                   true,
-			expectedWaitForProvision: false,
+			name:       "no-wait skips provisioning wait",
+			noWait:     true,
+			expectPoll: false,
 		},
 	}
 
@@ -1804,6 +1822,11 @@ func TestBuyLAGPort_NoWaitFlag(t *testing.T) {
 				return &megaport.BuyPortResponse{
 					TechnicalServiceUIDs: []string{"lag-uid-123"},
 				}, nil
+			}
+			getPortCalls := 0
+			getPortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.Port, error) {
+				getPortCalls++
+				return &megaport.Port{UID: portUID, ProvisioningStatus: "LIVE"}, nil
 			}
 
 			cmd := &cobra.Command{Use: "buy-lag"}
@@ -1836,7 +1859,13 @@ func TestBuyLAGPort_NoWaitFlag(t *testing.T) {
 
 			assert.NoError(t, err)
 			require.NotNil(t, capturedReq)
-			assert.Equal(t, tt.expectedWaitForProvision, capturedReq.WaitForProvision)
+			// The SDK must never poll; provisioning is awaited outside the order retry.
+			assert.False(t, capturedReq.WaitForProvision)
+			if tt.expectPoll {
+				assert.Positive(t, getPortCalls, "expected a provisioning poll when not using --no-wait")
+			} else {
+				assert.Zero(t, getPortCalls, "no provisioning poll expected with --no-wait")
+			}
 		})
 	}
 }
@@ -2568,4 +2597,160 @@ func captureStderr(t *testing.T, fn func()) (result string) {
 	defer func() { _ = w.Close(); <-done; _ = r.Close(); result = buf.String() }()
 	fn()
 	return
+}
+
+// TestBuyPort_NoResubmitOnPollRetryableError proves the order is submitted exactly
+// once even when a retryable error (429) surfaces during the provisioning poll.
+// The poll must run outside the order-submission retry, so a poll-phase 429 fails
+// the command rather than re-placing the order and double-billing.
+func TestBuyPort_NoResubmitOnPollRetryableError(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	originalBuyPortFunc := buyPortFunc
+	originalGetPortFunc := getPortFunc
+	originalMaxRetries := utils.MaxRetries
+	originalPollInterval := utils.ProvisionPollInterval
+	originalNoRetry := utils.NoRetry
+	defer func() {
+		cleanup()
+		buyPortFunc = originalBuyPortFunc
+		getPortFunc = originalGetPortFunc
+		utils.MaxRetries = originalMaxRetries
+		utils.ProvisionPollInterval = originalPollInterval
+		utils.NoRetry = originalNoRetry
+	}()
+	// Retries are available; if the poll were wrapped in the order retry, the 429
+	// would re-submit the order.
+	utils.MaxRetries = 3
+	utils.NoRetry = false
+	utils.ProvisionPollInterval = time.Millisecond
+
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	mockService := &MockPortService{}
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.PortService = mockService
+		return client, nil
+	})
+
+	buyCalls := 0
+	buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
+		buyCalls++
+		return &megaport.BuyPortResponse{TechnicalServiceUIDs: []string{"port-uid-123"}}, nil
+	}
+	getPortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.Port, error) {
+		return nil, &megaport.ErrorResponse{
+			Response: &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Header:     http.Header{},
+				Request:    &http.Request{URL: &url.URL{}},
+			},
+			Message: "too many requests",
+		}
+	}
+
+	cmd := &cobra.Command{Use: "buy"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().Bool("no-wait", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().Int("term", 0, "")
+	cmd.Flags().Int("port-speed", 0, "")
+	cmd.Flags().Int("location-id", 0, "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
+	cmd.Flags().String("diversity-zone", "", "")
+	cmd.Flags().Bool("cost-confirm", true, "")
+
+	require.NoError(t, cmd.Flags().Set("name", "test-port"))
+	require.NoError(t, cmd.Flags().Set("term", "12"))
+	require.NoError(t, cmd.Flags().Set("port-speed", "1000"))
+	require.NoError(t, cmd.Flags().Set("location-id", "1"))
+	require.NoError(t, cmd.Flags().Set("marketplace-visibility", "true"))
+	// no-wait stays false: the provisioning poll must run.
+
+	var err error
+	output.CaptureOutput(func() {
+		err = BuyPort(cmd, nil, true)
+	})
+
+	assert.Error(t, err, "a retryable error during the provisioning poll must surface as an error")
+	assert.Equal(t, 1, buyCalls, "the order must be submitted exactly once; a poll-phase 429 must not re-submit it")
+}
+
+// TestBuyLAGPort_OrderAndProvisionFailures covers BuyLAGPort's order-submission
+// error branch and the provisioning-poll branch where the port is not found.
+func TestBuyLAGPort_OrderAndProvisionFailures(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	originalBuyPortFunc := buyPortFunc
+	originalGetPortFunc := getPortFunc
+	defer func() {
+		cleanup()
+		buyPortFunc = originalBuyPortFunc
+		getPortFunc = originalGetPortFunc
+	}()
+
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	tests := []struct {
+		name     string
+		buyResp  *megaport.BuyPortResponse
+		buyErr   error
+		getNil   bool
+		errMatch string
+	}{
+		{name: "order submission fails", buyErr: fmt.Errorf("order rejected"), errMatch: "order rejected"},
+		{name: "LAG port not found during provisioning poll", buyResp: &megaport.BuyPortResponse{TechnicalServiceUIDs: []string{"lag-uid-123"}}, getNil: true, errMatch: "not found while waiting for provisioning"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.PortService = &MockPortService{}
+				return client, nil
+			})
+			buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
+				return tt.buyResp, tt.buyErr
+			}
+			getPortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.Port, error) {
+				if tt.getNil {
+					return nil, nil
+				}
+				return &megaport.Port{UID: portUID, ProvisioningStatus: "LIVE"}, nil
+			}
+
+			cmd := &cobra.Command{Use: "buy-lag"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Bool("marketplace-visibility", false, "")
+			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().Bool("cost-confirm", true, "")
+			cmd.Flags().Int("lag-count", 0, "")
+
+			require.NoError(t, cmd.Flags().Set("name", "test-lag"))
+			require.NoError(t, cmd.Flags().Set("term", "12"))
+			require.NoError(t, cmd.Flags().Set("port-speed", "10000"))
+			require.NoError(t, cmd.Flags().Set("location-id", "1"))
+			require.NoError(t, cmd.Flags().Set("lag-count", "2"))
+
+			var err error
+			output.CaptureOutput(func() {
+				err = BuyLAGPort(cmd, nil, true)
+			})
+
+			if assert.Error(t, err) {
+				assert.Contains(t, err.Error(), tt.errMatch)
+			}
+		})
+	}
 }

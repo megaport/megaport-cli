@@ -26,6 +26,10 @@ func processJSONMCRInput(jsonStr, jsonFile string) (*megaport.BuyMCRRequest, err
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
+	if err := utils.RejectEmptyTagKeys(req.ResourceTags); err != nil {
+		return nil, err
+	}
+
 	// BuyMCRRequest.AddOns is []MCRAddOn (interface) and cannot be directly
 	// unmarshaled by the standard library. Read tunnelCount separately using a
 	// pointer so we can distinguish "key absent" from an explicit value.

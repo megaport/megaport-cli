@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
@@ -1041,19 +1044,19 @@ func TestBuyMVE_NoWaitFlag(t *testing.T) {
 	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	tests := []struct {
-		name                     string
-		noWait                   bool
-		expectedWaitForProvision bool
+		name       string
+		noWait     bool
+		expectPoll bool
 	}{
 		{
-			name:                     "default waits for provisioning",
-			noWait:                   false,
-			expectedWaitForProvision: true,
+			name:       "default waits for provisioning",
+			noWait:     false,
+			expectPoll: true,
 		},
 		{
-			name:                     "no-wait skips provisioning wait",
-			noWait:                   true,
-			expectedWaitForProvision: false,
+			name:       "no-wait skips provisioning wait",
+			noWait:     true,
+			expectPoll: false,
 		},
 	}
 
@@ -1099,9 +1102,79 @@ func TestBuyMVE_NoWaitFlag(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.NotNil(t, mockService.CapturedBuyMVERequest)
-			assert.Equal(t, tt.expectedWaitForProvision, mockService.CapturedBuyMVERequest.WaitForProvision)
+			// The SDK must never poll; provisioning is awaited outside the order retry.
+			assert.False(t, mockService.CapturedBuyMVERequest.WaitForProvision)
+			if tt.expectPoll {
+				assert.Positive(t, mockService.GetMVECallCount, "expected a provisioning poll when not using --no-wait")
+			} else {
+				assert.Zero(t, mockService.GetMVECallCount, "no provisioning poll expected with --no-wait")
+			}
 		})
 	}
+}
+
+// TestBuyMVE_NoResubmitOnPollRetryableError proves the order is submitted exactly
+// once even when a retryable error (429) surfaces during the provisioning poll.
+func TestBuyMVE_NoResubmitOnPollRetryableError(t *testing.T) {
+	originalMaxRetries := utils.MaxRetries
+	originalPollInterval := utils.ProvisionPollInterval
+	originalNoRetry := utils.NoRetry
+	defer func() {
+		utils.MaxRetries = originalMaxRetries
+		utils.ProvisionPollInterval = originalPollInterval
+		utils.NoRetry = originalNoRetry
+	}()
+	utils.MaxRetries = 3
+	utils.NoRetry = false
+	utils.ProvisionPollInterval = time.Millisecond
+
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	mockService := &MockMVEService{}
+	mockService.BuyMVEResult = &megaport.BuyMVEResponse{TechnicalServiceUID: "mve-uid-123"}
+	mockService.GetMVEErr = &megaport.ErrorResponse{
+		Response: &http.Response{
+			StatusCode: http.StatusTooManyRequests,
+			Header:     http.Header{},
+			Request:    &http.Request{URL: &url.URL{}},
+		},
+		Message: "too many requests",
+	}
+
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.MVEService = mockService
+	})
+	defer cleanup()
+
+	cmd := &cobra.Command{Use: "buy"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().Bool("no-wait", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().Int("term", 0, "")
+	cmd.Flags().Int("location-id", 0, "")
+	cmd.Flags().String("vendor-config", "", "")
+	cmd.Flags().String("vnics", "", "")
+
+	testutil.SetFlags(t, cmd, map[string]string{
+		"name":          "Test MVE",
+		"term":          "12",
+		"location-id":   "123",
+		"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
+		"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
+	})
+	// no-wait stays false: the provisioning poll must run.
+
+	var err error
+	output.CaptureOutput(func() {
+		err = BuyMVE(cmd, nil, true)
+	})
+
+	assert.Error(t, err, "a retryable error during the provisioning poll must surface as an error")
+	assert.Equal(t, 1, mockService.BuyMVECallCount, "the order must be submitted exactly once; a poll-phase 429 must not re-submit it")
 }
 
 func TestListMVEsCmd_WithMockClient(t *testing.T) {
@@ -2560,6 +2633,68 @@ func TestListMVEs_TagFilter(t *testing.T) {
 			}
 			for _, notExp := range tt.notExpected {
 				assert.NotContains(t, capturedOutput, notExp)
+			}
+		})
+	}
+}
+
+// TestBuyMVE_OrderAndProvisionFailures covers the order-response and
+// provisioning-poll failure branches: an empty API response, a missing UID, and
+// the MVE vanishing during the provisioning poll.
+func TestBuyMVE_OrderAndProvisionFailures(t *testing.T) {
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	tests := []struct {
+		name     string
+		nilResp  bool
+		buyResp  *megaport.BuyMVEResponse
+		getNil   bool
+		errMatch string
+	}{
+		{name: "empty API response", nilResp: true, errMatch: "empty response from API"},
+		{name: "no UID returned", buyResp: &megaport.BuyMVEResponse{}, errMatch: "no UID returned"},
+		{name: "MVE not found during provisioning poll", buyResp: &megaport.BuyMVEResponse{TechnicalServiceUID: "mve-uid-123"}, getNil: true, errMatch: "not found while waiting for provisioning"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockMVEService{
+				BuyMVENilResp:  tt.nilResp,
+				BuyMVEResult:   tt.buyResp,
+				ForceNilGetMVE: tt.getNil,
+			}
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+				c.MVEService = mockService
+			})
+			defer cleanup()
+
+			cmd := &cobra.Command{Use: "buy"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().String("vendor-config", "", "")
+			cmd.Flags().String("vnics", "", "")
+
+			testutil.SetFlags(t, cmd, map[string]string{
+				"name":          "Test MVE",
+				"term":          "12",
+				"location-id":   "123",
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
+				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
+			})
+
+			var err error
+			output.CaptureOutput(func() {
+				err = BuyMVE(cmd, nil, true)
+			})
+
+			if assert.Error(t, err) {
+				assert.Contains(t, err.Error(), tt.errMatch)
 			}
 		})
 	}
