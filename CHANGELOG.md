@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `servicekeys update` now exits non-zero when the API reports the update was not applied (previously it warned and exited 0)
 
+### Removed
+- `mve restore` command. It called the SDK's `RestoreProduct` (an un-cancel action), which requires a `CANCELLED` resource, but MVEs can only be deleted immediately (straight to `DECOMMISSIONED`) and the API rejects the terminate-later cancellation that would reach `CANCELLED`, so the command could never succeed.
+
 ### Fixed
 - `servicekeys update` no longer resets `active` and `single-use` to false when those flags are omitted
 - `servicekeys update`: passing both `--product-uid` and `--product-id` now errors instead of being sent to the SDK

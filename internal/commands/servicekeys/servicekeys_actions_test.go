@@ -63,6 +63,58 @@ func TestCreateServiceKey_FlagsPropagated(t *testing.T) {
 	assert.Equal(t, 100, req.VLAN)
 }
 
+func TestCreateServiceKey_NilResponse(t *testing.T) {
+	mockService := &MockServiceKeyService{CreateServiceKeyReturnNil: true}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.ServiceKeyService = mockService
+	})
+	defer cleanup()
+
+	cmd := testutil.NewCommand("create", testutil.NoColorAdapter(CreateServiceKey))
+	cmd.Flags().String("product-uid", "", "")
+	cmd.Flags().Int("product-id", 0, "")
+	cmd.Flags().Bool("single-use", false, "")
+	cmd.Flags().Int("max-speed", 0, "")
+	cmd.Flags().String("description", "", "")
+	cmd.Flags().String("start-date", "", "")
+	cmd.Flags().String("end-date", "", "")
+	cmd.Flags().Bool("active", false, "")
+	cmd.Flags().Bool("pre-approved", false, "")
+	cmd.Flags().Int("vlan", 0, "")
+
+	testutil.SetFlags(t, cmd, map[string]string{
+		"product-uid": "prod-uid-123",
+		"description": "test key",
+	})
+
+	var err error
+	output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, []string{})
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response from API")
+}
+
+func TestGetServiceKey_NilResponse(t *testing.T) {
+	mockService := &MockServiceKeyService{GetServiceKeyReturnNil: true}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.ServiceKeyService = mockService
+	})
+	defer cleanup()
+
+	cmd := testutil.NewCommand("get", testutil.OutputAdapter(GetServiceKey))
+	defer output.SetOutputFormat("table")
+
+	var err error
+	output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, []string{"test-key-id"})
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response from API")
+}
+
 func TestCreateServiceKey_InvalidDateParsing(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
@@ -267,6 +319,44 @@ func TestUpdateServiceKey(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUpdateServiceKey_NilResponse(t *testing.T) {
+	mockService := &MockServiceKeyService{GetServiceKeyReturnNil: true}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.ServiceKeyService = mockService
+	})
+	defer cleanup()
+
+	cmd := newUpdateServiceKeyCmd()
+
+	var err error
+	output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, []string{"test-key-123"})
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response from API")
+	assert.Nil(t, mockService.CapturedUpdateServiceKeyRequest)
+}
+
+func TestUpdateServiceKey_NilUpdateResponse(t *testing.T) {
+	mockService := &MockServiceKeyService{UpdateServiceKeyReturnNil: true}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.ServiceKeyService = mockService
+	})
+	defer cleanup()
+
+	cmd := newUpdateServiceKeyCmd()
+	testutil.SetFlags(t, cmd, map[string]string{"active": "true"})
+
+	var err error
+	output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, []string{"test-key-123"})
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response from API")
 }
 
 func TestUpdateServiceKey_BothProductFlagsRejected(t *testing.T) {
@@ -573,4 +663,25 @@ func TestListServiceKeys_NegativeLimit(t *testing.T) {
 	err := cmd.RunE(cmd, []string{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "--limit must be a non-negative integer")
+}
+
+func TestListServiceKeys_NilResponse(t *testing.T) {
+	mockService := &MockServiceKeyService{ListServiceKeysReturnNil: true}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.ServiceKeyService = mockService
+	})
+	defer cleanup()
+
+	cmd := testutil.NewCommand("list", testutil.OutputAdapter(ListServiceKeys))
+	cmd.Flags().String("product-uid", "", "")
+	cmd.Flags().Int("limit", 0, "")
+	defer output.SetOutputFormat("table")
+
+	var err error
+	output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, []string{})
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response from API")
 }

@@ -572,7 +572,7 @@ func TestStartWithElapsed(t *testing.T) {
 		assert.Contains(t, output, "elapsed")
 	})
 
-	t.Run("json output format writes to stderr", func(t *testing.T) {
+	t.Run("non-table format writes a single plain line to stderr", func(t *testing.T) {
 		spinner := NewSpinnerWithOutput(true, "json")
 		// Capture stderr by redirecting os.Stderr
 		r, w, _ := os.Pipe()
@@ -585,7 +585,11 @@ func TestStartWithElapsed(t *testing.T) {
 		os.Stderr = oldStderr
 		var buf bytes.Buffer
 		_, _ = io.Copy(&buf, r)
-		assert.Contains(t, buf.String(), "elapsed")
+		out := buf.String()
+		assert.Contains(t, out, "Provisioning...")
+		assert.NotContains(t, out, "elapsed", "non-interactive sink must not animate the elapsed counter")
+		assert.NotContains(t, out, "\r", "non-interactive sink must not emit carriage returns")
+		assert.NotContains(t, out, "\x1b[K", "non-interactive sink must not emit clear-line escapes")
 	})
 }
 

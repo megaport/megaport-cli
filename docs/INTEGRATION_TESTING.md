@@ -61,7 +61,7 @@ A lifecycle test that lives in a package the nightly read-only job also runs car
 package servicekeys
 ```
 
-The nightly read-only job builds only `-tags integration`, so this tag keeps the mutating test out of it. It is needed only for packages that the read-only job runs — currently `servicekeys` and `users`, which have read-only `list`/`get` tests nightly but whose lifecycle tests provision resources (the service key test buys a port to use as its product). Lifecycle tests in packages the read-only job does not run (ports, VXC, MCR, MVE, IX) are excluded from nightly by package selection alone, so they stay `//go:build integration` only.
+The nightly read-only job builds only `-tags integration`, so this tag keeps the mutating test out of it. It is needed for packages whose read-only tests run nightly: `servicekeys` and `users` (read-only `list`/`get` tests, whose lifecycle tests provision resources, e.g. the service key test buys a port to use as its product), and `ports`, whose lifecycle tests live in `ports_integration_test.go` under `//go:build integration && provisioning`. The read-only job does select the `ports`, VXC, MCR, MVE, and IX packages, but scopes them to the `-run 'TestIntegration_.*ReadOnly$'` name filter. For `ports` the `provisioning` tag is a second guard on top of that filter, so the lifecycle tests cannot compile into the nightly binary even if the name filter were ever loosened. VXC, MCR, MVE, and IX lifecycle tests currently rely on the name filter alone (`//go:build integration`); aligning them with the `ports` approach is a known follow-up. IX is the weakest case: its lifecycle and read-only tests share one file (`ix_integration_test.go`), so only the `-run` regex keeps the IX lifecycle test out of nightly.
 
 ## CI
 
@@ -77,7 +77,7 @@ Integration tests run in CI via `.github/workflows/integration-test.yml`:
 3. Authenticate using one of the helpers below (see "Authentication helpers")
 4. Call action functions directly. For parallel tests, read state via `testutil.SharedIntegrationClient(t)` rather than `output.CaptureOutput` (see "Output capture and parallelism")
 5. Use `t.Cleanup()` for resource deletion (e.g. deleting staging ports/VXCs) so cleanup runs even on test failure; `defer` is fine for non-resource cleanup like restoring login state
-6. If the test mutates real resources *and* lives in a package the nightly read-only job runs (e.g. `servicekeys`, `users`), add `&& provisioning` to the build tag and put it in its own file so the read-only job skips it. A mutating test in a package the read-only job does not run needs only `//go:build integration` — package selection keeps it out of nightly
+6. If the test mutates real resources *and* lives in a package the nightly read-only job runs (`servicekeys`, `users`, `ports`, VXC, MCR, MVE, IX), keep it in the package's provisioning-lifecycle file rather than the read-only file. For `servicekeys`, `users`, and `ports` that file carries `//go:build integration && provisioning` so the tag itself excludes it from nightly; for VXC, MCR, MVE, and IX the lifecycle file is still `//go:build integration` and relies on the read-only job's `-run 'TestIntegration_.*ReadOnly$'` name filter alone
 7. Add the package to the provisioning job in `.github/workflows/integration-test.yml`
 
 See `internal/commands/locations/locations_integration_test.go` for a serial read-only example and `internal/commands/ports/ports_integration_test.go` for a parallel provisioning-lifecycle example.

@@ -314,6 +314,11 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	if resp == nil {
+		output.PrintError("VXC buy returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
+	}
+
 	output.PrintResourceCreated("VXC", resp.TechnicalServiceUID, noColor)
 	return nil
 }
