@@ -77,6 +77,11 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("failed to create service key: %w", err)
 	}
 
+	if resp == nil {
+		output.PrintError("Service key create returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
+	}
+
 	output.PrintResourceCreated("Service Key", resp.ServiceKeyUID, noColor)
 	return nil
 }
@@ -102,6 +107,11 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 	if err != nil {
 		output.PrintError("Failed to fetch current service key: %v", noColor, err)
 		return fmt.Errorf("failed to fetch current service key: %w", err)
+	}
+
+	if current == nil {
+		output.PrintError("Service key get returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
 	}
 
 	req := &megaport.UpdateServiceKeyRequest{
@@ -137,6 +147,11 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("failed to update service key: %w", err)
 	}
 
+	if resp == nil {
+		output.PrintError("Service key update returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
+	}
+
 	if !resp.IsUpdated {
 		output.PrintError("Service key update was not applied", noColor)
 		return fmt.Errorf("service key update was not applied")
@@ -170,6 +185,11 @@ func ListServiceKeys(cmd *cobra.Command, args []string, noColor bool, outputForm
 	if err != nil {
 		output.PrintError("Failed to list service keys: %v", noColor, err)
 		return fmt.Errorf("failed to list service keys: %w", err)
+	}
+
+	if resp == nil {
+		output.PrintError("Service key list returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
 	}
 
 	serviceKeys := resp.ServiceKeys
@@ -221,6 +241,11 @@ func GetServiceKey(cmd *cobra.Command, args []string, noColor bool, outputFormat
 	if err != nil {
 		output.PrintError("Failed to get service key: %v", noColor, err)
 		return fmt.Errorf("failed to get service key: %w", err)
+	}
+
+	if resp == nil {
+		output.PrintError("Service key get returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
 	}
 
 	op, err := toServiceKeyOutput(resp)

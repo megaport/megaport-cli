@@ -1,6 +1,7 @@
 package apply
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -33,17 +34,6 @@ const (
 	// or pathological file (e.g. /dev/zero) and exhausting memory.
 	maxConfigFileSize = 10 * 1024 * 1024
 )
-
-// provisionPollInterval is how often the provision-wait loop polls resource
-// status. Overridable in tests to avoid 10s sleeps.
-var provisionPollInterval = 10 * time.Second
-
-// readyStates are the provisioning states considered fully provisioned.
-var readyStates = []string{megaport.SERVICE_CONFIGURED, megaport.SERVICE_LIVE}
-
-// failedStates are terminal states that mean provisioning will never succeed,
-// so the wait loop should fail fast instead of polling until the timeout.
-var failedStates = []string{megaport.STATUS_DECOMMISSIONED, megaport.STATUS_CANCELLED}
 
 // templateRe matches {{.type.name}} references in config values.
 var templateRe = regexp.MustCompile(`\{\{\.(\w+)\.([^}]+)\}\}`)
@@ -189,10 +179,13 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		// though provisioning has not completed. If the wait below fails, the
 		// resource must still be visible to rollback/orphan reporting.
 		created = append(created, createdResource{resType: "Port", name: p.Name, uid: uid})
-		if err := waitForProvision(ctx, "Port", p.Name, uid, func(ctx context.Context) (string, error) {
+		if err := utils.WaitForProvision(ctx, "Port", p.Name, uid, func(ctx context.Context) (string, error) {
 			port, e := client.PortService.GetPort(ctx, uid)
 			if e != nil {
 				return "", e
+			}
+			if port == nil {
+				return "", fmt.Errorf("empty response from API")
 			}
 			return port.ProvisioningStatus, nil
 		}); err != nil {
@@ -208,6 +201,11 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 
 	// 2. MCRs
 	for _, m := range cfg.MCRs {
+		if err := validation.ValidateIPSecTunnelCount(m.TunnelCount, true); err != nil {
+			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: statusError + ": " + err.Error()})
+			return handleFailure(client, created, results, outputFormat, noColor, rollback, rollbackTimeout,
+				fmt.Errorf("validation failed for MCR %q: %w", m.Name, err))
+		}
 		req := &megaport.BuyMCRRequest{
 			Name:             m.Name,
 			LocationID:       m.LocationID,
@@ -217,6 +215,7 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			DiversityZone:    m.DiversityZone,
 			CostCentre:       m.CostCentre,
 			ResourceTags:     m.ResourceTags,
+			AddOns:           mcrAddOns(m.TunnelCount),
 			WaitForProvision: false,
 		}
 		if err := validation.ValidateMCRRequest(req); err != nil {
@@ -264,10 +263,13 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		uids["mcr"][m.Name] = uid
 		created = append(created, createdResource{resType: "MCR", name: m.Name, uid: uid})
-		if err := waitForProvision(ctx, "MCR", m.Name, uid, func(ctx context.Context) (string, error) {
+		if err := utils.WaitForProvision(ctx, "MCR", m.Name, uid, func(ctx context.Context) (string, error) {
 			mcr, e := client.MCRService.GetMCR(ctx, uid)
 			if e != nil {
 				return "", e
+			}
+			if mcr == nil {
+				return "", fmt.Errorf("empty response from API")
 			}
 			return mcr.ProvisioningStatus, nil
 		}); err != nil {
@@ -350,10 +352,13 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		uids["mve"][mv.Name] = uid
 		created = append(created, createdResource{resType: "MVE", name: mv.Name, uid: uid})
-		if err := waitForProvision(ctx, "MVE", mv.Name, uid, func(ctx context.Context) (string, error) {
+		if err := utils.WaitForProvision(ctx, "MVE", mv.Name, uid, func(ctx context.Context) (string, error) {
 			m, e := client.MVEService.GetMVE(ctx, uid)
 			if e != nil {
 				return "", e
+			}
+			if m == nil {
+				return "", fmt.Errorf("empty response from API")
 			}
 			return m.ProvisioningStatus, nil
 		}); err != nil {
@@ -443,10 +448,13 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 		}
 		uids["vxc"][v.Name] = uid
 		created = append(created, createdResource{resType: "VXC", name: v.Name, uid: uid})
-		if err := waitForProvision(ctx, "VXC", v.Name, uid, func(ctx context.Context) (string, error) {
+		if err := utils.WaitForProvision(ctx, "VXC", v.Name, uid, func(ctx context.Context) (string, error) {
 			vxc, e := client.VXCService.GetVXC(ctx, uid)
 			if e != nil {
 				return "", e
+			}
+			if vxc == nil {
+				return "", fmt.Errorf("empty response from API")
 			}
 			return vxc.ProvisioningStatus, nil
 		}); err != nil {
@@ -538,49 +546,6 @@ func doRollback(client *megaport.Client, created []createdResource, jsonMode boo
 	return failErr
 }
 
-// waitForProvision polls getStatus until the resource reaches a ready state,
-// the caller's deadline elapses, ctx is cancelled, or getStatus returns an
-// error. The order has already been placed by the time this runs, so the
-// caller must have recorded the resource as created before calling this.
-func waitForProvision(ctx context.Context, resType, name, uid string, getStatus func(ctx context.Context) (string, error)) error {
-	check := func() (bool, error) {
-		status, err := getStatus(ctx)
-		if err != nil {
-			return false, err
-		}
-		if slices.Contains(failedStates, status) {
-			return false, fmt.Errorf("%s %q (%s) entered terminal state %q during provisioning", resType, name, uid, status)
-		}
-		return slices.Contains(readyStates, status), nil
-	}
-
-	if ready, err := check(); err != nil || ready {
-		return err
-	}
-
-	// Respect the caller's deadline (e.g. from --timeout); only impose the
-	// default cap when the caller passed an open-ended context.
-	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, defaultWaitTime)
-		defer cancel()
-	}
-
-	ticker := time.NewTicker(provisionPollInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("timed out waiting for %s %q (%s) to provision: %w", resType, name, uid, ctx.Err())
-		case <-ticker.C:
-			if ready, err := check(); err != nil || ready {
-				return err
-			}
-		}
-	}
-}
-
 // deleteResource deletes a single provisioned resource via the appropriate service client.
 func deleteResource(ctx context.Context, client *megaport.Client, r createdResource) error {
 	switch r.resType {
@@ -598,6 +563,19 @@ func deleteResource(ctx context.Context, client *megaport.Client, r createdResou
 	default:
 		return fmt.Errorf("unknown resource type %q", r.resType)
 	}
+}
+
+// mcrAddOns builds the MCR add-on list from an apply config. A tunnel count of
+// 0 (or absent) means no IPsec add-on. Callers validate the count first; the
+// add-on type is set explicitly to match the mcr buy command.
+func mcrAddOns(tunnelCount int) []megaport.MCRAddOn {
+	if tunnelCount <= 0 {
+		return nil
+	}
+	return []megaport.MCRAddOn{&megaport.MCRAddOnIPsecConfig{
+		AddOnType:   megaport.AddOnTypeIPsec,
+		TunnelCount: tunnelCount,
+	}}
 }
 
 // validateAll runs SDK-level validation for every resource without provisioning.
@@ -629,6 +607,10 @@ func validateAll(ctx context.Context, client *megaport.Client, cfg *InfraConfig,
 	}
 
 	for _, m := range cfg.MCRs {
+		if err := validation.ValidateIPSecTunnelCount(m.TunnelCount, true); err != nil {
+			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: "invalid: " + err.Error()})
+			continue
+		}
 		req := &megaport.BuyMCRRequest{
 			Name:          m.Name,
 			LocationID:    m.LocationID,
@@ -638,6 +620,7 @@ func validateAll(ctx context.Context, client *megaport.Client, cfg *InfraConfig,
 			DiversityZone: m.DiversityZone,
 			CostCentre:    m.CostCentre,
 			ResourceTags:  m.ResourceTags,
+			AddOns:        mcrAddOns(m.TunnelCount),
 		}
 		if err := validation.ValidateMCRRequest(req); err != nil {
 			results = append(results, ApplyResult{Type: "MCR", Name: m.Name, Status: "invalid: " + err.Error()})
@@ -753,8 +736,9 @@ func validateAll(ctx context.Context, client *megaport.Client, cfg *InfraConfig,
 	return output.PrintOutput(results, outputFormat, noColor)
 }
 
-// parseConfigFile reads filePath and decodes it into InfraConfig.
-// It detects YAML vs JSON by file extension.
+// parseConfigFile reads filePath and decodes it into InfraConfig, detecting YAML
+// vs JSON by file extension. Unknown keys are rejected so a mistyped field (e.g.
+// tunnelCount instead of tunnel_count) is a clear error rather than silently dropped.
 func parseConfigFile(filePath string) (*InfraConfig, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
@@ -776,12 +760,36 @@ func parseConfigFile(filePath string) (*InfraConfig, error) {
 	ext := strings.ToLower(filepath.Ext(filePath))
 	switch ext {
 	case ".json":
-		if err := json.Unmarshal(data, cfg); err != nil {
+		dec := json.NewDecoder(bytes.NewReader(data))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(cfg); err != nil {
 			return nil, fmt.Errorf("parsing JSON config: %w", err)
 		}
+		// Reject trailing data so a duplicated or concatenated body isn't silently ignored.
+		if dec.More() {
+			return nil, fmt.Errorf("parsing JSON config: unexpected trailing data after the config object")
+		}
 	default: // .yaml, .yml, or anything else
-		if err := yaml.Unmarshal(data, cfg); err != nil {
+		dec := yaml.NewDecoder(bytes.NewReader(data))
+		dec.KnownFields(true)
+		// An empty document decodes to io.EOF; treat it as an empty config.
+		if err := dec.Decode(cfg); err != nil && !errors.Is(err, io.EOF) {
 			return nil, fmt.Errorf("parsing YAML config: %w", err)
+		}
+		// Reject a further document that carries content so a stray one isn't silently
+		// dropped. A trailing `---` or comment decodes to an empty document and is benign.
+		for {
+			var extra interface{}
+			err := dec.Decode(&extra)
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				return nil, fmt.Errorf("parsing YAML config: %w", err)
+			}
+			if extra != nil {
+				return nil, fmt.Errorf("parsing YAML config: unexpected content after the first document")
+			}
 		}
 	}
 	return cfg, nil

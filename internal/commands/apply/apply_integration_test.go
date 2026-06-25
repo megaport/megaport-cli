@@ -15,6 +15,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/testutil"
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -37,7 +38,7 @@ func init() {
 	// Integration runs poll real staging status; 2s keeps lifecycle tests
 	// responsive without the 10s production default. Only compiled under the
 	// integration build tag, so unit tests keep the default.
-	provisionPollInterval = 2 * time.Second
+	utils.ProvisionPollInterval = 2 * time.Second
 }
 
 func generateUniqueID(t *testing.T) string {

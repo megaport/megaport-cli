@@ -860,6 +860,37 @@ func TestBuildVXCRequestFromPrompt(t *testing.T) {
 				assert.Equal(t, "port-b-456", req.BEndConfiguration.ProductUID)
 			},
 		},
+		{
+			// vNIC index 0 is a valid MVE interface. Entering "0" must build the
+			// MVE config, not silently drop it (the old gate keyed on index > 0).
+			name: "vNIC index 0 builds MVE config on both ends",
+			responses: []string{
+				"Test VXC",   // name
+				"100",        // rate limit
+				"12",         // term
+				"100",        // A-End VLAN
+				"",           // A-End inner VLAN
+				"0",          // A-End vNIC index
+				"no",         // A-End partner config
+				"port-a-123", // A-End product UID
+				"200",        // B-End VLAN
+				"",           // B-End inner VLAN
+				"0",          // B-End vNIC index
+				"no",         // B-End partner config
+				"port-b-456", // B-End product UID
+				"",           // promo code
+				"",           // service key
+				"",           // cost centre
+			},
+			verify: func(t *testing.T, req *megaport.BuyVXCRequest) {
+				if assert.NotNil(t, req.AEndConfiguration.VXCOrderMVEConfig) {
+					assert.Equal(t, 0, req.AEndConfiguration.NetworkInterfaceIndex)
+				}
+				if assert.NotNil(t, req.BEndConfiguration.VXCOrderMVEConfig) {
+					assert.Equal(t, 0, req.BEndConfiguration.NetworkInterfaceIndex)
+				}
+			},
+		},
 	}
 
 	for _, tc := range tests {

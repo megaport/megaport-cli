@@ -95,7 +95,7 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		VLAN: aEndVLAN,
 	}
 
-	if aEndInnerVLAN != 0 || aEndVNICIndex > 0 {
+	if aEndInnerVLAN != 0 || aEndVNICIndexStr != "" {
 		aEndConfig.VXCOrderMVEConfig = &megaport.VXCOrderMVEConfig{
 			InnerVLAN:             aEndInnerVLAN,
 			NetworkInterfaceIndex: aEndVNICIndex,
@@ -176,7 +176,7 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		}
 	}
 
-	if bEndInnerVLAN != 0 || bEndVNICIndex > 0 {
+	if bEndInnerVLAN != 0 || bEndVNICIndexStr != "" {
 		bEndConfig.VXCOrderMVEConfig = &megaport.VXCOrderMVEConfig{
 			InnerVLAN:             bEndInnerVLAN,
 			NetworkInterfaceIndex: bEndVNICIndex,

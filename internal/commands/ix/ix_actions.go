@@ -198,11 +198,12 @@ func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	// Flag read errors are intentionally ignored — flags are registered by the command builder.
 	noWait, _ := cmd.Flags().GetBool("no-wait")
-	if !noWait {
-		req.WaitForProvision = true
-		req.WaitForTime = utils.DefaultProvisionTimeout
-	}
+	// Only the order submission is wrapped in WithOrderOnceRetry below, so the SDK
+	// must not also poll for provisioning: a 429 raised during polling would
+	// otherwise re-submit the order. Provisioning is awaited separately afterwards.
+	req.WaitForProvision = false
 
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -236,10 +237,10 @@ func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 
 	var buySpinner *output.Spinner
-	if req.WaitForProvision {
-		buySpinner = output.PrintResourceProvisioning("IX", req.Name, noColor)
-	} else {
+	if noWait {
 		buySpinner = output.PrintResourceCreating("IX", req.Name, noColor)
+	} else {
+		buySpinner = output.PrintResourceProvisioning("IX", req.Name, noColor)
 	}
 	var resp *megaport.BuyIXResponse
 	err = utils.WithOrderOnceRetry(ctx, func(ctx context.Context) error {
@@ -247,15 +248,55 @@ func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
 		resp, e = buyIXFunc(ctx, client, req)
 		return e
 	})
-	buySpinner.Stop()
-
 	if err != nil {
+		buySpinner.Stop()
 		output.PrintError("Failed to buy IX: %v", noColor, err)
 		return err
 	}
 
-	output.PrintResourceCreated("IX", resp.TechnicalServiceUID, noColor)
+	if resp == nil {
+		buySpinner.Stop()
+		output.PrintError("IX buy returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
+	}
+
+	if resp.TechnicalServiceUID == "" {
+		buySpinner.Stop()
+		output.PrintError("IX created but no UID returned", noColor)
+		return fmt.Errorf("IX created but no UID returned")
+	}
+
+	uid := resp.TechnicalServiceUID
+
+	if !noWait {
+		if err := waitForIXProvision(ctx, client, req.Name, uid); err != nil {
+			buySpinner.Stop()
+			output.PrintError("IX %s failed to provision: %v", noColor, uid, err)
+			return err
+		}
+	}
+
+	buySpinner.Stop()
+	output.PrintResourceCreated("IX", uid, noColor)
 	return nil
+}
+
+// waitForIXProvision polls the IX's status until it is provisioned, bounding the
+// wait by DefaultProvisionTimeout. It runs after the order is placed, so it must
+// never be wrapped in an order-submission retry.
+func waitForIXProvision(ctx context.Context, client *megaport.Client, name, uid string) error {
+	pollCtx, cancel := context.WithTimeout(ctx, utils.DefaultProvisionTimeout)
+	defer cancel()
+	return utils.WaitForProvision(pollCtx, "IX", name, uid, func(ctx context.Context) (string, error) {
+		ix, err := getIXFunc(ctx, client, uid)
+		if err != nil {
+			return "", err
+		}
+		if ix == nil {
+			return "", fmt.Errorf("IX %s not found while waiting for provisioning", uid)
+		}
+		return ix.ProvisioningStatus, nil
+	})
 }
 
 func ValidateIX(cmd *cobra.Command, args []string, noColor bool) error {

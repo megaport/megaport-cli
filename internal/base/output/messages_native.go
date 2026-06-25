@@ -27,47 +27,39 @@ func PrintErrorJSON(code int, message string) {
 	_ = enc.Encode(payload) // best-effort; stderr write failures are not actionable
 }
 
-// Native (non-WASM) implementations that write to stdout/stderr directly
+// Native (non-WASM) implementations. All status and error messages are written
+// to stderr regardless of the output format so that stdout carries only the
+// formatted data stream (table/csv/xml/json).
 
 func PrintSuccess(format string, noColor bool, args ...interface{}) {
 	if IsQuiet() {
 		return
 	}
 	msg := fmt.Sprintf(format, args...)
-	if GetOutputFormat() == "json" {
-		if noColor {
-			fmt.Fprintf(os.Stderr, "✓ %s\n", msg)
-		} else {
-			fmt.Fprint(os.Stderr, color.GreenString("✓ "))
-			fmt.Fprintln(os.Stderr, msg)
-		}
+	if noColor {
+		fmt.Fprintf(os.Stderr, "✓ %s\n", msg)
 	} else {
-		if noColor {
-			fmt.Printf("✓ %s\n", msg)
-		} else {
-			fmt.Print(color.GreenString("✓ "))
-			fmt.Println(msg)
-		}
+		fmt.Fprint(os.Stderr, color.GreenString("✓ "))
+		fmt.Fprintln(os.Stderr, msg)
 	}
 }
 
+// PrintError writes an error message to stderr and latches that an error was
+// shown. In json mode it is a no-op: the RunE wrapper owns error output and
+// emits a single structured envelope, so a human "✗" line would both duplicate
+// it and corrupt the machine-readable stream.
 func PrintError(format string, noColor bool, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
 	if GetOutputFormat() == "json" {
-		if noColor {
-			fmt.Fprintf(os.Stderr, "✗ %s\n", msg)
-		} else {
-			fmt.Fprint(os.Stderr, color.RedString("✗ "))
-			fmt.Fprintln(os.Stderr, msg)
-		}
-	} else {
-		if noColor {
-			fmt.Printf("✗ %s\n", msg)
-		} else {
-			fmt.Print(color.RedString("✗ "))
-			fmt.Println(msg)
-		}
+		return
 	}
+	msg := fmt.Sprintf(format, args...)
+	if noColor {
+		fmt.Fprintf(os.Stderr, "✗ %s\n", msg)
+	} else {
+		fmt.Fprint(os.Stderr, color.RedString("✗ "))
+		fmt.Fprintln(os.Stderr, msg)
+	}
+	markErrorEmitted()
 }
 
 func PrintWarning(format string, noColor bool, args ...interface{}) {
@@ -75,20 +67,11 @@ func PrintWarning(format string, noColor bool, args ...interface{}) {
 		return
 	}
 	msg := fmt.Sprintf(format, args...)
-	if GetOutputFormat() == "json" {
-		if noColor {
-			fmt.Fprintf(os.Stderr, "⚠ %s\n", msg)
-		} else {
-			fmt.Fprint(os.Stderr, color.YellowString("⚠ "))
-			fmt.Fprintln(os.Stderr, msg)
-		}
+	if noColor {
+		fmt.Fprintf(os.Stderr, "⚠ %s\n", msg)
 	} else {
-		if noColor {
-			fmt.Printf("⚠ %s\n", msg)
-		} else {
-			fmt.Print(color.YellowString("⚠ "))
-			fmt.Println(msg)
-		}
+		fmt.Fprint(os.Stderr, color.YellowString("⚠ "))
+		fmt.Fprintln(os.Stderr, msg)
 	}
 }
 
@@ -97,20 +80,11 @@ func PrintInfo(format string, noColor bool, args ...interface{}) {
 		return
 	}
 	msg := fmt.Sprintf(format, args...)
-	if GetOutputFormat() == "json" {
-		if noColor {
-			fmt.Fprintf(os.Stderr, "ℹ %s\n", msg)
-		} else {
-			fmt.Fprint(os.Stderr, color.BlueString("ℹ "))
-			fmt.Fprintln(os.Stderr, msg)
-		}
+	if noColor {
+		fmt.Fprintf(os.Stderr, "ℹ %s\n", msg)
 	} else {
-		if noColor {
-			fmt.Printf("ℹ %s\n", msg)
-		} else {
-			fmt.Print(color.BlueString("ℹ "))
-			fmt.Println(msg)
-		}
+		fmt.Fprint(os.Stderr, color.BlueString("ℹ "))
+		fmt.Fprintln(os.Stderr, msg)
 	}
 }
 

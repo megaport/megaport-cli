@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -254,7 +256,7 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			testutil.SetFlags(t, cmd, flags)
 
 			var err error
-			output := output.CaptureOutput(func() {
+			output := captureStderr(t, func() {
 				err = cmd.RunE(cmd, []string{tt.mcrID})
 			})
 
@@ -339,7 +341,7 @@ func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
 			}
 
 			var err error
-			output := output.CaptureOutput(func() {
+			output := captureStderr(t, func() {
 				err = restoreMCRCmd.RunE(restoreMCRCmd, []string{tt.mcrID})
 			})
 
@@ -723,27 +725,29 @@ func TestBuyMCR_NoWaitFlag(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
 	originalBuyMCRFunc := buyMCRFunc
+	originalGetMCRFunc := getMCRFunc
 	defer func() {
 		buyMCRFunc = originalBuyMCRFunc
+		getMCRFunc = originalGetMCRFunc
 	}()
 	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
 	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
 	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	tests := []struct {
-		name                     string
-		noWait                   bool
-		expectedWaitForProvision bool
+		name       string
+		noWait     bool
+		expectPoll bool
 	}{
 		{
-			name:                     "default waits for provisioning",
-			noWait:                   false,
-			expectedWaitForProvision: true,
+			name:       "default waits for provisioning",
+			noWait:     false,
+			expectPoll: true,
 		},
 		{
-			name:                     "no-wait skips provisioning wait",
-			noWait:                   true,
-			expectedWaitForProvision: false,
+			name:       "no-wait skips provisioning wait",
+			noWait:     true,
+			expectPoll: false,
 		},
 	}
 
@@ -766,6 +770,11 @@ func TestBuyMCR_NoWaitFlag(t *testing.T) {
 				return &megaport.BuyMCRResponse{
 					TechnicalServiceUID: "mcr-uid-123",
 				}, nil
+			}
+			getMCRCalls := 0
+			getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+				getMCRCalls++
+				return &megaport.MCR{UID: mcrUID, ProvisioningStatus: "LIVE"}, nil
 			}
 
 			cmd := &cobra.Command{Use: "buy"}
@@ -801,9 +810,96 @@ func TestBuyMCR_NoWaitFlag(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.NotNil(t, capturedReq)
-			assert.Equal(t, tt.expectedWaitForProvision, capturedReq.WaitForProvision)
+			// The SDK must never poll; provisioning is awaited outside the order retry.
+			assert.False(t, capturedReq.WaitForProvision)
+			if tt.expectPoll {
+				assert.Positive(t, getMCRCalls, "expected a provisioning poll when not using --no-wait")
+			} else {
+				assert.Zero(t, getMCRCalls, "no provisioning poll expected with --no-wait")
+			}
 		})
 	}
+}
+
+// TestBuyMCR_NoResubmitOnPollRetryableError proves the order is submitted exactly
+// once even when a retryable error (429) surfaces during the provisioning poll.
+func TestBuyMCR_NoResubmitOnPollRetryableError(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	originalBuyMCRFunc := buyMCRFunc
+	originalGetMCRFunc := getMCRFunc
+	originalMaxRetries := utils.MaxRetries
+	originalPollInterval := utils.ProvisionPollInterval
+	originalNoRetry := utils.NoRetry
+	defer func() {
+		cleanup()
+		buyMCRFunc = originalBuyMCRFunc
+		getMCRFunc = originalGetMCRFunc
+		utils.MaxRetries = originalMaxRetries
+		utils.ProvisionPollInterval = originalPollInterval
+		utils.NoRetry = originalNoRetry
+	}()
+	utils.MaxRetries = 3
+	utils.NoRetry = false
+	utils.ProvisionPollInterval = time.Millisecond
+
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	mockMCRService := &MockMCRService{}
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.MCRService = mockMCRService
+		return client, nil
+	})
+
+	buyCalls := 0
+	buyMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
+		buyCalls++
+		return &megaport.BuyMCRResponse{TechnicalServiceUID: "mcr-uid-123"}, nil
+	}
+	getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+		return nil, &megaport.ErrorResponse{
+			Response: &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Header:     http.Header{},
+				Request:    &http.Request{URL: &url.URL{}},
+			},
+			Message: "too many requests",
+		}
+	}
+
+	cmd := &cobra.Command{Use: "buy"}
+	cmd.Flags().BoolP("interactive", "i", false, "")
+	cmd.Flags().Bool("no-wait", false, "")
+	cmd.Flags().BoolP("yes", "y", false, "")
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().Int("term", 0, "")
+	cmd.Flags().Int("port-speed", 0, "")
+	cmd.Flags().Int("location-id", 0, "")
+	cmd.Flags().Int("mcr-asn", 0, "")
+	cmd.Flags().String("diversity-zone", "", "")
+	cmd.Flags().String("cost-centre", "", "")
+	cmd.Flags().String("promo-code", "", "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+
+	testutil.SetFlags(t, cmd, map[string]string{
+		"name":        "Test MCR",
+		"term":        "12",
+		"port-speed":  "10000",
+		"location-id": "123",
+		"mcr-asn":     "65000",
+	})
+	// no-wait stays false: the provisioning poll must run.
+
+	var err error
+	output.CaptureOutput(func() {
+		err = BuyMCR(cmd, nil, true)
+	})
+
+	assert.Error(t, err, "a retryable error during the provisioning poll must surface as an error")
+	assert.Equal(t, 1, buyCalls, "the order must be submitted exactly once; a poll-phase 429 must not re-submit it")
 }
 
 func TestBuyMCRCmd_WithMockClient(t *testing.T) {
@@ -1007,7 +1103,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			testutil.SetFlags(t, cmd, flags)
 
 			var err error
-			output := output.CaptureOutput(func() {
+			output := captureStderr(t, func() {
 				err = cmd.RunE(cmd, tt.args)
 			})
 
@@ -1427,8 +1523,11 @@ func TestListMCRsCmd_WithMockClient(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, []string{})
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureStdout(func() {
+					err = cmd.RunE(cmd, []string{})
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -1465,7 +1564,7 @@ func TestListMCRsCmd_WithMockClient(t *testing.T) {
 
 				// Check warning message when no results found
 				if len(tt.expectedMCRs) == 0 && tt.expectedError == "" {
-					assert.Contains(t, capturedOutput, "No MCRs found. Create one with 'megaport mcr buy'.")
+					assert.Contains(t, capturedStderr, "No MCRs found. Create one with 'megaport mcr buy'.")
 				}
 			}
 
@@ -1846,7 +1945,7 @@ func TestUpdateMCRResourceTagsCmd(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedOutput := captureStderr(t, func() {
 				err = cmd.RunE(cmd, []string{tt.mcrUID})
 			})
 
@@ -2142,7 +2241,7 @@ func TestUpdateMCR(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedOutput := captureStderr(t, func() {
 				err = cmd.RunE(cmd, tt.args)
 			})
 
@@ -2286,7 +2385,7 @@ func TestCreateMCRPrefixFilterList(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedOutput := captureStderr(t, func() {
 				err = cmd.RunE(cmd, tt.args)
 			})
 
@@ -2491,7 +2590,7 @@ func TestUpdateMCRPrefixFilterList(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedOutput := captureStderr(t, func() {
 				err = cmd.RunE(cmd, tt.args)
 			})
 
@@ -2552,7 +2651,7 @@ func TestLockMCRCmd_WithMockClient(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedOutput := captureStderr(t, func() {
 				err = lockMCRCmd.RunE(lockMCRCmd, []string{tt.mcrID})
 			})
 
@@ -2611,7 +2710,7 @@ func TestUnlockMCRCmd_WithMockClient(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedOutput := captureStderr(t, func() {
 				err = unlockMCRCmd.RunE(unlockMCRCmd, []string{tt.mcrID})
 			})
 
@@ -2777,7 +2876,7 @@ func TestBuyMCR_Confirmation(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedOutput := captureStderr(t, func() {
 				err = cmd.RunE(cmd, nil)
 			})
 
@@ -2852,7 +2951,7 @@ func TestGetMCR_Export(t *testing.T) {
 	assert.NoError(t, cmd.Flags().Set("export", "true"))
 
 	var err error
-	capturedOutput := output.CaptureOutput(func() {
+	capturedOutput := output.CaptureStdout(func() {
 		err = GetMCR(cmd, []string{"mcr-export-123"}, true, "table")
 	})
 
@@ -2995,7 +3094,7 @@ func TestValidateMCR(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
+			capturedOutput := captureStderr(t, func() {
 				err = ValidateMCR(cmd, nil, true)
 			})
 
@@ -3102,16 +3201,99 @@ func TestListMCRs_TagFilter(t *testing.T) {
 			}
 
 			var listErr error
-			capturedOutput := output.CaptureOutput(func() {
-				listErr = ListMCRs(cmd, nil, true, "table")
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					listErr = ListMCRs(cmd, nil, true, "table")
+				})
 			})
 			assert.NoError(t, listErr)
 
 			for _, expected := range tt.expectedOutputs {
-				assert.Contains(t, capturedOutput, expected)
+				assert.Contains(t, capturedOutput+capturedStderr, expected)
 			}
 			for _, notExp := range tt.notExpected {
 				assert.NotContains(t, capturedOutput, notExp)
+			}
+		})
+	}
+}
+
+// TestBuyMCR_OrderAndProvisionFailures covers the order-response and
+// provisioning-poll failure branches: an empty API response, a missing UID, and
+// the MCR vanishing during the provisioning poll.
+func TestBuyMCR_OrderAndProvisionFailures(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	originalBuyMCRFunc := buyMCRFunc
+	originalGetMCRFunc := getMCRFunc
+	defer func() {
+		cleanup()
+		buyMCRFunc = originalBuyMCRFunc
+		getMCRFunc = originalGetMCRFunc
+	}()
+
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.MCRService = &MockMCRService{}
+		return client, nil
+	})
+
+	tests := []struct {
+		name     string
+		buyResp  *megaport.BuyMCRResponse
+		getNil   bool
+		errMatch string
+	}{
+		{name: "empty API response", buyResp: nil, errMatch: "empty response from API"},
+		{name: "no UID returned", buyResp: &megaport.BuyMCRResponse{}, errMatch: "no UID returned"},
+		{name: "MCR not found during provisioning poll", buyResp: &megaport.BuyMCRResponse{TechnicalServiceUID: "mcr-uid-123"}, getNil: true, errMatch: "not found while waiting for provisioning"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buyMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
+				return tt.buyResp, nil
+			}
+			getMCRFunc = func(ctx context.Context, client *megaport.Client, mcrUID string) (*megaport.MCR, error) {
+				if tt.getNil {
+					return nil, nil
+				}
+				return &megaport.MCR{UID: mcrUID, ProvisioningStatus: "LIVE"}, nil
+			}
+
+			cmd := &cobra.Command{Use: "buy"}
+			cmd.Flags().BoolP("interactive", "i", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().BoolP("yes", "y", false, "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Int("mcr-asn", 0, "")
+			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().String("promo-code", "", "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			testutil.SetFlags(t, cmd, map[string]string{
+				"name":        "Test MCR",
+				"term":        "12",
+				"port-speed":  "10000",
+				"location-id": "123",
+				"mcr-asn":     "65000",
+			})
+
+			var err error
+			output.CaptureOutput(func() {
+				err = BuyMCR(cmd, nil, true)
+			})
+
+			if assert.Error(t, err) {
+				assert.Contains(t, err.Error(), tt.errMatch)
 			}
 		})
 	}
