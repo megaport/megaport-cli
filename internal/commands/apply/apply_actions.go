@@ -183,6 +183,9 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			if e != nil {
 				return "", e
 			}
+			if port == nil {
+				return "", fmt.Errorf("empty response from API")
+			}
 			return port.ProvisioningStatus, nil
 		}); err != nil {
 			createSpinner.Stop()
@@ -257,6 +260,9 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			mcr, e := client.MCRService.GetMCR(ctx, uid)
 			if e != nil {
 				return "", e
+			}
+			if mcr == nil {
+				return "", fmt.Errorf("empty response from API")
 			}
 			return mcr.ProvisioningStatus, nil
 		}); err != nil {
@@ -343,6 +349,9 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			m, e := client.MVEService.GetMVE(ctx, uid)
 			if e != nil {
 				return "", e
+			}
+			if m == nil {
+				return "", fmt.Errorf("empty response from API")
 			}
 			return m.ProvisioningStatus, nil
 		}); err != nil {
@@ -436,6 +445,9 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 			vxc, e := client.VXCService.GetVXC(ctx, uid)
 			if e != nil {
 				return "", e
+			}
+			if vxc == nil {
+				return "", fmt.Errorf("empty response from API")
 			}
 			return vxc.ProvisioningStatus, nil
 		}); err != nil {
