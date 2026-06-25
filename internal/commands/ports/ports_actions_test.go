@@ -1,9 +1,11 @@
 package ports
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -637,9 +639,13 @@ func TestUpdatePortResourceTagsCmd(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, []string{tt.portUID})
+			var capturedOutput, stderrOutput string
+			stderrOutput = captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = cmd.RunE(cmd, []string{tt.portUID})
+				})
 			})
+			capturedOutput += stderrOutput
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
@@ -799,9 +805,13 @@ func TestListPorts(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = ListPorts(cmd, nil, true, "table")
+			var capturedOutput, stderrOutput string
+			stderrOutput = captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = ListPorts(cmd, nil, true, "table")
+				})
 			})
+			capturedOutput += stderrOutput
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
@@ -974,9 +984,13 @@ func TestBuyPort(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = BuyPort(cmd, nil, true)
+			var capturedOutput, stderrOutput string
+			stderrOutput = captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = BuyPort(cmd, nil, true)
+				})
 			})
+			capturedOutput += stderrOutput
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
@@ -1156,9 +1170,13 @@ func TestRestorePort(t *testing.T) {
 			cmd := &cobra.Command{Use: "restore"}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = RestorePort(cmd, []string{tt.portUID}, true)
+			var capturedOutput, stderrOutput string
+			stderrOutput = captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = RestorePort(cmd, []string{tt.portUID}, true)
+				})
 			})
+			capturedOutput += stderrOutput
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
@@ -1245,9 +1263,13 @@ func TestLockPort(t *testing.T) {
 			cmd := &cobra.Command{Use: "lock"}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = LockPort(cmd, []string{tt.portUID}, true)
+			var capturedOutput, stderrOutput string
+			stderrOutput = captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = LockPort(cmd, []string{tt.portUID}, true)
+				})
 			})
+			capturedOutput += stderrOutput
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
@@ -1334,9 +1356,13 @@ func TestUnlockPort(t *testing.T) {
 			cmd := &cobra.Command{Use: "unlock"}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = UnlockPort(cmd, []string{tt.portUID}, true)
+			var capturedOutput, stderrOutput string
+			stderrOutput = captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = UnlockPort(cmd, []string{tt.portUID}, true)
+				})
 			})
+			capturedOutput += stderrOutput
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
@@ -1433,9 +1459,13 @@ func TestCheckPortVLANAvailability(t *testing.T) {
 			cmd := &cobra.Command{Use: "check-vlan"}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = CheckPortVLANAvailability(cmd, []string{tt.portUID, tt.vlanArg}, true)
+			var capturedOutput, stderrOutput string
+			stderrOutput = captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = CheckPortVLANAvailability(cmd, []string{tt.portUID, tt.vlanArg}, true)
+				})
 			})
+			capturedOutput += stderrOutput
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
@@ -1587,9 +1617,13 @@ func TestUpdatePort(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = UpdatePort(cmd, []string{tt.portUID}, true)
+			var capturedOutput, stderrOutput string
+			stderrOutput = captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = UpdatePort(cmd, []string{tt.portUID}, true)
+				})
 			})
+			capturedOutput += stderrOutput
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
@@ -1719,9 +1753,13 @@ func TestBuyPort_Confirmation(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = BuyPort(cmd, nil, true)
+			var capturedOutput, stderrOutput string
+			stderrOutput = captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = BuyPort(cmd, nil, true)
+				})
 			})
+			capturedOutput += stderrOutput
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
@@ -1864,9 +1902,13 @@ func TestBuyLAGPort_ConfirmationDenied(t *testing.T) {
 	require.NoError(t, cmd.Flags().Set("lag-count", "2"))
 
 	var err error
-	capturedOutput := output.CaptureOutput(func() {
-		err = BuyLAGPort(cmd, nil, true)
+	var capturedOutput, stderrOutput string
+	stderrOutput = captureStderr(t, func() {
+		capturedOutput = output.CaptureOutput(func() {
+			err = BuyLAGPort(cmd, nil, true)
+		})
 	})
+	capturedOutput += stderrOutput
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cancelled by user")
 	assert.Contains(t, capturedOutput, "Purchase cancelled")
@@ -1998,9 +2040,13 @@ func TestValidatePort(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = ValidatePort(cmd, nil, true)
+			var capturedOutput, stderrOutput string
+			stderrOutput = captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = ValidatePort(cmd, nil, true)
+				})
 			})
+			capturedOutput += stderrOutput
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
@@ -2145,9 +2191,13 @@ func TestValidateLAGPort(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = ValidateLAGPort(cmd, nil, true)
+			var capturedOutput, stderrOutput string
+			stderrOutput = captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = ValidateLAGPort(cmd, nil, true)
+				})
 			})
+			capturedOutput += stderrOutput
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
@@ -2244,9 +2294,13 @@ func TestDeletePort_Comprehensive(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = DeletePort(cmd, []string{"port-123"}, true)
+			var capturedOutput, stderrOutput string
+			stderrOutput = captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = DeletePort(cmd, []string{"port-123"}, true)
+				})
 			})
+			capturedOutput += stderrOutput
 
 			// Ports must always be deleted immediately — the previous
 			// "terminate later" option is no longer supported.
@@ -2378,7 +2432,7 @@ func TestGetPort_Export(t *testing.T) {
 	require.NoError(t, cmd.Flags().Set("export", "true"))
 
 	var err error
-	capturedOutput := output.CaptureOutput(func() {
+	capturedOutput := output.CaptureStdout(func() {
 		err = testutil.OutputAdapter(GetPort)(cmd, []string{"port-export-123"})
 	})
 
@@ -2509,9 +2563,13 @@ func TestListPorts_TagFilter(t *testing.T) {
 			}
 
 			var listErr error
-			capturedOutput := output.CaptureOutput(func() {
-				listErr = ListPorts(cmd, nil, true, "table")
+			var capturedOutput, stderrOutput string
+			stderrOutput = captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					listErr = ListPorts(cmd, nil, true, "table")
+				})
 			})
+			capturedOutput += stderrOutput
 			assert.NoError(t, listErr)
 
 			for _, expected := range tt.expectedOutputs {
@@ -2522,6 +2580,23 @@ func TestListPorts_TagFilter(t *testing.T) {
 			}
 		})
 	}
+}
+
+func captureStderr(t *testing.T, fn func()) (result string) {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	defer func() { os.Stderr = old }()
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() { defer close(done); _, _ = io.Copy(&buf, r) }()
+	defer func() { _ = w.Close(); <-done; _ = r.Close(); result = buf.String() }()
+	fn()
+	return
 }
 
 // TestBuyPort_NoResubmitOnPollRetryableError proves the order is submitted exactly

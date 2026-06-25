@@ -80,9 +80,9 @@ func PromptForInput(message string, promptType string, resourceType string) (str
 	pendingPrompts[promptID] = request
 	pendingMutex.Unlock()
 
-	// Log the prompt request
-	js.Global().Get("console").Call("log", fmt.Sprintf("📝 Requesting input: ID=%s, Type=%s, Message=%s",
-		promptID, promptType, message))
+	// Log the prompt request. Message/response payloads are omitted: prompt input can
+	// carry secrets (access keys, passwords) and this ships in the public WASM console.
+	js.Global().Get("console").Call("log", fmt.Sprintf("📝 Requesting input: ID=%s, Type=%s", promptID, promptType))
 
 	// Call the JavaScript callback with the prompt details
 	cb.Invoke(map[string]interface{}{
@@ -100,7 +100,7 @@ func PromptForInput(message string, promptType string, resourceType string) (str
 		delete(pendingPrompts, promptID)
 		pendingMutex.Unlock()
 
-		js.Global().Get("console").Call("log", fmt.Sprintf("✅ Received response for %s: %s", promptID, response))
+		js.Global().Get("console").Call("log", fmt.Sprintf("✅ Received response for %s", promptID))
 		return response, nil
 
 	case err := <-errorChan:
@@ -140,7 +140,7 @@ func submitPromptResponse(this js.Value, args []js.Value) interface{} {
 	promptID := args[0].String()
 	response := args[1].String()
 
-	js.Global().Get("console").Call("log", fmt.Sprintf("📨 Submitting response for %s: %s", promptID, response))
+	js.Global().Get("console").Call("log", fmt.Sprintf("📨 Submitting response for %s", promptID))
 
 	pendingMutex.Lock()
 	request, exists := pendingPrompts[promptID]

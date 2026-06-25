@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/validation"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -707,6 +708,74 @@ func TestWrapColorAwareRunE_JSONErrorOutput(t *testing.T) {
 	code, _, msg := parseErrorJSON(t, stderr)
 	assert.Equal(t, exitcodes.General, code)
 	assert.Equal(t, "auth failure", msg)
+}
+
+// buildTableChild builds a root+child tree with --output preset to a non-json
+// format on the root persistent flags, as WrapColorAwareRunE reads it.
+func buildTableChild(format string) *cobra.Command {
+	root := &cobra.Command{Use: "root"}
+	root.PersistentFlags().Bool("no-color", false, "")
+	root.PersistentFlags().String("fields", "", "")
+	root.PersistentFlags().String("query", "", "")
+	root.PersistentFlags().String("template", "", "")
+	root.PersistentFlags().String("output", format, "")
+	child := &cobra.Command{Use: "list"}
+	root.AddCommand(child)
+	return child
+}
+
+// A failing command must print its error to stderr even when the action returns
+// the error silently: cobra has SilenceErrors set, so the wrapper owns the print.
+func TestWrapColorAwareRunE_PrintsSilentErrorToStderr(t *testing.T) {
+	output.SetOutputFormat("table")
+	t.Cleanup(func() { output.ResetState() })
+
+	wrapped := WrapColorAwareRunE(func(cmd *cobra.Command, args []string, noColor bool) error {
+		return errors.New("connection blew up")
+	})
+	child := buildTableChild("table")
+
+	stderr := captureStderr(t, func() {
+		err := wrapped(child, []string{})
+		require.Error(t, err)
+	})
+	assert.Contains(t, stderr, "connection blew up", "wrapper must surface the error on stderr")
+}
+
+// When an action already showed the error via output.PrintError, the wrapper
+// must not print it a second time.
+func TestWrapColorAwareRunE_NoDoublePrintWhenActionSelfPrints(t *testing.T) {
+	output.SetOutputFormat("table")
+	t.Cleanup(func() { output.ResetState() })
+
+	wrapped := WrapColorAwareRunE(func(cmd *cobra.Command, args []string, noColor bool) error {
+		output.PrintError("custom failure", noColor)
+		return errors.New("custom failure")
+	})
+	child := buildTableChild("table")
+
+	stderr := captureStderr(t, func() {
+		err := wrapped(child, []string{})
+		require.Error(t, err)
+	})
+	assert.Equal(t, 1, strings.Count(stderr, "custom failure"), "error must appear exactly once on stderr")
+}
+
+// Invalid output format is a usage error that must reach stderr, not vanish.
+func TestWrapOutputFormatRunE_InvalidFormatPrintsToStderr(t *testing.T) {
+	output.SetOutputFormat("table")
+	t.Cleanup(func() { output.ResetState() })
+
+	wrapped := WrapOutputFormatRunE(func(cmd *cobra.Command, args []string, noColor bool, format string) error {
+		return nil
+	})
+	child := buildJSONChild("bogus")
+
+	stderr := captureStderr(t, func() {
+		err := wrapped(child, []string{})
+		require.Error(t, err)
+	})
+	assert.Contains(t, stderr, "invalid output format", "usage error must reach stderr")
 }
 
 func TestWrapOutputFormatRunE_JSONErrorOutput(t *testing.T) {

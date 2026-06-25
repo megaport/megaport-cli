@@ -1,9 +1,11 @@
 package mve
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -21,6 +23,35 @@ import (
 )
 
 var noColor = true // Disable color for testing
+
+// captureStderr captures what fn writes to os.Stderr, draining the read end
+// concurrently so fn cannot block on a full pipe buffer.
+func captureStderr(t *testing.T, fn func()) (result string) {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	defer func() { os.Stderr = old }()
+
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_, _ = io.Copy(&buf, r)
+	}()
+
+	defer func() {
+		_ = w.Close()
+		<-done
+		_ = r.Close()
+		result = buf.String()
+	}()
+	fn()
+	return
+}
 
 var testMVEImages = []*megaport.MVEImage{
 	{
@@ -524,8 +555,11 @@ func TestUpdateMVE(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			output := output.CaptureOutput(func() {
-				err = UpdateMVE(cmd, tt.args, noColor)
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = UpdateMVE(cmd, tt.args, noColor)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -533,7 +567,7 @@ func TestUpdateMVE(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, output, tt.expectedOutput)
+				assert.Contains(t, capturedOutput+capturedStderr, tt.expectedOutput)
 
 				if tt.validateRequest != nil {
 					tt.validateRequest(t, mockService.CapturedModifyMVERequest)
@@ -653,8 +687,11 @@ func TestDeleteMVE(t *testing.T) {
 			}
 
 			var err error
-			output := output.CaptureOutput(func() {
-				err = cmd.Execute()
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = cmd.Execute()
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -662,7 +699,7 @@ func TestDeleteMVE(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, output, tt.expectedOutput)
+				assert.Contains(t, capturedOutput+capturedStderr, tt.expectedOutput)
 				if tt.safeDeleteFlag {
 					assert.NotNil(t, mockService.CapturedDeleteMVERequest)
 					assert.True(t, mockService.CapturedDeleteMVERequest.SafeDelete)
@@ -979,8 +1016,11 @@ func TestBuyMVE(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			output := output.CaptureOutput(func() {
-				err = BuyMVE(cmd, tt.args, tt.interactive)
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = BuyMVE(cmd, tt.args, tt.interactive)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -988,7 +1028,7 @@ func TestBuyMVE(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, output, tt.expectedOutput)
+				assert.Contains(t, capturedOutput+capturedStderr, tt.expectedOutput)
 
 				if tt.validateRequest != nil {
 					tt.validateRequest(t, mockService.CapturedBuyMVERequest)
@@ -1317,8 +1357,11 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 			err := cmd.Flags().Set("output", tt.outputFormat)
 			assert.NoError(t, err)
 
-			out, err := output.CaptureOutputErr(func() error {
-				return ListMVEs(cmd, []string{}, true, tt.outputFormat)
+			var out string
+			capturedStderr := captureStderr(t, func() {
+				out, err = output.CaptureOutputErr(func() error {
+					return ListMVEs(cmd, []string{}, true, tt.outputFormat)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -1328,7 +1371,7 @@ func TestListMVEsCmd_WithMockClient(t *testing.T) {
 				assert.NoError(t, err)
 
 				for _, expected := range tt.expectedOutput {
-					assert.Contains(t, out, expected)
+					assert.Contains(t, out+capturedStderr, expected)
 				}
 
 				for _, unexpected := range tt.unexpectedOutput {
@@ -1656,8 +1699,11 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 			}
 
 			var err error
-			output := output.CaptureOutput(func() {
-				err = cmd.RunE(cmd, []string{tt.mveUID})
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = cmd.RunE(cmd, []string{tt.mveUID})
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -1665,7 +1711,7 @@ func TestUpdateMVEResourceTagsCmd_WithMockClient(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, output, tt.expectedOutput)
+				assert.Contains(t, capturedOutput+capturedStderr, tt.expectedOutput)
 
 				if tt.expectedCapturedTags != nil {
 					assert.NotNil(t, mockMVEService.CapturedUpdateMVEResourceTagsRequest)
@@ -1942,8 +1988,11 @@ func TestLockMVECmd_WithMockClient(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = lockMVECmd.RunE(lockMVECmd, []string{tt.mveID})
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = lockMVECmd.RunE(lockMVECmd, []string{tt.mveID})
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -1951,7 +2000,7 @@ func TestLockMVECmd_WithMockClient(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, capturedOutput, tt.expectedOut)
+				assert.Contains(t, capturedOutput+capturedStderr, tt.expectedOut)
 			}
 		})
 	}
@@ -2001,8 +2050,11 @@ func TestUnlockMVECmd_WithMockClient(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = unlockMVECmd.RunE(unlockMVECmd, []string{tt.mveID})
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = unlockMVECmd.RunE(unlockMVECmd, []string{tt.mveID})
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -2010,7 +2062,7 @@ func TestUnlockMVECmd_WithMockClient(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, capturedOutput, tt.expectedOut)
+				assert.Contains(t, capturedOutput+capturedStderr, tt.expectedOut)
 			}
 		})
 	}
@@ -2144,8 +2196,11 @@ func TestBuyMVE_Confirmation(t *testing.T) {
 			testutil.SetFlags(t, cmd, tt.flags)
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = BuyMVE(cmd, nil, noColor)
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = BuyMVE(cmd, nil, noColor)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -2153,7 +2208,7 @@ func TestBuyMVE_Confirmation(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
-				assert.Contains(t, capturedOutput, tt.expectedOutput)
+				assert.Contains(t, capturedOutput+capturedStderr, tt.expectedOutput)
 			}
 
 			if tt.expectBuyCalled {
@@ -2288,8 +2343,11 @@ func TestValidateMVE(t *testing.T) {
 			}
 
 			var err error
-			capturedOutput := output.CaptureOutput(func() {
-				err = ValidateMVE(cmd, nil, true)
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					err = ValidateMVE(cmd, nil, true)
+				})
 			})
 
 			if tt.expectedError != "" {
@@ -2298,7 +2356,7 @@ func TestValidateMVE(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				if tt.expectedContains != "" {
-					assert.Contains(t, capturedOutput, tt.expectedContains)
+					assert.Contains(t, capturedOutput+capturedStderr, tt.expectedContains)
 				}
 			}
 		})
@@ -2444,7 +2502,7 @@ func TestGetMVE_Export(t *testing.T) {
 	assert.NoError(t, cmd.Flags().Set("export", "true"))
 
 	var err error
-	capturedOutput := output.CaptureOutput(func() {
+	capturedOutput := output.CaptureStdout(func() {
 		err = GetMVE(cmd, []string{"mve-export-123"}, true, "table")
 	})
 
@@ -2562,13 +2620,16 @@ func TestListMVEs_TagFilter(t *testing.T) {
 			}
 
 			var listErr error
-			capturedOutput := output.CaptureOutput(func() {
-				listErr = ListMVEs(cmd, nil, true, "table")
+			var capturedOutput string
+			capturedStderr := captureStderr(t, func() {
+				capturedOutput = output.CaptureOutput(func() {
+					listErr = ListMVEs(cmd, nil, true, "table")
+				})
 			})
 			assert.NoError(t, listErr)
 
 			for _, expected := range tt.expectedOutputs {
-				assert.Contains(t, capturedOutput, expected)
+				assert.Contains(t, capturedOutput+capturedStderr, expected)
 			}
 			for _, notExp := range tt.notExpected {
 				assert.NotContains(t, capturedOutput, notExp)
