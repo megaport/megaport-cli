@@ -52,6 +52,9 @@ cp frontend-integration/composables/* composables/megaport-cli/
 cp frontend-integration/types/* types/megaport-cli/
 cp frontend-integration/utils/* utils/megaport-cli/
 
+# Build the WASM artifacts (writes web/megaport.wasm + web/wasm_exec.js)
+./wasm.sh
+
 # Copy WASM files to public directory
 cp web/megaport.wasm public/wasm/
 cp web/wasm_exec.js public/wasm/

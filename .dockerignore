@@ -29,16 +29,12 @@ testdata/
 # Development files
 .env
 .env.local
-start-server.sh
 wasm.sh
 
-# Node.js (using CDN instead)
+# Node.js (not needed in the image)
 web/node_modules/
-web/package.json
-web/package-lock.json
 
-# Host build artifacts (the image rebuilds these in its own stages).
-# Excluding the possibly stale committed vue-demo copy keeps old hashed assets out.
+# Front-end build artifacts not needed by the binary-only image.
 frontend-integration/node_modules/
 web/vue-demo/
 
