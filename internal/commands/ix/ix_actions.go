@@ -254,6 +254,11 @@ func BuyIX(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	if resp == nil {
+		output.PrintError("IX buy returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
+	}
+
 	output.PrintResourceCreated("IX", resp.TechnicalServiceUID, noColor)
 	return nil
 }

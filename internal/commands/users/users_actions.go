@@ -179,6 +179,11 @@ func CreateUser(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	if resp == nil {
+		output.PrintError("User create returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
+	}
+
 	output.PrintResourceCreated("User", strconv.Itoa(resp.EmployeeID), noColor)
 	return nil
 }

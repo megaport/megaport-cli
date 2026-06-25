@@ -1153,6 +1153,121 @@ vxcs:
 	assert.Contains(t, err.Error(), "empty response")
 }
 
+// --- nil provisioning-poll response tests ---
+// These cover the GetPort/GetMCR/GetMVE/GetVXC paths inside waitForProvision,
+// where the SDK can return (nil, nil) and the status was read off the nil pointer.
+
+func TestApplyConfig_PortProvisionNilResponse(t *testing.T) {
+	mockPort := &MockPortService{GetPortReturnNil: true}
+	defer setupMockClient(mockPort, &MockMCRService{}, &MockMVEService{}, &MockVXCService{})()
+
+	yaml := `
+ports:
+  - name: Nil-Provision-Port
+    location_id: 1
+    speed: 1000
+    term: 12
+    marketplace_visibility: false
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = ApplyConfig(cmd, nil, true, "table")
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
+}
+
+func TestApplyConfig_MCRProvisionNilResponse(t *testing.T) {
+	mockMCR := &MockMCRService{GetMCRReturnNil: true}
+	defer setupMockClient(&MockPortService{}, mockMCR, &MockMVEService{}, &MockVXCService{})()
+
+	yaml := `
+mcrs:
+  - name: Nil-Provision-MCR
+    location_id: 1
+    speed: 1000
+    term: 12
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = ApplyConfig(cmd, nil, true, "table")
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
+}
+
+func TestApplyConfig_MVEProvisionNilResponse(t *testing.T) {
+	mockMVE := &MockMVEService{GetMVEReturnNil: true}
+	defer setupMockClient(&MockPortService{}, &MockMCRService{}, mockMVE, &MockVXCService{})()
+
+	yaml := `
+mves:
+  - name: Nil-Provision-MVE
+    location_id: 1
+    term: 1
+    vendor_config:
+      vendor: 6wind
+      imageId: 42
+      productSize: SMALL
+      sshPublicKey: "ssh-rsa AAAA"
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = ApplyConfig(cmd, nil, true, "table")
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
+}
+
+func TestApplyConfig_VXCProvisionNilResponse(t *testing.T) {
+	mockVXC := &MockVXCService{GetVXCReturnNil: true}
+	defer setupMockClient(&MockPortService{}, &MockMCRService{}, &MockMVEService{}, mockVXC)()
+
+	yaml := `
+ports:
+  - name: VXCProvision-Port
+    location_id: 1
+    speed: 1000
+    term: 12
+    marketplace_visibility: false
+
+vxcs:
+  - name: Nil-Provision-VXC
+    rate_limit: 100
+    term: 12
+    a_end:
+      product_uid: "{{.port.VXCProvision-Port}}"
+    b_end:
+      product_uid: some-uid
+`
+	f := writeTempFile(t, "config.yaml", yaml)
+	cmd := applyCmd(f, false, true)
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = ApplyConfig(cmd, nil, true, "table")
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
+}
+
 // --- helpers (also used by other test functions) ---
 
 func TestResolveTemplates_NoTemplate(t *testing.T) {

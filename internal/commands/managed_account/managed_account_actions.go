@@ -124,6 +124,11 @@ func CreateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 		return err
 	}
 
+	if account == nil {
+		output.PrintError("Managed account create returned an empty API response", noColor)
+		return fmt.Errorf("empty response from API")
+	}
+
 	output.PrintResourceCreated("Managed Account", account.CompanyUID, noColor)
 	return nil
 }
