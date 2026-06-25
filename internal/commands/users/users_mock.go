@@ -24,12 +24,16 @@ type MockUserManagementService struct {
 	CapturedEmployeeID  int
 	CapturedActivityReq *megaport.GetUserActivityRequest
 	ForceNilGetUser     bool
+	ForceNilCreateUser  bool
 }
 
 func (m *MockUserManagementService) CreateUser(ctx context.Context, req *megaport.CreateUserRequest) (*megaport.CreateUserResponse, error) {
 	m.CapturedCreateReq = req
 	if m.CreateUserErr != nil {
 		return nil, m.CreateUserErr
+	}
+	if m.ForceNilCreateUser {
+		return nil, nil
 	}
 	if m.CreateUserResult != nil {
 		return m.CreateUserResult, nil

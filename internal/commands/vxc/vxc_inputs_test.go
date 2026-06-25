@@ -852,6 +852,69 @@ func TestResolvePartnerPortUID(t *testing.T) {
 	}
 }
 
+func TestBuildVXCRequestFromFlags_VNICIndexZero(t *testing.T) {
+	newBuyCmd := func() *cobra.Command {
+		cmd := &cobra.Command{Use: "buy"}
+		cmd.Flags().String("a-end-uid", "", "")
+		cmd.Flags().String("b-end-uid", "", "")
+		cmd.Flags().String("name", "", "")
+		cmd.Flags().Int("rate-limit", 0, "")
+		cmd.Flags().Int("term", 0, "")
+		cmd.Flags().Int("a-end-vlan", 0, "")
+		cmd.Flags().Int("b-end-vlan", 0, "")
+		cmd.Flags().Int("a-end-inner-vlan", 0, "")
+		cmd.Flags().Int("b-end-inner-vlan", 0, "")
+		cmd.Flags().Int("a-end-vnic-index", 0, "")
+		cmd.Flags().Int("b-end-vnic-index", 0, "")
+		cmd.Flags().String("promo-code", "", "")
+		cmd.Flags().String("service-key", "", "")
+		cmd.Flags().String("cost-centre", "", "")
+		cmd.Flags().String("a-end-partner-config", "", "")
+		cmd.Flags().String("b-end-partner-config", "", "")
+		return cmd
+	}
+
+	setRequired := func(t *testing.T, cmd *cobra.Command) {
+		require.NoError(t, cmd.Flags().Set("name", "Test VXC"))
+		require.NoError(t, cmd.Flags().Set("a-end-uid", "a-end-uid-123"))
+		require.NoError(t, cmd.Flags().Set("b-end-uid", "b-end-uid-123"))
+		require.NoError(t, cmd.Flags().Set("rate-limit", "100"))
+		require.NoError(t, cmd.Flags().Set("term", "1"))
+	}
+
+	t.Run("A-End vNIC index 0 set via flag builds MVE config", func(t *testing.T) {
+		cmd := newBuyCmd()
+		setRequired(t, cmd)
+		require.NoError(t, cmd.Flags().Set("a-end-vnic-index", "0"))
+
+		req, err := buildVXCRequestFromFlags(cmd, context.Background(), &MockVXCService{})
+		require.NoError(t, err)
+		require.NotNil(t, req.AEndConfiguration.VXCOrderMVEConfig)
+		assert.Equal(t, 0, req.AEndConfiguration.NetworkInterfaceIndex)
+	})
+
+	t.Run("B-End vNIC index 0 set via flag builds MVE config", func(t *testing.T) {
+		cmd := newBuyCmd()
+		setRequired(t, cmd)
+		require.NoError(t, cmd.Flags().Set("b-end-vnic-index", "0"))
+
+		req, err := buildVXCRequestFromFlags(cmd, context.Background(), &MockVXCService{})
+		require.NoError(t, err)
+		require.NotNil(t, req.BEndConfiguration.VXCOrderMVEConfig)
+		assert.Equal(t, 0, req.BEndConfiguration.NetworkInterfaceIndex)
+	})
+
+	t.Run("vNIC index not set leaves MVE config nil", func(t *testing.T) {
+		cmd := newBuyCmd()
+		setRequired(t, cmd)
+
+		req, err := buildVXCRequestFromFlags(cmd, context.Background(), &MockVXCService{})
+		require.NoError(t, err)
+		assert.Nil(t, req.AEndConfiguration.VXCOrderMVEConfig)
+		assert.Nil(t, req.BEndConfiguration.VXCOrderMVEConfig)
+	})
+}
+
 func TestBuildVXCRequestFromFlags_PartnerConfig(t *testing.T) {
 	origResolve := resolvePartnerPortUID
 	defer func() { resolvePartnerPortUID = origResolve }()

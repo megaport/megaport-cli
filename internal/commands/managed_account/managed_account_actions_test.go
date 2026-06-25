@@ -15,6 +15,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestListManagedAccounts(t *testing.T) {
@@ -577,6 +578,44 @@ func TestCreateManagedAccount(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCreateManagedAccount_NilResponse(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+	originalCreateFunc := createManagedAccountFunc
+	defer func() { createManagedAccountFunc = originalCreateFunc }()
+
+	// createResult left nil so the mock returns (nil, nil).
+	mockService := &MockManagedAccountService{}
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.ManagedAccountService = mockService
+		return client, nil
+	})
+	createManagedAccountFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ManagedAccountRequest) (*megaport.ManagedAccount, error) {
+		return mockService.CreateManagedAccount(ctx, req)
+	}
+
+	cmd := testutil.NewCommand("create", testutil.NoColorAdapter(CreateManagedAccount))
+	cmd.Flags().String("account-name", "", "")
+	cmd.Flags().String("account-ref", "", "")
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	testutil.SetFlags(t, cmd, map[string]string{
+		"account-name": "Test Account",
+		"account-ref":  "REF-001",
+	})
+
+	var err error
+	require.NotPanics(t, func() {
+		output.CaptureOutput(func() {
+			err = cmd.RunE(cmd, []string{})
+		})
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty response")
 }
 
 func TestCreateManagedAccount_InvalidJSON(t *testing.T) {
