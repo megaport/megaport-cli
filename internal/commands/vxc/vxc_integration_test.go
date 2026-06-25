@@ -323,6 +323,7 @@ func buildMCRCmd(t *testing.T, name string, locationID int) *cobra.Command {
 	cmd.Flags().Bool("marketplace-visibility", false, "")
 	cmd.Flags().String("json", "", "")
 	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().Int("ipsec-tunnel-count", 0, "")
 	require.NoError(t, cmd.Flags().Set("name", name))
 	require.NoError(t, cmd.Flags().Set("term", "1"))
 	require.NoError(t, cmd.Flags().Set("port-speed", "1000"))
