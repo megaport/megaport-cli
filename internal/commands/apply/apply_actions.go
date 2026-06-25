@@ -34,17 +34,6 @@ const (
 	maxConfigFileSize = 10 * 1024 * 1024
 )
 
-// provisionPollInterval is how often the provision-wait loop polls resource
-// status. Overridable in tests to avoid 10s sleeps.
-var provisionPollInterval = 10 * time.Second
-
-// readyStates are the provisioning states considered fully provisioned.
-var readyStates = []string{megaport.SERVICE_CONFIGURED, megaport.SERVICE_LIVE}
-
-// failedStates are terminal states that mean provisioning will never succeed,
-// so the wait loop should fail fast instead of polling until the timeout.
-var failedStates = []string{megaport.STATUS_DECOMMISSIONED, megaport.STATUS_CANCELLED}
-
 // templateRe matches {{.type.name}} references in config values.
 var templateRe = regexp.MustCompile(`\{\{\.(\w+)\.([^}]+)\}\}`)
 
@@ -556,44 +545,14 @@ func doRollback(client *megaport.Client, created []createdResource, jsonMode boo
 	return failErr
 }
 
-// waitForProvision polls getStatus until the resource reaches a ready state, its
-// per-resource timeout elapses, ctx is cancelled, or getStatus returns an error.
-// The timeout is applied on a context derived here, so each resource gets its own
-// provisioning budget rather than sharing one across the whole run. The order has
-// already been placed by the time this runs, so the caller must have recorded the
-// resource as created before calling this.
+// waitForProvision applies a per-resource timeout to ctx so --timeout bounds each
+// resource rather than the whole run, then delegates to the shared poll loop. The
+// order has already been placed by the time this runs, so the caller must have
+// recorded the resource as created before calling this.
 func waitForProvision(ctx context.Context, timeout time.Duration, resType, name, uid string, getStatus func(ctx context.Context) (string, error)) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-
-	check := func() (bool, error) {
-		status, err := getStatus(ctx)
-		if err != nil {
-			return false, err
-		}
-		if slices.Contains(failedStates, status) {
-			return false, fmt.Errorf("%s %q (%s) entered terminal state %q during provisioning", resType, name, uid, status)
-		}
-		return slices.Contains(readyStates, status), nil
-	}
-
-	if ready, err := check(); err != nil || ready {
-		return err
-	}
-
-	ticker := time.NewTicker(provisionPollInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("timed out waiting for %s %q (%s) to provision: %w", resType, name, uid, ctx.Err())
-		case <-ticker.C:
-			if ready, err := check(); err != nil || ready {
-				return err
-			}
-		}
-	}
+	return utils.WaitForProvision(ctx, resType, name, uid, getStatus)
 }
 
 // deleteResource deletes a single provisioned resource via the appropriate service client.

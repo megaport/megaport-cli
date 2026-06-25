@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -132,6 +133,22 @@ func serviceKeyFromSDK(t *testing.T, client *megaport.Client, keyUID string) *me
 	return sk
 }
 
+// createServiceKeyViaCLI drives the CLI CreateServiceKey action against portUID
+// with the given description plus any extra flags, then recovers the new key's
+// UID via the SDK. It centralizes the set-flags-create-recover boilerplate the
+// lifecycle tests share so each test body reads as its assertions.
+func createServiceKeyViaCLI(t *testing.T, client *megaport.Client, portUID, description string, extra map[string]string) string {
+	t.Helper()
+	cmd := newCreateServiceKeyCmdLifecycle()
+	require.NoError(t, cmd.Flags().Set("product-uid", portUID))
+	require.NoError(t, cmd.Flags().Set("description", description))
+	for name, value := range extra {
+		require.NoErrorf(t, cmd.Flags().Set(name, value), "failed to set --%s", name)
+	}
+	require.NoError(t, CreateServiceKey(cmd, nil, true), "CreateServiceKey failed")
+	return serviceKeyUIDForProduct(t, client, portUID, description)
+}
+
 func newCreateServiceKeyCmdLifecycle() *cobra.Command {
 	cmd := &cobra.Command{Use: "create"}
 	cmd.Flags().String("product-uid", "", "")
@@ -164,6 +181,7 @@ func newUpdateServiceKeyCmdLifecycle() *cobra.Command {
 // the nightly read-only job (which builds only `-tags integration`) never runs it;
 // it runs in the manual provisioning job.
 func TestIntegration_ServiceKeyLifecycle(t *testing.T) {
+	testutil.RequireStagingForProvisioning(t)
 	client := testutil.SetupIntegrationClient(t)
 	defer testutil.LoginWithClient(t, client)()
 
@@ -200,4 +218,121 @@ func TestIntegration_ServiceKeyLifecycle(t *testing.T) {
 
 	updated := serviceKeyFromSDK(t, client, keyUID)
 	assert.True(t, updated.Active, "service key should be active after update")
+}
+
+// TestIntegration_ServiceKeyVLANScopedLifecycle provisions a port and creates a
+// single-use, VLAN-scoped service key against it, then asserts via the SDK that
+// the VLAN and single-use scope round-trip. Like TestIntegration_ServiceKeyLifecycle
+// it tears down only the port: service keys have no delete API, so the key is left
+// attached to the (deleted) port.
+func TestIntegration_ServiceKeyVLANScopedLifecycle(t *testing.T) {
+	testutil.RequireStagingForProvisioning(t)
+	client := testutil.SetupIntegrationClient(t)
+	defer testutil.LoginWithClient(t, client)()
+
+	portUID := provisionPortForServiceKey(t, client)
+	t.Logf("provisioned port %s for VLAN-scoped service key", portUID)
+
+	const vlan = 100
+	description := fmt.Sprintf("CLI-Test-VLANKey-%s", uniqueSuffix(t))
+
+	keyUID := createServiceKeyViaCLI(t, client, portUID, description, map[string]string{
+		"single-use": "true",
+		"vlan":       strconv.Itoa(vlan),
+		"max-speed":  "1000",
+	})
+	t.Logf("created VLAN-scoped service key %s", keyUID)
+
+	sk := serviceKeyFromSDK(t, client, keyUID)
+	assert.Equal(t, vlan, sk.VLAN, "VLAN should round-trip via SDK")
+	assert.True(t, sk.SingleUse, "service key should be single-use")
+	assert.Equal(t, portUID, sk.ProductUID, "service key should be scoped to the provisioned port")
+}
+
+// TestIntegration_ServiceKeyUpdateMatrix creates a service key, confirms create
+// round-trips its fields, normalizes it to a known active+single-use baseline,
+// then runs single-field updates and asserts via the SDK that the unspecified
+// active/single-use sibling survives. This is the regression guard for ESD-1417,
+// where an unset bool reset active/single-use. max-speed is also checked as a
+// preserved sibling. description is NOT preserved by an update: the update request
+// carries no description field, so any update clears it. That is asserted as a
+// documented limitation rather than treated as a preservation invariant.
+func TestIntegration_ServiceKeyUpdateMatrix(t *testing.T) {
+	testutil.RequireStagingForProvisioning(t)
+	client := testutil.SetupIntegrationClient(t)
+	defer testutil.LoginWithClient(t, client)()
+
+	portUID := provisionPortForServiceKey(t, client)
+	t.Logf("provisioned port %s for service key update matrix", portUID)
+
+	const (
+		vlan = 200
+		// Full 1G port speed: a guaranteed-valid rate the API won't normalize,
+		// while still non-zero so a reset-to-zero regression is caught.
+		maxSpeed = 1000
+	)
+	description := fmt.Sprintf("CLI-Test-MatrixKey-%s", uniqueSuffix(t))
+
+	keyUID := createServiceKeyViaCLI(t, client, portUID, description, map[string]string{
+		"single-use": "true",
+		"vlan":       strconv.Itoa(vlan),
+		"max-speed":  strconv.Itoa(maxSpeed),
+	})
+	t.Logf("created service key %s for update matrix", keyUID)
+
+	// Create must round-trip the fields we set. active is not asserted here:
+	// create omits it (json omitempty) and staging defaults a new key to
+	// active=true, so the baseline below normalizes active explicitly.
+	created := serviceKeyFromSDK(t, client, keyUID)
+	require.True(t, created.SingleUse, "create must round-trip single-use")
+	require.Equal(t, vlan, created.VLAN, "create must round-trip vlan")
+	require.Equal(t, maxSpeed, created.MaxSpeed, "create must round-trip max-speed")
+	require.Equal(t, description, created.Description, "create must round-trip description")
+
+	// updateField runs a single-flag update and returns the re-fetched key.
+	updateField := func(flag, value string) *megaport.ServiceKey {
+		t.Helper()
+		cmd := newUpdateServiceKeyCmdLifecycle()
+		require.NoError(t, cmd.Flags().Set(flag, value))
+		require.NoErrorf(t, UpdateServiceKey(cmd, []string{keyUID}, true), "%s-only update failed", flag)
+		return serviceKeyFromSDK(t, client, keyUID)
+	}
+
+	// Normalize to active=true, single-use=true regardless of the API's
+	// create-time defaults (staging defaults a new key to active=true). Each
+	// guard below then starts with its sibling at a non-zero value, so an
+	// ESD-1417 reset-to-false regression cannot pass trivially.
+	setup := newUpdateServiceKeyCmdLifecycle()
+	require.NoError(t, setup.Flags().Set("active", "true"))
+	require.NoError(t, setup.Flags().Set("single-use", "true"))
+	require.NoError(t, UpdateServiceKey(setup, []string{keyUID}, true), "baseline normalize update failed")
+	base := serviceKeyFromSDK(t, client, keyUID)
+	require.True(t, base.Active, "baseline: active must be true")
+	require.True(t, base.SingleUse, "baseline: single-use must be true")
+	require.Equal(t, maxSpeed, base.MaxSpeed, "baseline: max-speed must survive the update")
+	// Known limitation: an update clears the description. The update request has
+	// no description field (and the CLI update has no --description flag), so any
+	// update wipes the create-time description. Pinned here so the behavior is
+	// captured; round-tripping description on update is a follow-up.
+	assert.Empty(t, base.Description, "an update is expected to clear the description (known limitation)")
+
+	// Guard 1: update active only (true -> false). single-use is left unspecified
+	// and must survive at true; the ESD-1417 reset-to-false bug would clear it.
+	afterActive := updateField("active", "false")
+	assert.False(t, afterActive.Active, "active should be false after the active-only update")
+	assert.True(t, afterActive.SingleUse, "single-use must survive an active-only update (ESD-1417)")
+
+	// Restore active=true so guard 2 runs with the active sibling non-zero. This
+	// re-run of the active update doubles as a second single-use-survives check.
+	restored := updateField("active", "true")
+	require.True(t, restored.Active, "active should be true after restore")
+	require.True(t, restored.SingleUse, "single-use must survive the active restore (ESD-1417)")
+
+	// Guard 2: update single-use only (true -> false). active is left unspecified
+	// and must survive at true (the other ESD-1417 direction).
+	afterSingleUse := updateField("single-use", "false")
+	assert.False(t, afterSingleUse.SingleUse, "single-use should be false after the single-use-only update")
+	assert.True(t, afterSingleUse.Active, "active must survive a single-use-only update (ESD-1417)")
+	// VLAN intentionally not asserted here: dropping single-use can legitimately
+	// clear the VLAN scope, so it is not a sibling-preservation invariant.
 }

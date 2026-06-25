@@ -38,6 +38,16 @@ func TestProcessJSONMCRInput(t *testing.T) {
 			name:      "valid JSON file",
 			writeFile: `{"name":"file-mcr","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true}`,
 		},
+		{
+			name:          "empty tag key rejected",
+			jsonStr:       `{"name":"test","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true,"resourceTags":{"":"x"}}`,
+			expectedError: "tag key must not be empty",
+		},
+		{
+			name:          "empty tag key rejected via file",
+			writeFile:     `{"name":"test","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true,"resourceTags":{"":"x"}}`,
+			expectedError: "tag key must not be empty",
+		},
 	}
 
 	for _, tt := range tests {
@@ -55,7 +65,7 @@ func TestProcessJSONMCRInput(t *testing.T) {
 
 			req, err := processJSONMCRInput(tt.jsonStr, jsonFile)
 			if tt.expectedError != "" {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
 			} else {
 				assert.NoError(t, err)
@@ -63,6 +73,13 @@ func TestProcessJSONMCRInput(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProcessJSONMCRInput_ValidResourceTags(t *testing.T) {
+	req, err := processJSONMCRInput(`{"name":"test","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true,"resourceTags":{"env":"prod"}}`, "")
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	assert.Equal(t, "prod", req.ResourceTags["env"])
 }
 
 func TestProcessJSONUpdateMCRInput(t *testing.T) {

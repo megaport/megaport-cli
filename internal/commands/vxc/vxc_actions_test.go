@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
@@ -359,6 +362,7 @@ func TestBuyVXC(t *testing.T) {
 func TestBuyVXC_NoWaitFlag(t *testing.T) {
 	noColor := true
 	originalBuyVXCFunc := buyVXCFunc
+	originalGetVXCFunc := getVXCFunc
 
 	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
 	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
@@ -368,22 +372,23 @@ func TestBuyVXC_NoWaitFlag(t *testing.T) {
 	defer cleanup()
 	defer func() {
 		buyVXCFunc = originalBuyVXCFunc
+		getVXCFunc = originalGetVXCFunc
 	}()
 
 	tests := []struct {
-		name                     string
-		noWait                   bool
-		expectedWaitForProvision bool
+		name       string
+		noWait     bool
+		expectPoll bool
 	}{
 		{
-			name:                     "default waits for provisioning",
-			noWait:                   false,
-			expectedWaitForProvision: true,
+			name:       "default waits for provisioning",
+			noWait:     false,
+			expectPoll: true,
 		},
 		{
-			name:                     "no-wait skips provisioning wait",
-			noWait:                   true,
-			expectedWaitForProvision: false,
+			name:       "no-wait skips provisioning wait",
+			noWait:     true,
+			expectPoll: false,
 		},
 	}
 
@@ -406,6 +411,11 @@ func TestBuyVXC_NoWaitFlag(t *testing.T) {
 				return &megaport.BuyVXCResponse{
 					TechnicalServiceUID: "vxc-uid-123",
 				}, nil
+			}
+			getVXCCalls := 0
+			getVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string) (*megaport.VXC, error) {
+				getVXCCalls++
+				return &megaport.VXC{UID: vxcUID, ProvisioningStatus: "LIVE"}, nil
 			}
 
 			buildVXCRequestFromFlagsOrig := buildVXCRequestFromFlags
@@ -462,9 +472,112 @@ func TestBuyVXC_NoWaitFlag(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.NotNil(t, capturedReq)
-			assert.Equal(t, tt.expectedWaitForProvision, capturedReq.WaitForProvision)
+			// The SDK must never poll; provisioning is awaited outside the order retry.
+			assert.False(t, capturedReq.WaitForProvision)
+			if tt.expectPoll {
+				assert.Positive(t, getVXCCalls, "expected a provisioning poll when not using --no-wait")
+			} else {
+				assert.Zero(t, getVXCCalls, "no provisioning poll expected with --no-wait")
+			}
 		})
 	}
+}
+
+// TestBuyVXC_NoResubmitOnPollRetryableError proves the order is submitted exactly
+// once even when a retryable error (429) surfaces during the provisioning poll.
+func TestBuyVXC_NoResubmitOnPollRetryableError(t *testing.T) {
+	noColor := true
+	originalBuyVXCFunc := buyVXCFunc
+	originalGetVXCFunc := getVXCFunc
+	originalBuildFromFlags := buildVXCRequestFromFlags
+	originalMaxRetries := utils.MaxRetries
+	originalPollInterval := utils.ProvisionPollInterval
+	originalNoRetry := utils.NoRetry
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer func() {
+		cleanup()
+		buyVXCFunc = originalBuyVXCFunc
+		getVXCFunc = originalGetVXCFunc
+		buildVXCRequestFromFlags = originalBuildFromFlags
+		utils.MaxRetries = originalMaxRetries
+		utils.ProvisionPollInterval = originalPollInterval
+		utils.NoRetry = originalNoRetry
+	}()
+	utils.MaxRetries = 3
+	utils.NoRetry = false
+	utils.ProvisionPollInterval = time.Millisecond
+
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	mockService := &MockVXCService{}
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		return &megaport.Client{VXCService: mockService}, nil
+	})
+
+	buyCalls := 0
+	buyVXCFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyVXCRequest) (*megaport.BuyVXCResponse, error) {
+		buyCalls++
+		return &megaport.BuyVXCResponse{TechnicalServiceUID: "vxc-uid-123"}, nil
+	}
+	getVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string) (*megaport.VXC, error) {
+		return nil, &megaport.ErrorResponse{
+			Response: &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Header:     http.Header{},
+				Request:    &http.Request{URL: &url.URL{}},
+			},
+			Message: "too many requests",
+		}
+	}
+
+	buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc megaport.VXCService) (*megaport.BuyVXCRequest, error) {
+		return &megaport.BuyVXCRequest{
+			PortUID:           "dcc-12345",
+			VXCName:           "Test VXC",
+			RateLimit:         500,
+			Term:              12,
+			AEndConfiguration: megaport.VXCOrderEndpointConfiguration{VLAN: 100},
+			BEndConfiguration: megaport.VXCOrderEndpointConfiguration{ProductUID: "dcc-67890", VLAN: 200},
+		}, nil
+	}
+
+	cmd := &cobra.Command{}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().Bool("no-wait", false, "")
+	cmd.Flags().String("a-end-uid", "", "")
+	cmd.Flags().String("b-end-uid", "", "")
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().Int("rate-limit", 0, "")
+	cmd.Flags().Int("term", 0, "")
+	cmd.Flags().Int("a-end-vlan", 0, "")
+	cmd.Flags().Int("b-end-vlan", 0, "")
+	cmd.Flags().Int("a-end-inner-vlan", 0, "")
+	cmd.Flags().Int("b-end-inner-vlan", 0, "")
+	cmd.Flags().Int("a-end-vnic-index", 0, "")
+	cmd.Flags().Int("b-end-vnic-index", 0, "")
+	cmd.Flags().String("promo-code", "", "")
+	cmd.Flags().String("service-key", "", "")
+	cmd.Flags().String("cost-centre", "", "")
+	cmd.Flags().String("a-end-partner-config", "", "")
+	cmd.Flags().String("b-end-partner-config", "", "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+
+	testutil.SetFlags(t, cmd, map[string]string{
+		"a-end-uid": "dcc-12345",
+		"name":      "Test VXC",
+	})
+	// no-wait stays false: the provisioning poll must run.
+
+	var err error
+	output.CaptureOutput(func() {
+		err = BuyVXC(cmd, nil, noColor)
+	})
+
+	assert.Error(t, err, "a retryable error during the provisioning poll must surface as an error")
+	assert.Equal(t, 1, buyCalls, "the order must be submitted exactly once; a poll-phase 429 must not re-submit it")
 }
 
 func TestUpdateVXCResourceTagsCmd(t *testing.T) {
@@ -2645,6 +2758,91 @@ func TestListVXCs_TagFilter(t *testing.T) {
 			}
 			for _, notExp := range tt.notExpected {
 				assert.NotContains(t, capturedOutput, notExp)
+			}
+		})
+	}
+}
+
+// TestBuyVXC_OrderAndProvisionFailures covers the order-response and
+// provisioning-poll failure branches: an empty API response, a missing UID, and
+// the VXC vanishing during the provisioning poll.
+func TestBuyVXC_OrderAndProvisionFailures(t *testing.T) {
+	originalBuyVXCFunc := buyVXCFunc
+	originalGetVXCFunc := getVXCFunc
+	originalBuildFromFlags := buildVXCRequestFromFlags
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer func() {
+		cleanup()
+		buyVXCFunc = originalBuyVXCFunc
+		getVXCFunc = originalGetVXCFunc
+		buildVXCRequestFromFlags = originalBuildFromFlags
+	}()
+
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
+
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		return &megaport.Client{VXCService: &MockVXCService{}}, nil
+	})
+	buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc megaport.VXCService) (*megaport.BuyVXCRequest, error) {
+		return &megaport.BuyVXCRequest{
+			PortUID:           "dcc-12345",
+			VXCName:           "Test VXC",
+			RateLimit:         500,
+			Term:              12,
+			AEndConfiguration: megaport.VXCOrderEndpointConfiguration{VLAN: 100},
+			BEndConfiguration: megaport.VXCOrderEndpointConfiguration{ProductUID: "dcc-67890", VLAN: 200},
+		}, nil
+	}
+
+	tests := []struct {
+		name     string
+		buyResp  *megaport.BuyVXCResponse
+		getNil   bool
+		errMatch string
+	}{
+		{name: "empty API response", buyResp: nil, errMatch: "empty response from API"},
+		{name: "no UID returned", buyResp: &megaport.BuyVXCResponse{}, errMatch: "no UID returned"},
+		{name: "VXC not found during provisioning poll", buyResp: &megaport.BuyVXCResponse{TechnicalServiceUID: "vxc-uid-123"}, getNil: true, errMatch: "not found while waiting for provisioning"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buyVXCFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyVXCRequest) (*megaport.BuyVXCResponse, error) {
+				return tt.buyResp, nil
+			}
+			getVXCFunc = func(ctx context.Context, client *megaport.Client, vxcUID string) (*megaport.VXC, error) {
+				if tt.getNil {
+					return nil, nil
+				}
+				return &megaport.VXC{UID: vxcUID, ProvisioningStatus: "LIVE"}, nil
+			}
+
+			cmd := &cobra.Command{}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().String("a-end-uid", "", "")
+			cmd.Flags().String("b-end-uid", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("rate-limit", 0, "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("a-end-vlan", 0, "")
+			cmd.Flags().Int("b-end-vlan", 0, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			testutil.SetFlags(t, cmd, map[string]string{
+				"a-end-uid": "dcc-12345",
+				"name":      "Test VXC",
+			})
+
+			var err error
+			output.CaptureOutput(func() {
+				err = BuyVXC(cmd, nil, true)
+			})
+
+			if assert.Error(t, err) {
+				assert.Contains(t, err.Error(), tt.errMatch)
 			}
 		})
 	}

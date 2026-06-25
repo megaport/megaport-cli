@@ -294,6 +294,21 @@ func TestProcessJSONUpdateMVEInput(t *testing.T) {
 			jsonStr: `{"contractTermMonths":24}`,
 		},
 		{
+			name:          "name wrong type",
+			jsonStr:       `{"name":123}`,
+			expectedError: "name must be a string",
+		},
+		{
+			name:          "cost centre wrong type",
+			jsonStr:       `{"costCentre":true}`,
+			expectedError: "costCentre must be a string",
+		},
+		{
+			name:          "contract term wrong type",
+			jsonStr:       `{"contractTermMonths":"two years"}`,
+			expectedError: "contractTermMonths must be a number",
+		},
+		{
 			name:          "invalid JSON",
 			jsonStr:       `{invalid}`,
 			expectedError: "failed to parse JSON",
@@ -333,6 +348,108 @@ func TestProcessJSONUpdateMVEInput(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProcessJSONBuyMVEInput(t *testing.T) {
+	validVendorConfig := `"vendorConfig":{"vendor":"6wind","imageId":1,"productSize":"MEDIUM","sshPublicKey":"ssh-rsa AAAA"}`
+
+	tests := []struct {
+		name          string
+		jsonStr       string
+		expectedError string
+	}{
+		{
+			name:    "valid buy request",
+			jsonStr: `{"name":"test-mve","term":12,"locationId":5,` + validVendorConfig + `}`,
+		},
+		{
+			name:    "valid buy request with vnics",
+			jsonStr: `{"name":"test-mve","term":12,"locationId":5,` + validVendorConfig + `,"vnics":[{"description":"data","vlan":100}]}`,
+		},
+		{
+			name:    "valid buy request with empty vnics array",
+			jsonStr: `{"name":"test-mve","term":12,"locationId":5,` + validVendorConfig + `,"vnics":[]}`,
+		},
+		{
+			name:          "name wrong type",
+			jsonStr:       `{"name":123}`,
+			expectedError: "name must be a string",
+		},
+		{
+			name:          "term wrong type",
+			jsonStr:       `{"term":"yearly"}`,
+			expectedError: "term must be a number",
+		},
+		{
+			name:          "locationId wrong type",
+			jsonStr:       `{"locationId":"five"}`,
+			expectedError: "locationId must be a number",
+		},
+		{
+			name:          "diversityZone wrong type",
+			jsonStr:       `{"diversityZone":5}`,
+			expectedError: "diversityZone must be a string",
+		},
+		{
+			name:          "promoCode wrong type",
+			jsonStr:       `{"promoCode":5}`,
+			expectedError: "promoCode must be a string",
+		},
+		{
+			name:          "costCentre wrong type",
+			jsonStr:       `{"costCentre":true}`,
+			expectedError: "costCentre must be a string",
+		},
+		{
+			name:          "vendorConfig wrong type",
+			jsonStr:       `{"vendorConfig":"6wind"}`,
+			expectedError: "vendorConfig must be an object",
+		},
+		{
+			name:          "vnics wrong type",
+			jsonStr:       `{"vnics":"data"}`,
+			expectedError: "vnics must be an array",
+		},
+		{
+			name:          "vnics entry wrong type",
+			jsonStr:       `{"vnics":["data"]}`,
+			expectedError: "vnics[0] must be an object",
+		},
+		{
+			name:          "vnics description wrong type",
+			jsonStr:       `{"vnics":[{"description":123}]}`,
+			expectedError: "description must be a string",
+		},
+		{
+			name:          "vnics vlan wrong type",
+			jsonStr:       `{"vnics":[{"vlan":"hundred"}]}`,
+			expectedError: "vlan must be a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := processJSONBuyMVEInput(tt.jsonStr, "")
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, req)
+			}
+		})
+	}
+}
+
+func TestProcessJSONBuyMVEInput_OptionalStringsRoundTrip(t *testing.T) {
+	jsonStr := `{"name":"test-mve","term":12,"locationId":5,"diversityZone":"red","promoCode":"PROMO","costCentre":"CC-1","vendorConfig":{"vendor":"6wind","imageId":1,"productSize":"MEDIUM","sshPublicKey":"ssh-rsa AAAA"}}`
+
+	req, err := processJSONBuyMVEInput(jsonStr, "")
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	assert.Equal(t, "red", req.DiversityZone)
+	assert.Equal(t, "PROMO", req.PromoCode)
+	assert.Equal(t, "CC-1", req.CostCentre)
 }
 
 func TestProcessFlagUpdateMVEInput(t *testing.T) {

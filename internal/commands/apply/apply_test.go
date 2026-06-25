@@ -11,6 +11,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -652,7 +653,7 @@ mcrs:
 
 // TestApplyConfig_RollbackSurvivesProvisionTimeout guards the fix where rollback
 // must not reuse the provisioning context. The port is bought but never reaches a
-// ready state, so the short --timeout trips waitForProvision and the provisioning
+// ready state, so the short --timeout trips the provisioning wait and the provisioning
 // context expires. If rollback reused that expired context, the mock's DeletePort
 // would see ctx.Err() and the port would leak; rollback must start a fresh context
 // (with the same configured timeout) so the delete still fires.
@@ -691,9 +692,9 @@ ports:
 // budget. Under the old shared-context behavior the second resource would time out;
 // the test passes only when each resource gets its own deadline.
 func TestApplyConfig_PerResourceTimeout(t *testing.T) {
-	oldInterval := provisionPollInterval
-	provisionPollInterval = 2 * time.Millisecond
-	defer func() { provisionPollInterval = oldInterval }()
+	oldInterval := utils.ProvisionPollInterval
+	utils.ProvisionPollInterval = 2 * time.Millisecond
+	defer func() { utils.ProvisionPollInterval = oldInterval }()
 
 	// readyAfter reports CONFIGURING until d has elapsed since its first call, then
 	// LIVE — simulating a resource that consumes ~d of its provisioning budget.

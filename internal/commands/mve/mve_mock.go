@@ -34,9 +34,12 @@ type MockMVEService struct {
 	CapturedListMVEsRequest              *megaport.ListMVEsRequest
 	CapturedUpdateMVEResourceTagsRequest map[string]string
 	ForceNilGetMVE                       bool
+	BuyMVECallCount                      int
+	GetMVECallCount                      int
 }
 
 func (m *MockMVEService) GetMVE(ctx context.Context, mveID string) (*megaport.MVE, error) {
+	m.GetMVECallCount++
 	if m.GetMVEErr != nil {
 		return nil, m.GetMVEErr
 	}
@@ -68,6 +71,7 @@ func (m *MockMVEService) ListMVEs(ctx context.Context, req *megaport.ListMVEsReq
 
 func (m *MockMVEService) BuyMVE(ctx context.Context, req *megaport.BuyMVERequest) (*megaport.BuyMVEResponse, error) {
 	m.CapturedBuyMVERequest = req
+	m.BuyMVECallCount++
 	if m.BuyMVENilResp {
 		return nil, nil
 	}
@@ -179,6 +183,8 @@ func (m *MockMVEService) Reset() {
 	m.ListAvailableMVESizesErr = nil
 	m.ListAvailableMVESizesResult = nil
 	m.ForceNilGetMVE = false
+	m.BuyMVECallCount = 0
+	m.GetMVECallCount = 0
 	m.CapturedBuyMVERequest = nil
 	m.CapturedModifyMVERequest = nil
 	m.CapturedListMVEsRequest = nil
