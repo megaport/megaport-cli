@@ -11,6 +11,19 @@ workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries unde
 
 ## [Unreleased]
 
+### Added
+- IPsec tunnel config on VXC vRouter interfaces. Set `interfaceType: ipSecTunnel` on an interface and give it one `ipSecTunnelOptions` object (source IP, destination IP, pre-shared key, and optional `passive`, `localId`, `remoteId`, `phase1Lifetime`, `phase2Lifetime`). Each `ipSecTunnel` interface carries exactly one tunnel; attach multiple `ipSecTunnel` interfaces to configure multiple tunnels. Works when buying or updating a VXC via JSON, the `--a-end-partner-config` / `--b-end-partner-config` flags, or the interactive prompts. The pre-shared key is read without echo and never printed.
+
+### Changed
+- Bumped the megaportgo SDK to v1.14.1, which models `ipSecTunnelOptions` as a single object per `ipSecTunnel` interface (one tunnel each) instead of an array
+
+### Fixed
+- vRouter `bgpConnections` are now parsed from JSON input (`--json` / `--a-end-partner-config` / `--b-end-partner-config`) when buying or updating a VXC. Previously they were silently dropped on the JSON path and only honored via the interactive prompts
+- `vxc update` now validates vRouter partner configs (interfaces, BGP, and IPsec tunnels) client-side before the API call, matching the create path
+- vRouter interface validation now accepts an untagged VLAN (-1), matching the Azure peer and shared VLAN checks. Previously a `-1` VLAN was rejected client-side even though the API accepts it, which also blocked the interactive "press Enter for no VLAN" path
+- The interactive BGP connection password is now read without echo, matching the IPsec pre-shared key. Previously it was typed in cleartext on screen
+- Interactive `vxc update` now applies the A-End vRouter partner config to the A-End. Previously it was written to the B-End field, so the A-End config was lost and the B-End was overwritten
+
 ## [v0.13.0] - 2026-06-23
 
 ### Added

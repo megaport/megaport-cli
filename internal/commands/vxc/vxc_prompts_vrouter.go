@@ -27,7 +27,7 @@ func promptVRouterConfig(noColor bool) (*megaport.VXCOrderVrouterPartnerConfig, 
 	for i := 0; i < interfaceCount; i++ {
 		iface := megaport.PartnerConfigInterface{}
 
-		vlanStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("VLAN (0-%d, except %d, optional - press Enter for no VLAN): ", validation.MaxVLAN, validation.ReservedVLAN), noColor)
+		vlanStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("VLAN (%d=auto-assign, %d=untagged, %d-%d; press Enter for untagged): ", validation.AutoAssignVLAN, validation.UntaggedVLAN, validation.MinAssignableVLAN, validation.MaxVLAN), noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -37,73 +37,107 @@ func promptVRouterConfig(noColor bool) (*megaport.VXCOrderVrouterPartnerConfig, 
 			if err != nil {
 				return nil, fmt.Errorf("VLAN must be a valid integer")
 			}
-			if vlan < 0 || vlan > validation.MaxVLAN || vlan == validation.ReservedVLAN {
+			if err := validation.ValidateVLAN(vlan); err != nil {
 				return nil, validation.NewValidationError("VRouter interface VLAN", vlan,
-					fmt.Sprintf("must be %d or between %d-%d (%d is reserved)", validation.AutoAssignVLAN, validation.MinAssignableVLAN, validation.MaxVLAN, validation.ReservedVLAN))
+					fmt.Sprintf("must be %d for auto-assign, %d for untagged, or %d-%d (%d is reserved)",
+						validation.AutoAssignVLAN, validation.UntaggedVLAN, validation.MinAssignableVLAN, validation.MaxVLAN, validation.ReservedVLAN))
 			}
 			iface.VLAN = vlan
 		} else {
-			iface.VLAN = -1
+			iface.VLAN = validation.UntaggedVLAN
 		}
 
-		ipAddrs, err := promptIPAddresses("IP Addresses (CIDR notation, e.g., 192.168.1.1/30)", noColor)
+		interfaceType, err := utils.ResourcePrompt("vxc", fmt.Sprintf("Interface type (%s/%s, default %s): ", megaport.InterfaceTypeSubInterface, megaport.InterfaceTypeIPSecTunnel, megaport.InterfaceTypeSubInterface), noColor)
 		if err != nil {
 			return nil, err
 		}
-		iface.IpAddresses = ipAddrs
-
-		hasRoutes, err := utils.ResourcePrompt("vxc", "Do you want to add IP routes? (yes/no): ", noColor)
-		if err != nil {
-			return nil, err
+		if interfaceType != "" && interfaceType != megaport.InterfaceTypeSubInterface && interfaceType != megaport.InterfaceTypeIPSecTunnel {
+			return nil, fmt.Errorf("interface type must be %s or %s", megaport.InterfaceTypeSubInterface, megaport.InterfaceTypeIPSecTunnel)
 		}
-		if strings.ToLower(hasRoutes) == "yes" {
-			routes, err := promptIPRoutes(noColor)
+		iface.InterfaceType = interfaceType
+
+		// An ipSecTunnel interface carries only its tunnel; the source IP lives on
+		// a separate subInterface, so the IP/route/NAT/BFD/BGP prompts are skipped.
+		if interfaceType == megaport.InterfaceTypeIPSecTunnel {
+			tunnel, err := promptIPsecTunnel(noColor)
 			if err != nil {
 				return nil, err
 			}
-			iface.IpRoutes = routes
-		}
-
-		hasNatIPs, err := utils.ResourcePrompt("vxc", "Do you want to add NAT IP addresses? (yes/no): ", noColor)
-		if err != nil {
+			iface.IpSecTunnelOptions = tunnel
+		} else if err := promptVRouterSubInterface(&iface, noColor); err != nil {
 			return nil, err
-		}
-		if strings.ToLower(hasNatIPs) == "yes" {
-			natIPs, err := promptNATIPAddresses(noColor)
-			if err != nil {
-				return nil, err
-			}
-			iface.NatIpAddresses = natIPs
-		}
-
-		hasBFD, err := utils.ResourcePrompt("vxc", "Do you want to configure BFD? (yes/no): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if strings.ToLower(hasBFD) == "yes" {
-			bfd, err := promptBFDConfig(noColor)
-			if err != nil {
-				return nil, err
-			}
-			iface.Bfd = bfd
-		}
-
-		hasBGP, err := utils.ResourcePrompt("vxc", "Do you want to configure BGP connections? (yes/no): ", noColor)
-		if err != nil {
-			return nil, err
-		}
-		if strings.ToLower(hasBGP) == "yes" {
-			bgpConns, err := promptBGPConnections(noColor)
-			if err != nil {
-				return nil, err
-			}
-			iface.BgpConnections = bgpConns
 		}
 
 		config.Interfaces = append(config.Interfaces, iface)
 	}
 
+	// Validate before returning so the interactive path rejects bad input with a
+	// clear message before any API call, matching the flag and JSON paths.
+	if err := validation.ValidateVrouterPartnerConfig(config); err != nil {
+		return nil, err
+	}
+
 	return config, nil
+}
+
+// promptVRouterSubInterface collects the IP addresses, routes, NAT IPs, BFD, and
+// BGP connections that apply to a subInterface but not to an ipSecTunnel interface.
+func promptVRouterSubInterface(iface *megaport.PartnerConfigInterface, noColor bool) error {
+	ipAddrs, err := promptIPAddresses("IP Addresses (CIDR notation, e.g., 192.168.1.1/30)", noColor)
+	if err != nil {
+		return err
+	}
+	iface.IpAddresses = ipAddrs
+
+	hasRoutes, err := utils.ResourcePrompt("vxc", "Do you want to add IP routes? (yes/no): ", noColor)
+	if err != nil {
+		return err
+	}
+	if strings.ToLower(hasRoutes) == "yes" {
+		routes, err := promptIPRoutes(noColor)
+		if err != nil {
+			return err
+		}
+		iface.IpRoutes = routes
+	}
+
+	hasNatIPs, err := utils.ResourcePrompt("vxc", "Do you want to add NAT IP addresses? (yes/no): ", noColor)
+	if err != nil {
+		return err
+	}
+	if strings.ToLower(hasNatIPs) == "yes" {
+		natIPs, err := promptNATIPAddresses(noColor)
+		if err != nil {
+			return err
+		}
+		iface.NatIpAddresses = natIPs
+	}
+
+	hasBFD, err := utils.ResourcePrompt("vxc", "Do you want to configure BFD? (yes/no): ", noColor)
+	if err != nil {
+		return err
+	}
+	if strings.ToLower(hasBFD) == "yes" {
+		bfd, err := promptBFDConfig(noColor)
+		if err != nil {
+			return err
+		}
+		iface.Bfd = bfd
+	}
+
+	hasBGP, err := utils.ResourcePrompt("vxc", "Do you want to configure BGP connections? (yes/no): ", noColor)
+	if err != nil {
+		return err
+	}
+	if strings.ToLower(hasBGP) == "yes" {
+		bgpConns, err := promptBGPConnections(noColor)
+		if err != nil {
+			return err
+		}
+		iface.BgpConnections = bgpConns
+	}
+
+	return nil
 }
 
 func promptIPRoutes(noColor bool) ([]megaport.IpRoute, error) {
@@ -302,7 +336,7 @@ func promptBGPOptionalConfig(bgp *megaport.BgpConnectionConfig, noColor bool) er
 		bgp.LocalAsn = &localAsn
 	}
 
-	password, err := utils.ResourcePrompt("vxc", "Enter password (optional): ", noColor)
+	password, err := utils.SecretResourcePrompt("vxc", "Enter password (optional): ", noColor)
 	if err != nil {
 		return err
 	}
@@ -468,6 +502,93 @@ func promptBGPPrefixLists(bgp *megaport.BgpConnectionConfig, noColor bool) error
 			return fmt.Errorf("export blacklist must be an integer")
 		}
 		bgp.ExportBlacklist = exportBlacklist
+	}
+
+	return nil
+}
+
+// promptIPsecTunnel collects the single IPsec tunnel carried by one ipSecTunnel
+// interface. To configure multiple tunnels, add multiple ipSecTunnel interfaces.
+func promptIPsecTunnel(noColor bool) (*megaport.IPsecTunnelConfig, error) {
+	tunnel := &megaport.IPsecTunnelConfig{}
+
+	sourceIP, err := utils.ResourcePrompt("vxc", "Enter source IP address (required): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	tunnel.SourceIpAddress = sourceIP
+
+	destIP, err := utils.ResourcePrompt("vxc", "Enter destination IP address (required): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	tunnel.DestinationIpAddress = destIP
+
+	psk, err := utils.SecretResourcePrompt("vxc", "Enter pre-shared key (required): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	tunnel.PreSharedKey = psk
+
+	if err := promptIPsecTunnelOptional(tunnel, noColor); err != nil {
+		return nil, err
+	}
+
+	return tunnel, nil
+}
+
+func promptIPsecTunnelOptional(tunnel *megaport.IPsecTunnelConfig, noColor bool) error {
+	passiveStr, err := utils.ResourcePrompt("vxc", "Passive mode? (yes/no, optional - press Enter for API default): ", noColor)
+	if err != nil {
+		return err
+	}
+	if passiveStr != "" {
+		switch strings.ToLower(passiveStr) {
+		case "yes":
+			v := true
+			tunnel.Passive = &v
+		case "no":
+			v := false
+			tunnel.Passive = &v
+		default:
+			return fmt.Errorf("passive mode must be 'yes' or 'no'")
+		}
+	}
+
+	localID, err := utils.ResourcePrompt("vxc", "Enter local ID (optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	tunnel.LocalId = localID
+
+	remoteID, err := utils.ResourcePrompt("vxc", "Enter remote ID (optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	tunnel.RemoteId = remoteID
+
+	phase1Str, err := utils.ResourcePrompt("vxc", "Enter phase 1 lifetime in seconds (3600-604800, optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	if phase1Str != "" {
+		phase1, err := strconv.Atoi(phase1Str)
+		if err != nil {
+			return fmt.Errorf("phase 1 lifetime must be an integer")
+		}
+		tunnel.Phase1Lifetime = &phase1
+	}
+
+	phase2Str, err := utils.ResourcePrompt("vxc", "Enter phase 2 lifetime in seconds (600-86400, optional): ", noColor)
+	if err != nil {
+		return err
+	}
+	if phase2Str != "" {
+		phase2, err := strconv.Atoi(phase2Str)
+		if err != nil {
+			return fmt.Errorf("phase 2 lifetime must be an integer")
+		}
+		tunnel.Phase2Lifetime = &phase2
 	}
 
 	return nil
