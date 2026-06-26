@@ -33,11 +33,11 @@ go test -tags integration -run '^TestIntegration_' -v -timeout 30m ./internal/co
 
 ## What gets created on staging
 
-The provisioning lifecycle tests create real resources on the staging account: ports, VXC, MCR, MVE, and IX, plus a service key (against a port the test buys) and a pending-invite user. More resources such as NAT Gateway are added incrementally. They run whenever the full suite runs, locally via `make test-integration` and in the manual provisioning CI job, never in the nightly read-only job. All test resources are named with the prefix `CLI-Test-` for easy identification.
+The provisioning lifecycle tests create real resources on the staging account: ports, VXC, MCR, MVE, IX, and NAT Gateway, plus a service key (against a port the test buys) and a pending-invite user. More resources are added incrementally. They run whenever the full suite runs, locally via `make test-integration` and in the manual provisioning CI job, never in the nightly read-only job. All test resources are named with the prefix `CLI-Test-` for easy identification.
 
 Resources are cleaned up automatically via `t.Cleanup()` at the end of each test, even when the test fails. However, if a test run is interrupted (e.g. `Ctrl+C`), cleanup may not run. In that case, log in to the staging portal and delete any leftover resources prefixed with `CLI-Test-`.
 
-The read-only integration tests cover `billing_market`, `locations`, `managed_account`, `partners`, `product`, `servicekeys`, `status`, `topology`, and `users` outright, plus read-only smoke tests for ports, VXC, MCR, MVE, and IX. They provision nothing: they list/get/status existing resources and skip cleanly when the account has none.
+The read-only integration tests cover `billing_market`, `locations`, `managed_account`, `partners`, `product`, `servicekeys`, `status`, `topology`, and `users` outright, plus read-only smoke tests for ports, VXC, MCR, MVE, IX, and NAT Gateway. They provision nothing: they list/get/status existing resources and skip cleanly when the account has none.
 
 ### MCR routing coverage
 
@@ -65,14 +65,14 @@ A lifecycle test that lives in a package the nightly read-only job also runs car
 package servicekeys
 ```
 
-The nightly read-only job builds only `-tags integration`, so adding `provisioning` excludes a test from that build entirely. It is load-bearing for `servicekeys` and `users`: their nightly step runs `-run '^TestIntegration_'` with no `ReadOnly` name filter, so without the tag their lifecycle tests (the service key test buys a port to use as its product) would run nightly. The core-resource packages (ports, VXC, MCR, MVE, IX) are instead run nightly under `-run 'TestIntegration_.*ReadOnly$'`, so their lifecycle tests are already kept out by the name filter. The ports and MCR lifecycle files (`ports_integration_test.go`, `mcr_integration_test.go`) additionally carry `provisioning` as a second, build-level guarantee that their tests can never run nightly; VXC, MVE, and IX rely on the name filter alone and stay `//go:build integration`. IX is the weakest case: its lifecycle and read-only tests share one file (`ix_integration_test.go`), so only the `-run` regex keeps the IX lifecycle test out of nightly.
+The nightly read-only job builds only `-tags integration`, so adding `provisioning` excludes a test from that build entirely. It is load-bearing for `servicekeys` and `users`: their nightly step runs `-run '^TestIntegration_'` with no `ReadOnly` name filter, so without the tag their lifecycle tests (the service key test buys a port to use as its product) would run nightly. The core-resource packages (ports, VXC, MCR, MVE, IX, and NAT Gateway) are instead run nightly under `-run 'TestIntegration_.*ReadOnly$'`, so their lifecycle tests are already kept out by the name filter. The ports, MCR, and NAT Gateway lifecycle files (`ports_integration_test.go`, `mcr_integration_test.go`, `nat_gateway_lifecycle_integration_test.go`) additionally carry `provisioning` as a second, build-level guarantee that their tests can never run nightly; VXC, MVE, and IX rely on the name filter alone and stay `//go:build integration`. IX is the weakest case: its lifecycle and read-only tests share one file (`ix_integration_test.go`), so only the `-run` regex keeps the IX lifecycle test out of nightly.
 
 ## CI
 
 Integration tests run in CI via `.github/workflows/integration-test.yml`:
 
-- **Read-only job**: runs nightly on `main` and on manual trigger. Tests `billing_market`, `locations`, `managed_account`, `partners`, `product`, `servicekeys`, `status`, `topology`, and `users` outright, plus read-only smoke tests (`list`/`get`/`status`) for ports, VXC, MCR, MVE, and IX selected via `-run 'TestIntegration_.*ReadOnly$'` so the provisioning lifecycle tests in those packages never run nightly. Fast, no resource cost.
-- **Provisioning job**: manual trigger only (`workflow_dispatch`), built with `-tags 'integration provisioning'`. Runs lifecycle tests for ports, VXC, MCR, MVE, and IX, plus the service key and user lifecycles, and additional resources as they are added.
+- **Read-only job**: runs nightly on `main` and on manual trigger. Tests `billing_market`, `locations`, `managed_account`, `partners`, `product`, `servicekeys`, `status`, `topology`, and `users` outright, plus read-only smoke tests (`list`/`get`/`status`) for ports, VXC, MCR, MVE, IX, and NAT Gateway selected via `-run 'TestIntegration_.*ReadOnly$'` so the provisioning lifecycle tests in those packages never run nightly. Fast, no resource cost.
+- **Provisioning job**: manual trigger only (`workflow_dispatch`), built with `-tags 'integration provisioning'`. Runs lifecycle tests for ports, VXC, MCR, MVE, IX, and NAT Gateway, plus the service key and user lifecycles, and additional resources as they are added.
 
 ## Adding a new integration test
 
@@ -81,7 +81,7 @@ Integration tests run in CI via `.github/workflows/integration-test.yml`:
 3. Authenticate using one of the helpers below (see "Authentication helpers")
 4. Call action functions directly. For parallel tests, read state via `testutil.SharedIntegrationClient(t)` rather than `output.CaptureOutput` (see "Output capture and parallelism")
 5. Use `t.Cleanup()` for resource deletion (e.g. deleting staging ports/VXCs) so cleanup runs even on test failure; `defer` is fine for non-resource cleanup like restoring login state
-6. Keep mutating tests out of the nightly read-only job. The nightly job runs `servicekeys` and `users` with no `ReadOnly` name filter, so a lifecycle test there MUST carry `&& provisioning` (in its own file) to stay out of the `-tags integration`-only build. The core-resource packages (ports, VXC, MCR, MVE, IX) run nightly under `-run 'TestIntegration_.*ReadOnly$'`, so naming a lifecycle test something other than `...ReadOnly` already excludes it; ports and MCR additionally carry `&& provisioning` as an extra guard, while VXC, MVE, and IX rely on the name filter alone. A package the read-only job never runs (e.g. `apply`) needs only `//go:build integration`
+6. Keep mutating tests out of the nightly read-only job. The nightly job runs `servicekeys` and `users` with no `ReadOnly` name filter, so a lifecycle test there MUST carry `&& provisioning` (in its own file) to stay out of the `-tags integration`-only build. The core-resource packages (ports, VXC, MCR, MVE, IX, and NAT Gateway) run nightly under `-run 'TestIntegration_.*ReadOnly$'`, so naming a lifecycle test something other than `...ReadOnly` already excludes it; ports, MCR, and NAT Gateway additionally carry `&& provisioning` as an extra guard, while VXC, MVE, and IX rely on the name filter alone. A package the read-only job never runs (e.g. `apply`) needs only `//go:build integration`
 7. Add the package to the provisioning job in `.github/workflows/integration-test.yml`
 
 See `internal/commands/locations/locations_integration_test.go` for a serial read-only example and `internal/commands/ports/ports_integration_test.go` for a parallel provisioning-lifecycle example.

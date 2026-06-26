@@ -76,6 +76,7 @@ func processFlagCreateNATGatewayInput(cmd *cobra.Command) (*megaport.CreateNATGa
 	speed, _ := cmd.Flags().GetInt("speed")
 	locationID, _ := cmd.Flags().GetInt("location-id")
 	sessionCount, _ := cmd.Flags().GetInt("session-count")
+	asn, _ := cmd.Flags().GetInt("asn")
 	diversityZone, _ := cmd.Flags().GetString("diversity-zone")
 	promoCode, _ := cmd.Flags().GetString("promo-code")
 	serviceLevelRef, _ := cmd.Flags().GetString("service-level-reference")
@@ -108,6 +109,7 @@ func processFlagCreateNATGatewayInput(cmd *cobra.Command) (*megaport.CreateNATGa
 		ServiceLevelReference: serviceLevelRef,
 		ResourceTags:          resourceTags,
 		Config: megaport.NATGatewayNetworkConfig{
+			ASN:           asn,
 			DiversityZone: diversityZone,
 			SessionCount:  sessionCount,
 		},

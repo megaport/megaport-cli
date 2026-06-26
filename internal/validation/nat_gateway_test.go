@@ -142,6 +142,28 @@ func TestValidateCreateNATGatewayRequest(t *testing.T) {
 			errMsg:  "ASN",
 		},
 		{
+			name: "valid private ASN",
+			req: &megaport.CreateNATGatewayRequest{
+				ProductName: "GW",
+				LocationID:  1,
+				Speed:       100,
+				Term:        12,
+				Config:      megaport.NATGatewayNetworkConfig{ASN: 64512},
+			},
+			wantErr: false,
+		},
+		{
+			name: "zero ASN is valid (unset/optional)",
+			req: &megaport.CreateNATGatewayRequest{
+				ProductName: "GW",
+				LocationID:  1,
+				Speed:       100,
+				Term:        12,
+				Config:      megaport.NATGatewayNetworkConfig{ASN: 0},
+			},
+			wantErr: false,
+		},
+		{
 			name: "zero session count is valid (unset/default)",
 			req: &megaport.CreateNATGatewayRequest{
 				ProductName: "GW",
@@ -151,6 +173,29 @@ func TestValidateCreateNATGatewayRequest(t *testing.T) {
 			},
 			wantErr: false,
 		},
+	}
+
+	// int(MaxASN)+1 is not representable on 32-bit / js-wasm targets, so only
+	// exercise the over-max case when the boundary value fits in an int. Mirrors
+	// the guard in TestValidateASN.
+	if maxASN := maxSupportedASNForInt(); maxASN < int64(^uint(0)>>1) {
+		tests = append(tests, struct {
+			name    string
+			req     *megaport.CreateNATGatewayRequest
+			wantErr bool
+			errMsg  string
+		}{
+			name: "ASN above max is rejected",
+			req: &megaport.CreateNATGatewayRequest{
+				ProductName: "GW",
+				LocationID:  1,
+				Speed:       100,
+				Term:        12,
+				Config:      megaport.NATGatewayNetworkConfig{ASN: int(maxASN) + 1},
+			},
+			wantErr: true,
+			errMsg:  "ASN",
+		})
 	}
 
 	for _, tt := range tests {
@@ -267,6 +312,42 @@ func TestValidateUpdateNATGatewayRequest(t *testing.T) {
 			wantErr: true,
 			errMsg:  "ASN",
 		},
+		{
+			name: "valid private ASN",
+			req: &megaport.UpdateNATGatewayRequest{
+				ProductUID:  "uid-123",
+				ProductName: "GW",
+				LocationID:  100,
+				Speed:       1000,
+				Term:        12,
+				Config:      megaport.NATGatewayNetworkConfig{ASN: 64512},
+			},
+			wantErr: false,
+		},
+	}
+
+	// int(MaxASN)+1 is not representable on 32-bit / js-wasm targets, so only
+	// exercise the over-max case when the boundary value fits in an int. Mirrors
+	// the guard in TestValidateASN.
+	if maxASN := maxSupportedASNForInt(); maxASN < int64(^uint(0)>>1) {
+		tests = append(tests, struct {
+			name    string
+			req     *megaport.UpdateNATGatewayRequest
+			wantErr bool
+			errMsg  string
+		}{
+			name: "ASN above max is rejected",
+			req: &megaport.UpdateNATGatewayRequest{
+				ProductUID:  "uid-123",
+				ProductName: "GW",
+				LocationID:  100,
+				Speed:       1000,
+				Term:        12,
+				Config:      megaport.NATGatewayNetworkConfig{ASN: int(maxASN) + 1},
+			},
+			wantErr: true,
+			errMsg:  "ASN",
+		})
 	}
 
 	for _, tt := range tests {

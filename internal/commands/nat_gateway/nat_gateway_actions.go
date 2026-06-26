@@ -25,9 +25,9 @@ func CreateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 	jsonFile, _ := cmd.Flags().GetString("json-file")
 	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("term") ||
 		cmd.Flags().Changed("speed") || cmd.Flags().Changed("location-id") ||
-		cmd.Flags().Changed("session-count") || cmd.Flags().Changed("diversity-zone") ||
-		cmd.Flags().Changed("promo-code") || cmd.Flags().Changed("service-level-reference") ||
-		cmd.Flags().Changed("auto-renew")
+		cmd.Flags().Changed("session-count") || cmd.Flags().Changed("asn") ||
+		cmd.Flags().Changed("diversity-zone") || cmd.Flags().Changed("promo-code") ||
+		cmd.Flags().Changed("service-level-reference") || cmd.Flags().Changed("auto-renew")
 
 	var req *megaport.CreateNATGatewayRequest
 	var err error

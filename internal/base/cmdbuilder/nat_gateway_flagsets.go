@@ -8,6 +8,8 @@ func (b *CommandBuilder) WithNATGatewayCreateFlags() *CommandBuilder {
 		WithIntFlag("location-id", 0, "The ID of the location where the NAT Gateway will be provisioned").
 		WithIntFlag("session-count", 0, "The number of NAT sessions (optional)").
 		WithOptionalFlag("session-count", "The number of NAT sessions").
+		WithIntFlag("asn", 0, "The BGP ASN for the NAT Gateway (optional; use a private ASN, e.g. 64512)").
+		WithOptionalFlag("asn", "The BGP ASN for the NAT Gateway").
 		WithFlag("diversity-zone", "", "The diversity zone for the NAT Gateway (optional)").
 		WithOptionalFlag("diversity-zone", "The diversity zone for the NAT Gateway").
 		WithFlag("promo-code", "", "A promotional code for discounts (optional)").
