@@ -46,7 +46,7 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	sessCmd := newTestCmd("list-sessions")
 
 	var sessErr error
-	sessOut := output.CaptureOutput(func() {
+	sessOut := output.CaptureStdout(func() {
 		sessErr = ListNATGatewaySessions(sessCmd, nil, true, "json")
 	})
 	require.NoError(t, sessErr)
@@ -159,7 +159,7 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	getCmd := newTestCmd("get")
 
 	var getErr error
-	getOut := output.CaptureOutput(func() {
+	getOut := output.CaptureStdout(func() {
 		getErr = GetNATGateway(getCmd, []string{uid}, true, "json")
 	})
 	require.NoError(t, getErr)
@@ -178,7 +178,7 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	// Validate the gateway to confirm pricing data is accessible.
 	valCmd := newTestCmd("validate")
 	var valErr error
-	valOut := output.CaptureOutput(func() {
+	valOut := output.CaptureStdout(func() {
 		valErr = ValidateNATGateway(valCmd, []string{uid}, true, "json")
 	})
 	require.NoError(t, valErr)
@@ -193,7 +193,9 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("output", "json"))
 	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
 	var buyErr error
-	buyOut := output.CaptureOutput(func() {
+	// Capture stdout only: buy prints a "✓ NAT Gateway created" success line to
+	// stderr, which would otherwise corrupt the JSON parsed from buyOut below.
+	buyOut := output.CaptureStdout(func() {
 		buyErr = BuyNATGateway(buyCmd, []string{uid}, true)
 	})
 	require.NoError(t, buyErr)
@@ -218,7 +220,7 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	getCmd2 := newTestCmd("get")
 
 	var getErr2 error
-	getOut2 := output.CaptureOutput(func() {
+	getOut2 := output.CaptureStdout(func() {
 		getErr2 = GetNATGateway(getCmd2, []string{uid}, true, "json")
 	})
 	require.NoError(t, getErr2)
@@ -234,7 +236,7 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	require.NoError(t, telCmd.Flags().Set("days", "1"))
 
 	var telErr error
-	telOut := output.CaptureOutput(func() {
+	telOut := output.CaptureStdout(func() {
 		telErr = GetNATGatewayTelemetry(telCmd, []string{uid}, true, "json")
 	})
 	require.NoError(t, telErr)
