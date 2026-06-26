@@ -47,6 +47,7 @@ megaport-cli [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
+| `--base-url` |  |  | Override the API base URL (e.g. http://localhost:8080); takes precedence over --env and any profile environment | false |
 | `--env` |  |  | Environment to use (prod, dev, or staging) | false |
 | `--fields` |  |  | Comma-separated list of fields to include in output (e.g., uid,name,status); use an unknown name to list available fields | false |
 | `--log-http` |  | `false` | Log raw HTTP requests/responses to stderr for debugging (may include sensitive data such as auth tokens) | false |
@@ -60,7 +61,8 @@ megaport-cli [flags]
 | `--query` |  |  | JMESPath query to filter JSON output (requires --output json) | false |
 | `--quiet` | `-q` | `false` | Suppress informational output, only show errors and data | false |
 | `--template` |  |  | Go template string for --output go-template (e.g. '{{range .}}{{.Name}}{{"\n"}}{{end}}') | false |
-| `--timeout` |  | `0s` | Request timeout duration (e.g., 30s, 2m, 5m); 0 uses the internal default of 90s | false |
+| `--timeout` |  | `0s` | Timeout for the operation (e.g., 30s, 2m, 5m); must be positive. Omit to use each command's built-in default (see the command's own help) | false |
+| `--token-url` |  |  | Override the OAuth token endpoint (typically used with --base-url when auth is served from a non-standard host) | false |
 | `--verbose` | `-v` | `false` | Show additional debug information | false |
 
 ## Subcommands

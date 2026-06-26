@@ -476,7 +476,29 @@ func parseVRouterConfig(config map[string]interface{}) (*megaport.VXCOrderVroute
 				iface.Bfd = bfd
 			}
 
-			// ... existing code for BGP connections (similar pattern would be applied) ...
+			if bgpConnsRawVal, exists := ifaceMap["bgpConnections"]; exists {
+				bgpConns, err := parseBGPConnections(bgpConnsRawVal, i)
+				if err != nil {
+					return nil, err
+				}
+				iface.BgpConnections = bgpConns
+			}
+
+			if interfaceTypeVal, exists := ifaceMap["interfaceType"]; exists {
+				interfaceType, ok := interfaceTypeVal.(string)
+				if !ok {
+					return nil, fmt.Errorf("interfaceType must be a string in interface at index %d", i)
+				}
+				iface.InterfaceType = interfaceType
+			}
+
+			if tunnelRawVal, exists := ifaceMap["ipSecTunnelOptions"]; exists {
+				tunnel, err := parseIPsecTunnelOptions(tunnelRawVal, i)
+				if err != nil {
+					return nil, err
+				}
+				iface.IpSecTunnelOptions = tunnel
+			}
 
 			interfaces = append(interfaces, iface)
 		}
@@ -485,4 +507,260 @@ func parseVRouterConfig(config map[string]interface{}) (*megaport.VXCOrderVroute
 	return &megaport.VXCOrderVrouterPartnerConfig{
 		Interfaces: interfaces,
 	}, nil
+}
+
+// parseBGPConnections parses the bgpConnections array of a vRouter interface
+// from decoded JSON. ifaceIndex is the index of the parent interface, used only
+// for error messages. The BGP password is read as a plain string and is never
+// echoed back in an error message.
+func parseBGPConnections(raw interface{}, ifaceIndex int) ([]megaport.BgpConnectionConfig, error) {
+	bgpRaw, ok := raw.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("bgpConnections must be an array in interface at index %d", ifaceIndex)
+	}
+
+	var conns []megaport.BgpConnectionConfig
+	for j, connRaw := range bgpRaw {
+		connMap, ok := connRaw.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("BGP connection at index %d in interface %d must be an object", j, ifaceIndex)
+		}
+
+		conn := megaport.BgpConnectionConfig{}
+
+		intField := func(key string) (int, bool, error) {
+			v, exists := connMap[key]
+			if !exists {
+				return 0, false, nil
+			}
+			f, ok := v.(float64)
+			if !ok {
+				return 0, false, fmt.Errorf("%s must be a number in BGP connection %d of interface %d", key, j, ifaceIndex)
+			}
+			return int(f), true, nil
+		}
+		strField := func(key string) (string, bool, error) {
+			v, exists := connMap[key]
+			if !exists {
+				return "", false, nil
+			}
+			s, ok := v.(string)
+			if !ok {
+				return "", false, fmt.Errorf("%s must be a string in BGP connection %d of interface %d", key, j, ifaceIndex)
+			}
+			return s, true, nil
+		}
+		boolField := func(key string) (bool, bool, error) {
+			v, exists := connMap[key]
+			if !exists {
+				return false, false, nil
+			}
+			b, ok := v.(bool)
+			if !ok {
+				return false, false, fmt.Errorf("%s must be a boolean in BGP connection %d of interface %d", key, j, ifaceIndex)
+			}
+			return b, true, nil
+		}
+		strSliceField := func(key string) ([]string, error) {
+			v, exists := connMap[key]
+			if !exists {
+				return nil, nil
+			}
+			arr, ok := v.([]interface{})
+			if !ok {
+				return nil, fmt.Errorf("%s must be an array in BGP connection %d of interface %d", key, j, ifaceIndex)
+			}
+			out := make([]string, 0, len(arr))
+			for k, item := range arr {
+				s, ok := item.(string)
+				if !ok {
+					return nil, fmt.Errorf("%s[%d] must be a string in BGP connection %d of interface %d", key, k, j, ifaceIndex)
+				}
+				out = append(out, s)
+			}
+			return out, nil
+		}
+
+		if v, ok, err := intField("peerAsn"); err != nil {
+			return nil, err
+		} else if ok {
+			conn.PeerAsn = v
+		}
+		if v, ok, err := intField("localAsn"); err != nil {
+			return nil, err
+		} else if ok {
+			conn.LocalAsn = &v
+		}
+		if v, ok, err := strField("localIpAddress"); err != nil {
+			return nil, err
+		} else if ok {
+			conn.LocalIpAddress = v
+		}
+		if v, ok, err := strField("peerIpAddress"); err != nil {
+			return nil, err
+		} else if ok {
+			conn.PeerIpAddress = v
+		}
+		if v, ok, err := strField("password"); err != nil {
+			return nil, err
+		} else if ok {
+			conn.Password = v
+		}
+		if v, ok, err := boolField("shutdown"); err != nil {
+			return nil, err
+		} else if ok {
+			conn.Shutdown = v
+		}
+		if v, ok, err := strField("description"); err != nil {
+			return nil, err
+		} else if ok {
+			conn.Description = v
+		}
+		if v, ok, err := intField("medIn"); err != nil {
+			return nil, err
+		} else if ok {
+			conn.MedIn = v
+		}
+		if v, ok, err := intField("medOut"); err != nil {
+			return nil, err
+		} else if ok {
+			conn.MedOut = v
+		}
+		if v, ok, err := boolField("bfdEnabled"); err != nil {
+			return nil, err
+		} else if ok {
+			conn.BfdEnabled = v
+		}
+		if v, ok, err := strField("exportPolicy"); err != nil {
+			return nil, err
+		} else if ok {
+			conn.ExportPolicy = v
+		}
+		if v, err := strSliceField("permitExportTo"); err != nil {
+			return nil, err
+		} else {
+			conn.PermitExportTo = v
+		}
+		if v, err := strSliceField("denyExportTo"); err != nil {
+			return nil, err
+		} else {
+			conn.DenyExportTo = v
+		}
+		if v, ok, err := intField("importWhitelist"); err != nil {
+			return nil, err
+		} else if ok {
+			conn.ImportWhitelist = v
+		}
+		if v, ok, err := intField("importBlacklist"); err != nil {
+			return nil, err
+		} else if ok {
+			conn.ImportBlacklist = v
+		}
+		if v, ok, err := intField("exportWhitelist"); err != nil {
+			return nil, err
+		} else if ok {
+			conn.ExportWhitelist = v
+		}
+		if v, ok, err := intField("exportBlacklist"); err != nil {
+			return nil, err
+		} else if ok {
+			conn.ExportBlacklist = v
+		}
+		if v, ok, err := intField("asPathPrependCount"); err != nil {
+			return nil, err
+		} else if ok {
+			conn.AsPathPrependCount = v
+		}
+		if v, ok, err := strField("peerType"); err != nil {
+			return nil, err
+		} else if ok {
+			conn.PeerType = v
+		}
+
+		conns = append(conns, conn)
+	}
+
+	return conns, nil
+}
+
+// parseIPsecTunnelOptions parses the ipSecTunnelOptions object of a vRouter
+// interface from decoded JSON. One ipSecTunnel interface carries exactly one
+// tunnel object. ifaceIndex is the parent interface index, used only for error
+// messages. The pre-shared key is read as a plain string and is never echoed
+// back in an error message.
+func parseIPsecTunnelOptions(raw interface{}, ifaceIndex int) (*megaport.IPsecTunnelConfig, error) {
+	tunnelMap, ok := raw.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("ipSecTunnelOptions must be an object in interface at index %d", ifaceIndex)
+	}
+
+	tunnel := &megaport.IPsecTunnelConfig{}
+
+	if sourceVal, exists := tunnelMap["sourceIpAddress"]; exists {
+		source, ok := sourceVal.(string)
+		if !ok {
+			return nil, fmt.Errorf("sourceIpAddress must be a string in ipSecTunnelOptions of interface %d", ifaceIndex)
+		}
+		tunnel.SourceIpAddress = source
+	}
+
+	if destVal, exists := tunnelMap["destinationIpAddress"]; exists {
+		dest, ok := destVal.(string)
+		if !ok {
+			return nil, fmt.Errorf("destinationIpAddress must be a string in ipSecTunnelOptions of interface %d", ifaceIndex)
+		}
+		tunnel.DestinationIpAddress = dest
+	}
+
+	if pskVal, exists := tunnelMap["preSharedKey"]; exists {
+		psk, ok := pskVal.(string)
+		if !ok {
+			return nil, fmt.Errorf("preSharedKey must be a string in ipSecTunnelOptions of interface %d", ifaceIndex)
+		}
+		tunnel.PreSharedKey = psk
+	}
+
+	if passiveVal, exists := tunnelMap["passive"]; exists {
+		passive, ok := passiveVal.(bool)
+		if !ok {
+			return nil, fmt.Errorf("passive must be a boolean in ipSecTunnelOptions of interface %d", ifaceIndex)
+		}
+		tunnel.Passive = &passive
+	}
+
+	if localIDVal, exists := tunnelMap["localId"]; exists {
+		localID, ok := localIDVal.(string)
+		if !ok {
+			return nil, fmt.Errorf("localId must be a string in ipSecTunnelOptions of interface %d", ifaceIndex)
+		}
+		tunnel.LocalId = localID
+	}
+
+	if remoteIDVal, exists := tunnelMap["remoteId"]; exists {
+		remoteID, ok := remoteIDVal.(string)
+		if !ok {
+			return nil, fmt.Errorf("remoteId must be a string in ipSecTunnelOptions of interface %d", ifaceIndex)
+		}
+		tunnel.RemoteId = remoteID
+	}
+
+	if phase1Val, exists := tunnelMap["phase1Lifetime"]; exists {
+		phase1, ok := phase1Val.(float64)
+		if !ok {
+			return nil, fmt.Errorf("phase1Lifetime must be a number in ipSecTunnelOptions of interface %d", ifaceIndex)
+		}
+		phase1Int := int(phase1)
+		tunnel.Phase1Lifetime = &phase1Int
+	}
+
+	if phase2Val, exists := tunnelMap["phase2Lifetime"]; exists {
+		phase2, ok := phase2Val.(float64)
+		if !ok {
+			return nil, fmt.Errorf("phase2Lifetime must be a number in ipSecTunnelOptions of interface %d", ifaceIndex)
+		}
+		phase2Int := int(phase2)
+		tunnel.Phase2Lifetime = &phase2Int
+	}
+
+	return tunnel, nil
 }

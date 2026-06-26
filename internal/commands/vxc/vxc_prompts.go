@@ -457,7 +457,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		if err != nil {
 			return nil, err
 		}
-		req.BEndPartnerConfig = aEndPartnerConfig
+		req.AEndPartnerConfig = aEndPartnerConfig
 	}
 
 	wantsBEndPartnerConfig, err := utils.ResourcePrompt("vxc", "Do you want to configure a B-End VRouter partner configuration? (yes/no): ", noColor)

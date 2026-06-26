@@ -20,6 +20,14 @@ const (
 	MinBFDMultiplier = 3
 	// MaxBFDMultiplier is the maximum Bidirectional Forwarding Detection multiplier value.
 	MaxBFDMultiplier = 20
+	// MinIPsecPhase1Lifetime is the minimum IKE phase 1 (ISAKMP SA) lifetime in seconds.
+	MinIPsecPhase1Lifetime = 3600
+	// MaxIPsecPhase1Lifetime is the maximum IKE phase 1 (ISAKMP SA) lifetime in seconds.
+	MaxIPsecPhase1Lifetime = 604800
+	// MinIPsecPhase2Lifetime is the minimum IKE phase 2 (IPsec SA) lifetime in seconds.
+	MinIPsecPhase2Lifetime = 600
+	// MaxIPsecPhase2Lifetime is the maximum IKE phase 2 (IPsec SA) lifetime in seconds.
+	MaxIPsecPhase2Lifetime = 86400
 	// MinMED is the minimum Multi-Exit Discriminator value for BGP routing.
 	MinMED = 0
 	// MaxMED is the maximum Multi-Exit Discriminator value for BGP routing.
@@ -383,26 +391,11 @@ func isValidIBMName(name string) bool {
 	return true
 }
 
-// ValidateVrouterPartnerConfig validates a vRouter partner configuration for a VXC connection.
-// This function ensures all aspects of a connection to a Megaport virtual router are properly configured.
-//
-// Parameters:
-//   - config: The vRouter partner configuration to validate
-//
-// Validation checks include:
-//   - Configuration cannot be nil
-//   - At least one interface must be provided
-//   - For each interface:
-//   - If VLAN is specified, it must be within allowed range
-//   - All IP addresses must be in valid IPv4 CIDR notation
-//   - All NAT IP addresses must be in valid IPv4 CIDR notation
-//   - All IP routes must be valid (calls ValidateIPRouteConfig)
-//   - BFD configuration must be valid (calls ValidateBFDConfig)
-//   - All BGP connections must be valid (calls ValidateBGPConnectionConfig)
-//
-// Returns:
-//   - A ValidationError if any validation check fails
-//   - nil if all validation checks pass
+// ValidateVrouterPartnerConfig validates a vRouter partner configuration: it
+// requires at least one interface and validates each interface's VLAN, IP
+// addresses, NAT IPs, routes, BFD, BGP connections, interface type, and IPsec
+// tunnel. An ipSecTunnel interface carries exactly one tunnel, and a tunnel may
+// only appear on an ipSecTunnel interface.
 func ValidateVrouterPartnerConfig(config *megaport.VXCOrderVrouterPartnerConfig) error {
 	if config == nil {
 		return NewValidationError("vRouter partner config", nil, "cannot be nil")
@@ -411,10 +404,10 @@ func ValidateVrouterPartnerConfig(config *megaport.VXCOrderVrouterPartnerConfig)
 		return NewValidationError("vRouter interfaces", nil, "at least one interface must be provided")
 	}
 	for i, iface := range config.Interfaces {
-		if iface.VLAN != 0 {
-			if iface.VLAN < AutoAssignVLAN || iface.VLAN > MaxVLAN || iface.VLAN == ReservedVLAN {
-				return NewValidationError(fmt.Sprintf("vRouter interface [%d] VLAN", i), iface.VLAN, fmt.Sprintf("must be between %d-%d (%d is reserved)", AutoAssignVLAN, MaxVLAN, ReservedVLAN))
-			}
+		if err := ValidateVLAN(iface.VLAN); err != nil {
+			return NewValidationError(fmt.Sprintf("vRouter interface [%d] VLAN", i), iface.VLAN,
+				fmt.Sprintf("must be valid (%d for auto-assign, %d for untagged, or %d-%d except %d)",
+					AutoAssignVLAN, UntaggedVLAN, MinAssignableVLAN, MaxVLAN, ReservedVLAN))
 		}
 		if len(iface.IpAddresses) > 0 {
 			for j, ip := range iface.IpAddresses {
@@ -445,6 +438,20 @@ func ValidateVrouterPartnerConfig(config *megaport.VXCOrderVrouterPartnerConfig)
 				if err := ValidateBGPConnectionConfig(conn, i, j); err != nil {
 					return err
 				}
+			}
+		}
+		if iface.InterfaceType != "" && iface.InterfaceType != megaport.InterfaceTypeSubInterface && iface.InterfaceType != megaport.InterfaceTypeIPSecTunnel {
+			return NewValidationError(fmt.Sprintf("vRouter interface [%d] interface type", i), iface.InterfaceType, fmt.Sprintf("must be '%s' or '%s'", megaport.InterfaceTypeSubInterface, megaport.InterfaceTypeIPSecTunnel))
+		}
+		if iface.InterfaceType == megaport.InterfaceTypeIPSecTunnel && iface.IpSecTunnelOptions == nil {
+			return NewValidationError(fmt.Sprintf("vRouter interface [%d] ipSecTunnelOptions", i), nil, fmt.Sprintf("a tunnel is required when interface type is '%s'", megaport.InterfaceTypeIPSecTunnel))
+		}
+		if iface.IpSecTunnelOptions != nil {
+			if iface.InterfaceType != megaport.InterfaceTypeIPSecTunnel {
+				return NewValidationError(fmt.Sprintf("vRouter interface [%d] ipSecTunnelOptions", i), iface.InterfaceType, fmt.Sprintf("requires interface type '%s'", megaport.InterfaceTypeIPSecTunnel))
+			}
+			if err := ValidateIPsecTunnelConfig(*iface.IpSecTunnelOptions, i); err != nil {
+				return err
 			}
 		}
 	}
@@ -651,6 +658,48 @@ func ValidateBFDConfig(bfd megaport.BfdConfig, ifaceIndex int) error {
 		if bfd.Multiplier < MinBFDMultiplier || bfd.Multiplier > MaxBFDMultiplier {
 			return NewValidationError(fmt.Sprintf("vRouter interface [%d] BFD multiplier", ifaceIndex), bfd.Multiplier, fmt.Sprintf("must be between %d-%d", MinBFDMultiplier, MaxBFDMultiplier))
 		}
+	}
+	return nil
+}
+
+// ValidateIPsecTunnelConfig validates a single IPsec tunnel: source IP,
+// destination IP, and PSK are required; lifetimes are optional but range-checked,
+// and phase 2 must be shorter than phase 1. The PSK is never echoed in an error.
+func ValidateIPsecTunnelConfig(tunnel megaport.IPsecTunnelConfig, ifaceIndex int) error {
+	fieldPrefix := fmt.Sprintf("vRouter interface [%d] IPsec tunnel", ifaceIndex)
+
+	if tunnel.SourceIpAddress == "" {
+		return NewValidationError(fmt.Sprintf("%s source IP address", fieldPrefix), tunnel.SourceIpAddress, "cannot be empty")
+	}
+	if err := ValidateIPv4(tunnel.SourceIpAddress, fmt.Sprintf("%s source IP address", fieldPrefix)); err != nil {
+		return err
+	}
+	if tunnel.DestinationIpAddress == "" {
+		return NewValidationError(fmt.Sprintf("%s destination IP address", fieldPrefix), tunnel.DestinationIpAddress, "cannot be empty")
+	}
+	if err := ValidateIPv4(tunnel.DestinationIpAddress, fmt.Sprintf("%s destination IP address", fieldPrefix)); err != nil {
+		return err
+	}
+	if tunnel.PreSharedKey == "" {
+		// Never echo the PSK: pass nil as the offending value.
+		return NewValidationError(fmt.Sprintf("%s pre-shared key", fieldPrefix), nil, "cannot be empty")
+	}
+	if tunnel.Phase1Lifetime != nil {
+		if *tunnel.Phase1Lifetime < MinIPsecPhase1Lifetime || *tunnel.Phase1Lifetime > MaxIPsecPhase1Lifetime {
+			return NewValidationError(fmt.Sprintf("%s phase 1 lifetime", fieldPrefix), *tunnel.Phase1Lifetime, fmt.Sprintf("must be between %d-%d seconds", MinIPsecPhase1Lifetime, MaxIPsecPhase1Lifetime))
+		}
+	}
+	if tunnel.Phase2Lifetime != nil {
+		if *tunnel.Phase2Lifetime < MinIPsecPhase2Lifetime || *tunnel.Phase2Lifetime > MaxIPsecPhase2Lifetime {
+			return NewValidationError(fmt.Sprintf("%s phase 2 lifetime", fieldPrefix), *tunnel.Phase2Lifetime, fmt.Sprintf("must be between %d-%d seconds", MinIPsecPhase2Lifetime, MaxIPsecPhase2Lifetime))
+		}
+	}
+	// Only cross-check when both are explicitly set. When one is omitted the API
+	// applies its default (phase1=28800s, phase2=3600s). A value like phase2=40000
+	// with no phase1 passes here but violates the constraint at the API level —
+	// this is a known gap that requires knowledge of API defaults to close properly.
+	if tunnel.Phase1Lifetime != nil && tunnel.Phase2Lifetime != nil && *tunnel.Phase2Lifetime >= *tunnel.Phase1Lifetime {
+		return NewValidationError(fmt.Sprintf("%s phase 2 lifetime", fieldPrefix), *tunnel.Phase2Lifetime, "must be less than phase 1 lifetime")
 	}
 	return nil
 }

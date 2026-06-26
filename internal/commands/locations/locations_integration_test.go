@@ -31,7 +31,7 @@ func TestIntegration_ListLocations(t *testing.T) {
 	cmd := integrationListLocationsCmd()
 
 	var err error
-	captured := output.CaptureOutput(func() {
+	captured := output.CaptureStdout(func() {
 		err = ListLocations(cmd, nil, true, "json")
 	})
 
@@ -56,7 +56,7 @@ func TestIntegration_ListLocations_FilterByCountry(t *testing.T) {
 	require.NoError(t, cmd.Flags().Set("country", "Australia"))
 
 	var err error
-	captured := output.CaptureOutput(func() {
+	captured := output.CaptureStdout(func() {
 		err = ListLocations(cmd, nil, true, "json")
 	})
 
@@ -72,7 +72,7 @@ func TestIntegration_SearchLocations(t *testing.T) {
 	defer testutil.LoginWithClient(t, client)()
 
 	var err error
-	captured := output.CaptureOutput(func() {
+	captured := output.CaptureStdout(func() {
 		err = SearchLocations(&cobra.Command{Use: "search"}, []string{"Sydney"}, true, "json")
 	})
 
@@ -91,7 +91,7 @@ func TestIntegration_GetLocation(t *testing.T) {
 	cmd := integrationListLocationsCmd()
 
 	var listErr error
-	listOut := output.CaptureOutput(func() {
+	listOut := output.CaptureStdout(func() {
 		listErr = ListLocations(cmd, nil, true, "json")
 	})
 	require.NoError(t, listErr)
@@ -106,7 +106,7 @@ func TestIntegration_GetLocation(t *testing.T) {
 	locationID := int(firstID)
 
 	var getErr error
-	getOut := output.CaptureOutput(func() {
+	getOut := output.CaptureStdout(func() {
 		getErr = GetLocation(&cobra.Command{Use: "get"}, []string{formatLocationID(locationID)}, true, "json")
 	})
 
