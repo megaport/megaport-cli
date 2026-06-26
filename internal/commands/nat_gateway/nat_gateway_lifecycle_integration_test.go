@@ -51,14 +51,14 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	})
 	require.NoError(t, sessErr)
 
-	if sessOut == "" {
-		t.Skip("no NAT gateway session options available on staging")
-	}
+	// This test is provisioning-tagged and only runs in the manual provisioning
+	// job, where NAT Gateway is expected to be available. Assert availability
+	// rather than skipping so a regression that removes it fails loudly instead
+	// of going green having exercised nothing.
+	require.NotEmpty(t, sessOut, "NAT gateway session options must be available in the provisioning environment")
 	var sessions []map[string]interface{}
 	require.NoError(t, json.Unmarshal([]byte(sessOut), &sessions))
-	if len(sessions) == 0 {
-		t.Skip("no NAT gateway session options available on staging")
-	}
+	require.NotEmpty(t, sessions, "NAT gateway session options must be available in the provisioning environment")
 
 	rawSpeed, ok := sessions[0]["speed_mbps"].(float64)
 	require.True(t, ok, "speed_mbps should be a number")
@@ -80,9 +80,7 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	locs, err := client.LocationService.ListLocationsV3(ctx)
 	require.NoError(t, err)
 	eligible := client.LocationService.FilterLocationsByNATGatewaySpeedV3(ctx, speedMbps, locs)
-	if len(eligible) == 0 {
-		t.Skipf("NAT Gateway not available at any staging location for %d Mbps", speedMbps)
-	}
+	require.NotEmpty(t, eligible, "NAT Gateway must be available at a provisioning-environment location for %d Mbps", speedMbps)
 	loc := eligible[0]
 	locationID := loc.ID
 
@@ -173,6 +171,9 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	assert.Equal(t, uid, gw["uid"])
 	assert.Equal(t, testName, gw["name"])
 	assert.Contains(t, gw, "provisioning_status")
+	// Regression guard for the flag-path fix: --asn must round-trip onto the
+	// created gateway. JSON numbers decode as float64.
+	assert.Equal(t, float64(64512), gw["asn"], "created gateway should retain the --asn flag value")
 
 	// Validate the gateway to confirm pricing data is accessible.
 	valCmd := newTestCmd("validate")
@@ -238,6 +239,9 @@ func TestIntegration_NATGatewayLifecycle(t *testing.T) {
 	})
 	require.NoError(t, telErr)
 
-	var telData interface{}
-	require.NoError(t, json.Unmarshal([]byte(telOut), &telData), "telemetry output should be valid JSON: %q", telOut)
+	// Telemetry serialises as a JSON array of samples; assert that shape rather
+	// than just "valid JSON" so a malformed (non-array) response is caught. The
+	// array may be empty for a freshly provisioned gateway.
+	var telSamples []map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(telOut), &telSamples), "telemetry output should be a JSON array of samples: %q", telOut)
 }
