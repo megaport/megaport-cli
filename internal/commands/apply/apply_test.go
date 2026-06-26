@@ -731,7 +731,7 @@ func TestApplyConfig_PerResourceTimeout(t *testing.T) {
 		}
 	}
 
-	const perResourceConsume = 180 * time.Millisecond
+	const perResourceConsume = 600 * time.Millisecond
 	mockPort := &MockPortService{
 		BuyPortResult:     &megaport.BuyPortResponse{TechnicalServiceUIDs: []string{"slow-port-uid"}},
 		GetPortStatusFunc: readyAfter(perResourceConsume),
@@ -758,10 +758,12 @@ mcrs:
 `
 	f := writeTempFile(t, "config.yaml", cfg)
 	cmd := applyCmd(f, false, true)
-	// Per-resource budget of 300ms. Each resource takes ~180ms, so the two together
-	// (~360ms) exceed a single shared 300ms budget but each stays within its own.
+	// Per-resource budget of 1s. Each resource takes ~600ms, so the two together
+	// (~1.2s) exceed a single shared 1s budget but each stays within its own. The
+	// 400ms per-resource margin gives slack against CPU-contention stalls on a
+	// loaded runner.
 	cmd.Flags().Duration("timeout", 0, "")
-	require.NoError(t, cmd.Flags().Set("timeout", "300ms"))
+	require.NoError(t, cmd.Flags().Set("timeout", "1s"))
 
 	var err error
 	output.CaptureOutput(func() {
