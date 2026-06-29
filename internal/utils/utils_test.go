@@ -795,3 +795,73 @@ func TestWrapOutputFormatRunE_JSONErrorOutput(t *testing.T) {
 	assert.Equal(t, "api_error", errType)
 	assert.Equal(t, "failed to get port: not found", msg)
 }
+
+// buildPreRunChild builds a minimal root+child tree carrying the persistent
+// flags FinishPreRunError reads (--output, --no-color), with --output pre-set.
+func buildPreRunChild(format string) *cobra.Command {
+	root := &cobra.Command{Use: "root"}
+	root.PersistentFlags().String("output", format, "")
+	root.PersistentFlags().Bool("no-color", false, "")
+	child := &cobra.Command{Use: "buy"}
+	root.AddCommand(child)
+	return child
+}
+
+func TestFinishPreRunError(t *testing.T) {
+	t.Run("json mode emits the structured envelope and silences usage", func(t *testing.T) {
+		child := buildPreRunChild("json")
+		var err error
+		stderr := captureStderr(t, func() {
+			err = FinishPreRunError(child, []string{}, exitcodes.NewUsageError(errors.New("bad flag")))
+		})
+
+		require.Error(t, err)
+		assert.True(t, child.SilenceUsage, "usage must be silenced so cobra does not dump the usage block")
+		assert.True(t, child.SilenceErrors)
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
+
+		code, errType, msg := parseErrorJSON(t, stderr)
+		assert.Equal(t, exitcodes.Usage, code)
+		assert.Equal(t, "usage_error", errType)
+		assert.Equal(t, "bad flag", msg)
+	})
+
+	t.Run("non-json mode prints to stderr and returns a wrapped usage error", func(t *testing.T) {
+		child := buildPreRunChild("table")
+		var err error
+		stderr := captureStderr(t, func() {
+			err = FinishPreRunError(child, []string{"arg1"}, exitcodes.NewUsageError(errors.New("bad flag")))
+		})
+
+		require.Error(t, err)
+		assert.True(t, child.SilenceUsage)
+		assert.Contains(t, stderr, "bad flag", "the error should surface on stderr in non-json mode")
+		assert.NotContains(t, stderr, "\"error\"", "non-json mode must not emit the JSON envelope")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
+		assert.Contains(t, err.Error(), "error running buy command")
+	})
+
+	t.Run("missing --output flag defaults to table without panicking", func(t *testing.T) {
+		root := &cobra.Command{Use: "root"}
+		child := &cobra.Command{Use: "buy"}
+		root.AddCommand(child)
+
+		var err error
+		stderr := captureStderr(t, func() {
+			err = FinishPreRunError(child, []string{}, exitcodes.NewUsageError(errors.New("bad flag")))
+		})
+
+		require.Error(t, err)
+		assert.Contains(t, stderr, "bad flag")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
+	})
+}

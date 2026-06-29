@@ -181,6 +181,25 @@ func finishWithError(cmd *cobra.Command, args []string, err error, format string
 	return exitcodes.New(code, wrapped)
 }
 
+// FinishPreRunError routes a PreRunE / PersistentPreRunE validation failure
+// through the same single-envelope path RunE errors use. Without it these
+// errors bypass finishWithError, so under --output json cobra prints plain text
+// plus a usage block instead of the structured envelope every other error path
+// emits. Call sites must return the error this returns: finishWithError sets
+// SilenceUsage/SilenceErrors on the command so cobra neither re-prints the error
+// nor dumps usage, and the embedded *CLIError carries the exit code (mapped by
+// the native Execute; surfaced by the WASM ExecuteWithArgs envelope branch).
+func FinishPreRunError(cmd *cobra.Command, args []string, err error) error {
+	// A prior command in the long-lived WASM process may have left the latch
+	// set; reset so the non-json path always surfaces this error on stderr.
+	output.ResetErrorEmitted()
+	rawFormat, _ := cmd.Root().PersistentFlags().GetString("output")
+	format := strings.ToLower(rawFormat)
+	syncOutputFormat(format)
+	noColor := resolveNoColor(cmd)
+	return finishWithError(cmd, args, err, format, noColor)
+}
+
 // syncOutputFormat aligns the output package's format with the format the
 // wrapper resolved from the flags. This matters in the long-lived WASM process,
 // where a stale "json" left by a previous command would otherwise make
