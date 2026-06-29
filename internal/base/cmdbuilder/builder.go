@@ -206,7 +206,7 @@ func (b *CommandBuilder) WithConditionalRequirements(conditionallyRequiredFlags 
 				}
 
 				if !atLeastOneSet {
-					return exitcodes.NewUsageError(fmt.Errorf("at least one of these flags must be set: %s", strings.Join(flagList, ", ")))
+					return utils.FinishPreRunError(cmd, args, exitcodes.NewUsageError(fmt.Errorf("at least one of these flags must be set: %s", strings.Join(flagList, ", "))))
 				}
 			} else {
 				// Handle normal required flag
@@ -217,7 +217,7 @@ func (b *CommandBuilder) WithConditionalRequirements(conditionallyRequiredFlags 
 
 				// Check if flag has been explicitly set
 				if !cmd.Flags().Changed(flagSpec) {
-					return exitcodes.NewUsageError(fmt.Errorf("required flag \"%s\" not set when not using interactive or JSON input", flagSpec))
+					return utils.FinishPreRunError(cmd, args, exitcodes.NewUsageError(fmt.Errorf("required flag \"%s\" not set when not using interactive or JSON input", flagSpec)))
 				}
 			}
 		}
