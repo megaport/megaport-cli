@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
@@ -22,11 +23,10 @@ func processFlagLAGPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, erro
 	costCentre, _ := cmd.Flags().GetString("cost-centre")
 	promoCode, _ := cmd.Flags().GetString("promo-code")
 	resourceTagsStr, _ := cmd.Flags().GetString("resource-tags")
-	var resourceTags map[string]string
-	if resourceTagsStr != "" {
-		if err := json.Unmarshal([]byte(resourceTagsStr), &resourceTags); err != nil {
-			return nil, fmt.Errorf("failed to parse resource tags JSON: %w", err)
-		}
+	resourceTagsFile, _ := cmd.Flags().GetString("resource-tags-file")
+	resourceTags, err := utils.ParseResourceTagsFlagOrFile(resourceTagsStr, resourceTagsFile)
+	if err != nil {
+		return nil, exitcodes.NewUsageError(err)
 	}
 
 	req := &megaport.BuyPortRequest{
@@ -130,11 +130,10 @@ func processFlagPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, error) 
 	costCentre, _ := cmd.Flags().GetString("cost-centre")
 	promoCode, _ := cmd.Flags().GetString("promo-code")
 	resourceTagsStr, _ := cmd.Flags().GetString("resource-tags")
-	var resourceTags map[string]string
-	if resourceTagsStr != "" {
-		if err := json.Unmarshal([]byte(resourceTagsStr), &resourceTags); err != nil {
-			return nil, fmt.Errorf("failed to parse resource tags JSON: %w", err)
-		}
+	resourceTagsFile, _ := cmd.Flags().GetString("resource-tags-file")
+	resourceTags, err := utils.ParseResourceTagsFlagOrFile(resourceTagsStr, resourceTagsFile)
+	if err != nil {
+		return nil, exitcodes.NewUsageError(err)
 	}
 
 	req := &megaport.BuyPortRequest{

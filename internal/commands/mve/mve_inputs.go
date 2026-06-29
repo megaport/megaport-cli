@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
@@ -115,6 +116,8 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 	costCentre, _ := cmd.Flags().GetString("cost-centre")
 	vendorConfigStr, _ := cmd.Flags().GetString("vendor-config")
 	vnicsStr, _ := cmd.Flags().GetString("vnics")
+	resourceTagsStr, _ := cmd.Flags().GetString("resource-tags")
+	resourceTagsFile, _ := cmd.Flags().GetString("resource-tags-file")
 
 	var vendorConfig megaport.VendorConfig
 	if vendorConfigStr != "" {
@@ -155,6 +158,11 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 		}
 	}
 
+	resourceTags, err := utils.ParseResourceTagsFlagOrFile(resourceTagsStr, resourceTagsFile)
+	if err != nil {
+		return nil, exitcodes.NewUsageError(err)
+	}
+
 	req := &megaport.BuyMVERequest{
 		Name:          name,
 		Term:          term,
@@ -164,6 +172,7 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 		CostCentre:    costCentre,
 		VendorConfig:  vendorConfig,
 		Vnics:         vnics,
+		ResourceTags:  resourceTags,
 	}
 
 	if err := validation.ValidateBuyMVERequest(req); err != nil {
