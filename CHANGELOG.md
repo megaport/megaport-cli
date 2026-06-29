@@ -23,6 +23,7 @@ workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries unde
 - vRouter interface validation now accepts an untagged VLAN (-1), matching the Azure peer and shared VLAN checks. Previously a `-1` VLAN was rejected client-side even though the API accepts it, which also blocked the interactive "press Enter for no VLAN" path
 - The interactive BGP connection password is now read without echo, matching the IPsec pre-shared key. Previously it was typed in cleartext on screen
 - Interactive `vxc update` now applies the A-End vRouter partner config to the A-End. Previously it was written to the B-End field, so the A-End config was lost and the B-End was overwritten
+- Flag-validation failures (conditional-requirement checks, `--max-retries`, `--timeout`, invalid `--output`) now emit the same JSON error envelope as other errors under `--output json`, and no longer print the cobra usage block
 
 ## [v0.13.0] - 2026-06-23
 

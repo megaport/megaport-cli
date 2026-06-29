@@ -90,13 +90,30 @@ func TestE2E_Contract(t *testing.T) {
 			// Match the full composite message to avoid false positives from two
 			// independent substrings accidentally both appearing in unrelated output.
 			stderrContains: []string{"not set when not using interactive or JSON input"},
-			stderrAbsent:   []string{"Logging in"},
+			// A PreRunE validation failure routes through finishWithError, which
+			// sets SilenceUsage, so cobra must not append its usage block.
+			stderrAbsent: []string{"Logging in", "Usage:"},
 		},
 		{
 			name:           "invalid output format is a usage error",
 			args:           []string{"version", "--output", "bogus"},
 			wantExit:       exitcodes.Usage,
 			stderrContains: []string{"invalid output format"},
+			stderrAbsent:   []string{"Usage:"},
+		},
+		{
+			name:           "negative max-retries is a usage error without usage block",
+			args:           []string{"version", "--max-retries=-1"},
+			wantExit:       exitcodes.Usage,
+			stderrContains: []string{"--max-retries must be >= 0"},
+			stderrAbsent:   []string{"Usage:"},
+		},
+		{
+			name:           "non-positive timeout is a usage error without usage block",
+			args:           []string{"version", "--timeout", "0"},
+			wantExit:       exitcodes.Usage,
+			stderrContains: []string{"--timeout must be greater than 0"},
+			stderrAbsent:   []string{"Usage:"},
 		},
 	}
 
@@ -154,4 +171,62 @@ func TestE2E_JSONErrorEnvelope(t *testing.T) {
 	assert.Equal(t, exitcodes.Usage, envelope.Error.Code, "envelope code should be 2 (usage error)")
 	assert.Equal(t, "usage_error", envelope.Error.Type, "envelope type should be usage_error")
 	assert.NotEmpty(t, envelope.Error.Message, "envelope should carry an error message")
+}
+
+// TestE2E_PreRunJSONErrorEnvelope verifies that PreRunE / PersistentPreRunE
+// validation failures (conditional-requirement checks, --max-retries, --timeout)
+// emit the same structured JSON envelope under --output json as the RunE error
+// paths do. These checks run before any login, so each case is hermetic. It also
+// asserts stdout stays empty and the cobra usage block is not appended.
+func TestE2E_PreRunJSONErrorEnvelope(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "conditional-requirement failure",
+			args: []string{"ports", "buy", "--output", "json"},
+		},
+		{
+			name: "negative max-retries",
+			args: []string{"version", "--max-retries=-1", "--output", "json"},
+		},
+		{
+			name: "non-positive timeout",
+			args: []string{"version", "--timeout", "0", "--output", "json"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			res := Run(t, tc.args...)
+
+			require.Equalf(t, exitcodes.Usage, res.Exit,
+				"PreRunE validation failure should be a usage error (exit 2)\nstderr: %s", res.Stderr)
+			assert.Emptyf(t, res.Stdout, "stdout should stay empty on a validation failure\nstdout: %s", res.Stdout)
+			assert.NotContains(t, res.Stderr, "Usage:", "SilenceUsage should suppress the cobra usage block")
+
+			// Anchor on the first '{' so the test is robust whether or not a
+			// preceding line (e.g. a config-default warning) is written first.
+			idx := strings.IndexByte(res.Stderr, '{')
+			require.NotEqualf(t, -1, idx, "no JSON envelope found on stderr: %s", res.Stderr)
+
+			var envelope struct {
+				Error struct {
+					Code    int    `json:"code"`
+					Type    string `json:"type"`
+					Message string `json:"message"`
+				} `json:"error"`
+			}
+			dec := json.NewDecoder(strings.NewReader(res.Stderr[idx:]))
+			require.NoErrorf(t, dec.Decode(&envelope), "envelope should be valid JSON: %s", res.Stderr[idx:])
+
+			assert.Equal(t, exitcodes.Usage, envelope.Error.Code, "envelope code should be 2 (usage error)")
+			assert.Equal(t, "usage_error", envelope.Error.Type, "envelope type should be usage_error")
+			assert.NotEmpty(t, envelope.Error.Message, "envelope should carry an error message")
+		})
+	}
 }

@@ -40,8 +40,8 @@ func init() {
 			}
 		}
 		if !validFmt {
-			return fmt.Errorf("invalid output format: %s. Must be one of: %s",
-				outputFormat, strings.Join(utils.ValidFormats, ", "))
+			return utils.FinishPreRunError(cmd, args, exitcodes.NewUsageError(fmt.Errorf("invalid output format: %s. Must be one of: %s",
+				outputFormat, strings.Join(utils.ValidFormats, ", "))))
 		}
 		output.SetOutputFormat(format)
 
@@ -67,12 +67,12 @@ func init() {
 
 		// Validate retry flags
 		if utils.MaxRetries < 0 {
-			return exitcodes.NewUsageError(fmt.Errorf("--max-retries must be >= 0, got %d", utils.MaxRetries))
+			return utils.FinishPreRunError(cmd, args, exitcodes.NewUsageError(fmt.Errorf("--max-retries must be >= 0, got %d", utils.MaxRetries)))
 		}
 
 		// Reject an explicit non-positive --timeout; omitting it uses the default.
 		if err := utils.ValidateTimeoutFlag(cmd); err != nil {
-			return exitcodes.NewUsageError(err)
+			return utils.FinishPreRunError(cmd, args, exitcodes.NewUsageError(err))
 		}
 
 		return nil

@@ -106,6 +106,52 @@ func TestTimeoutFlagRejectsNonPositive(t *testing.T) {
 	assert.Contains(t, execErr.Error(), "--timeout must be greater than 0")
 }
 
+// TestInvalidOutputFormatRejected verifies that an unknown --output value is
+// rejected as a usage error through PersistentPreRunE and routed through
+// FinishPreRunError (so it carries a usage exit code), not silently accepted.
+func TestInvalidOutputFormatRejected(t *testing.T) {
+	t.Setenv("MEGAPORT_CONFIG_DIR", t.TempDir())
+	defer func() {
+		output.ResetState()
+		f := rootCmd.PersistentFlags().Lookup("output")
+		_ = f.Value.Set("table")
+		f.Changed = false
+	}()
+
+	rootCmd.SetArgs([]string{"version", "--output", "bogus"})
+	var execErr error
+	_ = output.CaptureOutput(func() {
+		execErr = rootCmd.Execute()
+	})
+
+	require.Error(t, execErr)
+	assert.Equal(t, exitcodes.Usage, exitCodeFromError(execErr))
+	assert.Contains(t, execErr.Error(), "invalid output format")
+}
+
+// TestNegativeMaxRetriesRejected verifies that a negative --max-retries is
+// rejected as a usage error through PersistentPreRunE and routed through
+// FinishPreRunError.
+func TestNegativeMaxRetriesRejected(t *testing.T) {
+	t.Setenv("MEGAPORT_CONFIG_DIR", t.TempDir())
+	defer func() {
+		output.ResetState()
+		f := rootCmd.PersistentFlags().Lookup("max-retries")
+		_ = f.Value.Set("3") // restore the default; IntVar binding resets utils.MaxRetries too
+		f.Changed = false
+	}()
+
+	rootCmd.SetArgs([]string{"version", "--max-retries=-1"})
+	var execErr error
+	_ = output.CaptureOutput(func() {
+		execErr = rootCmd.Execute()
+	})
+
+	require.Error(t, execErr)
+	assert.Equal(t, exitcodes.Usage, exitCodeFromError(execErr))
+	assert.Contains(t, execErr.Error(), "--max-retries must be >= 0")
+}
+
 // TestApplyDefaultSettings_WarnsOnConfigLoadFailure verifies that when
 // NewConfigManager fails (e.g. the configured config dir cannot be created),
 // applyDefaultSettings returns a warning message instead of silently skipping.
