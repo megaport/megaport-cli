@@ -1569,6 +1569,21 @@ func TestHasUpdateVXCNonInteractiveFlags(t *testing.T) {
 		require.NoError(t, cmd.Flags().Set("interactive", "true"))
 		assert.False(t, hasUpdateVXCNonInteractiveFlags(cmd))
 	})
+
+	for _, name := range []string{"a-end-partner-config", "b-end-partner-config"} {
+		t.Run("empty "+name+" alone does not pass the gate", func(t *testing.T) {
+			cmd := cmdbuilder.NewCommand("update", "test").WithVXCUpdateFlags().Build()
+			require.NoError(t, cmd.Flags().Set(name, ""))
+			assert.False(t, hasUpdateVXCNonInteractiveFlags(cmd))
+		})
+	}
+
+	t.Run("empty partner-config alongside a real flag still passes the gate", func(t *testing.T) {
+		cmd := cmdbuilder.NewCommand("update", "test").WithVXCUpdateFlags().Build()
+		require.NoError(t, cmd.Flags().Set("a-end-partner-config", ""))
+		require.NoError(t, cmd.Flags().Set("cost-centre", "eng"))
+		assert.True(t, hasUpdateVXCNonInteractiveFlags(cmd))
+	})
 }
 
 func TestBuildUpdateVXCRequestFromFlags_NewFields_InvalidVNICIndex(t *testing.T) {

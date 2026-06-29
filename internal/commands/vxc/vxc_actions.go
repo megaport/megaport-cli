@@ -218,11 +218,26 @@ func watchGetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 		})
 }
 
+// emptyMeansUnsetUpdateFlags are flags whose update builder skips an empty
+// value, so an explicit empty string carries no change and must not pass the
+// gate (buildUpdateVXCRequestFromFlags). Other string flags treat "" as a
+// meaningful value (e.g. clearing the cost centre).
+var emptyMeansUnsetUpdateFlags = map[string]bool{
+	"a-end-partner-config": true,
+	"b-end-partner-config": true,
+}
+
 var hasUpdateVXCNonInteractiveFlags = func(cmd *cobra.Command) bool {
 	for _, name := range cmdbuilder.VXCUpdateFlagNames {
-		if cmd.Flags().Changed(name) {
-			return true
+		if !cmd.Flags().Changed(name) {
+			continue
 		}
+		if emptyMeansUnsetUpdateFlags[name] {
+			if v, _ := cmd.Flags().GetString(name); v == "" {
+				continue
+			}
+		}
+		return true
 	}
 	return false
 }
