@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/base/registry"
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -109,8 +110,11 @@ func InitializeCommon() {
 			}
 		}
 		if !validFmt {
-			return fmt.Errorf("invalid output format: %s. Must be one of: %s",
-				outputFormat, strings.Join(utils.ValidFormatsWASM, ", "))
+			// Type the error as a usage CLIError so ExecuteWithArgs emits the JSON
+			// envelope under --output json, matching the native root and the shared
+			// conditional-requirement validators.
+			return exitcodes.NewUsageError(fmt.Errorf("invalid output format: %s. Must be one of: %s",
+				outputFormat, strings.Join(utils.ValidFormatsWASM, ", ")))
 		}
 		cfg := output.GetOutputConfig()
 		cfg.NoHeader = noHeader
@@ -119,10 +123,10 @@ func InitializeCommon() {
 		cfg.Format = format
 		output.ApplyOutputConfig(cfg)
 		if utils.MaxRetries < 0 {
-			return fmt.Errorf("--max-retries must be >= 0, got %d", utils.MaxRetries)
+			return exitcodes.NewUsageError(fmt.Errorf("--max-retries must be >= 0, got %d", utils.MaxRetries))
 		}
 		if err := utils.ValidateTimeoutFlag(cmd); err != nil {
-			return err
+			return exitcodes.NewUsageError(err)
 		}
 		if existingPreRunE != nil {
 			return existingPreRunE(cmd, args)
