@@ -187,7 +187,8 @@ func finishWithError(cmd *cobra.Command, args []string, err error, format string
 // plus a usage block instead of the structured envelope every other error path
 // emits. Call sites must return the error this returns: finishWithError sets
 // SilenceUsage/SilenceErrors on the command so cobra neither re-prints the error
-// nor dumps usage, and Execute maps the embedded exit code.
+// nor dumps usage, and the embedded *CLIError carries the exit code (mapped by
+// the native Execute; surfaced by the WASM ExecuteWithArgs envelope branch).
 func FinishPreRunError(cmd *cobra.Command, args []string, err error) error {
 	// A prior command in the long-lived WASM process may have left the latch
 	// set; reset so the non-json path always surfaces this error on stderr.
