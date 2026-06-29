@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -334,6 +335,20 @@ func TestWithVXCUpdateFlags(t *testing.T) {
 	for _, flag := range expectedFlags {
 		assert.NotNil(t, cmd.Flags().Lookup(flag), "VXC update flag %q should exist", flag)
 	}
+}
+
+// TestVXCUpdateFlagNamesMatchRegistered guards against the update gate's flag
+// list drifting from the flags WithVXCUpdateFlags actually registers.
+func TestVXCUpdateFlagNamesMatchRegistered(t *testing.T) {
+	cmd := NewCommand("test", "test").WithVXCUpdateFlags().Build()
+
+	var registered []string
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		registered = append(registered, f.Name)
+	})
+
+	assert.ElementsMatch(t, VXCUpdateFlagNames, registered,
+		"VXCUpdateFlagNames must match exactly the flags WithVXCUpdateFlags registers")
 }
 
 func TestWithVXCFilterFlags(t *testing.T) {

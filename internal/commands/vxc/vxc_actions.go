@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/cmdbuilder"
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
@@ -218,8 +219,7 @@ func watchGetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 }
 
 var hasUpdateVXCNonInteractiveFlags = func(cmd *cobra.Command) bool {
-	flagNames := []string{"name", "rate-limit", "a-end-vlan", "b-end-vlan", "a-end-location", "b-end-location", "locked"}
-	for _, name := range flagNames {
+	for _, name := range cmdbuilder.VXCUpdateFlagNames {
 		if cmd.Flags().Changed(name) {
 			return true
 		}

@@ -46,6 +46,17 @@ func (b *CommandBuilder) WithVXCCreateFlags() *CommandBuilder {
 	return b
 }
 
+// VXCUpdateFlagNames lists the flags WithVXCUpdateFlags registers; the update
+// gate treats any of these being set as a field to update.
+// TestVXCUpdateFlagNamesMatchRegistered guards the two against drift.
+var VXCUpdateFlagNames = []string{
+	"name", "rate-limit", "term", "cost-centre",
+	"a-end-uid", "b-end-uid", "a-end-vlan", "b-end-vlan",
+	"a-end-inner-vlan", "b-end-inner-vlan",
+	"a-end-partner-config", "b-end-partner-config",
+	"shutdown", "is-approved", "a-vnic-index", "b-vnic-index",
+}
+
 // WithVXCUpdateFlags adds all flags needed for VXC updates
 func (b *CommandBuilder) WithVXCUpdateFlags() *CommandBuilder {
 	b.WithVXCCommonFlags()
