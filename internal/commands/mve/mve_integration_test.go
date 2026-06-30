@@ -16,13 +16,16 @@ import (
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/testutil"
 	"github.com/megaport/megaport-cli/internal/validation"
+	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// stagingMVELocationID is a known MVE-capable staging location. Discovering one
-// via ListLocations would be overengineering for this lifecycle test.
+// stagingMVELocationID is tried first when probing for MVE capacity. It is not
+// authoritative: when it is out of capacity, findMVECapacity sweeps every other
+// active MVE-capable location before giving up (mirroring the terraform
+// provider's acceptance tests).
 const stagingMVELocationID = 65
 
 func generateUniqueID() string {
@@ -144,20 +147,154 @@ func discoverArubaImage(t *testing.T) discoveredImage {
 	return discoveredImage{}
 }
 
-// productSize picks a size the image supports, preferring MEDIUM.
-// It normalizes label-format strings (e.g. "MVE 4/16") to their programmatic
-// equivalents (e.g. "MEDIUM") so the value is valid for the buy command.
-func (d discoveredImage) productSize() string {
+// productSizeCandidates returns the image's supported sizes ordered for a
+// capacity probe: MEDIUM first (the size we want to exercise), then SMALL and
+// the larger sizes, then any other size the image advertises. A given location
+// can be out of capacity for one size but have room for another, so the probe
+// tries each in turn. Label-format strings (e.g. "MVE 4/16") are normalized to
+// programmatic names ("MEDIUM").
+func (d discoveredImage) productSizeCandidates() []string {
+	supported := make(map[string]bool, len(d.AvailableSizes))
 	for _, s := range d.AvailableSizes {
-		normalized := validation.NormalizeMVEProductSize(strings.ToUpper(s))
-		if normalized == "MEDIUM" {
-			return "MEDIUM"
+		supported[validation.NormalizeMVEProductSize(strings.ToUpper(s))] = true
+	}
+	var ordered []string
+	emitted := make(map[string]bool, len(supported))
+	add := func(size string) {
+		if supported[size] && !emitted[size] {
+			ordered = append(ordered, size)
+			emitted[size] = true
 		}
 	}
-	if len(d.AvailableSizes) > 0 {
-		return validation.NormalizeMVEProductSize(strings.ToUpper(d.AvailableSizes[0]))
+	for _, size := range []string{"MEDIUM", "SMALL", "LARGE", "X_LARGE_12"} {
+		add(size)
 	}
-	return "MEDIUM"
+	// Probe any other advertised size after the preferred order, so an image
+	// whose sizes fall outside the list above is still tried, not skipped.
+	for _, s := range d.AvailableSizes {
+		add(validation.NormalizeMVEProductSize(strings.ToUpper(s)))
+	}
+	if len(ordered) == 0 {
+		ordered = append(ordered, "MEDIUM")
+	}
+	return ordered
+}
+
+// isMVECapacityError reports whether a buy/validate error is staging telling us
+// it has no host capacity for the request, rather than a genuine failure. Such a
+// shortage is environmental, so tests skip on it instead of failing.
+func isMVECapacityError(err error) bool {
+	return err != nil && strings.Contains(strings.ToLower(err.Error()), "no available capacity")
+}
+
+// findMVECapacity probes staging for a location and product size with available
+// Aruba MVE capacity, mirroring the terraform provider's acceptance tests: it
+// validates the real order against the preferred location first, then sweeps
+// every active MVE-capable location, returning the first (location, size) the
+// API accepts. It skips the test only when no location in staging has capacity
+// for any supported size, so a shortage at one site no longer fails the build.
+func findMVECapacity(t *testing.T, client *megaport.Client, img discoveredImage) (locationID int, size string) {
+	t.Helper()
+	listCtx, listCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer listCancel()
+
+	locations, err := client.LocationService.ListLocationsV3(listCtx)
+	require.NoError(t, err, "list locations for MVE capacity probe")
+
+	// Each probe gets its own deadline rather than sharing one across the sweep:
+	// a shared budget could be drained by a few slow calls and skip later
+	// locations that actually have capacity.
+	probe := func(locID int, size string) bool {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		return client.MVEService.ValidateMVEOrder(ctx, &megaport.BuyMVERequest{
+			LocationID: locID,
+			Name:       "cli-capacity-probe",
+			Term:       1,
+			VendorConfig: &megaport.ArubaConfig{
+				Vendor:      "aruba",
+				ImageID:     img.ID,
+				ProductSize: size,
+				AccountName: "test",
+				AccountKey:  "test",
+				SystemTag:   "test",
+			},
+			Vnics: []megaport.MVENetworkInterface{
+				{Description: "MVE VNIC 1", VLAN: 55},
+				{Description: "MVE VNIC 2", VLAN: 56},
+			},
+		}) == nil
+	}
+
+	// Probe the preferred location first, then every other active MVE-capable
+	// location.
+	ordered := make([]*megaport.LocationV3, 0, len(locations))
+	for _, loc := range locations {
+		if loc == nil {
+			continue
+		}
+		if loc.ID == stagingMVELocationID && loc.IsStatusOrderable() && loc.HasMVESupport() {
+			ordered = append(ordered, loc)
+		}
+	}
+	for _, loc := range locations {
+		if loc == nil || loc.ID == stagingMVELocationID {
+			continue
+		}
+		if loc.IsStatusOrderable() && loc.HasMVESupport() {
+			ordered = append(ordered, loc)
+		}
+	}
+
+	sizes := img.productSizeCandidates()
+	for _, loc := range ordered {
+		for _, size := range sizes {
+			if probe(loc.ID, size) {
+				t.Logf("findMVECapacity: using location %d (%s) size %s", loc.ID, loc.Name, size)
+				return loc.ID, size
+			}
+		}
+	}
+	t.Skip("no staging location has available Aruba MVE capacity for any supported size")
+	return 0, ""
+}
+
+// buyMVEAtAvailableLocation discovers a location+size with capacity, runs BuyMVE
+// once with the command built by buildCmd, and returns the created MVE's UID with
+// a hard-delete cleanup registered. If capacity vanishes between the probe and
+// the buy (a race against other consumers of shared staging), it skips rather
+// than failing.
+func buyMVEAtAvailableLocation(t *testing.T, client *megaport.Client, img discoveredImage, buildCmd func(locationID int, size string) *cobra.Command) string {
+	t.Helper()
+	locationID, size := findMVECapacity(t, client, img)
+
+	cmd := buildCmd(locationID, size)
+	var buyErr error
+	buyOut := captureTableOutput(func() { buyErr = BuyMVE(cmd, nil, true) })
+	if isMVECapacityError(buyErr) {
+		t.Skipf("MVE capacity at location %d (size %s) disappeared between probe and buy", locationID, size)
+	}
+	require.NoError(t, buyErr, "buy MVE output: %s", buyOut)
+
+	mveUID := parseCreatedUID(buyOut, "MVE")
+	// Register cleanup before asserting on the UID, so any created MVE is torn
+	// down even if the parse below fails.
+	t.Cleanup(func() {
+		if mveUID == "" {
+			return
+		}
+		delCmd := integrationMVEDeleteCmd()
+		_ = delCmd.Flags().Set("force", "true")
+		var delErr error
+		out := captureTableOutput(func() { delErr = DeleteMVE(delCmd, []string{mveUID}, true) })
+		if delErr != nil {
+			t.Logf("cleanup: delete MVE %s failed: %v; output: %s", mveUID, delErr, out)
+			return
+		}
+		t.Logf("cleanup: delete MVE %s: %s", mveUID, out)
+	})
+	require.NotEmpty(t, mveUID, "could not parse MVE UID from: %s", buyOut)
+	return mveUID
 }
 
 // getMVEJSON retrieves an MVE as JSON and returns the decoded object.
@@ -190,49 +327,29 @@ func TestIntegration_MVELifecycle(t *testing.T) {
 
 	img := discoverArubaImage(t)
 	name := fmt.Sprintf("CLI-Test-MVE-%s", generateUniqueID())
-
-	vendorConfig := fmt.Sprintf(`{
-		"vendor": "aruba",
-		"productSize": "%s",
-		"imageId": %d,
-		"accountName": "test",
-		"accountKey": "test",
-		"systemTag": "test"
-	}`, img.productSize(), img.ID)
 	vnics := `[{"description": "MVE VNIC 1", "vlan": 55}, {"description": "MVE VNIC 2", "vlan": 56}]`
 
 	// BuyMVE waits for provisioning (no --no-wait), so the MVE is ready once it
-	// returns.
-	buyCmd := integrationMVEBuyCmd()
-	require.NoError(t, buyCmd.Flags().Set("name", name))
-	require.NoError(t, buyCmd.Flags().Set("term", "1"))
-	require.NoError(t, buyCmd.Flags().Set("location-id", strconv.Itoa(stagingMVELocationID)))
-	require.NoError(t, buyCmd.Flags().Set("vendor-config", vendorConfig))
-	require.NoError(t, buyCmd.Flags().Set("vnics", vnics))
-	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
-
-	var buyErr error
-	buyOut := captureTableOutput(func() { buyErr = BuyMVE(buyCmd, nil, true) })
-	require.NoError(t, buyErr, "buy MVE output: %s", buyOut)
-
-	mveUID := parseCreatedUID(buyOut, "MVE")
-	// Register cleanup before asserting on mveUID, so any created MVE is
-	// cleaned up even if the UID assertion below fails.
-	t.Cleanup(func() {
-		if mveUID == "" {
-			return
-		}
-		delCmd := integrationMVEDeleteCmd()
-		_ = delCmd.Flags().Set("force", "true")
-		var delErr error
-		out := captureTableOutput(func() { delErr = DeleteMVE(delCmd, []string{mveUID}, true) })
-		if delErr != nil {
-			t.Logf("cleanup: delete MVE %s failed: %v; output: %s", mveUID, delErr, out)
-			return
-		}
-		t.Logf("cleanup: delete MVE %s: %s", mveUID, out)
+	// returns. The buy retries across product sizes if staging is out of
+	// capacity, and skips the test if every size is exhausted.
+	mveUID := buyMVEAtAvailableLocation(t, client, img, func(locationID int, size string) *cobra.Command {
+		vendorConfig := fmt.Sprintf(`{
+			"vendor": "aruba",
+			"productSize": "%s",
+			"imageId": %d,
+			"accountName": "test",
+			"accountKey": "test",
+			"systemTag": "test"
+		}`, size, img.ID)
+		buyCmd := integrationMVEBuyCmd()
+		require.NoError(t, buyCmd.Flags().Set("name", name))
+		require.NoError(t, buyCmd.Flags().Set("term", "1"))
+		require.NoError(t, buyCmd.Flags().Set("location-id", strconv.Itoa(locationID)))
+		require.NoError(t, buyCmd.Flags().Set("vendor-config", vendorConfig))
+		require.NoError(t, buyCmd.Flags().Set("vnics", vnics))
+		require.NoError(t, buyCmd.Flags().Set("yes", "true"))
+		return buyCmd
 	})
-	require.NotEmpty(t, mveUID, "could not parse MVE UID from: %s", buyOut)
 
 	// Get and verify the core fields.
 	mve := getMVEJSON(t, mveUID)
@@ -332,46 +449,25 @@ func TestIntegration_MVEJSONInputLifecycle(t *testing.T) {
 	img := discoverArubaImage(t)
 	name := fmt.Sprintf("CLI-JSON-MVE-%s", generateUniqueID())
 
-	buyJSON := fmt.Sprintf(`{
-		"name": "%s",
-		"term": 1,
-		"locationId": %d,
-		"vendorConfig": {
-			"vendor": "aruba",
-			"productSize": "%s",
-			"imageId": %d,
-			"accountName": "test",
-			"accountKey": "test",
-			"systemTag": "test"
-		},
-		"vnics": [{"description": "MVE VNIC 1", "vlan": 55}, {"description": "MVE VNIC 2", "vlan": 56}]
-	}`, name, stagingMVELocationID, img.productSize(), img.ID)
-
-	buyCmd := integrationMVEBuyCmd()
-	require.NoError(t, buyCmd.Flags().Set("json", buyJSON))
-
-	var buyErr error
-	buyOut := captureTableOutput(func() { buyErr = BuyMVE(buyCmd, nil, true) })
-	require.NoError(t, buyErr, "buy MVE (JSON) output: %s", buyOut)
-
-	mveUID := parseCreatedUID(buyOut, "MVE")
-	// Register cleanup before asserting on mveUID, so any created MVE is
-	// cleaned up even if the UID assertion below fails.
-	t.Cleanup(func() {
-		if mveUID == "" {
-			return
-		}
-		delCmd := integrationMVEDeleteCmd()
-		_ = delCmd.Flags().Set("force", "true")
-		var delErr error
-		out := captureTableOutput(func() { delErr = DeleteMVE(delCmd, []string{mveUID}, true) })
-		if delErr != nil {
-			t.Logf("cleanup: delete MVE %s failed: %v; output: %s", mveUID, delErr, out)
-			return
-		}
-		t.Logf("cleanup: delete MVE %s: %s", mveUID, out)
+	mveUID := buyMVEAtAvailableLocation(t, client, img, func(locationID int, size string) *cobra.Command {
+		buyJSON := fmt.Sprintf(`{
+			"name": "%s",
+			"term": 1,
+			"locationId": %d,
+			"vendorConfig": {
+				"vendor": "aruba",
+				"productSize": "%s",
+				"imageId": %d,
+				"accountName": "test",
+				"accountKey": "test",
+				"systemTag": "test"
+			},
+			"vnics": [{"description": "MVE VNIC 1", "vlan": 55}, {"description": "MVE VNIC 2", "vlan": 56}]
+		}`, name, locationID, size, img.ID)
+		buyCmd := integrationMVEBuyCmd()
+		require.NoError(t, buyCmd.Flags().Set("json", buyJSON))
+		return buyCmd
 	})
-	require.NotEmpty(t, mveUID, "could not parse MVE UID from: %s", buyOut)
 
 	mve := getMVEJSON(t, mveUID)
 	assert.Equal(t, mveUID, mve["uid"])

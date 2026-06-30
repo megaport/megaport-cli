@@ -49,6 +49,7 @@ func TestIntegration_MCRLockLifecycle(t *testing.T) {
 	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
 
 	name := fmt.Sprintf("CLI-Test-MCR-Lock-%s", generateUniqueID())
+	locationID := testutil.FindMCRTestLocation(t, client, 1000, stagingMCRLocationID)
 
 	// BuyMCR waits for provisioning (no --no-wait), so the MCR is lockable once
 	// it returns.
@@ -56,7 +57,7 @@ func TestIntegration_MCRLockLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("name", name))
 	require.NoError(t, buyCmd.Flags().Set("term", "1"))
 	require.NoError(t, buyCmd.Flags().Set("port-speed", "1000"))
-	require.NoError(t, buyCmd.Flags().Set("location-id", strconv.Itoa(stagingMCRLocationID)))
+	require.NoError(t, buyCmd.Flags().Set("location-id", strconv.Itoa(locationID)))
 	require.NoError(t, buyCmd.Flags().Set("marketplace-visibility", "false"))
 	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
 

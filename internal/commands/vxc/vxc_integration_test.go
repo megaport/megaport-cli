@@ -22,9 +22,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// integrationLocationID is the staging data center used for all VXC lifecycle
-// tests. Location 67 matches the canonical example used across the CLI test
-// suite and supports the 1G port speed these tests exercise.
+// integrationLocationID is the staging data center VXC lifecycle tests prefer.
+// Location 67 matches the canonical example used across the CLI test suite and
+// has historically advertised the 1G port and 1G MCR capacity these tests
+// exercise. It is only a preference: each test resolves its location through the
+// testutil finder matching what it provisions (FindPortTestLocation for
+// port-to-port VXCs, FindMCRTestLocation or FindPortAndMCRTestLocation for the
+// MCR-attach tests), which falls back to another active location (or skips) if
+// 67 ever stops advertising the needed capacity.
 const integrationLocationID = 67
 
 const (
@@ -168,9 +173,9 @@ func newUpdateVXCCmd() *cobra.Command {
 // the ports package's integration buy hook. Cleanup is registered immediately
 // after the buy succeeds and before the UID is asserted, so a billable port is
 // never leaked if UID recovery fails.
-func buyPortAndGetUID(t *testing.T, portName string) string {
+func buyPortAndGetUID(t *testing.T, portName string, locationID int) string {
 	t.Helper()
-	cmd := buildPortCmd(t, portName, integrationLocationID)
+	cmd := buildPortCmd(t, portName, locationID)
 	require.NoErrorf(t, ports.BuyPort(cmd, nil, true), "BuyPort failed for %q", portName)
 
 	uid, ok := ports.IntegrationBuyPortUID(portName)
@@ -345,9 +350,9 @@ func newDeleteMCRCmd() *cobra.Command {
 // package's integration buy hook. Cleanup is registered immediately after the
 // buy succeeds and before the UID is asserted, so a billable MCR is never
 // leaked if UID recovery fails.
-func buyMCRAndGetUID(t *testing.T, mcrName string) string {
+func buyMCRAndGetUID(t *testing.T, mcrName string, locationID int) string {
 	t.Helper()
-	cmd := buildMCRCmd(t, mcrName, integrationLocationID)
+	cmd := buildMCRCmd(t, mcrName, locationID)
 	require.NoErrorf(t, mcr.BuyMCR(cmd, nil, true), "BuyMCR failed for %q", mcrName)
 
 	uid, ok := mcr.IntegrationBuyMCRUID(mcrName)
@@ -436,11 +441,12 @@ func TestIntegration_VXCPortToPortLifecycle(t *testing.T) {
 	portAName := fmt.Sprintf("CLI-Test-VXC-PortA-%s", id)
 	portBName := fmt.Sprintf("CLI-Test-VXC-PortB-%s", id)
 	vxcName := fmt.Sprintf("CLI-Test-VXC-%s", id)
+	locationID := testutil.FindPortTestLocation(t, testutil.SharedIntegrationClient(t), 1000, integrationLocationID)
 
-	portAUID := buyPortAndGetUID(t, portAName)
+	portAUID := buyPortAndGetUID(t, portAName, locationID)
 	t.Logf("Created port A: %s", portAUID)
 
-	portBUID := buyPortAndGetUID(t, portBName)
+	portBUID := buyPortAndGetUID(t, portBName, locationID)
 	t.Logf("Created port B: %s", portBUID)
 
 	vxcCmd := buildVXCCmd(t, vxcName, portAUID, portBUID, 100)
@@ -479,17 +485,19 @@ func TestIntegration_VXCPortToPortLifecycle(t *testing.T) {
 // live cloud-provider accounts on staging and are tracked separately.
 func TestIntegration_VXCMCRVrouterInnerVLANLifecycle(t *testing.T) {
 	t.Parallel()
+	testutil.RequireStagingForProvisioning(t)
 	testutil.RequireSharedIntegrationClient(t)
 
 	id := generateUniqueID(t)
 	mcrName := fmt.Sprintf("CLI-Test-VXC-MCR-%s", id)
 	portName := fmt.Sprintf("CLI-Test-VXC-MCRPort-%s", id)
 	vxcName := fmt.Sprintf("CLI-Test-VXC-MCRVrouter-%s", id)
+	locationID := testutil.FindPortAndMCRTestLocation(t, testutil.SharedIntegrationClient(t), 1000, 1000, integrationLocationID)
 
-	mcrUID := buyMCRAndGetUID(t, mcrName)
+	mcrUID := buyMCRAndGetUID(t, mcrName, locationID)
 	t.Logf("Created MCR (A-End): %s", mcrUID)
 
-	portUID := buyPortAndGetUID(t, portName)
+	portUID := buyPortAndGetUID(t, portName, locationID)
 	t.Logf("Created port (B-End): %s", portUID)
 
 	const (
@@ -545,10 +553,11 @@ func TestIntegration_VXCVLANModificationLifecycle(t *testing.T) {
 	portAName := fmt.Sprintf("CLI-Test-VLAN-PortA-%s", id)
 	portBName := fmt.Sprintf("CLI-Test-VLAN-PortB-%s", id)
 	vxcName := fmt.Sprintf("CLI-Test-VLAN-%s", id)
+	locationID := testutil.FindPortTestLocation(t, testutil.SharedIntegrationClient(t), 1000, integrationLocationID)
 
-	portAUID := buyPortAndGetUID(t, portAName)
+	portAUID := buyPortAndGetUID(t, portAName, locationID)
 
-	portBUID := buyPortAndGetUID(t, portBName)
+	portBUID := buyPortAndGetUID(t, portBName, locationID)
 
 	vxcCmd := buildVXCCmd(t, vxcName, portAUID, portBUID, 100)
 	require.NoError(t, vxcCmd.Flags().Set("a-end-vlan", "100"))
@@ -579,10 +588,11 @@ func TestIntegration_VXCJSONInputLifecycle(t *testing.T) {
 	portAName := fmt.Sprintf("CLI-Test-VXCJ-PortA-%s", id)
 	portBName := fmt.Sprintf("CLI-Test-VXCJ-PortB-%s", id)
 	vxcName := fmt.Sprintf("CLI-Test-VXCJ-%s", id)
+	locationID := testutil.FindPortTestLocation(t, testutil.SharedIntegrationClient(t), 1000, integrationLocationID)
 
-	portAUID := buyPortAndGetUID(t, portAName)
+	portAUID := buyPortAndGetUID(t, portAName, locationID)
 
-	portBUID := buyPortAndGetUID(t, portBName)
+	portBUID := buyPortAndGetUID(t, portBName, locationID)
 
 	buyPayload := map[string]any{
 		"portUid":   portAUID,

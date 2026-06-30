@@ -110,6 +110,7 @@ func waitForMCRReadyBestEffort(t *testing.T, client *megaport.Client, mcrUID, st
 // add-on, updates its tunnel count, then disables it, tearing the MCR down in
 // t.Cleanup. It skips when staging does not support the add-on on the test MCR.
 func TestIntegration_MCRIPSecAddOnLifecycle(t *testing.T) {
+	testutil.RequireStagingForProvisioning(t)
 	client := testutil.SetupIntegrationClient(t)
 	// Restore login via t.Cleanup, not defer: defers run before t.Cleanup, so a
 	// deferred restore would swap back the default login (wrong environment)
@@ -122,6 +123,7 @@ func TestIntegration_MCRIPSecAddOnLifecycle(t *testing.T) {
 	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
 
 	name := fmt.Sprintf("CLI-Test-MCR-IPSec-%s", generateUniqueID())
+	locationID := testutil.FindMCRTestLocation(t, client, 1000, stagingMCRLocationID)
 
 	// Buy a new MCR using flags. BuyMCR waits for provisioning (no --no-wait),
 	// so the MCR is ready for add-on operations once it returns.
@@ -129,7 +131,7 @@ func TestIntegration_MCRIPSecAddOnLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("name", name))
 	require.NoError(t, buyCmd.Flags().Set("term", "1"))
 	require.NoError(t, buyCmd.Flags().Set("port-speed", "1000"))
-	require.NoError(t, buyCmd.Flags().Set("location-id", strconv.Itoa(stagingMCRLocationID)))
+	require.NoError(t, buyCmd.Flags().Set("location-id", strconv.Itoa(locationID)))
 	require.NoError(t, buyCmd.Flags().Set("marketplace-visibility", "false"))
 	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
 
