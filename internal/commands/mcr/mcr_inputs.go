@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
@@ -76,11 +77,10 @@ func processFlagMCRInput(cmd *cobra.Command) (*megaport.BuyMCRRequest, error) {
 	diversityZone, _ := cmd.Flags().GetString("diversity-zone")
 
 	resourceTagsStr, _ := cmd.Flags().GetString("resource-tags")
-	var resourceTags map[string]string
-	if resourceTagsStr != "" {
-		if err := json.Unmarshal([]byte(resourceTagsStr), &resourceTags); err != nil {
-			return nil, fmt.Errorf("failed to parse resource tags JSON: %w", err)
-		}
+	resourceTagsFile, _ := cmd.Flags().GetString("resource-tags-file")
+	resourceTags, err := utils.ParseResourceTagsFlagOrFile(resourceTagsStr, resourceTagsFile)
+	if err != nil {
+		return nil, exitcodes.NewUsageError(err)
 	}
 
 	req := &megaport.BuyMCRRequest{

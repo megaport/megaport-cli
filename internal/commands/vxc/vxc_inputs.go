@@ -44,7 +44,8 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 	costCentre, _ := cmd.Flags().GetString("cost-centre")
 
 	resourceTagsStr, _ := cmd.Flags().GetString("resource-tags")
-	resourceTags, err := utils.ParseResourceTagsFlag(resourceTagsStr)
+	resourceTagsFile, _ := cmd.Flags().GetString("resource-tags-file")
+	resourceTags, err := utils.ParseResourceTagsFlagOrFile(resourceTagsStr, resourceTagsFile)
 	if err != nil {
 		return nil, exitcodes.NewUsageError(err)
 	}

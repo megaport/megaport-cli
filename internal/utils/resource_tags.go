@@ -215,11 +215,30 @@ func TagMapFromObject(raw map[string]interface{}) (map[string]string, error) {
 // applying the same value and empty-key validation as the JSON path. An empty
 // string (flag unset) yields a nil map and no error.
 func ParseResourceTagsFlag(resourceTagsStr string) (map[string]string, error) {
-	if resourceTagsStr == "" {
+	return ParseResourceTagsFlagOrFile(resourceTagsStr, "")
+}
+
+// ParseResourceTagsFlagOrFile parses resource tags from the --resource-tags JSON
+// string or, when that is empty, the --resource-tags-file path. The string takes
+// precedence over the file (matching utils.ReadJSONInput). It applies the same
+// value and empty-key validation as the JSON path via TagMapFromObject. When
+// neither is set it returns a nil map and no error.
+func ParseResourceTagsFlagOrFile(resourceTagsStr, resourceTagsFile string) (map[string]string, error) {
+	var data []byte
+	switch {
+	case resourceTagsStr != "":
+		data = []byte(resourceTagsStr)
+	case resourceTagsFile != "":
+		fileData, err := readTagsFile(resourceTagsFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read resource tags file: %w", err)
+		}
+		data = fileData
+	default:
 		return nil, nil
 	}
 	var raw map[string]interface{}
-	if err := json.Unmarshal([]byte(resourceTagsStr), &raw); err != nil {
+	if err := json.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("failed to parse resource tags JSON: %w", err)
 	}
 	return TagMapFromObject(raw)
