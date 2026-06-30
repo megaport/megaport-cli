@@ -117,10 +117,10 @@ func integrationMCRPrefixFilterCmd() *cobra.Command {
 	return cmd
 }
 
-// parseCreatedUID pulls the resource UID out of a "<resource> created <uid>"
-// success message.
-func parseCreatedUID(out, resource string) string {
-	marker := resource + " created "
+// parseCreatedUID pulls the MCR UID out of a "MCR created <uid>" success
+// message.
+func parseCreatedUID(out string) string {
+	const marker = "MCR created "
 	for _, line := range strings.Split(out, "\n") {
 		if i := strings.Index(line, marker); i >= 0 {
 			return strings.TrimSpace(line[i+len(marker):])
@@ -188,7 +188,7 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 	buyOut := captureTableOutput(func() { buyErr = BuyMCR(buyCmd, nil, true) })
 	require.NoError(t, buyErr, "buy MCR output: %s", buyOut)
 
-	mcrUID := parseCreatedUID(buyOut, "MCR")
+	mcrUID := parseCreatedUID(buyOut)
 	// Register cleanup before asserting on mcrUID, so any created MCR is
 	// deleted even if the UID parse fails.
 	t.Cleanup(func() {
@@ -381,7 +381,7 @@ func TestIntegration_MCRJSONInputLifecycle(t *testing.T) {
 	buyOut := captureTableOutput(func() { buyErr = BuyMCR(buyCmd, nil, true) })
 	require.NoError(t, buyErr, "buy MCR (JSON) output: %s", buyOut)
 
-	mcrUID := parseCreatedUID(buyOut, "MCR")
+	mcrUID := parseCreatedUID(buyOut)
 	// Register cleanup before asserting on mcrUID, so any created MCR is
 	// deleted even if the UID parse fails.
 	t.Cleanup(func() {
@@ -513,7 +513,7 @@ func TestIntegration_MCRIPv6PrefixFilterLifecycle(t *testing.T) {
 	buyOut := captureTableOutput(func() { buyErr = BuyMCR(buyCmd, nil, true) })
 	require.NoError(t, buyErr, "buy MCR output: %s", buyOut)
 
-	mcrUID := parseCreatedUID(buyOut, "MCR")
+	mcrUID := parseCreatedUID(buyOut)
 	// Register cleanup before asserting on mcrUID, so any created MCR is
 	// deleted even if the UID parse fails.
 	t.Cleanup(func() {

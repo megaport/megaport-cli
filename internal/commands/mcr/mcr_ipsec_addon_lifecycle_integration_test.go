@@ -139,7 +139,7 @@ func TestIntegration_MCRIPSecAddOnLifecycle(t *testing.T) {
 	buyOut := captureTableOutput(func() { buyErr = BuyMCR(buyCmd, nil, true) })
 	require.NoError(t, buyErr, "buy MCR output: %s", buyOut)
 
-	mcrUID := parseCreatedUID(buyOut, "MCR")
+	mcrUID := parseCreatedUID(buyOut)
 	// Register cleanup before asserting on mcrUID, so any created MCR is
 	// deleted even if the UID parse fails.
 	t.Cleanup(func() {

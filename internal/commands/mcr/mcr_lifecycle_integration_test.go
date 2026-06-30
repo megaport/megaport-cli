@@ -65,7 +65,7 @@ func TestIntegration_MCRLockLifecycle(t *testing.T) {
 	buyOut := captureTableOutput(func() { buyErr = BuyMCR(buyCmd, nil, true) })
 	require.NoError(t, buyErr, "buy MCR output: %s", buyOut)
 
-	mcrUID := parseCreatedUID(buyOut, "MCR")
+	mcrUID := parseCreatedUID(buyOut)
 	// Register cleanup before asserting on mcrUID, so any created MCR is cleaned
 	// up even if the UID parse fails. Unlock first: the API can refuse to delete
 	// a locked resource, so a test that fails after locking must unlock here.
