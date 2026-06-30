@@ -2,10 +2,12 @@ package vxc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -1573,6 +1575,91 @@ func TestBuildVXCRequestFromFlags_VNICIndexZero(t *testing.T) {
 		require.NoError(t, err)
 		assert.Nil(t, req.AEndConfiguration.VXCOrderMVEConfig)
 		assert.Nil(t, req.BEndConfiguration.VXCOrderMVEConfig)
+	})
+}
+
+func TestBuildVXCRequestFromFlags_ResourceTags(t *testing.T) {
+	newBuyCmd := func() *cobra.Command {
+		cmd := &cobra.Command{Use: "buy"}
+		cmd.Flags().String("a-end-uid", "", "")
+		cmd.Flags().String("b-end-uid", "", "")
+		cmd.Flags().String("name", "", "")
+		cmd.Flags().Int("rate-limit", 0, "")
+		cmd.Flags().Int("term", 0, "")
+		cmd.Flags().Int("a-end-vlan", 0, "")
+		cmd.Flags().Int("b-end-vlan", 0, "")
+		cmd.Flags().Int("a-end-inner-vlan", 0, "")
+		cmd.Flags().Int("b-end-inner-vlan", 0, "")
+		cmd.Flags().Int("a-end-vnic-index", 0, "")
+		cmd.Flags().Int("b-end-vnic-index", 0, "")
+		cmd.Flags().String("promo-code", "", "")
+		cmd.Flags().String("service-key", "", "")
+		cmd.Flags().String("cost-centre", "", "")
+		cmd.Flags().String("a-end-partner-config", "", "")
+		cmd.Flags().String("b-end-partner-config", "", "")
+		cmd.Flags().String("resource-tags", "", "")
+		require.NoError(t, cmd.Flags().Set("name", "Test VXC"))
+		require.NoError(t, cmd.Flags().Set("a-end-uid", "a-end-uid-123"))
+		require.NoError(t, cmd.Flags().Set("b-end-uid", "b-end-uid-123"))
+		require.NoError(t, cmd.Flags().Set("rate-limit", "100"))
+		require.NoError(t, cmd.Flags().Set("term", "1"))
+		return cmd
+	}
+
+	t.Run("tags round-trip through the flags path", func(t *testing.T) {
+		cmd := newBuyCmd()
+		require.NoError(t, cmd.Flags().Set("resource-tags", `{"env":"prod","team":"networking"}`))
+
+		req, err := buildVXCRequestFromFlags(cmd, context.Background(), &MockVXCService{})
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{"env": "prod", "team": "networking"}, req.ResourceTags)
+	})
+
+	t.Run("no flag leaves tags nil", func(t *testing.T) {
+		cmd := newBuyCmd()
+
+		req, err := buildVXCRequestFromFlags(cmd, context.Background(), &MockVXCService{})
+		require.NoError(t, err)
+		assert.Nil(t, req.ResourceTags)
+	})
+
+	t.Run("malformed JSON is a usage error", func(t *testing.T) {
+		cmd := newBuyCmd()
+		require.NoError(t, cmd.Flags().Set("resource-tags", `{bad}`))
+
+		_, err := buildVXCRequestFromFlags(cmd, context.Background(), &MockVXCService{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to parse resource tags JSON")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
+	})
+
+	t.Run("empty tag key rejected", func(t *testing.T) {
+		cmd := newBuyCmd()
+		require.NoError(t, cmd.Flags().Set("resource-tags", `{"":"x"}`))
+
+		_, err := buildVXCRequestFromFlags(cmd, context.Background(), &MockVXCService{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tag key must not be empty")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
+	})
+
+	t.Run("null tag value rejected, matching the JSON path", func(t *testing.T) {
+		cmd := newBuyCmd()
+		require.NoError(t, cmd.Flags().Set("resource-tags", `{"env":null}`))
+
+		_, err := buildVXCRequestFromFlags(cmd, context.Background(), &MockVXCService{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `resourceTags value for key "env" must be a string`)
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
 	})
 }
 

@@ -189,6 +189,42 @@ func RejectEmptyTagKeys(tags map[string]string) error {
 	return nil
 }
 
+// TagMapFromObject converts a decoded JSON object into a string tag map,
+// rejecting non-string values (including null) and empty keys. It is the shared
+// validation behind both the --resource-tags flag and the JSON-body
+// resourceTags field so the two paths accept and reject identically.
+func TagMapFromObject(raw map[string]interface{}) (map[string]string, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	tags := make(map[string]string, len(raw))
+	for k, v := range raw {
+		strValue, ok := v.(string)
+		if !ok {
+			return nil, fmt.Errorf("resourceTags value for key %q must be a string", k)
+		}
+		tags[k] = strValue
+	}
+	if err := RejectEmptyTagKeys(tags); err != nil {
+		return nil, err
+	}
+	return tags, nil
+}
+
+// ParseResourceTagsFlag parses the --resource-tags JSON string into a tag map,
+// applying the same value and empty-key validation as the JSON path. An empty
+// string (flag unset) yields a nil map and no error.
+func ParseResourceTagsFlag(resourceTagsStr string) (map[string]string, error) {
+	if resourceTagsStr == "" {
+		return nil, nil
+	}
+	var raw map[string]interface{}
+	if err := json.Unmarshal([]byte(resourceTagsStr), &raw); err != nil {
+		return nil, fmt.Errorf("failed to parse resource tags JSON: %w", err)
+	}
+	return TagMapFromObject(raw)
+}
+
 // ParseResourceTagsInput reads resource tags from --json or --json-file flags.
 func ParseResourceTagsInput(cmd *cobra.Command) (map[string]string, error) {
 	jsonStr, _ := cmd.Flags().GetString("json")

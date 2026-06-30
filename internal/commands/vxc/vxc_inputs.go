@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
@@ -42,14 +43,21 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 	serviceKey, _ := cmd.Flags().GetString("service-key")
 	costCentre, _ := cmd.Flags().GetString("cost-centre")
 
+	resourceTagsStr, _ := cmd.Flags().GetString("resource-tags")
+	resourceTags, err := utils.ParseResourceTagsFlag(resourceTagsStr)
+	if err != nil {
+		return nil, exitcodes.NewUsageError(err)
+	}
+
 	// Create the base request
 	req := &megaport.BuyVXCRequest{
-		VXCName:    name,
-		RateLimit:  rateLimit,
-		Term:       term,
-		PromoCode:  promoCode,
-		ServiceKey: serviceKey,
-		CostCentre: costCentre,
+		VXCName:      name,
+		RateLimit:    rateLimit,
+		Term:         term,
+		PromoCode:    promoCode,
+		ServiceKey:   serviceKey,
+		CostCentre:   costCentre,
+		ResourceTags: resourceTags,
 	}
 
 	// A-End configuration
@@ -285,17 +293,11 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.Buy
 	if resourceTags, present, err := utils.JSONObject(rawData, "resourceTags"); err != nil {
 		return nil, err
 	} else if present {
-		req.ResourceTags = make(map[string]string)
-		for k, v := range resourceTags {
-			strValue, ok := v.(string)
-			if !ok {
-				return nil, fmt.Errorf("resourceTags value for key %q must be a string", k)
-			}
-			req.ResourceTags[k] = strValue
-		}
-		if err := utils.RejectEmptyTagKeys(req.ResourceTags); err != nil {
+		tags, err := utils.TagMapFromObject(resourceTags)
+		if err != nil {
 			return nil, err
 		}
+		req.ResourceTags = tags
 	}
 
 	// Handle A-End configuration

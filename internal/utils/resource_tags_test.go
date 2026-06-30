@@ -443,3 +443,41 @@ func TestUpdateResourceTags(t *testing.T) {
 		assert.Contains(t, err.Error(), "no input provided")
 	})
 }
+
+func TestParseResourceTagsFlag(t *testing.T) {
+	t.Run("valid tags parse and round-trip", func(t *testing.T) {
+		tags, err := ParseResourceTagsFlag(`{"env":"prod","team":"net"}`)
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{"env": "prod", "team": "net"}, tags)
+	})
+
+	t.Run("empty string yields nil map", func(t *testing.T) {
+		tags, err := ParseResourceTagsFlag("")
+		require.NoError(t, err)
+		assert.Nil(t, tags)
+	})
+
+	t.Run("malformed JSON returns parse error", func(t *testing.T) {
+		_, err := ParseResourceTagsFlag(`{bad}`)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to parse resource tags JSON")
+	})
+
+	t.Run("non-string value rejected, matching the JSON path", func(t *testing.T) {
+		_, err := ParseResourceTagsFlag(`{"env":123}`)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `resourceTags value for key "env" must be a string`)
+	})
+
+	t.Run("null value rejected, matching the JSON path", func(t *testing.T) {
+		_, err := ParseResourceTagsFlag(`{"env":null}`)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `resourceTags value for key "env" must be a string`)
+	})
+
+	t.Run("empty key rejected", func(t *testing.T) {
+		_, err := ParseResourceTagsFlag(`{"":"x"}`)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tag key must not be empty")
+	})
+}
