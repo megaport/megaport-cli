@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/cmdbuilder"
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
@@ -217,12 +218,26 @@ func watchGetVXC(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 		})
 }
 
+// emptyMeansUnsetUpdateFlags are flags whose update builder skips an empty
+// value, so an explicit empty string carries no change and must not pass the
+// gate (buildUpdateVXCRequestFromFlags). Other string flags treat "" as a
+// meaningful value (e.g. clearing the cost centre).
+var emptyMeansUnsetUpdateFlags = map[string]bool{
+	"a-end-partner-config": true,
+	"b-end-partner-config": true,
+}
+
 var hasUpdateVXCNonInteractiveFlags = func(cmd *cobra.Command) bool {
-	flagNames := []string{"name", "rate-limit", "a-end-vlan", "b-end-vlan", "a-end-location", "b-end-location", "locked"}
-	for _, name := range flagNames {
-		if cmd.Flags().Changed(name) {
-			return true
+	for _, name := range cmdbuilder.VXCUpdateFlagNames {
+		if !cmd.Flags().Changed(name) {
+			continue
 		}
+		if emptyMeansUnsetUpdateFlags[name] {
+			if v, _ := cmd.Flags().GetString(name); v == "" {
+				continue
+			}
+		}
+		return true
 	}
 	return false
 }
