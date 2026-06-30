@@ -8,6 +8,8 @@ Provision multiple Megaport resources (ports, MCRs, MVEs, VXCs) from a declarati
 
 Resources are provisioned sequentially in dependency order: ports and MCRs first, then MVEs, then VXCs. VXC endpoints can reference previously provisioned resources using {{.type.name}} template syntax.
 
+The --timeout flag bounds each resource's provisioning wait individually, not the whole run, so a large multi-resource apply can take longer in total than a single --timeout. A resource that is not ready within the timeout fails the apply (triggering rollback when --rollback-on-failure is set).
+
 ### Required Fields
   - `file`: Path to config file (YAML or JSON)
 

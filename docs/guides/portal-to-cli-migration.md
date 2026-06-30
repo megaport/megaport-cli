@@ -288,7 +288,7 @@ set -euo pipefail
 
 for config in ./ports/*.json; do
   echo "Provisioning port from ${config}..."
-  megaport-cli ports buy --json-file "$config" --force --quiet
+  megaport-cli ports buy --json-file "$config" --yes --quiet
 done
 echo "All ports created."
 ```

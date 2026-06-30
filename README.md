@@ -3,7 +3,7 @@
 [![codecov](https://codecov.io/gh/megaport/megaport-cli/branch/main/graph/badge.svg)](https://codecov.io/gh/megaport/megaport-cli)
 
 > [!NOTE]
-> The Megaport CLI is currently in alpha, with a beta release coming soon. We're excited for feedback, but please know that functionality and features may still change and there may be bugs.
+> The Megaport CLI is currently in beta. We're excited for feedback, but please know that functionality and features may still change and there may be bugs.
 
 ## Table of Contents
 
@@ -64,7 +64,7 @@ docker run --rm \
 docker run --rm \
   -e MEGAPORT_ACCESS_KEY=your_access_key \
   -e MEGAPORT_SECRET_KEY=your_secret_key \
-  ghcr.io/megaport/megaport-cli:v0.4.7 locations list --metro "Sydney"
+  ghcr.io/megaport/megaport-cli:v0.13.0 locations list --metro "Sydney"
 ```
 
 ### CI/CD (GitHub Actions)
@@ -265,6 +265,11 @@ All commands support multiple output formats:
 - `--output csv`
 - `--output xml`
 - `--output go-template` — render results through a Go template supplied via `--template`
+
+Two flags refine the output further:
+
+- `--fields`: restrict output to a comma-separated list of fields (e.g. `--fields uid,name,status`); pass an unknown name to list the available fields
+- `--query`: filter or reshape JSON output with a [JMESPath](https://jmespath.org) expression; requires `--output json`
 
 ### Examples
 
