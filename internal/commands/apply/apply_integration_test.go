@@ -22,9 +22,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// integrationLocationID is the staging data center used for all apply lifecycle
-// tests. Location 67 matches the canonical example used across the CLI test
-// suite and supports the 1G port speed these tests exercise.
+// integrationLocationID is the staging data center apply lifecycle tests prefer.
+// FindPortTestLocation falls back to another orderable location advertising the
+// 1G port speed these tests exercise when it is out of capacity.
 const integrationLocationID = 67
 
 // 90s allows for apply's sequential teardown: VXCs are deleted and polled to
@@ -225,10 +225,11 @@ func registerSweepCleanup(t *testing.T, prefix string) {
 	})
 }
 
-// twoPortVXCConfig returns a YAML apply config with two ports and one
-// port-to-port VXC whose endpoints reference the ports via {{.port.<name>}}
-// templates. Names are derived from prefix so a single sweep cleans them up.
-func twoPortVXCConfig(prefix string) (yamlContent, portAName, portBName, vxcName string) {
+// twoPortVXCConfig returns a YAML apply config with two ports (both at
+// locationID) and one port-to-port VXC whose endpoints reference the ports via
+// {{.port.<name>}} templates. Names are derived from prefix so a single sweep
+// cleans them up.
+func twoPortVXCConfig(prefix string, locationID int) (yamlContent, portAName, portBName, vxcName string) {
 	portAName = prefix + "-PortA"
 	portBName = prefix + "-PortB"
 	vxcName = prefix + "-VXC"
@@ -251,7 +252,7 @@ vxcs:
       product_uid: "{{.port.%s}}"
     b_end:
       product_uid: "{{.port.%s}}"
-`, portAName, integrationLocationID, portBName, integrationLocationID, vxcName, portAName, portBName)
+`, portAName, locationID, portBName, locationID, vxcName, portAName, portBName)
 	return yamlContent, portAName, portBName, vxcName
 }
 
@@ -261,7 +262,8 @@ func TestIntegration_ApplyDryRun(t *testing.T) {
 	prefix := fmt.Sprintf("CLI-Apply-Test-%s", generateUniqueID(t))
 	registerSweepCleanup(t, prefix) // safety net; dry-run should create nothing
 
-	yamlContent, portAName, portBName, _ := twoPortVXCConfig(prefix)
+	locationID := testutil.FindPortTestLocation(t, testutil.SharedIntegrationClient(t), 1000, integrationLocationID)
+	yamlContent, portAName, portBName, _ := twoPortVXCConfig(prefix, locationID)
 	cfgPath := writeApplyConfig(t, yamlContent)
 	cmd := applyIntegrationCmd(t, cfgPath, true /*dryRun*/, true /*yes*/, false /*rollback*/)
 
@@ -310,7 +312,8 @@ func TestIntegration_ApplyLifecycle(t *testing.T) {
 	prefix := fmt.Sprintf("CLI-Apply-Test-%s", generateUniqueID(t))
 	registerSweepCleanup(t, prefix)
 
-	yamlContent, portAName, portBName, vxcName := twoPortVXCConfig(prefix)
+	locationID := testutil.FindPortTestLocation(t, testutil.SharedIntegrationClient(t), 1000, integrationLocationID)
+	yamlContent, portAName, portBName, vxcName := twoPortVXCConfig(prefix, locationID)
 	cfgPath := writeApplyConfig(t, yamlContent)
 	cmd := applyIntegrationCmd(t, cfgPath, false /*dryRun*/, true /*yes*/, false /*rollback*/)
 
@@ -347,6 +350,7 @@ func TestIntegration_ApplyRollbackOnFailure(t *testing.T) {
 
 	portName := prefix + "-Port"
 	vxcName := prefix + "-VXC"
+	locationID := testutil.FindPortTestLocation(t, testutil.SharedIntegrationClient(t), 1000, integrationLocationID)
 	// One valid port, then a VXC whose b_end references a non-existent resource.
 	// The port provisions for real; the VXC stage fails at template resolution
 	// before any VXC order is placed, so only the port is ever created. Rollback
@@ -365,7 +369,7 @@ vxcs:
       product_uid: "{{.port.%s}}"
     b_end:
       product_uid: "{{.port.DoesNotExist}}"
-`, portName, integrationLocationID, vxcName, portName)
+`, portName, locationID, vxcName, portName)
 
 	cfgPath := writeApplyConfig(t, yamlContent)
 	cmd := applyIntegrationCmd(t, cfgPath, false /*dryRun*/, true /*yes*/, true /*rollback*/)
