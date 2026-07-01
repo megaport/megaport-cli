@@ -11,22 +11,50 @@ workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries unde
 
 ## [Unreleased]
 
-### Added
-- IPsec tunnel config on VXC vRouter interfaces. Set `interfaceType: ipSecTunnel` on an interface and give it one `ipSecTunnelOptions` object (source IP, destination IP, pre-shared key, and optional `passive`, `localId`, `remoteId`, `phase1Lifetime`, `phase2Lifetime`). Each `ipSecTunnel` interface carries exactly one tunnel; attach multiple `ipSecTunnel` interfaces to configure multiple tunnels. Works when buying or updating a VXC via JSON, the `--a-end-partner-config` / `--b-end-partner-config` flags, or the interactive prompts. The pre-shared key is read without echo and never printed.
+## [v1.0.0-beta.1] - 2026-07-01
 
-### Changed
-- Bumped the megaportgo SDK to v1.14.1, which models `ipSecTunnelOptions` as a single object per `ipSecTunnel` interface (one tunnel each) instead of an array
+### Added
+- expose MCR IPsec tunnel config on vRouter interfaces (ESD-1538)
+- register users, managed-account, billing-market modules
+- register ix module in WASM browser build
 
 ### Fixed
-- `vxc buy --resource-tags` now applies tags when buying via flags, matching the `--json` path. Previously the flag was registered but silently ignored. Both paths now share one parse and validation, so malformed JSON, non-string values, and empty keys return a usage error before the order is placed
-- `mve buy --resource-tags` / `--resource-tags-file` and the `--resource-tags-file` flag on `vxc`, `ports`, and `mcr` buy now apply tags on the flags path, matching `nat-gateway`. Previously these registered flags were silently ignored; malformed JSON, non-string values, and empty keys now return a usage error before the order is placed
-- vRouter `bgpConnections` are now parsed from JSON input (`--json` / `--a-end-partner-config` / `--b-end-partner-config`) when buying or updating a VXC. Previously they were silently dropped on the JSON path and only honored via the interactive prompts
-- `vxc update` now validates vRouter partner configs (interfaces, BGP, and IPsec tunnels) client-side before the API call, matching the create path
-- vRouter interface validation now accepts an untagged VLAN (-1), matching the Azure peer and shared VLAN checks. Previously a `-1` VLAN was rejected client-side even though the API accepts it, which also blocked the interactive "press Enter for no VLAN" path
-- The interactive BGP connection password is now read without echo, matching the IPsec pre-shared key. Previously it was typed in cleartext on screen
-- Interactive `vxc update` now applies the A-End vRouter partner config to the A-End. Previously it was written to the B-End field, so the A-End config was lost and the B-End was overwritten
-- `vxc update` no longer rejects a single valid flag (such as `--shutdown`, `--cost-centre`, `--term`, `--is-approved`, or the vNIC index flags) with "at least one field must be updated". The non-interactive gate now matches the flags the update command actually registers
-- Flag-validation failures (conditional-requirement checks, `--max-retries`, `--timeout`, invalid `--output`) now emit the same JSON error envelope as other errors under `--output json`, and no longer print the cobra usage block
+- wire MCR tunnel_count to IPsec add-on and harden config parsing
+- submit order under retry, poll provisioning separately (ESD-1520)
+- publish stable wasm filenames and make CloudFront optional
+- update wasm-publish workflow for content-hash build pipeline
+- tighten JSON input value handling to match flags (ESD-1521)
+- expose --asn flag on create; pass valid session-count and asn in lifecycle test
+- stop spinner animating into non-TTY logs
+- reject empty tag keys in buy/create JSON input (ESD-1527)
+- address adversarial review findings
+- align update non-interactive gate with registered flags (ESD-1550)
+- treat empty partner-config flag as no update (ESD-1550)
+- apply --timeout bounds each resource, not the whole run (ESD-1522)
+- classify ValidationError as usage exit code (ESD-1523)
+- derive changelog prev version from previous git tag
+- extend nil-response guards and honor vNIC index 0 on interactive VXC (ESD-1524, ESD-1525)
+- guard nil SDK responses and honor vNIC index 0 on VXC flag path (ESD-1524, ESD-1525)
+- guard nil responses on service-key update and list paths (ESD-1524)
+- print command errors to stderr and route status messages off stdout
+- reject explicit non-positive --timeout instead of defaulting (ESD-1526)
+- remove the non-functional mve restore command
+- route NAT Gateway ASN through central ValidateASN
+
+### Other Changes
+- Add staging integration test for MCR IPsec tunnel VXC
+- Register MCR cleanup before asserting captured UID in IPsec test
+- address review findings: docs, lifetime comment, BGP password test
+- model ipSecTunnelOptions as a single object per interface
+- fix vxc buy dropping --resource-tags on the flags path
+- clarify FinishPreRunError doc for the WASM caller
+- emit JSON envelope for WASM root flag-validation errors too
+- route PreRunE validation errors through finishWithError
+- unit-test FinishPreRunError for codecov patch coverage
+- unit-test invalid-output and max-retries PreRunE paths for patch coverage
+- wire resource-tag flags into the buy flags builders
+- fixup: address code review feedback on WASM CI / smoke harness
+- fixup: address second-round code review feedback
 
 ## [v0.13.0] - 2026-06-23
 
@@ -434,7 +462,8 @@ workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries unde
 - Credential support via environment variables (`MEGAPORT_ACCESS_KEY`, `MEGAPORT_SECRET_KEY`, `MEGAPORT_ENVIRONMENT`)
 - Automated CI with golangci-lint and Go test suite
 
-[Unreleased]: https://github.com/megaport/megaport-cli/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/megaport/megaport-cli/compare/v1.0.0-beta.1...HEAD
+[v1.0.0-beta.1]: https://github.com/megaport/megaport-cli/compare/v0.13.0...v1.0.0-beta.1
 [v0.13.0]: https://github.com/megaport/megaport-cli/compare/v0.12.0...v0.13.0
 [v0.12.0]: https://github.com/megaport/megaport-cli/compare/v0.11.0...v0.12.0
 [v0.11.0]: https://github.com/megaport/megaport-cli/compare/v0.10.0...v0.11.0
