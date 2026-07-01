@@ -22,11 +22,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// integrationLocationID is the staging data center used for port lifecycle
-// tests. ID 67 is the canonical example location across the CLI's README,
-// example flag strings, and the previous binary-invocation integration suite.
-// It is stable on staging and supports the 1G/10G port speeds these tests
-// exercise.
+// integrationLocationID is the staging data center port lifecycle tests prefer.
+// ID 67 is the canonical example location across the CLI's README, example flag
+// strings, and the previous binary-invocation integration suite, and it has
+// historically advertised the 1G/10G port speeds these tests exercise. It is
+// only a preference: each test resolves its location through
+// testutil.FindPortTestLocation, which falls back to another active location (or
+// skips) if 67 ever stops advertising the speed under test.
 const integrationLocationID = 67
 
 // These tests use t.Parallel(); see testutil.RequireSharedIntegrationClient
@@ -355,12 +357,13 @@ func TestIntegration_PortLifecycle(t *testing.T) {
 	testutil.RequireSharedIntegrationClient(t)
 
 	portName := fmt.Sprintf("CLI-Test-Port-%s", generateUniqueID(t))
+	locationID := testutil.FindPortTestLocation(t, testutil.SharedIntegrationClient(t), 1000, integrationLocationID)
 
 	buyCmd := newBuyPortCmd()
 	require.NoError(t, buyCmd.Flags().Set("name", portName))
 	require.NoError(t, buyCmd.Flags().Set("term", "1"))
 	require.NoError(t, buyCmd.Flags().Set("port-speed", "1000"))
-	require.NoError(t, buyCmd.Flags().Set("location-id", fmt.Sprintf("%d", integrationLocationID)))
+	require.NoError(t, buyCmd.Flags().Set("location-id", fmt.Sprintf("%d", locationID)))
 	require.NoError(t, buyCmd.Flags().Set("marketplace-visibility", "false"))
 	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
 
@@ -398,12 +401,13 @@ func TestIntegration_LAGPortLifecycle(t *testing.T) {
 	testutil.RequireSharedIntegrationClient(t)
 
 	portName := fmt.Sprintf("CLI-Test-LAG-%s", generateUniqueID(t))
+	locationID := testutil.FindPortTestLocation(t, testutil.SharedIntegrationClient(t), 10000, integrationLocationID)
 
 	buyCmd := newBuyLAGPortCmd()
 	require.NoError(t, buyCmd.Flags().Set("name", portName))
 	require.NoError(t, buyCmd.Flags().Set("term", "1"))
 	require.NoError(t, buyCmd.Flags().Set("port-speed", "10000"))
-	require.NoError(t, buyCmd.Flags().Set("location-id", fmt.Sprintf("%d", integrationLocationID)))
+	require.NoError(t, buyCmd.Flags().Set("location-id", fmt.Sprintf("%d", locationID)))
 	require.NoError(t, buyCmd.Flags().Set("lag-count", "1"))
 	require.NoError(t, buyCmd.Flags().Set("marketplace-visibility", "false"))
 	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
@@ -429,12 +433,13 @@ func TestIntegration_PortJSONInputLifecycle(t *testing.T) {
 	testutil.RequireSharedIntegrationClient(t)
 
 	portName := fmt.Sprintf("CLI-Test-Port-JSON-%s", generateUniqueID(t))
+	locationID := testutil.FindPortTestLocation(t, testutil.SharedIntegrationClient(t), 1000, integrationLocationID)
 
 	buyPayload := map[string]any{
 		"name":                  portName,
 		"term":                  1,
 		"portSpeed":             1000,
-		"locationId":            integrationLocationID,
+		"locationId":            locationID,
 		"marketPlaceVisibility": false,
 	}
 	buyJSON, err := json.Marshal(buyPayload)
@@ -467,12 +472,13 @@ func TestIntegration_PortJSONFileLifecycle(t *testing.T) {
 	testutil.RequireSharedIntegrationClient(t)
 
 	portName := fmt.Sprintf("CLI-Test-Port-JSONFile-%s", generateUniqueID(t))
+	locationID := testutil.FindPortTestLocation(t, testutil.SharedIntegrationClient(t), 1000, integrationLocationID)
 
 	buyPayload := map[string]any{
 		"name":                  portName,
 		"term":                  1,
 		"portSpeed":             1000,
-		"locationId":            integrationLocationID,
+		"locationId":            locationID,
 		"marketPlaceVisibility": false,
 	}
 	buyJSON, err := json.MarshalIndent(buyPayload, "", "  ")
@@ -527,12 +533,13 @@ func TestIntegration_LAGPortUpdateLifecycle(t *testing.T) {
 	testutil.RequireSharedIntegrationClient(t)
 
 	portName := fmt.Sprintf("CLI-Test-LAG-Update-%s", generateUniqueID(t))
+	locationID := testutil.FindPortTestLocation(t, testutil.SharedIntegrationClient(t), 10000, integrationLocationID)
 
 	buyCmd := newBuyLAGPortCmd()
 	require.NoError(t, buyCmd.Flags().Set("name", portName))
 	require.NoError(t, buyCmd.Flags().Set("term", "1"))
 	require.NoError(t, buyCmd.Flags().Set("port-speed", "10000"))
-	require.NoError(t, buyCmd.Flags().Set("location-id", fmt.Sprintf("%d", integrationLocationID)))
+	require.NoError(t, buyCmd.Flags().Set("location-id", fmt.Sprintf("%d", locationID)))
 	require.NoError(t, buyCmd.Flags().Set("lag-count", "1"))
 	require.NoError(t, buyCmd.Flags().Set("marketplace-visibility", "false"))
 	require.NoError(t, buyCmd.Flags().Set("yes", "true"))

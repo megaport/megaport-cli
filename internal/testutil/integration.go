@@ -159,3 +159,91 @@ func SharedIntegrationClient(t *testing.T) *megaport.Client {
 	}
 	return sharedIntegrationClient
 }
+
+// locationHasPortSpeed reports whether loc advertises port (Megaport) capacity
+// at speedMbps in either diversity zone.
+func locationHasPortSpeed(loc *megaport.LocationV3, speedMbps int) bool {
+	for _, s := range loc.GetMegaportSpeeds() {
+		if s == speedMbps {
+			return true
+		}
+	}
+	return false
+}
+
+// locationHasMCRSpeed reports whether loc advertises MCR capacity at speedMbps
+// in either diversity zone.
+func locationHasMCRSpeed(loc *megaport.LocationV3, speedMbps int) bool {
+	for _, s := range loc.GetMCRSpeeds() {
+		if s == speedMbps {
+			return true
+		}
+	}
+	return false
+}
+
+// findOrderableLocation returns the ID of an active staging location satisfying
+// qualifies, preferring preferredID so a healthy canonical location keeps the
+// suite pinned where it has always run, and otherwise falling back to the first
+// other qualifying location. It skips the test when none qualifies: a location
+// losing a capability should route the suite elsewhere, not fail the build.
+// capability names the requirement for the log and skip messages.
+//
+// Unlike the MVE host-capacity probe, this only checks the speeds the location
+// advertises (the same signal the terraform provider's location helpers use);
+// it never places a validate order, so it is cheap and side-effect free.
+func findOrderableLocation(t *testing.T, client *megaport.Client, preferredID int, capability string, qualifies func(*megaport.LocationV3) bool) int {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	locations, err := client.LocationService.ListLocationsV3(ctx)
+	require.NoErrorf(t, err, "list locations to find %s", capability)
+
+	var fallback *megaport.LocationV3
+	for _, loc := range locations {
+		if loc == nil || !loc.IsStatusOrderable() || !qualifies(loc) {
+			continue
+		}
+		if loc.ID == preferredID {
+			return loc.ID
+		}
+		if fallback == nil {
+			fallback = loc
+		}
+	}
+	if fallback != nil {
+		t.Logf("preferred location %d unavailable for %s; using location %d (%s)", preferredID, capability, fallback.ID, fallback.Name)
+		return fallback.ID
+	}
+	t.Skipf("no active staging location advertises %s", capability)
+	return 0
+}
+
+// FindPortTestLocation returns a staging location that advertises port capacity
+// at speedMbps, preferring preferredID. See findOrderableLocation for the
+// fallback and skip behavior.
+func FindPortTestLocation(t *testing.T, client *megaport.Client, speedMbps, preferredID int) int {
+	t.Helper()
+	return findOrderableLocation(t, client, preferredID, fmt.Sprintf("%d Mbps port capacity", speedMbps), func(loc *megaport.LocationV3) bool {
+		return locationHasPortSpeed(loc, speedMbps)
+	})
+}
+
+// FindMCRTestLocation returns a staging location that advertises MCR capacity at
+// speedMbps, preferring preferredID.
+func FindMCRTestLocation(t *testing.T, client *megaport.Client, speedMbps, preferredID int) int {
+	t.Helper()
+	return findOrderableLocation(t, client, preferredID, fmt.Sprintf("%d Mbps MCR capacity", speedMbps), func(loc *megaport.LocationV3) bool {
+		return locationHasMCRSpeed(loc, speedMbps)
+	})
+}
+
+// FindPortAndMCRTestLocation returns a single staging location that advertises
+// both port capacity at portSpeedMbps and MCR capacity at mcrSpeedMbps, for VXC
+// tests that co-locate a port and an MCR. Prefers preferredID.
+func FindPortAndMCRTestLocation(t *testing.T, client *megaport.Client, portSpeedMbps, mcrSpeedMbps, preferredID int) int {
+	t.Helper()
+	return findOrderableLocation(t, client, preferredID, fmt.Sprintf("%d Mbps port + %d Mbps MCR capacity", portSpeedMbps, mcrSpeedMbps), func(loc *megaport.LocationV3) bool {
+		return locationHasPortSpeed(loc, portSpeedMbps) && locationHasMCRSpeed(loc, mcrSpeedMbps)
+	})
+}

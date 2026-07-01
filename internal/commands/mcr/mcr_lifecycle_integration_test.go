@@ -49,6 +49,7 @@ func TestIntegration_MCRLockLifecycle(t *testing.T) {
 	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
 
 	name := fmt.Sprintf("CLI-Test-MCR-Lock-%s", generateUniqueID())
+	locationID := testutil.FindMCRTestLocation(t, client, 1000, stagingMCRLocationID)
 
 	// BuyMCR waits for provisioning (no --no-wait), so the MCR is lockable once
 	// it returns.
@@ -56,7 +57,7 @@ func TestIntegration_MCRLockLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("name", name))
 	require.NoError(t, buyCmd.Flags().Set("term", "1"))
 	require.NoError(t, buyCmd.Flags().Set("port-speed", "1000"))
-	require.NoError(t, buyCmd.Flags().Set("location-id", strconv.Itoa(stagingMCRLocationID)))
+	require.NoError(t, buyCmd.Flags().Set("location-id", strconv.Itoa(locationID)))
 	require.NoError(t, buyCmd.Flags().Set("marketplace-visibility", "false"))
 	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
 
@@ -64,7 +65,7 @@ func TestIntegration_MCRLockLifecycle(t *testing.T) {
 	buyOut := captureTableOutput(func() { buyErr = BuyMCR(buyCmd, nil, true) })
 	require.NoError(t, buyErr, "buy MCR output: %s", buyOut)
 
-	mcrUID := parseCreatedUID(buyOut, "MCR")
+	mcrUID := parseCreatedUID(buyOut)
 	// Register cleanup before asserting on mcrUID, so any created MCR is cleaned
 	// up even if the UID parse fails. Unlock first: the API can refuse to delete
 	// a locked resource, so a test that fails after locking must unlock here.

@@ -20,9 +20,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// integrationLocationID is the staging data center used to provision the
-// throwaway port a service key needs as its product. ID 67 is the canonical
-// staging example location reused across the CLI's other integration tests.
+// integrationLocationID is the staging data center service key tests prefer for
+// the throwaway port a key needs as its product. FindPortTestLocation falls back
+// to another orderable location when it is out of capacity.
 const integrationLocationID = 67
 
 func uniqueSuffix(t *testing.T) string {
@@ -87,11 +87,12 @@ func provisionPortForServiceKey(t *testing.T, client *megaport.Client) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
 	defer cancel()
 
+	locationID := testutil.FindPortTestLocation(t, client, 1000, integrationLocationID)
 	resp, err := client.PortService.BuyPort(ctx, &megaport.BuyPortRequest{
 		Name:                  portName,
 		Term:                  1,
 		PortSpeed:             1000,
-		LocationId:            integrationLocationID,
+		LocationId:            locationID,
 		MarketPlaceVisibility: false,
 		WaitForProvision:      true,
 		WaitForTime:           10 * time.Minute,

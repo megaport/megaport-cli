@@ -34,52 +34,30 @@ func mveLockedFromSDK(t *testing.T, client *megaport.Client, uid string) bool {
 // action (which waits for provisioning) and registers a best-effort hard delete
 // in t.Cleanup. It returns the new MVE's UID. The image is discovered
 // dynamically because staging image IDs change.
-func buyArubaMVEForLifecycle(t *testing.T, namePrefix string) string {
+func buyArubaMVEForLifecycle(t *testing.T, client *megaport.Client, namePrefix string) string {
 	t.Helper()
 	img := discoverArubaImage(t)
 	name := fmt.Sprintf("%s-%s", namePrefix, generateUniqueID())
-
-	vendorConfig := fmt.Sprintf(`{
-		"vendor": "aruba",
-		"productSize": "%s",
-		"imageId": %d,
-		"accountName": "test",
-		"accountKey": "test",
-		"systemTag": "test"
-	}`, img.productSize(), img.ID)
 	vnics := `[{"description": "MVE VNIC 1", "vlan": 55}, {"description": "MVE VNIC 2", "vlan": 56}]`
 
-	buyCmd := integrationMVEBuyCmd()
-	require.NoError(t, buyCmd.Flags().Set("name", name))
-	require.NoError(t, buyCmd.Flags().Set("term", "1"))
-	require.NoError(t, buyCmd.Flags().Set("location-id", strconv.Itoa(stagingMVELocationID)))
-	require.NoError(t, buyCmd.Flags().Set("vendor-config", vendorConfig))
-	require.NoError(t, buyCmd.Flags().Set("vnics", vnics))
-	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
-
-	var buyErr error
-	buyOut := captureTableOutput(func() { buyErr = BuyMVE(buyCmd, nil, true) })
-	require.NoError(t, buyErr, "buy MVE output: %s", buyOut)
-
-	mveUID := parseCreatedUID(buyOut, "MVE")
-	// Register the delete cleanup before asserting on the UID, so a created MVE
-	// is always torn down (CANCEL_NOW) even if the parse below fails.
-	t.Cleanup(func() {
-		if mveUID == "" {
-			return
-		}
-		delCmd := integrationMVEDeleteCmd()
-		_ = delCmd.Flags().Set("force", "true")
-		var delErr error
-		out := captureTableOutput(func() { delErr = DeleteMVE(delCmd, []string{mveUID}, true) })
-		if delErr != nil {
-			t.Logf("cleanup: delete MVE %s failed: %v; output: %s", mveUID, delErr, out)
-			return
-		}
-		t.Logf("cleanup: delete MVE %s: %s", mveUID, out)
+	return buyMVEAtAvailableLocation(t, client, img, func(locationID int, size string) *cobra.Command {
+		vendorConfig := fmt.Sprintf(`{
+			"vendor": "aruba",
+			"productSize": "%s",
+			"imageId": %d,
+			"accountName": "test",
+			"accountKey": "test",
+			"systemTag": "test"
+		}`, size, img.ID)
+		buyCmd := integrationMVEBuyCmd()
+		require.NoError(t, buyCmd.Flags().Set("name", name))
+		require.NoError(t, buyCmd.Flags().Set("term", "1"))
+		require.NoError(t, buyCmd.Flags().Set("location-id", strconv.Itoa(locationID)))
+		require.NoError(t, buyCmd.Flags().Set("vendor-config", vendorConfig))
+		require.NoError(t, buyCmd.Flags().Set("vnics", vnics))
+		require.NoError(t, buyCmd.Flags().Set("yes", "true"))
+		return buyCmd
 	})
-	require.NotEmpty(t, mveUID, "could not parse MVE UID from: %s", buyOut)
-	return mveUID
 }
 
 // TestIntegration_MVELockLifecycle buys an MVE, locks it, asserts the lock via an
@@ -100,7 +78,7 @@ func TestIntegration_MVELockLifecycle(t *testing.T) {
 	origFmt := output.GetOutputFormat()
 	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
 
-	mveUID := buyArubaMVEForLifecycle(t, "CLI-Test-MVE-Lock")
+	mveUID := buyArubaMVEForLifecycle(t, client, "CLI-Test-MVE-Lock")
 
 	// Registered after the delete cleanup so it runs first (cleanups run LIFO):
 	// the API can refuse to delete a locked resource, so unlock before delete.

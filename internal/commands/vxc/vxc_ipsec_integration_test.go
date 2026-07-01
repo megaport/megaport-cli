@@ -58,9 +58,9 @@ func findTransitPartnerUID(t *testing.T, mcrLocationID int) string {
 // (via --ipsec-tunnel-count) and returns its UID. BuyMCR blocks until the MCR is
 // LIVE, so the add-on is provisioned before a tunnel VXC is attached. Cleanup is
 // registered before the UID is asserted so a billable MCR is never leaked.
-func buyMCRWithIPsecAndGetUID(t *testing.T, mcrName string, tunnelCount int) string {
+func buyMCRWithIPsecAndGetUID(t *testing.T, mcrName string, tunnelCount, locationID int) string {
 	t.Helper()
-	cmd := buildMCRCmd(t, mcrName, integrationLocationID)
+	cmd := buildMCRCmd(t, mcrName, locationID)
 	require.NoError(t, cmd.Flags().Set("ipsec-tunnel-count", fmt.Sprintf("%d", tunnelCount)))
 	require.NoErrorf(t, mcr.BuyMCR(cmd, nil, true), "BuyMCR with IPsec add-on failed for %q", mcrName)
 
@@ -93,10 +93,16 @@ func TestIntegration_VXCMCRIPsecTunnelLifecycle(t *testing.T) {
 	mcrName := fmt.Sprintf("CLI-Test-IPsec-MCR-%s", id)
 	vxcName := fmt.Sprintf("CLI-Test-IPsec-VXC-%s", id)
 
-	transitUID := findTransitPartnerUID(t, integrationLocationID)
+	// The MCR and the TRANSIT partner B-End must share a metro for a same-region
+	// Transit VXC, so both are pinned to one discovered location. This test buys
+	// no Megaport port (the B-End is a partner megaport), so it only needs MCR
+	// capacity. If the fallback location has no TRANSIT partner, findTransitPartnerUID skips.
+	locationID := testutil.FindMCRTestLocation(t, testutil.SharedIntegrationClient(t), 1000, integrationLocationID)
+
+	transitUID := findTransitPartnerUID(t, locationID)
 	t.Logf("Using TRANSIT partner (B-End): %s", transitUID)
 
-	mcrUID := buyMCRWithIPsecAndGetUID(t, mcrName, 10)
+	mcrUID := buyMCRWithIPsecAndGetUID(t, mcrName, 10, locationID)
 	t.Logf("Created MCR (A-End) with IPsec add-on: %s", mcrUID)
 
 	vrouterConfig := `{

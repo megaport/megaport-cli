@@ -22,8 +22,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// stagingMCRLocationID is a known MCR-capable staging location. Discovering one
-// via ListLocations would be overengineering for this lifecycle test.
+// stagingMCRLocationID is the staging location MCR lifecycle tests prefer. It
+// has historically been MCR-capable, but it is only a preference: each test
+// resolves its location through testutil.FindMCRTestLocation, which falls back
+// to another active MCR-capable location (or skips) if this one ever stops
+// advertising the speed under test.
 const stagingMCRLocationID = 67
 
 func generateUniqueID() string {
@@ -114,10 +117,10 @@ func integrationMCRPrefixFilterCmd() *cobra.Command {
 	return cmd
 }
 
-// parseCreatedUID pulls the resource UID out of a "<resource> created <uid>"
-// success message.
-func parseCreatedUID(out, resource string) string {
-	marker := resource + " created "
+// parseCreatedUID pulls the MCR UID out of a "MCR created <uid>" success
+// message.
+func parseCreatedUID(out string) string {
+	const marker = "MCR created "
 	for _, line := range strings.Split(out, "\n") {
 		if i := strings.Index(line, marker); i >= 0 {
 			return strings.TrimSpace(line[i+len(marker):])
@@ -169,6 +172,7 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
 
 	name := fmt.Sprintf("CLI-Test-MCR-%s", generateUniqueID())
+	locationID := testutil.FindMCRTestLocation(t, client, 1000, stagingMCRLocationID)
 
 	// Buy a new MCR using flags. BuyMCR waits for provisioning (no --no-wait),
 	// so the MCR is ready for prefix-filter-list operations once it returns.
@@ -176,7 +180,7 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("name", name))
 	require.NoError(t, buyCmd.Flags().Set("term", "1"))
 	require.NoError(t, buyCmd.Flags().Set("port-speed", "1000"))
-	require.NoError(t, buyCmd.Flags().Set("location-id", strconv.Itoa(stagingMCRLocationID)))
+	require.NoError(t, buyCmd.Flags().Set("location-id", strconv.Itoa(locationID)))
 	require.NoError(t, buyCmd.Flags().Set("marketplace-visibility", "false"))
 	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
 
@@ -184,7 +188,7 @@ func TestIntegration_MCRLifecycle(t *testing.T) {
 	buyOut := captureTableOutput(func() { buyErr = BuyMCR(buyCmd, nil, true) })
 	require.NoError(t, buyErr, "buy MCR output: %s", buyOut)
 
-	mcrUID := parseCreatedUID(buyOut, "MCR")
+	mcrUID := parseCreatedUID(buyOut)
 	// Register cleanup before asserting on mcrUID, so any created MCR is
 	// deleted even if the UID parse fails.
 	t.Cleanup(func() {
@@ -360,6 +364,7 @@ func TestIntegration_MCRJSONInputLifecycle(t *testing.T) {
 	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
 
 	name := fmt.Sprintf("CLI-JSON-MCR-%s", generateUniqueID())
+	locationID := testutil.FindMCRTestLocation(t, client, 1000, stagingMCRLocationID)
 
 	buyJSON := fmt.Sprintf(`{
 		"name": "%s",
@@ -367,7 +372,7 @@ func TestIntegration_MCRJSONInputLifecycle(t *testing.T) {
 		"portSpeed": 1000,
 		"locationId": %d,
 		"marketplaceVisibility": false
-	}`, name, stagingMCRLocationID)
+	}`, name, locationID)
 
 	buyCmd := integrationMCRBuyCmd()
 	require.NoError(t, buyCmd.Flags().Set("json", buyJSON))
@@ -376,7 +381,7 @@ func TestIntegration_MCRJSONInputLifecycle(t *testing.T) {
 	buyOut := captureTableOutput(func() { buyErr = BuyMCR(buyCmd, nil, true) })
 	require.NoError(t, buyErr, "buy MCR (JSON) output: %s", buyOut)
 
-	mcrUID := parseCreatedUID(buyOut, "MCR")
+	mcrUID := parseCreatedUID(buyOut)
 	// Register cleanup before asserting on mcrUID, so any created MCR is
 	// deleted even if the UID parse fails.
 	t.Cleanup(func() {
@@ -492,6 +497,7 @@ func TestIntegration_MCRIPv6PrefixFilterLifecycle(t *testing.T) {
 	t.Cleanup(func() { output.SetOutputFormat(origFmt) })
 
 	name := fmt.Sprintf("CLI-Test-MCR-IPv6-%s", generateUniqueID())
+	locationID := testutil.FindMCRTestLocation(t, client, 1000, stagingMCRLocationID)
 
 	// Buy a new MCR using flags. BuyMCR waits for provisioning (no --no-wait),
 	// so the MCR is ready for prefix-filter-list operations once it returns.
@@ -499,7 +505,7 @@ func TestIntegration_MCRIPv6PrefixFilterLifecycle(t *testing.T) {
 	require.NoError(t, buyCmd.Flags().Set("name", name))
 	require.NoError(t, buyCmd.Flags().Set("term", "1"))
 	require.NoError(t, buyCmd.Flags().Set("port-speed", "1000"))
-	require.NoError(t, buyCmd.Flags().Set("location-id", strconv.Itoa(stagingMCRLocationID)))
+	require.NoError(t, buyCmd.Flags().Set("location-id", strconv.Itoa(locationID)))
 	require.NoError(t, buyCmd.Flags().Set("marketplace-visibility", "false"))
 	require.NoError(t, buyCmd.Flags().Set("yes", "true"))
 
@@ -507,7 +513,7 @@ func TestIntegration_MCRIPv6PrefixFilterLifecycle(t *testing.T) {
 	buyOut := captureTableOutput(func() { buyErr = BuyMCR(buyCmd, nil, true) })
 	require.NoError(t, buyErr, "buy MCR output: %s", buyOut)
 
-	mcrUID := parseCreatedUID(buyOut, "MCR")
+	mcrUID := parseCreatedUID(buyOut)
 	// Register cleanup before asserting on mcrUID, so any created MCR is
 	// deleted even if the UID parse fails.
 	t.Cleanup(func() {
