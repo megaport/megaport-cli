@@ -15,6 +15,7 @@ This command creates a NAT Gateway by providing the necessary details.
   - `term`: The contract term in months (1, 12, 24, or 36)
 
 ### Optional Fields
+  - `asn`: The BGP ASN for the NAT Gateway
   - `auto-renew`: Whether to automatically renew the contract term
   - `diversity-zone`: The diversity zone for the NAT Gateway
   - `promo-code`: A promotional code for discounts
@@ -67,6 +68,7 @@ megaport-cli nat-gateway create [flags]
 
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
+| `--asn` |  | `0` | The BGP ASN for the NAT Gateway (optional; use a private ASN, e.g. 64512) | false |
 | `--auto-renew` |  | `false` | Whether to automatically renew the contract term | false |
 | `--diversity-zone` |  |  | The diversity zone for the NAT Gateway (optional) | false |
 | `--generate-skeleton` |  | `false` | Print a JSON skeleton template for --json or --json-file input and exit | false |
