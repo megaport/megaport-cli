@@ -207,7 +207,7 @@ func findMVECapacity(t *testing.T, client *megaport.Client, img discoveredImage)
 	probe := func(locID int, size string) bool {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		return client.MVEService.ValidateMVEOrder(ctx, &megaport.BuyMVERequest{
+		err := client.MVEService.ValidateMVEOrder(ctx, &megaport.BuyMVERequest{
 			LocationID: locID,
 			Name:       "cli-capacity-probe",
 			Term:       1,
@@ -223,7 +223,12 @@ func findMVECapacity(t *testing.T, client *megaport.Client, img discoveredImage)
 				{Description: "MVE VNIC 1", VLAN: 55},
 				{Description: "MVE VNIC 2", VLAN: 56},
 			},
-		}) == nil
+		})
+		if err == nil {
+			return true
+		}
+		require.True(t, isMVECapacityError(err), "validate MVE order at location %d size %s", locID, size)
+		return false
 	}
 
 	// Probe the preferred location first, then every other active MVE-capable
