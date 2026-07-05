@@ -27,6 +27,3 @@ megaport-cli config delete-profile [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_config_delete-profile_docs.md)
-

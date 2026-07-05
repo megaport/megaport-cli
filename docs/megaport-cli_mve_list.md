@@ -49,6 +49,3 @@ megaport-cli mve list [flags]
 | `--tag` |  | `[]` | Filter by resource tag (format: key=value or key; repeatable, AND logic) | false |
 | `--vendor` |  |  | Filter MVEs by vendor | false |
 
-## Subcommands
-* [docs](megaport-cli_mve_list_docs.md)
-

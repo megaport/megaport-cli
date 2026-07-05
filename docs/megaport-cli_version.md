@@ -24,6 +24,3 @@ megaport-cli version [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_version_docs.md)
-

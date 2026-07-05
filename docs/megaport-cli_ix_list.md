@@ -54,6 +54,3 @@ megaport-cli ix list [flags]
 | `--rate-limit` |  | `0` | Filter IXs by rate limit in Mbps | false |
 | `--vlan` |  | `0` | Filter IXs by VLAN | false |
 
-## Subcommands
-* [docs](megaport-cli_ix_list_docs.md)
-

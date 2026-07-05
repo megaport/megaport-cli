@@ -36,6 +36,3 @@ megaport-cli product list [flags]
 | `--include-inactive` |  | `false` | Include products in CANCELLED, DECOMMISSIONED, or DECOMMISSIONING states | false |
 | `--limit` |  | `0` | Maximum number of results to display (0 = unlimited) | false |
 
-## Subcommands
-* [docs](megaport-cli_product_list_docs.md)
-

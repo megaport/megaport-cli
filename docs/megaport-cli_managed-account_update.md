@@ -54,6 +54,3 @@ megaport-cli managed-account update [flags]
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 
-## Subcommands
-* [docs](megaport-cli_managed-account_update_docs.md)
-

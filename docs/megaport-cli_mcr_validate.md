@@ -62,6 +62,3 @@ megaport-cli mcr validate [flags]
 | `--resource-tags-file` |  |  | Path to JSON file containing resource tags | false |
 | `--term` |  | `0` | The term of the MCR (1, 12, 24, or 36 months) | true |
 
-## Subcommands
-* [docs](megaport-cli_mcr_validate_docs.md)
-

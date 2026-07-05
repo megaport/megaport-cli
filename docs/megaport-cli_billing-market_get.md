@@ -34,6 +34,3 @@ megaport-cli billing-market get [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_billing-market_get_docs.md)
-

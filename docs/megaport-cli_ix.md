@@ -37,7 +37,6 @@ megaport-cli ix [flags]
 ## Subcommands
 * [buy](megaport-cli_ix_buy.md)
 * [delete](megaport-cli_ix_delete.md)
-* [docs](megaport-cli_ix_docs.md)
 * [get](megaport-cli_ix_get.md)
 * [list](megaport-cli_ix_list.md)
 * [status](megaport-cli_ix_status.md)

@@ -53,6 +53,3 @@ megaport-cli managed-account create [flags]
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 
-## Subcommands
-* [docs](megaport-cli_managed-account_create_docs.md)
-

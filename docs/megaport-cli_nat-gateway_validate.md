@@ -33,6 +33,3 @@ megaport-cli nat-gateway validate [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_nat-gateway_validate_docs.md)
-

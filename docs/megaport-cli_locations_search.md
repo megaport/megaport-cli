@@ -30,6 +30,3 @@ megaport-cli locations search [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_locations_search_docs.md)
-

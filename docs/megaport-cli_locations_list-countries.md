@@ -29,6 +29,3 @@ megaport-cli locations list-countries [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_locations_list-countries_docs.md)
-

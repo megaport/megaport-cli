@@ -36,6 +36,3 @@ megaport-cli managed-account get [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_managed-account_get_docs.md)
-

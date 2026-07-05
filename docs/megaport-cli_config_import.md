@@ -44,6 +44,3 @@ megaport-cli config import [flags]
 |------|-----------|---------|-------------|----------|
 | `--file` |  |  | File to import from | true |
 
-## Subcommands
-* [docs](megaport-cli_config_import_docs.md)
-

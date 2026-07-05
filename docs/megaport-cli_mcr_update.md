@@ -68,6 +68,3 @@ megaport-cli mcr update [flags]
 | `--name` |  |  | The new name of the MCR (1-64 characters) | false |
 | `--term` |  | `0` | The new contract term for the MCR (1, 12, 24, or 36 months) | false |
 
-## Subcommands
-* [docs](megaport-cli_mcr_update_docs.md)
-

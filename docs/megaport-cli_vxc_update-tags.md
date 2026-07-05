@@ -26,6 +26,3 @@ megaport-cli vxc update-tags [flags]
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 
-## Subcommands
-* [docs](megaport-cli_vxc_update-tags_docs.md)
-

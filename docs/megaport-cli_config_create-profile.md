@@ -42,6 +42,3 @@ megaport-cli config create-profile [flags]
 | `--environment` |  | `production` | Target API environment: 'production', 'staging', or 'development' | false |
 | `--secret-key` |  |  | Megaport API secret key (omit to be prompted; masked on TTY only) | false |
 
-## Subcommands
-* [docs](megaport-cli_config_create-profile_docs.md)
-

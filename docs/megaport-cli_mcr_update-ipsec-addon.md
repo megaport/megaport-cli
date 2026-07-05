@@ -51,6 +51,3 @@ megaport-cli mcr update-ipsec-addon [flags]
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 | `--tunnel-count` |  | `0` | New tunnel count (10, 20, or 30); set to 0 to disable IPSec | true |
 
-## Subcommands
-* [docs](megaport-cli_mcr_update-ipsec-addon_docs.md)
-

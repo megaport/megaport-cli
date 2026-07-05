@@ -79,6 +79,3 @@ megaport-cli ix buy [flags]
 | `--vlan` |  | `0` | VLAN ID for the IX connection | true |
 | `--yes` | `-y` | `false` | Skip confirmation prompt for purchase | false |
 
-## Subcommands
-* [docs](megaport-cli_ix_buy_docs.md)
-

@@ -33,6 +33,3 @@ megaport-cli mcr looking-glass bgp-sessions [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_mcr_looking-glass_bgp-sessions_docs.md)
-

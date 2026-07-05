@@ -102,6 +102,3 @@ megaport-cli mve buy [flags]
 | `--vnics` |  |  | JSON array of network interfaces (for flag mode) | true |
 | `--yes` | `-y` | `false` | Skip confirmation prompt for purchase | false |
 
-## Subcommands
-* [docs](megaport-cli_mve_buy_docs.md)
-

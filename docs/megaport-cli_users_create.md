@@ -64,6 +64,3 @@ megaport-cli users create [flags]
 | `--phone` |  |  | Phone number in international format (optional) | false |
 | `--position` |  |  | Position/role (Company Admin, Technical Admin, Technical Contact, Finance, Financial Contact, Read Only) | true |
 
-## Subcommands
-* [docs](megaport-cli_users_create_docs.md)
-

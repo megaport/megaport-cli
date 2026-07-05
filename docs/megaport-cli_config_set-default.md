@@ -28,6 +28,3 @@ megaport-cli config set-default [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_config_set-default_docs.md)
-

@@ -33,6 +33,3 @@ megaport-cli users get [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_users_get_docs.md)
-

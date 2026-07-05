@@ -33,6 +33,3 @@ megaport-cli servicekeys get [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_servicekeys_get_docs.md)
-

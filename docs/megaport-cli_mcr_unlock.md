@@ -29,6 +29,3 @@ megaport-cli mcr unlock [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_mcr_unlock_docs.md)
-

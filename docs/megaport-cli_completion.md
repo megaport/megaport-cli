@@ -31,6 +31,3 @@ megaport-cli completion [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_completion_docs.md)
-

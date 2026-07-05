@@ -46,6 +46,3 @@ megaport-cli nat-gateway telemetry [flags]
 | `--to` |  |  | End time for telemetry in RFC3339 format; use with --from | false |
 | `--types` |  |  | Comma-separated telemetry types (e.g. BITS,PACKETS,SPEED) | true |
 
-## Subcommands
-* [docs](megaport-cli_nat-gateway_telemetry_docs.md)
-
