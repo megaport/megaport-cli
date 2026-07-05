@@ -18,6 +18,7 @@ workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries unde
 - Bumped the megaportgo SDK to v1.14.1, which models `ipSecTunnelOptions` as a single object per `ipSecTunnel` interface (one tunnel each) instead of an array
 
 ### Fixed
+- `ports buy-lag --json` / `--json-file` now enforces LAG validation, so a body that omits `lagCount` fails with a "LAG count" error before ordering instead of quietly placing an order for a standalone port. The JSON path previously reused the plain-port validator
 - `vxc buy --resource-tags` now applies tags when buying via flags, matching the `--json` path. Previously the flag was registered but silently ignored. Both paths now share one parse and validation, so malformed JSON, non-string values, and empty keys return a usage error before the order is placed
 - `mve buy --resource-tags` / `--resource-tags-file` and the `--resource-tags-file` flag on `vxc`, `ports`, and `mcr` buy now apply tags on the flags path, matching `nat-gateway`. Previously these registered flags were silently ignored; malformed JSON, non-string values, and empty keys now return a usage error before the order is placed
 - vRouter `bgpConnections` are now parsed from JSON input (`--json` / `--a-end-partner-config` / `--b-end-partner-config`) when buying or updating a VXC. Previously they were silently dropped on the JSON path and only honored via the interactive prompts
