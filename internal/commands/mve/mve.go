@@ -36,8 +36,8 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOptionalFlag("promo-code", "Promotional code for discounts").
 		WithOptionalFlag("cost-centre", "Cost centre for billing").
 		WithExample("megaport-cli mve buy --interactive").
-		WithExample("megaport-cli mve buy --name \"My MVE\" --term 12 --location-id 123 --vendor-config '{\"vendor\":\"cisco\",\"imageId\":123,\"productSize\":\"MEDIUM\"}' --vnics '[{\"description\":\"Data Plane\",\"vlan\":100}]' --resource-tags '{\"env\":\"prod\",\"owner\":\"netops\"}'").
-		WithExample("megaport-cli mve buy --json '{\"name\":\"My MVE\",\"term\":12,\"locationId\":123,\"vendorConfig\":{\"vendor\":\"cisco\",\"imageId\":123,\"productSize\":\"MEDIUM\"},\"vnics\":[{\"description\":\"Data Plane\",\"vlan\":100}],\"resourceTags\":{\"env\":\"prod\",\"owner\":\"netops\"}}'").
+		WithExample("megaport-cli mve buy --name \"My MVE\" --term 12 --location-id 123 --vendor-config '{\"vendor\":\"cisco\",\"imageId\":123,\"productSize\":\"MEDIUM\",\"manageLocally\":true,\"adminSshPublicKey\":\"ssh-rsa AAAA...\",\"sshPublicKey\":\"ssh-rsa AAAA...\"}' --vnics '[{\"description\":\"Data Plane\",\"vlan\":100}]' --resource-tags '{\"env\":\"prod\",\"owner\":\"netops\"}'").
+		WithExample("megaport-cli mve buy --json '{\"name\":\"My MVE\",\"term\":12,\"locationId\":123,\"vendorConfig\":{\"vendor\":\"cisco\",\"imageId\":123,\"productSize\":\"MEDIUM\",\"manageLocally\":true,\"adminSshPublicKey\":\"ssh-rsa AAAA...\",\"sshPublicKey\":\"ssh-rsa AAAA...\"},\"vnics\":[{\"description\":\"Data Plane\",\"vlan\":100}],\"resourceTags\":{\"env\":\"prod\",\"owner\":\"netops\"}}'").
 		WithExample("megaport-cli mve buy --json-file ./mve-config.json").
 		WithJSONExample(`{
   "name": "My MVE Display Name",
@@ -249,7 +249,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithDocumentedRequiredFlag("location-id", "The ID of the location where the MVE will be provisioned").
 		WithDocumentedRequiredFlag("vendor-config", "JSON string with vendor-specific configuration").
 		WithDocumentedRequiredFlag("vnics", "JSON array of network interfaces").
-		WithExample(`megaport-cli mve validate --name "My MVE" --term 12 --location-id 123 --vendor-config '{"vendor":"cisco","imageId":123,"productSize":"MEDIUM"}' --vnics '[{"description":"Data Plane","vlan":100}]'`).
+		WithExample(`megaport-cli mve validate --name "My MVE" --term 12 --location-id 123 --vendor-config '{"vendor":"cisco","imageId":123,"productSize":"MEDIUM","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA...","sshPublicKey":"ssh-rsa AAAA..."}' --vnics '[{"description":"Data Plane","vlan":100}]'`).
 		WithExample("megaport-cli mve validate --json-file ./mve-config.json").
 		WithImportantNote("This command only validates the configuration — no resources are created and no charges are incurred").
 		WithRootCmd(rootCmd).

@@ -25,7 +25,7 @@ Use this for dry-run validation before purchasing, or in CI pipelines to check c
 ### Example Usage
 
 ```sh
-  megaport-cli mve validate --name "My MVE" --term 12 --location-id 123 --vendor-config '{"vendor":"cisco","imageId":123,"productSize":"MEDIUM"}' --vnics '[{"description":"Data Plane","vlan":100}]'
+  megaport-cli mve validate --name "My MVE" --term 12 --location-id 123 --vendor-config '{"vendor":"cisco","imageId":123,"productSize":"MEDIUM","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA...","sshPublicKey":"ssh-rsa AAAA..."}' --vnics '[{"description":"Data Plane","vlan":100}]'
   megaport-cli mve validate --json-file ./mve-config.json
 ```
 

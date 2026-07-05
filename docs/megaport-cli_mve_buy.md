@@ -34,8 +34,8 @@ This command allows you to purchase an MVE by providing the necessary details.
 
 ```sh
   megaport-cli mve buy --interactive
-  megaport-cli mve buy --name "My MVE" --term 12 --location-id 123 --vendor-config '{"vendor":"cisco","imageId":123,"productSize":"MEDIUM"}' --vnics '[{"description":"Data Plane","vlan":100}]' --resource-tags '{"env":"prod","owner":"netops"}'
-  megaport-cli mve buy --json '{"name":"My MVE","term":12,"locationId":123,"vendorConfig":{"vendor":"cisco","imageId":123,"productSize":"MEDIUM"},"vnics":[{"description":"Data Plane","vlan":100}],"resourceTags":{"env":"prod","owner":"netops"}}'
+  megaport-cli mve buy --name "My MVE" --term 12 --location-id 123 --vendor-config '{"vendor":"cisco","imageId":123,"productSize":"MEDIUM","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA...","sshPublicKey":"ssh-rsa AAAA..."}' --vnics '[{"description":"Data Plane","vlan":100}]' --resource-tags '{"env":"prod","owner":"netops"}'
+  megaport-cli mve buy --json '{"name":"My MVE","term":12,"locationId":123,"vendorConfig":{"vendor":"cisco","imageId":123,"productSize":"MEDIUM","manageLocally":true,"adminSshPublicKey":"ssh-rsa AAAA...","sshPublicKey":"ssh-rsa AAAA..."},"vnics":[{"description":"Data Plane","vlan":100}],"resourceTags":{"env":"prod","owner":"netops"}}'
   megaport-cli mve buy --json-file ./mve-config.json
 ```
 ### JSON Format Example
