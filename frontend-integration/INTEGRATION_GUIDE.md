@@ -266,8 +266,9 @@ const checkVlan = async () => {
 ## Interactive Commands
 
 Some CLI commands prompt for input (interactive `buy`/`update` flows, confirmations, and
-secrets). The WASM has no stdin, so it asks the host page for each value. You must register
-a handler or interactive commands will hang waiting for a response.
+secrets). The WASM has no stdin, so it asks the host page for each value. If no handler is
+registered, a prompt fails immediately with a "prompt callback not registered" error; once a
+handler is registered, a prompt left unanswered times out after 5 minutes.
 
 **Always run interactive commands through `execute()`** (the composable prefers the async
 entrypoint under the hood). The legacy synchronous entrypoint runs the command inline and

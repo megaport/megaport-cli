@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { defineComponent } from 'vue';
 import { mount } from '@vue/test-utils';
 import { useMegaportWASM } from '../composables/useMegaportWASM';
@@ -26,6 +26,7 @@ const createReadyComposable = async () => {
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
   if (!composableInstance.isReady.value) {
+    wrapper.unmount();
     throw new Error('WASM did not become ready in time');
   }
   return { wrapper, composable: composableInstance };
@@ -527,6 +528,11 @@ describe('Interactive Mode', () => {
   });
 
   describe('Async-Only Entrypoint', () => {
+    const originalFetch = global.fetch;
+    const originalWebAssembly = global.WebAssembly;
+    const originalGlobalGo = (global as any).Go;
+    const originalWindowGo = (window as any).Go;
+
     beforeEach(() => {
       (global as any).Go = MockGo;
       (window as any).Go = MockGo;
@@ -541,6 +547,16 @@ describe('Interactive Mode', () => {
         instantiate: vi.fn(() => Promise.resolve({ instance: {}, module: {} })),
         instantiateStreaming: vi.fn(),
       } as any;
+    });
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+      global.WebAssembly = originalWebAssembly;
+      (global as any).Go = originalGlobalGo;
+      (window as any).Go = originalWindowGo;
+      delete (window as any).executeMegaportCommandAsync;
+      delete (global as any).executeMegaportCommandAsync;
+      delete (window as any).executeMegaportCommand;
     });
 
     it('routes interactive commands through the async entrypoint, never the sync one', async () => {
