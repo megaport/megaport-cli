@@ -74,3 +74,61 @@ func TestProcessFlagBuyMVEInput_ResourceTags(t *testing.T) {
 		assert.Equal(t, exitcodes.Usage, cliErr.Code)
 	})
 }
+
+func TestProcessJSONBuyMVEInput_ResourceTags(t *testing.T) {
+	const baseBody = `{
+		"name": "Test MVE",
+		"term": 12,
+		"locationId": 123,
+		"vendorConfig": {"vendor":"aruba","productSize":"MEDIUM","imageId":1,"accountName":"test","accountKey":"test","systemTag":"test"}`
+
+	t.Run("tags from JSON reach the request", func(t *testing.T) {
+		body := baseBody + `,"resourceTags":{"env":"prod","owner":"netops"}}`
+
+		req, err := processJSONBuyMVEInput(body, "")
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{"env": "prod", "owner": "netops"}, req.ResourceTags)
+	})
+
+	t.Run("no resourceTags leaves tags nil", func(t *testing.T) {
+		req, err := processJSONBuyMVEInput(baseBody+`}`, "")
+		require.NoError(t, err)
+		assert.Nil(t, req.ResourceTags)
+	})
+
+	t.Run("empty tag key is rejected as a usage error", func(t *testing.T) {
+		body := baseBody + `,"resourceTags":{"":"prod"}}`
+
+		_, err := processJSONBuyMVEInput(body, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tag key must not be empty")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
+	})
+
+	t.Run("non-string tag value is rejected as a usage error", func(t *testing.T) {
+		body := baseBody + `,"resourceTags":{"env":123}}`
+
+		_, err := processJSONBuyMVEInput(body, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be a string")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
+	})
+
+	t.Run("non-object resourceTags is rejected as a usage error", func(t *testing.T) {
+		body := baseBody + `,"resourceTags":"not-an-object"}`
+
+		_, err := processJSONBuyMVEInput(body, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "resourceTags must be an object")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
+	})
+}
