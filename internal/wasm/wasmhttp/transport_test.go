@@ -218,6 +218,7 @@ func TestRoundTrip_SuccessNormalResponseUnaffected(t *testing.T) {
 	resp, err := transport.RoundTrip(req)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
+	defer resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	body := make([]byte, 32)
@@ -271,6 +272,7 @@ func TestRoundTrip_ConcurrentRequestsOnSharedTransport(t *testing.T) {
 
 	require.NoError(t, okRes.err)
 	require.NotNil(t, okRes.resp)
+	defer okRes.resp.Body.Close()
 	assert.Equal(t, http.StatusOK, okRes.resp.StatusCode)
 	assert.Equal(t, int32(0), atomic.LoadInt32(&okAborted), "an unrelated request on the shared transport should not be aborted")
 }
