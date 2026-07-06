@@ -26,6 +26,9 @@ var (
 	// syncExecutionDepth is > 0 while a command runs under the legacy synchronous
 	// entrypoint. Prompting there blocks the JS event loop, which can never
 	// deliver a response, so PromptForInput fails fast instead of deadlocking.
+	// It is process-global: mixing sync and async execution is unsupported (the
+	// docs tell integrators to always use the async entrypoint), and it fails
+	// safe: a stray rejection errors out rather than deadlocking.
 	syncExecutionDepth atomic.Int32
 )
 
@@ -44,7 +47,7 @@ func EndSyncExecution() {
 type PromptRequest struct {
 	ID           string
 	Message      string
-	PromptType   string // "text", "confirm", "resource"
+	PromptType   string // "text", "confirm", "password", "resource"
 	ResourceType string // for resource prompts (port, mcr, vxc, etc.)
 	ResponseChan chan string
 	ErrorChan    chan error

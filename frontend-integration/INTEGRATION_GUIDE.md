@@ -271,8 +271,9 @@ a handler or interactive commands will hang waiting for a response.
 
 **Always run interactive commands through `execute()`** (the composable prefers the async
 entrypoint under the hood). The legacy synchronous entrypoint runs the command inline and
-cannot deliver a prompt response, so a command that prompts under it fails fast with an
-"interactive mode requires the async entrypoint" error instead of hanging.
+cannot deliver a prompt response. It no longer hangs: a command that prompts for a value
+fails fast with an "interactive mode requires the async entrypoint" error, and a yes/no
+confirmation is treated as declined. Neither is what you want, so keep to `execute()`.
 
 ### Lifecycle
 
@@ -281,7 +282,7 @@ cannot deliver a prompt response, so a command that prompts under it fails fast 
 2. **Receive** a request object: `{ id, message, type, resourceType }`, where `type` is
    `"text"`, `"confirm"`, `"password"`, or `"resource"`.
 3. **Reply** with `window.submitPromptResponse(id, response)` (a string), or dismiss it with
-   `window.cancelPrompt(id)` (the command then receives a "cancelled by user" error).
+   `window.cancelPrompt(id)` (the command then receives a "prompt cancelled by user" error).
 
 Mask the input when `type === "password"`, for example with an `<input type="password">`.
 Both password prompts and secret-resource prompts set this type.

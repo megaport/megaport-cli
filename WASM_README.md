@@ -84,9 +84,11 @@ Run any command that may prompt through **`executeMegaportCommandAsync(command, 
 never the legacy synchronous **`executeMegaportCommand(command)`**.
 
 The sync entrypoint runs the command inline on the JS→WASM call, so a prompt would block
-the event loop and the host could never deliver a response. If a command requests a prompt
-under the sync entrypoint it now fails fast with an error telling you to use the async
-entrypoint, rather than hanging.
+the event loop and the host could never deliver a response. Under the sync entrypoint the
+CLI no longer hangs on a prompt: a command that prompts for a value (text, password, or
+resource input) fails fast with an error telling you to use the async entrypoint, and a
+yes/no confirmation is treated as declined. Either way, run interactive commands through
+the async entrypoint so prompts work as intended.
 
 ### Host functions
 
@@ -96,7 +98,7 @@ The WASM registers these on `window` at startup:
 |---|---|
 | `registerPromptHandler(cb)` | Register a callback the WASM invokes with each prompt request. |
 | `submitPromptResponse(id, response)` | Reply to the prompt `id` with the user's input (a string). |
-| `cancelPrompt(id)` | Cancel the prompt `id`; the command receives a "cancelled by user" error. |
+| `cancelPrompt(id)` | Cancel the prompt `id`; the command receives a "prompt cancelled by user" error. |
 
 ### Prompt request shape
 

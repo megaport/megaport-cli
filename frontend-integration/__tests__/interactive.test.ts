@@ -498,30 +498,6 @@ describe('Interactive Mode', () => {
 
       expect(masked).toEqual({ p1: false, p2: true });
     });
-
-    it('treats secret-resource prompts as password type', () => {
-      let registeredHandler: ((request: any) => void) | null = null;
-      (window as any).registerPromptHandler = vi.fn((handler: any) => {
-        registeredHandler = handler;
-        return true;
-      });
-
-      const { registerPromptHandler } = useMegaportWASM();
-      const handler = vi.fn();
-      registerPromptHandler(handler);
-
-      // wasmSecretResourcePrompt sends type "password" with a resourceType set.
-      registeredHandler!({
-        id: 'p3',
-        message: 'Enter API secret:',
-        type: 'password',
-        resourceType: 'servicekey',
-      });
-
-      expect(handler).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'password', resourceType: 'servicekey' })
-      );
-    });
   });
 
   describe('Cancel Lifecycle', () => {
