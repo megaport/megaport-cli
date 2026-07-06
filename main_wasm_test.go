@@ -69,13 +69,20 @@ func invokeAsyncAndWait(t *testing.T, cmd string) js.Value {
 	t.Helper()
 	executeMegaportCmdAsync := js.Global().Get("executeMegaportCommandAsync")
 
+	// errResult builds a well-formed result object so callers that immediately
+	// do result.Get("output") on the return value fail the assertion cleanly
+	// instead of panicking on an undefined value.
+	errResult := func(msg string) js.Value {
+		return js.ValueOf(map[string]interface{}{"error": msg})
+	}
+
 	resultCh := make(chan js.Value, 1)
 	var callback js.Func
 	callback = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		defer callback.Release()
 		if len(args) < 1 {
 			t.Errorf("executeMegaportCommandAsync callback invoked with no arguments for command %q", cmd)
-			resultCh <- js.Undefined()
+			resultCh <- errResult("test helper: callback invoked with no arguments")
 			return nil
 		}
 		resultCh <- args[0]
@@ -89,7 +96,7 @@ func invokeAsyncAndWait(t *testing.T, cmd string) js.Value {
 		return result
 	case <-time.After(30 * time.Second):
 		t.Fatalf("executeMegaportCommandAsync callback never fired for command %q", cmd)
-		return js.Undefined()
+		return errResult("test helper: callback never fired")
 	}
 }
 

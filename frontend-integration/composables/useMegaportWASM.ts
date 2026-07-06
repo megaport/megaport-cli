@@ -303,11 +303,11 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
             'command_execute_error',
             {
               command,
-              error: 'No WASM execute function available',
+              error: 'executeMegaportCommandAsync is not available on window',
             },
             duration
           );
-          reject(new Error('No WASM execute function available'));
+          reject(new Error('executeMegaportCommandAsync is not available on window'));
           return;
         }
 
