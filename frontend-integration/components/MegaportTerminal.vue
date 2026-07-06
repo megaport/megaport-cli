@@ -661,31 +661,8 @@ const reload = () => {
   window.location.reload();
 };
 
-// Lifecycle
-onMounted(() => {
-  // Wait for WASM to be ready
-  readyCheckIntervalId = setInterval(() => {
-    if (isReady.value) {
-      if (readyCheckIntervalId) {
-        clearInterval(readyCheckIntervalId);
-        readyCheckIntervalId = null;
-      }
-      initTerminal(); // Now async but we don't need to await
-      setupPromptHandler(); // Register inline prompt handler
-    }
-  }, 100);
-
-  // Cleanup after 30 seconds if not ready
-  readyCheckTimeoutId = setTimeout(() => {
-    if (readyCheckIntervalId) {
-      clearInterval(readyCheckIntervalId);
-      readyCheckIntervalId = null;
-    }
-  }, 30000);
-});
-
-onBeforeUnmount(() => {
-  // Stop the WASM readiness poll if it is still running
+// Stop the WASM readiness poll and its timeout, whichever are still pending.
+const stopReadyCheck = () => {
   if (readyCheckIntervalId) {
     clearInterval(readyCheckIntervalId);
     readyCheckIntervalId = null;
@@ -694,6 +671,25 @@ onBeforeUnmount(() => {
     clearTimeout(readyCheckTimeoutId);
     readyCheckTimeoutId = null;
   }
+};
+
+// Lifecycle
+onMounted(() => {
+  // Wait for WASM to be ready
+  readyCheckIntervalId = setInterval(() => {
+    if (isReady.value) {
+      stopReadyCheck();
+      initTerminal(); // Now async but we don't need to await
+      setupPromptHandler(); // Register inline prompt handler
+    }
+  }, 100);
+
+  // Cleanup after 30 seconds if not ready
+  readyCheckTimeoutId = setTimeout(stopReadyCheck, 30000);
+});
+
+onBeforeUnmount(() => {
+  stopReadyCheck();
 
   // Clear resize timeout if pending
   if (resizeTimeoutId) {
