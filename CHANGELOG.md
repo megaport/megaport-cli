@@ -12,6 +12,7 @@ workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries unde
 ## [Unreleased]
 
 ### Fixed
+- repair the `js/wasm` build of `./...` (the WASM config manager was missing `GetProfile`, which `auth status` needs) and enforce the full wasm build, vet, test compilation, and wasm-tagged linting in CI so wasm code stops rotting silently (ESD-1578)
 - require Cisco FMC fields only when not managing locally on the `mve buy` and `mve validate` flags and JSON paths, matching the validator (ESD-1571)
 - `mve buy` and `mve validate` now apply `resourceTags` from JSON input, and interactive `mve buy` now prompts for tags, matching MCR. Previously the JSON path silently dropped the documented `resourceTags` field and interactive mode never asked. The JSON path shares the same value and empty-key validation as the flags path, so non-string values and empty keys return a usage error before the order is placed
 
