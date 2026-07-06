@@ -27,6 +27,12 @@ func promptForBuyMVEDetails(noColor bool) (*megaport.BuyMVERequest, error) {
 	}
 	req.Vnics = vnics
 
+	resourceTags, err := utils.ResourceTagsPrompt(noColor)
+	if err != nil {
+		return nil, err
+	}
+	req.ResourceTags = resourceTags
+
 	if err := validation.ValidateBuyMVERequest(req); err != nil {
 		return nil, err
 	}
