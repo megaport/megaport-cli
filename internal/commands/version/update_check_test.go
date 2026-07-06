@@ -51,6 +51,37 @@ func TestCheckForUpdate_AlreadyCurrent(t *testing.T) {
 	assert.Empty(t, latest)
 }
 
+func TestCheckForUpdate_PrefixMismatchIsCurrent(t *testing.T) {
+	// goreleaser injects "0.9.4"; GitHub's tag_name is "v0.9.4". These are the
+	// same release and must not trigger an update prompt.
+	srv := httptest.NewServer(githubHandler("v0.9.4"))
+	defer srv.Close()
+
+	orig := githubLatestURL
+	githubLatestURL = srv.URL
+	defer func() { githubLatestURL = orig }()
+
+	dir := t.TempDir()
+	latest, hasUpdate := checkForUpdate("0.9.4", srv.Client(), dir)
+	assert.False(t, hasUpdate)
+	assert.Empty(t, latest)
+}
+
+func TestCheckForUpdate_PrefixDiffersRealUpdate(t *testing.T) {
+	// A genuine newer release still reports an update despite prefix normalization.
+	srv := httptest.NewServer(githubHandler("v1.0.0"))
+	defer srv.Close()
+
+	orig := githubLatestURL
+	githubLatestURL = srv.URL
+	defer func() { githubLatestURL = orig }()
+
+	dir := t.TempDir()
+	latest, hasUpdate := checkForUpdate("0.9.4", srv.Client(), dir)
+	assert.True(t, hasUpdate)
+	assert.Equal(t, "v1.0.0", latest)
+}
+
 func TestCheckForUpdate_DevVersion(t *testing.T) {
 	// Neither "dev" nor "" should trigger a network call.
 	callCount := 0
