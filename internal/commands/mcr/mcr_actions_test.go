@@ -320,6 +320,90 @@ func TestUpdateMCR_PreservesCostCentre(t *testing.T) {
 		"name-only update must preserve the existing cost centre")
 }
 
+func newUpdateMCRCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "update"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().String("cost-centre", "", "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
+	cmd.Flags().Int("term", 0, "")
+	cmd.Flags().Int("mcr-asn", 0, "")
+	return cmd
+}
+
+func TestUpdateMCR_CostCentreOverrideAndClear(t *testing.T) {
+	tests := []struct {
+		name     string
+		setFlags func(*cobra.Command)
+		expected string
+	}{
+		{
+			name:     "explicit cost centre overrides current",
+			setFlags: func(c *cobra.Command) { require.NoError(t, c.Flags().Set("cost-centre", "Finance")) },
+			expected: "Finance",
+		},
+		{
+			name: "explicit empty cost centre clears it",
+			setFlags: func(c *cobra.Command) {
+				require.NoError(t, c.Flags().Set("name", "Renamed"))
+				require.NoError(t, c.Flags().Set("cost-centre", ""))
+			},
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+			defer cleanup()
+
+			mockMCRService := &MockMCRService{
+				GetMCRResult:    &megaport.MCR{UID: "mcr-cc-1", Name: "Original", CostCentre: "IT Dept", ProvisioningStatus: "LIVE"},
+				ModifyMCRResult: &megaport.ModifyMCRResponse{IsUpdated: true},
+			}
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockMCRService
+				return client, nil
+			})
+
+			cmd := newUpdateMCRCmd()
+			tt.setFlags(cmd)
+
+			_ = captureStderr(t, func() {
+				output.CaptureOutput(func() {
+					require.NoError(t, UpdateMCR(cmd, []string{"mcr-cc-1"}, true))
+				})
+			})
+
+			require.NotNil(t, mockMCRService.CapturedModifyMCRRequest)
+			assert.Equal(t, tt.expected, mockMCRService.CapturedModifyMCRRequest.CostCentre)
+		})
+	}
+}
+
+// Bad input must fail before any network round-trip, so login/fetch errors
+// never mask the real validation error.
+func TestUpdateMCR_ValidatesBeforeLogin(t *testing.T) {
+	cleanup := testutil.SetupLoginError(fmt.Errorf("login must not be reached"))
+	defer cleanup()
+
+	cmd := newUpdateMCRCmd()
+	require.NoError(t, cmd.Flags().Set("mcr-asn", "0"))
+
+	var err error
+	_ = captureStderr(t, func() {
+		output.CaptureOutput(func() {
+			err = UpdateMCR(cmd, []string{"mcr-1"}, true)
+		})
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "MCR ASN", "input must be validated before login")
+}
+
 func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
