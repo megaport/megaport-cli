@@ -103,7 +103,12 @@ func PromptForInput(message string, promptType string, resourceType string) (str
 		"resourceType": resourceType,
 	})
 
-	// Wait for response with timeout
+	// Wait for response with timeout. A stoppable timer (rather than time.After)
+	// is stopped as soon as a response/error arrives so it isn't left running in
+	// the runtime's timer heap for up to promptTimeout on every answered prompt.
+	timer := time.NewTimer(promptTimeout)
+	defer timer.Stop()
+
 	select {
 	case response := <-responseChan:
 		// Clean up
@@ -123,7 +128,7 @@ func PromptForInput(message string, promptType string, resourceType string) (str
 		js.Global().Get("console").Call("error", fmt.Sprintf("❌ Error for %s: %v", promptID, err))
 		return "", err
 
-	case <-time.After(promptTimeout):
+	case <-timer.C:
 		// Timeout
 		pendingMutex.Lock()
 		delete(pendingPrompts, promptID)

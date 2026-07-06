@@ -407,22 +407,18 @@ func withScaledPromptTimeout(t *testing.T, d time.Duration) {
 	t.Cleanup(func() { promptTimeout = orig })
 }
 
-// findPendingPromptID polls pendingPrompts until an entry appears or the
-// deadline passes, returning "" on timeout. It takes no *testing.T and never
-// fails a test directly, since it is called from non-test goroutines where
-// t.Fatal is unsafe; callers must check for "" on the main test goroutine.
-func findPendingPromptID(deadline time.Duration) string {
-	end := time.Now().Add(deadline)
-	for time.Now().Before(end) {
-		pendingMutex.Lock()
-		for id := range pendingPrompts {
-			pendingMutex.Unlock()
-			return id
-		}
-		pendingMutex.Unlock()
-		time.Sleep(time.Millisecond)
-	}
-	return ""
+// capturingPromptCallback returns a mock JS prompt callback and a channel
+// that receives the prompt ID the moment PromptForInput invokes it.
+// PromptForInput calls the callback synchronously before it enters its
+// timeout select, so reading from the returned channel is deterministic and
+// never races the timeout, unlike polling pendingPrompts from a goroutine.
+func capturingPromptCallback() (js.Func, <-chan string) {
+	idCh := make(chan string, 1)
+	fn := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		idCh <- args[0].Get("id").String()
+		return nil
+	})
+	return fn, idCh
 }
 
 // TestPromptForInput_RespondsPastOldFiveMinuteMark is a regression test for
@@ -436,9 +432,7 @@ func findPendingPromptID(deadline time.Duration) string {
 func TestPromptForInput_RespondsPastOldFiveMinuteMark(t *testing.T) {
 	withScaledPromptTimeout(t, 200*time.Millisecond)
 
-	fn := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		return nil
-	})
+	fn, promptIDCh := capturingPromptCallback()
 	promptCallback = fn.Value
 	defer func() { promptCallback = js.Undefined() }()
 
@@ -447,10 +441,7 @@ func TestPromptForInput_RespondsPastOldFiveMinuteMark(t *testing.T) {
 	pendingMutex.Unlock()
 
 	go func() {
-		promptID := findPendingPromptID(time.Second)
-		if promptID == "" {
-			return
-		}
+		promptID := <-promptIDCh
 		time.Sleep(120 * time.Millisecond) // 60% of the scaled budget
 		args := []js.Value{js.ValueOf(promptID), js.ValueOf("late-but-in-budget")}
 		submitPromptResponse(js.Undefined(), args)
@@ -509,9 +500,7 @@ func TestPromptForInput_TimeoutErrorMessage(t *testing.T) {
 func TestPromptForInput_LateSubmitAfterTimeoutStaysClean(t *testing.T) {
 	withScaledPromptTimeout(t, 20*time.Millisecond)
 
-	fn := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		return nil // never respond
-	})
+	fn, promptIDCh := capturingPromptCallback()
 	promptCallback = fn.Value
 	defer func() { promptCallback = js.Undefined() }()
 
@@ -519,17 +508,11 @@ func TestPromptForInput_LateSubmitAfterTimeoutStaysClean(t *testing.T) {
 	pendingPrompts = make(map[string]*PromptRequest)
 	pendingMutex.Unlock()
 
-	promptIDCh := make(chan string, 1)
-	go func() { promptIDCh <- findPendingPromptID(time.Second) }()
-
 	_, err := PromptForInput("Enter name:", "text", "")
 	if err == nil {
 		t.Fatal("expected timeout error, got nil")
 	}
 	promptID := <-promptIDCh
-	if promptID == "" {
-		t.Fatal("timed out waiting for a pending prompt to be registered")
-	}
 
 	args := []js.Value{js.ValueOf(promptID), js.ValueOf("too-late")}
 	done := make(chan interface{}, 1)
@@ -559,9 +542,7 @@ func TestPromptForInput_LateSubmitAfterCancelStaysClean(t *testing.T) {
 	// hanging the test for the full 10-minute default.
 	withScaledPromptTimeout(t, 5*time.Second)
 
-	fn := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		return nil
-	})
+	fn, promptIDCh := capturingPromptCallback()
 	promptCallback = fn.Value
 	defer func() { promptCallback = js.Undefined() }()
 
@@ -569,13 +550,15 @@ func TestPromptForInput_LateSubmitAfterCancelStaysClean(t *testing.T) {
 	pendingPrompts = make(map[string]*PromptRequest)
 	pendingMutex.Unlock()
 
-	promptIDCh := make(chan string, 1)
+	// lateIDCh receives the prompt ID once cancelPrompt has already been
+	// called with it, so reading it after PromptForInput returns is
+	// guaranteed to see a value: the send happens-before the cancellation
+	// that unblocks PromptForInput.
+	lateIDCh := make(chan string, 1)
 	go func() {
-		promptID := findPendingPromptID(time.Second)
-		promptIDCh <- promptID
-		if promptID != "" {
-			cancelPrompt(js.Undefined(), []js.Value{js.ValueOf(promptID)})
-		}
+		promptID := <-promptIDCh
+		lateIDCh <- promptID
+		cancelPrompt(js.Undefined(), []js.Value{js.ValueOf(promptID)})
 	}()
 
 	_, err := PromptForInput("Enter name:", "text", "")
@@ -588,10 +571,7 @@ func TestPromptForInput_LateSubmitAfterCancelStaysClean(t *testing.T) {
 	if !strings.Contains(err.Error(), "cancelled") {
 		t.Fatalf("expected a cancellation error, got: %v", err)
 	}
-	promptID := <-promptIDCh
-	if promptID == "" {
-		t.Fatal("timed out waiting for a pending prompt to be registered")
-	}
+	promptID := <-lateIDCh
 
 	args := []js.Value{js.ValueOf(promptID), js.ValueOf("too-late")}
 	done := make(chan interface{}, 1)
