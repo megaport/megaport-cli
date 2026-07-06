@@ -30,6 +30,10 @@ func NewWasmHTTPClient() *http.Client {
 // RoundTrip executes a single HTTP transaction using browser fetch API
 // This is the core method that bridges Go's http.Client with JavaScript fetch
 func (t *WasmHTTPTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if err := req.Context().Err(); err != nil {
+		return nil, err
+	}
+
 	console := js.Global().Get("console")
 
 	// Determine timeout
