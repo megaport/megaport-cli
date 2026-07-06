@@ -148,7 +148,16 @@ type DirectOutputBuffer struct {
 }
 
 func (d *DirectOutputBuffer) Write(p []byte) (n int, err error) {
-	chunk := string(p)
+	debug := debugMode.Load()
+	stream := hasOutputHandler()
+
+	// Only materialize the string when something consumes it (debug logging or a
+	// live handler). Commands can stream many small writes, and in the common
+	// case (no handler, no debug) the []byte->string copy is pure waste.
+	var chunk string
+	if debug || stream {
+		chunk = string(p)
+	}
 
 	// Buffer the write under the lock in a closure so the mutex is released
 	// (even on a panic in the debug-logging JS calls) before we push to the
@@ -158,7 +167,7 @@ func (d *DirectOutputBuffer) Write(p []byte) (n int, err error) {
 		d.mutex.Lock()
 		defer d.mutex.Unlock()
 
-		if debugMode.Load() {
+		if debug {
 			js.Global().Get("console").Call("log", fmt.Sprintf("📝 BUFFER WRITE [%d bytes]:", len(p)))
 			lines := strings.Split(chunk, "\n")
 			for _, line := range lines {
@@ -173,7 +182,9 @@ func (d *DirectOutputBuffer) Write(p []byte) (n int, err error) {
 	}()
 
 	// Stream the chunk live to a registered output handler, if any.
-	pushOutputChunk(chunk)
+	if stream {
+		pushOutputChunk(chunk)
+	}
 	return n, err
 }
 

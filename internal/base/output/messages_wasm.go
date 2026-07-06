@@ -294,14 +294,16 @@ func PrintErrorJSON(code int, message string) {
 			Message: message,
 		},
 	}
-	b, err := json.Marshal(payload)
-	out := string(b)
+	// Indented with a trailing newline to match the native PrintErrorJSON and the
+	// WASM printJSON success path, so hosts and tests see one consistent shape.
+	b, err := json.MarshalIndent(payload, "", "  ")
+	out := string(b) + "\n"
 	if err != nil {
 		// errorEnvelope contains only primitive types so Marshal should never
 		// fail. If it somehow does, emit a minimal hard-coded envelope so
 		// callers always receive valid JSON.
 		msgJSON, _ := json.Marshal(message)
-		out = fmt.Sprintf(`{"error":{"code":%d,"type":"%s","message":%s}}`,
+		out = fmt.Sprintf(`{"error":{"code":%d,"type":"%s","message":%s}}`+"\n",
 			code, exitcodes.TypeName(code), msgJSON)
 	}
 	fmt.Print(out)
