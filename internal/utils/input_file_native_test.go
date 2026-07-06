@@ -38,7 +38,7 @@ func TestReadJSONInput_Native_FromFile(t *testing.T) {
 }
 
 func TestReadJSONInput_Native_FileNotFound(t *testing.T) {
-	_, err := ReadJSONInput("", "/nonexistent/path.json")
+	_, err := ReadJSONInput("", filepath.Join(t.TempDir(), "does-not-exist.json"))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to read JSON file")
 }
