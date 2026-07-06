@@ -12,7 +12,6 @@ workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries unde
 ## [Unreleased]
 
 ### Fixed
-- enable consistent ANSI color in the browser (WASM) build: cell values, status badges, and success/error lines now match the colored table chrome, and `--no-color` strips all of it including the table style (ESD-1593)
 - require Cisco FMC fields only when not managing locally on the `mve buy` and `mve validate` flags and JSON paths, matching the validator (ESD-1571)
 - `mve buy` and `mve validate` now apply `resourceTags` from JSON input, and interactive `mve buy` now prompts for tags, matching MCR. Previously the JSON path silently dropped the documented `resourceTags` field and interactive mode never asked. The JSON path shares the same value and empty-key validation as the flags path, so non-string values and empty keys return a usage error before the order is placed
 
