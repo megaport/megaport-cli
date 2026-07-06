@@ -359,6 +359,12 @@ func TestProcessJSONUpdateMCRInput_CostCentrePreserved(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "", req.CostCentre)
 	})
+
+	t.Run("cost centre as sole field clears it", func(t *testing.T) {
+		req, err := processJSONUpdateMCRInput(`{"costCentre":""}`, "", "IT Dept")
+		require.NoError(t, err)
+		assert.Equal(t, "", req.CostCentre)
+	})
 }
 
 func TestProcessJSONPrefixFilterListInput(t *testing.T) {
