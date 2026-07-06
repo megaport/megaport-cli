@@ -13,7 +13,6 @@ workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries unde
 
 ### Fixed
 - require Cisco FMC fields only when not managing locally on the `mve buy` and `mve validate` flags and JSON paths, matching the validator (ESD-1571)
-- Combining `--interactive` with `--json`, `--json-file`, or value flags on any buy/update/create command now returns a usage error instead of silently ignoring the interactive request and skipping the prompts. The input modes are mutually exclusive; choose one. Previously `--interactive --name foo` printed "Using flag input", skipped every prompt, and could fail on missing required fields (ESD-1567)
 
 ## [v1.0.0-beta.1] - 2026-07-01
 

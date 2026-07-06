@@ -2138,6 +2138,26 @@ func TestUpdateVXC(t *testing.T) {
 			},
 			expectedError: "invalid flag combination",
 		},
+		{
+			name:   "interactive combined with flags is a usage error",
+			vxcUID: "vxc-update-1",
+			flags: map[string]string{
+				"interactive": "true",
+				"name":        "Updated VXC",
+			},
+			setupMock:     func(m *MockVXCService) {},
+			expectedError: "cannot be combined with",
+		},
+		{
+			name:   "interactive combined with JSON is a usage error",
+			vxcUID: "vxc-update-1",
+			flags: map[string]string{
+				"interactive": "true",
+				"json":        `{"name":"JSON VXC"}`,
+			},
+			setupMock:     func(m *MockVXCService) {},
+			expectedError: "cannot be combined with",
+		},
 	}
 
 	for _, tt := range tests {

@@ -524,6 +524,20 @@ func TestUpdateMVE(t *testing.T) {
 				assert.Equal(t, "Mgmt", req.Vnics[1].Description)
 			},
 		},
+		{
+			name:          "interactive combined with flags is a usage error",
+			args:          []string{"mve-123"},
+			interactive:   true,
+			flags:         map[string]string{"name": "Updated MVE"},
+			expectedError: "cannot be combined with",
+		},
+		{
+			name:          "interactive combined with JSON is a usage error",
+			args:          []string{"mve-123"},
+			interactive:   true,
+			flags:         map[string]string{"json": `{"name":"JSON MVE"}`},
+			expectedError: "cannot be combined with",
+		},
 	}
 
 	for _, tt := range tests {

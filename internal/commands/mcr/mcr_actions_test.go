@@ -2210,6 +2210,24 @@ func TestUpdateMCR(t *testing.T) {
 			},
 			expectedError: "empty response from API",
 		},
+		{
+			name: "interactive combined with flags is a usage error",
+			args: []string{"mcr-123"},
+			flags: map[string]string{
+				"interactive": "true",
+				"name":        "Updated MCR",
+			},
+			expectedError: "cannot be combined with",
+		},
+		{
+			name: "interactive combined with JSON is a usage error",
+			args: []string{"mcr-123"},
+			flags: map[string]string{
+				"interactive": "true",
+				"json":        `{"name":"JSON Updated MCR"}`,
+			},
+			expectedError: "cannot be combined with",
+		},
 	}
 
 	for _, tt := range tests {
@@ -2359,6 +2377,24 @@ func TestCreateMCRPrefixFilterList(t *testing.T) {
 				}
 			},
 			expectedError: "API error: prefix filter list creation failed",
+		},
+		{
+			name: "interactive combined with flags is a usage error",
+			args: []string{"mcr-123"},
+			flags: map[string]string{
+				"interactive": "true",
+				"description": "Test Prefix List",
+			},
+			expectedError: "cannot be combined with",
+		},
+		{
+			name: "interactive combined with JSON is a usage error",
+			args: []string{"mcr-456"},
+			flags: map[string]string{
+				"interactive": "true",
+				"json":        `{"description":"JSON Prefix List","addressFamily":"IPv4","entries":[{"action":"deny","prefix":"192.168.0.0/16"}]}`,
+			},
+			expectedError: "cannot be combined with",
 		},
 	}
 
@@ -2560,6 +2596,15 @@ func TestUpdateMCRPrefixFilterList(t *testing.T) {
 				}
 			},
 			expectedError: "not successful for ID 456",
+		},
+		{
+			name: "interactive combined with flags is a usage error",
+			args: []string{"mcr-123", "456"},
+			flags: map[string]string{
+				"interactive": "true",
+				"description": "Updated Prefix List",
+			},
+			expectedError: "cannot be combined with",
 		},
 	}
 

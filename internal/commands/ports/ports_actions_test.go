@@ -1559,6 +1559,19 @@ func TestUpdatePort(t *testing.T) {
 			},
 			expectedError: "at least one field must be updated",
 		},
+		{
+			name:          "interactive combined with flags is a usage error",
+			portUID:       "port-update-6",
+			flags:         map[string]string{"interactive": "true", "name": "Updated Port Name"},
+			expectedError: "cannot be combined with",
+		},
+		{
+			name:          "interactive combined with JSON is a usage error",
+			portUID:       "port-update-7",
+			flags:         map[string]string{"interactive": "true"},
+			jsonInput:     `{"name":"JSON Updated"}`,
+			expectedError: "cannot be combined with",
+		},
 	}
 
 	for _, tt := range tests {
