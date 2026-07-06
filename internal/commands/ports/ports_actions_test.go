@@ -928,18 +928,22 @@ func TestBuyPort(t *testing.T) {
 			expectedError: "failed to parse JSON",
 		},
 		{
-			name:      "JSON takes precedence over interactive flag",
+			name:      "interactive combined with JSON is a usage error",
 			jsonInput: `{"name":"json-port","term":12,"portSpeed":1000,"locationId":1,"marketPlaceVisibility":false}`,
 			flags: map[string]string{
 				"interactive": "true",
 			},
-			setupMock: func(m *MockPortService) {},
-			buyPortOverride: func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
-				return &megaport.BuyPortResponse{
-					TechnicalServiceUIDs: []string{"json-over-interactive-uid"},
-				}, nil
+			setupMock:     func(m *MockPortService) {},
+			expectedError: "cannot be combined with",
+		},
+		{
+			name: "interactive combined with flags is a usage error",
+			flags: map[string]string{
+				"interactive": "true",
+				"name":        "test-port",
 			},
-			expectedContains: "json-over-interactive-uid",
+			setupMock:     func(m *MockPortService) {},
+			expectedError: "cannot be combined with",
 		},
 	}
 
@@ -1554,6 +1558,19 @@ func TestUpdatePort(t *testing.T) {
 				ProvisioningStatus: "LIVE",
 			},
 			expectedError: "at least one field must be updated",
+		},
+		{
+			name:          "interactive combined with flags is a usage error",
+			portUID:       "port-update-6",
+			flags:         map[string]string{"interactive": "true", "name": "Updated Port Name"},
+			expectedError: "cannot be combined with",
+		},
+		{
+			name:          "interactive combined with JSON is a usage error",
+			portUID:       "port-update-7",
+			flags:         map[string]string{"interactive": "true"},
+			jsonInput:     `{"name":"JSON Updated"}`,
+			expectedError: "cannot be combined with",
 		},
 	}
 

@@ -344,6 +344,11 @@ func UpdateIX(cmd *cobra.Command, args []string, noColor bool) error {
 		cmd.Flags().Changed("reverse-dns") || cmd.Flags().Changed("a-end-product-uid") ||
 		cmd.Flags().Changed("shutdown")
 
+	if err := utils.CheckInteractiveConflict(interactive, utils.HasConflictingInputFlags(cmd)); err != nil {
+		output.PrintError("%v", noColor, err)
+		return err
+	}
+
 	var req *megaport.UpdateIXRequest
 	var err error
 

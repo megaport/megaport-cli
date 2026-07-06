@@ -301,22 +301,26 @@ func TestBuyVXC(t *testing.T) {
 			},
 		},
 		{
-			name: "JSON takes precedence over interactive flag",
-			setupMock: func(t *testing.T, m *MockVXCService) {
-				buyVXCFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyVXCRequest) (*megaport.BuyVXCResponse, error) {
-					return &megaport.BuyVXCResponse{
-						TechnicalServiceUID: "vxc-json-wins",
-					}, nil
-				}
-			},
+			name: "interactive combined with JSON is a usage error",
 			flags: map[string]string{
 				"json": `{"portUid":"port-aaa-111","vxcName":"JSON VXC","rateLimit":500,"term":12,"bEndConfiguration":{"productUID":"port-bbb-222"}}`,
 			},
 			flagsBool: map[string]bool{
 				"interactive": true,
 			},
-			skipRequest:    true,
-			expectedOutput: "VXC created vxc-json-wins",
+			skipRequest:   true,
+			expectedError: "cannot be combined with",
+		},
+		{
+			name: "interactive combined with flags is a usage error",
+			flags: map[string]string{
+				"name": "Test VXC",
+			},
+			flagsBool: map[string]bool{
+				"interactive": true,
+			},
+			skipRequest:   true,
+			expectedError: "cannot be combined with",
 		},
 	}
 
@@ -2133,6 +2137,26 @@ func TestUpdateVXC(t *testing.T) {
 				}
 			},
 			expectedError: "invalid flag combination",
+		},
+		{
+			name:   "interactive combined with flags is a usage error",
+			vxcUID: "vxc-update-1",
+			flags: map[string]string{
+				"interactive": "true",
+				"name":        "Updated VXC",
+			},
+			setupMock:     func(m *MockVXCService) {},
+			expectedError: "cannot be combined with",
+		},
+		{
+			name:   "interactive combined with JSON is a usage error",
+			vxcUID: "vxc-update-1",
+			flags: map[string]string{
+				"interactive": "true",
+				"json":        `{"name":"JSON VXC"}`,
+			},
+			setupMock:     func(m *MockVXCService) {},
+			expectedError: "cannot be combined with",
 		},
 	}
 
