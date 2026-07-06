@@ -151,8 +151,14 @@ func TestPromptForInputSyncGuard(t *testing.T) {
 	// guard must short-circuit before it is ever consulted.
 	fn := js.FuncOf(func(this js.Value, args []js.Value) interface{} { return nil })
 	defer fn.Release()
+	promptCallbackMu.Lock()
 	promptCallback = fn.Value
-	defer func() { promptCallback = js.Undefined() }()
+	promptCallbackMu.Unlock()
+	defer func() {
+		promptCallbackMu.Lock()
+		promptCallback = js.Undefined()
+		promptCallbackMu.Unlock()
+	}()
 
 	BeginSyncExecution()
 	_, err := PromptForInput("Enter name:", "text", "")
