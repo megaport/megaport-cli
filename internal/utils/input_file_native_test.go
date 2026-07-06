@@ -37,6 +37,12 @@ func TestReadJSONInput_Native_FromFile(t *testing.T) {
 	assert.Equal(t, `{"term":12}`, string(data))
 }
 
+func TestReadJSONInput_Native_FileNotFound(t *testing.T) {
+	_, err := ReadJSONInput("", "/nonexistent/path.json")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to read JSON file")
+}
+
 func TestReadTagsFile_Native_ReadsContents(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "tags.json")
