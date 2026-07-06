@@ -5,11 +5,14 @@ package wasm
 import (
 	"bytes"
 	"encoding/json"
+	"math"
 	"strings"
 	"syscall/js"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestResetOutputBuffers verifies that buffer reset clears all content
@@ -853,6 +856,86 @@ func TestSetAuthToken_TwoArgsSkipsValidation(t *testing.T) {
 	assert.Contains(t, errMsg, "could not determine environment", "two-arg call should hit the fail-closed path")
 }
 
+// TestParseExpiry covers the epoch-ms-number and RFC3339-string input shapes,
+// plus absent/invalid values falling back to the zero Time.
+func TestParseExpiry(t *testing.T) {
+	ref := time.Date(2027, 1, 2, 3, 4, 5, 0, time.UTC)
+
+	tests := []struct {
+		name string
+		v    js.Value
+		want time.Time
+	}{
+		{"epoch ms number", js.ValueOf(float64(ref.UnixMilli())), ref},
+		{"RFC3339 string", js.ValueOf(ref.Format(time.RFC3339)), ref},
+		{"undefined", js.Undefined(), time.Time{}},
+		{"null", js.Null(), time.Time{}},
+		{"zero number", js.ValueOf(0), time.Time{}},
+		{"negative number", js.ValueOf(-1), time.Time{}},
+		{"empty string", js.ValueOf(""), time.Time{}},
+		{"whitespace string", js.ValueOf("   "), time.Time{}},
+		{"unparseable string", js.ValueOf("not-a-date"), time.Time{}},
+		{"bool", js.ValueOf(true), time.Time{}},
+		{"NaN", js.ValueOf(math.NaN()), time.Time{}},
+		{"positive infinity", js.ValueOf(math.Inf(1)), time.Time{}},
+		{"negative infinity", js.ValueOf(math.Inf(-1)), time.Time{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ParseExpiry(tt.v)
+			assert.True(t, tt.want.Equal(got), "ParseExpiry(%v) = %v, want %v", tt.name, got, tt.want)
+		})
+	}
+}
+
+// TestSetAuthToken_Expiry verifies the optional 4th argument is parsed, stored
+// on the megaportToken global (so login_wasm.go can read it back), and echoed
+// in the success result; omitting it must not regress the zero-expiry fallback.
+func TestSetAuthToken_Expiry(t *testing.T) {
+	RegisterJSFunctions()
+	setAuthFunc := js.Global().Get("setAuthToken")
+	expiry := time.Date(2030, 6, 15, 12, 0, 0, 0, time.UTC)
+
+	t.Run("epoch-ms expiry is stored and echoed", func(t *testing.T) {
+		js.Global().Get("clearAuthCredentials").Invoke()
+
+		result := setAuthFunc.Invoke("tok", "portal.megaport.com", "production", float64(expiry.UnixMilli()))
+		require.True(t, result.Get("success").Bool())
+		assert.Equal(t, expiry.Format(time.RFC3339), result.Get("expiry").String())
+
+		stored := js.Global().Get("megaportToken").Get("expiry").Float()
+		assert.Equal(t, float64(expiry.UnixMilli()), stored)
+	})
+
+	t.Run("RFC3339 string expiry is stored and echoed", func(t *testing.T) {
+		js.Global().Get("clearAuthCredentials").Invoke()
+
+		result := setAuthFunc.Invoke("tok", "portal.megaport.com", "production", expiry.Format(time.RFC3339))
+		require.True(t, result.Get("success").Bool())
+		assert.Equal(t, expiry.Format(time.RFC3339), result.Get("expiry").String())
+	})
+
+	t.Run("omitted expiry falls back to zero and is not echoed", func(t *testing.T) {
+		js.Global().Get("clearAuthCredentials").Invoke()
+
+		result := setAuthFunc.Invoke("tok", "portal.megaport.com", "production")
+		require.True(t, result.Get("success").Bool())
+		assert.True(t, result.Get("expiry").IsUndefined(), "expiry should be omitted from the result when not supplied")
+
+		stored := js.Global().Get("megaportToken").Get("expiry").Float()
+		assert.Zero(t, stored, "stored expiry should be 0 when not supplied")
+	})
+
+	t.Run("undefined expiry behaves like omitted", func(t *testing.T) {
+		js.Global().Get("clearAuthCredentials").Invoke()
+
+		result := setAuthFunc.Invoke("tok", "portal.megaport.com", "production", js.Undefined())
+		require.True(t, result.Get("success").Bool())
+		assert.True(t, result.Get("expiry").IsUndefined())
+	})
+}
+
 // TestEnvironmentToAPIURL verifies the URL-builder helper. The helper assumes
 // its input has already been validated upstream (see envNamePattern), so it
 // is exercised only with values the upstream gates accept. Injection-vector
@@ -982,6 +1065,26 @@ func TestAuthMethodPriority(t *testing.T) {
 	js.Global().Get("clearAuthCredentials").Invoke()
 	authInfo = js.Global().Get("debugAuthInfo").Invoke()
 	assert.Equal(t, "none", authInfo.Get("authMethod").String())
+}
+
+// TestSetAuthCredentials_ClearsStaleToken is a regression test: switching
+// from token auth to API key auth via setAuthCredentials must actually take
+// effect, not silently keep using a token injected by an earlier
+// setAuthToken call (loginFunc checks the token path first).
+func TestSetAuthCredentials_ClearsStaleToken(t *testing.T) {
+	RegisterJSFunctions()
+	js.Global().Get("clearAuthCredentials").Invoke()
+
+	js.Global().Get("setAuthToken").Invoke("test-token-12345", "portal.megaport.com")
+	authInfo := js.Global().Get("debugAuthInfo").Invoke()
+	assert.Equal(t, "token", authInfo.Get("authMethod").String())
+
+	js.Global().Get("setAuthCredentials").Invoke("api-key", "api-secret", "staging")
+	authInfo = js.Global().Get("debugAuthInfo").Invoke()
+	assert.Equal(t, "apikey", authInfo.Get("authMethod").String())
+	assert.True(t, js.Global().Get("megaportToken").IsUndefined(), "megaportToken global should be cleared")
+
+	js.Global().Get("clearAuthCredentials").Invoke()
 }
 
 // TestSetAuthTokenMasking verifies token preview masking

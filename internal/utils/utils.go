@@ -167,6 +167,7 @@ func applyFieldsFilter(cmd *cobra.Command) {
 func finishWithError(cmd *cobra.Command, args []string, err error, format string, noColor bool) error {
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true
+	err = wrapSessionExpiredError(err)
 	code := classifyError(err)
 	if format == FormatJSON {
 		output.PrintErrorJSON(code, err.Error())

@@ -7,12 +7,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall/js"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -756,6 +758,13 @@ func setAuthCredentials(this js.Value, args []js.Value) interface{} {
 	os.Setenv("MEGAPORT_SECRET_KEY", secretKey)
 	os.Setenv("MEGAPORT_ENVIRONMENT", environment)
 
+	// Clear any token left over from a prior setAuthToken call: loginFunc
+	// checks the token path first, so a stale token would otherwise keep
+	// silently overriding these credentials.
+	os.Unsetenv("MEGAPORT_ACCESS_TOKEN")
+	os.Unsetenv("MEGAPORT_API_URL")
+	js.Global().Delete("megaportToken")
+
 	// Expose only the non-secret environment name so the UI can reflect it.
 	credentialsObj := js.Global().Get("Object").New()
 	credentialsObj.Set("environment", environment)
@@ -786,6 +795,43 @@ func clearAuthCredentials(this js.Value, args []js.Value) interface{} {
 	}
 }
 
+// ParseExpiry converts a JS value into a time.Time, accepting either an
+// epoch-millisecond number or an RFC3339 string. It returns the zero Time
+// (no expiry known) when v is absent, null, undefined, zero, non-finite, or
+// unparseable — callers should fall back to their own default in that case.
+//
+// The number form must be epoch milliseconds, not epoch seconds: a JWT `exp`
+// claim (conventionally epoch seconds) passed through unconverted will parse
+// as a timestamp in 1970 rather than fail loudly, since any positive number
+// is otherwise accepted. Multiply a seconds-based value by 1000 first.
+func ParseExpiry(v js.Value) time.Time {
+	switch v.Type() {
+	case js.TypeNumber:
+		ms := v.Float()
+		if ms <= 0 || math.IsNaN(ms) || math.IsInf(ms, 0) {
+			return time.Time{}
+		}
+		return time.UnixMilli(int64(ms)).UTC()
+	case js.TypeString:
+		s := strings.TrimSpace(v.String())
+		if s == "" {
+			return time.Time{}
+		}
+		t, err := time.Parse(time.RFC3339, s)
+		if err != nil {
+			return time.Time{}
+		}
+		return t.UTC()
+	default:
+		if v.Type() != js.TypeUndefined && v.Type() != js.TypeNull {
+			js.Global().Get("console").Call("warn", fmt.Sprintf(
+				"setAuthToken: expiry has unexpected type %q, ignoring (expected epoch-ms number or RFC3339 string)", v.Type().String(),
+			))
+		}
+		return time.Time{}
+	}
+}
+
 // setAuthToken sets an external access token for authentication.
 // This bypasses the OAuth flow and uses the token directly from the portal session.
 // Use this when the portal already has a valid login token stored in the browser.
@@ -793,8 +839,15 @@ func clearAuthCredentials(this js.Value, args []js.Value) interface{} {
 // The environment is resolved with the following precedence:
 //  1. The explicit override passed as the 3rd argument (must match [a-z0-9-]+).
 //  2. The environment derived from the hostname via environmentFromHostname.
-//     setAuthToken(token, hostname)               // environment derived from hostname
-//     setAuthToken(token, hostname, environment)  // explicit environment override
+//     setAuthToken(token, hostname)                       // environment derived from hostname
+//     setAuthToken(token, hostname, environment)          // explicit environment override
+//     setAuthToken(token, hostname, environment, expiry)  // also pass the token's expiry
+//
+// expiry is optional and accepts either an epoch-millisecond number or an
+// RFC3339 string (see ParseExpiry). Pass null/undefined for environment to
+// skip it while still supplying expiry. When omitted, the token is treated as
+// non-expiring (the SDK's zero-expiry fallback) — the host must call
+// setAuthToken again on a session-expired signal regardless.
 func setAuthToken(this js.Value, args []js.Value) interface{} {
 	if len(args) < 2 {
 		return map[string]interface{}{
@@ -836,6 +889,14 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 			"success": false,
 			"error":   "environment must contain only lowercase letters, digits, and hyphens",
 		}
+	}
+
+	// Optional 4th argument: the token's real expiry, as an epoch-ms number or
+	// an RFC3339 string. Absent/invalid resolves to the zero Time, which the
+	// caller falls back to a non-expiring token for (see WithAccessToken).
+	var expiry time.Time
+	if len(args) >= 4 {
+		expiry = ParseExpiry(args[3])
 	}
 
 	// Resolve the environment. The override wins; otherwise we derive it from
@@ -895,6 +956,11 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 	js.Global().Get("console").Call("log", fmt.Sprintf("🌐 Hostname: %s", hostname))
 	js.Global().Get("console").Call("log", fmt.Sprintf("%s Environment: %s", environmentRiskStatus, environmentLog))
 	js.Global().Get("console").Call("log", fmt.Sprintf("🔗 API URL: %s", apiURL))
+	if !expiry.IsZero() {
+		js.Global().Get("console").Call("log", fmt.Sprintf("⏰ Token expiry: %s", expiry.Format(time.RFC3339)))
+	} else {
+		js.Global().Get("console").Call("log", "⏰ Token expiry: none provided (treated as non-expiring)")
+	}
 
 	// Store token, environment bucket, and API URL for downstream Go code.
 	// MEGAPORT_ENVIRONMENT is bucketed to one of "production"/"staging"/"development"
@@ -912,10 +978,17 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 
 	// Expose only metadata (not the raw token) in the JS global so the UI can
 	// reflect the current session state without re-exposing the bearer token.
+	// expiry is stored as epoch-ms (0 when unknown) so it round-trips through
+	// ParseExpiry the same way a fresh call's 4th argument would.
 	tokenObj := js.Global().Get("Object").New()
 	tokenObj.Set("environment", environment)
 	tokenObj.Set("hostname", hostname)
 	tokenObj.Set("apiURL", apiURL)
+	if !expiry.IsZero() {
+		tokenObj.Set("expiry", float64(expiry.UnixMilli()))
+	} else {
+		tokenObj.Set("expiry", 0)
+	}
 	js.Global().Set("megaportToken", tokenObj)
 
 	// Clear any existing credentials object
@@ -923,12 +996,16 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 
 	js.Global().Get("console").Call("log", "🔐 External token set (in-memory only, bypassing OAuth flow)")
 
-	return map[string]interface{}{
+	result := map[string]interface{}{
 		"success":     true,
 		"environment": environment,
 		"hostname":    hostname,
 		"apiURL":      apiURL,
 	}
+	if !expiry.IsZero() {
+		result["expiry"] = expiry.Format(time.RFC3339)
+	}
+	return result
 }
 
 // InstallCommandHooks registers JavaScript helper functions for command debugging.

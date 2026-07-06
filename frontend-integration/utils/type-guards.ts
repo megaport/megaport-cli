@@ -115,6 +115,7 @@ export function isTelemetryEventType(
     'command_execute_error',
     'auth_set',
     'auth_clear',
+    'auth_token_set',
     'spinner_start',
     'spinner_stop',
     'prompt_requested',

@@ -11,7 +11,12 @@ workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries unde
 
 ## [Unreleased]
 
+### Added
+- WASM `setAuthToken` accepts an optional real token expiry and surfaces a distinct, machine-readable `MEGAPORT_SESSION_EXPIRED` signal when the portal's injected token is rejected, so the host knows to re-authenticate (ESD-1596)
+
 ### Fixed
+- WASM OAuth login now records the browser-cached token's real expiry when the host supplies one, instead of always assuming a fixed 24h TTL (ESD-1596)
+- WASM OAuth login now logs when it falls back to assuming a production token cache for an unrecognised API host, instead of assuming it silently (ESD-1596)
 - require Cisco FMC fields only when not managing locally on the `mve buy` and `mve validate` flags and JSON paths, matching the validator (ESD-1571)
 - `mve buy` and `mve validate` now apply `resourceTags` from JSON input, and interactive `mve buy` now prompts for tags, matching MCR. Previously the JSON path silently dropped the documented `resourceTags` field and interactive mode never asked. The JSON path shares the same value and empty-key validation as the flags path, so non-string values and empty keys return a usage error before the order is placed
 

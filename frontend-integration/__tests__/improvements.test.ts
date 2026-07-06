@@ -1059,6 +1059,16 @@ describe('Frontend Improvements and Maintainability', () => {
       expect(getErrorMessage({ custom: 'error' })).toContain('Object');
     });
 
+    it('should validate telemetry event types at runtime, including auth_token_set', async () => {
+      const { isTelemetryEventType } = await import('../utils/type-guards');
+
+      expect(isTelemetryEventType('auth_set')).toBe(true);
+      expect(isTelemetryEventType('auth_clear')).toBe(true);
+      expect(isTelemetryEventType('auth_token_set')).toBe(true);
+      expect(isTelemetryEventType('not_a_real_event')).toBe(false);
+      expect(isTelemetryEventType(123)).toBe(false);
+    });
+
     it('should check for dangerous command patterns', async () => {
       const { isValidCommand } = await import('../utils/type-guards');
 
