@@ -87,16 +87,18 @@ func newHangingFetch(aborted *int32) func(url string, opts js.Value) js.Value {
 // newResolvingFetch returns fetch behavior that resolves immediately with a
 // minimal Response-like object carrying status and a JSON body. aborted is
 // set to 1 if the request's AbortSignal ever fires, so tests can assert a
-// successful request was never cancelled.
-func newResolvingFetch(status int, body string, aborted *int32) func(url string, opts js.Value) js.Value {
+// successful request was never cancelled. The abort listener is released via
+// t.Cleanup rather than self-releasing, since a successful request never
+// fires it.
+func newResolvingFetch(t *testing.T, status int, body string, aborted *int32) func(url string, opts js.Value) js.Value {
+	t.Helper()
 	return func(url string, opts js.Value) js.Value {
 		if signal := opts.Get("signal"); !signal.IsUndefined() {
-			var onAbort js.Func
-			onAbort = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-				defer onAbort.Release()
+			onAbort := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 				atomic.StoreInt32(aborted, 1)
 				return nil
 			})
+			t.Cleanup(onAbort.Release)
 			signal.Call("addEventListener", "abort", onAbort)
 		}
 
@@ -211,7 +213,7 @@ func TestRoundTrip_TimeoutAbortsAndReturnsError(t *testing.T) {
 
 func TestRoundTrip_SuccessNormalResponseUnaffected(t *testing.T) {
 	var aborted int32
-	installMockFetch(t, newResolvingFetch(http.StatusOK, `{"ok":true}`, &aborted))
+	installMockFetch(t, newResolvingFetch(t, http.StatusOK, `{"ok":true}`, &aborted))
 
 	transport := &WasmHTTPTransport{Timeout: 5 * time.Second}
 	req := newTestRequest(t, context.Background(), "https://example.invalid/test")
@@ -234,7 +236,7 @@ func TestRoundTrip_ConcurrentRequestsOnSharedTransport(t *testing.T) {
 	var hangAborted, okAborted int32
 	installMockFetchByURL(t, map[string]func(url string, opts js.Value) js.Value{
 		hangingURL: newHangingFetch(&hangAborted),
-		okURL:      newResolvingFetch(http.StatusOK, `{"ok":true}`, &okAborted),
+		okURL:      newResolvingFetch(t, http.StatusOK, `{"ok":true}`, &okAborted),
 	})
 
 	transport := &WasmHTTPTransport{Timeout: 5 * time.Second}
@@ -280,6 +282,7 @@ func TestBuildFetchOptions_NoForbiddenAcceptEncodingHeader(t *testing.T) {
 	transport := &WasmHTTPTransport{}
 	req, err := http.NewRequest(http.MethodGet, "https://example.invalid/test", nil)
 	require.NoError(t, err)
+	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
 
 	opts, err := transport.buildFetchOptions(req)
 	require.NoError(t, err)

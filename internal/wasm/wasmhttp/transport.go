@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"syscall/js"
 	"time"
 )
@@ -65,9 +66,14 @@ func (t *WasmHTTPTransport) RoundTrip(req *http.Request) (*http.Response, error)
 
 // buildFetchOptions converts an http.Request to fetch API options
 func (t *WasmHTTPTransport) buildFetchOptions(req *http.Request) (map[string]interface{}, error) {
-	// Build headers map
+	// Build headers map. Accept-Encoding is a forbidden fetch header the
+	// browser silently strips, so drop it here too even if a caller set it
+	// directly on the request rather than relying on us to add it.
 	headers := make(map[string]interface{})
 	for key, values := range req.Header {
+		if strings.EqualFold(key, "Accept-Encoding") {
+			continue
+		}
 		if len(values) > 0 {
 			headers[key] = values[0] // fetch expects single string values
 		}
@@ -197,13 +203,23 @@ func (t *WasmHTTPTransport) doFetch(req *http.Request, options map[string]interf
 		defer catchFunc.Release()
 
 		errMsg := "unknown fetch error"
+		isAbort := false
 		if len(catchArgs) > 0 && !catchArgs[0].IsUndefined() {
+			if name := catchArgs[0].Get("name"); !name.IsUndefined() && name.String() == "AbortError" {
+				isAbort = true
+			}
 			if msg := catchArgs[0].Get("message"); !msg.IsUndefined() {
 				errMsg = msg.String()
 			}
 		}
 
-		console.Call("error", fmt.Sprintf("❌ Fetch failed: %s", errMsg))
+		// An abort is expected behavior (context cancellation or timeout), not
+		// a genuine fetch failure, so it doesn't warrant an error-level log.
+		if isAbort {
+			console.Call("log", fmt.Sprintf("⏹️ Fetch aborted: %s", errMsg))
+		} else {
+			console.Call("error", fmt.Sprintf("❌ Fetch failed: %s", errMsg))
+		}
 		errorChan <- fmt.Errorf("fetch failed: %s", errMsg)
 		return nil
 	})
