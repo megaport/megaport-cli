@@ -485,4 +485,10 @@ func TestProcessJSONUpdatePortInput_CostCentrePreserved(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "", req.CostCentre)
 	})
+
+	t.Run("cost centre as sole field clears it", func(t *testing.T) {
+		req, err := processJSONUpdatePortInput(`{"costCentre":""}`, "", "IT Dept")
+		require.NoError(t, err)
+		assert.Equal(t, "", req.CostCentre)
+	})
 }

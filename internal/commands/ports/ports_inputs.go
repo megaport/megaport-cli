@@ -74,9 +74,11 @@ func processJSONUpdatePortInput(jsonStr, jsonFile, currentCostCentre string) (*m
 		}
 	}
 
+	_, costCentreProvided := jsonMap["costCentre"]
+
 	isUpdating := req.Name != "" ||
 		req.MarketplaceVisibility != nil ||
-		req.CostCentre != "" ||
+		costCentreProvided ||
 		req.ContractTermMonths != nil
 
 	if !isUpdating {
@@ -85,7 +87,7 @@ func processJSONUpdatePortInput(jsonStr, jsonFile, currentCostCentre string) (*m
 
 	// Preserve the existing cost centre unless the caller supplied the key
 	// (an explicit empty value still clears it).
-	if _, ok := jsonMap["costCentre"]; !ok {
+	if !costCentreProvided {
 		req.CostCentre = currentCostCentre
 	}
 
