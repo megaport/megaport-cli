@@ -45,11 +45,11 @@ func BeginSyncExecution() {
 func EndSyncExecution() {
 	for {
 		cur := syncExecutionDepth.Load()
-		if cur <= 0 {
-			syncExecutionDepth.Store(0)
-			return
+		next := cur - 1
+		if next < 0 {
+			next = 0
 		}
-		if syncExecutionDepth.CompareAndSwap(cur, cur-1) {
+		if syncExecutionDepth.CompareAndSwap(cur, next) {
 			return
 		}
 	}
