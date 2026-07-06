@@ -248,8 +248,8 @@ func (s *Spinner) nonInteractive() bool {
 	return s.machineReadableFormat() || !IsTerminal()
 }
 
-// machineReadableFormat reports whether the spinner's output format is a
-// structured, machine-readable one (json/csv/xml) rather than table/empty.
+// machineReadableFormat reports whether the spinner's output format is any
+// non-table format (json/csv/xml/go-template) rather than table/empty.
 func (s *Spinner) machineReadableFormat() bool {
 	return s.outputFormat != "" && s.outputFormat != "table"
 }
