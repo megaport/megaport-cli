@@ -149,7 +149,7 @@ type DirectOutputBuffer struct {
 
 func (d *DirectOutputBuffer) Write(p []byte) (n int, err error) {
 	debug := debugMode.Load()
-	stream := hasOutputHandler()
+	stream := hasOutputHandler() && !outputHandlerFailed.Load()
 
 	// Only materialize the string when something consumes it (debug logging or a
 	// live handler). Commands can stream many small writes, and in the common
@@ -369,8 +369,10 @@ func ResetOutputBuffers() {
 	WasmOutputBuffer.Reset()
 	bufferMutex.Unlock()
 
-	// Clear the streamed-since-reset marker: a new command starts here.
+	// A new command starts here: clear the streamed-since-reset marker and give
+	// a previously-failed handler a fresh chance to stream.
 	outputStreamed.Store(false)
+	outputHandlerFailed.Store(false)
 
 	// Reset output package flag state (--fields, --query, format, verbosity)
 	// OUTSIDE bufferMutex: the callback acquires its own locks in the output
@@ -475,17 +477,18 @@ func GetCapturedOutput() string {
 // GetCompletionOutput returns the output an async command should hand back once
 // it finishes, honoring the live-streaming contract.
 //
-// Narrative is suppressed here only once at least one chunk has actually
-// streamed to the host (outputStreamed), since streamed chunks are already in
-// the terminal and returning them again would double-render. In that case only
-// the structured document (JSON/CSV/XML/table) is returned; it is "" when the
-// command produced only streamed narrative.
+// Narrative is suppressed here only when a chunk actually streamed to the host
+// (outputStreamed) and the handler has not since failed (outputHandlerFailed),
+// since streamed chunks are already in the terminal and returning them again
+// would double-render. In that case only the structured document
+// (JSON/CSV/XML/table) is returned; it is "" when the command produced only
+// streamed narrative.
 //
-// Otherwise (no handler, or a handler that delivered nothing because it threw
-// on every chunk or was torn down) this falls back to GetCapturedOutput so the
-// host still receives the full output rather than silently losing all narrative.
+// Otherwise (no handler, a handler that delivered nothing, or one that streamed
+// some chunks and then threw) this falls back to GetCapturedOutput so the host
+// receives the full output rather than silently losing the undelivered tail.
 func GetCompletionOutput() string {
-	if hasOutputHandler() && outputStreamed.Load() {
+	if hasOutputHandler() && outputStreamed.Load() && !outputHandlerFailed.Load() {
 		structured, _ := readStructuredOutputs().pick()
 		return structured
 	}

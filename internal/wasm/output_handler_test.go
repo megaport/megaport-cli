@@ -16,6 +16,7 @@ func resetOutputStreaming() {
 	outputCallbackMu.Unlock()
 	pushingOutput.Store(false)
 	outputStreamed.Store(false)
+	outputHandlerFailed.Store(false)
 	WasmOutputBuffer.Reset()
 	js.Global().Delete("wasmJSONOutput")
 	js.Global().Delete("wasmCSVOutput")
@@ -206,6 +207,25 @@ func TestGetCompletionOutputNoDoubleRender(t *testing.T) {
 		_, _ = WasmOutputBuffer.Write([]byte("full output\n"))
 		assert.Equal(t, "full output\n", GetCompletionOutput(),
 			"without a handler the host still receives the full output")
+	})
+
+	t.Run("handler that streamed then threw falls back to full output", func(t *testing.T) {
+		resetOutputStreaming()
+		defer resetOutputStreaming()
+
+		// Deliver the first chunk, then throw on every later one.
+		fn := js.Global().Get("Function").New("chunk",
+			"if (globalThis.__seenOne) { throw new Error('later boom'); } globalThis.__seenOne = true;")
+		defer js.Global().Delete("__seenOne")
+		RegisterOutputCallback(fn)
+
+		_, _ = WasmOutputBuffer.Write([]byte("first\n"))  // delivered
+		_, _ = WasmOutputBuffer.Write([]byte("second\n")) // handler throws, latches failure
+		_, _ = WasmOutputBuffer.Write([]byte("third\n"))  // not pushed (handler failed)
+
+		assert.True(t, DidStreamOutput(), "the first chunk did stream")
+		assert.Equal(t, "first\nsecond\nthird\n", GetCompletionOutput(),
+			"once the handler fails, completion returns the full buffer so no chunk is lost")
 	})
 
 	t.Run("handler that delivered nothing falls back to full output", func(t *testing.T) {

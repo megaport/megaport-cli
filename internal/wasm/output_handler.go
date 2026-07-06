@@ -37,6 +37,14 @@ var (
 	// avoid re-emitting an error that already streamed while still surfacing
 	// one that did not (streamed chunks cannot be retracted).
 	outputStreamed atomic.Bool
+
+	// outputHandlerFailed latches when the handler throws mid-command. Further
+	// chunks then stop being pushed and completion falls back to the full
+	// captured buffer, so a handler that streams some chunks and then starts
+	// throwing cannot silently drop the rest (including error text). Reset per
+	// command by ResetOutputBuffers, so one transient throw does not disable
+	// streaming for the remainder of the session.
+	outputHandlerFailed atomic.Bool
 )
 
 // HasOutputHandler reports whether a usable output handler is registered.
@@ -97,7 +105,10 @@ func pushOutputChunk(chunk string) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			js.Global().Get("console").Call("error", "Output handler threw; chunk dropped")
+			// Latch failure: stop pushing to a broken handler and let completion
+			// return the full captured buffer, so later chunks are not lost.
+			outputHandlerFailed.Store(true)
+			js.Global().Get("console").Call("error", "Output handler threw; disabling live streaming for this command, output will be delivered at completion")
 		}
 	}()
 
