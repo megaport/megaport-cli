@@ -47,7 +47,7 @@ func (t *WasmHTTPTransport) RoundTrip(req *http.Request) (*http.Response, error)
 	}
 
 	// Make the fetch call
-	response, err := t.doFetch(req.URL.String(), fetchOpts, timeout)
+	response, err := t.doFetch(req, fetchOpts, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -73,11 +73,6 @@ func (t *WasmHTTPTransport) buildFetchOptions(req *http.Request) (map[string]int
 		}
 	}
 
-	// Add compression support
-	if _, exists := headers["Accept-Encoding"]; !exists {
-		headers["Accept-Encoding"] = "gzip, deflate, br"
-	}
-
 	fetchOpts := map[string]interface{}{
 		"method":  req.Method,
 		"headers": headers,
@@ -101,13 +96,19 @@ func (t *WasmHTTPTransport) buildFetchOptions(req *http.Request) (map[string]int
 	return fetchOpts, nil
 }
 
-// doFetch performs the actual fetch call and handles the promise
-func (t *WasmHTTPTransport) doFetch(url string, options map[string]interface{}, timeout time.Duration) (*fetchResponse, error) {
+// doFetch performs the actual fetch call and handles the promise. The fetch
+// is wired to an AbortController so the browser request actually stops when
+// req.Context() is cancelled or the transport timeout fires, instead of
+// continuing to run after Go has given up on it.
+func (t *WasmHTTPTransport) doFetch(req *http.Request, options map[string]interface{}, timeout time.Duration) (*fetchResponse, error) {
 	console := js.Global().Get("console")
 	startTime := time.Now()
 
+	abortController := js.Global().Get("AbortController").New()
+	options["signal"] = abortController.Get("signal")
+
 	// Make the fetch call
-	promise := js.Global().Call("fetch", url, options)
+	promise := js.Global().Call("fetch", req.URL.String(), options)
 
 	// Channels for async response handling
 	resultChan := make(chan *fetchResponse, 1)
@@ -205,13 +206,23 @@ func (t *WasmHTTPTransport) doFetch(url string, options map[string]interface{}, 
 
 	promise.Call("then", thenFunc).Call("catch", catchFunc)
 
-	// Wait for result or timeout
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	// Wait for result, context cancellation, or timeout. Aborting the
+	// controller stops the in-flight browser fetch; its eventual (unread)
+	// rejection lands in the buffered errorChan and is discarded rather than
+	// leaking a goroutine.
 	select {
 	case result := <-resultChan:
 		return result, nil
 	case err := <-errorChan:
 		return nil, err
-	case <-time.After(timeout):
+	case <-req.Context().Done():
+		abortController.Call("abort")
+		return nil, req.Context().Err()
+	case <-timer.C:
+		abortController.Call("abort")
 		return nil, fmt.Errorf("fetch timeout after %v", timeout)
 	}
 }
