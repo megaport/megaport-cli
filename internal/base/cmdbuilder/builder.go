@@ -176,9 +176,16 @@ func (b *CommandBuilder) WithConditionalRequirements(conditionallyRequiredFlags 
 		interactive, _ := cmd.Flags().GetBool("interactive")
 		jsonStr, _ := cmd.Flags().GetString("json")
 		jsonFile, _ := cmd.Flags().GetString("json-file")
+		skeleton, _ := cmd.Flags().GetBool("generate-skeleton")
+
+		// --interactive is mutually exclusive with JSON and value flags: agrees
+		// with ResolveInput (internal/utils/input.go) so a usage error surfaces
+		// up front instead of silently ignoring the gating this skips below.
+		if interactive && utils.HasConflictingInputFlags(cmd) {
+			return utils.FinishPreRunError(cmd, args, exitcodes.NewUsageError(utils.ErrInteractiveConflict))
+		}
 
 		// Skip validation if interactive mode, JSON input, or skeleton mode is used
-		skeleton, _ := cmd.Flags().GetBool("generate-skeleton")
 		if interactive || jsonStr != "" || jsonFile != "" || skeleton {
 			return nil
 		}

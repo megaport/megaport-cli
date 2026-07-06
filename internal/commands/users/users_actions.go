@@ -23,6 +23,11 @@ func buildCreateUserRequest(cmd *cobra.Command, noColor bool) (*megaport.CreateU
 	flagsProvided := cmd.Flags().Changed("first-name") || cmd.Flags().Changed("last-name") ||
 		cmd.Flags().Changed("email") || cmd.Flags().Changed("position")
 
+	if err := utils.CheckInteractiveConflict(interactive, utils.HasConflictingInputFlags(cmd)); err != nil {
+		output.PrintError("%v", noColor, err)
+		return nil, err
+	}
+
 	if jsonStr != "" || jsonFile != "" {
 		output.PrintInfo("Using JSON input", noColor)
 		req, err := processJSONCreateUserInput(jsonStr, jsonFile)
@@ -61,6 +66,11 @@ func buildUpdateUserRequest(cmd *cobra.Command, noColor bool) (*megaport.UpdateU
 		cmd.Flags().Changed("email") || cmd.Flags().Changed("position") ||
 		cmd.Flags().Changed("phone") || cmd.Flags().Changed("active") ||
 		cmd.Flags().Changed("notification-enabled")
+
+	if err := utils.CheckInteractiveConflict(interactive, utils.HasConflictingInputFlags(cmd)); err != nil {
+		output.PrintError("%v", noColor, err)
+		return nil, err
+	}
 
 	if jsonStr != "" || jsonFile != "" {
 		output.PrintInfo("Using JSON input", noColor)

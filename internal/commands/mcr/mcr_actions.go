@@ -226,6 +226,11 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		cmd.Flags().Changed("marketplace-visibility") || cmd.Flags().Changed("term") ||
 		cmd.Flags().Changed("mcr-asn")
 
+	if err := utils.CheckInteractiveConflict(interactive, utils.HasConflictingInputFlags(cmd)); err != nil {
+		output.PrintError("%v", noColor, err)
+		return err
+	}
+
 	usingJSON := jsonStr != "" || jsonFile != ""
 	if !usingJSON && !flagsProvided && !interactive {
 		return fmt.Errorf("at least one field must be updated")

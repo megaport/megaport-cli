@@ -29,6 +29,11 @@ func CreateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 		cmd.Flags().Changed("diversity-zone") || cmd.Flags().Changed("promo-code") ||
 		cmd.Flags().Changed("service-level-reference") || cmd.Flags().Changed("auto-renew")
 
+	if err := utils.CheckInteractiveConflict(interactive, utils.HasConflictingInputFlags(cmd)); err != nil {
+		output.PrintError("%v", noColor, err)
+		return err
+	}
+
 	var req *megaport.CreateNATGatewayRequest
 	var err error
 
@@ -217,6 +222,11 @@ func UpdateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 		cmd.Flags().Changed("promo-code") || cmd.Flags().Changed("service-level-reference") ||
 		cmd.Flags().Changed("auto-renew") || cmd.Flags().Changed("resource-tags") ||
 		cmd.Flags().Changed("resource-tags-file")
+
+	if err := utils.CheckInteractiveConflict(interactive, utils.HasConflictingInputFlags(cmd)); err != nil {
+		output.PrintError("%v", noColor, err)
+		return err
+	}
 
 	if jsonStr == "" && jsonFile == "" && !flagsProvided && !interactive {
 		return fmt.Errorf("at least one field must be updated")

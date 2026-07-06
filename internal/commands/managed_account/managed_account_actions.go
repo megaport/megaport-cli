@@ -82,6 +82,11 @@ func CreateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 
 	flagsProvided := cmd.Flags().Changed("account-name") || cmd.Flags().Changed("account-ref")
 
+	if err := utils.CheckInteractiveConflict(interactive, utils.HasConflictingInputFlags(cmd)); err != nil {
+		output.PrintError("%v", noColor, err)
+		return err
+	}
+
 	var req *megaport.ManagedAccountRequest
 	var err error
 
@@ -144,6 +149,11 @@ func UpdateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 	jsonFile, _ := cmd.Flags().GetString("json-file")
 
 	flagsProvided := cmd.Flags().Changed("account-name") || cmd.Flags().Changed("account-ref")
+
+	if err := utils.CheckInteractiveConflict(interactive, utils.HasConflictingInputFlags(cmd)); err != nil {
+		output.PrintError("%v", noColor, err)
+		return err
+	}
 
 	var req *megaport.ManagedAccountRequest
 	var err error

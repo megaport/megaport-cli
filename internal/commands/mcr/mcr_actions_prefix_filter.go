@@ -26,6 +26,11 @@ func CreateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 	flagsProvided := cmd.Flags().Changed("description") || cmd.Flags().Changed("address-family") ||
 		cmd.Flags().Changed("entries")
 
+	if err := utils.CheckInteractiveConflict(interactive, utils.HasConflictingInputFlags(cmd)); err != nil {
+		output.PrintError("%v", noColor, err)
+		return err
+	}
+
 	var req *megaport.CreateMCRPrefixFilterListRequest
 	var err error
 
@@ -88,6 +93,11 @@ func UpdateMCRPrefixFilterList(cmd *cobra.Command, args []string, noColor bool) 
 
 	flagsProvided := cmd.Flags().Changed("description") || cmd.Flags().Changed("address-family") ||
 		cmd.Flags().Changed("entries")
+
+	if err := utils.CheckInteractiveConflict(interactive, utils.HasConflictingInputFlags(cmd)); err != nil {
+		output.PrintError("%v", noColor, err)
+		return err
+	}
 
 	// Validate input mode before logging in.
 	if jsonStr == "" && jsonFile == "" && !flagsProvided && !interactive {

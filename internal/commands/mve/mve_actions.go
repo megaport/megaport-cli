@@ -290,6 +290,18 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	mveUID := args[0]
 	formattedUID := output.FormatUID(mveUID, noColor)
 
+	interactive, _ := cmd.Flags().GetBool("interactive")
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
+
+	// Reject conflicting input modes before logging in, matching the other
+	// update commands: a usage error must surface up front, not after a
+	// login + GET round-trip.
+	if err := utils.CheckInteractiveConflict(interactive, utils.HasConflictingInputFlags(cmd)); err != nil {
+		output.PrintError("%v", noColor, err)
+		return err
+	}
+
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
@@ -310,10 +322,6 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("MVE %s not found", noColor, mveUID)
 		return fmt.Errorf("MVE %s not found", mveUID)
 	}
-
-	interactive, _ := cmd.Flags().GetBool("interactive")
-	jsonStr, _ := cmd.Flags().GetString("json")
-	jsonFile, _ := cmd.Flags().GetString("json-file")
 
 	flagsProvided := cmd.Flags().Changed("name") ||
 		cmd.Flags().Changed("cost-centre") ||

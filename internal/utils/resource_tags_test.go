@@ -2,11 +2,13 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -441,6 +443,29 @@ func TestUpdateResourceTags(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no input provided")
+	})
+
+	t.Run("interactive combined with tags is a usage error before login", func(t *testing.T) {
+		listCalled := false
+		trackingListFunc := func(ctx context.Context, uid string) (map[string]string, error) {
+			listCalled = true
+			return nil, nil
+		}
+		cmd := newUpdateCmd(t, map[string]string{"interactive": "true", "tags": "env=prod"})
+		err := UpdateResourceTags(UpdateTagsOptions{
+			ResourceType: "port",
+			UID:          "uid-7",
+			NoColor:      true,
+			Cmd:          cmd,
+			ListFunc:     trackingListFunc,
+			UpdateFunc:   successUpdateFunc,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot be combined with")
+		assert.False(t, listCalled, "conflict must be rejected before the list/login call")
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
 	})
 }
 

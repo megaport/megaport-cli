@@ -1,13 +1,90 @@
 package users
 
 import (
+	"errors"
 	"os"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func newUserInputCommand() *cobra.Command {
+	cmd := &cobra.Command{Use: "test"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("first-name", "", "")
+	cmd.Flags().String("last-name", "", "")
+	cmd.Flags().String("email", "", "")
+	cmd.Flags().String("position", "", "")
+	cmd.Flags().String("phone", "", "")
+	cmd.Flags().Bool("active", false, "")
+	cmd.Flags().Bool("notification-enabled", false, "")
+	return cmd
+}
+
+func TestBuildCreateUserRequestInteractiveConflict(t *testing.T) {
+	tests := []struct {
+		name  string
+		flags map[string]string
+	}{
+		{name: "interactive with first-name", flags: map[string]string{"first-name": "John"}},
+		{name: "interactive with json", flags: map[string]string{"json": `{"firstName":"John"}`}},
+		{name: "interactive with json-file", flags: map[string]string{"json-file": "/tmp/user.json"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := newUserInputCommand()
+			require.NoError(t, cmd.Flags().Set("interactive", "true"))
+			for k, v := range tt.flags {
+				require.NoError(t, cmd.Flags().Set(k, v))
+			}
+
+			req, err := buildCreateUserRequest(cmd, true)
+			assert.Nil(t, req)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "cannot be combined with")
+
+			var cliErr *exitcodes.CLIError
+			require.True(t, errors.As(err, &cliErr))
+			assert.Equal(t, exitcodes.Usage, cliErr.Code)
+		})
+	}
+}
+
+func TestBuildUpdateUserRequestInteractiveConflict(t *testing.T) {
+	tests := []struct {
+		name  string
+		flags map[string]string
+	}{
+		{name: "interactive with first-name", flags: map[string]string{"first-name": "John"}},
+		{name: "interactive with json", flags: map[string]string{"json": `{"firstName":"John"}`}},
+		{name: "interactive with json-file", flags: map[string]string{"json-file": "/tmp/user.json"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := newUserInputCommand()
+			require.NoError(t, cmd.Flags().Set("interactive", "true"))
+			for k, v := range tt.flags {
+				require.NoError(t, cmd.Flags().Set(k, v))
+			}
+
+			req, err := buildUpdateUserRequest(cmd, true)
+			assert.Nil(t, req)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "cannot be combined with")
+
+			var cliErr *exitcodes.CLIError
+			require.True(t, errors.As(err, &cliErr))
+			assert.Equal(t, exitcodes.Usage, cliErr.Code)
+		})
+	}
+}
 
 func TestProcessJSONCreateUserInput(t *testing.T) {
 	tests := []struct {

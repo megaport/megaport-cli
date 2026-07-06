@@ -14,18 +14,27 @@ import (
 )
 
 func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
+	portUID := args[0]
+
+	interactive, _ := cmd.Flags().GetBool("interactive")
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
+	flagsProvided := cmd.Flags().Changed("name") || cmd.Flags().Changed("marketplace-visibility") ||
+		cmd.Flags().Changed("cost-centre") || cmd.Flags().Changed("term")
+
+	// Reject conflicting input modes before logging in, matching the other
+	// update commands: a usage error must surface up front, not after login.
+	if err := utils.CheckInteractiveConflict(interactive, utils.HasConflictingInputFlags(cmd)); err != nil {
+		output.PrintError("%v", noColor, err)
+		return err
+	}
+
 	ctx, cancel, client, err := utils.LoginClient(cmd, utils.DefaultMutationTimeout, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
 	defer cancel()
-
-	portUID := args[0]
-
-	interactive, _ := cmd.Flags().GetBool("interactive")
-	jsonStr, _ := cmd.Flags().GetString("json")
-	jsonFile, _ := cmd.Flags().GetString("json-file")
 
 	var req *megaport.ModifyPortRequest
 
@@ -54,8 +63,7 @@ func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
 		if err == nil {
 			req.PortID = portUID
 		}
-	} else if cmd.Flags().Changed("name") || cmd.Flags().Changed("marketplace-visibility") ||
-		cmd.Flags().Changed("cost-centre") || cmd.Flags().Changed("term") {
+	} else if flagsProvided {
 		output.PrintInfo("Using flag input", noColor)
 		req, err = processFlagUpdatePortInput(cmd, portUID, currentCostCentre)
 		if err != nil {
