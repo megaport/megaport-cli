@@ -98,7 +98,7 @@ The WASM registers these on `window` at startup:
 |---|---|
 | `registerPromptHandler(cb)` | Register a callback the WASM invokes with each prompt request. |
 | `submitPromptResponse(id, response)` | Reply to the prompt `id` with the user's input (a string). |
-| `cancelPrompt(id)` | Cancel the prompt `id`; the command receives a "prompt cancelled by user" error. |
+| `cancelPrompt(id)` | Cancel the prompt `id`. A value prompt fails with a "prompt cancelled by user" error; a confirmation is treated as declined. |
 
 ### Prompt request shape
 

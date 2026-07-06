@@ -267,8 +267,9 @@ const checkVlan = async () => {
 
 Some CLI commands prompt for input (interactive `buy`/`update` flows, confirmations, and
 secrets). The WASM has no stdin, so it asks the host page for each value. If no handler is
-registered, a prompt fails immediately with a "prompt callback not registered" error; once a
-handler is registered, a prompt left unanswered times out after 5 minutes.
+registered, a value prompt fails immediately with a "prompt callback not registered" error
+and a confirmation is treated as declined; once a handler is registered, a prompt left
+unanswered times out after 5 minutes.
 
 **Always run interactive commands through `execute()`** (the composable prefers the async
 entrypoint under the hood). The legacy synchronous entrypoint runs the command inline and
@@ -283,7 +284,8 @@ confirmation is treated as declined. Neither is what you want, so keep to `execu
 2. **Receive** a request object: `{ id, message, type, resourceType }`, where `type` is
    `"text"`, `"confirm"`, `"password"`, or `"resource"`.
 3. **Reply** with `window.submitPromptResponse(id, response)` (a string), or dismiss it with
-   `window.cancelPrompt(id)` (the command then receives a "prompt cancelled by user" error).
+   `window.cancelPrompt(id)`. A value prompt then fails with a "prompt cancelled by user"
+   error; a confirmation is treated as declined.
 
 Mask the input when `type === "password"`, for example with an `<input type="password">`.
 Password prompts and secret-resource prompts (VXC/MVE passwords and pre-shared keys) set
