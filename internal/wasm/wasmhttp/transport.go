@@ -233,18 +233,24 @@ func (t *WasmHTTPTransport) doFetch(req *http.Request, options map[string]interf
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
-	// Give cancellation/timeout priority: if either is already signaled,
-	// report it deterministically instead of leaving the outcome to Go's
-	// pseudo-random selection among ready channels, which could otherwise
-	// return a result to a caller who has already given up on it.
-	select {
-	case <-req.Context().Done():
+	// Non-blocking check for an already-fired cancellation/timeout, used both
+	// up front and right after a result/error arrives, so that outcome wins
+	// deterministically instead of leaving it to Go's pseudo-random selection
+	// among ready channels.
+	checkPriority := func() error {
+		select {
+		case <-req.Context().Done():
+			return req.Context().Err()
+		case <-timer.C:
+			return fmt.Errorf("fetch timeout after %v", timeout)
+		default:
+			return nil
+		}
+	}
+
+	if err := checkPriority(); err != nil {
 		abortController.Call("abort")
-		return nil, req.Context().Err()
-	case <-timer.C:
-		abortController.Call("abort")
-		return nil, fmt.Errorf("fetch timeout after %v", timeout)
-	default:
+		return nil, err
 	}
 
 	// Wait for result, context cancellation, or timeout. Aborting the
@@ -253,8 +259,16 @@ func (t *WasmHTTPTransport) doFetch(req *http.Request, options map[string]interf
 	// leaking a goroutine.
 	select {
 	case result := <-resultChan:
+		if err := checkPriority(); err != nil {
+			abortController.Call("abort")
+			return nil, err
+		}
 		return result, nil
 	case err := <-errorChan:
+		if cancelErr := checkPriority(); cancelErr != nil {
+			abortController.Call("abort")
+			return nil, cancelErr
+		}
 		return nil, err
 	case <-req.Context().Done():
 		abortController.Call("abort")
