@@ -329,7 +329,8 @@ func (s *Spinner) StopWithSuccess(msg string) {
 		return
 	}
 	// If WASM spinner is available, delegate to it so the message reaches
-	// the captured output buffer instead of os.Stderr/os.Stdout.
+	// the captured output buffer instead of os.Stderr/os.Stdout. Safe to
+	// call Stop() again here: WasmSpinner.Stop() is idempotent (sync.Once).
 	if s.wasmSpinner != nil {
 		s.wasmSpinner.StopWithSuccess(msg)
 		return
