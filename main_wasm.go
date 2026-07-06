@@ -51,8 +51,11 @@ func executeMegaportCommand(this js.Value, args []js.Value) interface{} {
 
 	megaport.ExecuteWithArgs(originalArgs)
 
+	// Use the same completion contract as the async path: when a live-output
+	// handler is registered the narrative has already streamed, so return only
+	// the structured document to avoid double-rendering.
 	return map[string]interface{}{
-		"output": wasm.GetCapturedOutput(),
+		"output": wasm.GetCompletionOutput(),
 	}
 }
 
@@ -124,7 +127,10 @@ func executeMegaportCommandAsync(this js.Value, args []js.Value) interface{} {
 
 		megaport.ExecuteWithArgs(originalArgs)
 
-		result := wasm.GetCapturedOutput()
+		// When a live-output handler is registered the narrative has already
+		// streamed to the host; GetCompletionOutput returns only the structured
+		// document (or "") so the host does not double-render it.
+		result := wasm.GetCompletionOutput()
 		once.Do(func() {
 			callback.Invoke(map[string]interface{}{
 				"output": result,
@@ -175,6 +181,9 @@ func main() {
 
 	// Initialize the prompt system for interactive mode
 	wasm.InitPromptSystem()
+
+	// Initialize the live-output streaming system
+	wasm.InitOutputSystem()
 
 	// Export both sync (legacy) and async (preferred) versions
 	js.Global().Set("executeMegaportCommand", js.FuncOf(executeMegaportCommand))

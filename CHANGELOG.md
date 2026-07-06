@@ -11,6 +11,9 @@ workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries unde
 
 ## [Unreleased]
 
+### Added
+- stream command output to the browser host as it is written in the WASM build, so interactive flows show inter-prompt context live instead of only at completion (ESD-1595)
+
 ### Fixed
 - require Cisco FMC fields only when not managing locally on the `mve buy` and `mve validate` flags and JSON paths, matching the validator (ESD-1571)
 - `mve buy` and `mve validate` now apply `resourceTags` from JSON input, and interactive `mve buy` now prompts for tags, matching MCR. Previously the JSON path silently dropped the documented `resourceTags` field and interactive mode never asked. The JSON path shares the same value and empty-key validation as the flags path, so non-string values and empty keys return a usage error before the order is placed

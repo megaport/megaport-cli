@@ -148,22 +148,33 @@ type DirectOutputBuffer struct {
 }
 
 func (d *DirectOutputBuffer) Write(p []byte) (n int, err error) {
-	d.mutex.Lock()
-	defer d.mutex.Unlock()
+	chunk := string(p)
 
-	if debugMode.Load() {
-		content := string(p)
-		js.Global().Get("console").Call("log", fmt.Sprintf("📝 BUFFER WRITE [%d bytes]:", len(p)))
-		lines := strings.Split(content, "\n")
-		for _, line := range lines {
-			if line != "" {
-				js.Global().Get("console").Call("log", fmt.Sprintf("  │ %s", line))
+	// Buffer the write under the lock in a closure so the mutex is released
+	// (even on a panic in the debug-logging JS calls) before we push to the
+	// live handler. Pushing outside the lock prevents a re-entrant write from
+	// the JS callback deadlocking on d.mutex.
+	func() {
+		d.mutex.Lock()
+		defer d.mutex.Unlock()
+
+		if debugMode.Load() {
+			js.Global().Get("console").Call("log", fmt.Sprintf("📝 BUFFER WRITE [%d bytes]:", len(p)))
+			lines := strings.Split(chunk, "\n")
+			for _, line := range lines {
+				if line != "" {
+					js.Global().Get("console").Call("log", fmt.Sprintf("  │ %s", line))
+				}
 			}
+			js.Global().Get("console").Call("debug", chunk)
 		}
-		js.Global().Get("console").Call("debug", content)
-	}
 
-	return d.buffer.Write(p)
+		n, err = d.buffer.Write(p)
+	}()
+
+	// Stream the chunk live to a registered output handler, if any.
+	pushOutputChunk(chunk)
+	return n, err
 }
 
 // TraceCommandExecution logs the command hierarchy and available subcommands when debugMode is on.
@@ -347,6 +358,9 @@ func ResetOutputBuffers() {
 	WasmOutputBuffer.Reset()
 	bufferMutex.Unlock()
 
+	// Clear the streamed-since-reset marker: a new command starts here.
+	outputStreamed.Store(false)
+
 	// Reset output package flag state (--fields, --query, format, verbosity)
 	// OUTSIDE bufferMutex: the callback acquires its own locks in the output
 	// package, so holding bufferMutex here would be a lock-ordering violation
@@ -365,6 +379,47 @@ func ResetOutputBuffers() {
 	}
 }
 
+// jsStringGlobal returns a JS global as a Go string, or "" if unset/null.
+func jsStringGlobal(name string) string {
+	if v := js.Global().Get(name); !v.IsUndefined() && !v.IsNull() {
+		return v.String()
+	}
+	return ""
+}
+
+// structuredOutputs holds the four structured document buffers that WASM
+// commands publish via JS globals. Unlike the direct/narrative buffer, these
+// are complete documents delivered once at completion and are never streamed.
+type structuredOutputs struct {
+	json, csv, xml, table string
+}
+
+func readStructuredOutputs() structuredOutputs {
+	return structuredOutputs{
+		json:  jsStringGlobal("wasmJSONOutput"),
+		csv:   jsStringGlobal("wasmCSVOutput"),
+		xml:   jsStringGlobal("wasmXMLOutput"),
+		table: jsStringGlobal("wasmTableOutput"),
+	}
+}
+
+// pick returns the highest-priority structured document (JSON > CSV > XML >
+// table) and a label for it, or ("", "") when none is set.
+func (s structuredOutputs) pick() (string, string) {
+	switch {
+	case s.json != "":
+		return s.json, "JSON buffer"
+	case s.csv != "":
+		return s.csv, "CSV buffer"
+	case s.xml != "":
+		return s.xml, "XML buffer"
+	case s.table != "":
+		return s.table, "table buffer"
+	default:
+		return "", ""
+	}
+}
+
 // GetCapturedOutput returns all captured output. Go-side buffers are read under the
 // lock; JS interop happens outside to avoid holding bufferMutex across JS callbacks.
 func GetCapturedOutput() string {
@@ -378,44 +433,16 @@ func GetCapturedOutput() string {
 	direct := WasmOutputBuffer.String()
 
 	// All JS interop happens outside the lock.
-	jsonOutput := ""
-	if v := js.Global().Get("wasmJSONOutput"); !v.IsUndefined() && !v.IsNull() {
-		jsonOutput = v.String()
-	}
-	csvOutput := ""
-	if v := js.Global().Get("wasmCSVOutput"); !v.IsUndefined() && !v.IsNull() {
-		csvOutput = v.String()
-	}
-	tableOutput := ""
-	if v := js.Global().Get("wasmTableOutput"); !v.IsUndefined() && !v.IsNull() {
-		tableOutput = v.String()
-	}
-	xmlOutput := ""
-	if v := js.Global().Get("wasmXMLOutput"); !v.IsUndefined() && !v.IsNull() {
-		xmlOutput = v.String()
-	}
+	structured := readStructuredOutputs()
 
 	// Priority order: JSON > CSV > XML > table > direct > stdout/stderr combined.
-	var finalOutput, outputSource string
-	switch {
-	case jsonOutput != "":
-		finalOutput = jsonOutput
-		outputSource = "JSON buffer"
-	case csvOutput != "":
-		finalOutput = csvOutput
-		outputSource = "CSV buffer"
-	case xmlOutput != "":
-		finalOutput = xmlOutput
-		outputSource = "XML buffer"
-	case tableOutput != "":
-		finalOutput = tableOutput
-		outputSource = "table buffer"
-	case direct != "":
-		finalOutput = direct
-		outputSource = "direct buffer"
-	default:
-		finalOutput = out + errStr
-		outputSource = "combined stdout/stderr"
+	finalOutput, outputSource := structured.pick()
+	if finalOutput == "" {
+		if direct != "" {
+			finalOutput, outputSource = direct, "direct buffer"
+		} else {
+			finalOutput, outputSource = out+errStr, "combined stdout/stderr"
+		}
 	}
 
 	if debugMode.Load() {
@@ -423,15 +450,33 @@ func GetCapturedOutput() string {
 		js.Global().Get("console").Call("log", fmt.Sprintf("stdout buffer: [%d bytes]", len(out)))
 		js.Global().Get("console").Call("log", fmt.Sprintf("stderr buffer: [%d bytes]", len(errStr)))
 		js.Global().Get("console").Call("log", fmt.Sprintf("direct buffer: [%d bytes]", len(direct)))
-		js.Global().Get("console").Call("log", fmt.Sprintf("JSON buffer: [%d bytes]", len(jsonOutput)))
-		js.Global().Get("console").Call("log", fmt.Sprintf("CSV buffer: [%d bytes]", len(csvOutput)))
-		js.Global().Get("console").Call("log", fmt.Sprintf("XML buffer: [%d bytes]", len(xmlOutput)))
-		js.Global().Get("console").Call("log", fmt.Sprintf("table buffer: [%d bytes]", len(tableOutput)))
+		js.Global().Get("console").Call("log", fmt.Sprintf("JSON buffer: [%d bytes]", len(structured.json)))
+		js.Global().Get("console").Call("log", fmt.Sprintf("CSV buffer: [%d bytes]", len(structured.csv)))
+		js.Global().Get("console").Call("log", fmt.Sprintf("XML buffer: [%d bytes]", len(structured.xml)))
+		js.Global().Get("console").Call("log", fmt.Sprintf("table buffer: [%d bytes]", len(structured.table)))
 		js.Global().Get("console").Call("log", fmt.Sprintf("Using %s for output (%d bytes)", outputSource, len(finalOutput)))
 		js.Global().Get("console").Call("groupEnd")
 	}
 
 	return finalOutput
+}
+
+// GetCompletionOutput returns the output an async command should hand back once
+// it finishes, honoring the live-streaming contract.
+//
+// When an output handler is registered, the direct/narrative buffer has already
+// been streamed to the host chunk-by-chunk, so returning it again would
+// double-render. In that case only the structured document (JSON/CSV/XML/table)
+// is returned; it is "" when the command produced only streamed narrative.
+//
+// When no handler is registered, this falls back to GetCapturedOutput so
+// non-streaming hosts keep receiving the full output at completion.
+func GetCompletionOutput() string {
+	if hasOutputHandler() {
+		structured, _ := readStructuredOutputs().pick()
+		return structured
+	}
+	return GetCapturedOutput()
 }
 
 // SetupIO redirects stdout/stderr to our buffers using WasmOutputBuffer

@@ -231,6 +231,18 @@ export interface MegaportWASM {
   ): boolean;
 
   /**
+   * Register a handler for live command output.
+   *
+   * The callback is invoked with each chunk of narrative output as the command
+   * writes it. When a handler is registered the narrative is streamed here and
+   * is not repeated in the command result (see MegaportCommandResult.output).
+   * Chunks use `\n` line endings.
+   *
+   * @param callback - Function called with each output chunk
+   */
+  registerOutputHandler(callback: (chunk: string) => void): boolean;
+
+  /**
    * Submit a response to a pending prompt
    * @param id - Prompt ID
    * @param response - User's response
@@ -295,6 +307,7 @@ declare global {
     registerPromptHandler?: (
       callback: (request: MegaportPromptRequest) => void
     ) => boolean;
+    registerOutputHandler?: (callback: (chunk: string) => void) => boolean;
     submitPromptResponse?: (id: string, response: string) => void;
     cancelPrompt?: (id: string) => void;
     getPendingPrompts?: () => MegaportPromptRequest[];
