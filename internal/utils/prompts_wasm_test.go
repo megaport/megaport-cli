@@ -549,7 +549,7 @@ func TestWasmBuyConfirmPromptSanitizesDetails(t *testing.T) {
 	// cursor-home sequence (via ESC and the C1 CSI byte 0x9b) must not reach the
 	// terminal, or they could rewrite the summary shown before the [y/N].
 	evilValue := "port\x1b[2K\x1b[Hspoofed"
-	evilType := "Port\x9b2Kspoofed"
+	evilType := "Port\u009b2Kspoofed"
 	wasmBuyConfirmPrompt(evilType, []BuyConfirmDetail{{Key: "Name", Value: evilValue}}, true)
 
 	msg := captured()
