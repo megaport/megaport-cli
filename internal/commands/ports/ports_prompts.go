@@ -208,7 +208,7 @@ func promptForUpdatePortDetails(portUID, currentCostCentre string, noColor bool)
 		}
 		req.MarketplaceVisibility = &marketplaceVisibility
 	}
-	costCentre, err := utils.ResourcePrompt("port", "Enter cost centre (optional): ", noColor)
+	costCentre, err := utils.ResourcePrompt("port", "Enter cost centre (optional, press Enter to keep current): ", noColor)
 	if err != nil {
 		return nil, err
 	}
