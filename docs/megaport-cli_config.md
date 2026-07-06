@@ -43,7 +43,6 @@ megaport-cli config [flags]
 * [clear-defaults](megaport-cli_config_clear-defaults.md)
 * [create-profile](megaport-cli_config_create-profile.md)
 * [delete-profile](megaport-cli_config_delete-profile.md)
-* [docs](megaport-cli_config_docs.md)
 * [export](megaport-cli_config_export.md)
 * [get-default](megaport-cli_config_get-default.md)
 * [import](megaport-cli_config_import.md)

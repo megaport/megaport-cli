@@ -27,6 +27,3 @@ megaport-cli config list-profiles [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_config_list-profiles_docs.md)
-

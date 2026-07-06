@@ -40,6 +40,3 @@ megaport-cli ports get [flags]
 | `--interval` |  | `5s` | Polling interval for --watch mode (e.g. 5s, 1m) | false |
 | `--watch` | `-w` | `false` | Continuously poll and display resource status (Ctrl+C to stop) | false |
 
-## Subcommands
-* [docs](megaport-cli_ports_get_docs.md)
-

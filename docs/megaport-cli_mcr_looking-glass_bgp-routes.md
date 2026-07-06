@@ -34,6 +34,3 @@ megaport-cli mcr looking-glass bgp-routes [flags]
 |------|-----------|---------|-------------|----------|
 | `--ip` |  |  | Filter by IP address or prefix (e.g., 10.0.0.0/8 or 192.168.1.1) | false |
 
-## Subcommands
-* [docs](megaport-cli_mcr_looking-glass_bgp-routes_docs.md)
-

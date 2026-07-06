@@ -46,6 +46,3 @@ megaport-cli nat-gateway list [flags]
 | `--location-id` |  | `0` | Filter NAT Gateways by location ID | false |
 | `--name` |  |  | Filter NAT Gateways by name (substring match) | false |
 
-## Subcommands
-* [docs](megaport-cli_nat-gateway_list_docs.md)
-

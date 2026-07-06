@@ -76,6 +76,3 @@ megaport-cli ix update [flags]
 | `--shutdown` |  | `false` | Shut down or re-enable the IX | false |
 | `--vlan` |  | `0` | VLAN ID for the IX connection | false |
 
-## Subcommands
-* [docs](megaport-cli_ix_update_docs.md)
-

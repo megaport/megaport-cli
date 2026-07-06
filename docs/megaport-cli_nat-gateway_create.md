@@ -86,6 +86,3 @@ megaport-cli nat-gateway create [flags]
 | `--term` |  | `0` | The contract term in months (1, 12, 24, or 36) | true |
 | `--yes` | `-y` | `false` | Skip the confirmation prompt for creating the NAT Gateway design (no charges are incurred until 'nat-gateway buy') | false |
 
-## Subcommands
-* [docs](megaport-cli_nat-gateway_create_docs.md)
-

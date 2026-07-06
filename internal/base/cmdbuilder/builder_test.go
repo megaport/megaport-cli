@@ -514,10 +514,12 @@ func TestBuild(t *testing.T) {
 		assert.Equal(t, "test", cmd.Use)
 		assert.Equal(t, "test command", cmd.Short)
 
-		// Verify docs subcommand exists
+		// Verify docs subcommand exists and is hidden (kept out of help listings
+		// and generated docs, but still invokable).
 		docsCmd, _, err := cmd.Find([]string{"docs"})
 		assert.NoError(t, err)
 		assert.Equal(t, "docs", docsCmd.Use)
+		assert.True(t, docsCmd.Hidden)
 	})
 
 	t.Run("build with root cmd sets long desc", func(t *testing.T) {

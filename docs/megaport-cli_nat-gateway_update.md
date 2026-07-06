@@ -71,6 +71,3 @@ megaport-cli nat-gateway update [flags]
 | `--speed` |  | `0` | The new speed of the NAT Gateway in Mbps | false |
 | `--term` |  | `0` | The new contract term in months (1, 12, 24, or 36) | false |
 
-## Subcommands
-* [docs](megaport-cli_nat-gateway_update_docs.md)
-

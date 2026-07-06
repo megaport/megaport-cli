@@ -29,6 +29,3 @@ megaport-cli mcr lock [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_mcr_lock_docs.md)
-

@@ -21,6 +21,3 @@ megaport-cli vxc list-tags [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_vxc_list-tags_docs.md)
-

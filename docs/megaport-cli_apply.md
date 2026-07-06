@@ -39,6 +39,3 @@ megaport-cli apply [flags]
 | `--rollback-on-failure` |  | `false` | Delete any resources created during this run if provisioning fails | false |
 | `--yes` | `-y` | `false` | Skip confirmation prompt | false |
 
-## Subcommands
-* [docs](megaport-cli_apply_docs.md)
-

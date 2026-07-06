@@ -37,7 +37,6 @@ megaport-cli users [flags]
 * [create](megaport-cli_users_create.md)
 * [deactivate](megaport-cli_users_deactivate.md)
 * [delete](megaport-cli_users_delete.md)
-* [docs](megaport-cli_users_docs.md)
 * [get](megaport-cli_users_get.md)
 * [list](megaport-cli_users_list.md)
 * [update](megaport-cli_users_update.md)

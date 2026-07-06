@@ -27,6 +27,3 @@ megaport-cli config get-default [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_config_get-default_docs.md)
-

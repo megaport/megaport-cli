@@ -65,6 +65,3 @@ megaport-cli billing-market set [flags]
 | `--state` |  |  | State or region | true |
 | `--tax-number` |  |  | Tax or VAT registration number | false |
 
-## Subcommands
-* [docs](megaport-cli_billing-market_set_docs.md)
-

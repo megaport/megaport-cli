@@ -21,6 +21,3 @@ megaport-cli ports list-tags [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_ports_list-tags_docs.md)
-

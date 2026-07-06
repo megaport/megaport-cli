@@ -37,6 +37,3 @@ megaport-cli config export [flags]
 |------|-----------|---------|-------------|----------|
 | `--file` |  |  | File to export to | false |
 
-## Subcommands
-* [docs](megaport-cli_config_export_docs.md)
-

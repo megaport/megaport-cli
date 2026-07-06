@@ -34,6 +34,3 @@ megaport-cli nat-gateway buy [flags]
 |------|-----------|---------|-------------|----------|
 | `--yes` |  | `false` | Skip the confirmation prompt | false |
 
-## Subcommands
-* [docs](megaport-cli_nat-gateway_buy_docs.md)
-

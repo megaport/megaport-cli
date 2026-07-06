@@ -39,6 +39,3 @@ megaport-cli users delete [flags]
 |------|-----------|---------|-------------|----------|
 | `--force` |  | `false` | Skip the confirmation prompt | false |
 
-## Subcommands
-* [docs](megaport-cli_users_delete_docs.md)
-

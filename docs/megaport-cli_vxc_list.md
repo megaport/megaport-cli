@@ -58,6 +58,3 @@ megaport-cli vxc list [flags]
 | `--status` |  |  | Filter VXCs by status (comma-separated, e.g. LIVE,CONFIGURED) | false |
 | `--tag` |  | `[]` | Filter by resource tag (format: key=value or key; repeatable, AND logic) | false |
 
-## Subcommands
-* [docs](megaport-cli_vxc_list_docs.md)
-

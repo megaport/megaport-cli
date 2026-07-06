@@ -27,6 +27,3 @@ megaport-cli config clear-defaults [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_config_clear-defaults_docs.md)
-
