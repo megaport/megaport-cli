@@ -32,7 +32,8 @@ func SetIsTerminal(val bool) {
 }
 
 // SetTerminalWidthForTesting pins the terminal width used by table rendering.
-// Pass 0 to restore auto-detection (falls back to fixed per-column widths). Intended for tests only.
+// Pass 0 to clear the host-provided width and use the fixed per-header
+// fallback layout. Intended for tests only.
 func SetTerminalWidthForTesting(width int) {
 	wasm.SetTerminalWidth(width)
 }
