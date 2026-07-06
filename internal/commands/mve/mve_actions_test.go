@@ -524,6 +524,20 @@ func TestUpdateMVE(t *testing.T) {
 				assert.Equal(t, "Mgmt", req.Vnics[1].Description)
 			},
 		},
+		{
+			name:          "interactive combined with flags is a usage error",
+			args:          []string{"mve-123"},
+			interactive:   true,
+			flags:         map[string]string{"name": "Updated MVE"},
+			expectedError: "cannot be combined with",
+		},
+		{
+			name:          "interactive combined with JSON is a usage error",
+			args:          []string{"mve-123"},
+			interactive:   true,
+			flags:         map[string]string{"json": `{"name":"JSON MVE"}`},
+			expectedError: "cannot be combined with",
+		},
 	}
 
 	for _, tt := range tests {
@@ -951,7 +965,7 @@ func TestBuyMVE(t *testing.T) {
 			expectedError: "failed to parse JSON",
 		},
 		{
-			name:        "JSON takes precedence over interactive flag",
+			name:        "interactive combined with JSON is a usage error",
 			interactive: true,
 			flags: map[string]string{
 				"json": `{
@@ -974,13 +988,15 @@ func TestBuyMVE(t *testing.T) {
 					"vnics": [{"description": "JSON VNIC", "vlan": 200}]
 				}`,
 			},
-			mockSetup: func(m *MockMVEService) {
-				m.ValidateMVEOrderErr = nil
-				m.BuyMVEResult = &megaport.BuyMVEResponse{
-					TechnicalServiceUID: "mve-json-wins",
-				}
-			},
-			expectedOutput: "MVE created mve-json-wins",
+			mockSetup:     func(m *MockMVEService) {},
+			expectedError: "cannot be combined with",
+		},
+		{
+			name:          "interactive combined with flags is a usage error",
+			interactive:   true,
+			flags:         map[string]string{"name": "Test MVE"},
+			mockSetup:     func(m *MockMVEService) {},
+			expectedError: "cannot be combined with",
 		},
 	}
 

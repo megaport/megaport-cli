@@ -102,6 +102,12 @@ type UpdateTagsOptions struct {
 // fetching existing tags, parsing input (interactive/JSON/JSON file), calling
 // the update function, and printing results.
 func UpdateResourceTags(opts UpdateTagsOptions) error {
+	interactive, _ := opts.Cmd.Flags().GetBool("interactive")
+	if err := CheckInteractiveConflict(interactive, HasConflictingInputFlags(opts.Cmd)); err != nil {
+		output.PrintError("%v", opts.NoColor, err)
+		return err
+	}
+
 	// Use a dedicated context for the initial list call so interactive prompts
 	// don't consume the timeout budget. Cancel immediately after the call to
 	// release timer resources before any potentially long interactive prompt.
@@ -112,8 +118,6 @@ func UpdateResourceTags(opts UpdateTagsOptions) error {
 		output.PrintError("Failed to log in or list existing resource tags: %v", opts.NoColor, err)
 		return fmt.Errorf("failed to log in or list existing resource tags: %w", err)
 	}
-
-	interactive, _ := opts.Cmd.Flags().GetBool("interactive")
 
 	var resourceTags map[string]string
 

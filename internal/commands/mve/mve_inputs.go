@@ -321,46 +321,42 @@ func parseCiscoConfig(config map[string]interface{}) (*megaport.CiscoConfig, err
 	}
 	productSize = validation.NormalizeMVEProductSize(strings.ToUpper(productSize))
 
-	mveLabel, ok := getStringFromMap(config, "mveLabel")
-	if !ok {
-		return nil, fmt.Errorf("mveLabel is required for Cisco configuration")
-	}
-
-	manageLocally, ok := getBoolFromMap(config, "manageLocally")
-	if !ok {
-		return nil, fmt.Errorf("manageLocally is required for Cisco configuration")
-	}
-
-	adminSSHPublicKey, ok := getStringFromMap(config, "adminSshPublicKey")
-	if !ok {
+	adminSSHPublicKey, _ := getStringFromMap(config, "adminSshPublicKey")
+	if adminSSHPublicKey == "" {
 		return nil, fmt.Errorf("adminSshPublicKey is required for Cisco configuration")
 	}
 
-	sshPublicKey, ok := getStringFromMap(config, "sshPublicKey")
-	if !ok {
+	sshPublicKey, _ := getStringFromMap(config, "sshPublicKey")
+	if sshPublicKey == "" {
 		return nil, fmt.Errorf("sshPublicKey is required for Cisco configuration")
 	}
 
-	cloudInit, ok := getStringFromMap(config, "cloudInit")
-	if !ok {
-		return nil, fmt.Errorf("cloudInit is required for Cisco configuration")
+	// FMC fields are only required for FMC-managed (non-local) deployments,
+	// mirroring ValidateCiscoConfig. manageLocally is optional and defaults to
+	// false, but a present-but-non-boolean value is a clear error rather than a
+	// silent false that would confusingly then demand the FMC fields.
+	manageLocally, ok := getBoolFromMap(config, "manageLocally")
+	if _, present := config["manageLocally"]; present && !ok {
+		return nil, fmt.Errorf("manageLocally must be a boolean for Cisco configuration")
 	}
 
-	fmcIPAddress, ok := getStringFromMap(config, "fmcIpAddress")
-	if !ok {
-		return nil, fmt.Errorf("fmcIpAddress is required for Cisco configuration")
+	fmcIPAddress, _ := getStringFromMap(config, "fmcIpAddress")
+	fmcRegistrationKey, _ := getStringFromMap(config, "fmcRegistrationKey")
+	fmcNatID, _ := getStringFromMap(config, "fmcNatId")
+	if !manageLocally {
+		if fmcIPAddress == "" {
+			return nil, fmt.Errorf("fmcIpAddress is required for Cisco configuration when not managing locally")
+		}
+		if fmcRegistrationKey == "" {
+			return nil, fmt.Errorf("fmcRegistrationKey is required for Cisco configuration when not managing locally")
+		}
+		if fmcNatID == "" {
+			return nil, fmt.Errorf("fmcNatId is required for Cisco configuration when not managing locally")
+		}
 	}
 
-	fmcRegistrationKey, ok := getStringFromMap(config, "fmcRegistrationKey")
-	if !ok {
-		return nil, fmt.Errorf("fmcRegistrationKey is required for Cisco configuration")
-	}
-
-	fmcNatID, ok := getStringFromMap(config, "fmcNatId")
-	if !ok {
-		return nil, fmt.Errorf("fmcNatId is required for Cisco configuration")
-	}
-
+	mveLabel, _ := getStringFromMap(config, "mveLabel")
+	cloudInit, _ := getStringFromMap(config, "cloudInit")
 	adminPassword, _ := getStringFromMap(config, "adminPassword")
 
 	return &megaport.CiscoConfig{

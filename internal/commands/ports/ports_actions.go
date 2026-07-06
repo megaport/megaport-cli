@@ -58,7 +58,7 @@ func buildLAGPortRequest(cmd *cobra.Command, noColor bool) (*megaport.BuyPortReq
 				cmd.Flags().Changed("port-speed") || cmd.Flags().Changed("location-id") ||
 				cmd.Flags().Changed("lag-count") || cmd.Flags().Changed("marketplace-visibility")
 		},
-		FromJSON:   processJSONPortInput,
+		FromJSON:   processJSONLAGPortInput,
 		FromFlags:  func() (*megaport.BuyPortRequest, error) { return processFlagLAGPortInput(cmd) },
 		FromPrompt: func() (*megaport.BuyPortRequest, error) { return promptForLAGPortDetails(noColor) },
 	})

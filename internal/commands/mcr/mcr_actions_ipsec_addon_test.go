@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/testutil"
 	megaport "github.com/megaport/megaportgo"
@@ -343,6 +344,38 @@ func TestUpdateMCRIPSecAddOn_LoginError(t *testing.T) {
 	err := UpdateMCRIPSecAddOn(cmd, []string{"mcr-abc", "addon-abc"}, false)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "auth failed")
+}
+
+func TestAddMCRIPSecAddOn_InteractiveConflict(t *testing.T) {
+	cmd := &cobra.Command{Use: "add-ipsec-addon [mcrUID]"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().Int("tunnel-count", 0, "")
+	_ = cmd.Flags().Set("interactive", "true")
+	_ = cmd.Flags().Set("tunnel-count", "10")
+
+	err := AddMCRIPSecAddOn(cmd, []string{"mcr-abc"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot be combined with")
+
+	var cliErr *exitcodes.CLIError
+	assert.ErrorAs(t, err, &cliErr)
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
+}
+
+func TestUpdateMCRIPSecAddOn_InteractiveConflict(t *testing.T) {
+	cmd := &cobra.Command{Use: "update-ipsec-addon [mcrUID] [addOnUID]"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().Int("tunnel-count", 0, "")
+	_ = cmd.Flags().Set("interactive", "true")
+	_ = cmd.Flags().Set("json", `{"tunnelCount":30}`)
+
+	err := UpdateMCRIPSecAddOn(cmd, []string{"mcr-abc", "addon-abc"}, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot be combined with")
 }
 
 func TestParseIPSecTunnelCountFromJSON(t *testing.T) {

@@ -3,11 +3,13 @@ package managed_account
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/testutil"
@@ -1193,6 +1195,111 @@ func TestGetManagedAccountFunc_Error(t *testing.T) {
 	assert.Contains(t, err.Error(), "managed account not found")
 	assert.Equal(t, "uid-123", mockService.capturedGetCompanyUID)
 	assert.Equal(t, "Nonexistent", mockService.capturedGetAccountName)
+}
+
+func TestCreateManagedAccount_InteractiveConflict(t *testing.T) {
+	tests := []struct {
+		name  string
+		flags map[string]string
+	}{
+		{
+			name: "interactive with value flag",
+			flags: map[string]string{
+				"interactive":  "true",
+				"account-name": "Test Account",
+			},
+		},
+		{
+			name: "interactive with json",
+			flags: map[string]string{
+				"interactive": "true",
+				"json":        `{"accountName":"JSON Account","accountRef":"JSON-REF"}`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Login must never be reached: the guard returns before it.
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				t.Fatal("login should not be called when input modes conflict")
+				return nil, nil
+			})
+
+			cmd := testutil.NewCommand("create", testutil.NoColorAdapter(CreateManagedAccount))
+			cmd.Flags().String("account-name", "", "")
+			cmd.Flags().String("account-ref", "", "")
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			testutil.SetFlags(t, cmd, tt.flags)
+
+			var err error
+			output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{})
+			})
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "cannot be combined with")
+
+			var cliErr *exitcodes.CLIError
+			require.True(t, errors.As(err, &cliErr))
+			assert.Equal(t, exitcodes.Usage, cliErr.Code)
+		})
+	}
+}
+
+func TestUpdateManagedAccount_InteractiveConflict(t *testing.T) {
+	tests := []struct {
+		name  string
+		flags map[string]string
+	}{
+		{
+			name: "interactive with value flag",
+			flags: map[string]string{
+				"interactive":  "true",
+				"account-name": "Test Account",
+			},
+		},
+		{
+			name: "interactive with json",
+			flags: map[string]string{
+				"interactive": "true",
+				"json":        `{"accountName":"JSON Name","accountRef":"JSON-REF"}`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				t.Fatal("login should not be called when input modes conflict")
+				return nil, nil
+			})
+
+			cmd := testutil.NewCommand("update", testutil.NoColorAdapter(UpdateManagedAccount))
+			cmd.Flags().String("account-name", "", "")
+			cmd.Flags().String("account-ref", "", "")
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			testutil.SetFlags(t, cmd, tt.flags)
+
+			var err error
+			output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{"acct-uid"})
+			})
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "cannot be combined with")
+
+			var cliErr *exitcodes.CLIError
+			require.True(t, errors.As(err, &cliErr))
+			assert.Equal(t, exitcodes.Usage, cliErr.Code)
+		})
+	}
 }
 
 func captureStderr(t *testing.T, fn func()) (result string) {

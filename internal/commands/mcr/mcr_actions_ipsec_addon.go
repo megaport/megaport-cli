@@ -25,6 +25,11 @@ func AddMCRIPSecAddOn(cmd *cobra.Command, args []string, noColor bool) error {
 	jsonFile, _ := cmd.Flags().GetString("json-file")
 	flagsProvided := cmd.Flags().Changed("tunnel-count")
 
+	if err := utils.CheckInteractiveConflict(interactive, utils.HasConflictingInputFlags(cmd)); err != nil {
+		output.PrintError("%v", noColor, err)
+		return err
+	}
+
 	var tunnelCount int
 	var err error
 
@@ -102,6 +107,11 @@ func UpdateMCRIPSecAddOn(cmd *cobra.Command, args []string, noColor bool) error 
 	jsonStr, _ := cmd.Flags().GetString("json")
 	jsonFile, _ := cmd.Flags().GetString("json-file")
 	flagsProvided := cmd.Flags().Changed("tunnel-count")
+
+	if err := utils.CheckInteractiveConflict(interactive, utils.HasConflictingInputFlags(cmd)); err != nil {
+		output.PrintError("%v", noColor, err)
+		return err
+	}
 
 	var tunnelCount int
 	var err error

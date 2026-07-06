@@ -211,6 +211,93 @@ func TestProcessJSONPortInput_ValidResourceTags(t *testing.T) {
 	assert.Equal(t, "prod", req.ResourceTags["env"])
 }
 
+func TestProcessJSONLAGPortInput(t *testing.T) {
+	tests := []struct {
+		name          string
+		jsonStr       string
+		jsonFile      string
+		writeFile     string
+		expectedError string
+		expectedLag   int
+	}{
+		{
+			name:        "valid LAG JSON",
+			jsonStr:     `{"name":"lag-test","term":12,"portSpeed":10000,"locationId":1,"lagCount":4,"marketPlaceVisibility":true}`,
+			expectedLag: 4,
+		},
+		{
+			name:          "missing lagCount rejected",
+			jsonStr:       `{"name":"lag-test","term":12,"portSpeed":10000,"locationId":1,"marketPlaceVisibility":true}`,
+			expectedError: "LAG count",
+		},
+		{
+			name:          "zero lagCount rejected",
+			jsonStr:       `{"name":"lag-test","term":12,"portSpeed":10000,"locationId":1,"lagCount":0,"marketPlaceVisibility":true}`,
+			expectedError: "LAG count",
+		},
+		{
+			name:          "lagCount above max rejected",
+			jsonStr:       `{"name":"lag-test","term":12,"portSpeed":10000,"locationId":1,"lagCount":9,"marketPlaceVisibility":true}`,
+			expectedError: "LAG count",
+		},
+		{
+			name:          "non-LAG port speed rejected",
+			jsonStr:       `{"name":"lag-test","term":12,"portSpeed":1000,"locationId":1,"lagCount":4,"marketPlaceVisibility":true}`,
+			expectedError: "port speed",
+		},
+		{
+			name:          "invalid JSON string",
+			jsonStr:       `{invalid}`,
+			expectedError: "failed to parse JSON",
+		},
+		{
+			name:          "empty tag key rejected",
+			jsonStr:       `{"name":"lag-test","term":12,"portSpeed":10000,"locationId":1,"lagCount":4,"marketPlaceVisibility":true,"resourceTags":{"":"x"}}`,
+			expectedError: "tag key must not be empty",
+		},
+		{
+			name:        "valid LAG JSON file",
+			writeFile:   `{"name":"lag-file-test","term":12,"portSpeed":10000,"locationId":1,"lagCount":4,"marketPlaceVisibility":true}`,
+			expectedLag: 4,
+		},
+		{
+			name:          "file not found",
+			jsonFile:      "/nonexistent/path/lag.json",
+			expectedError: "failed to read JSON file",
+		},
+		{
+			name:          "missing lagCount rejected via file",
+			writeFile:     `{"name":"lag-file-test","term":12,"portSpeed":10000,"locationId":1,"marketPlaceVisibility":true}`,
+			expectedError: "LAG count",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jsonFile := tt.jsonFile
+			if tt.writeFile != "" {
+				tmpFile, err := os.CreateTemp("", "lag-port-test-*.json")
+				require.NoError(t, err)
+				defer os.Remove(tmpFile.Name())
+				_, err = tmpFile.WriteString(tt.writeFile)
+				require.NoError(t, err)
+				tmpFile.Close()
+				jsonFile = tmpFile.Name()
+			}
+
+			req, err := processJSONLAGPortInput(tt.jsonStr, jsonFile)
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, req)
+				assert.Equal(t, tt.expectedLag, req.LagCount)
+			}
+		})
+	}
+}
+
 func TestProcessJSONUpdatePortInput(t *testing.T) {
 	tests := []struct {
 		name          string

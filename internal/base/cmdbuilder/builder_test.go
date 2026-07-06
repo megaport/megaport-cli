@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -366,6 +367,27 @@ func TestWithConditionalRequirements(t *testing.T) {
 		require.NoError(t, cmd.Flags().Set("json", `{"name":"test"}`))
 		err := cmd.PreRunE(cmd, []string{})
 		assert.NoError(t, err)
+	})
+
+	t.Run("fails when interactive is combined with a value flag", func(t *testing.T) {
+		cmd := buildTestCmd()
+		require.NoError(t, cmd.Flags().Set("interactive", "true"))
+		require.NoError(t, cmd.Flags().Set("name", "test-name"))
+		err := cmd.PreRunE(cmd, []string{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot be combined with")
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
+	})
+
+	t.Run("fails when interactive is combined with json", func(t *testing.T) {
+		cmd := buildTestCmd()
+		require.NoError(t, cmd.Flags().Set("interactive", "true"))
+		require.NoError(t, cmd.Flags().Set("json", `{"name":"test"}`))
+		err := cmd.PreRunE(cmd, []string{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot be combined with")
 	})
 
 	t.Run("passes when json-file is set", func(t *testing.T) {
