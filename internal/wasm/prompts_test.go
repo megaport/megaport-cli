@@ -171,27 +171,21 @@ func TestPromptForInputSyncGuard(t *testing.T) {
 		t.Errorf("expected the error to name the async entrypoint, got %q", err.Error())
 	}
 
-	// Once the sync execution has ended, prompting works again. Poll for the
-	// prompt to appear instead of sleeping a fixed duration: a fixed sleep
-	// that fires before PromptForInput registers the prompt would submit
-	// nothing and leave the test hanging until the 5-minute prompt timeout.
-	go func() {
-		var promptID string
-		for i := 0; i < 100 && promptID == ""; i++ {
-			pendingMutex.Lock()
-			for id := range pendingPrompts {
-				promptID = id
-				break
-			}
-			pendingMutex.Unlock()
-			if promptID == "" {
-				time.Sleep(10 * time.Millisecond)
-			}
+	// Once the sync execution has ended, prompting works again. Respond from
+	// the callback itself, using the request's own id, instead of polling
+	// pendingPrompts: PromptForInput registers the prompt before invoking the
+	// callback, so there's no window where the id could be missed.
+	respond := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		if len(args) > 0 {
+			promptID := args[0].Get("id").String()
+			go submitPromptResponse(js.Undefined(), []js.Value{js.ValueOf(promptID), js.ValueOf("ok")})
 		}
-		if promptID != "" {
-			submitPromptResponse(js.Undefined(), []js.Value{js.ValueOf(promptID), js.ValueOf("ok")})
-		}
-	}()
+		return nil
+	})
+	defer respond.Release()
+	promptCallbackMu.Lock()
+	promptCallback = respond.Value
+	promptCallbackMu.Unlock()
 
 	resp, err := PromptForInput("Enter name:", "text", "")
 	if err != nil {
