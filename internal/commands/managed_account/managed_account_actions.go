@@ -143,32 +143,30 @@ func UpdateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 	jsonStr, _ := cmd.Flags().GetString("json")
 	jsonFile, _ := cmd.Flags().GetString("json-file")
 
+	usingJSON := jsonStr != "" || jsonFile != ""
 	flagsProvided := cmd.Flags().Changed("account-name") || cmd.Flags().Changed("account-ref")
 
-	var req *megaport.ManagedAccountRequest
-	var err error
+	if !usingJSON && !flagsProvided && !interactive {
+		return fmt.Errorf("at least one field must be updated")
+	}
 
-	if jsonStr != "" || jsonFile != "" {
+	// Validate the JSON body before any network round-trips so malformed or
+	// empty input fails fast rather than being masked by a later "account not
+	// found" error.
+	var jsonPatch *managedAccountUpdatePatch
+	if usingJSON {
 		output.PrintInfo("Using JSON input", noColor)
-		req, err = buildUpdateManagedAccountRequestFromJSON(jsonStr, jsonFile)
+		p, err := parseManagedAccountUpdatePatchJSON(jsonStr, jsonFile)
 		if err != nil {
 			output.PrintError("Failed to process JSON input: %v", noColor, err)
 			return err
 		}
+		if p.isEmpty() {
+			return fmt.Errorf("at least one field must be updated")
+		}
+		jsonPatch = p
 	} else if flagsProvided {
 		output.PrintInfo("Using flag input", noColor)
-		req, err = buildUpdateManagedAccountRequestFromFlags(cmd)
-		if err != nil {
-			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return err
-		}
-	} else if interactive {
-		req, err = buildUpdateManagedAccountRequestFromPrompt(noColor)
-		if err != nil {
-			return err
-		}
-	} else {
-		return fmt.Errorf("at least one field must be updated")
 	}
 
 	client, err := config.Login(ctx)
@@ -177,15 +175,30 @@ func UpdateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 		return err
 	}
 
-	// Fetch original for change display
-	accounts, listErr := client.ManagedAccountService.ListManagedAccounts(ctx)
-	var originalAccount *megaport.ManagedAccount
-	if listErr == nil {
-		for _, a := range accounts {
-			if a != nil && a.CompanyUID == companyUID {
-				originalAccount = a
-				break
-			}
+	// Fetch the current account so unspecified fields are preserved rather than
+	// blanked: the SDK request has no omitempty and PUTs every field, so a
+	// partial update must be merged onto the current state before it's sent.
+	currentAccount, err := getManagedAccountByUID(ctx, client, companyUID)
+	if err != nil {
+		output.PrintError("Failed to fetch current managed account: %v", noColor, err)
+		return err
+	}
+
+	var req *megaport.ManagedAccountRequest
+
+	switch {
+	case usingJSON:
+		req = jsonPatch.applyTo(currentAccount)
+	case flagsProvided:
+		req, err = buildUpdateManagedAccountRequestFromFlags(cmd, currentAccount)
+		if err != nil {
+			output.PrintError("Failed to process flag input: %v", noColor, err)
+			return err
+		}
+	case interactive:
+		req, err = buildUpdateManagedAccountRequestFromPrompt(noColor, currentAccount)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -200,7 +213,7 @@ func UpdateManagedAccount(cmd *cobra.Command, args []string, noColor bool) error
 
 	output.PrintResourceUpdated("Managed Account", companyUID, noColor)
 
-	displayManagedAccountChanges(originalAccount, updatedAccount, noColor)
+	displayManagedAccountChanges(currentAccount, updatedAccount, noColor)
 
 	return nil
 }

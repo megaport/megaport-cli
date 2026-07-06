@@ -203,29 +203,32 @@ func TestBuildManagedAccountRequestFromJSON(t *testing.T) {
 }
 
 func TestBuildUpdateManagedAccountRequestFromFlags(t *testing.T) {
+	// A field whose flag isn't passed must keep the current account's value.
+	current := &megaport.ManagedAccount{AccountName: "Current Name", AccountRef: "CURRENT-REF"}
+
 	tests := []struct {
 		name     string
 		flags    map[string]string
 		validate func(t *testing.T, req *megaport.ManagedAccountRequest)
 	}{
 		{
-			name:  "account-name only",
+			name:  "account-name only preserves current ref",
 			flags: map[string]string{"account-name": "Updated Account"},
 			validate: func(t *testing.T, req *megaport.ManagedAccountRequest) {
 				assert.Equal(t, "Updated Account", req.AccountName)
-				assert.Equal(t, "", req.AccountRef)
+				assert.Equal(t, "CURRENT-REF", req.AccountRef)
 			},
 		},
 		{
-			name:  "account-ref only",
+			name:  "account-ref only preserves current name",
 			flags: map[string]string{"account-ref": "NEW-REF"},
 			validate: func(t *testing.T, req *megaport.ManagedAccountRequest) {
-				assert.Equal(t, "", req.AccountName)
+				assert.Equal(t, "Current Name", req.AccountName)
 				assert.Equal(t, "NEW-REF", req.AccountRef)
 			},
 		},
 		{
-			name:  "both flags",
+			name:  "both flags override current",
 			flags: map[string]string{"account-name": "Updated Account", "account-ref": "NEW-REF"},
 			validate: func(t *testing.T, req *megaport.ManagedAccountRequest) {
 				assert.Equal(t, "Updated Account", req.AccountName)
@@ -233,18 +236,18 @@ func TestBuildUpdateManagedAccountRequestFromFlags(t *testing.T) {
 			},
 		},
 		{
-			name:  "no flags",
+			name:  "no flags keeps both current values",
 			flags: map[string]string{},
 			validate: func(t *testing.T, req *megaport.ManagedAccountRequest) {
-				assert.Equal(t, "", req.AccountName)
-				assert.Equal(t, "", req.AccountRef)
+				assert.Equal(t, "Current Name", req.AccountName)
+				assert.Equal(t, "CURRENT-REF", req.AccountRef)
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req, err := buildUpdateManagedAccountRequestFromFlags(newManagedAccountCmd(tt.flags))
+			req, err := buildUpdateManagedAccountRequestFromFlags(newManagedAccountCmd(tt.flags), current)
 			assert.NoError(t, err)
 			assert.NotNil(t, req)
 			tt.validate(t, req)
@@ -252,20 +255,25 @@ func TestBuildUpdateManagedAccountRequestFromFlags(t *testing.T) {
 	}
 }
 
-// On update, only fields whose flag was explicitly changed are populated.
+// Only fields whose flag was explicitly changed override the current value;
+// an untouched flag leaves the current account's value in place.
 func TestBuildUpdateManagedAccountRequestFromFlags_ExplicitFieldTracking(t *testing.T) {
+	current := &megaport.ManagedAccount{AccountName: "Current Name", AccountRef: "CURRENT-REF"}
 	cmd := newManagedAccountCmd(nil)
-	// account-ref is registered but never set, so it stays unchanged.
+	// account-ref is registered but never set, so it keeps the current value.
 	_ = cmd.Flags().Set("account-name", "Only Name")
 
-	req, err := buildUpdateManagedAccountRequestFromFlags(cmd)
+	req, err := buildUpdateManagedAccountRequestFromFlags(cmd, current)
 	assert.NoError(t, err)
 	assert.Equal(t, "Only Name", req.AccountName)
-	assert.Equal(t, "", req.AccountRef)
+	assert.Equal(t, "CURRENT-REF", req.AccountRef)
 	assert.False(t, cmd.Flags().Changed("account-ref"))
 }
 
 func TestBuildUpdateManagedAccountRequestFromJSON(t *testing.T) {
+	// A field omitted from the JSON body must keep the current account's value.
+	current := &megaport.ManagedAccount{AccountName: "Current Name", AccountRef: "CURRENT-REF"}
+
 	tests := []struct {
 		name          string
 		jsonStr       string
@@ -275,7 +283,7 @@ func TestBuildUpdateManagedAccountRequestFromJSON(t *testing.T) {
 		validate      func(t *testing.T, req *megaport.ManagedAccountRequest)
 	}{
 		{
-			name:    "valid JSON string",
+			name:    "valid JSON string overrides both",
 			jsonStr: `{"accountName":"Updated Account","accountRef":"NEW-REF"}`,
 			validate: func(t *testing.T, req *megaport.ManagedAccountRequest) {
 				assert.Equal(t, "Updated Account", req.AccountName)
@@ -283,10 +291,26 @@ func TestBuildUpdateManagedAccountRequestFromJSON(t *testing.T) {
 			},
 		},
 		{
-			name:    "valid JSON string with partial fields",
+			name:    "partial JSON preserves omitted ref",
 			jsonStr: `{"accountName":"Updated Account"}`,
 			validate: func(t *testing.T, req *megaport.ManagedAccountRequest) {
 				assert.Equal(t, "Updated Account", req.AccountName)
+				assert.Equal(t, "CURRENT-REF", req.AccountRef)
+			},
+		},
+		{
+			name:    "empty JSON object keeps both current values",
+			jsonStr: `{}`,
+			validate: func(t *testing.T, req *megaport.ManagedAccountRequest) {
+				assert.Equal(t, "Current Name", req.AccountName)
+				assert.Equal(t, "CURRENT-REF", req.AccountRef)
+			},
+		},
+		{
+			name:    "explicit empty ref clears it",
+			jsonStr: `{"accountRef":""}`,
+			validate: func(t *testing.T, req *megaport.ManagedAccountRequest) {
+				assert.Equal(t, "Current Name", req.AccountName)
 				assert.Equal(t, "", req.AccountRef)
 			},
 		},
@@ -322,7 +346,11 @@ func TestBuildUpdateManagedAccountRequestFromJSON(t *testing.T) {
 				jsonFile = tt.setupFile(t)
 			}
 
-			req, err := buildUpdateManagedAccountRequestFromJSON(tt.jsonStr, jsonFile)
+			patch, err := parseManagedAccountUpdatePatchJSON(tt.jsonStr, jsonFile)
+			var req *megaport.ManagedAccountRequest
+			if err == nil {
+				req = patch.applyTo(current)
+			}
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)

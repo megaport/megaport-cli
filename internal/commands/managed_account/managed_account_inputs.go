@@ -40,8 +40,14 @@ func buildManagedAccountRequestFromJSON(jsonStr, jsonFile string) (*megaport.Man
 	return parseManagedAccountRequestJSON(jsonStr, jsonFile)
 }
 
-func buildUpdateManagedAccountRequestFromFlags(cmd *cobra.Command) (*megaport.ManagedAccountRequest, error) { //nolint:unparam
-	req := &megaport.ManagedAccountRequest{}
+// buildUpdateManagedAccountRequestFromFlags seeds the request from the current
+// account so a field the user didn't pass is preserved rather than blanked (the
+// SDK request has no omitempty and PUTs every field).
+func buildUpdateManagedAccountRequestFromFlags(cmd *cobra.Command, current *megaport.ManagedAccount) (*megaport.ManagedAccountRequest, error) { //nolint:unparam
+	req := &megaport.ManagedAccountRequest{
+		AccountName: current.AccountName,
+		AccountRef:  current.AccountRef,
+	}
 
 	if cmd.Flags().Changed("account-name") {
 		accountName, _ := cmd.Flags().GetString("account-name")
@@ -56,6 +62,50 @@ func buildUpdateManagedAccountRequestFromFlags(cmd *cobra.Command) (*megaport.Ma
 	return req, nil
 }
 
-func buildUpdateManagedAccountRequestFromJSON(jsonStr, jsonFile string) (*megaport.ManagedAccountRequest, error) {
-	return parseManagedAccountRequestJSON(jsonStr, jsonFile)
+// managedAccountUpdatePatch holds the fields present in an update JSON body.
+// Pointer fields distinguish an omitted field from one explicitly set to "".
+type managedAccountUpdatePatch struct {
+	AccountName *string `json:"accountName"`
+	AccountRef  *string `json:"accountRef"`
+}
+
+// parseManagedAccountUpdatePatchJSON reads and validates the update JSON body.
+// It's called before the login/fetch round-trips so malformed JSON fails fast
+// rather than being masked by a later "account not found" error.
+func parseManagedAccountUpdatePatchJSON(jsonStr, jsonFile string) (*managedAccountUpdatePatch, error) {
+	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
+	if err != nil {
+		return nil, err
+	}
+
+	patch := &managedAccountUpdatePatch{}
+	if err := json.Unmarshal(jsonData, patch); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+	}
+
+	return patch, nil
+}
+
+// isEmpty reports whether the body carried no recognized fields, so the update
+// can be rejected like the flag and interactive modes rather than sent as a
+// no-op PUT.
+func (p *managedAccountUpdatePatch) isEmpty() bool {
+	return p.AccountName == nil && p.AccountRef == nil
+}
+
+// applyTo seeds the request from the current account and overrides only the
+// fields present in the patch, so an omitted field keeps its current value
+// instead of being sent as an empty string.
+func (p *managedAccountUpdatePatch) applyTo(current *megaport.ManagedAccount) *megaport.ManagedAccountRequest {
+	req := &megaport.ManagedAccountRequest{
+		AccountName: current.AccountName,
+		AccountRef:  current.AccountRef,
+	}
+	if p.AccountName != nil {
+		req.AccountName = *p.AccountName
+	}
+	if p.AccountRef != nil {
+		req.AccountRef = *p.AccountRef
+	}
+	return req
 }
