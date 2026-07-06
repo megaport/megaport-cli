@@ -171,16 +171,23 @@ func TestPromptForInputSyncGuard(t *testing.T) {
 		t.Errorf("expected the error to name the async entrypoint, got %q", err.Error())
 	}
 
-	// Once the sync execution has ended, prompting works again.
+	// Once the sync execution has ended, prompting works again. Poll for the
+	// prompt to appear instead of sleeping a fixed duration: a fixed sleep
+	// that fires before PromptForInput registers the prompt would submit
+	// nothing and leave the test hanging until the 5-minute prompt timeout.
 	go func() {
-		time.Sleep(50 * time.Millisecond)
-		pendingMutex.Lock()
 		var promptID string
-		for id := range pendingPrompts {
-			promptID = id
-			break
+		for i := 0; i < 100 && promptID == ""; i++ {
+			pendingMutex.Lock()
+			for id := range pendingPrompts {
+				promptID = id
+				break
+			}
+			pendingMutex.Unlock()
+			if promptID == "" {
+				time.Sleep(10 * time.Millisecond)
+			}
 		}
-		pendingMutex.Unlock()
 		if promptID != "" {
 			submitPromptResponse(js.Undefined(), []js.Value{js.ValueOf(promptID), js.ValueOf("ok")})
 		}

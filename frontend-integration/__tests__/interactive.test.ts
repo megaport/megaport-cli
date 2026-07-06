@@ -580,9 +580,10 @@ describe('Interactive Mode', () => {
 
     it('surfaces the sync-entrypoint guard error instead of hanging', async () => {
       // No async entrypoint, so the composable falls back to the sync one, which
-      // the WASM guard rejects when a command would prompt.
+      // the WASM guard rejects when a command would prompt. The real
+      // executeMegaportCommand writes the failure into `output`, not `error`.
       const guardError = 'interactive mode requires the async entrypoint';
-      const syncMock = vi.fn(() => ({ error: guardError }));
+      const syncMock = vi.fn(() => ({ output: guardError }));
       delete (window as any).executeMegaportCommandAsync;
       delete (global as any).executeMegaportCommandAsync;
       (window as any).executeMegaportCommand = syncMock;
@@ -591,7 +592,7 @@ describe('Interactive Mode', () => {
       const result = await composable.execute('vxc buy --interactive');
 
       expect(syncMock).toHaveBeenCalledTimes(1);
-      expect(result.error).toContain('async entrypoint');
+      expect(result.output || result.error).toContain('async entrypoint');
 
       wrapper.unmount();
     });
