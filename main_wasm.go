@@ -49,6 +49,11 @@ func executeMegaportCommand(this js.Value, args []js.Value) interface{} {
 	// Ensure Cobra gets all our commands
 	megaport.EnsureRootCommandOutput(wasm.WasmOutputBuffer)
 
+	// Mark the sync entrypoint active so a command that requests a prompt fails
+	// fast with a clear error instead of deadlocking the JS event loop.
+	wasm.BeginSyncExecution()
+	defer wasm.EndSyncExecution()
+
 	megaport.ExecuteWithArgs(originalArgs)
 
 	return map[string]interface{}{

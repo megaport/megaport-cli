@@ -71,6 +71,75 @@ token, or API proxy.
 Credentials and tokens live only in browser memory and are cleared on reload or when the
 page calls `clearAuthCredentials`.
 
+## Interactive Mode
+
+Some commands prompt for input (interactive `buy`/`update` flows, confirmations, secrets).
+In the browser there is no stdin, so the WASM asks the host page for each value through a
+small set of JavaScript functions. Wire these up or interactive commands will never
+receive a response.
+
+### Async entrypoint is required
+
+Run any command that may prompt through **`executeMegaportCommandAsync(command, callback)`**,
+never the legacy synchronous **`executeMegaportCommand(command)`**.
+
+The sync entrypoint runs the command inline on the JS→WASM call, so a prompt would block
+the event loop and the host could never deliver a response. If a command requests a prompt
+under the sync entrypoint it now fails fast with an error telling you to use the async
+entrypoint, rather than hanging.
+
+### Host functions
+
+The WASM registers these on `window` at startup:
+
+| Function | Purpose |
+|---|---|
+| `registerPromptHandler(cb)` | Register a callback the WASM invokes with each prompt request. |
+| `submitPromptResponse(id, response)` | Reply to the prompt `id` with the user's input (a string). |
+| `cancelPrompt(id)` | Cancel the prompt `id`; the command receives a "cancelled by user" error. |
+
+### Prompt request shape
+
+Your handler receives a single object:
+
+```js
+{
+  id: "prompt_1_1700000000000000000", // unique id; echo it back in submit/cancel
+  message: "Enter port name:",         // text to show the user
+  type: "text",                        // "text" | "confirm" | "password" | "resource"
+  resourceType: "port"                 // set for resource prompts (port, mcr, vxc, ...), else ""
+}
+```
+
+Mask the input when `type === "password"`: render an `<input type="password">` or otherwise
+hide the characters. Both the password prompt and secret-resource prompts set this type, so
+keying off it covers every secret the CLI asks for.
+
+### Lifecycle
+
+```js
+registerPromptHandler((request) => {
+  const masked = request.type === 'password';
+  showPrompt(request.message, { masked }).then((answer) => {
+    if (answer === null) {
+      cancelPrompt(request.id);        // user dismissed the prompt
+    } else {
+      submitPromptResponse(request.id, answer);
+    }
+  });
+});
+
+executeMegaportCommandAsync('vxc buy --interactive', (result) => {
+  console.log(result.output || result.error);
+});
+```
+
+A prompt left unanswered times out after 5 minutes and the command receives an error.
+
+> **Output streaming:** interactive commands currently return their full output only when
+> the command completes. Live, incremental output streaming is tracked separately and this
+> section will document the subscription API once it lands.
+
 ## Building
 
 The browser CLI is two pieces: the WASM binary and the Vue front end that hosts it.

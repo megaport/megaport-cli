@@ -263,6 +263,58 @@ const checkVlan = async () => {
 </script>
 ```
 
+## Interactive Commands
+
+Some CLI commands prompt for input (interactive `buy`/`update` flows, confirmations, and
+secrets). The WASM has no stdin, so it asks the host page for each value. You must register
+a handler or interactive commands will hang waiting for a response.
+
+**Always run interactive commands through `execute()`** (the composable prefers the async
+entrypoint under the hood). The legacy synchronous entrypoint runs the command inline and
+cannot deliver a prompt response, so a command that prompts under it fails fast with an
+"interactive mode requires the async entrypoint" error instead of hanging.
+
+### Lifecycle
+
+1. **Register** a handler with `registerPromptHandler(cb)`. The WASM calls it for every
+   prompt.
+2. **Receive** a request object: `{ id, message, type, resourceType }`, where `type` is
+   `"text"`, `"confirm"`, `"password"`, or `"resource"`.
+3. **Reply** with `window.submitPromptResponse(id, response)` (a string), or dismiss it with
+   `window.cancelPrompt(id)` (the command then receives a "cancelled by user" error).
+
+Mask the input when `type === "password"`, for example with an `<input type="password">`.
+Both password prompts and secret-resource prompts set this type.
+
+```typescript
+import { useMegaportWASM } from '~/composables/megaport-cli/useMegaportWASM';
+
+const { execute, registerPromptHandler } = useMegaportWASM();
+
+registerPromptHandler((request) => {
+  const masked = request.type === 'password';
+
+  // Show your own UI (modal, inline terminal input, etc.)
+  promptUser(request.message, { masked }).then((answer) => {
+    if (answer === null) {
+      window.cancelPrompt(request.id); // user dismissed the prompt
+    } else {
+      window.submitPromptResponse(request.id, answer);
+    }
+  });
+});
+
+// Interactive command; prompts drive the handler above.
+const result = await execute('vxc buy --interactive');
+```
+
+An unanswered prompt times out after 5 minutes and the command receives an error.
+`MegaportTerminal.vue` shows a working inline-terminal prompt handler.
+
+> **Output streaming:** interactive commands currently resolve with their full output only
+> once the command finishes. Live incremental streaming is tracked separately; this section
+> will cover the subscription API once it lands.
+
 ## Telemetry
 
 Track CLI usage:

@@ -4,6 +4,7 @@ package wasm
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"syscall/js"
 	"testing"
@@ -137,6 +138,48 @@ func TestPromptForInput(t *testing.T) {
 				t.Errorf("Expected response %q, got %q", tt.response, result)
 			}
 		})
+	}
+}
+
+func TestPromptForInputSyncGuard(t *testing.T) {
+	// A registered callback would otherwise let the prompt proceed; the sync
+	// guard must short-circuit before it is ever consulted.
+	fn := js.FuncOf(func(this js.Value, args []js.Value) interface{} { return nil })
+	promptCallback = fn.Value
+	defer func() { promptCallback = js.Undefined() }()
+
+	BeginSyncExecution()
+	_, err := PromptForInput("Enter name:", "text", "")
+	EndSyncExecution()
+
+	if err == nil {
+		t.Fatal("expected an error when prompting under the sync entrypoint, got nil")
+	}
+	if !strings.Contains(err.Error(), "async entrypoint") {
+		t.Errorf("expected the error to name the async entrypoint, got %q", err.Error())
+	}
+
+	// Once the sync execution has ended, prompting works again.
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		pendingMutex.Lock()
+		var promptID string
+		for id := range pendingPrompts {
+			promptID = id
+			break
+		}
+		pendingMutex.Unlock()
+		if promptID != "" {
+			submitPromptResponse(js.Undefined(), []js.Value{js.ValueOf(promptID), js.ValueOf("ok")})
+		}
+	}()
+
+	resp, err := PromptForInput("Enter name:", "text", "")
+	if err != nil {
+		t.Fatalf("unexpected error after sync execution ended: %v", err)
+	}
+	if resp != "ok" {
+		t.Errorf("expected response %q, got %q", "ok", resp)
 	}
 }
 

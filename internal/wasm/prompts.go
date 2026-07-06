@@ -22,7 +22,23 @@ var (
 
 	// promptCounter generates unique IDs for each prompt
 	promptCounter atomic.Int64
+
+	// syncExecutionDepth is > 0 while a command runs under the legacy synchronous
+	// entrypoint. Prompting there blocks the JS event loop, which can never
+	// deliver a response, so PromptForInput fails fast instead of deadlocking.
+	syncExecutionDepth atomic.Int32
 )
+
+// BeginSyncExecution marks the start of a synchronous command execution so that
+// any prompt request fails fast rather than deadlocking the JS event loop.
+func BeginSyncExecution() {
+	syncExecutionDepth.Add(1)
+}
+
+// EndSyncExecution marks the end of a synchronous command execution.
+func EndSyncExecution() {
+	syncExecutionDepth.Add(-1)
+}
 
 // PromptRequest represents a pending prompt waiting for user input
 type PromptRequest struct {
@@ -51,6 +67,10 @@ func RegisterPromptCallback(callback js.Value) {
 // PromptForInput requests input from the user via JavaScript
 // This function blocks until the JavaScript side provides a response
 func PromptForInput(message string, promptType string, resourceType string) (string, error) {
+	if syncExecutionDepth.Load() > 0 {
+		return "", fmt.Errorf("interactive mode requires the async entrypoint: run this command through executeMegaportCommandAsync, not the synchronous executeMegaportCommand, which cannot deliver prompt responses")
+	}
+
 	promptCallbackMu.RLock()
 	cb := promptCallback
 	promptCallbackMu.RUnlock()

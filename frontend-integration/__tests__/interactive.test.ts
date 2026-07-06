@@ -1,5 +1,35 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { defineComponent } from 'vue';
+import { mount } from '@vue/test-utils';
 import { useMegaportWASM } from '../composables/useMegaportWASM';
+
+class MockGo {
+  run = vi.fn();
+  importObject = {};
+}
+
+// Mount the composable inside a component so onMounted init runs, then wait for
+// isReady so execute() can be exercised end to end.
+const createReadyComposable = async () => {
+  let composableInstance: any;
+  const TestComponent = defineComponent({
+    template: '<div>Test</div>',
+    setup() {
+      composableInstance = useMegaportWASM();
+      return composableInstance;
+    },
+  });
+  const wrapper = mount(TestComponent);
+
+  const start = Date.now();
+  while (!composableInstance.isReady.value && Date.now() - start < 1000) {
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  if (!composableInstance.isReady.value) {
+    throw new Error('WASM did not become ready in time');
+  }
+  return { wrapper, composable: composableInstance };
+};
 
 describe('Interactive Mode', () => {
   beforeEach(() => {
@@ -444,6 +474,135 @@ describe('Interactive Mode', () => {
       registeredHandler!({ id: '3', message: 'Test' });
 
       expect(externalState.promptCount).toBe(3);
+    });
+  });
+
+  describe('Password Masking', () => {
+    it('lets the handler mask input when the prompt type is password', () => {
+      let registeredHandler: ((request: any) => void) | null = null;
+      (window as any).registerPromptHandler = vi.fn((handler: any) => {
+        registeredHandler = handler;
+        return true;
+      });
+
+      const { registerPromptHandler } = useMegaportWASM();
+
+      const masked: Record<string, boolean> = {};
+      const maskingHandler = vi.fn((request: any) => {
+        masked[request.id] = request.type === 'password';
+      });
+      registerPromptHandler(maskingHandler);
+
+      registeredHandler!({ id: 'p1', message: 'Enter name:', type: 'text' });
+      registeredHandler!({ id: 'p2', message: 'Enter secret key:', type: 'password' });
+
+      expect(masked).toEqual({ p1: false, p2: true });
+    });
+
+    it('treats secret-resource prompts as password type', () => {
+      let registeredHandler: ((request: any) => void) | null = null;
+      (window as any).registerPromptHandler = vi.fn((handler: any) => {
+        registeredHandler = handler;
+        return true;
+      });
+
+      const { registerPromptHandler } = useMegaportWASM();
+      const handler = vi.fn();
+      registerPromptHandler(handler);
+
+      // wasmSecretResourcePrompt sends type "password" with a resourceType set.
+      registeredHandler!({
+        id: 'p3',
+        message: 'Enter API secret:',
+        type: 'password',
+        resourceType: 'servicekey',
+      });
+
+      expect(handler).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'password', resourceType: 'servicekey' })
+      );
+    });
+  });
+
+  describe('Cancel Lifecycle', () => {
+    it('cancels via the request id and does not submit a response', () => {
+      let registeredHandler: ((request: any) => void) | null = null;
+      (window as any).registerPromptHandler = vi.fn((handler: any) => {
+        registeredHandler = handler;
+        return true;
+      });
+      const mockSubmit = vi.fn();
+      const mockCancel = vi.fn();
+      (window as any).submitPromptResponse = mockSubmit;
+      (window as any).cancelPrompt = mockCancel;
+
+      const { registerPromptHandler } = useMegaportWASM();
+
+      // Handler dismisses the prompt (e.g. user pressed Escape).
+      registerPromptHandler((request: any) => {
+        (window as any).cancelPrompt(request.id);
+      });
+
+      registeredHandler!({ id: 'p1', message: 'Continue? [y/N]', type: 'confirm' });
+
+      expect(mockCancel).toHaveBeenCalledWith('p1');
+      expect(mockSubmit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Async-Only Entrypoint', () => {
+    beforeEach(() => {
+      (global as any).Go = MockGo;
+      (window as any).Go = MockGo;
+
+      global.fetch = vi.fn(() =>
+        Promise.resolve({
+          arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+        } as Response)
+      );
+
+      global.WebAssembly = {
+        instantiate: vi.fn(() => Promise.resolve({ instance: {}, module: {} })),
+        instantiateStreaming: vi.fn(),
+      } as any;
+    });
+
+    it('routes interactive commands through the async entrypoint, never the sync one', async () => {
+      const asyncMock = vi.fn((_cmd: string, cb: (r: any) => void) =>
+        cb({ output: 'done', error: '' })
+      );
+      const syncMock = vi.fn(() => ({ output: 'sync', error: '' }));
+      (window as any).executeMegaportCommandAsync = asyncMock;
+      (window as any).executeMegaportCommand = syncMock;
+
+      const { wrapper, composable } = await createReadyComposable();
+      const result = await composable.execute('vxc buy --interactive');
+
+      expect(asyncMock).toHaveBeenCalledTimes(1);
+      expect(asyncMock.mock.calls[0][0]).toBe('vxc buy --interactive');
+      expect(syncMock).not.toHaveBeenCalled();
+      expect(result.output).toBe('done');
+
+      wrapper.unmount();
+    });
+
+    it('surfaces the sync-entrypoint guard error instead of hanging', async () => {
+      // No async entrypoint, so the composable falls back to the sync one, which
+      // the WASM guard rejects when a command would prompt.
+      const guardError =
+        'interactive mode requires the async entrypoint: run this command through executeMegaportCommandAsync, not the synchronous executeMegaportCommand, which cannot deliver prompt responses';
+      const syncMock = vi.fn(() => ({ error: guardError }));
+      delete (window as any).executeMegaportCommandAsync;
+      delete (global as any).executeMegaportCommandAsync;
+      (window as any).executeMegaportCommand = syncMock;
+
+      const { wrapper, composable } = await createReadyComposable();
+      const result = await composable.execute('vxc buy --interactive');
+
+      expect(syncMock).toHaveBeenCalledTimes(1);
+      expect(result.error).toContain('async entrypoint');
+
+      wrapper.unmount();
     });
   });
 
