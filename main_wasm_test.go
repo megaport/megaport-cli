@@ -3,13 +3,38 @@
 package main
 
 import (
+	"os"
 	"syscall/js"
 	"testing"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/cmdbuilder"
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/wasm"
 	"github.com/stretchr/testify/assert"
 )
+
+// TestMain mirrors main()'s registration (minus the blocking channel wait):
+// go test never calls a package main's main(), so without this the
+// JS globals these tests depend on (executeMegaportCommand*,
+// resetWasmOutput, etc.) are never registered and every test here fails.
+func TestMain(m *testing.M) {
+	wasm.RegisterOutputStateReset(func() {
+		output.ResetState()
+	})
+	cmdbuilder.RegisterEmbeddedDocs(embeddedDocs)
+	// Unlike main(), always enable debug mode here: TestWasmHelperFunctions
+	// asserts every helper (including debug-only ones like debugAuthInfo and
+	// wasmDebug) is registered.
+	wasm.EnableDebugMode()
+	wasm.RegisterJSFunctions()
+	wasm.SetupIO()
+	wasm.InitPromptSystem()
+	js.Global().Set("executeMegaportCommand", js.FuncOf(executeMegaportCommand))
+	js.Global().Set("executeMegaportCommandAsync", js.FuncOf(executeMegaportCommandAsync))
+
+	os.Exit(m.Run())
+}
 
 // TestWasmInitialization verifies WASM module initializes correctly
 func TestWasmInitialization(t *testing.T) {
