@@ -629,6 +629,7 @@ func (f *fakeSpinnerInterface) StopWithSuccess(msg string) {
 }
 
 func TestSpinnerStopWithSuccessDelegatesToWasmSpinner(t *testing.T) {
+	t.Cleanup(func() { ResetState() })
 	SetVerbosity("normal")
 	fake := &fakeSpinnerInterface{}
 	spinner := &Spinner{stop: make(chan bool, 1), wasmSpinner: fake}
@@ -640,8 +641,8 @@ func TestSpinnerStopWithSuccessDelegatesToWasmSpinner(t *testing.T) {
 }
 
 func TestSpinnerStopWithSuccessQuietSkipsWasmDelegate(t *testing.T) {
+	t.Cleanup(func() { ResetState() })
 	SetVerbosity("quiet")
-	defer SetVerbosity("normal")
 	fake := &fakeSpinnerInterface{}
 	spinner := &Spinner{stop: make(chan bool, 1), wasmSpinner: fake}
 
