@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetGitVersion_WithMocks(t *testing.T) {
@@ -114,6 +115,7 @@ func TestVersionCommand_InjectedVersionIgnoresGitTag(t *testing.T) {
 
 	versionCmd, _, err := rootCmd.Find([]string{"version"})
 	assert.NoError(t, err)
+	require.NotNil(t, versionCmd.RunE)
 
 	buf := new(bytes.Buffer)
 	versionCmd.SetOut(buf)
@@ -146,6 +148,7 @@ func TestVersionCommand_DevFallsBackToGit(t *testing.T) {
 
 	versionCmd, _, err := rootCmd.Find([]string{"version"})
 	assert.NoError(t, err)
+	require.NotNil(t, versionCmd.RunE)
 
 	buf := new(bytes.Buffer)
 	versionCmd.SetOut(buf)

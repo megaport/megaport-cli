@@ -13,7 +13,6 @@ workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries unde
 
 ### Fixed
 - require Cisco FMC fields only when not managing locally on the `mve buy` and `mve validate` flags and JSON paths, matching the validator (ESD-1571)
-- honor the ldflags-injected version instead of the surrounding git tag, and normalize the `v` prefix so a current binary no longer prompts to update (ESD-1573)
 
 ## [v1.0.0-beta.1] - 2026-07-01
 
