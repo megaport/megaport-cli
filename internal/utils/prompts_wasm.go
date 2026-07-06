@@ -18,16 +18,18 @@ import (
 // output (see flush) uses a plain \n because its renderer converts EOLs.
 const promptLineBreak = "\r\n"
 
-// sanitizeForTerminal strips C0 control characters and DEL from text that is
-// folded into a terminal-bound message. The host writes prompt messages to
+// sanitizeForTerminal strips C0 controls, DEL, and C1 controls from text that
+// is folded into a terminal-bound message. The host writes prompt messages to
 // xterm without escaping, so a crafted resource name or tag value could
 // otherwise inject cursor/erase sequences that rewrite the purchase summary
-// shown before the [y/N]. Only display copies are sanitized; the values stored
-// on the order come from the prompt responses, which are untouched. Structural
-// line breaks are inserted by callers after sanitizing, so they are preserved.
+// shown before the [y/N]. C1 (0x80-0x9f) is stripped because some terminals
+// treat it as escape controls (e.g. 0x9b as CSI). Only display copies are
+// sanitized; the values stored on the order come from the prompt responses,
+// which are untouched. Structural line breaks are inserted by callers after
+// sanitizing, so they are preserved.
 func sanitizeForTerminal(s string) string {
 	return strings.Map(func(r rune) rune {
-		if r < 0x20 || r == 0x7f {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
 			return -1
 		}
 		return r
@@ -86,10 +88,10 @@ func wasmDesignConfirmPrompt(resourceType string, details []BuyConfirmDetail, no
 // content (minus its color and leading blank line, which suit a scrolling TTY
 // rather than a discrete prompt payload). Lines use \r\n because the host renders
 // prompt messages on a terminal that is not in convertEol mode, so a bare \n
-// would stair-step the summary. Detail values are sanitized: they can be
-// user-supplied (e.g. a resource name).
+// would stair-step the summary. The resource type and detail values are
+// sanitized: they can be user-supplied (e.g. a resource name).
 func buildConfirmSummary(header, resourceType string, details []BuyConfirmDetail, question string) string {
-	lines := []string{header, fmt.Sprintf("  Resource Type: %s", resourceType)}
+	lines := []string{header, fmt.Sprintf("  Resource Type: %s", sanitizeForTerminal(resourceType))}
 	for _, d := range details {
 		if d.Value != "" {
 			lines = append(lines, fmt.Sprintf("  %s: %s", d.Key, sanitizeForTerminal(d.Value)))
@@ -156,7 +158,7 @@ func (c *wasmPromptContext) flush() {
 	if len(c.lines) == 0 {
 		return
 	}
-	wasm.WasmOutputBuffer.Write([]byte(strings.Join(c.lines, "\n") + "\n"))
+	_, _ = wasm.WasmOutputBuffer.Write([]byte(strings.Join(c.lines, "\n") + "\n"))
 	c.lines = nil
 }
 

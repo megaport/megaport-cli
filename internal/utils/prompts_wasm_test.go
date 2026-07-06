@@ -545,17 +545,20 @@ func TestWasmBuyConfirmPromptSanitizesDetails(t *testing.T) {
 	captured := setupCapturingMockPromptHandler(t, "y")
 	defer cleanupMockPromptHandler()
 
-	// A crafted resource name carrying an ANSI erase-line + cursor-home
-	// sequence must not reach the terminal, or it could rewrite the summary
-	// shown before the [y/N].
-	evil := "port\x1b[2K\x1b[Hspoofed"
-	wasmBuyConfirmPrompt("Port", []BuyConfirmDetail{{Key: "Name", Value: evil}}, true)
+	// A crafted resource name and resource type carrying an ANSI erase-line +
+	// cursor-home sequence (via ESC and the C1 CSI byte 0x9b) must not reach the
+	// terminal, or they could rewrite the summary shown before the [y/N].
+	evilValue := "port\x1b[2K\x1b[Hspoofed"
+	evilType := "Port\x9b2Kspoofed"
+	wasmBuyConfirmPrompt(evilType, []BuyConfirmDetail{{Key: "Name", Value: evilValue}}, true)
 
 	msg := captured()
-	// The ESC that arms the escape sequence must be gone; the surrounding
-	// printable text is harmless and is preserved.
-	if strings.ContainsRune(msg, 0x1b) {
-		t.Errorf("Prompt message must not contain ESC (0x1b); got:\n%q", msg)
+	// The control bytes that arm the escape sequences must be gone; the
+	// surrounding printable text is harmless and is preserved.
+	for _, r := range []rune{0x1b, 0x9b} {
+		if strings.ContainsRune(msg, r) {
+			t.Errorf("Prompt message must not contain control byte %#x; got:\n%q", r, msg)
+		}
 	}
 	if !strings.Contains(msg, "port") || !strings.Contains(msg, "spoofed") {
 		t.Errorf("Sanitized value should keep printable characters; got:\n%q", msg)
@@ -591,6 +594,7 @@ func setupMockPromptHandler(t *testing.T, response string) {
 	})
 
 	wasm.RegisterPromptCallback(callback.Value)
+	t.Cleanup(callback.Release)
 }
 
 func setupSequentialMockPromptHandler(t *testing.T, responses []string) {
@@ -622,6 +626,7 @@ func setupSequentialMockPromptHandler(t *testing.T, responses []string) {
 	})
 
 	wasm.RegisterPromptCallback(callback.Value)
+	t.Cleanup(callback.Release)
 }
 
 // setupCapturingMockPromptHandler registers a callback that records the message
@@ -655,6 +660,7 @@ func setupCapturingMockPromptHandler(t *testing.T, response string) func() strin
 	})
 
 	wasm.RegisterPromptCallback(callback.Value)
+	t.Cleanup(callback.Release)
 
 	return func() string {
 		mu.Lock()
