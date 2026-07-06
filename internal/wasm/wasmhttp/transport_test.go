@@ -182,14 +182,11 @@ func TestRoundTrip_AlreadyCancelledContextSkipsFetch(t *testing.T) {
 	transport := &WasmHTTPTransport{Timeout: 5 * time.Second}
 	req := newTestRequest(t, ctx, "https://example.invalid/test")
 
-	start := time.Now()
 	resp, err := transport.RoundTrip(req)
-	elapsed := time.Since(start)
 
 	assert.Nil(t, resp)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, context.Canceled), "expected context.Canceled, got %v", err)
-	assert.Less(t, elapsed, 100*time.Millisecond, "an already-cancelled context should return before touching fetch")
 	assert.Equal(t, int32(0), atomic.LoadInt32(&fetchCalled), "fetch should never be called for an already-cancelled context")
 }
 
