@@ -176,3 +176,27 @@ func processJSONPortInput(jsonStr, jsonFile string) (*megaport.BuyPortRequest, e
 
 	return req, nil
 }
+
+func processJSONLAGPortInput(jsonStr, jsonFile string) (*megaport.BuyPortRequest, error) {
+	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
+	if err != nil {
+		return nil, err
+	}
+
+	req := &megaport.BuyPortRequest{}
+	if err := json.Unmarshal(jsonData, req); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+	}
+
+	if err := utils.RejectEmptyTagKeys(req.ResourceTags); err != nil {
+		return nil, err
+	}
+
+	// A missing lagCount unmarshals to 0, which ValidateLAGPortRequest rejects,
+	// so an order for the wrong product can't slip through the JSON path.
+	if err := validation.ValidateLAGPortRequest(req); err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
