@@ -297,7 +297,7 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
       try {
         log(`🚀 Executing command: ${command}`);
 
-        if (!window.executeMegaportCommandAsync) {
+        if (typeof window.executeMegaportCommandAsync !== 'function') {
           const duration = Date.now() - startTime;
           emitTelemetry(
             'command_execute_error',
