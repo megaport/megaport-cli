@@ -720,6 +720,8 @@ func TestUpdateManagedAccount(t *testing.T) {
 				assert.Equal(t, "company-uid-1", m.capturedUpdateUID)
 				assert.NotNil(t, m.capturedUpdateReq)
 				assert.Equal(t, "Updated Name", m.capturedUpdateReq.AccountName)
+				// --account-name alone must not blank the existing ref.
+				assert.Equal(t, "REF-001", m.capturedUpdateReq.AccountRef)
 			},
 		},
 		{
@@ -776,6 +778,8 @@ func TestUpdateManagedAccount(t *testing.T) {
 				assert.Equal(t, "company-uid-1", m.capturedUpdateUID)
 				assert.NotNil(t, m.capturedUpdateReq)
 				assert.Equal(t, "UPDATED-REF", m.capturedUpdateReq.AccountRef)
+				// --account-ref alone must not blank the existing name.
+				assert.Equal(t, "Same Name", m.capturedUpdateReq.AccountName)
 			},
 		},
 		{
@@ -804,6 +808,8 @@ func TestUpdateManagedAccount(t *testing.T) {
 				assert.Equal(t, "company-uid-1", m.capturedUpdateUID)
 				assert.NotNil(t, m.capturedUpdateReq)
 				assert.Equal(t, "Interactive Name", m.capturedUpdateReq.AccountName)
+				// Empty ref prompt must not blank the existing ref.
+				assert.Equal(t, "OLD-REF", m.capturedUpdateReq.AccountRef)
 			},
 		},
 		{
@@ -835,6 +841,34 @@ func TestUpdateManagedAccount(t *testing.T) {
 			},
 		},
 		{
+			name:       "JSON partial mode preserves omitted ref",
+			companyUID: "company-uid-1",
+			flags: map[string]string{
+				"json": `{"accountName":"JSON Name"}`,
+			},
+			setupMock: func(m *MockManagedAccountService) {
+				m.listResult = []*megaport.ManagedAccount{
+					{
+						AccountName: "Old Name",
+						AccountRef:  "OLD-REF",
+						CompanyUID:  "company-uid-1",
+					},
+				}
+				m.updateResult = &megaport.ManagedAccount{
+					AccountName: "JSON Name",
+					AccountRef:  "OLD-REF",
+					CompanyUID:  "company-uid-1",
+				}
+			},
+			expectedOut: []string{"Account Name:", "JSON Name"},
+			validateCaptured: func(t *testing.T, m *MockManagedAccountService) {
+				assert.NotNil(t, m.capturedUpdateReq)
+				assert.Equal(t, "JSON Name", m.capturedUpdateReq.AccountName)
+				// accountRef omitted from the JSON body must not be blanked.
+				assert.Equal(t, "OLD-REF", m.capturedUpdateReq.AccountRef)
+			},
+		},
+		{
 			name:       "no fields provided",
 			companyUID: "company-uid-1",
 			flags:      map[string]string{},
@@ -844,13 +878,33 @@ func TestUpdateManagedAccount(t *testing.T) {
 			expectedError: "at least one field must be updated",
 		},
 		{
+			// Empty JSON must be rejected like the flag/interactive modes, and
+			// before any account lookup (no listResult is seeded here).
+			name:       "empty JSON object rejected",
+			companyUID: "company-uid-1",
+			flags: map[string]string{
+				"json": `{}`,
+			},
+			setupMock:     func(m *MockManagedAccountService) {},
+			expectedError: "at least one field must be updated",
+			validateCaptured: func(t *testing.T, m *MockManagedAccountService) {
+				assert.Nil(t, m.capturedUpdateReq)
+			},
+		},
+		{
 			name:       "API error",
 			companyUID: "company-uid-1",
 			flags: map[string]string{
 				"account-name": "New Name",
 			},
 			setupMock: func(m *MockManagedAccountService) {
-				m.listResult = []*megaport.ManagedAccount{}
+				m.listResult = []*megaport.ManagedAccount{
+					{
+						AccountName: "Old Name",
+						AccountRef:  "REF-001",
+						CompanyUID:  "company-uid-1",
+					},
+				}
 				m.updateErr = fmt.Errorf("API error: update failed")
 			},
 			expectedError: "API error: update failed",
@@ -865,28 +919,23 @@ func TestUpdateManagedAccount(t *testing.T) {
 			expectedError: "login failed",
 		},
 		{
-			name:       "list error during original fetch - update still succeeds",
+			// The current account is required to merge unspecified fields, so a
+			// list failure must abort rather than risk clobbering.
+			name:       "list error during current fetch - update aborts",
 			companyUID: "company-uid-1",
 			flags: map[string]string{
 				"account-name": "New Name",
 			},
 			setupMock: func(m *MockManagedAccountService) {
 				m.listErr = fmt.Errorf("list failed temporarily")
-				m.updateResult = &megaport.ManagedAccount{
-					AccountName: "New Name",
-					AccountRef:  "REF-001",
-					CompanyUID:  "company-uid-1",
-				}
 			},
-			// Update should succeed even if list fails — no originalAccount for change display
-			expectedOut: []string{"company-uid-1"},
+			expectedError: "list failed temporarily",
 			validateCaptured: func(t *testing.T, m *MockManagedAccountService) {
-				assert.Equal(t, "company-uid-1", m.capturedUpdateUID)
-				assert.NotNil(t, m.capturedUpdateReq)
+				assert.Nil(t, m.capturedUpdateReq, "update must not be attempted when the current fetch fails")
 			},
 		},
 		{
-			name:       "original account not found in list - update still succeeds",
+			name:       "current account not found - update aborts",
 			companyUID: "company-uid-999",
 			flags: map[string]string{
 				"account-name": "New Name",
@@ -899,13 +948,11 @@ func TestUpdateManagedAccount(t *testing.T) {
 						CompanyUID:  "company-uid-1",
 					},
 				}
-				m.updateResult = &megaport.ManagedAccount{
-					AccountName: "New Name",
-					AccountRef:  "REF-999",
-					CompanyUID:  "company-uid-999",
-				}
 			},
-			expectedOut: []string{"company-uid-999"},
+			expectedError: "not found",
+			validateCaptured: func(t *testing.T, m *MockManagedAccountService) {
+				assert.Nil(t, m.capturedUpdateReq, "update must not be attempted when the account is missing")
+			},
 		},
 	}
 
@@ -981,6 +1028,7 @@ func TestUpdateManagedAccount(t *testing.T) {
 }
 
 func TestUpdateManagedAccount_InvalidJSON(t *testing.T) {
+	// No account is seeded: malformed JSON must fail before any account lookup.
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
 		c.ManagedAccountService = &MockManagedAccountService{}
 	})
