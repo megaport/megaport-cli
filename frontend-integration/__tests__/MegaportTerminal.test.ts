@@ -249,21 +249,23 @@ describe('MegaportTerminal', () => {
     it('should report the terminal width to WASM on init', async () => {
       (window as any).setTerminalWidth = vi.fn();
 
-      mount(MegaportTerminal);
+      const wrapper = mount(MegaportTerminal);
       await new Promise((resolve) => setTimeout(resolve, 200));
 
       expect(window.setTerminalWidth).toHaveBeenCalledWith(mockTerminalInstance.cols);
+      wrapper.unmount();
     });
 
     it('should not throw when WASM has not exposed setTerminalWidth yet', async () => {
-      expect(() => mount(MegaportTerminal)).not.toThrow();
+      const wrapper = mount(MegaportTerminal);
       await new Promise((resolve) => setTimeout(resolve, 200));
+      wrapper.unmount();
     });
 
     it('should report the terminal width to WASM again on window resize', async () => {
       (window as any).setTerminalWidth = vi.fn();
 
-      mount(MegaportTerminal);
+      const wrapper = mount(MegaportTerminal);
       await new Promise((resolve) => setTimeout(resolve, 200));
       vi.mocked(window.setTerminalWidth as any).mockClear();
 
@@ -272,6 +274,7 @@ describe('MegaportTerminal', () => {
       await new Promise((resolve) => setTimeout(resolve, 250));
 
       expect(window.setTerminalWidth).toHaveBeenCalledWith(40);
+      wrapper.unmount();
     });
   });
 

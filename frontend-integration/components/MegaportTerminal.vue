@@ -125,6 +125,7 @@ let activePrompt: { id: string; resolve: (value: string) => void } | null =
 let promptInputBuffer = '';
 let isInInteractiveCommand = false; // Track if we're in an interactive command session
 let resizeTimeoutId: NodeJS.Timeout | null = null; // For debouncing resize
+let handleResize: ReturnType<typeof debounce> | null = null; // For removing the resize listener on unmount
 
 /**
  * Debounce utility function
@@ -274,7 +275,7 @@ const initTerminal = async () => {
   });
 
   // Handle resize with debounce to prevent excessive re-calculations
-  const handleResize = debounce(() => {
+  handleResize = debounce(() => {
     fitAddon?.fit();
     syncTerminalWidth();
   }, TERMINAL_CONFIG.RESIZE_DEBOUNCE_DELAY);
@@ -677,6 +678,11 @@ onBeforeUnmount(() => {
   // Clear resize timeout if pending
   if (resizeTimeoutId) {
     clearTimeout(resizeTimeoutId);
+  }
+
+  if (handleResize) {
+    window.removeEventListener('resize', handleResize);
+    handleResize = null;
   }
 
   fitAddon?.dispose();
