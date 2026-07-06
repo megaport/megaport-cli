@@ -12,6 +12,7 @@ workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries unde
 ## [Unreleased]
 
 ### Fixed
+- preserve the existing cost centre on `ports update` and `mcr update` when `--cost-centre` is not passed (ESD-1572)
 - require Cisco FMC fields only when not managing locally on the `mve buy` and `mve validate` flags and JSON paths, matching the validator (ESD-1571)
 
 ## [v1.0.0-beta.1] - 2026-07-01

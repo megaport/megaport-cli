@@ -120,7 +120,10 @@ func processFlagMCRInput(cmd *cobra.Command) (*megaport.BuyMCRRequest, error) {
 	return req, nil
 }
 
-func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRRequest, error) {
+// The SDK sends ModifyProductRequest.CostCentre without omitempty, so an empty
+// value on the PUT wipes the existing cost centre. currentCostCentre is the
+// MCR's current value, re-sent whenever the caller didn't specify a new one.
+func processJSONUpdateMCRInput(jsonStr, jsonFile, currentCostCentre string) (*megaport.ModifyMCRRequest, error) {
 	var jsonData []byte
 	var err error
 
@@ -184,10 +187,16 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 		}
 	}
 
+	// Preserve the existing cost centre unless the caller supplied the key
+	// (an explicit empty value still clears it).
+	if _, ok := jsonMap["costCentre"]; !ok {
+		req.CostCentre = currentCostCentre
+	}
+
 	return req, nil
 }
 
-func processFlagUpdateMCRInput(cmd *cobra.Command, mcrUID string) (*megaport.ModifyMCRRequest, error) {
+func processFlagUpdateMCRInput(cmd *cobra.Command, mcrUID, currentCostCentre string) (*megaport.ModifyMCRRequest, error) {
 	req := &megaport.ModifyMCRRequest{
 		MCRID: mcrUID,
 	}
@@ -213,6 +222,9 @@ func processFlagUpdateMCRInput(cmd *cobra.Command, mcrUID string) (*megaport.Mod
 	if costCentreSet {
 		costCentre, _ := cmd.Flags().GetString("cost-centre")
 		req.CostCentre = costCentre
+	} else {
+		// Re-send the current value so a name-only update doesn't wipe it.
+		req.CostCentre = currentCostCentre
 	}
 
 	if marketplaceVisibilitySet {

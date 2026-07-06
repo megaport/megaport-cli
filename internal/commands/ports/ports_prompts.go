@@ -184,7 +184,7 @@ func promptForLAGPortDetails(noColor bool) (*megaport.BuyPortRequest, error) {
 	return req, nil
 }
 
-func promptForUpdatePortDetails(portUID string, noColor bool) (*megaport.ModifyPortRequest, error) {
+func promptForUpdatePortDetails(portUID, currentCostCentre string, noColor bool) (*megaport.ModifyPortRequest, error) {
 	req := &megaport.ModifyPortRequest{
 		PortID: portUID,
 	}
@@ -233,6 +233,12 @@ func promptForUpdatePortDetails(portUID string, noColor bool) (*megaport.ModifyP
 
 	if req.Name == "" && req.MarketplaceVisibility == nil && req.CostCentre == "" && req.ContractTermMonths == nil {
 		return nil, fmt.Errorf("at least one field must be updated")
+	}
+
+	// Re-send the current cost centre when the user skipped the prompt, so the
+	// update doesn't wipe it.
+	if req.CostCentre == "" {
+		req.CostCentre = currentCostCentre
 	}
 
 	return req, nil

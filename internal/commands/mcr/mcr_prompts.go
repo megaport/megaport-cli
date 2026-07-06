@@ -50,7 +50,7 @@ func promptForIPSecTunnelCountUpdate(noColor bool) (int, error) {
 	return count, nil
 }
 
-func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCRRequest, error) {
+func promptForUpdateMCRDetails(mcrUID, currentCostCentre string, noColor bool) (*megaport.ModifyMCRRequest, error) {
 	req := &megaport.ModifyMCRRequest{
 		MCRID: mcrUID,
 	}
@@ -133,6 +133,12 @@ func promptForUpdateMCRDetails(mcrUID string, noColor bool) (*megaport.ModifyMCR
 
 	if !fieldsUpdated {
 		return nil, fmt.Errorf("at least one field must be updated")
+	}
+
+	// Re-send the current cost centre when the user skipped the prompt, so the
+	// update doesn't wipe it.
+	if req.CostCentre == "" {
+		req.CostCentre = currentCostCentre
 	}
 
 	req.WaitForUpdate = true

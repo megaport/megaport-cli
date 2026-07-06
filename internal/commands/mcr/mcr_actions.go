@@ -226,35 +226,10 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		cmd.Flags().Changed("marketplace-visibility") || cmd.Flags().Changed("term") ||
 		cmd.Flags().Changed("mcr-asn")
 
-	var req *megaport.ModifyMCRRequest
-	var err error
-
-	if jsonStr != "" || jsonFile != "" {
-		output.PrintInfo("Using JSON input", noColor)
-		req, err = processJSONUpdateMCRInput(jsonStr, jsonFile)
-		if err != nil {
-			output.PrintError("Failed to process JSON input: %v", noColor, err)
-			return err
-		}
-		req.MCRID = mcrUID
-	} else if flagsProvided {
-		output.PrintInfo("Using flag input", noColor)
-		req, err = processFlagUpdateMCRInput(cmd, mcrUID)
-		if err != nil {
-			output.PrintError("Failed to process flag input: %v", noColor, err)
-			return err
-		}
-	} else if interactive {
-		req, err = promptForUpdateMCRDetails(mcrUID, noColor)
-		if err != nil {
-			return err
-		}
-	} else {
+	usingJSON := jsonStr != "" || jsonFile != ""
+	if !usingJSON && !flagsProvided && !interactive {
 		return fmt.Errorf("at least one field must be updated")
 	}
-
-	req.WaitForUpdate = true
-	req.WaitForTime = utils.DefaultProvisionTimeout
 
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -262,11 +237,46 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	// Fetch the current MCR up front so the update builders can re-send the
+	// existing cost centre when the caller doesn't specify one.
 	originalMCR, err := getMCRFunc(ctx, client, mcrUID)
 	if err != nil {
 		output.PrintError("Failed to get original MCR: %v", noColor, err)
 		return err
 	}
+
+	var currentCostCentre string
+	if originalMCR != nil {
+		currentCostCentre = originalMCR.CostCentre
+	}
+
+	var req *megaport.ModifyMCRRequest
+
+	if usingJSON {
+		output.PrintInfo("Using JSON input", noColor)
+		req, err = processJSONUpdateMCRInput(jsonStr, jsonFile, currentCostCentre)
+		if err != nil {
+			output.PrintError("Failed to process JSON input: %v", noColor, err)
+			return err
+		}
+		req.MCRID = mcrUID
+	} else if flagsProvided {
+		output.PrintInfo("Using flag input", noColor)
+		req, err = processFlagUpdateMCRInput(cmd, mcrUID, currentCostCentre)
+		if err != nil {
+			output.PrintError("Failed to process flag input: %v", noColor, err)
+			return err
+		}
+	} else {
+		req, err = promptForUpdateMCRDetails(mcrUID, currentCostCentre, noColor)
+		if err != nil {
+			return err
+		}
+	}
+
+	req.WaitForUpdate = true
+	req.WaitForTime = utils.DefaultProvisionTimeout
+
 	updateSpinner := output.PrintResourceUpdating("MCR", mcrUID, noColor)
 	var resp *megaport.ModifyMCRResponse
 	err = utils.WithRetry(ctx, func(ctx context.Context) error {

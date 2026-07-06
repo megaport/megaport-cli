@@ -40,19 +40,24 @@ func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	var currentCostCentre string
+	if originalPort != nil {
+		currentCostCentre = originalPort.CostCentre
+	}
+
 	if interactive {
 		output.PrintInfo("Starting interactive mode", noColor)
-		req, err = promptForUpdatePortDetails(portUID, noColor)
+		req, err = promptForUpdatePortDetails(portUID, currentCostCentre, noColor)
 	} else if jsonStr != "" || jsonFile != "" {
 		output.PrintInfo("Using JSON input", noColor)
-		req, err = processJSONUpdatePortInput(jsonStr, jsonFile)
+		req, err = processJSONUpdatePortInput(jsonStr, jsonFile, currentCostCentre)
 		if err == nil {
 			req.PortID = portUID
 		}
 	} else if cmd.Flags().Changed("name") || cmd.Flags().Changed("marketplace-visibility") ||
 		cmd.Flags().Changed("cost-centre") || cmd.Flags().Changed("term") {
 		output.PrintInfo("Using flag input", noColor)
-		req, err = processFlagUpdatePortInput(cmd, portUID)
+		req, err = processFlagUpdatePortInput(cmd, portUID, currentCostCentre)
 		if err != nil {
 			return err
 		}

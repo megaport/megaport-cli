@@ -17,6 +17,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetMCRCmd_WithMockClient(t *testing.T) {
@@ -279,6 +280,44 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			}
 		})
 	}
+}
+
+// End-to-end proof that a name-only update re-sends the MCR's existing cost
+// centre rather than wiping it (the SDK omits omitempty on costCentre).
+func TestUpdateMCR_PreservesCostCentre(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockMCRService := &MockMCRService{
+		GetMCRResult:    &megaport.MCR{UID: "mcr-cc-1", Name: "Original", CostCentre: "IT Dept", ProvisioningStatus: "LIVE"},
+		ModifyMCRResult: &megaport.ModifyMCRResponse{IsUpdated: true},
+	}
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.MCRService = mockMCRService
+		return client, nil
+	})
+
+	cmd := &cobra.Command{Use: "update"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().String("cost-centre", "", "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
+	cmd.Flags().Int("term", 0, "")
+	cmd.Flags().Int("mcr-asn", 0, "")
+	require.NoError(t, cmd.Flags().Set("name", "Renamed MCR"))
+
+	_ = captureStderr(t, func() {
+		output.CaptureOutput(func() {
+			require.NoError(t, UpdateMCR(cmd, []string{"mcr-cc-1"}, true))
+		})
+	})
+
+	require.NotNil(t, mockMCRService.CapturedModifyMCRRequest)
+	assert.Equal(t, "IT Dept", mockMCRService.CapturedModifyMCRRequest.CostCentre,
+		"name-only update must preserve the existing cost centre")
 }
 
 func TestRestoreMCRCmd_WithMockClient(t *testing.T) {

@@ -142,7 +142,7 @@ func TestProcessJSONUpdateMCRInput(t *testing.T) {
 				jsonFile = tmpFile.Name()
 			}
 
-			req, err := processJSONUpdateMCRInput(tt.jsonStr, jsonFile)
+			req, err := processJSONUpdateMCRInput(tt.jsonStr, jsonFile, "")
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -155,7 +155,7 @@ func TestProcessJSONUpdateMCRInput(t *testing.T) {
 }
 
 func TestProcessJSONUpdateMCRInput_MCRAsnSet(t *testing.T) {
-	req, err := processJSONUpdateMCRInput(`{"mcrAsn":65010}`, "")
+	req, err := processJSONUpdateMCRInput(`{"mcrAsn":65010}`, "", "")
 	assert.NoError(t, err)
 	require.NotNil(t, req)
 	require.NotNil(t, req.MCRAsn, "MCRAsn should be set when mcrAsn is provided in JSON")
@@ -163,20 +163,20 @@ func TestProcessJSONUpdateMCRInput_MCRAsnSet(t *testing.T) {
 }
 
 func TestProcessJSONUpdateMCRInput_MCRAsnOutOfRangeRejected(t *testing.T) {
-	_, err := processJSONUpdateMCRInput(`{"mcrAsn":0}`, "")
+	_, err := processJSONUpdateMCRInput(`{"mcrAsn":0}`, "", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "MCR ASN")
 }
 
 func TestProcessJSONUpdateMCRInput_MCRAsnUnsetWhenKeyAbsent(t *testing.T) {
-	req, err := processJSONUpdateMCRInput(`{"name":"only-name"}`, "")
+	req, err := processJSONUpdateMCRInput(`{"name":"only-name"}`, "", "")
 	assert.NoError(t, err)
 	require.NotNil(t, req)
 	assert.Nil(t, req.MCRAsn, "MCRAsn should remain nil when mcrAsn key is absent")
 }
 
 func TestProcessJSONUpdateMCRInput_MCRAsnNullRejected(t *testing.T) {
-	_, err := processJSONUpdateMCRInput(`{"mcrAsn":null}`, "")
+	_, err := processJSONUpdateMCRInput(`{"mcrAsn":null}`, "", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid MCR ASN: null value")
 }
@@ -241,7 +241,7 @@ func TestProcessFlagUpdateMCRInput(t *testing.T) {
 				require.NoError(t, cmd.Flags().Set(k, v))
 			}
 
-			req, err := processFlagUpdateMCRInput(cmd, "mcr-123")
+			req, err := processFlagUpdateMCRInput(cmd, "mcr-123", "")
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -264,7 +264,7 @@ func TestProcessFlagUpdateMCRInput_MCRAsnSet(t *testing.T) {
 
 	require.NoError(t, cmd.Flags().Set("mcr-asn", "65001"))
 
-	req, err := processFlagUpdateMCRInput(cmd, "mcr-123")
+	req, err := processFlagUpdateMCRInput(cmd, "mcr-123", "")
 	assert.NoError(t, err)
 	require.NotNil(t, req)
 	require.NotNil(t, req.MCRAsn, "MCRAsn should be set when --mcr-asn flag is provided")
@@ -281,7 +281,7 @@ func TestProcessFlagUpdateMCRInput_MCRAsnOutOfRangeRejected(t *testing.T) {
 
 	require.NoError(t, cmd.Flags().Set("mcr-asn", "0"))
 
-	_, err := processFlagUpdateMCRInput(cmd, "mcr-123")
+	_, err := processFlagUpdateMCRInput(cmd, "mcr-123", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "MCR ASN")
 }
@@ -296,10 +296,69 @@ func TestProcessFlagUpdateMCRInput_MCRAsnUnsetWhenFlagAbsent(t *testing.T) {
 
 	require.NoError(t, cmd.Flags().Set("name", "stays"))
 
-	req, err := processFlagUpdateMCRInput(cmd, "mcr-123")
+	req, err := processFlagUpdateMCRInput(cmd, "mcr-123", "")
 	assert.NoError(t, err)
 	require.NotNil(t, req)
 	assert.Nil(t, req.MCRAsn, "MCRAsn should remain nil when --mcr-asn flag is not changed")
+}
+
+// The SDK sends costCentre without omitempty, so an empty value on update wipes
+// it. These tests pin the preserve-unless-specified behavior for each input mode.
+func TestProcessFlagUpdateMCRInput_CostCentrePreserved(t *testing.T) {
+	newCmd := func() *cobra.Command {
+		cmd := &cobra.Command{Use: "test"}
+		cmd.Flags().String("name", "", "")
+		cmd.Flags().String("cost-centre", "", "")
+		cmd.Flags().Bool("marketplace-visibility", false, "")
+		cmd.Flags().Int("term", 0, "")
+		cmd.Flags().Int("mcr-asn", 0, "")
+		return cmd
+	}
+
+	t.Run("name-only update preserves current cost centre", func(t *testing.T) {
+		cmd := newCmd()
+		require.NoError(t, cmd.Flags().Set("name", "new-name"))
+		req, err := processFlagUpdateMCRInput(cmd, "mcr-123", "IT Dept")
+		require.NoError(t, err)
+		assert.Equal(t, "IT Dept", req.CostCentre)
+	})
+
+	t.Run("explicit cost centre overrides current", func(t *testing.T) {
+		cmd := newCmd()
+		require.NoError(t, cmd.Flags().Set("cost-centre", "Finance"))
+		req, err := processFlagUpdateMCRInput(cmd, "mcr-123", "IT Dept")
+		require.NoError(t, err)
+		assert.Equal(t, "Finance", req.CostCentre)
+	})
+
+	t.Run("explicit empty cost centre clears it", func(t *testing.T) {
+		cmd := newCmd()
+		require.NoError(t, cmd.Flags().Set("name", "new-name"))
+		require.NoError(t, cmd.Flags().Set("cost-centre", ""))
+		req, err := processFlagUpdateMCRInput(cmd, "mcr-123", "IT Dept")
+		require.NoError(t, err)
+		assert.Equal(t, "", req.CostCentre)
+	})
+}
+
+func TestProcessJSONUpdateMCRInput_CostCentrePreserved(t *testing.T) {
+	t.Run("name-only update preserves current cost centre", func(t *testing.T) {
+		req, err := processJSONUpdateMCRInput(`{"name":"new-name"}`, "", "IT Dept")
+		require.NoError(t, err)
+		assert.Equal(t, "IT Dept", req.CostCentre)
+	})
+
+	t.Run("explicit cost centre overrides current", func(t *testing.T) {
+		req, err := processJSONUpdateMCRInput(`{"name":"new-name","costCentre":"Finance"}`, "", "IT Dept")
+		require.NoError(t, err)
+		assert.Equal(t, "Finance", req.CostCentre)
+	})
+
+	t.Run("explicit empty cost centre clears it", func(t *testing.T) {
+		req, err := processJSONUpdateMCRInput(`{"name":"new-name","costCentre":""}`, "", "IT Dept")
+		require.NoError(t, err)
+		assert.Equal(t, "", req.CostCentre)
+	})
 }
 
 func TestProcessJSONPrefixFilterListInput(t *testing.T) {

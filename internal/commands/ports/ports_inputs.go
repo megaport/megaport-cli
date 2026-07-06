@@ -49,10 +49,18 @@ func processFlagLAGPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, erro
 	return req, nil
 }
 
-func processJSONUpdatePortInput(jsonStr, jsonFile string) (*megaport.ModifyPortRequest, error) {
+// The SDK sends ModifyProductRequest.CostCentre without omitempty, so an empty
+// value on the PUT wipes the existing cost centre. currentCostCentre is the
+// port's current value, re-sent whenever the caller didn't specify a new one.
+func processJSONUpdatePortInput(jsonStr, jsonFile, currentCostCentre string) (*megaport.ModifyPortRequest, error) {
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
 		return nil, err
+	}
+
+	var jsonMap map[string]interface{}
+	if err := json.Unmarshal(jsonData, &jsonMap); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	req := &megaport.ModifyPortRequest{}
@@ -75,10 +83,16 @@ func processJSONUpdatePortInput(jsonStr, jsonFile string) (*megaport.ModifyPortR
 		return nil, fmt.Errorf("at least one field must be updated")
 	}
 
+	// Preserve the existing cost centre unless the caller supplied the key
+	// (an explicit empty value still clears it).
+	if _, ok := jsonMap["costCentre"]; !ok {
+		req.CostCentre = currentCostCentre
+	}
+
 	return req, nil
 }
 
-func processFlagUpdatePortInput(cmd *cobra.Command, portUID string) (*megaport.ModifyPortRequest, error) {
+func processFlagUpdatePortInput(cmd *cobra.Command, portUID, currentCostCentre string) (*megaport.ModifyPortRequest, error) {
 	req := &megaport.ModifyPortRequest{
 		PortID: portUID,
 	}
@@ -105,6 +119,9 @@ func processFlagUpdatePortInput(cmd *cobra.Command, portUID string) (*megaport.M
 	if ccSet {
 		costCentre, _ := cmd.Flags().GetString("cost-centre")
 		req.CostCentre = costCentre
+	} else {
+		// Re-send the current value so a name-only update doesn't wipe it.
+		req.CostCentre = currentCostCentre
 	}
 
 	if termSet {

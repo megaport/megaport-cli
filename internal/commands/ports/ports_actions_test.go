@@ -1638,6 +1638,55 @@ func TestUpdatePort(t *testing.T) {
 	}
 }
 
+// End-to-end proof that a name-only update re-sends the port's existing cost
+// centre rather than wiping it (the SDK omits omitempty on costCentre).
+func TestUpdatePort_PreservesCostCentre(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+	originalGetPortFunc := getPortFunc
+	originalUpdatePortFunc := updatePortFunc
+	defer func() {
+		getPortFunc = originalGetPortFunc
+		updatePortFunc = originalUpdatePortFunc
+	}()
+
+	mockService := &MockPortService{}
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.PortService = mockService
+		return client, nil
+	})
+
+	getPortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.Port, error) {
+		return &megaport.Port{UID: portUID, Name: "Original", CostCentre: "IT Dept", ProvisioningStatus: "LIVE"}, nil
+	}
+
+	var captured *megaport.ModifyPortRequest
+	updatePortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyPortRequest) (*megaport.ModifyPortResponse, error) {
+		captured = req
+		return &megaport.ModifyPortResponse{IsUpdated: true}, nil
+	}
+
+	cmd := &cobra.Command{Use: "update"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
+	cmd.Flags().String("cost-centre", "", "")
+	cmd.Flags().Int("term", 0, "")
+	require.NoError(t, cmd.Flags().Set("name", "Renamed Port"))
+
+	_ = captureStderr(t, func() {
+		output.CaptureOutput(func() {
+			require.NoError(t, UpdatePort(cmd, []string{"port-cc-1"}, true))
+		})
+	})
+
+	require.NotNil(t, captured)
+	assert.Equal(t, "IT Dept", captured.CostCentre, "name-only update must preserve the existing cost centre")
+}
+
 func TestBuyPort_Confirmation(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
