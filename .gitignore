@@ -65,3 +65,7 @@ Thumbs.db
 # Claude Code
 .claude/
 /server
+
+# Agentic planning artifacts: the superpowers skill writes plans/specs into
+# docs/, which is a committed folder. Keep them out of the repo.
+docs/superpowers/
