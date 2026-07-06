@@ -808,7 +808,7 @@ func ParseExpiry(v js.Value) time.Time {
 	switch v.Type() {
 	case js.TypeNumber:
 		ms := v.Float()
-		if ms <= 0 || math.IsNaN(ms) || math.IsInf(ms, 0) {
+		if ms <= 0 || ms > math.MaxInt64 || math.IsNaN(ms) || math.IsInf(ms, 0) {
 			return time.Time{}
 		}
 		return time.UnixMilli(int64(ms)).UTC()

@@ -879,6 +879,7 @@ func TestParseExpiry(t *testing.T) {
 		{"NaN", js.ValueOf(math.NaN()), time.Time{}},
 		{"positive infinity", js.ValueOf(math.Inf(1)), time.Time{}},
 		{"negative infinity", js.ValueOf(math.Inf(-1)), time.Time{}},
+		{"overflows int64", js.ValueOf(math.MaxFloat64), time.Time{}},
 	}
 
 	for _, tt := range tests {
