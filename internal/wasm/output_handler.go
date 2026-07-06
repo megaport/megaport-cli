@@ -13,11 +13,13 @@ import (
 // captured output buffer, so the terminal renders output as it streams rather
 // than only when the command completes.
 //
-// Completion contract (see GetCompletionOutput): when an output handler is
-// registered, the direct/narrative buffer is delivered live via this callback
-// and is NOT repeated in the async command's final result, so the host must not
-// render both. Structured document output (JSON/CSV/XML/table) is never
-// streamed; it is returned once at completion.
+// Completion contract (see GetCompletionOutput): when the handler delivers at
+// least one chunk without throwing, the narrative is NOT repeated in the async
+// command's final result, so the host must not render both. Structured document
+// output (JSON/CSV/XML/table) is never streamed; it is returned once at
+// completion. If the handler throws or delivers nothing, streaming is disabled
+// for the rest of that command and completion falls back to the full captured
+// output so nothing is lost (already-streamed chunks may then appear twice).
 var (
 	// outputCallback is the JavaScript function invoked with each output chunk.
 	// Protected by outputCallbackMu.

@@ -194,6 +194,11 @@ registered:
   (the structured document) once at completion. Do not render both for the same
   content.
 
+Exception: if the handler throws or delivers nothing, the WASM side disables
+streaming for the rest of that command and `result.output` falls back to the
+full captured narrative, so already-streamed chunks may appear there too. This
+keeps output from being lost when a handler misbehaves.
+
 When no handler is registered, `result.output` falls back to the full captured
 output at completion, preserving the original non-streaming behavior.
 

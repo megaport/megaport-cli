@@ -552,10 +552,13 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
    * echoes, warnings, validation errors) as the command writes it, so the
    * terminal can render output as it streams instead of waiting for completion.
    *
-   * Contract: when a handler is registered, the narrative is delivered here and
-   * is NOT repeated in the `execute()` result. The result's `output` then holds
-   * only structured document output (JSON/CSV/XML/table), or is empty when the
-   * command produced only streamed narrative. Do not render both.
+   * Contract: when the handler delivers output normally, the narrative is
+   * delivered here and is NOT repeated in the `execute()` result. The result's
+   * `output` then holds only structured document output (JSON/CSV/XML/table),
+   * or is empty when the command produced only streamed narrative. Do not render
+   * both. If the handler throws (or delivers nothing), the WASM side falls back
+   * to returning the full captured output in `result.output`, so already-streamed
+   * chunks may appear there too.
    *
    * Chunks use `\n` line endings; xterm hosts should translate to `\r\n`.
    *
