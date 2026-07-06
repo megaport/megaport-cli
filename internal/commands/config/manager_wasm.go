@@ -118,8 +118,8 @@ func (m *ConfigManager) GetCurrentProfile() (*Profile, string, error) {
 }
 
 func (m *ConfigManager) GetProfile(name string) (*Profile, error) {
-	if m.config == nil || m.config.Profiles == nil {
-		return nil, ErrProfileNotFound
+	if m.config == nil {
+		return nil, fmt.Errorf("config not initialized")
 	}
 	profile, exists := m.config.Profiles[name]
 	if !exists {
