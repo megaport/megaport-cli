@@ -211,6 +211,16 @@ const loadXtermCSS = (): Promise<void> => {
 };
 
 /**
+ * Tell the WASM table renderer how wide the terminal viewport is, so tables
+ * scale to the real column count instead of a fixed layout.
+ */
+const syncTerminalWidth = () => {
+  if (terminal && window.setTerminalWidth) {
+    window.setTerminalWidth(terminal.cols);
+  }
+};
+
+/**
  * Initialize xterm.js terminal
  */
 const initTerminal = async () => {
@@ -251,6 +261,7 @@ const initTerminal = async () => {
   // Open terminal
   terminal.open(terminalRef.value);
   fitAddon.fit();
+  syncTerminalWidth();
 
   // Display welcome message
   terminal.write(props.welcomeMessage);
@@ -265,6 +276,7 @@ const initTerminal = async () => {
   // Handle resize with debounce to prevent excessive re-calculations
   const handleResize = debounce(() => {
     fitAddon?.fit();
+    syncTerminalWidth();
   }, TERMINAL_CONFIG.RESIZE_DEBOUNCE_DELAY);
 
   window.addEventListener('resize', handleResize);

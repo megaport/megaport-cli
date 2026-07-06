@@ -247,6 +247,15 @@ export interface MegaportWASM {
    * Get list of pending prompts (for debugging)
    */
   getPendingPrompts(): MegaportPromptRequest[];
+
+  /**
+   * Tell the WASM table renderer the host terminal's viewport width, in
+   * columns, so table output scales to it instead of a fixed layout.
+   * Call on terminal init and again on every resize (after the fit addon
+   * recalculates `terminal.cols`).
+   * @param cols - Terminal width in columns
+   */
+  setTerminalWidth(cols: number): { success: boolean; error?: string };
 }
 
 /**
@@ -298,6 +307,7 @@ declare global {
     submitPromptResponse?: (id: string, response: string) => void;
     cancelPrompt?: (id: string) => void;
     getPendingPrompts?: () => MegaportPromptRequest[];
+    setTerminalWidth?: (cols: number) => { success: boolean; error?: string };
     Go?: new () => GoWASM;
     // Content-hashed wasm URL injected into index.html at build time (ESD-1272).
     __MEGAPORT_WASM_URL__?: string;

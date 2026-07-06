@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { ref } from 'vue';
 import { Terminal } from '@xterm/xterm';
@@ -20,12 +20,16 @@ const mockTerminalInstance = {
     mockTerminalInstance._dataCallback = callback;
   }),
   focus: vi.fn(),
+  cols: 80,
   _dataCallback: null as any,
 };
 
 vi.mock('@xterm/xterm', () => ({
   Terminal: vi.fn(function (this: any, options: any) {
     Object.assign(this, mockTerminalInstance);
+    // Real xterm.js exposes `cols` as a live property that reflects the
+    // current size, not a value frozen at construction time.
+    Object.defineProperty(this, 'cols', { get: () => mockTerminalInstance.cols, configurable: true });
     this.options = options;
   }),
 }));
@@ -233,6 +237,41 @@ describe('MegaportTerminal', () => {
           }),
         })
       );
+    });
+  });
+
+  describe('Terminal Width Sync', () => {
+    afterEach(() => {
+      delete (window as any).setTerminalWidth;
+      mockTerminalInstance.cols = 80;
+    });
+
+    it('should report the terminal width to WASM on init', async () => {
+      (window as any).setTerminalWidth = vi.fn();
+
+      mount(MegaportTerminal);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      expect(window.setTerminalWidth).toHaveBeenCalledWith(mockTerminalInstance.cols);
+    });
+
+    it('should not throw when WASM has not exposed setTerminalWidth yet', async () => {
+      expect(() => mount(MegaportTerminal)).not.toThrow();
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    });
+
+    it('should report the terminal width to WASM again on window resize', async () => {
+      (window as any).setTerminalWidth = vi.fn();
+
+      mount(MegaportTerminal);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      vi.mocked(window.setTerminalWidth as any).mockClear();
+
+      mockTerminalInstance.cols = 40;
+      window.dispatchEvent(new Event('resize'));
+      await new Promise((resolve) => setTimeout(resolve, 250));
+
+      expect(window.setTerminalWidth).toHaveBeenCalledWith(40);
     });
   });
 

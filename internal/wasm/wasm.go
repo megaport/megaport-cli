@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"regexp"
 	"strings"
@@ -115,6 +116,11 @@ var (
 
 	// Debug flag — accessed from multiple goroutines, so use atomic.Bool.
 	debugMode atomic.Bool
+
+	// terminalWidthCols holds the host-provided terminal width in columns, set
+	// via the JS-exposed setTerminalWidth function and read by the table
+	// renderer on a goroutine, hence atomic. Zero means "unset".
+	terminalWidthCols atomic.Int64
 
 	// outputStateReset is called by ResetOutputBuffers to clear --fields and
 	// --query flag state between WASM invocations. Registered from main_wasm.go
@@ -258,6 +264,52 @@ func debugAuthInfo(this js.Value, args []js.Value) interface{} {
 	}
 }
 
+// maxTerminalWidthCols bounds the stored width well above any real terminal
+// (hundreds of columns at most), so a bogus or hostile caller can't push an
+// astronomical value into the column-width math downstream.
+const maxTerminalWidthCols = 2000
+
+// SetTerminalWidth stores the host terminal width in columns for the table
+// renderer to size columns against. Zero or negative resets to "unset" so
+// callers fall back to a fixed layout; values above maxTerminalWidthCols are
+// clamped rather than rejected.
+func SetTerminalWidth(cols int) {
+	switch {
+	case cols < 0:
+		cols = 0
+	case cols > maxTerminalWidthCols:
+		cols = maxTerminalWidthCols
+	}
+	terminalWidthCols.Store(int64(cols))
+}
+
+// TerminalWidth returns the last width set via SetTerminalWidth, or 0 if
+// none has been set.
+func TerminalWidth() int {
+	return int(terminalWidthCols.Load())
+}
+
+// setTerminalWidth is the JS-exposed function the host page calls (on init
+// and on resize, via the xterm fit addon) so table rendering can size
+// columns to the real viewport instead of a fixed layout.
+func setTerminalWidth(this js.Value, args []js.Value) interface{} {
+	if len(args) < 1 || args[0].Type() != js.TypeNumber {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "setTerminalWidth requires a numeric cols argument",
+		}
+	}
+	cols := args[0].Float()
+	if math.IsNaN(cols) || math.IsInf(cols, 0) {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "setTerminalWidth requires a finite cols argument",
+		}
+	}
+	SetTerminalWidth(int(cols))
+	return map[string]interface{}{"success": true}
+}
+
 // getAuthMethod returns the authentication method being used
 func getAuthMethod(accessKey, secretKey, accessToken string) string {
 	if accessToken != "" {
@@ -285,6 +337,10 @@ func RegisterJSFunctions() {
 	// Export storage operations
 	js.Global().Set("saveToLocalStorage", js.FuncOf(saveToLocalStorage))
 	js.Global().Set("loadFromLocalStorage", js.FuncOf(loadFromLocalStorage))
+
+	// Export the host terminal width so table rendering can size columns to
+	// the real viewport instead of a fixed layout.
+	js.Global().Set("setTerminalWidth", js.FuncOf(setTerminalWidth))
 
 	// Export auth operations (secure, in-memory only)
 	js.Global().Set("setAuthCredentials", js.FuncOf(setAuthCredentials))

@@ -13,6 +13,8 @@ import (
 
 	prettytable "github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
+
+	"github.com/megaport/megaport-cli/internal/wasm"
 )
 
 // isTerminalCached is always false in WASM (no real terminal).
@@ -93,11 +95,30 @@ func printTableToWriter[T OutputFields](w io.Writer, data []T, noColor bool, opt
 	// WASM-specific table configuration with improved column widths
 	// This ensures consistent, readable column distribution in the browser
 	columnConfigs := make([]prettytable.ColumnConfig, len(headers))
+	termWidth := wasm.TerminalWidth()
 	for i, header := range headers {
+		if termWidth > 0 {
+			// Host has told us the real viewport width (xterm.js cols): scale
+			// widths from it the same way the native renderer does.
+			var widthMax int
+			if i == 0 {
+				widthMax = calculateDynamicWidth(termWidth, 10, 15)
+			} else {
+				widthMax = calculateDynamicWidth(termWidth, 15, 25)
+			}
+			columnConfigs[i] = prettytable.ColumnConfig{
+				Number:    i + 1,
+				WidthMax:  widthMax,
+				AutoMerge: false,
+			}
+			continue
+		}
+
 		headerLower := strings.ToLower(header)
 		var widthMax int
 
-		// Set specific widths for each column type optimized for web display
+		// No known viewport width: fall back to fixed widths per column type
+		// optimized for web display.
 		switch headerLower {
 		case "uid", "id":
 			widthMax = 38 // Full UUID width for better readability
