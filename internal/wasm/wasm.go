@@ -475,15 +475,17 @@ func GetCapturedOutput() string {
 // GetCompletionOutput returns the output an async command should hand back once
 // it finishes, honoring the live-streaming contract.
 //
-// When an output handler is registered, the direct/narrative buffer has already
-// been streamed to the host chunk-by-chunk, so returning it again would
-// double-render. In that case only the structured document (JSON/CSV/XML/table)
-// is returned; it is "" when the command produced only streamed narrative.
+// Narrative is suppressed here only once at least one chunk has actually
+// streamed to the host (outputStreamed), since streamed chunks are already in
+// the terminal and returning them again would double-render. In that case only
+// the structured document (JSON/CSV/XML/table) is returned; it is "" when the
+// command produced only streamed narrative.
 //
-// When no handler is registered, this falls back to GetCapturedOutput so
-// non-streaming hosts keep receiving the full output at completion.
+// Otherwise (no handler, or a handler that delivered nothing because it threw
+// on every chunk or was torn down) this falls back to GetCapturedOutput so the
+// host still receives the full output rather than silently losing all narrative.
 func GetCompletionOutput() string {
-	if hasOutputHandler() {
+	if hasOutputHandler() && outputStreamed.Load() {
 		structured, _ := readStructuredOutputs().pick()
 		return structured
 	}

@@ -207,4 +207,20 @@ func TestGetCompletionOutputNoDoubleRender(t *testing.T) {
 		assert.Equal(t, "full output\n", GetCompletionOutput(),
 			"without a handler the host still receives the full output")
 	})
+
+	t.Run("handler that delivered nothing falls back to full output", func(t *testing.T) {
+		resetOutputStreaming()
+		defer resetOutputStreaming()
+
+		// A handler that throws on every chunk never sets outputStreamed, so the
+		// narrative reached neither the terminal nor a stream. Completion must
+		// return it rather than silently drop all output.
+		throwing := js.Global().Get("Function").New("throw new Error('always throws')")
+		RegisterOutputCallback(throwing)
+
+		_, _ = WasmOutputBuffer.Write([]byte("undelivered narrative\n"))
+		assert.False(t, DidStreamOutput(), "a handler that threw delivered nothing")
+		assert.Equal(t, "undelivered narrative\n", GetCompletionOutput(),
+			"narrative is returned at completion when nothing actually streamed")
+	})
 }
