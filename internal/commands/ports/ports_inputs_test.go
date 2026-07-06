@@ -215,6 +215,8 @@ func TestProcessJSONLAGPortInput(t *testing.T) {
 	tests := []struct {
 		name          string
 		jsonStr       string
+		jsonFile      string
+		writeFile     string
 		expectedError string
 		expectedLag   int
 	}{
@@ -253,11 +255,37 @@ func TestProcessJSONLAGPortInput(t *testing.T) {
 			jsonStr:       `{"name":"lag-test","term":12,"portSpeed":10000,"locationId":1,"lagCount":4,"marketPlaceVisibility":true,"resourceTags":{"":"x"}}`,
 			expectedError: "tag key must not be empty",
 		},
+		{
+			name:        "valid LAG JSON file",
+			writeFile:   `{"name":"lag-file-test","term":12,"portSpeed":10000,"locationId":1,"lagCount":4,"marketPlaceVisibility":true}`,
+			expectedLag: 4,
+		},
+		{
+			name:          "file not found",
+			jsonFile:      "/nonexistent/path/lag.json",
+			expectedError: "failed to read JSON file",
+		},
+		{
+			name:          "missing lagCount rejected via file",
+			writeFile:     `{"name":"lag-file-test","term":12,"portSpeed":10000,"locationId":1,"marketPlaceVisibility":true}`,
+			expectedError: "LAG count",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req, err := processJSONLAGPortInput(tt.jsonStr, "")
+			jsonFile := tt.jsonFile
+			if tt.writeFile != "" {
+				tmpFile, err := os.CreateTemp("", "lag-port-test-*.json")
+				require.NoError(t, err)
+				defer os.Remove(tmpFile.Name())
+				_, err = tmpFile.WriteString(tt.writeFile)
+				require.NoError(t, err)
+				tmpFile.Close()
+				jsonFile = tmpFile.Name()
+			}
+
+			req, err := processJSONLAGPortInput(tt.jsonStr, jsonFile)
 			if tt.expectedError != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
