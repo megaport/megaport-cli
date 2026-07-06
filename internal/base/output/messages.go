@@ -245,7 +245,13 @@ func (s *Spinner) renderFrame(i int) string {
 // sinks the carriage-return/clear-line escapes don't collapse anything, so the
 // spinner emits a single plain status line rather than animating frame-by-frame.
 func (s *Spinner) nonInteractive() bool {
-	return (s.outputFormat != "" && s.outputFormat != "table") || !IsTerminal()
+	return s.machineReadableFormat() || !IsTerminal()
+}
+
+// machineReadableFormat reports whether the spinner's output format is a
+// structured, machine-readable one (json/csv/xml) rather than table/empty.
+func (s *Spinner) machineReadableFormat() bool {
+	return s.outputFormat != "" && s.outputFormat != "table"
 }
 
 // runLoop is the shared spinner goroutine logic. If startTime is non-nil,
@@ -328,10 +334,16 @@ func (s *Spinner) StopWithSuccess(msg string) {
 	if IsQuiet() {
 		return
 	}
-	// If WASM spinner is available, delegate to it so the message reaches
-	// the captured output buffer instead of os.Stderr/os.Stdout. Safe to
-	// call Stop() again here: WasmSpinner.Stop() is idempotent (sync.Once).
-	if s.wasmSpinner != nil {
+	// If WASM spinner is available and the output format is table/empty,
+	// delegate to it so the message reaches the captured output buffer
+	// instead of os.Stderr/os.Stdout. Safe to call Stop() again here:
+	// WasmSpinner.Stop() is idempotent (sync.Once). For machine-readable
+	// formats, fall through to the stderr branch below instead: WASM has
+	// no TTY, so nonInteractive() is always true there, but the captured
+	// output buffer has no separate stdout/stderr split, so writing the
+	// success line into it risks it becoming the entire captured response
+	// for commands that don't otherwise populate a structured output buffer.
+	if s.wasmSpinner != nil && !s.machineReadableFormat() {
 		s.wasmSpinner.StopWithSuccess(msg)
 		return
 	}

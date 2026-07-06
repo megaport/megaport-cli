@@ -652,6 +652,25 @@ func TestSpinnerStopWithSuccessQuietSkipsWasmDelegate(t *testing.T) {
 	assert.Empty(t, fake.stopWithSuccessCalls)
 }
 
+// TestSpinnerStopWithSuccessMachineFormatSkipsWasmDelegate verifies that
+// machine-readable output formats (json/csv/xml) skip WASM delegation and
+// fall through to the stderr branch, so a success line can never become the
+// entire captured response for a command that otherwise reports no output.
+func TestSpinnerStopWithSuccessMachineFormatSkipsWasmDelegate(t *testing.T) {
+	t.Cleanup(func() { ResetState() })
+	SetVerbosity("normal")
+	fake := &fakeSpinnerInterface{}
+	spinner := &Spinner{stop: make(chan bool, 1), wasmSpinner: fake, outputFormat: "json"}
+
+	output := captureStderr(t, func() {
+		spinner.StopWithSuccess("Operation completed")
+	})
+
+	assert.Equal(t, 1, fake.stopCalls)
+	assert.Empty(t, fake.stopWithSuccessCalls, "machine-readable formats must not delegate to the WASM spinner")
+	assert.Contains(t, output, "Operation completed")
+}
+
 func TestShouldSuppressSpinner(t *testing.T) {
 	t.Cleanup(func() { ResetState() })
 
