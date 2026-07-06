@@ -27,6 +27,16 @@ jobs:
         run: |
           export PATH="$PATH:$(go env GOROOT)/lib/wasm"
           GOOS=js GOARCH=wasm go test -v -tags js,wasm ./cmd/megaport
+      - name: Run WASM output-streaming unit tests
+        # internal/wasm as a whole needs a browser host, but the output-streaming
+        # contract tests are node-safe, so run them explicitly to keep the
+        # streaming/completion behaviour under CI. Extend this filter when adding
+        # output-streaming tests.
+        run: |
+          export PATH="$PATH:$(go env GOROOT)/lib/wasm"
+          GOOS=js GOARCH=wasm go test -v -tags js,wasm \
+            -run 'TestOutputHandler|TestPushOutputChunk|TestRegisterOutputCallback|TestDidStreamOutput|TestGetCompletionOutput' \
+            ./internal/wasm
 
   smoke:
     name: Browser Fetch Smoke
