@@ -81,9 +81,13 @@ func ExecuteWithArgs(args []string) {
 		// streamed at all (e.g. a flag-parse failure on a command whose
 		// SilenceErrors latched true on a prior run), so the failure is not silent.
 		if wasm.HasOutputHandler() {
-			if !wasm.DidStreamOutput() {
-				// Nothing streamed, so there is no rendered error to retract:
-				// emit the same full block the capture path uses below.
+			// Emit a fallback only when nothing streamed AND nothing was
+			// captured. If a wrapper or cobra already wrote the error into the
+			// buffer (e.g. a throwing handler failed to deliver it), completion
+			// returns that captured buffer, so appending here would duplicate it.
+			// Emitting only when the buffer is empty keeps the failure from being
+			// silent without doubling it up.
+			if !wasm.DidStreamOutput() && wasm.WasmOutputBuffer.String() == "" {
 				fmt.Fprintf(wasm.WasmOutputBuffer, "Error: %v\n\n", err)
 				fmt.Fprintf(wasm.WasmOutputBuffer, "Run 'megaport-cli --help' to see the list of available commands.\n")
 			}
