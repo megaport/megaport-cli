@@ -433,6 +433,7 @@ func TestPromptForInput_RespondsPastOldFiveMinuteMark(t *testing.T) {
 	withScaledPromptTimeout(t, 200*time.Millisecond)
 
 	fn, promptIDCh := capturingPromptCallback()
+	t.Cleanup(fn.Release)
 	promptCallback = fn.Value
 	defer func() { promptCallback = js.Undefined() }()
 
@@ -465,6 +466,7 @@ func TestPromptForInput_TimeoutErrorMessage(t *testing.T) {
 	fn := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		return nil // never respond
 	})
+	t.Cleanup(fn.Release)
 	promptCallback = fn.Value
 	defer func() { promptCallback = js.Undefined() }()
 
@@ -501,6 +503,7 @@ func TestPromptForInput_LateSubmitAfterTimeoutStaysClean(t *testing.T) {
 	withScaledPromptTimeout(t, 20*time.Millisecond)
 
 	fn, promptIDCh := capturingPromptCallback()
+	t.Cleanup(fn.Release)
 	promptCallback = fn.Value
 	defer func() { promptCallback = js.Undefined() }()
 
@@ -543,6 +546,7 @@ func TestPromptForInput_LateSubmitAfterCancelStaysClean(t *testing.T) {
 	withScaledPromptTimeout(t, 5*time.Second)
 
 	fn, promptIDCh := capturingPromptCallback()
+	t.Cleanup(fn.Release)
 	promptCallback = fn.Value
 	defer func() { promptCallback = js.Undefined() }()
 
