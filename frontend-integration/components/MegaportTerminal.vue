@@ -126,6 +126,8 @@ let promptInputBuffer = '';
 let isInInteractiveCommand = false; // Track if we're in an interactive command session
 let resizeTimeoutId: NodeJS.Timeout | null = null; // For debouncing resize
 let handleResize: ReturnType<typeof debounce> | null = null; // For removing the resize listener on unmount
+let readyCheckIntervalId: NodeJS.Timeout | null = null; // Polls for WASM readiness on mount
+let readyCheckTimeoutId: NodeJS.Timeout | null = null; // Stops the readiness poll after a timeout
 
 /**
  * Debounce utility function
@@ -662,19 +664,37 @@ const reload = () => {
 // Lifecycle
 onMounted(() => {
   // Wait for WASM to be ready
-  const checkReady = setInterval(() => {
+  readyCheckIntervalId = setInterval(() => {
     if (isReady.value) {
-      clearInterval(checkReady);
+      if (readyCheckIntervalId) {
+        clearInterval(readyCheckIntervalId);
+        readyCheckIntervalId = null;
+      }
       initTerminal(); // Now async but we don't need to await
       setupPromptHandler(); // Register inline prompt handler
     }
   }, 100);
 
   // Cleanup after 30 seconds if not ready
-  setTimeout(() => clearInterval(checkReady), 30000);
+  readyCheckTimeoutId = setTimeout(() => {
+    if (readyCheckIntervalId) {
+      clearInterval(readyCheckIntervalId);
+      readyCheckIntervalId = null;
+    }
+  }, 30000);
 });
 
 onBeforeUnmount(() => {
+  // Stop the WASM readiness poll if it is still running
+  if (readyCheckIntervalId) {
+    clearInterval(readyCheckIntervalId);
+    readyCheckIntervalId = null;
+  }
+  if (readyCheckTimeoutId) {
+    clearTimeout(readyCheckTimeoutId);
+    readyCheckTimeoutId = null;
+  }
+
   // Clear resize timeout if pending
   if (resizeTimeoutId) {
     clearTimeout(resizeTimeoutId);

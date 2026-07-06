@@ -8,8 +8,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/megaport/megaport-cli/internal/wasm"
 )
 
 // TestWasmTableWriter verifies the WASM table writer buffer
@@ -205,7 +203,7 @@ func TestPrintTable_WASM_ColumnWidths(t *testing.T) {
 		},
 	}
 
-	wasm.SetTerminalWidth(0) // fallback: no host-provided width
+	SetTerminalWidthForTesting(0) // fallback: no host-provided width
 	WasmTableWriter.Reset()
 
 	err := printTable(data, false, currentPrintOptions())
@@ -249,8 +247,8 @@ func renderWideTable(t *testing.T) string {
 // set, rendering falls back to the fixed per-header widths (unchanged
 // behavior).
 func TestPrintTable_WASM_TerminalWidth_Absent(t *testing.T) {
-	wasm.SetTerminalWidth(0)
-	defer wasm.SetTerminalWidth(0)
+	SetTerminalWidthForTesting(0)
+	defer SetTerminalWidthForTesting(0)
 
 	output := renderWideTable(t)
 	assert.NotEmpty(t, output)
@@ -262,13 +260,13 @@ func TestPrintTable_WASM_TerminalWidth_Absent(t *testing.T) {
 // scales column widths using the same percentage logic as native, producing
 // a visibly narrower table than the fixed fallback for a narrow viewport.
 func TestPrintTable_WASM_TerminalWidth_Present(t *testing.T) {
-	wasm.SetTerminalWidth(0)
+	SetTerminalWidthForTesting(0)
 	fallbackOutput := renderWideTable(t)
 	fallbackLines := strings.Split(strings.TrimRight(fallbackOutput, "\n"), "\n")
 	assert.NotEmpty(t, fallbackLines)
 
-	wasm.SetTerminalWidth(40)
-	defer wasm.SetTerminalWidth(0)
+	SetTerminalWidthForTesting(40)
+	defer SetTerminalWidthForTesting(0)
 	narrowOutput := renderWideTable(t)
 	narrowLines := strings.Split(strings.TrimRight(narrowOutput, "\n"), "\n")
 	assert.NotEmpty(t, narrowLines)
@@ -281,10 +279,10 @@ func TestPrintTable_WASM_TerminalWidth_Present(t *testing.T) {
 // TestPrintTable_WASM_TerminalWidth_Absurd verifies rendering doesn't error
 // or panic for extreme (tiny/huge) host-provided widths.
 func TestPrintTable_WASM_TerminalWidth_Absurd(t *testing.T) {
-	defer wasm.SetTerminalWidth(0)
+	defer SetTerminalWidthForTesting(0)
 
 	for _, width := range []int{1, 100000} {
-		wasm.SetTerminalWidth(width)
+		SetTerminalWidthForTesting(width)
 		assert.NotPanics(t, func() {
 			output := renderWideTable(t)
 			assert.NotEmpty(t, output)
