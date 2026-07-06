@@ -565,8 +565,7 @@ describe('Interactive Mode', () => {
     it('surfaces the sync-entrypoint guard error instead of hanging', async () => {
       // No async entrypoint, so the composable falls back to the sync one, which
       // the WASM guard rejects when a command would prompt.
-      const guardError =
-        'interactive mode requires the async entrypoint: run this command through executeMegaportCommandAsync, not the synchronous executeMegaportCommand, which cannot deliver prompt responses';
+      const guardError = 'interactive mode requires the async entrypoint';
       const syncMock = vi.fn(() => ({ error: guardError }));
       delete (window as any).executeMegaportCommandAsync;
       delete (global as any).executeMegaportCommandAsync;

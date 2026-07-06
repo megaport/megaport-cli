@@ -38,9 +38,21 @@ func BeginSyncExecution() {
 	syncExecutionDepth.Add(1)
 }
 
-// EndSyncExecution marks the end of a synchronous command execution.
+// EndSyncExecution marks the end of a synchronous command execution. It clamps
+// at 0 so a stray or duplicate call can't drive the counter negative, which
+// would let a subsequent BeginSyncExecution leave prompting incorrectly
+// enabled under the sync entrypoint.
 func EndSyncExecution() {
-	syncExecutionDepth.Add(-1)
+	for {
+		cur := syncExecutionDepth.Load()
+		if cur <= 0 {
+			syncExecutionDepth.Store(0)
+			return
+		}
+		if syncExecutionDepth.CompareAndSwap(cur, cur-1) {
+			return
+		}
+	}
 }
 
 // PromptRequest represents a pending prompt waiting for user input

@@ -142,9 +142,15 @@ func TestPromptForInput(t *testing.T) {
 }
 
 func TestPromptForInputSyncGuard(t *testing.T) {
+	// Ensure no stale state from other tests can cause this test to hang.
+	pendingMutex.Lock()
+	pendingPrompts = make(map[string]*PromptRequest)
+	pendingMutex.Unlock()
+
 	// A registered callback would otherwise let the prompt proceed; the sync
 	// guard must short-circuit before it is ever consulted.
 	fn := js.FuncOf(func(this js.Value, args []js.Value) interface{} { return nil })
+	defer fn.Release()
 	promptCallback = fn.Value
 	defer func() { promptCallback = js.Undefined() }()
 
