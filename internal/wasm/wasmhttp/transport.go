@@ -212,7 +212,9 @@ func (t *WasmHTTPTransport) doFetch(req *http.Request, options map[string]interf
 	// Wait for result, context cancellation, or timeout. Aborting the
 	// controller stops the in-flight browser fetch; its eventual (unread)
 	// rejection lands in the buffered errorChan and is discarded rather than
-	// leaking a goroutine.
+	// leaking a goroutine. If a result and a cancellation/timeout become ready
+	// at the same instant, select picks pseudo-randomly; a caller that
+	// cancelled doesn't want the late answer anyway, so this is acceptable.
 	select {
 	case result := <-resultChan:
 		return result, nil
