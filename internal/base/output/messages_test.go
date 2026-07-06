@@ -610,6 +610,47 @@ func TestSpinnerStopWithSuccess(t *testing.T) {
 	assert.Contains(t, output, "✓ Operation completed")
 }
 
+// fakeSpinnerInterface is a native-buildable SpinnerInterface stand-in used to
+// verify Spinner.StopWithSuccess delegates to it, without depending on the
+// real (WASM-only) WasmSpinner implementation.
+type fakeSpinnerInterface struct {
+	stopCalls            int
+	stopWithSuccessCalls []string
+}
+
+func (f *fakeSpinnerInterface) Start(string) {}
+
+func (f *fakeSpinnerInterface) Stop() {
+	f.stopCalls++
+}
+
+func (f *fakeSpinnerInterface) StopWithSuccess(msg string) {
+	f.stopWithSuccessCalls = append(f.stopWithSuccessCalls, msg)
+}
+
+func TestSpinnerStopWithSuccessDelegatesToWasmSpinner(t *testing.T) {
+	SetVerbosity("normal")
+	fake := &fakeSpinnerInterface{}
+	spinner := &Spinner{stop: make(chan bool, 1), wasmSpinner: fake}
+
+	spinner.StopWithSuccess("Operation completed")
+
+	assert.Equal(t, 1, fake.stopCalls)
+	assert.Equal(t, []string{"Operation completed"}, fake.stopWithSuccessCalls)
+}
+
+func TestSpinnerStopWithSuccessQuietSkipsWasmDelegate(t *testing.T) {
+	SetVerbosity("quiet")
+	defer SetVerbosity("normal")
+	fake := &fakeSpinnerInterface{}
+	spinner := &Spinner{stop: make(chan bool, 1), wasmSpinner: fake}
+
+	spinner.StopWithSuccess("Operation completed")
+
+	assert.Equal(t, 1, fake.stopCalls)
+	assert.Empty(t, fake.stopWithSuccessCalls)
+}
+
 func TestShouldSuppressSpinner(t *testing.T) {
 	t.Cleanup(func() { ResetState() })
 
