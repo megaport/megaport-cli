@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -36,7 +37,9 @@ func checkForUpdate(currentVersion string, client *http.Client, cacheDir string)
 		}
 		writeUpdateCache(cacheFile, latest)
 	}
-	if latest != currentVersion {
+	// goreleaser injects the bare version (e.g. "0.9.4") while GitHub's tag_name
+	// carries a "v" prefix; compare with both prefixes stripped.
+	if strings.TrimPrefix(latest, "v") != strings.TrimPrefix(currentVersion, "v") {
 		return latest, true
 	}
 	return "", false
