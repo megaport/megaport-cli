@@ -285,7 +285,10 @@ confirmation is treated as declined. Neither is what you want, so keep to `execu
    `window.cancelPrompt(id)` (the command then receives a "prompt cancelled by user" error).
 
 Mask the input when `type === "password"`, for example with an `<input type="password">`.
-Both password prompts and secret-resource prompts set this type.
+Password prompts and secret-resource prompts (VXC/MVE passwords and pre-shared keys) set
+this type. Some other secret-bearing inputs (partner auth/service/shared keys, MVE
+registration keys) currently arrive as `type === "resource"`, so don't rely on the password
+type alone to mask every secret.
 
 ```typescript
 import { useMegaportWASM } from '~/composables/megaport-cli/useMegaportWASM';

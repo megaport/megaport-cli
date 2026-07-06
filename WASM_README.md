@@ -109,13 +109,16 @@ Your handler receives a single object:
   id: "prompt_1_1700000000000000000", // unique id; echo it back in submit/cancel
   message: "Enter port name:",         // text to show the user
   type: "text",                        // "text" | "confirm" | "password" | "resource"
-  resourceType: "port"                 // set for resource prompts (port, mcr, vxc, ...), else ""
+  resourceType: "port"                 // set for resource and secret-resource prompts (port, mcr, vxc, ...), else ""
 }
 ```
 
 Mask the input when `type === "password"`: render an `<input type="password">` or otherwise
-hide the characters. Both the password prompt and secret-resource prompts set this type, so
-keying off it covers every secret the CLI asks for.
+hide the characters. Password prompts and secret-resource prompts (for example VXC/MVE
+passwords and pre-shared keys) set this type. Note that some other secret-bearing inputs
+(such as partner auth/service/shared keys and MVE registration keys) are currently sent as
+`type === "resource"`, so don't rely on the password type alone if you want to mask every
+possible secret.
 
 ### Lifecycle
 
