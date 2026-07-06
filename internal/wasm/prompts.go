@@ -10,6 +10,12 @@ import (
 	"time"
 )
 
+// CommandTimeout is the maximum duration an async CLI command may run (see
+// main_wasm.go's asyncCommandTimeout) and the ceiling PromptForInput waits
+// for a single prompt response. The two must stay equal: a shorter prompt
+// timeout would fail an interactive command before its own budget expires.
+const CommandTimeout = 10 * time.Minute
+
 var (
 	// promptCallback is the JavaScript function to call when prompting for input.
 	// Protected by promptCallbackMu.
@@ -22,6 +28,11 @@ var (
 
 	// promptCounter generates unique IDs for each prompt
 	promptCounter atomic.Int64
+
+	// promptTimeout is the effective per-prompt wait ceiling. It defaults to
+	// CommandTimeout but is a var (rather than using CommandTimeout directly)
+	// so tests can shrink it instead of waiting out the full command budget.
+	promptTimeout = CommandTimeout
 )
 
 // PromptRequest represents a pending prompt waiting for user input
@@ -112,13 +123,13 @@ func PromptForInput(message string, promptType string, resourceType string) (str
 		js.Global().Get("console").Call("error", fmt.Sprintf("❌ Error for %s: %v", promptID, err))
 		return "", err
 
-	case <-time.After(5 * time.Minute):
+	case <-time.After(promptTimeout):
 		// Timeout
 		pendingMutex.Lock()
 		delete(pendingPrompts, promptID)
 		pendingMutex.Unlock()
 
-		return "", fmt.Errorf("prompt timeout: no response received")
+		return "", fmt.Errorf("prompt timeout: no response received after %s; the host can cancel a pending prompt via cancelPrompt", promptTimeout)
 	}
 }
 

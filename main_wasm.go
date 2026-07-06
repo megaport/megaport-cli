@@ -74,10 +74,13 @@ func executeMegaportCommandAsync(this js.Value, args []js.Value) interface{} {
 	}
 
 	// asyncCommandTimeout is the maximum time an async command may run before
-	// the callback is invoked with a timeout error. The inner goroutine may still
-	// be running after the timeout (Go goroutines cannot be forcibly cancelled),
-	// but the JS caller will not be left waiting indefinitely.
-	const asyncCommandTimeout = 10 * time.Minute
+	// the callback is invoked with a timeout error. It is wasm.CommandTimeout,
+	// the same budget PromptForInput waits for a single prompt response, so an
+	// interactive command's pending prompt cannot time out before the command
+	// itself does. The inner goroutine may still be running after the timeout
+	// (Go goroutines cannot be forcibly cancelled), but the JS caller will not
+	// be left waiting indefinitely.
+	const asyncCommandTimeout = wasm.CommandTimeout
 
 	// once ensures the callback is invoked exactly once even if both the timeout
 	// and the normal completion path race.

@@ -14,6 +14,7 @@ workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries unde
 ### Fixed
 - require Cisco FMC fields only when not managing locally on the `mve buy` and `mve validate` flags and JSON paths, matching the validator (ESD-1571)
 - `mve buy` and `mve validate` now apply `resourceTags` from JSON input, and interactive `mve buy` now prompts for tags, matching MCR. Previously the JSON path silently dropped the documented `resourceTags` field and interactive mode never asked. The JSON path shares the same value and empty-key validation as the flags path, so non-string values and empty keys return a usage error before the order is placed
+- WASM interactive prompts no longer time out before the command's own 10-minute budget expires. A single unanswered prompt used to fail after a hardcoded 5 minutes even though the async command wrapper allowed 10, discarding everything the user had entered so far. Both timeouts now share one constant, and the timeout error states how long it waited and that the host can cancel via `cancelPrompt` (ESD-1597)
 
 ## [v1.0.0-beta.1] - 2026-07-01
 
