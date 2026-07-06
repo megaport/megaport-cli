@@ -306,6 +306,15 @@ func setTerminalWidth(this js.Value, args []js.Value) interface{} {
 			"error":   "setTerminalWidth requires a finite cols argument",
 		}
 	}
+	// Clamp in float space before converting: int(float64) is
+	// implementation-defined when the value is out of int range, so a huge
+	// finite input could otherwise slip past SetTerminalWidth's cap.
+	switch {
+	case cols < 0:
+		cols = 0
+	case cols > float64(maxTerminalWidthCols):
+		cols = float64(maxTerminalWidthCols)
+	}
 	SetTerminalWidth(int(cols))
 	return map[string]interface{}{"success": true}
 }

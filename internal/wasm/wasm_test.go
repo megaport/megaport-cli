@@ -470,6 +470,8 @@ func TestSetTerminalWidth_JSFunction(t *testing.T) {
 		{name: "normal width", args: []interface{}{80}, wantOK: true, wantCol: 80},
 		{name: "tiny width", args: []interface{}{1}, wantOK: true, wantCol: 1},
 		{name: "huge width clamps to max", args: []interface{}{100000}, wantOK: true, wantCol: maxTerminalWidthCols},
+		{name: "out-of-int-range width clamps to max", args: []interface{}{1e300}, wantOK: true, wantCol: maxTerminalWidthCols},
+		{name: "large negative width resets to unset", args: []interface{}{-1e300}, wantOK: true, wantCol: 0},
 		{name: "zero width", args: []interface{}{0}, wantOK: true, wantCol: 0},
 		{name: "missing argument", args: []interface{}{}, wantOK: false},
 		{name: "non-numeric argument", args: []interface{}{"wide"}, wantOK: false},
