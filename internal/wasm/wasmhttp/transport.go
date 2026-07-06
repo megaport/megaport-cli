@@ -233,12 +233,24 @@ func (t *WasmHTTPTransport) doFetch(req *http.Request, options map[string]interf
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
+	// Give cancellation/timeout priority: if either is already signaled,
+	// report it deterministically instead of leaving the outcome to Go's
+	// pseudo-random selection among ready channels, which could otherwise
+	// return a result to a caller who has already given up on it.
+	select {
+	case <-req.Context().Done():
+		abortController.Call("abort")
+		return nil, req.Context().Err()
+	case <-timer.C:
+		abortController.Call("abort")
+		return nil, fmt.Errorf("fetch timeout after %v", timeout)
+	default:
+	}
+
 	// Wait for result, context cancellation, or timeout. Aborting the
 	// controller stops the in-flight browser fetch; its eventual (unread)
 	// rejection lands in the buffered errorChan and is discarded rather than
-	// leaking a goroutine. If a result and a cancellation/timeout become ready
-	// at the same instant, select picks pseudo-randomly; a caller that
-	// cancelled doesn't want the late answer anyway, so this is acceptable.
+	// leaking a goroutine.
 	select {
 	case result := <-resultChan:
 		return result, nil
