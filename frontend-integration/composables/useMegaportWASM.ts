@@ -235,7 +235,6 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
 
         log('✅ Megaport WASM ready (direct mode)');
         log('Available functions:', {
-          executeMegaportCommand: typeof window.executeMegaportCommand,
           executeMegaportCommandAsync:
             typeof window.executeMegaportCommandAsync,
           debugAuthInfo: typeof window.debugAuthInfo,
@@ -298,44 +297,21 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
       try {
         log(`🚀 Executing command: ${command}`);
 
-        // Use async version for better reliability
-        if (window.executeMegaportCommandAsync) {
-          window.executeMegaportCommandAsync(command, (result) => {
-            const duration = Date.now() - startTime;
+        if (!window.executeMegaportCommandAsync) {
+          const duration = Date.now() - startTime;
+          emitTelemetry(
+            'command_execute_error',
+            {
+              command,
+              error: 'No WASM execute function available',
+            },
+            duration
+          );
+          reject(new Error('No WASM execute function available'));
+          return;
+        }
 
-            // Validate result with type guard
-            if (!isMegaportCommandResult(result)) {
-              const error = 'Invalid command result received from WASM';
-              warn('⚠️ Invalid result:', result);
-              emitTelemetry(
-                'command_execute_error',
-                { command, error },
-                duration
-              );
-              reject(new Error(error));
-              return;
-            }
-
-            log('📦 Command result:', result);
-
-            if (result.error) {
-              emitTelemetry(
-                'command_execute_error',
-                {
-                  command,
-                  error: result.error,
-                },
-                duration
-              );
-            } else {
-              emitTelemetry('command_execute_success', { command }, duration);
-            }
-
-            resolve(result);
-          });
-        } else if (window.executeMegaportCommand) {
-          // Fallback to sync version
-          const result = window.executeMegaportCommand(command);
+        window.executeMegaportCommandAsync(command, (result) => {
           const duration = Date.now() - startTime;
 
           // Validate result with type guard
@@ -351,6 +327,8 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
             return;
           }
 
+          log('📦 Command result:', result);
+
           if (result.error) {
             emitTelemetry(
               'command_execute_error',
@@ -365,18 +343,7 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
           }
 
           resolve(result);
-        } else {
-          const duration = Date.now() - startTime;
-          emitTelemetry(
-            'command_execute_error',
-            {
-              command,
-              error: 'No WASM execute function available',
-            },
-            duration
-          );
-          reject(new Error('No WASM execute function available'));
-        }
+        });
       } catch (err) {
         const duration = Date.now() - startTime;
         emitTelemetry(
@@ -396,7 +363,6 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
    * Set authentication credentials (secure, in-memory only)
    *
    * Available WASM functions:
-   * - executeMegaportCommand: 'function' - Synchronous command execution
    * - executeMegaportCommandAsync: 'function' - Asynchronous command execution with callback
    * - debugAuthInfo: 'function' - Get current auth state for debugging
    * - setAuthCredentials: 'function' - Secure in-memory credential storage

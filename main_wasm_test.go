@@ -43,79 +43,39 @@ func TestWasmHelperFunctions(t *testing.T) {
 	}
 }
 
-// TestExecuteMegaportCommand_Help verifies help command execution
-func TestExecuteMegaportCommand_Help(t *testing.T) {
-	wasm.ResetOutputBuffers()
-
-	// Call the sync version with help command
+// TestExecuteMegaportCommand_Deprecated verifies the legacy sync entrypoint no
+// longer executes commands and always returns an immediate error pointing
+// callers at executeMegaportCommandAsync, regardless of the command given.
+func TestExecuteMegaportCommand_Deprecated(t *testing.T) {
 	executeMegaportCmd := js.Global().Get("executeMegaportCommand")
-	result := executeMegaportCmd.Invoke(js.ValueOf("--help"))
 
-	// Verify result structure
-	assert.Equal(t, js.TypeObject, result.Type())
-	output := result.Get("output")
-	assert.False(t, output.IsUndefined())
+	for _, cmd := range []string{"--help", "version", "nonexistent-command", "", "version --format json"} {
+		result := executeMegaportCmd.Invoke(js.ValueOf(cmd))
 
-	outputStr := output.String()
-	assert.NotEmpty(t, outputStr)
-	assert.Contains(t, outputStr, "Megaport CLI")
+		assert.Equal(t, js.TypeObject, result.Type())
+		assert.True(t, result.Get("output").IsUndefined(), "sync entrypoint should not produce output for %q", cmd)
+
+		errMsg := result.Get("error")
+		assert.False(t, errMsg.IsUndefined())
+		assert.Contains(t, errMsg.String(), "executeMegaportCommandAsync")
+	}
 }
 
-// TestExecuteMegaportCommand_Version verifies version command
-func TestExecuteMegaportCommand_Version(t *testing.T) {
-	wasm.ResetOutputBuffers()
+// invokeAsyncAndWait calls executeMegaportCommandAsync and blocks until the
+// callback fires, returning the result object.
+func invokeAsyncAndWait(cmd string) js.Value {
+	executeMegaportCmdAsync := js.Global().Get("executeMegaportCommandAsync")
 
-	executeMegaportCmd := js.Global().Get("executeMegaportCommand")
-	result := executeMegaportCmd.Invoke(js.ValueOf("version"))
+	resultCh := make(chan js.Value, 1)
+	var callback js.Func
+	callback = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		resultCh <- args[0]
+		callback.Release()
+		return nil
+	})
 
-	assert.Equal(t, js.TypeObject, result.Type())
-	output := result.Get("output")
-	assert.False(t, output.IsUndefined())
-
-	outputStr := output.String()
-	assert.NotEmpty(t, outputStr)
-}
-
-// TestExecuteMegaportCommand_InvalidCommand verifies error handling
-func TestExecuteMegaportCommand_InvalidCommand(t *testing.T) {
-	wasm.ResetOutputBuffers()
-
-	executeMegaportCmd := js.Global().Get("executeMegaportCommand")
-	result := executeMegaportCmd.Invoke(js.ValueOf("nonexistent-command"))
-
-	assert.Equal(t, js.TypeObject, result.Type())
-	output := result.Get("output")
-
-	// Should have error output
-	outputStr := output.String()
-	assert.NotEmpty(t, outputStr)
-}
-
-// TestExecuteMegaportCommand_EmptyCommand verifies empty command handling
-func TestExecuteMegaportCommand_EmptyCommand(t *testing.T) {
-	wasm.ResetOutputBuffers()
-
-	executeMegaportCmd := js.Global().Get("executeMegaportCommand")
-	result := executeMegaportCmd.Invoke(js.ValueOf(""))
-
-	assert.Equal(t, js.TypeObject, result.Type())
-	output := result.Get("output")
-	assert.False(t, output.IsUndefined())
-}
-
-// TestExecuteMegaportCommand_WithFlags verifies flag parsing
-func TestExecuteMegaportCommand_WithFlags(t *testing.T) {
-	wasm.ResetOutputBuffers()
-
-	executeMegaportCmd := js.Global().Get("executeMegaportCommand")
-	result := executeMegaportCmd.Invoke(js.ValueOf("version --format json"))
-
-	assert.Equal(t, js.TypeObject, result.Type())
-	output := result.Get("output")
-	assert.False(t, output.IsUndefined())
-
-	outputStr := output.String()
-	assert.NotEmpty(t, outputStr)
+	executeMegaportCmdAsync.Invoke(js.ValueOf(cmd), callback)
+	return <-resultCh
 }
 
 // TestExecuteMegaportCommandAsync_Callback verifies async command with callback
@@ -171,16 +131,10 @@ func TestExecuteMegaportCommandAsync_InvalidCallback(t *testing.T) {
 	})
 }
 
-// TestOutputBufferReset verifies output buffer reset between commands
+// TestOutputBufferReset verifies output buffers reset between commands
 func TestOutputBufferReset(t *testing.T) {
-	// Execute first command
-	executeMegaportCmd := js.Global().Get("executeMegaportCommand")
-	result1 := executeMegaportCmd.Invoke(js.ValueOf("version"))
-	output1 := result1.Get("output").String()
-
-	// Execute second command
-	result2 := executeMegaportCmd.Invoke(js.ValueOf("--help"))
-	output2 := result2.Get("output").String()
+	output1 := invokeAsyncAndWait("version").Get("output").String()
+	output2 := invokeAsyncAndWait("--help").Get("output").String()
 
 	// Outputs should be different (buffers were reset)
 	assert.NotEqual(t, output1, output2)
@@ -233,10 +187,8 @@ func TestCommandArgumentParsing(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			wasm.ResetOutputBuffers()
 
-			executeMegaportCmd := js.Global().Get("executeMegaportCommand")
-
 			assert.NotPanics(t, func() {
-				result := executeMegaportCmd.Invoke(js.ValueOf(tt.command))
+				result := invokeAsyncAndWait(tt.command)
 				assert.Equal(t, js.TypeObject, result.Type())
 			})
 		})
@@ -342,40 +294,54 @@ func TestDumpBuffers(t *testing.T) {
 	assert.False(t, direct.IsUndefined())
 }
 
-// TestErrorRecovery verifies panic recovery
+// TestErrorRecovery verifies panic recovery in the async execution path,
+// which is now the only path that actually runs commands.
 func TestErrorRecovery(t *testing.T) {
-	executeMegaportCmd := js.Global().Get("executeMegaportCommand")
-
 	// These should not cause the WASM module to crash
 	assert.NotPanics(t, func() {
-		executeMegaportCmd.Invoke(js.ValueOf("nonexistent"))
+		invokeAsyncAndWait("nonexistent")
 	})
 
 	assert.NotPanics(t, func() {
-		executeMegaportCmd.Invoke(js.ValueOf(""))
+		invokeAsyncAndWait("")
 	})
 
 	assert.NotPanics(t, func() {
-		executeMegaportCmd.Invoke(js.ValueOf("invalid command with many args that don't make sense"))
+		invokeAsyncAndWait("invalid command with many args that don't make sense")
 	})
 }
 
-// TestConcurrentCommands verifies multiple commands don't interfere
+// TestConcurrentCommands verifies concurrent async commands don't interfere
+// with each other's output (asyncCommandMu serializes execution).
 func TestConcurrentCommands(t *testing.T) {
-	executeMegaportCmd := js.Global().Get("executeMegaportCommand")
+	executeMegaportCmdAsync := js.Global().Get("executeMegaportCommandAsync")
 
-	// Execute multiple commands
-	result1 := executeMegaportCmd.Invoke(js.ValueOf("version"))
-	result2 := executeMegaportCmd.Invoke(js.ValueOf("--help"))
+	type namedResult struct {
+		cmd    string
+		output string
+	}
+	resultCh := make(chan namedResult, 2)
 
-	// Both should succeed
-	assert.Equal(t, js.TypeObject, result1.Type())
-	assert.Equal(t, js.TypeObject, result2.Type())
+	invoke := func(cmd string) {
+		var callback js.Func
+		callback = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+			resultCh <- namedResult{cmd: cmd, output: args[0].Get("output").String()}
+			callback.Release()
+			return nil
+		})
+		executeMegaportCmdAsync.Invoke(js.ValueOf(cmd), callback)
+	}
 
-	output1 := result1.Get("output").String()
-	output2 := result2.Get("output").String()
+	invoke("version")
+	invoke("--help")
 
-	assert.NotEmpty(t, output1)
-	assert.NotEmpty(t, output2)
-	assert.NotEqual(t, output1, output2)
+	results := make(map[string]string, 2)
+	for i := 0; i < 2; i++ {
+		r := <-resultCh
+		results[r.cmd] = r.output
+	}
+
+	assert.NotEmpty(t, results["version"])
+	assert.NotEmpty(t, results["--help"])
+	assert.NotEqual(t, results["version"], results["--help"])
 }

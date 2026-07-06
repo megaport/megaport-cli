@@ -71,6 +71,31 @@ token, or API proxy.
 Credentials and tokens live only in browser memory and are cleared on reload or when the
 page calls `clearAuthCredentials`.
 
+## JavaScript API
+
+The WASM binary exposes command execution on `window`:
+
+```javascript
+window.executeMegaportCommandAsync(command, callback)
+```
+
+- `command` - full command string, e.g. `"port list --output json"`
+- `callback` - called once with the result: `{ output?: string, error?: string }`
+
+This is the only supported entrypoint for running commands. Execution has to be
+asynchronous: a synchronous call would block the JS event loop while the CLI waits on the
+browser's fetch-based transport, hanging the tab until the request times out. Internally,
+`executeMegaportCommandAsync` runs the command on a goroutine and serializes access to the
+shared output buffers so concurrent calls don't race each other.
+
+`window.executeMegaportCommand` (no `Async` suffix) is a deprecated stub kept for one
+release as a soft landing for hosts still detecting or calling it. It performs no work and
+always returns `{ error: "synchronous execution is not supported; use executeMegaportCommandAsync" }`.
+It will be removed in a future release; new integrations should not call it.
+
+Full type definitions for the whole JS surface (auth, config file, prompts, telemetry)
+live in [`frontend-integration/types/megaport-wasm.d.ts`](frontend-integration/types/megaport-wasm.d.ts).
+
 ## Building
 
 The browser CLI is two pieces: the WASM binary and the Vue front end that hosts it.
