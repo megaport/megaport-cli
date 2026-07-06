@@ -27,6 +27,3 @@ megaport-cli whoami [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_whoami_docs.md)
-

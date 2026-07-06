@@ -33,6 +33,3 @@ megaport-cli status [flags]
 |------|-----------|---------|-------------|----------|
 | `--include-inactive` |  | `false` | Include inactive/decommissioned resources | false |
 
-## Subcommands
-* [docs](megaport-cli_status_docs.md)
-

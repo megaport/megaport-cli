@@ -36,6 +36,3 @@ megaport-cli ports restore [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_ports_restore_docs.md)
-

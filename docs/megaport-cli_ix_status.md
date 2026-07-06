@@ -36,6 +36,3 @@ megaport-cli ix status [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_ix_status_docs.md)
-

@@ -29,6 +29,3 @@ megaport-cli product get-type [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_product_get-type_docs.md)
-

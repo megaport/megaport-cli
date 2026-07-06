@@ -37,6 +37,3 @@ megaport-cli topology [flags]
 | `--include-inactive` |  | `false` | Include deprovisioned resources in the tree | false |
 | `--type` |  |  | Filter by resource type: port, mcr, or mve | false |
 
-## Subcommands
-* [docs](megaport-cli_topology_docs.md)
-

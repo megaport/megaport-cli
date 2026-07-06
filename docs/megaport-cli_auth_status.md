@@ -35,6 +35,3 @@ megaport-cli auth status [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_auth_status_docs.md)
-

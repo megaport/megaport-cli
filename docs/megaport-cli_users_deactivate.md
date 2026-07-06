@@ -35,6 +35,3 @@ megaport-cli users deactivate [flags]
 |------|-----------|---------|-------------|----------|
 | `--force` |  | `false` | Skip the confirmation prompt | false |
 
-## Subcommands
-* [docs](megaport-cli_users_deactivate_docs.md)
-

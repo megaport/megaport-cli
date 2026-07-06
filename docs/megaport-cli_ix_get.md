@@ -38,6 +38,3 @@ megaport-cli ix get [flags]
 |------|-----------|---------|-------------|----------|
 | `--export` |  | `false` | Output recreatable JSON config for use with buy --json (excludes read-only fields; productUid not available from API) | false |
 
-## Subcommands
-* [docs](megaport-cli_ix_get_docs.md)
-

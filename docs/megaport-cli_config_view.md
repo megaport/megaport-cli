@@ -29,6 +29,3 @@ megaport-cli config view [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_config_view_docs.md)
-

@@ -39,6 +39,5 @@ megaport-cli mcr looking-glass [flags]
 * [bgp-neighbor-routes](megaport-cli_mcr_looking-glass_bgp-neighbor-routes.md)
 * [bgp-routes](megaport-cli_mcr_looking-glass_bgp-routes.md)
 * [bgp-sessions](megaport-cli_mcr_looking-glass_bgp-sessions.md)
-* [docs](megaport-cli_mcr_looking-glass_docs.md)
 * [ip-routes](megaport-cli_mcr_looking-glass_ip-routes.md)
 

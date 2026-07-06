@@ -41,6 +41,3 @@ megaport-cli locations rtt [flags]
 | `--src-location` |  | `0` | Source location ID | true |
 | `--year` |  | `0` | Year for RTT data (default: previous month's year) | false |
 
-## Subcommands
-* [docs](megaport-cli_locations_rtt_docs.md)
-

@@ -36,6 +36,3 @@ megaport-cli servicekeys list [flags]
 | `--limit` |  | `0` | Maximum number of results to display (0 = unlimited) | false |
 | `--product-uid` |  |  | Filter service keys by product UID | false |
 
-## Subcommands
-* [docs](megaport-cli_servicekeys_list_docs.md)
-

@@ -42,6 +42,3 @@ megaport-cli vxc get [flags]
 | `--interval` |  | `5s` | Polling interval for --watch mode (e.g. 5s, 1m) | false |
 | `--watch` | `-w` | `false` | Continuously poll and display resource status (Ctrl+C to stop) | false |
 
-## Subcommands
-* [docs](megaport-cli_vxc_get_docs.md)
-

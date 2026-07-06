@@ -21,6 +21,3 @@ megaport-cli mve list-tags [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_mve_list-tags_docs.md)
-

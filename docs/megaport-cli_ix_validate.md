@@ -58,6 +58,3 @@ megaport-cli ix validate [flags]
 | `--shutdown` |  | `false` | Whether the IX is initially shut down | false |
 | `--vlan` |  | `0` | VLAN ID for the IX connection | true |
 
-## Subcommands
-* [docs](megaport-cli_ix_validate_docs.md)
-

@@ -45,6 +45,3 @@ megaport-cli generate-docs [flags]
 | `--format` |  | `markdown` | Output format: markdown or man | false |
 | `--help` | `-h` | `false` | help for generate-docs | false |
 
-## Subcommands
-* [docs](megaport-cli_generate-docs_docs.md)
-

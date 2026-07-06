@@ -49,6 +49,3 @@ megaport-cli locations list [flags]
 | `--metro` |  |  | Filter locations by metro area | false |
 | `--name` |  |  | Filter locations by name | false |
 
-## Subcommands
-* [docs](megaport-cli_locations_list_docs.md)
-

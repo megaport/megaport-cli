@@ -53,6 +53,3 @@ megaport-cli mcr list [flags]
 | `--port-speed` |  | `0` | Filter MCRs by port speed | false |
 | `--tag` |  | `[]` | Filter by resource tag (format: key=value or key; repeatable, AND logic) | false |
 
-## Subcommands
-* [docs](megaport-cli_mcr_list_docs.md)
-

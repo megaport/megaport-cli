@@ -87,6 +87,3 @@ megaport-cli ports buy-lag [flags]
 | `--term` |  | `0` | The term of the port (1, 12, or 24 months) | true |
 | `--yes` | `-y` | `false` | Skip confirmation prompt for purchase | false |
 
-## Subcommands
-* [docs](megaport-cli_ports_buy-lag_docs.md)
-

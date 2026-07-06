@@ -313,6 +313,9 @@ func (b *CommandBuilder) Build() *cobra.Command {
 		Use:   "docs",
 		Short: "Show documentation for this command",
 		Long:  "Display formatted documentation for this command from markdown files",
+		// Hidden so it doesn't clutter every command's help listing or produce a
+		// redundant generated doc page (generate-docs skips hidden commands).
+		Hidden: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Show documentation for the parent command
 			return ShowDocumentation(cmd.Parent())

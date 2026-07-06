@@ -68,6 +68,3 @@ megaport-cli mve update [flags]
 | `--term` |  | `0` | New contract term in months (1, 12, 24, or 36) | false |
 | `--vnics` |  |  | JSON array of vNIC updates — one entry per existing vNIC, in order. Only `description` is mutable, e.g. `[{"description":"Data Plane"}]`. The vNIC count cannot change after provisioning. | false |
 
-## Subcommands
-* [docs](megaport-cli_mve_update_docs.md)
-

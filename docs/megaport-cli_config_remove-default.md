@@ -27,6 +27,3 @@ megaport-cli config remove-default [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_config_remove-default_docs.md)
-

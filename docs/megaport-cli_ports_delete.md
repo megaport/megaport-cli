@@ -46,6 +46,3 @@ megaport-cli ports delete [flags]
 | `--force` | `-f` | `false` | Skip confirmation prompt | false |
 | `--safe-delete` |  | `false` | Fail if the resource has attached VXCs or other active services | false |
 
-## Subcommands
-* [docs](megaport-cli_ports_delete_docs.md)
-

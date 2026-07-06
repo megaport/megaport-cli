@@ -69,6 +69,3 @@ megaport-cli users update [flags]
 | `--phone` |  |  | New phone number | false |
 | `--position` |  |  | New position/role | false |
 
-## Subcommands
-* [docs](megaport-cli_users_update_docs.md)
-

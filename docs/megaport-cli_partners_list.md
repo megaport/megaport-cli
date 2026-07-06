@@ -48,6 +48,3 @@ megaport-cli partners list [flags]
 | `--location-id` |  | `0` | Filter partner ports by location ID | false |
 | `--product-name` |  |  | Filter partner ports by product name | false |
 
-## Subcommands
-* [docs](megaport-cli_partners_list_docs.md)
-
