@@ -21,10 +21,28 @@ import (
 // JS Promise, mirroring what the real browser fetch returns.
 func installMockFetch(t *testing.T, behavior func(url string, opts js.Value) js.Value) {
 	t.Helper()
+	installMockFetchByURL(t, map[string]func(url string, opts js.Value) js.Value{"": behavior})
+}
+
+// installMockFetchByURL is like installMockFetch but dispatches to a
+// different behavior per request URL, so a test can drive multiple
+// concurrent requests through the same mocked fetch. A single entry keyed by
+// the empty string matches any URL.
+func installMockFetchByURL(t *testing.T, behaviors map[string]func(url string, opts js.Value) js.Value) {
+	t.Helper()
 
 	original := js.Global().Get("fetch")
 	fetchFunc := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		return behavior(args[0].String(), args[1])
+		url := args[0].String()
+		behavior, ok := behaviors[url]
+		if !ok {
+			behavior, ok = behaviors[""]
+		}
+		if !ok {
+			t.Errorf("no mock fetch behavior registered for URL %q", url)
+			return nil
+		}
+		return behavior(url, args[1])
 	})
 	js.Global().Set("fetch", fetchFunc)
 
@@ -67,9 +85,21 @@ func newHangingFetch(aborted *int32) func(url string, opts js.Value) js.Value {
 }
 
 // newResolvingFetch returns fetch behavior that resolves immediately with a
-// minimal Response-like object carrying status and a JSON body.
-func newResolvingFetch(status int, body string) func(url string, opts js.Value) js.Value {
+// minimal Response-like object carrying status and a JSON body. aborted is
+// set to 1 if the request's AbortSignal ever fires, so tests can assert a
+// successful request was never cancelled.
+func newResolvingFetch(status int, body string, aborted *int32) func(url string, opts js.Value) js.Value {
 	return func(url string, opts js.Value) js.Value {
+		if signal := opts.Get("signal"); !signal.IsUndefined() {
+			var onAbort js.Func
+			onAbort = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+				defer onAbort.Release()
+				atomic.StoreInt32(aborted, 1)
+				return nil
+			})
+			signal.Call("addEventListener", "abort", onAbort)
+		}
+
 		var executor js.Func
 		executor = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 			defer executor.Release()
@@ -105,9 +135,9 @@ func newFakeResponse(status int, body string) js.Value {
 	return resp
 }
 
-func newTestRequest(t *testing.T, ctx context.Context) *http.Request {
+func newTestRequest(t *testing.T, ctx context.Context, url string) *http.Request {
 	t.Helper()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://example.invalid/test", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	require.NoError(t, err)
 	return req
 }
@@ -124,7 +154,7 @@ func TestRoundTrip_ContextCancelledReturnsPromptly(t *testing.T) {
 	}()
 
 	transport := &WasmHTTPTransport{Timeout: 5 * time.Second}
-	req := newTestRequest(t, ctx)
+	req := newTestRequest(t, ctx, "https://example.invalid/test")
 
 	start := time.Now()
 	resp, err := transport.RoundTrip(req)
@@ -142,7 +172,7 @@ func TestRoundTrip_TimeoutAbortsAndReturnsError(t *testing.T) {
 	installMockFetch(t, newHangingFetch(&aborted))
 
 	transport := &WasmHTTPTransport{Timeout: 50 * time.Millisecond}
-	req := newTestRequest(t, context.Background())
+	req := newTestRequest(t, context.Background(), "https://example.invalid/test")
 
 	start := time.Now()
 	resp, err := transport.RoundTrip(req)
@@ -156,10 +186,11 @@ func TestRoundTrip_TimeoutAbortsAndReturnsError(t *testing.T) {
 }
 
 func TestRoundTrip_SuccessNormalResponseUnaffected(t *testing.T) {
-	installMockFetch(t, newResolvingFetch(http.StatusOK, `{"ok":true}`))
+	var aborted int32
+	installMockFetch(t, newResolvingFetch(http.StatusOK, `{"ok":true}`, &aborted))
 
 	transport := &WasmHTTPTransport{Timeout: 5 * time.Second}
-	req := newTestRequest(t, context.Background())
+	req := newTestRequest(t, context.Background(), "https://example.invalid/test")
 
 	resp, err := transport.RoundTrip(req)
 	require.NoError(t, err)
@@ -169,6 +200,56 @@ func TestRoundTrip_SuccessNormalResponseUnaffected(t *testing.T) {
 	body := make([]byte, 32)
 	n, _ := resp.Body.Read(body)
 	assert.Equal(t, `{"ok":true}`, string(body[:n]))
+	assert.Equal(t, int32(0), atomic.LoadInt32(&aborted), "a successful request should never be aborted")
+}
+
+func TestRoundTrip_ConcurrentRequestsOnSharedTransport(t *testing.T) {
+	const hangingURL = "https://example.invalid/hang"
+	const okURL = "https://example.invalid/ok"
+
+	var hangAborted, okAborted int32
+	installMockFetchByURL(t, map[string]func(url string, opts js.Value) js.Value{
+		hangingURL: newHangingFetch(&hangAborted),
+		okURL:      newResolvingFetch(http.StatusOK, `{"ok":true}`, &okAborted),
+	})
+
+	transport := &WasmHTTPTransport{Timeout: 5 * time.Second}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+	}()
+
+	type result struct {
+		resp *http.Response
+		err  error
+	}
+	hangResultChan := make(chan result, 1)
+	okResultChan := make(chan result, 1)
+
+	go func() {
+		resp, err := transport.RoundTrip(newTestRequest(t, ctx, hangingURL))
+		hangResultChan <- result{resp, err}
+	}()
+	go func() {
+		resp, err := transport.RoundTrip(newTestRequest(t, context.Background(), okURL))
+		okResultChan <- result{resp, err}
+	}()
+
+	hangRes := <-hangResultChan
+	okRes := <-okResultChan
+
+	assert.Nil(t, hangRes.resp)
+	require.Error(t, hangRes.err)
+	assert.True(t, errors.Is(hangRes.err, context.Canceled), "expected context.Canceled, got %v", hangRes.err)
+	assert.Equal(t, int32(1), atomic.LoadInt32(&hangAborted), "the cancelled request's fetch should be aborted")
+
+	require.NoError(t, okRes.err)
+	require.NotNil(t, okRes.resp)
+	assert.Equal(t, http.StatusOK, okRes.resp.StatusCode)
+	assert.Equal(t, int32(0), atomic.LoadInt32(&okAborted), "an unrelated request on the shared transport should not be aborted")
 }
 
 func TestBuildFetchOptions_NoForbiddenAcceptEncodingHeader(t *testing.T) {

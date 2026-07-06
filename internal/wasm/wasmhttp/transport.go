@@ -101,6 +101,10 @@ func (t *WasmHTTPTransport) buildFetchOptions(req *http.Request) (map[string]int
 // req.Context() is cancelled or the transport timeout fires, instead of
 // continuing to run after Go has given up on it.
 func (t *WasmHTTPTransport) doFetch(req *http.Request, options map[string]interface{}, timeout time.Duration) (*fetchResponse, error) {
+	if err := req.Context().Err(); err != nil {
+		return nil, err
+	}
+
 	console := js.Global().Get("console")
 	startTime := time.Now()
 
