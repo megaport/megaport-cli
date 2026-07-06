@@ -699,6 +699,15 @@ func TestParseCiscoConfig_ManageLocallyParity(t *testing.T) {
 			},
 			expectedError: "sshPublicKey is required",
 		},
+		{
+			name: "non-boolean manageLocally is a clear type error",
+			config: map[string]interface{}{
+				"vendor": "cisco", "imageId": float64(1), "productSize": "MEDIUM",
+				"manageLocally":     "true",
+				"adminSshPublicKey": "ssh-rsa AAAA", "sshPublicKey": "ssh-rsa AAAA",
+			},
+			expectedError: "manageLocally must be a boolean",
+		},
 	}
 
 	for _, tt := range tests {

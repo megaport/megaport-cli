@@ -332,8 +332,13 @@ func parseCiscoConfig(config map[string]interface{}) (*megaport.CiscoConfig, err
 	}
 
 	// FMC fields are only required for FMC-managed (non-local) deployments,
-	// mirroring ValidateCiscoConfig.
-	manageLocally, _ := getBoolFromMap(config, "manageLocally")
+	// mirroring ValidateCiscoConfig. manageLocally is optional and defaults to
+	// false, but a present-but-non-boolean value is a clear error rather than a
+	// silent false that would confusingly then demand the FMC fields.
+	manageLocally, ok := getBoolFromMap(config, "manageLocally")
+	if _, present := config["manageLocally"]; present && !ok {
+		return nil, fmt.Errorf("manageLocally must be a boolean for Cisco configuration")
+	}
 
 	fmcIPAddress, _ := getStringFromMap(config, "fmcIpAddress")
 	fmcRegistrationKey, _ := getStringFromMap(config, "fmcRegistrationKey")
