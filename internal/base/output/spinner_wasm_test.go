@@ -22,9 +22,10 @@ func TestWasmSpinner_StopWithSuccess(t *testing.T) {
 	wasm.WasmOutputBuffer.Reset()
 }
 
-// TestSpinner_StopWithSuccess_DelegatesToWasm verifies that Spinner.StopWithSuccess,
-// reached only through SpinnerInterface, routes into the captured buffer rather
-// than os.Stderr. This guards against the interface regressing to only Start/Stop.
+// TestSpinner_StopWithSuccess_DelegatesToWasm verifies that Spinner.StopWithSuccess
+// delegates to its wasmSpinner field (typed as SpinnerInterface) and routes into
+// the captured buffer rather than os.Stderr. This guards against the interface
+// regressing to only Start/Stop, which would make delegation impossible.
 func TestSpinner_StopWithSuccess_DelegatesToWasm(t *testing.T) {
 	wasm.WasmOutputBuffer.Reset()
 	SetVerbosity("normal")

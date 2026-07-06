@@ -67,8 +67,6 @@ func (s *WasmSpinner) Stop() {
 func (s *WasmSpinner) StopWithSuccess(msg string) {
 	s.Stop()
 
-	// In WASM mode, success messages are handled separately
-	// Do not output here to avoid duplication
 	// msg is passed as an arg (not the format string) so a literal "%" in
 	// caller-supplied text isn't interpreted as a missing verb.
 	PrintSuccess("%s", s.noColor, msg)
