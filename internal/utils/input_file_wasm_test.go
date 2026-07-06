@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	wasmJSONFileMsg = "file input is not supported in the browser; use the corresponding inline flag instead (e.g. --json)"
-	wasmTagsFileMsg = "file input is not supported in the browser; use the corresponding inline flag instead (e.g. --resource-tags)"
+	wasmJSONFileMsg = "file input is not supported in the browser; use the corresponding inline flag instead"
+	wasmTagsFileMsg = "file input is not supported in the browser; use the corresponding inline flag instead"
 )
 
 func TestReadInputFile_WASM_Unsupported(t *testing.T) {

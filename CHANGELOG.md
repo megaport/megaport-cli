@@ -12,7 +12,6 @@ workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries unde
 ## [Unreleased]
 
 ### Fixed
-- in the WASM browser build, file-based input flags (`--json-file`, `--resource-tags-file`) now fail fast with a clear "file input is not supported in the browser" error pointing at the inline alternative (`--json` / `--resource-tags`) instead of a raw filesystem error, and `--help` annotates the flags as browser-unavailable (ESD-1579)
 - require Cisco FMC fields only when not managing locally on the `mve buy` and `mve validate` flags and JSON paths, matching the validator (ESD-1571)
 - `mve buy` and `mve validate` now apply `resourceTags` from JSON input, and interactive `mve buy` now prompts for tags, matching MCR. Previously the JSON path silently dropped the documented `resourceTags` field and interactive mode never asked. The JSON path shares the same value and empty-key validation as the flags path, so non-string values and empty keys return a usage error before the order is placed
 
