@@ -215,7 +215,7 @@ const loadXtermCSS = (): Promise<void> => {
  * scale to the real column count instead of a fixed layout.
  */
 const syncTerminalWidth = () => {
-  if (terminal && window.setTerminalWidth) {
+  if (terminal && typeof window.setTerminalWidth === 'function') {
     window.setTerminalWidth(terminal.cols);
   }
 };

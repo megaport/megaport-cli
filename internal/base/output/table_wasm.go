@@ -31,8 +31,11 @@ func SetIsTerminal(val bool) {
 	isTerminalCached.Store(val)
 }
 
-// SetTerminalWidthForTesting is a no-op in WASM; column widths are fixed by config.
-func SetTerminalWidthForTesting(_ int) {}
+// SetTerminalWidthForTesting pins the terminal width used by table rendering.
+// Pass 0 to restore auto-detection (falls back to fixed per-column widths). Intended for tests only.
+func SetTerminalWidthForTesting(width int) {
+	wasm.SetTerminalWidth(width)
+}
 
 // WasmTableWriter is a global buffer for capturing table output in WASM
 var WasmTableWriter = &bytes.Buffer{}
