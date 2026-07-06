@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -51,6 +52,31 @@ func TestWrapRunE_SessionExpired_TokenPath(t *testing.T) {
 	cmd := &cobra.Command{Use: "test"}
 	err := wrapped(cmd, []string{})
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), SessionExpiredMarker)
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.SessionExpired, cliErr.Code)
+}
+
+func TestWrapRunE_SessionExpired_SurvivesActionsOwnPrintError(t *testing.T) {
+	// Several actions call output.PrintError themselves before returning the
+	// error (e.g. users_actions.go's GetUser), which latches ErrorEmitted and
+	// makes finishWithError skip its own PrintError call. The marker must
+	// still end up in the error finishWithError returns, since that's what
+	// ExecuteWithArgs renders into captured output on the WASM error path,
+	// independent of whether PrintError already ran.
+	t.Setenv("MEGAPORT_ACCESS_TOKEN", "some-token")
+
+	wrapped := WrapRunE(func(cmd *cobra.Command, args []string) error {
+		apiErr := makeAPIError(401, "")
+		output.PrintError("Failed to get user: %v", false, apiErr)
+		return apiErr
+	})
+	cmd := &cobra.Command{Use: "test"}
+	err := wrapped(cmd, []string{})
+	require.Error(t, err)
+	assert.True(t, output.ErrorEmitted())
 	assert.Contains(t, err.Error(), SessionExpiredMarker)
 
 	var cliErr *exitcodes.CLIError
