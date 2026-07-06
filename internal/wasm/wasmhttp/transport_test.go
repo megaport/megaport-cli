@@ -167,6 +167,30 @@ func TestRoundTrip_ContextCancelledReturnsPromptly(t *testing.T) {
 	assert.Equal(t, int32(1), atomic.LoadInt32(&aborted), "expected the browser fetch to be aborted")
 }
 
+func TestRoundTrip_AlreadyCancelledContextSkipsFetch(t *testing.T) {
+	var fetchCalled int32
+	installMockFetch(t, func(url string, opts js.Value) js.Value {
+		atomic.StoreInt32(&fetchCalled, 1)
+		return newHangingFetch(new(int32))(url, opts)
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	transport := &WasmHTTPTransport{Timeout: 5 * time.Second}
+	req := newTestRequest(t, ctx, "https://example.invalid/test")
+
+	start := time.Now()
+	resp, err := transport.RoundTrip(req)
+	elapsed := time.Since(start)
+
+	assert.Nil(t, resp)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, context.Canceled), "expected context.Canceled, got %v", err)
+	assert.Less(t, elapsed, 100*time.Millisecond, "an already-cancelled context should return before touching fetch")
+	assert.Equal(t, int32(0), atomic.LoadInt32(&fetchCalled), "fetch should never be called for an already-cancelled context")
+}
+
 func TestRoundTrip_TimeoutAbortsAndReturnsError(t *testing.T) {
 	var aborted int32
 	installMockFetch(t, newHangingFetch(&aborted))
