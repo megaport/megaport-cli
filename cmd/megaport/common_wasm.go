@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/base/registry"
@@ -95,6 +96,12 @@ func InitializeCommon() {
 	// Validate retry flags in WASM builds too.
 	existingPreRunE := rootCmd.PersistentPreRunE
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		// fatih/color's global NoColor defaults to true under js/wasm (isatty is
+		// always false), which strips every color.*String/colorizeValue/colorizeStatus
+		// while go-pretty still colors the table chrome. xterm.js renders ANSI, so
+		// mirror the --no-color flag here to keep coloring all-or-nothing.
+		color.NoColor = noColor
+
 		verbosity := "normal"
 		if quiet {
 			verbosity = "quiet"
