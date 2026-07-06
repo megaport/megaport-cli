@@ -27,6 +27,3 @@ megaport-cli config use-profile [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_config_use-profile_docs.md)
-

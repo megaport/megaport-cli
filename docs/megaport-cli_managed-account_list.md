@@ -42,6 +42,3 @@ megaport-cli managed-account list [flags]
 | `--account-ref` |  |  | Filter managed accounts by reference (partial match) | false |
 | `--limit` |  | `0` | Maximum number of results to display (0 = unlimited) | false |
 
-## Subcommands
-* [docs](megaport-cli_managed-account_list_docs.md)
-

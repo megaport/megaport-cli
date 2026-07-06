@@ -43,6 +43,3 @@ megaport-cli users list [flags]
 | `--inactive-only` |  | `false` | Show only inactive users | false |
 | `--position` |  |  | Filter users by position/role | false |
 
-## Subcommands
-* [docs](megaport-cli_users_list_docs.md)
-

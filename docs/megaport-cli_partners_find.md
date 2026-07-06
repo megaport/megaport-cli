@@ -34,6 +34,3 @@ megaport-cli partners find [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_partners_find_docs.md)
-

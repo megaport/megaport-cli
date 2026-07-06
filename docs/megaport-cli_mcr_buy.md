@@ -97,6 +97,3 @@ megaport-cli mcr buy [flags]
 | `--term` |  | `0` | The term of the MCR (1, 12, 24, or 36 months) | true |
 | `--yes` | `-y` | `false` | Skip confirmation prompt for purchase | false |
 
-## Subcommands
-* [docs](megaport-cli_mcr_buy_docs.md)
-

@@ -29,6 +29,3 @@ megaport-cli mve unlock [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_mve_unlock_docs.md)
-

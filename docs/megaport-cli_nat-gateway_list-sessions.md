@@ -30,6 +30,3 @@ megaport-cli nat-gateway list-sessions [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_nat-gateway_list-sessions_docs.md)
-

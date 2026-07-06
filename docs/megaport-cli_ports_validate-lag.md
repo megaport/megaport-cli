@@ -59,6 +59,3 @@ megaport-cli ports validate-lag [flags]
 | `--resource-tags-file` |  |  | Path to JSON file containing resource tags | false |
 | `--term` |  | `0` | The term of the port (1, 12, or 24 months) | true |
 
-## Subcommands
-* [docs](megaport-cli_ports_validate-lag_docs.md)
-

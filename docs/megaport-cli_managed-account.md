@@ -35,7 +35,6 @@ megaport-cli managed-account [flags]
 
 ## Subcommands
 * [create](megaport-cli_managed-account_create.md)
-* [docs](megaport-cli_managed-account_docs.md)
 * [get](megaport-cli_managed-account_get.md)
 * [list](megaport-cli_managed-account_list.md)
 * [update](megaport-cli_managed-account_update.md)

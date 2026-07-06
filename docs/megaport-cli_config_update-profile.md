@@ -38,6 +38,3 @@ megaport-cli config update-profile [flags]
 | `--environment` |  |  | Target API environment: 'production', 'staging', or 'development' | false |
 | `--secret-key` |  |  | New Megaport API secret key (pass empty string to be prompted; masked on TTY only) | false |
 
-## Subcommands
-* [docs](megaport-cli_config_update-profile_docs.md)
-

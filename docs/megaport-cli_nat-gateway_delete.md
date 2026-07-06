@@ -39,6 +39,3 @@ megaport-cli nat-gateway delete [flags]
 | `--force` |  | `false` | Skip the confirmation prompt | false |
 | `--yes` |  | `false` | Skip the confirmation prompt (alias of --force) | false |
 
-## Subcommands
-* [docs](megaport-cli_nat-gateway_delete_docs.md)
-

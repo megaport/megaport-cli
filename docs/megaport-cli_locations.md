@@ -28,7 +28,6 @@ megaport-cli locations [flags]
 |------|-----------|---------|-------------|----------|
 
 ## Subcommands
-* [docs](megaport-cli_locations_docs.md)
 * [get](megaport-cli_locations_get.md)
 * [list](megaport-cli_locations_list.md)
 * [list-countries](megaport-cli_locations_list-countries.md)

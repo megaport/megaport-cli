@@ -38,7 +38,6 @@ megaport-cli nat-gateway [flags]
 * [buy](megaport-cli_nat-gateway_buy.md)
 * [create](megaport-cli_nat-gateway_create.md)
 * [delete](megaport-cli_nat-gateway_delete.md)
-* [docs](megaport-cli_nat-gateway_docs.md)
 * [get](megaport-cli_nat-gateway_get.md)
 * [list](megaport-cli_nat-gateway_list.md)
 * [list-sessions](megaport-cli_nat-gateway_list-sessions.md)

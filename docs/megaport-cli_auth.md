@@ -28,6 +28,5 @@ megaport-cli auth [flags]
 |------|-----------|---------|-------------|----------|
 
 ## Subcommands
-* [docs](megaport-cli_auth_docs.md)
 * [status](megaport-cli_auth_status.md)
 

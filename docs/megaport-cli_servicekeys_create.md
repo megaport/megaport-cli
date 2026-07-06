@@ -41,6 +41,3 @@ megaport-cli servicekeys create [flags]
 | `--start-date` |  |  | Start date (YYYY-MM-DD) | false |
 | `--vlan` |  | `0` | VLAN ID for the service key (required for single-use keys) | false |
 
-## Subcommands
-* [docs](megaport-cli_servicekeys_create_docs.md)
-

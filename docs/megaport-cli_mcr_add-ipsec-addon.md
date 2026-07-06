@@ -51,6 +51,3 @@ megaport-cli mcr add-ipsec-addon [flags]
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 | `--tunnel-count` |  | `0` | IPSec tunnel count (10, 20, or 30; omit or use 0 to let the API apply its default of 10) | false |
 
-## Subcommands
-* [docs](megaport-cli_mcr_add-ipsec-addon_docs.md)
-

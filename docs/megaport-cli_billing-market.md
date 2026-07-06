@@ -28,7 +28,6 @@ megaport-cli billing-market [flags]
 |------|-----------|---------|-------------|----------|
 
 ## Subcommands
-* [docs](megaport-cli_billing-market_docs.md)
 * [get](megaport-cli_billing-market_get.md)
 * [set](megaport-cli_billing-market_set.md)
 

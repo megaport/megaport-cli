@@ -21,6 +21,3 @@ megaport-cli mcr list-tags [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_mcr_list-tags_docs.md)
-

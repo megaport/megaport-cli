@@ -41,6 +41,3 @@ megaport-cli ix delete [flags]
 | `--force` | `-f` | `false` | Skip confirmation prompt | false |
 | `--later` |  | `false` | Schedule deletion at the end of the current billing cycle (default: delete immediately) | false |
 
-## Subcommands
-* [docs](megaport-cli_ix_delete_docs.md)
-

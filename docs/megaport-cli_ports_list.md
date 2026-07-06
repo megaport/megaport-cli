@@ -53,6 +53,3 @@ megaport-cli ports list [flags]
 | `--port-speed` |  | `0` | Filter ports by port speed | false |
 | `--tag` |  | `[]` | Filter by resource tag (format: key=value or key; repeatable, AND logic) | false |
 
-## Subcommands
-* [docs](megaport-cli_ports_list_docs.md)
-

@@ -57,6 +57,3 @@ megaport-cli mve validate [flags]
 | `--vendor-config` |  |  | JSON string with vendor-specific configuration | true |
 | `--vnics` |  |  | JSON array of network interfaces | true |
 
-## Subcommands
-* [docs](megaport-cli_mve_validate_docs.md)
-

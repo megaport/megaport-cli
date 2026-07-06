@@ -86,6 +86,3 @@ megaport-cli ports buy [flags]
 | `--term` |  | `0` | The term of the port (1, 12, 24, or 36 months) | true |
 | `--yes` | `-y` | `false` | Skip confirmation prompt for purchase | false |
 
-## Subcommands
-* [docs](megaport-cli_ports_buy_docs.md)
-

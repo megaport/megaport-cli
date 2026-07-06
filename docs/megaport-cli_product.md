@@ -28,7 +28,6 @@ megaport-cli product [flags]
 |------|-----------|---------|-------------|----------|
 
 ## Subcommands
-* [docs](megaport-cli_product_docs.md)
 * [get-type](megaport-cli_product_get-type.md)
 * [list](megaport-cli_product_list.md)
 

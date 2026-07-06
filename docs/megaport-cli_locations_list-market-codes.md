@@ -29,6 +29,3 @@ megaport-cli locations list-market-codes [flags]
 | Name | Shorthand | Default | Description | Required |
 |------|-----------|---------|-------------|----------|
 
-## Subcommands
-* [docs](megaport-cli_locations_list-market-codes_docs.md)
-

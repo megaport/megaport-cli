@@ -97,6 +97,3 @@ megaport-cli vxc buy [flags]
 | `--term` |  | `0` | Contract term in months (1, 12, 24, or 36) | true |
 | `--yes` | `-y` | `false` | Skip confirmation prompt for purchase | false |
 
-## Subcommands
-* [docs](megaport-cli_vxc_buy_docs.md)
-

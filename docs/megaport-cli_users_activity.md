@@ -31,6 +31,3 @@ megaport-cli users activity [flags]
 |------|-----------|---------|-------------|----------|
 | `--employee-id` |  |  | Filter activity by employee ID | false |
 
-## Subcommands
-* [docs](megaport-cli_users_activity_docs.md)
-
