@@ -405,6 +405,18 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 	vxcUID := args[0]
 	formattedUID := output.FormatUID(vxcUID, noColor)
 
+	interactive, _ := cmd.Flags().GetBool("interactive")
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFilePath, _ := cmd.Flags().GetString("json-file")
+
+	// Reject conflicting input modes before logging in, matching the other
+	// update commands: a usage error must surface up front, not after a
+	// login + GET round-trip.
+	if err := utils.CheckInteractiveConflict(interactive, utils.HasConflictingInputFlags(cmd)); err != nil {
+		output.PrintError("%v", noColor, err)
+		return err
+	}
+
 	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
@@ -424,10 +436,6 @@ func UpdateVXC(cmd *cobra.Command, args []string, noColor bool) error {
 
 	var req *megaport.UpdateVXCRequest
 	var buildErr error
-
-	interactive, _ := cmd.Flags().GetBool("interactive")
-	jsonStr, _ := cmd.Flags().GetString("json")
-	jsonFilePath, _ := cmd.Flags().GetString("json-file")
 
 	if jsonStr != "" || jsonFilePath != "" {
 		output.PrintInfo("Using JSON input for VXC %s", noColor, formattedUID)

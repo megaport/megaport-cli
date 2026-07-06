@@ -527,7 +527,7 @@ func TestBuyIX(t *testing.T) {
 			expectedError: "no input provided",
 		},
 		{
-			name:        "JSON takes precedence over interactive flag",
+			name:        "interactive combined with JSON and flags is a usage error",
 			interactive: true,
 			flags: map[string]string{
 				"json":                 `{"productUid":"port-uid-123","productName":"JSON IX","networkServiceType":"Los Angeles IX","asn":65000,"macAddress":"00:11:22:33:44:55","rateLimit":1000,"vlan":100}`,
@@ -535,12 +535,8 @@ func TestBuyIX(t *testing.T) {
 				"name":                 "JSON IX",
 				"network-service-type": "Los Angeles IX",
 			},
-			setupMock: func(m *MockIXService) {
-				m.buyIXResponse = &megaport.BuyIXResponse{
-					TechnicalServiceUID: "ix-json-wins",
-				}
-			},
-			expectedOutput: "IX created",
+			setupMock:     func(m *MockIXService) {},
+			expectedError: "cannot be combined with",
 		},
 	}
 
@@ -1320,6 +1316,24 @@ func TestUpdateIX(t *testing.T) {
 			ixUID:         "ix-123",
 			setupMock:     func(m *MockIXService) {},
 			expectedError: "at least one field must be updated",
+		},
+		{
+			name:        "interactive combined with flags is rejected",
+			ixUID:       "ix-123",
+			interactive: true,
+			flags: map[string]string{
+				"name": "Updated IX",
+			},
+			setupMock:     func(m *MockIXService) {},
+			expectedError: "cannot be combined with",
+		},
+		{
+			name:          "interactive combined with JSON is rejected",
+			ixUID:         "ix-123",
+			interactive:   true,
+			jsonInput:     `{"name":"JSON Updated IX"}`,
+			setupMock:     func(m *MockIXService) {},
+			expectedError: "cannot be combined with",
 		},
 		{
 			name:  "API error during update",

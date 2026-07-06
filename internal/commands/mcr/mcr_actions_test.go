@@ -1036,17 +1036,22 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			expectedError: "no input provided",
 		},
 		{
-			name:        "JSON takes precedence over interactive flag",
+			name:        "interactive combined with JSON is a usage error",
 			interactive: true,
 			flags: map[string]string{
 				"json": `{"name":"JSON MCR","term":24,"portSpeed":10000,"locationId":123,"mcrAsn":65000,"diversityZone":"green","costCentre":"cost-789","promoCode":"JSONPROMO"}`,
 			},
-			setupMock: func(m *MockMCRService) {
-				m.BuyMCRResult = &megaport.BuyMCRResponse{
-					TechnicalServiceUID: "mcr-json-wins",
-				}
+			setupMock:     func(m *MockMCRService) {},
+			expectedError: "cannot be combined with",
+		},
+		{
+			name:        "interactive combined with flags is a usage error",
+			interactive: true,
+			flags: map[string]string{
+				"name": "Test MCR",
 			},
-			expectedOutput: "MCR created",
+			setupMock:     func(m *MockMCRService) {},
+			expectedError: "cannot be combined with",
 		},
 	}
 
