@@ -396,6 +396,10 @@ func GetCapturedOutput() string {
 	}
 
 	// Priority order: JSON > CSV > XML > table > direct > stdout/stderr combined.
+	// JSON/CSV/XML are returned as a clean data-only stream (native routes these to
+	// stdout with status messages on stderr). In table mode we prepend the direct
+	// buffer (PrintInfo/PrintWarning/PrintSuccess/PrintPlain) so status lines aren't
+	// shadowed by the table, matching native's separate stderr/stdout streams.
 	var finalOutput, outputSource string
 	switch {
 	case jsonOutput != "":
@@ -408,7 +412,7 @@ func GetCapturedOutput() string {
 		finalOutput = xmlOutput
 		outputSource = "XML buffer"
 	case tableOutput != "":
-		finalOutput = tableOutput
+		finalOutput = direct + tableOutput
 		outputSource = "table buffer"
 	case direct != "":
 		finalOutput = direct

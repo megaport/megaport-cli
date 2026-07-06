@@ -3,6 +3,7 @@
 package output
 
 import (
+	"strings"
 	"syscall/js"
 	"testing"
 
@@ -323,6 +324,86 @@ func TestPrintNewline_WASM_QuietSuppresses(t *testing.T) {
 
 	assert.Empty(t, wasm.WasmOutputBuffer.String(), "PrintNewline should produce no output in quiet mode")
 	wasm.WasmOutputBuffer.Reset()
+}
+
+// TestGetCapturedOutput_EmptyTableWithWarning verifies that a "No X found"
+// warning emitted before an empty-slice table is still visible in the captured
+// output rather than being shadowed by the header-only table.
+func TestGetCapturedOutput_EmptyTableWithWarning(t *testing.T) {
+	wasm.ResetOutputBuffers()
+	SetVerbosity("normal")
+
+	PrintWarning("No locations found matching '%s'", true, "xyz")
+
+	var data []SimpleStruct
+	err := PrintOutput(data, "table", true)
+	assert.NoError(t, err)
+
+	out := wasm.GetCapturedOutput()
+	assert.Contains(t, out, "No locations found matching 'xyz'", "warning must survive the priority switch")
+
+	wasm.ResetOutputBuffers()
+}
+
+// TestGetCapturedOutput_StatusWithPopulatedTable verifies that status emitted
+// alongside a populated table appears first, then the table.
+func TestGetCapturedOutput_StatusWithPopulatedTable(t *testing.T) {
+	wasm.ResetOutputBuffers()
+	SetVerbosity("normal")
+
+	PrintInfo("Found %d locations", true, 2)
+
+	data := []SimpleStruct{
+		{ID: 1, Name: "Item 1", Active: true},
+		{ID: 2, Name: "Item 2", Active: false},
+	}
+	err := PrintOutput(data, "table", true)
+	assert.NoError(t, err)
+
+	out := wasm.GetCapturedOutput()
+	assert.Contains(t, out, "Found 2 locations", "info status must be present")
+	assert.Contains(t, out, "Item 1", "table rows must be present")
+
+	statusIdx := strings.Index(out, "Found 2 locations")
+	tableIdx := strings.Index(out, "Item 1")
+	assert.Less(t, statusIdx, tableIdx, "status should appear before the table")
+
+	wasm.ResetOutputBuffers()
+}
+
+// TestGetCapturedOutput_StructuredModesStayClean verifies JSON/CSV/XML modes
+// return a pure data stream even when a warning was written to the direct
+// buffer (only table mode prepends status).
+func TestGetCapturedOutput_StructuredModesStayClean(t *testing.T) {
+	formats := []struct {
+		format   string
+		contains string
+	}{
+		{"json", `"name"`},
+		{"csv", "id,name,active"},
+		{"xml", "<name>"},
+	}
+
+	for _, f := range formats {
+		t.Run(f.format, func(t *testing.T) {
+			wasm.ResetOutputBuffers()
+			SetVerbosity("normal")
+
+			PrintWarning("some warning", true)
+
+			data := []SimpleStruct{
+				{ID: 1, Name: "Item 1", Active: true},
+			}
+			err := PrintOutput(data, f.format, true)
+			assert.NoError(t, err)
+
+			out := wasm.GetCapturedOutput()
+			assert.Contains(t, out, f.contains, "structured payload must be returned")
+			assert.NotContains(t, out, "some warning", "status text must not leak into the data stream")
+
+			wasm.ResetOutputBuffers()
+		})
+	}
 }
 
 // TestConsoleLogging verifies console.log doesn't cause panics

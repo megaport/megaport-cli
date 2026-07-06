@@ -72,12 +72,21 @@ func TestGetCapturedOutput_Priority(t *testing.T) {
 			expectedOutput: "csv output",
 		},
 		{
-			name: "Table has third priority",
+			name: "Table output is prefixed with direct status buffer",
 			setupFn: func() {
 				ResetOutputBuffers()
 				js.Global().Set("wasmTableOutput", "table output")
 				stdoutBuffer.WriteString("stdout output")
 				_, _ = WasmOutputBuffer.Write([]byte("direct output"))
+			},
+			expectedSource: "table buffer",
+			expectedOutput: "direct outputtable output",
+		},
+		{
+			name: "Table without status returns table only",
+			setupFn: func() {
+				ResetOutputBuffers()
+				js.Global().Set("wasmTableOutput", "table output")
 			},
 			expectedSource: "table buffer",
 			expectedOutput: "table output",
