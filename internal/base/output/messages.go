@@ -185,6 +185,7 @@ type Spinner struct {
 type SpinnerInterface interface {
 	Start(message string)
 	Stop()
+	StopWithSuccess(msg string)
 }
 
 func NewSpinner(noColor bool) *Spinner {
@@ -325,6 +326,12 @@ func (s *Spinner) Stop() {
 func (s *Spinner) StopWithSuccess(msg string) {
 	s.Stop()
 	if IsQuiet() {
+		return
+	}
+	// If WASM spinner is available, delegate to it so the message reaches
+	// the captured output buffer instead of os.Stderr/os.Stdout.
+	if s.wasmSpinner != nil {
+		s.wasmSpinner.StopWithSuccess(msg)
 		return
 	}
 	// Write success message to stderr for non-interactive sinks to avoid
