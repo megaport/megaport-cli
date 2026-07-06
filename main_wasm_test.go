@@ -180,8 +180,13 @@ func TestExecuteMegaportCommandAsync_InvalidCallback(t *testing.T) {
 
 // TestOutputBufferReset verifies output buffers reset between commands
 func TestOutputBufferReset(t *testing.T) {
-	output1 := invokeAsyncAndWait(t, "version").Get("output").String()
-	output2 := invokeAsyncAndWait(t, "--help").Get("output").String()
+	result1 := invokeAsyncAndWait(t, "version")
+	assert.True(t, result1.Get("error").IsUndefined(), "version command returned an error: %v", result1.Get("error"))
+	output1 := result1.Get("output").String()
+
+	result2 := invokeAsyncAndWait(t, "--help")
+	assert.True(t, result2.Get("error").IsUndefined(), "--help command returned an error: %v", result2.Get("error"))
+	output2 := result2.Get("output").String()
 
 	// Outputs should be different (buffers were reset)
 	assert.NotEqual(t, output1, output2)
@@ -378,7 +383,11 @@ func TestConcurrentCommands(t *testing.T) {
 				resultCh <- namedResult{cmd: cmd}
 				return nil
 			}
-			resultCh <- namedResult{cmd: cmd, output: args[0].Get("output").String()}
+			result := args[0]
+			if err := result.Get("error"); !err.IsUndefined() {
+				t.Errorf("executeMegaportCommandAsync returned an error for command %q: %v", cmd, err)
+			}
+			resultCh <- namedResult{cmd: cmd, output: result.Get("output").String()}
 			return nil
 		})
 		executeMegaportCmdAsync.Invoke(js.ValueOf(cmd), callback)
