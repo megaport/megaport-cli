@@ -156,7 +156,13 @@ func discoverArubaImage(t *testing.T) discoveredImage {
 func (d discoveredImage) productSizeCandidates() []string {
 	supported := make(map[string]bool, len(d.AvailableSizes))
 	for _, s := range d.AvailableSizes {
-		supported[validation.NormalizeMVEProductSize(strings.ToUpper(s))] = true
+		canonical := validation.NormalizeMVEProductSize(strings.ToUpper(s))
+		// Skip advertised sizes we can't map to a programmatic name the buy API
+		// accepts. Probing a raw label like "MVE 16/64" returns an invalid-size
+		// error, not a capacity error, which would fail the probe.
+		if validation.ValidateMVEProductSize(canonical) == nil {
+			supported[canonical] = true
+		}
 	}
 	var ordered []string
 	emitted := make(map[string]bool, len(supported))
@@ -169,7 +175,7 @@ func (d discoveredImage) productSizeCandidates() []string {
 	for _, size := range []string{"MEDIUM", "SMALL", "LARGE", "X_LARGE_12"} {
 		add(size)
 	}
-	// Probe any other advertised size after the preferred order, so an image
+	// Probe any other supported size after the preferred order, so an image
 	// whose sizes fall outside the list above is still tried, not skipped.
 	for _, s := range d.AvailableSizes {
 		add(validation.NormalizeMVEProductSize(strings.ToUpper(s)))
