@@ -13,7 +13,7 @@ func (b *CommandBuilder) WithWatchFlags() *CommandBuilder {
 func (b *CommandBuilder) WithStandardInputFlags() *CommandBuilder {
 	b.WithBoolFlagP("interactive", "i", false, "Use interactive mode with prompts")
 	b.WithFlag("json", "", "JSON string containing configuration")
-	b.WithFlag("json-file", "", "Path to JSON file containing configuration")
+	b.WithFlag("json-file", "", fileInputUsage("Path to JSON file containing configuration", "--json"))
 	return b
 }
 
@@ -27,16 +27,16 @@ func (b *CommandBuilder) WithDateRangeFlags() *CommandBuilder {
 // WithJSONConfigFlags adds flags for JSON configuration input
 func (b *CommandBuilder) WithJSONConfigFlags() *CommandBuilder {
 	b.WithFlag("json", "", "JSON string containing configuration")
-	b.WithFlag("json-file", "", "Path to JSON file containing configuration")
+	b.WithFlag("json-file", "", fileInputUsage("Path to JSON file containing configuration", "--json"))
 	return b
 }
 
 // WithResourceTagFlags adds flags for resource tagging
 func (b *CommandBuilder) WithResourceTagFlags() *CommandBuilder {
 	b.WithFlag("resource-tags", "", "Resource tags as a JSON string (e.g. {\"key1\":\"value1\",\"key2\":\"value2\"})")
-	b.WithFlag("resource-tags-file", "", "Path to JSON file containing resource tags")
+	b.WithFlag("resource-tags-file", "", fileInputUsage("Path to JSON file containing resource tags", "--resource-tags"))
 	b.WithOptionalFlag("resource-tags", "Resource tags as a JSON string (e.g. {\"key1\":\"value1\",\"key2\":\"value2\"})")
-	b.WithOptionalFlag("resource-tags-file", "Path to JSON file containing resource tags")
+	b.WithOptionalFlag("resource-tags-file", fileInputUsage("Path to JSON file containing resource tags", "--resource-tags"))
 	return b
 }
 
