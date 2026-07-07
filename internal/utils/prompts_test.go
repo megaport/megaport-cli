@@ -12,19 +12,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Helper function to mock and capture stdin/stdout for testing prompts
-func withMockedIO(input string, fn func()) string {
-	// Save original stdin/stdout
+// withMockedIO redirects stdin to input and captures anything written to
+// stdout and stderr while fn runs, restoring the originals afterward. The
+// two streams are captured separately so tests can assert prompt text lands
+// on stderr and never leaks onto stdout (which must stay clean for
+// machine-readable output).
+func withMockedIO(input string, fn func()) (stdout string, stderr string) {
+	// Save originals
 	oldStdin := os.Stdin
 	oldStdout := os.Stdout
+	oldStderr := os.Stderr
 
-	// Create pipes for mocking stdin/stdout
+	// Create pipes for mocking stdin/stdout/stderr
 	inR, inW, _ := os.Pipe()
 	outR, outW, _ := os.Pipe()
+	errR, errW, _ := os.Pipe()
 
-	// Replace stdin/stdout with our pipes
 	os.Stdin = inR
 	os.Stdout = outW
+	os.Stderr = errW
 
 	// Write the mock input
 	_, err := inW.WriteString(input)
@@ -37,19 +43,22 @@ func withMockedIO(input string, fn func()) string {
 	// Call the function we're testing
 	fn()
 
-	// Restore original stdin/stdout
-	outW.Close() // Close the write end of stdout first
+	// Restore originals
+	outW.Close()
+	errW.Close()
 	os.Stdout = oldStdout
+	os.Stderr = oldStderr
 	os.Stdin = oldStdin
 
 	// Read the captured output
-	var buf bytes.Buffer
-	_, err = io.Copy(&buf, outR)
-	if err != nil {
-		// In tests, we can just panic on unexpected IO errors
+	var outBuf, errBuf bytes.Buffer
+	if _, err := io.Copy(&outBuf, outR); err != nil {
 		panic(fmt.Sprintf("Failed to copy from mock stdout: %v", err))
 	}
-	return buf.String()
+	if _, err := io.Copy(&errBuf, errR); err != nil {
+		panic(fmt.Sprintf("Failed to copy from mock stderr: %v", err))
+	}
+	return outBuf.String(), errBuf.String()
 }
 
 // Test the Prompt function
@@ -117,7 +126,7 @@ func TestPrompt(t *testing.T) {
 			SetPrompt(mockPrompt)
 
 			// Capture output
-			output := withMockedIO(tt.input, func() {
+			output, _ := withMockedIO(tt.input, func() {
 				result, err := Prompt(tt.message, tt.noColor)
 				if tt.expectedError {
 					assert.Error(t, err)
@@ -229,7 +238,7 @@ func TestConfirmPrompt(t *testing.T) {
 			SetConfirmPrompt(mockConfirmPrompt)
 
 			// Capture output
-			output := withMockedIO(tt.input, func() {
+			output, _ := withMockedIO(tt.input, func() {
 				result := ConfirmPrompt(tt.question, tt.noColor)
 				assert.Equal(t, tt.expected, result)
 			})
@@ -357,7 +366,7 @@ func TestResourcePrompt(t *testing.T) {
 			SetResourcePrompt(mockResourcePrompt)
 
 			// Capture output
-			output := withMockedIO(tt.input, func() {
+			output, _ := withMockedIO(tt.input, func() {
 				result, err := ResourcePrompt(tt.resourceType, tt.message, tt.noColor)
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expected, result)
@@ -398,25 +407,28 @@ func TestSecretResourcePrompt(t *testing.T) {
 // terminal the default implementation falls back to a buffered read so piped
 // CI input still works (term.ReadPassword would error on a non-TTY fd).
 func TestSecretResourcePrompt_NonTTYFallback(t *testing.T) {
-	output := withMockedIO("piped-secret\n", func() {
+	stdout, stderr := withMockedIO("piped-secret\n", func() {
 		got, err := SecretResourcePrompt("mve", "admin password: ", true)
 		assert.NoError(t, err)
 		assert.Equal(t, "piped-secret", got)
 	})
-	// Prompt should still be rendered, with the lock icon.
-	assert.Contains(t, output, "🔐")
-	assert.Contains(t, output, "admin password:")
+	// Prompt should still be rendered, with the lock icon, but on stderr so
+	// it doesn't corrupt machine-readable stdout output.
+	assert.Contains(t, stderr, "🔐")
+	assert.Contains(t, stderr, "admin password:")
+	assert.Empty(t, stdout)
 }
 
 // TestSecretResourcePrompt_NonTTYFallbackWithColor exercises the colored-prompt
 // branch of the default implementation.
 func TestSecretResourcePrompt_NonTTYFallbackWithColor(t *testing.T) {
-	output := withMockedIO("colored-secret\n", func() {
+	stdout, stderr := withMockedIO("colored-secret\n", func() {
 		got, err := SecretResourcePrompt("mve", "admin password: ", false)
 		assert.NoError(t, err)
 		assert.Equal(t, "colored-secret", got)
 	})
-	assert.Contains(t, output, "admin password:")
+	assert.Contains(t, stderr, "admin password:")
+	assert.Empty(t, stdout)
 }
 
 // TestAccessors verifies that every Get/Set accessor pair round-trips correctly
@@ -506,18 +518,33 @@ func TestDesignConfirmPrompt_DefaultRendering(t *testing.T) {
 		{Key: "Speed", Value: "1000 Mbps"},
 	}
 
-	out := withMockedIO("y\n", func() {
+	stdout, stderr := withMockedIO("y\n", func() {
 		result := DesignConfirmPrompt("NAT Gateway", details, true)
 		assert.True(t, result)
 	})
 
-	assert.Contains(t, out, "Design Summary:")
-	assert.Contains(t, out, "Proceed with creation?")
-	assert.Contains(t, out, "Resource Type: NAT Gateway")
-	assert.Contains(t, out, "Name: test-gw")
-	assert.Contains(t, out, "Speed: 1000 Mbps")
-	assert.NotContains(t, out, "Purchase Summary")
-	assert.NotContains(t, out, "Proceed with purchase")
+	assert.Contains(t, stderr, "Design Summary:")
+	assert.Contains(t, stderr, "Proceed with creation?")
+	assert.Contains(t, stderr, "Resource Type: NAT Gateway")
+	assert.Contains(t, stderr, "Name: test-gw")
+	assert.Contains(t, stderr, "Speed: 1000 Mbps")
+	assert.NotContains(t, stderr, "Purchase Summary")
+	assert.NotContains(t, stderr, "Proceed with purchase")
+	assert.Empty(t, stdout, "confirmation prompt must not write to stdout")
+}
+
+// TestConfirmPrompt_StdoutStaysCleanForJSONPiping is a regression test for
+// ESD-1586: piping `--output json` through `jq` must not see prompt text,
+// since jq would fail to parse it.
+func TestConfirmPrompt_StdoutStaysCleanForJSONPiping(t *testing.T) {
+	stdout, stderr := withMockedIO("y\n", func() {
+		result := ConfirmPrompt("Proceed with provisioning?", false)
+		assert.True(t, result)
+	})
+
+	assert.Empty(t, stdout, "confirmation prompt text must not appear on stdout")
+	assert.Contains(t, stderr, "Proceed with provisioning?")
+	assert.Contains(t, stderr, "[y/N]")
 }
 
 // Integration test that actually runs the real functions
@@ -539,12 +566,13 @@ func TestPromptsIntegration(t *testing.T) {
 			},
 			testFn: func(input string) {
 				originalPrompt := GetPrompt() // Use real function
-				output := withMockedIO(input, func() {
+				stdout, stderr := withMockedIO(input, func() {
 					result, err := originalPrompt("Test prompt:", true)
 					assert.NoError(t, err)
 					assert.Equal(t, "test input", result)
 				})
-				assert.Contains(t, output, "❯ Test prompt:")
+				assert.Contains(t, stderr, "❯ Test prompt:")
+				assert.Empty(t, stdout)
 			},
 		},
 		{
@@ -554,12 +582,13 @@ func TestPromptsIntegration(t *testing.T) {
 			},
 			testFn: func(input string) {
 				originalResourcePrompt := GetResourcePrompt() // Use real function
-				output := withMockedIO(input, func() {
+				stdout, stderr := withMockedIO(input, func() {
 					result, err := originalResourcePrompt("port", "Port name:", true)
 					assert.NoError(t, err)
 					assert.Equal(t, "resource input", result)
 				})
-				assert.Contains(t, output, "🔌 Port name:")
+				assert.Contains(t, stderr, "🔌 Port name:")
+				assert.Empty(t, stdout)
 			},
 		},
 	}
@@ -601,20 +630,32 @@ func TestPromptWithCustomReader(t *testing.T) {
 	// Replace stdin with our file
 	os.Stdin = tmpfile
 
-	// Capture stdout
-	_, outW, _ := os.Pipe()
+	// Capture stdout and stderr separately so we can verify the prompt text
+	// lands on stderr, not stdout.
+	outR, outW, _ := os.Pipe()
 	oldStdout := os.Stdout
 	os.Stdout = outW
 	defer func() { os.Stdout = oldStdout }()
 
+	errR, errW, _ := os.Pipe()
+	oldStderr := os.Stderr
+	os.Stderr = errW
+	defer func() { os.Stderr = oldStderr }()
+
 	// Test the real Prompt function with our simulated stdin
 	result, err := Prompt("Enter value:", true)
 
-	// Close the write pipe
+	// Close the write pipes
 	outW.Close()
+	errW.Close()
 
-	// Restore stdout to see test results
+	// Restore stdout/stderr to see test results
 	os.Stdout = oldStdout
+	os.Stderr = oldStderr
+
+	var outBuf, errBuf bytes.Buffer
+	_, _ = io.Copy(&outBuf, outR)
+	_, _ = io.Copy(&errBuf, errR)
 
 	if err != nil {
 		t.Fatalf("Got error from prompt: %v", err)
@@ -622,4 +663,6 @@ func TestPromptWithCustomReader(t *testing.T) {
 
 	expected := "simulated input"
 	assert.Equal(t, expected, result, "Expected prompt to return %q, got %q", expected, result)
+	assert.Contains(t, errBuf.String(), "Enter value:")
+	assert.Empty(t, outBuf.String(), "prompt text must not be written to stdout")
 }
