@@ -11,6 +11,9 @@ workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries unde
 
 ## [Unreleased]
 
+### Added
+- `servicekeys create` and `servicekeys update` now support `--json`/`--json-file` and `--interactive` input modes, matching the input-mode contract used elsewhere in the CLI. The update path's merge behavior (unset fields keep their current value rather than being cleared) is preserved across all three input modes (ESD-1591)
+
 ### Changed
 - **Breaking (WASM):** `window.executeMegaportCommand` no longer executes commands. A synchronous call blocked the JS event loop while the CLI waited on the browser's fetch transport, hanging the tab, and bypassed the mutex that guards the shared output buffers. It is kept as a deprecated stub for one release and always returns `{ error: "synchronous execution is not supported; use executeMegaportCommandAsync" }`. Use `window.executeMegaportCommandAsync` instead (ESD-1598)
 
