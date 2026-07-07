@@ -82,7 +82,29 @@ func ExecuteWithArgs(args []string) {
 			output.PrintErrorJSON(cliErr.Code, cliErr.Error())
 			return
 		}
-		// Clear the buffer if help was shown automatically
+		// When a live-output handler is registered the error has already
+		// streamed during execution (the RunE wrapper's PrintError, or cobra's
+		// own error print). Streamed chunks cannot be retracted, so the
+		// reset-and-rewrite used by the capture path would double-render the
+		// error in the terminal. Skip it; only surface an error here if nothing
+		// streamed at all (e.g. a flag-parse failure on a command whose
+		// SilenceErrors latched true on a prior run), so the failure is not silent.
+		if wasm.HasOutputHandler() {
+			// Emit a fallback only when nothing streamed AND nothing was
+			// captured. If a wrapper or cobra already wrote the error into the
+			// buffer (e.g. a throwing handler failed to deliver it), completion
+			// returns that captured buffer, so appending here would duplicate it.
+			// Emitting only when the buffer is empty keeps the failure from being
+			// silent without doubling it up.
+			if !wasm.DidStreamOutput() && wasm.WasmOutputBuffer.String() == "" {
+				fmt.Fprintf(wasm.WasmOutputBuffer, "Error: %v\n\n", err)
+				fmt.Fprintf(wasm.WasmOutputBuffer, "Run 'megaport-cli --help' to see the list of available commands.\n")
+			}
+			return
+		}
+
+		// Capture path (no handler): clear anything written before the error and
+		// rewrite a single clean error block for the returned result.
 		wasm.ResetOutputBuffers()
 
 		fmt.Fprintf(wasm.WasmOutputBuffer, "Error: %v\n\n", err)
