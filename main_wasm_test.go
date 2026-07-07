@@ -200,7 +200,7 @@ func TestWasmOutputBufferIntegration(t *testing.T) {
 
 	// Write to the buffer
 	testData := "test integration data"
-	wasm.WasmOutputBuffer.Write([]byte(testData))
+	_, _ = wasm.WasmOutputBuffer.Write([]byte(testData))
 
 	// Verify it can be retrieved
 	output := wasm.WasmOutputBuffer.String()
@@ -330,7 +330,7 @@ func TestDumpBuffers(t *testing.T) {
 
 	// Add some content
 	wasm.ResetOutputBuffers()
-	wasm.WasmOutputBuffer.Write([]byte("test content"))
+	_, _ = wasm.WasmOutputBuffer.Write([]byte("test content"))
 
 	// Dump buffers
 	result := dumpBuffers.Invoke()
