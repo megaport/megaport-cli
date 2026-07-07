@@ -3,6 +3,7 @@ package mve
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
@@ -91,6 +92,9 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 			if vlan, present, err := utils.JSONNumber(vnicMap, "vlan"); err != nil {
 				return nil, fmt.Errorf("vnics[%d] %w", i, err)
 			} else if present {
+				if vlan != math.Trunc(vlan) {
+					return nil, fmt.Errorf("vnics[%d] vlan must be an integer", i)
+				}
 				vnic.VLAN = int(vlan)
 			}
 
@@ -167,6 +171,9 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 			if vlan, present, err := utils.JSONNumber(vnicMap, "vlan"); err != nil {
 				return nil, fmt.Errorf("vnics[%d] %w", i, err)
 			} else if present {
+				if vlan != math.Trunc(vlan) {
+					return nil, fmt.Errorf("vnics[%d] vlan must be an integer", i)
+				}
 				vnic.VLAN = int(vlan)
 			}
 
