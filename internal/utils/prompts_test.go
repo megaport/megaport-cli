@@ -41,13 +41,22 @@ func withMockedIO(input string, fn func()) (stdout string, stderr string) {
 	os.Stdin = inR
 	os.Stdout = outW
 	os.Stderr = errW
-	// Restore the globals on any exit path, including a panic or t.Fatal
-	// (which unwinds via runtime.Goexit), so a failing subtest doesn't leave
-	// stdio redirected for the rest of the test binary.
+	// Restore the globals and close every pipe end on any exit path,
+	// including a panic or t.Fatal (which unwinds via runtime.Goexit), so a
+	// failing subtest doesn't leave stdio redirected or FDs leaked for the
+	// rest of the test binary. Closing an already-closed *os.File is a
+	// harmless no-op error, so this is safe to run alongside the explicit
+	// closes below on the normal path.
 	defer func() {
 		os.Stdin = oldStdin
 		os.Stdout = oldStdout
 		os.Stderr = oldStderr
+		_ = inR.Close()
+		_ = inW.Close()
+		_ = outR.Close()
+		_ = outW.Close()
+		_ = errR.Close()
+		_ = errW.Close()
 	}()
 
 	// Write the mock input
@@ -108,13 +117,22 @@ func withMockedIOStreamed(lines []string, fn func()) (stdout string, stderr stri
 	os.Stdin = inR
 	os.Stdout = outW
 	os.Stderr = errW
-	// Restore the globals on any exit path, including a panic or t.Fatal
-	// (which unwinds via runtime.Goexit), so a failing subtest doesn't leave
-	// stdio redirected for the rest of the test binary.
+	// Restore the globals and close every pipe end on any exit path,
+	// including a panic or t.Fatal (which unwinds via runtime.Goexit), so a
+	// failing subtest doesn't leave stdio redirected, leak FDs, or leave the
+	// writer goroutine blocked writing to a pipe nobody drains. Closing an
+	// already-closed *os.File is a harmless no-op error, so this is safe to
+	// run alongside the explicit closes below on the normal path.
 	defer func() {
 		os.Stdin = oldStdin
 		os.Stdout = oldStdout
 		os.Stderr = oldStderr
+		_ = inR.Close()
+		_ = inW.Close()
+		_ = outR.Close()
+		_ = outW.Close()
+		_ = errR.Close()
+		_ = errW.Close()
 	}()
 
 	go func() {
