@@ -20,13 +20,25 @@ jobs:
           go-version-file: 'go.mod'
       - name: Compile js/wasm target
         run: make wasm-build-guard
+      - name: Vet js/wasm target
+        # Compiles every wasm-tagged package, test files included, so any wasm
+        # test file that stops building is caught here.
+        run: make wasm-vet
       - name: Run WASM unit tests
-        # Only ./cmd/megaport runs under the bare go_js_wasm_exec (node) runtime.
-        # The other WASM test packages need a browser host (fetch, JS bridge
-        # globals, stdin pipes) and are verified manually in-browser.
+        # wasm-vet above already compiles all wasm test packages. Only
+        # ./cmd/megaport can also run under the bare go_js_wasm_exec (node)
+        # runtime; the rest need a browser host (fetch, JS bridge globals, stdin
+        # pipes) and are verified manually in-browser.
         run: |
           export PATH="$PATH:$(go env GOROOT)/lib/wasm"
           GOOS=js GOARCH=wasm go test -v -tags js,wasm ./cmd/megaport
+      - name: Run WASM fetch-transport unit tests
+        # The wasmhttp tests mock the global fetch and need only Promise /
+        # AbortController / AbortSignal, all present in the node runtime, so
+        # the whole package runs headlessly here.
+        run: |
+          export PATH="$PATH:$(go env GOROOT)/lib/wasm"
+          GOOS=js GOARCH=wasm go test -v -tags js,wasm ./internal/wasm/wasmhttp
 
   smoke:
     name: Browser Fetch Smoke
