@@ -1704,6 +1704,103 @@ func TestUpdatePort_PreservesCostCentre(t *testing.T) {
 	assert.Equal(t, "IT Dept", captured.CostCentre, "name-only update must preserve the existing cost centre")
 }
 
+func newUpdatePortCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "update"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
+	cmd.Flags().String("cost-centre", "", "")
+	cmd.Flags().Int("term", 0, "")
+	return cmd
+}
+
+func TestUpdatePort_CostCentreOverrideAndClear(t *testing.T) {
+	originalGetPortFunc := getPortFunc
+	originalUpdatePortFunc := updatePortFunc
+	defer func() {
+		getPortFunc = originalGetPortFunc
+		updatePortFunc = originalUpdatePortFunc
+	}()
+
+	tests := []struct {
+		name     string
+		setFlags func(*cobra.Command)
+		expected string
+	}{
+		{
+			name:     "explicit cost centre overrides current",
+			setFlags: func(c *cobra.Command) { require.NoError(t, c.Flags().Set("cost-centre", "Finance")) },
+			expected: "Finance",
+		},
+		{
+			name: "explicit empty cost centre clears it",
+			setFlags: func(c *cobra.Command) {
+				require.NoError(t, c.Flags().Set("name", "Renamed"))
+				require.NoError(t, c.Flags().Set("cost-centre", ""))
+			},
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+			defer cleanup()
+
+			mockService := &MockPortService{}
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.PortService = mockService
+				return client, nil
+			})
+
+			getPortFunc = func(ctx context.Context, client *megaport.Client, portUID string) (*megaport.Port, error) {
+				return &megaport.Port{UID: portUID, Name: "Original", CostCentre: "IT Dept", ProvisioningStatus: "LIVE"}, nil
+			}
+
+			var captured *megaport.ModifyPortRequest
+			updatePortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.ModifyPortRequest) (*megaport.ModifyPortResponse, error) {
+				captured = req
+				return &megaport.ModifyPortResponse{IsUpdated: true}, nil
+			}
+
+			cmd := newUpdatePortCmd()
+			tt.setFlags(cmd)
+
+			_ = captureStderr(t, func() {
+				output.CaptureOutput(func() {
+					require.NoError(t, UpdatePort(cmd, []string{"port-cc-1"}, true))
+				})
+			})
+
+			require.NotNil(t, captured)
+			assert.Equal(t, tt.expected, captured.CostCentre)
+		})
+	}
+}
+
+// Bad input must fail before any network round-trip, so login/fetch errors
+// never mask the real validation error.
+func TestUpdatePort_ValidatesBeforeLogin(t *testing.T) {
+	cleanup := testutil.SetupLoginError(fmt.Errorf("login must not be reached"))
+	defer cleanup()
+
+	cmd := newUpdatePortCmd()
+	require.NoError(t, cmd.Flags().Set("term", "99"))
+
+	var err error
+	_ = captureStderr(t, func() {
+		output.CaptureOutput(func() {
+			err = UpdatePort(cmd, []string{"port-1"}, true)
+		})
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "contract term", "input must be validated before login")
+}
+
 func TestBuyPort_Confirmation(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
