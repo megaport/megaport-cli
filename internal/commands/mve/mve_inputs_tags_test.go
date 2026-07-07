@@ -132,3 +132,61 @@ func TestProcessJSONBuyMVEInput_ResourceTags(t *testing.T) {
 		assert.Equal(t, exitcodes.Usage, cliErr.Code)
 	})
 }
+
+func TestProcessJSONBuyMVEInput_SiblingFieldUsageErrors(t *testing.T) {
+	// These fields sit alongside resourceTags in the same function and must
+	// exit Usage too, matching the flags path.
+	tests := []struct {
+		name          string
+		body          string
+		expectedError string
+	}{
+		{
+			name:          "term wrong type",
+			body:          `{"name":"Test MVE","term":"twelve","locationId":123}`,
+			expectedError: "term must be a number",
+		},
+		{
+			name:          "locationId wrong type",
+			body:          `{"name":"Test MVE","term":12,"locationId":"one-two-three"}`,
+			expectedError: "locationId must be a number",
+		},
+		{
+			name:          "vendorConfig wrong type",
+			body:          `{"name":"Test MVE","term":12,"locationId":123,"vendorConfig":"not-an-object"}`,
+			expectedError: "vendorConfig must be an object",
+		},
+		{
+			name:          "vendorConfig invalid vendor",
+			body:          `{"name":"Test MVE","term":12,"locationId":123,"vendorConfig":{"vendor":"not-a-real-vendor"}}`,
+			expectedError: "vendor",
+		},
+		{
+			name:          "vnics wrong type",
+			body:          `{"name":"Test MVE","term":12,"locationId":123,"vnics":"not-an-array"}`,
+			expectedError: "vnics must be an array",
+		},
+		{
+			name:          "vnics element not an object",
+			body:          `{"name":"Test MVE","term":12,"locationId":123,"vnics":["not-an-object"]}`,
+			expectedError: "vnics[0] must be an object",
+		},
+		{
+			name:          "vnics element vlan wrong type",
+			body:          `{"name":"Test MVE","term":12,"locationId":123,"vnics":[{"vlan":"not-a-number"}]}`,
+			expectedError: "vnics[0]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := processJSONBuyMVEInput(tt.body, "")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.expectedError)
+
+			var cliErr *exitcodes.CLIError
+			require.True(t, errors.As(err, &cliErr))
+			assert.Equal(t, exitcodes.Usage, cliErr.Code)
+		})
+	}
+}

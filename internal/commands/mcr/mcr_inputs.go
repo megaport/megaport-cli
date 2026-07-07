@@ -19,16 +19,16 @@ func processJSONMCRInput(jsonStr, jsonFile string) (*megaport.BuyMCRRequest, err
 
 	jsonData, err = utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	}
 
 	req := &megaport.BuyMCRRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse JSON: %w", err))
 	}
 
 	if err := utils.RejectEmptyTagKeys(req.ResourceTags); err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	}
 
 	// BuyMCRRequest.AddOns is []MCRAddOn (interface) and cannot be directly
@@ -38,7 +38,7 @@ func processJSONMCRInput(jsonStr, jsonFile string) (*megaport.BuyMCRRequest, err
 		TunnelCount *int `json:"tunnelCount"`
 	}
 	if err := json.Unmarshal(jsonData, &extras); err != nil {
-		return nil, fmt.Errorf("failed to parse tunnelCount: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse tunnelCount: %w", err))
 	}
 	if extras.TunnelCount != nil {
 		if *extras.TunnelCount < 0 {
@@ -245,7 +245,7 @@ func processJSONPrefixFilterListInput(jsonStr, jsonFile string, mcrUID string) (
 
 	jsonData, err = utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	}
 
 	var tempData struct {
@@ -260,7 +260,7 @@ func processJSONPrefixFilterListInput(jsonStr, jsonFile string, mcrUID string) (
 	}
 
 	if err := json.Unmarshal(jsonData, &tempData); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse JSON: %w", err))
 	}
 
 	entries := make([]*megaport.MCRPrefixListEntry, len(tempData.Entries))

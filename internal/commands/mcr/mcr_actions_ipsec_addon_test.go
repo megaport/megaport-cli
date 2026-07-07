@@ -2,6 +2,7 @@ package mcr
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -435,6 +436,10 @@ func TestAddMCRIPSecAddOn_BadJSON(t *testing.T) {
 	err := AddMCRIPSecAddOn(cmd, []string{"mcr-abc"}, false)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse JSON")
+
+	var cliErr *exitcodes.CLIError
+	assert.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
 
 func TestUpdateMCRIPSecAddOn_BadJSON(t *testing.T) {

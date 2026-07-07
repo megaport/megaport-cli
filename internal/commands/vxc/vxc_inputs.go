@@ -156,30 +156,30 @@ func parseVXCEndpointConfig(endConfigRaw map[string]interface{}, endLabel string
 	config := megaport.VXCOrderEndpointConfiguration{}
 
 	if productUID, present, err := utils.JSONString(endConfigRaw, "productUID"); err != nil {
-		return config, fmt.Errorf("%s: %w", endLabel, err)
+		return config, exitcodes.NewUsageError(fmt.Errorf("%s: %w", endLabel, err))
 	} else if present {
 		config.ProductUID = productUID
 	}
 
 	if vlan, present, err := utils.JSONNumber(endConfigRaw, "vlan"); err != nil {
-		return config, fmt.Errorf("%s: %w", endLabel, err)
+		return config, exitcodes.NewUsageError(fmt.Errorf("%s: %w", endLabel, err))
 	} else if present {
 		config.VLAN = int(vlan)
 	}
 
 	if diversityZone, present, err := utils.JSONString(endConfigRaw, "diversityZone"); err != nil {
-		return config, fmt.Errorf("%s: %w", endLabel, err)
+		return config, exitcodes.NewUsageError(fmt.Errorf("%s: %w", endLabel, err))
 	} else if present {
 		config.DiversityZone = diversityZone
 	}
 
 	// Handle partner config - directly use map data
 	if partnerConfigRaw, present, err := utils.JSONObject(endConfigRaw, "partnerConfig"); err != nil {
-		return config, fmt.Errorf("%s: %w", endLabel, err)
+		return config, exitcodes.NewUsageError(fmt.Errorf("%s: %w", endLabel, err))
 	} else if present {
 		partnerConfig, err := parsePartnerConfigFromMap(partnerConfigRaw)
 		if err != nil {
-			return config, fmt.Errorf("failed to parse %s partner config: %w", endLabel, err)
+			return config, exitcodes.NewUsageError(fmt.Errorf("failed to parse %s partner config: %w", endLabel, err))
 		}
 
 		config.PartnerConfig = partnerConfig
@@ -188,11 +188,11 @@ func parseVXCEndpointConfig(endConfigRaw map[string]interface{}, endLabel string
 	// Handle MVE config
 	innerVLAN, hasInnerVLAN, err := utils.JSONNumber(endConfigRaw, "innerVlan")
 	if err != nil {
-		return config, fmt.Errorf("%s: %w", endLabel, err)
+		return config, exitcodes.NewUsageError(fmt.Errorf("%s: %w", endLabel, err))
 	}
 	vNicIndex, hasVNicIndex, err := utils.JSONNumber(endConfigRaw, "vNicIndex")
 	if err != nil {
-		return config, fmt.Errorf("%s: %w", endLabel, err)
+		return config, exitcodes.NewUsageError(fmt.Errorf("%s: %w", endLabel, err))
 	}
 
 	if hasInnerVLAN || hasVNicIndex {
@@ -214,26 +214,26 @@ func parseVXCEndpointConfig(endConfigRaw map[string]interface{}, endLabel string
 
 func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.BuyVXCRequest, error) {
 	if jsonStr == "" && jsonFilePath == "" {
-		return nil, fmt.Errorf("either json or json-file must be provided")
+		return nil, exitcodes.NewUsageError(fmt.Errorf("either json or json-file must be provided"))
 	}
 
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFilePath)
 	if err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	}
 
 	// Parse raw JSON first to handle partner configs correctly
 	var rawData map[string]interface{}
 	if err := json.Unmarshal(jsonData, &rawData); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse JSON: %w", err))
 	}
 
 	portUID, present, err := utils.JSONString(rawData, "portUid")
 	if err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	}
 	if !present {
-		return nil, validation.NewValidationError("portUid", "", "Port UID is required")
+		return nil, exitcodes.NewUsageError(validation.NewValidationError("portUid", "", "Port UID is required"))
 	}
 
 	// Create the base request
@@ -243,67 +243,67 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.Buy
 
 	// Set simple fields
 	if vxcName, present, err := utils.JSONString(rawData, "vxcName"); err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		req.VXCName = vxcName
 	}
 
 	if rateLimit, present, err := utils.JSONNumber(rawData, "rateLimit"); err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		if rateLimit != math.Trunc(rateLimit) {
-			return nil, fmt.Errorf("rateLimit must be a whole number, got %v", rateLimit)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("rateLimit must be a whole number, got %v", rateLimit))
 		}
 		req.RateLimit = int(rateLimit)
 	}
 
 	if term, present, err := utils.JSONNumber(rawData, "term"); err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		if term != math.Trunc(term) {
-			return nil, fmt.Errorf("term must be a whole number, got %v", term)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("term must be a whole number, got %v", term))
 		}
 		req.Term = int(term)
 	}
 
 	if shutdown, present, err := utils.JSONBool(rawData, "shutdown"); err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		req.Shutdown = shutdown
 	}
 
 	if promoCode, present, err := utils.JSONString(rawData, "promoCode"); err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		req.PromoCode = promoCode
 	}
 
 	if serviceKey, present, err := utils.JSONString(rawData, "serviceKey"); err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		req.ServiceKey = serviceKey
 	}
 
 	if costCentre, present, err := utils.JSONString(rawData, "costCentre"); err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		req.CostCentre = costCentre
 	}
 
 	// Handle resource tags if they exist
 	if resourceTags, present, err := utils.JSONObject(rawData, "resourceTags"); err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		tags, err := utils.TagMapFromObject(resourceTags)
 		if err != nil {
-			return nil, err
+			return nil, exitcodes.NewUsageError(err)
 		}
 		req.ResourceTags = tags
 	}
 
 	// Handle A-End configuration
 	if aEndConfigRaw, present, err := utils.JSONObject(rawData, "aEndConfiguration"); err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		aEndConfig, err := parseVXCEndpointConfig(aEndConfigRaw, "A-End")
 		if err != nil {
@@ -314,7 +314,7 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.Buy
 
 	// Handle B-End configuration
 	if bEndConfigRaw, present, err := utils.JSONObject(rawData, "bEndConfiguration"); err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		bEndConfig, err := parseVXCEndpointConfig(bEndConfigRaw, "B-End")
 		if err != nil {

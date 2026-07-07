@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -12,12 +13,12 @@ import (
 func parseManagedAccountRequestJSON(jsonStr, jsonFile string) (*megaport.ManagedAccountRequest, error) {
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	}
 
 	req := &megaport.ManagedAccountRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse JSON: %w", err))
 	}
 
 	return req, nil

@@ -158,16 +158,16 @@ func processFlagPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, error) 
 func processJSONPortInput(jsonStr, jsonFile string) (*megaport.BuyPortRequest, error) {
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	}
 
 	req := &megaport.BuyPortRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse JSON: %w", err))
 	}
 
 	if err := utils.RejectEmptyTagKeys(req.ResourceTags); err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	}
 
 	if err := validation.ValidatePortRequest(req); err != nil {
@@ -180,16 +180,16 @@ func processJSONPortInput(jsonStr, jsonFile string) (*megaport.BuyPortRequest, e
 func processJSONLAGPortInput(jsonStr, jsonFile string) (*megaport.BuyPortRequest, error) {
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	}
 
 	req := &megaport.BuyPortRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse JSON: %w", err))
 	}
 
 	if err := utils.RejectEmptyTagKeys(req.ResourceTags); err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	}
 
 	// A missing lagCount unmarshals to 0, which ValidateLAGPortRequest rejects,

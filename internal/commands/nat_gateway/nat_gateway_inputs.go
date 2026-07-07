@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
@@ -14,7 +15,7 @@ import (
 func processJSONCreateNATGatewayInput(jsonStr, jsonFile string) (*megaport.CreateNATGatewayRequest, error) {
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	}
 
 	// Unmarshal into a flat helper to handle camelCase JSON keys.
@@ -33,11 +34,11 @@ func processJSONCreateNATGatewayInput(jsonStr, jsonFile string) (*megaport.Creat
 		ResourceTags          map[string]string `json:"resourceTags"`
 	}
 	if err := json.Unmarshal(jsonData, &raw); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse JSON: %w", err))
 	}
 
 	if err := utils.RejectEmptyTagKeys(raw.ResourceTags); err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	}
 
 	req := &megaport.CreateNATGatewayRequest{

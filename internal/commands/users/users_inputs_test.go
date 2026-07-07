@@ -131,6 +131,10 @@ func TestProcessJSONCreateUserInput(t *testing.T) {
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
+
+				var cliErr *exitcodes.CLIError
+				require.True(t, errors.As(err, &cliErr))
+				assert.Equal(t, exitcodes.Usage, cliErr.Code)
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, req)
