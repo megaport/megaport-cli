@@ -40,6 +40,13 @@ jobs:
         run: |
           export PATH="$PATH:$(go env GOROOT)/lib/wasm"
           GOOS=js GOARCH=wasm go test -v -tags js,wasm ./internal/wasm
+      - name: Run WASM fetch-transport unit tests
+        # The wasmhttp tests mock the global fetch and need only Promise /
+        # AbortController / AbortSignal, all present in the node runtime, so
+        # the whole package runs headlessly here.
+        run: |
+          export PATH="$PATH:$(go env GOROOT)/lib/wasm"
+          GOOS=js GOARCH=wasm go test -v -tags js,wasm ./internal/wasm/wasmhttp
 
   smoke:
     name: Browser Fetch Smoke
