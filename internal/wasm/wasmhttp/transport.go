@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"syscall/js"
 	"time"
 )
@@ -29,6 +30,10 @@ func NewWasmHTTPClient() *http.Client {
 // RoundTrip executes a single HTTP transaction using browser fetch API
 // This is the core method that bridges Go's http.Client with JavaScript fetch
 func (t *WasmHTTPTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if err := req.Context().Err(); err != nil {
+		return nil, err
+	}
+
 	console := js.Global().Get("console")
 
 	// Determine timeout
@@ -47,7 +52,7 @@ func (t *WasmHTTPTransport) RoundTrip(req *http.Request) (*http.Response, error)
 	}
 
 	// Make the fetch call
-	response, err := t.doFetch(req.URL.String(), fetchOpts, timeout)
+	response, err := t.doFetch(req, fetchOpts, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -65,17 +70,17 @@ func (t *WasmHTTPTransport) RoundTrip(req *http.Request) (*http.Response, error)
 
 // buildFetchOptions converts an http.Request to fetch API options
 func (t *WasmHTTPTransport) buildFetchOptions(req *http.Request) (map[string]interface{}, error) {
-	// Build headers map
+	// Build headers map. Accept-Encoding is a forbidden fetch header the
+	// browser silently strips, so drop it here too even if a caller set it
+	// directly on the request rather than relying on us to add it.
 	headers := make(map[string]interface{})
 	for key, values := range req.Header {
+		if strings.EqualFold(key, "Accept-Encoding") {
+			continue
+		}
 		if len(values) > 0 {
 			headers[key] = values[0] // fetch expects single string values
 		}
-	}
-
-	// Add compression support
-	if _, exists := headers["Accept-Encoding"]; !exists {
-		headers["Accept-Encoding"] = "gzip, deflate, br"
 	}
 
 	fetchOpts := map[string]interface{}{
@@ -101,13 +106,23 @@ func (t *WasmHTTPTransport) buildFetchOptions(req *http.Request) (map[string]int
 	return fetchOpts, nil
 }
 
-// doFetch performs the actual fetch call and handles the promise
-func (t *WasmHTTPTransport) doFetch(url string, options map[string]interface{}, timeout time.Duration) (*fetchResponse, error) {
+// doFetch performs the actual fetch call and handles the promise. The fetch
+// is wired to an AbortController so the browser request actually stops when
+// req.Context() is cancelled or the transport timeout fires, instead of
+// continuing to run after Go has given up on it.
+func (t *WasmHTTPTransport) doFetch(req *http.Request, options map[string]interface{}, timeout time.Duration) (*fetchResponse, error) {
+	if err := req.Context().Err(); err != nil {
+		return nil, err
+	}
+
 	console := js.Global().Get("console")
 	startTime := time.Now()
 
+	abortController := js.Global().Get("AbortController").New()
+	options["signal"] = abortController.Get("signal")
+
 	// Make the fetch call
-	promise := js.Global().Call("fetch", url, options)
+	promise := js.Global().Call("fetch", req.URL.String(), options)
 
 	// Channels for async response handling
 	resultChan := make(chan *fetchResponse, 1)
@@ -192,26 +207,74 @@ func (t *WasmHTTPTransport) doFetch(url string, options map[string]interface{}, 
 		defer catchFunc.Release()
 
 		errMsg := "unknown fetch error"
+		isAbort := false
 		if len(catchArgs) > 0 && !catchArgs[0].IsUndefined() {
+			if name := catchArgs[0].Get("name"); !name.IsUndefined() && name.String() == "AbortError" {
+				isAbort = true
+			}
 			if msg := catchArgs[0].Get("message"); !msg.IsUndefined() {
 				errMsg = msg.String()
 			}
 		}
 
-		console.Call("error", fmt.Sprintf("❌ Fetch failed: %s", errMsg))
+		// An abort is expected behavior (context cancellation or timeout), not
+		// a genuine fetch failure, so it doesn't warrant an error-level log.
+		if isAbort {
+			console.Call("log", fmt.Sprintf("⏹️ Fetch aborted: %s", errMsg))
+		} else {
+			console.Call("error", fmt.Sprintf("❌ Fetch failed: %s", errMsg))
+		}
 		errorChan <- fmt.Errorf("fetch failed: %s", errMsg)
 		return nil
 	})
 
 	promise.Call("then", thenFunc).Call("catch", catchFunc)
 
-	// Wait for result or timeout
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	// Non-blocking check for an already-fired cancellation/timeout, used both
+	// up front and right after a result/error arrives, so that outcome wins
+	// deterministically instead of leaving it to Go's pseudo-random selection
+	// among ready channels.
+	checkPriority := func() error {
+		select {
+		case <-req.Context().Done():
+			return req.Context().Err()
+		case <-timer.C:
+			return fmt.Errorf("fetch timeout after %v", timeout)
+		default:
+			return nil
+		}
+	}
+
+	if err := checkPriority(); err != nil {
+		abortController.Call("abort")
+		return nil, err
+	}
+
+	// Wait for result, context cancellation, or timeout. Aborting the
+	// controller stops the in-flight browser fetch; its eventual (unread)
+	// rejection lands in the buffered errorChan and is discarded rather than
+	// leaking a goroutine.
 	select {
 	case result := <-resultChan:
+		if err := checkPriority(); err != nil {
+			abortController.Call("abort")
+			return nil, err
+		}
 		return result, nil
 	case err := <-errorChan:
+		if cancelErr := checkPriority(); cancelErr != nil {
+			abortController.Call("abort")
+			return nil, cancelErr
+		}
 		return nil, err
-	case <-time.After(timeout):
+	case <-req.Context().Done():
+		abortController.Call("abort")
+		return nil, req.Context().Err()
+	case <-timer.C:
+		abortController.Call("abort")
 		return nil, fmt.Errorf("fetch timeout after %v", timeout)
 	}
 }
