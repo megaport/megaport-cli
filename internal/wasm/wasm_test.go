@@ -1,4 +1,8 @@
-//go:build js && wasm
+// These tests call undefined JS globals (fetch, config-file/localStorage
+// bridges) that only exist in a real browser host, so they panic under the
+// headless node runtime. The `browser` tag keeps them out of the default CI
+// run; a browser harness opts in with -tags js,wasm,browser.
+//go:build js && wasm && browser
 
 package wasm
 
