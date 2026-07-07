@@ -112,6 +112,11 @@ func TestProcessJSONCreateUserInput(t *testing.T) {
 			name:      "valid JSON file",
 			writeFile: `{"firstName":"Jane","lastName":"Doe","email":"jane@example.com","position":"Finance","active":true}`,
 		},
+		{
+			name:          "invalid position",
+			jsonStr:       `{"firstName":"John","lastName":"Doe","email":"john@example.com","position":"Super Admin"}`,
+			expectedError: "invalid position",
+		},
 	}
 
 	for _, tt := range tests {

@@ -31,6 +31,10 @@ func processJSONCreateUserInput(jsonStr, jsonFile string) (*megaport.CreateUserR
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
+	if input.Position != "" && !input.Position.IsValid() {
+		return nil, fmt.Errorf("invalid position: %s. Valid positions: %s", input.Position, input.Position.ValidPositions())
+	}
+
 	active := true
 	if input.Active != nil {
 		active = *input.Active
