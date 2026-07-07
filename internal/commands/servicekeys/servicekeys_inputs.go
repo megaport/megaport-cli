@@ -81,6 +81,10 @@ func processJSONCreateServiceKeyInput(jsonStr, jsonFile string) (*megaport.Creat
 	if err := json.Unmarshal(jsonData, req); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
+	// A raw "validFor" key unmarshals onto OrderValidFor (raw epoch millis),
+	// bypassing startDate/endDate validation below. Discard it so startDate/
+	// endDate are the only supported way to set the validity window.
+	req.OrderValidFor = nil
 
 	var dates struct {
 		StartDate string `json:"startDate"`
@@ -153,6 +157,11 @@ func buildUpdateServiceKeyRequestFromJSON(jsonStr, jsonFile, key string, current
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 	req.Key = key
+	// Update has no supported way to change the validity window (no
+	// startDate/endDate flags either), so discard a raw "validFor" key
+	// rather than sending it to the API unvalidated.
+	req.OrderValidFor = nil
+	req.ValidFor = nil
 
 	if _, ok := raw["singleUse"]; !ok {
 		req.SingleUse = current.SingleUse

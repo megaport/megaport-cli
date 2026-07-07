@@ -202,6 +202,15 @@ func TestCreateServiceKey_JSONMode(t *testing.T) {
 			json:          `{invalid}`,
 			expectedError: "failed to parse JSON",
 		},
+		{
+			name: "raw validFor key is ignored",
+			json: `{"productUid":"json-prod-uid","validFor":{"start":111,"end":222}}`,
+			check: func(t *testing.T, req *megaport.CreateServiceKeyRequest) {
+				assert.Equal(t, "json-prod-uid", req.ProductUID)
+				assert.Nil(t, req.ValidFor)
+				assert.Nil(t, req.OrderValidFor)
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -691,6 +700,13 @@ func TestUpdateServiceKey_JSONMode(t *testing.T) {
 			json:          `{invalid}`,
 			expectedError: "failed to parse JSON",
 		},
+		{
+			name:              "raw validFor key is ignored",
+			json:              `{"active":false,"validFor":{"start":111,"end":222}}`,
+			expectedSingleUse: true,
+			expectedActive:    false,
+			expectedUID:       "current-prod-uid",
+		},
 	}
 
 	for _, tt := range tests {
@@ -725,6 +741,8 @@ func TestUpdateServiceKey_JSONMode(t *testing.T) {
 				assert.Equal(t, tt.expectedActive, req.Active)
 				assert.Equal(t, tt.expectedUID, req.ProductUID)
 				assert.Equal(t, tt.expectedID, req.ProductID)
+				assert.Nil(t, req.ValidFor)
+				assert.Nil(t, req.OrderValidFor)
 			}
 		})
 	}
