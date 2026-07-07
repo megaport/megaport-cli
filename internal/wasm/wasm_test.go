@@ -135,6 +135,44 @@ func TestDirectOutputBuffer_Concurrent(t *testing.T) {
 	assert.Equal(t, strings.Repeat("x", 1000), result)
 }
 
+// TestDirectOutputBuffer_Reset verifies buffer reset
+func TestDirectOutputBuffer_Reset(t *testing.T) {
+	buffer := &DirectOutputBuffer{
+		buffer: &bytes.Buffer{},
+	}
+
+	_, _ = buffer.Write([]byte("test data"))
+	assert.NotEqual(t, "", buffer.String())
+
+	buffer.Reset()
+	assert.Equal(t, "", buffer.String())
+}
+
+// TestCustomWriter verifies custom writer implementation
+func TestCustomWriter(t *testing.T) {
+	var buf bytes.Buffer
+	writer := &customWriter{writer: &buf}
+
+	testData := []byte("test data")
+	n, err := writer.Write(testData)
+
+	assert.NoError(t, err)
+	assert.Equal(t, len(testData), n)
+	assert.Equal(t, "test data", buf.String())
+}
+
+// TestCaptureOutput verifies output capture functionality
+func TestCaptureOutput(t *testing.T) {
+	testOutput := "test output from function"
+
+	captured := CaptureOutput(func() {
+		_, _ = WasmOutputBuffer.Write([]byte(testOutput))
+	})
+
+	// Should contain the output (may have additional content from pipes)
+	assert.Contains(t, captured, testOutput)
+}
+
 // TestSplitArgs verifies command argument parsing
 func TestSplitArgs(t *testing.T) {
 	tests := []struct {
