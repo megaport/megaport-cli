@@ -9,18 +9,41 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// createUserJSONInput mirrors megaport.CreateUserRequest but keeps Active nilable
+// so an omitted "active" field can be distinguished from an explicit "active": false.
+type createUserJSONInput struct {
+	FirstName string                `json:"firstName"`
+	LastName  string                `json:"lastName"`
+	Active    *bool                 `json:"active"`
+	Email     string                `json:"email"`
+	Phone     string                `json:"phone"`
+	Position  megaport.UserPosition `json:"position"`
+}
+
 func processJSONCreateUserInput(jsonStr, jsonFile string) (*megaport.CreateUserRequest, error) {
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
 		return nil, err
 	}
 
-	req := &megaport.CreateUserRequest{}
-	if err := json.Unmarshal(jsonData, req); err != nil {
+	input := &createUserJSONInput{}
+	if err := json.Unmarshal(jsonData, input); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
-	return req, nil
+	active := true
+	if input.Active != nil {
+		active = *input.Active
+	}
+
+	return &megaport.CreateUserRequest{
+		FirstName: input.FirstName,
+		LastName:  input.LastName,
+		Active:    active,
+		Email:     input.Email,
+		Phone:     input.Phone,
+		Position:  input.Position,
+	}, nil
 }
 
 func processFlagCreateUserInput(cmd *cobra.Command) (*megaport.CreateUserRequest, error) {

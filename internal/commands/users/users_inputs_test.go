@@ -139,6 +139,39 @@ func TestProcessJSONCreateUserInput(t *testing.T) {
 	}
 }
 
+func TestProcessJSONCreateUserInputActiveDefault(t *testing.T) {
+	tests := []struct {
+		name           string
+		jsonStr        string
+		expectedActive bool
+	}{
+		{
+			name:           "omitted active defaults to true",
+			jsonStr:        `{"firstName":"John","lastName":"Doe","email":"john@example.com","position":"Technical Admin"}`,
+			expectedActive: true,
+		},
+		{
+			name:           "explicit active true is honored",
+			jsonStr:        `{"firstName":"John","lastName":"Doe","email":"john@example.com","position":"Technical Admin","active":true}`,
+			expectedActive: true,
+		},
+		{
+			name:           "explicit active false is honored",
+			jsonStr:        `{"firstName":"John","lastName":"Doe","email":"john@example.com","position":"Technical Admin","active":false}`,
+			expectedActive: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := processJSONCreateUserInput(tt.jsonStr, "")
+			require.NoError(t, err)
+			require.NotNil(t, req)
+			assert.Equal(t, tt.expectedActive, req.Active)
+		})
+	}
+}
+
 func TestProcessJSONUpdateUserInput(t *testing.T) {
 	tests := []struct {
 		name          string
