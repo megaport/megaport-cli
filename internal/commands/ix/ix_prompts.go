@@ -3,6 +3,7 @@ package ix
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
@@ -188,12 +189,51 @@ func buildUpdateIXRequestFromPrompt(_ string, noColor bool) (*megaport.UpdateIXR
 		fieldsUpdated = true
 	}
 
+	publicGraphStr, err := utils.ResourcePrompt("ix", "Make IX usage statistics publicly viewable? (y/yes/n/no, leave empty to skip): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	switch strings.ToLower(strings.TrimSpace(publicGraphStr)) {
+	case "y", "yes":
+		publicGraph := true
+		req.PublicGraph = &publicGraph
+		fieldsUpdated = true
+	case "n", "no":
+		publicGraph := false
+		req.PublicGraph = &publicGraph
+		fieldsUpdated = true
+	}
+
 	reverseDns, err := utils.ResourcePrompt("ix", "Enter new reverse DNS (leave empty to skip): ", noColor)
 	if err != nil {
 		return nil, err
 	}
 	if reverseDns != "" {
 		req.ReverseDns = &reverseDns
+		fieldsUpdated = true
+	}
+
+	aEndProductUID, err := utils.ResourcePrompt("ix", "Enter new A-End product UID to move the IX to (leave empty to skip): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	if aEndProductUID != "" {
+		req.AEndProductUid = &aEndProductUID
+		fieldsUpdated = true
+	}
+
+	shutdownStr, err := utils.ResourcePrompt("ix", "Shut down the IX? (y/yes/n/no, leave empty to skip): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	switch strings.ToLower(strings.TrimSpace(shutdownStr)) {
+	case "y", "yes":
+		shutdown := true
+		req.Shutdown = &shutdown
+		fieldsUpdated = true
+	case "n", "no":
+		shutdown := false
+		req.Shutdown = &shutdown
 		fieldsUpdated = true
 	}
 
