@@ -33,9 +33,9 @@ jobs:
           export PATH="$PATH:$(go env GOROOT)/lib/wasm"
           GOOS=js GOARCH=wasm go test -v -tags js,wasm ./cmd/megaport
       - name: Run WASM output-streaming unit tests
-        # internal/wasm's browser-only tests are gated behind the `browser` build
-        # tag, so the default js,wasm run compiles only the node-safe tests
-        # (currently the output-streaming contract in output_handler_test.go).
+        # internal/wasm's browser-only tests live in wasm_browser_test.go behind
+        # the `browser` build tag, so the default js,wasm run compiles only the
+        # node-safe tests (wasm_test.go, output_handler_test.go, etc.).
         # No -run allowlist: any node-safe test added to the package runs here.
         run: |
           export PATH="$PATH:$(go env GOROOT)/lib/wasm"
