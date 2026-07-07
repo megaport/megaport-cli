@@ -27,6 +27,28 @@ func TestReadInputFile_Native_MissingFile(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to read JSON file")
 }
 
+func TestReadInputFile_Native_RejectsTraversal(t *testing.T) {
+	_, err := readInputFile("../secrets.json")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "path traversal not allowed")
+}
+
+func TestReadInputFile_Native_RejectsNonRegularFile(t *testing.T) {
+	_, err := readInputFile(t.TempDir()) // a directory is not a regular file
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "is not a regular file")
+}
+
+func TestReadInputFile_Native_RejectsOversizedFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "big.json")
+	require.NoError(t, os.WriteFile(path, make([]byte, maxInputFileSize+1), 0o600))
+
+	_, err := readInputFile(path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "exceeds maximum allowed size")
+}
+
 func TestReadJSONInput_Native_FromFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "order.json")
@@ -68,7 +90,7 @@ func TestReadTagsFile_Native_RejectsNonRegularFile(t *testing.T) {
 func TestReadTagsFile_Native_RejectsOversizedFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "big.json")
-	require.NoError(t, os.WriteFile(path, make([]byte, maxTagsFileSize+1), 0o600))
+	require.NoError(t, os.WriteFile(path, make([]byte, maxInputFileSize+1), 0o600))
 
 	_, err := readTagsFile(path)
 	require.Error(t, err)

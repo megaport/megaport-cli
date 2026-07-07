@@ -12,10 +12,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// maxTagsFileSize bounds a tags file read (readTagsFile) to avoid loading an
-// unbounded file into memory. Declared here so it is available to both platform
-// builds; only the native readTagsFile enforces it.
-const maxTagsFileSize = 1 << 20 // 1 MiB
+// maxInputFileSize bounds a file-input read (readInputFile / readTagsFile) to
+// avoid loading an unbounded file into memory. Declared here so it is available
+// to both platform builds; only the native readers enforce it.
+const maxInputFileSize = 1 << 20 // 1 MiB
 
 const defaultTagsTimeout = 90 * time.Second
 
