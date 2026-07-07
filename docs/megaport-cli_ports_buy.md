@@ -13,7 +13,7 @@ This command allows you to purchase a port by providing the necessary details.
   - `marketplace-visibility`: Whether the port should be visible in the marketplace (true or false)
   - `name`: The name of the port (1-64 characters)
   - `port-speed`: The speed of the port (1000, 10000, or 100000 Mbps)
-  - `term`: The term of the port (1, 12, 24, or 36 months)
+  - `term`: The term of the port (1, 12, 24, 36, 48, or 60 months)
 
 ### Optional Fields
   - `cost-centre`: The cost centre for the port
@@ -83,6 +83,6 @@ megaport-cli ports buy [flags]
 | `--promo-code` |  |  | Promotional code for discounts | false |
 | `--resource-tags` |  |  | Resource tags as a JSON string (e.g. {"key1":"value1","key2":"value2"}) | false |
 | `--resource-tags-file` |  |  | Path to JSON file containing resource tags | false |
-| `--term` |  | `0` | The term of the port (1, 12, 24, or 36 months) | true |
+| `--term` |  | `0` | The term of the port (1, 12, 24, 36, 48, or 60 months) | true |
 | `--yes` | `-y` | `false` | Skip confirmation prompt for purchase | false |
 

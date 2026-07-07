@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	megaport "github.com/megaport/megaportgo"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,10 +19,12 @@ func TestValidateContractTerm(t *testing.T) {
 		{"Valid term 12", 12, false, ""},
 		{"Valid term 24", 24, false, ""},
 		{"Valid term 36", 36, false, ""},
+		{"Valid term 48", 48, false, ""},
+		{"Valid term 60", 60, false, ""},
 		{"Invalid term 0", 0, true, fmt.Sprintf("Invalid contract term: 0 - must be one of: %v", ValidContractTerms)},
 		{"Invalid term -1", -1, true, fmt.Sprintf("Invalid contract term: -1 - must be one of: %v", ValidContractTerms)},
 		{"Invalid term 6", 6, true, fmt.Sprintf("Invalid contract term: 6 - must be one of: %v", ValidContractTerms)},
-		{"Invalid term 48", 48, true, fmt.Sprintf("Invalid contract term: 48 - must be one of: %v", ValidContractTerms)},
+		{"Invalid term 72", 72, true, fmt.Sprintf("Invalid contract term: 72 - must be one of: %v", ValidContractTerms)},
 	}
 
 	for _, tt := range tests {
@@ -57,6 +60,7 @@ func TestValidateMCRPortSpeed(t *testing.T) {
 		{"Invalid speed -1", -1, true, fmt.Sprintf("Invalid MCR port speed: -1 - must be one of: %v", ValidMCRPortSpeeds)},
 		{"Invalid speed 500", 500, true, fmt.Sprintf("Invalid MCR port speed: 500 - must be one of: %v", ValidMCRPortSpeeds)},
 		{"Invalid speed 150000", 150000, true, fmt.Sprintf("Invalid MCR port speed: 150000 - must be one of: %v", ValidMCRPortSpeeds)},
+		{"Invalid speed 400000 (400G not orderable for MCR)", 400000, true, fmt.Sprintf("Invalid MCR port speed: 400000 - must be one of: %v", ValidMCRPortSpeeds)},
 	}
 
 	for _, tt := range tests {
@@ -336,6 +340,23 @@ func TestFormatIntSlice(t *testing.T) {
 			assert.Equal(t, tt.want, FormatIntSlice(tt.vals))
 		})
 	}
+}
+
+// TestValidContractTermsMatchSDK guards against the CLI's contract terms silently
+// drifting from the SDK's. If this fails after an SDK bump, get product confirmation
+// that the new term is actually orderable before updating ValidContractTerms.
+func TestValidContractTermsMatchSDK(t *testing.T) {
+	assert.ElementsMatch(t, megaport.VALID_CONTRACT_TERMS, ValidContractTerms)
+}
+
+// TestValidMCRPortSpeedsSubsetOfSDK ensures the CLI never accepts an MCR speed the
+// SDK rejects, while allowing the CLI to stay deliberately narrower (400G MCR is not
+// orderable today, see ValidMCRPortSpeeds).
+func TestValidMCRPortSpeedsSubsetOfSDK(t *testing.T) {
+	for _, speed := range ValidMCRPortSpeeds {
+		assert.Contains(t, megaport.VALID_MCR_PORT_SPEEDS, speed)
+	}
+	assert.NotContains(t, ValidMCRPortSpeeds, 400000, "400G MCR is not orderable yet; only physical ports support 400G")
 }
 
 func TestVLANHelpText(t *testing.T) {

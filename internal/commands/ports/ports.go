@@ -49,7 +49,7 @@ func buildPortBuyCommands(rootCmd *cobra.Command) (buy, buyLag, update, validate
 		WithJSONConfigFlags().
 		WithLongDesc("Buy a port through the Megaport API.\n\nThis command allows you to purchase a port by providing the necessary details.").
 		WithDocumentedRequiredFlag("name", "The name of the port (1-64 characters)").
-		WithDocumentedRequiredFlag("term", "The term of the port (1, 12, 24, or 36 months)").
+		WithDocumentedRequiredFlag("term", fmt.Sprintf("The term of the port (%s months)", validation.FormatIntSlice(validation.ValidContractTerms))).
 		WithDocumentedRequiredFlag("port-speed", "The speed of the port (1000, 10000, or 100000 Mbps)").
 		WithDocumentedRequiredFlag("location-id", "The ID of the location where the port will be provisioned").
 		WithDocumentedRequiredFlag("marketplace-visibility", "Whether the port should be visible in the marketplace (true or false)").
@@ -134,7 +134,7 @@ func buildPortBuyCommands(rootCmd *cobra.Command) (buy, buyLag, update, validate
 		WithOptionalFlag("name", "The new name of the port (1-64 characters)").
 		WithOptionalFlag("marketplace-visibility", "Whether the port should be visible in the marketplace (true or false)").
 		WithOptionalFlag("cost-centre", "The cost centre for billing purposes").
-		WithOptionalFlag("term", "The new contract term in months (1, 12, 24, or 36)").
+		WithOptionalFlag("term", fmt.Sprintf("The new contract term in months (%s)", validation.FormatIntSlice(validation.ValidContractTerms))).
 		WithExample("megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --interactive").
 		WithExample("megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --name \"Updated Port\" --marketplace-visibility true --cost-centre \"Finance\"").
 		WithExample("megaport-cli ports update port-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx --json '{\"name\":\"Updated Port\",\"marketPlaceVisibility\":true,\"costCentre\":\"Finance\"}'").
@@ -157,7 +157,7 @@ func buildPortBuyCommands(rootCmd *cobra.Command) (buy, buyLag, update, validate
 		WithJSONConfigFlags().
 		WithLongDesc("Validates a port configuration against the Megaport API without creating the resource.\n\nUse this for dry-run validation before purchasing, or in CI pipelines to check configurations.").
 		WithDocumentedRequiredFlag("name", "The name of the port (1-64 characters)").
-		WithDocumentedRequiredFlag("term", "The term of the port (1, 12, 24, or 36 months)").
+		WithDocumentedRequiredFlag("term", fmt.Sprintf("The term of the port (%s months)", validation.FormatIntSlice(validation.ValidContractTerms))).
 		WithDocumentedRequiredFlag("port-speed", "The speed of the port (1000, 10000, or 100000 Mbps)").
 		WithDocumentedRequiredFlag("location-id", "The ID of the location where the port will be provisioned").
 		WithDocumentedRequiredFlag("marketplace-visibility", "Whether the port should be visible in the marketplace (true or false)").

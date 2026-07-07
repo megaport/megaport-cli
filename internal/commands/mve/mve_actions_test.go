@@ -427,7 +427,7 @@ func TestUpdateMVE(t *testing.T) {
 			flags: map[string]string{
 				"term": "13",
 			},
-			expectedError: "Invalid contract term: 13 - must be one of: [1 12 24 36]",
+			expectedError: "Invalid contract term: 13 - must be one of: [1 12 24 36 48 60]",
 		},
 		{
 			name: "update not successful",

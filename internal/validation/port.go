@@ -74,7 +74,7 @@ func ValidatePortName(name string) error {
 //   - Port name cannot exceed the maximum length (MaxPortNameLength)
 //   - Location ID must be a positive integer
 //   - Port speed must be one of the valid port speeds (typically 1000, 10000, or 100000 Mbps)
-//   - Contract term must be valid (typically 1, 12, 24, or 36 months)
+//   - Contract term must be valid (typically 1, 12, 24, 36, 48, or 60 months)
 //
 // Returns:
 //   - A ValidationError if any validation check fails
@@ -110,7 +110,7 @@ func ValidatePortRequest(req *megaport.BuyPortRequest) error {
 //   - Location ID must be a positive integer
 //   - Port speed must be one of the valid LAG port speeds (typically 10000 or 100000 Mbps)
 //   - LAG count must be between the minimum and maximum allowed values (typically 1-8)
-//   - Contract term must be valid (typically 1, 12, 24, or 36 months)
+//   - Contract term must be valid (typically 1, 12, 24, 36, 48, or 60 months)
 //
 // Returns:
 //   - A ValidationError if any validation check fails

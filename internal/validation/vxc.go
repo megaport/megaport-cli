@@ -112,7 +112,7 @@ func ValidateVNICIndex(index int) error {
 //
 // Validation checks include:
 //   - VXC name cannot be empty
-//   - Contract term must be valid (1, 12, 24, or 36 months)
+//   - Contract term must be valid (1, 12, 24, 36, 48, or 60 months)
 //   - Rate limit must be a positive value
 //   - Port UID (A-End) cannot be empty
 //   - B-End UID cannot be empty when no partner configuration is provided
