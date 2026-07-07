@@ -144,6 +144,44 @@ func TestFilterPartners_NilElementsSkipped(t *testing.T) {
 	assert.Equal(t, "uid1", result[0].ProductUID)
 }
 
+func TestFilterPartners_PartialMatch(t *testing.T) {
+	source := []*megaport.PartnerMegaport{
+		{
+			ProductUID:    "uid3",
+			ProductName:   "AWS Partner Port",
+			ConnectType:   "Dedicated Cloud Connection",
+			CompanyName:   "Amazon Web Services (AWS)",
+			LocationId:    1,
+			DiversityZone: "blue",
+		},
+	}
+
+	tests := []struct {
+		name          string
+		productName   string
+		connectType   string
+		companyName   string
+		diversityZone string
+	}{
+		{name: "Partial ProductName", productName: "AWS"},
+		{name: "Partial ProductName case-insensitive", productName: "aws"},
+		{name: "Partial ConnectType", connectType: "Cloud"},
+		{name: "Partial ConnectType case-insensitive", connectType: "cloud"},
+		{name: "Partial CompanyName", companyName: "AWS"},
+		{name: "Partial CompanyName case-insensitive", companyName: "amazon"},
+		{name: "Partial DiversityZone", diversityZone: "blu"},
+		{name: "Partial DiversityZone case-insensitive", diversityZone: "BLU"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := filterPartners(source, tt.productName, tt.connectType, tt.companyName, 0, tt.diversityZone)
+			assert.Len(t, result, 1)
+			assert.Equal(t, "uid3", result[0].ProductUID)
+		})
+	}
+}
+
 func TestPrintPartners_Table(t *testing.T) {
 	output := output.CaptureOutput(func() {
 		err := printPartnersFunc(testPartners, "table", noColor)
