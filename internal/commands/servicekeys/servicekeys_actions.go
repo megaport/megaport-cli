@@ -7,40 +7,32 @@ import (
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
-	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
 
+func buildCreateServiceKeyRequest(cmd *cobra.Command, noColor bool) (*megaport.CreateServiceKeyRequest, error) {
+	return utils.ResolveInput(utils.InputConfig[*megaport.CreateServiceKeyRequest]{
+		ResourceName: "service key",
+		Cmd:          cmd,
+		NoColor:      noColor,
+		FlagsProvided: func() bool {
+			return cmd.Flags().Changed("product-uid") || cmd.Flags().Changed("product-id") ||
+				cmd.Flags().Changed("single-use") || cmd.Flags().Changed("max-speed") ||
+				cmd.Flags().Changed("description") || cmd.Flags().Changed("start-date") ||
+				cmd.Flags().Changed("end-date") || cmd.Flags().Changed("active") ||
+				cmd.Flags().Changed("pre-approved") || cmd.Flags().Changed("vlan")
+		},
+		FromJSON:   processJSONCreateServiceKeyInput,
+		FromFlags:  func() (*megaport.CreateServiceKeyRequest, error) { return processFlagCreateServiceKeyInput(cmd) },
+		FromPrompt: func() (*megaport.CreateServiceKeyRequest, error) { return promptForCreateServiceKeyDetails(noColor) },
+	})
+}
+
 func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
-	// Flag read errors are intentionally ignored — flags are registered by the command builder.
-	productUID, _ := cmd.Flags().GetString("product-uid")
-	productID, _ := cmd.Flags().GetInt("product-id")
-	singleUse, _ := cmd.Flags().GetBool("single-use")
-	maxSpeed, _ := cmd.Flags().GetInt("max-speed")
-	description, _ := cmd.Flags().GetString("description")
-	startDate, _ := cmd.Flags().GetString("start-date")
-	endDate, _ := cmd.Flags().GetString("end-date")
-
-	if err := validation.ValidateDateRange(startDate, endDate); err != nil {
-		output.PrintError("Failed to validate date range: %v", noColor, err)
+	req, err := buildCreateServiceKeyRequest(cmd, noColor)
+	if err != nil {
 		return err
-	}
-
-	var validFor *megaport.ValidFor
-	if startDate != "" && endDate != "" {
-		startTime, err := time.Parse("2006-01-02", startDate)
-		if err != nil {
-			return fmt.Errorf("invalid start date %q: %w", startDate, err)
-		}
-		endTime, err := time.Parse("2006-01-02", endDate)
-		if err != nil {
-			return fmt.Errorf("invalid end date %q: %w", endDate, err)
-		}
-		validFor = &megaport.ValidFor{
-			StartTime: &megaport.Time{Time: startTime},
-			EndTime:   &megaport.Time{Time: endTime},
-		}
 	}
 
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
@@ -50,23 +42,7 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 	}
 	defer cancel()
 
-	active, _ := cmd.Flags().GetBool("active")
-	preApproved, _ := cmd.Flags().GetBool("pre-approved")
-	vlan, _ := cmd.Flags().GetInt("vlan")
-
-	req := &megaport.CreateServiceKeyRequest{
-		ProductUID:  productUID,
-		ProductID:   productID,
-		SingleUse:   singleUse,
-		MaxSpeed:    maxSpeed,
-		Description: description,
-		ValidFor:    validFor,
-		Active:      active,
-		PreApproved: preApproved,
-		VLAN:        vlan,
-	}
-
-	spinner := output.PrintResourceCreating("Service Key", description, noColor)
+	spinner := output.PrintResourceCreating("Service Key", req.Description, noColor)
 
 	resp, err := client.ServiceKeyService.CreateServiceKey(ctx, req)
 
@@ -89,8 +65,13 @@ func CreateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 	key := args[0]
 
-	if cmd.Flags().Changed("product-uid") && cmd.Flags().Changed("product-id") {
-		return fmt.Errorf("--product-uid and --product-id cannot both be set")
+	interactive, _ := cmd.Flags().GetBool("interactive")
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
+
+	if err := utils.CheckInteractiveConflict(interactive, utils.HasConflictingInputFlags(cmd)); err != nil {
+		output.PrintError("%v", noColor, err)
+		return err
 	}
 
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
@@ -101,8 +82,8 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 	defer cancel()
 
 	// SingleUse and Active are always serialized by the SDK (no omitempty),
-	// so merge from the current key to avoid resetting fields the user
-	// didn't ask to change.
+	// so every input mode merges from the current key to avoid resetting
+	// fields the user didn't ask to change.
 	current, err := client.ServiceKeyService.GetServiceKey(ctx, key)
 	if err != nil {
 		output.PrintError("Failed to fetch current service key: %v", noColor, err)
@@ -114,26 +95,28 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("empty response from API")
 	}
 
-	req := &megaport.UpdateServiceKeyRequest{
-		Key:       key,
-		SingleUse: current.SingleUse,
-		Active:    current.Active,
-	}
-	if cmd.Flags().Changed("single-use") {
-		req.SingleUse, _ = cmd.Flags().GetBool("single-use")
-	}
-	if cmd.Flags().Changed("active") {
-		req.Active, _ = cmd.Flags().GetBool("active")
-	}
-	// The SDK rejects requests with both ProductUID and ProductID set, so
-	// preserve the current ProductUID only when the user provided neither.
+	var req *megaport.UpdateServiceKeyRequest
 	switch {
-	case cmd.Flags().Changed("product-uid"):
-		req.ProductUID, _ = cmd.Flags().GetString("product-uid")
-	case cmd.Flags().Changed("product-id"):
-		req.ProductID, _ = cmd.Flags().GetInt("product-id")
+	case jsonStr != "" || jsonFile != "":
+		output.PrintInfo("Using JSON input", noColor)
+		req, err = buildUpdateServiceKeyRequestFromJSON(jsonStr, jsonFile, key, current)
+		if err != nil {
+			output.PrintError("Failed to process JSON input: %v", noColor, err)
+			return err
+		}
+	case interactive:
+		output.PrintInfo("Starting interactive mode", noColor)
+		req, err = promptForUpdateServiceKeyDetails(key, current, noColor)
+		if err != nil {
+			output.PrintError("Interactive input failed: %v", noColor, err)
+			return err
+		}
 	default:
-		req.ProductUID = current.ProductUID
+		req, err = buildUpdateServiceKeyRequestFromFlags(cmd, key, current)
+		if err != nil {
+			output.PrintError("Failed to process flags: %v", noColor, err)
+			return err
+		}
 	}
 
 	spinner := output.PrintResourceUpdating("Service Key", key, noColor)
