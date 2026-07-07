@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -24,17 +25,25 @@ func withMockedIO(input string, fn func()) (stdout string, stderr string) {
 	oldStderr := os.Stderr
 
 	// Create pipes for mocking stdin/stdout/stderr
-	inR, inW, _ := os.Pipe()
-	outR, outW, _ := os.Pipe()
-	errR, errW, _ := os.Pipe()
+	inR, inW, err := os.Pipe()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create mock stdin pipe: %v", err))
+	}
+	outR, outW, err := os.Pipe()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create mock stdout pipe: %v", err))
+	}
+	errR, errW, err := os.Pipe()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create mock stderr pipe: %v", err))
+	}
 
 	os.Stdin = inR
 	os.Stdout = outW
 	os.Stderr = errW
 
 	// Write the mock input
-	_, err := inW.WriteString(input)
-	if err != nil {
+	if _, err := inW.WriteString(input); err != nil {
 		// In tests, we can just panic on unexpected IO errors
 		panic(fmt.Sprintf("Failed to write to mock stdin: %v", err))
 	}
@@ -50,7 +59,8 @@ func withMockedIO(input string, fn func()) (stdout string, stderr string) {
 	os.Stderr = oldStderr
 	os.Stdin = oldStdin
 
-	// Read the captured output
+	// Read the captured output, then close the read ends so repeated calls
+	// across a table-driven test don't accumulate open file descriptors.
 	var outBuf, errBuf bytes.Buffer
 	if _, err := io.Copy(&outBuf, outR); err != nil {
 		panic(fmt.Sprintf("Failed to copy from mock stdout: %v", err))
@@ -58,6 +68,71 @@ func withMockedIO(input string, fn func()) (stdout string, stderr string) {
 	if _, err := io.Copy(&errBuf, errR); err != nil {
 		panic(fmt.Sprintf("Failed to copy from mock stderr: %v", err))
 	}
+	inR.Close()
+	outR.Close()
+	errR.Close()
+	return outBuf.String(), errBuf.String()
+}
+
+// withMockedIOStreamed is like withMockedIO but for prompt flows that read
+// stdin more than once (e.g. a tag-entry loop). Each prompt call opens a
+// fresh bufio.Reader over stdin, so writing all input up front in one shot
+// lets a single Read syscall slurp every line into that reader's private
+// buffer, silently starving the next prompt call. A real terminal never hits
+// this because the tty line discipline only ever hands over one line at a
+// time; this helper reproduces that pacing by writing one line at a time
+// with a short delay, giving the blocked reader time to consume each line
+// before the next is written.
+func withMockedIOStreamed(lines []string, fn func()) (stdout string, stderr string) {
+	oldStdin := os.Stdin
+	oldStdout := os.Stdout
+	oldStderr := os.Stderr
+
+	inR, inW, err := os.Pipe()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create mock stdin pipe: %v", err))
+	}
+	outR, outW, err := os.Pipe()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create mock stdout pipe: %v", err))
+	}
+	errR, errW, err := os.Pipe()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create mock stderr pipe: %v", err))
+	}
+
+	os.Stdin = inR
+	os.Stdout = outW
+	os.Stderr = errW
+
+	go func() {
+		for _, line := range lines {
+			if _, err := inW.WriteString(line + "\n"); err != nil {
+				return
+			}
+			time.Sleep(30 * time.Millisecond)
+		}
+		inW.Close()
+	}()
+
+	fn()
+
+	outW.Close()
+	errW.Close()
+	os.Stdout = oldStdout
+	os.Stderr = oldStderr
+	os.Stdin = oldStdin
+
+	var outBuf, errBuf bytes.Buffer
+	if _, err := io.Copy(&outBuf, outR); err != nil {
+		panic(fmt.Sprintf("Failed to copy from mock stdout: %v", err))
+	}
+	if _, err := io.Copy(&errBuf, errR); err != nil {
+		panic(fmt.Sprintf("Failed to copy from mock stderr: %v", err))
+	}
+	inR.Close()
+	outR.Close()
+	errR.Close()
 	return outBuf.String(), errBuf.String()
 }
 
@@ -431,6 +506,26 @@ func TestSecretResourcePrompt_NonTTYFallbackWithColor(t *testing.T) {
 	assert.Empty(t, stdout)
 }
 
+// TestPasswordPrompt verifies the PasswordPrompt call-through wrapper
+// delegates to the installed function and propagates its arguments.
+func TestPasswordPrompt(t *testing.T) {
+	original := GetPasswordPrompt()
+	defer SetPasswordPrompt(original)
+
+	var gotMsg string
+	var gotNoColor bool
+	SetPasswordPrompt(func(msg string, noColor bool) (string, error) {
+		gotMsg, gotNoColor = msg, noColor
+		return "hunter2", nil
+	})
+
+	got, err := PasswordPrompt("Password:", true)
+	assert.NoError(t, err)
+	assert.Equal(t, "hunter2", got)
+	assert.Equal(t, "Password:", gotMsg)
+	assert.True(t, gotNoColor)
+}
+
 // TestAccessors verifies that every Get/Set accessor pair round-trips correctly
 // and that the call-through wrappers delegate to the underlying function pointer.
 func TestAccessors(t *testing.T) {
@@ -507,6 +602,114 @@ func TestAccessors(t *testing.T) {
 		assert.Equal(t, "tag", tags["new"])
 		assert.Equal(t, "tag", tags["old"])
 	})
+}
+
+// TestResourceTagsPrompt_DefaultDeclines exercises the default
+// resourceTagsPromptFn's early-exit path: declining to add tags skips the
+// tag-entry loop entirely.
+func TestResourceTagsPrompt_DefaultDeclines(t *testing.T) {
+	stdout, stderr := withMockedIO("n\n", func() {
+		tags, err := ResourceTagsPrompt(true)
+		assert.NoError(t, err)
+		assert.Nil(t, tags)
+	})
+	assert.Contains(t, stderr, "Would you like to add resource tags?")
+	assert.Empty(t, stdout)
+}
+
+// TestResourceTagsPrompt_DefaultAddsTags exercises the default
+// resourceTagsPromptFn's tag-entry loop, which reads stdin multiple times.
+func TestResourceTagsPrompt_DefaultAddsTags(t *testing.T) {
+	stdout, stderr := withMockedIOStreamed([]string{"y", "env", "prod", ""}, func() {
+		tags, err := ResourceTagsPrompt(true)
+		assert.NoError(t, err)
+		assert.Equal(t, map[string]string{"env": "prod"}, tags)
+	})
+	assert.Contains(t, stderr, "Enter tags (key and value). Enter empty key to finish.")
+	assert.Contains(t, stderr, "Tags added:")
+	assert.Contains(t, stderr, "env: prod")
+	assert.Empty(t, stdout)
+}
+
+// TestUpdateResourceTagsPrompt_DefaultDeclinesWithExistingTags exercises the
+// default updateResourceTagsPromptFn when existing tags are present and the
+// user declines to continue.
+func TestUpdateResourceTagsPrompt_DefaultDeclinesWithExistingTags(t *testing.T) {
+	stdout, stderr := withMockedIO("n\n", func() {
+		tags, err := UpdateResourceTagsPrompt(map[string]string{"env": "prod"}, true)
+		assert.Error(t, err)
+		assert.Nil(t, tags)
+	})
+	assert.Contains(t, stderr, "Current tags:")
+	assert.Contains(t, stderr, "env: prod")
+	assert.Empty(t, stdout)
+}
+
+// TestUpdateResourceTagsPrompt_DefaultColoredWarning exercises the
+// default updateResourceTagsPromptFn's colored warning branch (noColor=false).
+func TestUpdateResourceTagsPrompt_DefaultColoredWarning(t *testing.T) {
+	stdout, stderr := withMockedIO("n\n", func() {
+		tags, err := UpdateResourceTagsPrompt(map[string]string{"env": "prod"}, false)
+		assert.Error(t, err)
+		assert.Nil(t, tags)
+	})
+	assert.Contains(t, stderr, "Warning: This operation will replace all existing tags")
+	assert.Empty(t, stdout)
+}
+
+// TestUpdateResourceTagsPrompt_DefaultDeclinesWithNoExistingTags exercises
+// the default updateResourceTagsPromptFn's "no existing tags" branch.
+func TestUpdateResourceTagsPrompt_DefaultDeclinesWithNoExistingTags(t *testing.T) {
+	stdout, stderr := withMockedIO("n\n", func() {
+		tags, err := UpdateResourceTagsPrompt(map[string]string{}, true)
+		assert.Error(t, err)
+		assert.Nil(t, tags)
+	})
+	assert.Contains(t, stderr, "No existing tags found.")
+	assert.Empty(t, stdout)
+}
+
+// TestUpdateResourceTagsPrompt_DefaultNoExistingTagsDelegates exercises the
+// default updateResourceTagsPromptFn's delegation to ResourceTagsPrompt when
+// there are no existing tags to choose a clean-slate/modify strategy for.
+func TestUpdateResourceTagsPrompt_DefaultNoExistingTagsDelegates(t *testing.T) {
+	stdout, stderr := withMockedIOStreamed([]string{"y", "n"}, func() {
+		tags, err := UpdateResourceTagsPrompt(map[string]string{}, true)
+		assert.NoError(t, err)
+		assert.Nil(t, tags)
+	})
+	assert.Contains(t, stderr, "Would you like to add resource tags?")
+	assert.Empty(t, stdout)
+}
+
+// TestUpdateResourceTagsPrompt_DefaultCleanSlate exercises the default
+// updateResourceTagsPromptFn's clean-slate path (choice "1"), which discards
+// existing tags and prompts for a fresh set.
+func TestUpdateResourceTagsPrompt_DefaultCleanSlate(t *testing.T) {
+	stdout, stderr := withMockedIOStreamed([]string{"y", "1", "env", "prod", "", "y"}, func() {
+		tags, err := UpdateResourceTagsPrompt(map[string]string{"old": "tag"}, true)
+		assert.NoError(t, err)
+		assert.Equal(t, map[string]string{"env": "prod"}, tags)
+	})
+	assert.Contains(t, stderr, "Choose how you want to update tags:")
+	assert.Contains(t, stderr, "Final tags that will be applied:")
+	assert.Contains(t, stderr, "env: prod")
+	assert.Empty(t, stdout)
+}
+
+// TestUpdateResourceTagsPrompt_DefaultModifyExistingRemovesTag exercises the
+// default updateResourceTagsPromptFn's modify path (choice "2"), including
+// removing an existing tag by entering its key with an empty value.
+func TestUpdateResourceTagsPrompt_DefaultModifyExistingRemovesTag(t *testing.T) {
+	stdout, stderr := withMockedIOStreamed([]string{"y", "2", "foo", "", "", "y"}, func() {
+		tags, err := UpdateResourceTagsPrompt(map[string]string{"foo": "bar"}, true)
+		assert.NoError(t, err)
+		assert.Empty(t, tags)
+	})
+	assert.Contains(t, stderr, "You can now modify, add, or remove tags.")
+	assert.Contains(t, stderr, "Removed tag: foo")
+	assert.Contains(t, stderr, "No tags - all existing tags will be removed")
+	assert.Empty(t, stdout)
 }
 
 // TestDesignConfirmPrompt_DefaultRendering verifies the default
@@ -591,6 +794,22 @@ func TestPromptsIntegration(t *testing.T) {
 				assert.Empty(t, stdout)
 			},
 		},
+		{
+			name: "ResourcePrompt integration colored",
+			inputFn: func() string {
+				return "resource input\n"
+			},
+			testFn: func(input string) {
+				originalResourcePrompt := GetResourcePrompt() // Use real function
+				stdout, stderr := withMockedIO(input, func() {
+					result, err := originalResourcePrompt("port", "Port name:", false)
+					assert.NoError(t, err)
+					assert.Equal(t, "resource input", result)
+				})
+				assert.Contains(t, stderr, "Port name:")
+				assert.Empty(t, stdout)
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -619,6 +838,7 @@ func TestPromptWithCustomReader(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.Remove(tmpfile.Name())
+	defer tmpfile.Close()
 
 	// Write our simulated input
 	fmt.Fprint(tmpfile, simulatedInput)
@@ -632,12 +852,18 @@ func TestPromptWithCustomReader(t *testing.T) {
 
 	// Capture stdout and stderr separately so we can verify the prompt text
 	// lands on stderr, not stdout.
-	outR, outW, _ := os.Pipe()
+	outR, outW, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("Failed to create mock stdout pipe: %v", err)
+	}
 	oldStdout := os.Stdout
 	os.Stdout = outW
 	defer func() { os.Stdout = oldStdout }()
 
-	errR, errW, _ := os.Pipe()
+	errR, errW, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("Failed to create mock stderr pipe: %v", err)
+	}
 	oldStderr := os.Stderr
 	os.Stderr = errW
 	defer func() { os.Stderr = oldStderr }()
@@ -654,8 +880,14 @@ func TestPromptWithCustomReader(t *testing.T) {
 	os.Stderr = oldStderr
 
 	var outBuf, errBuf bytes.Buffer
-	_, _ = io.Copy(&outBuf, outR)
-	_, _ = io.Copy(&errBuf, errR)
+	if _, copyErr := io.Copy(&outBuf, outR); copyErr != nil {
+		t.Fatalf("Failed to copy from mock stdout: %v", copyErr)
+	}
+	if _, copyErr := io.Copy(&errBuf, errR); copyErr != nil {
+		t.Fatalf("Failed to copy from mock stderr: %v", copyErr)
+	}
+	outR.Close()
+	errR.Close()
 
 	if err != nil {
 		t.Fatalf("Got error from prompt: %v", err)
