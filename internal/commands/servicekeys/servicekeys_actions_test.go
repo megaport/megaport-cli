@@ -48,7 +48,6 @@ func TestCreateServiceKey_FlagsPropagated(t *testing.T) {
 
 	testutil.SetFlags(t, cmd, map[string]string{
 		"product-uid":  "prod-uid-123",
-		"product-id":   "42",
 		"single-use":   "true",
 		"max-speed":    "1000",
 		"description":  "test key",
@@ -67,13 +66,36 @@ func TestCreateServiceKey_FlagsPropagated(t *testing.T) {
 
 	req := mockService.CapturedCreateServiceKeyRequest
 	assert.Equal(t, "prod-uid-123", req.ProductUID)
-	assert.Equal(t, 42, req.ProductID)
+	assert.Equal(t, 0, req.ProductID)
 	assert.True(t, req.SingleUse)
 	assert.Equal(t, 1000, req.MaxSpeed)
 	assert.Equal(t, "test key", req.Description)
 	assert.True(t, req.Active)
 	assert.True(t, req.PreApproved)
 	assert.Equal(t, 100, req.VLAN)
+}
+
+func TestCreateServiceKey_BothProductFlagsRejected(t *testing.T) {
+	mockService := &MockServiceKeyService{}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.ServiceKeyService = mockService
+	})
+	defer cleanup()
+
+	cmd := newCreateServiceKeyCmd()
+	testutil.SetFlags(t, cmd, map[string]string{
+		"product-uid": "prod-uid-123",
+		"product-id":  "42",
+	})
+
+	var err error
+	output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, []string{})
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot both be set")
+	assert.Nil(t, mockService.CapturedCreateServiceKeyRequest)
 }
 
 func TestCreateServiceKey_NilResponse(t *testing.T) {
@@ -201,6 +223,11 @@ func TestCreateServiceKey_JSONMode(t *testing.T) {
 			name:          "invalid JSON syntax",
 			json:          `{invalid}`,
 			expectedError: "failed to parse JSON",
+		},
+		{
+			name:          "product uid and product id both set",
+			json:          `{"productUid":"json-prod-uid","productId":42}`,
+			expectedError: "productUid and productId cannot both be set",
 		},
 		{
 			name: "raw validFor key is ignored",

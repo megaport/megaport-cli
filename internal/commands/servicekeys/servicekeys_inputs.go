@@ -49,6 +49,10 @@ func processFlagCreateServiceKeyInput(cmd *cobra.Command) (*megaport.CreateServi
 	preApproved, _ := cmd.Flags().GetBool("pre-approved")
 	vlan, _ := cmd.Flags().GetInt("vlan")
 
+	if productUID != "" && productID != 0 {
+		return nil, fmt.Errorf("--product-uid and --product-id cannot both be set")
+	}
+
 	validFor, err := parseServiceKeyValidFor(startDate, endDate)
 	if err != nil {
 		return nil, err
@@ -80,6 +84,9 @@ func processJSONCreateServiceKeyInput(jsonStr, jsonFile string) (*megaport.Creat
 	req := &megaport.CreateServiceKeyRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+	}
+	if req.ProductUID != "" && req.ProductID != 0 {
+		return nil, fmt.Errorf("productUid and productId cannot both be set")
 	}
 	// A raw "validFor" key unmarshals onto OrderValidFor (raw epoch millis),
 	// bypassing startDate/endDate validation below. Discard it so startDate/
