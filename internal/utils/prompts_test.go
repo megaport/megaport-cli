@@ -41,6 +41,14 @@ func withMockedIO(input string, fn func()) (stdout string, stderr string) {
 	os.Stdin = inR
 	os.Stdout = outW
 	os.Stderr = errW
+	// Restore the globals on any exit path, including a panic or t.Fatal
+	// (which unwinds via runtime.Goexit), so a failing subtest doesn't leave
+	// stdio redirected for the rest of the test binary.
+	defer func() {
+		os.Stdin = oldStdin
+		os.Stdout = oldStdout
+		os.Stderr = oldStderr
+	}()
 
 	// Write the mock input
 	if _, err := inW.WriteString(input); err != nil {
@@ -52,12 +60,8 @@ func withMockedIO(input string, fn func()) (stdout string, stderr string) {
 	// Call the function we're testing
 	fn()
 
-	// Restore originals
 	outW.Close()
 	errW.Close()
-	os.Stdout = oldStdout
-	os.Stderr = oldStderr
-	os.Stdin = oldStdin
 
 	// Read the captured output, then close the read ends so repeated calls
 	// across a table-driven test don't accumulate open file descriptors.
@@ -104,24 +108,29 @@ func withMockedIOStreamed(lines []string, fn func()) (stdout string, stderr stri
 	os.Stdin = inR
 	os.Stdout = outW
 	os.Stderr = errW
+	// Restore the globals on any exit path, including a panic or t.Fatal
+	// (which unwinds via runtime.Goexit), so a failing subtest doesn't leave
+	// stdio redirected for the rest of the test binary.
+	defer func() {
+		os.Stdin = oldStdin
+		os.Stdout = oldStdout
+		os.Stderr = oldStderr
+	}()
 
 	go func() {
+		defer inW.Close()
 		for _, line := range lines {
 			if _, err := inW.WriteString(line + "\n"); err != nil {
 				return
 			}
 			time.Sleep(30 * time.Millisecond)
 		}
-		inW.Close()
 	}()
 
 	fn()
 
 	outW.Close()
 	errW.Close()
-	os.Stdout = oldStdout
-	os.Stderr = oldStderr
-	os.Stdin = oldStdin
 
 	var outBuf, errBuf bytes.Buffer
 	if _, err := io.Copy(&outBuf, outR); err != nil {
