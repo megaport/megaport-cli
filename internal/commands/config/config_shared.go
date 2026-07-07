@@ -6,12 +6,6 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// ConfigManager handles configuration operations
-type ConfigManager struct {
-	config     *ConfigFile
-	configPath string
-}
-
 // ConfigFile represents the configuration file structure
 type ConfigFile struct {
 	Version       int                    `json:"version"`
