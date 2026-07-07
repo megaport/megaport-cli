@@ -169,9 +169,9 @@ func TestPrompt(t *testing.T) {
 
 				// Important: Actually print something that matches the real function's output
 				if !noColor {
-					fmt.Print("❯ " + msg + " ") // Simulate the colored prompt
+					fmt.Fprint(os.Stderr, "❯ "+msg+" ") // Simulate the colored prompt
 				} else {
-					fmt.Print("❯ " + msg + " ") // Simulate the non-colored prompt
+					fmt.Fprint(os.Stderr, "❯ "+msg+" ") // Simulate the non-colored prompt
 				}
 
 				// Create a reader from the test input
@@ -185,7 +185,7 @@ func TestPrompt(t *testing.T) {
 			SetPrompt(mockPrompt)
 
 			// Capture output
-			output, _ := withMockedIO(tt.input, func() {
+			stdout, stderr := withMockedIO(tt.input, func() {
 				result, err := Prompt(tt.message, tt.noColor)
 				if tt.expectedError {
 					assert.Error(t, err)
@@ -196,8 +196,9 @@ func TestPrompt(t *testing.T) {
 			})
 
 			// Verify the prompt was displayed (actual formatting will vary with color settings)
-			assert.Contains(t, output, "❯")
-			assert.Contains(t, output, tt.message)
+			assert.Contains(t, stderr, "❯")
+			assert.Contains(t, stderr, tt.message)
+			assert.Empty(t, stdout)
 		})
 	}
 }
@@ -282,10 +283,10 @@ func TestConfirmPrompt(t *testing.T) {
 
 				// Important: Actually print something that matches the real function's output
 				if !noColor {
-					fmt.Print("⚠️  " + question + " ")
-					fmt.Print("[y/N] ")
+					fmt.Fprint(os.Stderr, "⚠️  "+question+" ")
+					fmt.Fprint(os.Stderr, "[y/N] ")
 				} else {
-					fmt.Printf("⚠️  %s [y/N] ", question)
+					fmt.Fprintf(os.Stderr, "⚠️  %s [y/N] ", question)
 				}
 
 				// Process the response based on test input
@@ -297,14 +298,15 @@ func TestConfirmPrompt(t *testing.T) {
 			SetConfirmPrompt(mockConfirmPrompt)
 
 			// Capture output
-			output, _ := withMockedIO(tt.input, func() {
+			stdout, stderr := withMockedIO(tt.input, func() {
 				result := ConfirmPrompt(tt.question, tt.noColor)
 				assert.Equal(t, tt.expected, result)
 			})
 
 			// Verify the prompt was displayed
-			assert.Contains(t, output, tt.question)
-			assert.Contains(t, output, "[y/N]")
+			assert.Contains(t, stderr, tt.question)
+			assert.Contains(t, stderr, "[y/N]")
+			assert.Empty(t, stdout)
 		})
 	}
 }
@@ -414,9 +416,9 @@ func TestResourcePrompt(t *testing.T) {
 				}
 
 				if !noColor {
-					fmt.Print(icon + " " + msg + " ")
+					fmt.Fprint(os.Stderr, icon+" "+msg+" ")
 				} else {
-					fmt.Print(icon + " " + msg + " ")
+					fmt.Fprint(os.Stderr, icon+" "+msg+" ")
 				}
 
 				return strings.TrimSpace(tt.input), nil
@@ -425,15 +427,16 @@ func TestResourcePrompt(t *testing.T) {
 			SetResourcePrompt(mockResourcePrompt)
 
 			// Capture output
-			output, _ := withMockedIO(tt.input, func() {
+			stdout, stderr := withMockedIO(tt.input, func() {
 				result, err := ResourcePrompt(tt.resourceType, tt.message, tt.noColor)
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expected, result)
 			})
 
 			// Verify the prompt was displayed with correct icon
-			assert.Contains(t, output, tt.expectedIcon)
-			assert.Contains(t, output, tt.message)
+			assert.Contains(t, stderr, tt.expectedIcon)
+			assert.Contains(t, stderr, tt.message)
+			assert.Empty(t, stdout)
 		})
 	}
 }
