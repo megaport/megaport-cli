@@ -42,11 +42,11 @@ func processJSONMCRInput(jsonStr, jsonFile string) (*megaport.BuyMCRRequest, err
 	}
 	if extras.TunnelCount != nil {
 		if *extras.TunnelCount < 0 {
-			return nil, fmt.Errorf("tunnelCount must be 0 or a positive value (10, 20, or 30)")
+			return nil, exitcodes.NewUsageError(fmt.Errorf("tunnelCount must be 0 or a positive value (10, 20, or 30)"))
 		}
 		if *extras.TunnelCount > 0 {
 			if err := validation.ValidateIPSecTunnelCount(*extras.TunnelCount, false); err != nil {
-				return nil, err
+				return nil, exitcodes.NewUsageError(err)
 			}
 		}
 		// Always include the add-on config when the key is present:
@@ -98,11 +98,11 @@ func processFlagMCRInput(cmd *cobra.Command) (*megaport.BuyMCRRequest, error) {
 	if cmd.Flags().Changed("ipsec-tunnel-count") {
 		ipsecTunnelCount, _ := cmd.Flags().GetInt("ipsec-tunnel-count")
 		if ipsecTunnelCount < 0 {
-			return nil, fmt.Errorf("ipsec-tunnel-count must be 0 or a positive value (10, 20, or 30)")
+			return nil, exitcodes.NewUsageError(fmt.Errorf("ipsec-tunnel-count must be 0 or a positive value (10, 20, or 30)"))
 		}
 		if ipsecTunnelCount > 0 {
 			if err := validation.ValidateIPSecTunnelCount(ipsecTunnelCount, false); err != nil {
-				return nil, err
+				return nil, exitcodes.NewUsageError(err)
 			}
 		}
 		// Always include the add-on when the flag is explicitly set:

@@ -67,11 +67,11 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	if cmd.Flags().Changed("ipsec-tunnel-count") && len(req.AddOns) == 0 {
 		ipsecTunnelCount, _ := cmd.Flags().GetInt("ipsec-tunnel-count")
 		if ipsecTunnelCount < 0 {
-			return fmt.Errorf("ipsec-tunnel-count must be 0 or a positive value (10, 20, or 30)")
+			return exitcodes.NewUsageError(fmt.Errorf("ipsec-tunnel-count must be 0 or a positive value (10, 20, or 30)"))
 		}
 		if ipsecTunnelCount > 0 {
 			if err := validation.ValidateIPSecTunnelCount(ipsecTunnelCount, false); err != nil {
-				return err
+				return exitcodes.NewUsageError(err)
 			}
 		}
 		req.AddOns = append(req.AddOns, &megaport.MCRAddOnIPsecConfig{

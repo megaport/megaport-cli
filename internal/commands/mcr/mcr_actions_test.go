@@ -3,6 +3,7 @@ package mcr
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/testutil"
@@ -17,6 +19,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetMCRCmd_WithMockClient(t *testing.T) {
@@ -916,16 +919,17 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	tests := []struct {
-		name           string
-		args           []string
-		interactive    bool
-		prompts        []string
-		flags          map[string]string
-		jsonInput      string
-		jsonFilePath   string
-		setupMock      func(*MockMCRService)
-		expectedError  string
-		expectedOutput string
+		name             string
+		args             []string
+		interactive      bool
+		prompts          []string
+		flags            map[string]string
+		jsonInput        string
+		jsonFilePath     string
+		setupMock        func(*MockMCRService)
+		expectedError    string
+		expectedExitCode int
+		expectedOutput   string
 	}{
 		{
 			name:        "interactive mode success",
@@ -1053,6 +1057,16 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			setupMock:     func(m *MockMCRService) {},
 			expectedError: "cannot be combined with",
 		},
+		{
+			name: "JSON mode with negative ipsec-tunnel-count flag is a usage error",
+			flags: map[string]string{
+				"json":               `{"name":"JSON MCR","term":24,"portSpeed":10000,"locationId":123,"mcrAsn":65000}`,
+				"ipsec-tunnel-count": "-1",
+			},
+			setupMock:        func(m *MockMCRService) {},
+			expectedError:    "ipsec-tunnel-count must be",
+			expectedExitCode: exitcodes.Usage,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1097,6 +1111,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			cmd.Flags().String("promo-code", "", "Promotional code for discounts")
 			cmd.Flags().String("json", "", "JSON string containing MCR configuration")
 			cmd.Flags().String("json-file", "", "Path to JSON file containing MCR configuration")
+			cmd.Flags().Int("ipsec-tunnel-count", 0, "Number of IPsec tunnels to provision")
 
 			flags := make(map[string]string)
 			if tt.interactive {
@@ -1115,6 +1130,12 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
+
+				if tt.expectedExitCode != 0 {
+					var cliErr *exitcodes.CLIError
+					require.True(t, errors.As(err, &cliErr))
+					assert.Equal(t, tt.expectedExitCode, cliErr.Code)
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.Contains(t, output, tt.expectedOutput)
