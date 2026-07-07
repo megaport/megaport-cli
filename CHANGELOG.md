@@ -11,11 +11,15 @@ workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries unde
 
 ## [Unreleased]
 
+### Added
+- `servicekeys create` and `servicekeys update` now support `--json`/`--json-file` and `--interactive` input modes, matching the input-mode contract used elsewhere in the CLI. The update path's merge behavior (unset fields keep their current value rather than being cleared) is preserved across all three input modes (ESD-1591)
+
 ### Changed
 - **Breaking (WASM):** `window.executeMegaportCommand` no longer executes commands. A synchronous call blocked the JS event loop while the CLI waited on the browser's fetch transport, hanging the tab, and bypassed the mutex that guards the shared output buffers. It is kept as a deprecated stub for one release and always returns `{ error: "synchronous execution is not supported; use executeMegaportCommandAsync" }`. Use `window.executeMegaportCommandAsync` instead (ESD-1598)
 
 ### Fixed
 - browser CLI now shows status messages (e.g. "No locations found") alongside table output instead of dropping them; the captured-output logic prepends direct-buffer warnings/info to the table while keeping JSON/CSV/XML streams data-only (ESD-1580)
+- `partners list` filters (`--product-name`, `--connect-type`, `--company-name`, `--diversity-zone`) now match case-insensitive substrings instead of requiring an exact match, matching the documented partial-match behavior (ESD-1590)
 - default JSON-created users to active when `active` is omitted, matching the flags and interactive paths; an explicit `active: false` is still honored (ESD-1592)
 - repair the `js/wasm` build of `./...` (the WASM config manager was missing `GetProfile`, which `auth status` needs) and enforce the full wasm build, vet, test compilation, and wasm-tagged linting in CI so wasm code stops rotting silently (ESD-1578)
 - require Cisco FMC fields only when not managing locally on the `mve buy` and `mve validate` flags and JSON paths, matching the validator (ESD-1571)
