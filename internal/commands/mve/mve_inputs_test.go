@@ -431,6 +431,21 @@ func TestProcessJSONBuyMVEInput(t *testing.T) {
 			jsonStr:       `{"vnics":[{"vlan":100.5}]}`,
 			expectedError: "vlan must be an integer",
 		},
+		{
+			name:          "vnics vlan reserved",
+			jsonStr:       `{"vnics":[{"vlan":1}]}`,
+			expectedError: "VLAN ID",
+		},
+		{
+			name:          "vnics vlan out of range",
+			jsonStr:       `{"vnics":[{"vlan":4095}]}`,
+			expectedError: "VLAN ID",
+		},
+		{
+			name:          "vnics vlan overflow",
+			jsonStr:       `{"vnics":[{"vlan":1e18}]}`,
+			expectedError: "vlan must be an integer",
+		},
 	}
 
 	for _, tt := range tests {
@@ -516,6 +531,21 @@ func TestProcessFlagBuyMVEInput_Vnics(t *testing.T) {
 			// Regression: a fractional VLAN used to be silently truncated (100.9 -> 100).
 			name:          "vnics vlan not an integer",
 			vnics:         `[{"vlan":100.5}]`,
+			expectedError: "vlan must be an integer",
+		},
+		{
+			name:          "vnics vlan reserved",
+			vnics:         `[{"vlan":1}]`,
+			expectedError: "VLAN ID",
+		},
+		{
+			name:          "vnics vlan out of range",
+			vnics:         `[{"vlan":4095}]`,
+			expectedError: "VLAN ID",
+		},
+		{
+			name:          "vnics vlan overflow",
+			vnics:         `[{"vlan":1e18}]`,
 			expectedError: "vlan must be an integer",
 		},
 	}

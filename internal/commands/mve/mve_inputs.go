@@ -92,8 +92,11 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 			if vlan, present, err := utils.JSONNumber(vnicMap, "vlan"); err != nil {
 				return nil, fmt.Errorf("vnics[%d] %w", i, err)
 			} else if present {
-				if vlan != math.Trunc(vlan) {
+				if vlan != math.Trunc(vlan) || vlan < math.MinInt32 || vlan > math.MaxInt32 {
 					return nil, fmt.Errorf("vnics[%d] vlan must be an integer", i)
+				}
+				if err := validation.ValidateVLAN(int(vlan)); err != nil {
+					return nil, fmt.Errorf("vnics[%d] %w", i, err)
 				}
 				vnic.VLAN = int(vlan)
 			}
@@ -171,8 +174,11 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 			if vlan, present, err := utils.JSONNumber(vnicMap, "vlan"); err != nil {
 				return nil, fmt.Errorf("vnics[%d] %w", i, err)
 			} else if present {
-				if vlan != math.Trunc(vlan) {
+				if vlan != math.Trunc(vlan) || vlan < math.MinInt32 || vlan > math.MaxInt32 {
 					return nil, fmt.Errorf("vnics[%d] vlan must be an integer", i)
+				}
+				if err := validation.ValidateVLAN(int(vlan)); err != nil {
+					return nil, fmt.Errorf("vnics[%d] %w", i, err)
 				}
 				vnic.VLAN = int(vlan)
 			}
