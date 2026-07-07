@@ -359,23 +359,6 @@ func printGoTemplate[T OutputFields](_ []T, _ printOptions) error {
 	return fmt.Errorf("invalid output format: go-template is not supported in the browser version")
 }
 
-// calculateColumnWidths calculates the maximum width for each column
-func calculateColumnWidths(rows [][]string) []int {
-	if len(rows) == 0 {
-		return nil
-	}
-	colCount := len(rows[0])
-	colWidths := make([]int, colCount)
-	for _, row := range rows {
-		for i, val := range row {
-			if i < colCount && len(val) > colWidths[i] {
-				colWidths[i] = len(val)
-			}
-		}
-	}
-	return colWidths
-}
-
 // CaptureOutput runs a function and captures its stdout output.
 // Must not be called reentrantly (the global stdoutMu is not reentrant).
 func CaptureOutput(f func()) string {
