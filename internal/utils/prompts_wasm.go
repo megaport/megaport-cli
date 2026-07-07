@@ -5,6 +5,7 @@ package utils
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/megaport/megaport-cli/internal/wasm"
 )
@@ -29,7 +30,7 @@ const promptLineBreak = "\r\n"
 // sanitizing, so they are preserved.
 func sanitizeForTerminal(s string) string {
 	return strings.Map(func(r rune) rune {
-		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+		if unicode.IsControl(r) {
 			return -1
 		}
 		return r
@@ -117,49 +118,49 @@ func wasmSecretResourcePrompt(resourceType string, msg string, noColor bool) (st
 	return wasm.PromptForInput(msg, "password", resourceType)
 }
 
-// wasmPromptContext accumulates informational lines (instructions, warnings,
+// wasmPromptBuffer accumulates informational lines (instructions, warnings,
 // per-tag echoes) and folds them into the next prompt message, so they reach
 // the live prompt channel instead of os.Stdout, which the browser routes to the
 // console. Trailing lines with no following prompt are flushed to the output
 // buffer instead.
-type wasmPromptContext struct {
+type wasmPromptBuffer struct {
 	lines []string
 }
 
-func (c *wasmPromptContext) add(line string) {
-	c.lines = append(c.lines, sanitizeForTerminal(line))
+func (b *wasmPromptBuffer) add(line string) {
+	b.lines = append(b.lines, sanitizeForTerminal(line))
 }
 
-// prompt prepends any accumulated context to msg, sends it over the live prompt
-// channel, and clears the context.
-func (c *wasmPromptContext) prompt(msg string, noColor bool) (string, error) {
-	return wasmPrompt(c.take(msg), noColor)
+// prompt prepends any buffered lines to msg, sends it over the live prompt
+// channel, and clears the buffer.
+func (b *wasmPromptBuffer) prompt(msg string, noColor bool) (string, error) {
+	return wasmPrompt(b.take(msg), noColor)
 }
 
-// confirm prepends any accumulated context to question, asks it over the live
-// prompt channel, and clears the context.
-func (c *wasmPromptContext) confirm(question string, noColor bool) bool {
-	return wasmConfirmPrompt(c.take(question), noColor)
+// confirm prepends any buffered lines to question, asks it over the live
+// prompt channel, and clears the buffer.
+func (b *wasmPromptBuffer) confirm(question string, noColor bool) bool {
+	return wasmConfirmPrompt(b.take(question), noColor)
 }
 
-func (c *wasmPromptContext) take(msg string) string {
+func (b *wasmPromptBuffer) take(msg string) string {
 	msg = sanitizeForTerminal(msg)
-	if len(c.lines) == 0 {
+	if len(b.lines) == 0 {
 		return msg
 	}
-	prefix := strings.Join(c.lines, promptLineBreak)
-	c.lines = nil
+	prefix := strings.Join(b.lines, promptLineBreak)
+	b.lines = nil
 	return prefix + promptLineBreak + msg
 }
 
-// flush writes any remaining context (no following prompt) to the output buffer
-// so it is captured rather than lost to the console.
-func (c *wasmPromptContext) flush() {
-	if len(c.lines) == 0 {
+// flush writes any remaining buffered lines (no following prompt) to the output
+// buffer so they are captured rather than lost to the console.
+func (b *wasmPromptBuffer) flush() {
+	if len(b.lines) == 0 {
 		return
 	}
-	_, _ = wasm.WasmOutputBuffer.Write([]byte(strings.Join(c.lines, "\n") + "\n"))
-	c.lines = nil
+	_, _ = wasm.WasmOutputBuffer.Write([]byte(strings.Join(b.lines, "\n") + "\n"))
+	b.lines = nil
 }
 
 func wasmResourceTagsPrompt(noColor bool) (map[string]string, error) {
@@ -169,13 +170,13 @@ func wasmResourceTagsPrompt(noColor bool) (map[string]string, error) {
 	}
 
 	tags := make(map[string]string)
-	var ctx wasmPromptContext
+	var buf wasmPromptBuffer
 
 	// Inform user how to finish entering tags; shown with the first key prompt.
-	ctx.add("Enter tags (key and value). Enter empty key to finish.")
+	buf.add("Enter tags (key and value). Enter empty key to finish.")
 
 	for {
-		key, err := ctx.prompt("Tag key (empty to finish):", noColor)
+		key, err := buf.prompt("Tag key (empty to finish):", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -184,7 +185,7 @@ func wasmResourceTagsPrompt(noColor bool) (map[string]string, error) {
 			break
 		}
 
-		value, err := ctx.prompt(fmt.Sprintf("Tag value for '%s':", key), noColor)
+		value, err := buf.prompt(fmt.Sprintf("Tag value for '%s':", key), noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -193,32 +194,32 @@ func wasmResourceTagsPrompt(noColor bool) (map[string]string, error) {
 	}
 
 	if len(tags) > 0 {
-		ctx.add("Tags added:")
+		buf.add("Tags added:")
 		for k, v := range tags {
-			ctx.add(fmt.Sprintf("  %s: %s", k, v))
+			buf.add(fmt.Sprintf("  %s: %s", k, v))
 		}
 	}
-	ctx.flush()
+	buf.flush()
 
 	return tags, nil
 }
 
 func wasmUpdateResourceTagsPrompt(existingTags map[string]string, noColor bool) (map[string]string, error) {
-	var ctx wasmPromptContext
+	var buf wasmPromptBuffer
 
 	// Warning about replacing tags; shown with the continue prompt.
-	ctx.add("⚠️  Warning: This operation will replace all existing tags with the new set of tags you define.")
+	buf.add("⚠️  Warning: This operation will replace all existing tags with the new set of tags you define.")
 
 	if len(existingTags) > 0 {
-		ctx.add("Current tags:")
+		buf.add("Current tags:")
 		for k, v := range existingTags {
-			ctx.add(fmt.Sprintf("  %s: %s", k, v))
+			buf.add(fmt.Sprintf("  %s: %s", k, v))
 		}
 	} else {
-		ctx.add("No existing tags found.")
+		buf.add("No existing tags found.")
 	}
 
-	proceed := ctx.confirm("Do you want to continue with updating tags?", noColor)
+	proceed := buf.confirm("Do you want to continue with updating tags?", noColor)
 	if !proceed {
 		return nil, fmt.Errorf("tag update cancelled by user")
 	}
@@ -230,12 +231,12 @@ func wasmUpdateResourceTagsPrompt(existingTags map[string]string, noColor bool) 
 
 	tags := make(map[string]string)
 
-	ctx.add("")
-	ctx.add("Choose how you want to update tags:")
-	ctx.add("1. Start with a clean slate (remove all existing tags)")
-	ctx.add("2. Start with existing tags and modify them")
+	buf.add("")
+	buf.add("Choose how you want to update tags:")
+	buf.add("1. Start with a clean slate (remove all existing tags)")
+	buf.add("2. Start with existing tags and modify them")
 
-	choice, err := ctx.prompt("Enter choice (1 or 2):", noColor)
+	choice, err := buf.prompt("Enter choice (1 or 2):", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -245,17 +246,17 @@ func wasmUpdateResourceTagsPrompt(existingTags map[string]string, noColor bool) 
 			tags[k] = v
 		}
 
-		ctx.add("")
-		ctx.add("You can now modify, add, or remove tags.")
-		ctx.add("To remove a tag, enter its key and an empty value.")
+		buf.add("")
+		buf.add("You can now modify, add, or remove tags.")
+		buf.add("To remove a tag, enter its key and an empty value.")
 	} else if choice != "1" {
 		return nil, fmt.Errorf("invalid choice: %s", choice)
 	}
 
-	ctx.add("")
-	ctx.add("Enter tags (key and value). Enter empty key to finish.")
+	buf.add("")
+	buf.add("Enter tags (key and value). Enter empty key to finish.")
 	for {
-		key, err := ctx.prompt("Tag key (empty to finish):", noColor)
+		key, err := buf.prompt("Tag key (empty to finish):", noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -264,7 +265,7 @@ func wasmUpdateResourceTagsPrompt(existingTags map[string]string, noColor bool) 
 			break
 		}
 
-		value, err := ctx.prompt(fmt.Sprintf("Tag value for '%s' (empty to remove):", key), noColor)
+		value, err := buf.prompt(fmt.Sprintf("Tag value for '%s' (empty to remove):", key), noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -272,24 +273,24 @@ func wasmUpdateResourceTagsPrompt(existingTags map[string]string, noColor bool) 
 		// Empty value means remove the tag
 		if value == "" && tags[key] != "" {
 			delete(tags, key)
-			ctx.add(fmt.Sprintf("  Removed tag: %s", key))
+			buf.add(fmt.Sprintf("  Removed tag: %s", key))
 		} else if value != "" {
 			tags[key] = value
-			ctx.add(fmt.Sprintf("  Updated tag: %s: %s", key, value))
+			buf.add(fmt.Sprintf("  Updated tag: %s: %s", key, value))
 		}
 	}
 
-	ctx.add("")
-	ctx.add("Final tags that will be applied:")
+	buf.add("")
+	buf.add("Final tags that will be applied:")
 	if len(tags) > 0 {
 		for k, v := range tags {
-			ctx.add(fmt.Sprintf("  %s: %s", k, v))
+			buf.add(fmt.Sprintf("  %s: %s", k, v))
 		}
 	} else {
-		ctx.add("  No tags - all existing tags will be removed")
+		buf.add("  No tags - all existing tags will be removed")
 	}
 
-	confirmApply := ctx.confirm("Apply these changes?", noColor)
+	confirmApply := buf.confirm("Apply these changes?", noColor)
 	if !confirmApply {
 		return nil, fmt.Errorf("tag update cancelled by user")
 	}
