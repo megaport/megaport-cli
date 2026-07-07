@@ -32,6 +32,21 @@ jobs:
         run: |
           export PATH="$PATH:$(go env GOROOT)/lib/wasm"
           GOOS=js GOARCH=wasm go test -v -tags js,wasm ./cmd/megaport
+      - name: Run WASM output-streaming unit tests
+        # internal/wasm's browser-only tests live in wasm_browser_test.go behind
+        # the `browser` build tag, so the default js,wasm run compiles only the
+        # node-safe tests (wasm_test.go, output_handler_test.go, etc.).
+        # No -run allowlist: any node-safe test added to the package runs here.
+        run: |
+          export PATH="$PATH:$(go env GOROOT)/lib/wasm"
+          GOOS=js GOARCH=wasm go test -v -tags js,wasm ./internal/wasm
+      - name: Run WASM fetch-transport unit tests
+        # The wasmhttp tests mock the global fetch and need only Promise /
+        # AbortController / AbortSignal, all present in the node runtime, so
+        # the whole package runs headlessly here.
+        run: |
+          export PATH="$PATH:$(go env GOROOT)/lib/wasm"
+          GOOS=js GOARCH=wasm go test -v -tags js,wasm ./internal/wasm/wasmhttp
 
   smoke:
     name: Browser Fetch Smoke

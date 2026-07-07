@@ -512,6 +512,34 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
   };
 
   /**
+   * Register a handler for live command output.
+   *
+   * The handler is invoked with each chunk of narrative output (progress lines,
+   * echoes, warnings, validation errors) as the command writes it, so the
+   * terminal can render output as it streams instead of waiting for completion.
+   *
+   * Contract: when the handler delivers output normally, the narrative is
+   * delivered here and is NOT repeated in the `execute()` result. The result's
+   * `output` then holds only structured document output (JSON/CSV/XML/table),
+   * or is empty when the command produced only streamed narrative. Do not render
+   * both. If the handler throws (or delivers nothing), the WASM side falls back
+   * to returning the full captured output in `result.output`, so already-streamed
+   * chunks may appear there too.
+   *
+   * Chunks use `\n` line endings; xterm hosts should translate to `\r\n`.
+   *
+   * @param callback - Function called with each output chunk
+   * @returns true if registered successfully
+   */
+  const registerOutputHandler = (callback: (chunk: string) => void): boolean => {
+    if (window.registerOutputHandler) {
+      return window.registerOutputHandler(callback);
+    }
+    warn('registerOutputHandler not available - WASM may not be initialized');
+    return false;
+  };
+
+  /**
    * Initialize WASM with retry logic
    * Attempts initialization multiple times with exponential backoff
    */
@@ -609,6 +637,7 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
     resetOutput,
     toggleDebug,
     registerPromptHandler,
+    registerOutputHandler, // For live streamed command output
     cleanup, // Expose cleanup for manual cleanup if needed
   };
 }

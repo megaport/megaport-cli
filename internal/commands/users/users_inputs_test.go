@@ -112,6 +112,11 @@ func TestProcessJSONCreateUserInput(t *testing.T) {
 			name:      "valid JSON file",
 			writeFile: `{"firstName":"Jane","lastName":"Doe","email":"jane@example.com","position":"Finance","active":true}`,
 		},
+		{
+			name:          "invalid position",
+			jsonStr:       `{"firstName":"John","lastName":"Doe","email":"john@example.com","position":"Super Admin"}`,
+			expectedError: "invalid position",
+		},
 	}
 
 	for _, tt := range tests {
@@ -135,6 +140,39 @@ func TestProcessJSONCreateUserInput(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, req)
 			}
+		})
+	}
+}
+
+func TestProcessJSONCreateUserInputActiveDefault(t *testing.T) {
+	tests := []struct {
+		name           string
+		jsonStr        string
+		expectedActive bool
+	}{
+		{
+			name:           "omitted active defaults to true",
+			jsonStr:        `{"firstName":"John","lastName":"Doe","email":"john@example.com","position":"Technical Admin"}`,
+			expectedActive: true,
+		},
+		{
+			name:           "explicit active true is honored",
+			jsonStr:        `{"firstName":"John","lastName":"Doe","email":"john@example.com","position":"Technical Admin","active":true}`,
+			expectedActive: true,
+		},
+		{
+			name:           "explicit active false is honored",
+			jsonStr:        `{"firstName":"John","lastName":"Doe","email":"john@example.com","position":"Technical Admin","active":false}`,
+			expectedActive: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := processJSONCreateUserInput(tt.jsonStr, "")
+			require.NoError(t, err)
+			require.NotNil(t, req)
+			assert.Equal(t, tt.expectedActive, req.Active)
 		})
 	}
 }

@@ -106,7 +106,10 @@ func executeMegaportCommandAsync(this js.Value, args []js.Value) interface{} {
 
 		megaport.ExecuteWithArgs(originalArgs)
 
-		result := wasm.GetCapturedOutput()
+		// When a live-output handler is registered the narrative has already
+		// streamed to the host; GetCompletionOutput returns only the structured
+		// document (or "") so the host does not double-render it.
+		result := wasm.GetCompletionOutput()
 		once.Do(func() {
 			callback.Invoke(map[string]interface{}{
 				"output": result,
@@ -157,6 +160,9 @@ func main() {
 
 	// Initialize the prompt system for interactive mode
 	wasm.InitPromptSystem()
+
+	// Initialize the live-output streaming system
+	wasm.InitOutputSystem()
 
 	// executeMegaportCommand is a deprecated stub kept for one release as a soft
 	// landing for hosts still detecting/calling it; executeMegaportCommandAsync
