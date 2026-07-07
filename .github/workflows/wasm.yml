@@ -27,6 +27,14 @@ jobs:
         run: |
           export PATH="$PATH:$(go env GOROOT)/lib/wasm"
           GOOS=js GOARCH=wasm go test -v -tags js,wasm ./cmd/megaport
+      - name: Run WASM output-priority regression tests
+        # The TestGetCapturedOutput_* tests only touch JS globals + buffers, so
+        # they run fine under node even though the rest of these packages need a
+        # browser host. Without this step the regression coverage runs nowhere.
+        run: |
+          export PATH="$PATH:$(go env GOROOT)/lib/wasm"
+          GOOS=js GOARCH=wasm go test -v -tags js,wasm \
+            -run 'TestGetCapturedOutput' ./internal/wasm ./internal/base/output
 
   smoke:
     name: Browser Fetch Smoke
