@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 
 	megaport "github.com/megaport/megaportgo"
@@ -347,6 +348,7 @@ func TestFormatIntSlice(t *testing.T) {
 // that the new term is actually orderable before updating ValidContractTerms.
 func TestValidContractTermsMatchSDK(t *testing.T) {
 	assert.ElementsMatch(t, megaport.VALID_CONTRACT_TERMS, ValidContractTerms)
+	assert.True(t, sort.IntsAreSorted(ValidContractTerms), "ValidContractTerms must stay sorted; it feeds FormatIntSlice's user-facing help text")
 }
 
 // TestValidMCRPortSpeedsSubsetOfSDK ensures the CLI never accepts an MCR speed the
