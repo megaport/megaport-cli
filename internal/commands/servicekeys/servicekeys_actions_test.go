@@ -12,18 +12,14 @@ import (
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/testutil"
+	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestCreateServiceKey_FlagsPropagated(t *testing.T) {
-	mockService := &MockServiceKeyService{}
-	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
-		c.ServiceKeyService = mockService
-	})
-	defer cleanup()
-
+func newCreateServiceKeyCmd() *cobra.Command {
 	cmd := testutil.NewCommand("create", testutil.NoColorAdapter(CreateServiceKey))
 	cmd.Flags().String("product-uid", "", "")
 	cmd.Flags().Int("product-id", 0, "")
@@ -35,6 +31,20 @@ func TestCreateServiceKey_FlagsPropagated(t *testing.T) {
 	cmd.Flags().Bool("active", false, "")
 	cmd.Flags().Bool("pre-approved", false, "")
 	cmd.Flags().Int("vlan", 0, "")
+	cmd.Flags().BoolP("interactive", "i", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	return cmd
+}
+
+func TestCreateServiceKey_FlagsPropagated(t *testing.T) {
+	mockService := &MockServiceKeyService{}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.ServiceKeyService = mockService
+	})
+	defer cleanup()
+
+	cmd := newCreateServiceKeyCmd()
 
 	testutil.SetFlags(t, cmd, map[string]string{
 		"product-uid":  "prod-uid-123",
@@ -73,17 +83,7 @@ func TestCreateServiceKey_NilResponse(t *testing.T) {
 	})
 	defer cleanup()
 
-	cmd := testutil.NewCommand("create", testutil.NoColorAdapter(CreateServiceKey))
-	cmd.Flags().String("product-uid", "", "")
-	cmd.Flags().Int("product-id", 0, "")
-	cmd.Flags().Bool("single-use", false, "")
-	cmd.Flags().Int("max-speed", 0, "")
-	cmd.Flags().String("description", "", "")
-	cmd.Flags().String("start-date", "", "")
-	cmd.Flags().String("end-date", "", "")
-	cmd.Flags().Bool("active", false, "")
-	cmd.Flags().Bool("pre-approved", false, "")
-	cmd.Flags().Int("vlan", 0, "")
+	cmd := newCreateServiceKeyCmd()
 
 	testutil.SetFlags(t, cmd, map[string]string{
 		"product-uid": "prod-uid-123",
@@ -144,17 +144,7 @@ func TestCreateServiceKey_InvalidDateParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := testutil.NewCommand("create", testutil.NoColorAdapter(CreateServiceKey))
-			cmd.Flags().String("product-uid", "", "")
-			cmd.Flags().Int("product-id", 0, "")
-			cmd.Flags().Bool("single-use", false, "")
-			cmd.Flags().Int("max-speed", 0, "")
-			cmd.Flags().String("description", "", "")
-			cmd.Flags().String("start-date", "", "")
-			cmd.Flags().String("end-date", "", "")
-			cmd.Flags().Bool("active", false, "")
-			cmd.Flags().Bool("pre-approved", false, "")
-			cmd.Flags().Int("vlan", 0, "")
+			cmd := newCreateServiceKeyCmd()
 
 			testutil.SetFlags(t, cmd, map[string]string{
 				"product-uid": "prod-123",
@@ -171,6 +161,171 @@ func TestCreateServiceKey_InvalidDateParsing(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.expectedError)
 		})
 	}
+}
+
+func TestCreateServiceKey_JSONMode(t *testing.T) {
+	tests := []struct {
+		name          string
+		json          string
+		useFile       bool
+		expectedError string
+		check         func(t *testing.T, req *megaport.CreateServiceKeyRequest)
+	}{
+		{
+			name: "json string success",
+			json: `{"productUid":"json-prod-uid","description":"JSON key","singleUse":true,"maxSpeed":500,"active":true,"preApproved":true,"vlan":50,"startDate":"2025-01-01","endDate":"2025-12-31"}`,
+			check: func(t *testing.T, req *megaport.CreateServiceKeyRequest) {
+				assert.Equal(t, "json-prod-uid", req.ProductUID)
+				assert.Equal(t, "JSON key", req.Description)
+				assert.True(t, req.SingleUse)
+				assert.Equal(t, 500, req.MaxSpeed)
+				assert.True(t, req.Active)
+				assert.True(t, req.PreApproved)
+				assert.Equal(t, 50, req.VLAN)
+				if assert.NotNil(t, req.ValidFor) {
+					assert.Equal(t, "2025-01-01", req.ValidFor.StartTime.Format("2006-01-02"))
+					assert.Equal(t, "2025-12-31", req.ValidFor.EndTime.Format("2006-01-02"))
+				}
+			},
+		},
+		{
+			name:    "json file success",
+			json:    `{"productUid":"json-file-prod-uid","description":"JSON file key"}`,
+			useFile: true,
+			check: func(t *testing.T, req *megaport.CreateServiceKeyRequest) {
+				assert.Equal(t, "json-file-prod-uid", req.ProductUID)
+				assert.Equal(t, "JSON file key", req.Description)
+			},
+		},
+		{
+			name:          "invalid JSON syntax",
+			json:          `{invalid}`,
+			expectedError: "failed to parse JSON",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockServiceKeyService{}
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+				c.ServiceKeyService = mockService
+			})
+			defer cleanup()
+
+			cmd := newCreateServiceKeyCmd()
+
+			if tt.useFile {
+				tmpFile, tmpErr := os.CreateTemp("", "servicekey-create-*.json")
+				require.NoError(t, tmpErr)
+				defer os.Remove(tmpFile.Name())
+				_, tmpErr = tmpFile.WriteString(tt.json)
+				require.NoError(t, tmpErr)
+				require.NoError(t, tmpFile.Close())
+				testutil.SetFlags(t, cmd, map[string]string{"json-file": tmpFile.Name()})
+			} else {
+				testutil.SetFlags(t, cmd, map[string]string{"json": tt.json})
+			}
+
+			var err error
+			output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+				return
+			}
+
+			assert.NoError(t, err)
+			if assert.NotNil(t, mockService.CapturedCreateServiceKeyRequest) {
+				tt.check(t, mockService.CapturedCreateServiceKeyRequest)
+			}
+		})
+	}
+}
+
+func TestCreateServiceKey_InteractiveMode(t *testing.T) {
+	originalResourcePrompt := utils.GetResourcePrompt()
+	originalConfirmPrompt := utils.GetConfirmPrompt()
+	defer func() {
+		utils.SetResourcePrompt(originalResourcePrompt)
+		utils.SetConfirmPrompt(originalConfirmPrompt)
+	}()
+
+	mockService := &MockServiceKeyService{
+		CreateServiceKeyResult: &megaport.CreateServiceKeyResponse{ServiceKeyUID: "sk-interactive"},
+	}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.ServiceKeyService = mockService
+	})
+	defer cleanup()
+
+	resourcePrompts := []string{
+		"prod-uid-interactive", // product UID
+		"1500",                 // max speed
+		"Interactive key",      // description
+		"2025-01-01",           // start date
+		"2025-12-31",           // end date
+		"200",                  // VLAN
+	}
+	promptIndex := 0
+	utils.SetResourcePrompt(func(_, _ string, _ bool) (string, error) {
+		resp := resourcePrompts[promptIndex]
+		promptIndex++
+		return resp, nil
+	})
+
+	confirmResponses := []bool{true, true, false} // single-use, active, pre-approved
+	confirmIndex := 0
+	utils.SetConfirmPrompt(func(_ string, _ bool) bool {
+		resp := confirmResponses[confirmIndex]
+		confirmIndex++
+		return resp
+	})
+
+	cmd := newCreateServiceKeyCmd()
+	testutil.SetFlags(t, cmd, map[string]string{"interactive": "true"})
+
+	var err error
+	output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, []string{})
+	})
+
+	assert.NoError(t, err)
+	req := mockService.CapturedCreateServiceKeyRequest
+	if assert.NotNil(t, req) {
+		assert.Equal(t, "prod-uid-interactive", req.ProductUID)
+		assert.True(t, req.SingleUse)
+		assert.Equal(t, 1500, req.MaxSpeed)
+		assert.Equal(t, "Interactive key", req.Description)
+		assert.True(t, req.Active)
+		assert.False(t, req.PreApproved)
+		assert.Equal(t, 200, req.VLAN)
+		if assert.NotNil(t, req.ValidFor) {
+			assert.Equal(t, "2025-01-01", req.ValidFor.StartTime.Format("2006-01-02"))
+			assert.Equal(t, "2025-12-31", req.ValidFor.EndTime.Format("2006-01-02"))
+		}
+	}
+}
+
+func TestCreateServiceKey_InteractiveConflict(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	cmd := newCreateServiceKeyCmd()
+	testutil.SetFlags(t, cmd, map[string]string{
+		"interactive": "true",
+		"json":        `{"productUid":"prod-uid"}`,
+	})
+
+	var err error
+	output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, []string{})
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot be combined with")
 }
 
 func TestListServiceKeys_ProductUIDFilter(t *testing.T) {
@@ -241,6 +396,9 @@ func newUpdateServiceKeyCmd() *cobra.Command {
 	cmd.Flags().Int("product-id", 0, "")
 	cmd.Flags().Bool("single-use", false, "")
 	cmd.Flags().Bool("active", false, "")
+	cmd.Flags().BoolP("interactive", "i", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
 	return cmd
 }
 
@@ -468,6 +626,239 @@ func TestUpdateServiceKey_MergesUnsetFlags(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUpdateServiceKey_JSONMode(t *testing.T) {
+	currentKey := &megaport.ServiceKey{
+		Key:        "test-key-123",
+		ProductUID: "current-prod-uid",
+		SingleUse:  true,
+		Active:     true,
+	}
+
+	tests := []struct {
+		name              string
+		json              string
+		expectedError     string
+		expectedSingleUse bool
+		expectedActive    bool
+		expectedUID       string
+		expectedID        int
+	}{
+		{
+			name:              "empty object preserves current values",
+			json:              `{}`,
+			expectedSingleUse: true,
+			expectedActive:    true,
+			expectedUID:       "current-prod-uid",
+		},
+		{
+			name:              "product uid only preserves bools",
+			json:              `{"productUid":"new-prod-uid"}`,
+			expectedSingleUse: true,
+			expectedActive:    true,
+			expectedUID:       "new-prod-uid",
+		},
+		{
+			name:              "explicit active false is honored",
+			json:              `{"active":false}`,
+			expectedSingleUse: true,
+			expectedActive:    false,
+			expectedUID:       "current-prod-uid",
+		},
+		{
+			name:              "explicit single-use false is honored",
+			json:              `{"singleUse":false}`,
+			expectedSingleUse: false,
+			expectedActive:    true,
+			expectedUID:       "current-prod-uid",
+		},
+		{
+			name:              "product id replaces current product uid",
+			json:              `{"productId":42}`,
+			expectedSingleUse: true,
+			expectedActive:    true,
+			expectedUID:       "",
+			expectedID:        42,
+		},
+		{
+			name:          "product uid and product id both set",
+			json:          `{"productUid":"new-prod-uid","productId":42}`,
+			expectedError: "productUid and productId cannot both be set",
+		},
+		{
+			name:          "invalid JSON syntax",
+			json:          `{invalid}`,
+			expectedError: "failed to parse JSON",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockServiceKeyService{
+				GetServiceKeyResult: currentKey,
+			}
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+				c.ServiceKeyService = mockService
+			})
+			defer cleanup()
+
+			cmd := newUpdateServiceKeyCmd()
+			testutil.SetFlags(t, cmd, map[string]string{"json": tt.json})
+
+			var err error
+			output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{"test-key-123"})
+			})
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+				return
+			}
+
+			assert.NoError(t, err)
+			req := mockService.CapturedUpdateServiceKeyRequest
+			if assert.NotNil(t, req) {
+				assert.Equal(t, "test-key-123", req.Key)
+				assert.Equal(t, tt.expectedSingleUse, req.SingleUse)
+				assert.Equal(t, tt.expectedActive, req.Active)
+				assert.Equal(t, tt.expectedUID, req.ProductUID)
+				assert.Equal(t, tt.expectedID, req.ProductID)
+			}
+		})
+	}
+}
+
+func TestUpdateServiceKey_InteractiveMode(t *testing.T) {
+	currentKey := &megaport.ServiceKey{
+		Key:        "test-key-123",
+		ProductUID: "current-prod-uid",
+		SingleUse:  true,
+		Active:     true,
+	}
+
+	tests := []struct {
+		name              string
+		resourcePrompts   []string
+		confirmResponses  []bool
+		expectedSingleUse bool
+		expectedActive    bool
+		expectedUID       string
+		expectedID        int
+	}{
+		{
+			name:              "skipping every prompt preserves current values",
+			resourcePrompts:   []string{"", "", "no", "no"},
+			expectedSingleUse: true,
+			expectedActive:    true,
+			expectedUID:       "current-prod-uid",
+		},
+		{
+			name:              "new product uid preserves bools",
+			resourcePrompts:   []string{"new-prod-uid", "no", "no"},
+			expectedSingleUse: true,
+			expectedActive:    true,
+			expectedUID:       "new-prod-uid",
+		},
+		{
+			name:              "new product id replaces current product uid",
+			resourcePrompts:   []string{"", "42", "no", "no"},
+			expectedSingleUse: true,
+			expectedActive:    true,
+			expectedUID:       "",
+			expectedID:        42,
+		},
+		{
+			name:              "explicit active false is honored",
+			resourcePrompts:   []string{"", "", "no", "yes"},
+			confirmResponses:  []bool{false},
+			expectedSingleUse: true,
+			expectedActive:    false,
+			expectedUID:       "current-prod-uid",
+		},
+		{
+			name:              "explicit single-use false is honored",
+			resourcePrompts:   []string{"", "", "yes", "no"},
+			confirmResponses:  []bool{false},
+			expectedSingleUse: false,
+			expectedActive:    true,
+			expectedUID:       "current-prod-uid",
+		},
+	}
+
+	originalResourcePrompt := utils.GetResourcePrompt()
+	originalConfirmPrompt := utils.GetConfirmPrompt()
+	defer func() {
+		utils.SetResourcePrompt(originalResourcePrompt)
+		utils.SetConfirmPrompt(originalConfirmPrompt)
+	}()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &MockServiceKeyService{
+				GetServiceKeyResult: currentKey,
+			}
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+				c.ServiceKeyService = mockService
+			})
+			defer cleanup()
+
+			promptIndex := 0
+			utils.SetResourcePrompt(func(_, _ string, _ bool) (string, error) {
+				resp := tt.resourcePrompts[promptIndex]
+				promptIndex++
+				return resp, nil
+			})
+
+			confirmIndex := 0
+			utils.SetConfirmPrompt(func(_ string, _ bool) bool {
+				resp := tt.confirmResponses[confirmIndex]
+				confirmIndex++
+				return resp
+			})
+
+			cmd := newUpdateServiceKeyCmd()
+			testutil.SetFlags(t, cmd, map[string]string{"interactive": "true"})
+
+			var err error
+			output.CaptureOutput(func() {
+				err = cmd.RunE(cmd, []string{"test-key-123"})
+			})
+
+			assert.NoError(t, err)
+			req := mockService.CapturedUpdateServiceKeyRequest
+			if assert.NotNil(t, req) {
+				assert.Equal(t, "test-key-123", req.Key)
+				assert.Equal(t, tt.expectedSingleUse, req.SingleUse)
+				assert.Equal(t, tt.expectedActive, req.Active)
+				assert.Equal(t, tt.expectedUID, req.ProductUID)
+				assert.Equal(t, tt.expectedID, req.ProductID)
+			}
+		})
+	}
+}
+
+func TestUpdateServiceKey_InteractiveConflict(t *testing.T) {
+	mockService := &MockServiceKeyService{}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.ServiceKeyService = mockService
+	})
+	defer cleanup()
+
+	cmd := newUpdateServiceKeyCmd()
+	testutil.SetFlags(t, cmd, map[string]string{
+		"interactive": "true",
+		"json":        `{"active":false}`,
+	})
+
+	var err error
+	output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, []string{"test-key-123"})
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot be combined with")
 }
 
 func TestGetServiceKey(t *testing.T) {
