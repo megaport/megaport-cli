@@ -775,6 +775,38 @@ func TestUpdateServiceKey_JSONMode(t *testing.T) {
 	}
 }
 
+func TestUpdateServiceKey_JSONModeIgnoresProductFlagConflict(t *testing.T) {
+	currentKey := &megaport.ServiceKey{
+		Key:        "test-key-123",
+		ProductUID: "current-prod-uid",
+		SingleUse:  true,
+		Active:     true,
+	}
+	mockService := &MockServiceKeyService{GetServiceKeyResult: currentKey}
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.ServiceKeyService = mockService
+	})
+	defer cleanup()
+
+	cmd := newUpdateServiceKeyCmd()
+	testutil.SetFlags(t, cmd, map[string]string{
+		"json":        `{"productUid":"json-prod-uid"}`,
+		"product-uid": "flag-prod-uid",
+		"product-id":  "42",
+	})
+
+	var err error
+	output.CaptureOutput(func() {
+		err = cmd.RunE(cmd, []string{"test-key-123"})
+	})
+
+	assert.NoError(t, err)
+	req := mockService.CapturedUpdateServiceKeyRequest
+	if assert.NotNil(t, req) {
+		assert.Equal(t, "json-prod-uid", req.ProductUID)
+	}
+}
+
 func TestUpdateServiceKey_InteractiveMode(t *testing.T) {
 	currentKey := &megaport.ServiceKey{
 		Key:        "test-key-123",

@@ -114,7 +114,11 @@ func processJSONCreateServiceKeyInput(jsonStr, jsonFile string) (*megaport.Creat
 // that shipped with the ESD-1272/ESD-1417 merge fix: SingleUse and Active
 // default to the current key's values because the SDK serializes them
 // unconditionally (no omitempty), so an unset flag must not clobber them.
-func buildUpdateServiceKeyRequestFromFlags(cmd *cobra.Command, key string, current *megaport.ServiceKey) *megaport.UpdateServiceKeyRequest {
+func buildUpdateServiceKeyRequestFromFlags(cmd *cobra.Command, key string, current *megaport.ServiceKey) (*megaport.UpdateServiceKeyRequest, error) {
+	if cmd.Flags().Changed("product-uid") && cmd.Flags().Changed("product-id") {
+		return nil, fmt.Errorf("--product-uid and --product-id cannot both be set")
+	}
+
 	req := &megaport.UpdateServiceKeyRequest{
 		Key:       key,
 		SingleUse: current.SingleUse,
@@ -136,7 +140,7 @@ func buildUpdateServiceKeyRequestFromFlags(cmd *cobra.Command, key string, curre
 	default:
 		req.ProductUID = current.ProductUID
 	}
-	return req
+	return req, nil
 }
 
 // buildUpdateServiceKeyRequestFromJSON applies the same current-state merge

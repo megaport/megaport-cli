@@ -74,10 +74,6 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	if cmd.Flags().Changed("product-uid") && cmd.Flags().Changed("product-id") {
-		return fmt.Errorf("--product-uid and --product-id cannot both be set")
-	}
-
 	ctx, cancel, client, err := utils.LoginClient(cmd, 90*time.Second, config.Login)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
@@ -116,7 +112,11 @@ func UpdateServiceKey(cmd *cobra.Command, args []string, noColor bool) error {
 			return err
 		}
 	default:
-		req = buildUpdateServiceKeyRequestFromFlags(cmd, key, current)
+		req, err = buildUpdateServiceKeyRequestFromFlags(cmd, key, current)
+		if err != nil {
+			output.PrintError("Failed to process flags: %v", noColor, err)
+			return err
+		}
 	}
 
 	spinner := output.PrintResourceUpdating("Service Key", key, noColor)
