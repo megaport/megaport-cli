@@ -1,4 +1,7 @@
-//go:build js && wasm
+// The prompt handlers drive JS bridge globals that only exist in a real
+// browser host, so these tests need the `browser` tag and are skipped by the
+// default headless CI run (opt in with -tags js,wasm,browser).
+//go:build js && wasm && browser
 
 package wasm
 
