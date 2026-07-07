@@ -442,6 +442,95 @@ func TestProcessJSONBuyMVEInput(t *testing.T) {
 	}
 }
 
+func TestProcessFlagBuyMVEInput_Vnics(t *testing.T) {
+	validVendorConfig := `{"vendor":"6wind","imageId":1,"productSize":"MEDIUM","sshPublicKey":"ssh-rsa AAAA"}`
+
+	newBuyCmd := func(t *testing.T, vnics string) *cobra.Command {
+		cmd := &cobra.Command{Use: "buy"}
+		cmd.Flags().String("name", "", "")
+		cmd.Flags().Int("term", 0, "")
+		cmd.Flags().Int("location-id", 0, "")
+		cmd.Flags().String("diversity-zone", "", "")
+		cmd.Flags().String("promo-code", "", "")
+		cmd.Flags().String("cost-centre", "", "")
+		cmd.Flags().String("vendor-config", "", "")
+		cmd.Flags().String("vnics", "", "")
+		cmd.Flags().String("resource-tags", "", "")
+		cmd.Flags().String("resource-tags-file", "", "")
+		require.NoError(t, cmd.Flags().Set("name", "test-mve"))
+		require.NoError(t, cmd.Flags().Set("term", "12"))
+		require.NoError(t, cmd.Flags().Set("location-id", "5"))
+		require.NoError(t, cmd.Flags().Set("vendor-config", validVendorConfig))
+		if vnics != "" {
+			require.NoError(t, cmd.Flags().Set("vnics", vnics))
+		}
+		return cmd
+	}
+
+	tests := []struct {
+		name          string
+		vnics         string
+		expectedError string
+	}{
+		{
+			name:  "valid vnics",
+			vnics: `[{"description":"data","vlan":100}]`,
+		},
+		{
+			name:  "empty vnics array",
+			vnics: `[]`,
+		},
+		{
+			name:          "malformed vnics JSON",
+			vnics:         `[{`,
+			expectedError: "failed to parse vnics JSON string",
+		},
+		{
+			name:          "vnics entry wrong type",
+			vnics:         `["data"]`,
+			expectedError: "vnics[0] must be an object",
+		},
+		{
+			name:          "vnics description wrong type",
+			vnics:         `[{"description":123}]`,
+			expectedError: "description must be a string",
+		},
+		{
+			name:          "vnics vlan wrong type",
+			vnics:         `[{"vlan":"hundred"}]`,
+			expectedError: "vlan must be a number",
+		},
+		{
+			// Regression: a string VLAN used to be silently dropped, yielding VLAN 0.
+			// Since VLANs are immutable after provisioning, that must error instead.
+			name:          "vnics vlan as numeric string is rejected instead of silently zeroed",
+			vnics:         `[{"description":"data","vlan":"100"}]`,
+			expectedError: "vlan must be a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := processFlagBuyMVEInput(newBuyCmd(t, tt.vnics))
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, req)
+		})
+	}
+
+	t.Run("vnic fields round-trip", func(t *testing.T) {
+		req, err := processFlagBuyMVEInput(newBuyCmd(t, `[{"description":"data","vlan":100}]`))
+		require.NoError(t, err)
+		require.Len(t, req.Vnics, 1)
+		assert.Equal(t, "data", req.Vnics[0].Description)
+		assert.Equal(t, 100, req.Vnics[0].VLAN)
+	})
+}
+
 func TestProcessJSONBuyMVEInput_OptionalStringsRoundTrip(t *testing.T) {
 	jsonStr := `{"name":"test-mve","term":12,"locationId":5,"diversityZone":"red","promoCode":"PROMO","costCentre":"CC-1","vendorConfig":{"vendor":"6wind","imageId":1,"productSize":"MEDIUM","sshPublicKey":"ssh-rsa AAAA"}}`
 
