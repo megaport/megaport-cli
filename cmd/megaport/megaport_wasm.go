@@ -8,6 +8,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/help"
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -22,6 +23,14 @@ func ExecuteWithArgs(args []string) {
 	// after parsing, and this state persists when the same command tree is reused
 	// across multiple WASM invocations.
 	resetAllFlags(rootCmd)
+
+	// Default to colored output each invocation. fatih/color derives its global
+	// NoColor from isatty, always false under js/wasm, so it would otherwise strip
+	// every colorized value/badge/status line while go-pretty still colors the
+	// table chrome. Resetting here (not just in PersistentPreRunE) keeps paths that
+	// skip PersistentPreRunE, e.g. --help, from inheriting a prior run's flag.
+	// PersistentPreRunE re-applies --no-color for the command actually running.
+	color.NoColor = false
 
 	// Direct output to our WASM buffer
 	rootCmd.SetOut(wasm.WasmOutputBuffer)

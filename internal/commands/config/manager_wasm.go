@@ -27,6 +27,7 @@ type ConfigManagerInterface interface {
 	Save() error
 	Export() (*ConfigFile, error)
 	GetCurrentProfile() (*Profile, string, error)
+	GetProfile(name string) (*Profile, error)
 }
 
 // Ensure ConfigManager implements the interface
@@ -114,6 +115,17 @@ func (m *ConfigManager) GetCurrentProfile() (*Profile, string, error) {
 		return nil, "", ErrProfileNotFound
 	}
 	return profile, profileName, nil
+}
+
+func (m *ConfigManager) GetProfile(name string) (*Profile, error) {
+	if m.config == nil {
+		return nil, fmt.Errorf("config not initialized")
+	}
+	profile, exists := m.config.Profiles[name]
+	if !exists {
+		return nil, fmt.Errorf("profile %q not found", name)
+	}
+	return profile, nil
 }
 
 // ClearAllCredentials clears all stored credentials

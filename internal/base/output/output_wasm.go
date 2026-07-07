@@ -193,12 +193,11 @@ func printXML[T OutputFields](data []T, opts printOptions) error {
 		data = []T{}
 	}
 
-	writeEmpty := func() error {
+	writeEmpty := func() {
 		WasmXMLWriter.WriteString(xml.Header + "<items></items>\n")
 		xmlOutput := WasmXMLWriter.String()
 		fmt.Print(xmlOutput)
 		js.Global().Set("wasmXMLOutput", xmlOutput)
-		return nil
 	}
 
 	var sample T
@@ -207,13 +206,15 @@ func printXML[T OutputFields](data []T, opts printOptions) error {
 	}
 	sampleVal := reflect.ValueOf(sample)
 	if !sampleVal.IsValid() {
-		return writeEmpty()
+		writeEmpty()
+		return nil
 	}
 	t := sampleVal.Type()
 	if t.Kind() == reflect.Pointer {
 		if sampleVal.IsNil() {
 			if t.Elem().Kind() != reflect.Struct {
-				return writeEmpty()
+				writeEmpty()
+				return nil
 			}
 			t = t.Elem()
 		} else {
@@ -222,7 +223,8 @@ func printXML[T OutputFields](data []T, opts printOptions) error {
 		}
 	}
 	if t.Kind() != reflect.Struct {
-		return writeEmpty()
+		writeEmpty()
+		return nil
 	}
 
 	type xmlField struct {

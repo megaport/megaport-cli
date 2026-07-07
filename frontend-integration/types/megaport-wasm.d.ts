@@ -75,10 +75,12 @@ export type TelemetryCallback = (event: TelemetryEvent) => void;
  */
 export interface MegaportWASM {
   /**
-   * Execute a CLI command synchronously (LEGACY - may not work with async operations)
-   * @param command - Full command string (e.g., "port list --output json")
-   * @returns Result object with output or error
-   * @deprecated Use executeMegaportCommandAsync for better reliability
+   * Deprecated stub kept for one release as a soft landing for hosts that
+   * still detect or call it. It no longer executes commands and always
+   * returns an immediate error result.
+   * @param command - Ignored
+   * @returns An error result pointing to executeMegaportCommandAsync
+   * @deprecated Use executeMegaportCommandAsync instead; this function does not run commands
    */
   executeMegaportCommand(command: string): MegaportCommandResult;
 

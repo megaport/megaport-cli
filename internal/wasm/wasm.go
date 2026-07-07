@@ -691,8 +691,12 @@ func isValidConfigFilename(filename string) bool {
 		return false
 	}
 	for _, c := range filename {
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
-			c == '.' || c == '_' || c == '-') {
+		switch {
+		case c >= 'a' && c <= 'z':
+		case c >= 'A' && c <= 'Z':
+		case c >= '0' && c <= '9':
+		case c == '.' || c == '_' || c == '-':
+		default:
 			return false
 		}
 	}

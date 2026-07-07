@@ -210,7 +210,7 @@ func PrintSuccess(format string, noColor bool, args ...interface{}) {
 	} else {
 		output = color.GreenString("✓ ") + msg + "\n"
 	}
-	wasm.WasmOutputBuffer.Write([]byte(output))
+	_, _ = wasm.WasmOutputBuffer.Write([]byte(output))
 }
 
 // PrintError overrides the base function for WASM to capture output. In json
@@ -228,7 +228,7 @@ func PrintError(format string, noColor bool, args ...interface{}) {
 	} else {
 		output = color.RedString("✗ ") + msg + "\n"
 	}
-	wasm.WasmOutputBuffer.Write([]byte(output))
+	_, _ = wasm.WasmOutputBuffer.Write([]byte(output))
 	markErrorEmitted()
 }
 
@@ -244,7 +244,7 @@ func PrintWarning(format string, noColor bool, args ...interface{}) {
 	} else {
 		output = color.YellowString("⚠ ") + msg + "\n"
 	}
-	wasm.WasmOutputBuffer.Write([]byte(output))
+	_, _ = wasm.WasmOutputBuffer.Write([]byte(output))
 }
 
 // PrintInfo overrides the base function for WASM to capture output
@@ -259,7 +259,7 @@ func PrintInfo(format string, noColor bool, args ...interface{}) {
 	} else {
 		output = color.BlueString("ℹ ") + msg + "\n"
 	}
-	wasm.WasmOutputBuffer.Write([]byte(output))
+	_, _ = wasm.WasmOutputBuffer.Write([]byte(output))
 }
 
 // PrintPlain overrides the base function for WASM to capture output.
@@ -268,7 +268,7 @@ func PrintPlain(format string, _ bool, args ...interface{}) {
 		return
 	}
 	msg := fmt.Sprintf(format, args...)
-	wasm.WasmOutputBuffer.Write([]byte(msg + "\n"))
+	_, _ = wasm.WasmOutputBuffer.Write([]byte(msg + "\n"))
 }
 
 // PrintNewline writes a blank line to the WASM output buffer, suppressed in quiet mode.
@@ -276,7 +276,7 @@ func PrintNewline() {
 	if IsQuiet() {
 		return
 	}
-	wasm.WasmOutputBuffer.Write([]byte("\n"))
+	_, _ = wasm.WasmOutputBuffer.Write([]byte("\n"))
 }
 
 // ClearScreen is a no-op in the WASM environment.
