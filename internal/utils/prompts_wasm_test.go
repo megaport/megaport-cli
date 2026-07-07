@@ -3,6 +3,8 @@
 package utils
 
 import (
+	"strings"
+	"sync"
 	"syscall/js"
 	"testing"
 	"time"
@@ -454,6 +456,115 @@ func TestWasmUpdateResourceTagsPrompt(t *testing.T) {
 	}
 }
 
+func TestWasmBuyConfirmPromptDeliversSummary(t *testing.T) {
+	tests := []struct {
+		name         string
+		fn           func(string, []BuyConfirmDetail, bool) bool
+		resourceType string
+		details      []BuyConfirmDetail
+		mockResponse string
+		wantHeader   string
+		wantQuestion string
+		wantConfirm  bool
+	}{
+		{
+			name:         "buy summary confirmed with y",
+			fn:           wasmBuyConfirmPrompt,
+			resourceType: "MVE",
+			details: []BuyConfirmDetail{
+				{Key: "Name", Value: "test-mve"},
+				{Key: "Term", Value: "12 months"},
+				{Key: "Skipped", Value: ""},
+			},
+			mockResponse: "y",
+			wantHeader:   "Purchase Summary:",
+			wantQuestion: "Proceed with purchase?",
+			wantConfirm:  true,
+		},
+		{
+			name:         "design summary declined with n",
+			fn:           wasmDesignConfirmPrompt,
+			resourceType: "NAT Gateway",
+			details: []BuyConfirmDetail{
+				{Key: "Name", Value: "test-nat"},
+			},
+			mockResponse: "n",
+			wantHeader:   "Design Summary:",
+			wantQuestion: "Proceed with creation?",
+			wantConfirm:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Capture the message delivered to the live prompt channel.
+			captured := setupCapturingMockPromptHandler(t, tt.mockResponse)
+			defer cleanupMockPromptHandler()
+
+			result := tt.fn(tt.resourceType, tt.details, true)
+
+			if result != tt.wantConfirm {
+				t.Errorf("Expected confirm result %v, got %v", tt.wantConfirm, result)
+			}
+
+			msg := captured()
+			// Multi-line prompt messages must use \r\n so the host terminal
+			// (no convertEol) renders the summary as a left-aligned block.
+			if !strings.Contains(msg, "\r\n") {
+				t.Errorf("Prompt message should separate lines with \\r\\n; got:\n%q", msg)
+			}
+			if strings.Contains(strings.ReplaceAll(msg, "\r\n", ""), "\n") {
+				t.Errorf("Prompt message contains a bare \\n (missing \\r); got:\n%q", msg)
+			}
+			// The summary must reach the prompt channel, not os.Stdout.
+			for _, want := range []string{
+				tt.wantHeader,
+				"Resource Type: " + tt.resourceType,
+				tt.wantQuestion,
+			} {
+				if !strings.Contains(msg, want) {
+					t.Errorf("Prompt message missing %q; got:\n%s", want, msg)
+				}
+			}
+			for _, d := range tt.details {
+				if d.Value == "" {
+					if strings.Contains(msg, d.Key+":") {
+						t.Errorf("Prompt message should omit empty-value detail %q; got:\n%s", d.Key, msg)
+					}
+					continue
+				}
+				if !strings.Contains(msg, d.Key+": "+d.Value) {
+					t.Errorf("Prompt message missing detail %q; got:\n%s", d.Key+": "+d.Value, msg)
+				}
+			}
+		})
+	}
+}
+
+func TestWasmBuyConfirmPromptSanitizesDetails(t *testing.T) {
+	captured := setupCapturingMockPromptHandler(t, "y")
+	defer cleanupMockPromptHandler()
+
+	// A crafted resource name and resource type carrying an ANSI erase-line +
+	// cursor-home sequence (via ESC and the C1 CSI byte 0x9b) must not reach the
+	// terminal, or they could rewrite the summary shown before the [y/N].
+	evilValue := "port\x1b[2K\x1b[Hspoofed"
+	evilType := "Port\u009b2Kspoofed"
+	wasmBuyConfirmPrompt(evilType, []BuyConfirmDetail{{Key: "Name", Value: evilValue}}, true)
+
+	msg := captured()
+	// The control bytes that arm the escape sequences must be gone; the
+	// surrounding printable text is harmless and is preserved.
+	for _, r := range []rune{0x1b, 0x9b} {
+		if strings.ContainsRune(msg, r) {
+			t.Errorf("Prompt message must not contain control byte %#x; got:\n%q", r, msg)
+		}
+	}
+	if !strings.Contains(msg, "port") || !strings.Contains(msg, "spoofed") {
+		t.Errorf("Sanitized value should keep printable characters; got:\n%q", msg)
+	}
+}
+
 // Helper functions for testing
 
 var responseQueue []string
@@ -483,6 +594,7 @@ func setupMockPromptHandler(t *testing.T, response string) {
 	})
 
 	wasm.RegisterPromptCallback(callback.Value)
+	t.Cleanup(callback.Release)
 }
 
 func setupSequentialMockPromptHandler(t *testing.T, responses []string) {
@@ -514,6 +626,47 @@ func setupSequentialMockPromptHandler(t *testing.T, responses []string) {
 	})
 
 	wasm.RegisterPromptCallback(callback.Value)
+	t.Cleanup(callback.Release)
+}
+
+// setupCapturingMockPromptHandler registers a callback that records the message
+// delivered on the prompt channel and auto-responds. The returned accessor
+// yields the captured message after the prompt completes.
+func setupCapturingMockPromptHandler(t *testing.T, response string) func() string {
+	t.Helper()
+
+	var mu sync.Mutex
+	var message string
+
+	callback := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		if len(args) > 0 {
+			promptData := args[0]
+			promptID := promptData.Get("id").String()
+
+			mu.Lock()
+			message = promptData.Get("message").String()
+			mu.Unlock()
+
+			go func() {
+				time.Sleep(10 * time.Millisecond)
+				jsArgs := []js.Value{
+					js.ValueOf(promptID),
+					js.ValueOf(response),
+				}
+				wasm.SubmitPromptResponse(js.Undefined(), jsArgs)
+			}()
+		}
+		return nil
+	})
+
+	wasm.RegisterPromptCallback(callback.Value)
+	t.Cleanup(callback.Release)
+
+	return func() string {
+		mu.Lock()
+		defer mu.Unlock()
+		return message
+	}
 }
 
 func cleanupMockPromptHandler() {

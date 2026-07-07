@@ -99,6 +99,16 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 		req.Vnics = vnics
 	}
 
+	if resourceTags, present, err := utils.JSONObject(jsonData, "resourceTags"); err != nil {
+		return nil, exitcodes.NewUsageError(err)
+	} else if present {
+		tags, err := utils.TagMapFromObject(resourceTags)
+		if err != nil {
+			return nil, exitcodes.NewUsageError(err)
+		}
+		req.ResourceTags = tags
+	}
+
 	if err := validation.ValidateBuyMVERequest(req); err != nil {
 		return nil, err
 	}

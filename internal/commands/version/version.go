@@ -34,14 +34,19 @@ func GetGitVersion() string {
 }
 
 func AddCommandsTo(rootCmd *cobra.Command) {
-	if v := GetGitVersion(); v != "" {
-		version = v
-	}
-
 	versionCmd := cmdbuilder.NewCommand("version", "Print the version number of Megaport CLI").
 		WithLongDesc("All software has versions. This is Megaport CLI's.").
 		WithColorAwareRunFunc(func(cmd *cobra.Command, args []string, noColor bool) error {
-			fmt.Fprintf(cmd.OutOrStdout(), "Megaport CLI Version: %s\n", version)
+			// Only shell out to git for source builds; a release binary keeps its
+			// ldflags-injected version even when run inside a tagged git repo.
+			reportedVersion := version
+			if reportedVersion == "dev" {
+				if v := GetGitVersion(); v != "" {
+					reportedVersion = v
+				}
+			}
+
+			fmt.Fprintf(cmd.OutOrStdout(), "Megaport CLI Version: %s\n", reportedVersion)
 
 			cacheDir := os.Getenv("MEGAPORT_CONFIG_DIR")
 			if cacheDir == "" {
@@ -51,7 +56,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 			}
 			if cacheDir != "" {
 				client := &http.Client{Timeout: 5 * time.Second}
-				if latest, hasUpdate := checkForUpdate(version, client, cacheDir); hasUpdate {
+				if latest, hasUpdate := checkForUpdate(reportedVersion, client, cacheDir); hasUpdate {
 					output.PrintInfo(
 						"Update available: %s (https://github.com/megaport/megaport-cli/releases/latest)",
 						noColor, latest,

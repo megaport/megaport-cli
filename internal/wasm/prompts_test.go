@@ -4,6 +4,7 @@ package wasm
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"syscall/js"
 	"testing"
@@ -396,73 +397,202 @@ func TestGetPendingPrompts(t *testing.T) {
 	}
 }
 
-func TestPromptTimeout(t *testing.T) {
-	// This test verifies that prompts can be created and the timeout mechanism is in place
-	// We don't actually wait for the full 5-minute timeout
+// withScaledPromptTimeout temporarily overrides promptTimeout for a test and
+// restores it afterward. promptTimeout defaults to CommandTimeout (10
+// minutes), far too long to wait out in a unit test.
+func withScaledPromptTimeout(t *testing.T, d time.Duration) {
+	t.Helper()
+	orig := promptTimeout
+	promptTimeout = d
+	t.Cleanup(func() { promptTimeout = orig })
+}
 
-	// Setup
+// capturingPromptCallback returns a mock JS prompt callback and a channel
+// that receives the prompt ID the moment PromptForInput invokes it.
+// PromptForInput calls the callback synchronously before it enters its
+// timeout select, so reading from the returned channel is deterministic and
+// never races the timeout, unlike polling pendingPrompts from a goroutine.
+func capturingPromptCallback() (js.Func, <-chan string) {
+	idCh := make(chan string, 1)
 	fn := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		// Don't respond - simulating user inaction
+		idCh <- args[0].Get("id").String()
 		return nil
 	})
+	return fn, idCh
+}
+
+// TestPromptForInput_RespondsPastOldFiveMinuteMark is a regression test for
+// the original bug: PromptForInput's per-prompt timeout (hardcoded 5
+// minutes) fired before main_wasm.go's 10-minute asyncCommandTimeout,
+// killing a command whose prompt was still within the command's own budget.
+// promptTimeout is scaled down here so the test runs in milliseconds, but
+// the response arrives well past the halfway point of the budget (mirroring
+// "answered at minute 6 of a 10-minute budget") and must still succeed now
+// that both timeouts share one source of truth.
+func TestPromptForInput_RespondsPastOldFiveMinuteMark(t *testing.T) {
+	withScaledPromptTimeout(t, 200*time.Millisecond)
+
+	fn, promptIDCh := capturingPromptCallback()
+	t.Cleanup(fn.Release)
 	promptCallback = fn.Value
-	defer func() {
-		promptCallback = js.Undefined()
-	}()
+	defer func() { promptCallback = js.Undefined() }()
 
 	pendingMutex.Lock()
 	pendingPrompts = make(map[string]*PromptRequest)
 	pendingMutex.Unlock()
 
-	// Register a prompt directly (without blocking via PromptForInput)
-	pendingMutex.Lock()
-	promptCounter.Add(1)
-	promptID := fmt.Sprintf("timeout_test_%d", time.Now().UnixNano())
+	go func() {
+		promptID := <-promptIDCh
+		time.Sleep(120 * time.Millisecond) // 60% of the scaled budget
+		args := []js.Value{js.ValueOf(promptID), js.ValueOf("late-but-in-budget")}
+		submitPromptResponse(js.Undefined(), args)
+	}()
 
-	request := &PromptRequest{
-		ID:           promptID,
-		Message:      "Test",
-		PromptType:   "text",
-		ResourceType: "",
-		ResponseChan: make(chan string, 1),
-		ErrorChan:    make(chan error, 1),
+	result, err := PromptForInput("Enter name:", "text", "")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
 	}
-	pendingPrompts[promptID] = request
+	if result != "late-but-in-budget" {
+		t.Errorf("expected %q, got %q", "late-but-in-budget", result)
+	}
+}
+
+// TestPromptForInput_TimeoutErrorMessage verifies the timeout error states
+// how long PromptForInput waited and that the host can cancel via
+// cancelPrompt, and that the timed-out prompt is cleaned up.
+func TestPromptForInput_TimeoutErrorMessage(t *testing.T) {
+	withScaledPromptTimeout(t, 20*time.Millisecond)
+
+	fn := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		return nil // never respond
+	})
+	t.Cleanup(fn.Release)
+	promptCallback = fn.Value
+	defer func() { promptCallback = js.Undefined() }()
+
+	pendingMutex.Lock()
+	pendingPrompts = make(map[string]*PromptRequest)
 	pendingMutex.Unlock()
 
-	// Verify prompt exists
-	pendingMutex.Lock()
-	promptCount := len(pendingPrompts)
-	pendingMutex.Unlock()
-
-	if promptCount != 1 {
-		t.Errorf("Expected 1 pending prompt, got %d", promptCount)
+	_, err := PromptForInput("Enter name:", "text", "")
+	if err == nil {
+		t.Fatal("expected timeout error, got nil")
 	}
 
-	// Verify the prompt has the expected properties
-	pendingMutex.Lock()
-	registeredRequest, exists := pendingPrompts[promptID]
-	pendingMutex.Unlock()
-
-	if !exists {
-		t.Error("Expected prompt to be registered")
-		return
+	msg := err.Error()
+	if !strings.Contains(msg, promptTimeout.String()) {
+		t.Errorf("expected error to state the duration waited (%s), got: %s", promptTimeout, msg)
+	}
+	if !strings.Contains(msg, "cancelPrompt") {
+		t.Errorf("expected error to mention cancelPrompt, got: %s", msg)
 	}
 
-	if registeredRequest.Message != "Test" {
-		t.Errorf("Expected message 'Test', got '%s'", registeredRequest.Message)
-	}
-
-	// Clean up - send a response to avoid any blocking
-	registeredRequest.ResponseChan <- "cleanup"
-
-	// Clean up registered prompt
 	pendingMutex.Lock()
-	delete(pendingPrompts, promptID)
+	remaining := len(pendingPrompts)
+	pendingMutex.Unlock()
+	if remaining != 0 {
+		t.Errorf("expected timed-out prompt to be cleaned up, got %d pending", remaining)
+	}
+}
+
+// TestPromptForInput_LateSubmitAfterTimeoutStaysClean verifies a
+// submitPromptResponse that arrives after a prompt has already timed out
+// (and been cleaned up) returns a clean "Prompt not found" without blocking
+// or panicking.
+func TestPromptForInput_LateSubmitAfterTimeoutStaysClean(t *testing.T) {
+	withScaledPromptTimeout(t, 20*time.Millisecond)
+
+	fn, promptIDCh := capturingPromptCallback()
+	t.Cleanup(fn.Release)
+	promptCallback = fn.Value
+	defer func() { promptCallback = js.Undefined() }()
+
+	pendingMutex.Lock()
+	pendingPrompts = make(map[string]*PromptRequest)
 	pendingMutex.Unlock()
 
-	// Note: Full timeout test would take 5 minutes, so we just verify the mechanism is in place
-	// In production, you'd want to make timeout configurable for testing
+	_, err := PromptForInput("Enter name:", "text", "")
+	if err == nil {
+		t.Fatal("expected timeout error, got nil")
+	}
+	promptID := <-promptIDCh
+
+	args := []js.Value{js.ValueOf(promptID), js.ValueOf("too-late")}
+	done := make(chan interface{}, 1)
+	go func() { done <- submitPromptResponse(js.Undefined(), args) }()
+
+	select {
+	case result := <-done:
+		resultMap, ok := result.(map[string]interface{})
+		if !ok {
+			t.Fatal("expected result to be a map")
+		}
+		if _, hasError := resultMap["error"]; !hasError {
+			t.Error("expected error in result for late submit after timeout")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("late submitPromptResponse blocked instead of returning cleanly")
+	}
+}
+
+// TestPromptForInput_LateSubmitAfterCancelStaysClean verifies a
+// submitPromptResponse that arrives after a prompt has been cancelled (and
+// cleaned up) returns a clean "Prompt not found" without blocking or
+// panicking.
+func TestPromptForInput_LateSubmitAfterCancelStaysClean(t *testing.T) {
+	// Safety net: cancelPrompt is what should unblock PromptForInput here, not
+	// the timeout. A scaled-down promptTimeout keeps a broken cancel path from
+	// hanging the test for the full 10-minute default.
+	withScaledPromptTimeout(t, 5*time.Second)
+
+	fn, promptIDCh := capturingPromptCallback()
+	t.Cleanup(fn.Release)
+	promptCallback = fn.Value
+	defer func() { promptCallback = js.Undefined() }()
+
+	pendingMutex.Lock()
+	pendingPrompts = make(map[string]*PromptRequest)
+	pendingMutex.Unlock()
+
+	// lateIDCh receives the prompt ID once cancelPrompt has already been
+	// called with it, so reading it after PromptForInput returns is
+	// guaranteed to see a value: the send happens-before the cancellation
+	// that unblocks PromptForInput.
+	lateIDCh := make(chan string, 1)
+	go func() {
+		promptID := <-promptIDCh
+		lateIDCh <- promptID
+		cancelPrompt(js.Undefined(), []js.Value{js.ValueOf(promptID)})
+	}()
+
+	_, err := PromptForInput("Enter name:", "text", "")
+	if err == nil {
+		t.Fatal("expected cancellation error, got nil")
+	}
+	// Pin down that cancelPrompt (not the 5-second timeout fallback) is what
+	// unblocked PromptForInput, so a broken cancel path can't slip through as
+	// a false-negative pass.
+	if !strings.Contains(err.Error(), "cancelled") {
+		t.Fatalf("expected a cancellation error, got: %v", err)
+	}
+	promptID := <-lateIDCh
+
+	args := []js.Value{js.ValueOf(promptID), js.ValueOf("too-late")}
+	done := make(chan interface{}, 1)
+	go func() { done <- submitPromptResponse(js.Undefined(), args) }()
+
+	select {
+	case result := <-done:
+		resultMap, ok := result.(map[string]interface{})
+		if !ok {
+			t.Fatal("expected result to be a map")
+		}
+		if _, hasError := resultMap["error"]; !hasError {
+			t.Error("expected error in result for late submit after cancel")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("late submitPromptResponse blocked instead of returning cleanly")
+	}
 }
 
 func TestConcurrentPrompts(t *testing.T) {

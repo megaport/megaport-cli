@@ -47,6 +47,51 @@ func TestPromptMVEBaseDetails_Success(t *testing.T) {
 	assert.Equal(t, "my-label", mveLabel)
 }
 
+func TestPromptForBuyMVEDetails_CapturesResourceTags(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	originalTags := utils.GetResourceTagsPrompt()
+	defer func() {
+		utils.SetResourcePrompt(originalPrompt)
+		utils.SetResourceTagsPrompt(originalTags)
+	}()
+
+	// base details (10) + aruba vendor config (3) + one vnic then blank to finish (3)
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"Test MVE", "12", "1", "", "", "", "aruba", "1", "MEDIUM", "",
+		"acct", "key", "systag",
+		"eth0", "100", "",
+	}))
+
+	wantTags := map[string]string{"env": "prod", "owner": "netops"}
+	utils.SetResourceTagsPrompt(func(bool) (map[string]string, error) { return wantTags, nil })
+
+	req, err := promptForBuyMVEDetails(true)
+	require.NoError(t, err)
+	assert.Equal(t, wantTags, req.ResourceTags)
+}
+
+func TestPromptForBuyMVEDetails_ResourceTagsPromptError(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	originalTags := utils.GetResourceTagsPrompt()
+	defer func() {
+		utils.SetResourcePrompt(originalPrompt)
+		utils.SetResourceTagsPrompt(originalTags)
+	}()
+
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"Test MVE", "12", "1", "", "", "", "aruba", "1", "MEDIUM", "",
+		"acct", "key", "systag",
+		"eth0", "100", "",
+	}))
+	utils.SetResourceTagsPrompt(func(bool) (map[string]string, error) {
+		return nil, fmt.Errorf("tag prompt failed")
+	})
+
+	_, err := promptForBuyMVEDetails(true)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tag prompt failed")
+}
+
 func TestPromptMVEBaseDetails_EmptyName(t *testing.T) {
 	original := utils.GetResourcePrompt()
 	defer func() { utils.SetResourcePrompt(original) }()

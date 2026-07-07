@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetGitVersion_WithMocks(t *testing.T) {
@@ -87,6 +88,74 @@ func TestAddCommandsTo(t *testing.T) {
 	} else {
 		t.Error("version command does not have a RunE function")
 	}
+}
+
+func TestVersionCommand_InjectedVersionIgnoresGitTag(t *testing.T) {
+	// A release binary (version injected via ldflags) run inside a tagged git
+	// repo must report the injected version, and must not shell out to git.
+	origVersion := version
+	origExec := execCommand
+	defer func() {
+		version = origVersion
+		execCommand = origExec
+	}()
+
+	gitCalls := 0
+	execCommand = func(command string, args ...string) *exec.Cmd {
+		gitCalls++
+		return exec.Command("echo", "v99.99.99")
+	}
+	version = "1.2.3"
+
+	t.Setenv("MEGAPORT_CONFIG_DIR", t.TempDir())
+	t.Setenv("NO_UPDATE_CHECK", "1")
+
+	rootCmd := &cobra.Command{Use: "test-cli"}
+	AddCommandsTo(rootCmd)
+
+	versionCmd, _, err := rootCmd.Find([]string{"version"})
+	assert.NoError(t, err)
+	require.NotNil(t, versionCmd.RunE)
+
+	buf := new(bytes.Buffer)
+	versionCmd.SetOut(buf)
+	versionCmd.SetErr(buf)
+	assert.NoError(t, versionCmd.RunE(versionCmd, []string{}))
+
+	assert.Contains(t, buf.String(), "Megaport CLI Version: 1.2.3")
+	assert.NotContains(t, buf.String(), "v99.99.99")
+	assert.Equal(t, 0, gitCalls, "git must not be invoked when version is injected")
+}
+
+func TestVersionCommand_DevFallsBackToGit(t *testing.T) {
+	origVersion := version
+	origExec := execCommand
+	defer func() {
+		version = origVersion
+		execCommand = origExec
+	}()
+
+	execCommand = func(command string, args ...string) *exec.Cmd {
+		return exec.Command("echo", "v4.5.6")
+	}
+	version = "dev"
+
+	t.Setenv("MEGAPORT_CONFIG_DIR", t.TempDir())
+	t.Setenv("NO_UPDATE_CHECK", "1")
+
+	rootCmd := &cobra.Command{Use: "test-cli"}
+	AddCommandsTo(rootCmd)
+
+	versionCmd, _, err := rootCmd.Find([]string{"version"})
+	assert.NoError(t, err)
+	require.NotNil(t, versionCmd.RunE)
+
+	buf := new(bytes.Buffer)
+	versionCmd.SetOut(buf)
+	versionCmd.SetErr(buf)
+	assert.NoError(t, versionCmd.RunE(versionCmd, []string{}))
+
+	assert.Contains(t, buf.String(), "Megaport CLI Version: v4.5.6")
 }
 
 func TestVersionModule(t *testing.T) {

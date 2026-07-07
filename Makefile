@@ -1,4 +1,4 @@
-.PHONY: build test test-cover test-cover-html test-integration test-integration-readonly e2e e2e-staging lint fmt vet check clean wasm wasm-build-guard wasm-smoke wasm-compress web-static
+.PHONY: build test test-cover test-cover-html test-integration test-integration-readonly e2e e2e-staging lint fmt vet check clean wasm wasm-build-guard wasm-vet wasm-smoke wasm-compress web-static
 
 # Build the CLI binary
 build:
@@ -77,8 +77,14 @@ wasm:
 	GOOS=js GOARCH=wasm go build -trimpath -tags js,wasm -ldflags="-s -w" -o web/megaport.wasm .
 
 # Compile-only guard for the browser target. Fails fast if the WASM build breaks.
+# Covers the whole module so wasm-tagged code outside the root package can't rot silently.
 wasm-build-guard:
-	GOOS=js GOARCH=wasm go build -tags js,wasm -o /dev/null .
+	GOOS=js GOARCH=wasm go build -tags js,wasm ./...
+
+# Vet the whole js/wasm surface, including wasm-tagged test files. This compiles
+# every wasm test package, so test files that stop building are caught in CI.
+wasm-vet:
+	GOOS=js GOARCH=wasm go vet -tags js,wasm ./...
 
 # Smoke-test a read-only command end-to-end through the browser fetch transport.
 # Builds the WASM binary, then runs it under Node against a live API (default: staging).

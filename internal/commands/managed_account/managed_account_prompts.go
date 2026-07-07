@@ -32,11 +32,17 @@ func buildManagedAccountRequestFromPrompt(noColor bool) (*megaport.ManagedAccoun
 	return req, nil
 }
 
-func buildUpdateManagedAccountRequestFromPrompt(noColor bool) (*megaport.ManagedAccountRequest, error) {
-	req := &megaport.ManagedAccountRequest{}
+// buildUpdateManagedAccountRequestFromPrompt seeds the request from the current
+// account, so a prompt the user leaves empty keeps its current value instead of
+// being sent as an empty string.
+func buildUpdateManagedAccountRequestFromPrompt(noColor bool, current *megaport.ManagedAccount) (*megaport.ManagedAccountRequest, error) {
+	req := &megaport.ManagedAccountRequest{
+		AccountName: current.AccountName,
+		AccountRef:  current.AccountRef,
+	}
 	fieldsUpdated := false
 
-	accountName, err := utils.ResourcePrompt("managed-account", "Enter new account name (leave empty to skip): ", noColor)
+	accountName, err := utils.ResourcePrompt("managed-account", "Enter new account name (leave empty to keep current): ", noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +51,7 @@ func buildUpdateManagedAccountRequestFromPrompt(noColor bool) (*megaport.Managed
 		fieldsUpdated = true
 	}
 
-	accountRef, err := utils.ResourcePrompt("managed-account", "Enter new account reference (leave empty to skip): ", noColor)
+	accountRef, err := utils.ResourcePrompt("managed-account", "Enter new account reference (leave empty to keep current): ", noColor)
 	if err != nil {
 		return nil, err
 	}

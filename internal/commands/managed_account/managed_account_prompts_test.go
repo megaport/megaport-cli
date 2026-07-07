@@ -86,6 +86,9 @@ func TestBuildManagedAccountRequestFromPrompt(t *testing.T) {
 }
 
 func TestBuildUpdateManagedAccountRequestFromPrompt(t *testing.T) {
+	// An empty prompt response must keep the current account's value.
+	current := &megaport.ManagedAccount{AccountName: "Current Name", AccountRef: "CURRENT-REF"}
+
 	tests := []struct {
 		name          string
 		prompts       []string
@@ -93,18 +96,18 @@ func TestBuildUpdateManagedAccountRequestFromPrompt(t *testing.T) {
 		validate      func(t *testing.T, req *megaport.ManagedAccountRequest)
 	}{
 		{
-			name:    "update name only",
+			name:    "update name only preserves current ref",
 			prompts: []string{"Updated Account", ""},
 			validate: func(t *testing.T, req *megaport.ManagedAccountRequest) {
 				assert.Equal(t, "Updated Account", req.AccountName)
-				assert.Equal(t, "", req.AccountRef)
+				assert.Equal(t, "CURRENT-REF", req.AccountRef)
 			},
 		},
 		{
-			name:    "update ref only",
+			name:    "update ref only preserves current name",
 			prompts: []string{"", "NEW-REF"},
 			validate: func(t *testing.T, req *megaport.ManagedAccountRequest) {
-				assert.Equal(t, "", req.AccountName)
+				assert.Equal(t, "Current Name", req.AccountName)
 				assert.Equal(t, "NEW-REF", req.AccountRef)
 			},
 		},
@@ -137,7 +140,7 @@ func TestBuildUpdateManagedAccountRequestFromPrompt(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			setManagedAccountPrompts(t, tt.prompts)
 
-			req, err := buildUpdateManagedAccountRequestFromPrompt(true)
+			req, err := buildUpdateManagedAccountRequestFromPrompt(true, current)
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
