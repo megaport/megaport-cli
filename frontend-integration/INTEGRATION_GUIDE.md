@@ -266,10 +266,18 @@ const checkVlan = async () => {
 ## Interactive Commands
 
 Some CLI commands prompt for input (interactive `buy`/`update` flows, confirmations, and
-secrets). The WASM has no stdin, so it asks the host page for each value. If no handler is
-registered, a value prompt fails immediately with a "prompt callback not registered" error
-and a confirmation is treated as declined; once a handler is registered, a prompt left
-unanswered times out after 5 minutes.
+secrets). The WASM has no stdin, so it asks the host page for each value. What happens when
+you forget to wire up your own handler depends on how you drive the WASM:
+
+- **Via the composable:** `useMegaportWASM` registers a default no-op prompt handler at init,
+  so forgetting to override it with `registerPromptHandler()` means prompts hang until they
+  time out after 5 minutes (confirmations then resolve to declined), rather than failing
+  immediately.
+- **Via the raw WASM globals:** if `registerPromptHandler` was never called, a value prompt
+  fails immediately with a "prompt callback not registered" error and a confirmation is
+  treated as declined.
+
+Once your own handler is registered, a prompt left unanswered times out after 5 minutes.
 
 **Always run interactive commands through `execute()`** (the composable prefers the async
 entrypoint under the hood). The legacy synchronous entrypoint runs the command inline and
