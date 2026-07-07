@@ -114,6 +114,7 @@ func promptForUpdateUserDetails(noColor bool) (*megaport.UpdateUserRequest, erro
 		return nil, err
 	}
 	switch strings.ToLower(strings.TrimSpace(activeStr)) {
+	case "":
 	case "y", "yes":
 		active := true
 		req.Active = &active
@@ -122,6 +123,8 @@ func promptForUpdateUserDetails(noColor bool) (*megaport.UpdateUserRequest, erro
 		active := false
 		req.Active = &active
 		fieldsUpdated = true
+	default:
+		return nil, fmt.Errorf("invalid response for active: %s (expected y/yes/n/no)", activeStr)
 	}
 
 	notificationEnabledStr, err := utils.ResourcePrompt("user", "Enable notifications? (y/yes/n/no, leave empty to skip): ", noColor)
@@ -129,6 +132,7 @@ func promptForUpdateUserDetails(noColor bool) (*megaport.UpdateUserRequest, erro
 		return nil, err
 	}
 	switch strings.ToLower(strings.TrimSpace(notificationEnabledStr)) {
+	case "":
 	case "y", "yes":
 		notificationEnabled := true
 		req.NotificationEnabled = &notificationEnabled
@@ -137,6 +141,8 @@ func promptForUpdateUserDetails(noColor bool) (*megaport.UpdateUserRequest, erro
 		notificationEnabled := false
 		req.NotificationEnabled = &notificationEnabled
 		fieldsUpdated = true
+	default:
+		return nil, fmt.Errorf("invalid response for notification-enabled: %s (expected y/yes/n/no)", notificationEnabledStr)
 	}
 
 	if !fieldsUpdated {

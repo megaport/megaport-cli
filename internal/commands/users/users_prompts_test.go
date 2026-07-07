@@ -164,6 +164,72 @@ func TestPromptForUpdateUserDetails_ActiveAndNotificationOnly(t *testing.T) {
 	assert.True(t, *req.NotificationEnabled)
 }
 
+func TestPromptForUpdateUserDetails_ErrorOnActivePrompt(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	idx := 0
+	responses := []string{"", "", "", "", ""}
+	utils.SetResourcePrompt(func(_, _ string, _ bool) (string, error) {
+		if idx >= len(responses) {
+			return "", fmt.Errorf("simulated prompt error")
+		}
+		val := responses[idx]
+		idx++
+		return val, nil
+	})
+
+	_, err := promptForUpdateUserDetails(true)
+	assert.Error(t, err)
+}
+
+func TestPromptForUpdateUserDetails_ErrorOnNotificationEnabledPrompt(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	idx := 0
+	responses := []string{"", "", "", "", "", ""}
+	utils.SetResourcePrompt(func(_, _ string, _ bool) (string, error) {
+		if idx >= len(responses) {
+			return "", fmt.Errorf("simulated prompt error")
+		}
+		val := responses[idx]
+		idx++
+		return val, nil
+	})
+
+	_, err := promptForUpdateUserDetails(true)
+	assert.Error(t, err)
+}
+
+func TestPromptForUpdateUserDetails_InvalidActiveValue(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	// firstName, lastName, email, position, phone skipped, active="maybe"
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"", "", "", "", "", "maybe",
+	}))
+
+	_, err := promptForUpdateUserDetails(true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid response for active")
+}
+
+func TestPromptForUpdateUserDetails_InvalidNotificationEnabledValue(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	// firstName, lastName, email, position, phone, active skipped, notification-enabled="maybe"
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"", "", "", "", "", "", "maybe",
+	}))
+
+	_, err := promptForUpdateUserDetails(true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid response for notification-enabled")
+}
+
 func TestPromptForUpdateUserDetails_NoChanges(t *testing.T) {
 	originalPrompt := utils.GetResourcePrompt()
 	defer func() { utils.SetResourcePrompt(originalPrompt) }()

@@ -96,6 +96,17 @@ func TestPromptForCreateNATGatewayDetails_InvalidASN(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid ASN")
 }
 
+func TestPromptForCreateNATGatewayDetails_OutOfRangeASN(t *testing.T) {
+	origPrompt := utils.GetResourcePrompt()
+	defer utils.SetResourcePrompt(origPrompt)
+
+	utils.SetResourcePrompt(mockNGPromptSequence([]string{"GW", "1", "1000", "12", "", "0"}))
+
+	_, err := promptForCreateNATGatewayDetails(true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Invalid ASN")
+}
+
 func TestPromptForCreateNATGatewayDetails_EmptyName(t *testing.T) {
 	origPrompt := utils.GetResourcePrompt()
 	origTags := utils.GetResourceTagsPrompt()

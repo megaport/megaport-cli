@@ -194,6 +194,7 @@ func buildUpdateIXRequestFromPrompt(_ string, noColor bool) (*megaport.UpdateIXR
 		return nil, err
 	}
 	switch strings.ToLower(strings.TrimSpace(publicGraphStr)) {
+	case "":
 	case "y", "yes":
 		publicGraph := true
 		req.PublicGraph = &publicGraph
@@ -202,6 +203,8 @@ func buildUpdateIXRequestFromPrompt(_ string, noColor bool) (*megaport.UpdateIXR
 		publicGraph := false
 		req.PublicGraph = &publicGraph
 		fieldsUpdated = true
+	default:
+		return nil, fmt.Errorf("invalid response for public-graph: %s (expected y/yes/n/no)", publicGraphStr)
 	}
 
 	reverseDns, err := utils.ResourcePrompt("ix", "Enter new reverse DNS (leave empty to skip): ", noColor)
@@ -217,6 +220,7 @@ func buildUpdateIXRequestFromPrompt(_ string, noColor bool) (*megaport.UpdateIXR
 	if err != nil {
 		return nil, err
 	}
+	aEndProductUID = strings.TrimSpace(aEndProductUID)
 	if aEndProductUID != "" {
 		req.AEndProductUid = &aEndProductUID
 		fieldsUpdated = true
@@ -227,6 +231,7 @@ func buildUpdateIXRequestFromPrompt(_ string, noColor bool) (*megaport.UpdateIXR
 		return nil, err
 	}
 	switch strings.ToLower(strings.TrimSpace(shutdownStr)) {
+	case "":
 	case "y", "yes":
 		shutdown := true
 		req.Shutdown = &shutdown
@@ -235,6 +240,8 @@ func buildUpdateIXRequestFromPrompt(_ string, noColor bool) (*megaport.UpdateIXR
 		shutdown := false
 		req.Shutdown = &shutdown
 		fieldsUpdated = true
+	default:
+		return nil, fmt.Errorf("invalid response for shutdown: %s (expected y/yes/n/no)", shutdownStr)
 	}
 
 	if !fieldsUpdated {

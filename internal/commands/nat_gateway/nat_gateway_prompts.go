@@ -73,6 +73,9 @@ func promptForCreateNATGatewayDetails(noColor bool) (*megaport.CreateNATGatewayR
 		if err != nil {
 			return nil, fmt.Errorf("invalid ASN: %s", asnStr)
 		}
+		if err := validation.ValidateASN(asn); err != nil {
+			return nil, err
+		}
 		req.Config.ASN = asn
 	}
 
