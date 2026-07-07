@@ -17,19 +17,19 @@ func filterPartners(
 		if partner == nil {
 			return false
 		}
-		if productName != "" && !strings.EqualFold(partner.ProductName, productName) {
+		if productName != "" && !strings.Contains(strings.ToLower(partner.ProductName), strings.ToLower(productName)) {
 			return false
 		}
-		if connectType != "" && !strings.EqualFold(partner.ConnectType, connectType) {
+		if connectType != "" && !strings.Contains(strings.ToLower(partner.ConnectType), strings.ToLower(connectType)) {
 			return false
 		}
-		if companyName != "" && !strings.EqualFold(partner.CompanyName, companyName) {
+		if companyName != "" && !strings.Contains(strings.ToLower(partner.CompanyName), strings.ToLower(companyName)) {
 			return false
 		}
 		if locationID != 0 && partner.LocationId != locationID {
 			return false
 		}
-		if diversityZone != "" && !strings.EqualFold(partner.DiversityZone, diversityZone) {
+		if diversityZone != "" && !strings.Contains(strings.ToLower(partner.DiversityZone), strings.ToLower(diversityZone)) {
 			return false
 		}
 		return true

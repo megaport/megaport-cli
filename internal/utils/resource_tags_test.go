@@ -111,7 +111,7 @@ func TestParseResourceTagsInput(t *testing.T) {
 	t.Run("file exceeding size limit rejected", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		path := filepath.Join(tmpDir, "big.json")
-		big := make([]byte, maxTagsFileSize+1)
+		big := make([]byte, maxInputFileSize+1)
 		big[0] = '{'
 		big[len(big)-1] = '}'
 		require.NoError(t, os.WriteFile(path, big, 0644))
