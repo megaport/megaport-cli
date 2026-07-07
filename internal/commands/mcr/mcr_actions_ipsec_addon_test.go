@@ -12,6 +12,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAddMCRIPSecAddOn_Flags(t *testing.T) {
@@ -438,7 +439,7 @@ func TestAddMCRIPSecAddOn_BadJSON(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to parse JSON")
 
 	var cliErr *exitcodes.CLIError
-	assert.True(t, errors.As(err, &cliErr))
+	require.True(t, errors.As(err, &cliErr))
 	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
 
