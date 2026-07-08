@@ -69,3 +69,33 @@ func TestProcessFlagPortInput_ResourceTagsFileMalformed(t *testing.T) {
 	require.True(t, errors.As(err, &cliErr))
 	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
+
+func TestProcessJSONPortInput_MalformedJSONIsUsageError(t *testing.T) {
+	_, err := processJSONPortInput(`{bad}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse JSON")
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
+}
+
+func TestProcessJSONPortInput_EmptyTagKeyIsUsageError(t *testing.T) {
+	_, err := processJSONPortInput(`{"name":"test-port","term":12,"portSpeed":10000,"locationId":1,"resourceTags":{"":"x"}}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tag key must not be empty")
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
+}
+
+func TestProcessJSONLAGPortInput_MalformedJSONIsUsageError(t *testing.T) {
+	_, err := processJSONLAGPortInput(`{bad}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse JSON")
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
+}

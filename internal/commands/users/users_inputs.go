@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -23,16 +24,16 @@ type createUserJSONInput struct {
 func processJSONCreateUserInput(jsonStr, jsonFile string) (*megaport.CreateUserRequest, error) {
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	}
 
 	input := &createUserJSONInput{}
 	if err := json.Unmarshal(jsonData, input); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse JSON: %w", err))
 	}
 
 	if input.Position != "" && !input.Position.IsValid() {
-		return nil, fmt.Errorf("invalid position: %s. Valid positions: %s", input.Position, input.Position.ValidPositions())
+		return nil, exitcodes.NewUsageError(fmt.Errorf("invalid position: %s. Valid positions: %s", input.Position, input.Position.ValidPositions()))
 	}
 
 	active := true

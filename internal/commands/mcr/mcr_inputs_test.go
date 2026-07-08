@@ -2,9 +2,11 @@ package mcr
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -651,6 +653,10 @@ func TestProcessFlagMCRInput_IPSec(t *testing.T) {
 		_, err := processFlagMCRInput(cmd)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid IPSec tunnel count")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
 	})
 }
 
@@ -658,12 +664,20 @@ func TestProcessJSONMCRInput_InvalidTunnelCount(t *testing.T) {
 	_, err := processJSONMCRInput(`{"name":"test","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true,"tunnelCount":5}`, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid IPSec tunnel count")
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
 
 func TestProcessJSONMCRInput_NegativeTunnelCount(t *testing.T) {
 	_, err := processJSONMCRInput(`{"name":"test","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true,"tunnelCount":-1}`, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "tunnelCount must be")
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
 
 func TestProcessFlagMCRInput_NegativeIPSecTunnelCount(t *testing.T) {
@@ -684,6 +698,10 @@ func TestProcessFlagMCRInput_NegativeIPSecTunnelCount(t *testing.T) {
 	_, err := processFlagMCRInput(cmd)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "ipsec-tunnel-count must be")
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
 
 func TestProcessFlagMCRInput_ResourceTags(t *testing.T) {
