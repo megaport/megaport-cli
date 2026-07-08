@@ -2,6 +2,7 @@ package mve
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -97,6 +98,7 @@ func promptMVEBaseDetails(noColor bool) (*megaport.BuyMVERequest, string, int, s
 	if vendorStr == "" {
 		return nil, "", 0, "", "", fmt.Errorf("vendor is required")
 	}
+	vendorStr = validation.NormalizeMVEVendor(vendorStr)
 
 	imageIDStr, err := utils.ResourcePrompt("mve", "Enter image ID (required): ", noColor)
 	if err != nil {
@@ -114,6 +116,7 @@ func promptMVEBaseDetails(noColor bool) (*megaport.BuyMVERequest, string, int, s
 	if productSize == "" {
 		return nil, "", 0, "", "", fmt.Errorf("product size is required")
 	}
+	productSize = validation.NormalizeMVEProductSize(strings.ToUpper(productSize))
 
 	mveLabel, err := utils.ResourcePrompt("mve", "Enter MVE label (optional): ", noColor)
 	if err != nil {
@@ -368,7 +371,7 @@ func promptMVEVendorConfig(vendorStr string, imageID int, productSize string, mv
 func promptMVEVnics(noColor bool) ([]megaport.MVENetworkInterface, error) {
 	vnics := []megaport.MVENetworkInterface{}
 	for {
-		fmt.Println("\nEnter VNIC details (leave description empty to finish):")
+		fmt.Fprintln(os.Stderr, "\nEnter VNIC details (leave description empty to finish):")
 		description, err := utils.ResourcePrompt("mve", "Enter VNIC description: ", noColor)
 		if err != nil {
 			return nil, err

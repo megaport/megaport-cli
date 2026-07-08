@@ -47,6 +47,21 @@ func TestPromptMVEBaseDetails_Success(t *testing.T) {
 	assert.Equal(t, "my-label", mveLabel)
 }
 
+func TestPromptMVEBaseDetails_NormalizesVendorAndProductSizeCase(t *testing.T) {
+	original := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(original) }()
+
+	// name, term, locationID, diversityZone, promoCode, costCentre, vendor, imageID, productSize, mveLabel
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"Test MVE", "12", "1", "", "", "", "Cisco", "42", "medium", "",
+	}))
+
+	_, vendorStr, _, productSize, _, err := promptMVEBaseDetails(true)
+	require.NoError(t, err)
+	assert.Equal(t, "cisco", vendorStr)
+	assert.Equal(t, "MEDIUM", productSize)
+}
+
 func TestPromptForBuyMVEDetails_CapturesResourceTags(t *testing.T) {
 	originalPrompt := utils.GetResourcePrompt()
 	originalTags := utils.GetResourceTagsPrompt()
@@ -90,6 +105,31 @@ func TestPromptForBuyMVEDetails_ResourceTagsPromptError(t *testing.T) {
 	_, err := promptForBuyMVEDetails(true)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "tag prompt failed")
+}
+
+func TestPromptForBuyMVEDetails_MixedCaseVendorAndProductSizeAccepted(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	originalTags := utils.GetResourceTagsPrompt()
+	defer func() {
+		utils.SetResourcePrompt(originalPrompt)
+		utils.SetResourceTagsPrompt(originalTags)
+	}()
+
+	// base details (10, vendor="Aruba", productSize="medium") + aruba vendor config (3) + one vnic then blank to finish (3)
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"Test MVE", "12", "1", "", "", "", "Aruba", "1", "medium", "",
+		"acct", "key", "systag",
+		"eth0", "100", "",
+	}))
+	utils.SetResourceTagsPrompt(func(bool) (map[string]string, error) { return nil, nil })
+
+	req, err := promptForBuyMVEDetails(true)
+	require.NoError(t, err)
+
+	arubaCfg, ok := req.VendorConfig.(*megaport.ArubaConfig)
+	require.True(t, ok, "expected an ArubaConfig, got %T", req.VendorConfig)
+	assert.Equal(t, "aruba", arubaCfg.Vendor)
+	assert.Equal(t, "MEDIUM", arubaCfg.ProductSize)
 }
 
 func TestPromptMVEBaseDetails_EmptyName(t *testing.T) {

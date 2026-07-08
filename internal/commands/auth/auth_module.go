@@ -1,3 +1,5 @@
+//go:build !js && !wasm
+
 package auth
 
 import "github.com/spf13/cobra"

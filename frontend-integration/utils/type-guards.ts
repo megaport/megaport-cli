@@ -169,13 +169,12 @@ export function isTelemetryEvent(value: unknown): value is TelemetryEvent {
 }
 
 /**
- * Type guard for Window WASM functions availability
+ * Checks whether Window exposes the WASM async entrypoint. Only the async
+ * entrypoint is checked: executeMegaportCommand is a deprecated stub that no
+ * longer executes commands, so its presence alone doesn't mean WASM is ready.
  */
 export function hasWASMFunctions(win: Window): boolean {
-  return (
-    typeof win.executeMegaportCommand === 'function' ||
-    typeof win.executeMegaportCommandAsync === 'function'
-  );
+  return typeof win.executeMegaportCommandAsync === 'function';
 }
 
 /**

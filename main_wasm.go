@@ -22,37 +22,16 @@ var embeddedDocs embed.FS
 // the shared global output buffers.
 var asyncCommandMu sync.Mutex
 
-// executeMegaportCommand runs CLI commands from JavaScript (LEGACY SYNC VERSION)
-// This is kept for backwards compatibility but may not work with async operations
+// executeMegaportCommand is retained so host pages that still detect or call
+// it get an immediate, well-formed response instead of a broken function.
+// It no longer executes commands: running a command synchronously blocks the
+// JS event loop while Cobra waits on the async fetch/prompt transport, which
+// hangs the tab until the transport times out, and it bypasses asyncCommandMu,
+// letting a sync call race an in-flight async command over the shared output
+// buffers. Use executeMegaportCommandAsync instead.
 func executeMegaportCommand(this js.Value, args []js.Value) interface{} {
-	if len(args) < 1 {
-		return map[string]interface{}{
-			"error": "No command provided",
-		}
-	}
-
-	// Get command string from JavaScript
-	cmdString := args[0].String()
-
-	// Reset all output buffers
-	wasm.ResetOutputBuffers()
-
-	// Split the command string into arguments
-	cmdArgs := wasm.SplitArgs(cmdString)
-
-	// Create a new slice with the program name
-	originalArgs := append([]string{"megaport-cli"}, cmdArgs...)
-
-	// Use our new tracing function
-	wasm.TraceCommand(cmdString, originalArgs)
-
-	// Ensure Cobra gets all our commands
-	megaport.EnsureRootCommandOutput(wasm.WasmOutputBuffer)
-
-	megaport.ExecuteWithArgs(originalArgs)
-
 	return map[string]interface{}{
-		"output": wasm.GetCapturedOutput(),
+		"error": "synchronous execution is not supported; use executeMegaportCommandAsync",
 	}
 }
 
@@ -74,10 +53,13 @@ func executeMegaportCommandAsync(this js.Value, args []js.Value) interface{} {
 	}
 
 	// asyncCommandTimeout is the maximum time an async command may run before
-	// the callback is invoked with a timeout error. The inner goroutine may still
-	// be running after the timeout (Go goroutines cannot be forcibly cancelled),
-	// but the JS caller will not be left waiting indefinitely.
-	const asyncCommandTimeout = 10 * time.Minute
+	// the callback is invoked with a timeout error. It is wasm.CommandTimeout,
+	// the same budget PromptForInput waits for a single prompt response, so an
+	// interactive command's pending prompt cannot time out before the command
+	// itself does. The inner goroutine may still be running after the timeout
+	// (Go goroutines cannot be forcibly cancelled), but the JS caller will not
+	// be left waiting indefinitely.
+	const asyncCommandTimeout = wasm.CommandTimeout
 
 	// once ensures the callback is invoked exactly once even if both the timeout
 	// and the normal completion path race.
@@ -124,7 +106,10 @@ func executeMegaportCommandAsync(this js.Value, args []js.Value) interface{} {
 
 		megaport.ExecuteWithArgs(originalArgs)
 
-		result := wasm.GetCapturedOutput()
+		// When a live-output handler is registered the narrative has already
+		// streamed to the host; GetCompletionOutput returns only the structured
+		// document (or "") so the host does not double-render it.
+		result := wasm.GetCompletionOutput()
 		once.Do(func() {
 			callback.Invoke(map[string]interface{}{
 				"output": result,
@@ -176,7 +161,12 @@ func main() {
 	// Initialize the prompt system for interactive mode
 	wasm.InitPromptSystem()
 
-	// Export both sync (legacy) and async (preferred) versions
+	// Initialize the live-output streaming system
+	wasm.InitOutputSystem()
+
+	// executeMegaportCommand is a deprecated stub kept for one release as a soft
+	// landing for hosts still detecting/calling it; executeMegaportCommandAsync
+	// is the only supported entrypoint.
 	js.Global().Set("executeMegaportCommand", js.FuncOf(executeMegaportCommand))
 	js.Global().Set("executeMegaportCommandAsync", js.FuncOf(executeMegaportCommandAsync))
 

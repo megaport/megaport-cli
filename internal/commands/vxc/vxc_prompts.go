@@ -3,6 +3,7 @@ package vxc
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -238,13 +239,13 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		WaitForUpdate: true,
 	}
 
-	fmt.Println("Fetching current VXC details...")
+	fmt.Fprintln(os.Stderr, "Fetching current VXC details...")
 	vxc, err := client.VXCService.GetVXC(ctx, vxcUID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch VXC details: %w", err)
 	}
 
-	fmt.Printf("Current name: %s\n", vxc.Name)
+	fmt.Fprintf(os.Stderr, "Current name: %s\n", vxc.Name)
 	updateName, err := utils.ResourcePrompt("vxc", "Update name? (yes/no): ", noColor)
 	if err != nil {
 		return nil, err
@@ -257,7 +258,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		req.Name = &name
 	}
 
-	fmt.Printf("Current rate limit: %d Mbps\n", vxc.RateLimit)
+	fmt.Fprintf(os.Stderr, "Current rate limit: %d Mbps\n", vxc.RateLimit)
 	updateRateLimit, err := utils.ResourcePrompt("vxc", "Update rate limit? (yes/no): ", noColor)
 	if err != nil {
 		return nil, err
@@ -277,7 +278,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		req.RateLimit = &rateLimit
 	}
 
-	fmt.Printf("Current term: %d months\n", vxc.ContractTermMonths)
+	fmt.Fprintf(os.Stderr, "Current term: %d months\n", vxc.ContractTermMonths)
 	updateTerm, err := utils.ResourcePrompt("vxc", "Update term? (yes/no): ", noColor)
 	if err != nil {
 		return nil, err
@@ -298,7 +299,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		req.Term = &term
 	}
 
-	fmt.Printf("Current cost centre: %s\n", vxc.CostCentre)
+	fmt.Fprintf(os.Stderr, "Current cost centre: %s\n", vxc.CostCentre)
 	updateCostCentre, err := utils.ResourcePrompt("vxc", "Update cost centre? (yes/no): ", noColor)
 	if err != nil {
 		return nil, err
@@ -315,7 +316,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 	if vxc.AdminLocked {
 		shutdownStatus = "Yes"
 	}
-	fmt.Printf("Current shutdown status: %s\n", shutdownStatus)
+	fmt.Fprintf(os.Stderr, "Current shutdown status: %s\n", shutdownStatus)
 	updateShutdown, err := utils.ResourcePrompt("vxc", "Update shutdown status? (yes/no): ", noColor)
 	if err != nil {
 		return nil, err
@@ -329,7 +330,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		req.Shutdown = &shutdown
 	}
 
-	fmt.Printf("Current A-End VLAN: %d\n", vxc.AEndConfiguration.VLAN)
+	fmt.Fprintf(os.Stderr, "Current A-End VLAN: %d\n", vxc.AEndConfiguration.VLAN)
 	updateAEndVLAN, err := utils.ResourcePrompt("vxc", "Update A-End VLAN? (yes/no): ", noColor)
 	if err != nil {
 		return nil, err
@@ -349,7 +350,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		req.AEndVLAN = &aEndVLAN
 	}
 
-	fmt.Printf("Current B-End VLAN: %d\n", vxc.BEndConfiguration.VLAN)
+	fmt.Fprintf(os.Stderr, "Current B-End VLAN: %d\n", vxc.BEndConfiguration.VLAN)
 	updateBEndVLAN, err := utils.ResourcePrompt("vxc", "Update B-End VLAN? (yes/no): ", noColor)
 	if err != nil {
 		return nil, err
@@ -373,7 +374,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 	if vxc.AEndConfiguration.InnerVLAN != 0 {
 		innerVLANAEnd = vxc.AEndConfiguration.InnerVLAN
 	}
-	fmt.Printf("Current A-End Inner VLAN: %d\n", innerVLANAEnd)
+	fmt.Fprintf(os.Stderr, "Current A-End Inner VLAN: %d\n", innerVLANAEnd)
 	updateAEndInnerVLAN, err := utils.ResourcePrompt("vxc", "Update A-End Inner VLAN? (yes/no): ", noColor)
 	if err != nil {
 		return nil, err
@@ -399,7 +400,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 	if vxc.BEndConfiguration.InnerVLAN != 0 {
 		innerVLANBEnd = vxc.BEndConfiguration.InnerVLAN
 	}
-	fmt.Printf("Current B-End Inner VLAN: %d\n", innerVLANBEnd)
+	fmt.Fprintf(os.Stderr, "Current B-End Inner VLAN: %d\n", innerVLANBEnd)
 	updateBEndInnerVLAN, err := utils.ResourcePrompt("vxc", "Update B-End Inner VLAN? (yes/no): ", noColor)
 	if err != nil {
 		return nil, err
@@ -421,7 +422,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		req.BEndInnerVLAN = &bEndInnerVLAN
 	}
 
-	fmt.Printf("Current A-End UID: %s\n", vxc.AEndConfiguration.UID)
+	fmt.Fprintf(os.Stderr, "Current A-End UID: %s\n", vxc.AEndConfiguration.UID)
 	updateAEndUID, err := utils.ResourcePrompt("vxc", "Update A-End product UID? (yes/no): ", noColor)
 	if err != nil {
 		return nil, err
@@ -434,7 +435,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		req.AEndProductUID = &aEndUID
 	}
 
-	fmt.Printf("Current B-End UID: %s\n", vxc.BEndConfiguration.UID)
+	fmt.Fprintf(os.Stderr, "Current B-End UID: %s\n", vxc.BEndConfiguration.UID)
 	updateBEndUID, err := utils.ResourcePrompt("vxc", "Update B-End product UID? (yes/no): ", noColor)
 	if err != nil {
 		return nil, err

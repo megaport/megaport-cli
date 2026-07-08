@@ -67,11 +67,11 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 	if cmd.Flags().Changed("ipsec-tunnel-count") && len(req.AddOns) == 0 {
 		ipsecTunnelCount, _ := cmd.Flags().GetInt("ipsec-tunnel-count")
 		if ipsecTunnelCount < 0 {
-			return fmt.Errorf("ipsec-tunnel-count must be 0 or a positive value (10, 20, or 30)")
+			return exitcodes.NewUsageError(fmt.Errorf("ipsec-tunnel-count must be 0 or a positive value (10, 20, or 30)"))
 		}
 		if ipsecTunnelCount > 0 {
 			if err := validation.ValidateIPSecTunnelCount(ipsecTunnelCount, false); err != nil {
-				return err
+				return exitcodes.NewUsageError(err)
 			}
 		}
 		req.AddOns = append(req.AddOns, &megaport.MCRAddOnIPsecConfig{
@@ -231,12 +231,21 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	usingJSON := jsonStr != "" || jsonFile != ""
+	if !usingJSON && !flagsProvided && !interactive {
+		return fmt.Errorf("at least one field must be updated")
+	}
+
+	// Build and validate flag/JSON input before any network round-trip so
+	// malformed input fails fast. Interactive prompts need the MCR's current
+	// values, so they are built after login below.
 	var req *megaport.ModifyMCRRequest
+	var costCentreProvided bool
 	var err error
 
-	if jsonStr != "" || jsonFile != "" {
+	if usingJSON {
 		output.PrintInfo("Using JSON input", noColor)
-		req, err = processJSONUpdateMCRInput(jsonStr, jsonFile)
+		req, costCentreProvided, err = processJSONUpdateMCRInput(jsonStr, jsonFile)
 		if err != nil {
 			output.PrintError("Failed to process JSON input: %v", noColor, err)
 			return err
@@ -244,22 +253,12 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		req.MCRID = mcrUID
 	} else if flagsProvided {
 		output.PrintInfo("Using flag input", noColor)
-		req, err = processFlagUpdateMCRInput(cmd, mcrUID)
+		req, costCentreProvided, err = processFlagUpdateMCRInput(cmd, mcrUID)
 		if err != nil {
 			output.PrintError("Failed to process flag input: %v", noColor, err)
 			return err
 		}
-	} else if interactive {
-		req, err = promptForUpdateMCRDetails(mcrUID, noColor)
-		if err != nil {
-			return err
-		}
-	} else {
-		return fmt.Errorf("at least one field must be updated")
 	}
-
-	req.WaitForUpdate = true
-	req.WaitForTime = utils.DefaultProvisionTimeout
 
 	client, err := config.Login(ctx)
 	if err != nil {
@@ -267,11 +266,31 @@ func UpdateMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	// Fetch the current MCR so a name-only update can re-send the existing cost
+	// centre (the SDK sends it without omitempty) and so changes can be diffed.
 	originalMCR, err := getMCRFunc(ctx, client, mcrUID)
 	if err != nil {
 		output.PrintError("Failed to get original MCR: %v", noColor, err)
 		return err
 	}
+
+	var currentCostCentre string
+	if originalMCR != nil {
+		currentCostCentre = originalMCR.CostCentre
+	}
+
+	if interactive {
+		req, err = promptForUpdateMCRDetails(mcrUID, currentCostCentre, noColor)
+		if err != nil {
+			return err
+		}
+	} else if !costCentreProvided {
+		req.CostCentre = currentCostCentre
+	}
+
+	req.WaitForUpdate = true
+	req.WaitForTime = utils.DefaultProvisionTimeout
+
 	updateSpinner := output.PrintResourceUpdating("MCR", mcrUID, noColor)
 	var resp *megaport.ModifyMCRResponse
 	err = utils.WithRetry(ctx, func(ctx context.Context) error {

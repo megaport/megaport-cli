@@ -1,7 +1,10 @@
 package mve
 
 import (
+	"fmt"
+
 	"github.com/megaport/megaport-cli/internal/base/cmdbuilder"
+	"github.com/megaport/megaport-cli/internal/validation"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +31,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithJSONConfigFlags().
 		WithLongDesc("Purchase a new Megaport Virtual Edge (MVE) device through the Megaport API.\n\nThis command allows you to purchase an MVE by providing the necessary details.").
 		WithDocumentedRequiredFlag("name", "The name of the MVE").
-		WithDocumentedRequiredFlag("term", "The term of the MVE (1, 12, 24, or 36 months)").
+		WithDocumentedRequiredFlag("term", fmt.Sprintf("The term of the MVE (%s months)", validation.FormatIntSlice(validation.ValidContractTerms))).
 		WithDocumentedRequiredFlag("location-id", "The ID of the location where the MVE will be provisioned").
 		WithDocumentedRequiredFlag("vendor-config", "JSON string with vendor-specific configuration (for flag mode)").
 		WithDocumentedRequiredFlag("vnics", "JSON array of network interfaces (for flag mode)").
@@ -101,7 +104,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithLongDesc("Update an existing Megaport Virtual Edge (MVE).\n\nThis command allows you to update specific properties of an existing MVE without disrupting its service or connectivity. Updates apply immediately but may take a few minutes to fully propagate in the Megaport system.").
 		WithOptionalFlag("name", "The new name of the MVE (1-64 characters)").
 		WithOptionalFlag("cost-centre", "The new cost centre for billing purposes").
-		WithOptionalFlag("term", "The new contract term in months (1, 12, 24, or 36)").
+		WithOptionalFlag("term", fmt.Sprintf("The new contract term in months (%s)", validation.FormatIntSlice(validation.ValidContractTerms))).
 		WithOptionalFlag("vnics", "JSON array of vNIC updates — one entry per existing vNIC, in order. Only `description` is mutable.").
 		WithExample("megaport-cli mve update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p").
 		WithExample("megaport-cli mve update 1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p --name \"Edge Router West\" --cost-centre \"IT-Network-2023\" --term 24").
@@ -245,7 +248,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithJSONConfigFlags().
 		WithLongDesc("Validates an MVE configuration against the Megaport API without creating the resource.\n\nUse this for dry-run validation before purchasing, or in CI pipelines to check configurations.").
 		WithDocumentedRequiredFlag("name", "The name of the MVE").
-		WithDocumentedRequiredFlag("term", "The term of the MVE (1, 12, 24, or 36 months)").
+		WithDocumentedRequiredFlag("term", fmt.Sprintf("The term of the MVE (%s months)", validation.FormatIntSlice(validation.ValidContractTerms))).
 		WithDocumentedRequiredFlag("location-id", "The ID of the location where the MVE will be provisioned").
 		WithDocumentedRequiredFlag("vendor-config", "JSON string with vendor-specific configuration").
 		WithDocumentedRequiredFlag("vnics", "JSON array of network interfaces").

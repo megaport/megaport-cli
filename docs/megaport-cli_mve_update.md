@@ -11,7 +11,7 @@ This command allows you to update specific properties of an existing MVE without
 ### Optional Fields
   - `cost-centre`: The new cost centre for billing purposes
   - `name`: The new name of the MVE (1-64 characters)
-  - `term`: The new contract term in months (1, 12, 24, or 36)
+  - `term`: The new contract term in months (1, 12, 24, 36, 48, or 60)
   - `vnics`: JSON array of vNIC updates — one entry per existing vNIC, in order. Only `description` is mutable.
 
 ### Important Notes
@@ -65,6 +65,6 @@ megaport-cli mve update [flags]
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 | `--name` |  |  | The new name of the MVE (1-64 characters) | false |
-| `--term` |  | `0` | New contract term in months (1, 12, 24, or 36) | false |
+| `--term` |  | `0` | New contract term in months (1, 12, 24, 36, 48, or 60) | false |
 | `--vnics` |  |  | JSON array of vNIC updates — one entry per existing vNIC, in order. Only `description` is mutable, e.g. `[{"description":"Data Plane"}]`. The vNIC count cannot change after provisioning. | false |
 

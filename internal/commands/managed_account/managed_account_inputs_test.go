@@ -1,13 +1,16 @@
 package managed_account
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func newManagedAccountCmd(flags map[string]string) *cobra.Command {
@@ -72,6 +75,10 @@ func TestParseManagedAccountRequestJSON(t *testing.T) {
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
+
+				var cliErr *exitcodes.CLIError
+				require.True(t, errors.As(err, &cliErr))
+				assert.Equal(t, exitcodes.Usage, cliErr.Code)
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, req)
@@ -193,6 +200,10 @@ func TestBuildManagedAccountRequestFromJSON(t *testing.T) {
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
+
+				var cliErr *exitcodes.CLIError
+				require.True(t, errors.As(err, &cliErr))
+				assert.Equal(t, exitcodes.Usage, cliErr.Code)
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, req)

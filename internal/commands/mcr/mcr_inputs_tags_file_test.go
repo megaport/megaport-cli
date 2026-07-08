@@ -54,3 +54,34 @@ func TestProcessFlagMCRInput_ResourceTagsFile(t *testing.T) {
 		assert.Equal(t, exitcodes.Usage, cliErr.Code)
 	})
 }
+
+func TestProcessJSONMCRInput_MalformedJSONIsUsageError(t *testing.T) {
+	_, err := processJSONMCRInput(`{bad}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse JSON")
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
+}
+
+func TestProcessJSONMCRInput_EmptyTagKeyIsUsageError(t *testing.T) {
+	body := `{"name":"test-mcr","term":12,"portSpeed":5000,"locationId":1,"resourceTags":{"":"x"}}`
+	_, err := processJSONMCRInput(body, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tag key must not be empty")
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
+}
+
+func TestProcessJSONPrefixFilterListInput_MalformedJSONIsUsageError(t *testing.T) {
+	_, err := processJSONPrefixFilterListInput(`{bad}`, "", "mcr-uid")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse JSON")
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
+}

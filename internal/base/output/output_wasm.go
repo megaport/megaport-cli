@@ -193,12 +193,11 @@ func printXML[T OutputFields](data []T, opts printOptions) error {
 		data = []T{}
 	}
 
-	writeEmpty := func() error {
+	writeEmpty := func() {
 		WasmXMLWriter.WriteString(xml.Header + "<items></items>\n")
 		xmlOutput := WasmXMLWriter.String()
 		fmt.Print(xmlOutput)
 		js.Global().Set("wasmXMLOutput", xmlOutput)
-		return nil
 	}
 
 	var sample T
@@ -207,13 +206,15 @@ func printXML[T OutputFields](data []T, opts printOptions) error {
 	}
 	sampleVal := reflect.ValueOf(sample)
 	if !sampleVal.IsValid() {
-		return writeEmpty()
+		writeEmpty()
+		return nil
 	}
 	t := sampleVal.Type()
 	if t.Kind() == reflect.Pointer {
 		if sampleVal.IsNil() {
 			if t.Elem().Kind() != reflect.Struct {
-				return writeEmpty()
+				writeEmpty()
+				return nil
 			}
 			t = t.Elem()
 		} else {
@@ -222,7 +223,8 @@ func printXML[T OutputFields](data []T, opts printOptions) error {
 		}
 	}
 	if t.Kind() != reflect.Struct {
-		return writeEmpty()
+		writeEmpty()
+		return nil
 	}
 
 	type xmlField struct {
@@ -355,23 +357,6 @@ func printXML[T OutputFields](data []T, opts printOptions) error {
 // The error message begins with "invalid output format" so classifyError maps it to exitcodes.Usage.
 func printGoTemplate[T OutputFields](_ []T, _ printOptions) error {
 	return fmt.Errorf("invalid output format: go-template is not supported in the browser version")
-}
-
-// calculateColumnWidths calculates the maximum width for each column
-func calculateColumnWidths(rows [][]string) []int {
-	if len(rows) == 0 {
-		return nil
-	}
-	colCount := len(rows[0])
-	colWidths := make([]int, colCount)
-	for _, row := range rows {
-		for i, val := range row {
-			if i < colCount && len(val) > colWidths[i] {
-				colWidths[i] = len(val)
-			}
-		}
-	}
-	return colWidths
 }
 
 // CaptureOutput runs a function and captures its stdout output.

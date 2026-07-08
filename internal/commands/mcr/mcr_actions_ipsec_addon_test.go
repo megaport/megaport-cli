@@ -2,6 +2,7 @@ package mcr
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAddMCRIPSecAddOn_Flags(t *testing.T) {
@@ -435,6 +437,10 @@ func TestAddMCRIPSecAddOn_BadJSON(t *testing.T) {
 	err := AddMCRIPSecAddOn(cmd, []string{"mcr-abc"}, false)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse JSON")
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
 
 func TestUpdateMCRIPSecAddOn_BadJSON(t *testing.T) {

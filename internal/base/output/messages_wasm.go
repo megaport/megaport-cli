@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"syscall/js"
 
 	"github.com/fatih/color"
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
@@ -209,7 +210,7 @@ func PrintSuccess(format string, noColor bool, args ...interface{}) {
 	} else {
 		output = color.GreenString("✓ ") + msg + "\n"
 	}
-	wasm.WasmOutputBuffer.Write([]byte(output))
+	_, _ = wasm.WasmOutputBuffer.Write([]byte(output))
 }
 
 // PrintError overrides the base function for WASM to capture output. In json
@@ -227,7 +228,7 @@ func PrintError(format string, noColor bool, args ...interface{}) {
 	} else {
 		output = color.RedString("✗ ") + msg + "\n"
 	}
-	wasm.WasmOutputBuffer.Write([]byte(output))
+	_, _ = wasm.WasmOutputBuffer.Write([]byte(output))
 	markErrorEmitted()
 }
 
@@ -243,7 +244,7 @@ func PrintWarning(format string, noColor bool, args ...interface{}) {
 	} else {
 		output = color.YellowString("⚠ ") + msg + "\n"
 	}
-	wasm.WasmOutputBuffer.Write([]byte(output))
+	_, _ = wasm.WasmOutputBuffer.Write([]byte(output))
 }
 
 // PrintInfo overrides the base function for WASM to capture output
@@ -258,7 +259,7 @@ func PrintInfo(format string, noColor bool, args ...interface{}) {
 	} else {
 		output = color.BlueString("ℹ ") + msg + "\n"
 	}
-	wasm.WasmOutputBuffer.Write([]byte(output))
+	_, _ = wasm.WasmOutputBuffer.Write([]byte(output))
 }
 
 // PrintPlain overrides the base function for WASM to capture output.
@@ -267,7 +268,7 @@ func PrintPlain(format string, _ bool, args ...interface{}) {
 		return
 	}
 	msg := fmt.Sprintf(format, args...)
-	wasm.WasmOutputBuffer.Write([]byte(msg + "\n"))
+	_, _ = wasm.WasmOutputBuffer.Write([]byte(msg + "\n"))
 }
 
 // PrintNewline writes a blank line to the WASM output buffer, suppressed in quiet mode.
@@ -275,13 +276,16 @@ func PrintNewline() {
 	if IsQuiet() {
 		return
 	}
-	wasm.WasmOutputBuffer.Write([]byte("\n"))
+	_, _ = wasm.WasmOutputBuffer.Write([]byte("\n"))
 }
 
 // ClearScreen is a no-op in the WASM environment.
 func ClearScreen() {}
 
-// PrintErrorJSON writes a structured JSON error to the WASM output buffer.
+// PrintErrorJSON emits a structured JSON error as the completion document.
+// Like printJSON it sets the wasmJSONOutput global (returned once at command
+// completion) rather than writing the narrative buffer, so the streaming
+// contract holds: structured output is delivered at completion, not streamed.
 func PrintErrorJSON(code int, message string) {
 	payload := errorEnvelope{
 		Error: errorBody{
@@ -290,15 +294,18 @@ func PrintErrorJSON(code int, message string) {
 			Message: message,
 		},
 	}
-	b, err := json.Marshal(payload)
+	// Indented with a trailing newline to match the native PrintErrorJSON and the
+	// WASM printJSON success path, so hosts and tests see one consistent shape.
+	b, err := json.MarshalIndent(payload, "", "  ")
+	out := string(b) + "\n"
 	if err != nil {
 		// errorEnvelope contains only primitive types so Marshal should never
 		// fail. If it somehow does, emit a minimal hard-coded envelope so
 		// callers always receive valid JSON.
 		msgJSON, _ := json.Marshal(message)
-		fmt.Fprintf(wasm.WasmOutputBuffer, `{"error":{"code":%d,"type":"%s","message":%s}}`+"\n",
+		out = fmt.Sprintf(`{"error":{"code":%d,"type":"%s","message":%s}}`+"\n",
 			code, exitcodes.TypeName(code), msgJSON)
-		return
 	}
-	fmt.Fprintln(wasm.WasmOutputBuffer, string(b))
+	fmt.Print(out)
+	js.Global().Set("wasmJSONOutput", out)
 }

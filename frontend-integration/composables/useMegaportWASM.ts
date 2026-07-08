@@ -235,7 +235,6 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
 
         log('✅ Megaport WASM ready (direct mode)');
         log('Available functions:', {
-          executeMegaportCommand: typeof window.executeMegaportCommand,
           executeMegaportCommandAsync:
             typeof window.executeMegaportCommandAsync,
           debugAuthInfo: typeof window.debugAuthInfo,
@@ -298,44 +297,21 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
       try {
         log(`🚀 Executing command: ${command}`);
 
-        // Use async version for better reliability
-        if (window.executeMegaportCommandAsync) {
-          window.executeMegaportCommandAsync(command, (result) => {
-            const duration = Date.now() - startTime;
+        if (typeof window.executeMegaportCommandAsync !== 'function') {
+          const duration = Date.now() - startTime;
+          emitTelemetry(
+            'command_execute_error',
+            {
+              command,
+              error: 'executeMegaportCommandAsync is not available on window',
+            },
+            duration
+          );
+          reject(new Error('executeMegaportCommandAsync is not available on window'));
+          return;
+        }
 
-            // Validate result with type guard
-            if (!isMegaportCommandResult(result)) {
-              const error = 'Invalid command result received from WASM';
-              warn('⚠️ Invalid result:', result);
-              emitTelemetry(
-                'command_execute_error',
-                { command, error },
-                duration
-              );
-              reject(new Error(error));
-              return;
-            }
-
-            log('📦 Command result:', result);
-
-            if (result.error) {
-              emitTelemetry(
-                'command_execute_error',
-                {
-                  command,
-                  error: result.error,
-                },
-                duration
-              );
-            } else {
-              emitTelemetry('command_execute_success', { command }, duration);
-            }
-
-            resolve(result);
-          });
-        } else if (window.executeMegaportCommand) {
-          // Fallback to sync version
-          const result = window.executeMegaportCommand(command);
+        window.executeMegaportCommandAsync(command, (result) => {
           const duration = Date.now() - startTime;
 
           // Validate result with type guard
@@ -351,6 +327,8 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
             return;
           }
 
+          log('📦 Command result:', result);
+
           if (result.error) {
             emitTelemetry(
               'command_execute_error',
@@ -365,18 +343,7 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
           }
 
           resolve(result);
-        } else {
-          const duration = Date.now() - startTime;
-          emitTelemetry(
-            'command_execute_error',
-            {
-              command,
-              error: 'No WASM execute function available',
-            },
-            duration
-          );
-          reject(new Error('No WASM execute function available'));
-        }
+        });
       } catch (err) {
         const duration = Date.now() - startTime;
         emitTelemetry(
@@ -396,7 +363,6 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
    * Set authentication credentials (secure, in-memory only)
    *
    * Available WASM functions:
-   * - executeMegaportCommand: 'function' - Synchronous command execution
    * - executeMegaportCommandAsync: 'function' - Asynchronous command execution with callback
    * - debugAuthInfo: 'function' - Get current auth state for debugging
    * - setAuthCredentials: 'function' - Secure in-memory credential storage
@@ -565,6 +531,34 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
   };
 
   /**
+   * Register a handler for live command output.
+   *
+   * The handler is invoked with each chunk of narrative output (progress lines,
+   * echoes, warnings, validation errors) as the command writes it, so the
+   * terminal can render output as it streams instead of waiting for completion.
+   *
+   * Contract: when the handler delivers output normally, the narrative is
+   * delivered here and is NOT repeated in the `execute()` result. The result's
+   * `output` then holds only structured document output (JSON/CSV/XML/table),
+   * or is empty when the command produced only streamed narrative. Do not render
+   * both. If the handler throws (or delivers nothing), the WASM side falls back
+   * to returning the full captured output in `result.output`, so already-streamed
+   * chunks may appear there too.
+   *
+   * Chunks use `\n` line endings; xterm hosts should translate to `\r\n`.
+   *
+   * @param callback - Function called with each output chunk
+   * @returns true if registered successfully
+   */
+  const registerOutputHandler = (callback: (chunk: string) => void): boolean => {
+    if (window.registerOutputHandler) {
+      return window.registerOutputHandler(callback);
+    }
+    warn('registerOutputHandler not available - WASM may not be initialized');
+    return false;
+  };
+
+  /**
    * Initialize WASM with retry logic
    * Attempts initialization multiple times with exponential backoff
    */
@@ -662,6 +656,7 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
     resetOutput,
     toggleDebug,
     registerPromptHandler,
+    registerOutputHandler, // For live streamed command output
     cleanup, // Expose cleanup for manual cleanup if needed
   };
 }

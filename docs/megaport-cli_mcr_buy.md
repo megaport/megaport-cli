@@ -13,7 +13,7 @@ This command allows you to purchase an MCR by providing the necessary details.
   - `marketplace-visibility`: Whether the MCR should be visible in the marketplace (true or false)
   - `name`: The name of the MCR (1-64 characters)
   - `port-speed`: The speed of the MCR (1000, 2500, 5000, 10000, 25000, 50000, or 100000 Mbps)
-  - `term`: The term of the MCR (1, 12, 24, or 36 months)
+  - `term`: The term of the MCR (1, 12, 24, 36, 48, or 60 months)
 
 ### Optional Fields
   - `cost-centre`: The cost centre for the MCR
@@ -94,6 +94,6 @@ megaport-cli mcr buy [flags]
 | `--promo-code` |  |  | A promotional code for discounts | false |
 | `--resource-tags` |  |  | Resource tags as a JSON string (e.g. {"key1":"value1","key2":"value2"}) | false |
 | `--resource-tags-file` |  |  | Path to JSON file containing resource tags | false |
-| `--term` |  | `0` | The term of the MCR (1, 12, 24, or 36 months) | true |
+| `--term` |  | `0` | The term of the MCR (1, 12, 24, 36, 48, or 60 months) | true |
 | `--yes` | `-y` | `false` | Skip confirmation prompt for purchase | false |
 

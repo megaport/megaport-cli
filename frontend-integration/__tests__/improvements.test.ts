@@ -1037,10 +1037,15 @@ describe('Frontend Improvements and Maintainability', () => {
       ).toBe(true);
       expect(isMegaportPromptRequest({ id: '123' })).toBe(false);
 
-      // Test WASM functions detection
+      // Test WASM functions detection - only the async entrypoint counts;
+      // the deprecated sync stub alone should not report WASM as ready
+      delete (window as any).executeMegaportCommandAsync;
       (window as any).executeMegaportCommand = () => {};
-      expect(hasWASMFunctions(window)).toBe(true);
+      expect(hasWASMFunctions(window)).toBe(false);
       delete (window as any).executeMegaportCommand;
+
+      (window as any).executeMegaportCommandAsync = () => {};
+      expect(hasWASMFunctions(window)).toBe(true);
 
       // Test WebAssembly support
       expect(hasWebAssemblySupport()).toBe(true);

@@ -4,23 +4,51 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 )
 
+// createUserJSONInput mirrors megaport.CreateUserRequest but keeps Active nilable
+// so an omitted "active" field can be distinguished from an explicit "active": false.
+type createUserJSONInput struct {
+	FirstName string                `json:"firstName"`
+	LastName  string                `json:"lastName"`
+	Active    *bool                 `json:"active"`
+	Email     string                `json:"email"`
+	Phone     string                `json:"phone"`
+	Position  megaport.UserPosition `json:"position"`
+}
+
 func processJSONCreateUserInput(jsonStr, jsonFile string) (*megaport.CreateUserRequest, error) {
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	}
 
-	req := &megaport.CreateUserRequest{}
-	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+	input := &createUserJSONInput{}
+	if err := json.Unmarshal(jsonData, input); err != nil {
+		return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse JSON: %w", err))
 	}
 
-	return req, nil
+	if input.Position != "" && !input.Position.IsValid() {
+		return nil, exitcodes.NewUsageError(fmt.Errorf("invalid position: %s. Valid positions: %s", input.Position, input.Position.ValidPositions()))
+	}
+
+	active := true
+	if input.Active != nil {
+		active = *input.Active
+	}
+
+	return &megaport.CreateUserRequest{
+		FirstName: input.FirstName,
+		LastName:  input.LastName,
+		Active:    active,
+		Email:     input.Email,
+		Phone:     input.Phone,
+		Position:  input.Position,
+	}, nil
 }
 
 func processFlagCreateUserInput(cmd *cobra.Command) (*megaport.CreateUserRequest, error) {

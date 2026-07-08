@@ -1,10 +1,12 @@
 package ix
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -16,6 +18,10 @@ func TestBuildIXRequestFromJSON_BothEmpty(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse JSON")
 	assert.Nil(t, req)
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
 
 func TestBuildUpdateIXRequestFromJSON_BothEmpty(t *testing.T) {
