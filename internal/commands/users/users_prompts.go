@@ -2,6 +2,7 @@ package users
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
@@ -106,6 +107,42 @@ func promptForUpdateUserDetails(noColor bool) (*megaport.UpdateUserRequest, erro
 	if phone != "" {
 		req.Phone = &phone
 		fieldsUpdated = true
+	}
+
+	activeStr, err := utils.ResourcePrompt("user", "Set user active? (y/yes/n/no, leave empty to skip): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	switch strings.ToLower(strings.TrimSpace(activeStr)) {
+	case "":
+	case "y", "yes":
+		active := true
+		req.Active = &active
+		fieldsUpdated = true
+	case "n", "no":
+		active := false
+		req.Active = &active
+		fieldsUpdated = true
+	default:
+		return nil, fmt.Errorf("invalid response for active: %s (expected y/yes/n/no)", activeStr)
+	}
+
+	notificationEnabledStr, err := utils.ResourcePrompt("user", "Enable notifications? (y/yes/n/no, leave empty to skip): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	switch strings.ToLower(strings.TrimSpace(notificationEnabledStr)) {
+	case "":
+	case "y", "yes":
+		notificationEnabled := true
+		req.NotificationEnabled = &notificationEnabled
+		fieldsUpdated = true
+	case "n", "no":
+		notificationEnabled := false
+		req.NotificationEnabled = &notificationEnabled
+		fieldsUpdated = true
+	default:
+		return nil, fmt.Errorf("invalid response for notification-enabled: %s (expected y/yes/n/no)", notificationEnabledStr)
 	}
 
 	if !fieldsUpdated {

@@ -29,7 +29,7 @@ func noopTagsPrompt(_ bool) (map[string]string, error) {
 }
 
 // promptForCreateNATGatewayDetails: name, locationID, speed, term, sessionCount,
-// diversityZone, autoRenew, promoCode, serviceLevelRef, ResourceTagsPrompt.
+// asn, diversityZone, autoRenew, promoCode, serviceLevelRef, ResourceTagsPrompt.
 
 func TestPromptForCreateNATGatewayDetails_Success(t *testing.T) {
 	origPrompt := utils.GetResourcePrompt()
@@ -45,6 +45,7 @@ func TestPromptForCreateNATGatewayDetails_Success(t *testing.T) {
 		"1000",      // speed
 		"12",        // term
 		"100",       // sessionCount
+		"65000",     // asn
 		"blue",      // diversityZone
 		"yes",       // autoRenew
 		"PROMO",     // promoCode
@@ -59,6 +60,7 @@ func TestPromptForCreateNATGatewayDetails_Success(t *testing.T) {
 	assert.Equal(t, 1000, req.Speed)
 	assert.Equal(t, 12, req.Term)
 	assert.Equal(t, 100, req.Config.SessionCount)
+	assert.Equal(t, 65000, req.Config.ASN)
 	assert.Equal(t, "blue", req.Config.DiversityZone)
 	assert.True(t, req.AutoRenewTerm)
 	assert.Equal(t, "PROMO", req.PromoCode)
@@ -74,13 +76,35 @@ func TestPromptForCreateNATGatewayDetails_AutoRenewNo(t *testing.T) {
 	}()
 
 	utils.SetResourcePrompt(mockNGPromptSequence([]string{
-		"GW", "1", "1000", "12", "", "", "no", "", "",
+		"GW", "1", "1000", "12", "", "", "", "no", "", "",
 	}))
 	utils.SetResourceTagsPrompt(noopTagsPrompt)
 
 	req, err := promptForCreateNATGatewayDetails(true)
 	require.NoError(t, err)
 	assert.False(t, req.AutoRenewTerm)
+}
+
+func TestPromptForCreateNATGatewayDetails_InvalidASN(t *testing.T) {
+	origPrompt := utils.GetResourcePrompt()
+	defer utils.SetResourcePrompt(origPrompt)
+
+	utils.SetResourcePrompt(mockNGPromptSequence([]string{"GW", "1", "1000", "12", "", "blue"}))
+
+	_, err := promptForCreateNATGatewayDetails(true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid ASN")
+}
+
+func TestPromptForCreateNATGatewayDetails_OutOfRangeASN(t *testing.T) {
+	origPrompt := utils.GetResourcePrompt()
+	defer utils.SetResourcePrompt(origPrompt)
+
+	utils.SetResourcePrompt(mockNGPromptSequence([]string{"GW", "1", "1000", "12", "", "0"}))
+
+	_, err := promptForCreateNATGatewayDetails(true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Invalid ASN")
 }
 
 func TestPromptForCreateNATGatewayDetails_EmptyName(t *testing.T) {
@@ -92,7 +116,7 @@ func TestPromptForCreateNATGatewayDetails_EmptyName(t *testing.T) {
 	}()
 
 	// Provide valid responses for all prompts except name so validation can run.
-	utils.SetResourcePrompt(mockNGPromptSequence([]string{"", "1", "1000", "12", "", "", "", "", ""}))
+	utils.SetResourcePrompt(mockNGPromptSequence([]string{"", "1", "1000", "12", "", "", "", "", "", ""}))
 	utils.SetResourceTagsPrompt(noopTagsPrompt)
 
 	_, err := promptForCreateNATGatewayDetails(true)
@@ -175,7 +199,7 @@ func TestPromptForCreateNATGatewayDetails_TagsError(t *testing.T) {
 	}()
 
 	utils.SetResourcePrompt(mockNGPromptSequence([]string{
-		"GW", "1", "1000", "12", "", "", "", "", "",
+		"GW", "1", "1000", "12", "", "", "", "", "", "",
 	}))
 	utils.SetResourceTagsPrompt(func(_ bool) (map[string]string, error) {
 		return nil, fmt.Errorf("tags error")
