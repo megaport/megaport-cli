@@ -49,36 +49,47 @@ func processFlagLAGPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, erro
 	return req, nil
 }
 
-func processJSONUpdatePortInput(jsonStr, jsonFile string) (*megaport.ModifyPortRequest, error) {
+// Builds and validates the request without any network round-trip so bad input
+// fails fast. The bool reports whether the caller supplied costCentre: the SDK
+// sends it without omitempty, so the caller re-sends the current value when this
+// is false to avoid wiping it (an explicit empty value still clears it).
+func processJSONUpdatePortInput(jsonStr, jsonFile string) (*megaport.ModifyPortRequest, bool, error) {
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
-		return nil, err
+		return nil, false, err
+	}
+
+	var jsonMap map[string]interface{}
+	if err := json.Unmarshal(jsonData, &jsonMap); err != nil {
+		return nil, false, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	req := &megaport.ModifyPortRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, false, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	if req.ContractTermMonths != nil {
 		if err := validation.ValidateContractTerm(*req.ContractTermMonths); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 	}
 
+	_, costCentreProvided := jsonMap["costCentre"]
+
 	isUpdating := req.Name != "" ||
 		req.MarketplaceVisibility != nil ||
-		req.CostCentre != "" ||
+		costCentreProvided ||
 		req.ContractTermMonths != nil
 
 	if !isUpdating {
-		return nil, fmt.Errorf("at least one field must be updated")
+		return nil, false, fmt.Errorf("at least one field must be updated")
 	}
 
-	return req, nil
+	return req, costCentreProvided, nil
 }
 
-func processFlagUpdatePortInput(cmd *cobra.Command, portUID string) (*megaport.ModifyPortRequest, error) {
+func processFlagUpdatePortInput(cmd *cobra.Command, portUID string) (*megaport.ModifyPortRequest, bool, error) {
 	req := &megaport.ModifyPortRequest{
 		PortID: portUID,
 	}
@@ -89,7 +100,7 @@ func processFlagUpdatePortInput(cmd *cobra.Command, portUID string) (*megaport.M
 	termSet := cmd.Flags().Changed("term")
 
 	if !nameSet && !mvSet && !ccSet && !termSet {
-		return nil, fmt.Errorf("at least one field must be updated")
+		return nil, false, fmt.Errorf("at least one field must be updated")
 	}
 
 	if nameSet {
@@ -111,13 +122,13 @@ func processFlagUpdatePortInput(cmd *cobra.Command, portUID string) (*megaport.M
 		term, _ := cmd.Flags().GetInt("term")
 		if term != 0 {
 			if err := validation.ValidateContractTerm(term); err != nil {
-				return nil, err
+				return nil, false, err
 			}
 			req.ContractTermMonths = &term
 		}
 	}
 
-	return req, nil
+	return req, ccSet, nil
 }
 
 func processFlagPortInput(cmd *cobra.Command) (*megaport.BuyPortRequest, error) {
