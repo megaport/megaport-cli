@@ -233,10 +233,10 @@ type MockMCRLookingGlassService struct {
 	TracerouteMCRResult                string
 	TracerouteMCRErr                   error
 	CapturedTracerouteMCRRequest       *megaport.MCRTracerouteRequest
-	GetMCRPingResultResult             *megaport.LookingGlassPingResult
-	GetMCRPingResultErr                error
-	GetMCRTracerouteResultResult       *megaport.LookingGlassTracerouteResult
-	GetMCRTracerouteResultErr          error
+	PingResultData                     *megaport.LookingGlassPingResult
+	PingResultDataErr                  error
+	TracerouteResultData               *megaport.LookingGlassTracerouteResult
+	TracerouteResultDataErr            error
 	WaitForMCRPingResult               *megaport.LookingGlassPingResult
 	WaitForMCRPingErr                  error
 	CapturedWaitForMCRPingMCRUID       string
@@ -312,11 +312,11 @@ func (m *MockMCRLookingGlassService) TracerouteMCR(ctx context.Context, req *meg
 }
 
 func (m *MockMCRLookingGlassService) GetMCRPingResult(ctx context.Context, mcrUID, operationID string) (*megaport.LookingGlassPingResult, error) {
-	return m.GetMCRPingResultResult, m.GetMCRPingResultErr
+	return m.PingResultData, m.PingResultDataErr
 }
 
 func (m *MockMCRLookingGlassService) GetMCRTracerouteResult(ctx context.Context, mcrUID, operationID string) (*megaport.LookingGlassTracerouteResult, error) {
-	return m.GetMCRTracerouteResultResult, m.GetMCRTracerouteResultErr
+	return m.TracerouteResultData, m.TracerouteResultDataErr
 }
 
 func (m *MockMCRLookingGlassService) WaitForMCRPing(ctx context.Context, mcrUID, operationID string) (*megaport.LookingGlassPingResult, error) {
