@@ -291,6 +291,7 @@ func TestSplitArgs_EdgeCases(t *testing.T) {
 
 // TestSetAuthToken verifies token-based authentication with hostname mapping
 func TestSetAuthToken(t *testing.T) {
+	EnableDebugMode()
 	RegisterJSFunctions()
 
 	tests := []struct {
@@ -818,6 +819,7 @@ func TestRestrictEnvironmentName(t *testing.T) {
 
 // TestAuthMethodPriority verifies that token auth takes precedence over API key auth
 func TestAuthMethodPriority(t *testing.T) {
+	EnableDebugMode()
 	RegisterJSFunctions()
 
 	// Clear any existing auth state first
@@ -845,6 +847,7 @@ func TestAuthMethodPriority(t *testing.T) {
 // effect, not silently keep using a token injected by an earlier
 // setAuthToken call (loginFunc checks the token path first).
 func TestSetAuthCredentials_ClearsStaleToken(t *testing.T) {
+	EnableDebugMode()
 	RegisterJSFunctions()
 	js.Global().Get("clearAuthCredentials").Invoke()
 
