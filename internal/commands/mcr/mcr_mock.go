@@ -283,6 +283,30 @@ func (m *MockMCRLookingGlassService) WaitForAsyncBGPNeighborRoutes(ctx context.C
 	return nil, nil
 }
 
+func (m *MockMCRLookingGlassService) PingMCR(ctx context.Context, req *megaport.MCRPingRequest) (string, error) {
+	return "", nil
+}
+
+func (m *MockMCRLookingGlassService) TracerouteMCR(ctx context.Context, req *megaport.MCRTracerouteRequest) (string, error) {
+	return "", nil
+}
+
+func (m *MockMCRLookingGlassService) GetMCRPingResult(ctx context.Context, mcrUID, operationID string) (*megaport.LookingGlassPingResult, error) {
+	return nil, nil
+}
+
+func (m *MockMCRLookingGlassService) GetMCRTracerouteResult(ctx context.Context, mcrUID, operationID string) (*megaport.LookingGlassTracerouteResult, error) {
+	return nil, nil
+}
+
+func (m *MockMCRLookingGlassService) WaitForMCRPing(ctx context.Context, mcrUID, operationID string) (*megaport.LookingGlassPingResult, error) {
+	return nil, nil
+}
+
+func (m *MockMCRLookingGlassService) WaitForMCRTraceroute(ctx context.Context, mcrUID, operationID string) (*megaport.LookingGlassTracerouteResult, error) {
+	return nil, nil
+}
+
 func (m *MockMCRService) Reset() {
 	m.BuyMCRResult = nil
 	m.BuyMCRErr = nil

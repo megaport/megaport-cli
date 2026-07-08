@@ -61,6 +61,11 @@ func CreateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	if err := validateNATGatewaySpeedSessionMatrix(ctx, client, req, noColor); err != nil {
+		output.PrintError("Validation failed: %v", noColor, err)
+		return err
+	}
+
 	if !yes && jsonStr == "" && jsonFile == "" {
 		details := []utils.BuyConfirmDetail{
 			{Key: "Name", Value: req.ProductName},
@@ -99,6 +104,32 @@ func CreateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 
 	output.PrintResourceCreated("NAT Gateway", gw.ProductUID, noColor)
 	return nil
+}
+
+// validateNATGatewaySpeedSessionMatrix rejects a speed/session-count pair
+// that the live NAT Gateway availability matrix does not support. A matrix
+// fetch failure or an empty matrix is treated as non-fatal (fail open): the
+// API still enforces the same rule at order time, matching the Terraform
+// provider's handling.
+func validateNATGatewaySpeedSessionMatrix(ctx context.Context, client *megaport.Client, req *megaport.CreateNATGatewayRequest, noColor bool) error {
+	matrix, err := listNATGatewaySessionsFunc(ctx, client)
+	if err != nil {
+		output.PrintWarning("Could not validate speed/session count against the availability matrix: %v", noColor, err)
+		return nil
+	}
+	if len(matrix) == 0 {
+		return nil
+	}
+
+	result := megaport.NATGatewaySpeedSessionSupported(matrix, req.Speed, req.Config.SessionCount)
+	if result.Supported {
+		return nil
+	}
+	if !result.SpeedSupported {
+		return validation.NewValidationError("speed", req.Speed, fmt.Sprintf("not supported; supported speeds (Mbps): %v", result.SupportedSpeeds))
+	}
+	return validation.NewValidationError("session count", req.Config.SessionCount,
+		fmt.Sprintf("not supported for %d Mbps; valid session counts: %v", req.Speed, result.SessionsAtSpeed))
 }
 
 // GetNATGateway handles the nat-gateway get command.
