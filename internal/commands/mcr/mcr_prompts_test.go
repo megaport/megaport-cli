@@ -96,6 +96,27 @@ func TestPromptForMCRDetails_InvalidLocationID(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid location ID")
 }
 
+func TestPromptForMCRDetails_MarketplaceVisibilityPromptError(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	// name, term, portSpeed, locationID succeed; marketplaceVisibility prompt (5th) fails.
+	idx := 0
+	responses := []string{"MCR", "12", "5000", "1"}
+	utils.SetResourcePrompt(func(resourceType, msg string, noColor bool) (string, error) {
+		if idx >= len(responses) {
+			return "", fmt.Errorf("prompt failure on marketplace visibility")
+		}
+		val := responses[idx]
+		idx++
+		return val, nil
+	})
+
+	_, err := promptForMCRDetails(true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "prompt failure on marketplace visibility")
+}
+
 func TestPromptForMCRDetails_InvalidPortSpeedNotNumeric(t *testing.T) {
 	originalPrompt := utils.GetResourcePrompt()
 	defer func() { utils.SetResourcePrompt(originalPrompt) }()
