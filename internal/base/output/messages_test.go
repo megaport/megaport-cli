@@ -612,6 +612,67 @@ func TestSpinnerStopWithSuccess(t *testing.T) {
 	assert.Contains(t, output, "✓ Operation completed")
 }
 
+// fakeSpinnerInterface is a native-buildable SpinnerInterface stand-in used to
+// verify Spinner.StopWithSuccess delegates to it, without depending on the
+// real (WASM-only) WasmSpinner implementation.
+type fakeSpinnerInterface struct {
+	stopCalls            int
+	stopWithSuccessCalls []string
+}
+
+func (f *fakeSpinnerInterface) Start(string) {}
+
+func (f *fakeSpinnerInterface) Stop() {
+	f.stopCalls++
+}
+
+func (f *fakeSpinnerInterface) StopWithSuccess(msg string) {
+	f.stopWithSuccessCalls = append(f.stopWithSuccessCalls, msg)
+}
+
+func TestSpinnerStopWithSuccessDelegatesToWasmSpinner(t *testing.T) {
+	t.Cleanup(func() { ResetState() })
+	SetVerbosity("normal")
+	fake := &fakeSpinnerInterface{}
+	spinner := &Spinner{stop: make(chan bool, 1), wasmSpinner: fake}
+
+	spinner.StopWithSuccess("Operation completed")
+
+	assert.Equal(t, 1, fake.stopCalls)
+	assert.Equal(t, []string{"Operation completed"}, fake.stopWithSuccessCalls)
+}
+
+func TestSpinnerStopWithSuccessQuietSkipsWasmDelegate(t *testing.T) {
+	t.Cleanup(func() { ResetState() })
+	SetVerbosity("quiet")
+	fake := &fakeSpinnerInterface{}
+	spinner := &Spinner{stop: make(chan bool, 1), wasmSpinner: fake}
+
+	spinner.StopWithSuccess("Operation completed")
+
+	assert.Equal(t, 1, fake.stopCalls)
+	assert.Empty(t, fake.stopWithSuccessCalls)
+}
+
+// TestSpinnerStopWithSuccessMachineFormatSkipsWasmDelegate verifies that
+// machine-readable output formats (json/csv/xml) skip WASM delegation and
+// fall through to the stderr branch, so a success line can never become the
+// entire captured response for a command that otherwise reports no output.
+func TestSpinnerStopWithSuccessMachineFormatSkipsWasmDelegate(t *testing.T) {
+	t.Cleanup(func() { ResetState() })
+	SetVerbosity("normal")
+	fake := &fakeSpinnerInterface{}
+	spinner := &Spinner{stop: make(chan bool, 1), wasmSpinner: fake, outputFormat: "json"}
+
+	output := captureStderr(t, func() {
+		spinner.StopWithSuccess("Operation completed")
+	})
+
+	assert.Equal(t, 1, fake.stopCalls)
+	assert.Empty(t, fake.stopWithSuccessCalls, "machine-readable formats must not delegate to the WASM spinner")
+	assert.Contains(t, output, "Operation completed")
+}
+
 func TestShouldSuppressSpinner(t *testing.T) {
 	t.Cleanup(func() { ResetState() })
 
