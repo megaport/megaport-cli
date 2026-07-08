@@ -1,6 +1,8 @@
 package vxc
 
 import (
+	"fmt"
+
 	"github.com/megaport/megaport-cli/internal/base/cmdbuilder"
 	"github.com/megaport/megaport-cli/internal/validation"
 	"github.com/spf13/cobra"
@@ -85,7 +87,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithLongDesc("Purchase a new Megaport Virtual Cross Connect (VXC) through the Megaport API.\n\nThis command allows you to create a VXC by providing the necessary details.").
 		WithDocumentedRequiredFlag("name", "Name of the VXC").
 		WithDocumentedRequiredFlag("rate-limit", "Bandwidth in Mbps").
-		WithDocumentedRequiredFlag("term", "Contract term in months (1, 12, 24, or 36)").
+		WithDocumentedRequiredFlag("term", fmt.Sprintf("Contract term in months (%s)", validation.FormatIntSlice(validation.ValidContractTerms))).
 		WithDocumentedRequiredFlag("a-end-uid", "UID of the A-End product").
 		WithDocumentedRequiredFlag("b-end-uid", "UID of the B-End product (if not using partner configuration)").
 		WithDocumentedRequiredFlag("a-end-vlan", "VLAN for A-End ("+validation.VLANHelpText()+")").
@@ -130,7 +132,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithLongDesc("Update an existing Virtual Cross Connect (VXC) through the Megaport API.\n\nThis command allows you to update an existing VXC by providing the necessary details.").
 		WithOptionalFlag("name", "New name for the VXC (1-64 characters)").
 		WithOptionalFlag("rate-limit", "New bandwidth in Mbps (50 - 10000)").
-		WithOptionalFlag("term", "New contract term in months (1, 12, 24, or 36)").
+		WithOptionalFlag("term", fmt.Sprintf("New contract term in months (%s)", validation.FormatIntSlice(validation.ValidContractTerms))).
 		WithOptionalFlag("cost-centre", "New cost centre for billing").
 		WithOptionalFlag("shutdown", "Whether to shut down the VXC (true/false)").
 		WithOptionalFlag("a-end-vlan", "New VLAN for A-End ("+validation.VLANHelpText()+")").
@@ -215,7 +217,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithLongDesc("Validates a VXC configuration against the Megaport API without creating the resource.\n\nUse this for dry-run validation before purchasing, or in CI pipelines to check configurations.").
 		WithDocumentedRequiredFlag("name", "Name of the VXC").
 		WithDocumentedRequiredFlag("rate-limit", "Bandwidth in Mbps").
-		WithDocumentedRequiredFlag("term", "Contract term in months (1, 12, 24, or 36)").
+		WithDocumentedRequiredFlag("term", fmt.Sprintf("Contract term in months (%s)", validation.FormatIntSlice(validation.ValidContractTerms))).
 		WithDocumentedRequiredFlag("a-end-uid", "UID of the A-End product").
 		WithExample(`megaport-cli vxc validate --name "My VXC" --rate-limit 1000 --term 12 --a-end-uid port-123 --b-end-uid port-456 --a-end-vlan 100 --b-end-vlan 200`).
 		WithExample("megaport-cli vxc validate --json-file ./vxc-config.json").

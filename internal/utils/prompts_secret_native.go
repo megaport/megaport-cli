@@ -23,9 +23,9 @@ func nativeSecretResourcePrompt(resourceType string, msg string, noColor bool) (
 	icon := "🔐"
 
 	if !noColor {
-		fmt.Print(color.New(color.FgHiRed, color.Bold).Sprint(icon + " " + msg + " "))
+		fmt.Fprint(os.Stderr, color.New(color.FgHiRed, color.Bold).Sprint(icon+" "+msg+" "))
 	} else {
-		fmt.Print(icon + " " + msg + " ")
+		fmt.Fprint(os.Stderr, icon+" "+msg+" ")
 	}
 
 	fd := int(os.Stdin.Fd())
@@ -39,7 +39,7 @@ func nativeSecretResourcePrompt(resourceType string, msg string, noColor bool) (
 	}
 
 	pw, err := term.ReadPassword(fd)
-	fmt.Println()
+	fmt.Fprintln(os.Stderr)
 	if err != nil {
 		return "", err
 	}

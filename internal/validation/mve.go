@@ -41,6 +41,12 @@ func NormalizeMVEProductSize(size string) string {
 	return size
 }
 
+// NormalizeMVEVendor converts a vendor name to the canonical lowercase form
+// used by ValidMVEVendors and ParseVendorConfig's vendor dispatch.
+func NormalizeMVEVendor(vendor string) string {
+	return strings.ToLower(vendor)
+}
+
 // ValidateMVEProductSize validates the product size for an MVE (Megaport Virtual Edge) instance.
 // This function ensures the specified size is among the allowed values for MVE deployments.
 //
@@ -72,7 +78,7 @@ func ValidateMVEProductSize(size string) error {
 //
 // Validation checks:
 //   - Name must be provided and cannot exceed the maximum length (MaxMVENameLength)
-//   - Contract term must be valid (typically 1, 12, 24, or 36 months)
+//   - Contract term must be valid (typically 1, 12, 24, 36, 48, or 60 months)
 //   - Location ID must be a positive integer
 //   - Vendor configuration must be provided and valid
 //
@@ -114,7 +120,7 @@ func ValidateBuyMVERequest(req *megaport.BuyMVERequest) error {
 //
 // Validation checks:
 //   - At least one updateable field must be provided (name, cost center, contract term, or vNICs)
-//   - If contract term is provided, it must be valid (typically 1, 12, 24, or 36 months)
+//   - If contract term is provided, it must be valid (typically 1, 12, 24, 36, 48, or 60 months)
 //
 // Returns:
 //   - A ValidationError if any validation check fails
@@ -154,7 +160,7 @@ func ValidateUpdateMVERequest(req *megaport.ModifyMVERequest) error {
 // Validation checks:
 //   - Name cannot be empty
 //   - Name cannot exceed the maximum length (MaxMVENameLength)
-//   - Contract term must be valid (typically 1, 12, 24, or 36 months)
+//   - Contract term must be valid (typically 1, 12, 24, 36, 48, or 60 months)
 //   - Location ID must be a positive integer
 //
 // Returns:
@@ -190,7 +196,7 @@ func ValidateMVERequest(name string, term int, locationID int) error {
 //   - A ValidationError if the vendor is not supported
 //   - nil if the validation passes
 func ValidateMVEVendor(vendor string) error {
-	normalizedVendor := strings.ToLower(vendor)
+	normalizedVendor := NormalizeMVEVendor(vendor)
 	for _, validVendor := range ValidMVEVendors {
 		if normalizedVendor == validVendor {
 			return nil

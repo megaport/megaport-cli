@@ -647,6 +647,10 @@ func TestCreateManagedAccount_InvalidJSON(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse JSON")
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
 
 func TestCreateManagedAccount_LoginError(t *testing.T) {

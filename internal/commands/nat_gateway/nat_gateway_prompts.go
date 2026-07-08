@@ -63,6 +63,22 @@ func promptForCreateNATGatewayDetails(noColor bool) (*megaport.CreateNATGatewayR
 		req.Config.SessionCount = sc
 	}
 
+	asnStr, err := utils.ResourcePrompt("nat-gateway", "BGP ASN (optional, leave empty for default): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	asnStr = strings.TrimSpace(asnStr)
+	if asnStr != "" {
+		asn, err := strconv.Atoi(asnStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid ASN: %s", asnStr)
+		}
+		if err := validation.ValidateASN(asn); err != nil {
+			return nil, err
+		}
+		req.Config.ASN = asn
+	}
+
 	diversityZone, err := utils.ResourcePrompt("nat-gateway", "Diversity zone (optional, leave empty to skip): ", noColor)
 	if err != nil {
 		return nil, err

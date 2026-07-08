@@ -349,7 +349,7 @@ func TestProcessJSONUpdatePortInput(t *testing.T) {
 				jsonFile = tmpFile.Name()
 			}
 
-			req, err := processJSONUpdatePortInput(tt.jsonStr, jsonFile)
+			req, _, err := processJSONUpdatePortInput(tt.jsonStr, jsonFile)
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -416,7 +416,7 @@ func TestProcessFlagUpdatePortInput(t *testing.T) {
 				require.NoError(t, cmd.Flags().Set(k, v))
 			}
 
-			req, err := processFlagUpdatePortInput(cmd, "port-uid-123")
+			req, _, err := processFlagUpdatePortInput(cmd, "port-uid-123")
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -427,4 +427,77 @@ func TestProcessFlagUpdatePortInput(t *testing.T) {
 			}
 		})
 	}
+}
+
+// The SDK sends costCentre without omitempty, so an empty value on update wipes
+// it. The builders report whether the caller supplied costCentre; UpdatePort
+// re-sends the current value when they didn't. These tests pin that signal for
+// each input mode (the end-to-end preserve is covered by TestUpdatePort_*).
+func TestProcessFlagUpdatePortInput_CostCentreProvided(t *testing.T) {
+	newCmd := func() *cobra.Command {
+		cmd := &cobra.Command{Use: "test"}
+		cmd.Flags().String("name", "", "")
+		cmd.Flags().Bool("marketplace-visibility", false, "")
+		cmd.Flags().String("cost-centre", "", "")
+		cmd.Flags().Int("term", 0, "")
+		return cmd
+	}
+
+	t.Run("name-only update does not supply cost centre", func(t *testing.T) {
+		cmd := newCmd()
+		require.NoError(t, cmd.Flags().Set("name", "new-name"))
+		req, provided, err := processFlagUpdatePortInput(cmd, "port-uid-123")
+		require.NoError(t, err)
+		assert.False(t, provided)
+		assert.Equal(t, "", req.CostCentre)
+	})
+
+	t.Run("explicit cost centre is supplied", func(t *testing.T) {
+		cmd := newCmd()
+		require.NoError(t, cmd.Flags().Set("cost-centre", "Finance"))
+		req, provided, err := processFlagUpdatePortInput(cmd, "port-uid-123")
+		require.NoError(t, err)
+		assert.True(t, provided)
+		assert.Equal(t, "Finance", req.CostCentre)
+	})
+
+	t.Run("explicit empty cost centre is supplied", func(t *testing.T) {
+		cmd := newCmd()
+		require.NoError(t, cmd.Flags().Set("name", "new-name"))
+		require.NoError(t, cmd.Flags().Set("cost-centre", ""))
+		req, provided, err := processFlagUpdatePortInput(cmd, "port-uid-123")
+		require.NoError(t, err)
+		assert.True(t, provided)
+		assert.Equal(t, "", req.CostCentre)
+	})
+}
+
+func TestProcessJSONUpdatePortInput_CostCentreProvided(t *testing.T) {
+	t.Run("name-only update does not supply cost centre", func(t *testing.T) {
+		req, provided, err := processJSONUpdatePortInput(`{"name":"new-name"}`, "")
+		require.NoError(t, err)
+		assert.False(t, provided)
+		assert.Equal(t, "", req.CostCentre)
+	})
+
+	t.Run("explicit cost centre is supplied", func(t *testing.T) {
+		req, provided, err := processJSONUpdatePortInput(`{"name":"new-name","costCentre":"Finance"}`, "")
+		require.NoError(t, err)
+		assert.True(t, provided)
+		assert.Equal(t, "Finance", req.CostCentre)
+	})
+
+	t.Run("explicit empty cost centre is supplied", func(t *testing.T) {
+		req, provided, err := processJSONUpdatePortInput(`{"name":"new-name","costCentre":""}`, "")
+		require.NoError(t, err)
+		assert.True(t, provided)
+		assert.Equal(t, "", req.CostCentre)
+	})
+
+	t.Run("cost centre as sole field is supplied", func(t *testing.T) {
+		req, provided, err := processJSONUpdatePortInput(`{"costCentre":""}`, "")
+		require.NoError(t, err)
+		assert.True(t, provided)
+		assert.Equal(t, "", req.CostCentre)
+	})
 }

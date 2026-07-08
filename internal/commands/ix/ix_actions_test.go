@@ -1295,7 +1295,10 @@ func TestUpdateIX(t *testing.T) {
 				"",           // mac-address (skip)
 				"",           // asn (skip)
 				"",           // password (skip)
+				"",           // public-graph (skip)
 				"",           // reverse-dns (skip)
+				"",           // a-end-product-uid (skip)
+				"",           // shutdown (skip)
 			},
 			setupMock: func(m *MockIXService) {
 				m.getIXResponse = &megaport.IX{

@@ -127,7 +127,7 @@ func TestPromptForUpdateMCRDetails_Success(t *testing.T) {
 		"Updated MCR", "IT-New", "yes", "true", "24", "65030",
 	}))
 
-	req, err := promptForUpdateMCRDetails("mcr-123", true)
+	req, err := promptForUpdateMCRDetails("mcr-123", "", true)
 	assert.NoError(t, err)
 	assert.Equal(t, "Updated MCR", req.Name)
 	assert.Equal(t, "IT-New", req.CostCentre)
@@ -139,13 +139,28 @@ func TestPromptForUpdateMCRDetails_Success(t *testing.T) {
 	assert.Equal(t, 65030, *req.MCRAsn)
 }
 
+func TestPromptForUpdateMCRDetails_CostCentrePreserved(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	// name set, cost centre left blank (skip) so the current value is kept.
+	// name, costCentre, marketplaceVisibility(yes/no), term, asn
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"Updated MCR", "", "", "", "",
+	}))
+
+	req, err := promptForUpdateMCRDetails("mcr-123", "IT Dept", true)
+	assert.NoError(t, err)
+	assert.Equal(t, "IT Dept", req.CostCentre)
+}
+
 func TestPromptForUpdateMCRDetails_NoChanges(t *testing.T) {
 	originalPrompt := utils.GetResourcePrompt()
 	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
 	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", "", "", ""}))
 
-	_, err := promptForUpdateMCRDetails("mcr-123", true)
+	_, err := promptForUpdateMCRDetails("mcr-123", "", true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "at least one field must be updated")
 }
@@ -157,7 +172,7 @@ func TestPromptForUpdateMCRDetails_InvalidTerm(t *testing.T) {
 	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", "", "99"}))
 
 	// Invalid term returns before the ASN prompt, so 4 responses suffice.
-	_, err := promptForUpdateMCRDetails("mcr-123", true)
+	_, err := promptForUpdateMCRDetails("mcr-123", "", true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "contract term")
 }
@@ -168,7 +183,7 @@ func TestPromptForUpdateMCRDetails_InvalidTermNotNumeric(t *testing.T) {
 
 	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", "", "abc"}))
 
-	_, err := promptForUpdateMCRDetails("mcr-123", true)
+	_, err := promptForUpdateMCRDetails("mcr-123", "", true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid term")
 	assert.NotContains(t, err.Error(), "strconv")
@@ -181,7 +196,7 @@ func TestPromptForUpdateMCRDetails_ASNOnly(t *testing.T) {
 	// name, costCentre, marketplaceVisibility(yes/no), term, asn
 	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", "", "", "65020"}))
 
-	req, err := promptForUpdateMCRDetails("mcr-123", true)
+	req, err := promptForUpdateMCRDetails("mcr-123", "", true)
 	assert.NoError(t, err)
 	require.NotNil(t, req)
 	require.NotNil(t, req.MCRAsn, "MCRAsn should be set when ASN prompt is answered")
@@ -194,7 +209,7 @@ func TestPromptForUpdateMCRDetails_ASNWhitespaceTrimmed(t *testing.T) {
 
 	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", "", "", "  65020  "}))
 
-	req, err := promptForUpdateMCRDetails("mcr-123", true)
+	req, err := promptForUpdateMCRDetails("mcr-123", "", true)
 	assert.NoError(t, err)
 	require.NotNil(t, req)
 	require.NotNil(t, req.MCRAsn)
@@ -207,7 +222,7 @@ func TestPromptForUpdateMCRDetails_ASNWhitespaceOnlySkips(t *testing.T) {
 
 	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", "", "", "   "}))
 
-	_, err := promptForUpdateMCRDetails("mcr-123", true)
+	_, err := promptForUpdateMCRDetails("mcr-123", "", true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "at least one field must be updated")
 }
@@ -218,7 +233,7 @@ func TestPromptForUpdateMCRDetails_InvalidASN(t *testing.T) {
 
 	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", "", "", "abc"}))
 
-	_, err := promptForUpdateMCRDetails("mcr-123", true)
+	_, err := promptForUpdateMCRDetails("mcr-123", "", true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid ASN")
 	assert.NotContains(t, err.Error(), "strconv")
@@ -240,7 +255,7 @@ func TestPromptForUpdateMCRDetails_ASNPromptError(t *testing.T) {
 		return val, nil
 	})
 
-	_, err := promptForUpdateMCRDetails("mcr-123", true)
+	_, err := promptForUpdateMCRDetails("mcr-123", "", true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "prompt failure on ASN")
 }

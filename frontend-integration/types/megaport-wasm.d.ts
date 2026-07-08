@@ -75,10 +75,12 @@ export type TelemetryCallback = (event: TelemetryEvent) => void;
  */
 export interface MegaportWASM {
   /**
-   * Execute a CLI command synchronously (LEGACY - may not work with async operations)
-   * @param command - Full command string (e.g., "port list --output json")
-   * @returns Result object with output or error
-   * @deprecated Use executeMegaportCommandAsync for better reliability
+   * Deprecated stub kept for one release as a soft landing for hosts that
+   * still detect or call it. It no longer executes commands and always
+   * returns an immediate error result.
+   * @param command - Ignored
+   * @returns An error result pointing to executeMegaportCommandAsync
+   * @deprecated Use executeMegaportCommandAsync instead; this function does not run commands
    */
   executeMegaportCommand(command: string): MegaportCommandResult;
 
@@ -231,6 +233,18 @@ export interface MegaportWASM {
   ): boolean;
 
   /**
+   * Register a handler for live command output.
+   *
+   * The callback is invoked with each chunk of narrative output as the command
+   * writes it. When a handler is registered the narrative is streamed here and
+   * is not repeated in the command result (see MegaportCommandResult.output).
+   * Chunks use `\n` line endings.
+   *
+   * @param callback - Function called with each output chunk
+   */
+  registerOutputHandler(callback: (chunk: string) => void): boolean;
+
+  /**
    * Submit a response to a pending prompt
    * @param id - Prompt ID
    * @param response - User's response
@@ -304,6 +318,7 @@ declare global {
     registerPromptHandler?: (
       callback: (request: MegaportPromptRequest) => void
     ) => boolean;
+    registerOutputHandler?: (callback: (chunk: string) => void) => boolean;
     submitPromptResponse?: (id: string, response: string) => void;
     cancelPrompt?: (id: string) => void;
     getPendingPrompts?: () => MegaportPromptRequest[];

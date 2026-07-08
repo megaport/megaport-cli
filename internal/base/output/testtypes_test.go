@@ -2,8 +2,8 @@ package output
 
 import "time"
 
-// Shared table/JSON/CSV fixtures used by both the native and js/wasm test
-// builds, so they live in an untagged file.
+// Shared test fixture types used by both the native (!wasm) and WASM test
+// builds. They live in an untagged file so neither build redefines them.
 
 type SimpleStruct struct {
 	ID     int    `json:"id" csv:"id" header:"ID"`

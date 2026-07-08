@@ -19,6 +19,12 @@ var (
 	chmodFile  = os.Chmod
 )
 
+// ConfigManager handles configuration operations
+type ConfigManager struct {
+	config     *ConfigFile
+	configPath string
+}
+
 func NewConfigManager() (*ConfigManager, error) {
 	configPath, err := GetConfigFilePath()
 	if err != nil {

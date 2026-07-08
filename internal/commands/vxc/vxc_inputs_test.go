@@ -1292,6 +1292,10 @@ func TestBuildVXCRequestFromJSON(t *testing.T) {
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
+
+				var cliErr *exitcodes.CLIError
+				require.True(t, errors.As(err, &cliErr), "expected a *exitcodes.CLIError, got %T: %v", err, err)
+				assert.Equal(t, exitcodes.Usage, cliErr.Code)
 			} else {
 				assert.NoError(t, err)
 				if tt.validate != nil {
@@ -1309,6 +1313,10 @@ func TestBuildVXCRequestFromJSON_RejectsEmptyTagKey(t *testing.T) {
 		_, err := buildVXCRequestFromJSON(payload, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "tag key must not be empty")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
 	})
 
 	t.Run("via json-file", func(t *testing.T) {
@@ -1322,7 +1330,25 @@ func TestBuildVXCRequestFromJSON_RejectsEmptyTagKey(t *testing.T) {
 		_, err = buildVXCRequestFromJSON("", tmp.Name())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "tag key must not be empty")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr))
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
 	})
+}
+
+func TestBuildVXCRequestFromJSON_EndpointConfigMalformedField(t *testing.T) {
+	// Exercises parseVXCEndpointConfig's own error wrapping, distinct from the
+	// top-level field checks in buildVXCRequestFromJSON.
+	payload := `{"portUid":"port-1","rateLimit":1000,"term":12,"aEndConfiguration":{"vlan":"not-a-number"}}`
+
+	_, err := buildVXCRequestFromJSON(payload, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "A-End")
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
 
 func TestBuildUpdateVXCRequestFromJSON_PartnerConfigs(t *testing.T) {

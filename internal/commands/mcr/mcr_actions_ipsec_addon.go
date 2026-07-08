@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -38,7 +39,7 @@ func AddMCRIPSecAddOn(cmd *cobra.Command, args []string, noColor bool) error {
 		countPtr, parseErr := parseIPSecTunnelCountFromJSON(jsonStr, jsonFile)
 		if parseErr != nil {
 			output.PrintError("Failed to process JSON input: %v", noColor, parseErr)
-			return parseErr
+			return exitcodes.NewUsageError(parseErr)
 		}
 		if countPtr != nil {
 			tunnelCount = *countPtr

@@ -3,6 +3,7 @@ package mcr
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/testutil"
@@ -17,6 +19,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetMCRCmd_WithMockClient(t *testing.T) {
@@ -279,6 +282,128 @@ func TestDeleteMCRCmd_WithMockClient(t *testing.T) {
 			}
 		})
 	}
+}
+
+// End-to-end proof that a name-only update re-sends the MCR's existing cost
+// centre rather than wiping it (the SDK omits omitempty on costCentre).
+func TestUpdateMCR_PreservesCostCentre(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+
+	mockMCRService := &MockMCRService{
+		GetMCRResult:    &megaport.MCR{UID: "mcr-cc-1", Name: "Original", CostCentre: "IT Dept", ProvisioningStatus: "LIVE"},
+		ModifyMCRResult: &megaport.ModifyMCRResponse{IsUpdated: true},
+	}
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.MCRService = mockMCRService
+		return client, nil
+	})
+
+	cmd := &cobra.Command{Use: "update"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().String("cost-centre", "", "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
+	cmd.Flags().Int("term", 0, "")
+	cmd.Flags().Int("mcr-asn", 0, "")
+	require.NoError(t, cmd.Flags().Set("name", "Renamed MCR"))
+
+	_ = captureStderr(t, func() {
+		output.CaptureOutput(func() {
+			require.NoError(t, UpdateMCR(cmd, []string{"mcr-cc-1"}, true))
+		})
+	})
+
+	require.NotNil(t, mockMCRService.CapturedModifyMCRRequest)
+	assert.Equal(t, "IT Dept", mockMCRService.CapturedModifyMCRRequest.CostCentre,
+		"name-only update must preserve the existing cost centre")
+}
+
+func newUpdateMCRCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "update"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().String("cost-centre", "", "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
+	cmd.Flags().Int("term", 0, "")
+	cmd.Flags().Int("mcr-asn", 0, "")
+	return cmd
+}
+
+func TestUpdateMCR_CostCentreOverrideAndClear(t *testing.T) {
+	tests := []struct {
+		name     string
+		setFlags func(*cobra.Command)
+		expected string
+	}{
+		{
+			name:     "explicit cost centre overrides current",
+			setFlags: func(c *cobra.Command) { require.NoError(t, c.Flags().Set("cost-centre", "Finance")) },
+			expected: "Finance",
+		},
+		{
+			name: "explicit empty cost centre clears it",
+			setFlags: func(c *cobra.Command) {
+				require.NoError(t, c.Flags().Set("name", "Renamed"))
+				require.NoError(t, c.Flags().Set("cost-centre", ""))
+			},
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+			defer cleanup()
+
+			mockMCRService := &MockMCRService{
+				GetMCRResult:    &megaport.MCR{UID: "mcr-cc-1", Name: "Original", CostCentre: "IT Dept", ProvisioningStatus: "LIVE"},
+				ModifyMCRResult: &megaport.ModifyMCRResponse{IsUpdated: true},
+			}
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = mockMCRService
+				return client, nil
+			})
+
+			cmd := newUpdateMCRCmd()
+			tt.setFlags(cmd)
+
+			_ = captureStderr(t, func() {
+				output.CaptureOutput(func() {
+					require.NoError(t, UpdateMCR(cmd, []string{"mcr-cc-1"}, true))
+				})
+			})
+
+			require.NotNil(t, mockMCRService.CapturedModifyMCRRequest)
+			assert.Equal(t, tt.expected, mockMCRService.CapturedModifyMCRRequest.CostCentre)
+		})
+	}
+}
+
+// Bad input must fail before any network round-trip, so login/fetch errors
+// never mask the real validation error.
+func TestUpdateMCR_ValidatesBeforeLogin(t *testing.T) {
+	cleanup := testutil.SetupLoginError(fmt.Errorf("login must not be reached"))
+	defer cleanup()
+
+	cmd := newUpdateMCRCmd()
+	require.NoError(t, cmd.Flags().Set("mcr-asn", "0"))
+
+	var err error
+	_ = captureStderr(t, func() {
+		output.CaptureOutput(func() {
+			err = UpdateMCR(cmd, []string{"mcr-1"}, true)
+		})
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "MCR ASN", "input must be validated before login")
 }
 
 func TestRestoreMCRCmd_WithMockClient(t *testing.T) {
@@ -916,16 +1041,17 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 	utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool { return true })
 
 	tests := []struct {
-		name           string
-		args           []string
-		interactive    bool
-		prompts        []string
-		flags          map[string]string
-		jsonInput      string
-		jsonFilePath   string
-		setupMock      func(*MockMCRService)
-		expectedError  string
-		expectedOutput string
+		name             string
+		args             []string
+		interactive      bool
+		prompts          []string
+		flags            map[string]string
+		jsonInput        string
+		jsonFilePath     string
+		setupMock        func(*MockMCRService)
+		expectedError    string
+		expectedExitCode int
+		expectedOutput   string
 	}{
 		{
 			name:        "interactive mode success",
@@ -983,7 +1109,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			flags: map[string]string{
 				"name": "Test MCR",
 			},
-			expectedError: "Invalid contract term: 0 - must be one of: [1 12 24 36]",
+			expectedError: "Invalid contract term: 0 - must be one of: [1 12 24 36 48 60]",
 		},
 		{
 			name: "invalid term in flag mode",
@@ -994,7 +1120,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 				"location-id": "123",
 				"mcr-asn":     "65000",
 			},
-			expectedError: "Invalid contract term: 13 - must be one of: [1 12 24 36]",
+			expectedError: "Invalid contract term: 13 - must be one of: [1 12 24 36 48 60]",
 		},
 		{
 			name: "invalid JSON",
@@ -1053,6 +1179,16 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			setupMock:     func(m *MockMCRService) {},
 			expectedError: "cannot be combined with",
 		},
+		{
+			name: "JSON mode with negative ipsec-tunnel-count flag is a usage error",
+			flags: map[string]string{
+				"json":               `{"name":"JSON MCR","term":24,"portSpeed":10000,"locationId":123,"mcrAsn":65000}`,
+				"ipsec-tunnel-count": "-1",
+			},
+			setupMock:        func(m *MockMCRService) {},
+			expectedError:    "ipsec-tunnel-count must be",
+			expectedExitCode: exitcodes.Usage,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1097,6 +1233,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			cmd.Flags().String("promo-code", "", "Promotional code for discounts")
 			cmd.Flags().String("json", "", "JSON string containing MCR configuration")
 			cmd.Flags().String("json-file", "", "Path to JSON file containing MCR configuration")
+			cmd.Flags().Int("ipsec-tunnel-count", 0, "Number of IPsec tunnels to provision")
 
 			flags := make(map[string]string)
 			if tt.interactive {
@@ -1115,6 +1252,12 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
+
+				if tt.expectedExitCode != 0 {
+					var cliErr *exitcodes.CLIError
+					require.True(t, errors.As(err, &cliErr))
+					assert.Equal(t, tt.expectedExitCode, cliErr.Code)
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.Contains(t, output, tt.expectedOutput)

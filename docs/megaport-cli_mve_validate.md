@@ -11,7 +11,7 @@ Use this for dry-run validation before purchasing, or in CI pipelines to check c
 ### Required Fields
   - `location-id`: The ID of the location where the MVE will be provisioned
   - `name`: The name of the MVE
-  - `term`: The term of the MVE (1, 12, 24, or 36 months)
+  - `term`: The term of the MVE (1, 12, 24, 36, 48, or 60 months)
   - `vendor-config`: JSON string with vendor-specific configuration
   - `vnics`: JSON array of network interfaces
 
@@ -53,7 +53,7 @@ megaport-cli mve validate [flags]
 | `--promo-code` |  |  | Promotional code for discounts | false |
 | `--resource-tags` |  |  | Resource tags as a JSON string (e.g. {"key1":"value1","key2":"value2"}) | false |
 | `--resource-tags-file` |  |  | Path to JSON file containing resource tags | false |
-| `--term` |  | `0` | The term of the MVE (1, 12, 24, or 36 months) | true |
+| `--term` |  | `0` | The term of the MVE (1, 12, 24, 36, 48, or 60 months) | true |
 | `--vendor-config` |  |  | JSON string with vendor-specific configuration | true |
 | `--vnics` |  |  | JSON array of network interfaces | true |
 

@@ -1369,7 +1369,10 @@ func TestBuildUpdateIXRequestFromPrompt(t *testing.T) {
 				"",           // mac-address
 				"",           // asn
 				"",           // password
+				"",           // public-graph
 				"",           // reverse-dns
+				"",           // a-end-product-uid
+				"",           // shutdown
 			},
 			validate: func(t *testing.T, req *megaport.UpdateIXRequest) {
 				assert.NotNil(t, req.Name)
@@ -1380,7 +1383,10 @@ func TestBuildUpdateIXRequestFromPrompt(t *testing.T) {
 				assert.Nil(t, req.MACAddress)
 				assert.Nil(t, req.ASN)
 				assert.Nil(t, req.Password)
+				assert.Nil(t, req.PublicGraph)
 				assert.Nil(t, req.ReverseDns)
+				assert.Nil(t, req.AEndProductUid)
+				assert.Nil(t, req.Shutdown)
 			},
 		},
 		{
@@ -1393,7 +1399,10 @@ func TestBuildUpdateIXRequestFromPrompt(t *testing.T) {
 				"AA:BB:CC:DD:EE:FF", // mac-address
 				"65001",             // asn
 				"secret",            // password
+				"yes",               // public-graph
 				"host.example.com",  // reverse-dns
+				"port-new-uid",      // a-end-product-uid
+				"yes",               // shutdown
 			},
 			validate: func(t *testing.T, req *megaport.UpdateIXRequest) {
 				assert.NotNil(t, req.Name)
@@ -1410,8 +1419,36 @@ func TestBuildUpdateIXRequestFromPrompt(t *testing.T) {
 				assert.Equal(t, 65001, *req.ASN)
 				assert.NotNil(t, req.Password)
 				assert.Equal(t, "secret", *req.Password)
+				assert.NotNil(t, req.PublicGraph)
+				assert.True(t, *req.PublicGraph)
 				assert.NotNil(t, req.ReverseDns)
 				assert.Equal(t, "host.example.com", *req.ReverseDns)
+				assert.NotNil(t, req.AEndProductUid)
+				assert.Equal(t, "port-new-uid", *req.AEndProductUid)
+				assert.NotNil(t, req.Shutdown)
+				assert.True(t, *req.Shutdown)
+			},
+		},
+		{
+			name: "public-graph and shutdown explicit no",
+			prompts: []string{
+				"",   // name
+				"",   // rate-limit
+				"",   // cost-centre
+				"",   // vlan
+				"",   // mac-address
+				"",   // asn
+				"",   // password
+				"no", // public-graph
+				"",   // reverse-dns
+				"",   // a-end-product-uid
+				"no", // shutdown
+			},
+			validate: func(t *testing.T, req *megaport.UpdateIXRequest) {
+				assert.NotNil(t, req.PublicGraph)
+				assert.False(t, *req.PublicGraph)
+				assert.NotNil(t, req.Shutdown)
+				assert.False(t, *req.Shutdown)
 			},
 		},
 		{
@@ -1424,7 +1461,10 @@ func TestBuildUpdateIXRequestFromPrompt(t *testing.T) {
 				"", // mac-address
 				"", // asn
 				"", // password
+				"", // public-graph
 				"", // reverse-dns
+				"", // a-end-product-uid
+				"", // shutdown
 			},
 			expectedError: "at least one field must be updated",
 		},

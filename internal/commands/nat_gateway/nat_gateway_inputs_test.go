@@ -1,10 +1,12 @@
 package nat_gateway
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -54,6 +56,10 @@ func TestProcessJSONCreateNATGatewayInput_InvalidJSON(t *testing.T) {
 	_, err := processJSONCreateNATGatewayInput(`{invalid}`, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse JSON")
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
 
 func TestProcessJSONCreateNATGatewayInput_FileNotFound(t *testing.T) {
@@ -92,6 +98,10 @@ func TestProcessJSONCreateNATGatewayInput_RejectsEmptyTagKey(t *testing.T) {
 		`{"name":"GW","term":12,"speed":1000,"locationId":1,"resourceTags":{"":"x"}}`, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "tag key must not be empty")
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
 
 func TestProcessJSONCreateNATGatewayInput_RejectsEmptyTagKeyFromFile(t *testing.T) {

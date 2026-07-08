@@ -13,7 +13,7 @@ This command allows you to update the details of an existing MCR.
   - `marketplace-visibility`: Whether the MCR is visible in the marketplace (true/false)
   - `mcr-asn`: The new BGP ASN for the MCR (64512-65534 for private ASN, or a public ASN)
   - `name`: The new name of the MCR (1-64 characters)
-  - `term`: The new contract term for the MCR (1, 12, 24, or 36 months)
+  - `term`: The new contract term for the MCR (1, 12, 24, 36, 48, or 60 months)
 
 ### Important Notes
   - The MCR UID cannot be changed
@@ -66,5 +66,5 @@ megaport-cli mcr update [flags]
 | `--marketplace-visibility` |  | `false` | Whether the MCR is visible in the marketplace (true/false) | false |
 | `--mcr-asn` |  | `0` | The new BGP ASN for the MCR (64512-65534 for private ASN, or a public ASN) | false |
 | `--name` |  |  | The new name of the MCR (1-64 characters) | false |
-| `--term` |  | `0` | The new contract term for the MCR (1, 12, 24, or 36 months) | false |
+| `--term` |  | `0` | The new contract term for the MCR (1, 12, 24, 36, 48, or 60 months) | false |
 

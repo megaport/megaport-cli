@@ -12,7 +12,7 @@ Use this for dry-run validation before purchasing, or in CI pipelines to check c
   - `a-end-uid`: UID of the A-End product
   - `name`: Name of the VXC
   - `rate-limit`: Bandwidth in Mbps
-  - `term`: Contract term in months (1, 12, 24, or 36)
+  - `term`: Contract term in months (1, 12, 24, 36, 48, or 60)
 
 ### Optional Fields
   - `resource-tags`: Resource tags as a JSON string (e.g. {"key1":"value1","key2":"value2"})
@@ -62,5 +62,5 @@ megaport-cli vxc validate [flags]
 | `--resource-tags` |  |  | Resource tags as a JSON string (e.g. {"key1":"value1","key2":"value2"}) | false |
 | `--resource-tags-file` |  |  | Path to JSON file containing resource tags | false |
 | `--service-key` |  |  | Service key | false |
-| `--term` |  | `0` | Contract term in months (1, 12, 24, or 36) | true |
+| `--term` |  | `0` | Contract term in months (1, 12, 24, 36, 48, or 60) | true |
 

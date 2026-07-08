@@ -6,15 +6,6 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// cliHeaders identifies CLI traffic to the Megaport API.
-var cliHeaders = map[string]string{"x-app": "cli"}
-
-// ConfigManager handles configuration operations
-type ConfigManager struct {
-	config     *ConfigFile
-	configPath string
-}
-
 // ConfigFile represents the configuration file structure
 type ConfigFile struct {
 	Version       int                    `json:"version"`

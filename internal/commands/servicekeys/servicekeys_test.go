@@ -7,7 +7,9 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/base/output"
 	megaport "github.com/megaport/megaportgo"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var mockServiceKeys = []*megaport.ServiceKey{
@@ -230,6 +232,25 @@ func TestServiceKeyOutput_CSV(t *testing.T) {
 
 func boolPtr(b bool) *bool {
 	return &b
+}
+
+func TestAddCommandsTo_InputModeFlags(t *testing.T) {
+	root := &cobra.Command{Use: "megaport-cli"}
+	AddCommandsTo(root)
+
+	createCmd, _, err := root.Find([]string{"servicekeys", "create"})
+	require.NoError(t, err)
+	require.NotNil(t, createCmd)
+	assert.NotNil(t, createCmd.Flags().Lookup("interactive"))
+	assert.NotNil(t, createCmd.Flags().Lookup("json"))
+	assert.NotNil(t, createCmd.Flags().Lookup("json-file"))
+
+	updateCmd, _, err := root.Find([]string{"servicekeys", "update"})
+	require.NoError(t, err)
+	require.NotNil(t, updateCmd)
+	assert.NotNil(t, updateCmd.Flags().Lookup("interactive"))
+	assert.NotNil(t, updateCmd.Flags().Lookup("json"))
+	assert.NotNil(t, updateCmd.Flags().Lookup("json-file"))
 }
 
 func init() {
