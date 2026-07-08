@@ -1,9 +1,15 @@
 package cmdbuilder
 
+import (
+	"fmt"
+
+	"github.com/megaport/megaport-cli/internal/validation"
+)
+
 // WithNATGatewayCreateFlags adds flags for NAT Gateway creation.
 func (b *CommandBuilder) WithNATGatewayCreateFlags() *CommandBuilder {
 	b.WithFlag("name", "", "The name of the NAT Gateway (required)").
-		WithIntFlag("term", 0, "The contract term in months (1, 12, 24, or 36)").
+		WithIntFlag("term", 0, fmt.Sprintf("The contract term in months (%s)", validation.FormatIntSlice(validation.ValidContractTerms))).
 		WithIntFlag("speed", 0, "The speed of the NAT Gateway in Mbps").
 		WithIntFlag("location-id", 0, "The ID of the location where the NAT Gateway will be provisioned").
 		WithIntFlag("session-count", 0, "The number of NAT sessions (optional)").
@@ -26,7 +32,7 @@ func (b *CommandBuilder) WithNATGatewayCreateFlags() *CommandBuilder {
 func (b *CommandBuilder) WithNATGatewayUpdateFlags() *CommandBuilder {
 	b.WithFlag("name", "", "The new name of the NAT Gateway").
 		WithOptionalFlag("name", "The new name of the NAT Gateway").
-		WithIntFlag("term", 0, "The new contract term in months (1, 12, 24, or 36)").
+		WithIntFlag("term", 0, fmt.Sprintf("The new contract term in months (%s)", validation.FormatIntSlice(validation.ValidContractTerms))).
 		WithOptionalFlag("term", "The new contract term in months").
 		WithIntFlag("speed", 0, "The new speed of the NAT Gateway in Mbps").
 		WithOptionalFlag("speed", "The new speed of the NAT Gateway in Mbps").

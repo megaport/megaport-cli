@@ -1,7 +1,10 @@
 package nat_gateway
 
 import (
+	"fmt"
+
 	"github.com/megaport/megaport-cli/internal/base/cmdbuilder"
+	"github.com/megaport/megaport-cli/internal/validation"
 	"github.com/spf13/cobra"
 )
 
@@ -65,7 +68,7 @@ func buildNATGatewayCommands(rootCmd *cobra.Command) (get, list, create, update,
 		WithStandardInputFlags().
 		WithLongDesc("Create a new NAT Gateway through the Megaport API.\n\nThis command creates a NAT Gateway by providing the necessary details.").
 		WithDocumentedRequiredFlag("name", "The name of the NAT Gateway").
-		WithDocumentedRequiredFlag("term", "The contract term in months (1, 12, 24, or 36)").
+		WithDocumentedRequiredFlag("term", fmt.Sprintf("The contract term in months (%s)", validation.FormatIntSlice(validation.ValidContractTerms))).
 		WithDocumentedRequiredFlag("speed", "The speed of the NAT Gateway in Mbps").
 		WithDocumentedRequiredFlag("location-id", "The ID of the location where the NAT Gateway will be provisioned").
 		WithExample("megaport-cli nat-gateway create --interactive").

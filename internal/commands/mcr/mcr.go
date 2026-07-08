@@ -1,7 +1,10 @@
 package mcr
 
 import (
+	"fmt"
+
 	"github.com/megaport/megaport-cli/internal/base/cmdbuilder"
+	"github.com/megaport/megaport-cli/internal/validation"
 	"github.com/spf13/cobra"
 )
 
@@ -66,7 +69,7 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithStandardInputFlags().
 		WithLongDesc("Buy an MCR through the Megaport API.\n\nThis command allows you to purchase an MCR by providing the necessary details.").
 		WithDocumentedRequiredFlag("name", "The name of the MCR (1-64 characters)").
-		WithDocumentedRequiredFlag("term", "The term of the MCR (1, 12, 24, or 36 months)").
+		WithDocumentedRequiredFlag("term", fmt.Sprintf("The term of the MCR (%s months)", validation.FormatIntSlice(validation.ValidContractTerms))).
 		WithDocumentedRequiredFlag("port-speed", "The speed of the MCR (1000, 2500, 5000, 10000, 25000, 50000, or 100000 Mbps)").
 		WithDocumentedRequiredFlag("location-id", "The ID of the location where the MCR will be provisioned").
 		WithDocumentedRequiredFlag("marketplace-visibility", "Whether the MCR should be visible in the marketplace (true or false)").
@@ -222,7 +225,7 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithStandardInputFlags().
 		WithLongDesc("Validates an MCR configuration against the Megaport API without creating the resource.\n\nUse this for dry-run validation before purchasing, or in CI pipelines to check configurations.").
 		WithDocumentedRequiredFlag("name", "The name of the MCR (1-64 characters)").
-		WithDocumentedRequiredFlag("term", "The term of the MCR (1, 12, 24, or 36 months)").
+		WithDocumentedRequiredFlag("term", fmt.Sprintf("The term of the MCR (%s months)", validation.FormatIntSlice(validation.ValidContractTerms))).
 		WithDocumentedRequiredFlag("port-speed", "The speed of the MCR (1000, 2500, 5000, 10000, 25000, 50000, or 100000 Mbps)").
 		WithDocumentedRequiredFlag("location-id", "The ID of the location where the MCR will be provisioned").
 		WithDocumentedRequiredFlag("marketplace-visibility", "Whether the MCR should be visible in the marketplace (true or false)").

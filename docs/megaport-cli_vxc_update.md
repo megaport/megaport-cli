@@ -21,7 +21,7 @@ This command allows you to update an existing VXC by providing the necessary det
   - `name`: New name for the VXC (1-64 characters)
   - `rate-limit`: New bandwidth in Mbps (50 - 10000)
   - `shutdown`: Whether to shut down the VXC (true/false)
-  - `term`: New contract term in months (1, 12, 24, or 36)
+  - `term`: New contract term in months (1, 12, 24, 36, 48, or 60)
 
 ### Important Notes
   - Only VRouter partner configurations can be updated after creation
@@ -87,5 +87,5 @@ megaport-cli vxc update [flags]
 | `--name` |  |  | Name of the VXC | false |
 | `--rate-limit` |  | `0` | Bandwidth in Mbps | false |
 | `--shutdown` |  | `false` | Whether to shut down the VXC | false |
-| `--term` |  | `0` | Contract term in months (1, 12, 24, or 36) | false |
+| `--term` |  | `0` | Contract term in months (1, 12, 24, 36, 48, or 60) | false |
 

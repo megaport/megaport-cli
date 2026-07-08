@@ -56,7 +56,7 @@ func ValidateMCRASN(asn int64) error {
 //
 // Validation checks:
 //   - Name cannot be empty
-//   - Contract term must be valid (typically 1, 12, 24, or 36 months)
+//   - Contract term must be valid (typically 1, 12, 24, 36, 48, or 60 months)
 //   - Port speed must be one of the valid MCR port speeds
 //   - Location ID must be a positive integer
 //

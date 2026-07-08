@@ -1106,7 +1106,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			flags: map[string]string{
 				"name": "Test MCR",
 			},
-			expectedError: "Invalid contract term: 0 - must be one of: [1 12 24 36]",
+			expectedError: "Invalid contract term: 0 - must be one of: [1 12 24 36 48 60]",
 		},
 		{
 			name: "invalid term in flag mode",
@@ -1117,7 +1117,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 				"location-id": "123",
 				"mcr-asn":     "65000",
 			},
-			expectedError: "Invalid contract term: 13 - must be one of: [1 12 24 36]",
+			expectedError: "Invalid contract term: 13 - must be one of: [1 12 24 36 48 60]",
 		},
 		{
 			name: "invalid JSON",

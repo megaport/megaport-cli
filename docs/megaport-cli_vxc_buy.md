@@ -15,7 +15,7 @@ This command allows you to create a VXC by providing the necessary details.
   - `b-end-vlan`: VLAN for B-End (0=auto-assign, -1=untagged, 2-4094 for specific VLAN (1 is reserved))
   - `name`: Name of the VXC
   - `rate-limit`: Bandwidth in Mbps
-  - `term`: Contract term in months (1, 12, 24, or 36)
+  - `term`: Contract term in months (1, 12, 24, 36, 48, or 60)
 
 ### Optional Fields
   - `resource-tags`: Resource tags as a JSON string (e.g. {"key1":"value1","key2":"value2"})
@@ -94,6 +94,6 @@ megaport-cli vxc buy [flags]
 | `--resource-tags` |  |  | Resource tags as a JSON string (e.g. {"key1":"value1","key2":"value2"}) | false |
 | `--resource-tags-file` |  |  | Path to JSON file containing resource tags | false |
 | `--service-key` |  |  | Service key | false |
-| `--term` |  | `0` | Contract term in months (1, 12, 24, or 36) | true |
+| `--term` |  | `0` | Contract term in months (1, 12, 24, 36, 48, or 60) | true |
 | `--yes` | `-y` | `false` | Skip confirmation prompt for purchase | false |
 

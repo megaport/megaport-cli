@@ -12,7 +12,7 @@ This command allows you to update the details of an existing port by providing t
   - `cost-centre`: The cost centre for billing purposes
   - `marketplace-visibility`: Whether the port should be visible in the marketplace (true or false)
   - `name`: The new name of the port (1-64 characters)
-  - `term`: The new contract term in months (1, 12, 24, or 36)
+  - `term`: The new contract term in months (1, 12, 24, 36, 48, or 60)
 
 ### Important Notes
   - At least one update flag must be provided when not using --interactive, --json, or --json-file
@@ -57,5 +57,5 @@ megaport-cli ports update [flags]
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 | `--marketplace-visibility` |  | `false` | Whether the port is visible in marketplace | false |
 | `--name` |  |  | New port name | false |
-| `--term` |  | `0` | New contract term in months (1, 12, 24, or 36) | false |
+| `--term` |  | `0` | New contract term in months (1, 12, 24, 36, 48, or 60) | false |
 

@@ -12,8 +12,12 @@ import (
 
 var (
 	// ValidContractTerms lists the allowed contract term durations in months.
-	ValidContractTerms = []int{1, 12, 24, 36}
+	// Matches the SDK's VALID_CONTRACT_TERMS; see TestValidContractTermsMatchSDK.
+	ValidContractTerms = []int{1, 12, 24, 36, 48, 60}
 	// ValidMCRPortSpeeds lists the supported MCR port speeds in Mbps.
+	// Deliberately narrower than the SDK's VALID_MCR_PORT_SPEEDS: 400000 (400G) is
+	// not orderable for MCR today, only for physical ports. See
+	// TestValidMCRPortSpeedsSubsetOfSDK.
 	ValidMCRPortSpeeds = []int{1000, 2500, 5000, 10000, 25000, 50000, 100000}
 	// ValidPortSpeeds lists the supported port speeds in Mbps.
 	ValidPortSpeeds = []int{1000, 10000, 100000}
@@ -87,7 +91,7 @@ func FormatIntSlice(vals []int) string {
 //
 // Validation checks:
 //   - Term must be one of the predefined valid values (ValidContractTerms)
-//   - Typically valid values are 1, 12, 24, or 36 months
+//   - Typically valid values are 1, 12, 24, 36, 48, or 60 months
 //
 // Returns:
 //   - A ValidationError if the term is not valid

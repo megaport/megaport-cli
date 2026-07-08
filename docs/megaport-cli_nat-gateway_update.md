@@ -69,5 +69,5 @@ megaport-cli nat-gateway update [flags]
 | `--service-level-reference` |  |  | A service level reference | false |
 | `--session-count` |  | `0` | The new session count | false |
 | `--speed` |  | `0` | The new speed of the NAT Gateway in Mbps | false |
-| `--term` |  | `0` | The new contract term in months (1, 12, 24, or 36) | false |
+| `--term` |  | `0` | The new contract term in months (1, 12, 24, 36, 48, or 60) | false |
 
