@@ -51,6 +51,9 @@ func printTable[T OutputFields](data []T, noColor bool, opts printOptions) error
 
 	// In WASM, render into the global WasmTableWriter so the rendered table is
 	// available to the JS-accessible wasmTableOutput global that the web UI reads.
+	// An empty slice still renders a header-only table (native parity); any
+	// "No X found" warning is surfaced above it by GetCapturedOutput, which
+	// prepends the direct status buffer to the table output.
 	WasmTableWriter.Reset()
 	if err := printTableToWriter(WasmTableWriter, data, noColor, opts); err != nil {
 		return err

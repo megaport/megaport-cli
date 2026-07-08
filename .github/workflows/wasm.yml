@@ -40,6 +40,14 @@ jobs:
         run: |
           export PATH="$PATH:$(go env GOROOT)/lib/wasm"
           GOOS=js GOARCH=wasm go test -v -tags js,wasm ./internal/wasm
+      - name: Run WASM output-priority regression tests
+        # The TestGetCapturedOutput_* tests only touch JS globals + buffers, so
+        # they run fine under node even though the rest of this package needs a
+        # browser host. Without this step the regression coverage runs nowhere.
+        run: |
+          export PATH="$PATH:$(go env GOROOT)/lib/wasm"
+          GOOS=js GOARCH=wasm go test -v -tags js,wasm \
+            -run 'TestGetCapturedOutput' ./internal/base/output
       - name: Run WASM fetch-transport unit tests
         # The wasmhttp tests mock the global fetch and need only Promise /
         # AbortController / AbortSignal, all present in the node runtime, so

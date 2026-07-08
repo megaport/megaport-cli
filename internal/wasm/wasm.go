@@ -449,13 +449,18 @@ func GetCapturedOutput() string {
 	structured := readStructuredOutputs()
 
 	// Priority order: JSON > CSV > XML > table > direct > stdout/stderr combined.
+	// JSON/CSV/XML are returned as a clean data-only stream (native routes these to
+	// stdout with status messages on stderr). In table mode we prepend the direct
+	// buffer (PrintInfo/PrintWarning/PrintSuccess/PrintPlain) so status lines aren't
+	// shadowed by the table, matching native's separate stderr/stdout streams.
 	finalOutput, outputSource := structured.pick()
-	if finalOutput == "" {
-		if direct != "" {
-			finalOutput, outputSource = direct, "direct buffer"
-		} else {
-			finalOutput, outputSource = out+errStr, "combined stdout/stderr"
-		}
+	switch {
+	case outputSource == "table buffer":
+		finalOutput = direct + finalOutput
+	case finalOutput == "" && direct != "":
+		finalOutput, outputSource = direct, "direct buffer"
+	case finalOutput == "":
+		finalOutput, outputSource = out+errStr, "combined stdout/stderr"
 	}
 
 	if debugMode.Load() {
