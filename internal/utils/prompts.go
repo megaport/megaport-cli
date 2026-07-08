@@ -16,9 +16,9 @@ var promptFuncMu sync.RWMutex
 var promptFn = func(msg string, noColor bool) (string, error) {
 	if !noColor {
 		// Add contextual icon and use Megaport's red
-		fmt.Print(color.New(color.FgHiRed, color.Bold).Sprint("❯ " + msg + " "))
+		fmt.Fprint(os.Stderr, color.New(color.FgHiRed, color.Bold).Sprint("❯ "+msg+" "))
 	} else {
-		fmt.Print("❯ " + msg + " ")
+		fmt.Fprint(os.Stderr, "❯ "+msg+" ")
 	}
 
 	reader := bufio.NewReader(os.Stdin)
@@ -34,10 +34,10 @@ var confirmPromptFn = func(question string, noColor bool) bool {
 
 	if !noColor {
 		// Add warning icon for confirmation prompts
-		fmt.Print(color.New(color.FgHiRed).Sprint("⚠️  " + question + " "))
-		fmt.Print(color.New(color.FgHiWhite, color.Bold).Sprint("[y/N]") + " ")
+		fmt.Fprint(os.Stderr, color.New(color.FgHiRed).Sprint("⚠️  "+question+" "))
+		fmt.Fprint(os.Stderr, color.New(color.FgHiWhite, color.Bold).Sprint("[y/N]")+" ")
 	} else {
-		fmt.Printf("⚠️  %s [y/N] ", question)
+		fmt.Fprintf(os.Stderr, "⚠️  %s [y/N] ", question)
 	}
 
 	_, err := fmt.Scanln(&response)
@@ -71,19 +71,19 @@ var designConfirmPromptFn = func(resourceType string, details []BuyConfirmDetail
 }
 
 func printConfirmSummary(header, resourceType string, details []BuyConfirmDetail, question string, noColor bool) bool {
-	fmt.Println()
+	fmt.Fprintln(os.Stderr)
 	if !noColor {
-		fmt.Println(color.New(color.FgHiWhite, color.Bold).Sprint(header))
+		fmt.Fprintln(os.Stderr, color.New(color.FgHiWhite, color.Bold).Sprint(header))
 	} else {
-		fmt.Println(header)
+		fmt.Fprintln(os.Stderr, header)
 	}
-	fmt.Printf("  Resource Type: %s\n", resourceType)
+	fmt.Fprintf(os.Stderr, "  Resource Type: %s\n", resourceType)
 	for _, d := range details {
 		if d.Value != "" {
-			fmt.Printf("  %s: %s\n", d.Key, d.Value)
+			fmt.Fprintf(os.Stderr, "  %s: %s\n", d.Key, d.Value)
 		}
 	}
-	fmt.Println()
+	fmt.Fprintln(os.Stderr)
 	return ConfirmPrompt(question, noColor)
 }
 
@@ -104,9 +104,9 @@ var resourcePromptFn = func(resourceType string, msg string, noColor bool) (stri
 	}
 
 	if !noColor {
-		fmt.Print(color.New(color.FgHiRed, color.Bold).Sprint(icon + " " + msg + " "))
+		fmt.Fprint(os.Stderr, color.New(color.FgHiRed, color.Bold).Sprint(icon+" "+msg+" "))
 	} else {
-		fmt.Print(icon + " " + msg + " ")
+		fmt.Fprint(os.Stderr, icon+" "+msg+" ")
 	}
 
 	reader := bufio.NewReader(os.Stdin)
@@ -125,9 +125,9 @@ var secretResourcePromptFn = func(resourceType string, msg string, noColor bool)
 	icon := "🔐"
 
 	if !noColor {
-		fmt.Print(color.New(color.FgHiRed, color.Bold).Sprint(icon + " " + msg + " "))
+		fmt.Fprint(os.Stderr, color.New(color.FgHiRed, color.Bold).Sprint(icon+" "+msg+" "))
 	} else {
-		fmt.Print(icon + " " + msg + " ")
+		fmt.Fprint(os.Stderr, icon+" "+msg+" ")
 	}
 
 	reader := bufio.NewReader(os.Stdin)
@@ -149,7 +149,7 @@ var resourceTagsPromptFn = func(noColor bool) (map[string]string, error) {
 	}
 
 	tags := make(map[string]string)
-	fmt.Println("Enter tags (key and value). Enter empty key to finish.")
+	fmt.Fprintln(os.Stderr, "Enter tags (key and value). Enter empty key to finish.")
 
 	for {
 		// Prompt for tag key
@@ -173,9 +173,9 @@ var resourceTagsPromptFn = func(noColor bool) (map[string]string, error) {
 	}
 
 	if len(tags) > 0 {
-		fmt.Println("Tags added:")
+		fmt.Fprintln(os.Stderr, "Tags added:")
 		for k, v := range tags {
-			fmt.Printf("  %s: %s\n", k, v)
+			fmt.Fprintf(os.Stderr, "  %s: %s\n", k, v)
 		}
 	}
 
@@ -185,19 +185,19 @@ var resourceTagsPromptFn = func(noColor bool) (map[string]string, error) {
 var updateResourceTagsPromptFn = func(existingTags map[string]string, noColor bool) (map[string]string, error) {
 	// Display warning about replacing tags
 	if !noColor {
-		fmt.Println(color.New(color.FgHiYellow).Sprint("⚠️  Warning: This operation will replace all existing tags with the new set of tags you define."))
+		fmt.Fprintln(os.Stderr, color.New(color.FgHiYellow).Sprint("⚠️  Warning: This operation will replace all existing tags with the new set of tags you define."))
 	} else {
-		fmt.Println("⚠️  Warning: This operation will replace all existing tags with the new set of tags you define.")
+		fmt.Fprintln(os.Stderr, "⚠️  Warning: This operation will replace all existing tags with the new set of tags you define.")
 	}
 
 	// Show existing tags if any
 	if len(existingTags) > 0 {
-		fmt.Println("Current tags:")
+		fmt.Fprintln(os.Stderr, "Current tags:")
 		for k, v := range existingTags {
-			fmt.Printf("  %s: %s\n", k, v)
+			fmt.Fprintf(os.Stderr, "  %s: %s\n", k, v)
 		}
 	} else {
-		fmt.Println("No existing tags found.")
+		fmt.Fprintln(os.Stderr, "No existing tags found.")
 	}
 
 	// Ask if they want to proceed
@@ -208,9 +208,9 @@ var updateResourceTagsPromptFn = func(existingTags map[string]string, noColor bo
 
 	// Options for common tag operations
 	if len(existingTags) > 0 {
-		fmt.Println("\nChoose how you want to update tags:")
-		fmt.Println("1. Start with a clean slate (remove all existing tags)")
-		fmt.Println("2. Start with existing tags and modify them")
+		fmt.Fprintln(os.Stderr, "\nChoose how you want to update tags:")
+		fmt.Fprintln(os.Stderr, "1. Start with a clean slate (remove all existing tags)")
+		fmt.Fprintln(os.Stderr, "2. Start with existing tags and modify them")
 
 		choice, err := Prompt("Enter choice (1 or 2):", noColor)
 		if err != nil {
@@ -226,14 +226,14 @@ var updateResourceTagsPromptFn = func(existingTags map[string]string, noColor bo
 			}
 
 			// Allow modifying existing tags
-			fmt.Println("\nYou can now modify, add, or remove tags.")
-			fmt.Println("To remove a tag, enter its key and an empty value.")
+			fmt.Fprintln(os.Stderr, "\nYou can now modify, add, or remove tags.")
+			fmt.Fprintln(os.Stderr, "To remove a tag, enter its key and an empty value.")
 		} else if choice != "1" {
 			return nil, fmt.Errorf("invalid choice: %s", choice)
 		}
 
 		// Now prompt for new/updated tags
-		fmt.Println("\nEnter tags (key and value). Enter empty key to finish.")
+		fmt.Fprintln(os.Stderr, "\nEnter tags (key and value). Enter empty key to finish.")
 		for {
 			// Prompt for tag key
 			key, err := Prompt("Tag key:", noColor)
@@ -255,20 +255,20 @@ var updateResourceTagsPromptFn = func(existingTags map[string]string, noColor bo
 			// Empty value means remove the tag
 			if value == "" && tags[key] != "" {
 				delete(tags, key)
-				fmt.Printf("  Removed tag: %s\n", key)
+				fmt.Fprintf(os.Stderr, "  Removed tag: %s\n", key)
 			} else if value != "" {
 				tags[key] = value
-				fmt.Printf("  Updated tag: %s: %s\n", key, value)
+				fmt.Fprintf(os.Stderr, "  Updated tag: %s: %s\n", key, value)
 			}
 		}
 
-		fmt.Println("\nFinal tags that will be applied:")
+		fmt.Fprintln(os.Stderr, "\nFinal tags that will be applied:")
 		if len(tags) > 0 {
 			for k, v := range tags {
-				fmt.Printf("  %s: %s\n", k, v)
+				fmt.Fprintf(os.Stderr, "  %s: %s\n", k, v)
 			}
 		} else {
-			fmt.Println("  No tags - all existing tags will be removed")
+			fmt.Fprintln(os.Stderr, "  No tags - all existing tags will be removed")
 		}
 
 		// Final confirmation

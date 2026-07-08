@@ -2,6 +2,7 @@ package mve
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -370,7 +371,7 @@ func promptMVEVendorConfig(vendorStr string, imageID int, productSize string, mv
 func promptMVEVnics(noColor bool) ([]megaport.MVENetworkInterface, error) {
 	vnics := []megaport.MVENetworkInterface{}
 	for {
-		fmt.Println("\nEnter VNIC details (leave description empty to finish):")
+		fmt.Fprintln(os.Stderr, "\nEnter VNIC details (leave description empty to finish):")
 		description, err := utils.ResourcePrompt("mve", "Enter VNIC description: ", noColor)
 		if err != nil {
 			return nil, err
