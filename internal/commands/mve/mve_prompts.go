@@ -97,6 +97,7 @@ func promptMVEBaseDetails(noColor bool) (*megaport.BuyMVERequest, string, int, s
 	if vendorStr == "" {
 		return nil, "", 0, "", "", fmt.Errorf("vendor is required")
 	}
+	vendorStr = validation.NormalizeMVEVendor(vendorStr)
 
 	imageIDStr, err := utils.ResourcePrompt("mve", "Enter image ID (required): ", noColor)
 	if err != nil {
@@ -114,6 +115,7 @@ func promptMVEBaseDetails(noColor bool) (*megaport.BuyMVERequest, string, int, s
 	if productSize == "" {
 		return nil, "", 0, "", "", fmt.Errorf("product size is required")
 	}
+	productSize = validation.NormalizeMVEProductSize(strings.ToUpper(productSize))
 
 	mveLabel, err := utils.ResourcePrompt("mve", "Enter MVE label (optional): ", noColor)
 	if err != nil {

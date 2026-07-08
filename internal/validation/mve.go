@@ -41,6 +41,12 @@ func NormalizeMVEProductSize(size string) string {
 	return size
 }
 
+// NormalizeMVEVendor converts a vendor name to the canonical lowercase form
+// used by ValidMVEVendors and ParseVendorConfig's vendor dispatch.
+func NormalizeMVEVendor(vendor string) string {
+	return strings.ToLower(vendor)
+}
+
 // ValidateMVEProductSize validates the product size for an MVE (Megaport Virtual Edge) instance.
 // This function ensures the specified size is among the allowed values for MVE deployments.
 //
@@ -190,7 +196,7 @@ func ValidateMVERequest(name string, term int, locationID int) error {
 //   - A ValidationError if the vendor is not supported
 //   - nil if the validation passes
 func ValidateMVEVendor(vendor string) error {
-	normalizedVendor := strings.ToLower(vendor)
+	normalizedVendor := NormalizeMVEVendor(vendor)
 	for _, validVendor := range ValidMVEVendors {
 		if normalizedVendor == validVendor {
 			return nil

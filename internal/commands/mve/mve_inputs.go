@@ -3,6 +3,7 @@ package mve
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
@@ -91,6 +92,12 @@ func processJSONBuyMVEInput(jsonStr, jsonFilePath string) (*megaport.BuyMVEReque
 			if vlan, present, err := utils.JSONNumber(vnicMap, "vlan"); err != nil {
 				return nil, fmt.Errorf("vnics[%d] %w", i, err)
 			} else if present {
+				if vlan != math.Trunc(vlan) || vlan < math.MinInt32 || vlan > math.MaxInt32 {
+					return nil, fmt.Errorf("vnics[%d] vlan must be an integer", i)
+				}
+				if err := validation.ValidateVLAN(int(vlan)); err != nil {
+					return nil, fmt.Errorf("vnics[%d] %w", i, err)
+				}
 				vnic.VLAN = int(vlan)
 			}
 
@@ -151,20 +158,32 @@ func processFlagBuyMVEInput(cmd *cobra.Command) (*megaport.BuyMVERequest, error)
 		}
 
 		vnics = make([]megaport.MVENetworkInterface, 0, len(vnicsData))
-		for _, vnicData := range vnicsData {
-			if vnicMap, ok := vnicData.(map[string]interface{}); ok {
-				vnic := megaport.MVENetworkInterface{}
-
-				if description, ok := vnicMap["description"].(string); ok {
-					vnic.Description = description
-				}
-
-				if vlan, ok := vnicMap["vlan"].(float64); ok {
-					vnic.VLAN = int(vlan)
-				}
-
-				vnics = append(vnics, vnic)
+		for i, vnicData := range vnicsData {
+			vnicMap, ok := vnicData.(map[string]interface{})
+			if !ok {
+				return nil, fmt.Errorf("vnics[%d] must be an object", i)
 			}
+			vnic := megaport.MVENetworkInterface{}
+
+			if description, present, err := utils.JSONString(vnicMap, "description"); err != nil {
+				return nil, fmt.Errorf("vnics[%d] %w", i, err)
+			} else if present {
+				vnic.Description = description
+			}
+
+			if vlan, present, err := utils.JSONNumber(vnicMap, "vlan"); err != nil {
+				return nil, fmt.Errorf("vnics[%d] %w", i, err)
+			} else if present {
+				if vlan != math.Trunc(vlan) || vlan < math.MinInt32 || vlan > math.MaxInt32 {
+					return nil, fmt.Errorf("vnics[%d] vlan must be an integer", i)
+				}
+				if err := validation.ValidateVLAN(int(vlan)); err != nil {
+					return nil, fmt.Errorf("vnics[%d] %w", i, err)
+				}
+				vnic.VLAN = int(vlan)
+			}
+
+			vnics = append(vnics, vnic)
 		}
 	}
 
