@@ -29,14 +29,41 @@ func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	ctx, cancel, client, err := utils.LoginClient(cmd, utils.DefaultMutationTimeout, config.Login)
+	usingJSON := jsonStr != "" || jsonFile != ""
+	if !usingJSON && !flagsProvided && !interactive {
+		return fmt.Errorf("at least one field must be updated")
+	}
+
+	ctx, cancel := utils.ContextFromCmdWithDefault(cmd, utils.DefaultMutationTimeout)
+	defer cancel()
+
+	// Build and validate flag/JSON input before any network round-trip so
+	// malformed input fails fast. Interactive prompts need the port's current
+	// values, so they are built after login below.
+	var req *megaport.ModifyPortRequest
+	var costCentreProvided bool
+	var err error
+
+	if usingJSON {
+		output.PrintInfo("Using JSON input", noColor)
+		req, costCentreProvided, err = processJSONUpdatePortInput(jsonStr, jsonFile)
+		if err != nil {
+			return fmt.Errorf("failed to process input: %w", err)
+		}
+		req.PortID = portUID
+	} else if flagsProvided {
+		output.PrintInfo("Using flag input", noColor)
+		req, costCentreProvided, err = processFlagUpdatePortInput(cmd, portUID)
+		if err != nil {
+			return fmt.Errorf("failed to process input: %w", err)
+		}
+	}
+
+	client, err := config.Login(ctx)
 	if err != nil {
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
-	defer cancel()
-
-	var req *megaport.ModifyPortRequest
 
 	getSpinner := output.PrintResourceGetting("Port", portUID, noColor)
 
@@ -49,27 +76,19 @@ func UpdatePort(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	if interactive {
-		output.PrintInfo("Starting interactive mode", noColor)
-		req, err = promptForUpdatePortDetails(portUID, noColor)
-	} else if jsonStr != "" || jsonFile != "" {
-		output.PrintInfo("Using JSON input", noColor)
-		req, err = processJSONUpdatePortInput(jsonStr, jsonFile)
-		if err == nil {
-			req.PortID = portUID
-		}
-	} else if flagsProvided {
-		output.PrintInfo("Using flag input", noColor)
-		req, err = processFlagUpdatePortInput(cmd, portUID)
-		if err != nil {
-			return err
-		}
-	} else {
-		return fmt.Errorf("at least one field must be updated")
+	var currentCostCentre string
+	if originalPort != nil {
+		currentCostCentre = originalPort.CostCentre
 	}
 
-	if err != nil {
-		return fmt.Errorf("failed to process input: %w", err)
+	if interactive {
+		output.PrintInfo("Starting interactive mode", noColor)
+		req, err = promptForUpdatePortDetails(portUID, currentCostCentre, noColor)
+		if err != nil {
+			return fmt.Errorf("failed to process input: %w", err)
+		}
+	} else if !costCentreProvided {
+		req.CostCentre = currentCostCentre
 	}
 
 	req.WaitForUpdate = true

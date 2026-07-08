@@ -71,6 +71,31 @@ token, or API proxy.
 Credentials and tokens live only in browser memory and are cleared on reload or when the
 page calls `clearAuthCredentials`.
 
+## JavaScript API
+
+The WASM binary exposes command execution on `window`:
+
+```javascript
+window.executeMegaportCommandAsync(command, callback)
+```
+
+- `command` - full command string, e.g. `"port list --output json"`
+- `callback` - called once with the result: `{ output?: string, error?: string }`
+
+This is the only supported entrypoint for running commands. Execution has to be
+asynchronous: a synchronous call would block the JS event loop while the CLI waits on the
+browser's fetch-based transport, hanging the tab until the request times out. Internally,
+`executeMegaportCommandAsync` runs the command on a goroutine and serializes access to the
+shared output buffers so concurrent calls don't race each other.
+
+`window.executeMegaportCommand` (no `Async` suffix) is a deprecated stub kept for one
+release as a soft landing for hosts still detecting or calling it. It performs no work and
+always returns `{ error: "synchronous execution is not supported; use executeMegaportCommandAsync" }`.
+It will be removed in a future release; new integrations should not call it.
+
+Full type definitions for the whole JS surface (auth, config file, prompts, telemetry)
+live in [`frontend-integration/types/megaport-wasm.d.ts`](frontend-integration/types/megaport-wasm.d.ts).
+
 ## Interactive Mode
 
 Some commands prompt for input (interactive `buy`/`update` flows, confirmations, secrets).
@@ -80,15 +105,10 @@ receive a response.
 
 ### Async entrypoint is required
 
-Run any command that may prompt through **`executeMegaportCommandAsync(command, callback)`**,
-never the legacy synchronous **`executeMegaportCommand(command)`**.
-
-The sync entrypoint runs the command inline on the JS→WASM call, so a prompt would block
-the event loop and the host could never deliver a response. Under the sync entrypoint the
-CLI no longer hangs on a prompt: a command that prompts for a value (text, password, or
-resource input) fails fast with an error telling you to use the async entrypoint, and a
-yes/no confirmation is treated as declined. Either way, run interactive commands through
-the async entrypoint so prompts work as intended.
+Run any command that may prompt through **`executeMegaportCommandAsync(command, callback)`**.
+The legacy synchronous **`executeMegaportCommand(command)`** is retired: it runs no command
+at all and always returns `{ error: "synchronous execution is not supported; use
+executeMegaportCommandAsync" }`. Use the async entrypoint so prompts work as intended.
 
 ### Host functions
 

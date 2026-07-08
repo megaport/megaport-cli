@@ -105,6 +105,7 @@ const {
   execute,
   setAuth,
   registerPromptHandler,
+  registerOutputHandler,
   activeSpinners,
 } = useMegaportWASM({
   wasmPath: props.wasmPath,
@@ -124,6 +125,7 @@ let activePrompt: { id: string; resolve: (value: string) => void } | null =
   null;
 let promptInputBuffer = '';
 let isInInteractiveCommand = false; // Track if we're in an interactive command session
+let receivedStreamedOutput = false; // Whether the current command streamed any output
 let resizeTimeoutId: NodeJS.Timeout | null = null; // For debouncing resize
 
 /**
@@ -187,6 +189,32 @@ const setupPromptHandler = () => {
     console.log('✅ activePrompt set:', activePrompt.id);
 
     promptInputBuffer = '';
+  });
+};
+
+/**
+ * Register live output handler.
+ *
+ * Each chunk of narrative output (progress, echoes, warnings, validation
+ * errors) is written to the terminal as the command produces it, so
+ * interactive flows read as a conversation instead of a silent wait. Chunks
+ * use `\n` line endings, which xterm needs written as `\r\n`.
+ *
+ * When a handler is registered the narrative is delivered here and is not
+ * repeated in the command result, so executeCommand only renders the
+ * structured document (table/JSON) that the result still carries.
+ */
+const setupOutputHandler = () => {
+  if (!registerOutputHandler || typeof registerOutputHandler !== 'function') {
+    console.warn(
+      'registerOutputHandler not available - WASM may not be initialized'
+    );
+    return;
+  }
+  registerOutputHandler((chunk: string) => {
+    if (!terminal || !chunk) return;
+    receivedStreamedOutput = true;
+    terminal.write(chunk.replace(/\n/g, '\r\n'));
   });
 };
 
@@ -573,8 +601,14 @@ const executeCommand = async (command: string) => {
       terminal.write('\x1b[90mExecuting...\x1b[0m\r\n');
     }
 
+    // Narrative output streams live via the output handler; reset the tracker
+    // so we can tell whether anything was streamed for this command.
+    receivedStreamedOutput = false;
+
     const result = await execute(command);
 
+    // With the output handler registered, result.output holds only the
+    // structured document (table/JSON/CSV/XML) — the narrative already streamed.
     if (result.error) {
       terminal.write(`\x1b[31mError: ${result.error}\x1b[0m\r\n`);
     } else if (result.output) {
@@ -616,8 +650,8 @@ const executeCommand = async (command: string) => {
           }
         });
       }
-    } else if (!isInteractive) {
-      // Only show "no output" message for non-interactive commands
+    } else if (!isInteractive && !receivedStreamedOutput) {
+      // Only show "no output" when nothing was streamed and there is no result
       terminal.write('\x1b[90mCommand completed with no output\x1b[0m\r\n');
     }
   } catch (err) {
@@ -654,6 +688,7 @@ onMounted(() => {
       clearInterval(checkReady);
       initTerminal(); // Now async but we don't need to await
       setupPromptHandler(); // Register inline prompt handler
+      setupOutputHandler(); // Register live output streaming handler
     }
   }, 100);
 

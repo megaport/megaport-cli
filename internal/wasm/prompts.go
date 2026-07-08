@@ -10,6 +10,12 @@ import (
 	"time"
 )
 
+// CommandTimeout is the maximum duration an async CLI command may run (see
+// main_wasm.go's asyncCommandTimeout) and the ceiling PromptForInput waits
+// for a single prompt response. The two must stay equal: a shorter prompt
+// timeout would fail an interactive command before its own budget expires.
+const CommandTimeout = 10 * time.Minute
+
 var (
 	// promptCallback is the JavaScript function to call when prompting for input.
 	// Protected by promptCallbackMu.
@@ -23,37 +29,11 @@ var (
 	// promptCounter generates unique IDs for each prompt
 	promptCounter atomic.Int64
 
-	// syncExecutionDepth is > 0 while a command runs under the legacy synchronous
-	// entrypoint. Prompting there blocks the JS event loop, which can never
-	// deliver a response, so PromptForInput fails fast instead of deadlocking.
-	// It is process-global: mixing sync and async execution is unsupported (the
-	// docs tell integrators to always use the async entrypoint), and it fails
-	// safe: a stray rejection errors out rather than deadlocking.
-	syncExecutionDepth atomic.Int32
+	// promptTimeout is the effective per-prompt wait ceiling. It defaults to
+	// CommandTimeout but is a var (rather than using CommandTimeout directly)
+	// so tests can shrink it instead of waiting out the full command budget.
+	promptTimeout = CommandTimeout
 )
-
-// BeginSyncExecution marks the start of a synchronous command execution so that
-// any prompt request fails fast rather than deadlocking the JS event loop.
-func BeginSyncExecution() {
-	syncExecutionDepth.Add(1)
-}
-
-// EndSyncExecution marks the end of a synchronous command execution. It clamps
-// at 0 so a stray or duplicate call can't drive the counter negative, which
-// would let a subsequent BeginSyncExecution leave prompting incorrectly
-// enabled under the sync entrypoint.
-func EndSyncExecution() {
-	for {
-		cur := syncExecutionDepth.Load()
-		next := cur - 1
-		if next < 0 {
-			next = 0
-		}
-		if syncExecutionDepth.CompareAndSwap(cur, next) {
-			return
-		}
-	}
-}
 
 // PromptRequest represents a pending prompt waiting for user input
 type PromptRequest struct {
@@ -82,10 +62,6 @@ func RegisterPromptCallback(callback js.Value) {
 // PromptForInput requests input from the user via JavaScript
 // This function blocks until the JavaScript side provides a response
 func PromptForInput(message string, promptType string, resourceType string) (string, error) {
-	if syncExecutionDepth.Load() > 0 {
-		return "", fmt.Errorf("interactive mode requires the async entrypoint: run this command through executeMegaportCommandAsync, not the synchronous executeMegaportCommand, which cannot deliver prompt responses")
-	}
-
 	promptCallbackMu.RLock()
 	cb := promptCallback
 	promptCallbackMu.RUnlock()
@@ -127,7 +103,12 @@ func PromptForInput(message string, promptType string, resourceType string) (str
 		"resourceType": resourceType,
 	})
 
-	// Wait for response with timeout
+	// Wait for response with timeout. A stoppable timer (rather than time.After)
+	// is stopped as soon as a response/error arrives so it isn't left running in
+	// the runtime's timer heap for up to promptTimeout on every answered prompt.
+	timer := time.NewTimer(promptTimeout)
+	defer timer.Stop()
+
 	select {
 	case response := <-responseChan:
 		// Clean up
@@ -147,13 +128,13 @@ func PromptForInput(message string, promptType string, resourceType string) (str
 		js.Global().Get("console").Call("error", fmt.Sprintf("❌ Error for %s: %v", promptID, err))
 		return "", err
 
-	case <-time.After(5 * time.Minute):
+	case <-timer.C:
 		// Timeout
 		pendingMutex.Lock()
 		delete(pendingPrompts, promptID)
 		pendingMutex.Unlock()
 
-		return "", fmt.Errorf("prompt timeout: no response received")
+		return "", fmt.Errorf("prompt timeout: no response received after %s; the host can cancel a pending prompt via cancelPrompt", promptTimeout)
 	}
 }
 

@@ -120,18 +120,22 @@ func processFlagMCRInput(cmd *cobra.Command) (*megaport.BuyMCRRequest, error) {
 	return req, nil
 }
 
-func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRRequest, error) {
+// Builds and validates the request without any network round-trip so bad input
+// fails fast. The bool reports whether the caller supplied costCentre: the SDK
+// sends it without omitempty, so the caller re-sends the current value when this
+// is false to avoid wiping it (an explicit empty value still clears it).
+func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRRequest, bool, error) {
 	var jsonData []byte
 	var err error
 
 	jsonData, err = utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	var jsonMap map[string]interface{}
 	if err := json.Unmarshal(jsonData, &jsonMap); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, false, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	updateFields := []string{"name", "costCentre", "marketplaceVisibility", "contractTermMonths", "mcrAsn"}
@@ -144,26 +148,26 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 	}
 
 	if !anyFieldUpdated {
-		return nil, fmt.Errorf("at least one field must be updated")
+		return nil, false, fmt.Errorf("at least one field must be updated")
 	}
 
 	req := &megaport.ModifyMCRRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, false, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	if _, nameProvided := jsonMap["name"]; nameProvided && req.Name == "" {
-		return nil, fmt.Errorf("name cannot be empty if provided")
+		return nil, false, fmt.Errorf("name cannot be empty if provided")
 	}
 
 	if term, provided := jsonMap["contractTermMonths"]; provided {
 		if req.ContractTermMonths == nil {
-			return nil, fmt.Errorf("invalid contract term: null value")
+			return nil, false, fmt.Errorf("invalid contract term: null value")
 		}
 
 		termFloat, ok := term.(float64)
 		if !ok {
-			return nil, fmt.Errorf("invalid contract term type: must be a number")
+			return nil, false, fmt.Errorf("invalid contract term type: must be a number")
 		}
 
 		// Note: fractional values (e.g. 12.5) are already rejected by the
@@ -171,23 +175,24 @@ func processJSONUpdateMCRInput(jsonStr, jsonFile string) (*megaport.ModifyMCRReq
 		// check math.Trunc here.
 		termValue := int(termFloat)
 		if err := validation.ValidateContractTerm(termValue); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 	}
 
 	if _, provided := jsonMap["mcrAsn"]; provided {
 		if req.MCRAsn == nil {
-			return nil, fmt.Errorf("invalid MCR ASN: null value")
+			return nil, false, fmt.Errorf("invalid MCR ASN: null value")
 		}
 		if err := validation.ValidateMCRASN(int64(*req.MCRAsn)); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 	}
 
-	return req, nil
+	_, costCentreProvided := jsonMap["costCentre"]
+	return req, costCentreProvided, nil
 }
 
-func processFlagUpdateMCRInput(cmd *cobra.Command, mcrUID string) (*megaport.ModifyMCRRequest, error) {
+func processFlagUpdateMCRInput(cmd *cobra.Command, mcrUID string) (*megaport.ModifyMCRRequest, bool, error) {
 	req := &megaport.ModifyMCRRequest{
 		MCRID: mcrUID,
 	}
@@ -199,13 +204,13 @@ func processFlagUpdateMCRInput(cmd *cobra.Command, mcrUID string) (*megaport.Mod
 	mcrAsnSet := cmd.Flags().Changed("mcr-asn")
 
 	if !nameSet && !costCentreSet && !marketplaceVisibilitySet && !termSet && !mcrAsnSet {
-		return nil, fmt.Errorf("at least one field must be updated")
+		return nil, false, fmt.Errorf("at least one field must be updated")
 	}
 
 	if nameSet {
 		name, _ := cmd.Flags().GetString("name")
 		if name == "" {
-			return nil, fmt.Errorf("name cannot be empty if provided")
+			return nil, false, fmt.Errorf("name cannot be empty if provided")
 		}
 		req.Name = name
 	}
@@ -223,7 +228,7 @@ func processFlagUpdateMCRInput(cmd *cobra.Command, mcrUID string) (*megaport.Mod
 	if termSet {
 		term, _ := cmd.Flags().GetInt("term")
 		if err := validation.ValidateContractTerm(term); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		req.ContractTermMonths = &term
 	}
@@ -231,12 +236,12 @@ func processFlagUpdateMCRInput(cmd *cobra.Command, mcrUID string) (*megaport.Mod
 	if mcrAsnSet {
 		asn, _ := cmd.Flags().GetInt("mcr-asn")
 		if err := validation.ValidateMCRASN(int64(asn)); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		req.MCRAsn = &asn
 	}
 
-	return req, nil
+	return req, costCentreSet, nil
 }
 
 func processJSONPrefixFilterListInput(jsonStr, jsonFile string, mcrUID string) (*megaport.CreateMCRPrefixFilterListRequest, error) {

@@ -191,11 +191,28 @@ func TestPromptForUpdatePortDetails_Success(t *testing.T) {
 		"24",           // term
 	}))
 
-	req, err := promptForUpdatePortDetails("port-123", true)
+	req, err := promptForUpdatePortDetails("port-123", "", true)
 	assert.NoError(t, err)
 	assert.Equal(t, "Updated Name", req.Name)
 	assert.Equal(t, "IT-Updated", req.CostCentre)
 	assert.Equal(t, "port-123", req.PortID)
+}
+
+func TestPromptForUpdatePortDetails_CostCentrePreserved(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	// name set, cost centre left blank (skip) so the current value is kept.
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"Updated Name", // name
+		"",             // marketplaceVisibility
+		"",             // costCentre (skipped)
+		"",             // term
+	}))
+
+	req, err := promptForUpdatePortDetails("port-123", "IT Dept", true)
+	assert.NoError(t, err)
+	assert.Equal(t, "IT Dept", req.CostCentre)
 }
 
 func TestPromptForUpdatePortDetails_NoChanges(t *testing.T) {
@@ -204,7 +221,7 @@ func TestPromptForUpdatePortDetails_NoChanges(t *testing.T) {
 
 	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", "", ""}))
 
-	_, err := promptForUpdatePortDetails("port-123", true)
+	_, err := promptForUpdatePortDetails("port-123", "", true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "at least one field must be updated")
 }
@@ -215,7 +232,7 @@ func TestPromptForUpdatePortDetails_InvalidTermNotNumeric(t *testing.T) {
 
 	utils.SetResourcePrompt(mockPromptSequence([]string{"Updated Name", "true", "IT-Updated", "abc"}))
 
-	_, err := promptForUpdatePortDetails("port-123", true)
+	_, err := promptForUpdatePortDetails("port-123", "", true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid term")
 	assert.NotContains(t, err.Error(), "strconv")

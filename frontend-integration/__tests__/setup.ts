@@ -14,7 +14,6 @@ beforeEach(() => {
 
   // Mock window WASM functions
   (window as any).executeMegaportCommandAsync = vi.fn();
-  (window as any).executeMegaportCommand = vi.fn();
   (window as any).setAuthCredentials = vi.fn(() => ({ success: true }));
   (window as any).clearAuthCredentials = vi.fn(() => ({ success: true }));
   (window as any).resetWasmOutput = vi.fn();

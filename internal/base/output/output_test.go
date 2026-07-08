@@ -1,3 +1,5 @@
+//go:build !wasm
+
 package output
 
 import (
@@ -39,22 +41,6 @@ func extractJSON(s string) string {
 }
 
 var noColor = false
-
-type SimpleStruct struct {
-	ID     int    `json:"id" csv:"id" header:"ID"`
-	Name   string `json:"name" csv:"name" header:"Name"`
-	Active bool   `json:"active" csv:"active" header:"Active"`
-}
-
-type ComplexStruct struct {
-	ID        int               `json:"id" csv:"id" header:"ID"`
-	Name      string            `json:"name" csv:"name" header:"Name"`
-	Created   time.Time         `json:"created" csv:"created" header:"Created"`
-	Tags      []string          `json:"tags" csv:"tags" header:"Tags"`
-	Metadata  map[string]string `json:"metadata" csv:"metadata" header:"Metadata"`
-	Reference *SimpleStruct     `json:"reference" csv:"reference" header:"Reference"`
-	Ignored   int               `json:"-" csv:"-" header:"-"`
-}
 
 type CustomTagStruct struct {
 	ID   int    `json:"id" csv:"csv_id" header:"Custom ID"`

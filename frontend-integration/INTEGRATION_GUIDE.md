@@ -166,6 +166,44 @@ onUserLogout(() => {
           └──────────────────────┘
 ```
 
+## Output Streaming
+
+Command narrative (progress lines, echoes, warnings, validation errors) streams
+to the host as the command runs, instead of arriving only when it completes.
+Register a handler with `registerOutputHandler(callback)`; the callback is
+invoked with each output chunk as it is written.
+
+```typescript
+const { registerOutputHandler } = useMegaportWASM();
+
+registerOutputHandler((chunk) => {
+  // Chunks use `\n` line endings; xterm needs `\r\n`.
+  terminal.write(chunk.replace(/\n/g, '\r\n'));
+});
+```
+
+**Completion contract (avoid double-rendering).** When an output handler is
+registered:
+
+- Narrative output is delivered live through the handler and is **not** repeated
+  in the `execute()` result.
+- The result's `output` then carries **only** structured document output
+  (JSON/CSV/XML/table), or is empty when the command produced only streamed
+  narrative.
+- So render the streamed chunks as they arrive, and render `result.output`
+  (the structured document) once at completion. Do not render both for the same
+  content.
+
+Exception: if the handler throws or delivers nothing, the WASM side disables
+streaming for the rest of that command and `result.output` falls back to the
+full captured narrative, so already-streamed chunks may appear there too. This
+keeps output from being lost when a handler misbehaves.
+
+When no handler is registered, `result.output` falls back to the full captured
+output at completion, preserving the original non-streaming behavior.
+
+`MegaportTerminal.vue` implements this pattern end-to-end.
+
 ## Integration Examples
 
 ### Admin CLI Page
@@ -279,11 +317,10 @@ you forget to wire up your own handler depends on how you drive the WASM:
 
 Once your own handler is registered, a prompt left unanswered times out after 5 minutes.
 
-**Always run interactive commands through `execute()`** (the composable prefers the async
-entrypoint under the hood). The legacy synchronous entrypoint runs the command inline and
-cannot deliver a prompt response. It no longer hangs: a command that prompts for a value
-fails fast with an "interactive mode requires the async entrypoint" error, and a yes/no
-confirmation is treated as declined. Neither is what you want, so keep to `execute()`.
+**Always run interactive commands through `execute()`** (the composable uses the async
+entrypoint under the hood). The legacy synchronous entrypoint is retired: it runs no
+command at all and always returns a "synchronous execution is not supported" error, so it
+can never deliver a prompt response. Keep to `execute()`.
 
 ### Lifecycle
 

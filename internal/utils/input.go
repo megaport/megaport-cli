@@ -3,7 +3,6 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -79,11 +78,7 @@ func ReadJSONInput(jsonStr, jsonFile string) ([]byte, error) {
 		return []byte(jsonStr), nil
 	}
 	if jsonFile != "" {
-		data, err := os.ReadFile(jsonFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read JSON file: %w", err)
-		}
-		return data, nil
+		return readInputFile(jsonFile)
 	}
 	return nil, nil
 }
