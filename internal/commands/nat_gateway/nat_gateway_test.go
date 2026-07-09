@@ -234,6 +234,27 @@ func TestCreateNATGateway_MatrixFetchFailureFallsThrough(t *testing.T) {
 	require.NotNil(t, mock.CapturedCreateReq)
 }
 
+func TestCreateNATGateway_MatrixBypassesSessionCountZero(t *testing.T) {
+	mock := &MockNATGatewayService{
+		SessionsResult: []*megaport.NATGatewaySession{
+			{SpeedMbps: 1000, SessionCount: []int{1, 2, 4}},
+		},
+	}
+	defer setupMockNATGateway(mock)()
+
+	cmd := newTestCmd("create")
+	require.NoError(t, cmd.Flags().Set("name", "My NAT GW"))
+	require.NoError(t, cmd.Flags().Set("term", "12"))
+	require.NoError(t, cmd.Flags().Set("speed", "1000"))
+	require.NoError(t, cmd.Flags().Set("location-id", "123"))
+	require.NoError(t, cmd.Flags().Set("yes", "true"))
+
+	err := CreateNATGateway(cmd, nil, true)
+	assert.NoError(t, err)
+	require.NotNil(t, mock.CapturedCreateReq)
+	assert.Equal(t, 0, mock.CapturedCreateReq.Config.SessionCount)
+}
+
 // ---- Get ----
 
 func TestGetNATGateway(t *testing.T) {

@@ -128,6 +128,9 @@ func validateNATGatewaySpeedSessionMatrix(ctx context.Context, client *megaport.
 	if !result.SpeedSupported {
 		return validation.NewValidationError("speed", req.Speed, fmt.Sprintf("not supported; supported speeds (Mbps): %v", result.SupportedSpeeds))
 	}
+	if req.Config.SessionCount == 0 {
+		return nil
+	}
 	return validation.NewValidationError("session count", req.Config.SessionCount,
 		fmt.Sprintf("not supported for %d Mbps; valid session counts: %v", req.Speed, result.SessionsAtSpeed))
 }
