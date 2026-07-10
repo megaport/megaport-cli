@@ -217,6 +217,21 @@ func TestValidatePrefixFilterListRequest(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "Empty entry prefix",
+			req: &megaport.CreateMCRPrefixFilterListRequest{
+				MCRID: "mcr-uid-123",
+				PrefixFilterList: megaport.MCRPrefixFilterList{
+					Description:   "Test filter list",
+					AddressFamily: "IPv4",
+					Entries: []*megaport.MCRPrefixListEntry{
+						{Action: "permit", Prefix: ""},
+					},
+				},
+			},
+			wantErr: true,
+			errText: "Invalid entry prefix index 0:  - prefix cannot be empty",
+		},
+		{
 			name: "Missing description",
 			req: &megaport.CreateMCRPrefixFilterListRequest{
 				MCRID: "mcr-uid-123",

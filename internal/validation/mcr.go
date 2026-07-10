@@ -128,7 +128,7 @@ func ValidatePrefixFilterListRequest(req *megaport.CreateMCRPrefixFilterListRequ
 func validatePrefixFilterEntries(entries []*megaport.MCRPrefixListEntry, addressFamily string) error {
 	for i, entry := range entries {
 		if entry.Prefix == "" {
-			return NewValidationError("entry prefix index", i, "prefix cannot be empty")
+			return NewValidationError(fmt.Sprintf("entry prefix index %d", i), entry.Prefix, "prefix cannot be empty")
 		}
 		if addressFamily == "IPv4" {
 			if err := ValidateCIDR(entry.Prefix, fmt.Sprintf("entry prefix index %d", i)); err != nil {
