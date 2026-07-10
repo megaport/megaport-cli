@@ -40,6 +40,11 @@ func withMockedIO(input string, fn func()) (stdout string, stderr string) {
 	os.Stdin = inR
 	os.Stdout = outW
 	os.Stderr = errW
+	// The shared stdin reader (prompts.go) caches a *bufio.Reader over
+	// whatever os.Stdin pointed to when it was built. Reset it so prompt
+	// functions build a fresh one over this test's pipe instead of reusing
+	// (or blocking on) a reader left over from a prior test's now-closed pipe.
+	resetSharedStdinReader()
 	// Restore the globals and close every pipe end on any exit path,
 	// including a panic or t.Fatal (which unwinds via runtime.Goexit), so a
 	// failing subtest doesn't leave stdio redirected or FDs leaked for the
@@ -50,6 +55,7 @@ func withMockedIO(input string, fn func()) (stdout string, stderr string) {
 		os.Stdin = oldStdin
 		os.Stdout = oldStdout
 		os.Stderr = oldStderr
+		resetSharedStdinReader()
 		_ = inR.Close()
 		_ = inW.Close()
 		_ = outR.Close()
@@ -89,8 +95,8 @@ func withMockedIO(input string, fn func()) (stdout string, stderr string) {
 // mockPromptSequence overrides Prompt and ConfirmPrompt for the duration of
 // t with scripted answers, consumed in call order. This drives multi-step
 // flows like the tag-entry loop deterministically, without depending on
-// real stdin/bufio timing (each Prompt call opens a fresh bufio.Reader over
-// stdin, so pacing writes to a pipe would be inherently timing-sensitive).
+// real stdin/bufio timing (pacing writes to a pipe to line up with each
+// Prompt call would be inherently timing-sensitive).
 func mockPromptSequence(t *testing.T, confirmAnswers []bool, promptAnswers []string) {
 	origConfirm := GetConfirmPrompt()
 	origPrompt := GetPrompt()
@@ -741,6 +747,94 @@ func TestConfirmPrompt_StdoutStaysCleanForJSONPiping(t *testing.T) {
 	assert.Contains(t, stderr, "[y/N]")
 }
 
+// TestPrompt_ConsecutivePromptsShareBufferedStdin is a regression test for
+// ESD-1643. A bufio.Reader reads ahead in chunks, so piping in more than one
+// line at once lets the underlying pipe read fill the reader's internal
+// buffer past the first newline. A prompt implementation that built a fresh
+// bufio.Reader per call would discard that buffered second line along with
+// the old reader, and the next prompt would find nothing left to read. This
+// drives two consecutive real Prompt calls off one multi-line input source
+// and asserts each gets its own line.
+func TestPrompt_ConsecutivePromptsShareBufferedStdin(t *testing.T) {
+	originalPrompt := GetPrompt()
+	defer SetPrompt(originalPrompt)
+
+	var first, second string
+	var firstErr, secondErr error
+	stdout, stderr := withMockedIO("first line\nsecond line\n", func() {
+		first, firstErr = Prompt("First:", true)
+		second, secondErr = Prompt("Second:", true)
+	})
+
+	assert.NoError(t, firstErr)
+	assert.NoError(t, secondErr)
+	assert.Equal(t, "first line", first)
+	assert.Equal(t, "second line", second)
+	assert.Contains(t, stderr, "First:")
+	assert.Contains(t, stderr, "Second:")
+	assert.Empty(t, stdout)
+}
+
+// TestConfirmPrompt_DoesNotDesyncSharedStdinReader is a regression test for
+// ESD-1643. confirmPromptFn used to read via fmt.Scanln directly against
+// os.Stdin, independent of the bufio.Reader the text prompts shared, which
+// could desync buffered input between a text prompt and a following confirm
+// prompt. This drives a text prompt followed by a confirm prompt off one
+// piped input source and asserts the confirm prompt sees the second line
+// rather than leftover or missing bytes.
+func TestConfirmPrompt_DoesNotDesyncSharedStdinReader(t *testing.T) {
+	originalPrompt := GetPrompt()
+	originalConfirm := GetConfirmPrompt()
+	defer func() {
+		SetPrompt(originalPrompt)
+		SetConfirmPrompt(originalConfirm)
+	}()
+
+	var name string
+	var err error
+	var confirmed bool
+	stdout, stderr := withMockedIO("my-resource\ny\n", func() {
+		name, err = Prompt("Name:", true)
+		confirmed = ConfirmPrompt("Proceed?", true)
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "my-resource", name)
+	assert.True(t, confirmed)
+	assert.Contains(t, stderr, "Name:")
+	assert.Contains(t, stderr, "Proceed?")
+	assert.Empty(t, stdout)
+}
+
+// TestConfirmPrompt_AcceptsFinalLineWithNoTrailingNewline is a regression
+// test for a behavior change surfaced while switching confirmPromptFn from
+// fmt.Scanln to the shared bufio reader: fmt.Scanln accepts a final token
+// immediately followed by EOF with no trailing newline (e.g. a user answers
+// then sends EOF instead of pressing Enter, or scripted input has no final
+// newline). readStdinLine must keep accepting that shape rather than
+// discarding the partial line as an error.
+func TestConfirmPrompt_AcceptsFinalLineWithNoTrailingNewline(t *testing.T) {
+	stdout, stderr := withMockedIO("y", func() {
+		result := ConfirmPrompt("Continue?", true)
+		assert.True(t, result)
+	})
+	assert.Contains(t, stderr, "Continue?")
+	assert.Empty(t, stdout)
+}
+
+// TestPrompt_AcceptsFinalLineWithNoTrailingNewline mirrors
+// TestConfirmPrompt_AcceptsFinalLineWithNoTrailingNewline for the text
+// Prompt path.
+func TestPrompt_AcceptsFinalLineWithNoTrailingNewline(t *testing.T) {
+	stdout, stderr := withMockedIO("no newline", func() {
+		result, err := Prompt("Enter value:", true)
+		assert.NoError(t, err)
+		assert.Equal(t, "no newline", result)
+	})
+	assert.Contains(t, stderr, "Enter value:")
+	assert.Empty(t, stdout)
+}
+
 // Integration test that actually runs the real functions
 func TestPromptsIntegration(t *testing.T) {
 	// Skip in CI environments
@@ -821,7 +915,10 @@ func TestPromptWithCustomReader(t *testing.T) {
 
 	// Save and restore original stdin
 	oldStdin := os.Stdin
-	defer func() { os.Stdin = oldStdin }()
+	defer func() {
+		os.Stdin = oldStdin
+		resetSharedStdinReader()
+	}()
 
 	// Create a temporary file
 	tmpfile, err := os.CreateTemp("", "test")
@@ -840,6 +937,7 @@ func TestPromptWithCustomReader(t *testing.T) {
 
 	// Replace stdin with our file
 	os.Stdin = tmpfile
+	resetSharedStdinReader()
 
 	// Capture stdout and stderr separately so we can verify the prompt text
 	// lands on stderr, not stdout.

@@ -3,7 +3,6 @@
 package utils
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -30,12 +29,7 @@ func nativeSecretResourcePrompt(resourceType string, msg string, noColor bool) (
 
 	fd := int(os.Stdin.Fd())
 	if !term.IsTerminal(fd) {
-		reader := bufio.NewReader(os.Stdin)
-		input, err := reader.ReadString('\n')
-		if err != nil {
-			return "", err
-		}
-		return strings.TrimSpace(input), nil
+		return readStdinLine()
 	}
 
 	pw, err := term.ReadPassword(fd)
