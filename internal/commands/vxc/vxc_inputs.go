@@ -263,6 +263,22 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string, ctx context.Co
 		return nil, exitcodes.NewUsageError(fmt.Errorf("term must be a whole number, got %v", term))
 	}
 
+	// Required fields the buy request can't do without, checked before any
+	// partner-port lookup so a partial JSON body fails fast rather than
+	// spending an API round-trip on a request that will fail validation anyway.
+	requireBuyFields := func() error {
+		if vxcName == "" {
+			return exitcodes.NewUsageError(validation.NewValidationError("VXC name", vxcName, "cannot be empty"))
+		}
+		if err := validation.ValidateRateLimit(int(rateLimit)); err != nil {
+			return exitcodes.NewUsageError(err)
+		}
+		if err := validation.ValidateContractTerm(int(term)); err != nil {
+			return exitcodes.NewUsageError(err)
+		}
+		return nil
+	}
+
 	portUID, present, err := utils.JSONString(rawData, "portUid")
 	if err != nil {
 		return nil, exitcodes.NewUsageError(err)
@@ -270,6 +286,9 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string, ctx context.Co
 	if !present {
 		if aEndConfig.PartnerConfig == nil {
 			return nil, exitcodes.NewUsageError(validation.NewValidationError("portUid", "", "Port UID is required"))
+		}
+		if err := requireBuyFields(); err != nil {
+			return nil, err
 		}
 		uid, err := resolvePartnerPortUID(ctx, svc, aEndConfig.PartnerConfig)
 		if err != nil {
@@ -336,6 +355,9 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string, ctx context.Co
 			return nil, err
 		}
 		if bEndConfig.ProductUID == "" && bEndConfig.PartnerConfig != nil {
+			if err := requireBuyFields(); err != nil {
+				return nil, err
+			}
 			uid, err := resolvePartnerPortUID(ctx, svc, bEndConfig.PartnerConfig)
 			if err != nil {
 				return nil, fmt.Errorf("failed to look up B-End Partner Port: %w", err)
