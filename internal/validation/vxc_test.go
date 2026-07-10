@@ -664,9 +664,10 @@ func TestValidateVXCRequest(t *testing.T) {
 				PortUID:   "a-end-uid",
 				BEndConfiguration: megaport.VXCOrderEndpointConfiguration{
 					PartnerConfig: &megaport.VXCPartnerConfigAWS{
-						ConnectType:  "AWS",
-						OwnerAccount: "12345",
-						ASN:          65000,
+						ConnectType:    "AWS",
+						OwnerAccount:   "12345",
+						ASN:            65000,
+						ConnectionName: "MyAWSConnection",
 					},
 				},
 			},
@@ -842,6 +843,7 @@ func TestValidateAWSPartnerConfig(t *testing.T) {
 			ownerAccount:      "123456789012",
 			asn:               65000,
 			customerIPAddress: "invalid-ip",
+			awsName:           "MyAWSConnection",
 			wantErr:           true,
 			errText:           "Invalid AWS customer IP address: invalid-ip - must be a valid IPv4 CIDR notation", // Updated error message
 		},
@@ -851,6 +853,7 @@ func TestValidateAWSPartnerConfig(t *testing.T) {
 			ownerAccount:    "123456789012",
 			asn:             65000,
 			amazonIPAddress: "192.168.1.2/33", // Invalid mask
+			awsName:         "MyAWSConnection",
 			wantErr:         true,
 			errText:         "Invalid AWS Amazon IP address: 192.168.1.2/33 - must be a valid IPv4 CIDR notation", // Updated error message
 		},
@@ -886,8 +889,18 @@ func TestValidateAWSPartnerConfig(t *testing.T) {
 			ownerAccount: "123456789012",
 			asn:          65000,
 			awsType:      "invalid",
+			awsName:      "MyAWSConnection",
 			wantErr:      true,
 			errText:      "Invalid AWS type: invalid - must be 'private' or 'public' for AWS connect type",
+		},
+		{
+			name:         "Empty connection name",
+			connectType:  "AWS",
+			ownerAccount: "123456789012",
+			asn:          65000,
+			awsName:      "",
+			wantErr:      true,
+			errText:      "Invalid AWS connection name:  - cannot be empty",
 		},
 	}
 
@@ -1125,9 +1138,10 @@ func TestValidateVXCPartnerConfig(t *testing.T) {
 		{
 			name: "Valid AWS partner config",
 			config: &megaport.VXCPartnerConfigAWS{ // Use struct pointer
-				ConnectType:  "AWS",
-				OwnerAccount: "123456789012",
-				ASN:          65000,
+				ConnectType:    "AWS",
+				OwnerAccount:   "123456789012",
+				ASN:            65000,
+				ConnectionName: "MyAWSConnection",
 			},
 			wantErr: false,
 		},

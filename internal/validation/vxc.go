@@ -199,7 +199,7 @@ func ValidateVXCRequest(req *megaport.BuyVXCRequest) error {
 //   - ASN must be provided and within the valid range (1-4294967295)
 //   - If customer IP address is provided, it must be in valid IPv4 CIDR notation
 //   - If Amazon IP address is provided, it must be in valid IPv4 CIDR notation
-//   - If connection name is provided, it must not exceed 255 characters
+//   - Connection name must be provided and not exceed 255 characters
 //   - For 'AWS' connect type with a specified connection type, it must be 'private' or 'public'
 //
 // Returns:
@@ -225,7 +225,10 @@ func ValidateAWSPartnerConfig(config *megaport.VXCPartnerConfigAWS) error {
 		return NewValidationError("AWS owner account", config.OwnerAccount, "cannot be empty")
 	}
 
-	if config.ConnectionName != "" && utf8.RuneCountInString(config.ConnectionName) > MaxAWSConnectionNameLength {
+	if config.ConnectionName == "" {
+		return NewValidationError("AWS connection name", config.ConnectionName, "cannot be empty")
+	}
+	if utf8.RuneCountInString(config.ConnectionName) > MaxAWSConnectionNameLength {
 		return NewValidationError("AWS connection name", config.ConnectionName, fmt.Sprintf("cannot exceed %d characters", MaxAWSConnectionNameLength))
 	}
 	if config.CustomerIPAddress != "" {
