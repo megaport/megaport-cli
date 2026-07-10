@@ -240,11 +240,12 @@ func (s *Spinner) renderFrame(i int) string {
 	return color.CyanString(frame)
 }
 
-// stdErrStreamMu synchronizes the spinner's animation writes against
-// CaptureOutput/CaptureOutputErr reassigning os.Stderr. It is held only for
-// the instant of a single read-and-write or a single reassignment, never
-// across an entire captured callback, so a callback that itself starts and
-// stops a spinner cannot deadlock against it.
+// stdErrStreamMu synchronizes the spinner's stderr writes (animation frames,
+// non-interactive status lines) against CaptureOutput/CaptureOutputErr
+// reassigning os.Stderr. It is held only for the instant of a single
+// read-and-write or a single reassignment, never across an entire captured
+// callback, so a callback that itself starts and stops a spinner cannot
+// deadlock against it.
 var stdErrStreamMu sync.RWMutex
 
 // writeSpinnerLine writes s to os.Stderr, matching the rest of the package's
@@ -287,7 +288,7 @@ func (s *Spinner) runLoop(prefix string, startTime *time.Time) {
 	s.mu.Unlock()
 
 	if s.nonInteractive() {
-		fmt.Fprintf(os.Stderr, "%s\n", prefix)
+		writeSpinnerLine(fmt.Sprintf("%s\n", prefix))
 		return
 	}
 
@@ -367,10 +368,9 @@ func (s *Spinner) StopWithSuccess(msg string) {
 	// corrupting machine-readable output streams.
 	if s.nonInteractive() {
 		if s.noColor {
-			fmt.Fprintf(os.Stderr, "✓ %s\n", msg)
+			writeSpinnerLine(fmt.Sprintf("✓ %s\n", msg))
 		} else {
-			fmt.Fprint(os.Stderr, color.GreenString("✓ "))
-			fmt.Fprintln(os.Stderr, msg)
+			writeSpinnerLine(color.GreenString("✓ ") + msg + "\n")
 		}
 	} else {
 		if s.noColor {
