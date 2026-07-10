@@ -50,17 +50,22 @@ func calculateDynamicWidth(termWidth int, minWidth, maxPercentage int) int {
 	return maxWidth
 }
 
-// printTable is the WASM-specific implementation that properly captures table output
+// printTable is the WASM-specific implementation that properly captures table
+// output. In WASM, render into the global WasmTableWriter so the rendered
+// table is available to the JS-accessible wasmTableOutput global that the web
+// UI reads. An empty slice still renders a header-only table (native parity);
+// any "No X found" warning is surfaced above it by GetCapturedOutput, which
+// prepends the direct status buffer to the table output.
+//
+// A command may call this more than once; each call appends to
+// WasmTableWriter rather than overwriting it, so the global reflects every
+// table emitted so far. The buffer is cleared between WASM invocations by
+// resetWasmStructuredBuffers.
 func printTable[T OutputFields](data []T, noColor bool, opts printOptions) error {
 	wasmBufMu.Lock()
 	defer wasmBufMu.Unlock()
 
-	// In WASM, render into the global WasmTableWriter so the rendered table is
-	// available to the JS-accessible wasmTableOutput global that the web UI reads.
-	// An empty slice still renders a header-only table (native parity); any
-	// "No X found" warning is surfaced above it by GetCapturedOutput, which
-	// prepends the direct status buffer to the table output.
-	WasmTableWriter.Reset()
+	before := WasmTableWriter.Len()
 	if err := printTableToWriter(WasmTableWriter, data, noColor, opts); err != nil {
 		return err
 	}
@@ -72,8 +77,8 @@ func printTable[T OutputFields](data []T, noColor bool, opts printOptions) error
 	// are preserved; see wasm.SanitizeTerminalOutput.
 	tableOutput := wasm.SanitizeTerminalOutput(WasmTableWriter.String())
 
-	// Write the table output to stdout so it can be captured by wasm buffers.
-	fmt.Print(tableOutput)
+	// Write the newly-rendered table to stdout so it can be captured by wasm buffers.
+	fmt.Print(tableOutput[before:])
 
 	// Also write to a JavaScript-accessible global variable.
 	js.Global().Set("wasmTableOutput", tableOutput)

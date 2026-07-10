@@ -143,6 +143,30 @@ func TestPrintTable_WASM_ComplexData(t *testing.T) {
 	assert.Contains(t, output, "Complex Item")
 }
 
+// TestPrintTable_WASM_AccumulatesMultipleCalls verifies that a command
+// rendering more than one table in a single invocation has all of them
+// captured, not just the last (ESD-1650).
+func TestPrintTable_WASM_AccumulatesMultipleCalls(t *testing.T) {
+	first := []SimpleStruct{{ID: 1, Name: "First", Active: true}}
+	second := []SimpleStruct{{ID: 2, Name: "Second", Active: false}}
+
+	WasmTableWriter.Reset()
+	js.Global().Delete("wasmTableOutput")
+
+	assert.NoError(t, printTable(first, false, currentPrintOptions()))
+	assert.NoError(t, printTable(second, false, currentPrintOptions()))
+
+	output := WasmTableWriter.String()
+	assert.Contains(t, output, "First", "first table must survive a second call")
+	assert.Contains(t, output, "Second", "second table must also be present")
+
+	global := js.Global().Get("wasmTableOutput")
+	assert.Equal(t, output, global.String(), "global must reflect the full accumulated buffer")
+
+	WasmTableWriter.Reset()
+	js.Global().Delete("wasmTableOutput")
+}
+
 // TestCalculateDynamicWidth verifies column width calculation
 func TestCalculateDynamicWidth(t *testing.T) {
 	tests := []struct {

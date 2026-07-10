@@ -30,11 +30,25 @@ var WasmCSVWriter = &bytes.Buffer{}
 // WasmXMLWriter is a global buffer for capturing XML output in WASM
 var WasmXMLWriter = &bytes.Buffer{}
 
-// printJSON is the WASM-specific implementation that properly captures JSON output
+func init() {
+	resetWasmStructuredBuffers = func() {
+		wasmBufMu.Lock()
+		defer wasmBufMu.Unlock()
+		WasmJSONWriter.Reset()
+		WasmCSVWriter.Reset()
+		WasmXMLWriter.Reset()
+		WasmTableWriter.Reset()
+	}
+}
+
+// printJSON is the WASM-specific implementation that properly captures JSON output.
+// A command may call this more than once (multiple PrintOutput calls emitting
+// several structured documents); each call appends to WasmJSONWriter rather than
+// overwriting it, so the global reflects every document emitted so far. The
+// buffer is cleared between WASM invocations by resetWasmStructuredBuffers.
 func printJSON[T OutputFields](data []T, opts printOptions) error {
 	wasmBufMu.Lock()
 	defer wasmBufMu.Unlock()
-	WasmJSONWriter.Reset()
 
 	if data == nil {
 		data = []T{}
@@ -45,6 +59,7 @@ func printJSON[T OutputFields](data []T, opts printOptions) error {
 		return err
 	}
 
+	before := WasmJSONWriter.Len()
 	encoder := json.NewEncoder(WasmJSONWriter)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(toEncode); err != nil {
@@ -56,19 +71,24 @@ func printJSON[T OutputFields](data []T, opts printOptions) error {
 	// GetCapturedOutput/GetCompletionOutput and written to xterm without
 	// escaping, and a field value can carry an API-controlled control byte
 	// that Go's JSON encoder does not escape (e.g. the C1 range). See
-	// wasm.SanitizeTerminalOutput.
-	jsonOutput := wasm.SanitizeTerminalOutput(WasmJSONWriter.String())
-	fmt.Print(jsonOutput)
+	// wasm.SanitizeTerminalOutput. Sanitize the new slice on its own rather
+	// than slicing the sanitized whole buffer by a raw-byte offset: sanitizing
+	// drops bytes, so a raw offset no longer lines up with the sanitized string.
+	raw := WasmJSONWriter.String()
+	fmt.Print(wasm.SanitizeTerminalOutput(raw[before:]))
+	jsonOutput := wasm.SanitizeTerminalOutput(raw)
 	js.Global().Set("wasmJSONOutput", jsonOutput)
 	return nil
 }
 
-// printCSV is the WASM-specific implementation that properly captures CSV output
+// printCSV is the WASM-specific implementation that properly captures CSV
+// output. Like printJSON, it appends to WasmCSVWriter so a command emitting
+// multiple CSV documents has all of them captured, not just the last.
 func printCSV[T OutputFields](data []T, opts printOptions) error {
 	wasmBufMu.Lock()
 	defer wasmBufMu.Unlock()
-	WasmCSVWriter.Reset()
 
+	before := WasmCSVWriter.Len()
 	w := csv.NewWriter(WasmCSVWriter)
 	defer w.Flush()
 
@@ -185,17 +205,21 @@ func printCSV[T OutputFields](data []T, opts printOptions) error {
 	w.Flush()
 
 	// See the sanitize comment in printJSON above; the same applies to CSV.
-	csvOutput := wasm.SanitizeTerminalOutput(WasmCSVWriter.String())
-	fmt.Print(csvOutput)
+	raw := WasmCSVWriter.String()
+	fmt.Print(wasm.SanitizeTerminalOutput(raw[before:]))
+	csvOutput := wasm.SanitizeTerminalOutput(raw)
 	js.Global().Set("wasmCSVOutput", csvOutput)
 	return nil
 }
 
-// printXML is the WASM-specific implementation that properly captures XML output
+// printXML is the WASM-specific implementation that properly captures XML
+// output. Like printJSON, it appends to WasmXMLWriter so a command emitting
+// multiple XML documents has all of them captured, not just the last.
 func printXML[T OutputFields](data []T, opts printOptions) error {
 	wasmBufMu.Lock()
 	defer wasmBufMu.Unlock()
-	WasmXMLWriter.Reset()
+
+	before := WasmXMLWriter.Len()
 
 	if data == nil {
 		data = []T{}
@@ -204,7 +228,7 @@ func printXML[T OutputFields](data []T, opts printOptions) error {
 	writeEmpty := func() {
 		WasmXMLWriter.WriteString(xml.Header + "<items></items>\n")
 		xmlOutput := WasmXMLWriter.String()
-		fmt.Print(xmlOutput)
+		fmt.Print(xmlOutput[before:])
 		js.Global().Set("wasmXMLOutput", xmlOutput)
 	}
 
@@ -356,8 +380,9 @@ func printXML[T OutputFields](data []T, opts printOptions) error {
 	WasmXMLWriter.WriteString("\n")
 
 	// See the sanitize comment in printJSON above; the same applies to XML.
-	xmlOutput := wasm.SanitizeTerminalOutput(WasmXMLWriter.String())
-	fmt.Print(xmlOutput)
+	raw := WasmXMLWriter.String()
+	fmt.Print(wasm.SanitizeTerminalOutput(raw[before:]))
+	xmlOutput := wasm.SanitizeTerminalOutput(raw)
 	js.Global().Set("wasmXMLOutput", xmlOutput)
 	return nil
 }
