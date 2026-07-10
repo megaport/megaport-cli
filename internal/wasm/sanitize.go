@@ -15,9 +15,12 @@ import "unicode"
 //
 // The CLI's own SGR color sequences (ESC '[' <digits/';'> 'm', emitted by
 // fatih/color for table and status styling) are allowlisted so intended
-// styling survives; every other C0 control, DEL, C1 control, and non-SGR
-// CSI/OSC sequence is removed. \n and \t pass through unchanged since they
-// are structural formatting in a multi-line document. A lone \r is dropped:
+// styling survives; every other C0 control, DEL, and C1 control is dropped
+// outright, and a non-SGR CSI/OSC sequence is neutralized by dropping its
+// introducing ESC (or C1 equivalent), leaving the remainder as inert
+// printable text rather than removing it wholesale. \n and \t pass through
+// unchanged since they are structural formatting in a multi-line document.
+// A lone \r is dropped:
 // unlike \n/\t it is itself a cursor-move (back to column 0) that can
 // overwrite the start of a rendered line with no ESC/CSI involved, so it is
 // only preserved as part of a CRLF pair.
