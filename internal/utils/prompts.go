@@ -150,7 +150,13 @@ var resourcePromptFn = func(resourceType string, msg string, noColor bool) (stri
 // The default implementation here is the WASM-safe echoing fallback; native
 // builds replace it via init() in prompts_secret_native.go with a TTY-aware
 // version that disables terminal echo using golang.org/x/term.
-var secretResourcePromptFn = func(resourceType string, msg string, noColor bool) (string, error) {
+var secretResourcePromptFn = defaultSecretResourcePrompt
+
+// defaultSecretResourcePrompt is a named function, rather than inlined into
+// the secretResourcePromptFn var above, so it stays directly callable from
+// tests: native builds overwrite that var via init(), so a test referencing
+// the var by then reaches nativeSecretResourcePrompt instead of this.
+func defaultSecretResourcePrompt(resourceType string, msg string, noColor bool) (string, error) {
 	icon := "🔐"
 
 	if !noColor {

@@ -835,6 +835,65 @@ func TestPrompt_AcceptsFinalLineWithNoTrailingNewline(t *testing.T) {
 	assert.Empty(t, stdout)
 }
 
+// TestConfirmPrompt_ReturnsFalseOnEmptyStdinEOF is a regression test for the
+// readStdinLine error path: an immediate EOF with no bytes at all (as
+// opposed to a final unterminated line, which is not an error) must still
+// propagate as an error, and confirmPromptFn must default to "No" for it.
+func TestConfirmPrompt_ReturnsFalseOnEmptyStdinEOF(t *testing.T) {
+	stdout, stderr := withMockedIO("", func() {
+		result := ConfirmPrompt("Continue?", true)
+		assert.False(t, result)
+	})
+	assert.Contains(t, stderr, "Continue?")
+	assert.Empty(t, stdout)
+}
+
+// TestResourcePrompt_RealFunctionSharesStdinReader drives the real
+// resourcePromptFn (every other ResourcePrompt test swaps in a mock), so the
+// shared stdin reader plumbing in that path gets exercised too.
+func TestResourcePrompt_RealFunctionSharesStdinReader(t *testing.T) {
+	originalResourcePrompt := GetResourcePrompt()
+	defer SetResourcePrompt(originalResourcePrompt)
+
+	var result string
+	var err error
+	stdout, stderr := withMockedIO("resource input\n", func() {
+		result, err = originalResourcePrompt("port", "Port name:", true)
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "resource input", result)
+	assert.Contains(t, stderr, "🔌 Port name:")
+	assert.Empty(t, stdout)
+}
+
+// TestDefaultSecretResourcePrompt_SharesStdinReader calls the wasm-build
+// default directly. Native builds override secretResourcePromptFn via init()
+// in prompts_secret_native.go, so no test reaches this through the exported
+// SecretResourcePrompt hook; calling it directly here verifies the wasm
+// fallback also reads through the shared stdin reader correctly.
+func TestDefaultSecretResourcePrompt_SharesStdinReader(t *testing.T) {
+	stdout, stderr := withMockedIO("s3cr3t\n", func() {
+		result, err := defaultSecretResourcePrompt("mve", "Admin password:", true)
+		assert.NoError(t, err)
+		assert.Equal(t, "s3cr3t", result)
+	})
+	assert.Contains(t, stderr, "🔐 Admin password:")
+	assert.Empty(t, stdout)
+}
+
+// TestDefaultSecretResourcePrompt_Colored exercises the colored-prompt
+// branch, which TestDefaultSecretResourcePrompt_SharesStdinReader (noColor
+// true) doesn't reach.
+func TestDefaultSecretResourcePrompt_Colored(t *testing.T) {
+	stdout, stderr := withMockedIO("s3cr3t\n", func() {
+		result, err := defaultSecretResourcePrompt("mve", "Admin password:", false)
+		assert.NoError(t, err)
+		assert.Equal(t, "s3cr3t", result)
+	})
+	assert.Contains(t, stderr, "Admin password:")
+	assert.Empty(t, stdout)
+}
+
 // Integration test that actually runs the real functions
 func TestPromptsIntegration(t *testing.T) {
 	// Skip in CI environments
