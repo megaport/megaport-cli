@@ -257,6 +257,14 @@ func writeSpinnerLine(s string) {
 	fmt.Fprint(os.Stderr, s)
 }
 
+// writeSpinnerLinef is the formatted counterpart to writeSpinnerLine, used in
+// the animation loop to avoid a fmt.Sprintf allocation on every frame.
+func writeSpinnerLinef(format string, args ...interface{}) {
+	stdErrStreamMu.RLock()
+	defer stdErrStreamMu.RUnlock()
+	fmt.Fprintf(os.Stderr, format, args...)
+}
+
 // nonInteractive reports whether the spinner's sink is non-interactive: a
 // machine-readable output format, or output not attached to a TTY. In those
 // sinks the carriage-return/clear-line escapes don't collapse anything, so the
@@ -312,7 +320,7 @@ func (s *Spinner) runLoop(prefix string, startTime *time.Time) {
 					msg = fmt.Sprintf("%s (%s elapsed)", prefix, elapsed)
 				}
 
-				writeSpinnerLine(fmt.Sprintf("\r\033[K%s %s", styledFrame, msg))
+				writeSpinnerLinef("\r\033[K%s %s", styledFrame, msg)
 				s.mu.Unlock()
 				time.Sleep(s.frameRate)
 			}
