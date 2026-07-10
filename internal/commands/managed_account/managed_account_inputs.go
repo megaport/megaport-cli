@@ -44,7 +44,7 @@ func buildManagedAccountRequestFromJSON(jsonStr, jsonFile string) (*megaport.Man
 	}
 
 	if req.AccountName == "" || req.AccountRef == "" {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("account-name and account-ref are required"))
+		return nil, exitcodes.NewUsageError(fmt.Errorf("accountName and accountRef are required"))
 	}
 
 	return req, nil

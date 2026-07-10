@@ -150,7 +150,7 @@ func TestBuildManagedAccountRequestFromJSON(t *testing.T) {
 		{
 			name:          "JSON string missing account-ref",
 			jsonStr:       `{"accountName":"Partial Account"}`,
-			expectedError: "account-name and account-ref are required",
+			expectedError: "accountName and accountRef are required",
 		},
 		{
 			name:          "invalid JSON syntax",
@@ -160,7 +160,7 @@ func TestBuildManagedAccountRequestFromJSON(t *testing.T) {
 		{
 			name:          "empty JSON object",
 			jsonStr:       `{}`,
-			expectedError: "account-name and account-ref are required",
+			expectedError: "accountName and accountRef are required",
 		},
 		{
 			name: "valid JSON file",
