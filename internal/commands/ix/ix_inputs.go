@@ -154,12 +154,12 @@ func buildUpdateIXRequestFromFlags(cmd *cobra.Command) (*megaport.UpdateIXReques
 func buildUpdateIXRequestFromJSON(jsonStr, jsonFile string) (*megaport.UpdateIXRequest, error) {
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	}
 
 	req := &megaport.UpdateIXRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse JSON: %w", err))
 	}
 
 	if req.ASN != nil {

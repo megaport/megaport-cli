@@ -29,6 +29,21 @@ func TestBuildUpdateIXRequestFromJSON_BothEmpty(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse JSON")
 	assert.Nil(t, req)
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
+}
+
+func TestBuildUpdateIXRequestFromJSON_FileNotFound(t *testing.T) {
+	req, err := buildUpdateIXRequestFromJSON("", filepath.Join(t.TempDir(), "missing.json"))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to read JSON file")
+	assert.Nil(t, req)
+
+	var cliErr *exitcodes.CLIError
+	require.True(t, errors.As(err, &cliErr))
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
 
 func TestBuildIXRequestFromJSON_AllFields(t *testing.T) {
