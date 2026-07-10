@@ -372,6 +372,30 @@ func TestPrintTable_WASM_GlobalVariable(t *testing.T) {
 	assert.Equal(t, bufferContent, globalContent, "Global and buffer content should match")
 }
 
+// TestPrintTable_WASM_SanitizesInjectedControlSequences verifies that a
+// resource name carrying an injected CSI cursor-move sequence (the kind a
+// partner/marketplace listing name could carry) reaches wasmTableOutput with
+// the injected bytes stripped, while the CLI's own SGR color styling for the
+// cell (via colorizeValue) survives.
+func TestPrintTable_WASM_SanitizesInjectedControlSequences(t *testing.T) {
+	data := []SimpleStruct{
+		{ID: 1, Name: "acme-corp\x1b[2K\x1b[Hspoofed", Active: true},
+	}
+
+	js.Global().Delete("wasmTableOutput")
+	WasmTableWriter.Reset()
+
+	err := printTable(data, false, currentPrintOptions())
+	assert.NoError(t, err)
+
+	output := js.Global().Get("wasmTableOutput").String()
+	assert.NotContains(t, output, "\x1b[2K", "injected erase-line sequence must not reach the host")
+	assert.NotContains(t, output, "\x1b[H", "injected cursor-home sequence must not reach the host")
+	assert.Contains(t, output, "acme-corp")
+	assert.Contains(t, output, "spoofed")
+	assert.Contains(t, output, "\x1b[", "the CLI's own SGR color styling for the cell must be preserved")
+}
+
 // TestPrintTable_WASM_ConsoleLogging verifies console logging (basic check)
 func TestPrintTable_WASM_ConsoleLogging(t *testing.T) {
 	data := []SimpleStruct{
