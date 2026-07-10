@@ -313,7 +313,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 	}
 
 	shutdownStatus := "No"
-	if vxc.AdminLocked {
+	if vxc.Shutdown {
 		shutdownStatus = "Yes"
 	}
 	fmt.Fprintf(os.Stderr, "Current shutdown status: %s\n", shutdownStatus)
