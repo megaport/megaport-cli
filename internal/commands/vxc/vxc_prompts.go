@@ -147,7 +147,7 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		if err := validation.ValidateVXCEndVLAN(bEndVLAN); err != nil {
 			return nil, err
 		}
-		req.BEndConfiguration.VLAN = bEndVLAN
+		bEndConfig.VLAN = bEndVLAN
 	}
 
 	bEndInnerVLANStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("B-End Inner VLAN (optional, %s, press Enter to skip): ", validation.InnerVLANHelpText()), noColor)

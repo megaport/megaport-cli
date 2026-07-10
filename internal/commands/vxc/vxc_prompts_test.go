@@ -857,7 +857,61 @@ func TestBuildVXCRequestFromPrompt(t *testing.T) {
 				assert.Equal(t, 12, req.Term)
 				assert.Equal(t, 100, req.AEndConfiguration.VLAN)
 				assert.Equal(t, "port-a-123", req.PortUID)
+				assert.Equal(t, 200, req.BEndConfiguration.VLAN)
 				assert.Equal(t, "port-b-456", req.BEndConfiguration.ProductUID)
+			},
+		},
+		{
+			// Regression: the entered B-End VLAN was written to the request's
+			// zero-value struct and then overwritten by the assembled bEndConfig,
+			// so it never reached the submitted order.
+			name: "entered B-End VLAN survives onto the request",
+			responses: []string{
+				"Test VXC",   // name
+				"100",        // rate limit
+				"12",         // term
+				"100",        // A-End VLAN
+				"",           // A-End inner VLAN
+				"",           // A-End vNIC index
+				"no",         // A-End partner config
+				"port-a-123", // A-End product UID
+				"3021",       // B-End VLAN
+				"",           // B-End inner VLAN
+				"",           // B-End vNIC index
+				"no",         // B-End partner config
+				"port-b-456", // B-End product UID
+				"",           // promo code
+				"",           // service key
+				"",           // cost centre
+			},
+			verify: func(t *testing.T, req *megaport.BuyVXCRequest) {
+				assert.Equal(t, 3021, req.BEndConfiguration.VLAN)
+			},
+		},
+		{
+			// Skipping the B-End VLAN prompt must leave the VLAN unset so the API
+			// assigns one.
+			name: "empty B-End VLAN leaves the VLAN unset",
+			responses: []string{
+				"Test VXC",   // name
+				"100",        // rate limit
+				"12",         // term
+				"100",        // A-End VLAN
+				"",           // A-End inner VLAN
+				"",           // A-End vNIC index
+				"no",         // A-End partner config
+				"port-a-123", // A-End product UID
+				"",           // B-End VLAN (skipped)
+				"",           // B-End inner VLAN
+				"",           // B-End vNIC index
+				"no",         // B-End partner config
+				"port-b-456", // B-End product UID
+				"",           // promo code
+				"",           // service key
+				"",           // cost centre
+			},
+			verify: func(t *testing.T, req *megaport.BuyVXCRequest) {
+				assert.Equal(t, 0, req.BEndConfiguration.VLAN)
 			},
 		},
 		{
