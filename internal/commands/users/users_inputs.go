@@ -124,7 +124,7 @@ func processFlagUpdateUserInput(cmd *cobra.Command) (*megaport.UpdateUserRequest
 		position, _ := cmd.Flags().GetString("position")
 		userPosition := megaport.UserPosition(position)
 		if position != "" && !userPosition.IsValid() {
-			return nil, fmt.Errorf("invalid position: %s. Valid positions: %s", position, userPosition.ValidPositions())
+			return nil, exitcodes.NewUsageError(fmt.Errorf("invalid position: %s. Valid positions: %s", position, userPosition.ValidPositions()))
 		}
 		req.Position = &position
 		fieldsUpdated = true
