@@ -248,6 +248,21 @@ func TestPromptForUpdateMCRDetails_InvalidMarketplaceVisibilityGateValue(t *test
 	assert.Contains(t, err.Error(), "not a recognized yes/no answer")
 }
 
+func TestPromptForUpdateMCRDetails_MarketplaceVisibilityGate_NoSkipsUpdate(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	// name, costCentre, marketplaceVisibility(n), term, asn
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"Updated MCR", "", "n", "", "",
+	}))
+
+	req, err := promptForUpdateMCRDetails("mcr-123", "", true)
+	assert.NoError(t, err)
+	assert.Nil(t, req.MarketplaceVisibility)
+	assert.Equal(t, "Updated MCR", req.Name)
+}
+
 func TestPromptForUpdateMCRDetails_CostCentrePreserved(t *testing.T) {
 	originalPrompt := utils.GetResourcePrompt()
 	defer func() { utils.SetResourcePrompt(originalPrompt) }()
