@@ -421,6 +421,9 @@ func ImportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 
 	// Validate and set defaults for profiles
 	for profileName, profile := range importConfig.Profiles {
+		if profile == nil {
+			return fmt.Errorf("profile '%s' has no data", profileName)
+		}
 		if profile.Environment == "" {
 			profile.Environment = "production"
 		}

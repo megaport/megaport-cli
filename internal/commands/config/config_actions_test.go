@@ -1016,6 +1016,36 @@ func TestImportConfig_InvalidEnvironmentRejected(t *testing.T) {
 	assert.NotContains(t, profiles, "bad-profile", "nothing should be written when validation fails")
 }
 
+func TestImportConfig_NullProfileEntryRejected(t *testing.T) {
+	configDir := setupTestConfigEnv(t)
+
+	importPath := filepath.Join(configDir, "import.json")
+	importContent := `{
+        "version": 1,
+        "profiles": {
+            "null-profile": null
+        }
+    }`
+	require.NoError(t, os.WriteFile(importPath, []byte(importContent), 0600))
+
+	oldConfirmPrompt := utils.GetConfirmPrompt()
+	utils.SetConfirmPrompt(func(_ string, _ bool) bool {
+		t.Fatal("confirmation should not be requested when validation fails")
+		return true
+	})
+	defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
+
+	cmd, _ := setupTestCmd()
+	cmd.Flags().String("file", importPath, "")
+	require.NoError(t, cmd.ParseFlags([]string{"--file=" + importPath}))
+
+	_, err := captureBothFromAction(t, func() error {
+		return ImportConfig(cmd, nil, false)
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "null-profile")
+}
+
 func TestImportConfig_EmptyEnvironmentDefaultsToProduction(t *testing.T) {
 	configDir := setupTestConfigEnv(t)
 
