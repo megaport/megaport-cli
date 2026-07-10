@@ -215,3 +215,50 @@ func TestEnableTraversalForAllCommands(t *testing.T) {
 	assert.True(t, level1.TraverseChildren, "child should have traversal enabled")
 	assert.True(t, level2.TraverseChildren, "grandchild should have traversal enabled")
 }
+
+// TestEnableTraversalForAllCommands_RejectsUnknownFlags is the direct
+// regression test for ESD-1634: a WASM-style tree with traversal enabled
+// must still reject an unrecognized flag rather than silently discarding it.
+// Cobra's ParseFlags overwrites FlagSet.ParseErrorsAllowlist from the
+// command's FParseErrWhitelist field on every parse, so poking the FlagSet
+// field directly (the old code) never actually allowed anything through;
+// this test guards against that allowlist being reintroduced (correctly
+// this time, via FParseErrWhitelist) in a way that would resurrect the bug.
+func TestEnableTraversalForAllCommands_RejectsUnknownFlags(t *testing.T) {
+	root := &cobra.Command{Use: "root"}
+	root.PersistentFlags().String("output", "table", "output format")
+	child := &cobra.Command{Use: "child", RunE: func(cmd *cobra.Command, args []string) error { return nil }}
+	child.Flags().String("name", "", "name")
+	root.AddCommand(child)
+
+	enableTraversalForAllCommands(root)
+	root.TraverseChildren = true
+
+	root.SetArgs([]string{"child", "--totally-unknown-flag", "value"})
+	err := root.Execute()
+	require.Error(t, err, "an unrecognized flag must not be silently dropped")
+	assert.Contains(t, err.Error(), "unknown flag")
+}
+
+// TestEnableTraversalForAllCommands_ValidTraversalStillResolves guards the
+// other half of ESD-1634's acceptance criteria: removing the dead
+// UnknownFlags allowlist assignment must not break subcommand resolution
+// when a persistent flag precedes the subcommand name.
+func TestEnableTraversalForAllCommands_ValidTraversalStillResolves(t *testing.T) {
+	var ran bool
+	root := &cobra.Command{Use: "root"}
+	root.PersistentFlags().String("output", "table", "output format")
+	child := &cobra.Command{Use: "child", RunE: func(cmd *cobra.Command, args []string) error {
+		ran = true
+		return nil
+	}}
+	root.AddCommand(child)
+
+	enableTraversalForAllCommands(root)
+	root.TraverseChildren = true
+
+	root.SetArgs([]string{"--output", "json", "child"})
+	err := root.Execute()
+	require.NoError(t, err)
+	assert.True(t, ran, "child command should have been resolved and executed")
+}
