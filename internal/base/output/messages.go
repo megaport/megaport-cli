@@ -288,7 +288,7 @@ func (s *Spinner) runLoop(prefix string, startTime *time.Time) {
 	s.mu.Unlock()
 
 	if s.nonInteractive() {
-		writeSpinnerLine(fmt.Sprintf("%s\n", prefix))
+		writeSpinnerLinef("%s\n", prefix)
 		return
 	}
 
@@ -368,7 +368,7 @@ func (s *Spinner) StopWithSuccess(msg string) {
 	// corrupting machine-readable output streams.
 	if s.nonInteractive() {
 		if s.noColor {
-			writeSpinnerLine(fmt.Sprintf("✓ %s\n", msg))
+			writeSpinnerLinef("✓ %s\n", msg)
 		} else {
 			writeSpinnerLine(color.GreenString("✓ ") + msg + "\n")
 		}
