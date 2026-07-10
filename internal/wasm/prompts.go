@@ -109,8 +109,8 @@ func PromptForInput(message string, promptType string, resourceType string) (str
 		delete(pendingPrompts, promptID)
 		pendingMutex.Unlock()
 
-		js.Global().Get("console").Call("error", fmt.Sprintf("❌ Prompt callback panicked for %s: %v", promptID, r))
-		return "", fmt.Errorf("prompt callback failed: %v", r)
+		js.Global().Get("console").Call("error", fmt.Sprintf("❌ Prompt callback panicked for %s", promptID))
+		return "", fmt.Errorf("prompt callback threw for prompt %s", promptID)
 	}
 
 	// Wait for response with timeout. A stoppable timer (rather than time.After)

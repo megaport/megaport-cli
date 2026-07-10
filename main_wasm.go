@@ -45,7 +45,7 @@ func invokeAsyncTimeoutCallback(callback js.Value, once *sync.Once) {
 		if r := wasm.InvokeCallback(callback, map[string]interface{}{
 			"error": "command timed out",
 		}); r != nil {
-			js.Global().Get("console").Call("error", fmt.Sprintf("Timeout callback panicked: %v", r))
+			js.Global().Get("console").Call("error", "Timeout callback panicked")
 		}
 	})
 }
