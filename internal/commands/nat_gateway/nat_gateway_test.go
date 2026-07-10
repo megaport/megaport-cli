@@ -152,6 +152,109 @@ func TestCreateNATGateway_LoginError(t *testing.T) {
 	assert.Contains(t, err.Error(), "auth failed")
 }
 
+func TestCreateNATGateway_MatrixRejectsUnsupportedSpeed(t *testing.T) {
+	mock := &MockNATGatewayService{
+		SessionsResult: []*megaport.NATGatewaySession{
+			{SpeedMbps: 1000, SessionCount: []int{1, 2, 4}},
+		},
+	}
+	defer setupMockNATGateway(mock)()
+
+	cmd := newTestCmd("create")
+	require.NoError(t, cmd.Flags().Set("name", "My NAT GW"))
+	require.NoError(t, cmd.Flags().Set("term", "12"))
+	require.NoError(t, cmd.Flags().Set("speed", "5000"))
+	require.NoError(t, cmd.Flags().Set("location-id", "123"))
+	require.NoError(t, cmd.Flags().Set("yes", "true"))
+
+	err := CreateNATGateway(cmd, nil, true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "speed")
+	assert.Contains(t, err.Error(), "1000")
+	assert.Nil(t, mock.CapturedCreateReq)
+}
+
+func TestCreateNATGateway_MatrixRejectsUnsupportedSessionCount(t *testing.T) {
+	mock := &MockNATGatewayService{
+		SessionsResult: []*megaport.NATGatewaySession{
+			{SpeedMbps: 1000, SessionCount: []int{1, 2, 4}},
+		},
+	}
+	defer setupMockNATGateway(mock)()
+
+	cmd := newTestCmd("create")
+	require.NoError(t, cmd.Flags().Set("name", "My NAT GW"))
+	require.NoError(t, cmd.Flags().Set("term", "12"))
+	require.NoError(t, cmd.Flags().Set("speed", "1000"))
+	require.NoError(t, cmd.Flags().Set("location-id", "123"))
+	require.NoError(t, cmd.Flags().Set("session-count", "3"))
+	require.NoError(t, cmd.Flags().Set("yes", "true"))
+
+	err := CreateNATGateway(cmd, nil, true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "session count")
+	assert.Contains(t, err.Error(), "[1 2 4]")
+	assert.Nil(t, mock.CapturedCreateReq)
+}
+
+func TestCreateNATGateway_MatrixAllowsSupportedPair(t *testing.T) {
+	mock := &MockNATGatewayService{
+		SessionsResult: []*megaport.NATGatewaySession{
+			{SpeedMbps: 1000, SessionCount: []int{1, 2, 4}},
+		},
+	}
+	defer setupMockNATGateway(mock)()
+
+	cmd := newTestCmd("create")
+	require.NoError(t, cmd.Flags().Set("name", "My NAT GW"))
+	require.NoError(t, cmd.Flags().Set("term", "12"))
+	require.NoError(t, cmd.Flags().Set("speed", "1000"))
+	require.NoError(t, cmd.Flags().Set("location-id", "123"))
+	require.NoError(t, cmd.Flags().Set("session-count", "2"))
+	require.NoError(t, cmd.Flags().Set("yes", "true"))
+
+	err := CreateNATGateway(cmd, nil, true)
+	assert.NoError(t, err)
+	require.NotNil(t, mock.CapturedCreateReq)
+}
+
+func TestCreateNATGateway_MatrixFetchFailureFallsThrough(t *testing.T) {
+	mock := &MockNATGatewayService{SessionsErr: fmt.Errorf("matrix unavailable")}
+	defer setupMockNATGateway(mock)()
+
+	cmd := newTestCmd("create")
+	require.NoError(t, cmd.Flags().Set("name", "My NAT GW"))
+	require.NoError(t, cmd.Flags().Set("term", "12"))
+	require.NoError(t, cmd.Flags().Set("speed", "5000"))
+	require.NoError(t, cmd.Flags().Set("location-id", "123"))
+	require.NoError(t, cmd.Flags().Set("yes", "true"))
+
+	err := CreateNATGateway(cmd, nil, true)
+	assert.NoError(t, err)
+	require.NotNil(t, mock.CapturedCreateReq)
+}
+
+func TestCreateNATGateway_MatrixBypassesSessionCountZero(t *testing.T) {
+	mock := &MockNATGatewayService{
+		SessionsResult: []*megaport.NATGatewaySession{
+			{SpeedMbps: 1000, SessionCount: []int{1, 2, 4}},
+		},
+	}
+	defer setupMockNATGateway(mock)()
+
+	cmd := newTestCmd("create")
+	require.NoError(t, cmd.Flags().Set("name", "My NAT GW"))
+	require.NoError(t, cmd.Flags().Set("term", "12"))
+	require.NoError(t, cmd.Flags().Set("speed", "1000"))
+	require.NoError(t, cmd.Flags().Set("location-id", "123"))
+	require.NoError(t, cmd.Flags().Set("yes", "true"))
+
+	err := CreateNATGateway(cmd, nil, true)
+	assert.NoError(t, err)
+	require.NotNil(t, mock.CapturedCreateReq)
+	assert.Equal(t, 0, mock.CapturedCreateReq.Config.SessionCount)
+}
+
 // ---- Get ----
 
 func TestGetNATGateway(t *testing.T) {

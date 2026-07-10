@@ -12,6 +12,7 @@ type MockMCRService struct {
 	BuyMCRErr                             error
 	CapturedBuyMCRRequest                 *megaport.BuyMCRRequest
 	ValidateMCROrderErr                   error
+	CapturedValidateMCROrderRequest       *megaport.BuyMCRRequest
 	GetMCRResult                          *megaport.MCR
 	GetMCRErr                             error
 	ListMCRsResult                        []*megaport.MCR
@@ -74,6 +75,7 @@ func (m *MockMCRService) BuyMCR(ctx context.Context, req *megaport.BuyMCRRequest
 }
 
 func (m *MockMCRService) ValidateMCROrder(ctx context.Context, req *megaport.BuyMCRRequest) error {
+	m.CapturedValidateMCROrderRequest = req
 	return m.ValidateMCROrderErr
 }
 
@@ -283,11 +285,36 @@ func (m *MockMCRLookingGlassService) WaitForAsyncBGPNeighborRoutes(ctx context.C
 	return nil, nil
 }
 
+func (m *MockMCRLookingGlassService) PingMCR(ctx context.Context, req *megaport.MCRPingRequest) (string, error) {
+	return "", nil
+}
+
+func (m *MockMCRLookingGlassService) TracerouteMCR(ctx context.Context, req *megaport.MCRTracerouteRequest) (string, error) {
+	return "", nil
+}
+
+func (m *MockMCRLookingGlassService) GetMCRPingResult(ctx context.Context, mcrUID, operationID string) (*megaport.LookingGlassPingResult, error) {
+	return nil, nil
+}
+
+func (m *MockMCRLookingGlassService) GetMCRTracerouteResult(ctx context.Context, mcrUID, operationID string) (*megaport.LookingGlassTracerouteResult, error) {
+	return nil, nil
+}
+
+func (m *MockMCRLookingGlassService) WaitForMCRPing(ctx context.Context, mcrUID, operationID string) (*megaport.LookingGlassPingResult, error) {
+	return nil, nil
+}
+
+func (m *MockMCRLookingGlassService) WaitForMCRTraceroute(ctx context.Context, mcrUID, operationID string) (*megaport.LookingGlassTracerouteResult, error) {
+	return nil, nil
+}
+
 func (m *MockMCRService) Reset() {
 	m.BuyMCRResult = nil
 	m.BuyMCRErr = nil
 	m.CapturedBuyMCRRequest = nil
 	m.ValidateMCROrderErr = nil
+	m.CapturedValidateMCROrderRequest = nil
 	m.GetMCRResult = nil
 	m.GetMCRErr = nil
 	m.ListMCRsResult = nil
