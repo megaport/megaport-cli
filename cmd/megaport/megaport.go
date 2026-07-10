@@ -22,6 +22,13 @@ func init() {
 	// Initialize common components
 	InitializeCommon()
 
+	// Structurally tag flag-parsing failures (unknown flag, unknown shorthand
+	// flag, malformed value) as usage errors at the point cobra generates them,
+	// instead of pattern-matching the message text later in exitCodeFromError.
+	rootCmd.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
+		return exitcodes.NewUsageError(err)
+	})
+
 	// Apply non-WASM specific initialization
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		defaultWarnings := applyDefaultSettings(cmd)
@@ -72,6 +79,14 @@ func init() {
 
 		// Reject an explicit non-positive --timeout; omitting it uses the default.
 		if err := utils.ValidateTimeoutFlag(cmd); err != nil {
+			return utils.FinishPreRunError(cmd, args, exitcodes.NewUsageError(err))
+		}
+
+		// Run cobra's own required-flags check here, ahead of when cobra would
+		// normally run it after PersistentPreRunE, so a missing required flag
+		// gets tagged as a typed usage error instead of falling back to
+		// isCobraUsageError's message-substring match.
+		if err := cmd.ValidateRequiredFlags(); err != nil {
 			return utils.FinishPreRunError(cmd, args, exitcodes.NewUsageError(err))
 		}
 
@@ -313,6 +328,19 @@ func exitCodeFromError(err error) int {
 	return exitcodes.General
 }
 
+// isCobraUsageError is a defensive fallback for cobra's own error shapes.
+// Flag-parse failures and missing-required-flag errors are now tagged as a
+// typed usage error at the source (rootCmd.SetFlagErrorFunc and the
+// ValidateRequiredFlags check in PersistentPreRunE), so in practice those
+// reach exitCodeFromError as a *exitcodes.CLIError and never fall through to
+// this substring match. "unknown command" (from cobra.Command.Find) and
+// "arg(s)" (from the per-command Args validator) run before
+// PersistentPreRunE and have no equivalent hook, so they still rely on this
+// match. Matching here on any of these patterns is safe because every RunE
+// in this codebase is wrapped by utils.Wrap*, which always converts its own
+// return value to a typed *exitcodes.CLIError before it reaches cobra - so a
+// plain, untyped error surfacing all the way to exitCodeFromError can only
+// have originated from cobra itself, never from application or API text.
 func isCobraUsageError(msg string) bool {
 	cobraPatterns := []string{
 		"unknown command",
