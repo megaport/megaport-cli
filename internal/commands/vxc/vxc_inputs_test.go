@@ -1852,6 +1852,9 @@ func TestBuildUpdateVXCRequestFromJSON_FieldCoverage(t *testing.T) {
 			if tt.expectedError != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
+				var cliErr *exitcodes.CLIError
+				require.ErrorAs(t, err, &cliErr)
+				assert.Equal(t, exitcodes.Usage, cliErr.Code)
 			} else {
 				require.NoError(t, err)
 				if tt.validate != nil {
