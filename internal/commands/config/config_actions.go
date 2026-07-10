@@ -29,6 +29,15 @@ func maskAccessKey(key string) string {
 	return "****"
 }
 
+// validateEnvironment rejects any environment value outside the canonical
+// allow-list. Used by create, update, and import so the three paths cannot drift.
+func validateEnvironment(env string) error {
+	if env != "production" && env != "staging" && env != "development" {
+		return fmt.Errorf("environment must be 'production', 'staging', or 'development'")
+	}
+	return nil
+}
+
 func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	profileName := args[0]
 	// Flag read errors are intentionally ignored — flags are registered by the command builder.
