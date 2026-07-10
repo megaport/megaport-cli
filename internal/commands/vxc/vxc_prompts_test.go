@@ -1118,7 +1118,8 @@ func TestBuildUpdateVXCRequestFromPrompt_TermValidation(t *testing.T) {
 			mockClient := &megaport.Client{VXCService: mockSvc}
 
 			req, err := buildUpdateVXCRequestFromPrompt(context.Background(), mockClient, "vxc-uid-123", true)
-			assert.NoError(t, err)
+			require.NoError(t, err)
+			require.NotNil(t, req)
 			require.NotNil(t, req.Term)
 			assert.Equal(t, term, *req.Term)
 		})

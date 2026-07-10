@@ -1,9 +1,11 @@
 package ports
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/validation"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -437,8 +439,27 @@ func TestProcessFlagUpdatePortInput(t *testing.T) {
 				if tt.expectContractTerm != nil {
 					require.NotNil(t, req.ContractTermMonths)
 					assert.Equal(t, *tt.expectContractTerm, *req.ContractTermMonths)
+				} else {
+					assert.Nil(t, req.ContractTermMonths)
 				}
 			}
+		})
+	}
+
+	for _, term := range validation.ValidContractTerms {
+		t.Run(fmt.Sprintf("term %d is accepted", term), func(t *testing.T) {
+			cmd := &cobra.Command{Use: "test"}
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Bool("marketplace-visibility", false, "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().Int("term", 0, "")
+			require.NoError(t, cmd.Flags().Set("term", fmt.Sprintf("%d", term)))
+
+			req, _, err := processFlagUpdatePortInput(cmd, "port-uid-123")
+			require.NoError(t, err)
+			require.NotNil(t, req)
+			require.NotNil(t, req.ContractTermMonths)
+			assert.Equal(t, term, *req.ContractTermMonths)
 		})
 	}
 }

@@ -1467,7 +1467,8 @@ func TestBuildUpdateVXCRequestFromJSON_Term(t *testing.T) {
 	for _, term := range validation.ValidContractTerms {
 		t.Run(fmt.Sprintf("term %d is accepted", term), func(t *testing.T) {
 			req, err := buildUpdateVXCRequestFromJSON(fmt.Sprintf(`{"term":%d}`, term), "")
-			assert.NoError(t, err)
+			require.NoError(t, err)
+			require.NotNil(t, req)
 			require.NotNil(t, req.Term)
 			assert.Equal(t, term, *req.Term)
 		})

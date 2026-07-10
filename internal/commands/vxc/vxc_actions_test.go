@@ -1589,8 +1589,9 @@ func TestBuildUpdateVXCRequestFromFlags_Term(t *testing.T) {
 			cmd := makeCmd()
 			testutil.SetFlags(t, cmd, map[string]string{"term": fmt.Sprintf("%d", term)})
 			req, err := buildUpdateVXCRequestFromFlags(cmd)
-			assert.NoError(t, err)
-			assert.NotNil(t, req.Term)
+			require.NoError(t, err)
+			require.NotNil(t, req)
+			require.NotNil(t, req.Term)
 			assert.Equal(t, term, *req.Term)
 		})
 	}
