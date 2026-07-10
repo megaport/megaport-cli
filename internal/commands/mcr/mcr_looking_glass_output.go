@@ -279,7 +279,8 @@ func ToTracerouteHopOutput(hop *megaport.LookingGlassTracerouteHop) (TracerouteH
 			}
 			host := probe.Host
 			if host == "" {
-				host = "*"
+				probeStrs[i] = "*"
+				continue
 			}
 			probeStrs[i] = fmt.Sprintf("%s (%.3fms)", host, probe.RTTMs)
 		}

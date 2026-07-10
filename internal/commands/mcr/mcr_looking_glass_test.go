@@ -1456,7 +1456,7 @@ func TestToTracerouteHopOutput_TimeoutProbe(t *testing.T) {
 
 	out, err := ToTracerouteHopOutput(hop)
 	assert.NoError(t, err)
-	assert.Equal(t, "* (0.000ms)", out.Probes)
+	assert.Equal(t, "*", out.Probes)
 }
 
 func TestToTracerouteHopOutputNil(t *testing.T) {
