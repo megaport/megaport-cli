@@ -236,6 +236,10 @@ func TestProcessJSONUpdateUserInput(t *testing.T) {
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
+
+				var cliErr *exitcodes.CLIError
+				require.True(t, errors.As(err, &cliErr))
+				assert.Equal(t, exitcodes.Usage, cliErr.Code)
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, req)
@@ -309,9 +313,10 @@ func TestProcessFlagCreateUserInput(t *testing.T) {
 
 func TestProcessFlagUpdateUserInput(t *testing.T) {
 	tests := []struct {
-		name          string
-		flags         map[string]string
-		expectedError string
+		name             string
+		flags            map[string]string
+		expectedError    string
+		expectUsageError bool
 	}{
 		{
 			name:          "no flags changed",
@@ -344,9 +349,10 @@ func TestProcessFlagUpdateUserInput(t *testing.T) {
 			},
 		},
 		{
-			name:          "invalid position",
-			flags:         map[string]string{"position": "Super Admin"},
-			expectedError: "invalid position",
+			name:             "invalid position",
+			flags:            map[string]string{"position": "Super Admin"},
+			expectedError:    "invalid position",
+			expectUsageError: true,
 		},
 	}
 
@@ -369,6 +375,12 @@ func TestProcessFlagUpdateUserInput(t *testing.T) {
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
+
+				if tt.expectUsageError {
+					var cliErr *exitcodes.CLIError
+					require.True(t, errors.As(err, &cliErr))
+					assert.Equal(t, exitcodes.Usage, cliErr.Code)
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, req)
