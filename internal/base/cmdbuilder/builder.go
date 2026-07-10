@@ -132,8 +132,9 @@ func (b *CommandBuilder) WithRootCmd(rootCmd *cobra.Command) *CommandBuilder {
 //
 // Must be called after the flag has been added to the command (e.g. via
 // WithFlag). Calling it before the flag exists is a builder-ordering bug:
-// Cobra has nothing to mark required, so a warning is printed to stderr
-// instead of silently recording the flag as required.
+// Cobra has nothing to mark required, so a warning is printed to stderr and
+// the flag is never enforced, even though it is still recorded in
+// requiredFlags for documentation.
 func (b *CommandBuilder) WithRequiredFlag(name, description string) *CommandBuilder {
 	if flag := b.cmd.Flags().Lookup(name); flag != nil {
 		if err := b.cmd.MarkFlagRequired(name); err != nil {
@@ -143,7 +144,7 @@ func (b *CommandBuilder) WithRequiredFlag(name, description string) *CommandBuil
 		// Also update the description to indicate it's required
 		flag.Usage = description + " [required]"
 	} else {
-		fmt.Fprintf(os.Stderr, "Warning: WithRequiredFlag(%q) called before the flag was added to the command; it will not be enforced as required\n", name)
+		fmt.Fprintf(os.Stderr, "Warning: WithRequiredFlag(%q) called on command %q before the flag was added; it will not be enforced as required\n", name, b.cmd.Use)
 	}
 
 	// Store for our documentation as well

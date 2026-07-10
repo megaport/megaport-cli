@@ -351,8 +351,11 @@ func TestWithRequiredFlag(t *testing.T) {
 				WithFlag("name", "", "The name")                  // added too late to be marked required
 		})
 
-		// The misordered call warns loudly at the point it happens.
+		// The misordered call warns loudly at the point it happens, naming
+		// both the flag and the command so it's traceable when several
+		// commands share a flag name.
 		assert.Contains(t, stderr, "\"name\"")
+		assert.Contains(t, stderr, "\"test\"")
 		assert.Contains(t, stderr, "before the flag was added")
 
 		// Documentation map still records the intent...
@@ -372,6 +375,19 @@ func TestWithRequiredFlag(t *testing.T) {
 		cmd.SilenceUsage = true
 		cmd.SilenceErrors = true
 		assert.NoError(t, cmd.Execute())
+	})
+
+	t.Run("flag never added at all warns loudly instead of panicking", func(t *testing.T) {
+		var b *CommandBuilder
+		stderr := captureStderr(t, func() {
+			b = NewCommand("test", "test").
+				WithRequiredFlag("nonexistent", "Does not exist")
+		})
+
+		assert.Contains(t, stderr, "\"nonexistent\"")
+		assert.Contains(t, stderr, "before the flag was added")
+		// Documentation map still records the intent, but nothing enforces it.
+		assert.Equal(t, "Does not exist", b.requiredFlags["nonexistent"])
 	})
 }
 
