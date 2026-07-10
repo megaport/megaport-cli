@@ -1623,6 +1623,16 @@ func TestBuildUpdateVXCRequestFromJSON_FieldCoverage(t *testing.T) {
 			expectedError: "aEndPartnerConfig.connectType",
 		},
 		{
+			name:          "missing aEndPartnerConfig.connectType rejected",
+			json:          `{"aEndPartnerConfig":{"interfaces":[]}}`,
+			expectedError: "aEndPartnerConfig.connectType is required",
+		},
+		{
+			name:          "missing bEndPartnerConfig.connectType rejected",
+			json:          `{"bEndPartnerConfig":{"interfaces":[]}}`,
+			expectedError: "bEndPartnerConfig.connectType is required",
+		},
+		{
 			name:          "wrong-typed flat aEndVlan rejected",
 			json:          `{"aEndVlan":"x"}`,
 			expectedError: "aEndVlan must be a number",

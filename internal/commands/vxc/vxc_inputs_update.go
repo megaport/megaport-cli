@@ -342,9 +342,12 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	if aEndPartnerConfigRaw, present, err := utils.JSONObject(rawData, "aEndPartnerConfig"); err != nil {
 		return nil, fmt.Errorf("aEndPartnerConfig: %w", err)
 	} else if present {
-		connectType, _, err := utils.JSONString(aEndPartnerConfigRaw, "connectType")
+		connectType, connectTypePresent, err := utils.JSONString(aEndPartnerConfigRaw, "connectType")
 		if err != nil {
 			return nil, fmt.Errorf("aEndPartnerConfig.connectType: %w", err)
+		}
+		if !connectTypePresent || connectType == "" {
+			return nil, fmt.Errorf("aEndPartnerConfig.connectType is required")
 		}
 		if strings.ToUpper(connectType) != "VROUTER" {
 			return nil, fmt.Errorf("only VRouter partner configurations can be updated")
@@ -367,9 +370,12 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	if bEndPartnerConfigRaw, present, err := utils.JSONObject(rawData, "bEndPartnerConfig"); err != nil {
 		return nil, fmt.Errorf("bEndPartnerConfig: %w", err)
 	} else if present {
-		connectType, _, err := utils.JSONString(bEndPartnerConfigRaw, "connectType")
+		connectType, connectTypePresent, err := utils.JSONString(bEndPartnerConfigRaw, "connectType")
 		if err != nil {
 			return nil, fmt.Errorf("bEndPartnerConfig.connectType: %w", err)
+		}
+		if !connectTypePresent || connectType == "" {
+			return nil, fmt.Errorf("bEndPartnerConfig.connectType is required")
 		}
 		if strings.ToUpper(connectType) != "VROUTER" {
 			return nil, fmt.Errorf("only VRouter partner configurations can be updated")
