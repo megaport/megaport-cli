@@ -89,11 +89,11 @@ func processFlagCreateNATGatewayInput(cmd *cobra.Command) (*megaport.CreateNATGa
 	if resourceTagsStr != "" || resourceTagsFile != "" {
 		tagData, err := utils.ReadJSONInput(resourceTagsStr, resourceTagsFile)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read resource tags: %w", err)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("failed to read resource tags: %w", err))
 		}
 		var tagsMap map[string]string
 		if err := json.Unmarshal(tagData, &tagsMap); err != nil {
-			return nil, fmt.Errorf("failed to parse resource tags JSON: %w", err)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse resource tags JSON: %w", err))
 		}
 		if err := utils.RejectEmptyTagKeys(tagsMap); err != nil {
 			return nil, exitcodes.NewUsageError(err)
@@ -257,11 +257,11 @@ func processFlagUpdateNATGatewayInput(cmd *cobra.Command, uid string) (*megaport
 	if resourceTagsStr != "" || resourceTagsFile != "" {
 		tagData, err := utils.ReadJSONInput(resourceTagsStr, resourceTagsFile)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read resource tags: %w", err)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("failed to read resource tags: %w", err))
 		}
 		var tagsMap map[string]string
 		if err := json.Unmarshal(tagData, &tagsMap); err != nil {
-			return nil, fmt.Errorf("failed to parse resource tags JSON: %w", err)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse resource tags JSON: %w", err))
 		}
 		if err := utils.RejectEmptyTagKeys(tagsMap); err != nil {
 			return nil, exitcodes.NewUsageError(err)
