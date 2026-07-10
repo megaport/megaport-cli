@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -1463,7 +1464,7 @@ func TestBuildUpdateVXCRequestFromJSON_Term(t *testing.T) {
 		assert.Contains(t, err.Error(), "Invalid contract term")
 	})
 
-	for _, term := range []int{1, 12, 24, 36, 48, 60} {
+	for _, term := range validation.ValidContractTerms {
 		t.Run(fmt.Sprintf("term %d is accepted", term), func(t *testing.T) {
 			req, err := buildUpdateVXCRequestFromJSON(fmt.Sprintf(`{"term":%d}`, term), "")
 			assert.NoError(t, err)

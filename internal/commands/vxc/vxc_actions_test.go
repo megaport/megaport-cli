@@ -17,6 +17,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/testutil"
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -1583,7 +1584,7 @@ func TestBuildUpdateVXCRequestFromFlags_Term(t *testing.T) {
 		assert.Contains(t, err.Error(), "Invalid contract term")
 	})
 
-	for _, term := range []int{1, 12, 24, 36, 48, 60} {
+	for _, term := range validation.ValidContractTerms {
 		t.Run(fmt.Sprintf("term %d is accepted", term), func(t *testing.T) {
 			cmd := makeCmd()
 			testutil.SetFlags(t, cmd, map[string]string{"term": fmt.Sprintf("%d", term)})

@@ -7,6 +7,7 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/testutil"
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1108,7 +1109,7 @@ func TestBuildUpdateVXCRequestFromPrompt_TermValidation(t *testing.T) {
 		assert.Contains(t, err.Error(), "Invalid contract term")
 	})
 
-	for _, term := range []int{1, 12, 24, 36, 48, 60} {
+	for _, term := range validation.ValidContractTerms {
 		t.Run(fmt.Sprintf("term %d is accepted", term), func(t *testing.T) {
 			cleanup := mockPrompts(baseResponses(fmt.Sprintf("%d", term)))
 			defer cleanup()
