@@ -99,6 +99,7 @@ func ValidateMCRRequest(req *megaport.BuyMCRRequest) error {
 //   - At least one entry must be provided in the prefix filter list
 //   - For each entry:
 //   - Prefix cannot be empty
+//   - Prefix must be a valid CIDR consistent with the list's address family
 //   - Action must be "permit" or "deny"
 //
 // Returns:
@@ -156,6 +157,7 @@ func validatePrefixFilterEntries(entries []*megaport.MCRPrefixListEntry, address
 //   - If entries are provided:
 //   - For each entry:
 //   - Prefix cannot be empty
+//   - Prefix must be a valid CIDR consistent with the list's address family
 //   - Action must be "permit" or "deny"
 //
 // Returns:
