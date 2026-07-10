@@ -406,6 +406,87 @@ func TestUpdateMVE(t *testing.T) {
 			},
 		},
 		{
+			name: "flag update without cost-centre preserves the existing one",
+			args: []string{"mve-123"},
+			flags: map[string]string{
+				"name": "Renamed MVE",
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.ModifyMVEResult = &megaport.ModifyMVEResponse{MVEUpdated: true}
+				m.GetMVEResult = &megaport.MVE{Name: "Mock MVE", CostCentre: "Existing CC"}
+			},
+			expectedOutput: "MVE updated mve-123",
+			validateRequest: func(t *testing.T, req *megaport.ModifyMVERequest) {
+				assert.Equal(t, "Renamed MVE", req.Name)
+				assert.Equal(t, "Existing CC", req.CostCentre)
+			},
+		},
+		{
+			name: "flag update with empty cost-centre clears it",
+			args: []string{"mve-123"},
+			flags: map[string]string{
+				"cost-centre": "",
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.ModifyMVEResult = &megaport.ModifyMVEResponse{MVEUpdated: true}
+				m.GetMVEResult = &megaport.MVE{Name: "Mock MVE", CostCentre: "Existing CC"}
+			},
+			expectedOutput: "MVE updated mve-123",
+			validateRequest: func(t *testing.T, req *megaport.ModifyMVERequest) {
+				assert.Empty(t, req.CostCentre)
+			},
+		},
+		{
+			name: "json update without cost-centre preserves the existing one",
+			args: []string{"mve-123"},
+			flags: map[string]string{
+				"json": `{"name":"JSON Renamed"}`,
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.ModifyMVEResult = &megaport.ModifyMVEResponse{MVEUpdated: true}
+				m.GetMVEResult = &megaport.MVE{Name: "Mock MVE", CostCentre: "Existing CC"}
+			},
+			expectedOutput: "MVE updated mve-123",
+			validateRequest: func(t *testing.T, req *megaport.ModifyMVERequest) {
+				assert.Equal(t, "JSON Renamed", req.Name)
+				assert.Equal(t, "Existing CC", req.CostCentre)
+			},
+		},
+		{
+			name: "json update with empty cost-centre clears it",
+			args: []string{"mve-123"},
+			flags: map[string]string{
+				"json": `{"costCentre":""}`,
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.ModifyMVEResult = &megaport.ModifyMVEResponse{MVEUpdated: true}
+				m.GetMVEResult = &megaport.MVE{Name: "Mock MVE", CostCentre: "Existing CC"}
+			},
+			expectedOutput: "MVE updated mve-123",
+			validateRequest: func(t *testing.T, req *megaport.ModifyMVERequest) {
+				assert.Empty(t, req.CostCentre)
+			},
+		},
+		{
+			name:        "interactive update preserves cost-centre when skipped",
+			args:        []string{"mve-123"},
+			interactive: true,
+			prompts: []string{
+				"Renamed MVE",
+				"",
+				"",
+			},
+			mockSetup: func(m *MockMVEService) {
+				m.ModifyMVEResult = &megaport.ModifyMVEResponse{MVEUpdated: true}
+				m.GetMVEResult = &megaport.MVE{Name: "Mock MVE", CostCentre: "Existing CC"}
+			},
+			expectedOutput: "MVE updated mve-123",
+			validateRequest: func(t *testing.T, req *megaport.ModifyMVERequest) {
+				assert.Equal(t, "Renamed MVE", req.Name)
+				assert.Equal(t, "Existing CC", req.CostCentre)
+			},
+		},
+		{
 			name:          "no input provided",
 			args:          []string{"mve-123"},
 			expectedError: "no input provided",
