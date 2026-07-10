@@ -218,6 +218,36 @@ func TestPromptForUpdateMCRDetails_InvalidMarketplaceVisibilityValue(t *testing.
 	assert.Contains(t, err.Error(), "not a recognized yes/no answer")
 }
 
+func TestPromptForUpdateMCRDetails_MarketplaceVisibilityGate_ShorthandY(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	// name, costCentre, marketplaceVisibility(y), visibilityValue(yes)
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"", "", "y", "yes", "", "",
+	}))
+
+	req, err := promptForUpdateMCRDetails("mcr-123", "", true)
+	assert.NoError(t, err)
+	require.NotNil(t, req.MarketplaceVisibility)
+	assert.True(t, *req.MarketplaceVisibility)
+}
+
+func TestPromptForUpdateMCRDetails_InvalidMarketplaceVisibilityGateValue(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	// name, costCentre, marketplaceVisibility(invalid)
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"", "", "maybe",
+	}))
+
+	_, err := promptForUpdateMCRDetails("mcr-123", "", true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "update marketplace visibility")
+	assert.Contains(t, err.Error(), "not a recognized yes/no answer")
+}
+
 func TestPromptForUpdateMCRDetails_CostCentrePreserved(t *testing.T) {
 	originalPrompt := utils.GetResourcePrompt()
 	defer func() { utils.SetResourcePrompt(originalPrompt) }()

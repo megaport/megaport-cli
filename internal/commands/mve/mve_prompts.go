@@ -175,7 +175,7 @@ func promptMVEVendorConfig(vendorStr string, imageID int, productSize string, mv
 			CloudInit:   cloudInit,
 		}, nil
 	case "cisco":
-		manageLocallyStr, err := utils.ResourcePrompt("mve", "Manage locally (y/yes/n/no) (required): ", noColor)
+		manageLocallyStr, err := utils.ResourcePrompt("mve", "Manage locally (y/yes/true/n/no/false) (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}

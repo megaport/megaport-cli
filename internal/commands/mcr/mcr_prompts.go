@@ -77,24 +77,30 @@ func promptForUpdateMCRDetails(mcrUID, currentCostCentre string, noColor bool) (
 		fieldsUpdated = true
 	}
 
-	marketplaceVisibilityPrompt := "Update marketplace visibility? (yes/no, leave empty to skip): "
+	marketplaceVisibilityPrompt := "Update marketplace visibility? (y/yes/n/no, leave empty to skip): "
 	marketplaceVisibilityStr, err := utils.ResourcePrompt("mcr", marketplaceVisibilityPrompt, noColor)
 	if err != nil {
 		return nil, err
 	}
-	if strings.ToLower(marketplaceVisibilityStr) == "yes" {
-		visibilityValuePrompt := "Enter marketplace visibility (y/yes/n/no): "
-		visibilityValue, err := utils.ResourcePrompt("mcr", visibilityValuePrompt, noColor)
+	if marketplaceVisibilityStr != "" {
+		wantsVisibilityUpdate, err := utils.ParseYesNo(marketplaceVisibilityStr)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("update marketplace visibility: %w", err)
 		}
+		if wantsVisibilityUpdate {
+			visibilityValuePrompt := "Enter marketplace visibility (y/yes/true/n/no/false): "
+			visibilityValue, err := utils.ResourcePrompt("mcr", visibilityValuePrompt, noColor)
+			if err != nil {
+				return nil, err
+			}
 
-		marketplaceVisibility, err := utils.ParseYesNo(visibilityValue)
-		if err != nil {
-			return nil, fmt.Errorf("marketplace visibility: %w", err)
+			marketplaceVisibility, err := utils.ParseYesNo(visibilityValue)
+			if err != nil {
+				return nil, fmt.Errorf("marketplace visibility: %w", err)
+			}
+			req.MarketplaceVisibility = &marketplaceVisibility
+			fieldsUpdated = true
 		}
-		req.MarketplaceVisibility = &marketplaceVisibility
-		fieldsUpdated = true
 	}
 
 	termPrompt := fmt.Sprintf("Enter new term (%s months, leave empty to skip): ", validation.FormatIntSlice(validation.ValidContractTerms))
@@ -329,7 +335,7 @@ func promptUpdateExistingEntries(currentEntries []*megaport.MCRPrefixListEntry, 
 		output.PrintPlain("Entry %d - Current: Action: %s, Prefix: %s, GE: %d, LE: %d", noColor,
 			i+1, entry.Action, entry.Prefix, entry.Ge, entry.Le)
 
-		keepEntryStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Keep entry %d? (y/yes/n/no): ", i+1), noColor)
+		keepEntryStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Keep entry %d? (y/yes/true/n/no/false): ", i+1), noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -339,7 +345,7 @@ func promptUpdateExistingEntries(currentEntries []*megaport.MCRPrefixListEntry, 
 		}
 
 		if keepEntry {
-			modifyEntryStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Modify entry %d? (y/yes/n/no): ", i+1), noColor)
+			modifyEntryStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Modify entry %d? (y/yes/true/n/no/false): ", i+1), noColor)
 			if err != nil {
 				return nil, err
 			}
