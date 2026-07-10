@@ -1456,6 +1456,69 @@ func TestBuildUpdateVXCRequestFromJSON_WholeRateLimit(t *testing.T) {
 	assert.Equal(t, 2000, *req.RateLimit)
 }
 
+func TestBuildUpdateVXCRequestFromJSON_TypoKeyIsRejected(t *testing.T) {
+	// "rateLimt" is not a recognized field, so it must not be silently
+	// dropped into an empty, successful update.
+	_, err := buildUpdateVXCRequestFromJSON(`{"rateLimt": 500}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one field must be updated")
+}
+
+func TestBuildUpdateVXCRequestFromJSON_WrongTypedValueIsRejected(t *testing.T) {
+	_, err := buildUpdateVXCRequestFromJSON(`{"rateLimit": "500"}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rateLimit must be a number")
+}
+
+func TestBuildUpdateVXCRequestFromJSON_EmptyObjectIsRejected(t *testing.T) {
+	_, err := buildUpdateVXCRequestFromJSON(`{}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one field must be updated")
+}
+
+func TestBuildUpdateVXCRequestFromJSON_ValidMultiFieldPayload(t *testing.T) {
+	req, err := buildUpdateVXCRequestFromJSON(`{"name":"updated-vxc","rateLimit":1000,"costCentre":"eng","shutdown":true}`, "")
+	require.NoError(t, err)
+	require.NotNil(t, req.Name)
+	assert.Equal(t, "updated-vxc", *req.Name)
+	require.NotNil(t, req.RateLimit)
+	assert.Equal(t, 1000, *req.RateLimit)
+	require.NotNil(t, req.CostCentre)
+	assert.Equal(t, "eng", *req.CostCentre)
+	require.NotNil(t, req.Shutdown)
+	assert.True(t, *req.Shutdown)
+}
+
+func TestBuildUpdateVXCRequestFromJSON_FlatVLANFallback(t *testing.T) {
+	req, err := buildUpdateVXCRequestFromJSON(`{"aEndVlan":100,"bEndVlan":200}`, "")
+	require.NoError(t, err)
+	require.NotNil(t, req.AEndVLAN)
+	assert.Equal(t, 100, *req.AEndVLAN)
+	require.NotNil(t, req.BEndVLAN)
+	assert.Equal(t, 200, *req.BEndVLAN)
+}
+
+func TestBuildUpdateVXCRequestFromJSON_WrongTypedPartnerConfigIsRejected(t *testing.T) {
+	_, err := buildUpdateVXCRequestFromJSON(`{"aEndPartnerConfig":"not-an-object"}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "aEndPartnerConfig must be an object")
+}
+
+func TestBuildUpdateVXCRequestFromJSON_NestedWrongTypedValueIsRejected(t *testing.T) {
+	_, err := buildUpdateVXCRequestFromJSON(`{"aEndConfiguration":{"vlan":"not-a-number"}}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "aEndConfiguration.vlan")
+}
+
+func TestBuildUpdateVXCRequestFromJSON_NestedTypoKeyIsRejected(t *testing.T) {
+	// "vln" inside aEndConfiguration is not recognized, so the object is
+	// present but contributes no field, and no flat aEndVlan fallback
+	// applies once aEndConfiguration itself is present.
+	_, err := buildUpdateVXCRequestFromJSON(`{"aEndConfiguration":{"vln":100}}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one field must be updated")
+}
+
 func TestResolvePartnerPortUID(t *testing.T) {
 	origGetPartnerPortUID := getPartnerPortUID
 	defer func() { getPartnerPortUID = origGetPartnerPortUID }()

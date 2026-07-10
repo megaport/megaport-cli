@@ -175,8 +175,11 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	}
 
 	req := &megaport.UpdateVXCRequest{}
+	fieldSet := false
 
-	if rateLimit, ok := rawData["rateLimit"].(float64); ok {
+	if rateLimit, present, err := utils.JSONNumber(rawData, "rateLimit"); err != nil {
+		return nil, fmt.Errorf("rateLimit: %w", err)
+	} else if present {
 		if rateLimit != math.Trunc(rateLimit) {
 			return nil, fmt.Errorf("rateLimit must be a whole number, got %v", rateLimit)
 		}
@@ -185,9 +188,12 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 			return nil, fmt.Errorf("rateLimit must be greater than or equal to 0")
 		}
 		req.RateLimit = &rateLimitInt
+		fieldSet = true
 	}
 
-	if term, ok := rawData["term"].(float64); ok {
+	if term, present, err := utils.JSONNumber(rawData, "term"); err != nil {
+		return nil, fmt.Errorf("term: %w", err)
+	} else if present {
 		if term != math.Trunc(term) {
 			return nil, fmt.Errorf("term must be a whole number, got %v", term)
 		}
@@ -198,129 +204,183 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 			}
 		}
 		req.Term = &termInt
+		fieldSet = true
 	}
 
-	if costCentre, ok := rawData["costCentre"].(string); ok {
+	if costCentre, present, err := utils.JSONString(rawData, "costCentre"); err != nil {
+		return nil, fmt.Errorf("costCentre: %w", err)
+	} else if present {
 		req.CostCentre = &costCentre
+		fieldSet = true
 	}
 
-	if shutdown, ok := rawData["shutdown"].(bool); ok {
+	if shutdown, present, err := utils.JSONBool(rawData, "shutdown"); err != nil {
+		return nil, fmt.Errorf("shutdown: %w", err)
+	} else if present {
 		req.Shutdown = &shutdown
+		fieldSet = true
 	}
 
 	// Handle nested configurations in addition to flat fields
-	if aEndConfig, ok := rawData["aEndConfiguration"].(map[string]interface{}); ok {
-		if vlan, ok := aEndConfig["vlan"].(float64); ok {
+	if aEndConfig, present, err := utils.JSONObject(rawData, "aEndConfiguration"); err != nil {
+		return nil, fmt.Errorf("aEndConfiguration: %w", err)
+	} else if present {
+		if vlan, vlanPresent, err := utils.JSONNumber(aEndConfig, "vlan"); err != nil {
+			return nil, fmt.Errorf("aEndConfiguration.vlan: %w", err)
+		} else if vlanPresent {
 			vlanInt := int(vlan)
 			if err := validation.ValidateVLAN(vlanInt); err != nil {
 				return nil, fmt.Errorf("aEndConfiguration.vlan: %w", err)
 			}
 			req.AEndVLAN = &vlanInt
+			fieldSet = true
 		}
-	} else {
-		if aEndVLAN, ok := rawData["aEndVlan"].(float64); ok {
-			aEndVLANInt := int(aEndVLAN)
-			if err := validation.ValidateVLAN(aEndVLANInt); err != nil {
-				return nil, fmt.Errorf("aEndVlan: %w", err)
-			}
-			req.AEndVLAN = &aEndVLANInt
+	} else if aEndVLAN, present, err := utils.JSONNumber(rawData, "aEndVlan"); err != nil {
+		return nil, fmt.Errorf("aEndVlan: %w", err)
+	} else if present {
+		aEndVLANInt := int(aEndVLAN)
+		if err := validation.ValidateVLAN(aEndVLANInt); err != nil {
+			return nil, fmt.Errorf("aEndVlan: %w", err)
 		}
+		req.AEndVLAN = &aEndVLANInt
+		fieldSet = true
 	}
 
-	if bEndConfig, ok := rawData["bEndConfiguration"].(map[string]interface{}); ok {
-		if vlan, ok := bEndConfig["vlan"].(float64); ok {
+	if bEndConfig, present, err := utils.JSONObject(rawData, "bEndConfiguration"); err != nil {
+		return nil, fmt.Errorf("bEndConfiguration: %w", err)
+	} else if present {
+		if vlan, vlanPresent, err := utils.JSONNumber(bEndConfig, "vlan"); err != nil {
+			return nil, fmt.Errorf("bEndConfiguration.vlan: %w", err)
+		} else if vlanPresent {
 			vlanInt := int(vlan)
 			if err := validation.ValidateVLAN(vlanInt); err != nil {
 				return nil, fmt.Errorf("bEndConfiguration.vlan: %w", err)
 			}
 			req.BEndVLAN = &vlanInt
+			fieldSet = true
 		}
-	} else {
-		if bEndVLAN, ok := rawData["bEndVlan"].(float64); ok {
-			bEndVLANInt := int(bEndVLAN)
-			if err := validation.ValidateVLAN(bEndVLANInt); err != nil {
-				return nil, fmt.Errorf("bEndVlan: %w", err)
-			}
-			req.BEndVLAN = &bEndVLANInt
+	} else if bEndVLAN, present, err := utils.JSONNumber(rawData, "bEndVlan"); err != nil {
+		return nil, fmt.Errorf("bEndVlan: %w", err)
+	} else if present {
+		bEndVLANInt := int(bEndVLAN)
+		if err := validation.ValidateVLAN(bEndVLANInt); err != nil {
+			return nil, fmt.Errorf("bEndVlan: %w", err)
 		}
+		req.BEndVLAN = &bEndVLANInt
+		fieldSet = true
 	}
 
 	// Handle VXC name field variants
-	if name, ok := rawData["name"].(string); ok {
+	if name, present, err := utils.JSONString(rawData, "name"); err != nil {
+		return nil, fmt.Errorf("name: %w", err)
+	} else if present {
 		req.Name = &name
-	} else if vxcName, ok := rawData["vxcName"].(string); ok {
+		fieldSet = true
+	} else if vxcName, present, err := utils.JSONString(rawData, "vxcName"); err != nil {
+		return nil, fmt.Errorf("vxcName: %w", err)
+	} else if present {
 		req.Name = &vxcName
+		fieldSet = true
 	}
 
-	if aEndInnerVLAN, ok := rawData["aEndInnerVlan"].(float64); ok {
+	if aEndInnerVLAN, present, err := utils.JSONNumber(rawData, "aEndInnerVlan"); err != nil {
+		return nil, fmt.Errorf("aEndInnerVlan: %w", err)
+	} else if present {
 		aEndInnerVLANInt := int(aEndInnerVLAN)
 		if err := validation.ValidateVXCEndInnerVLAN(aEndInnerVLANInt); err != nil {
 			return nil, fmt.Errorf("invalid aEndInnerVlan: %w", err)
 		}
 		req.AEndInnerVLAN = &aEndInnerVLANInt
+		fieldSet = true
 	}
 
-	if bEndInnerVLAN, ok := rawData["bEndInnerVlan"].(float64); ok {
+	if bEndInnerVLAN, present, err := utils.JSONNumber(rawData, "bEndInnerVlan"); err != nil {
+		return nil, fmt.Errorf("bEndInnerVlan: %w", err)
+	} else if present {
 		bEndInnerVLANInt := int(bEndInnerVLAN)
 		if err := validation.ValidateVXCEndInnerVLAN(bEndInnerVLANInt); err != nil {
 			return nil, fmt.Errorf("invalid bEndInnerVlan: %w", err)
 		}
 		req.BEndInnerVLAN = &bEndInnerVLANInt
+		fieldSet = true
 	}
 
 	// Handle product UIDs
-	if aEndUID, ok := rawData["aEndUid"].(string); ok {
+	if aEndUID, present, err := utils.JSONString(rawData, "aEndUid"); err != nil {
+		return nil, fmt.Errorf("aEndUid: %w", err)
+	} else if present {
 		req.AEndProductUID = &aEndUID
+		fieldSet = true
 	}
 
-	if bEndUID, ok := rawData["bEndUid"].(string); ok {
+	if bEndUID, present, err := utils.JSONString(rawData, "bEndUid"); err != nil {
+		return nil, fmt.Errorf("bEndUid: %w", err)
+	} else if present {
 		req.BEndProductUID = &bEndUID
+		fieldSet = true
 	}
 
 	// Handle partner configurations - using direct map access
-	if aEndPartnerConfigRaw, ok := rawData["aEndPartnerConfig"].(map[string]interface{}); ok {
-		if connectType, ok := aEndPartnerConfigRaw["connectType"].(string); ok && strings.ToUpper(connectType) == "VROUTER" {
-			aEndPartnerConfig, err := parsePartnerConfigFromMap(aEndPartnerConfigRaw)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse A-End partner config: %w", err)
-			}
-			vrouterConfigA, ok := aEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig)
-			if !ok {
-				return nil, fmt.Errorf("only VRouter partner configurations can be updated")
-			}
-			if err := validation.ValidateVrouterPartnerConfig(vrouterConfigA); err != nil {
-				return nil, err
-			}
-			req.AEndPartnerConfig = vrouterConfigA
-		} else {
+	if aEndPartnerConfigRaw, present, err := utils.JSONObject(rawData, "aEndPartnerConfig"); err != nil {
+		return nil, fmt.Errorf("aEndPartnerConfig: %w", err)
+	} else if present {
+		connectType, _, err := utils.JSONString(aEndPartnerConfigRaw, "connectType")
+		if err != nil {
+			return nil, fmt.Errorf("aEndPartnerConfig.connectType: %w", err)
+		}
+		if strings.ToUpper(connectType) != "VROUTER" {
 			return nil, fmt.Errorf("only VRouter partner configurations can be updated")
 		}
+		aEndPartnerConfig, err := parsePartnerConfigFromMap(aEndPartnerConfigRaw)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse A-End partner config: %w", err)
+		}
+		vrouterConfigA, ok := aEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig)
+		if !ok {
+			return nil, fmt.Errorf("only VRouter partner configurations can be updated")
+		}
+		if err := validation.ValidateVrouterPartnerConfig(vrouterConfigA); err != nil {
+			return nil, err
+		}
+		req.AEndPartnerConfig = vrouterConfigA
+		fieldSet = true
 	}
 
-	if bEndPartnerConfigRaw, ok := rawData["bEndPartnerConfig"].(map[string]interface{}); ok {
-		if connectType, ok := bEndPartnerConfigRaw["connectType"].(string); ok && strings.ToUpper(connectType) == "VROUTER" {
-			bEndPartnerConfig, err := parsePartnerConfigFromMap(bEndPartnerConfigRaw)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse B-End partner config: %w", err)
-			}
-			vrouterConfigB, ok := bEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig)
-			if !ok {
-				return nil, fmt.Errorf("only VRouter partner configurations can be updated")
-			}
-			if err := validation.ValidateVrouterPartnerConfig(vrouterConfigB); err != nil {
-				return nil, err
-			}
-			req.BEndPartnerConfig = vrouterConfigB
-		} else {
+	if bEndPartnerConfigRaw, present, err := utils.JSONObject(rawData, "bEndPartnerConfig"); err != nil {
+		return nil, fmt.Errorf("bEndPartnerConfig: %w", err)
+	} else if present {
+		connectType, _, err := utils.JSONString(bEndPartnerConfigRaw, "connectType")
+		if err != nil {
+			return nil, fmt.Errorf("bEndPartnerConfig.connectType: %w", err)
+		}
+		if strings.ToUpper(connectType) != "VROUTER" {
 			return nil, fmt.Errorf("only VRouter partner configurations can be updated")
 		}
+		bEndPartnerConfig, err := parsePartnerConfigFromMap(bEndPartnerConfigRaw)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse B-End partner config: %w", err)
+		}
+		vrouterConfigB, ok := bEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig)
+		if !ok {
+			return nil, fmt.Errorf("only VRouter partner configurations can be updated")
+		}
+		if err := validation.ValidateVrouterPartnerConfig(vrouterConfigB); err != nil {
+			return nil, err
+		}
+		req.BEndPartnerConfig = vrouterConfigB
+		fieldSet = true
 	}
 
 	// Handle approval and vNIC index fields from JSON
-	if isApproved, ok := rawData["isApproved"].(bool); ok {
+	if isApproved, present, err := utils.JSONBool(rawData, "isApproved"); err != nil {
+		return nil, fmt.Errorf("isApproved: %w", err)
+	} else if present {
 		req.IsApproved = &isApproved
+		fieldSet = true
 	}
-	if aVnicIndex, ok := rawData["aVnicIndex"].(float64); ok {
+	if aVnicIndex, present, err := utils.JSONNumber(rawData, "aVnicIndex"); err != nil {
+		return nil, fmt.Errorf("aVnicIndex: %w", err)
+	} else if present {
 		if aVnicIndex != math.Trunc(aVnicIndex) {
 			return nil, fmt.Errorf("aVnicIndex must be a whole number, got %v", aVnicIndex)
 		}
@@ -329,8 +389,11 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 			return nil, fmt.Errorf("invalid aVnicIndex: %w", err)
 		}
 		req.AVnicIndex = &idx
+		fieldSet = true
 	}
-	if bVnicIndex, ok := rawData["bVnicIndex"].(float64); ok {
+	if bVnicIndex, present, err := utils.JSONNumber(rawData, "bVnicIndex"); err != nil {
+		return nil, fmt.Errorf("bVnicIndex: %w", err)
+	} else if present {
 		if bVnicIndex != math.Trunc(bVnicIndex) {
 			return nil, fmt.Errorf("bVnicIndex must be a whole number, got %v", bVnicIndex)
 		}
@@ -339,6 +402,11 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 			return nil, fmt.Errorf("invalid bVnicIndex: %w", err)
 		}
 		req.BVnicIndex = &idx
+		fieldSet = true
+	}
+
+	if !fieldSet {
+		return nil, fmt.Errorf("at least one field must be updated")
 	}
 
 	// Set wait for update to true with a reasonable timeout
