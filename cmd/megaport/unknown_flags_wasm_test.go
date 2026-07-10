@@ -12,18 +12,20 @@ import (
 // TestExecuteWithArgs_RejectsUnknownFlags is the ESD-1634 regression test:
 // the WASM entrypoint must report an unknown flag as an error, matching the
 // native build, instead of silently dropping it and either proceeding or
-// failing later with a misleading "required flag not set" message. Cases are
-// help-only or otherwise non-mutating by design so no network call happens
-// and no real order is placed.
+// failing later with a misleading "required flag not set" message. Each case
+// also carries --help: flag parsing fails before Cobra ever checks --help, so
+// this has no effect while the fix holds, but it keeps the case side-effect
+// free (no real network call or order placed) if the rejection ever
+// regresses and the args are actually executed.
 func TestExecuteWithArgs_RejectsUnknownFlags(t *testing.T) {
 	cases := []struct {
 		name string
 		args []string
 	}{
-		{"unknown flag on a leaf command", []string{"megaport-cli", "locations", "list", "--totally-bogus-flag"}},
-		{"unknown flag before the subcommand", []string{"megaport-cli", "--totally-bogus-flag", "locations", "list"}},
-		{"unknown flag between subcommand levels", []string{"megaport-cli", "locations", "--totally-bogus-flag", "list"}},
-		{"ticket repro: typo'd boolean flag on a buy command", []string{"megaport-cli", "ports", "buy", "--marketplace-visability", "false"}},
+		{"unknown flag on a leaf command", []string{"megaport-cli", "locations", "list", "--help", "--totally-bogus-flag"}},
+		{"unknown flag before the subcommand", []string{"megaport-cli", "--totally-bogus-flag", "locations", "list", "--help"}},
+		{"unknown flag between subcommand levels", []string{"megaport-cli", "locations", "--totally-bogus-flag", "list", "--help"}},
+		{"ticket repro: typo'd boolean flag on a buy command", []string{"megaport-cli", "ports", "buy", "--help", "--marketplace-visability", "false"}},
 	}
 
 	for _, tc := range cases {
