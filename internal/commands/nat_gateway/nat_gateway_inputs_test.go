@@ -199,6 +199,18 @@ func TestProcessFlagCreateNATGatewayInput_ValidResourceTags(t *testing.T) {
 	assert.Len(t, req.ResourceTags, 2)
 }
 
+func TestProcessFlagCreateNATGatewayInput_RejectsEmptyTagKey(t *testing.T) {
+	cmd := newCreateFlagsCmd()
+	require.NoError(t, cmd.Flags().Set("name", "Tag GW"))
+	require.NoError(t, cmd.Flags().Set("term", "12"))
+	require.NoError(t, cmd.Flags().Set("speed", "1000"))
+	require.NoError(t, cmd.Flags().Set("location-id", "1"))
+	require.NoError(t, cmd.Flags().Set("resource-tags", `{"":"x"}`))
+
+	_, err := processFlagCreateNATGatewayInput(cmd)
+	assert.Error(t, err)
+}
+
 // ---- processJSONUpdateNATGatewayInput ----
 
 func TestProcessJSONUpdateNATGatewayInput_RejectsEmptyTagKey(t *testing.T) {
@@ -362,5 +374,13 @@ func TestProcessFlagUpdateNATGatewayInput_InvalidResourceTags(t *testing.T) {
 	require.NoError(t, cmd.Flags().Set("resource-tags", `{invalid}`))
 
 	_, err := processFlagUpdateNATGatewayInput(cmd, "uid-bad")
+	assert.Error(t, err)
+}
+
+func TestProcessFlagUpdateNATGatewayInput_RejectsEmptyTagKey(t *testing.T) {
+	cmd := newUpdateFlagsCmd()
+	require.NoError(t, cmd.Flags().Set("resource-tags", `{"":"x"}`))
+
+	_, err := processFlagUpdateNATGatewayInput(cmd, "uid-empty-tag")
 	assert.Error(t, err)
 }

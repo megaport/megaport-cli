@@ -1384,6 +1384,33 @@ func TestBuildVXCRequestFromJSON_PartnerPortResolution(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "resolved-b-end", req.BEndConfiguration.ProductUID)
 	})
+
+	t.Run("B-End productUID lookup failure surfaces as error", func(t *testing.T) {
+		payload := `{"portUid":"port-1","vxcName":"Test VXC","rateLimit":1000,"term":12,"bEndConfiguration":{"partnerConfig":{"connectType":"GOOGLE","pairingKey":"google-key"}}}`
+		svc := &MockVXCService{
+			LookupPartnerPortsError: fmt.Errorf("lookup failed"),
+		}
+
+		_, err := buildVXCRequestFromJSON(payload, "", context.Background(), svc)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to look up B-End Partner Port")
+	})
+
+	t.Run("A-End partner config that resolves to no UID still requires portUid", func(t *testing.T) {
+		payload := `{"vxcName":"Test VXC","rateLimit":1000,"term":12,"aEndConfiguration":{"partnerConfig":{"connectType":"AWS","ownerAccount":"123"}},"bEndConfiguration":{"productUID":"port-2"}}`
+
+		_, err := buildVXCRequestFromJSON(payload, "", context.Background(), &MockVXCService{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Port UID is required")
+	})
+
+	t.Run("B-End partner config that resolves to no UID still requires productUID", func(t *testing.T) {
+		payload := `{"portUid":"port-1","vxcName":"Test VXC","rateLimit":1000,"term":12,"bEndConfiguration":{"partnerConfig":{"connectType":"AWS","ownerAccount":"123"}}}`
+
+		_, err := buildVXCRequestFromJSON(payload, "", context.Background(), &MockVXCService{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "productUID was neither provided nor could be looked up")
+	})
 }
 
 func TestBuildUpdateVXCRequestFromJSON_PartnerConfigs(t *testing.T) {

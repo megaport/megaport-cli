@@ -339,6 +339,9 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string, ctx context.Co
 			if err != nil {
 				return nil, fmt.Errorf("failed to look up B-End Partner Port: %w", err)
 			}
+			if uid == "" {
+				return nil, exitcodes.NewUsageError(fmt.Errorf("bEndConfiguration.productUID was neither provided nor could be looked up"))
+			}
 			bEndConfig.ProductUID = uid
 		}
 		req.BEndConfiguration = bEndConfig

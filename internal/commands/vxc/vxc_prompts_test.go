@@ -1031,6 +1031,63 @@ func TestBuildUpdateVXCRequestFromPrompt(t *testing.T) {
 			},
 			expectedError: "name cannot be empty",
 		},
+		{
+			name: "update remaining fields",
+			responses: []string{
+				"no",        // update name
+				"no",        // update rate limit
+				"yes",       // update term
+				"24",        // new term
+				"yes",       // update cost centre
+				"New CC",    // new cost centre
+				"yes",       // update shutdown
+				"yes",       // shut down the VXC
+				"yes",       // update A-End VLAN
+				"101",       // new A-End VLAN
+				"yes",       // update B-End VLAN
+				"201",       // new B-End VLAN
+				"yes",       // update A-End inner VLAN
+				"301",       // new A-End inner VLAN
+				"yes",       // update B-End inner VLAN
+				"401",       // new B-End inner VLAN
+				"yes",       // update A-End product UID
+				"new-a-uid", // new A-End product UID
+				"yes",       // update B-End product UID
+				"new-b-uid", // new B-End product UID
+				"no",        // A-End VRouter config
+				"yes",       // B-End VRouter config
+				"1",         // number of interfaces
+				"",          // VLAN (untagged)
+				"",          // interface type (default subInterface)
+				"no",        // add IP addresses
+				"no",        // add IP routes
+				"no",        // add NAT IPs
+				"no",        // configure BFD
+				"no",        // configure BGP
+			},
+			verify: func(t *testing.T, req *megaport.UpdateVXCRequest) {
+				assert.NotNil(t, req.Term)
+				assert.Equal(t, 24, *req.Term)
+				assert.NotNil(t, req.CostCentre)
+				assert.Equal(t, "New CC", *req.CostCentre)
+				assert.NotNil(t, req.Shutdown)
+				assert.True(t, *req.Shutdown)
+				assert.NotNil(t, req.AEndVLAN)
+				assert.Equal(t, 101, *req.AEndVLAN)
+				assert.NotNil(t, req.BEndVLAN)
+				assert.Equal(t, 201, *req.BEndVLAN)
+				assert.NotNil(t, req.AEndInnerVLAN)
+				assert.Equal(t, 301, *req.AEndInnerVLAN)
+				assert.NotNil(t, req.BEndInnerVLAN)
+				assert.Equal(t, 401, *req.BEndInnerVLAN)
+				assert.NotNil(t, req.AEndProductUID)
+				assert.Equal(t, "new-a-uid", *req.AEndProductUID)
+				assert.NotNil(t, req.BEndProductUID)
+				assert.Equal(t, "new-b-uid", *req.BEndProductUID)
+				assert.Nil(t, req.AEndPartnerConfig)
+				assert.NotNil(t, req.BEndPartnerConfig)
+			},
+		},
 	}
 
 	for _, tc := range tests {
