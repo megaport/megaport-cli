@@ -903,6 +903,17 @@ func TestStdinHasBuffered_TrueAfterReadAhead(t *testing.T) {
 	withMockedIO("first\nsecond\n", func() {
 		_, err := readStdinLine()
 		assert.NoError(t, err)
+
+		// Read is allowed to return fewer bytes than requested, so the first
+		// read alone isn't guaranteed to have pulled "second\n" into the
+		// buffer. Peek forces fill() to pull at least one more byte so the
+		// assertion below doesn't depend on how much the first read happened
+		// to buffer.
+		stdinReaderMu.Lock()
+		_, peekErr := stdinReader.Peek(1)
+		stdinReaderMu.Unlock()
+		assert.NoError(t, peekErr)
+
 		assert.True(t, stdinHasBuffered())
 	})
 }

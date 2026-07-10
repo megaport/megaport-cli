@@ -87,6 +87,16 @@ func TestNativePasswordPrompt_UsesSharedReaderWhenDataBuffered(t *testing.T) {
 	first, err := readStdinLine()
 	require.NoError(t, err)
 	assert.Equal(t, "first", first)
+
+	// Read is allowed to return fewer bytes than requested, so the read above
+	// isn't guaranteed to have pulled "second\n" into the buffer on its own.
+	// Peek forces fill() to pull at least one more byte so the assertion
+	// below is deterministic.
+	stdinReaderMu.Lock()
+	_, peekErr := stdinReader.Peek(1)
+	stdinReaderMu.Unlock()
+	require.NoError(t, peekErr)
+
 	require.True(t, stdinHasBuffered())
 
 	pw, err := nativePasswordPrompt("Enter password:", true)
