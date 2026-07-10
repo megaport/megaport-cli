@@ -256,15 +256,6 @@ func writeSpinnerLine(s string) {
 	fmt.Fprint(os.Stderr, s)
 }
 
-// setStderr reassigns os.Stderr under stdErrStreamMu, synchronizing the
-// change against concurrent spinner writes (see stdErrStreamMu). Held only
-// for the instant of the reassignment, never across the caller's function.
-func setStderr(f *os.File) {
-	stdErrStreamMu.Lock()
-	os.Stderr = f
-	stdErrStreamMu.Unlock()
-}
-
 // nonInteractive reports whether the spinner's sink is non-interactive: a
 // machine-readable output format, or output not attached to a TTY. In those
 // sinks the carriage-return/clear-line escapes don't collapse anything, so the
