@@ -363,6 +363,12 @@ func mergeUpdateDefaults(req *megaport.UpdateNATGatewayRequest, original *megapo
 	if req.Term == 0 {
 		req.Term = original.Term
 	}
+	if req.PromoCode == "" {
+		req.PromoCode = original.PromoCode
+	}
+	if req.ServiceLevelReference == "" {
+		req.ServiceLevelReference = original.ServiceLevelReference
+	}
 	if !explicit.SessionCount && req.Config.SessionCount == 0 {
 		req.Config.SessionCount = original.Config.SessionCount
 	}

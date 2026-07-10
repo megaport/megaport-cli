@@ -183,5 +183,11 @@ func buildUpdateIXRequestFromJSON(jsonStr, jsonFile string) (*megaport.UpdateIXR
 		}
 	}
 
+	if req.Name == nil && req.RateLimit == nil && req.CostCentre == nil && req.VLAN == nil &&
+		req.MACAddress == nil && req.ASN == nil && req.Password == nil && req.PublicGraph == nil &&
+		req.ReverseDns == nil && req.AEndProductUid == nil && req.Shutdown == nil {
+		return nil, exitcodes.NewUsageError(fmt.Errorf("at least one field must be updated"))
+	}
+
 	return req, nil
 }

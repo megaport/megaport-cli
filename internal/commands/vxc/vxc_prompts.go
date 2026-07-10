@@ -245,6 +245,8 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		return nil, fmt.Errorf("failed to fetch VXC details: %w", err)
 	}
 
+	fieldsUpdated := false
+
 	fmt.Fprintf(os.Stderr, "Current name: %s\n", vxc.Name)
 	updateName, err := utils.ResourcePrompt("vxc", "Update name? (yes/no): ", noColor)
 	if err != nil {
@@ -255,7 +257,11 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		if err != nil {
 			return nil, err
 		}
+		if name == "" {
+			return nil, fmt.Errorf("name cannot be empty")
+		}
 		req.Name = &name
+		fieldsUpdated = true
 	}
 
 	fmt.Fprintf(os.Stderr, "Current rate limit: %d Mbps\n", vxc.RateLimit)
@@ -276,6 +282,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 			return nil, err
 		}
 		req.RateLimit = &rateLimit
+		fieldsUpdated = true
 	}
 
 	fmt.Fprintf(os.Stderr, "Current term: %d months\n", vxc.ContractTermMonths)
@@ -297,6 +304,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 				fmt.Sprintf("must be 0, or one of: %v", validation.ValidContractTerms))
 		}
 		req.Term = &term
+		fieldsUpdated = true
 	}
 
 	fmt.Fprintf(os.Stderr, "Current cost centre: %s\n", vxc.CostCentre)
@@ -310,6 +318,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 			return nil, err
 		}
 		req.CostCentre = &costCentre
+		fieldsUpdated = true
 	}
 
 	shutdownStatus := "No"
@@ -328,6 +337,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		}
 		shutdown := strings.ToLower(shutdownStr) == "yes"
 		req.Shutdown = &shutdown
+		fieldsUpdated = true
 	}
 
 	fmt.Fprintf(os.Stderr, "Current A-End VLAN: %d\n", vxc.AEndConfiguration.VLAN)
@@ -348,6 +358,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 			return nil, err
 		}
 		req.AEndVLAN = &aEndVLAN
+		fieldsUpdated = true
 	}
 
 	fmt.Fprintf(os.Stderr, "Current B-End VLAN: %d\n", vxc.BEndConfiguration.VLAN)
@@ -368,6 +379,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 			return nil, err
 		}
 		req.BEndVLAN = &bEndVLAN
+		fieldsUpdated = true
 	}
 
 	innerVLANAEnd := 0
@@ -394,6 +406,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		}
 
 		req.AEndInnerVLAN = &aEndInnerVLAN
+		fieldsUpdated = true
 	}
 
 	innerVLANBEnd := 0
@@ -420,6 +433,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		}
 
 		req.BEndInnerVLAN = &bEndInnerVLAN
+		fieldsUpdated = true
 	}
 
 	fmt.Fprintf(os.Stderr, "Current A-End UID: %s\n", vxc.AEndConfiguration.UID)
@@ -433,6 +447,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 			return nil, err
 		}
 		req.AEndProductUID = &aEndUID
+		fieldsUpdated = true
 	}
 
 	fmt.Fprintf(os.Stderr, "Current B-End UID: %s\n", vxc.BEndConfiguration.UID)
@@ -446,6 +461,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 			return nil, err
 		}
 		req.BEndProductUID = &bEndUID
+		fieldsUpdated = true
 	}
 
 	wantsAEndPartnerConfig, err := utils.ResourcePrompt("vxc", "Do you want to configure an A-End VRouter partner configuration? (yes/no): ", noColor)
@@ -459,6 +475,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 			return nil, err
 		}
 		req.AEndPartnerConfig = aEndPartnerConfig
+		fieldsUpdated = true
 	}
 
 	wantsBEndPartnerConfig, err := utils.ResourcePrompt("vxc", "Do you want to configure a B-End VRouter partner configuration? (yes/no): ", noColor)
@@ -472,6 +489,11 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 			return nil, err
 		}
 		req.BEndPartnerConfig = bEndPartnerConfig
+		fieldsUpdated = true
+	}
+
+	if !fieldsUpdated {
+		return nil, fmt.Errorf("at least one field must be updated")
 	}
 
 	return req, nil

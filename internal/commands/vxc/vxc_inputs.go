@@ -212,7 +212,7 @@ func parseVXCEndpointConfig(endConfigRaw map[string]interface{}, endLabel string
 	return config, nil
 }
 
-func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.BuyVXCRequest, error) {
+func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string, ctx context.Context, svc megaport.VXCService) (*megaport.BuyVXCRequest, error) {
 	if jsonStr == "" && jsonFilePath == "" {
 		return nil, exitcodes.NewUsageError(fmt.Errorf("either json or json-file must be provided"))
 	}
@@ -228,17 +228,40 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.Buy
 		return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse JSON: %w", err))
 	}
 
+	// Parse A-End configuration early: its partner config, if present, can
+	// resolve a missing top-level portUid the same way flags mode does.
+	var aEndConfig megaport.VXCOrderEndpointConfiguration
+	if aEndConfigRaw, present, err := utils.JSONObject(rawData, "aEndConfiguration"); err != nil {
+		return nil, exitcodes.NewUsageError(err)
+	} else if present {
+		aEndConfig, err = parseVXCEndpointConfig(aEndConfigRaw, "A-End")
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	portUID, present, err := utils.JSONString(rawData, "portUid")
 	if err != nil {
 		return nil, exitcodes.NewUsageError(err)
 	}
 	if !present {
-		return nil, exitcodes.NewUsageError(validation.NewValidationError("portUid", "", "Port UID is required"))
+		if aEndConfig.PartnerConfig == nil {
+			return nil, exitcodes.NewUsageError(validation.NewValidationError("portUid", "", "Port UID is required"))
+		}
+		uid, err := resolvePartnerPortUID(ctx, svc, aEndConfig.PartnerConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to look up A-End Partner Port: %w", err)
+		}
+		if uid == "" {
+			return nil, exitcodes.NewUsageError(validation.NewValidationError("portUid", "", "Port UID is required"))
+		}
+		portUID = uid
 	}
 
 	// Create the base request
 	req := &megaport.BuyVXCRequest{
-		PortUID: portUID,
+		PortUID:           portUID,
+		AEndConfiguration: aEndConfig,
 	}
 
 	// Set simple fields
@@ -301,24 +324,22 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string) (*megaport.Buy
 		req.ResourceTags = tags
 	}
 
-	// Handle A-End configuration
-	if aEndConfigRaw, present, err := utils.JSONObject(rawData, "aEndConfiguration"); err != nil {
-		return nil, exitcodes.NewUsageError(err)
-	} else if present {
-		aEndConfig, err := parseVXCEndpointConfig(aEndConfigRaw, "A-End")
-		if err != nil {
-			return nil, err
-		}
-		req.AEndConfiguration = aEndConfig
-	}
-
-	// Handle B-End configuration
+	// Handle B-End configuration. Resolve a missing productUID from the
+	// partner config the same way flags mode does, so the same logical
+	// purchase succeeds through either input mode.
 	if bEndConfigRaw, present, err := utils.JSONObject(rawData, "bEndConfiguration"); err != nil {
 		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		bEndConfig, err := parseVXCEndpointConfig(bEndConfigRaw, "B-End")
 		if err != nil {
 			return nil, err
+		}
+		if bEndConfig.ProductUID == "" && bEndConfig.PartnerConfig != nil {
+			uid, err := resolvePartnerPortUID(ctx, svc, bEndConfig.PartnerConfig)
+			if err != nil {
+				return nil, fmt.Errorf("failed to look up B-End Partner Port: %w", err)
+			}
+			bEndConfig.ProductUID = uid
 		}
 		req.BEndConfiguration = bEndConfig
 	}

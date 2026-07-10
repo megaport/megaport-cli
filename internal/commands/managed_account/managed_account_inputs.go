@@ -38,7 +38,16 @@ func buildManagedAccountRequestFromFlags(cmd *cobra.Command) (*megaport.ManagedA
 }
 
 func buildManagedAccountRequestFromJSON(jsonStr, jsonFile string) (*megaport.ManagedAccountRequest, error) {
-	return parseManagedAccountRequestJSON(jsonStr, jsonFile)
+	req, err := parseManagedAccountRequestJSON(jsonStr, jsonFile)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.AccountName == "" || req.AccountRef == "" {
+		return nil, exitcodes.NewUsageError(fmt.Errorf("account-name and account-ref are required"))
+	}
+
+	return req, nil
 }
 
 // buildUpdateManagedAccountRequestFromFlags seeds the request from the current

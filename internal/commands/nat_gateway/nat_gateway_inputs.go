@@ -95,6 +95,9 @@ func processFlagCreateNATGatewayInput(cmd *cobra.Command) (*megaport.CreateNATGa
 		if err := json.Unmarshal(tagData, &tagsMap); err != nil {
 			return nil, fmt.Errorf("failed to parse resource tags JSON: %w", err)
 		}
+		if err := utils.RejectEmptyTagKeys(tagsMap); err != nil {
+			return nil, err
+		}
 		for k, v := range tagsMap {
 			resourceTags = append(resourceTags, megaport.ResourceTag{Key: k, Value: v})
 		}
@@ -132,9 +135,10 @@ func processFlagCreateNATGatewayInput(cmd *cobra.Command) (*megaport.CreateNATGa
 // BGPShutdownDefault *bool) get a corresponding entry here because their zero
 // value is ambiguous. Fields with genuinely invalid zero values
 // (LocationID, Speed, Term — all must be positive) do not need tracking
-// because 0 can only mean "omitted". Fields with omitempty on the SDK request
-// (PromoCode, ServiceLevelReference, ResourceTags) are safe to leave as plain
-// strings/slices because the API ignores empty/nil values for those.
+// because 0 can only mean "omitted". PromoCode and ServiceLevelReference are
+// likewise plain strings; mergeUpdateDefaults inherits them from the original
+// resource when left blank rather than relying on server-side omitempty
+// behavior.
 type updateExplicitFields struct {
 	AutoRenewTerm      bool // was autoRenewTerm present in input?
 	BGPShutdownDefault bool // was bgpShutdownDefault present in input?
@@ -258,6 +262,9 @@ func processFlagUpdateNATGatewayInput(cmd *cobra.Command, uid string) (*megaport
 		var tagsMap map[string]string
 		if err := json.Unmarshal(tagData, &tagsMap); err != nil {
 			return nil, fmt.Errorf("failed to parse resource tags JSON: %w", err)
+		}
+		if err := utils.RejectEmptyTagKeys(tagsMap); err != nil {
+			return nil, err
 		}
 		for k, v := range tagsMap {
 			resourceTags = append(resourceTags, megaport.ResourceTag{Key: k, Value: v})

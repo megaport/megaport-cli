@@ -9,6 +9,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func mockPrompts(responses []string) func() {
@@ -932,9 +933,10 @@ func TestBuildUpdateVXCRequestFromPrompt(t *testing.T) {
 	}
 
 	tests := []struct {
-		name      string
-		responses []string
-		verify    func(t *testing.T, req *megaport.UpdateVXCRequest)
+		name          string
+		responses     []string
+		expectedError string
+		verify        func(t *testing.T, req *megaport.UpdateVXCRequest)
 	}{
 		{
 			name: "skip all",
@@ -953,21 +955,7 @@ func TestBuildUpdateVXCRequestFromPrompt(t *testing.T) {
 				"no", // A-End VRouter config
 				"no", // B-End VRouter config
 			},
-			verify: func(t *testing.T, req *megaport.UpdateVXCRequest) {
-				assert.Nil(t, req.Name)
-				assert.Nil(t, req.RateLimit)
-				assert.Nil(t, req.Term)
-				assert.Nil(t, req.CostCentre)
-				assert.Nil(t, req.Shutdown)
-				assert.Nil(t, req.AEndVLAN)
-				assert.Nil(t, req.BEndVLAN)
-				assert.Nil(t, req.AEndInnerVLAN)
-				assert.Nil(t, req.BEndInnerVLAN)
-				assert.Nil(t, req.AEndProductUID)
-				assert.Nil(t, req.BEndProductUID)
-				assert.True(t, req.WaitForUpdate)
-				// WaitForTime is set by the caller (UpdateVXC), not the prompt builder
-			},
+			expectedError: "at least one field must be updated",
 		},
 		{
 			name: "update name and rate limit",
@@ -1035,6 +1023,14 @@ func TestBuildUpdateVXCRequestFromPrompt(t *testing.T) {
 				assert.Equal(t, -1, vrouterCfg.Interfaces[0].VLAN)
 			},
 		},
+		{
+			name: "empty name rejected",
+			responses: []string{
+				"yes", // update name
+				"",    // new name (empty)
+			},
+			expectedError: "name cannot be empty",
+		},
 	}
 
 	for _, tc := range tests {
@@ -1048,6 +1044,11 @@ func TestBuildUpdateVXCRequestFromPrompt(t *testing.T) {
 			mockClient := &megaport.Client{VXCService: mockSvc}
 
 			req, err := buildUpdateVXCRequestFromPrompt(context.Background(), mockClient, "vxc-uid-123", true)
+			if tc.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.expectedError)
+				return
+			}
 			assert.NoError(t, err)
 			assert.NotNil(t, req)
 			tc.verify(t, req)

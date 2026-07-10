@@ -148,12 +148,9 @@ func TestBuildManagedAccountRequestFromJSON(t *testing.T) {
 			},
 		},
 		{
-			name:    "valid JSON string with partial fields",
-			jsonStr: `{"accountName":"Partial Account"}`,
-			validate: func(t *testing.T, req *megaport.ManagedAccountRequest) {
-				assert.Equal(t, "Partial Account", req.AccountName)
-				assert.Equal(t, "", req.AccountRef)
-			},
+			name:          "JSON string missing account-ref",
+			jsonStr:       `{"accountName":"Partial Account"}`,
+			expectedError: "account-name and account-ref are required",
 		},
 		{
 			name:          "invalid JSON syntax",
@@ -161,12 +158,9 @@ func TestBuildManagedAccountRequestFromJSON(t *testing.T) {
 			expectedError: "failed to parse JSON",
 		},
 		{
-			name:    "empty JSON object",
-			jsonStr: `{}`,
-			validate: func(t *testing.T, req *megaport.ManagedAccountRequest) {
-				assert.Equal(t, "", req.AccountName)
-				assert.Equal(t, "", req.AccountRef)
-			},
+			name:          "empty JSON object",
+			jsonStr:       `{}`,
+			expectedError: "account-name and account-ref are required",
 		},
 		{
 			name: "valid JSON file",

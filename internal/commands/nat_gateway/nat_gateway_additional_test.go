@@ -615,6 +615,31 @@ func TestMergeUpdateDefaultsExplicitBools(t *testing.T) {
 	})
 }
 
+func TestMergeUpdateDefaultsPromoCodeAndServiceLevelReference(t *testing.T) {
+	original := &megaport.NATGateway{
+		ProductName:           "Original",
+		LocationID:            1,
+		Speed:                 1000,
+		Term:                  12,
+		PromoCode:             "ORIGINAL-PROMO",
+		ServiceLevelReference: "ORIGINAL-SLR",
+	}
+
+	t.Run("blank promo code and service level reference keep current value", func(t *testing.T) {
+		req := &megaport.UpdateNATGatewayRequest{ProductUID: "uid"}
+		mergeUpdateDefaults(req, original, updateExplicitFields{})
+		assert.Equal(t, "ORIGINAL-PROMO", req.PromoCode, "blank promo code must inherit from original")
+		assert.Equal(t, "ORIGINAL-SLR", req.ServiceLevelReference, "blank service level reference must inherit from original")
+	})
+
+	t.Run("provided promo code and service level reference are not overridden", func(t *testing.T) {
+		req := &megaport.UpdateNATGatewayRequest{ProductUID: "uid", PromoCode: "NEW-PROMO", ServiceLevelReference: "NEW-SLR"}
+		mergeUpdateDefaults(req, original, updateExplicitFields{})
+		assert.Equal(t, "NEW-PROMO", req.PromoCode)
+		assert.Equal(t, "NEW-SLR", req.ServiceLevelReference)
+	})
+}
+
 func TestProcessFlagCreateNATGatewayInput(t *testing.T) {
 	cmd := newTestCmd("create")
 	require.NoError(t, cmd.Flags().Set("name", "Flag GW"))
