@@ -92,7 +92,13 @@ var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	megaportTokenGlobal := js.Global().Get("megaportToken")
 	if !megaportTokenGlobal.IsUndefined() && !megaportTokenGlobal.IsNull() {
 		token := os.Getenv("MEGAPORT_ACCESS_TOKEN")
-		tokenEnv := megaportTokenGlobal.Get("environment").String()
+		// Prefer the environment bucket stored by setAuthToken; only fall back to
+		// the page-writable global if the env var is unset. Used for the fallback
+		// host selection below and debug logging.
+		tokenEnv := os.Getenv("MEGAPORT_ENVIRONMENT")
+		if tokenEnv == "" {
+			tokenEnv = megaportTokenGlobal.Get("environment").String()
+		}
 		// Read the API base URL from the env var set (and hostname-validated) by
 		// setAuthToken, never from window.megaportToken.apiURL: that global is
 		// page-writable, so trusting it would let another script redirect the

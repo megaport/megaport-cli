@@ -43,6 +43,27 @@ func TestLoginReadsAPIURLFromEnvNotTamperedGlobal(t *testing.T) {
 		"login must route to the validated env-var host, not the tampered global")
 }
 
+// TestLoginFallbackEnvIgnoresTamperedGlobal asserts that when MEGAPORT_API_URL
+// is unset and login falls back to environment-based host selection, it uses the
+// bucket stored in MEGAPORT_ENVIRONMENT rather than the page-writable global.
+func TestLoginFallbackEnvIgnoresTamperedGlobal(t *testing.T) {
+	t.Setenv("MEGAPORT_ACCESS_TOKEN", "test-token-12345")
+	t.Setenv("MEGAPORT_API_URL", "")
+	t.Setenv("MEGAPORT_ENVIRONMENT", "staging")
+
+	// Global claims production; the env-var bucket (staging) must win.
+	setTamperedTokenGlobal("production", "https://evil.attacker.com")
+	defer js.Global().Delete("megaportToken")
+
+	client, err := loginFunc(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, client)
+	require.NotNil(t, client.BaseURL)
+
+	assert.Equal(t, "api-staging.megaport.com", client.BaseURL.Host,
+		"fallback host selection must use the env-var bucket, not the tampered global")
+}
+
 // TestUnauthenticatedClientReadsAPIURLFromEnvNotTamperedGlobal asserts the same
 // for the unauthenticated client factory used by public endpoints.
 func TestUnauthenticatedClientReadsAPIURLFromEnvNotTamperedGlobal(t *testing.T) {
