@@ -60,12 +60,19 @@ func calculateDynamicWidth(termWidth int, minWidth, maxPercentage int) int {
 // A command may call this more than once; each call appends to
 // WasmTableWriter rather than overwriting it, so the global reflects every
 // table emitted so far. The buffer is cleared between WASM invocations by
-// resetWasmStructuredBuffers.
-func printTable[T OutputFields](data []T, noColor bool, opts printOptions) error {
+// resetWasmStructuredBuffers, so callers must not invoke this per data item
+// in a loop; it accumulates without bound within an invocation.
+func printTable[T OutputFields](data []T, noColor bool, opts printOptions) (err error) {
 	wasmBufMu.Lock()
 	defer wasmBufMu.Unlock()
 
 	before := WasmTableWriter.Len()
+	defer func() {
+		if err != nil {
+			WasmTableWriter.Truncate(before)
+		}
+	}()
+
 	if err := printTableToWriter(WasmTableWriter, data, noColor, opts); err != nil {
 		return err
 	}

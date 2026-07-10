@@ -45,8 +45,10 @@ func init() {
 // A command may call this more than once (multiple PrintOutput calls emitting
 // several structured documents); each call appends to WasmJSONWriter rather than
 // overwriting it, so the global reflects every document emitted so far. The
-// buffer is cleared between WASM invocations by resetWasmStructuredBuffers.
-func printJSON[T OutputFields](data []T, opts printOptions) error {
+// buffer is cleared between WASM invocations by resetWasmStructuredBuffers, so
+// callers must not invoke this per data item in a loop; it accumulates without
+// bound within an invocation.
+func printJSON[T OutputFields](data []T, opts printOptions) (err error) {
 	wasmBufMu.Lock()
 	defer wasmBufMu.Unlock()
 
@@ -60,6 +62,12 @@ func printJSON[T OutputFields](data []T, opts printOptions) error {
 	}
 
 	before := WasmJSONWriter.Len()
+	defer func() {
+		if err != nil {
+			WasmJSONWriter.Truncate(before)
+		}
+	}()
+
 	encoder := json.NewEncoder(WasmJSONWriter)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(toEncode); err != nil {
@@ -84,12 +92,17 @@ func printJSON[T OutputFields](data []T, opts printOptions) error {
 // printCSV is the WASM-specific implementation that properly captures CSV
 // output. Like printJSON, it appends to WasmCSVWriter so a command emitting
 // multiple CSV documents has all of them captured, not just the last.
-func printCSV[T OutputFields](data []T, opts printOptions) error {
+func printCSV[T OutputFields](data []T, opts printOptions) (err error) {
 	wasmBufMu.Lock()
 	defer wasmBufMu.Unlock()
 
 	before := WasmCSVWriter.Len()
 	w := csv.NewWriter(WasmCSVWriter)
+	defer func() {
+		if err != nil {
+			WasmCSVWriter.Truncate(before)
+		}
+	}()
 	defer w.Flush()
 
 	var sample T
@@ -215,11 +228,19 @@ func printCSV[T OutputFields](data []T, opts printOptions) error {
 // printXML is the WASM-specific implementation that properly captures XML
 // output. Like printJSON, it appends to WasmXMLWriter so a command emitting
 // multiple XML documents has all of them captured, not just the last.
-func printXML[T OutputFields](data []T, opts printOptions) error {
+func printXML[T OutputFields](data []T, opts printOptions) (err error) {
 	wasmBufMu.Lock()
 	defer wasmBufMu.Unlock()
 
 	before := WasmXMLWriter.Len()
+	encoder := xml.NewEncoder(WasmXMLWriter)
+	encoder.Indent("", "  ")
+	defer func() {
+		if err != nil {
+			_ = encoder.Flush()
+			WasmXMLWriter.Truncate(before)
+		}
+	}()
 
 	if data == nil {
 		data = []T{}
@@ -320,9 +341,6 @@ func printXML[T OutputFields](data []T, opts printOptions) error {
 		}
 		fields = filtered
 	}
-
-	encoder := xml.NewEncoder(WasmXMLWriter)
-	encoder.Indent("", "  ")
 
 	WasmXMLWriter.WriteString(xml.Header)
 	start := xml.StartElement{Name: xml.Name{Local: "items"}}

@@ -80,7 +80,9 @@ func (t *WasmHTTPTransport) buildFetchOptions(req *http.Request) (map[string]int
 		}
 		if len(values) > 0 {
 			// fetch's Headers init dict accepts one string per key, so combine
-			// multi-value headers the same way HTTP field values are combined.
+			// multi-value headers the same way HTTP field values are combined
+			// (RFC 7230 3.2.2). Cookie combines with "; " instead, but the SDK
+			// never sets a multi-value Cookie header through this transport.
 			headers[key] = strings.Join(values, ", ")
 		}
 	}
