@@ -309,13 +309,13 @@ you forget to wire up your own handler depends on how you drive the WASM:
 
 - **Via the composable:** `useMegaportWASM` registers a default no-op prompt handler at init,
   so forgetting to override it with `registerPromptHandler()` means prompts hang until they
-  time out after 5 minutes (confirmations then resolve to declined), rather than failing
+  time out after 10 minutes (confirmations then resolve to declined), rather than failing
   immediately.
 - **Via the raw WASM globals:** if `registerPromptHandler` was never called, a value prompt
   fails immediately with a "prompt callback not registered" error and a confirmation is
   treated as declined.
 
-Once your own handler is registered, a prompt left unanswered times out after 5 minutes.
+Once your own handler is registered, a prompt left unanswered times out after 10 minutes.
 
 **Always run interactive commands through `execute()`** (the composable uses the async
 entrypoint under the hood). The legacy synchronous entrypoint is retired: it runs no
@@ -360,7 +360,7 @@ registerPromptHandler((request) => {
 const result = await execute('vxc buy --interactive');
 ```
 
-An unanswered prompt times out after 5 minutes and the command receives an error.
+An unanswered prompt times out after 10 minutes and the command receives an error.
 `MegaportTerminal.vue` shows a working inline-terminal prompt handler.
 
 > **Output streaming:** interactive commands currently resolve with their full output only

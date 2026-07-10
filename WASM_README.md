@@ -159,7 +159,7 @@ executeMegaportCommandAsync('vxc buy --interactive', (result) => {
 });
 ```
 
-A prompt left unanswered times out after 5 minutes and the command receives an error.
+A prompt left unanswered times out after 10 minutes and the command receives an error.
 
 > **Output streaming:** interactive commands currently return their full output only when
 > the command completes. Live, incremental output streaming is tracked separately and this
