@@ -11,6 +11,9 @@ build_static_assets() {
     return 1
   fi
 
+  # Wipe any stale output (e.g. .br/.gz from a prior run) so the published
+  # directory only ever contains this build's artifacts.
+  rm -rf "$publish_dir" || return 1
   mkdir -p "$publish_dir" || return 1
 
   echo "==> Building WASM binary ($publish_dir/megaport.wasm)"
