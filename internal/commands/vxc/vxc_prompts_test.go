@@ -9,6 +9,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func mockPrompts(responses []string) func() {
@@ -1051,6 +1052,73 @@ func TestBuildUpdateVXCRequestFromPrompt(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, req)
 			tc.verify(t, req)
+		})
+	}
+}
+
+func TestBuildUpdateVXCRequestFromPrompt_TermValidation(t *testing.T) {
+	existingVXC := &megaport.VXC{
+		UID:                "vxc-uid-123",
+		Name:               "Old VXC",
+		RateLimit:          100,
+		ContractTermMonths: 12,
+		CostCentre:         "CC-001",
+		AdminLocked:        false,
+		AEndConfiguration: megaport.VXCEndConfiguration{
+			UID:  "a-end-uid",
+			VLAN: 100,
+		},
+		BEndConfiguration: megaport.VXCEndConfiguration{
+			UID:  "b-end-uid",
+			VLAN: 200,
+		},
+	}
+
+	baseResponses := func(termResponses ...string) []string {
+		responses := []string{
+			"no", // update name
+			"no", // update rate limit
+			"yes",
+		}
+		responses = append(responses, termResponses...)
+		responses = append(responses,
+			"no", // update cost centre
+			"no", // update shutdown
+			"no", // update A-End VLAN
+			"no", // update B-End VLAN
+			"no", // update A-End inner VLAN
+			"no", // update B-End inner VLAN
+			"no", // update A-End UID
+			"no", // update B-End UID
+			"no", // A-End VRouter config
+			"no", // B-End VRouter config
+		)
+		return responses
+	}
+
+	t.Run("term 0 is rejected", func(t *testing.T) {
+		cleanup := mockPrompts(baseResponses("0"))
+		defer cleanup()
+
+		mockSvc := &MockVXCService{GetVXCResponse: existingVXC}
+		mockClient := &megaport.Client{VXCService: mockSvc}
+
+		_, err := buildUpdateVXCRequestFromPrompt(context.Background(), mockClient, "vxc-uid-123", true)
+		assert.Error(t, err)
+	})
+
+	for _, term := range []int{1, 12, 24, 36, 48, 60} {
+		t.Run(fmt.Sprintf("term %d is accepted", term), func(t *testing.T) {
+			cleanup := mockPrompts(baseResponses(fmt.Sprintf("%d", term)))
+			defer cleanup()
+
+			mockSvc := &MockVXCService{GetVXCResponse: existingVXC}
+			mockClient := &megaport.Client{VXCService: mockSvc}
+
+			req, err := buildUpdateVXCRequestFromPrompt(context.Background(), mockClient, "vxc-uid-123", true)
+			assert.NoError(t, err)
+			require.NotNil(t, req.Term)
+			assert.Equal(t, term, *req.Term)
 		})
 	}
 }

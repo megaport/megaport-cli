@@ -362,11 +362,13 @@ func TestProcessJSONUpdatePortInput(t *testing.T) {
 }
 
 func TestProcessFlagUpdatePortInput(t *testing.T) {
+	term24 := 24
+
 	tests := []struct {
-		name          string
-		flags         map[string]string
-		expectedError string
-		checkReq      func(*testing.T, *cobra.Command)
+		name               string
+		flags              map[string]string
+		expectedError      string
+		expectContractTerm *int
 	}{
 		{
 			name:          "no flags changed",
@@ -386,12 +388,18 @@ func TestProcessFlagUpdatePortInput(t *testing.T) {
 			flags: map[string]string{"cost-centre": "IT-2024"},
 		},
 		{
-			name:  "term only",
-			flags: map[string]string{"term": "24"},
+			name:               "term only",
+			flags:              map[string]string{"term": "24"},
+			expectContractTerm: &term24,
 		},
 		{
 			name:          "invalid term",
 			flags:         map[string]string{"term": "99"},
+			expectedError: "Invalid contract term",
+		},
+		{
+			name:          "term zero rejected",
+			flags:         map[string]string{"term": "0"},
 			expectedError: "Invalid contract term",
 		},
 		{
@@ -424,6 +432,10 @@ func TestProcessFlagUpdatePortInput(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, req)
 				assert.Equal(t, "port-uid-123", req.PortID)
+				if tt.expectContractTerm != nil {
+					require.NotNil(t, req.ContractTermMonths)
+					assert.Equal(t, *tt.expectContractTerm, *req.ContractTermMonths)
+				}
 			}
 		})
 	}

@@ -1456,6 +1456,22 @@ func TestBuildUpdateVXCRequestFromJSON_WholeRateLimit(t *testing.T) {
 	assert.Equal(t, 2000, *req.RateLimit)
 }
 
+func TestBuildUpdateVXCRequestFromJSON_Term(t *testing.T) {
+	t.Run("term 0 is rejected", func(t *testing.T) {
+		_, err := buildUpdateVXCRequestFromJSON(`{"term":0}`, "")
+		assert.Error(t, err)
+	})
+
+	for _, term := range []int{1, 12, 24, 36, 48, 60} {
+		t.Run(fmt.Sprintf("term %d is accepted", term), func(t *testing.T) {
+			req, err := buildUpdateVXCRequestFromJSON(fmt.Sprintf(`{"term":%d}`, term), "")
+			assert.NoError(t, err)
+			require.NotNil(t, req.Term)
+			assert.Equal(t, term, *req.Term)
+		})
+	}
+}
+
 func TestResolvePartnerPortUID(t *testing.T) {
 	origGetPartnerPortUID := getPartnerPortUID
 	defer func() { getPartnerPortUID = origGetPartnerPortUID }()

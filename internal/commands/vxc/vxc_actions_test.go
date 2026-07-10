@@ -1553,6 +1553,47 @@ func TestBuildUpdateVXCRequestFromFlags_NewFields(t *testing.T) {
 	}
 }
 
+func TestBuildUpdateVXCRequestFromFlags_Term(t *testing.T) {
+	makeCmd := func() *cobra.Command {
+		cmd := &cobra.Command{Use: "update"}
+		cmd.Flags().String("name", "", "")
+		cmd.Flags().Int("rate-limit", 0, "")
+		cmd.Flags().Int("term", 0, "")
+		cmd.Flags().String("cost-centre", "", "")
+		cmd.Flags().Bool("shutdown", false, "")
+		cmd.Flags().Int("a-end-vlan", 0, "")
+		cmd.Flags().Int("b-end-vlan", 0, "")
+		cmd.Flags().Int("a-end-inner-vlan", 0, "")
+		cmd.Flags().Int("b-end-inner-vlan", 0, "")
+		cmd.Flags().String("a-end-uid", "", "")
+		cmd.Flags().String("b-end-uid", "", "")
+		cmd.Flags().String("a-end-partner-config", "", "")
+		cmd.Flags().String("b-end-partner-config", "", "")
+		cmd.Flags().Bool("is-approved", false, "")
+		cmd.Flags().Int("a-vnic-index", -1, "")
+		cmd.Flags().Int("b-vnic-index", -1, "")
+		return cmd
+	}
+
+	t.Run("term 0 is rejected", func(t *testing.T) {
+		cmd := makeCmd()
+		testutil.SetFlags(t, cmd, map[string]string{"term": "0"})
+		_, err := buildUpdateVXCRequestFromFlags(cmd)
+		assert.Error(t, err)
+	})
+
+	for _, term := range []int{1, 12, 24, 36, 48, 60} {
+		t.Run(fmt.Sprintf("term %d is accepted", term), func(t *testing.T) {
+			cmd := makeCmd()
+			testutil.SetFlags(t, cmd, map[string]string{"term": fmt.Sprintf("%d", term)})
+			req, err := buildUpdateVXCRequestFromFlags(cmd)
+			assert.NoError(t, err)
+			assert.NotNil(t, req.Term)
+			assert.Equal(t, term, *req.Term)
+		})
+	}
+}
+
 func TestHasUpdateVXCNonInteractiveFlags(t *testing.T) {
 	t.Run("no flags set fails the gate", func(t *testing.T) {
 		cmd := cmdbuilder.NewCommand("update", "test").WithVXCUpdateFlags().Build()
