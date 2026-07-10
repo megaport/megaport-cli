@@ -373,6 +373,24 @@ func TestValidateBuyMVERequest(t *testing.T) {
 			wantErr: true,
 			errText: "Invalid vendor config: <nil> - cannot be nil",
 		},
+		{
+			name: "MVE name too long",
+			req: &megaport.BuyMVERequest{
+				Name:       strings.Repeat("A", MaxMVENameLength+1),
+				Term:       12,
+				LocationID: 100,
+				VendorConfig: &megaport.CiscoConfig{
+					Vendor:            "cisco",
+					ImageID:           123,
+					ProductSize:       "MEDIUM",
+					AdminSSHPublicKey: "ssh-rsa AAAA...",
+					SSHPublicKey:      "ssh-rsa AAAA...",
+					ManageLocally:     true,
+				},
+			},
+			wantErr: true,
+			errText: fmt.Sprintf("Invalid MVE name: %s - cannot exceed %d characters", strings.Repeat("A", MaxMVENameLength+1), MaxMVENameLength),
+		},
 	}
 
 	for _, tt := range tests {

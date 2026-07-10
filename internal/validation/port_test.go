@@ -63,6 +63,15 @@ func TestValidatePortRequest(t *testing.T) {
 			wantErr:    true,
 			errText:    "Invalid location ID: 0 - must be a positive integer",
 		},
+		{
+			name:       "Port name too long",
+			portName:   strings.Repeat("A", MaxPortNameLength+1),
+			term:       12,
+			portSpeed:  10000,
+			locationID: 100,
+			wantErr:    true,
+			errText:    fmt.Sprintf("Invalid port name: %s - cannot exceed %d characters", strings.Repeat("A", MaxPortNameLength+1), MaxPortNameLength),
+		},
 	}
 
 	for _, tt := range tests {
@@ -195,6 +204,18 @@ func TestValidateLAGPortRequest(t *testing.T) {
 			},
 			wantErr: true,
 			errText: fmt.Sprintf("Invalid contract term: 5 - must be one of: %v", ValidContractTerms),
+		},
+		{
+			name: "LAG port name too long",
+			req: &megaport.BuyPortRequest{
+				Name:       strings.Repeat("A", MaxPortNameLength+1),
+				LocationId: 100,
+				PortSpeed:  10000,
+				LagCount:   2,
+				Term:       12,
+			},
+			wantErr: true,
+			errText: fmt.Sprintf("Invalid port name: %s - cannot exceed %d characters", strings.Repeat("A", MaxPortNameLength+1), MaxPortNameLength),
 		},
 	}
 
