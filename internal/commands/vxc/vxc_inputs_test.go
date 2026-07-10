@@ -1521,6 +1521,14 @@ func TestBuildUpdateVXCRequestFromJSON_NestedTypoKeyIsRejected(t *testing.T) {
 	_, err := buildUpdateVXCRequestFromJSON(`{"aEndConfiguration":{"vln":100}}`, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "at least one field must be updated")
+	assert.Contains(t, err.Error(), "aEndConfiguration.vln")
+}
+
+func TestBuildUpdateVXCRequestFromJSON_NestedBEndTypoKeyIsRejected(t *testing.T) {
+	_, err := buildUpdateVXCRequestFromJSON(`{"bEndConfiguration":{"vln":100}}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one field must be updated")
+	assert.Contains(t, err.Error(), "bEndConfiguration.vln")
 }
 
 func TestBuildUpdateVXCRequestFromJSON_NoInputProvided(t *testing.T) {

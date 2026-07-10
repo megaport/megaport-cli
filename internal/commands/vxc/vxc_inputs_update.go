@@ -224,9 +224,11 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	}
 
 	// Handle nested configurations in addition to flat fields
+	var aEndConfigMap, bEndConfigMap map[string]interface{}
 	if aEndConfig, present, err := utils.JSONObject(rawData, "aEndConfiguration"); err != nil {
 		return nil, exitcodes.NewUsageError(err)
 	} else if present {
+		aEndConfigMap = aEndConfig
 		if vlan, vlanPresent, err := utils.JSONNumber(aEndConfig, "vlan"); err != nil {
 			return nil, exitcodes.NewUsageError(fmt.Errorf("aEndConfiguration.vlan: %w", err))
 		} else if vlanPresent {
@@ -257,6 +259,7 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	if bEndConfig, present, err := utils.JSONObject(rawData, "bEndConfiguration"); err != nil {
 		return nil, exitcodes.NewUsageError(err)
 	} else if present {
+		bEndConfigMap = bEndConfig
 		if vlan, vlanPresent, err := utils.JSONNumber(bEndConfig, "vlan"); err != nil {
 			return nil, exitcodes.NewUsageError(fmt.Errorf("bEndConfiguration.vlan: %w", err))
 		} else if vlanPresent {
@@ -446,6 +449,16 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 		for key := range rawData {
 			if !recognizedKeys[key] {
 				unrecognized = append(unrecognized, key)
+			}
+		}
+		for key := range aEndConfigMap {
+			if key != "vlan" {
+				unrecognized = append(unrecognized, "aEndConfiguration."+key)
+			}
+		}
+		for key := range bEndConfigMap {
+			if key != "vlan" {
+				unrecognized = append(unrecognized, "bEndConfiguration."+key)
 			}
 		}
 		if len(unrecognized) > 0 {
