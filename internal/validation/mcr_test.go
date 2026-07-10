@@ -378,6 +378,30 @@ func TestValidateUpdatePrefixFilterList(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "Empty address family with entries rejected",
+			req: &megaport.MCRPrefixFilterList{
+				Description:   "Updated filter list",
+				AddressFamily: "",
+				Entries: []*megaport.MCRPrefixListEntry{
+					{Action: "permit", Prefix: "10.0.0.0/8"},
+				},
+			},
+			wantErr: true,
+			errText: "Invalid address family:  - cannot be empty",
+		},
+		{
+			name: "Invalid address family with entries rejected",
+			req: &megaport.MCRPrefixFilterList{
+				Description:   "Updated filter list",
+				AddressFamily: "IPv5",
+				Entries: []*megaport.MCRPrefixListEntry{
+					{Action: "permit", Prefix: "10.0.0.0/8"},
+				},
+			},
+			wantErr: true,
+			errText: "Invalid address family: IPv5 - must be IPv4 or IPv6",
+		},
 	}
 
 	for _, tt := range tests {

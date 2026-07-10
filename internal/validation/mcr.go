@@ -155,6 +155,7 @@ func validatePrefixFilterEntries(entries []*megaport.MCRPrefixListEntry, address
 //
 // Validation checks:
 //   - If entries are provided:
+//   - Address family must be provided and a valid value ("IPv4" or "IPv6")
 //   - For each entry:
 //   - Prefix cannot be empty
 //   - Prefix must be a valid CIDR consistent with the list's address family
@@ -166,6 +167,12 @@ func validatePrefixFilterEntries(entries []*megaport.MCRPrefixListEntry, address
 func ValidateUpdatePrefixFilterList(prefixFilterList *megaport.MCRPrefixFilterList) error {
 	if len(prefixFilterList.Entries) == 0 {
 		return nil
+	}
+	if prefixFilterList.AddressFamily == "" {
+		return NewValidationError("address family", prefixFilterList.AddressFamily, "cannot be empty")
+	}
+	if prefixFilterList.AddressFamily != "IPv4" && prefixFilterList.AddressFamily != "IPv6" {
+		return NewValidationError("address family", prefixFilterList.AddressFamily, "must be IPv4 or IPv6")
 	}
 	return validatePrefixFilterEntries(prefixFilterList.Entries, prefixFilterList.AddressFamily)
 }
