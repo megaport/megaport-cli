@@ -207,6 +207,16 @@ func TestProcessJSONUpdateUserInput(t *testing.T) {
 			name:      "valid JSON file",
 			writeFile: `{"lastName":"NewLast"}`,
 		},
+		{
+			name:          "empty JSON body",
+			jsonStr:       `{}`,
+			expectedError: "at least one field must be updated",
+		},
+		{
+			name:          "invalid position",
+			jsonStr:       `{"position":"Super Admin"}`,
+			expectedError: "invalid position",
+		},
 	}
 
 	for _, tt := range tests {
@@ -332,6 +342,11 @@ func TestProcessFlagUpdateUserInput(t *testing.T) {
 				"position":   "Finance",
 				"phone":      "+61400000000",
 			},
+		},
+		{
+			name:          "invalid position",
+			flags:         map[string]string{"position": "Super Admin"},
+			expectedError: "invalid position",
 		},
 	}
 
