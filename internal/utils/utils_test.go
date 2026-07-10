@@ -565,9 +565,9 @@ func TestClassifyError_SDKErrors(t *testing.T) {
 }
 
 func TestWrapSessionExpiredError_RequiresAccessToken(t *testing.T) {
-	// Without MEGAPORT_ACCESS_TOKEN set, a 401 stays an ordinary auth error
-	// rather than being reclassified as session-expired, on every build target.
-	err := wrapSessionExpiredError(makeAPIError(401, ""))
+	// With tokenPresent false, a 401 stays an ordinary auth error rather than
+	// being reclassified as session-expired, on every build target.
+	err := wrapSessionExpiredError(makeAPIError(401, ""), false)
 	assert.Equal(t, exitcodes.Authentication, classifyError(err))
 	assert.NotContains(t, err.Error(), SessionExpiredMarker)
 }

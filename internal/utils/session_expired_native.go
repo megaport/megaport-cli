@@ -15,6 +15,12 @@ const SessionExpiredMarker = "MEGAPORT_SESSION_EXPIRED"
 // external-token session-expiry signal only makes sense when the CLI is
 // running as WASM in a browser with no credentials to fall back on; native
 // credential-auth failures always pass through unchanged.
-func wrapSessionExpiredError(err error) error {
+func wrapSessionExpiredError(err error, _ bool) error {
 	return err
+}
+
+// sessionTokenPresent is always false on native builds: the external-token path
+// is WASM-only, so native command errors never take the session-expired branch.
+func sessionTokenPresent() bool {
+	return false
 }
