@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 
 	megaport "github.com/megaport/megaportgo"
@@ -32,6 +33,15 @@ func NewConfigFile() *ConfigFile {
 		Profiles: make(map[string]*Profile),
 		Defaults: make(map[string]interface{}),
 	}
+}
+
+// validateEnvironment rejects any environment value outside the canonical
+// allow-list. Used by create, update, and import so the three paths cannot drift.
+func validateEnvironment(env string) error {
+	if env != "production" && env != "staging" && env != "development" {
+		return fmt.Errorf("environment must be 'production', 'staging', or 'development'")
+	}
+	return nil
 }
 
 // normalizeEnvironment maps short aliases and normalizes the environment string

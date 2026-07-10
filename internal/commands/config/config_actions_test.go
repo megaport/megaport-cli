@@ -136,6 +136,56 @@ func TestUpdateProfile_CMD(t *testing.T) {
 	assert.Equal(t, "New description", profiles["test-profile"].Description)
 }
 
+func TestUpdateProfile_InvalidEnvironmentRejected(t *testing.T) {
+	setupTestConfigEnv(t)
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+	err = manager.CreateProfile("test-profile", "old-access", "old-secret", "production", "Old description")
+	require.NoError(t, err)
+
+	cmd, _ := setupTestCmd()
+	cmd.Flags().String("environment", "bogus", "")
+	require.NoError(t, cmd.ParseFlags([]string{"--environment=bogus"}))
+
+	_, err = captureBothFromAction(t, func() error {
+		return UpdateProfile(cmd, []string{"test-profile"}, false)
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "environment must be 'production', 'staging', or 'development'")
+
+	manager, err = NewConfigManager()
+	require.NoError(t, err)
+	profiles, err := manager.ListProfiles()
+	require.NoError(t, err)
+	assert.Equal(t, "production", profiles["test-profile"].Environment, "profile should be unchanged after a rejected update")
+}
+
+func TestUpdateProfile_ValidEnvironmentAccepted(t *testing.T) {
+	setupTestConfigEnv(t)
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+	err = manager.CreateProfile("test-profile", "old-access", "old-secret", "production", "Old description")
+	require.NoError(t, err)
+
+	cmd, _ := setupTestCmd()
+	cmd.Flags().String("environment", "staging", "")
+	require.NoError(t, cmd.ParseFlags([]string{"--environment=staging"}))
+
+	outputText, err := captureBothFromAction(t, func() error {
+		return UpdateProfile(cmd, []string{"test-profile"}, false)
+	})
+	require.NoError(t, err)
+	assert.Contains(t, outputText, "Profile 'test-profile' updated successfully")
+
+	manager, err = NewConfigManager()
+	require.NoError(t, err)
+	profiles, err := manager.ListProfiles()
+	require.NoError(t, err)
+	assert.Equal(t, "staging", profiles["test-profile"].Environment)
+}
+
 func TestUseProfile_CMD(t *testing.T) {
 	setupTestConfigEnv(t)
 
@@ -923,6 +973,84 @@ func TestImportConfig_Cancelled(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cancelled by user")
 	assert.Contains(t, outputText, "Import cancelled")
+}
+
+func TestImportConfig_InvalidEnvironmentRejected(t *testing.T) {
+	configDir := setupTestConfigEnv(t)
+
+	importPath := filepath.Join(configDir, "import.json")
+	importContent := `{
+        "version": 1,
+        "profiles": {
+            "bad-profile": {
+                "accessKey": "test-access",
+                "secretKey": "test-secret",
+                "environment": "typo"
+            }
+        }
+    }`
+	require.NoError(t, os.WriteFile(importPath, []byte(importContent), 0600))
+
+	oldConfirmPrompt := utils.GetConfirmPrompt()
+	utils.SetConfirmPrompt(func(_ string, _ bool) bool {
+		t.Fatal("confirmation should not be requested when validation fails")
+		return true
+	})
+	defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
+
+	cmd, _ := setupTestCmd()
+	cmd.Flags().String("file", importPath, "")
+	require.NoError(t, cmd.ParseFlags([]string{"--file=" + importPath}))
+
+	_, err := captureBothFromAction(t, func() error {
+		return ImportConfig(cmd, nil, false)
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "bad-profile")
+	assert.Contains(t, err.Error(), "environment must be 'production', 'staging', or 'development'")
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+	profiles, err := manager.ListProfiles()
+	require.NoError(t, err)
+	assert.NotContains(t, profiles, "bad-profile", "nothing should be written when validation fails")
+}
+
+func TestImportConfig_EmptyEnvironmentDefaultsToProduction(t *testing.T) {
+	configDir := setupTestConfigEnv(t)
+
+	importPath := filepath.Join(configDir, "import.json")
+	importContent := `{
+        "version": 1,
+        "profiles": {
+            "default-env-profile": {
+                "accessKey": "test-access",
+                "secretKey": "test-secret",
+                "environment": ""
+            }
+        }
+    }`
+	require.NoError(t, os.WriteFile(importPath, []byte(importContent), 0600))
+
+	oldConfirmPrompt := utils.GetConfirmPrompt()
+	utils.SetConfirmPrompt(func(_ string, _ bool) bool { return true })
+	defer func() { utils.SetConfirmPrompt(oldConfirmPrompt) }()
+
+	cmd, _ := setupTestCmd()
+	cmd.Flags().String("file", importPath, "")
+	require.NoError(t, cmd.ParseFlags([]string{"--file=" + importPath}))
+
+	outputText, err := captureBothFromAction(t, func() error {
+		return ImportConfig(cmd, nil, false)
+	})
+	require.NoError(t, err)
+	assert.Contains(t, outputText, "Configuration imported successfully")
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+	profiles, err := manager.ListProfiles()
+	require.NoError(t, err)
+	assert.Equal(t, "production", profiles["default-env-profile"].Environment)
 }
 
 func TestCreateProfile_InteractivePrompt(t *testing.T) {

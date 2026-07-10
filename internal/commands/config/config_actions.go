@@ -41,8 +41,8 @@ func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("profile name cannot be empty or whitespace")
 	}
 
-	if environment != "production" && environment != "staging" && environment != "development" {
-		return fmt.Errorf("environment must be 'production', 'staging', or 'development'")
+	if err := validateEnvironment(environment); err != nil {
+		return err
 	}
 
 	manager, err := NewConfigManager()
@@ -145,6 +145,9 @@ func UpdateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	environment := ""
 	if environmentChanged {
 		environment, _ = cmd.Flags().GetString("environment")
+		if err := validateEnvironment(environment); err != nil {
+			return err
+		}
 	}
 
 	description := ""
@@ -411,6 +414,9 @@ func ImportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 	for profileName, profile := range importConfig.Profiles {
 		if profile.Environment == "" {
 			profile.Environment = "production"
+		}
+		if err := validateEnvironment(profile.Environment); err != nil {
+			return fmt.Errorf("profile '%s' has an invalid environment: %w", profileName, err)
 		}
 		if profile.AccessKey == "" || profile.SecretKey == "" ||
 			profile.AccessKey == "[REDACTED]" || profile.SecretKey == "[REDACTED]" {
