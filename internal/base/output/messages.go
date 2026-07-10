@@ -240,14 +240,6 @@ func (s *Spinner) renderFrame(i int) string {
 	return color.CyanString(frame)
 }
 
-// stdErrStreamMu synchronizes the spinner's stderr writes (animation frames,
-// non-interactive status lines) against CaptureOutput/CaptureOutputErr
-// reassigning os.Stderr. It is held only for the instant of a single
-// read-and-write or a single reassignment, never across an entire captured
-// callback, so a callback that itself starts and stops a spinner cannot
-// deadlock against it.
-var stdErrStreamMu sync.RWMutex
-
 // writeSpinnerLine writes s to os.Stderr, matching the rest of the package's
 // status-message convention, synchronized against concurrent os.Stderr
 // reassignment via stdErrStreamMu.

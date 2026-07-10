@@ -176,10 +176,9 @@ var createTempFile = func() (*os.File, error) {
 	return os.CreateTemp("", "capture-stdout-*")
 }
 
-// setStderr reassigns os.Stderr under stdErrStreamMu, synchronizing the
-// change against concurrent spinner writes (see stdErrStreamMu in
-// messages.go). Held only for the instant of the reassignment, never across
-// the caller's function.
+// setStderr reassigns os.Stderr under stdErrStreamMu (declared in common.go),
+// synchronizing the change against concurrent spinner writes. Held only for
+// the instant of the reassignment, never across the caller's function.
 func setStderr(f *os.File) {
 	stdErrStreamMu.Lock()
 	os.Stderr = f

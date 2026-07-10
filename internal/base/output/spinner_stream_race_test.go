@@ -69,20 +69,22 @@ func TestSpinnerCaptureOutputRace(t *testing.T) {
 	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
 
-	spinner := NewSpinner(true)
-	spinner.Start("Racing...")
+	captureStderr(t, func() {
+		spinner := NewSpinner(true)
+		spinner.Start("Racing...")
 
-	var wg sync.WaitGroup
-	const iterations = 30
-	for i := 0; i < iterations; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			CaptureOutput(func() {
-				fmt.Printf("captured%d\n", i)
-			})
-		}(i)
-	}
-	wg.Wait()
-	spinner.Stop()
+		var wg sync.WaitGroup
+		const iterations = 30
+		for i := 0; i < iterations; i++ {
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+				CaptureOutput(func() {
+					fmt.Printf("captured%d\n", i)
+				})
+			}(i)
+		}
+		wg.Wait()
+		spinner.Stop()
+	})
 }
