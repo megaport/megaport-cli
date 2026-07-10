@@ -224,6 +224,8 @@ func TestValidatePortName(t *testing.T) {
 		{"Single character (min non-empty)", "A", false},
 		{"64 character port name", strings.Repeat("A", MaxPortNameLength), false},
 		{"65 character port name", strings.Repeat("A", MaxPortNameLength+1), true},
+		{"64 multibyte character port name", strings.Repeat("日", MaxPortNameLength), false},
+		{"65 multibyte character port name", strings.Repeat("日", MaxPortNameLength+1), true},
 	}
 
 	for _, tt := range tests {

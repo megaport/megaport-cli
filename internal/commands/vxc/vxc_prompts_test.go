@@ -78,6 +78,37 @@ func TestPromptAWSConfig(t *testing.T) {
 	}
 }
 
+func TestPromptAWSConfig_RequiresCredentials(t *testing.T) {
+	tests := []struct {
+		name        string
+		responses   []string
+		errContains string
+	}{
+		{
+			name:        "empty owner account rejected",
+			responses:   []string{"AWS", ""},
+			errContains: "owner account ID is required",
+		},
+		{
+			name:        "empty connection name rejected",
+			responses:   []string{"AWS", "123456789", ""},
+			errContains: "connection name is required",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cleanup := mockPrompts(tc.responses)
+			defer cleanup()
+
+			cfg, err := promptAWSConfig(true)
+			assert.Error(t, err)
+			assert.Nil(t, cfg)
+			assert.Contains(t, err.Error(), tc.errContains)
+		})
+	}
+}
+
 func TestPromptGoogleConfig(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -205,6 +236,16 @@ func TestPromptIBMConfig(t *testing.T) {
 			tc.verify(t, cfg)
 		})
 	}
+}
+
+func TestPromptIBMConfig_RequiresAccountID(t *testing.T) {
+	cleanup := mockPrompts([]string{""})
+	defer cleanup()
+
+	cfg, err := promptIBMConfig(true)
+	assert.Error(t, err)
+	assert.Nil(t, cfg)
+	assert.Contains(t, err.Error(), "account ID is required")
 }
 
 func TestPromptBFDConfig(t *testing.T) {
@@ -439,6 +480,28 @@ func TestPromptAzureConfig(t *testing.T) {
 	assert.Equal(t, "azure-uid-1", uid)
 }
 
+func TestPromptAzureConfig_RequiresServiceKey(t *testing.T) {
+	cleanup := mockPrompts([]string{""})
+	defer cleanup()
+
+	mockSvc := &MockVXCService{
+		ListPartnerPortsResponse: &megaport.ListPartnerPortsResponse{
+			Data: megaport.PartnerLookup{
+				Megaports: []megaport.PartnerLookupItem{
+					{ProductUID: "azure-uid-1", Type: "primary"},
+				},
+			},
+		},
+	}
+
+	ctx := context.Background()
+	cfg, uid, err := promptAzureConfig(ctx, mockSvc, true)
+	assert.Error(t, err)
+	assert.Nil(t, cfg)
+	assert.Empty(t, uid)
+	assert.Contains(t, err.Error(), "service key is required")
+}
+
 func TestPromptAzurePeeringConfig(t *testing.T) {
 	cleanup := mockPrompts([]string{
 		"Microsoft", // peering type
@@ -460,6 +523,57 @@ func TestPromptAzurePeeringConfig(t *testing.T) {
 	assert.Equal(t, "10.2.0.0/16", peer.Prefixes)
 	assert.Equal(t, "key123", peer.SharedKey)
 	assert.Equal(t, 200, peer.VLAN)
+}
+
+func TestPromptAzurePeeringConfig_InvalidVLAN(t *testing.T) {
+	cleanup := mockPrompts([]string{
+		"Microsoft", // peering type
+		"12076",     // peer ASN
+		"10.0.0.0/30",
+		"10.0.0.4/30",
+		"10.2.0.0/16",
+		"key123",
+		"not-a-number",
+	})
+	defer cleanup()
+
+	_, err := promptAzurePeeringConfig(true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid VLAN")
+}
+
+func TestPromptAzurePeeringConfig_OutOfRangeVLAN(t *testing.T) {
+	cleanup := mockPrompts([]string{
+		"Microsoft", // peering type
+		"12076",     // peer ASN
+		"10.0.0.0/30",
+		"10.0.0.4/30",
+		"10.2.0.0/16",
+		"key123",
+		"4100",
+	})
+	defer cleanup()
+
+	_, err := promptAzurePeeringConfig(true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "VLAN ID")
+}
+
+func TestPromptAzurePeeringConfig_EmptyVLANDefaultsToZero(t *testing.T) {
+	cleanup := mockPrompts([]string{
+		"Microsoft", // peering type
+		"12076",     // peer ASN
+		"10.0.0.0/30",
+		"10.0.0.4/30",
+		"10.2.0.0/16",
+		"key123",
+		"",
+	})
+	defer cleanup()
+
+	peer, err := promptAzurePeeringConfig(true)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, peer.VLAN)
 }
 
 func TestPromptPartnerConfig(t *testing.T) {

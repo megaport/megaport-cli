@@ -3,6 +3,7 @@ package validation
 import (
 	"fmt"
 	"math"
+	"strings"
 	"testing"
 
 	megaport "github.com/megaport/megaportgo"
@@ -861,6 +862,23 @@ func TestValidateAWSPartnerConfig(t *testing.T) {
 			awsName:      string(make([]byte, 256)), // 256 chars
 			wantErr:      true,
 			errText:      "Invalid AWS connection name: ", // Error message includes the long name, truncated here
+		},
+		{
+			name:         "AWS name at max length with multibyte characters accepted",
+			connectType:  "AWS",
+			ownerAccount: "123456789012",
+			asn:          65000,
+			awsName:      strings.Repeat("日", MaxAWSConnectionNameLength),
+			wantErr:      false,
+		},
+		{
+			name:         "AWS name over max length with multibyte characters rejected",
+			connectType:  "AWS",
+			ownerAccount: "123456789012",
+			asn:          65000,
+			awsName:      strings.Repeat("日", MaxAWSConnectionNameLength+1),
+			wantErr:      true,
+			errText:      "Invalid AWS connection name: ",
 		},
 		{
 			name:         "Invalid AWS type for AWS connect type",

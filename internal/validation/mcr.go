@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	megaport "github.com/megaport/megaportgo"
@@ -117,16 +118,31 @@ func ValidatePrefixFilterListRequest(req *megaport.CreateMCRPrefixFilterListRequ
 		return NewValidationError("entries", req.PrefixFilterList.Entries, "must contain at least one entry")
 	}
 
-	// Validate each entry
-	for i, entry := range req.PrefixFilterList.Entries {
+	return validatePrefixFilterEntries(req.PrefixFilterList.Entries, req.PrefixFilterList.AddressFamily)
+}
+
+// validatePrefixFilterEntries validates each prefix filter entry's prefix as a
+// CIDR consistent with the list's declared address family, and that the
+// action is permit or deny.
+func validatePrefixFilterEntries(entries []*megaport.MCRPrefixListEntry, addressFamily string) error {
+	for i, entry := range entries {
 		if entry.Prefix == "" {
 			return NewValidationError("entry prefix index", i, "prefix cannot be empty")
+		}
+		if addressFamily == "IPv4" {
+			if err := ValidateCIDR(entry.Prefix, fmt.Sprintf("entry prefix index %d", i)); err != nil {
+				return err
+			}
+		} else {
+			ip, _, err := net.ParseCIDR(entry.Prefix)
+			if err != nil || ip.To4() != nil {
+				return NewValidationError(fmt.Sprintf("entry prefix index %d", i), entry.Prefix, "must be a valid IPv6 CIDR notation")
+			}
 		}
 		if entry.Action != "permit" && entry.Action != "deny" {
 			return NewValidationError("entry action", entry.Action, "must be permit or deny")
 		}
 	}
-
 	return nil
 }
 
@@ -146,18 +162,8 @@ func ValidatePrefixFilterListRequest(req *megaport.CreateMCRPrefixFilterListRequ
 //   - A ValidationError if any validation check fails
 //   - nil if all validation checks pass
 func ValidateUpdatePrefixFilterList(prefixFilterList *megaport.MCRPrefixFilterList) error {
-	// If entries are provided, validate them
-	if len(prefixFilterList.Entries) > 0 {
-		// Validate each entry
-		for i, entry := range prefixFilterList.Entries {
-			if entry.Prefix == "" {
-				return NewValidationError("entry prefix index", i, "prefix cannot be empty")
-			}
-			if entry.Action != "permit" && entry.Action != "deny" {
-				return NewValidationError("entry action", entry.Action, "must be permit or deny")
-			}
-		}
+	if len(prefixFilterList.Entries) == 0 {
+		return nil
 	}
-
-	return nil
+	return validatePrefixFilterEntries(prefixFilterList.Entries, prefixFilterList.AddressFamily)
 }

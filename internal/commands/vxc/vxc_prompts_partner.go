@@ -98,10 +98,16 @@ func promptAWSConfig(noColor bool) (*megaport.VXCPartnerConfigAWS, error) {
 	if err != nil {
 		return nil, err
 	}
+	if ownerAccount == "" {
+		return nil, fmt.Errorf("owner account ID is required")
+	}
 
 	connectionName, err := utils.ResourcePrompt("vxc", "Enter connection name (required): ", noColor)
 	if err != nil {
 		return nil, err
+	}
+	if connectionName == "" {
+		return nil, fmt.Errorf("connection name is required")
 	}
 
 	asnStr, err := utils.ResourcePrompt("vxc", "Enter ASN (required): ", noColor)
@@ -176,6 +182,9 @@ func promptAzureConfig(ctx context.Context, svc megaport.VXCService, noColor boo
 	serviceKey, err := utils.ResourcePrompt("vxc", "Enter service key (required): ", noColor)
 	if err != nil {
 		return nil, "", err
+	}
+	if serviceKey == "" {
+		return nil, "", fmt.Errorf("service key is required")
 	}
 
 	portChoice, err := utils.ResourcePrompt("vxc", "Enter port choice (primary/secondary, optional, default value is primary): ", noColor)
@@ -268,9 +277,15 @@ func promptAzurePeeringConfig(noColor bool) (megaport.PartnerOrderAzurePeeringCo
 	if err != nil {
 		return megaport.PartnerOrderAzurePeeringConfig{}, err
 	}
-	vlan, err := strconv.Atoi(vlanStr)
-	if err != nil {
-		vlan = 0
+	var vlan int
+	if vlanStr != "" {
+		vlan, err = strconv.Atoi(vlanStr)
+		if err != nil {
+			return megaport.PartnerOrderAzurePeeringConfig{}, fmt.Errorf("invalid VLAN: %w", err)
+		}
+		if err := validation.ValidateVLAN(vlan); err != nil {
+			return megaport.PartnerOrderAzurePeeringConfig{}, err
+		}
 	}
 
 	return megaport.PartnerOrderAzurePeeringConfig{
@@ -322,6 +337,9 @@ func promptIBMConfig(noColor bool) (*megaport.VXCPartnerConfigIBM, error) {
 	accountID, err := utils.ResourcePrompt("vxc", "Enter account ID (required): ", noColor)
 	if err != nil {
 		return nil, err
+	}
+	if accountID == "" {
+		return nil, fmt.Errorf("account ID is required")
 	}
 
 	name, err := utils.ResourcePrompt("vxc", "Enter name (required): ", noColor)

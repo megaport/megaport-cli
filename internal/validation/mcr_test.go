@@ -335,13 +335,48 @@ func TestValidateUpdatePrefixFilterList(t *testing.T) {
 			name: "Invalid entry action",
 			req: &megaport.MCRPrefixFilterList{
 				Description:   "Updated filter list",
-				AddressFamily: "IPv6",
+				AddressFamily: "IPv4",
 				Entries: []*megaport.MCRPrefixListEntry{
 					{Action: "allow", Prefix: "10.0.0.0/8"},
 				},
 			},
 			wantErr: true,
 			errText: "Invalid entry action: allow - must be permit or deny",
+		},
+		{
+			name: "Invalid prefix CIDR",
+			req: &megaport.MCRPrefixFilterList{
+				Description:   "Updated filter list",
+				AddressFamily: "IPv4",
+				Entries: []*megaport.MCRPrefixListEntry{
+					{Action: "permit", Prefix: "not-a-cidr"},
+				},
+			},
+			wantErr: true,
+			errText: "Invalid entry prefix index 0: not-a-cidr - must be a valid IPv4 CIDR notation",
+		},
+		{
+			name: "Prefix does not match declared IPv6 address family",
+			req: &megaport.MCRPrefixFilterList{
+				Description:   "Updated filter list",
+				AddressFamily: "IPv6",
+				Entries: []*megaport.MCRPrefixListEntry{
+					{Action: "permit", Prefix: "10.0.0.0/8"},
+				},
+			},
+			wantErr: true,
+			errText: "Invalid entry prefix index 0: 10.0.0.0/8 - must be a valid IPv6 CIDR notation",
+		},
+		{
+			name: "Valid IPv6 update with entries",
+			req: &megaport.MCRPrefixFilterList{
+				Description:   "Updated filter list",
+				AddressFamily: "IPv6",
+				Entries: []*megaport.MCRPrefixListEntry{
+					{Action: "permit", Prefix: "2001:db8::/32"},
+				},
+			},
+			wantErr: false,
 		},
 	}
 

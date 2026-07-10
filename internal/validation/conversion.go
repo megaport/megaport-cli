@@ -16,7 +16,7 @@ func GetIntFromInterface(value interface{}) (int, bool) {
 		// Reject fractional or out-of-range values rather than silently truncating
 		// JSON-derived numbers (e.g. 3.9 -> 3). Bounds use platform int width so
 		// 32-bit targets (js/wasm) don't accept values that overflow int.
-		if v != math.Trunc(v) || v < math.MinInt || v > math.MaxInt {
+		if v != math.Trunc(v) || v < math.MinInt || v >= float64(math.MaxInt) {
 			return 0, false
 		}
 		return int(v), true

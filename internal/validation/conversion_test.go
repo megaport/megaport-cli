@@ -20,6 +20,8 @@ func TestGetIntFromInterface(t *testing.T) {
 		{"float64 whole", float64(10), 10, true},
 		{"float64 fractional rejected", float64(3.9), 0, false},
 		{"float64 above int range rejected", float64(math.MaxInt) * 2, 0, false},
+		{"float64 exactly 2^63 rejected", math.Exp2(63), 0, false},
+		{"float64 just below 2^63 accepted", math.Exp2(63) - 2048, int(math.Exp2(63) - 2048), true},
 		{"numeric string", "123", 123, true},
 		{"negative numeric string", "-5", -5, true},
 		{"empty string", "", 0, false},

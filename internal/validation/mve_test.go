@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	megaport "github.com/megaport/megaportgo"
@@ -55,6 +56,21 @@ func TestValidateMVERequest(t *testing.T) {
 			locationID:  123,
 			wantErr:     true,
 			errText:     "Invalid MVE name: This name is way too long and should exceed the 64 character limit for MVE product names which will cause validation to fail - cannot exceed 64 characters",
+		},
+		{
+			name:        "64 multibyte character name accepted",
+			productName: strings.Repeat("日", MaxMVENameLength),
+			term:        12,
+			locationID:  123,
+			wantErr:     false,
+		},
+		{
+			name:        "65 multibyte character name rejected",
+			productName: strings.Repeat("日", MaxMVENameLength+1),
+			term:        12,
+			locationID:  123,
+			wantErr:     true,
+			errText:     fmt.Sprintf("Invalid MVE name: %s - cannot exceed %d characters", strings.Repeat("日", MaxMVENameLength+1), MaxMVENameLength),
 		},
 	}
 

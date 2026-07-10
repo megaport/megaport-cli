@@ -3,6 +3,7 @@ package validation
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	megaport "github.com/megaport/megaportgo"
 )
@@ -224,8 +225,8 @@ func ValidateAWSPartnerConfig(config *megaport.VXCPartnerConfigAWS) error {
 		return NewValidationError("AWS owner account", config.OwnerAccount, "cannot be empty")
 	}
 
-	if config.ConnectionName != "" && len(config.ConnectionName) > 255 {
-		return NewValidationError("AWS connection name", config.ConnectionName, "cannot exceed 255 characters")
+	if config.ConnectionName != "" && utf8.RuneCountInString(config.ConnectionName) > MaxAWSConnectionNameLength {
+		return NewValidationError("AWS connection name", config.ConnectionName, fmt.Sprintf("cannot exceed %d characters", MaxAWSConnectionNameLength))
 	}
 	if config.CustomerIPAddress != "" {
 		if err := ValidateCIDR(config.CustomerIPAddress, "AWS customer IP address"); err != nil {
@@ -362,7 +363,7 @@ func ValidateIBMPartnerConfig(config *megaport.VXCPartnerConfigIBM) error {
 			return NewValidationError("IBM account ID", config.AccountID, "must contain only hexadecimal characters (0-9, a-f, A-F)")
 		}
 	}
-	if config.Name != "" && len(config.Name) > MaxIBMNameLength {
+	if config.Name != "" && utf8.RuneCountInString(config.Name) > MaxIBMNameLength {
 		return NewValidationError("IBM connection name", config.Name, fmt.Sprintf("cannot exceed %d characters", MaxIBMNameLength))
 	}
 	if config.Name != "" && !isValidIBMName(config.Name) {
