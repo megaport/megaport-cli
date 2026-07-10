@@ -343,18 +343,35 @@ func TestWithRequiredFlag(t *testing.T) {
 		assert.Contains(t, err.Error(), "\"name\"")
 	})
 
-	t.Run("flag added after WithRequiredFlag warns loudly instead of silently no-op", func(t *testing.T) {
+	t.Run("required-then-flag ordering warns loudly and stays unenforced even once the flag is added", func(t *testing.T) {
 		var b *CommandBuilder
 		stderr := captureStderr(t, func() {
 			b = NewCommand("test", "test").
-				WithRequiredFlag("nonexistent", "Does not exist")
+				WithRequiredFlag("name", "Name of the resource"). // flag doesn't exist yet
+				WithFlag("name", "", "The name")                  // added too late to be marked required
 		})
 
-		// Should not panic, and should still surface the loud warning.
-		assert.Contains(t, stderr, "nonexistent")
+		// The misordered call warns loudly at the point it happens.
+		assert.Contains(t, stderr, "\"name\"")
 		assert.Contains(t, stderr, "before the flag was added")
-		// Documentation map still records the intent, but nothing enforces it.
-		assert.Equal(t, "Does not exist", b.requiredFlags["nonexistent"])
+
+		// Documentation map still records the intent...
+		assert.Equal(t, "Name of the resource", b.requiredFlags["name"])
+
+		// ...but Cobra never enforces it, even though the flag exists by the
+		// time Build() runs: no annotation, no "[required]" usage suffix, and
+		// running the command without --name succeeds.
+		cmd := b.Build()
+		f := cmd.Flags().Lookup("name")
+		require.NotNil(t, f)
+		assert.Nil(t, f.Annotations)
+		assert.Equal(t, "The name", f.Usage)
+
+		cmd.SetArgs([]string{})
+		cmd.RunE = func(cmd *cobra.Command, args []string) error { return nil }
+		cmd.SilenceUsage = true
+		cmd.SilenceErrors = true
+		assert.NoError(t, cmd.Execute())
 	})
 }
 
