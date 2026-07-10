@@ -83,13 +83,16 @@ func promptForUpdateMCRDetails(mcrUID, currentCostCentre string, noColor bool) (
 		return nil, err
 	}
 	if strings.ToLower(marketplaceVisibilityStr) == "yes" {
-		visibilityValuePrompt := "Enter marketplace visibility (true or false): "
+		visibilityValuePrompt := "Enter marketplace visibility (y/yes/n/no): "
 		visibilityValue, err := utils.ResourcePrompt("mcr", visibilityValuePrompt, noColor)
 		if err != nil {
 			return nil, err
 		}
 
-		marketplaceVisibility := strings.ToLower(visibilityValue) == "true"
+		marketplaceVisibility, err := utils.ParseYesNo(visibilityValue)
+		if err != nil {
+			return nil, fmt.Errorf("marketplace visibility: %w", err)
+		}
 		req.MarketplaceVisibility = &marketplaceVisibility
 		fieldsUpdated = true
 	}
@@ -326,18 +329,26 @@ func promptUpdateExistingEntries(currentEntries []*megaport.MCRPrefixListEntry, 
 		output.PrintPlain("Entry %d - Current: Action: %s, Prefix: %s, GE: %d, LE: %d", noColor,
 			i+1, entry.Action, entry.Prefix, entry.Ge, entry.Le)
 
-		keepEntry, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Keep entry %d? (yes/no): ", i+1), noColor)
+		keepEntryStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Keep entry %d? (y/yes/n/no): ", i+1), noColor)
 		if err != nil {
 			return nil, err
 		}
+		keepEntry, err := utils.ParseYesNo(keepEntryStr)
+		if err != nil {
+			return nil, fmt.Errorf("keep entry %d: %w", i+1, err)
+		}
 
-		if strings.ToLower(keepEntry) == "yes" {
-			modifyEntry, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Modify entry %d? (yes/no): ", i+1), noColor)
+		if keepEntry {
+			modifyEntryStr, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Modify entry %d? (y/yes/n/no): ", i+1), noColor)
 			if err != nil {
 				return nil, err
 			}
+			modifyEntry, err := utils.ParseYesNo(modifyEntryStr)
+			if err != nil {
+				return nil, fmt.Errorf("modify entry %d: %w", i+1, err)
+			}
 
-			if strings.ToLower(modifyEntry) == "yes" {
+			if modifyEntry {
 				prefix, err := utils.ResourcePrompt("mcr", fmt.Sprintf("Enter new prefix for entry %d (current: %s): ", i+1, entry.Prefix), noColor)
 				if err != nil {
 					return nil, err

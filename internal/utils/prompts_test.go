@@ -889,3 +889,38 @@ func TestPromptWithCustomReader(t *testing.T) {
 	assert.Contains(t, errBuf.String(), "Enter value:")
 	assert.Empty(t, outBuf.String(), "prompt text must not be written to stdout")
 }
+
+func TestParseYesNo(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    bool
+		wantErr bool
+	}{
+		{name: "y", input: "y", want: true},
+		{name: "Y uppercase", input: "Y", want: true},
+		{name: "yes", input: "yes", want: true},
+		{name: "yes mixed case", input: "Yes", want: true},
+		{name: "true", input: "true", want: true},
+		{name: "true with whitespace", input: "  true  ", want: true},
+		{name: "n", input: "n", want: false},
+		{name: "N uppercase", input: "N", want: false},
+		{name: "no", input: "no", want: false},
+		{name: "false", input: "false", want: false},
+		{name: "invalid typo", input: "ture", wantErr: true},
+		{name: "empty", input: "", wantErr: true},
+		{name: "unrelated word", input: "maybe", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseYesNo(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
