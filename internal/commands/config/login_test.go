@@ -5,6 +5,7 @@ package config
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -15,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/stretchr/testify/assert"
@@ -383,6 +385,10 @@ func TestEnvFlagPartialEnvVarsDoesNotMixWithProfile(t *testing.T) {
 		_, err := LoginWithOutput(context.Background(), "json")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "only one of MEGAPORT_ACCESS_KEY and MEGAPORT_SECRET_KEY is set")
+
+		var cliErr *exitcodes.CLIError
+		assert.True(t, errors.As(err, &cliErr), "expected a typed usage error")
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
 	})
 
 	t.Run("only secret key set in env errors instead of mixing with profile", func(t *testing.T) {
@@ -392,6 +398,10 @@ func TestEnvFlagPartialEnvVarsDoesNotMixWithProfile(t *testing.T) {
 		_, err := LoginWithOutput(context.Background(), "json")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "only one of MEGAPORT_ACCESS_KEY and MEGAPORT_SECRET_KEY is set")
+
+		var cliErr *exitcodes.CLIError
+		assert.True(t, errors.As(err, &cliErr), "expected a typed usage error")
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
 	})
 
 	t.Run("neither env var set falls back fully to profile", func(t *testing.T) {

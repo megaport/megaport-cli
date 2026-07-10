@@ -7,6 +7,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"regexp"
@@ -880,6 +881,21 @@ func TestPrintXML_NilSlice(t *testing.T) {
 	})
 }
 
+// assertValidXML decodes output in full and requires it to end in io.EOF, so
+// a malformed document (which would otherwise stop the decoder early with a
+// syntax error) fails the assertion instead of silently passing.
+func assertValidXML(t *testing.T, output string) {
+	t.Helper()
+	decoder := xml.NewDecoder(strings.NewReader(output))
+	for {
+		_, err := decoder.Token()
+		if err != nil {
+			assert.ErrorIs(t, err, io.EOF, "output is not well-formed XML")
+			return
+		}
+	}
+}
+
 func TestPrintXML_ComplexStruct(t *testing.T) {
 	now := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
 	ref := &SimpleStruct{ID: 100, Name: "Referenced", Active: true}
@@ -908,13 +924,7 @@ func TestPrintXML_ComplexStruct(t *testing.T) {
 	assert.Contains(t, output, "<reference>")
 
 	// Verify it's parseable XML
-	decoder := xml.NewDecoder(strings.NewReader(output))
-	for {
-		_, err := decoder.Token()
-		if err != nil {
-			break
-		}
-	}
+	assertValidXML(t, output)
 }
 
 func TestPrintXML_PointerStruct(t *testing.T) {
@@ -984,13 +994,7 @@ func TestPrintXML_SpecialCharacters(t *testing.T) {
 	assert.Contains(t, output, "&amp;")
 
 	// Should still be parseable
-	decoder := xml.NewDecoder(strings.NewReader(output))
-	for {
-		_, err := decoder.Token()
-		if err != nil {
-			break
-		}
-	}
+	assertValidXML(t, output)
 }
 
 func TestPrintXML_IllegalElementName(t *testing.T) {
@@ -1008,13 +1012,7 @@ func TestPrintXML_IllegalElementName(t *testing.T) {
 	assert.NotContains(t, output, "<1id>")
 	assert.NotContains(t, output, "<a/b c>")
 
-	decoder := xml.NewDecoder(strings.NewReader(output))
-	for {
-		_, err := decoder.Token()
-		if err != nil {
-			break
-		}
-	}
+	assertValidXML(t, output)
 }
 
 func TestSanitizeXMLElementName(t *testing.T) {
@@ -1060,13 +1058,7 @@ func TestPrintXML_CollidingElementNames(t *testing.T) {
 	assert.Contains(t, output, "<a_b>one</a_b>")
 	assert.Contains(t, output, "<a_b_2>two</a_b_2>")
 
-	decoder := xml.NewDecoder(strings.NewReader(output))
-	for {
-		_, err := decoder.Token()
-		if err != nil {
-			break
-		}
-	}
+	assertValidXML(t, output)
 }
 
 func TestPrintOutput_XMLFormat(t *testing.T) {
@@ -1086,13 +1078,7 @@ func TestPrintOutput_XMLFormat(t *testing.T) {
 	assert.Contains(t, output, "</items>")
 
 	// Verify parseable by xml.Decoder
-	decoder := xml.NewDecoder(strings.NewReader(output))
-	for {
-		_, err := decoder.Token()
-		if err != nil {
-			break
-		}
-	}
+	assertValidXML(t, output)
 }
 
 func TestPrintXML_Parseable(t *testing.T) {
@@ -1113,6 +1099,7 @@ func TestPrintXML_Parseable(t *testing.T) {
 	for {
 		tok, err := decoder.Token()
 		if err != nil {
+			assert.ErrorIs(t, err, io.EOF, "output is not well-formed XML")
 			break
 		}
 		if se, ok := tok.(xml.StartElement); ok && se.Name.Local == "item" {

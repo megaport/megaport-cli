@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/utils"
 	megaport "github.com/megaport/megaportgo"
@@ -174,7 +175,7 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 					}
 				}
 			default:
-				return nil, fmt.Errorf("only one of MEGAPORT_ACCESS_KEY and MEGAPORT_SECRET_KEY is set; with --env, both must come from the environment or neither should be set")
+				return nil, exitcodes.NewUsageError(fmt.Errorf("only one of MEGAPORT_ACCESS_KEY and MEGAPORT_SECRET_KEY is set; with --env, both must come from the environment or neither should be set"))
 			}
 		} else {
 			// No --env flag, use original priority: profile > env vars
