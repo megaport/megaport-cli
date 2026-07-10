@@ -240,6 +240,29 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string, ctx context.Co
 		}
 	}
 
+	// Parse and format-check vxcName/rateLimit/term before any partner-port
+	// lookup, so malformed JSON fails fast without an API round-trip.
+	vxcName, _, err := utils.JSONString(rawData, "vxcName")
+	if err != nil {
+		return nil, exitcodes.NewUsageError(err)
+	}
+
+	rateLimit, _, err := utils.JSONNumber(rawData, "rateLimit")
+	if err != nil {
+		return nil, exitcodes.NewUsageError(err)
+	}
+	if rateLimit != math.Trunc(rateLimit) {
+		return nil, exitcodes.NewUsageError(fmt.Errorf("rateLimit must be a whole number, got %v", rateLimit))
+	}
+
+	term, _, err := utils.JSONNumber(rawData, "term")
+	if err != nil {
+		return nil, exitcodes.NewUsageError(err)
+	}
+	if term != math.Trunc(term) {
+		return nil, exitcodes.NewUsageError(fmt.Errorf("term must be a whole number, got %v", term))
+	}
+
 	portUID, present, err := utils.JSONString(rawData, "portUid")
 	if err != nil {
 		return nil, exitcodes.NewUsageError(err)
@@ -262,31 +285,9 @@ func buildVXCRequestFromJSON(jsonStr string, jsonFilePath string, ctx context.Co
 	req := &megaport.BuyVXCRequest{
 		PortUID:           portUID,
 		AEndConfiguration: aEndConfig,
-	}
-
-	// Set simple fields
-	if vxcName, present, err := utils.JSONString(rawData, "vxcName"); err != nil {
-		return nil, exitcodes.NewUsageError(err)
-	} else if present {
-		req.VXCName = vxcName
-	}
-
-	if rateLimit, present, err := utils.JSONNumber(rawData, "rateLimit"); err != nil {
-		return nil, exitcodes.NewUsageError(err)
-	} else if present {
-		if rateLimit != math.Trunc(rateLimit) {
-			return nil, exitcodes.NewUsageError(fmt.Errorf("rateLimit must be a whole number, got %v", rateLimit))
-		}
-		req.RateLimit = int(rateLimit)
-	}
-
-	if term, present, err := utils.JSONNumber(rawData, "term"); err != nil {
-		return nil, exitcodes.NewUsageError(err)
-	} else if present {
-		if term != math.Trunc(term) {
-			return nil, exitcodes.NewUsageError(fmt.Errorf("term must be a whole number, got %v", term))
-		}
-		req.Term = int(term)
+		VXCName:           vxcName,
+		RateLimit:         int(rateLimit),
+		Term:              int(term),
 	}
 
 	if shutdown, present, err := utils.JSONBool(rawData, "shutdown"); err != nil {

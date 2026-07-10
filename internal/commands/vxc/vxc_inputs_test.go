@@ -1374,6 +1374,17 @@ func TestBuildVXCRequestFromJSON_PartnerPortResolution(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed to look up A-End Partner Port")
 	})
 
+	t.Run("malformed rateLimit fails before A-End partner-port lookup", func(t *testing.T) {
+		payload := `{"vxcName":"Test VXC","rateLimit":1000.5,"term":12,"aEndConfiguration":{"partnerConfig":{"connectType":"AZURE","serviceKey":"azure-key"}},"bEndConfiguration":{"productUID":"port-2"}}`
+		svc := &MockVXCService{
+			LookupPartnerPortsError: fmt.Errorf("lookup should not have been called"),
+		}
+
+		_, err := buildVXCRequestFromJSON(payload, "", context.Background(), svc)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "rateLimit must be a whole number")
+	})
+
 	t.Run("B-End productUID resolved from partner config when omitted", func(t *testing.T) {
 		payload := `{"portUid":"port-1","vxcName":"Test VXC","rateLimit":1000,"term":12,"bEndConfiguration":{"partnerConfig":{"connectType":"GOOGLE","pairingKey":"google-key"}}}`
 		svc := &MockVXCService{
