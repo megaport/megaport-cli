@@ -1460,6 +1460,7 @@ func TestBuildUpdateVXCRequestFromJSON_Term(t *testing.T) {
 	t.Run("term 0 is rejected", func(t *testing.T) {
 		_, err := buildUpdateVXCRequestFromJSON(`{"term":0}`, "")
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Invalid contract term")
 	})
 
 	for _, term := range []int{1, 12, 24, 36, 48, 60} {

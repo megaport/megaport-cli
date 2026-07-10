@@ -1580,6 +1580,7 @@ func TestBuildUpdateVXCRequestFromFlags_Term(t *testing.T) {
 		testutil.SetFlags(t, cmd, map[string]string{"term": "0"})
 		_, err := buildUpdateVXCRequestFromFlags(cmd)
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Invalid contract term")
 	})
 
 	for _, term := range []int{1, 12, 24, 36, 48, 60} {

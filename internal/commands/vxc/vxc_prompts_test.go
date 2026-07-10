@@ -1105,6 +1105,7 @@ func TestBuildUpdateVXCRequestFromPrompt_TermValidation(t *testing.T) {
 
 		_, err := buildUpdateVXCRequestFromPrompt(context.Background(), mockClient, "vxc-uid-123", true)
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Invalid contract term")
 	})
 
 	for _, term := range []int{1, 12, 24, 36, 48, 60} {
