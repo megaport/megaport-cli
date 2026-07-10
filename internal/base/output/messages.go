@@ -240,6 +240,31 @@ func (s *Spinner) renderFrame(i int) string {
 	return color.CyanString(frame)
 }
 
+// stdErrStreamMu synchronizes the spinner's animation writes against
+// CaptureOutput/CaptureOutputErr reassigning os.Stderr. It is held only for
+// the instant of a single read-and-write or a single reassignment, never
+// across an entire captured callback, so a callback that itself starts and
+// stops a spinner cannot deadlock against it.
+var stdErrStreamMu sync.RWMutex
+
+// writeSpinnerLine writes s to os.Stderr, matching the rest of the package's
+// status-message convention, synchronized against concurrent os.Stderr
+// reassignment via stdErrStreamMu.
+func writeSpinnerLine(s string) {
+	stdErrStreamMu.RLock()
+	defer stdErrStreamMu.RUnlock()
+	fmt.Fprint(os.Stderr, s)
+}
+
+// setStderr reassigns os.Stderr under stdErrStreamMu, synchronizing the
+// change against concurrent spinner writes (see stdErrStreamMu). Held only
+// for the instant of the reassignment, never across the caller's function.
+func setStderr(f *os.File) {
+	stdErrStreamMu.Lock()
+	os.Stderr = f
+	stdErrStreamMu.Unlock()
+}
+
 // nonInteractive reports whether the spinner's sink is non-interactive: a
 // machine-readable output format, or output not attached to a TTY. In those
 // sinks the carriage-return/clear-line escapes don't collapse anything, so the
@@ -295,7 +320,7 @@ func (s *Spinner) runLoop(prefix string, startTime *time.Time) {
 					msg = fmt.Sprintf("%s (%s elapsed)", prefix, elapsed)
 				}
 
-				fmt.Printf("\r\033[K%s %s", styledFrame, msg)
+				writeSpinnerLine(fmt.Sprintf("\r\033[K%s %s", styledFrame, msg))
 				s.mu.Unlock()
 				time.Sleep(s.frameRate)
 			}
@@ -322,10 +347,10 @@ func (s *Spinner) Stop() {
 	s.stopped = true
 	s.mu.Unlock()
 	s.stop <- true
-	// Only the animated TTY path leaves a frame on stdout to clear; in a
-	// non-interactive sink a bare clear sequence would just be junk in logs.
+	// Only the animated TTY path leaves a frame to clear; in a non-interactive
+	// sink a bare clear sequence would just be junk in logs.
 	if !s.nonInteractive() {
-		fmt.Print("\r\033[K")
+		writeSpinnerLine("\r\033[K")
 	}
 }
 

@@ -197,8 +197,11 @@ func CaptureOutput(f func()) string {
 	defer tmp.Close()
 
 	os.Stdout = tmp
-	os.Stderr = tmp
-	defer func() { os.Stdout = oldOut; os.Stderr = oldErr }()
+	setStderr(tmp)
+	defer func() {
+		os.Stdout = oldOut
+		setStderr(oldErr)
+	}()
 
 	f()
 
@@ -254,8 +257,11 @@ func CaptureOutputErr(f func() error) (string, error) {
 	defer tmp.Close()
 
 	os.Stdout = tmp
-	os.Stderr = tmp
-	defer func() { os.Stdout = oldOut; os.Stderr = oldErr }()
+	setStderr(tmp)
+	defer func() {
+		os.Stdout = oldOut
+		setStderr(oldErr)
+	}()
 
 	runErr := f()
 
