@@ -979,9 +979,11 @@ func TestBuyPort(t *testing.T) {
 			cmd.Flags().Bool("marketplace-visibility", false, "")
 			cmd.Flags().String("diversity-zone", "", "")
 			cmd.Flags().Bool("cost-confirm", true, "")
+			cmd.Flags().Bool("yes", false, "")
 
 			if tt.jsonInput != "" {
 				require.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+				require.NoError(t, cmd.Flags().Set("yes", "true"))
 			}
 			for k, v := range tt.flags {
 				require.NoError(t, cmd.Flags().Set(k, v))
@@ -1417,7 +1419,7 @@ func TestCheckPortVLANAvailability(t *testing.T) {
 			name:          "invalid VLAN arg",
 			portUID:       "port-vlan-3",
 			vlanArg:       "abc",
-			expectedError: "invalid VLAN ID",
+			expectedError: "Invalid VLAN ID",
 		},
 		{
 			name:          "VLAN out of assignable range",
@@ -1862,10 +1864,16 @@ func TestBuyPort_Confirmation(t *testing.T) {
 			expectedContains:   "new-port-uid-123",
 		},
 		{
-			name:               "json input skips confirmation",
+			name:               "json input with yes skips confirmation",
 			jsonInput:          `{"name":"json-port","term":12,"portSpeed":1000,"locationId":1,"marketPlaceVisibility":false}`,
+			yesFlag:            true,
 			expectPromptCalled: false,
 			expectedContains:   "new-port-uid-123",
+		},
+		{
+			name:          "json input without yes is a usage error",
+			jsonInput:     `{"name":"json-port","term":12,"portSpeed":1000,"locationId":1,"marketPlaceVisibility":false}`,
+			expectedError: "--yes is required to confirm a purchase when using --json or --json-file",
 		},
 	}
 

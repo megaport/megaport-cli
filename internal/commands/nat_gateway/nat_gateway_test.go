@@ -80,12 +80,25 @@ func TestCreateNATGateway_JSON(t *testing.T) {
 
 	cmd := newTestCmd("create")
 	require.NoError(t, cmd.Flags().Set("json", `{"name":"JSON GW","term":12,"speed":2000,"locationId":456}`))
+	require.NoError(t, cmd.Flags().Set("yes", "true"))
 
 	err := CreateNATGateway(cmd, nil, true)
 	assert.NoError(t, err)
 	require.NotNil(t, mock.CapturedCreateReq)
 	assert.Equal(t, "JSON GW", mock.CapturedCreateReq.ProductName)
 	assert.Equal(t, 456, mock.CapturedCreateReq.LocationID)
+}
+
+func TestCreateNATGateway_JSONWithoutYes(t *testing.T) {
+	mock := &MockNATGatewayService{}
+	defer setupMockNATGateway(mock)()
+
+	cmd := newTestCmd("create")
+	require.NoError(t, cmd.Flags().Set("json", `{"name":"JSON GW","term":12,"speed":2000,"locationId":456}`))
+
+	err := CreateNATGateway(cmd, nil, true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "--yes is required to confirm creating a NAT Gateway design when using --json or --json-file")
 }
 
 func TestCreateNATGateway_NoInput(t *testing.T) {

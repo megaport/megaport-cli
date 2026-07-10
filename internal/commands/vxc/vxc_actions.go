@@ -276,6 +276,13 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	jsonStr, _ := cmd.Flags().GetString("json")
+	jsonFile, _ := cmd.Flags().GetString("json-file")
+	yes, _ := cmd.Flags().GetBool("yes")
+	if !yes && (jsonStr != "" || jsonFile != "") {
+		return exitcodes.NewUsageError(fmt.Errorf("--yes is required to confirm a purchase when using --json or --json-file"))
+	}
+
 	noWait, _ := cmd.Flags().GetBool("no-wait")
 	// Only the order submission is wrapped in WithOrderOnceRetry below, so the SDK
 	// must not also poll for provisioning: a 429 raised during polling would
@@ -292,10 +299,7 @@ func BuyVXC(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	jsonStr, _ := cmd.Flags().GetString("json")
-	jsonFile, _ := cmd.Flags().GetString("json-file")
-	yes, _ := cmd.Flags().GetBool("yes")
-	if !yes && jsonStr == "" && jsonFile == "" {
+	if !yes {
 		details := []utils.BuyConfirmDetail{
 			{Key: "Name", Value: req.VXCName},
 			{Key: "Term", Value: fmt.Sprintf("%d months", req.Term)},
