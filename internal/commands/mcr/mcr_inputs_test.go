@@ -660,6 +660,33 @@ func TestProcessFlagMCRInput_IPSec(t *testing.T) {
 	})
 }
 
+func TestProcessFlagMCRInput_MarketplaceVisibilityUnsetWhenFlagAbsent(t *testing.T) {
+	cmd := &cobra.Command{Use: "test"}
+	cmd.Flags().String("name", "test-mcr", "")
+	cmd.Flags().Int("term", 12, "")
+	cmd.Flags().Int("port-speed", 5000, "")
+	cmd.Flags().Int("location-id", 1, "")
+	cmd.Flags().Int("mcr-asn", 0, "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
+	cmd.Flags().String("cost-centre", "", "")
+	cmd.Flags().String("promo-code", "", "")
+	cmd.Flags().String("diversity-zone", "", "")
+	cmd.Flags().String("resource-tags", "", "")
+	cmd.Flags().Int("ipsec-tunnel-count", 0, "")
+
+	req, err := processFlagMCRInput(cmd)
+	assert.NoError(t, err)
+	require.NotNil(t, req)
+	assert.Nil(t, req.MarketplaceVisibility, "MarketplaceVisibility should remain nil when --marketplace-visibility flag is not provided, so the API applies its own default")
+}
+
+func TestProcessJSONMCRInput_MarketplaceVisibilityUnsetWhenKeyAbsent(t *testing.T) {
+	req, err := processJSONMCRInput(`{"name":"test","term":12,"portSpeed":5000,"locationId":1}`, "")
+	assert.NoError(t, err)
+	require.NotNil(t, req)
+	assert.Nil(t, req.MarketplaceVisibility, "MarketplaceVisibility should remain nil when marketplaceVisibility key is absent, so the API applies its own default")
+}
+
 func TestProcessJSONMCRInput_InvalidTunnelCount(t *testing.T) {
 	_, err := processJSONMCRInput(`{"name":"test","term":12,"portSpeed":5000,"locationId":1,"marketplaceVisibility":true,"tunnelCount":5}`, "")
 	assert.Error(t, err)

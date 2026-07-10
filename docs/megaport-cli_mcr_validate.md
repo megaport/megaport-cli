@@ -25,11 +25,12 @@ Use this for dry-run validation before purchasing, or in CI pipelines to check c
 
 ### Important Notes
   - This command only validates the configuration — no resources are created and no charges are incurred
+  - Use --marketplace-visibility=true or --marketplace-visibility=false (with an equals sign); a space-separated value is not consumed by the flag and is rejected as an unexpected argument
 
 ### Example Usage
 
 ```sh
-  megaport-cli mcr validate --name "My MCR" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility true
+  megaport-cli mcr validate --name "My MCR" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility=true
   megaport-cli mcr validate --json-file ./mcr-config.json
 ```
 
@@ -53,7 +54,7 @@ megaport-cli mcr validate [flags]
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 | `--location-id` |  | `0` | The ID of the location where the MCR will be provisioned | true |
-| `--marketplace-visibility` |  |  | Whether the MCR should be visible in the marketplace (true or false) | true |
+| `--marketplace-visibility` |  | `false` | Whether the MCR should be visible in the marketplace (true or false) | true |
 | `--mcr-asn` |  | `0` | The ASN for the MCR (64512-65534 for private ASN, or a public ASN) | false |
 | `--name` |  |  | The name of the MCR (1-64 characters) | true |
 | `--port-speed` |  | `0` | The speed of the MCR (1000, 2500, 5000, 10000, 25000, 50000, or 100000 Mbps) | true |

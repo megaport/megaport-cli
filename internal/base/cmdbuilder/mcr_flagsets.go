@@ -18,7 +18,7 @@ func (b *CommandBuilder) WithMCRCreateFlags() *CommandBuilder {
 		WithOptionalFlag("diversity-zone", "The diversity zone for the MCR").
 		WithFlag("cost-centre", "", "The cost centre for billing purposes").
 		WithOptionalFlag("cost-centre", "The cost centre for billing purposes").
-		WithFlag("marketplace-visibility", "", "Whether the MCR is visible in the marketplace (true/false)").
+		WithBoolFlag("marketplace-visibility", false, "Whether the MCR is visible in the marketplace (true/false)").
 		WithFlag("promo-code", "", "A promotional code for discounts").
 		WithOptionalFlag("promo-code", "A promotional code for discounts").WithResourceTagFlags()
 	return b
