@@ -136,15 +136,11 @@ func (b *CommandBuilder) WithRootCmd(rootCmd *cobra.Command) *CommandBuilder {
 // the flag is never enforced, even though it is still recorded in
 // requiredFlags for documentation.
 func (b *CommandBuilder) WithRequiredFlag(name, description string) *CommandBuilder {
-	if flag := b.cmd.Flags().Lookup(name); flag != nil {
-		if err := b.cmd.MarkFlagRequired(name); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: Failed to mark flag '%s' as required: %v\n", name, err)
-		}
-
+	if err := b.cmd.MarkFlagRequired(name); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: WithRequiredFlag(%q) called on command %q before the flag was added; it will not be enforced as required: %v\n", name, b.cmd.Use, err)
+	} else if flag := b.cmd.Flags().Lookup(name); flag != nil {
 		// Also update the description to indicate it's required
 		flag.Usage = description + " [required]"
-	} else {
-		fmt.Fprintf(os.Stderr, "Warning: WithRequiredFlag(%q) called on command %q before the flag was added; it will not be enforced as required\n", name, b.cmd.Use)
 	}
 
 	// Store for our documentation as well
