@@ -3,7 +3,6 @@ package vxc
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -279,9 +278,9 @@ func promptAzurePeeringConfig(noColor bool) (megaport.PartnerOrderAzurePeeringCo
 	}
 	var vlan int
 	if vlanStr != "" {
-		vlan, err = strconv.Atoi(vlanStr)
+		vlan, err = validation.ParseInt("VLAN", vlanStr)
 		if err != nil {
-			return megaport.PartnerOrderAzurePeeringConfig{}, fmt.Errorf("invalid VLAN: %w", err)
+			return megaport.PartnerOrderAzurePeeringConfig{}, err
 		}
 		if err := validation.ValidateVLAN(vlan); err != nil {
 			return megaport.PartnerOrderAzurePeeringConfig{}, err
