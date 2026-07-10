@@ -94,43 +94,24 @@ always returns `{ error: "synchronous execution is not supported; use executeMeg
 It will be removed in a future release; new integrations should not call it.
 
 Full type definitions for the whole JS surface (auth, config file, prompts, telemetry)
-live in [`frontend-integration/types/megaport-wasm.d.ts`](frontend-integration/types/megaport-wasm.d.ts).
+are documented inline in `internal/wasm/`; there is no separate reference front end in
+this repo. Front-end integrators (e.g. the Portal) own their own wrapper around the
+`window.executeMegaportCommandAsync` API described above.
 
 ## Building
-
-The browser CLI is two pieces: the WASM binary and the Vue front end that hosts it.
 
 ```bash
 # WASM binary only (writes web/megaport.wasm)
 make wasm
 
-# Full static site: WASM + Vue front end, assembled into web/vue-demo/
+# WASM binary + wasm_exec.js loader, assembled into web/dist/
 make web-static          # or: ./scripts/build-web.sh
 ```
 
-`web-static` needs the Go toolchain and Node/npm on `PATH`. It produces a self-contained
-**`web/vue-demo/`** directory (Vue build + `megaport.wasm` + `wasm_exec.js`) ready to
-publish to a CDN. See [`web/README.md`](web/README.md) for the wasm pre-compression and
-cache-header details.
-
-## Local Development
-
-The front end lives in `frontend-integration/` and has its own Vite dev server. The dev
-server serves files from that directory's root and has no `public/` dir, so build the wasm
-and copy the loader into `frontend-integration/` first, then start the server:
-
-```bash
-# From the repo root: build the wasm + loader into the dev server's root.
-GOOS=js GOARCH=wasm go build -tags js,wasm -o frontend-integration/megaport.wasm .
-cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" frontend-integration/wasm_exec.js
-
-cd frontend-integration
-npm install
-npm run dev:demo
-```
-
-Vite serves `megaport.wasm` with the correct `application/wasm` MIME type and reloads the
-front end on change. Rerun the build command above after changing Go code.
+`web-static` needs the Go toolchain on `PATH`. It produces a self-contained
+**`web/dist/`** directory (`megaport.wasm` + `wasm_exec.js`) ready to publish to a CDN.
+See [`web/README.md`](web/README.md) for the wasm pre-compression and cache-header
+details.
 
 ## Enabling a Module for WASM
 
@@ -204,16 +185,16 @@ aws s3 cp web/megaport.wasm s3://media.megaport.com/portal/megaport-cli/megaport
 aws s3 cp web/wasm_exec.js  s3://media.megaport.com/portal/megaport-cli/wasm_exec.js
 ```
 
-For CDN hosting (S3 + CloudFront) of the full static site, sync the assembled
-`web/vue-demo/` directory and serve it from the site root:
+For CDN hosting (S3 + CloudFront), sync the assembled `web/dist/` directory:
 
 ```bash
 make web-static
-aws s3 sync web/vue-demo/ s3://<bucket>/<prefix>/ --delete
+aws s3 sync web/dist/ s3://<bucket>/<prefix>/ --delete
 ```
 
-`--delete` prunes stale hashed assets from old builds, so point it at a prefix dedicated
-to this site, since it removes anything else under that prefix.
+`--delete` prunes stale assets from old builds, so point it at a prefix dedicated to
+these files, since it removes anything else under that prefix. `.github/workflows/wasm-publish.yaml`
+automates this flow.
 
 ## Troubleshooting
 

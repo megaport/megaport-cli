@@ -1,27 +1,17 @@
 # shellcheck shell=bash
 # Shared build step for the browser/WASM CLI. Source this and call
 # build_static_assets from the repo root; build-web.sh wraps it to produce the
-# static site for CDN publishing.
+# CDN-publishable output.
 
 build_static_assets() {
-  local publish_dir="web/vue-demo"
+  local publish_dir="web/dist"
 
-  local tool
-  for tool in go npm; do
-    if ! command -v "$tool" >/dev/null 2>&1; then
-      echo "error: '$tool' is required but was not found on PATH" >&2
-      return 1
-    fi
-  done
+  if ! command -v go >/dev/null 2>&1; then
+    echo "error: 'go' is required but was not found on PATH" >&2
+    return 1
+  fi
 
-  echo "==> Building Vue front end (frontend-integration -> $publish_dir)"
-  (
-    # set -e so a failed step aborts the subshell regardless of the caller's options.
-    set -e
-    cd frontend-integration
-    npm ci --quiet
-    npm run build:demo
-  ) || return 1
+  mkdir -p "$publish_dir" || return 1
 
   echo "==> Building WASM binary ($publish_dir/megaport.wasm)"
   # GOWORK=off so the build uses the module's pinned deps, not the go.work workspace.
