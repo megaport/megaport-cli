@@ -38,9 +38,11 @@ this repo.
 
 ## Caching
 
-When the publishing flow content-hashes the wasm (`cmd/wasmhash`) into
-`megaport.<hash>.wasm`, `index.html` carries that hashed URL via
-`window.__MEGAPORT_WASM_URL__`. This only works if the CDN respects the right cache
+`cmd/wasmhash` is a content-hashing helper for an index.html-driven publish flow. It is
+not wired into any script or CI job in this repo (the S3 publish workflow below uses
+stable, unhashed filenames instead), but if a consumer wires it up to content-hash the
+wasm into `megaport.<hash>.wasm`, `index.html` would carry that hashed URL via
+`window.__MEGAPORT_WASM_URL__`. That only works if the CDN respects the right cache
 lifetimes, so whatever serves these files (the CDN or origin) must apply them:
 
 - `megaport.<hash>.wasm` (and its `.br`/`.gz` siblings): `Cache-Control: public,
