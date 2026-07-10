@@ -352,6 +352,61 @@ func TestProfileOverrideLogin(t *testing.T) {
 	})
 }
 
+func TestEnvFlagPartialEnvVarsDoesNotMixWithProfile(t *testing.T) {
+	// Save and restore non-env-var globals
+	originalEnv := utils.Env
+	originalProfileOverride := utils.ProfileOverride
+	defer func() {
+		utils.Env = originalEnv
+		utils.ProfileOverride = originalProfileOverride
+	}()
+
+	tempDir, err := os.MkdirTemp("", "megaport-login-test")
+	assert.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
+	t.Setenv("MEGAPORT_CONFIG_DIR", tempDir)
+
+	manager, err := NewConfigManager()
+	assert.NoError(t, err)
+	err = manager.CreateProfile("prod", "profile-access", "profile-secret", "production", "")
+	assert.NoError(t, err)
+	err = manager.UseProfile("prod")
+	assert.NoError(t, err)
+
+	utils.ProfileOverride = ""
+	utils.Env = "production"
+
+	t.Run("only access key set in env errors instead of mixing with profile", func(t *testing.T) {
+		t.Setenv("MEGAPORT_ACCESS_KEY", "env-access-key")
+		t.Setenv("MEGAPORT_SECRET_KEY", "")
+
+		_, err := LoginWithOutput(context.Background(), "json")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "only one of MEGAPORT_ACCESS_KEY and MEGAPORT_SECRET_KEY is set")
+	})
+
+	t.Run("only secret key set in env errors instead of mixing with profile", func(t *testing.T) {
+		t.Setenv("MEGAPORT_ACCESS_KEY", "")
+		t.Setenv("MEGAPORT_SECRET_KEY", "env-secret-key")
+
+		_, err := LoginWithOutput(context.Background(), "json")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "only one of MEGAPORT_ACCESS_KEY and MEGAPORT_SECRET_KEY is set")
+	})
+
+	t.Run("neither env var set falls back fully to profile", func(t *testing.T) {
+		t.Setenv("MEGAPORT_ACCESS_KEY", "")
+		t.Setenv("MEGAPORT_SECRET_KEY", "")
+
+		_, err := LoginWithOutput(context.Background(), "json")
+		assert.Error(t, err)
+		// Reaches the Authorize call (network error) rather than failing on
+		// missing credentials or the partial-env-var mixing guard.
+		assert.NotContains(t, err.Error(), "access key not provided")
+		assert.NotContains(t, err.Error(), "only one of")
+	})
+}
+
 func TestNewUnauthenticatedClient(t *testing.T) {
 	// Save and restore non-env-var globals
 	originalEnv := utils.Env
