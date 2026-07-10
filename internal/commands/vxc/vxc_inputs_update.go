@@ -228,6 +228,9 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 		if vlan, vlanPresent, err := utils.JSONNumber(aEndConfig, "vlan"); err != nil {
 			return nil, fmt.Errorf("aEndConfiguration.vlan: %w", err)
 		} else if vlanPresent {
+			if vlan != math.Trunc(vlan) {
+				return nil, fmt.Errorf("aEndConfiguration.vlan must be a whole number, got %v", vlan)
+			}
 			vlanInt := int(vlan)
 			if err := validation.ValidateVLAN(vlanInt); err != nil {
 				return nil, fmt.Errorf("aEndConfiguration.vlan: %w", err)
@@ -238,6 +241,9 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	} else if aEndVLAN, present, err := utils.JSONNumber(rawData, "aEndVlan"); err != nil {
 		return nil, fmt.Errorf("aEndVlan: %w", err)
 	} else if present {
+		if aEndVLAN != math.Trunc(aEndVLAN) {
+			return nil, fmt.Errorf("aEndVlan must be a whole number, got %v", aEndVLAN)
+		}
 		aEndVLANInt := int(aEndVLAN)
 		if err := validation.ValidateVLAN(aEndVLANInt); err != nil {
 			return nil, fmt.Errorf("aEndVlan: %w", err)
@@ -252,6 +258,9 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 		if vlan, vlanPresent, err := utils.JSONNumber(bEndConfig, "vlan"); err != nil {
 			return nil, fmt.Errorf("bEndConfiguration.vlan: %w", err)
 		} else if vlanPresent {
+			if vlan != math.Trunc(vlan) {
+				return nil, fmt.Errorf("bEndConfiguration.vlan must be a whole number, got %v", vlan)
+			}
 			vlanInt := int(vlan)
 			if err := validation.ValidateVLAN(vlanInt); err != nil {
 				return nil, fmt.Errorf("bEndConfiguration.vlan: %w", err)
@@ -262,6 +271,9 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	} else if bEndVLAN, present, err := utils.JSONNumber(rawData, "bEndVlan"); err != nil {
 		return nil, fmt.Errorf("bEndVlan: %w", err)
 	} else if present {
+		if bEndVLAN != math.Trunc(bEndVLAN) {
+			return nil, fmt.Errorf("bEndVlan must be a whole number, got %v", bEndVLAN)
+		}
 		bEndVLANInt := int(bEndVLAN)
 		if err := validation.ValidateVLAN(bEndVLANInt); err != nil {
 			return nil, fmt.Errorf("bEndVlan: %w", err)
@@ -286,6 +298,9 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	if aEndInnerVLAN, present, err := utils.JSONNumber(rawData, "aEndInnerVlan"); err != nil {
 		return nil, fmt.Errorf("aEndInnerVlan: %w", err)
 	} else if present {
+		if aEndInnerVLAN != math.Trunc(aEndInnerVLAN) {
+			return nil, fmt.Errorf("aEndInnerVlan must be a whole number, got %v", aEndInnerVLAN)
+		}
 		aEndInnerVLANInt := int(aEndInnerVLAN)
 		if err := validation.ValidateVXCEndInnerVLAN(aEndInnerVLANInt); err != nil {
 			return nil, fmt.Errorf("invalid aEndInnerVlan: %w", err)
@@ -297,6 +312,9 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	if bEndInnerVLAN, present, err := utils.JSONNumber(rawData, "bEndInnerVlan"); err != nil {
 		return nil, fmt.Errorf("bEndInnerVlan: %w", err)
 	} else if present {
+		if bEndInnerVLAN != math.Trunc(bEndInnerVLAN) {
+			return nil, fmt.Errorf("bEndInnerVlan must be a whole number, got %v", bEndInnerVLAN)
+		}
 		bEndInnerVLANInt := int(bEndInnerVLAN)
 		if err := validation.ValidateVXCEndInnerVLAN(bEndInnerVLANInt); err != nil {
 			return nil, fmt.Errorf("invalid bEndInnerVlan: %w", err)
