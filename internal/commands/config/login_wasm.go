@@ -211,8 +211,11 @@ var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		apiEndpoint = "https://api-mpone-dev.megaport.com"
 		envOpt = megaport.WithEnvironment(megaport.EnvironmentDevelopment)
 	default:
-		apiEndpoint = "https://api.megaport.com"
-		envOpt = megaport.WithEnvironment(megaport.EnvironmentProduction)
+		// Fail closed: an unrecognized environment must not silently route
+		// credentials to production.
+		js.Global().Get("console").Call("error", "Unknown environment: "+env)
+		js.Global().Get("console").Call("groupEnd")
+		return nil, fmt.Errorf("unknown environment %q: expected \"production\", \"staging\", or \"development\"", env)
 	}
 
 	js.Global().Get("console").Call("log", "Using API endpoint: "+apiEndpoint)
