@@ -128,20 +128,22 @@ func (b *CommandBuilder) WithRootCmd(rootCmd *cobra.Command) *CommandBuilder {
 	return b
 }
 
-// WithRequiredFlag marks a flag as required and adds description
+// WithRequiredFlag marks a flag as required and adds description.
+//
+// Must be called after the flag has been added to the command (e.g. via
+// WithFlag). Calling it before the flag exists is a builder-ordering bug:
+// Cobra has nothing to mark required, so a warning is printed to stderr
+// instead of silently recording the flag as required.
 func (b *CommandBuilder) WithRequiredFlag(name, description string) *CommandBuilder {
-	// Mark the flag in the cobra command
-	if b.cmd.Flags().Lookup(name) != nil {
-		flag := b.cmd.Flags().Lookup(name)
-
-		// Add annotation for Cobra's bash completion
-		if flag.Annotations == nil {
-			flag.Annotations = make(map[string][]string)
+	if flag := b.cmd.Flags().Lookup(name); flag != nil {
+		if err := b.cmd.MarkFlagRequired(name); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Failed to mark flag '%s' as required: %v\n", name, err)
 		}
-		flag.Annotations["cobra_annotation_bash_completion_one_required_flag"] = []string{"true"}
 
 		// Also update the description to indicate it's required
 		flag.Usage = description + " [required]"
+	} else {
+		fmt.Fprintf(os.Stderr, "Warning: WithRequiredFlag(%q) called before the flag was added to the command; it will not be enforced as required\n", name)
 	}
 
 	// Store for our documentation as well

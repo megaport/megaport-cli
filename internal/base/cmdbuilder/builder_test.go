@@ -3,6 +3,8 @@ package cmdbuilder
 import (
 	"bytes"
 	"errors"
+	"io"
+	"os"
 	"testing"
 	"time"
 
@@ -11,6 +13,35 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// captureStderr captures what the function writes to os.Stderr.
+// Not parallel-safe: it redirects the global os.Stderr via os.Pipe.
+// Do not call t.Parallel() in tests that use this helper.
+func captureStderr(t *testing.T, fn func()) (result string) {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+	defer func() { os.Stderr = old }()
+
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_, _ = io.Copy(&buf, r)
+	}()
+
+	defer func() {
+		_ = w.Close()
+		<-done
+		_ = r.Close()
+		result = buf.String()
+	}()
+
+	fn()
+	return
+}
 
 func TestNewCommand(t *testing.T) {
 	tests := []struct {
@@ -285,11 +316,14 @@ func TestWithDurationFlagP(t *testing.T) {
 }
 
 func TestWithRequiredFlag(t *testing.T) {
-	t.Run("existing flag", func(t *testing.T) {
-		cmd := NewCommand("test", "test").
-			WithFlag("name", "", "The name").
-			WithRequiredFlag("name", "Name of the resource").
-			Build()
+	t.Run("flag added before WithRequiredFlag is enforced", func(t *testing.T) {
+		var cmd *cobra.Command
+		stderr := captureStderr(t, func() {
+			cmd = NewCommand("test", "test").
+				WithFlag("name", "", "The name").
+				WithRequiredFlag("name", "Name of the resource").
+				Build()
+		})
 
 		f := cmd.Flags().Lookup("name")
 		require.NotNil(t, f)
@@ -297,12 +331,29 @@ func TestWithRequiredFlag(t *testing.T) {
 		assert.Equal(t, "Name of the resource [required]", f.Usage)
 		assert.NotNil(t, f.Annotations)
 		assert.Equal(t, []string{"true"}, f.Annotations[cobra.BashCompOneRequiredFlag])
+		assert.Empty(t, stderr, "correctly-ordered call should not warn")
+
+		// Cobra actually enforces it: running without the flag fails.
+		cmd.SetArgs([]string{})
+		cmd.RunE = func(cmd *cobra.Command, args []string) error { return nil }
+		cmd.SilenceUsage = true
+		cmd.SilenceErrors = true
+		err := cmd.Execute()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "\"name\"")
 	})
 
-	t.Run("non-existing flag does not panic", func(t *testing.T) {
-		b := NewCommand("test", "test").
-			WithRequiredFlag("nonexistent", "Does not exist")
-		// Should not panic, just store in requiredFlags map
+	t.Run("flag added after WithRequiredFlag warns loudly instead of silently no-op", func(t *testing.T) {
+		var b *CommandBuilder
+		stderr := captureStderr(t, func() {
+			b = NewCommand("test", "test").
+				WithRequiredFlag("nonexistent", "Does not exist")
+		})
+
+		// Should not panic, and should still surface the loud warning.
+		assert.Contains(t, stderr, "nonexistent")
+		assert.Contains(t, stderr, "before the flag was added")
+		// Documentation map still records the intent, but nothing enforces it.
 		assert.Equal(t, "Does not exist", b.requiredFlags["nonexistent"])
 	})
 }
