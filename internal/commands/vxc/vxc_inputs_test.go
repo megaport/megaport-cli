@@ -1462,6 +1462,10 @@ func TestBuildUpdateVXCRequestFromJSON_TypoKeyIsRejected(t *testing.T) {
 	_, err := buildUpdateVXCRequestFromJSON(`{"rateLimt": 500}`, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "at least one field must be updated")
+	assert.Contains(t, err.Error(), "rateLimt")
+	var cliErr *exitcodes.CLIError
+	require.ErrorAs(t, err, &cliErr)
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
 
 func TestBuildUpdateVXCRequestFromJSON_WrongTypedValueIsRejected(t *testing.T) {

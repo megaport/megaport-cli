@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -179,7 +180,7 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	fieldSet := false
 
 	if rateLimit, present, err := utils.JSONNumber(rawData, "rateLimit"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("rateLimit: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		if rateLimit != math.Trunc(rateLimit) {
 			return nil, exitcodes.NewUsageError(fmt.Errorf("rateLimit must be a whole number, got %v", rateLimit))
@@ -193,7 +194,7 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	}
 
 	if term, present, err := utils.JSONNumber(rawData, "term"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("term: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		if term != math.Trunc(term) {
 			return nil, exitcodes.NewUsageError(fmt.Errorf("term must be a whole number, got %v", term))
@@ -209,14 +210,14 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	}
 
 	if costCentre, present, err := utils.JSONString(rawData, "costCentre"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("costCentre: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		req.CostCentre = &costCentre
 		fieldSet = true
 	}
 
 	if shutdown, present, err := utils.JSONBool(rawData, "shutdown"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("shutdown: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		req.Shutdown = &shutdown
 		fieldSet = true
@@ -224,7 +225,7 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 
 	// Handle nested configurations in addition to flat fields
 	if aEndConfig, present, err := utils.JSONObject(rawData, "aEndConfiguration"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("aEndConfiguration: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		if vlan, vlanPresent, err := utils.JSONNumber(aEndConfig, "vlan"); err != nil {
 			return nil, exitcodes.NewUsageError(fmt.Errorf("aEndConfiguration.vlan: %w", err))
@@ -240,7 +241,7 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 			fieldSet = true
 		}
 	} else if aEndVLAN, present, err := utils.JSONNumber(rawData, "aEndVlan"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("aEndVlan: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		if aEndVLAN != math.Trunc(aEndVLAN) {
 			return nil, exitcodes.NewUsageError(fmt.Errorf("aEndVlan must be a whole number, got %v", aEndVLAN))
@@ -254,7 +255,7 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	}
 
 	if bEndConfig, present, err := utils.JSONObject(rawData, "bEndConfiguration"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("bEndConfiguration: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		if vlan, vlanPresent, err := utils.JSONNumber(bEndConfig, "vlan"); err != nil {
 			return nil, exitcodes.NewUsageError(fmt.Errorf("bEndConfiguration.vlan: %w", err))
@@ -270,7 +271,7 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 			fieldSet = true
 		}
 	} else if bEndVLAN, present, err := utils.JSONNumber(rawData, "bEndVlan"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("bEndVlan: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		if bEndVLAN != math.Trunc(bEndVLAN) {
 			return nil, exitcodes.NewUsageError(fmt.Errorf("bEndVlan must be a whole number, got %v", bEndVLAN))
@@ -285,19 +286,19 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 
 	// Handle VXC name field variants
 	if name, present, err := utils.JSONString(rawData, "name"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("name: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		req.Name = &name
 		fieldSet = true
 	} else if vxcName, present, err := utils.JSONString(rawData, "vxcName"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("vxcName: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		req.Name = &vxcName
 		fieldSet = true
 	}
 
 	if aEndInnerVLAN, present, err := utils.JSONNumber(rawData, "aEndInnerVlan"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("aEndInnerVlan: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		if aEndInnerVLAN != math.Trunc(aEndInnerVLAN) {
 			return nil, exitcodes.NewUsageError(fmt.Errorf("aEndInnerVlan must be a whole number, got %v", aEndInnerVLAN))
@@ -311,7 +312,7 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	}
 
 	if bEndInnerVLAN, present, err := utils.JSONNumber(rawData, "bEndInnerVlan"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("bEndInnerVlan: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		if bEndInnerVLAN != math.Trunc(bEndInnerVLAN) {
 			return nil, exitcodes.NewUsageError(fmt.Errorf("bEndInnerVlan must be a whole number, got %v", bEndInnerVLAN))
@@ -326,14 +327,14 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 
 	// Handle product UIDs
 	if aEndUID, present, err := utils.JSONString(rawData, "aEndUid"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("aEndUid: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		req.AEndProductUID = &aEndUID
 		fieldSet = true
 	}
 
 	if bEndUID, present, err := utils.JSONString(rawData, "bEndUid"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("bEndUid: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		req.BEndProductUID = &bEndUID
 		fieldSet = true
@@ -341,7 +342,7 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 
 	// Handle partner configurations - using direct map access
 	if aEndPartnerConfigRaw, present, err := utils.JSONObject(rawData, "aEndPartnerConfig"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("aEndPartnerConfig: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		connectType, connectTypePresent, err := utils.JSONString(aEndPartnerConfigRaw, "connectType")
 		if err != nil {
@@ -369,7 +370,7 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	}
 
 	if bEndPartnerConfigRaw, present, err := utils.JSONObject(rawData, "bEndPartnerConfig"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("bEndPartnerConfig: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		connectType, connectTypePresent, err := utils.JSONString(bEndPartnerConfigRaw, "connectType")
 		if err != nil {
@@ -398,13 +399,13 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 
 	// Handle approval and vNIC index fields from JSON
 	if isApproved, present, err := utils.JSONBool(rawData, "isApproved"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("isApproved: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		req.IsApproved = &isApproved
 		fieldSet = true
 	}
 	if aVnicIndex, present, err := utils.JSONNumber(rawData, "aVnicIndex"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("aVnicIndex: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		if aVnicIndex != math.Trunc(aVnicIndex) {
 			return nil, exitcodes.NewUsageError(fmt.Errorf("aVnicIndex must be a whole number, got %v", aVnicIndex))
@@ -417,7 +418,7 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 		fieldSet = true
 	}
 	if bVnicIndex, present, err := utils.JSONNumber(rawData, "bVnicIndex"); err != nil {
-		return nil, exitcodes.NewUsageError(fmt.Errorf("bVnicIndex: %w", err))
+		return nil, exitcodes.NewUsageError(err)
 	} else if present {
 		if bVnicIndex != math.Trunc(bVnicIndex) {
 			return nil, exitcodes.NewUsageError(fmt.Errorf("bVnicIndex must be a whole number, got %v", bVnicIndex))
@@ -431,6 +432,26 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	}
 
 	if !fieldSet {
+		recognizedKeys := map[string]bool{
+			"rateLimit": true, "term": true, "costCentre": true, "shutdown": true,
+			"aEndConfiguration": true, "aEndVlan": true,
+			"bEndConfiguration": true, "bEndVlan": true,
+			"name": true, "vxcName": true,
+			"aEndInnerVlan": true, "bEndInnerVlan": true,
+			"aEndUid": true, "bEndUid": true,
+			"aEndPartnerConfig": true, "bEndPartnerConfig": true,
+			"isApproved": true, "aVnicIndex": true, "bVnicIndex": true,
+		}
+		var unrecognized []string
+		for key := range rawData {
+			if !recognizedKeys[key] {
+				unrecognized = append(unrecognized, key)
+			}
+		}
+		if len(unrecognized) > 0 {
+			sort.Strings(unrecognized)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("at least one field must be updated (unrecognized keys: %s)", strings.Join(unrecognized, ", ")))
+		}
 		return nil, exitcodes.NewUsageError(fmt.Errorf("at least one field must be updated"))
 	}
 
