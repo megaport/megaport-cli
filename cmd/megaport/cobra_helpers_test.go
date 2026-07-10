@@ -233,6 +233,8 @@ func TestEnableTraversalForAllCommands_RejectsUnknownFlags(t *testing.T) {
 
 	enableTraversalForAllCommands(root)
 	root.TraverseChildren = true
+	root.SilenceErrors = true
+	root.SilenceUsage = true
 
 	root.SetArgs([]string{"child", "--totally-unknown-flag", "value"})
 	err := root.Execute()
