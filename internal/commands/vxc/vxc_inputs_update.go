@@ -343,7 +343,7 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 		fieldSet = true
 	}
 
-	// Handle partner configurations - using direct map access
+	// Handle partner configurations
 	if aEndPartnerConfigRaw, present, err := utils.JSONObject(rawData, "aEndPartnerConfig"); err != nil {
 		return nil, exitcodes.NewUsageError(err)
 	} else if present {

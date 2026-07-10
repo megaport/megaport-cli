@@ -1472,12 +1472,18 @@ func TestBuildUpdateVXCRequestFromJSON_WrongTypedValueIsRejected(t *testing.T) {
 	_, err := buildUpdateVXCRequestFromJSON(`{"rateLimit": "500"}`, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "rateLimit must be a number")
+	var cliErr *exitcodes.CLIError
+	require.ErrorAs(t, err, &cliErr)
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
 
 func TestBuildUpdateVXCRequestFromJSON_EmptyObjectIsRejected(t *testing.T) {
 	_, err := buildUpdateVXCRequestFromJSON(`{}`, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "at least one field must be updated")
+	var cliErr *exitcodes.CLIError
+	require.ErrorAs(t, err, &cliErr)
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
 
 func TestBuildUpdateVXCRequestFromJSON_ValidMultiFieldPayload(t *testing.T) {
@@ -1506,6 +1512,9 @@ func TestBuildUpdateVXCRequestFromJSON_WrongTypedPartnerConfigIsRejected(t *test
 	_, err := buildUpdateVXCRequestFromJSON(`{"aEndPartnerConfig":"not-an-object"}`, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "aEndPartnerConfig must be an object")
+	var cliErr *exitcodes.CLIError
+	require.ErrorAs(t, err, &cliErr)
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
 
 func TestBuildUpdateVXCRequestFromJSON_NestedWrongTypedValueIsRejected(t *testing.T) {
