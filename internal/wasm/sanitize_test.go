@@ -35,10 +35,13 @@ func TestSanitizeTerminalOutputStripsOSC(t *testing.T) {
 
 func TestSanitizeTerminalOutputStripsC1Control(t *testing.T) {
 	// U+009B is the 8-bit CSI introducer some terminals honor directly.
-	evil := "port2Kspoofed"
+	// Expressed via rune conversion rather than a literal in the source so
+	// the raw control byte never appears in the file itself.
+	c1 := string(rune(0x9b))
+	evil := "port" + c1 + "2Kspoofed"
 	got := SanitizeTerminalOutput(evil)
 
-	assert.NotContains(t, got, "")
+	assert.NotContains(t, got, c1)
 	assert.Contains(t, got, "port")
 	assert.Contains(t, got, "spoofed")
 }
@@ -54,6 +57,17 @@ func TestSanitizeTerminalOutputPreservesSGRColor(t *testing.T) {
 func TestSanitizeTerminalOutputPreservesStructuralWhitespace(t *testing.T) {
 	got := SanitizeTerminalOutput("line one\nline two\r\ncol1\tcol2")
 	assert.Equal(t, "line one\nline two\r\ncol1\tcol2", got)
+}
+
+func TestSanitizeTerminalOutputDropsLoneCarriageReturn(t *testing.T) {
+	// A bare \r (no ESC/CSI at all) moves the cursor to column 0 and can
+	// overwrite the start of a rendered line. Only \r as part of a CRLF pair
+	// is structural; a lone \r must be dropped.
+	got := SanitizeTerminalOutput("acme-corp\rspoofed")
+
+	assert.NotContains(t, got, "\r")
+	assert.Contains(t, got, "acme-corp")
+	assert.Contains(t, got, "spoofed")
 }
 
 func TestSanitizeTerminalOutputMixedColorAndInjection(t *testing.T) {

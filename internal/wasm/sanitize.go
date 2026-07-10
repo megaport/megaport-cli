@@ -16,8 +16,11 @@ import "unicode"
 // The CLI's own SGR color sequences (ESC '[' <digits/';'> 'm', emitted by
 // fatih/color for table and status styling) are allowlisted so intended
 // styling survives; every other C0 control, DEL, C1 control, and non-SGR
-// CSI/OSC sequence is removed. \n, \r, and \t pass through unchanged since
-// they are structural formatting in a multi-line document.
+// CSI/OSC sequence is removed. \n and \t pass through unchanged since they
+// are structural formatting in a multi-line document. A lone \r is dropped:
+// unlike \n/\t it is itself a cursor-move (back to column 0) that can
+// overwrite the start of a rendered line with no ESC/CSI involved, so it is
+// only preserved as part of a CRLF pair.
 //
 // This does not distinguish a CLI-emitted SGR sequence from attacker text
 // that merely happens to match SGR syntax once everything is one string.
@@ -39,7 +42,8 @@ func SanitizeTerminalText(s string) string {
 }
 
 // sanitizeControlSequences removes terminal control bytes from s. When
-// allowSGR is true, \n, \r, and \t are preserved as structural bytes and an
+// allowSGR is true, \n and \t are preserved as structural bytes, \r is
+// preserved only when it is immediately followed by \n (a CRLF pair), and an
 // ESC that introduces a well-formed CSI SGR sequence (ESC '[' <digits/';'>*
 // 'm') is copied through verbatim. Any other ESC is dropped by itself: this
 // leaves the rest of a CSI or OSC sequence (e.g. "[2K" or "]0;evil") as inert
@@ -47,7 +51,8 @@ func SanitizeTerminalText(s string) string {
 // the introducing ESC (or its C1 equivalent) is present. All other Unicode
 // control runes, including DEL and the C1 range (some terminals treat
 // 0x80-0x9f as 8-bit CSI/OSC introducers, e.g. 0x9b as CSI), are dropped
-// outright.
+// outright, including a lone \r: on its own it moves the cursor to column 0,
+// which is a cursor-hijack primitive with no ESC/CSI needed.
 func sanitizeControlSequences(s string, allowSGR bool) string {
 	runes := []rune(s)
 	out := make([]rune, 0, len(runes))
@@ -65,8 +70,13 @@ func sanitizeControlSequences(s string, allowSGR bool) string {
 			// Not an allowlisted sequence: drop just the ESC byte so any
 			// following text is re-evaluated as plain characters, not
 			// re-armed as part of a control sequence.
-		case allowSGR && (r == '\n' || r == '\r' || r == '\t'):
+		case allowSGR && (r == '\n' || r == '\t'):
 			out = append(out, r)
+		case allowSGR && r == '\r':
+			if i+1 < len(runes) && runes[i+1] == '\n' {
+				out = append(out, r)
+			}
+			// Lone \r (not followed by \n): drop it.
 		case unicode.IsControl(r):
 			// Drop C0/C1 controls and DEL.
 		default:
