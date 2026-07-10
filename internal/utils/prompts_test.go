@@ -894,6 +894,27 @@ func TestDefaultSecretResourcePrompt_Colored(t *testing.T) {
 	assert.Empty(t, stdout)
 }
 
+// TestStdinHasBuffered_TrueAfterReadAhead is a regression test for
+// nativeSecretResourcePrompt's TTY-bypass check: once one read pulls more
+// than one line off stdin in a single chunk (as happens with piped or pasted
+// multi-line input), the remainder sits in the shared reader's internal
+// buffer, and stdinHasBuffered must report that.
+func TestStdinHasBuffered_TrueAfterReadAhead(t *testing.T) {
+	withMockedIO("first\nsecond\n", func() {
+		_, err := readStdinLine()
+		assert.NoError(t, err)
+		assert.True(t, stdinHasBuffered())
+	})
+}
+
+// TestStdinHasBuffered_FalseWhenEmpty covers the reader-not-yet-created case.
+func TestStdinHasBuffered_FalseWhenEmpty(t *testing.T) {
+	withMockedIO("", func() {
+		resetSharedStdinReader()
+		assert.False(t, stdinHasBuffered())
+	})
+}
+
 // Integration test that actually runs the real functions
 func TestPromptsIntegration(t *testing.T) {
 	// Skip in CI environments

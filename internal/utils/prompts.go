@@ -58,6 +58,16 @@ func readStdinLine() (string, error) {
 	return strings.TrimSpace(input), nil
 }
 
+// stdinHasBuffered reports whether the shared reader already holds bytes read
+// ahead from stdin. nativeSecretResourcePrompt checks this before reading
+// straight off the terminal fd: if an earlier prompt's read-ahead already
+// pulled a later answer into this buffer, a raw fd read would never see it.
+func stdinHasBuffered() bool {
+	stdinReaderMu.Lock()
+	defer stdinReaderMu.Unlock()
+	return stdinReader != nil && stdinReader.Buffered() > 0
+}
+
 var promptFn = func(msg string, noColor bool) (string, error) {
 	if !noColor {
 		// Add contextual icon and use Megaport's red
