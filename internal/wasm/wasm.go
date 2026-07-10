@@ -890,6 +890,12 @@ func loadFromLocalStorage(this js.Value, args []js.Value) interface{} {
 // 1. Go environment variables (for os.Getenv calls)
 // 2. JavaScript global object (for direct access)
 // This avoids localStorage which is vulnerable to XSS attacks
+//
+// The environment argument is normalized (lowercased, trimmed) and must
+// resolve to one of "production"/"staging"/"development" (see
+// restrictEnvironmentNameStrict); anything else is rejected rather than
+// stored, since an unrecognized value previously fell through to
+// login_wasm.go's default case and routed credentials to production.
 func setAuthCredentials(this js.Value, args []js.Value) interface{} {
 	if len(args) < 3 {
 		return map[string]interface{}{
@@ -902,9 +908,6 @@ func setAuthCredentials(this js.Value, args []js.Value) interface{} {
 	secretKey := args[1].String()
 	environment := strings.ToLower(strings.TrimSpace(args[2].String()))
 
-	// Reject anything outside the three canonical buckets rather than storing
-	// it verbatim — an unrecognized value here previously fell through to
-	// login_wasm.go's default case, which routed it to production.
 	bucket, ok := restrictEnvironmentNameStrict(environment)
 	if !ok {
 		return map[string]interface{}{

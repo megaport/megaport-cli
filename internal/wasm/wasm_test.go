@@ -538,6 +538,23 @@ func TestSetAuthCredentials(t *testing.T) {
 	}
 }
 
+// TestSetAuthCredentials_MissingArgs verifies setAuthCredentials rejects a
+// call missing accessKey, secretKey, or environment without touching any
+// stored credentials.
+func TestSetAuthCredentials_MissingArgs(t *testing.T) {
+	RegisterJSFunctions()
+	defer js.Global().Get("clearAuthCredentials").Invoke()
+	js.Global().Get("clearAuthCredentials").Invoke()
+
+	setFunc := js.Global().Get("setAuthCredentials")
+	result := setFunc.Invoke("test-access-key", "test-secret-key")
+
+	assert.False(t, result.Get("success").Bool())
+	assert.NotEmpty(t, result.Get("error").String())
+	assert.Empty(t, os.Getenv("MEGAPORT_ENVIRONMENT"))
+	assert.Empty(t, os.Getenv("MEGAPORT_ACCESS_KEY"))
+}
+
 // TestBufferThreadSafety verifies all buffers are thread-safe
 func TestBufferThreadSafety(t *testing.T) {
 	ResetOutputBuffers()

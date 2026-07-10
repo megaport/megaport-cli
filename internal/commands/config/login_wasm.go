@@ -190,7 +190,11 @@ var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		return nil, fmt.Errorf("megaport API secret key not provided. Please use the login form in the browser UI or set MEGAPORT_SECRET_KEY environment variable")
 	}
 
-	// Default to production
+	// Default to production when no environment was specified at all. This is
+	// safe today because setAuthCredentials always sets MEGAPORT_ENVIRONMENT
+	// alongside the access key, so env is only ever "" here if accessKey was
+	// set some other way. An unrecognized (non-empty) value is handled by the
+	// switch's default case below, which fails closed rather than defaulting.
 	if env == "" {
 		env = "production"
 		js.Global().Get("console").Call("log", "No environment specified, defaulting to production")
@@ -215,7 +219,7 @@ var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		// credentials to production.
 		js.Global().Get("console").Call("error", "Unknown environment: "+env)
 		js.Global().Get("console").Call("groupEnd")
-		return nil, fmt.Errorf("unknown environment %q: expected \"production\", \"staging\", or \"development\"", env)
+		return nil, fmt.Errorf(`unknown environment %q: expected "production", "staging", or "development"`, env)
 	}
 
 	js.Global().Get("console").Call("log", "Using API endpoint: "+apiEndpoint)
