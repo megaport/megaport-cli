@@ -186,6 +186,33 @@ func TestUpdateProfile_ValidEnvironmentAccepted(t *testing.T) {
 	assert.Equal(t, "staging", profiles["test-profile"].Environment)
 }
 
+func TestUpdateProfile_InvalidEnvironmentRejectedBeforePrompting(t *testing.T) {
+	setupTestConfigEnv(t)
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+	err = manager.CreateProfile("test-profile", "old-access", "old-secret", "production", "Old description")
+	require.NoError(t, err)
+
+	orig := utils.GetSecretResourcePrompt()
+	defer utils.SetSecretResourcePrompt(orig)
+	utils.SetSecretResourcePrompt(func(_, _ string, _ bool) (string, error) {
+		t.Fatal("should not prompt for secrets when the environment is rejected first")
+		return "", nil
+	})
+
+	cmd, _ := setupTestCmd()
+	cmd.Flags().String("access-key", "", "")
+	cmd.Flags().String("environment", "bogus", "")
+	require.NoError(t, cmd.ParseFlags([]string{"--access-key=", "--environment=bogus"}))
+
+	_, err = captureBothFromAction(t, func() error {
+		return UpdateProfile(cmd, []string{"test-profile"}, false)
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "environment must be 'production', 'staging', or 'development'")
+}
+
 func TestUseProfile_CMD(t *testing.T) {
 	setupTestConfigEnv(t)
 

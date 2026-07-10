@@ -119,6 +119,14 @@ func UpdateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	environmentChanged := cmd.Flags().Changed("environment")
 	descriptionChanged := cmd.Flags().Changed("description")
 
+	environment := ""
+	if environmentChanged {
+		environment, _ = cmd.Flags().GetString("environment")
+		if err := validateEnvironment(environment); err != nil {
+			return err
+		}
+	}
+
 	accessKey := ""
 	if accessKeyChanged {
 		accessKey, _ = cmd.Flags().GetString("access-key")
@@ -148,14 +156,6 @@ func UpdateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 				return fmt.Errorf("secret key cannot be empty")
 			}
 			secretKey = strings.TrimSpace(secretKey)
-		}
-	}
-
-	environment := ""
-	if environmentChanged {
-		environment, _ = cmd.Flags().GetString("environment")
-		if err := validateEnvironment(environment); err != nil {
-			return err
 		}
 	}
 
