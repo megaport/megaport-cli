@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
@@ -160,47 +161,47 @@ var buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateV
 
 var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*megaport.UpdateVXCRequest, error) {
 	if jsonStr == "" && jsonFilePath == "" {
-		return nil, fmt.Errorf("either json or json-file must be provided")
+		return nil, exitcodes.NewUsageError(fmt.Errorf("either json or json-file must be provided"))
 	}
 
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFilePath)
 	if err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	}
 
 	// Parse raw JSON first to handle partner configs
 	var rawData map[string]interface{}
 	if err := json.Unmarshal(jsonData, &rawData); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse JSON: %w", err))
 	}
 
 	req := &megaport.UpdateVXCRequest{}
 	fieldSet := false
 
 	if rateLimit, present, err := utils.JSONNumber(rawData, "rateLimit"); err != nil {
-		return nil, fmt.Errorf("rateLimit: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("rateLimit: %w", err))
 	} else if present {
 		if rateLimit != math.Trunc(rateLimit) {
-			return nil, fmt.Errorf("rateLimit must be a whole number, got %v", rateLimit)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("rateLimit must be a whole number, got %v", rateLimit))
 		}
 		rateLimitInt := int(rateLimit)
 		if rateLimitInt < 0 {
-			return nil, fmt.Errorf("rateLimit must be greater than or equal to 0")
+			return nil, exitcodes.NewUsageError(fmt.Errorf("rateLimit must be greater than or equal to 0"))
 		}
 		req.RateLimit = &rateLimitInt
 		fieldSet = true
 	}
 
 	if term, present, err := utils.JSONNumber(rawData, "term"); err != nil {
-		return nil, fmt.Errorf("term: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("term: %w", err))
 	} else if present {
 		if term != math.Trunc(term) {
-			return nil, fmt.Errorf("term must be a whole number, got %v", term)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("term must be a whole number, got %v", term))
 		}
 		termInt := int(term)
 		if termInt != 0 {
 			if err := validation.ValidateContractTerm(termInt); err != nil {
-				return nil, err
+				return nil, exitcodes.NewUsageError(err)
 			}
 		}
 		req.Term = &termInt
@@ -208,14 +209,14 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 	}
 
 	if costCentre, present, err := utils.JSONString(rawData, "costCentre"); err != nil {
-		return nil, fmt.Errorf("costCentre: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("costCentre: %w", err))
 	} else if present {
 		req.CostCentre = &costCentre
 		fieldSet = true
 	}
 
 	if shutdown, present, err := utils.JSONBool(rawData, "shutdown"); err != nil {
-		return nil, fmt.Errorf("shutdown: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("shutdown: %w", err))
 	} else if present {
 		req.Shutdown = &shutdown
 		fieldSet = true
@@ -223,60 +224,60 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 
 	// Handle nested configurations in addition to flat fields
 	if aEndConfig, present, err := utils.JSONObject(rawData, "aEndConfiguration"); err != nil {
-		return nil, fmt.Errorf("aEndConfiguration: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("aEndConfiguration: %w", err))
 	} else if present {
 		if vlan, vlanPresent, err := utils.JSONNumber(aEndConfig, "vlan"); err != nil {
-			return nil, fmt.Errorf("aEndConfiguration.vlan: %w", err)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("aEndConfiguration.vlan: %w", err))
 		} else if vlanPresent {
 			if vlan != math.Trunc(vlan) {
-				return nil, fmt.Errorf("aEndConfiguration.vlan must be a whole number, got %v", vlan)
+				return nil, exitcodes.NewUsageError(fmt.Errorf("aEndConfiguration.vlan must be a whole number, got %v", vlan))
 			}
 			vlanInt := int(vlan)
 			if err := validation.ValidateVLAN(vlanInt); err != nil {
-				return nil, fmt.Errorf("aEndConfiguration.vlan: %w", err)
+				return nil, exitcodes.NewUsageError(fmt.Errorf("aEndConfiguration.vlan: %w", err))
 			}
 			req.AEndVLAN = &vlanInt
 			fieldSet = true
 		}
 	} else if aEndVLAN, present, err := utils.JSONNumber(rawData, "aEndVlan"); err != nil {
-		return nil, fmt.Errorf("aEndVlan: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("aEndVlan: %w", err))
 	} else if present {
 		if aEndVLAN != math.Trunc(aEndVLAN) {
-			return nil, fmt.Errorf("aEndVlan must be a whole number, got %v", aEndVLAN)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("aEndVlan must be a whole number, got %v", aEndVLAN))
 		}
 		aEndVLANInt := int(aEndVLAN)
 		if err := validation.ValidateVLAN(aEndVLANInt); err != nil {
-			return nil, fmt.Errorf("aEndVlan: %w", err)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("aEndVlan: %w", err))
 		}
 		req.AEndVLAN = &aEndVLANInt
 		fieldSet = true
 	}
 
 	if bEndConfig, present, err := utils.JSONObject(rawData, "bEndConfiguration"); err != nil {
-		return nil, fmt.Errorf("bEndConfiguration: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("bEndConfiguration: %w", err))
 	} else if present {
 		if vlan, vlanPresent, err := utils.JSONNumber(bEndConfig, "vlan"); err != nil {
-			return nil, fmt.Errorf("bEndConfiguration.vlan: %w", err)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("bEndConfiguration.vlan: %w", err))
 		} else if vlanPresent {
 			if vlan != math.Trunc(vlan) {
-				return nil, fmt.Errorf("bEndConfiguration.vlan must be a whole number, got %v", vlan)
+				return nil, exitcodes.NewUsageError(fmt.Errorf("bEndConfiguration.vlan must be a whole number, got %v", vlan))
 			}
 			vlanInt := int(vlan)
 			if err := validation.ValidateVLAN(vlanInt); err != nil {
-				return nil, fmt.Errorf("bEndConfiguration.vlan: %w", err)
+				return nil, exitcodes.NewUsageError(fmt.Errorf("bEndConfiguration.vlan: %w", err))
 			}
 			req.BEndVLAN = &vlanInt
 			fieldSet = true
 		}
 	} else if bEndVLAN, present, err := utils.JSONNumber(rawData, "bEndVlan"); err != nil {
-		return nil, fmt.Errorf("bEndVlan: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("bEndVlan: %w", err))
 	} else if present {
 		if bEndVLAN != math.Trunc(bEndVLAN) {
-			return nil, fmt.Errorf("bEndVlan must be a whole number, got %v", bEndVLAN)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("bEndVlan must be a whole number, got %v", bEndVLAN))
 		}
 		bEndVLANInt := int(bEndVLAN)
 		if err := validation.ValidateVLAN(bEndVLANInt); err != nil {
-			return nil, fmt.Errorf("bEndVlan: %w", err)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("bEndVlan: %w", err))
 		}
 		req.BEndVLAN = &bEndVLANInt
 		fieldSet = true
@@ -284,40 +285,40 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 
 	// Handle VXC name field variants
 	if name, present, err := utils.JSONString(rawData, "name"); err != nil {
-		return nil, fmt.Errorf("name: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("name: %w", err))
 	} else if present {
 		req.Name = &name
 		fieldSet = true
 	} else if vxcName, present, err := utils.JSONString(rawData, "vxcName"); err != nil {
-		return nil, fmt.Errorf("vxcName: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("vxcName: %w", err))
 	} else if present {
 		req.Name = &vxcName
 		fieldSet = true
 	}
 
 	if aEndInnerVLAN, present, err := utils.JSONNumber(rawData, "aEndInnerVlan"); err != nil {
-		return nil, fmt.Errorf("aEndInnerVlan: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("aEndInnerVlan: %w", err))
 	} else if present {
 		if aEndInnerVLAN != math.Trunc(aEndInnerVLAN) {
-			return nil, fmt.Errorf("aEndInnerVlan must be a whole number, got %v", aEndInnerVLAN)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("aEndInnerVlan must be a whole number, got %v", aEndInnerVLAN))
 		}
 		aEndInnerVLANInt := int(aEndInnerVLAN)
 		if err := validation.ValidateVXCEndInnerVLAN(aEndInnerVLANInt); err != nil {
-			return nil, fmt.Errorf("invalid aEndInnerVlan: %w", err)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("invalid aEndInnerVlan: %w", err))
 		}
 		req.AEndInnerVLAN = &aEndInnerVLANInt
 		fieldSet = true
 	}
 
 	if bEndInnerVLAN, present, err := utils.JSONNumber(rawData, "bEndInnerVlan"); err != nil {
-		return nil, fmt.Errorf("bEndInnerVlan: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("bEndInnerVlan: %w", err))
 	} else if present {
 		if bEndInnerVLAN != math.Trunc(bEndInnerVLAN) {
-			return nil, fmt.Errorf("bEndInnerVlan must be a whole number, got %v", bEndInnerVLAN)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("bEndInnerVlan must be a whole number, got %v", bEndInnerVLAN))
 		}
 		bEndInnerVLANInt := int(bEndInnerVLAN)
 		if err := validation.ValidateVXCEndInnerVLAN(bEndInnerVLANInt); err != nil {
-			return nil, fmt.Errorf("invalid bEndInnerVlan: %w", err)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("invalid bEndInnerVlan: %w", err))
 		}
 		req.BEndInnerVLAN = &bEndInnerVLANInt
 		fieldSet = true
@@ -325,14 +326,14 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 
 	// Handle product UIDs
 	if aEndUID, present, err := utils.JSONString(rawData, "aEndUid"); err != nil {
-		return nil, fmt.Errorf("aEndUid: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("aEndUid: %w", err))
 	} else if present {
 		req.AEndProductUID = &aEndUID
 		fieldSet = true
 	}
 
 	if bEndUID, present, err := utils.JSONString(rawData, "bEndUid"); err != nil {
-		return nil, fmt.Errorf("bEndUid: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("bEndUid: %w", err))
 	} else if present {
 		req.BEndProductUID = &bEndUID
 		fieldSet = true
@@ -340,56 +341,56 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 
 	// Handle partner configurations - using direct map access
 	if aEndPartnerConfigRaw, present, err := utils.JSONObject(rawData, "aEndPartnerConfig"); err != nil {
-		return nil, fmt.Errorf("aEndPartnerConfig: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("aEndPartnerConfig: %w", err))
 	} else if present {
 		connectType, connectTypePresent, err := utils.JSONString(aEndPartnerConfigRaw, "connectType")
 		if err != nil {
-			return nil, fmt.Errorf("aEndPartnerConfig.connectType: %w", err)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("aEndPartnerConfig.connectType: %w", err))
 		}
 		if !connectTypePresent || connectType == "" {
-			return nil, fmt.Errorf("aEndPartnerConfig.connectType is required")
+			return nil, exitcodes.NewUsageError(fmt.Errorf("aEndPartnerConfig.connectType is required"))
 		}
 		if strings.ToUpper(connectType) != "VROUTER" {
-			return nil, fmt.Errorf("only VRouter partner configurations can be updated")
+			return nil, exitcodes.NewUsageError(fmt.Errorf("only VRouter partner configurations can be updated"))
 		}
 		aEndPartnerConfig, err := parsePartnerConfigFromMap(aEndPartnerConfigRaw)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse A-End partner config: %w", err)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse A-End partner config: %w", err))
 		}
 		vrouterConfigA, ok := aEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig)
 		if !ok {
-			return nil, fmt.Errorf("only VRouter partner configurations can be updated")
+			return nil, exitcodes.NewUsageError(fmt.Errorf("only VRouter partner configurations can be updated"))
 		}
 		if err := validation.ValidateVrouterPartnerConfig(vrouterConfigA); err != nil {
-			return nil, err
+			return nil, exitcodes.NewUsageError(err)
 		}
 		req.AEndPartnerConfig = vrouterConfigA
 		fieldSet = true
 	}
 
 	if bEndPartnerConfigRaw, present, err := utils.JSONObject(rawData, "bEndPartnerConfig"); err != nil {
-		return nil, fmt.Errorf("bEndPartnerConfig: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("bEndPartnerConfig: %w", err))
 	} else if present {
 		connectType, connectTypePresent, err := utils.JSONString(bEndPartnerConfigRaw, "connectType")
 		if err != nil {
-			return nil, fmt.Errorf("bEndPartnerConfig.connectType: %w", err)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("bEndPartnerConfig.connectType: %w", err))
 		}
 		if !connectTypePresent || connectType == "" {
-			return nil, fmt.Errorf("bEndPartnerConfig.connectType is required")
+			return nil, exitcodes.NewUsageError(fmt.Errorf("bEndPartnerConfig.connectType is required"))
 		}
 		if strings.ToUpper(connectType) != "VROUTER" {
-			return nil, fmt.Errorf("only VRouter partner configurations can be updated")
+			return nil, exitcodes.NewUsageError(fmt.Errorf("only VRouter partner configurations can be updated"))
 		}
 		bEndPartnerConfig, err := parsePartnerConfigFromMap(bEndPartnerConfigRaw)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse B-End partner config: %w", err)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse B-End partner config: %w", err))
 		}
 		vrouterConfigB, ok := bEndPartnerConfig.(*megaport.VXCOrderVrouterPartnerConfig)
 		if !ok {
-			return nil, fmt.Errorf("only VRouter partner configurations can be updated")
+			return nil, exitcodes.NewUsageError(fmt.Errorf("only VRouter partner configurations can be updated"))
 		}
 		if err := validation.ValidateVrouterPartnerConfig(vrouterConfigB); err != nil {
-			return nil, err
+			return nil, exitcodes.NewUsageError(err)
 		}
 		req.BEndPartnerConfig = vrouterConfigB
 		fieldSet = true
@@ -397,40 +398,40 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 
 	// Handle approval and vNIC index fields from JSON
 	if isApproved, present, err := utils.JSONBool(rawData, "isApproved"); err != nil {
-		return nil, fmt.Errorf("isApproved: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("isApproved: %w", err))
 	} else if present {
 		req.IsApproved = &isApproved
 		fieldSet = true
 	}
 	if aVnicIndex, present, err := utils.JSONNumber(rawData, "aVnicIndex"); err != nil {
-		return nil, fmt.Errorf("aVnicIndex: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("aVnicIndex: %w", err))
 	} else if present {
 		if aVnicIndex != math.Trunc(aVnicIndex) {
-			return nil, fmt.Errorf("aVnicIndex must be a whole number, got %v", aVnicIndex)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("aVnicIndex must be a whole number, got %v", aVnicIndex))
 		}
 		idx := int(aVnicIndex)
 		if err := validation.ValidateVNICIndex(idx); err != nil {
-			return nil, fmt.Errorf("invalid aVnicIndex: %w", err)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("invalid aVnicIndex: %w", err))
 		}
 		req.AVnicIndex = &idx
 		fieldSet = true
 	}
 	if bVnicIndex, present, err := utils.JSONNumber(rawData, "bVnicIndex"); err != nil {
-		return nil, fmt.Errorf("bVnicIndex: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("bVnicIndex: %w", err))
 	} else if present {
 		if bVnicIndex != math.Trunc(bVnicIndex) {
-			return nil, fmt.Errorf("bVnicIndex must be a whole number, got %v", bVnicIndex)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("bVnicIndex must be a whole number, got %v", bVnicIndex))
 		}
 		idx := int(bVnicIndex)
 		if err := validation.ValidateVNICIndex(idx); err != nil {
-			return nil, fmt.Errorf("invalid bVnicIndex: %w", err)
+			return nil, exitcodes.NewUsageError(fmt.Errorf("invalid bVnicIndex: %w", err))
 		}
 		req.BVnicIndex = &idx
 		fieldSet = true
 	}
 
 	if !fieldSet {
-		return nil, fmt.Errorf("at least one field must be updated")
+		return nil, exitcodes.NewUsageError(fmt.Errorf("at least one field must be updated"))
 	}
 
 	// Set wait for update to true with a reasonable timeout
