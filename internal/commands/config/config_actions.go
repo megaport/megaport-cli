@@ -33,7 +33,7 @@ func maskAccessKey(key string) string {
 // allow-list. Used by create, update, and import so the three paths cannot drift.
 func validateEnvironment(env string) error {
 	if env != "production" && env != "staging" && env != "development" {
-		return fmt.Errorf("environment must be 'production', 'staging', or 'development'")
+		return fmt.Errorf("environment must be 'production', 'staging', or 'development' (got %q)", env)
 	}
 	return nil
 }
