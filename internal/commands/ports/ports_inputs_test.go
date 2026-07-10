@@ -362,6 +362,7 @@ func TestProcessJSONUpdatePortInput(t *testing.T) {
 }
 
 func TestProcessFlagUpdatePortInput(t *testing.T) {
+	term12 := 12
 	term24 := 24
 
 	tests := []struct {
@@ -409,6 +410,7 @@ func TestProcessFlagUpdatePortInput(t *testing.T) {
 				"cost-centre": "IT-2024",
 				"term":        "12",
 			},
+			expectContractTerm: &term12,
 		},
 	}
 
