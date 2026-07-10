@@ -93,7 +93,11 @@ var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	if !megaportTokenGlobal.IsUndefined() && !megaportTokenGlobal.IsNull() {
 		token := os.Getenv("MEGAPORT_ACCESS_TOKEN")
 		tokenEnv := megaportTokenGlobal.Get("environment").String()
-		apiURL := megaportTokenGlobal.Get("apiURL").String()
+		// Read the API base URL from the env var set (and hostname-validated) by
+		// setAuthToken, never from window.megaportToken.apiURL: that global is
+		// page-writable, so trusting it would let another script redirect the
+		// bearer token to an attacker-controlled host.
+		apiURL := os.Getenv("MEGAPORT_API_URL")
 
 		if token != "" {
 			js.Global().Get("console").Call("log", "✅ Using external token from portal (bypassing OAuth flow)")
@@ -104,13 +108,13 @@ var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 			httpClient := wasmhttp.NewWasmHTTPClient()
 			httpClient.Timeout = 45 * time.Second
 
-			// Build client options - prefer apiURL if available (hostname-derived)
+			// Build client options - prefer the validated API URL if available
 			var clientOpts []megaport.ClientOpt
 			clientOpts = append(clientOpts, megaport.WithAccessToken(token, time.Time{}))
 
 			if apiURL != "" {
-				// Use the API URL derived from hostname - this auto-works for new environments
-				js.Global().Get("console").Call("log", "🔗 Using hostname-derived API URL: "+apiURL)
+				// Use the validated API URL - this auto-works for new environments
+				js.Global().Get("console").Call("log", "🔗 Using validated API URL: "+apiURL)
 				clientOpts = append(clientOpts, megaport.WithBaseURL(apiURL))
 			} else {
 				// Fallback to environment-based URL selection
@@ -442,15 +446,10 @@ func Logout() {
 var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 	var clientOpts []megaport.ClientOpt
 
-	// Prefer hostname-derived API URL (auto-works for non-standard environments)
-	var apiURL string
-	megaportTokenGlobal := js.Global().Get("megaportToken")
-	if !megaportTokenGlobal.IsUndefined() && !megaportTokenGlobal.IsNull() {
-		urlVal := megaportTokenGlobal.Get("apiURL")
-		if urlVal.Type() == js.TypeString {
-			apiURL = urlVal.String()
-		}
-	}
+	// Prefer the API base URL validated and stored by setAuthToken. Read it from
+	// the env var, never from the page-writable window.megaportToken.apiURL
+	// global, which another script could overwrite to redirect API traffic.
+	apiURL := os.Getenv("MEGAPORT_API_URL")
 
 	if apiURL != "" {
 		clientOpts = append(clientOpts, megaport.WithBaseURL(apiURL))
