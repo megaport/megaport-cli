@@ -96,7 +96,7 @@ func processFlagCreateNATGatewayInput(cmd *cobra.Command) (*megaport.CreateNATGa
 			return nil, fmt.Errorf("failed to parse resource tags JSON: %w", err)
 		}
 		if err := utils.RejectEmptyTagKeys(tagsMap); err != nil {
-			return nil, err
+			return nil, exitcodes.NewUsageError(err)
 		}
 		for k, v := range tagsMap {
 			resourceTags = append(resourceTags, megaport.ResourceTag{Key: k, Value: v})
@@ -179,7 +179,7 @@ func processJSONUpdateNATGatewayInput(jsonStr, jsonFile, uid string) (*megaport.
 	}
 
 	if err := utils.RejectEmptyTagKeys(raw.ResourceTags); err != nil {
-		return nil, updateExplicitFields{}, err
+		return nil, updateExplicitFields{}, exitcodes.NewUsageError(err)
 	}
 
 	explicit := updateExplicitFields{
@@ -264,7 +264,7 @@ func processFlagUpdateNATGatewayInput(cmd *cobra.Command, uid string) (*megaport
 			return nil, fmt.Errorf("failed to parse resource tags JSON: %w", err)
 		}
 		if err := utils.RejectEmptyTagKeys(tagsMap); err != nil {
-			return nil, err
+			return nil, exitcodes.NewUsageError(err)
 		}
 		for k, v := range tagsMap {
 			resourceTags = append(resourceTags, megaport.ResourceTag{Key: k, Value: v})

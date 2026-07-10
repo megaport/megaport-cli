@@ -1029,7 +1029,7 @@ func TestBuildUpdateVXCRequestFromPrompt(t *testing.T) {
 				"yes", // update name
 				"",    // new name (empty)
 			},
-			expectedError: "name cannot be empty",
+			expectedError: "cannot be empty",
 		},
 		{
 			name: "update remaining fields",

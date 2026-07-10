@@ -258,7 +258,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 			return nil, err
 		}
 		if name == "" {
-			return nil, fmt.Errorf("name cannot be empty")
+			return nil, validation.NewValidationError("VXC name", name, "cannot be empty")
 		}
 		req.Name = &name
 		fieldsUpdated = true

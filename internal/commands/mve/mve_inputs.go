@@ -692,7 +692,7 @@ func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.
 		return nil, false, err
 	} else if present {
 		if name == "" {
-			return nil, false, fmt.Errorf("name cannot be empty")
+			return nil, false, validation.NewValidationError("name", name, "cannot be empty")
 		}
 		req.Name = name
 	}
@@ -759,7 +759,7 @@ func processFlagUpdateMVEInput(cmd *cobra.Command, mveUID string) (*megaport.Mod
 	// as the flag not being passed at all.
 	if cmd.Flags().Changed("name") {
 		if name == "" {
-			return nil, false, fmt.Errorf("name cannot be empty")
+			return nil, false, validation.NewValidationError("name", name, "cannot be empty")
 		}
 		req.Name = name
 	}
