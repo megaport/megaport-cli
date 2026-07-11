@@ -398,6 +398,20 @@ func isValidIBMName(name string) bool {
 	return true
 }
 
+// ValidateTransitPartnerConfig validates a Transit partner configuration for a
+// VXC connection. Transit carries no partner-specific fields beyond the
+// connect type, so this only guards against a nil config or a connect type
+// that doesn't match "TRANSIT".
+func ValidateTransitPartnerConfig(config *megaport.VXCPartnerConfigTransit) error {
+	if config == nil {
+		return NewValidationError("Transit partner config", nil, "cannot be nil")
+	}
+	if config.ConnectType != "TRANSIT" {
+		return NewValidationError("Transit connect type", config.ConnectType, "must be 'TRANSIT'")
+	}
+	return nil
+}
+
 // ValidateVrouterPartnerConfig validates a vRouter partner configuration: it
 // requires at least one interface and validates each interface's VLAN, IP
 // addresses, NAT IPs, routes, BFD, BGP connections, interface type, and IPsec
@@ -480,7 +494,7 @@ func ValidateVrouterPartnerConfig(config *megaport.VXCOrderVrouterPartnerConfig)
 //   - ValidateOraclePartnerConfig
 //   - ValidateIBMPartnerConfig
 //   - ValidateVrouterPartnerConfig
-//   - Transit carries no partner-specific fields, so it always passes
+//   - ValidateTransitPartnerConfig
 //   - Configuration type must be one of the supported types
 //
 // Returns:
@@ -499,7 +513,7 @@ func ValidateVXCPartnerConfig(config megaport.VXCPartnerConfiguration) error {
 	case *megaport.VXCPartnerConfigIBM:
 		return ValidateIBMPartnerConfig(v)
 	case *megaport.VXCPartnerConfigTransit:
-		return nil
+		return ValidateTransitPartnerConfig(v)
 	case *megaport.VXCOrderVrouterPartnerConfig:
 		return ValidateVrouterPartnerConfig(v)
 	default:

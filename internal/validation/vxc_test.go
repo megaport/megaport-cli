@@ -1248,6 +1248,14 @@ func TestValidateVXCPartnerConfig(t *testing.T) {
 			errText: "Invalid Azure service key:  - cannot be empty",
 		},
 		{
+			name: "Invalid Transit config details",
+			config: &megaport.VXCPartnerConfigTransit{
+				ConnectType: "", // Invalid connect type
+			},
+			wantErr: true,
+			errText: "Invalid Transit connect type:  - must be 'TRANSIT'",
+		},
+		{
 			name: "Invalid vRouter config details",
 			config: &megaport.VXCOrderVrouterPartnerConfig{
 				Interfaces: []megaport.PartnerConfigInterface{
@@ -1266,6 +1274,59 @@ func TestValidateVXCPartnerConfig(t *testing.T) {
 			err := ValidateVXCPartnerConfig(tt.config)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateVXCPartnerConfig() error = %v, wantErr:%v", err, tt.wantErr)
+				return
+			}
+			if err != nil && tt.wantErr {
+				assert.IsType(t, &ValidationError{}, err, "Expected ValidationError type")
+				assert.Equal(t, tt.errText, err.Error(), "Error message mismatch")
+			}
+		})
+	}
+}
+
+func TestValidateTransitPartnerConfig(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  *megaport.VXCPartnerConfigTransit
+		wantErr bool
+		errText string
+	}{
+		{
+			name: "Valid Transit config",
+			config: &megaport.VXCPartnerConfigTransit{
+				ConnectType: "TRANSIT",
+			},
+			wantErr: false,
+		},
+		{
+			name:    "Nil config",
+			config:  nil,
+			wantErr: true,
+			errText: "Invalid Transit partner config: <nil> - cannot be nil",
+		},
+		{
+			name: "Empty connect type",
+			config: &megaport.VXCPartnerConfigTransit{
+				ConnectType: "",
+			},
+			wantErr: true,
+			errText: "Invalid Transit connect type:  - must be 'TRANSIT'",
+		},
+		{
+			name: "Wrong connect type",
+			config: &megaport.VXCPartnerConfigTransit{
+				ConnectType: "AWS",
+			},
+			wantErr: true,
+			errText: "Invalid Transit connect type: AWS - must be 'TRANSIT'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateTransitPartnerConfig(tt.config)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateTransitPartnerConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if err != nil && tt.wantErr {
