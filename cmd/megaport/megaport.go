@@ -337,10 +337,13 @@ func exitCodeFromError(err error) int {
 // "arg(s)" (from the per-command Args validator) run before
 // PersistentPreRunE and have no equivalent hook, so they still rely on this
 // match. Matching here on any of these patterns is safe because every RunE
-// in this codebase is wrapped by utils.Wrap*, which always converts its own
-// return value to a typed *exitcodes.CLIError before it reaches cobra - so a
-// plain, untyped error surfacing all the way to exitCodeFromError can only
-// have originated from cobra itself, never from application or API text.
+// built from WithRunFunc is wrapped by utils.Wrap*, which always converts its
+// return value to a typed *exitcodes.CLIError before it reaches cobra. The
+// cmdbuilder-injected `docs` subcommand and the `--generate-skeleton` bypass
+// are the two exceptions: they return plain errors (a missing doc file, a
+// failed stdout write), but neither can produce text that coincidentally
+// matches a cobra usage pattern, so they still fall through safely to
+// exitcodes.General below rather than being misclassified as a usage error.
 func isCobraUsageError(msg string) bool {
 	cobraPatterns := []string{
 		"unknown command",
