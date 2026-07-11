@@ -1125,11 +1125,10 @@ func TestValidateIBMPartnerConfig(t *testing.T) {
 			errText:           "Invalid IBM provider IP address: 10.1.1.2/33 - must be a valid IPv4 CIDR notation",
 		},
 		{
-			name:      "Empty connection name",
+			name:      "Empty connection name is valid (API defaults to MEGAPORT)",
 			accountID: validAccountID,
 			ibmName:   "",
-			wantErr:   true,
-			errText:   "Invalid IBM connection name:  - cannot be empty",
+			wantErr:   false,
 		},
 	}
 

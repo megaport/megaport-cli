@@ -359,8 +359,9 @@ func ValidateOraclePartnerConfig(config *megaport.VXCPartnerConfigOracle) error 
 //   - Account ID must be provided
 //   - Account ID must be exactly 32 characters (IBMAccountIDLength)
 //   - Account ID must contain only hexadecimal characters (0-9, a-f, A-F)
-//   - Connection name must be provided and not exceed the maximum length (MaxIBMNameLength)
-//   - Connection name must contain only allowed characters (0-9, a-z, A-Z, /, -, _, ,)
+//   - Connection name is optional (the API defaults it to "MEGAPORT"); when
+//     provided it must not exceed the maximum length (MaxIBMNameLength) and
+//     must contain only allowed characters (0-9, a-z, A-Z, /, -, _, ,)
 //   - If customer IP address is provided, it must be in valid IPv4 CIDR notation
 //   - If provider IP address is provided, it must be in valid IPv4 CIDR notation
 //
@@ -382,14 +383,13 @@ func ValidateIBMPartnerConfig(config *megaport.VXCPartnerConfigIBM) error {
 			return NewValidationError("IBM account ID", config.AccountID, "must contain only hexadecimal characters (0-9, a-f, A-F)")
 		}
 	}
-	if config.Name == "" {
-		return NewValidationError("IBM connection name", config.Name, "cannot be empty")
-	}
-	if utf8.RuneCountInString(config.Name) > MaxIBMNameLength {
-		return NewValidationError("IBM connection name", config.Name, fmt.Sprintf("cannot exceed %d characters", MaxIBMNameLength))
-	}
-	if !isValidIBMName(config.Name) {
-		return NewValidationError("IBM connection name", config.Name, "must only contain characters 0-9, a-z, A-Z, /, -, _, or ,")
+	if config.Name != "" {
+		if utf8.RuneCountInString(config.Name) > MaxIBMNameLength {
+			return NewValidationError("IBM connection name", config.Name, fmt.Sprintf("cannot exceed %d characters", MaxIBMNameLength))
+		}
+		if !isValidIBMName(config.Name) {
+			return NewValidationError("IBM connection name", config.Name, "must only contain characters 0-9, a-z, A-Z, /, -, _, or ,")
+		}
 	}
 	if config.CustomerIPAddress != "" {
 		if err := ValidateCIDR(config.CustomerIPAddress, "IBM customer IP address"); err != nil {

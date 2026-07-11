@@ -229,6 +229,16 @@ func TestPromptIBMConfig(t *testing.T) {
 			},
 		},
 		{
+			name:      "name left blank (API defaults to MEGAPORT)",
+			responses: []string{"acct-000", "", "65001", "4.5.6.7", "8.9.10.11"},
+			verify: func(t *testing.T, cfg *megaport.VXCPartnerConfigIBM) {
+				assert.Equal(t, "IBM", cfg.ConnectType)
+				assert.Equal(t, "acct-000", cfg.AccountID)
+				assert.Equal(t, "", cfg.Name)
+				assert.Equal(t, 65001, cfg.CustomerASN)
+			},
+		},
+		{
 			name:      "customer ASN left blank",
 			responses: []string{"acct-789", "ibm-blank-asn", "", "3.4.5.6", "7.8.9.10"},
 			verify: func(t *testing.T, cfg *megaport.VXCPartnerConfigIBM) {

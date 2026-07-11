@@ -341,12 +341,9 @@ func promptIBMConfig(noColor bool) (*megaport.VXCPartnerConfigIBM, error) {
 		return nil, fmt.Errorf("account ID is required")
 	}
 
-	name, err := utils.ResourcePrompt("vxc", "Enter name (required): ", noColor)
+	name, err := utils.ResourcePrompt("vxc", "Enter name (optional, defaults to MEGAPORT): ", noColor)
 	if err != nil {
 		return nil, err
-	}
-	if name == "" {
-		return nil, fmt.Errorf("name is required")
 	}
 
 	customerASNStr, err := utils.ResourcePrompt("vxc", "Enter customer ASN (required if opposite end is not an MCR): ", noColor)
