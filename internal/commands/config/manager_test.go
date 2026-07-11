@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -641,6 +642,9 @@ func TestConfigVersionHandling(t *testing.T) {
 	assert.Equal(t, ConfigVersion, manager.config.Version, "Config should be upgraded to current version")
 }
 func TestReadOnlyConfigFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("os.Chmod doesn't reliably block directory writes on Windows, and error text differs")
+	}
 	if os.Geteuid() == 0 {
 		t.Skip("Skipping test when running as root")
 	}
@@ -683,6 +687,9 @@ func TestReadOnlyConfigFile(t *testing.T) {
 }
 
 func TestSaveRetightensOverPermissiveFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX permission bits are not meaningful on Windows")
+	}
 	if os.Geteuid() == 0 {
 		t.Skip("Skipping test when running as root")
 	}
