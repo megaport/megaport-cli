@@ -236,9 +236,14 @@ func (m *ConfigManager) Save() error {
 	tmpPath := tmpFile.Name()
 	defer os.Remove(tmpPath) // no-op once the rename below succeeds
 
-	if _, err := tmpFile.Write(configData); err != nil {
+	n, err := tmpFile.Write(configData)
+	if err != nil {
 		tmpFile.Close()
 		return fmt.Errorf("failed to write temp config file: %w", err)
+	}
+	if n != len(configData) {
+		tmpFile.Close()
+		return fmt.Errorf("failed to write temp config file: short write (%d of %d bytes)", n, len(configData))
 	}
 	if err := tmpFile.Close(); err != nil {
 		return fmt.Errorf("failed to close temp config file: %w", err)
