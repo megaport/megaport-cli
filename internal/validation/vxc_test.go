@@ -1202,6 +1202,13 @@ func TestValidateVXCPartnerConfig(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "Valid Transit partner config",
+			config: &megaport.VXCPartnerConfigTransit{
+				ConnectType: "TRANSIT",
+			},
+			wantErr: false,
+		},
+		{
 			name:    "Missing partner type (nil config)", // Test case for nil config
 			config:  nil,
 			wantErr: true,

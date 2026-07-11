@@ -480,6 +480,7 @@ func ValidateVrouterPartnerConfig(config *megaport.VXCOrderVrouterPartnerConfig)
 //   - ValidateOraclePartnerConfig
 //   - ValidateIBMPartnerConfig
 //   - ValidateVrouterPartnerConfig
+//   - Transit carries no partner-specific fields, so it always passes
 //   - Configuration type must be one of the supported types
 //
 // Returns:
@@ -497,6 +498,8 @@ func ValidateVXCPartnerConfig(config megaport.VXCPartnerConfiguration) error {
 		return ValidateOraclePartnerConfig(v)
 	case *megaport.VXCPartnerConfigIBM:
 		return ValidateIBMPartnerConfig(v)
+	case *megaport.VXCPartnerConfigTransit:
+		return nil
 	case *megaport.VXCOrderVrouterPartnerConfig:
 		return ValidateVrouterPartnerConfig(v)
 	default:
