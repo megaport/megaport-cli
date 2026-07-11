@@ -1,7 +1,6 @@
 package validation
 
 import (
-	"fmt"
 	"strconv"
 )
 
@@ -12,9 +11,7 @@ import (
 func ParseInt(field, value string) (int, error) {
 	n, err := strconv.Atoi(value)
 	if err != nil {
-		// Quoted so an empty or whitespace-only value renders unambiguously
-		// in the error message (e.g. "" rather than a blank gap).
-		return 0, NewValidationError(field, fmt.Sprintf("%q", value), "is not a valid whole number")
+		return 0, NewValidationError(field, value, "is not a valid whole number")
 	}
 	return n, nil
 }
