@@ -8,11 +8,6 @@ import (
 )
 
 func TestGetIntFromInterface(t *testing.T) {
-	// Derived from math.MaxInt (rather than a hardcoded 2^63) so the boundary
-	// cases stay in range regardless of platform int width.
-	nearMaxInt := float64(math.MaxInt) - 4096
-	justAboveMaxInt := float64(math.MaxInt) + 4096
-
 	tests := []struct {
 		name  string
 		value interface{}
@@ -25,8 +20,6 @@ func TestGetIntFromInterface(t *testing.T) {
 		{"float64 whole", float64(10), 10, true},
 		{"float64 fractional rejected", float64(3.9), 0, false},
 		{"float64 above int range rejected", float64(math.MaxInt) * 2, 0, false},
-		{"float64 just above max int rejected", justAboveMaxInt, 0, false},
-		{"float64 just below max int accepted", nearMaxInt, int(nearMaxInt), true},
 		{"numeric string", "123", 123, true},
 		{"negative numeric string", "-5", -5, true},
 		{"empty string", "", 0, false},

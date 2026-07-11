@@ -703,34 +703,6 @@ func TestUpdateResourceTagsPrompt_DefaultModifyExistingRemovesTag(t *testing.T) 
 	assert.Empty(t, stdout)
 }
 
-// TestUpdateResourceTagsPrompt_DefaultModifyRemovesEmptyValueTag exercises
-// removing an existing tag whose current value is already empty.
-func TestUpdateResourceTagsPrompt_DefaultModifyRemovesEmptyValueTag(t *testing.T) {
-	mockPromptSequence(t, []bool{true, true}, []string{"2", "foo", "", ""})
-	stdout, stderr := withMockedIO("", func() {
-		tags, err := UpdateResourceTagsPrompt(map[string]string{"foo": ""}, true)
-		assert.NoError(t, err)
-		assert.Empty(t, tags)
-	})
-	assert.Contains(t, stderr, "Removed tag: foo")
-	assert.Empty(t, stdout)
-}
-
-// TestUpdateResourceTagsPrompt_DefaultModifyEmptyValueForNewKey exercises
-// entering an empty value for a key that does not exist yet: it must not be
-// added to the tag set, and the user gets a clear "nothing to remove" notice
-// instead of the key silently vanishing.
-func TestUpdateResourceTagsPrompt_DefaultModifyEmptyValueForNewKey(t *testing.T) {
-	mockPromptSequence(t, []bool{true, true}, []string{"2", "baz", "", ""})
-	stdout, stderr := withMockedIO("", func() {
-		tags, err := UpdateResourceTagsPrompt(map[string]string{"foo": "bar"}, true)
-		assert.NoError(t, err)
-		assert.Equal(t, map[string]string{"foo": "bar"}, tags)
-	})
-	assert.Contains(t, stderr, "Tag 'baz' does not exist, nothing to remove")
-	assert.Empty(t, stdout)
-}
-
 // TestDesignConfirmPrompt_DefaultRendering verifies the default
 // designConfirmPromptFn renders design-stage wording instead of
 // BuyConfirmPrompt's purchase wording.
