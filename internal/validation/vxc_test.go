@@ -1008,6 +1008,12 @@ func TestValidateGooglePartnerConfig(t *testing.T) {
 	}
 }
 
+func TestValidateGooglePartnerConfig_NilConfig(t *testing.T) {
+	err := ValidateGooglePartnerConfig(nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Invalid Google partner config: <nil> - cannot be nil")
+}
+
 func TestValidateOraclePartnerConfig(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -1035,6 +1041,12 @@ func TestValidateOraclePartnerConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateOraclePartnerConfig_NilConfig(t *testing.T) {
+	err := ValidateOraclePartnerConfig(nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Invalid Oracle partner config: <nil> - cannot be nil")
 }
 
 func TestValidateIBMPartnerConfig(t *testing.T) {

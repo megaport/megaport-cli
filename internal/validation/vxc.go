@@ -309,12 +309,16 @@ func ValidateAzurePartnerConfig(config *megaport.VXCPartnerConfigAzure) error {
 //   - config: The Google partner configuration to validate
 //
 // Validation checks include:
+//   - Configuration cannot be nil
 //   - Pairing key must be provided (required for Google Cloud connections)
 //
 // Returns:
 //   - A ValidationError if any validation check fails
 //   - nil if all validation checks pass
 func ValidateGooglePartnerConfig(config *megaport.VXCPartnerConfigGoogle) error {
+	if config == nil {
+		return NewValidationError("Google partner config", nil, "cannot be nil")
+	}
 	if config.PairingKey == "" {
 		return NewValidationError("Google pairing key", config.PairingKey, "cannot be empty")
 	}
@@ -328,12 +332,16 @@ func ValidateGooglePartnerConfig(config *megaport.VXCPartnerConfigGoogle) error 
 //   - config: The Oracle partner configuration to validate
 //
 // Validation checks include:
+//   - Configuration cannot be nil
 //   - Virtual Circuit ID must be provided (required for Oracle Cloud connections)
 //
 // Returns:
 //   - A ValidationError if any validation check fails
 //   - nil if all validation checks pass
 func ValidateOraclePartnerConfig(config *megaport.VXCPartnerConfigOracle) error {
+	if config == nil {
+		return NewValidationError("Oracle partner config", nil, "cannot be nil")
+	}
 	if config.VirtualCircuitId == "" {
 		return NewValidationError("Oracle virtual circuit ID", config.VirtualCircuitId, "cannot be empty")
 	}
