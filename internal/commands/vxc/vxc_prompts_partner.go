@@ -113,12 +113,12 @@ func promptAWSConfig(noColor bool) (*megaport.VXCPartnerConfigAWS, error) {
 	if err != nil {
 		return nil, err
 	}
-	var asn int
-	if asnStr != "" {
-		asn, err = validation.ParseInt("ASN", asnStr)
-		if err != nil {
-			return nil, err
-		}
+	if asnStr == "" {
+		return nil, fmt.Errorf("ASN is required")
+	}
+	asn, err := validation.ParseInt("ASN", asnStr)
+	if err != nil {
+		return nil, err
 	}
 
 	amazonASNStr, err := utils.ResourcePrompt("vxc", "Enter Amazon ASN (optional): ", noColor)
@@ -278,7 +278,7 @@ func promptAzurePeeringConfig(noColor bool) (megaport.PartnerOrderAzurePeeringCo
 	}
 	var vlan int
 	if vlanStr != "" {
-		vlan, err = validation.ParseInt("VLAN", vlanStr)
+		vlan, err = validation.ParseInt("VLAN ID", vlanStr)
 		if err != nil {
 			return megaport.PartnerOrderAzurePeeringConfig{}, err
 		}

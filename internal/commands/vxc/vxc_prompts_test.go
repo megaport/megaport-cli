@@ -94,6 +94,11 @@ func TestPromptAWSConfig_RequiresCredentials(t *testing.T) {
 			responses:   []string{"AWS", "123456789", ""},
 			errContains: "connection name is required",
 		},
+		{
+			name:        "empty ASN rejected",
+			responses:   []string{"AWS", "123456789", "my-conn", ""},
+			errContains: "ASN is required",
+		},
 	}
 
 	for _, tc := range tests {
