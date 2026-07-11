@@ -302,6 +302,22 @@ func TestValidatePrefixFilterListRequest(t *testing.T) {
 			wantErr: true,
 			errText: "Invalid entries: [] - must contain at least one entry",
 		},
+		{
+			name: "Nil entry in entries",
+			req: &megaport.CreateMCRPrefixFilterListRequest{
+				MCRID: "mcr-uid-123",
+				PrefixFilterList: megaport.MCRPrefixFilterList{
+					Description:   "Test filter list",
+					AddressFamily: "IPv4",
+					Entries: []*megaport.MCRPrefixListEntry{
+						{Action: "permit", Prefix: "10.0.0.0/8"},
+						nil,
+					},
+				},
+			},
+			wantErr: true,
+			errText: "Invalid entry index 1: <nil> - entry cannot be nil",
+		},
 	}
 
 	for _, tt := range tests {

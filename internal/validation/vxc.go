@@ -194,6 +194,7 @@ func ValidateVXCRequest(req *megaport.BuyVXCRequest) error {
 //   - config: The AWS partner configuration to validate
 //
 // Validation checks include:
+//   - Configuration cannot be nil
 //   - Connect type must be provided and be one of the valid types ('AWS', 'AWSHC', 'private', 'public')
 //   - Owner account must be provided (AWS account ID)
 //   - ASN must be provided and within the valid range (1-4294967295)
@@ -206,6 +207,9 @@ func ValidateVXCRequest(req *megaport.BuyVXCRequest) error {
 //   - A ValidationError if any validation check fails
 //   - nil if all validation checks pass
 func ValidateAWSPartnerConfig(config *megaport.VXCPartnerConfigAWS) error {
+	if config == nil {
+		return NewValidationError("AWS partner config", nil, "cannot be nil")
+	}
 	if config.ConnectType == "" {
 		return NewValidationError("AWS connect type", config.ConnectType, "cannot be empty")
 	}
@@ -343,6 +347,7 @@ func ValidateOraclePartnerConfig(config *megaport.VXCPartnerConfigOracle) error 
 //   - config: The IBM partner configuration to validate
 //
 // Validation checks include:
+//   - Configuration cannot be nil
 //   - Account ID must be provided
 //   - Account ID must be exactly 32 characters (IBMAccountIDLength)
 //   - Account ID must contain only hexadecimal characters (0-9, a-f, A-F)
@@ -355,6 +360,9 @@ func ValidateOraclePartnerConfig(config *megaport.VXCPartnerConfigOracle) error 
 //   - A ValidationError if any validation check fails
 //   - nil if all validation checks pass
 func ValidateIBMPartnerConfig(config *megaport.VXCPartnerConfigIBM) error {
+	if config == nil {
+		return NewValidationError("IBM partner config", nil, "cannot be nil")
+	}
 	if config.AccountID == "" {
 		return NewValidationError("IBM account ID", config.AccountID, "cannot be empty")
 	}

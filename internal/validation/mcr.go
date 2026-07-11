@@ -127,6 +127,9 @@ func ValidatePrefixFilterListRequest(req *megaport.CreateMCRPrefixFilterListRequ
 // action is permit or deny.
 func validatePrefixFilterEntries(entries []*megaport.MCRPrefixListEntry, addressFamily string) error {
 	for i, entry := range entries {
+		if entry == nil {
+			return NewValidationError(fmt.Sprintf("entry index %d", i), nil, "entry cannot be nil")
+		}
 		if entry.Prefix == "" {
 			return NewValidationError(fmt.Sprintf("entry prefix index %d", i), entry.Prefix, "prefix cannot be empty")
 		}

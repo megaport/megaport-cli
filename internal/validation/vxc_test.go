@@ -930,6 +930,12 @@ func TestValidateAWSPartnerConfig(t *testing.T) {
 	}
 }
 
+func TestValidateAWSPartnerConfig_NilConfig(t *testing.T) {
+	err := ValidateAWSPartnerConfig(nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Invalid AWS partner config: <nil> - cannot be nil")
+}
+
 // TestValidateAWSPartnerConfig_HighASN mirrors TestValidateBGPConnectionConfig_HighASN:
 // it confirms the AWS validator agrees with ValidateASN at the 32-bit max boundary.
 func TestValidateAWSPartnerConfig_HighASN(t *testing.T) {
@@ -1135,6 +1141,12 @@ func TestValidateIBMPartnerConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateIBMPartnerConfig_NilConfig(t *testing.T) {
+	err := ValidateIBMPartnerConfig(nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Invalid IBM partner config: <nil> - cannot be nil")
 }
 
 func TestValidateVXCPartnerConfig(t *testing.T) {
