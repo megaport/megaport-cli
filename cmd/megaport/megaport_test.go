@@ -374,6 +374,9 @@ func TestUnknownFlagIsTypedUsageError(t *testing.T) {
 // missing-required-flag error as a typed *exitcodes.CLIError ahead of
 // cobra's own (redundant) ValidateRequiredFlags call.
 func TestMissingRequiredFlagIsTypedUsageError(t *testing.T) {
+	t.Setenv("MEGAPORT_CONFIG_DIR", t.TempDir())
+	defer output.ResetState()
+
 	rootCmd.SetArgs([]string{"billing-market", "set"})
 	var execErr error
 	_ = output.CaptureOutput(func() {
