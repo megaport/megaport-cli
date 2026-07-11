@@ -346,8 +346,8 @@ func ValidateOraclePartnerConfig(config *megaport.VXCPartnerConfigOracle) error 
 //   - Account ID must be provided
 //   - Account ID must be exactly 32 characters (IBMAccountIDLength)
 //   - Account ID must contain only hexadecimal characters (0-9, a-f, A-F)
-//   - If connection name is provided, it must not exceed the maximum length (MaxIBMNameLength)
-//   - If connection name is provided, it must contain only allowed characters (0-9, a-z, A-Z, /, -, _, ,)
+//   - Connection name must be provided and not exceed the maximum length (MaxIBMNameLength)
+//   - Connection name must contain only allowed characters (0-9, a-z, A-Z, /, -, _, ,)
 //   - If customer IP address is provided, it must be in valid IPv4 CIDR notation
 //   - If provider IP address is provided, it must be in valid IPv4 CIDR notation
 //
@@ -366,10 +366,13 @@ func ValidateIBMPartnerConfig(config *megaport.VXCPartnerConfigIBM) error {
 			return NewValidationError("IBM account ID", config.AccountID, "must contain only hexadecimal characters (0-9, a-f, A-F)")
 		}
 	}
-	if config.Name != "" && utf8.RuneCountInString(config.Name) > MaxIBMNameLength {
+	if config.Name == "" {
+		return NewValidationError("IBM connection name", config.Name, "cannot be empty")
+	}
+	if utf8.RuneCountInString(config.Name) > MaxIBMNameLength {
 		return NewValidationError("IBM connection name", config.Name, fmt.Sprintf("cannot exceed %d characters", MaxIBMNameLength))
 	}
-	if config.Name != "" && !isValidIBMName(config.Name) {
+	if !isValidIBMName(config.Name) {
 		return NewValidationError("IBM connection name", config.Name, "must only contain characters 0-9, a-z, A-Z, /, -, _, or ,")
 	}
 	if config.CustomerIPAddress != "" {

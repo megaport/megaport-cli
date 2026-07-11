@@ -1093,6 +1093,7 @@ func TestValidateIBMPartnerConfig(t *testing.T) {
 		{
 			name:              "Invalid customer IP",
 			accountID:         validAccountID,
+			ibmName:           "MyIBMConnection",
 			customerIPAddress: "invalid-ip",
 			wantErr:           true,
 			errText:           "Invalid IBM customer IP address: invalid-ip - must be a valid IPv4 CIDR notation",
@@ -1100,9 +1101,17 @@ func TestValidateIBMPartnerConfig(t *testing.T) {
 		{
 			name:              "Invalid provider IP",
 			accountID:         validAccountID,
+			ibmName:           "MyIBMConnection",
 			providerIPAddress: "10.1.1.2/33", // Invalid mask
 			wantErr:           true,
 			errText:           "Invalid IBM provider IP address: 10.1.1.2/33 - must be a valid IPv4 CIDR notation",
+		},
+		{
+			name:      "Empty connection name",
+			accountID: validAccountID,
+			ibmName:   "",
+			wantErr:   true,
+			errText:   "Invalid IBM connection name:  - cannot be empty",
 		},
 	}
 
@@ -1174,6 +1183,7 @@ func TestValidateVXCPartnerConfig(t *testing.T) {
 			config: &megaport.VXCPartnerConfigIBM{ // Use struct pointer
 				ConnectType: "IBM", // Assuming ConnectType is needed
 				AccountID:   "abcdef0123456789abcdef0123456789",
+				Name:        "MyIBMConnection",
 			},
 			wantErr: false,
 		},
