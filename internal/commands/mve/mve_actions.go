@@ -141,11 +141,9 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	jsonStr, _ := cmd.Flags().GetString("json")
-	jsonFile, _ := cmd.Flags().GetString("json-file")
-	yes, _ := cmd.Flags().GetBool("yes")
-	if !yes && (jsonStr != "" || jsonFile != "") {
-		return exitcodes.NewUsageError(fmt.Errorf("--yes is required to confirm a purchase when using --json or --json-file"))
+	yes, err := utils.RequireYesForJSONBuy(cmd)
+	if err != nil {
+		return err
 	}
 
 	client, err := config.Login(ctx)
