@@ -318,6 +318,109 @@ func TestValidatePrefixFilterListRequest(t *testing.T) {
 			wantErr: true,
 			errText: "Invalid entry index 1: <nil> - entry cannot be nil",
 		},
+		{
+			name: "Valid GE/LE bounds",
+			req: &megaport.CreateMCRPrefixFilterListRequest{
+				MCRID: "mcr-uid-123",
+				PrefixFilterList: megaport.MCRPrefixFilterList{
+					Description:   "Test filter list",
+					AddressFamily: "IPv4",
+					Entries: []*megaport.MCRPrefixListEntry{
+						{Action: "permit", Prefix: "10.0.0.0/8", Ge: 16, Le: 24},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "GE above IPv4 maximum",
+			req: &megaport.CreateMCRPrefixFilterListRequest{
+				MCRID: "mcr-uid-123",
+				PrefixFilterList: megaport.MCRPrefixFilterList{
+					Description:   "Test filter list",
+					AddressFamily: "IPv4",
+					Entries: []*megaport.MCRPrefixListEntry{
+						{Action: "permit", Prefix: "10.0.0.0/8", Ge: 33},
+					},
+				},
+			},
+			wantErr: true,
+			errText: "Invalid entry GE index 0: 33 - must be between 0 and 32 for IPv4",
+		},
+		{
+			name: "Negative GE",
+			req: &megaport.CreateMCRPrefixFilterListRequest{
+				MCRID: "mcr-uid-123",
+				PrefixFilterList: megaport.MCRPrefixFilterList{
+					Description:   "Test filter list",
+					AddressFamily: "IPv4",
+					Entries: []*megaport.MCRPrefixListEntry{
+						{Action: "permit", Prefix: "10.0.0.0/8", Ge: -1},
+					},
+				},
+			},
+			wantErr: true,
+			errText: "Invalid entry GE index 0: -1 - must be between 0 and 32 for IPv4",
+		},
+		{
+			name: "LE above IPv4 maximum",
+			req: &megaport.CreateMCRPrefixFilterListRequest{
+				MCRID: "mcr-uid-123",
+				PrefixFilterList: megaport.MCRPrefixFilterList{
+					Description:   "Test filter list",
+					AddressFamily: "IPv4",
+					Entries: []*megaport.MCRPrefixListEntry{
+						{Action: "permit", Prefix: "10.0.0.0/8", Le: 33},
+					},
+				},
+			},
+			wantErr: true,
+			errText: "Invalid entry LE index 0: 33 - must be between 0 and 32 for IPv4",
+		},
+		{
+			name: "GE greater than LE",
+			req: &megaport.CreateMCRPrefixFilterListRequest{
+				MCRID: "mcr-uid-123",
+				PrefixFilterList: megaport.MCRPrefixFilterList{
+					Description:   "Test filter list",
+					AddressFamily: "IPv4",
+					Entries: []*megaport.MCRPrefixListEntry{
+						{Action: "permit", Prefix: "10.0.0.0/8", Ge: 28, Le: 24},
+					},
+				},
+			},
+			wantErr: true,
+			errText: "Invalid entry GE index 0: 28 - must not exceed the LE value",
+		},
+		{
+			name: "IPv6 GE/LE beyond IPv4 range accepted",
+			req: &megaport.CreateMCRPrefixFilterListRequest{
+				MCRID: "mcr-uid-123",
+				PrefixFilterList: megaport.MCRPrefixFilterList{
+					Description:   "Test filter list",
+					AddressFamily: "IPv6",
+					Entries: []*megaport.MCRPrefixListEntry{
+						{Action: "permit", Prefix: "2001:db8::/32", Ge: 48, Le: 64},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "IPv6 LE above maximum",
+			req: &megaport.CreateMCRPrefixFilterListRequest{
+				MCRID: "mcr-uid-123",
+				PrefixFilterList: megaport.MCRPrefixFilterList{
+					Description:   "Test filter list",
+					AddressFamily: "IPv6",
+					Entries: []*megaport.MCRPrefixListEntry{
+						{Action: "permit", Prefix: "2001:db8::/32", Le: 129},
+					},
+				},
+			},
+			wantErr: true,
+			errText: "Invalid entry LE index 0: 129 - must be between 0 and 128 for IPv6",
+		},
 	}
 
 	for _, tt := range tests {
@@ -408,6 +511,18 @@ func TestValidateUpdatePrefixFilterList(t *testing.T) {
 				},
 			},
 			wantErr: false,
+		},
+		{
+			name: "GE greater than LE rejected on update",
+			req: &megaport.MCRPrefixFilterList{
+				Description:   "Updated filter list",
+				AddressFamily: "IPv4",
+				Entries: []*megaport.MCRPrefixListEntry{
+					{Action: "permit", Prefix: "10.0.0.0/8", Ge: 28, Le: 24},
+				},
+			},
+			wantErr: true,
+			errText: "Invalid entry GE index 0: 28 - must not exceed the LE value",
 		},
 		{
 			name: "Empty address family with entries rejected",

@@ -303,6 +303,9 @@ func promptGoogleConfig(ctx context.Context, svc megaport.VXCService, noColor bo
 	if err != nil {
 		return nil, "", err
 	}
+	if pairingKey == "" {
+		return nil, "", fmt.Errorf("pairing key is required")
+	}
 
 	uid, err := getPartnerPortUID(ctx, svc, pairingKey, "GOOGLE")
 	if err != nil {
@@ -319,6 +322,9 @@ func promptOracleConfig(ctx context.Context, svc megaport.VXCService, noColor bo
 	virtualCircuitId, err := utils.ResourcePrompt("vxc", "Enter virtual circuit ID (required): ", noColor)
 	if err != nil {
 		return nil, "", err
+	}
+	if virtualCircuitId == "" {
+		return nil, "", fmt.Errorf("virtual circuit ID is required")
 	}
 
 	uid, err := getPartnerPortUID(ctx, svc, virtualCircuitId, "ORACLE")

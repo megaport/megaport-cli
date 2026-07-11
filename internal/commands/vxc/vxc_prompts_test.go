@@ -157,6 +157,17 @@ func TestPromptGoogleConfig(t *testing.T) {
 	}
 }
 
+func TestPromptGoogleConfig_RequiresPairingKey(t *testing.T) {
+	cleanup := mockPrompts([]string{""})
+	defer cleanup()
+
+	cfg, uid, err := promptGoogleConfig(context.Background(), &MockVXCService{}, true)
+	assert.Error(t, err)
+	assert.Nil(t, cfg)
+	assert.Empty(t, uid)
+	assert.Contains(t, err.Error(), "pairing key is required")
+}
+
 func TestPromptOracleConfig(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -196,6 +207,17 @@ func TestPromptOracleConfig(t *testing.T) {
 			assert.Equal(t, tc.wantUID, uid)
 		})
 	}
+}
+
+func TestPromptOracleConfig_RequiresVirtualCircuitID(t *testing.T) {
+	cleanup := mockPrompts([]string{""})
+	defer cleanup()
+
+	cfg, uid, err := promptOracleConfig(context.Background(), &MockVXCService{}, true)
+	assert.Error(t, err)
+	assert.Nil(t, cfg)
+	assert.Empty(t, uid)
+	assert.Contains(t, err.Error(), "virtual circuit ID is required")
 }
 
 func TestPromptIBMConfig(t *testing.T) {

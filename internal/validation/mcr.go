@@ -123,9 +123,14 @@ func ValidatePrefixFilterListRequest(req *megaport.CreateMCRPrefixFilterListRequ
 }
 
 // validatePrefixFilterEntries validates each prefix filter entry's prefix as a
-// CIDR consistent with the list's declared address family, and that the
-// action is permit or deny.
+// CIDR consistent with the list's declared address family, that the action is
+// permit or deny, and that any GE/LE bounds fit the family's prefix length
+// (GE/LE are optional; 0 means unset, matching their omitempty JSON encoding).
 func validatePrefixFilterEntries(entries []*megaport.MCRPrefixListEntry, addressFamily string) error {
+	maxPrefixLen := 32
+	if addressFamily == "IPv6" {
+		maxPrefixLen = 128
+	}
 	for i, entry := range entries {
 		if entry == nil {
 			return NewValidationError(fmt.Sprintf("entry index %d", i), nil, "entry cannot be nil")
@@ -145,6 +150,15 @@ func validatePrefixFilterEntries(entries []*megaport.MCRPrefixListEntry, address
 		}
 		if entry.Action != "permit" && entry.Action != "deny" {
 			return NewValidationError("entry action", entry.Action, "must be permit or deny")
+		}
+		if entry.Ge != 0 && (entry.Ge < 0 || entry.Ge > maxPrefixLen) {
+			return NewValidationError(fmt.Sprintf("entry GE index %d", i), entry.Ge, fmt.Sprintf("must be between 0 and %d for %s", maxPrefixLen, addressFamily))
+		}
+		if entry.Le != 0 && (entry.Le < 0 || entry.Le > maxPrefixLen) {
+			return NewValidationError(fmt.Sprintf("entry LE index %d", i), entry.Le, fmt.Sprintf("must be between 0 and %d for %s", maxPrefixLen, addressFamily))
+		}
+		if entry.Ge != 0 && entry.Le != 0 && entry.Ge > entry.Le {
+			return NewValidationError(fmt.Sprintf("entry GE index %d", i), entry.Ge, "must not exceed the LE value")
 		}
 	}
 	return nil

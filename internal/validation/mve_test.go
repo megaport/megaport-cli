@@ -467,6 +467,23 @@ func TestValidateUpdateMVERequest(t *testing.T) {
 			wantErr: true,
 			errText: "vnics[1].description",
 		},
+		{
+			name: "Update name at max length accepted",
+			req: &megaport.ModifyMVERequest{
+				MVEID: "mve-uid-123",
+				Name:  strings.Repeat("日", MaxMVENameLength),
+			},
+			wantErr: false,
+		},
+		{
+			name: "Update name exceeding max length rejected",
+			req: &megaport.ModifyMVERequest{
+				MVEID: "mve-uid-123",
+				Name:  strings.Repeat("日", MaxMVENameLength+1),
+			},
+			wantErr: true,
+			errText: fmt.Sprintf("cannot exceed %d characters", MaxMVENameLength),
+		},
 	}
 
 	for _, tt := range tests {
