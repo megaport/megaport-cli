@@ -358,9 +358,13 @@ func TestEnvFlagPartialEnvVarsDoesNotMixWithProfile(t *testing.T) {
 	// Save and restore non-env-var globals
 	originalEnv := utils.Env
 	originalProfileOverride := utils.ProfileOverride
+	originalBaseURL := utils.BaseURL
+	originalTokenURL := utils.TokenURL
 	defer func() {
 		utils.Env = originalEnv
 		utils.ProfileOverride = originalProfileOverride
+		utils.BaseURL = originalBaseURL
+		utils.TokenURL = originalTokenURL
 	}()
 
 	tempDir, err := os.MkdirTemp("", "megaport-login-test")
@@ -408,10 +412,18 @@ func TestEnvFlagPartialEnvVarsDoesNotMixWithProfile(t *testing.T) {
 		t.Setenv("MEGAPORT_ACCESS_KEY", "")
 		t.Setenv("MEGAPORT_SECRET_KEY", "")
 
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusUnauthorized)
+		}))
+		defer ts.Close()
+		utils.BaseURL = ts.URL
+		utils.TokenURL = ts.URL + "/oauth2/token"
+
 		_, err := LoginWithOutput(context.Background(), "json")
 		assert.Error(t, err)
-		// Reaches the Authorize call (network error) rather than failing on
-		// missing credentials or the partial-env-var mixing guard.
+		// Reaches the Authorize call (which fails against the local test
+		// server) rather than failing on missing credentials or the
+		// partial-env-var mixing guard.
 		assert.NotContains(t, err.Error(), "access key not provided")
 		assert.NotContains(t, err.Error(), "only one of")
 	})
