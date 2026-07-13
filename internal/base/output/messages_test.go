@@ -607,7 +607,7 @@ func TestSpinnerStopWithSuccess(t *testing.T) {
 	t.Cleanup(func() { SetIsTerminal(orig) })
 	SetIsTerminal(true)
 
-	output := captureOutput(func() {
+	output := captureStderr(t, func() {
 		spinner := NewSpinner(true)
 		spinner.Start("Testing")
 		time.Sleep(200 * time.Millisecond)

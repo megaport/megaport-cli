@@ -374,10 +374,9 @@ func (s *Spinner) StopWithSuccess(msg string) {
 		}
 	} else {
 		if s.noColor {
-			fmt.Printf("✓ %s\n", msg)
+			writeSpinnerLinef("✓ %s\n", msg)
 		} else {
-			fmt.Print(color.GreenString("✓ "))
-			fmt.Println(msg)
+			writeSpinnerLine(color.GreenString("✓ ") + msg + "\n")
 		}
 	}
 }
