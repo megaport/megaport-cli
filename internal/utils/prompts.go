@@ -252,11 +252,15 @@ var updateResourceTagsPromptFn = func(existingTags map[string]string, noColor bo
 				return nil, err
 			}
 
-			// Empty value means remove the tag
-			if value == "" && tags[key] != "" {
-				delete(tags, key)
-				fmt.Fprintf(os.Stderr, "  Removed tag: %s\n", key)
-			} else if value != "" {
+			// Empty value means remove the tag, if it exists.
+			if value == "" {
+				if _, exists := tags[key]; exists {
+					delete(tags, key)
+					fmt.Fprintf(os.Stderr, "  Removed tag: %s\n", key)
+				} else {
+					fmt.Fprintf(os.Stderr, "  Tag '%s' does not exist, nothing to remove\n", key)
+				}
+			} else {
 				tags[key] = value
 				fmt.Fprintf(os.Stderr, "  Updated tag: %s: %s\n", key, value)
 			}

@@ -266,11 +266,15 @@ func wasmUpdateResourceTagsPrompt(existingTags map[string]string, noColor bool) 
 			return nil, err
 		}
 
-		// Empty value means remove the tag
-		if value == "" && tags[key] != "" {
-			delete(tags, key)
-			buf.add(fmt.Sprintf("  Removed tag: %s", key))
-		} else if value != "" {
+		// Empty value means remove the tag, if it exists.
+		if value == "" {
+			if _, exists := tags[key]; exists {
+				delete(tags, key)
+				buf.add(fmt.Sprintf("  Removed tag: %s", key))
+			} else {
+				buf.add(fmt.Sprintf("  Tag '%s' does not exist, nothing to remove", key))
+			}
+		} else {
 			tags[key] = value
 			buf.add(fmt.Sprintf("  Updated tag: %s: %s", key, value))
 		}
