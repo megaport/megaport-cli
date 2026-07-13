@@ -474,3 +474,16 @@ func SetUpdateResourceTagsPrompt(fn func(map[string]string, bool) (map[string]st
 	defer promptFuncMu.Unlock()
 	updateResourceTagsPromptFn = fn
 }
+
+// ParseYesNo strictly parses a yes/no response, accepting y/yes/true and
+// n/no/false (case-insensitive), and erroring on anything else.
+func ParseYesNo(answer string) (bool, error) {
+	switch strings.ToLower(strings.TrimSpace(answer)) {
+	case "y", "yes", "true":
+		return true, nil
+	case "n", "no", "false":
+		return false, nil
+	default:
+		return false, fmt.Errorf("%q is not a recognized yes/no answer (expected y/yes/true or n/no/false)", answer)
+	}
+}
