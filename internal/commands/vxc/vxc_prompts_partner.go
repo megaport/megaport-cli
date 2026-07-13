@@ -101,12 +101,9 @@ func promptAWSConfig(noColor bool) (*megaport.VXCPartnerConfigAWS, error) {
 		return nil, fmt.Errorf("owner account ID is required")
 	}
 
-	connectionName, err := utils.ResourcePrompt("vxc", "Enter connection name (required): ", noColor)
+	connectionName, err := utils.ResourcePrompt("vxc", "Enter connection name (optional, defaults to MEGAPORT): ", noColor)
 	if err != nil {
 		return nil, err
-	}
-	if connectionName == "" {
-		return nil, fmt.Errorf("connection name is required")
 	}
 
 	asnStr, err := utils.ResourcePrompt("vxc", "Enter ASN (required): ", noColor)

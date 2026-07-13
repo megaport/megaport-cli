@@ -63,6 +63,16 @@ func TestPromptAWSConfig(t *testing.T) {
 				assert.Equal(t, "", cfg.Type)
 			},
 		},
+		{
+			name:      "connection name left blank (API defaults to MEGAPORT)",
+			responses: []string{"AWS", "123456789", "", "65000", "", "", "", "", "", "private"},
+			verify: func(t *testing.T, cfg *megaport.VXCPartnerConfigAWS) {
+				assert.Equal(t, "AWS", cfg.ConnectType)
+				assert.Equal(t, "123456789", cfg.OwnerAccount)
+				assert.Equal(t, "", cfg.ConnectionName)
+				assert.Equal(t, 65000, cfg.ASN)
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -88,11 +98,6 @@ func TestPromptAWSConfig_RequiresCredentials(t *testing.T) {
 			name:        "empty owner account rejected",
 			responses:   []string{"AWS", ""},
 			errContains: "owner account ID is required",
-		},
-		{
-			name:        "empty connection name rejected",
-			responses:   []string{"AWS", "123456789", ""},
-			errContains: "connection name is required",
 		},
 		{
 			name:        "empty ASN rejected",

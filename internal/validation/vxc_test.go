@@ -894,13 +894,12 @@ func TestValidateAWSPartnerConfig(t *testing.T) {
 			errText:      "Invalid AWS type: invalid - must be 'private' or 'public' for AWS connect type",
 		},
 		{
-			name:         "Empty connection name",
+			name:         "Empty connection name is valid (API defaults to MEGAPORT)",
 			connectType:  "AWS",
 			ownerAccount: "123456789012",
 			asn:          65000,
 			awsName:      "",
-			wantErr:      true,
-			errText:      "Invalid AWS connection name:  - cannot be empty",
+			wantErr:      false,
 		},
 	}
 
