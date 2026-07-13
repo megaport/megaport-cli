@@ -158,13 +158,14 @@ func (d *DirectOutputBuffer) Write(p []byte) (n int, err error) {
 	debug := debugMode.Load()
 	stream := hasOutputHandler() && !outputHandlerFailed.Load()
 
-	// Only materialize the string when something consumes it (debug logging or a
-	// live handler). Commands can stream many small writes, and in the common
-	// case (no handler, no debug) the []byte->string copy is pure waste.
-	var chunk string
-	if debug || stream {
-		chunk = string(p)
-	}
+	// Sanitize before buffering: the host writes this buffer's contents (both
+	// the streamed chunk below and the full buffer read back later via
+	// String()) straight to xterm without escaping, so a crafted resource
+	// name or API response field carrying control bytes must be neutralized
+	// here rather than at each read site. See SanitizeTerminalOutput. This
+	// makes the []byte->string conversion unconditional, unlike before, since
+	// the buffer itself must now hold sanitized text.
+	chunk := SanitizeTerminalOutput(string(p))
 
 	// Buffer the write under the lock in a closure so the mutex is released
 	// (even on a panic in the debug-logging JS calls) before we push to the
@@ -185,14 +186,14 @@ func (d *DirectOutputBuffer) Write(p []byte) (n int, err error) {
 			js.Global().Get("console").Call("debug", chunk)
 		}
 
-		n, err = d.buffer.Write(p)
+		_, err = d.buffer.WriteString(chunk)
 	}()
 
 	// Stream the chunk live to a registered output handler, if any.
 	if stream {
 		pushOutputChunk(chunk)
 	}
-	return n, err
+	return len(p), err
 }
 
 // TraceCommandExecution logs the command hierarchy and available subcommands when debugMode is on.

@@ -5,7 +5,6 @@ package utils
 import (
 	"fmt"
 	"strings"
-	"unicode"
 
 	"github.com/megaport/megaport-cli/internal/wasm"
 )
@@ -19,22 +18,19 @@ import (
 // output (see flush) uses a plain \n because its renderer converts EOLs.
 const promptLineBreak = "\r\n"
 
-// sanitizeForTerminal strips C0 controls, DEL, and C1 controls from text that
-// is folded into a terminal-bound message. The host writes prompt messages to
+// sanitizeForTerminal strips C0/C1 controls, DEL, and ESC from text that is
+// folded into a terminal-bound message. The host writes prompt messages to
 // xterm without escaping, so a crafted resource name or tag value could
 // otherwise inject cursor/erase sequences that rewrite the purchase summary
-// shown before the [y/N]. C1 (0x80-0x9f) is stripped because some terminals
-// treat it as escape controls (e.g. 0x9b as CSI). Only display copies are
-// sanitized; the values stored on the order come from the prompt responses,
-// which are untouched. Structural line breaks are inserted by callers after
-// sanitizing, so they are preserved.
+// shown before the [y/N]. Only display copies are sanitized; the values
+// stored on the order come from the prompt responses, which are untouched.
+// Structural line breaks are inserted by callers after sanitizing, so they
+// are preserved. See wasm.SanitizeTerminalText, which this shares with the
+// prompt buffer; wasm.SanitizeTerminalOutput is the SGR-preserving variant
+// used for data (table/JSON/CSV/XML) output, which has styling to preserve
+// and prompts do not.
 func sanitizeForTerminal(s string) string {
-	return strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) {
-			return -1
-		}
-		return r
-	}, s)
+	return wasm.SanitizeTerminalText(s)
 }
 
 func init() {
