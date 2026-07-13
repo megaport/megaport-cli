@@ -14,4 +14,6 @@ build_static_assets
 
 echo ""
 echo "Static assets ready: web/dist/"
-echo "Publish with: aws s3 sync web/dist/ s3://<bucket>/<prefix>/ --delete"
+echo "To publish, use the wasm-publish workflow (or the manual steps in WASM_README.md):"
+echo "it brotli-compresses the wasm and pins Content-Type/Content-Encoding on upload."
+echo "A plain 'aws s3 sync' would serve the wasm uncompressed and without those headers."
