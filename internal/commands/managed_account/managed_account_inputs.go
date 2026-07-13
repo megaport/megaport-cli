@@ -29,6 +29,10 @@ func buildManagedAccountRequestFromFlags(cmd *cobra.Command) (*megaport.ManagedA
 	accountName, _ := cmd.Flags().GetString("account-name")
 	accountRef, _ := cmd.Flags().GetString("account-ref")
 
+	if accountName == "" || accountRef == "" {
+		return nil, exitcodes.NewUsageError(fmt.Errorf("accountName and accountRef are required"))
+	}
+
 	req := &megaport.ManagedAccountRequest{
 		AccountName: accountName,
 		AccountRef:  accountRef,

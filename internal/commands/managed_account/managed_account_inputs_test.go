@@ -90,9 +90,10 @@ func TestParseManagedAccountRequestJSON(t *testing.T) {
 
 func TestBuildManagedAccountRequestFromFlags(t *testing.T) {
 	tests := []struct {
-		name     string
-		flags    map[string]string
-		validate func(t *testing.T, req *megaport.ManagedAccountRequest)
+		name          string
+		flags         map[string]string
+		expectedError string
+		validate      func(t *testing.T, req *megaport.ManagedAccountRequest)
 	}{
 		{
 			name:  "both flags provided",
@@ -103,29 +104,33 @@ func TestBuildManagedAccountRequestFromFlags(t *testing.T) {
 			},
 		},
 		{
-			name:  "name only",
-			flags: map[string]string{"account-name": "Test Account"},
-			validate: func(t *testing.T, req *megaport.ManagedAccountRequest) {
-				assert.Equal(t, "Test Account", req.AccountName)
-				assert.Equal(t, "", req.AccountRef)
-			},
+			name:          "name only",
+			flags:         map[string]string{"account-name": "Test Account"},
+			expectedError: "accountName and accountRef are required",
 		},
 		{
-			name:  "no flags (defaults)",
-			flags: map[string]string{},
-			validate: func(t *testing.T, req *megaport.ManagedAccountRequest) {
-				assert.Equal(t, "", req.AccountName)
-				assert.Equal(t, "", req.AccountRef)
-			},
+			name:          "no flags (defaults)",
+			flags:         map[string]string{},
+			expectedError: "accountName and accountRef are required",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req, err := buildManagedAccountRequestFromFlags(newManagedAccountCmd(tt.flags))
-			assert.NoError(t, err)
-			assert.NotNil(t, req)
-			tt.validate(t, req)
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+
+				var cliErr *exitcodes.CLIError
+				require.True(t, errors.As(err, &cliErr))
+				assert.Equal(t, exitcodes.Usage, cliErr.Code)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, req)
+				tt.validate(t, req)
+			}
 		})
 	}
 }
