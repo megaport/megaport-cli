@@ -306,6 +306,10 @@ func PrintErrorJSON(code int, message string) {
 		out = fmt.Sprintf(`{"error":{"code":%d,"type":"%s","message":%s}}`+"\n",
 			code, exitcodes.TypeName(code), msgJSON)
 	}
+	// Sanitize before this leaves Go: message often echoes an API error
+	// response body, which can carry a control byte the JSON encoder does
+	// not escape (e.g. the C1 range). See wasm.SanitizeTerminalOutput.
+	out = wasm.SanitizeTerminalOutput(out)
 	fmt.Print(out)
 	js.Global().Set("wasmJSONOutput", out)
 }

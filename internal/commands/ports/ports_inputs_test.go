@@ -1,9 +1,11 @@
 package ports
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/validation"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -362,11 +364,14 @@ func TestProcessJSONUpdatePortInput(t *testing.T) {
 }
 
 func TestProcessFlagUpdatePortInput(t *testing.T) {
+	term12 := 12
+	term24 := 24
+
 	tests := []struct {
-		name          string
-		flags         map[string]string
-		expectedError string
-		checkReq      func(*testing.T, *cobra.Command)
+		name               string
+		flags              map[string]string
+		expectedError      string
+		expectContractTerm *int
 	}{
 		{
 			name:          "no flags changed",
@@ -386,12 +391,18 @@ func TestProcessFlagUpdatePortInput(t *testing.T) {
 			flags: map[string]string{"cost-centre": "IT-2024"},
 		},
 		{
-			name:  "term only",
-			flags: map[string]string{"term": "24"},
+			name:               "term only",
+			flags:              map[string]string{"term": "24"},
+			expectContractTerm: &term24,
 		},
 		{
 			name:          "invalid term",
 			flags:         map[string]string{"term": "99"},
+			expectedError: "Invalid contract term",
+		},
+		{
+			name:          "term zero rejected",
+			flags:         map[string]string{"term": "0"},
 			expectedError: "Invalid contract term",
 		},
 		{
@@ -401,6 +412,7 @@ func TestProcessFlagUpdatePortInput(t *testing.T) {
 				"cost-centre": "IT-2024",
 				"term":        "12",
 			},
+			expectContractTerm: &term12,
 		},
 	}
 
@@ -424,7 +436,30 @@ func TestProcessFlagUpdatePortInput(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, req)
 				assert.Equal(t, "port-uid-123", req.PortID)
+				if tt.expectContractTerm != nil {
+					require.NotNil(t, req.ContractTermMonths)
+					assert.Equal(t, *tt.expectContractTerm, *req.ContractTermMonths)
+				} else {
+					assert.Nil(t, req.ContractTermMonths)
+				}
 			}
+		})
+	}
+
+	for _, term := range validation.ValidContractTerms {
+		t.Run(fmt.Sprintf("term %d is accepted", term), func(t *testing.T) {
+			cmd := &cobra.Command{Use: "test"}
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Bool("marketplace-visibility", false, "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().Int("term", 0, "")
+			require.NoError(t, cmd.Flags().Set("term", fmt.Sprintf("%d", term)))
+
+			req, _, err := processFlagUpdatePortInput(cmd, "port-uid-123")
+			require.NoError(t, err)
+			require.NotNil(t, req)
+			require.NotNil(t, req.ContractTermMonths)
+			assert.Equal(t, term, *req.ContractTermMonths)
 		})
 	}
 }

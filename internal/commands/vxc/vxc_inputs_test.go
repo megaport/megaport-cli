@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -1454,6 +1455,24 @@ func TestBuildUpdateVXCRequestFromJSON_WholeRateLimit(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, req.RateLimit)
 	assert.Equal(t, 2000, *req.RateLimit)
+}
+
+func TestBuildUpdateVXCRequestFromJSON_Term(t *testing.T) {
+	t.Run("term 0 is rejected", func(t *testing.T) {
+		_, err := buildUpdateVXCRequestFromJSON(`{"term":0}`, "")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Invalid contract term")
+	})
+
+	for _, term := range validation.ValidContractTerms {
+		t.Run(fmt.Sprintf("term %d is accepted", term), func(t *testing.T) {
+			req, err := buildUpdateVXCRequestFromJSON(fmt.Sprintf(`{"term":%d}`, term), "")
+			require.NoError(t, err)
+			require.NotNil(t, req)
+			require.NotNil(t, req.Term)
+			assert.Equal(t, term, *req.Term)
+		})
+	}
 }
 
 func TestResolvePartnerPortUID(t *testing.T) {

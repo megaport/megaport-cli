@@ -390,6 +390,24 @@ func TestWasmUpdateResourceTagsPrompt(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name: "empty value for key that does not exist is a no-op",
+			existingTags: map[string]string{
+				"foo": "bar",
+			},
+			mockResponses: []string{
+				"y",   // Continue
+				"2",   // Start with existing
+				"baz", // Key that does not exist
+				"",    // Empty value = attempt remove
+				"",    // Finish
+				"y",   // Apply changes
+			},
+			expectedTags: map[string]string{
+				"foo": "bar",
+			},
+			expectError: false,
+		},
+		{
 			name:         "no existing tags - add new",
 			existingTags: map[string]string{},
 			mockResponses: []string{

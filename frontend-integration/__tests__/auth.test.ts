@@ -385,6 +385,56 @@ describe('Authentication Flow', () => {
       expect(mockSetAuthToken).toHaveBeenCalledWith(jwtToken, 'portal.megaport.com');
     });
 
+    it('should keep the 2-argument call shape when environment and expiry are omitted', () => {
+      const mockSetAuthToken = vi.fn(() => ({ success: true, environment: 'production' }));
+      (window as any).setAuthToken = mockSetAuthToken;
+
+      const { setAuthToken } = useMegaportWASM();
+      setAuthToken('token', 'portal.megaport.com');
+
+      expect(mockSetAuthToken.mock.calls[0]).toEqual(['token', 'portal.megaport.com']);
+    });
+
+    it('should forward an explicit environment as the 3rd argument when expiry is omitted', () => {
+      const mockSetAuthToken = vi.fn(() => ({ success: true, environment: 'qa' }));
+      (window as any).setAuthToken = mockSetAuthToken;
+
+      const { setAuthToken } = useMegaportWASM();
+      setAuthToken('token', 'portal.megaport.com', 'qa');
+
+      expect(mockSetAuthToken.mock.calls[0]).toEqual(['token', 'portal.megaport.com', 'qa']);
+    });
+
+    it('should forward expiry as the 4th argument, with environment slotted in as undefined, when only expiry is given', () => {
+      const mockSetAuthToken = vi.fn(() => ({ success: true, environment: 'production' }));
+      (window as any).setAuthToken = mockSetAuthToken;
+
+      const { setAuthToken } = useMegaportWASM();
+      setAuthToken('token', 'portal.megaport.com', undefined, 1700000000000);
+
+      expect(mockSetAuthToken.mock.calls[0]).toEqual([
+        'token',
+        'portal.megaport.com',
+        undefined,
+        1700000000000,
+      ]);
+    });
+
+    it('should forward both environment and expiry when both are given', () => {
+      const mockSetAuthToken = vi.fn(() => ({ success: true, environment: 'qa' }));
+      (window as any).setAuthToken = mockSetAuthToken;
+
+      const { setAuthToken } = useMegaportWASM();
+      setAuthToken('token', 'portal.megaport.com', 'qa', '2026-07-06T00:00:00Z');
+
+      expect(mockSetAuthToken.mock.calls[0]).toEqual([
+        'token',
+        'portal.megaport.com',
+        'qa',
+        '2026-07-06T00:00:00Z',
+      ]);
+    });
+
     it('should return success response with environment', () => {
       const mockSetAuthToken = vi.fn(() => ({
         success: true,
