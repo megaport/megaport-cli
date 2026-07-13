@@ -31,13 +31,14 @@ This command allows you to purchase an MCR by providing the necessary details.
   - Resource tags allow you to categorize resources for organization and billing purposes
   - Required flags (name, term, port-speed, location-id, marketplace-visibility) can be skipped when using --interactive, --json, or --json-file
   - IPSec add-on (--ipsec-tunnel-count) is not prompted in interactive mode; use --ipsec-tunnel-count flag or include 'tunnelCount' in the JSON input
+  - Use --marketplace-visibility=true or --marketplace-visibility=false (with an equals sign); a space-separated value is not consumed by the flag and is rejected as an unexpected argument
 
 ### Example Usage
 
 ```sh
   megaport-cli mcr buy --interactive
-  megaport-cli mcr buy --name "My MCR" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility true --mcr-asn 65000
-  megaport-cli mcr buy --name "My MCR" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility true --resource-tags '{"env":"prod","owner":"network-team"}'
+  megaport-cli mcr buy --name "My MCR" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility=true --mcr-asn 65000
+  megaport-cli mcr buy --name "My MCR" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility=true --resource-tags '{"env":"prod","owner":"network-team"}'
   megaport-cli mcr buy --json '{"name":"My MCR","term":12,"portSpeed":5000,"locationId":123,"mcrAsn":65000,"marketplaceVisibility":true}'
   megaport-cli mcr buy --json-file ./mcr-config.json
 ```
@@ -86,7 +87,7 @@ megaport-cli mcr buy [flags]
 | `--json` |  |  | JSON string containing configuration | false |
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 | `--location-id` |  | `0` | The ID of the location where the MCR will be provisioned | true |
-| `--marketplace-visibility` |  |  | Whether the MCR should be visible in the marketplace (true or false) | true |
+| `--marketplace-visibility` |  | `false` | Whether the MCR should be visible in the marketplace (true or false) | true |
 | `--mcr-asn` |  | `0` | The ASN for the MCR (64512-65534 for private ASN, or a public ASN) | false |
 | `--name` |  |  | The name of the MCR (1-64 characters) | true |
 | `--no-wait` |  | `false` | Do not wait for provisioning to complete | false |

@@ -9,6 +9,7 @@ package wasm
 
 import (
 	"bytes"
+	"math"
 	"strings"
 	"syscall/js"
 	"testing"
@@ -240,6 +241,67 @@ func TestSplitArgs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SplitArgs(tt.input)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// TestSetTerminalWidth verifies the exported width setter/getter round-trip,
+// that negative values reset to "unset" (0), and that absurdly large values
+// are clamped rather than stored as-is.
+func TestSetTerminalWidth(t *testing.T) {
+	defer SetTerminalWidth(0)
+
+	assert.Equal(t, 0, TerminalWidth(), "width should be unset by default")
+
+	SetTerminalWidth(120)
+	assert.Equal(t, 120, TerminalWidth())
+
+	SetTerminalWidth(-5)
+	assert.Equal(t, 0, TerminalWidth(), "negative width should reset to unset")
+
+	SetTerminalWidth(1_000_000_000)
+	assert.Equal(t, maxTerminalWidthCols, TerminalWidth(), "absurd width should clamp to the max")
+}
+
+// TestSetTerminalWidth_JSFunction verifies the JS-exposed setTerminalWidth
+// function for present, absent (invalid), and absurd (tiny/huge) widths.
+func TestSetTerminalWidth_JSFunction(t *testing.T) {
+	RegisterJSFunctions()
+	defer SetTerminalWidth(0)
+
+	setFunc := js.Global().Get("setTerminalWidth")
+
+	tests := []struct {
+		name    string
+		args    []interface{}
+		wantOK  bool
+		wantCol int
+	}{
+		{name: "normal width", args: []interface{}{80}, wantOK: true, wantCol: 80},
+		{name: "tiny width", args: []interface{}{1}, wantOK: true, wantCol: 1},
+		{name: "huge width clamps to max", args: []interface{}{100000}, wantOK: true, wantCol: maxTerminalWidthCols},
+		{name: "out-of-int-range width clamps to max", args: []interface{}{1e300}, wantOK: true, wantCol: maxTerminalWidthCols},
+		{name: "large negative width resets to unset", args: []interface{}{-1e300}, wantOK: true, wantCol: 0},
+		{name: "zero width", args: []interface{}{0}, wantOK: true, wantCol: 0},
+		{name: "missing argument", args: []interface{}{}, wantOK: false},
+		{name: "non-numeric argument", args: []interface{}{"wide"}, wantOK: false},
+		{name: "NaN argument", args: []interface{}{math.NaN()}, wantOK: false},
+		{name: "positive infinity argument", args: []interface{}{math.Inf(1)}, wantOK: false},
+		{name: "negative infinity argument", args: []interface{}{math.Inf(-1)}, wantOK: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetTerminalWidth(0)
+			result := setFunc.Invoke(tt.args...)
+
+			assert.Equal(t, tt.wantOK, result.Get("success").Bool())
+			if tt.wantOK {
+				assert.Equal(t, tt.wantCol, TerminalWidth())
+			} else {
+				assert.Equal(t, 0, TerminalWidth())
+				assert.False(t, result.Get("error").IsUndefined())
+			}
 		})
 	}
 }

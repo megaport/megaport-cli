@@ -221,6 +221,20 @@ func TestWithMCRCreateFlags(t *testing.T) {
 		f := cmd.Flags().Lookup(flag)
 		assert.NotNil(t, f, "MCR creation flag %q should exist", flag)
 	}
+
+	expectedTypes := map[string]string{
+		"term":                   "int",
+		"port-speed":             "int",
+		"location-id":            "int",
+		"mcr-asn":                "int",
+		"marketplace-visibility": "bool",
+	}
+	for name, expectedType := range expectedTypes {
+		f := cmd.Flags().Lookup(name)
+		if f != nil {
+			assert.Equal(t, expectedType, f.Value.Type(), "MCR creation flag %q type", name)
+		}
+	}
 }
 
 func TestWithVXCCreateFlags(t *testing.T) {

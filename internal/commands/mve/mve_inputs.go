@@ -670,15 +670,15 @@ func getBoolFromMap(m map[string]interface{}, key string) (bool, bool) {
 	return b, ok
 }
 
-func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.ModifyMVERequest, error) {
+func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.ModifyMVERequest, bool, error) {
 	var jsonData map[string]interface{}
 
 	rawBytes, err := utils.ReadJSONInput(jsonStr, jsonFilePath)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if err := json.Unmarshal(rawBytes, &jsonData); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, false, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	req := &megaport.ModifyMVERequest{
@@ -686,19 +686,23 @@ func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.
 	}
 
 	if name, present, err := utils.JSONString(jsonData, "name"); err != nil {
-		return nil, err
+		return nil, false, err
 	} else if present && name != "" {
 		req.Name = name
 	}
 
-	if costCentre, present, err := utils.JSONString(jsonData, "costCentre"); err != nil {
-		return nil, err
-	} else if present && costCentre != "" {
+	// A present key (even empty) is applied as given, so an explicit "" clears
+	// it. When absent, the caller re-applies the current cost centre.
+	costCentre, costCentreProvided, err := utils.JSONString(jsonData, "costCentre")
+	if err != nil {
+		return nil, false, err
+	}
+	if costCentreProvided {
 		req.CostCentre = costCentre
 	}
 
 	if contractTermMonths, present, err := utils.JSONNumber(jsonData, "contractTermMonths"); err != nil {
-		return nil, err
+		return nil, false, err
 	} else if present {
 		termMonths := int(contractTermMonths)
 		req.ContractTermMonths = &termMonths
@@ -707,23 +711,34 @@ func processJSONUpdateMVEInput(jsonStr, jsonFilePath, mveUID string) (*megaport.
 	if rawVnics, exists := jsonData["vnics"]; exists {
 		vnicsData, ok := rawVnics.([]interface{})
 		if !ok {
-			return nil, fmt.Errorf("vnics must be an array of objects with a description field")
+			return nil, false, fmt.Errorf("vnics must be an array of objects with a description field")
 		}
 		vnics, err := parseVnicUpdates(vnicsData)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		req.Vnics = vnics
 	}
 
-	if err := validation.ValidateUpdateMVERequest(req); err != nil {
-		return nil, err
+	if needsUpdateMVEValidation(req, costCentreProvided) {
+		if err := validation.ValidateUpdateMVERequest(req); err != nil {
+			return nil, false, err
+		}
 	}
 
-	return req, nil
+	return req, costCentreProvided, nil
 }
 
-func processFlagUpdateMVEInput(cmd *cobra.Command, mveUID string) (*megaport.ModifyMVERequest, error) {
+// needsUpdateMVEValidation reports whether the request has fields the
+// value-based ValidateUpdateMVERequest can meaningfully check. A pure
+// cost-centre change (set or explicit clear) has none, and the validator can't
+// tell a cleared cost centre from an absent one, so it's skipped in that case
+// to avoid rejecting a legitimate clear-only update as "no fields".
+func needsUpdateMVEValidation(req *megaport.ModifyMVERequest, costCentreProvided bool) bool {
+	return req.Name != "" || req.ContractTermMonths != nil || len(req.Vnics) != 0 || !costCentreProvided
+}
+
+func processFlagUpdateMVEInput(cmd *cobra.Command, mveUID string) (*megaport.ModifyMVERequest, bool, error) {
 	name, _ := cmd.Flags().GetString("name")
 	costCentre, _ := cmd.Flags().GetString("cost-centre")
 	contractTerm, _ := cmd.Flags().GetInt("term")
@@ -737,7 +752,11 @@ func processFlagUpdateMVEInput(cmd *cobra.Command, mveUID string) (*megaport.Mod
 		req.Name = name
 	}
 
-	if costCentre != "" {
+	// Apply whatever the user passed, including an explicit empty value to
+	// clear it. When the flag wasn't set, the caller re-applies the current
+	// cost centre so the update doesn't wipe it.
+	costCentreProvided := cmd.Flags().Changed("cost-centre")
+	if costCentreProvided {
 		req.CostCentre = costCentre
 	}
 
@@ -747,24 +766,26 @@ func processFlagUpdateMVEInput(cmd *cobra.Command, mveUID string) (*megaport.Mod
 
 	if cmd.Flags().Changed("vnics") {
 		if strings.TrimSpace(vnicsStr) == "" {
-			return nil, fmt.Errorf("vnics must be a non-empty JSON array of objects with a description field")
+			return nil, false, fmt.Errorf("vnics must be a non-empty JSON array of objects with a description field")
 		}
 		var vnicsData []interface{}
 		if err := json.Unmarshal([]byte(vnicsStr), &vnicsData); err != nil {
-			return nil, fmt.Errorf("failed to parse vnics JSON string: %w", err)
+			return nil, false, fmt.Errorf("failed to parse vnics JSON string: %w", err)
 		}
 		vnics, err := parseVnicUpdates(vnicsData)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		req.Vnics = vnics
 	}
 
-	if err := validation.ValidateUpdateMVERequest(req); err != nil {
-		return nil, err
+	if needsUpdateMVEValidation(req, costCentreProvided) {
+		if err := validation.ValidateUpdateMVERequest(req); err != nil {
+			return nil, false, err
+		}
 	}
 
-	return req, nil
+	return req, costCentreProvided, nil
 }
 
 // parseVnicUpdates decodes a slice of {description: string} maps into

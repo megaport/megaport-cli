@@ -382,6 +382,18 @@ func TestMCRListHasTagFlag(t *testing.T) {
 	require.NotNil(t, list.Flags().Lookup("tag"), "list command should have --tag flag")
 }
 
+func TestMCRBuyAndValidateRejectPositionalArgs(t *testing.T) {
+	_, buy, _, _, _, _, _, _, _, validate := buildMCRCommands(nil)
+
+	require.NotNil(t, buy.Args, "buy command should restrict positional args")
+	assert.Error(t, buy.Args(buy, []string{"false"}),
+		"buy should reject a stray positional arg, e.g. from --marketplace-visibility false being parsed as --marketplace-visibility=true plus a bare \"false\" token")
+
+	require.NotNil(t, validate.Args, "validate command should restrict positional args")
+	assert.Error(t, validate.Args(validate, []string{"false"}),
+		"validate should reject a stray positional arg, e.g. from --marketplace-visibility false being parsed as --marketplace-visibility=true plus a bare \"false\" token")
+}
+
 func TestMCRModule(t *testing.T) {
 	m := NewModule()
 	assert.Equal(t, "mcr", m.Name())

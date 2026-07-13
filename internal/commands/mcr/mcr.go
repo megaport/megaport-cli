@@ -62,6 +62,7 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 
 	// Create buy MCR command
 	buy = cmdbuilder.NewCommand("buy", "Buy an MCR through the Megaport API").
+		WithArgs(cobra.NoArgs).
 		WithColorAwareRunFunc(BuyMCR).
 		WithNoWaitFlag().
 		WithBuyConfirmFlags().
@@ -81,8 +82,8 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithIntFlag("ipsec-tunnel-count", 0, "IPSec tunnel count for an add-on (10, 20, or 30)").
 		WithOptionalFlag("ipsec-tunnel-count", "IPSec tunnel count for an add-on (10, 20, or 30); omit to skip IPSec; set to 0 to include with API default (10)").
 		WithExample("megaport-cli mcr buy --interactive").
-		WithExample("megaport-cli mcr buy --name \"My MCR\" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility true --mcr-asn 65000").
-		WithExample("megaport-cli mcr buy --name \"My MCR\" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility true --resource-tags '{\"env\":\"prod\",\"owner\":\"network-team\"}'").
+		WithExample("megaport-cli mcr buy --name \"My MCR\" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility=true --mcr-asn 65000").
+		WithExample("megaport-cli mcr buy --name \"My MCR\" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility=true --resource-tags '{\"env\":\"prod\",\"owner\":\"network-team\"}'").
 		WithExample("megaport-cli mcr buy --json '{\"name\":\"My MCR\",\"term\":12,\"portSpeed\":5000,\"locationId\":123,\"mcrAsn\":65000,\"marketplaceVisibility\":true}'").
 		WithExample("megaport-cli mcr buy --json-file ./mcr-config.json").
 		WithJSONExample(`{
@@ -109,6 +110,7 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithImportantNote("Resource tags allow you to categorize resources for organization and billing purposes").
 		WithImportantNote("Required flags (name, term, port-speed, location-id, marketplace-visibility) can be skipped when using --interactive, --json, or --json-file").
 		WithImportantNote("IPSec add-on (--ipsec-tunnel-count) is not prompted in interactive mode; use --ipsec-tunnel-count flag or include 'tunnelCount' in the JSON input").
+		WithImportantNote("Use --marketplace-visibility=true or --marketplace-visibility=false (with an equals sign); a space-separated value is not consumed by the flag and is rejected as an unexpected argument").
 		WithRootCmd(rootCmd).
 		WithConditionalRequirements("name", "term", "port-speed", "location-id", "marketplace-visibility").
 		Build()
@@ -220,6 +222,7 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		Build()
 
 	validate = cmdbuilder.NewCommand("validate", "Validate an MCR order without purchasing").
+		WithArgs(cobra.NoArgs).
 		WithColorAwareRunFunc(ValidateMCR).
 		WithMCRCreateFlags().
 		WithStandardInputFlags().
@@ -229,9 +232,10 @@ func buildMCRCommands(rootCmd *cobra.Command) (get, buy, update, del, restore, l
 		WithDocumentedRequiredFlag("port-speed", "The speed of the MCR (1000, 2500, 5000, 10000, 25000, 50000, or 100000 Mbps)").
 		WithDocumentedRequiredFlag("location-id", "The ID of the location where the MCR will be provisioned").
 		WithDocumentedRequiredFlag("marketplace-visibility", "Whether the MCR should be visible in the marketplace (true or false)").
-		WithExample(`megaport-cli mcr validate --name "My MCR" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility true`).
+		WithExample(`megaport-cli mcr validate --name "My MCR" --term 12 --port-speed 5000 --location-id 123 --marketplace-visibility=true`).
 		WithExample("megaport-cli mcr validate --json-file ./mcr-config.json").
 		WithImportantNote("This command only validates the configuration — no resources are created and no charges are incurred").
+		WithImportantNote("Use --marketplace-visibility=true or --marketplace-visibility=false (with an equals sign); a space-separated value is not consumed by the flag and is rejected as an unexpected argument").
 		WithRootCmd(rootCmd).
 		WithConditionalRequirements("name", "term", "port-speed", "location-id", "marketplace-visibility").
 		Build()

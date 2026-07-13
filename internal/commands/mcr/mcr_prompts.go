@@ -185,6 +185,15 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 		return nil, err
 	}
 
+	marketplaceVisibilityStr, err := utils.ResourcePrompt("mcr", "Enter marketplace visibility (true/false) (required): ", noColor)
+	if err != nil {
+		return nil, err
+	}
+	marketplaceVisibility, err := strconv.ParseBool(marketplaceVisibilityStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid marketplace visibility, must be true or false")
+	}
+
 	asnStr, err := utils.ResourcePrompt("mcr", "Enter MCR ASN (optional): ", noColor)
 	if err != nil {
 		return nil, err
@@ -220,15 +229,16 @@ func promptForMCRDetails(noColor bool) (*megaport.BuyMCRRequest, error) {
 	}
 
 	req := &megaport.BuyMCRRequest{
-		Name:          name,
-		Term:          term,
-		PortSpeed:     portSpeed,
-		LocationID:    locationID,
-		MCRAsn:        asn,
-		DiversityZone: diversityZone,
-		CostCentre:    costCentre,
-		PromoCode:     promoCode,
-		ResourceTags:  resourceTags,
+		Name:                  name,
+		Term:                  term,
+		PortSpeed:             portSpeed,
+		LocationID:            locationID,
+		MCRAsn:                asn,
+		DiversityZone:         diversityZone,
+		CostCentre:            costCentre,
+		PromoCode:             promoCode,
+		ResourceTags:          resourceTags,
+		MarketplaceVisibility: &marketplaceVisibility,
 	}
 
 	if err := validation.ValidateMCRRequest(req); err != nil {

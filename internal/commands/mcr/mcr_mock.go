@@ -12,6 +12,7 @@ type MockMCRService struct {
 	BuyMCRErr                             error
 	CapturedBuyMCRRequest                 *megaport.BuyMCRRequest
 	ValidateMCROrderErr                   error
+	CapturedValidateMCROrderRequest       *megaport.BuyMCRRequest
 	GetMCRResult                          *megaport.MCR
 	GetMCRErr                             error
 	ListMCRsResult                        []*megaport.MCR
@@ -74,6 +75,7 @@ func (m *MockMCRService) BuyMCR(ctx context.Context, req *megaport.BuyMCRRequest
 }
 
 func (m *MockMCRService) ValidateMCROrder(ctx context.Context, req *megaport.BuyMCRRequest) error {
+	m.CapturedValidateMCROrderRequest = req
 	return m.ValidateMCROrderErr
 }
 
@@ -336,6 +338,7 @@ func (m *MockMCRService) Reset() {
 	m.BuyMCRErr = nil
 	m.CapturedBuyMCRRequest = nil
 	m.ValidateMCROrderErr = nil
+	m.CapturedValidateMCROrderRequest = nil
 	m.GetMCRResult = nil
 	m.GetMCRErr = nil
 	m.ListMCRsResult = nil

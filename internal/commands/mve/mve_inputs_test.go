@@ -338,7 +338,7 @@ func TestProcessJSONUpdateMVEInput(t *testing.T) {
 				jsonFile = tmpFile.Name()
 			}
 
-			req, err := processJSONUpdateMVEInput(tt.jsonStr, jsonFile, "mve-123")
+			req, _, err := processJSONUpdateMVEInput(tt.jsonStr, jsonFile, "mve-123")
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -618,7 +618,7 @@ func TestProcessFlagUpdateMVEInput(t *testing.T) {
 				require.NoError(t, cmd.Flags().Set("term", "24"))
 			}
 
-			req, err := processFlagUpdateMVEInput(cmd, "mve-123")
+			req, _, err := processFlagUpdateMVEInput(cmd, "mve-123")
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -628,6 +628,58 @@ func TestProcessFlagUpdateMVEInput(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProcessFlagUpdateMVEInput_CostCentreProvided(t *testing.T) {
+	t.Run("flag not set reports not provided", func(t *testing.T) {
+		cmd := createTestCmd()
+		require.NoError(t, cmd.Flags().Set("name", "renamed"))
+		req, provided, err := processFlagUpdateMVEInput(cmd, "mve-123")
+		require.NoError(t, err)
+		assert.False(t, provided)
+		assert.Empty(t, req.CostCentre)
+	})
+
+	t.Run("flag set to a value reports provided", func(t *testing.T) {
+		cmd := createTestCmd()
+		require.NoError(t, cmd.Flags().Set("cost-centre", "CC-1"))
+		req, provided, err := processFlagUpdateMVEInput(cmd, "mve-123")
+		require.NoError(t, err)
+		assert.True(t, provided)
+		assert.Equal(t, "CC-1", req.CostCentre)
+	})
+
+	t.Run("flag set to empty reports provided and empty", func(t *testing.T) {
+		cmd := createTestCmd()
+		require.NoError(t, cmd.Flags().Set("cost-centre", ""))
+		req, provided, err := processFlagUpdateMVEInput(cmd, "mve-123")
+		require.NoError(t, err)
+		assert.True(t, provided)
+		assert.Empty(t, req.CostCentre)
+	})
+}
+
+func TestProcessJSONUpdateMVEInput_CostCentreProvided(t *testing.T) {
+	t.Run("key absent reports not provided", func(t *testing.T) {
+		req, provided, err := processJSONUpdateMVEInput(`{"name":"renamed"}`, "", "mve-123")
+		require.NoError(t, err)
+		assert.False(t, provided)
+		assert.Empty(t, req.CostCentre)
+	})
+
+	t.Run("key present with value reports provided", func(t *testing.T) {
+		req, provided, err := processJSONUpdateMVEInput(`{"costCentre":"CC-1"}`, "", "mve-123")
+		require.NoError(t, err)
+		assert.True(t, provided)
+		assert.Equal(t, "CC-1", req.CostCentre)
+	})
+
+	t.Run("key present but empty reports provided and empty", func(t *testing.T) {
+		req, provided, err := processJSONUpdateMVEInput(`{"costCentre":""}`, "", "mve-123")
+		require.NoError(t, err)
+		assert.True(t, provided)
+		assert.Empty(t, req.CostCentre)
+	})
 }
 
 func createTestCmd() *cobra.Command {
@@ -640,7 +692,7 @@ func createTestCmd() *cobra.Command {
 }
 
 func TestProcessJSONUpdateMVEInput_Vnics(t *testing.T) {
-	req, err := processJSONUpdateMVEInput(`{"vnics":[{"description":"Data Plane"},{"description":"Management"}]}`, "", "mve-123")
+	req, _, err := processJSONUpdateMVEInput(`{"vnics":[{"description":"Data Plane"},{"description":"Management"}]}`, "", "mve-123")
 	require.NoError(t, err)
 	require.NotNil(t, req)
 	require.Len(t, req.Vnics, 2)
@@ -649,7 +701,7 @@ func TestProcessJSONUpdateMVEInput_Vnics(t *testing.T) {
 }
 
 func TestProcessJSONUpdateMVEInput_VnicMissingDescription(t *testing.T) {
-	_, err := processJSONUpdateMVEInput(`{"vnics":[{}]}`, "", "mve-123")
+	_, _, err := processJSONUpdateMVEInput(`{"vnics":[{}]}`, "", "mve-123")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "vnics[0].description")
 }
@@ -658,7 +710,7 @@ func TestProcessFlagUpdateMVEInput_Vnics(t *testing.T) {
 	cmd := createTestCmd()
 	require.NoError(t, cmd.Flags().Set("vnics", `[{"description":"Data Plane"}]`))
 
-	req, err := processFlagUpdateMVEInput(cmd, "mve-123")
+	req, _, err := processFlagUpdateMVEInput(cmd, "mve-123")
 	require.NoError(t, err)
 	require.NotNil(t, req)
 	require.Len(t, req.Vnics, 1)
@@ -669,13 +721,13 @@ func TestProcessFlagUpdateMVEInput_VnicsInvalidJSON(t *testing.T) {
 	cmd := createTestCmd()
 	require.NoError(t, cmd.Flags().Set("vnics", `[{`))
 
-	_, err := processFlagUpdateMVEInput(cmd, "mve-123")
+	_, _, err := processFlagUpdateMVEInput(cmd, "mve-123")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse vnics JSON")
 }
 
 func TestProcessJSONUpdateMVEInput_VnicEntryNotObject(t *testing.T) {
-	_, err := processJSONUpdateMVEInput(`{"vnics":["not-an-object"]}`, "", "mve-123")
+	_, _, err := processJSONUpdateMVEInput(`{"vnics":["not-an-object"]}`, "", "mve-123")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "vnics[0] must be an object")
 }
@@ -684,7 +736,7 @@ func TestProcessFlagUpdateMVEInput_VnicEntryNotObject(t *testing.T) {
 	cmd := createTestCmd()
 	require.NoError(t, cmd.Flags().Set("vnics", `["not-an-object"]`))
 
-	_, err := processFlagUpdateMVEInput(cmd, "mve-123")
+	_, _, err := processFlagUpdateMVEInput(cmd, "mve-123")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "vnics[0] must be an object")
 }
@@ -697,7 +749,7 @@ func TestProcessJSONUpdateMVEInput_VnicsNotArray(t *testing.T) {
 	}
 	for _, in := range cases {
 		t.Run(in, func(t *testing.T) {
-			_, err := processJSONUpdateMVEInput(in, "", "mve-123")
+			_, _, err := processJSONUpdateMVEInput(in, "", "mve-123")
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "vnics must be an array")
 		})
@@ -705,7 +757,7 @@ func TestProcessJSONUpdateMVEInput_VnicsNotArray(t *testing.T) {
 }
 
 func TestProcessJSONUpdateMVEInput_VnicUnsupportedKey(t *testing.T) {
-	_, err := processJSONUpdateMVEInput(`{"vnics":[{"description":"Data Plane","vlan":100}]}`, "", "mve-123")
+	_, _, err := processJSONUpdateMVEInput(`{"vnics":[{"description":"Data Plane","vlan":100}]}`, "", "mve-123")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "vnics[0].vlan is not supported")
 }
@@ -717,7 +769,7 @@ func TestProcessJSONUpdateMVEInput_VnicEmptyDescription(t *testing.T) {
 	}
 	for _, in := range cases {
 		t.Run(in, func(t *testing.T) {
-			_, err := processJSONUpdateMVEInput(in, "", "mve-123")
+			_, _, err := processJSONUpdateMVEInput(in, "", "mve-123")
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "vnics[0].description must not be empty")
 		})
@@ -725,7 +777,7 @@ func TestProcessJSONUpdateMVEInput_VnicEmptyDescription(t *testing.T) {
 }
 
 func TestProcessJSONUpdateMVEInput_VnicTrimsDescription(t *testing.T) {
-	req, err := processJSONUpdateMVEInput(`{"vnics":[{"description":"  Data Plane  "}]}`, "", "mve-123")
+	req, _, err := processJSONUpdateMVEInput(`{"vnics":[{"description":"  Data Plane  "}]}`, "", "mve-123")
 	require.NoError(t, err)
 	require.NotNil(t, req)
 	require.Len(t, req.Vnics, 1)
@@ -733,7 +785,7 @@ func TestProcessJSONUpdateMVEInput_VnicTrimsDescription(t *testing.T) {
 }
 
 func TestProcessJSONUpdateMVEInput_VnicsEmptyArray(t *testing.T) {
-	_, err := processJSONUpdateMVEInput(`{"vnics":[]}`, "", "mve-123")
+	_, _, err := processJSONUpdateMVEInput(`{"vnics":[]}`, "", "mve-123")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "vnics must contain at least one object")
 }
@@ -742,7 +794,7 @@ func TestProcessFlagUpdateMVEInput_VnicsEmptyArray(t *testing.T) {
 	cmd := createTestCmd()
 	require.NoError(t, cmd.Flags().Set("vnics", `[]`))
 
-	_, err := processFlagUpdateMVEInput(cmd, "mve-123")
+	_, _, err := processFlagUpdateMVEInput(cmd, "mve-123")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "vnics must contain at least one object")
 }
@@ -751,13 +803,13 @@ func TestProcessFlagUpdateMVEInput_TermZeroIsValidationError(t *testing.T) {
 	cmd := createTestCmd()
 	require.NoError(t, cmd.Flags().Set("term", "0"))
 
-	_, err := processFlagUpdateMVEInput(cmd, "mve-123")
+	_, _, err := processFlagUpdateMVEInput(cmd, "mve-123")
 	assert.Error(t, err)
 	assert.NotContains(t, err.Error(), "at least one field must be provided")
 }
 
 func TestProcessJSONUpdateMVEInput_TermZeroIsValidationError(t *testing.T) {
-	_, err := processJSONUpdateMVEInput(`{"contractTermMonths":0}`, "", "mve-123")
+	_, _, err := processJSONUpdateMVEInput(`{"contractTermMonths":0}`, "", "mve-123")
 	assert.Error(t, err)
 	assert.NotContains(t, err.Error(), "at least one field must be provided")
 }
@@ -766,7 +818,7 @@ func TestProcessFlagUpdateMVEInput_VnicsEmptyString(t *testing.T) {
 	cmd := createTestCmd()
 	require.NoError(t, cmd.Flags().Set("vnics", ""))
 
-	_, err := processFlagUpdateMVEInput(cmd, "mve-123")
+	_, _, err := processFlagUpdateMVEInput(cmd, "mve-123")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "vnics must be a non-empty JSON array")
 }
@@ -775,7 +827,7 @@ func TestProcessFlagUpdateMVEInput_VnicsWhitespaceString(t *testing.T) {
 	cmd := createTestCmd()
 	require.NoError(t, cmd.Flags().Set("vnics", "   "))
 
-	_, err := processFlagUpdateMVEInput(cmd, "mve-123")
+	_, _, err := processFlagUpdateMVEInput(cmd, "mve-123")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "vnics must be a non-empty JSON array")
 }

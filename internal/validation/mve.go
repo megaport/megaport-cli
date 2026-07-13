@@ -126,7 +126,10 @@ func ValidateBuyMVERequest(req *megaport.BuyMVERequest) error {
 //   - A ValidationError if any validation check fails
 //   - nil if all validation checks pass
 func ValidateUpdateMVERequest(req *megaport.ModifyMVERequest) error {
-	// Check if any update fields are provided
+	// This field-count check is value-based, so it can't tell an explicitly
+	// cleared cost centre ("") from an absent one. Callers that must allow a
+	// clear-only update (see processFlagUpdateMVEInput) skip this validator for
+	// that case; any new caller has to do the same.
 	if req.Name == "" && req.CostCentre == "" && req.ContractTermMonths == nil && len(req.Vnics) == 0 {
 		return NewValidationError("update request", req, "at least one field must be provided for update")
 	}
