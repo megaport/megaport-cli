@@ -157,9 +157,24 @@ executeMegaportCommandAsync('vxc buy --interactive', (result) => {
 
 A prompt left unanswered times out after 10 minutes and the command receives an error.
 
-> **Output streaming:** interactive commands currently return their full output only when
-> the command completes. Live, incremental output streaming is tracked separately and this
-> section will document the subscription API once it lands.
+### Live output streaming
+
+By default a command's output arrives once, in the async callback's result. To render
+output as it is produced instead, register a handler before running the command:
+
+```js
+registerOutputHandler((chunk) => terminal.write(chunk)); // chunk is a string
+```
+
+The contract:
+
+- Only narrative output (progress and status messages) streams. Structured document
+  output (table/JSON/CSV/XML) is never streamed; it arrives once in the completion result.
+- If your handler received at least one chunk without throwing, the completion result does
+  **not** repeat the streamed narrative, so don't render both.
+- If the handler throws or no chunk was delivered, streaming is disabled for the rest of
+  that command and the completion result falls back to the full captured output
+  (already-streamed chunks may then appear twice).
 
 ## Building
 
