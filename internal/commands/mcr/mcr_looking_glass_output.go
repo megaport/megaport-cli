@@ -380,6 +380,10 @@ func printTracerouteResult(result *megaport.LookingGlassTracerouteResult, format
 	}
 	outputs := make([]TracerouteHopOutput, 0, len(result.Hops))
 	for _, hop := range result.Hops {
+		if hop == nil {
+			outputs = append(outputs, TracerouteHopOutput{Hop: "*"})
+			continue
+		}
 		out, err := ToTracerouteHopOutput(hop)
 		if err != nil {
 			return err

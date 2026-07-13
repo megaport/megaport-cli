@@ -207,7 +207,15 @@ func LookingGlassPing(cmd *cobra.Command, args []string, noColor bool, outputFor
 		output.PrintError("--destination is required", noColor)
 		return exitcodes.NewUsageError(fmt.Errorf("--destination is required"))
 	}
+	if err := validation.ValidateIPAddress(destination, "destination"); err != nil {
+		return exitcodes.NewUsageError(err)
+	}
 	source, _ := cmd.Flags().GetString("source")
+	if source != "" {
+		if err := validation.ValidateIPAddress(source, "source"); err != nil {
+			return exitcodes.NewUsageError(err)
+		}
+	}
 
 	req := &megaport.MCRPingRequest{
 		MCRID:              mcrUID,
@@ -247,7 +255,7 @@ func LookingGlassPing(cmd *cobra.Command, args []string, noColor bool, outputFor
 	if err != nil {
 		spinner.Stop()
 		output.PrintError("Failed to start ping: %v", noColor, err)
-		return fmt.Errorf("error starting ping: %v", err)
+		return fmt.Errorf("error starting ping: %w", err)
 	}
 
 	result, err := waitForMCRPingFunc(ctx, client, mcrUID, operationID)
@@ -256,7 +264,7 @@ func LookingGlassPing(cmd *cobra.Command, args []string, noColor bool, outputFor
 
 	if err != nil {
 		output.PrintError("Failed to get ping result: %v", noColor, err)
-		return fmt.Errorf("error waiting for ping result: %v", err)
+		return fmt.Errorf("error waiting for ping result: %w", err)
 	}
 
 	return printPingResult(result, outputFormat, noColor)
@@ -272,7 +280,15 @@ func LookingGlassTraceroute(cmd *cobra.Command, args []string, noColor bool, out
 		output.PrintError("--destination is required", noColor)
 		return exitcodes.NewUsageError(fmt.Errorf("--destination is required"))
 	}
+	if err := validation.ValidateIPAddress(destination, "destination"); err != nil {
+		return exitcodes.NewUsageError(err)
+	}
 	source, _ := cmd.Flags().GetString("source")
+	if source != "" {
+		if err := validation.ValidateIPAddress(source, "source"); err != nil {
+			return exitcodes.NewUsageError(err)
+		}
+	}
 
 	req := &megaport.MCRTracerouteRequest{
 		MCRID:              mcrUID,
@@ -295,7 +311,7 @@ func LookingGlassTraceroute(cmd *cobra.Command, args []string, noColor bool, out
 	if err != nil {
 		spinner.Stop()
 		output.PrintError("Failed to start traceroute: %v", noColor, err)
-		return fmt.Errorf("error starting traceroute: %v", err)
+		return fmt.Errorf("error starting traceroute: %w", err)
 	}
 
 	result, err := waitForMCRTracerouteFunc(ctx, client, mcrUID, operationID)
@@ -304,7 +320,7 @@ func LookingGlassTraceroute(cmd *cobra.Command, args []string, noColor bool, out
 
 	if err != nil {
 		output.PrintError("Failed to get traceroute result: %v", noColor, err)
-		return fmt.Errorf("error waiting for traceroute result: %v", err)
+		return fmt.Errorf("error waiting for traceroute result: %w", err)
 	}
 
 	if result != nil && len(result.Hops) == 0 {

@@ -3,9 +3,11 @@ package mcr
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
@@ -1182,8 +1184,9 @@ func TestLookingGlassPing_StartError(t *testing.T) {
 	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		return &megaport.Client{}, nil
 	})
+	apiErr := fmt.Errorf("api error")
 	pingMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.MCRPingRequest) (string, error) {
-		return "", fmt.Errorf("api error")
+		return "", apiErr
 	}
 
 	cmd := &cobra.Command{}
@@ -1195,6 +1198,7 @@ func TestLookingGlassPing_StartError(t *testing.T) {
 	err := LookingGlassPing(cmd, []string{"test-mcr-uid"}, true, "json")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "error starting ping")
+	assert.True(t, errors.Is(err, apiErr), "underlying error should be preserved via %%w")
 }
 
 func TestLookingGlassPing_WaitError(t *testing.T) {
@@ -1213,8 +1217,9 @@ func TestLookingGlassPing_WaitError(t *testing.T) {
 	pingMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.MCRPingRequest) (string, error) {
 		return "op-123", nil
 	}
+	waitErr := fmt.Errorf("timed out")
 	waitForMCRPingFunc = func(ctx context.Context, client *megaport.Client, mcrUID, operationID string) (*megaport.LookingGlassPingResult, error) {
-		return nil, fmt.Errorf("timed out")
+		return nil, waitErr
 	}
 
 	cmd := &cobra.Command{}
@@ -1226,6 +1231,45 @@ func TestLookingGlassPing_WaitError(t *testing.T) {
 	err := LookingGlassPing(cmd, []string{"test-mcr-uid"}, true, "json")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "error waiting for ping result")
+	assert.True(t, errors.Is(err, waitErr), "underlying error should be preserved via %%w")
+}
+
+func TestLookingGlassPing_InvalidDestination(t *testing.T) {
+	originalLoginFunc := config.GetLoginFunc()
+	defer config.SetLoginFunc(originalLoginFunc)
+
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		return &megaport.Client{}, nil
+	})
+
+	cmd := &cobra.Command{}
+	cmd.Flags().String("destination", "not-an-ip", "")
+	cmd.Flags().String("source", "", "")
+	cmd.Flags().Int("packet-count", 0, "")
+	cmd.Flags().Int("packet-size", 0, "")
+
+	err := LookingGlassPing(cmd, []string{"test-mcr-uid"}, true, "json")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "destination")
+}
+
+func TestLookingGlassPing_InvalidSource(t *testing.T) {
+	originalLoginFunc := config.GetLoginFunc()
+	defer config.SetLoginFunc(originalLoginFunc)
+
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		return &megaport.Client{}, nil
+	})
+
+	cmd := &cobra.Command{}
+	cmd.Flags().String("destination", "8.8.8.8", "")
+	cmd.Flags().String("source", "not-an-ip", "")
+	cmd.Flags().Int("packet-count", 0, "")
+	cmd.Flags().Int("packet-size", 0, "")
+
+	err := LookingGlassPing(cmd, []string{"test-mcr-uid"}, true, "json")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "source")
 }
 
 func TestLookingGlassTraceroute(t *testing.T) {
@@ -1347,8 +1391,9 @@ func TestLookingGlassTraceroute_StartError(t *testing.T) {
 	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
 		return &megaport.Client{}, nil
 	})
+	apiErr := fmt.Errorf("api error")
 	tracerouteMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.MCRTracerouteRequest) (string, error) {
-		return "", fmt.Errorf("api error")
+		return "", apiErr
 	}
 
 	cmd := &cobra.Command{}
@@ -1358,6 +1403,7 @@ func TestLookingGlassTraceroute_StartError(t *testing.T) {
 	err := LookingGlassTraceroute(cmd, []string{"test-mcr-uid"}, true, "json")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "error starting traceroute")
+	assert.True(t, errors.Is(err, apiErr), "underlying error should be preserved via %%w")
 }
 
 func TestLookingGlassTraceroute_WaitError(t *testing.T) {
@@ -1376,8 +1422,9 @@ func TestLookingGlassTraceroute_WaitError(t *testing.T) {
 	tracerouteMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.MCRTracerouteRequest) (string, error) {
 		return "op-456", nil
 	}
+	waitErr := fmt.Errorf("timed out")
 	waitForMCRTracerouteFunc = func(ctx context.Context, client *megaport.Client, mcrUID, operationID string) (*megaport.LookingGlassTracerouteResult, error) {
-		return nil, fmt.Errorf("timed out")
+		return nil, waitErr
 	}
 
 	cmd := &cobra.Command{}
@@ -1387,6 +1434,41 @@ func TestLookingGlassTraceroute_WaitError(t *testing.T) {
 	err := LookingGlassTraceroute(cmd, []string{"test-mcr-uid"}, true, "json")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "error waiting for traceroute result")
+	assert.True(t, errors.Is(err, waitErr), "underlying error should be preserved via %%w")
+}
+
+func TestLookingGlassTraceroute_InvalidDestination(t *testing.T) {
+	originalLoginFunc := config.GetLoginFunc()
+	defer config.SetLoginFunc(originalLoginFunc)
+
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		return &megaport.Client{}, nil
+	})
+
+	cmd := &cobra.Command{}
+	cmd.Flags().String("destination", "not-an-ip", "")
+	cmd.Flags().String("source", "", "")
+
+	err := LookingGlassTraceroute(cmd, []string{"test-mcr-uid"}, true, "json")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "destination")
+}
+
+func TestLookingGlassTraceroute_InvalidSource(t *testing.T) {
+	originalLoginFunc := config.GetLoginFunc()
+	defer config.SetLoginFunc(originalLoginFunc)
+
+	config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+		return &megaport.Client{}, nil
+	})
+
+	cmd := &cobra.Command{}
+	cmd.Flags().String("destination", "8.8.8.8", "")
+	cmd.Flags().String("source", "not-an-ip", "")
+
+	err := LookingGlassTraceroute(cmd, []string{"test-mcr-uid"}, true, "json")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "source")
 }
 
 // Output conversion tests for ping/traceroute
@@ -1482,13 +1564,15 @@ func TestPrintTracerouteResultNil(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid traceroute result: nil value")
 }
 
-func TestPrintTracerouteResult_HopError(t *testing.T) {
+func TestPrintTracerouteResult_NilHop(t *testing.T) {
 	result := &megaport.LookingGlassTracerouteResult{
 		Hops: []*megaport.LookingGlassTracerouteHop{nil},
 	}
-	err := printTracerouteResult(result, "json", true)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid traceroute hop: nil value")
+	out := output.CaptureOutput(func() {
+		err := printTracerouteResult(result, "json", true)
+		assert.NoError(t, err)
+	})
+	assert.Contains(t, out, `"hop": "*"`)
 }
 
 func TestPrintPingResultNil(t *testing.T) {
