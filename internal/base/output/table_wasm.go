@@ -13,6 +13,8 @@ import (
 
 	prettytable "github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
+
+	"github.com/megaport/megaport-cli/internal/wasm"
 )
 
 // isTerminalCached is always false in WASM (no real terminal).
@@ -29,8 +31,12 @@ func SetIsTerminal(val bool) {
 	isTerminalCached.Store(val)
 }
 
-// SetTerminalWidthForTesting is a no-op in WASM; column widths are fixed by config.
-func SetTerminalWidthForTesting(_ int) {}
+// SetTerminalWidthForTesting pins the terminal width used by table rendering.
+// Pass 0 to clear the host-provided width and use the fixed per-header
+// fallback layout. Intended for tests only.
+func SetTerminalWidthForTesting(width int) {
+	wasm.SetTerminalWidth(width)
+}
 
 // WasmTableWriter is a global buffer for capturing table output in WASM
 var WasmTableWriter = &bytes.Buffer{}
@@ -59,7 +65,12 @@ func printTable[T OutputFields](data []T, noColor bool, opts printOptions) error
 		return err
 	}
 
-	tableOutput := WasmTableWriter.String()
+	// Sanitize before this leaves Go: wasmTableOutput is read back by
+	// GetCapturedOutput/GetCompletionOutput and written to xterm without
+	// escaping, and a colorized cell value (colorizeValue) can carry a
+	// resource name or other API field an attacker controls. SGR color codes
+	// are preserved; see wasm.SanitizeTerminalOutput.
+	tableOutput := wasm.SanitizeTerminalOutput(WasmTableWriter.String())
 
 	// Write the table output to stdout so it can be captured by wasm buffers.
 	fmt.Print(tableOutput)
@@ -96,11 +107,30 @@ func printTableToWriter[T OutputFields](w io.Writer, data []T, noColor bool, opt
 	// WASM-specific table configuration with improved column widths
 	// This ensures consistent, readable column distribution in the browser
 	columnConfigs := make([]prettytable.ColumnConfig, len(headers))
+	termWidth := wasm.TerminalWidth()
 	for i, header := range headers {
+		if termWidth > 0 {
+			// Host has told us the real viewport width (xterm.js cols): scale
+			// widths from it the same way the native renderer does.
+			var widthMax int
+			if i == 0 {
+				widthMax = calculateDynamicWidth(termWidth, 10, 15)
+			} else {
+				widthMax = calculateDynamicWidth(termWidth, 15, 25)
+			}
+			columnConfigs[i] = prettytable.ColumnConfig{
+				Number:    i + 1,
+				WidthMax:  widthMax,
+				AutoMerge: false,
+			}
+			continue
+		}
+
 		headerLower := strings.ToLower(header)
 		var widthMax int
 
-		// Set specific widths for each column type optimized for web display
+		// No known viewport width: fall back to fixed widths per column type
+		// optimized for web display.
 		switch headerLower {
 		case "uid", "id":
 			widthMax = 38 // Full UUID width for better readability

@@ -203,6 +203,7 @@ func TestPrintTable_WASM_ColumnWidths(t *testing.T) {
 		},
 	}
 
+	SetTerminalWidthForTesting(0) // fallback: no host-provided width
 	WasmTableWriter.Reset()
 
 	err := printTable(data, false, currentPrintOptions())
@@ -218,6 +219,77 @@ func TestPrintTable_WASM_ColumnWidths(t *testing.T) {
 	assert.Contains(t, output, "METRO")
 	assert.Contains(t, output, "SITE CODE")
 	assert.Contains(t, output, "STATUS")
+}
+
+// wideTableRow is used by the terminal-width tests below; its UID and Name
+// columns are long enough to be affected by both the fallback and dynamic
+// width paths.
+type wideTableRow struct {
+	UID  string `json:"uid" header:"UID"`
+	Name string `json:"name" header:"Name"`
+}
+
+func renderWideTable(t *testing.T) string {
+	t.Helper()
+	data := []wideTableRow{
+		{
+			UID:  "12345678-1234-1234-1234-123456789012",
+			Name: "A very long resource name that would normally wrap",
+		},
+	}
+	WasmTableWriter.Reset()
+	err := printTable(data, false, currentPrintOptions())
+	assert.NoError(t, err)
+	return WasmTableWriter.String()
+}
+
+// TestPrintTable_WASM_TerminalWidth_Absent verifies that with no host width
+// set, rendering falls back to the fixed per-header widths (unchanged
+// behavior).
+func TestPrintTable_WASM_TerminalWidth_Absent(t *testing.T) {
+	SetTerminalWidthForTesting(0)
+	defer SetTerminalWidthForTesting(0)
+
+	output := renderWideTable(t)
+	assert.NotEmpty(t, output)
+	assert.Contains(t, output, "UID")
+	assert.Contains(t, output, "NAME")
+}
+
+// TestPrintTable_WASM_TerminalWidth_Present verifies that a known host width
+// scales column widths using the same percentage logic as native, producing
+// a visibly narrower table than the fixed fallback for a narrow viewport.
+func TestPrintTable_WASM_TerminalWidth_Present(t *testing.T) {
+	SetTerminalWidthForTesting(0)
+	fallbackOutput := renderWideTable(t)
+	fallbackLines := strings.Split(strings.TrimRight(fallbackOutput, "\n"), "\n")
+	assert.NotEmpty(t, fallbackLines)
+
+	SetTerminalWidthForTesting(40)
+	defer SetTerminalWidthForTesting(0)
+	narrowOutput := renderWideTable(t)
+	narrowLines := strings.Split(strings.TrimRight(narrowOutput, "\n"), "\n")
+	assert.NotEmpty(t, narrowLines)
+
+	// The top border's length reflects the total rendered table width.
+	assert.Less(t, len(narrowLines[0]), len(fallbackLines[0]),
+		"a narrow host width should render a narrower table than the fixed fallback")
+}
+
+// TestPrintTable_WASM_TerminalWidth_Absurd verifies rendering doesn't error
+// or panic for extreme (tiny/huge) host-provided widths.
+func TestPrintTable_WASM_TerminalWidth_Absurd(t *testing.T) {
+	defer SetTerminalWidthForTesting(0)
+
+	for _, width := range []int{1, 100000} {
+		SetTerminalWidthForTesting(width)
+		assert.NotPanics(t, func() {
+			output := renderWideTable(t)
+			assert.NotEmpty(t, output)
+			assert.Contains(t, output, "UID")
+			assert.Contains(t, output, "NAME")
+		})
+	}
 }
 
 // TestPrintTable_WASM_BoxDrawing verifies box drawing characters
@@ -298,6 +370,30 @@ func TestPrintTable_WASM_GlobalVariable(t *testing.T) {
 	bufferContent := WasmTableWriter.String()
 
 	assert.Equal(t, bufferContent, globalContent, "Global and buffer content should match")
+}
+
+// TestPrintTable_WASM_SanitizesInjectedControlSequences verifies that a
+// resource name carrying an injected CSI cursor-move sequence (the kind a
+// partner/marketplace listing name could carry) reaches wasmTableOutput with
+// the injected bytes stripped, while the CLI's own SGR color styling for the
+// cell (via colorizeValue) survives.
+func TestPrintTable_WASM_SanitizesInjectedControlSequences(t *testing.T) {
+	data := []SimpleStruct{
+		{ID: 1, Name: "acme-corp\x1b[2K\x1b[Hspoofed", Active: true},
+	}
+
+	js.Global().Delete("wasmTableOutput")
+	WasmTableWriter.Reset()
+
+	err := printTable(data, false, currentPrintOptions())
+	assert.NoError(t, err)
+
+	output := js.Global().Get("wasmTableOutput").String()
+	assert.NotContains(t, output, "\x1b[2K", "injected erase-line sequence must not reach the host")
+	assert.NotContains(t, output, "\x1b[H", "injected cursor-home sequence must not reach the host")
+	assert.Contains(t, output, "acme-corp")
+	assert.Contains(t, output, "spoofed")
+	assert.Contains(t, output, "\x1b[", "the CLI's own SGR color styling for the cell must be preserved")
 }
 
 // TestPrintTable_WASM_ConsoleLogging verifies console logging (basic check)

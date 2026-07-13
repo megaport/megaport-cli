@@ -175,11 +175,14 @@ func promptMVEVendorConfig(vendorStr string, imageID int, productSize string, mv
 			CloudInit:   cloudInit,
 		}, nil
 	case "cisco":
-		manageLocallyStr, err := utils.ResourcePrompt("mve", "Manage locally (true/false) (required): ", noColor)
+		manageLocallyStr, err := utils.ResourcePrompt("mve", "Manage locally (y/yes/true/n/no/false) (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		manageLocally := strings.ToLower(manageLocallyStr) == "true"
+		manageLocally, err := utils.ParseYesNo(manageLocallyStr)
+		if err != nil {
+			return nil, fmt.Errorf("manage locally: %w", err)
+		}
 
 		adminSSHPublicKey, err := utils.ResourcePrompt("mve", "Enter admin SSH public key (required): ", noColor)
 		if err != nil {
@@ -405,7 +408,7 @@ func promptMVEVnics(noColor bool) ([]megaport.MVENetworkInterface, error) {
 	return vnics, nil
 }
 
-func promptForUpdateMVEDetails(mveUID string, currentVnics []*megaport.MVENetworkInterface, noColor bool) (*megaport.ModifyMVERequest, error) {
+func promptForUpdateMVEDetails(mveUID, currentCostCentre string, currentVnics []*megaport.MVENetworkInterface, noColor bool) (*megaport.ModifyMVERequest, error) {
 	req := &megaport.ModifyMVERequest{
 		MVEID: mveUID,
 	}
@@ -418,7 +421,11 @@ func promptForUpdateMVEDetails(mveUID string, currentVnics []*megaport.MVENetwor
 		req.Name = name
 	}
 
-	costCentre, err := utils.ResourcePrompt("mve", "Enter new cost centre (leave empty to keep current): ", noColor)
+	costCentrePrompt := "Enter new cost centre (leave empty to keep current): "
+	if currentCostCentre != "" {
+		costCentrePrompt = fmt.Sprintf("Enter new cost centre (current: %q, leave empty to keep): ", currentCostCentre)
+	}
+	costCentre, err := utils.ResourcePrompt("mve", costCentrePrompt, noColor)
 	if err != nil {
 		return nil, err
 	}
@@ -475,6 +482,13 @@ func promptForUpdateMVEDetails(mveUID string, currentVnics []*megaport.MVENetwor
 
 	if err := validation.ValidateUpdateMVERequest(req); err != nil {
 		return nil, err
+	}
+
+	// Re-send the current cost centre when the user skipped the prompt, so the
+	// update doesn't wipe it. Done after validation so an update that changes
+	// nothing else is still rejected rather than silently re-sending.
+	if req.CostCentre == "" {
+		req.CostCentre = currentCostCentre
 	}
 
 	return req, nil

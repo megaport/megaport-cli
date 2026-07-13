@@ -7,12 +7,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall/js"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -116,6 +118,11 @@ var (
 	// Debug flag — accessed from multiple goroutines, so use atomic.Bool.
 	debugMode atomic.Bool
 
+	// terminalWidthCols holds the host-provided terminal width in columns, set
+	// via the JS-exposed setTerminalWidth function and read by the table
+	// renderer on a goroutine, hence atomic. Zero means "unset".
+	terminalWidthCols atomic.Int64
+
 	// outputStateReset is called by ResetOutputBuffers to clear --fields and
 	// --query flag state between WASM invocations. Registered from main_wasm.go
 	// to break the import cycle between this package and internal/base/output.
@@ -151,13 +158,14 @@ func (d *DirectOutputBuffer) Write(p []byte) (n int, err error) {
 	debug := debugMode.Load()
 	stream := hasOutputHandler() && !outputHandlerFailed.Load()
 
-	// Only materialize the string when something consumes it (debug logging or a
-	// live handler). Commands can stream many small writes, and in the common
-	// case (no handler, no debug) the []byte->string copy is pure waste.
-	var chunk string
-	if debug || stream {
-		chunk = string(p)
-	}
+	// Sanitize before buffering: the host writes this buffer's contents (both
+	// the streamed chunk below and the full buffer read back later via
+	// String()) straight to xterm without escaping, so a crafted resource
+	// name or API response field carrying control bytes must be neutralized
+	// here rather than at each read site. See SanitizeTerminalOutput. This
+	// makes the []byte->string conversion unconditional, unlike before, since
+	// the buffer itself must now hold sanitized text.
+	chunk := SanitizeTerminalOutput(string(p))
 
 	// Buffer the write under the lock in a closure so the mutex is released
 	// (even on a panic in the debug-logging JS calls) before we push to the
@@ -178,14 +186,14 @@ func (d *DirectOutputBuffer) Write(p []byte) (n int, err error) {
 			js.Global().Get("console").Call("debug", chunk)
 		}
 
-		n, err = d.buffer.Write(p)
+		_, err = d.buffer.WriteString(chunk)
 	}()
 
 	// Stream the chunk live to a registered output handler, if any.
 	if stream {
 		pushOutputChunk(chunk)
 	}
-	return n, err
+	return len(p), err
 }
 
 // TraceCommandExecution logs the command hierarchy and available subcommands when debugMode is on.
@@ -280,6 +288,61 @@ func debugAuthInfo(this js.Value, args []js.Value) interface{} {
 	}
 }
 
+// maxTerminalWidthCols bounds the stored width well above any real terminal
+// (hundreds of columns at most), so a bogus or hostile caller can't push an
+// astronomical value into the column-width math downstream.
+const maxTerminalWidthCols = 2000
+
+// SetTerminalWidth stores the host terminal width in columns for the table
+// renderer to size columns against. Zero or negative resets to "unset" so
+// callers fall back to a fixed layout; values above maxTerminalWidthCols are
+// clamped rather than rejected.
+func SetTerminalWidth(cols int) {
+	switch {
+	case cols < 0:
+		cols = 0
+	case cols > maxTerminalWidthCols:
+		cols = maxTerminalWidthCols
+	}
+	terminalWidthCols.Store(int64(cols))
+}
+
+// TerminalWidth returns the last width set via SetTerminalWidth, or 0 if
+// none has been set.
+func TerminalWidth() int {
+	return int(terminalWidthCols.Load())
+}
+
+// setTerminalWidth is the JS-exposed function the host page calls (on init
+// and on resize, via the xterm fit addon) so table rendering can size
+// columns to the real viewport instead of a fixed layout.
+func setTerminalWidth(this js.Value, args []js.Value) interface{} {
+	if len(args) < 1 || args[0].Type() != js.TypeNumber {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "setTerminalWidth requires a numeric cols argument",
+		}
+	}
+	cols := args[0].Float()
+	if math.IsNaN(cols) || math.IsInf(cols, 0) {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "setTerminalWidth requires a finite cols argument",
+		}
+	}
+	// Clamp in float space before converting: int(float64) is
+	// implementation-defined when the value is out of int range, so a huge
+	// finite input could otherwise slip past SetTerminalWidth's cap.
+	switch {
+	case cols < 0:
+		cols = 0
+	case cols > float64(maxTerminalWidthCols):
+		cols = float64(maxTerminalWidthCols)
+	}
+	SetTerminalWidth(int(cols))
+	return map[string]interface{}{"success": true}
+}
+
 // getAuthMethod returns the authentication method being used
 func getAuthMethod(accessKey, secretKey, accessToken string) string {
 	if accessToken != "" {
@@ -307,6 +370,10 @@ func RegisterJSFunctions() {
 	// Export storage operations
 	js.Global().Set("saveToLocalStorage", js.FuncOf(saveToLocalStorage))
 	js.Global().Set("loadFromLocalStorage", js.FuncOf(loadFromLocalStorage))
+
+	// Export the host terminal width so table rendering can size columns to
+	// the real viewport instead of a fixed layout.
+	js.Global().Set("setTerminalWidth", js.FuncOf(setTerminalWidth))
 
 	// Export auth operations (secure, in-memory only)
 	js.Global().Set("setAuthCredentials", js.FuncOf(setAuthCredentials))
@@ -826,6 +893,13 @@ func setAuthCredentials(this js.Value, args []js.Value) interface{} {
 	os.Setenv("MEGAPORT_SECRET_KEY", secretKey)
 	os.Setenv("MEGAPORT_ENVIRONMENT", environment)
 
+	// Clear any token left over from a prior setAuthToken call: loginFunc
+	// checks the token path first, so a stale token would otherwise keep
+	// silently overriding these credentials.
+	os.Unsetenv("MEGAPORT_ACCESS_TOKEN")
+	os.Unsetenv("MEGAPORT_API_URL")
+	js.Global().Delete("megaportToken")
+
 	// Expose only the non-secret environment name so the UI can reflect it.
 	credentialsObj := js.Global().Get("Object").New()
 	credentialsObj.Set("environment", environment)
@@ -856,6 +930,43 @@ func clearAuthCredentials(this js.Value, args []js.Value) interface{} {
 	}
 }
 
+// ParseExpiry converts a JS value into a time.Time, accepting either an
+// epoch-millisecond number or an RFC3339 string. It returns the zero Time
+// (no expiry known) when v is absent, null, undefined, zero, non-finite, or
+// unparseable — callers should fall back to their own default in that case.
+//
+// The number form must be epoch milliseconds, not epoch seconds: a JWT `exp`
+// claim (conventionally epoch seconds) passed through unconverted will parse
+// as a timestamp in 1970 rather than fail loudly, since any positive number
+// is otherwise accepted. Multiply a seconds-based value by 1000 first.
+func ParseExpiry(v js.Value) time.Time {
+	switch v.Type() {
+	case js.TypeNumber:
+		ms := v.Float()
+		if ms <= 0 || ms > math.MaxInt64 || math.IsNaN(ms) || math.IsInf(ms, 0) {
+			return time.Time{}
+		}
+		return time.UnixMilli(int64(ms)).UTC()
+	case js.TypeString:
+		s := strings.TrimSpace(v.String())
+		if s == "" {
+			return time.Time{}
+		}
+		t, err := time.Parse(time.RFC3339, s)
+		if err != nil {
+			return time.Time{}
+		}
+		return t.UTC()
+	default:
+		if v.Type() != js.TypeUndefined && v.Type() != js.TypeNull {
+			js.Global().Get("console").Call("warn", fmt.Sprintf(
+				"setAuthToken: expiry has unexpected type %q, ignoring (expected epoch-ms number or RFC3339 string)", v.Type().String(),
+			))
+		}
+		return time.Time{}
+	}
+}
+
 // setAuthToken sets an external access token for authentication.
 // This bypasses the OAuth flow and uses the token directly from the portal session.
 // Use this when the portal already has a valid login token stored in the browser.
@@ -863,8 +974,15 @@ func clearAuthCredentials(this js.Value, args []js.Value) interface{} {
 // The environment is resolved with the following precedence:
 //  1. The explicit override passed as the 3rd argument (must match [a-z0-9-]+).
 //  2. The environment derived from the hostname via environmentFromHostname.
-//     setAuthToken(token, hostname)               // environment derived from hostname
-//     setAuthToken(token, hostname, environment)  // explicit environment override
+//     setAuthToken(token, hostname)                       // environment derived from hostname
+//     setAuthToken(token, hostname, environment)          // explicit environment override
+//     setAuthToken(token, hostname, environment, expiry)  // also pass the token's expiry
+//
+// expiry is optional and accepts either an epoch-millisecond number or an
+// RFC3339 string (see ParseExpiry). Pass null/undefined for environment to
+// skip it while still supplying expiry. When omitted, the token is treated as
+// non-expiring (the SDK's zero-expiry fallback) — the host must call
+// setAuthToken again on a session-expired signal regardless.
 func setAuthToken(this js.Value, args []js.Value) interface{} {
 	if len(args) < 2 {
 		return map[string]interface{}{
@@ -906,6 +1024,14 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 			"success": false,
 			"error":   "environment must contain only lowercase letters, digits, and hyphens",
 		}
+	}
+
+	// Optional 4th argument: the token's real expiry, as an epoch-ms number or
+	// an RFC3339 string. Absent/invalid resolves to the zero Time, which the
+	// caller falls back to a non-expiring token for (see WithAccessToken).
+	var expiry time.Time
+	if len(args) >= 4 {
+		expiry = ParseExpiry(args[3])
 	}
 
 	// Resolve the environment. The override wins; otherwise we derive it from
@@ -965,6 +1091,11 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 	js.Global().Get("console").Call("log", fmt.Sprintf("🌐 Hostname: %s", hostname))
 	js.Global().Get("console").Call("log", fmt.Sprintf("%s Environment: %s", environmentRiskStatus, environmentLog))
 	js.Global().Get("console").Call("log", fmt.Sprintf("🔗 API URL: %s", apiURL))
+	if !expiry.IsZero() {
+		js.Global().Get("console").Call("log", fmt.Sprintf("⏰ Token expiry: %s", expiry.Format(time.RFC3339)))
+	} else {
+		js.Global().Get("console").Call("log", "⏰ Token expiry: none provided (treated as non-expiring)")
+	}
 
 	// Store token, environment bucket, and API URL for downstream Go code.
 	// MEGAPORT_ENVIRONMENT is bucketed to one of "production"/"staging"/"development"
@@ -982,10 +1113,17 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 
 	// Expose only metadata (not the raw token) in the JS global so the UI can
 	// reflect the current session state without re-exposing the bearer token.
+	// expiry is stored as epoch-ms (0 when unknown) so it round-trips through
+	// ParseExpiry the same way a fresh call's 4th argument would.
 	tokenObj := js.Global().Get("Object").New()
 	tokenObj.Set("environment", environment)
 	tokenObj.Set("hostname", hostname)
 	tokenObj.Set("apiURL", apiURL)
+	if !expiry.IsZero() {
+		tokenObj.Set("expiry", float64(expiry.UnixMilli()))
+	} else {
+		tokenObj.Set("expiry", 0)
+	}
 	js.Global().Set("megaportToken", tokenObj)
 
 	// Clear any existing credentials object
@@ -993,12 +1131,16 @@ func setAuthToken(this js.Value, args []js.Value) interface{} {
 
 	js.Global().Get("console").Call("log", "🔐 External token set (in-memory only, bypassing OAuth flow)")
 
-	return map[string]interface{}{
+	result := map[string]interface{}{
 		"success":     true,
 		"environment": environment,
 		"hostname":    hostname,
 		"apiURL":      apiURL,
 	}
+	if !expiry.IsZero() {
+		result["expiry"] = expiry.Format(time.RFC3339)
+	}
+	return result
 }
 
 // InstallCommandHooks registers JavaScript helper functions for command debugging.

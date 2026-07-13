@@ -31,9 +31,9 @@ func TestPromptForMCRDetails_Success(t *testing.T) {
 		utils.SetResourceTagsPrompt(originalTagsPrompt)
 	}()
 
-	// name, term, portSpeed, locationID, asn, diversityZone, costCentre, promoCode
+	// name, term, portSpeed, locationID, marketplaceVisibility, asn, diversityZone, costCentre, promoCode
 	utils.SetResourcePrompt(mockPromptSequence([]string{
-		"Test MCR", "12", "5000", "1", "65000", "blue", "IT-2024", "PROMO",
+		"Test MCR", "12", "5000", "1", "true", "65000", "blue", "IT-2024", "PROMO",
 	}))
 	utils.SetResourceTagsPrompt(func(noColor bool) (map[string]string, error) {
 		return map[string]string{"env": "test"}, nil
@@ -45,6 +45,8 @@ func TestPromptForMCRDetails_Success(t *testing.T) {
 	assert.Equal(t, 12, req.Term)
 	assert.Equal(t, 5000, req.PortSpeed)
 	assert.Equal(t, 1, req.LocationID)
+	require.NotNil(t, req.MarketplaceVisibility)
+	assert.True(t, *req.MarketplaceVisibility)
 	assert.Equal(t, 65000, req.MCRAsn)
 	assert.Equal(t, "blue", req.DiversityZone)
 	assert.Equal(t, "IT-2024", req.CostCentre)
@@ -94,6 +96,27 @@ func TestPromptForMCRDetails_InvalidLocationID(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid location ID")
 }
 
+func TestPromptForMCRDetails_MarketplaceVisibilityPromptError(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	// name, term, portSpeed, locationID succeed; marketplaceVisibility prompt (5th) fails.
+	idx := 0
+	responses := []string{"MCR", "12", "5000", "1"}
+	utils.SetResourcePrompt(func(resourceType, msg string, noColor bool) (string, error) {
+		if idx >= len(responses) {
+			return "", fmt.Errorf("prompt failure on marketplace visibility")
+		}
+		val := responses[idx]
+		idx++
+		return val, nil
+	})
+
+	_, err := promptForMCRDetails(true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "prompt failure on marketplace visibility")
+}
+
 func TestPromptForMCRDetails_InvalidPortSpeedNotNumeric(t *testing.T) {
 	originalPrompt := utils.GetResourcePrompt()
 	defer func() { utils.SetResourcePrompt(originalPrompt) }()
@@ -106,11 +129,22 @@ func TestPromptForMCRDetails_InvalidPortSpeedNotNumeric(t *testing.T) {
 	assert.NotContains(t, err.Error(), "strconv")
 }
 
+func TestPromptForMCRDetails_InvalidMarketplaceVisibility(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	utils.SetResourcePrompt(mockPromptSequence([]string{"MCR", "12", "5000", "1", "maybe"}))
+
+	_, err := promptForMCRDetails(true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid marketplace visibility, must be true or false")
+}
+
 func TestPromptForMCRDetails_InvalidASN(t *testing.T) {
 	originalPrompt := utils.GetResourcePrompt()
 	defer func() { utils.SetResourcePrompt(originalPrompt) }()
 
-	utils.SetResourcePrompt(mockPromptSequence([]string{"MCR", "12", "5000", "1", "abc"}))
+	utils.SetResourcePrompt(mockPromptSequence([]string{"MCR", "12", "5000", "1", "true", "abc"}))
 
 	_, err := promptForMCRDetails(true)
 	assert.Error(t, err)
@@ -137,6 +171,96 @@ func TestPromptForUpdateMCRDetails_Success(t *testing.T) {
 	assert.Equal(t, 24, *req.ContractTermMonths)
 	require.NotNil(t, req.MCRAsn)
 	assert.Equal(t, 65030, *req.MCRAsn)
+}
+
+func TestPromptForUpdateMCRDetails_MarketplaceVisibility_YAccepted(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	// name, costCentre, marketplaceVisibility(yes/no), visibilityValue(y)
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"", "", "yes", "y", "", "",
+	}))
+
+	req, err := promptForUpdateMCRDetails("mcr-123", "", true)
+	assert.NoError(t, err)
+	require.NotNil(t, req.MarketplaceVisibility)
+	assert.True(t, *req.MarketplaceVisibility)
+}
+
+func TestPromptForUpdateMCRDetails_MarketplaceVisibility_NoAccepted(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	// name, costCentre, marketplaceVisibility(yes/no), visibilityValue(n)
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"", "", "yes", "n", "", "",
+	}))
+
+	req, err := promptForUpdateMCRDetails("mcr-123", "", true)
+	assert.NoError(t, err)
+	require.NotNil(t, req.MarketplaceVisibility)
+	assert.False(t, *req.MarketplaceVisibility)
+}
+
+func TestPromptForUpdateMCRDetails_InvalidMarketplaceVisibilityValue(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	// name, costCentre, marketplaceVisibility(yes/no), visibilityValue(invalid)
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"", "", "yes", "ture",
+	}))
+
+	_, err := promptForUpdateMCRDetails("mcr-123", "", true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "marketplace visibility")
+	assert.Contains(t, err.Error(), "not a recognized yes/no answer")
+}
+
+func TestPromptForUpdateMCRDetails_MarketplaceVisibilityGate_ShorthandY(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	// name, costCentre, marketplaceVisibility(y), visibilityValue(yes)
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"", "", "y", "yes", "", "",
+	}))
+
+	req, err := promptForUpdateMCRDetails("mcr-123", "", true)
+	assert.NoError(t, err)
+	require.NotNil(t, req.MarketplaceVisibility)
+	assert.True(t, *req.MarketplaceVisibility)
+}
+
+func TestPromptForUpdateMCRDetails_InvalidMarketplaceVisibilityGateValue(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	// name, costCentre, marketplaceVisibility(invalid)
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"", "", "maybe",
+	}))
+
+	_, err := promptForUpdateMCRDetails("mcr-123", "", true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "update marketplace visibility")
+	assert.Contains(t, err.Error(), "not a recognized yes/no answer")
+}
+
+func TestPromptForUpdateMCRDetails_MarketplaceVisibilityGate_NoSkipsUpdate(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	// name, costCentre, marketplaceVisibility(n), term, asn
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"Updated MCR", "", "n", "", "",
+	}))
+
+	req, err := promptForUpdateMCRDetails("mcr-123", "", true)
+	assert.NoError(t, err)
+	assert.Nil(t, req.MarketplaceVisibility)
+	assert.Equal(t, "Updated MCR", req.Name)
 }
 
 func TestPromptForUpdateMCRDetails_CostCentrePreserved(t *testing.T) {
@@ -501,6 +625,71 @@ func TestPromptUpdateExistingEntries_DeleteEntry(t *testing.T) {
 	entries, err := promptUpdateExistingEntries(current, true)
 	assert.NoError(t, err)
 	assert.Len(t, entries, 0)
+}
+
+func TestPromptUpdateExistingEntries_KeepUnmodified_ShorthandYN(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	current := []*megaport.MCRPrefixListEntry{
+		{Prefix: "10.0.0.0/8", Action: "permit", Ge: 16, Le: 24},
+	}
+
+	// keep=y, modify=n -- a "y" answer must keep the entry, not drop it.
+	utils.SetResourcePrompt(mockPromptSequence([]string{"y", "n"}))
+
+	entries, err := promptUpdateExistingEntries(current, true)
+	assert.NoError(t, err)
+	assert.Len(t, entries, 1)
+	assert.Equal(t, "10.0.0.0/8", entries[0].Prefix)
+}
+
+func TestPromptUpdateExistingEntries_DeleteEntry_ShorthandN(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	current := []*megaport.MCRPrefixListEntry{
+		{Prefix: "10.0.0.0/8", Action: "permit"},
+	}
+
+	// keep=n (delete)
+	utils.SetResourcePrompt(mockPromptSequence([]string{"n"}))
+
+	entries, err := promptUpdateExistingEntries(current, true)
+	assert.NoError(t, err)
+	assert.Len(t, entries, 0)
+}
+
+func TestPromptUpdateExistingEntries_InvalidKeepResponse(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	current := []*megaport.MCRPrefixListEntry{
+		{Prefix: "10.0.0.0/8", Action: "permit"},
+	}
+
+	utils.SetResourcePrompt(mockPromptSequence([]string{"maybe"}))
+
+	_, err := promptUpdateExistingEntries(current, true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "keep entry 1")
+	assert.Contains(t, err.Error(), "not a recognized yes/no answer")
+}
+
+func TestPromptUpdateExistingEntries_InvalidModifyResponse(t *testing.T) {
+	originalPrompt := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(originalPrompt) }()
+
+	current := []*megaport.MCRPrefixListEntry{
+		{Prefix: "10.0.0.0/8", Action: "permit"},
+	}
+
+	utils.SetResourcePrompt(mockPromptSequence([]string{"yes", "maybe"}))
+
+	_, err := promptUpdateExistingEntries(current, true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "modify entry 1")
+	assert.Contains(t, err.Error(), "not a recognized yes/no answer")
 }
 
 func TestPromptForUpdatePrefixFilterListDetails_Success(t *testing.T) {

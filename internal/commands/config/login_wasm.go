@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/base/output"
+	"github.com/megaport/megaport-cli/internal/wasm"
 	"github.com/megaport/megaport-cli/internal/wasm/wasmhttp"
 	megaport "github.com/megaport/megaportgo"
 )
@@ -104,6 +105,11 @@ var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 		// page-writable, so trusting it would let another script redirect the
 		// bearer token to an attacker-controlled host.
 		apiURL := os.Getenv("MEGAPORT_API_URL")
+		// Real expiry, if the host supplied one via setAuthToken's 4th argument
+		// (stored as epoch-ms on this global). Zero remains the fallback when
+		// the host didn't supply one; WithAccessToken treats zero as
+		// non-expiring, matching the historical behavior.
+		expiry := wasm.ParseExpiry(megaportTokenGlobal.Get("expiry"))
 
 		if token != "" {
 			js.Global().Get("console").Call("log", "✅ Using external token from portal (bypassing OAuth flow)")
@@ -116,7 +122,7 @@ var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 
 			// Build client options - prefer the validated API URL if available
 			var clientOpts []megaport.ClientOpt
-			clientOpts = append(clientOpts, megaport.WithAccessToken(token, time.Time{}))
+			clientOpts = append(clientOpts, megaport.WithAccessToken(token, expiry))
 
 			if apiURL != "" {
 				// Use the validated API URL - this auto-works for new environments
@@ -304,10 +310,20 @@ func RetryWithBackoffAndConsoleLogging(ctx context.Context, attempts int, client
 	environment := "production"
 	if client != nil && client.BaseURL != nil {
 		switch client.BaseURL.Host {
+		case "api.megaport.com":
+			// environment already defaults to "production"
 		case "api-staging.megaport.com":
 			environment = "staging"
 		case "api-mpone-dev.megaport.com":
 			environment = "development"
+		default:
+			// Unrecognised host (e.g. a non-standard environment set up via
+			// setAuthToken's environment override): log the production
+			// assumption explicitly rather than silently bucketing the token
+			// cache under production, which would collide with a real
+			// production-cached token for a different environment.
+			js.Global().Get("console").Call("warn", fmt.Sprintf(
+				"unrecognised API host %q for token-cache environment bucketing; assuming production", client.BaseURL.Host))
 		}
 	} else {
 		return nil, errors.New("megaport client is nil or has no valid BaseURL")
@@ -409,30 +425,49 @@ func CheckCachedToken(environment string) *megaport.AuthInfo {
 		return nil
 	}
 
-	// Get token from token manager
-	token := js.Global().Get("tokenManager").Call("getToken", environment)
+	// Get token from token manager. The host may return either a bare token
+	// string (legacy contract, no TTL info) or an object {token, expiry}
+	// where expiry is an epoch-ms number or RFC3339 string (see
+	// wasm.ParseExpiry) — the object form lets the cache honor the token's
+	// real TTL instead of guessing.
+	result := js.Global().Get("tokenManager").Call("getToken", environment)
 
-	if token.IsNull() || token.IsUndefined() {
+	if result.IsNull() || result.IsUndefined() {
 		js.Global().Get("console").Call("log", "No valid cached token found")
 		return nil
 	}
 
-	// If we have a valid token, create auth info
-	tokenStr := token.String()
-	if tokenStr != "" {
-		js.Global().Get("console").Call("log", "Found cached token")
-
-		// For cached tokens, set expiry to 24 hours from now
-		// The token manager already checked if it's valid
-		expiry := time.Now().Add(24 * time.Hour)
-
-		return &megaport.AuthInfo{
-			AccessToken: tokenStr,
-			Expiration:  expiry,
+	var tokenStr string
+	var expiry time.Time
+	switch result.Type() {
+	case js.TypeString:
+		tokenStr = result.String()
+	case js.TypeObject:
+		if tokenVal := result.Get("token"); tokenVal.Type() == js.TypeString {
+			tokenStr = tokenVal.String()
 		}
+		expiry = wasm.ParseExpiry(result.Get("expiry"))
 	}
 
-	return nil
+	if tokenStr == "" {
+		js.Global().Get("console").Call("log", "No valid cached token found")
+		return nil
+	}
+
+	js.Global().Get("console").Call("log", "Found cached token")
+
+	// Fall back to the historical 24h assumption only when the host didn't
+	// supply a real TTL (legacy bare-string contract). The token manager
+	// already checked the token is valid, so this is a display/renewal
+	// timing heuristic, not a validity check.
+	if expiry.IsZero() {
+		expiry = time.Now().Add(24 * time.Hour)
+	}
+
+	return &megaport.AuthInfo{
+		AccessToken: tokenStr,
+		Expiration:  expiry,
+	}
 }
 
 // clearCachedToken removes any stored token

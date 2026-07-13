@@ -95,6 +95,11 @@ func processFlagMCRInput(cmd *cobra.Command) (*megaport.BuyMCRRequest, error) {
 		ResourceTags:  resourceTags,
 	}
 
+	if cmd.Flags().Changed("marketplace-visibility") {
+		marketplaceVisibility, _ := cmd.Flags().GetBool("marketplace-visibility")
+		req.MarketplaceVisibility = &marketplaceVisibility
+	}
+
 	if cmd.Flags().Changed("ipsec-tunnel-count") {
 		ipsecTunnelCount, _ := cmd.Flags().GetInt("ipsec-tunnel-count")
 		if ipsecTunnelCount < 0 {

@@ -25,13 +25,13 @@ jobs:
         # test file that stops building is caught here.
         run: make wasm-vet
       - name: Run WASM unit tests
-        # wasm-vet above already compiles all wasm test packages. Only
-        # ./cmd/megaport can also run under the bare go_js_wasm_exec (node)
-        # runtime; the rest need a browser host (fetch, JS bridge globals, stdin
-        # pipes) and are verified manually in-browser.
+        # Runs the WASM tests that are safe under the bare go_js_wasm_exec (node)
+        # runtime. ./cmd/megaport and the whole ./internal/base/output wasm suite
+        # run cleanly under node; the rest need a browser host (fetch, JS bridge
+        # globals, stdin pipes) and are verified manually in-browser.
         run: |
           export PATH="$PATH:$(go env GOROOT)/lib/wasm"
-          GOOS=js GOARCH=wasm go test -v -tags js,wasm ./cmd/megaport
+          GOOS=js GOARCH=wasm go test -v -tags js,wasm ./cmd/megaport ./internal/base/output
       - name: Run WASM output-streaming unit tests
         # internal/wasm's browser-only tests live in wasm_browser_test.go behind
         # the `browser` build tag, so the default js,wasm run compiles only the

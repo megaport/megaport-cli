@@ -1061,6 +1061,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 				"12",
 				"10000",
 				"123",
+				"true",
 				"65000",
 				"red",
 				"cost-123",
@@ -1076,14 +1077,15 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 		{
 			name: "flag mode success",
 			flags: map[string]string{
-				"name":           "Flag MCR",
-				"term":           "12",
-				"port-speed":     "10000",
-				"location-id":    "123",
-				"mcr-asn":        "65000",
-				"diversity-zone": "blue",
-				"cost-centre":    "cost-456",
-				"promo-code":     "FLAGPROMO",
+				"name":                   "Flag MCR",
+				"term":                   "12",
+				"port-speed":             "10000",
+				"location-id":            "123",
+				"mcr-asn":                "65000",
+				"diversity-zone":         "blue",
+				"cost-centre":            "cost-456",
+				"promo-code":             "FLAGPROMO",
+				"marketplace-visibility": "true",
 			},
 			setupMock: func(m *MockMCRService) {
 				m.BuyMCRResult = &megaport.BuyMCRResponse{
@@ -1095,7 +1097,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 		{
 			name: "JSON string mode success",
 			flags: map[string]string{
-				"json": `{"name":"JSON MCR","term":24,"portSpeed":10000,"locationId":123,"mcrAsn":65000,"diversityZone":"green","costCentre":"cost-789","promoCode":"JSONPROMO"}`,
+				"json": `{"name":"JSON MCR","term":24,"portSpeed":10000,"locationId":123,"mcrAsn":65000,"diversityZone":"green","costCentre":"cost-789","promoCode":"JSONPROMO","marketplaceVisibility":true}`,
 			},
 			setupMock: func(m *MockMCRService) {
 				m.BuyMCRResult = &megaport.BuyMCRResponse{
@@ -1231,6 +1233,7 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 			cmd.Flags().String("diversity-zone", "", "Diversity zone for the MCR")
 			cmd.Flags().String("cost-centre", "", "Cost centre for billing")
 			cmd.Flags().String("promo-code", "", "Promotional code for discounts")
+			cmd.Flags().Bool("marketplace-visibility", false, "Whether the MCR is visible in the marketplace")
 			cmd.Flags().String("json", "", "JSON string containing MCR configuration")
 			cmd.Flags().String("json-file", "", "Path to JSON file containing MCR configuration")
 			cmd.Flags().Int("ipsec-tunnel-count", 0, "Number of IPsec tunnels to provision")
@@ -1274,6 +1277,8 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 						assert.Equal(t, "green", req.DiversityZone)
 						assert.Equal(t, "cost-789", req.CostCentre)
 						assert.Equal(t, "JSONPROMO", req.PromoCode)
+						require.NotNil(t, req.MarketplaceVisibility)
+						assert.True(t, *req.MarketplaceVisibility)
 					} else if tt.flags != nil {
 						assert.Equal(t, "Flag MCR", req.Name)
 						assert.Equal(t, 12, req.Term)
@@ -1283,6 +1288,8 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 						assert.Equal(t, "blue", req.DiversityZone)
 						assert.Equal(t, "cost-456", req.CostCentre)
 						assert.Equal(t, "FLAGPROMO", req.PromoCode)
+						require.NotNil(t, req.MarketplaceVisibility)
+						assert.True(t, *req.MarketplaceVisibility)
 					} else if len(tt.prompts) > 0 {
 						assert.Equal(t, "Test MCR", req.Name)
 						assert.Equal(t, 12, req.Term)
@@ -1292,6 +1299,8 @@ func TestBuyMCRCmd_WithMockClient(t *testing.T) {
 						assert.Equal(t, "red", req.DiversityZone)
 						assert.Equal(t, "cost-123", req.CostCentre)
 						assert.Equal(t, "MCRPROMO2025", req.PromoCode)
+						require.NotNil(t, req.MarketplaceVisibility)
+						assert.True(t, *req.MarketplaceVisibility)
 					}
 				}
 			}
@@ -3298,6 +3307,11 @@ func TestValidateMCR(t *testing.T) {
 				assert.NoError(t, err)
 				if tt.expectedContains != "" {
 					assert.Contains(t, capturedOutput, tt.expectedContains)
+				}
+				if tt.expectedContains == "validation passed" {
+					require.NotNil(t, mockService.CapturedValidateMCROrderRequest)
+					require.NotNil(t, mockService.CapturedValidateMCROrderRequest.MarketplaceVisibility)
+					assert.True(t, *mockService.CapturedValidateMCROrderRequest.MarketplaceVisibility)
 				}
 			}
 		})

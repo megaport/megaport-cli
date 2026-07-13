@@ -127,6 +127,9 @@ let promptInputBuffer = '';
 let isInInteractiveCommand = false; // Track if we're in an interactive command session
 let receivedStreamedOutput = false; // Whether the current command streamed any output
 let resizeTimeoutId: NodeJS.Timeout | null = null; // For debouncing resize
+let handleResize: ReturnType<typeof debounce> | null = null; // For removing the resize listener on unmount
+let readyCheckIntervalId: NodeJS.Timeout | null = null; // Polls for WASM readiness on mount
+let readyCheckTimeoutId: NodeJS.Timeout | null = null; // Stops the readiness poll after a timeout
 
 /**
  * Debounce utility function
@@ -239,6 +242,16 @@ const loadXtermCSS = (): Promise<void> => {
 };
 
 /**
+ * Tell the WASM table renderer how wide the terminal viewport is, so tables
+ * scale to the real column count instead of a fixed layout.
+ */
+const syncTerminalWidth = () => {
+  if (terminal && typeof window.setTerminalWidth === 'function') {
+    window.setTerminalWidth(terminal.cols);
+  }
+};
+
+/**
  * Initialize xterm.js terminal
  */
 const initTerminal = async () => {
@@ -279,6 +292,7 @@ const initTerminal = async () => {
   // Open terminal
   terminal.open(terminalRef.value);
   fitAddon.fit();
+  syncTerminalWidth();
 
   // Display welcome message
   terminal.write(props.welcomeMessage);
@@ -291,8 +305,9 @@ const initTerminal = async () => {
   });
 
   // Handle resize with debounce to prevent excessive re-calculations
-  const handleResize = debounce(() => {
+  handleResize = debounce(() => {
     fitAddon?.fit();
+    syncTerminalWidth();
   }, TERMINAL_CONFIG.RESIZE_DEBOUNCE_DELAY);
 
   window.addEventListener('resize', handleResize);
@@ -680,12 +695,24 @@ const reload = () => {
   window.location.reload();
 };
 
+// Stop the WASM readiness poll and its timeout, whichever are still pending.
+const stopReadyCheck = () => {
+  if (readyCheckIntervalId) {
+    clearInterval(readyCheckIntervalId);
+    readyCheckIntervalId = null;
+  }
+  if (readyCheckTimeoutId) {
+    clearTimeout(readyCheckTimeoutId);
+    readyCheckTimeoutId = null;
+  }
+};
+
 // Lifecycle
 onMounted(() => {
   // Wait for WASM to be ready
-  const checkReady = setInterval(() => {
+  readyCheckIntervalId = setInterval(() => {
     if (isReady.value) {
-      clearInterval(checkReady);
+      stopReadyCheck();
       initTerminal(); // Now async but we don't need to await
       setupPromptHandler(); // Register inline prompt handler
       setupOutputHandler(); // Register live output streaming handler
@@ -693,13 +720,20 @@ onMounted(() => {
   }, 100);
 
   // Cleanup after 30 seconds if not ready
-  setTimeout(() => clearInterval(checkReady), 30000);
+  readyCheckTimeoutId = setTimeout(stopReadyCheck, 30000);
 });
 
 onBeforeUnmount(() => {
+  stopReadyCheck();
+
   // Clear resize timeout if pending
   if (resizeTimeoutId) {
     clearTimeout(resizeTimeoutId);
+  }
+
+  if (handleResize) {
+    window.removeEventListener('resize', handleResize);
+    handleResize = null;
   }
 
   fitAddon?.dispose();
