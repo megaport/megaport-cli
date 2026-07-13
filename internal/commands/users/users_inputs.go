@@ -79,12 +79,23 @@ func processFlagCreateUserInput(cmd *cobra.Command) (*megaport.CreateUserRequest
 func processJSONUpdateUserInput(jsonStr, jsonFile string) (*megaport.UpdateUserRequest, error) {
 	jsonData, err := utils.ReadJSONInput(jsonStr, jsonFile)
 	if err != nil {
-		return nil, err
+		return nil, exitcodes.NewUsageError(err)
 	}
 
 	req := &megaport.UpdateUserRequest{}
 	if err := json.Unmarshal(jsonData, req); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse JSON: %w", err))
+	}
+
+	if *req == (megaport.UpdateUserRequest{}) {
+		return nil, exitcodes.NewUsageError(fmt.Errorf("at least one field must be updated"))
+	}
+
+	if req.Position != nil {
+		position := megaport.UserPosition(*req.Position)
+		if *req.Position != "" && !position.IsValid() {
+			return nil, exitcodes.NewUsageError(fmt.Errorf("invalid position: %s. Valid positions: %s", *req.Position, position.ValidPositions()))
+		}
 	}
 
 	return req, nil
@@ -111,6 +122,10 @@ func processFlagUpdateUserInput(cmd *cobra.Command) (*megaport.UpdateUserRequest
 	}
 	if cmd.Flags().Changed("position") {
 		position, _ := cmd.Flags().GetString("position")
+		userPosition := megaport.UserPosition(position)
+		if position != "" && !userPosition.IsValid() {
+			return nil, exitcodes.NewUsageError(fmt.Errorf("invalid position: %s. Valid positions: %s", position, userPosition.ValidPositions()))
+		}
 		req.Position = &position
 		fieldsUpdated = true
 	}
