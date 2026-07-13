@@ -13,8 +13,10 @@ import (
 	"strings"
 	"syscall/js"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestGetCapturedOutput_Priority verifies output priority order
@@ -348,6 +350,427 @@ func TestSplitArgs_EdgeCases(t *testing.T) {
 	}
 }
 
+// TestSetAuthToken verifies token-based authentication with hostname mapping
+func TestSetAuthToken(t *testing.T) {
+	EnableDebugMode()
+	RegisterJSFunctions()
+
+	tests := []struct {
+		name           string
+		token          string
+		hostname       string
+		explicitEnv    string
+		expectError    bool
+		expectedEnv    string // real env name returned in the JS result
+		expectedURL    string
+		expectedBucket string // MEGAPORT_ENVIRONMENT — always one of production/staging/development
+	}{
+		// --- hostname-derived cases (no override) ---
+		{
+			name:           "production portal host",
+			token:          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test",
+			hostname:       "portal.megaport.com",
+			expectedEnv:    "production",
+			expectedURL:    "https://api.megaport.com/",
+			expectedBucket: "production",
+		},
+		{
+			name:           "staging portal host",
+			token:          "valid-staging-token-12345",
+			hostname:       "portal-staging.megaport.com",
+			expectedEnv:    "staging",
+			expectedURL:    "https://api-staging.megaport.com/",
+			expectedBucket: "staging",
+		},
+		{
+			name:           "portal-qa returns real qa env, bucketed to development",
+			token:          "qa-token-12345",
+			hostname:       "portal-qa.megaport.com",
+			expectedEnv:    "qa",
+			expectedURL:    "https://api-qa.megaport.com/",
+			expectedBucket: "development",
+		},
+		{
+			name:           "portal-uat returns real uat env, bucketed to development",
+			token:          "uat-token-12345",
+			hostname:       "portal-uat.megaport.com",
+			expectedEnv:    "uat",
+			expectedURL:    "https://api-uat.megaport.com/",
+			expectedBucket: "development",
+		},
+		{
+			name:           "another app hostname (dashboard) derives env via app-env convention",
+			token:          "dashboard-token-12345",
+			hostname:       "dashboard-qa.megaport.com",
+			expectedEnv:    "qa",
+			expectedURL:    "https://api-qa.megaport.com/",
+			expectedBucket: "development",
+		},
+		{
+			name:           "another app at the apex (dashboard.megaport.com) is production",
+			token:          "dashboard-prod-token-12345",
+			hostname:       "dashboard.megaport.com",
+			expectedEnv:    "production",
+			expectedURL:    "https://api.megaport.com/",
+			expectedBucket: "production",
+		},
+		{
+			name:           "multi-segment env (api-mpone-dev) preserved",
+			token:          "mpone-dev-token-12345",
+			hostname:       "api-mpone-dev.megaport.com",
+			expectedEnv:    "mpone-dev",
+			expectedURL:    "https://api-mpone-dev.megaport.com/",
+			expectedBucket: "development",
+		},
+
+		// --- hostname-derived failure cases (no override) ---
+		{
+			name:        "localhost without override now errors (no silent staging fallback)",
+			token:       "dev-token-12345",
+			hostname:    "localhost",
+			expectError: true,
+		},
+		{
+			name:        "non-megaport hostname without override errors",
+			token:       "random-token-12345",
+			hostname:    "example.com",
+			expectError: true,
+		},
+		{
+			name:        "look-alike hostname (megaport.com.attacker.com) fails closed",
+			token:       "lookalike-token-12345",
+			hostname:    "megaport.com.attacker.com",
+			expectError: true,
+		},
+
+		// --- explicit override cases ---
+		{
+			name:           "explicit qa override from production hostname (mismatch)",
+			token:          "explicit-env-token-12345",
+			hostname:       "portal.megaport.com",
+			explicitEnv:    "qa",
+			expectedEnv:    "qa",
+			expectedURL:    "https://api-qa.megaport.com/",
+			expectedBucket: "development",
+		},
+		{
+			name:           "explicit production override from staging hostname",
+			token:          "explicit-prod-token-12345",
+			hostname:       "portal-staging.megaport.com",
+			explicitEnv:    "production",
+			expectedEnv:    "production",
+			expectedURL:    "https://api.megaport.com/",
+			expectedBucket: "production",
+		},
+		{
+			name:           "explicit production override unblocks localhost",
+			token:          "local-override-token-12345",
+			hostname:       "localhost",
+			explicitEnv:    "production",
+			expectedEnv:    "production",
+			expectedURL:    "https://api.megaport.com/",
+			expectedBucket: "production",
+		},
+		{
+			name:           "explicit qa override unblocks localhost",
+			token:          "local-qa-token-12345",
+			hostname:       "localhost",
+			explicitEnv:    "qa",
+			expectedEnv:    "qa",
+			expectedURL:    "https://api-qa.megaport.com/",
+			expectedBucket: "development",
+		},
+		{
+			name:           "explicit override unblocks unrecognised host (non-megaport)",
+			token:          "unknown-override-token-12345",
+			hostname:       "example.com",
+			explicitEnv:    "qa",
+			expectedEnv:    "qa",
+			expectedURL:    "https://api-qa.megaport.com/",
+			expectedBucket: "development",
+		},
+		{
+			name:           "explicit override matching derived (no mismatch)",
+			token:          "match-token-12345",
+			hostname:       "portal-staging.megaport.com",
+			explicitEnv:    "staging",
+			expectedEnv:    "staging",
+			expectedURL:    "https://api-staging.megaport.com/",
+			expectedBucket: "staging",
+		},
+		{
+			name:           "explicit development pin",
+			token:          "dev-pin-token-12345",
+			hostname:       "localhost",
+			explicitEnv:    "development",
+			expectedEnv:    "development",
+			expectedURL:    "https://api-development.megaport.com/",
+			expectedBucket: "development",
+		},
+		{
+			// "prod" passes the env-name regex and gets used as-is for the API URL
+			// (yielding api-prod.megaport.com/), but restrictEnvironmentName recognises
+			// it as an alias for production so MEGAPORT_ENVIRONMENT lands on
+			// "production". This mirrors normalizeEnvironment in config_shared.go.
+			name:           "'prod' alias buckets to production (matches normalizeEnvironment)",
+			token:          "prod-alias-token-12345",
+			hostname:       "portal.megaport.com",
+			explicitEnv:    "prod",
+			expectedEnv:    "prod",
+			expectedURL:    "https://api-prod.megaport.com/",
+			expectedBucket: "production",
+		},
+
+		// --- normalisation of override input ---
+		{
+			name:           "whitespace-only override is treated as no override",
+			token:          "ws-token-12345",
+			hostname:       "portal-staging.megaport.com",
+			explicitEnv:    "   ",
+			expectedEnv:    "staging",
+			expectedURL:    "https://api-staging.megaport.com/",
+			expectedBucket: "staging",
+		},
+		{
+			name:           "uppercase override is lowercased",
+			token:          "case-token-12345",
+			hostname:       "portal.megaport.com",
+			explicitEnv:    "PRODUCTION",
+			expectedEnv:    "production",
+			expectedURL:    "https://api.megaport.com/",
+			expectedBucket: "production",
+		},
+
+		// --- injection rejection ---
+		{
+			name:        "override with host-injection chars is rejected",
+			token:       "inject-token-12345",
+			hostname:    "portal.megaport.com",
+			explicitEnv: "foo.attacker.com/",
+			expectError: true,
+		},
+		{
+			name:        "override with slash is rejected",
+			token:       "slash-token-12345",
+			hostname:    "portal.megaport.com",
+			explicitEnv: "qa/evil",
+			expectError: true,
+		},
+		{
+			name:        "override with @ is rejected",
+			token:       "at-token-12345",
+			hostname:    "portal.megaport.com",
+			explicitEnv: "qa@evil.com",
+			expectError: true,
+		},
+
+		// --- empty-input errors ---
+		{
+			name:        "empty token errors",
+			token:       "",
+			hostname:    "portal.megaport.com",
+			expectError: true,
+		},
+		{
+			name:        "empty hostname errors",
+			token:       "valid-token-12345",
+			hostname:    "",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Clear any previous auth
+			js.Global().Get("clearAuthCredentials").Invoke()
+
+			// Call setAuthToken
+			setAuthFunc := js.Global().Get("setAuthToken")
+			assert.False(t, setAuthFunc.IsUndefined(), "setAuthToken should be registered")
+
+			var result js.Value
+			if tt.explicitEnv != "" {
+				result = setAuthFunc.Invoke(tt.token, tt.hostname, tt.explicitEnv)
+			} else {
+				result = setAuthFunc.Invoke(tt.token, tt.hostname)
+			}
+
+			success := result.Get("success").Bool()
+
+			if tt.expectError {
+				assert.False(t, success, "should fail for invalid input")
+				errMsg := result.Get("error").String()
+				assert.NotEmpty(t, errMsg, "error message should be set on failure to guide the caller")
+			} else {
+				assert.True(t, success, "should succeed for valid input")
+
+				// The JS return surface carries the real resolved env name (e.g. "qa"),
+				// not the bucket — that's what the portal UI displays back to the user.
+				returnedEnv := result.Get("environment").String()
+				assert.Equal(t, tt.expectedEnv, returnedEnv, "returned environment should match expected")
+
+				returnedURL := result.Get("apiURL").String()
+				assert.Equal(t, tt.expectedURL, returnedURL, "returned API URL should match expected")
+
+				// Verify auth info shows token is set
+				authInfo := js.Global().Get("debugAuthInfo").Invoke()
+				tokenSet := authInfo.Get("accessTokenSet").Bool()
+				assert.True(t, tokenSet, "token should be marked as set")
+
+				// MEGAPORT_ENVIRONMENT (surfaced via debugAuthInfo) holds the *bucket*
+				// — one of production/staging/development — so downstream
+				// normalizeEnvironment consumers don't silently coerce non-canonical
+				// values to production.
+				envVar := authInfo.Get("environment").String()
+				assert.Equal(t, tt.expectedBucket, envVar, "MEGAPORT_ENVIRONMENT should be bucketed")
+
+				authMethod := authInfo.Get("authMethod").String()
+				assert.Equal(t, "token", authMethod, "authMethod should be 'token'")
+			}
+		})
+	}
+}
+
+// TestSetAuthToken_NonStringThirdArg verifies that JS callers passing
+// `undefined` or `null` (and other non-string values) as the third argument
+// are treated as if no override was provided — rather than having
+// Value.String() return "<undefined>"/"<null>" and triggering the regex
+// rejection with a misleading error.
+func TestSetAuthToken_NonStringThirdArg(t *testing.T) {
+	RegisterJSFunctions()
+	setAuthFunc := js.Global().Get("setAuthToken")
+
+	tests := []struct {
+		name     string
+		thirdArg js.Value
+	}{
+		{"undefined third arg", js.Undefined()},
+		{"null third arg", js.Null()},
+		{"number third arg", js.ValueOf(0)},
+		{"bool third arg", js.ValueOf(false)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			js.Global().Get("clearAuthCredentials").Invoke()
+
+			// Recognised host so the call should succeed when the third arg is ignored.
+			result := setAuthFunc.Invoke("tok", "portal-staging.megaport.com", tt.thirdArg)
+
+			assert.True(t, result.Get("success").Bool(), "non-string third arg should be ignored, not trigger validation")
+			assert.Equal(t, "staging", result.Get("environment").String(), "should fall through to hostname-derived env")
+		})
+	}
+
+	t.Run("undefined third arg + unrecognised host fails closed (not regex error)", func(t *testing.T) {
+		js.Global().Get("clearAuthCredentials").Invoke()
+		result := setAuthFunc.Invoke("tok", "localhost", js.Undefined())
+		assert.False(t, result.Get("success").Bool())
+		errMsg := result.Get("error").String()
+		assert.Contains(t, errMsg, "could not determine environment", "should hit fail-closed path, not regex validation")
+		assert.NotContains(t, errMsg, "lowercase letters", "must not surface the regex rejection message")
+	})
+}
+
+// TestSetAuthToken_TwoArgsSkipsValidation is a regression test for a bug
+// where a flipped comparison in setAuthToken caused the env-name regex
+// validation to fire on every no-override call, surfacing the misleading
+// "environment must contain only lowercase letters..." error instead of the
+// real fail-closed message. Two-argument calls must never reach validation.
+func TestSetAuthToken_TwoArgsSkipsValidation(t *testing.T) {
+	RegisterJSFunctions()
+	js.Global().Get("clearAuthCredentials").Invoke()
+
+	// Hostname that the derivation step rejects, so the call errors and we can
+	// inspect which error path produced the message.
+	result := js.Global().Get("setAuthToken").Invoke("tok", "localhost")
+	assert.False(t, result.Get("success").Bool())
+	errMsg := result.Get("error").String()
+	assert.NotContains(t, errMsg, "lowercase letters", "two-arg call must not reach env-name validation")
+	assert.Contains(t, errMsg, "could not determine environment", "two-arg call should hit the fail-closed path")
+}
+
+// TestParseExpiry covers the epoch-ms-number and RFC3339-string input shapes,
+// plus absent/invalid values falling back to the zero Time.
+func TestParseExpiry(t *testing.T) {
+	ref := time.Date(2027, 1, 2, 3, 4, 5, 0, time.UTC)
+
+	tests := []struct {
+		name string
+		v    js.Value
+		want time.Time
+	}{
+		{"epoch ms number", js.ValueOf(float64(ref.UnixMilli())), ref},
+		{"RFC3339 string", js.ValueOf(ref.Format(time.RFC3339)), ref},
+		{"undefined", js.Undefined(), time.Time{}},
+		{"null", js.Null(), time.Time{}},
+		{"zero number", js.ValueOf(0), time.Time{}},
+		{"negative number", js.ValueOf(-1), time.Time{}},
+		{"empty string", js.ValueOf(""), time.Time{}},
+		{"whitespace string", js.ValueOf("   "), time.Time{}},
+		{"unparseable string", js.ValueOf("not-a-date"), time.Time{}},
+		{"bool", js.ValueOf(true), time.Time{}},
+		{"NaN", js.ValueOf(math.NaN()), time.Time{}},
+		{"positive infinity", js.ValueOf(math.Inf(1)), time.Time{}},
+		{"negative infinity", js.ValueOf(math.Inf(-1)), time.Time{}},
+		{"overflows int64", js.ValueOf(math.MaxFloat64), time.Time{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ParseExpiry(tt.v)
+			assert.True(t, tt.want.Equal(got), "ParseExpiry(%v) = %v, want %v", tt.name, got, tt.want)
+		})
+	}
+}
+
+// TestSetAuthToken_Expiry verifies the optional 4th argument is parsed, stored
+// on the megaportToken global (so login_wasm.go can read it back), and echoed
+// in the success result; omitting it must not regress the zero-expiry fallback.
+func TestSetAuthToken_Expiry(t *testing.T) {
+	RegisterJSFunctions()
+	setAuthFunc := js.Global().Get("setAuthToken")
+	expiry := time.Date(2030, 6, 15, 12, 0, 0, 0, time.UTC)
+
+	t.Run("epoch-ms expiry is stored and echoed", func(t *testing.T) {
+		js.Global().Get("clearAuthCredentials").Invoke()
+
+		result := setAuthFunc.Invoke("tok", "portal.megaport.com", "production", float64(expiry.UnixMilli()))
+		require.True(t, result.Get("success").Bool())
+		assert.Equal(t, expiry.Format(time.RFC3339), result.Get("expiry").String())
+
+		stored := js.Global().Get("megaportToken").Get("expiry").Float()
+		assert.Equal(t, float64(expiry.UnixMilli()), stored)
+	})
+
+	t.Run("RFC3339 string expiry is stored and echoed", func(t *testing.T) {
+		js.Global().Get("clearAuthCredentials").Invoke()
+
+		result := setAuthFunc.Invoke("tok", "portal.megaport.com", "production", expiry.Format(time.RFC3339))
+		require.True(t, result.Get("success").Bool())
+		assert.Equal(t, expiry.Format(time.RFC3339), result.Get("expiry").String())
+	})
+
+	t.Run("omitted expiry falls back to zero and is not echoed", func(t *testing.T) {
+		js.Global().Get("clearAuthCredentials").Invoke()
+
+		result := setAuthFunc.Invoke("tok", "portal.megaport.com", "production")
+		require.True(t, result.Get("success").Bool())
+		assert.True(t, result.Get("expiry").IsUndefined(), "expiry should be omitted from the result when not supplied")
+
+		stored := js.Global().Get("megaportToken").Get("expiry").Float()
+		assert.Zero(t, stored, "stored expiry should be 0 when not supplied")
+	})
+
+	t.Run("undefined expiry behaves like omitted", func(t *testing.T) {
+		js.Global().Get("clearAuthCredentials").Invoke()
+
+		result := setAuthFunc.Invoke("tok", "portal.megaport.com", "production", js.Undefined())
+		require.True(t, result.Get("success").Bool())
+		assert.True(t, result.Get("expiry").IsUndefined())
+	})
+}
+
 // TestEnvironmentToAPIURL verifies the URL-builder helper. The helper assumes
 // its input has already been validated upstream (see envNamePattern), so it
 // is exercised only with values the upstream gates accept. Injection-vector
@@ -453,6 +876,68 @@ func TestRestrictEnvironmentName(t *testing.T) {
 			assert.Equal(t, tt.expected, restrictEnvironmentName(tt.env))
 		})
 	}
+}
+
+// TestAuthMethodPriority verifies that token auth takes precedence over API key auth
+func TestAuthMethodPriority(t *testing.T) {
+	EnableDebugMode()
+	RegisterJSFunctions()
+
+	// Clear any existing auth state first
+	js.Global().Get("clearAuthCredentials").Invoke()
+
+	// First set API key auth
+	js.Global().Get("setAuthCredentials").Invoke("api-key", "api-secret", "staging")
+	authInfo := js.Global().Get("debugAuthInfo").Invoke()
+	assert.Equal(t, "apikey", authInfo.Get("authMethod").String())
+
+	// Now set token auth - should override
+	js.Global().Get("setAuthToken").Invoke("test-token-12345", "portal.megaport.com")
+	authInfo = js.Global().Get("debugAuthInfo").Invoke()
+	assert.Equal(t, "token", authInfo.Get("authMethod").String())
+	assert.Equal(t, "production", authInfo.Get("environment").String())
+
+	// Clear and verify
+	js.Global().Get("clearAuthCredentials").Invoke()
+	authInfo = js.Global().Get("debugAuthInfo").Invoke()
+	assert.Equal(t, "none", authInfo.Get("authMethod").String())
+}
+
+// TestSetAuthCredentials_ClearsStaleToken is a regression test: switching
+// from token auth to API key auth via setAuthCredentials must actually take
+// effect, not silently keep using a token injected by an earlier
+// setAuthToken call (loginFunc checks the token path first).
+func TestSetAuthCredentials_ClearsStaleToken(t *testing.T) {
+	EnableDebugMode()
+	RegisterJSFunctions()
+	js.Global().Get("clearAuthCredentials").Invoke()
+
+	js.Global().Get("setAuthToken").Invoke("test-token-12345", "portal.megaport.com")
+	authInfo := js.Global().Get("debugAuthInfo").Invoke()
+	assert.Equal(t, "token", authInfo.Get("authMethod").String())
+
+	js.Global().Get("setAuthCredentials").Invoke("api-key", "api-secret", "staging")
+	authInfo = js.Global().Get("debugAuthInfo").Invoke()
+	assert.Equal(t, "apikey", authInfo.Get("authMethod").String())
+	assert.True(t, js.Global().Get("megaportToken").IsUndefined(), "megaportToken global should be cleared")
+
+	js.Global().Get("clearAuthCredentials").Invoke()
+}
+
+// TestSetAuthTokenMasking verifies token preview masking
+func TestSetAuthTokenMasking(t *testing.T) {
+	RegisterJSFunctions()
+
+	testToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.test"
+	js.Global().Get("setAuthToken").Invoke(testToken, "portal.megaport.com")
+
+	authInfo := js.Global().Get("debugAuthInfo").Invoke()
+	preview := authInfo.Get("accessTokenPreview").String()
+
+	// Verify preview is masked
+	assert.Contains(t, preview, "...")
+	assert.NotEqual(t, testToken, preview, "full token should not be in preview")
+	assert.True(t, len(preview) < len(testToken), "preview should be shorter than full token")
 }
 
 // TestBufferThreadSafety verifies all buffers are thread-safe

@@ -626,6 +626,7 @@ megaport-cli managed-account update COMPANY_UID --account-name "New Name"
 | 3 | Authentication error |
 | 4 | API error |
 | 5 | Cancelled by user |
+| 6 | Session expired (WASM external-token auth rejected; re-authenticate) |
 
 ## Troubleshooting
 
