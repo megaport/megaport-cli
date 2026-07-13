@@ -263,16 +263,13 @@ aws s3 cp web/megaport.wasm s3://media.megaport.com/portal/megaport-cli/megaport
 aws s3 cp web/wasm_exec.js  s3://media.megaport.com/portal/megaport-cli/wasm_exec.js
 ```
 
-For CDN hosting (S3 + CloudFront), sync the assembled `web/dist/` directory:
-
-```bash
-make web-static
-aws s3 sync web/dist/ s3://<bucket>/<prefix>/ --delete
-```
-
-`--delete` prunes stale assets from old builds, so point it at a prefix dedicated to
-these files, since it removes anything else under that prefix. `.github/workflows/wasm-publish.yaml`
-automates this flow.
+For CDN hosting (S3 + CloudFront), publish via the `.github/workflows/wasm-publish.yaml`
+workflow rather than a plain sync. It runs `make web-static`, brotli pre-compresses the
+wasm (`cmd/wasmcompress`), then uploads `megaport.wasm` with `Content-Encoding: br` and
+pins `Content-Type` on both the wasm and `wasm_exec.js`. It syncs only the remaining
+static assets, so a bare `aws s3 sync web/dist/` would instead serve the wasm
+uncompressed and let the CDN mis-infer its MIME type, which breaks
+`WebAssembly.instantiateStreaming`.
 
 ## Troubleshooting
 
