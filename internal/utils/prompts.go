@@ -2,7 +2,9 @@ package utils
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"sync"
@@ -13,6 +15,59 @@ import (
 // promptFuncMu guards all prompt function pointers.
 var promptFuncMu sync.RWMutex
 
+// stdinReaderMu guards the shared stdin reader below, including reads
+// against it: bufio.Reader is not safe for concurrent use, so the lock
+// covers the read itself rather than just the pointer's lazy creation.
+var stdinReaderMu sync.Mutex
+
+// stdinReader is the single buffered reader every interactive prompt reads
+// through. A bufio.Reader reads ahead in chunks, so if each prompt built its
+// own reader over os.Stdin, bytes buffered past the line one prompt consumed
+// would be discarded when the next prompt created a fresh reader. Sharing one
+// reader across calls keeps that read-ahead available to the next prompt.
+var stdinReader *bufio.Reader
+
+// resetSharedStdinReader drops the cached reader so the next read builds a
+// fresh one over the current os.Stdin. Tests that swap os.Stdin per run call
+// this so the shared reader never holds bytes buffered from a prior test's
+// pipe.
+func resetSharedStdinReader() {
+	stdinReaderMu.Lock()
+	defer stdinReaderMu.Unlock()
+	stdinReader = nil
+}
+
+// readStdinLine reads one line from the shared stdin reader. A final line
+// with no trailing newline before EOF (e.g. piped input with no trailing
+// newline, or the user typing an answer then sending EOF instead of Enter)
+// still returns its content: bufio.Reader.ReadString returns the partial
+// data alongside io.EOF in that case, and the previous per-call
+// fmt.Scanln-based confirm prompt accepted that shape too.
+func readStdinLine() (string, error) {
+	stdinReaderMu.Lock()
+	defer stdinReaderMu.Unlock()
+
+	if stdinReader == nil {
+		stdinReader = bufio.NewReader(os.Stdin)
+	}
+
+	input, err := stdinReader.ReadString('\n')
+	if err != nil && (!errors.Is(err, io.EOF) || input == "") {
+		return "", err
+	}
+	return strings.TrimSpace(input), nil
+}
+
+// stdinHasBuffered reports whether the shared reader already holds bytes read
+// ahead from stdin. nativeSecretResourcePrompt checks this before reading
+// straight off the terminal fd: if an earlier prompt's read-ahead already
+// pulled a later answer into this buffer, a raw fd read would never see it.
+func stdinHasBuffered() bool {
+	stdinReaderMu.Lock()
+	defer stdinReaderMu.Unlock()
+	return stdinReader != nil && stdinReader.Buffered() > 0
+}
+
 var promptFn = func(msg string, noColor bool) (string, error) {
 	if !noColor {
 		// Add contextual icon and use Megaport's red
@@ -21,17 +76,10 @@ var promptFn = func(msg string, noColor bool) (string, error) {
 		fmt.Fprint(os.Stderr, "❯ "+msg+" ")
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(input), nil
+	return readStdinLine()
 }
 
 var confirmPromptFn = func(question string, noColor bool) bool {
-	var response string
-
 	if !noColor {
 		// Add warning icon for confirmation prompts
 		fmt.Fprint(os.Stderr, color.New(color.FgHiRed).Sprint("⚠️  "+question+" "))
@@ -40,16 +88,12 @@ var confirmPromptFn = func(question string, noColor bool) bool {
 		fmt.Fprintf(os.Stderr, "⚠️  %s [y/N] ", question)
 	}
 
-	_, err := fmt.Scanln(&response)
+	input, err := readStdinLine()
 	if err != nil {
-		// Handle empty response (just pressing Enter)
-		if err.Error() == "unexpected newline" {
-			return false // Default to "No"
-		}
-		return false
+		return false // Default to "No", including on an empty-input EOF
 	}
 
-	response = strings.ToLower(strings.TrimSpace(response))
+	response := strings.ToLower(input)
 	return response == "y" || response == "yes"
 }
 
@@ -109,19 +153,20 @@ var resourcePromptFn = func(resourceType string, msg string, noColor bool) (stri
 		fmt.Fprint(os.Stderr, icon+" "+msg+" ")
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(input), nil
+	return readStdinLine()
 }
 
 // secretResourcePromptFn reads a sensitive value (password, token).
 // The default implementation here is the WASM-safe echoing fallback; native
 // builds replace it via init() in prompts_secret_native.go with a TTY-aware
 // version that disables terminal echo using golang.org/x/term.
-var secretResourcePromptFn = func(resourceType string, msg string, noColor bool) (string, error) {
+var secretResourcePromptFn = defaultSecretResourcePrompt
+
+// defaultSecretResourcePrompt is a named function, rather than inlined into
+// the secretResourcePromptFn var above, so it stays directly callable from
+// tests: native builds overwrite that var via init(), so a test referencing
+// the var by then reaches nativeSecretResourcePrompt instead of this.
+func defaultSecretResourcePrompt(resourceType string, msg string, noColor bool) (string, error) {
 	icon := "🔐"
 
 	if !noColor {
@@ -130,12 +175,7 @@ var secretResourcePromptFn = func(resourceType string, msg string, noColor bool)
 		fmt.Fprint(os.Stderr, icon+" "+msg+" ")
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(input), nil
+	return readStdinLine()
 }
 
 // passwordPromptFn is set by the platform-specific init in prompts_native.go
