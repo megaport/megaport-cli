@@ -18,7 +18,9 @@ build_static_assets() {
 
   echo "==> Building WASM binary ($publish_dir/megaport.wasm)"
   # GOWORK=off so the build uses the module's pinned deps, not the go.work workspace.
-  GOWORK=off GOOS=js GOARCH=wasm go build -tags js,wasm -o "$publish_dir/megaport.wasm" . || return 1
+  # -trimpath and -ldflags="-s -w" match the Makefile wasm target: strip debug info
+  # and build-machine paths from the published binary.
+  GOWORK=off GOOS=js GOARCH=wasm go build -trimpath -tags js,wasm -ldflags="-s -w" -o "$publish_dir/megaport.wasm" . || return 1
 
   echo "==> Copying wasm_exec.js"
   local goroot
