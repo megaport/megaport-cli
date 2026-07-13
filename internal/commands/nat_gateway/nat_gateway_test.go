@@ -522,6 +522,33 @@ func TestUpdateNATGateway_MatrixFetchFailureFallsThrough(t *testing.T) {
 	require.NotNil(t, mock.CapturedUpdateReq)
 }
 
+func TestUpdateNATGateway_MatrixSkippedWhenSpeedAndSessionUnchanged(t *testing.T) {
+	mock := &MockNATGatewayService{
+		GetResult: &megaport.NATGateway{
+			ProductUID: "uid-upd", ProductName: "Old Name",
+			LocationID: 100, Speed: 1000, Term: 12,
+			Config: megaport.NATGatewayNetworkConfig{SessionCount: 4},
+		},
+		UpdateResult: &megaport.NATGateway{ProductUID: "uid-upd", ProductName: "New Name"},
+		// Matrix no longer lists the grandfathered 1000 Mbps / 4-session pair,
+		// so validation would reject it if it ran.
+		SessionsResult: []*megaport.NATGatewaySession{
+			{SpeedMbps: 2000, SessionCount: []int{1, 2, 4}},
+		},
+	}
+	defer setupMockNATGateway(mock)()
+
+	cmd := newTestCmd("update")
+	require.NoError(t, cmd.Flags().Set("name", "New Name"))
+
+	err := UpdateNATGateway(cmd, []string{"uid-upd"}, true)
+	assert.NoError(t, err)
+	require.NotNil(t, mock.CapturedUpdateReq)
+	assert.Equal(t, "New Name", mock.CapturedUpdateReq.ProductName)
+	assert.Equal(t, 1000, mock.CapturedUpdateReq.Speed)
+	assert.Equal(t, 4, mock.CapturedUpdateReq.Config.SessionCount)
+}
+
 // ---- Delete ----
 
 func TestDeleteNATGateway_Force(t *testing.T) {

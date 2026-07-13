@@ -316,9 +316,16 @@ func UpdateNATGateway(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	if err := validateNATGatewaySpeedSessionMatrix(ctx, client, req.Speed, req.Config.SessionCount, noColor); err != nil {
-		output.PrintError("Validation failed: %v", noColor, err)
-		return err
+	// Only re-validate against the matrix if speed or session count is
+	// actually changing. A grandfathered gateway may hold a speed/session
+	// pair the matrix no longer lists; leaving it untouched must not fail
+	// an update that only touches unrelated fields.
+	speedOrSessionChanged := req.Speed != originalGW.Speed || req.Config.SessionCount != originalGW.Config.SessionCount
+	if speedOrSessionChanged {
+		if err := validateNATGatewaySpeedSessionMatrix(ctx, client, req.Speed, req.Config.SessionCount, noColor); err != nil {
+			output.PrintError("Validation failed: %v", noColor, err)
+			return err
+		}
 	}
 
 	spinner := output.PrintResourceUpdating("NAT Gateway", uid, noColor)
