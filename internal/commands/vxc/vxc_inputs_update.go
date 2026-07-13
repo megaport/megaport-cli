@@ -434,37 +434,41 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 		fieldSet = true
 	}
 
-	if !fieldSet {
-		recognizedKeys := map[string]bool{
-			"rateLimit": true, "term": true, "costCentre": true, "shutdown": true,
-			"aEndConfiguration": true, "aEndVlan": true,
-			"bEndConfiguration": true, "bEndVlan": true,
-			"name": true, "vxcName": true,
-			"aEndInnerVlan": true, "bEndInnerVlan": true,
-			"aEndUid": true, "bEndUid": true,
-			"aEndPartnerConfig": true, "bEndPartnerConfig": true,
-			"isApproved": true, "aVnicIndex": true, "bVnicIndex": true,
+	recognizedKeys := map[string]bool{
+		"rateLimit": true, "term": true, "costCentre": true, "shutdown": true,
+		"aEndConfiguration": true, "aEndVlan": true,
+		"bEndConfiguration": true, "bEndVlan": true,
+		"name": true, "vxcName": true,
+		"aEndInnerVlan": true, "bEndInnerVlan": true,
+		"aEndUid": true, "bEndUid": true,
+		"aEndPartnerConfig": true, "bEndPartnerConfig": true,
+		"isApproved": true, "aVnicIndex": true, "bVnicIndex": true,
+	}
+	var unrecognized []string
+	for key := range rawData {
+		if !recognizedKeys[key] {
+			unrecognized = append(unrecognized, key)
 		}
-		var unrecognized []string
-		for key := range rawData {
-			if !recognizedKeys[key] {
-				unrecognized = append(unrecognized, key)
-			}
+	}
+	for key := range aEndConfigMap {
+		if key != "vlan" {
+			unrecognized = append(unrecognized, "aEndConfiguration."+key)
 		}
-		for key := range aEndConfigMap {
-			if key != "vlan" {
-				unrecognized = append(unrecognized, "aEndConfiguration."+key)
-			}
+	}
+	for key := range bEndConfigMap {
+		if key != "vlan" {
+			unrecognized = append(unrecognized, "bEndConfiguration."+key)
 		}
-		for key := range bEndConfigMap {
-			if key != "vlan" {
-				unrecognized = append(unrecognized, "bEndConfiguration."+key)
-			}
-		}
-		if len(unrecognized) > 0 {
-			sort.Strings(unrecognized)
+	}
+	if len(unrecognized) > 0 {
+		sort.Strings(unrecognized)
+		if !fieldSet {
 			return nil, exitcodes.NewUsageError(fmt.Errorf("at least one field must be updated (unrecognized keys: %s)", strings.Join(unrecognized, ", ")))
 		}
+		return nil, exitcodes.NewUsageError(fmt.Errorf("unrecognized keys: %s", strings.Join(unrecognized, ", ")))
+	}
+
+	if !fieldSet {
 		return nil, exitcodes.NewUsageError(fmt.Errorf("at least one field must be updated"))
 	}
 

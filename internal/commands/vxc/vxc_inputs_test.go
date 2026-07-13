@@ -1468,6 +1468,28 @@ func TestBuildUpdateVXCRequestFromJSON_TypoKeyIsRejected(t *testing.T) {
 	assert.Equal(t, exitcodes.Usage, cliErr.Code)
 }
 
+func TestBuildUpdateVXCRequestFromJSON_TypoKeyAlongsideValidFieldIsRejected(t *testing.T) {
+	// A valid field must not let a sibling typo key slip through and get
+	// silently dropped just because fieldSet is already true.
+	_, err := buildUpdateVXCRequestFromJSON(`{"rateLimit":500,"rateLimt":999}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unrecognized keys")
+	assert.Contains(t, err.Error(), "rateLimt")
+	var cliErr *exitcodes.CLIError
+	require.ErrorAs(t, err, &cliErr)
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
+}
+
+func TestBuildUpdateVXCRequestFromJSON_NestedTypoKeyAlongsideValidFieldIsRejected(t *testing.T) {
+	_, err := buildUpdateVXCRequestFromJSON(`{"name":"updated-vxc","aEndConfiguration":{"vlan":100,"vln":200}}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unrecognized keys")
+	assert.Contains(t, err.Error(), "aEndConfiguration.vln")
+	var cliErr *exitcodes.CLIError
+	require.ErrorAs(t, err, &cliErr)
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
+}
+
 func TestBuildUpdateVXCRequestFromJSON_WrongTypedValueIsRejected(t *testing.T) {
 	_, err := buildUpdateVXCRequestFromJSON(`{"rateLimit": "500"}`, "")
 	require.Error(t, err)
