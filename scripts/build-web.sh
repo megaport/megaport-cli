@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Build the browser/WASM CLI's static assets (wasm + wasm_exec.js) into web/dist/.
-# No Docker and no Go server — the output is ready to `aws s3 sync` to a CDN.
+# No Docker and no Go server. Production publishing goes through the wasm-publish
+# workflow (brotli pre-compression + pinned headers), not a plain aws s3 sync; see
+# the note printed at the end.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
