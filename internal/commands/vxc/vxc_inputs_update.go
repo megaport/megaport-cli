@@ -34,10 +34,8 @@ var buildUpdateVXCRequestFromFlags = func(cmd *cobra.Command) (*megaport.UpdateV
 
 	if cmd.Flags().Changed("term") {
 		term, _ := cmd.Flags().GetInt("term")
-		if term != 0 {
-			if err := validation.ValidateContractTerm(term); err != nil {
-				return nil, err
-			}
+		if err := validation.ValidateContractTerm(term); err != nil {
+			return nil, err
 		}
 		req.Term = &term
 	}
@@ -200,10 +198,8 @@ var buildUpdateVXCRequestFromJSON = func(jsonStr string, jsonFilePath string) (*
 			return nil, exitcodes.NewUsageError(fmt.Errorf("term must be a whole number, got %v", term))
 		}
 		termInt := int(term)
-		if termInt != 0 {
-			if err := validation.ValidateContractTerm(termInt); err != nil {
-				return nil, exitcodes.NewUsageError(err)
-			}
+		if err := validation.ValidateContractTerm(termInt); err != nil {
+			return nil, exitcodes.NewUsageError(err)
 		}
 		req.Term = &termInt
 		fieldSet = true

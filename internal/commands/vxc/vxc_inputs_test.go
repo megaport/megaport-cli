@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -1615,12 +1616,9 @@ func TestBuildUpdateVXCRequestFromJSON_FieldCoverage(t *testing.T) {
 			},
 		},
 		{
-			name: "valid zero term skips contract term validation",
-			json: `{"term":0}`,
-			validate: func(t *testing.T, req *megaport.UpdateVXCRequest) {
-				require.NotNil(t, req.Term)
-				assert.Equal(t, 0, *req.Term)
-			},
+			name:          "zero term rejected",
+			json:          `{"term":0}`,
+			expectedError: "contract term",
 		},
 		{
 			name:          "wrong-typed cost centre rejected",
@@ -1904,6 +1902,27 @@ func TestBuildUpdateVXCRequestFromJSON_FieldCoverage(t *testing.T) {
 					tt.validate(t, result)
 				}
 			}
+		})
+	}
+}
+
+func TestBuildUpdateVXCRequestFromJSON_Term(t *testing.T) {
+	t.Run("term 0 is rejected", func(t *testing.T) {
+		_, err := buildUpdateVXCRequestFromJSON(`{"term":0}`, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Invalid contract term")
+		var cliErr *exitcodes.CLIError
+		require.ErrorAs(t, err, &cliErr)
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
+	})
+
+	for _, term := range validation.ValidContractTerms {
+		t.Run(fmt.Sprintf("term %d is accepted", term), func(t *testing.T) {
+			req, err := buildUpdateVXCRequestFromJSON(fmt.Sprintf(`{"term":%d}`, term), "")
+			require.NoError(t, err)
+			require.NotNil(t, req)
+			require.NotNil(t, req.Term)
+			assert.Equal(t, term, *req.Term)
 		})
 	}
 }
