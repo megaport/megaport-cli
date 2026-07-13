@@ -98,6 +98,69 @@ are documented inline in `internal/wasm/`; there is no separate reference front 
 this repo. Front-end integrators (e.g. the Portal) own their own wrapper around the
 `window.executeMegaportCommandAsync` API described above.
 
+## Interactive Mode
+
+Some commands prompt for input (interactive `buy`/`update` flows, confirmations, secrets).
+In the browser there is no stdin, so the WASM asks the host page for each value through a
+small set of JavaScript functions. Wire these up and run the command through
+`executeMegaportCommandAsync` (see [JavaScript API](#javascript-api)), or interactive
+commands will never receive a response.
+
+### Host functions
+
+The WASM registers these on `window` at startup:
+
+| Function | Purpose |
+|---|---|
+| `registerPromptHandler(cb)` | Register a callback the WASM invokes with each prompt request. |
+| `submitPromptResponse(id, response)` | Reply to the prompt `id` with the user's input (a string). |
+| `cancelPrompt(id)` | Cancel the prompt `id`. A value prompt fails with a "prompt cancelled by user" error; a confirmation is treated as declined. |
+
+### Prompt request shape
+
+Your handler receives a single object:
+
+```js
+{
+  id: "prompt_1_1700000000000000000", // unique id; echo it back in submit/cancel
+  message: "Enter port name:",         // text to show the user
+  type: "text",                        // "text" | "confirm" | "password" | "resource"
+  resourceType: "port"                 // set for resource and secret-resource prompts (port, mcr, vxc, ...), else ""
+}
+```
+
+Mask the input when `type === "password"`: render an `<input type="password">` or otherwise
+hide the characters. Password prompts and secret-resource prompts (for example VXC/MVE
+passwords and pre-shared keys) set this type. Note that some other secret-bearing inputs
+(such as partner auth/service/shared keys and MVE registration keys) are currently sent as
+`type === "resource"`, so don't rely on the password type alone if you want to mask every
+possible secret.
+
+### Lifecycle
+
+```js
+registerPromptHandler((request) => {
+  const masked = request.type === 'password';
+  showPrompt(request.message, { masked }).then((answer) => {
+    if (answer === null) {
+      cancelPrompt(request.id);        // user dismissed the prompt
+    } else {
+      submitPromptResponse(request.id, answer);
+    }
+  });
+});
+
+executeMegaportCommandAsync('vxc buy --interactive', (result) => {
+  console.log(result.output || result.error);
+});
+```
+
+A prompt left unanswered times out after 10 minutes and the command receives an error.
+
+> **Output streaming:** interactive commands currently return their full output only when
+> the command completes. Live, incremental output streaming is tracked separately and this
+> section will document the subscription API once it lands.
+
 ## Building
 
 ```bash
