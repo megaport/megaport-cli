@@ -103,5 +103,5 @@ web-static:
 
 # Clean build artifacts
 clean:
-	rm -f megaport-cli cover*.out coverage*.out coverage.html web/megaport.wasm web/megaport.wasm.br web/megaport.wasm.gz
+	rm -f megaport-cli cover*.out coverage*.out coverage.html web/megaport.wasm web/megaport.wasm.br web/megaport.wasm.gz web/wasm_exec.js
 	rm -rf web/dist
