@@ -190,7 +190,7 @@ func TestPromptForUpdateMVEDetails_Success(t *testing.T) {
 		"NewName", "", "",
 	}))
 
-	req, err := promptForUpdateMVEDetails("mve-123", nil, true)
+	req, err := promptForUpdateMVEDetails("mve-123", "", nil, true)
 	assert.NoError(t, err)
 	assert.Equal(t, "mve-123", req.MVEID)
 	assert.Equal(t, "NewName", req.Name)
@@ -204,7 +204,7 @@ func TestPromptForUpdateMVEDetails_NoChanges(t *testing.T) {
 
 	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", ""}))
 
-	_, err := promptForUpdateMVEDetails("mve-123", nil, true)
+	_, err := promptForUpdateMVEDetails("mve-123", "", nil, true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "at least one field must be provided for update")
 }
@@ -215,7 +215,7 @@ func TestPromptForUpdateMVEDetails_InvalidContractTerm(t *testing.T) {
 
 	utils.SetResourcePrompt(mockPromptSequence([]string{"", "", "abc"}))
 
-	_, err := promptForUpdateMVEDetails("mve-123", nil, true)
+	_, err := promptForUpdateMVEDetails("mve-123", "", nil, true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid contract term")
 }
@@ -235,7 +235,7 @@ func TestPromptForUpdateMVEDetails_UpdateVnicDescriptions(t *testing.T) {
 		{Description: "Data Plane"},
 		{Description: "Mgmt"},
 	}
-	req, err := promptForUpdateMVEDetails("mve-123", currentVnics, true)
+	req, err := promptForUpdateMVEDetails("mve-123", "", currentVnics, true)
 	require.NoError(t, err)
 	require.Len(t, req.Vnics, 2)
 	assert.Equal(t, "New Data Plane", req.Vnics[0].Description)
@@ -253,7 +253,7 @@ func TestPromptForUpdateMVEDetails_DeclineVnicUpdate(t *testing.T) {
 	}))
 
 	currentVnics := []*megaport.MVENetworkInterface{{Description: "Data Plane"}}
-	req, err := promptForUpdateMVEDetails("mve-123", currentVnics, true)
+	req, err := promptForUpdateMVEDetails("mve-123", "", currentVnics, true)
 	require.NoError(t, err)
 	assert.Equal(t, "NewName", req.Name)
 	assert.Empty(t, req.Vnics)
@@ -274,7 +274,7 @@ func TestPromptForUpdateMVEDetails_VnicYesNoPromptError(t *testing.T) {
 	})
 
 	currentVnics := []*megaport.MVENetworkInterface{{Description: "Data Plane"}}
-	_, err := promptForUpdateMVEDetails("mve-123", currentVnics, true)
+	_, err := promptForUpdateMVEDetails("mve-123", "", currentVnics, true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "stdin closed")
 }
@@ -298,7 +298,7 @@ func TestPromptForUpdateMVEDetails_VnicDescriptionPromptError(t *testing.T) {
 	})
 
 	currentVnics := []*megaport.MVENetworkInterface{{Description: "Data Plane"}}
-	_, err := promptForUpdateMVEDetails("mve-123", currentVnics, true)
+	_, err := promptForUpdateMVEDetails("mve-123", "", currentVnics, true)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "stdin closed")
 }
@@ -315,7 +315,7 @@ func TestPromptForUpdateMVEDetails_VnicNilEntryDefaultsToEmpty(t *testing.T) {
 	}))
 
 	currentVnics := []*megaport.MVENetworkInterface{nil}
-	req, err := promptForUpdateMVEDetails("mve-123", currentVnics, true)
+	req, err := promptForUpdateMVEDetails("mve-123", "", currentVnics, true)
 	require.NoError(t, err)
 	require.Len(t, req.Vnics, 1)
 	assert.Equal(t, "New Description", req.Vnics[0].Description)
@@ -333,7 +333,7 @@ func TestPromptForUpdateMVEDetails_VnicEmptyCurrentEmptyInputErrors(t *testing.T
 	}))
 
 	currentVnics := []*megaport.MVENetworkInterface{{Description: ""}}
-	_, err := promptForUpdateMVEDetails("mve-123", currentVnics, true)
+	_, err := promptForUpdateMVEDetails("mve-123", "", currentVnics, true)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "vnics[0].description must not be empty")
 }
@@ -434,6 +434,61 @@ func TestPromptMVEVendorConfig_Cisco_WithAdminPassword(t *testing.T) {
 	assert.Equal(t, "fmc-reg", cisco.FMCRegistrationKey)
 	assert.Equal(t, "fmc-nat", cisco.FMCNatID)
 	assert.Equal(t, "s3cr3t!", cisco.AdminPassword)
+}
+
+func TestPromptMVEVendorConfig_Cisco_ManageLocally_ShorthandY(t *testing.T) {
+	origResource := utils.GetResourcePrompt()
+	origSecret := utils.GetSecretResourcePrompt()
+	defer func() {
+		utils.SetResourcePrompt(origResource)
+		utils.SetSecretResourcePrompt(origSecret)
+	}()
+
+	// "y" must be interpreted as true, not silently treated as false.
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"y", "admin-ssh", "ssh-key", "cloud-init",
+		"10.0.0.1", "fmc-reg", "fmc-nat",
+	}))
+	utils.SetSecretResourcePrompt(mockPromptSequence([]string{""}))
+
+	cfg, err := promptMVEVendorConfig("cisco", 99, "LARGE", "lbl", true)
+	assert.NoError(t, err)
+	cisco, ok := cfg.(*megaport.CiscoConfig)
+	assert.True(t, ok)
+	assert.True(t, cisco.ManageLocally)
+}
+
+func TestPromptMVEVendorConfig_Cisco_ManageLocally_ShorthandN(t *testing.T) {
+	origResource := utils.GetResourcePrompt()
+	origSecret := utils.GetSecretResourcePrompt()
+	defer func() {
+		utils.SetResourcePrompt(origResource)
+		utils.SetSecretResourcePrompt(origSecret)
+	}()
+
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"n", "admin-ssh", "ssh-key", "cloud-init",
+		"10.0.0.1", "fmc-reg", "fmc-nat",
+	}))
+	utils.SetSecretResourcePrompt(mockPromptSequence([]string{""}))
+
+	cfg, err := promptMVEVendorConfig("cisco", 99, "LARGE", "lbl", true)
+	assert.NoError(t, err)
+	cisco, ok := cfg.(*megaport.CiscoConfig)
+	assert.True(t, ok)
+	assert.False(t, cisco.ManageLocally)
+}
+
+func TestPromptMVEVendorConfig_Cisco_InvalidManageLocally(t *testing.T) {
+	origResource := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(origResource) }()
+
+	utils.SetResourcePrompt(mockPromptSequence([]string{"ture"}))
+
+	_, err := promptMVEVendorConfig("cisco", 99, "LARGE", "lbl", true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "manage locally")
+	assert.Contains(t, err.Error(), "not a recognized yes/no answer")
 }
 
 func TestPromptMVEVendorConfig_PaloAlto_PlaintextOnly(t *testing.T) {

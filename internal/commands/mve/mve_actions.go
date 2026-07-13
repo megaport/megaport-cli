@@ -330,21 +330,27 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 
 	var req *megaport.ModifyMVERequest
 
+	// The cost centre is re-applied for flag and JSON input when the user
+	// didn't provide one, so an update that touches other fields doesn't wipe
+	// it. The interactive path preserves it internally via the prompt default.
+	currentCostCentre := originalMVE.CostCentre
+	costCentreProvided := false
+
 	if jsonStr != "" || jsonFile != "" {
-		req, err = processJSONUpdateMVEInput(jsonStr, jsonFile, mveUID)
+		req, costCentreProvided, err = processJSONUpdateMVEInput(jsonStr, jsonFile, mveUID)
 		if err != nil {
 			output.PrintError("Failed to process JSON input: %v", noColor, err)
 			return fmt.Errorf("failed to process JSON input: %w", err)
 		}
 	} else if flagsProvided {
-		req, err = processFlagUpdateMVEInput(cmd, mveUID)
+		req, costCentreProvided, err = processFlagUpdateMVEInput(cmd, mveUID)
 		if err != nil {
 			output.PrintError("Failed to process flag input: %v", noColor, err)
 			return fmt.Errorf("failed to process flag input: %w", err)
 		}
 	} else if interactive {
 		output.PrintInfo("Starting interactive mode for MVE %s", noColor, formattedUID)
-		req, err = promptForUpdateMVEDetails(mveUID, originalMVE.NetworkInterfaces, noColor)
+		req, err = promptForUpdateMVEDetails(mveUID, currentCostCentre, originalMVE.NetworkInterfaces, noColor)
 		if err != nil {
 			output.PrintError("Failed to get MVE details interactively: %v", noColor, err)
 			return fmt.Errorf("failed to get MVE details interactively: %w", err)
@@ -352,6 +358,10 @@ func UpdateMVE(cmd *cobra.Command, args []string, noColor bool) error {
 	} else {
 		output.PrintError("No input provided", noColor)
 		return fmt.Errorf("no input provided, use --interactive, --json, or flags to specify MVE update details")
+	}
+
+	if !interactive && !costCentreProvided {
+		req.CostCentre = currentCostCentre
 	}
 
 	if req.Vnics != nil && len(req.Vnics) != len(originalMVE.NetworkInterfaces) {

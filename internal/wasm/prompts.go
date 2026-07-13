@@ -95,13 +95,23 @@ func PromptForInput(message string, promptType string, resourceType string) (str
 	// carry secrets (access keys, passwords) and this ships in the public WASM console.
 	js.Global().Get("console").Call("log", fmt.Sprintf("📝 Requesting input: ID=%s, Type=%s", promptID, promptType))
 
-	// Call the JavaScript callback with the prompt details
-	cb.Invoke(map[string]interface{}{
+	// Call the JavaScript callback with the prompt details. A throwing host
+	// callback is recovered so it cannot leak this pendingPrompts entry or
+	// crash the command; the select below never runs in that case, so cleanup
+	// happens here instead.
+	if r := InvokeCallback(cb, map[string]interface{}{
 		"id":           promptID,
 		"message":      message,
 		"type":         promptType,
 		"resourceType": resourceType,
-	})
+	}); r != nil {
+		pendingMutex.Lock()
+		delete(pendingPrompts, promptID)
+		pendingMutex.Unlock()
+
+		js.Global().Get("console").Call("error", fmt.Sprintf("❌ Prompt callback panicked for %s", promptID))
+		return "", fmt.Errorf("prompt callback threw for prompt %s", promptID)
+	}
 
 	// Wait for response with timeout. A stoppable timer (rather than time.After)
 	// is stopped as soon as a response/error arrives so it isn't left running in
