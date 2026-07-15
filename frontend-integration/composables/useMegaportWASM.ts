@@ -424,15 +424,34 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
    *
    * @param token - The access token from the portal session
    * @param hostname - The current hostname (e.g., window.location.hostname) - used to determine environment
+   * @param environment - Optional explicit environment override; see `window.setAuthToken`
+   * @param expiry - Optional real expiry of `token`, as epoch milliseconds or an RFC3339 string.
+   *   Stored and echoed back by the CLI, but not checked proactively; omit it if unknown. Whenever
+   *   the API actually rejects a request with 401/403, command output contains the marker
+   *   `"MEGAPORT_SESSION_EXPIRED"` - watch for it and call `setAuthToken` again to re-authenticate.
    */
-  const setAuthToken = (token: string, hostname?: string): void => {
+  const setAuthToken = (
+    token: string,
+    hostname?: string,
+    environment?: string,
+    expiry?: number | string
+  ): void => {
     // SSR-safe: only access window.location in browser context
     const actualHostname = hostname ?? (typeof window !== 'undefined' ? window.location.hostname : 'localhost');
     if (window.setAuthToken) {
-      const result = window.setAuthToken(token, actualHostname);
+      // Only pass environment/expiry through when actually supplied, so calls
+      // that don't use them keep the historical two-argument call shape.
+      const args: [string, string, string?, (number | string)?] = [token, actualHostname];
+      if (environment !== undefined || expiry !== undefined) {
+        args.push(environment);
+      }
+      if (expiry !== undefined) {
+        args.push(expiry);
+      }
+      const result = window.setAuthToken(...args);
 
       log(`🔑 External token set (bypassing OAuth flow) - hostname: ${actualHostname}, environment: ${result?.environment}`);
-      emitTelemetry('auth_token_set' as any, {
+      emitTelemetry('auth_token_set', {
         hostname: actualHostname,
         environment: result?.environment,
         success: result?.success,
@@ -448,7 +467,7 @@ export function useMegaportWASM(config: MegaportWASMConfig = {}) {
       console.error(
         '❌ setAuthToken function not available. WASM may not be initialized.'
       );
-      emitTelemetry('auth_token_set' as any, { hostname: actualHostname, success: false });
+      emitTelemetry('auth_token_set', { hostname: actualHostname, success: false });
     }
   };
 
