@@ -87,6 +87,49 @@ func TestUnauthenticatedClientReadsAPIURLFromEnvNotTamperedGlobal(t *testing.T) 
 		"unauthenticated client must route to the validated env-var host, not the tampered global")
 }
 
+// TestUnauthenticatedClientFallbackEnvIgnoresTamperedGlobal asserts that when
+// MEGAPORT_API_URL is unset and the unauthenticated client falls back to
+// environment-based host selection, it prefers the MEGAPORT_ENVIRONMENT bucket
+// over the page-writable megaportCredentials global.
+func TestUnauthenticatedClientFallbackEnvIgnoresTamperedGlobal(t *testing.T) {
+	t.Setenv("MEGAPORT_API_URL", "")
+	t.Setenv("MEGAPORT_ENVIRONMENT", "staging")
+
+	// Global claims production; the env-var bucket (staging) must win.
+	credsObj := js.Global().Get("Object").New()
+	credsObj.Set("environment", "production")
+	js.Global().Set("megaportCredentials", credsObj)
+	defer js.Global().Delete("megaportCredentials")
+
+	client, err := newUnauthenticatedClientFunc()
+	require.NoError(t, err)
+	require.NotNil(t, client)
+	require.NotNil(t, client.BaseURL)
+
+	assert.Equal(t, "api-staging.megaport.com", client.BaseURL.Host,
+		"fallback host selection must use the env-var bucket, not the tampered global")
+}
+
+// TestUnauthenticatedClientFallbackUsesGlobalWhenEnvUnset asserts the
+// megaportCredentials global still drives host selection when neither
+// MEGAPORT_API_URL nor MEGAPORT_ENVIRONMENT is set.
+func TestUnauthenticatedClientFallbackUsesGlobalWhenEnvUnset(t *testing.T) {
+	t.Setenv("MEGAPORT_API_URL", "")
+	t.Setenv("MEGAPORT_ENVIRONMENT", "")
+
+	credsObj := js.Global().Get("Object").New()
+	credsObj.Set("environment", "staging")
+	js.Global().Set("megaportCredentials", credsObj)
+	defer js.Global().Delete("megaportCredentials")
+
+	client, err := newUnauthenticatedClientFunc()
+	require.NoError(t, err)
+	require.NotNil(t, client)
+	require.NotNil(t, client.BaseURL)
+
+	assert.Equal(t, "api-staging.megaport.com", client.BaseURL.Host)
+}
+
 // setTokenManager installs a mock window.tokenManager whose getToken always
 // returns result, restoring the previous global (if any) after the test.
 func setTokenManager(t *testing.T, result interface{}) {

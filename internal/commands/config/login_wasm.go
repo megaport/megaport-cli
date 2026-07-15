@@ -495,19 +495,18 @@ var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 	if apiURL != "" {
 		clientOpts = append(clientOpts, megaport.WithBaseURL(apiURL))
 	} else {
-		// Fall back to environment-based URL selection
-		var env string
-		megaportCredsGlobal := js.Global().Get("megaportCredentials")
-		if !megaportCredsGlobal.IsUndefined() && !megaportCredsGlobal.IsNull() {
-			envVal := megaportCredsGlobal.Get("environment")
-			if envVal.Type() == js.TypeString {
-				if s := envVal.String(); s != "" {
-					env = s
+		// Fall back to environment-based URL selection. Prefer the bucket stored
+		// by setAuthToken/setAuthCredentials; only consult the page-writable
+		// megaportCredentials global if the env var is unset.
+		env := os.Getenv("MEGAPORT_ENVIRONMENT")
+		if env == "" {
+			megaportCredsGlobal := js.Global().Get("megaportCredentials")
+			if !megaportCredsGlobal.IsUndefined() && !megaportCredsGlobal.IsNull() {
+				envVal := megaportCredsGlobal.Get("environment")
+				if envVal.Type() == js.TypeString {
+					env = envVal.String()
 				}
 			}
-		}
-		if env == "" {
-			env = os.Getenv("MEGAPORT_ENVIRONMENT")
 		}
 		clientOpts = append(clientOpts, environmentOption(normalizeEnvironment(env)))
 	}
