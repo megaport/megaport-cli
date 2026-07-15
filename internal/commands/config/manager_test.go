@@ -502,6 +502,63 @@ func TestCorruptedConfigFile_ChmodFailure(t *testing.T) {
 	assert.Empty(t, profiles)
 }
 
+func TestConfigManagerSave_ChmodTmpFileError(t *testing.T) {
+	setupTestConfig(t)
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+
+	old := chmodFile
+	defer func() { chmodFile = old }()
+	chmodFile = func(_ string, _ os.FileMode) error {
+		return fmt.Errorf("chmod: operation not permitted")
+	}
+
+	err = manager.Save()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to set permissions on temp config file")
+}
+
+func TestConfigManagerSave_RenameError(t *testing.T) {
+	setupTestConfig(t)
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+
+	old := renameFile
+	defer func() { renameFile = old }()
+	renameFile = func(_, _ string) error {
+		return fmt.Errorf("rename: permission denied")
+	}
+
+	err = manager.Save()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to write config file")
+}
+
+func TestConfigManagerSave_ChmodFinalError(t *testing.T) {
+	setupTestConfig(t)
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+
+	old := chmodFile
+	defer func() { chmodFile = old }()
+	callCount := 0
+	chmodFile = func(path string, mode os.FileMode) error {
+		callCount++
+		if callCount == 1 {
+			// Let the temp file's own chmod succeed; only fail the final one.
+			return os.Chmod(path, mode)
+		}
+		return fmt.Errorf("chmod: operation not permitted")
+	}
+
+	err = manager.Save()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to set permissions on config file")
+}
+
 func TestCorruptedConfigFile_ConcurrentRecovery(t *testing.T) {
 	setupTestConfig(t)
 

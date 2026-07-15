@@ -2085,6 +2085,34 @@ func TestBuyLAGPort_ConfirmationDenied(t *testing.T) {
 	assert.Contains(t, capturedOutput, "Purchase cancelled")
 }
 
+func TestBuyLAGPort_JSONWithoutYes(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.PortService = &MockPortService{}
+	})
+	defer cleanup()
+
+	cmd := &cobra.Command{Use: "buy-lag"}
+	cmd.Flags().Bool("interactive", false, "")
+	cmd.Flags().Bool("no-wait", false, "")
+	cmd.Flags().Bool("yes", false, "")
+	cmd.Flags().String("json", "", "")
+	cmd.Flags().String("json-file", "", "")
+	cmd.Flags().String("name", "", "")
+	cmd.Flags().Int("term", 0, "")
+	cmd.Flags().Int("port-speed", 0, "")
+	cmd.Flags().Int("location-id", 0, "")
+	cmd.Flags().Bool("marketplace-visibility", false, "")
+	cmd.Flags().String("diversity-zone", "", "")
+	cmd.Flags().Bool("cost-confirm", true, "")
+	cmd.Flags().Int("lag-count", 0, "")
+
+	require.NoError(t, cmd.Flags().Set("json", `{"name":"json-lag","term":12,"portSpeed":10000,"locationId":1,"lagCount":2,"marketPlaceVisibility":true}`))
+
+	err := BuyLAGPort(cmd, nil, true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "--yes is required to confirm a purchase when using --json or --json-file")
+}
+
 func TestValidatePort(t *testing.T) {
 	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
 	defer cleanup()
