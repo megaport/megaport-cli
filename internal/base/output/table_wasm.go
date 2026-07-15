@@ -65,7 +65,12 @@ func printTable[T OutputFields](data []T, noColor bool, opts printOptions) error
 		return err
 	}
 
-	tableOutput := WasmTableWriter.String()
+	// Sanitize before this leaves Go: wasmTableOutput is read back by
+	// GetCapturedOutput/GetCompletionOutput and written to xterm without
+	// escaping, and a colorized cell value (colorizeValue) can carry a
+	// resource name or other API field an attacker controls. SGR color codes
+	// are preserved; see wasm.SanitizeTerminalOutput.
+	tableOutput := wasm.SanitizeTerminalOutput(WasmTableWriter.String())
 
 	// Write the table output to stdout so it can be captured by wasm buffers.
 	fmt.Print(tableOutput)

@@ -147,7 +147,7 @@ var buildVXCRequestFromPrompt = func(ctx context.Context, svc megaport.VXCServic
 		if err := validation.ValidateVXCEndVLAN(bEndVLAN); err != nil {
 			return nil, err
 		}
-		req.BEndConfiguration.VLAN = bEndVLAN
+		bEndConfig.VLAN = bEndVLAN
 	}
 
 	bEndInnerVLANStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("B-End Inner VLAN (optional, %s, press Enter to skip): ", validation.InnerVLANHelpText()), noColor)
@@ -291,7 +291,7 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		return nil, err
 	}
 	if strings.ToLower(updateTerm) == "yes" {
-		termStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("Enter new term in months (0, %s): ", validation.FormatIntSlice(validation.ValidContractTerms)), noColor)
+		termStr, err := utils.ResourcePrompt("vxc", fmt.Sprintf("Enter new term in months (%s): ", validation.FormatIntSlice(validation.ValidContractTerms)), noColor)
 		if err != nil {
 			return nil, err
 		}
@@ -299,9 +299,8 @@ var buildUpdateVXCRequestFromPrompt = func(ctx context.Context, client *megaport
 		if err != nil {
 			return nil, fmt.Errorf("term must be a valid integer")
 		}
-		if term != 0 && validation.ValidateContractTerm(term) != nil {
-			return nil, validation.NewValidationError("term", term,
-				fmt.Sprintf("must be 0, or one of: %v", validation.ValidContractTerms))
+		if err := validation.ValidateContractTerm(term); err != nil {
+			return nil, err
 		}
 		req.Term = &term
 		fieldsUpdated = true
