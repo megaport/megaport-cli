@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"syscall/js"
+
+	"github.com/megaport/megaport-cli/internal/wasm"
 )
 
 // wasmBufMu protects the global WASM output buffers from concurrent access.
@@ -50,7 +52,12 @@ func printJSON[T OutputFields](data []T, opts printOptions) error {
 		return err
 	}
 
-	jsonOutput := WasmJSONWriter.String()
+	// Sanitize before this leaves Go: wasmJSONOutput is read back by
+	// GetCapturedOutput/GetCompletionOutput and written to xterm without
+	// escaping, and a field value can carry an API-controlled control byte
+	// that Go's JSON encoder does not escape (e.g. the C1 range). See
+	// wasm.SanitizeTerminalOutput.
+	jsonOutput := wasm.SanitizeTerminalOutput(WasmJSONWriter.String())
 	fmt.Print(jsonOutput)
 	js.Global().Set("wasmJSONOutput", jsonOutput)
 	return nil
@@ -177,7 +184,8 @@ func printCSV[T OutputFields](data []T, opts printOptions) error {
 
 	w.Flush()
 
-	csvOutput := WasmCSVWriter.String()
+	// See the sanitize comment in printJSON above; the same applies to CSV.
+	csvOutput := wasm.SanitizeTerminalOutput(WasmCSVWriter.String())
 	fmt.Print(csvOutput)
 	js.Global().Set("wasmCSVOutput", csvOutput)
 	return nil
@@ -347,7 +355,8 @@ func printXML[T OutputFields](data []T, opts printOptions) error {
 	}
 	WasmXMLWriter.WriteString("\n")
 
-	xmlOutput := WasmXMLWriter.String()
+	// See the sanitize comment in printJSON above; the same applies to XML.
+	xmlOutput := wasm.SanitizeTerminalOutput(WasmXMLWriter.String())
 	fmt.Print(xmlOutput)
 	js.Global().Set("wasmXMLOutput", xmlOutput)
 	return nil

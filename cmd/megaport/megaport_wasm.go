@@ -36,8 +36,9 @@ func ExecuteWithArgs(args []string) {
 	rootCmd.SetOut(wasm.WasmOutputBuffer)
 	rootCmd.SetErr(wasm.WasmOutputBuffer)
 
-	// Enable traversal for subcommand flags
-	rootCmd.PersistentFlags().ParseErrorsAllowlist.UnknownFlags = true
+	// Enable traversal so a subcommand is still resolved when persistent
+	// flags precede it (e.g. "--output json ports list"). This does not
+	// relax unknown-flag handling; see enableTraversalForAllCommands.
 	rootCmd.TraverseChildren = true
 
 	// Enable subcommand traversal for ALL commands, not just root

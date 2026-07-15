@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -1454,6 +1455,476 @@ func TestBuildUpdateVXCRequestFromJSON_WholeRateLimit(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, req.RateLimit)
 	assert.Equal(t, 2000, *req.RateLimit)
+}
+
+func TestBuildUpdateVXCRequestFromJSON_TypoKeyIsRejected(t *testing.T) {
+	// "rateLimt" is not a recognized field, so it must not be silently
+	// dropped into an empty, successful update.
+	_, err := buildUpdateVXCRequestFromJSON(`{"rateLimt": 500}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one field must be updated")
+	assert.Contains(t, err.Error(), "rateLimt")
+	var cliErr *exitcodes.CLIError
+	require.ErrorAs(t, err, &cliErr)
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
+}
+
+func TestBuildUpdateVXCRequestFromJSON_TypoKeyAlongsideValidFieldIsRejected(t *testing.T) {
+	// A valid field must not let a sibling typo key slip through and get
+	// silently dropped just because fieldSet is already true.
+	_, err := buildUpdateVXCRequestFromJSON(`{"rateLimit":500,"rateLimt":999}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unrecognized keys")
+	assert.Contains(t, err.Error(), "rateLimt")
+	var cliErr *exitcodes.CLIError
+	require.ErrorAs(t, err, &cliErr)
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
+}
+
+func TestBuildUpdateVXCRequestFromJSON_NestedTypoKeyAlongsideValidFieldIsRejected(t *testing.T) {
+	_, err := buildUpdateVXCRequestFromJSON(`{"name":"updated-vxc","aEndConfiguration":{"vlan":100,"vln":200}}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unrecognized keys")
+	assert.Contains(t, err.Error(), "aEndConfiguration.vln")
+	var cliErr *exitcodes.CLIError
+	require.ErrorAs(t, err, &cliErr)
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
+}
+
+func TestBuildUpdateVXCRequestFromJSON_WrongTypedValueIsRejected(t *testing.T) {
+	_, err := buildUpdateVXCRequestFromJSON(`{"rateLimit": "500"}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rateLimit must be a number")
+	var cliErr *exitcodes.CLIError
+	require.ErrorAs(t, err, &cliErr)
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
+}
+
+func TestBuildUpdateVXCRequestFromJSON_EmptyObjectIsRejected(t *testing.T) {
+	_, err := buildUpdateVXCRequestFromJSON(`{}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one field must be updated")
+	var cliErr *exitcodes.CLIError
+	require.ErrorAs(t, err, &cliErr)
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
+}
+
+func TestBuildUpdateVXCRequestFromJSON_ValidMultiFieldPayload(t *testing.T) {
+	req, err := buildUpdateVXCRequestFromJSON(`{"name":"updated-vxc","rateLimit":1000,"costCentre":"eng","shutdown":true}`, "")
+	require.NoError(t, err)
+	require.NotNil(t, req.Name)
+	assert.Equal(t, "updated-vxc", *req.Name)
+	require.NotNil(t, req.RateLimit)
+	assert.Equal(t, 1000, *req.RateLimit)
+	require.NotNil(t, req.CostCentre)
+	assert.Equal(t, "eng", *req.CostCentre)
+	require.NotNil(t, req.Shutdown)
+	assert.True(t, *req.Shutdown)
+}
+
+func TestBuildUpdateVXCRequestFromJSON_FlatVLANFallback(t *testing.T) {
+	req, err := buildUpdateVXCRequestFromJSON(`{"aEndVlan":100,"bEndVlan":200}`, "")
+	require.NoError(t, err)
+	require.NotNil(t, req.AEndVLAN)
+	assert.Equal(t, 100, *req.AEndVLAN)
+	require.NotNil(t, req.BEndVLAN)
+	assert.Equal(t, 200, *req.BEndVLAN)
+}
+
+func TestBuildUpdateVXCRequestFromJSON_WrongTypedPartnerConfigIsRejected(t *testing.T) {
+	_, err := buildUpdateVXCRequestFromJSON(`{"aEndPartnerConfig":"not-an-object"}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "aEndPartnerConfig must be an object")
+	var cliErr *exitcodes.CLIError
+	require.ErrorAs(t, err, &cliErr)
+	assert.Equal(t, exitcodes.Usage, cliErr.Code)
+}
+
+func TestBuildUpdateVXCRequestFromJSON_NestedWrongTypedValueIsRejected(t *testing.T) {
+	_, err := buildUpdateVXCRequestFromJSON(`{"aEndConfiguration":{"vlan":"not-a-number"}}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "aEndConfiguration.vlan")
+}
+
+func TestBuildUpdateVXCRequestFromJSON_NestedTypoKeyIsRejected(t *testing.T) {
+	// "vln" inside aEndConfiguration is not recognized, so the object is
+	// present but contributes no field, and no flat aEndVlan fallback
+	// applies once aEndConfiguration itself is present.
+	_, err := buildUpdateVXCRequestFromJSON(`{"aEndConfiguration":{"vln":100}}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one field must be updated")
+	assert.Contains(t, err.Error(), "aEndConfiguration.vln")
+}
+
+func TestBuildUpdateVXCRequestFromJSON_NestedBEndTypoKeyIsRejected(t *testing.T) {
+	_, err := buildUpdateVXCRequestFromJSON(`{"bEndConfiguration":{"vln":100}}`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one field must be updated")
+	assert.Contains(t, err.Error(), "bEndConfiguration.vln")
+}
+
+func TestBuildUpdateVXCRequestFromJSON_NoInputProvided(t *testing.T) {
+	_, err := buildUpdateVXCRequestFromJSON("", "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "either json or json-file must be provided")
+}
+
+func TestBuildUpdateVXCRequestFromJSON_MissingJSONFile(t *testing.T) {
+	_, err := buildUpdateVXCRequestFromJSON("", "/nonexistent/path/to/update.json")
+	require.Error(t, err)
+}
+
+func TestBuildUpdateVXCRequestFromJSON_MalformedJSONIsRejected(t *testing.T) {
+	_, err := buildUpdateVXCRequestFromJSON(`{"name":`, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse JSON")
+}
+
+func TestBuildUpdateVXCRequestFromJSON_FieldCoverage(t *testing.T) {
+	tests := []struct {
+		name          string
+		json          string
+		expectedError string
+		validate      func(*testing.T, *megaport.UpdateVXCRequest)
+	}{
+		{
+			name:          "negative rate limit rejected",
+			json:          `{"rateLimit":-5}`,
+			expectedError: "rateLimit must be greater than or equal to 0",
+		},
+		{
+			name:          "wrong-typed term rejected",
+			json:          `{"term":"12"}`,
+			expectedError: "term must be a number",
+		},
+		{
+			name:          "fractional term rejected",
+			json:          `{"term":12.5}`,
+			expectedError: "term must be a whole number",
+		},
+		{
+			name:          "invalid term rejected",
+			json:          `{"term":5}`,
+			expectedError: "contract term",
+		},
+		{
+			name: "valid non-zero term",
+			json: `{"term":12}`,
+			validate: func(t *testing.T, req *megaport.UpdateVXCRequest) {
+				require.NotNil(t, req.Term)
+				assert.Equal(t, 12, *req.Term)
+			},
+		},
+		{
+			name:          "zero term rejected",
+			json:          `{"term":0}`,
+			expectedError: "contract term",
+		},
+		{
+			name:          "wrong-typed cost centre rejected",
+			json:          `{"costCentre":123}`,
+			expectedError: "costCentre must be a string",
+		},
+		{
+			name:          "wrong-typed shutdown rejected",
+			json:          `{"shutdown":"yes"}`,
+			expectedError: "shutdown must be a boolean",
+		},
+		{
+			name:          "wrong-typed aEndConfiguration rejected",
+			json:          `{"aEndConfiguration":"not-an-object"}`,
+			expectedError: "aEndConfiguration must be an object",
+		},
+		{
+			name:          "fractional aEndConfiguration.vlan rejected",
+			json:          `{"aEndConfiguration":{"vlan":100.5}}`,
+			expectedError: "aEndConfiguration.vlan must be a whole number",
+		},
+		{
+			name:          "out-of-range aEndConfiguration.vlan rejected",
+			json:          `{"aEndConfiguration":{"vlan":5000}}`,
+			expectedError: "aEndConfiguration.vlan",
+		},
+		{
+			name: "valid aEndConfiguration.vlan",
+			json: `{"aEndConfiguration":{"vlan":100}}`,
+			validate: func(t *testing.T, req *megaport.UpdateVXCRequest) {
+				require.NotNil(t, req.AEndVLAN)
+				assert.Equal(t, 100, *req.AEndVLAN)
+			},
+		},
+		{
+			name:          "wrong-typed bEndConfiguration.vlan rejected",
+			json:          `{"bEndConfiguration":{"vlan":"x"}}`,
+			expectedError: "bEndConfiguration.vlan: vlan must be a number",
+		},
+		{
+			name:          "wrong-typed aEndPartnerConfig.connectType rejected",
+			json:          `{"aEndPartnerConfig":{"connectType":123}}`,
+			expectedError: "aEndPartnerConfig.connectType",
+		},
+		{
+			name:          "missing aEndPartnerConfig.connectType rejected",
+			json:          `{"aEndPartnerConfig":{"interfaces":[]}}`,
+			expectedError: "aEndPartnerConfig.connectType is required",
+		},
+		{
+			name:          "missing bEndPartnerConfig.connectType rejected",
+			json:          `{"bEndPartnerConfig":{"interfaces":[]}}`,
+			expectedError: "bEndPartnerConfig.connectType is required",
+		},
+		{
+			name:          "wrong-typed flat aEndVlan rejected",
+			json:          `{"aEndVlan":"x"}`,
+			expectedError: "aEndVlan must be a number",
+		},
+		{
+			name:          "fractional flat aEndVlan rejected",
+			json:          `{"aEndVlan":100.5}`,
+			expectedError: "aEndVlan must be a whole number",
+		},
+		{
+			name:          "out-of-range flat aEndVlan rejected",
+			json:          `{"aEndVlan":5000}`,
+			expectedError: "aEndVlan",
+		},
+		{
+			name:          "wrong-typed bEndConfiguration rejected",
+			json:          `{"bEndConfiguration":"not-an-object"}`,
+			expectedError: "bEndConfiguration must be an object",
+		},
+		{
+			name:          "fractional bEndConfiguration.vlan rejected",
+			json:          `{"bEndConfiguration":{"vlan":200.5}}`,
+			expectedError: "bEndConfiguration.vlan must be a whole number",
+		},
+		{
+			name:          "out-of-range bEndConfiguration.vlan rejected",
+			json:          `{"bEndConfiguration":{"vlan":5000}}`,
+			expectedError: "bEndConfiguration.vlan",
+		},
+		{
+			name: "valid bEndConfiguration.vlan",
+			json: `{"bEndConfiguration":{"vlan":200}}`,
+			validate: func(t *testing.T, req *megaport.UpdateVXCRequest) {
+				require.NotNil(t, req.BEndVLAN)
+				assert.Equal(t, 200, *req.BEndVLAN)
+			},
+		},
+		{
+			name:          "wrong-typed flat bEndVlan rejected",
+			json:          `{"bEndVlan":"x"}`,
+			expectedError: "bEndVlan must be a number",
+		},
+		{
+			name:          "fractional flat bEndVlan rejected",
+			json:          `{"bEndVlan":200.5}`,
+			expectedError: "bEndVlan must be a whole number",
+		},
+		{
+			name:          "out-of-range flat bEndVlan rejected",
+			json:          `{"bEndVlan":5000}`,
+			expectedError: "bEndVlan",
+		},
+		{
+			name:          "wrong-typed name rejected",
+			json:          `{"name":123}`,
+			expectedError: "name must be a string",
+		},
+		{
+			name: "vxcName used when name absent",
+			json: `{"vxcName":"foo"}`,
+			validate: func(t *testing.T, req *megaport.UpdateVXCRequest) {
+				require.NotNil(t, req.Name)
+				assert.Equal(t, "foo", *req.Name)
+			},
+		},
+		{
+			name:          "wrong-typed vxcName rejected",
+			json:          `{"vxcName":123}`,
+			expectedError: "vxcName must be a string",
+		},
+		{
+			name:          "wrong-typed aEndInnerVlan rejected",
+			json:          `{"aEndInnerVlan":"x"}`,
+			expectedError: "aEndInnerVlan must be a number",
+		},
+		{
+			name:          "fractional aEndInnerVlan rejected",
+			json:          `{"aEndInnerVlan":100.5}`,
+			expectedError: "aEndInnerVlan must be a whole number",
+		},
+		{
+			name:          "out-of-range aEndInnerVlan rejected",
+			json:          `{"aEndInnerVlan":5000}`,
+			expectedError: "invalid aEndInnerVlan",
+		},
+		{
+			name: "valid aEndInnerVlan",
+			json: `{"aEndInnerVlan":100}`,
+			validate: func(t *testing.T, req *megaport.UpdateVXCRequest) {
+				require.NotNil(t, req.AEndInnerVLAN)
+				assert.Equal(t, 100, *req.AEndInnerVLAN)
+			},
+		},
+		{
+			name:          "wrong-typed bEndInnerVlan rejected",
+			json:          `{"bEndInnerVlan":"x"}`,
+			expectedError: "bEndInnerVlan must be a number",
+		},
+		{
+			name:          "fractional bEndInnerVlan rejected",
+			json:          `{"bEndInnerVlan":200.5}`,
+			expectedError: "bEndInnerVlan must be a whole number",
+		},
+		{
+			name:          "out-of-range bEndInnerVlan rejected",
+			json:          `{"bEndInnerVlan":5000}`,
+			expectedError: "invalid bEndInnerVlan",
+		},
+		{
+			name: "valid bEndInnerVlan",
+			json: `{"bEndInnerVlan":200}`,
+			validate: func(t *testing.T, req *megaport.UpdateVXCRequest) {
+				require.NotNil(t, req.BEndInnerVLAN)
+				assert.Equal(t, 200, *req.BEndInnerVLAN)
+			},
+		},
+		{
+			name:          "wrong-typed aEndUid rejected",
+			json:          `{"aEndUid":123}`,
+			expectedError: "aEndUid must be a string",
+		},
+		{
+			name: "valid aEndUid",
+			json: `{"aEndUid":"a-end-uid"}`,
+			validate: func(t *testing.T, req *megaport.UpdateVXCRequest) {
+				require.NotNil(t, req.AEndProductUID)
+				assert.Equal(t, "a-end-uid", *req.AEndProductUID)
+			},
+		},
+		{
+			name:          "wrong-typed bEndUid rejected",
+			json:          `{"bEndUid":123}`,
+			expectedError: "bEndUid must be a string",
+		},
+		{
+			name: "valid bEndUid",
+			json: `{"bEndUid":"b-end-uid"}`,
+			validate: func(t *testing.T, req *megaport.UpdateVXCRequest) {
+				require.NotNil(t, req.BEndProductUID)
+				assert.Equal(t, "b-end-uid", *req.BEndProductUID)
+			},
+		},
+		{
+			name:          "wrong-typed bEndPartnerConfig rejected",
+			json:          `{"bEndPartnerConfig":"not-an-object"}`,
+			expectedError: "bEndPartnerConfig must be an object",
+		},
+		{
+			name:          "wrong-typed bEndPartnerConfig.connectType rejected",
+			json:          `{"bEndPartnerConfig":{"connectType":123}}`,
+			expectedError: "bEndPartnerConfig.connectType",
+		},
+		{
+			name:          "wrong-typed isApproved rejected",
+			json:          `{"isApproved":"yes"}`,
+			expectedError: "isApproved must be a boolean",
+		},
+		{
+			name: "valid isApproved",
+			json: `{"isApproved":true}`,
+			validate: func(t *testing.T, req *megaport.UpdateVXCRequest) {
+				require.NotNil(t, req.IsApproved)
+				assert.True(t, *req.IsApproved)
+			},
+		},
+		{
+			name:          "wrong-typed aVnicIndex rejected",
+			json:          `{"aVnicIndex":"x"}`,
+			expectedError: "aVnicIndex must be a number",
+		},
+		{
+			name:          "fractional aVnicIndex rejected",
+			json:          `{"aVnicIndex":1.5}`,
+			expectedError: "aVnicIndex must be a whole number",
+		},
+		{
+			name:          "negative aVnicIndex rejected",
+			json:          `{"aVnicIndex":-1}`,
+			expectedError: "invalid aVnicIndex",
+		},
+		{
+			name: "valid aVnicIndex",
+			json: `{"aVnicIndex":1}`,
+			validate: func(t *testing.T, req *megaport.UpdateVXCRequest) {
+				require.NotNil(t, req.AVnicIndex)
+				assert.Equal(t, 1, *req.AVnicIndex)
+			},
+		},
+		{
+			name:          "wrong-typed bVnicIndex rejected",
+			json:          `{"bVnicIndex":"x"}`,
+			expectedError: "bVnicIndex must be a number",
+		},
+		{
+			name:          "fractional bVnicIndex rejected",
+			json:          `{"bVnicIndex":1.5}`,
+			expectedError: "bVnicIndex must be a whole number",
+		},
+		{
+			name:          "negative bVnicIndex rejected",
+			json:          `{"bVnicIndex":-1}`,
+			expectedError: "invalid bVnicIndex",
+		},
+		{
+			name: "valid bVnicIndex",
+			json: `{"bVnicIndex":1}`,
+			validate: func(t *testing.T, req *megaport.UpdateVXCRequest) {
+				require.NotNil(t, req.BVnicIndex)
+				assert.Equal(t, 1, *req.BVnicIndex)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := buildUpdateVXCRequestFromJSON(tt.json, "")
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+				var cliErr *exitcodes.CLIError
+				require.ErrorAs(t, err, &cliErr)
+				assert.Equal(t, exitcodes.Usage, cliErr.Code)
+			} else {
+				require.NoError(t, err)
+				if tt.validate != nil {
+					tt.validate(t, result)
+				}
+			}
+		})
+	}
+}
+
+func TestBuildUpdateVXCRequestFromJSON_Term(t *testing.T) {
+	t.Run("term 0 is rejected", func(t *testing.T) {
+		_, err := buildUpdateVXCRequestFromJSON(`{"term":0}`, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Invalid contract term")
+		var cliErr *exitcodes.CLIError
+		require.ErrorAs(t, err, &cliErr)
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
+	})
+
+	for _, term := range validation.ValidContractTerms {
+		t.Run(fmt.Sprintf("term %d is accepted", term), func(t *testing.T) {
+			req, err := buildUpdateVXCRequestFromJSON(fmt.Sprintf(`{"term":%d}`, term), "")
+			require.NoError(t, err)
+			require.NotNil(t, req)
+			require.NotNil(t, req.Term)
+			assert.Equal(t, term, *req.Term)
+		})
+	}
 }
 
 func TestResolvePartnerPortUID(t *testing.T) {
