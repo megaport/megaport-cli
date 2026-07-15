@@ -55,6 +55,13 @@ jobs:
         run: |
           export PATH="$PATH:$(go env GOROOT)/lib/wasm"
           GOOS=js GOARCH=wasm go test -v -tags js,wasm ./internal/wasm/wasmhttp
+      - name: Run WASM login auth-routing unit tests
+        # The config package's wasm login tests build clients without issuing a
+        # request, so they only touch JS globals + env vars and run under node.
+        # This is where the apiURL-trust regression coverage actually executes.
+        run: |
+          export PATH="$PATH:$(go env GOROOT)/lib/wasm"
+          GOOS=js GOARCH=wasm go test -v -tags js,wasm ./internal/commands/config
 
   smoke:
     name: Browser Fetch Smoke
