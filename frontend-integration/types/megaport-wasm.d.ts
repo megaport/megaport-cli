@@ -4,6 +4,14 @@
  */
 
 export interface MegaportCommandResult {
+  /**
+   * Captured stdout/stderr text from the command. When the token set via
+   * `setAuthToken` was rejected by the API (401/403), this contains the
+   * substring `"MEGAPORT_SESSION_EXPIRED"` — command failures are printed
+   * text, not a distinct error channel, so the host must scan `output` for
+   * the marker rather than relying on a separate field. On a match, prompt
+   * for re-authentication and call `setAuthToken` again.
+   */
   output?: string;
   error?: string;
 }
@@ -47,6 +55,7 @@ export type TelemetryEventType =
   | 'command_execute_success'
   | 'command_execute_error'
   | 'auth_set'
+  | 'auth_token_set'
   | 'auth_clear'
   | 'spinner_start'
   | 'spinner_stop'
@@ -169,10 +178,26 @@ export interface MegaportWASM {
    * other value (containing `/`, `.`, `@`, `:`, uppercase, etc.) is rejected
    * with an error to prevent hostname injection into the API URL.
    *
+   * ## Expiry and session handling
+   *
+   * Pass the token's real expiry as `expiry` when the host knows it (epoch
+   * milliseconds, or an RFC3339 string). This is optional and backward
+   * compatible: omitting it (or passing `0`/an unparseable value) is fine.
+   * The CLI stores `expiry` and echoes it back in the result, but does not
+   * check it proactively — there is no background timer or pre-request
+   * check that watches it. The CLI also does not refresh tokens on this
+   * path, since there are no credentials to refresh with. The only actual
+   * signal is reactive: whenever the API rejects a request with 401/403
+   * (whether because the token expired or for any other reason), that
+   * command's output contains the marker `"MEGAPORT_SESSION_EXPIRED"` (see
+   * {@link MegaportCommandResult.output}). The host should treat that as a
+   * signal to prompt for re-authentication and call `setAuthToken` again.
+   *
    * @param token - The access token from the portal session
    * @param hostname - The current hostname, e.g. `window.location.hostname`
    * @param environment - Optional explicit environment override; supersedes the hostname-derived value. Useful when `hostname` is `"localhost"` or a non-portal host, or when the portal needs to talk to a specific backend regardless of where it's served
-   * @returns On success: `{ success: true, environment, hostname, apiURL }` where `environment` is the resolved env name (e.g. `"qa"`) and `apiURL` is the matching `api-<env>.megaport.com/` URL. On failure: `{ success: false, error }` with a human-readable message; the caller should surface the message to guide the user
+   * @param expiry - Optional real expiry of `token`, as epoch milliseconds (number) or an RFC3339 string. Stored and echoed back, but not checked proactively (see above). Omit, or pass `0`/an unparseable value, if the expiry is unknown
+   * @returns On success: `{ success: true, environment, hostname, apiURL, expiry? }` where `environment` is the resolved env name (e.g. `"qa"`), `apiURL` is the matching `api-<env>.megaport.com/` URL, and `expiry` (RFC3339 string) echoes back the resolved expiry if one was set. On failure: `{ success: false, error }` with a human-readable message; the caller should surface the message to guide the user
    *
    * @example
    * // Portal served from a recognised host — no override needed.
@@ -181,12 +206,18 @@ export interface MegaportWASM {
    * @example
    * // Local development against the qa backend.
    * setAuthToken(token, window.location.hostname, "qa");
+   *
+   * @example
+   * // Record the token's known expiry for display; the CLI still only
+   * // reacts to an actual 401/403 from the API, not to this timestamp.
+   * setAuthToken(token, window.location.hostname, undefined, Date.now() + 60 * 60 * 1000);
    */
   setAuthToken(
     token: string,
     hostname: string,
-    environment?: string
-  ): { success: boolean; error?: string; environment?: string; hostname?: string; apiURL?: string };
+    environment?: string,
+    expiry?: number | string
+  ): { success: boolean; error?: string; environment?: string; hostname?: string; apiURL?: string; expiry?: string };
 
   /**
    * Clear authentication credentials from memory
@@ -306,8 +337,9 @@ declare global {
     setAuthToken?: (
       token: string,
       hostname: string,
-      environment?: string
-    ) => { success: boolean; error?: string; environment?: string; hostname?: string; apiURL?: string };
+      environment?: string,
+      expiry?: number | string
+    ) => { success: boolean; error?: string; environment?: string; hostname?: string; apiURL?: string; expiry?: string };
     clearAuthCredentials?: () => { success: boolean };
     resetWasmOutput?: () => boolean;
     getWasmOutput?: () => string;

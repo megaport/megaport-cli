@@ -35,6 +35,21 @@ func executeMegaportCommand(this js.Value, args []js.Value) interface{} {
 	}
 }
 
+// invokeAsyncTimeoutCallback fires the completion callback with a timeout
+// error, guarded by once so it never double-fires with the normal completion
+// path. It is factored out of executeMegaportCommandAsync so the recover
+// behavior can be exercised directly in tests without waiting out the real
+// asyncCommandTimeout.
+func invokeAsyncTimeoutCallback(callback js.Value, once *sync.Once) {
+	once.Do(func() {
+		if r := wasm.InvokeCallback(callback, map[string]interface{}{
+			"error": "command timed out",
+		}); r != nil {
+			js.Global().Get("console").Call("error", "Timeout callback panicked")
+		}
+	})
+}
+
 // executeMegaportCommandAsync runs CLI commands asynchronously with a callback
 // This is the CORRECT way to handle commands that involve async operations (like auth)
 func executeMegaportCommandAsync(this js.Value, args []js.Value) interface{} {
@@ -118,12 +133,11 @@ func executeMegaportCommandAsync(this js.Value, args []js.Value) interface{} {
 	}()
 
 	// Fire a timeout so the callback is always invoked within asyncCommandTimeout.
+	// This runs on the timer goroutine, not the goroutine above, so it needs its
+	// own recover: a throwing callback here would otherwise terminate the whole
+	// WASM runtime rather than just this command.
 	t := time.AfterFunc(asyncCommandTimeout, func() {
-		once.Do(func() {
-			callback.Invoke(map[string]interface{}{
-				"error": "command timed out",
-			})
-		})
+		invokeAsyncTimeoutCallback(callback, &once)
 	})
 
 	// Stop the timer once the goroutine finishes so it is not kept alive for the

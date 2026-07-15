@@ -564,6 +564,14 @@ func TestClassifyError_SDKErrors(t *testing.T) {
 	}
 }
 
+func TestWrapSessionExpiredError_RequiresAccessToken(t *testing.T) {
+	// With tokenPresent false, a 401 stays an ordinary auth error rather than
+	// being reclassified as session-expired, on every build target.
+	err := wrapSessionExpiredError(makeAPIError(401, ""), false)
+	assert.Equal(t, exitcodes.Authentication, classifyError(err))
+	assert.NotContains(t, err.Error(), SessionExpiredMarker)
+}
+
 func TestClassifyError_ValidationError(t *testing.T) {
 	// A raw ValidationError must map to the usage exit code. Its message is
 	// "Invalid <field>: ..." (capital I), which the lowercase "invalid" heuristic
