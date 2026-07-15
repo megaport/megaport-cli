@@ -93,8 +93,18 @@ var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 	megaportTokenGlobal := js.Global().Get("megaportToken")
 	if !megaportTokenGlobal.IsUndefined() && !megaportTokenGlobal.IsNull() {
 		token := os.Getenv("MEGAPORT_ACCESS_TOKEN")
-		tokenEnv := megaportTokenGlobal.Get("environment").String()
-		apiURL := megaportTokenGlobal.Get("apiURL").String()
+		// Prefer the environment bucket stored by setAuthToken; only fall back to
+		// the page-writable global if the env var is unset. Used for the fallback
+		// host selection below and debug logging.
+		tokenEnv := os.Getenv("MEGAPORT_ENVIRONMENT")
+		if tokenEnv == "" {
+			tokenEnv = megaportTokenGlobal.Get("environment").String()
+		}
+		// Read the API base URL from the env var set (and hostname-validated) by
+		// setAuthToken, never from window.megaportToken.apiURL: that global is
+		// page-writable, so trusting it would let another script redirect the
+		// bearer token to an attacker-controlled host.
+		apiURL := os.Getenv("MEGAPORT_API_URL")
 		// Real expiry, if the host supplied one via setAuthToken's 4th argument
 		// (stored as epoch-ms on this global). Zero remains the fallback when
 		// the host didn't supply one; WithAccessToken treats zero as
@@ -110,13 +120,13 @@ var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 			httpClient := wasmhttp.NewWasmHTTPClient()
 			httpClient.Timeout = 45 * time.Second
 
-			// Build client options - prefer apiURL if available (hostname-derived)
+			// Build client options - prefer the validated API URL if available
 			var clientOpts []megaport.ClientOpt
 			clientOpts = append(clientOpts, megaport.WithAccessToken(token, expiry))
 
 			if apiURL != "" {
-				// Use the API URL derived from hostname - this auto-works for new environments
-				js.Global().Get("console").Call("log", "🔗 Using hostname-derived API URL: "+apiURL)
+				// Use the validated API URL - this auto-works for new environments
+				js.Global().Get("console").Call("log", "🔗 Using validated API URL: "+apiURL)
 				clientOpts = append(clientOpts, megaport.WithBaseURL(apiURL))
 			} else {
 				// Fallback to environment-based URL selection
@@ -477,32 +487,26 @@ func Logout() {
 var newUnauthenticatedClientFunc = func() (*megaport.Client, error) {
 	var clientOpts []megaport.ClientOpt
 
-	// Prefer hostname-derived API URL (auto-works for non-standard environments)
-	var apiURL string
-	megaportTokenGlobal := js.Global().Get("megaportToken")
-	if !megaportTokenGlobal.IsUndefined() && !megaportTokenGlobal.IsNull() {
-		urlVal := megaportTokenGlobal.Get("apiURL")
-		if urlVal.Type() == js.TypeString {
-			apiURL = urlVal.String()
-		}
-	}
+	// Prefer the API base URL validated and stored by setAuthToken. Read it from
+	// the env var, never from the page-writable window.megaportToken.apiURL
+	// global, which another script could overwrite to redirect API traffic.
+	apiURL := os.Getenv("MEGAPORT_API_URL")
 
 	if apiURL != "" {
 		clientOpts = append(clientOpts, megaport.WithBaseURL(apiURL))
 	} else {
-		// Fall back to environment-based URL selection
-		var env string
-		megaportCredsGlobal := js.Global().Get("megaportCredentials")
-		if !megaportCredsGlobal.IsUndefined() && !megaportCredsGlobal.IsNull() {
-			envVal := megaportCredsGlobal.Get("environment")
-			if envVal.Type() == js.TypeString {
-				if s := envVal.String(); s != "" {
-					env = s
+		// Fall back to environment-based URL selection. Prefer the bucket stored
+		// by setAuthToken/setAuthCredentials; only consult the page-writable
+		// megaportCredentials global if the env var is unset.
+		env := os.Getenv("MEGAPORT_ENVIRONMENT")
+		if env == "" {
+			megaportCredsGlobal := js.Global().Get("megaportCredentials")
+			if !megaportCredsGlobal.IsUndefined() && !megaportCredsGlobal.IsNull() {
+				envVal := megaportCredsGlobal.Get("environment")
+				if envVal.Type() == js.TypeString {
+					env = envVal.String()
 				}
 			}
-		}
-		if env == "" {
-			env = os.Getenv("MEGAPORT_ENVIRONMENT")
 		}
 		clientOpts = append(clientOpts, environmentOption(normalizeEnvironment(env)))
 	}
