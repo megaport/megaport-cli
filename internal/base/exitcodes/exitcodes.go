@@ -7,6 +7,7 @@ const (
 	Authentication = 3
 	API            = 4
 	Cancelled      = 5
+	SessionExpired = 6
 )
 
 // CLIError wraps an error with a specific exit code.
@@ -24,6 +25,10 @@ func NewAuthError(err error) *CLIError      { return &CLIError{Code: Authenticat
 func NewAPIError(err error) *CLIError       { return &CLIError{Code: API, Err: err} }
 func NewCancelledError(err error) *CLIError { return &CLIError{Code: Cancelled, Err: err} }
 
+// NewSessionExpiredError wraps err with the SessionExpired exit code, used when
+// a WASM host's injected token is rejected by the API and re-injection is needed.
+func NewSessionExpiredError(err error) *CLIError { return &CLIError{Code: SessionExpired, Err: err} }
+
 // TypeName returns the string error type name for a given exit code.
 // Used when emitting structured JSON error output (--output json).
 func TypeName(code int) string {
@@ -36,6 +41,8 @@ func TypeName(code int) string {
 		return "api_error"
 	case Cancelled:
 		return "cancelled"
+	case SessionExpired:
+		return "session_expired_error"
 	default:
 		return "general_error"
 	}

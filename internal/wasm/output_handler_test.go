@@ -92,6 +92,31 @@ func TestRegisterOutputCallbackRejectsNonFunction(t *testing.T) {
 	assert.False(t, hasOutputHandler(), "a string must not be accepted as a handler")
 }
 
+// TestUnregisterOutputCallbackStopsStreaming verifies that after unregistering,
+// buffer writes are no longer pushed to the handler and fall back to capture.
+func TestUnregisterOutputCallbackStopsStreaming(t *testing.T) {
+	resetOutputStreaming()
+	defer resetOutputStreaming()
+
+	var received []string
+	fn := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		if len(args) > 0 {
+			received = append(received, args[0].String())
+		}
+		return nil
+	})
+	defer fn.Release()
+	RegisterOutputCallback(fn.Value)
+	assert.True(t, hasOutputHandler(), "handler registered")
+
+	UnregisterOutputCallback()
+	assert.False(t, hasOutputHandler(), "handler cleared after unregister")
+
+	_, _ = WasmOutputBuffer.Write([]byte("after unregister\n"))
+	assert.Empty(t, received, "no chunk should reach a cleared handler")
+	assert.Equal(t, "after unregister\n", WasmOutputBuffer.String(), "write is still buffered")
+}
+
 // TestOutputHandlerReentrancyGuard verifies that a write triggered from inside
 // the handler is still captured in the buffer but is not pushed again (which
 // would recurse into JS).
