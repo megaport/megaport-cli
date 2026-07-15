@@ -4,6 +4,7 @@ package main
 
 import (
 	"os"
+	"sync"
 	"syscall/js"
 	"testing"
 	"time"
@@ -361,6 +362,43 @@ func TestErrorRecovery(t *testing.T) {
 	assert.NotPanics(t, func() {
 		invokeAsyncAndWait(t, "invalid command with many args that don't make sense")
 	})
+}
+
+// TestInvokeAsyncTimeoutCallback_ThrowingCallbackRecovered verifies a host
+// completion callback that throws on the timeout path is recovered rather
+// than crashing the runtime, and that once is still consumed so a
+// simultaneous normal-completion callback.Invoke would not double-fire.
+func TestInvokeAsyncTimeoutCallback_ThrowingCallbackRecovered(t *testing.T) {
+	throwing := js.Global().Get("Function").New("throw new Error('timeout callback boom')")
+
+	var once sync.Once
+	assert.NotPanics(t, func() {
+		invokeAsyncTimeoutCallback(throwing, &once)
+	})
+
+	fired := false
+	once.Do(func() { fired = true })
+	assert.False(t, fired, "once should already be consumed by the timeout invocation")
+}
+
+// TestInvokeAsyncTimeoutCallback_CleanInvocation verifies the normal
+// (non-throwing) timeout path still delivers the timeout error to the
+// callback.
+func TestInvokeAsyncTimeoutCallback_CleanInvocation(t *testing.T) {
+	var received js.Value
+	fn := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		if len(args) > 0 {
+			received = args[0]
+		}
+		return nil
+	})
+	defer fn.Release()
+
+	var once sync.Once
+	invokeAsyncTimeoutCallback(fn.Value, &once)
+
+	assert.False(t, received.IsUndefined())
+	assert.Equal(t, "command timed out", received.Get("error").String())
 }
 
 // TestConcurrentCommands verifies concurrent async commands don't interfere

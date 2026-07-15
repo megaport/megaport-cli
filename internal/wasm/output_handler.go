@@ -74,6 +74,15 @@ func RegisterOutputCallback(callback js.Value) {
 	js.Global().Get("console").Call("log", "✅ Output callback registered")
 }
 
+// UnregisterOutputCallback clears the registered handler so buffer writes fall
+// back to capture-at-completion. Used to reset streaming state between runs so a
+// callback does not leak past the lifetime it was registered for.
+func UnregisterOutputCallback() {
+	outputCallbackMu.Lock()
+	outputCallback = js.Undefined()
+	outputCallbackMu.Unlock()
+}
+
 // hasOutputHandler reports whether a usable output callback is registered.
 func hasOutputHandler() bool {
 	outputCallbackMu.RLock()

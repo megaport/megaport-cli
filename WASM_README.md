@@ -71,6 +71,32 @@ token, or API proxy.
 Credentials and tokens live only in browser memory and are cleared on reload or when the
 page calls `clearAuthCredentials`.
 
+### Token injection contract (portal integration)
+
+`setAuthToken(token, hostname, environment?, expiry?)`:
+
+- `token`, `hostname` are required, as before.
+- `environment` (optional) overrides the environment normally derived from `hostname`.
+- `expiry` (optional, new) is the token's real expiry, as epoch milliseconds or an
+  RFC3339 string. It is stored and echoed back in the response so the host can track
+  it, but the CLI does not check it proactively (see below). Omit it, or pass
+  `0`/an unparseable value, if the expiry is unknown.
+
+There is no token refresh on this path: the CLI holds only the token the host gave it,
+with no credentials to renew it with, and it never checks `expiry` on its own.
+Instead, whenever the API rejects a request with 401/403, whether that's because the
+token expired or because the host revoked it, the failing command's output contains
+the substring `MEGAPORT_SESSION_EXPIRED`. The host is responsible for watching command
+output for this marker and, on a match, prompting the user to re-authenticate and
+calling `setAuthToken` again with a fresh token. See
+[`frontend-integration/types/megaport-wasm.d.ts`](frontend-integration/types/megaport-wasm.d.ts)
+for the full type signature and doc comments.
+
+Separately, the browser-cached OAuth token used by credentials-based logins
+(`window.tokenManager.getToken(environment)`, checked to avoid re-authenticating on
+every page load) may return either a bare token string (legacy, no TTL, treated as
+valid for 24h) or `{ token, expiry }` to record a real TTL instead.
+
 ## JavaScript API
 
 The WASM binary exposes command execution on `window`:

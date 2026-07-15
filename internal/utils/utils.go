@@ -164,9 +164,11 @@ func applyFieldsFilter(cmd *cobra.Command) {
 // envelope and returns the bare error; in every other format it prints the
 // error to stderr (unless an action already showed one via output.PrintError,
 // tracked by the output.ErrorEmitted latch) and returns a verbose wrapped error.
-func finishWithError(cmd *cobra.Command, args []string, err error, format string, noColor bool) error {
+func finishWithError(cmd *cobra.Command, args []string, err error, format string, noColor bool, tokenPresent bool) error {
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true
+	original := err
+	err = wrapSessionExpiredError(err, tokenPresent)
 	code := classifyError(err)
 	if format == FormatJSON {
 		output.PrintErrorJSON(code, err.Error())
@@ -174,6 +176,14 @@ func finishWithError(cmd *cobra.Command, args []string, err error, format string
 		return exitcodes.New(code, err)
 	}
 	if !output.ErrorEmitted() {
+		output.PrintError("%s", noColor, err.Error())
+	} else if err != original {
+		// An action already printed (and, under a live-output handler, streamed)
+		// the raw error, latching ErrorEmitted so the block above is skipped. But
+		// wrapSessionExpiredError rewrote it to carry SessionExpiredMarker, and a
+		// streamed chunk can't be retracted; without emitting again the marker
+		// reaches neither the stream nor the capture buffer. Re-emit so a
+		// streaming host still sees the re-auth signal.
 		output.PrintError("%s", noColor, err.Error())
 	}
 	wrapped := fmt.Errorf("error running %s command\n\nError: %v\nCommand: %s\nArguments: %v\n\nFor more information, use the --help flag",
@@ -193,11 +203,12 @@ func FinishPreRunError(cmd *cobra.Command, args []string, err error) error {
 	// A prior command in the long-lived WASM process may have left the latch
 	// set; reset so the non-json path always surfaces this error on stderr.
 	output.ResetErrorEmitted()
+	tokenPresent := sessionTokenPresent()
 	rawFormat, _ := cmd.Root().PersistentFlags().GetString("output")
 	format := strings.ToLower(rawFormat)
 	syncOutputFormat(format)
 	noColor := resolveNoColor(cmd)
-	return finishWithError(cmd, args, err, format, noColor)
+	return finishWithError(cmd, args, err, format, noColor, tokenPresent)
 }
 
 // syncOutputFormat aligns the output package's format with the format the
@@ -226,6 +237,7 @@ func resolveNoColor(cmd *cobra.Command) bool {
 func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		output.ResetErrorEmitted()
+		tokenPresent := sessionTokenPresent()
 		applyFieldsFilter(cmd)
 		applyTemplateFilter(cmd)
 		rawFormat, _ := cmd.Root().PersistentFlags().GetString("output")
@@ -233,13 +245,13 @@ func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobr
 		syncOutputFormat(format)
 		noColor := resolveNoColor(cmd)
 		if format == FormatGoTemplate && output.GetTemplateString() == "" {
-			return finishWithError(cmd, args, exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used")), format, noColor)
+			return finishWithError(cmd, args, exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used")), format, noColor, tokenPresent)
 		}
 		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
-			return finishWithError(cmd, args, err, format, noColor)
+			return finishWithError(cmd, args, err, format, noColor, tokenPresent)
 		}
 		if err := runE(cmd, args); err != nil {
-			return finishWithError(cmd, args, err, format, noColor)
+			return finishWithError(cmd, args, err, format, noColor, tokenPresent)
 		}
 		return nil
 	}
@@ -250,6 +262,7 @@ func WrapRunE(runE func(cmd *cobra.Command, args []string) error) func(cmd *cobr
 func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		output.ResetErrorEmitted()
+		tokenPresent := sessionTokenPresent()
 		applyFieldsFilter(cmd)
 		applyTemplateFilter(cmd)
 		rawFormat, _ := cmd.Root().PersistentFlags().GetString("output")
@@ -257,13 +270,13 @@ func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool)
 		syncOutputFormat(format)
 		noColor := resolveNoColor(cmd)
 		if format == FormatGoTemplate && output.GetTemplateString() == "" {
-			return finishWithError(cmd, args, exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used")), format, noColor)
+			return finishWithError(cmd, args, exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used")), format, noColor, tokenPresent)
 		}
 		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
-			return finishWithError(cmd, args, err, format, noColor)
+			return finishWithError(cmd, args, err, format, noColor, tokenPresent)
 		}
 		if err := fn(cmd, args, noColor); err != nil {
-			return finishWithError(cmd, args, err, format, noColor)
+			return finishWithError(cmd, args, err, format, noColor, tokenPresent)
 		}
 		return nil
 	}
@@ -274,6 +287,7 @@ func WrapColorAwareRunE(fn func(cmd *cobra.Command, args []string, noColor bool)
 func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor bool, format string) error) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		output.ResetErrorEmitted()
+		tokenPresent := sessionTokenPresent()
 		noColor := resolveNoColor(cmd)
 
 		// Get output format value from command
@@ -298,14 +312,14 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 			// to table first so finishWithError surfaces it on stderr rather than
 			// suppressing it under a stale json format.
 			syncOutputFormat(FormatTable)
-			return finishWithError(cmd, args, exitcodes.NewUsageError(fmt.Errorf("invalid output format: %s. Must be one of: %v", format, ValidFormats)), FormatTable, noColor)
+			return finishWithError(cmd, args, exitcodes.NewUsageError(fmt.Errorf("invalid output format: %s. Must be one of: %v", format, ValidFormats)), FormatTable, noColor, tokenPresent)
 		}
 
 		syncOutputFormat(format)
 
 		applyTemplateFilter(cmd)
 		if format == FormatGoTemplate && output.GetTemplateString() == "" {
-			return finishWithError(cmd, args, exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used")), format, noColor)
+			return finishWithError(cmd, args, exitcodes.NewUsageError(fmt.Errorf("--template is required when --output go-template is used")), format, noColor, tokenPresent)
 		}
 
 		applyFieldsFilter(cmd)
@@ -313,11 +327,11 @@ func WrapOutputFormatRunE(fn func(cmd *cobra.Command, args []string, noColor boo
 		// re-read --output from the root persistent flags (which could differ
 		// if the subcommand defines its own local --output override).
 		if err := enforceQueryFormatGuard(cmd, applyQueryFilter(cmd), format); err != nil {
-			return finishWithError(cmd, args, err, format, noColor)
+			return finishWithError(cmd, args, err, format, noColor, tokenPresent)
 		}
 
 		if err := fn(cmd, args, noColor, format); err != nil {
-			return finishWithError(cmd, args, err, format, noColor)
+			return finishWithError(cmd, args, err, format, noColor, tokenPresent)
 		}
 		return nil
 	}
