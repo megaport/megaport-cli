@@ -29,6 +29,15 @@ func maskAccessKey(key string) string {
 	return "****"
 }
 
+// validateEnvironment rejects any environment value outside the canonical
+// allow-list. Used by create, update, and import so the three paths cannot drift.
+func validateEnvironment(env string) error {
+	if env != "production" && env != "staging" && env != "development" {
+		return fmt.Errorf("environment must be 'production', 'staging', or 'development' (got %q)", env)
+	}
+	return nil
+}
+
 func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	profileName := args[0]
 	// Flag read errors are intentionally ignored — flags are registered by the command builder.
@@ -41,8 +50,8 @@ func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("profile name cannot be empty or whitespace")
 	}
 
-	if environment != "production" && environment != "staging" && environment != "development" {
-		return fmt.Errorf("environment must be 'production', 'staging', or 'development'")
+	if err := validateEnvironment(environment); err != nil {
+		return err
 	}
 
 	manager, err := NewConfigManager()
@@ -110,6 +119,14 @@ func UpdateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	environmentChanged := cmd.Flags().Changed("environment")
 	descriptionChanged := cmd.Flags().Changed("description")
 
+	environment := ""
+	if environmentChanged {
+		environment, _ = cmd.Flags().GetString("environment")
+		if err := validateEnvironment(environment); err != nil {
+			return err
+		}
+	}
+
 	accessKey := ""
 	if accessKeyChanged {
 		accessKey, _ = cmd.Flags().GetString("access-key")
@@ -140,11 +157,6 @@ func UpdateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 			}
 			secretKey = strings.TrimSpace(secretKey)
 		}
-	}
-
-	environment := ""
-	if environmentChanged {
-		environment, _ = cmd.Flags().GetString("environment")
 	}
 
 	description := ""
@@ -409,8 +421,14 @@ func ImportConfig(cmd *cobra.Command, args []string, noColor bool) error {
 
 	// Validate and set defaults for profiles
 	for profileName, profile := range importConfig.Profiles {
+		if profile == nil {
+			return fmt.Errorf("profile '%s' has no data", profileName)
+		}
 		if profile.Environment == "" {
 			profile.Environment = "production"
+		}
+		if err := validateEnvironment(profile.Environment); err != nil {
+			return fmt.Errorf("profile '%s' has an invalid environment: %w", profileName, err)
 		}
 		if profile.AccessKey == "" || profile.SecretKey == "" ||
 			profile.AccessKey == "[REDACTED]" || profile.SecretKey == "[REDACTED]" {

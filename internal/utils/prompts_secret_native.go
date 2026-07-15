@@ -3,7 +3,6 @@
 package utils
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -18,7 +17,10 @@ func init() {
 
 // nativeSecretResourcePrompt reads a sensitive value without echoing it to
 // the terminal. Falls back to the standard echoed prompt when stdin is not a
-// terminal (piped input, CI) so scripted usage keeps working.
+// terminal (piped input, CI) so scripted usage keeps working, and also when
+// the shared reader already has bytes buffered: term.ReadPassword reads
+// straight off the fd, so it would never see input an earlier prompt already
+// read ahead into that buffer.
 func nativeSecretResourcePrompt(resourceType string, msg string, noColor bool) (string, error) {
 	icon := "🔐"
 
@@ -29,13 +31,8 @@ func nativeSecretResourcePrompt(resourceType string, msg string, noColor bool) (
 	}
 
 	fd := int(os.Stdin.Fd())
-	if !term.IsTerminal(fd) {
-		reader := bufio.NewReader(os.Stdin)
-		input, err := reader.ReadString('\n')
-		if err != nil {
-			return "", err
-		}
-		return strings.TrimSpace(input), nil
+	if !term.IsTerminal(fd) || stdinHasBuffered() {
+		return readStdinLine()
 	}
 
 	pw, err := term.ReadPassword(fd)

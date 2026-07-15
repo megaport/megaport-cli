@@ -7,8 +7,10 @@ import (
 
 	"github.com/megaport/megaport-cli/internal/testutil"
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func mockPrompts(responses []string) func() {
@@ -1025,7 +1027,61 @@ func TestBuildVXCRequestFromPrompt(t *testing.T) {
 				assert.Equal(t, 12, req.Term)
 				assert.Equal(t, 100, req.AEndConfiguration.VLAN)
 				assert.Equal(t, "port-a-123", req.PortUID)
+				assert.Equal(t, 200, req.BEndConfiguration.VLAN)
 				assert.Equal(t, "port-b-456", req.BEndConfiguration.ProductUID)
+			},
+		},
+		{
+			// Regression: the entered B-End VLAN was written to the request's
+			// zero-value struct and then overwritten by the assembled bEndConfig,
+			// so it never reached the submitted order.
+			name: "entered B-End VLAN survives onto the request",
+			responses: []string{
+				"Test VXC",   // name
+				"100",        // rate limit
+				"12",         // term
+				"100",        // A-End VLAN
+				"",           // A-End inner VLAN
+				"",           // A-End vNIC index
+				"no",         // A-End partner config
+				"port-a-123", // A-End product UID
+				"3021",       // B-End VLAN
+				"",           // B-End inner VLAN
+				"",           // B-End vNIC index
+				"no",         // B-End partner config
+				"port-b-456", // B-End product UID
+				"",           // promo code
+				"",           // service key
+				"",           // cost centre
+			},
+			verify: func(t *testing.T, req *megaport.BuyVXCRequest) {
+				assert.Equal(t, 3021, req.BEndConfiguration.VLAN)
+			},
+		},
+		{
+			// Skipping the B-End VLAN prompt must leave the VLAN unset so the API
+			// assigns one.
+			name: "empty B-End VLAN leaves the VLAN unset",
+			responses: []string{
+				"Test VXC",   // name
+				"100",        // rate limit
+				"12",         // term
+				"100",        // A-End VLAN
+				"",           // A-End inner VLAN
+				"",           // A-End vNIC index
+				"no",         // A-End partner config
+				"port-a-123", // A-End product UID
+				"",           // B-End VLAN (skipped)
+				"",           // B-End inner VLAN
+				"",           // B-End vNIC index
+				"no",         // B-End partner config
+				"port-b-456", // B-End product UID
+				"",           // promo code
+				"",           // service key
+				"",           // cost centre
+			},
+			verify: func(t *testing.T, req *megaport.BuyVXCRequest) {
+				assert.Equal(t, 0, req.BEndConfiguration.VLAN)
 			},
 		},
 		{
@@ -1219,6 +1275,75 @@ func TestBuildUpdateVXCRequestFromPrompt(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, req)
 			tc.verify(t, req)
+		})
+	}
+}
+
+func TestBuildUpdateVXCRequestFromPrompt_TermValidation(t *testing.T) {
+	existingVXC := &megaport.VXC{
+		UID:                "vxc-uid-123",
+		Name:               "Old VXC",
+		RateLimit:          100,
+		ContractTermMonths: 12,
+		CostCentre:         "CC-001",
+		AdminLocked:        false,
+		AEndConfiguration: megaport.VXCEndConfiguration{
+			UID:  "a-end-uid",
+			VLAN: 100,
+		},
+		BEndConfiguration: megaport.VXCEndConfiguration{
+			UID:  "b-end-uid",
+			VLAN: 200,
+		},
+	}
+
+	baseResponses := func(termResponses ...string) []string {
+		responses := []string{
+			"no", // update name
+			"no", // update rate limit
+			"yes",
+		}
+		responses = append(responses, termResponses...)
+		responses = append(responses,
+			"no", // update cost centre
+			"no", // update shutdown
+			"no", // update A-End VLAN
+			"no", // update B-End VLAN
+			"no", // update A-End inner VLAN
+			"no", // update B-End inner VLAN
+			"no", // update A-End UID
+			"no", // update B-End UID
+			"no", // A-End VRouter config
+			"no", // B-End VRouter config
+		)
+		return responses
+	}
+
+	t.Run("term 0 is rejected", func(t *testing.T) {
+		cleanup := mockPrompts(baseResponses("0"))
+		defer cleanup()
+
+		mockSvc := &MockVXCService{GetVXCResponse: existingVXC}
+		mockClient := &megaport.Client{VXCService: mockSvc}
+
+		_, err := buildUpdateVXCRequestFromPrompt(context.Background(), mockClient, "vxc-uid-123", true)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Invalid contract term")
+	})
+
+	for _, term := range validation.ValidContractTerms {
+		t.Run(fmt.Sprintf("term %d is accepted", term), func(t *testing.T) {
+			cleanup := mockPrompts(baseResponses(fmt.Sprintf("%d", term)))
+			defer cleanup()
+
+			mockSvc := &MockVXCService{GetVXCResponse: existingVXC}
+			mockClient := &megaport.Client{VXCService: mockSvc}
+
+			req, err := buildUpdateVXCRequestFromPrompt(context.Background(), mockClient, "vxc-uid-123", true)
+			require.NoError(t, err)
+			require.NotNil(t, req)
+			require.NotNil(t, req.Term)
+			assert.Equal(t, term, *req.Term)
 		})
 	}
 }

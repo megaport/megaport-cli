@@ -175,11 +175,14 @@ func promptMVEVendorConfig(vendorStr string, imageID int, productSize string, mv
 			CloudInit:   cloudInit,
 		}, nil
 	case "cisco":
-		manageLocallyStr, err := utils.ResourcePrompt("mve", "Manage locally (true/false) (required): ", noColor)
+		manageLocallyStr, err := utils.ResourcePrompt("mve", "Manage locally (y/yes/true/n/no/false) (required): ", noColor)
 		if err != nil {
 			return nil, err
 		}
-		manageLocally := strings.ToLower(manageLocallyStr) == "true"
+		manageLocally, err := utils.ParseYesNo(manageLocallyStr)
+		if err != nil {
+			return nil, fmt.Errorf("manage locally: %w", err)
+		}
 
 		adminSSHPublicKey, err := utils.ResourcePrompt("mve", "Enter admin SSH public key (required): ", noColor)
 		if err != nil {

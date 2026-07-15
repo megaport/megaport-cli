@@ -447,6 +447,61 @@ func TestPromptMVEVendorConfig_Cisco_WithAdminPassword(t *testing.T) {
 	assert.Equal(t, "s3cr3t!", cisco.AdminPassword)
 }
 
+func TestPromptMVEVendorConfig_Cisco_ManageLocally_ShorthandY(t *testing.T) {
+	origResource := utils.GetResourcePrompt()
+	origSecret := utils.GetSecretResourcePrompt()
+	defer func() {
+		utils.SetResourcePrompt(origResource)
+		utils.SetSecretResourcePrompt(origSecret)
+	}()
+
+	// "y" must be interpreted as true, not silently treated as false.
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"y", "admin-ssh", "ssh-key", "cloud-init",
+		"10.0.0.1", "fmc-reg", "fmc-nat",
+	}))
+	utils.SetSecretResourcePrompt(mockPromptSequence([]string{""}))
+
+	cfg, err := promptMVEVendorConfig("cisco", 99, "LARGE", "lbl", true)
+	assert.NoError(t, err)
+	cisco, ok := cfg.(*megaport.CiscoConfig)
+	assert.True(t, ok)
+	assert.True(t, cisco.ManageLocally)
+}
+
+func TestPromptMVEVendorConfig_Cisco_ManageLocally_ShorthandN(t *testing.T) {
+	origResource := utils.GetResourcePrompt()
+	origSecret := utils.GetSecretResourcePrompt()
+	defer func() {
+		utils.SetResourcePrompt(origResource)
+		utils.SetSecretResourcePrompt(origSecret)
+	}()
+
+	utils.SetResourcePrompt(mockPromptSequence([]string{
+		"n", "admin-ssh", "ssh-key", "cloud-init",
+		"10.0.0.1", "fmc-reg", "fmc-nat",
+	}))
+	utils.SetSecretResourcePrompt(mockPromptSequence([]string{""}))
+
+	cfg, err := promptMVEVendorConfig("cisco", 99, "LARGE", "lbl", true)
+	assert.NoError(t, err)
+	cisco, ok := cfg.(*megaport.CiscoConfig)
+	assert.True(t, ok)
+	assert.False(t, cisco.ManageLocally)
+}
+
+func TestPromptMVEVendorConfig_Cisco_InvalidManageLocally(t *testing.T) {
+	origResource := utils.GetResourcePrompt()
+	defer func() { utils.SetResourcePrompt(origResource) }()
+
+	utils.SetResourcePrompt(mockPromptSequence([]string{"ture"}))
+
+	_, err := promptMVEVendorConfig("cisco", 99, "LARGE", "lbl", true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "manage locally")
+	assert.Contains(t, err.Error(), "not a recognized yes/no answer")
+}
+
 func TestPromptMVEVendorConfig_PaloAlto_PlaintextOnly(t *testing.T) {
 	origResource := utils.GetResourcePrompt()
 	origSecret := utils.GetSecretResourcePrompt()

@@ -120,12 +120,10 @@ func processFlagUpdatePortInput(cmd *cobra.Command, portUID string) (*megaport.M
 
 	if termSet {
 		term, _ := cmd.Flags().GetInt("term")
-		if term != 0 {
-			if err := validation.ValidateContractTerm(term); err != nil {
-				return nil, false, err
-			}
-			req.ContractTermMonths = &term
+		if err := validation.ValidateContractTerm(term); err != nil {
+			return nil, false, err
 		}
+		req.ContractTermMonths = &term
 	}
 
 	return req, ccSet, nil
