@@ -54,6 +54,7 @@ func TestTypeName(t *testing.T) {
 		{Authentication, "auth_error"},
 		{API, "api_error"},
 		{Cancelled, "cancelled"},
+		{SessionExpired, "session_expired_error"},
 		{99, "general_error"}, // unknown code → default
 	}
 	for _, tt := range tests {
@@ -71,6 +72,7 @@ func TestConstructors(t *testing.T) {
 		{"NewAuthError", NewAuthError(errors.New("no creds")), Authentication},
 		{"NewAPIError", NewAPIError(errors.New("500")), API},
 		{"NewCancelledError", NewCancelledError(errors.New("cancelled by user")), Cancelled},
+		{"NewSessionExpiredError", NewSessionExpiredError(errors.New("token rejected")), SessionExpired},
 		{"New with General", New(General, errors.New("unknown")), General},
 	}
 

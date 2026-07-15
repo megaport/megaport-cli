@@ -17,6 +17,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/testutil"
 	"github.com/megaport/megaport-cli/internal/utils"
+	"github.com/megaport/megaport-cli/internal/validation"
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -1549,6 +1550,49 @@ func TestBuildUpdateVXCRequestFromFlags_NewFields(t *testing.T) {
 			} else {
 				assert.Nil(t, req.BVnicIndex)
 			}
+		})
+	}
+}
+
+func TestBuildUpdateVXCRequestFromFlags_Term(t *testing.T) {
+	makeCmd := func() *cobra.Command {
+		cmd := &cobra.Command{Use: "update"}
+		cmd.Flags().String("name", "", "")
+		cmd.Flags().Int("rate-limit", 0, "")
+		cmd.Flags().Int("term", 0, "")
+		cmd.Flags().String("cost-centre", "", "")
+		cmd.Flags().Bool("shutdown", false, "")
+		cmd.Flags().Int("a-end-vlan", 0, "")
+		cmd.Flags().Int("b-end-vlan", 0, "")
+		cmd.Flags().Int("a-end-inner-vlan", 0, "")
+		cmd.Flags().Int("b-end-inner-vlan", 0, "")
+		cmd.Flags().String("a-end-uid", "", "")
+		cmd.Flags().String("b-end-uid", "", "")
+		cmd.Flags().String("a-end-partner-config", "", "")
+		cmd.Flags().String("b-end-partner-config", "", "")
+		cmd.Flags().Bool("is-approved", false, "")
+		cmd.Flags().Int("a-vnic-index", -1, "")
+		cmd.Flags().Int("b-vnic-index", -1, "")
+		return cmd
+	}
+
+	t.Run("term 0 is rejected", func(t *testing.T) {
+		cmd := makeCmd()
+		testutil.SetFlags(t, cmd, map[string]string{"term": "0"})
+		_, err := buildUpdateVXCRequestFromFlags(cmd)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Invalid contract term")
+	})
+
+	for _, term := range validation.ValidContractTerms {
+		t.Run(fmt.Sprintf("term %d is accepted", term), func(t *testing.T) {
+			cmd := makeCmd()
+			testutil.SetFlags(t, cmd, map[string]string{"term": fmt.Sprintf("%d", term)})
+			req, err := buildUpdateVXCRequestFromFlags(cmd)
+			require.NoError(t, err)
+			require.NotNil(t, req)
+			require.NotNil(t, req.Term)
+			assert.Equal(t, term, *req.Term)
 		})
 	}
 }
