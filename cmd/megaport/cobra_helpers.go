@@ -31,9 +31,14 @@ func resetFlag(f *pflag.Flag) {
 
 // enableTraversalForAllCommands enables subcommand traversal on all commands
 // in the tree recursively.
+//
+// It does not touch ParseErrorsAllowlist.UnknownFlags: Cobra's ParseFlags
+// unconditionally overwrites a command's FlagSet.ParseErrorsAllowlist from
+// the command's own FParseErrWhitelist field just before parsing, so setting
+// the FlagSet field directly here has no effect on unknown-flag handling.
+// Unknown flags are rejected the same way traversal or not.
 func enableTraversalForAllCommands(cmd *cobra.Command) {
 	cmd.TraverseChildren = true
-	cmd.Flags().ParseErrorsAllowlist.UnknownFlags = true
 
 	for _, subCmd := range cmd.Commands() {
 		enableTraversalForAllCommands(subCmd)
