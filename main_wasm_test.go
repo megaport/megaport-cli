@@ -35,6 +35,15 @@ func TestMain(m *testing.M) {
 	js.Global().Set("executeMegaportCommand", js.FuncOf(executeMegaportCommand))
 	js.Global().Set("executeMegaportCommandAsync", js.FuncOf(executeMegaportCommandAsync))
 
+	// The bare-node WASM test host has no localStorage, so the config-file and
+	// localStorage helpers, which call it directly, panic and take down the whole
+	// test binary. Install a minimal in-memory shim so those tests run for real
+	// under node; a browser host already provides localStorage, so only shim when
+	// it is absent.
+	if js.Global().Get("localStorage").IsUndefined() {
+		js.Global().Call("eval", `(function(){var s={};globalThis.localStorage={getItem:function(k){return Object.prototype.hasOwnProperty.call(s,k)?s[k]:null;},setItem:function(k,v){s[k]=String(v);},removeItem:function(k){delete s[k];},clear:function(){s={};}};})();`)
+	}
+
 	os.Exit(m.Run())
 }
 
@@ -217,8 +226,8 @@ func TestExecuteMegaportCommandAsync_InvalidCallback(t *testing.T) {
 
 // TestOutputBufferReset verifies output buffers reset between commands
 func TestOutputBufferReset(t *testing.T) {
-	result1 := invokeAsyncAndWait(t, "version")
-	assert.True(t, result1.Get("error").IsUndefined(), "version command returned an error: %v", result1.Get("error"))
+	result1 := invokeAsyncAndWait(t, "ports --help")
+	assert.True(t, result1.Get("error").IsUndefined(), "ports --help command returned an error: %v", result1.Get("error"))
 	output1 := result1.Get("output").String()
 
 	result2 := invokeAsyncAndWait(t, "--help")
@@ -467,7 +476,7 @@ func TestConcurrentCommands(t *testing.T) {
 		executeMegaportCmdAsync.Invoke(js.ValueOf(cmd), callback)
 	}
 
-	invoke("version")
+	invoke("ports --help")
 	invoke("--help")
 
 	results := make(map[string]string, 2)
@@ -480,7 +489,7 @@ func TestConcurrentCommands(t *testing.T) {
 		}
 	}
 
-	assert.NotEmpty(t, results["version"])
+	assert.NotEmpty(t, results["ports --help"])
 	assert.NotEmpty(t, results["--help"])
-	assert.NotEqual(t, results["version"], results["--help"])
+	assert.NotEqual(t, results["ports --help"], results["--help"])
 }

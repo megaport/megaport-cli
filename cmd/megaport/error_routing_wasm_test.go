@@ -3,6 +3,7 @@
 package megaport
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"syscall/js"
@@ -130,4 +131,49 @@ func TestExecuteWithArgs_StreamedError_ReturnsNil(t *testing.T) {
 	require.True(t, wasm.DidStreamOutput(), "the action should have streamed its error")
 	assert.NoError(t, err, "a streamed error must not also be returned for result.error")
 	assert.NotEmpty(t, strings.Join(streamed, ""), "the streamed error should have reached the handler")
+}
+
+// TestExecuteWithArgs_JSONError_ReturnsNil covers the machine-readable branch:
+// a *CLIError raised under --output json is already surfaced as a structured
+// envelope, so ExecuteWithArgs returns nil (no separate result.error) to avoid
+// sitting a red Error: line on top of otherwise-valid JSON.
+func TestExecuteWithArgs_JSONError_ReturnsNil(t *testing.T) {
+	wasm.ResetOutputBuffers()
+
+	cmd := &cobra.Command{
+		Use: "jsonerrortest",
+		RunE: utils.WrapRunE(func(cmd *cobra.Command, args []string) error {
+			return fmt.Errorf("boom")
+		}),
+	}
+	rootCmd.AddCommand(cmd)
+	defer rootCmd.RemoveCommand(cmd)
+
+	err := ExecuteWithArgs([]string{"megaport-cli", "--output", "json", "jsonerrortest"})
+
+	assert.NoError(t, err, "a JSON-envelope error must not also be returned for result.error")
+
+	out := wasm.GetCapturedOutput()
+	assert.Contains(t, out, "boom", "the JSON envelope should carry the failure message in output")
+	assert.Contains(t, out, "{", "output should be a JSON envelope, not a plain-text block")
+}
+
+// TestExecuteWithArgs_BrowserUnavailableCommands_RouteError covers the root
+// RunE special cases: config/completion/generate-docs/version are not registered
+// in WASM, so each must return its "not available in the browser version"
+// explanation as an error for result.error, not print it into output.
+func TestExecuteWithArgs_BrowserUnavailableCommands_RouteError(t *testing.T) {
+	for _, name := range []string{"config", "completion", "generate-docs", "version"} {
+		t.Run(name, func(t *testing.T) {
+			wasm.ResetOutputBuffers()
+
+			err := ExecuteWithArgs([]string{"megaport-cli", name})
+
+			require.Error(t, err, "an unavailable command must return an error")
+			assert.Contains(t, err.Error(), "not available in the browser version",
+				"the returned error should explain the command is unavailable")
+			assert.NotContains(t, wasm.GetCapturedOutput(), "not available in the browser version",
+				"the explanation must route to result.error, not output")
+		})
+	}
 }

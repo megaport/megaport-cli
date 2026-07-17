@@ -95,7 +95,7 @@ func executeMegaportCommandAsync(this js.Value, args []js.Value) interface{} {
 			if r := recover(); r != nil {
 				once.Do(func() {
 					callback.Invoke(map[string]interface{}{
-						"error": fmt.Sprintf("Command panicked: %v", r),
+						"error": wasm.SanitizeTerminalText(fmt.Sprintf("Command panicked: %v", r)),
 					})
 				})
 			}
@@ -129,16 +129,17 @@ func executeMegaportCommandAsync(this js.Value, args []js.Value) interface{} {
 			resultObj := map[string]interface{}{
 				"output": result,
 			}
-			// Route a command failure to result.error so the host can render it
-			// as an error and emit failure telemetry, instead of leaving it
-			// uncolored in result.output. ExecuteWithArgs returns nil when the
-			// error already reached the terminal another way, so this does not
-			// double-render. Sanitize first: a parser error can echo a user-typed
-			// flag or command name verbatim (pflag's "unknown flag: --%s"), and
-			// the host writes result.error straight to xterm, so control bytes
-			// must be neutralized here the way WasmOutputBuffer does for output.
+			// Route a command failure to result.error so the host renders it as
+			// an error and emits failure telemetry instead of leaving it uncolored
+			// in result.output. ExecuteWithArgs returns nil when the error already
+			// reached the terminal, so this does not double-render. Sanitize with
+			// SanitizeTerminalText (strip all control bytes), not the SGR-allowing
+			// SanitizeTerminalOutput: a parser error can echo a user-typed flag
+			// verbatim (pflag's "unknown flag: --%s") and the host writes
+			// result.error straight to xterm, and the error line carries no color
+			// of its own (the host styles it), so no escape sequence should survive.
 			if execErr != nil {
-				resultObj["error"] = wasm.SanitizeTerminalOutput(execErr.Error())
+				resultObj["error"] = wasm.SanitizeTerminalText(execErr.Error())
 			}
 			callback.Invoke(resultObj)
 		})
