@@ -55,12 +55,9 @@ func ExecuteWithArgs(args []string) error {
 		argsToUse = args[1:]
 	}
 
-	// Disable automatic usage and error printing so we own the failure output.
-	// SilenceErrors must be true: cobra otherwise writes "Error: ..." to the
-	// output buffer during Execute, which under a live-output handler streams to
-	// the terminal before ExecuteWithArgs can route the error to result.error,
-	// re-introducing the uncolored-failure/no-telemetry bug (ESD-1666). Set
-	// unconditionally since the command tree is reused across WASM invocations.
+	// Own the failure output. SilenceErrors stops cobra writing "Error: ..." to
+	// the buffer before we can route it to result.error. Set unconditionally
+	// because the command tree is reused across invocations.
 	rootCmd.SilenceUsage = true
 	rootCmd.SilenceErrors = true
 
@@ -77,14 +74,11 @@ func ExecuteWithArgs(args []string) error {
 		return nil
 	}
 
-	// When the error is a *CLIError returned by a RunE wrapper in JSON mode,
-	// the wrapper has already written the structured JSON error via
-	// PrintErrorJSON. Skip the plain-text block to avoid corrupting
-	// machine-readable output, and return nil: the JSON envelope is the
-	// surfaced failure, so routing it to result.error too would sit a red
-	// Error: line on top of the machine-readable output. We gate on *CLIError
-	// (not just the --output flag) because errors that occur before a wrapper
-	// runs (e.g., flag parse errors) are not *CLIError and still need routing.
+	// A *CLIError in JSON mode already wrote the structured envelope via
+	// PrintErrorJSON, so re-emit a clean one and return nil (routing it to
+	// result.error too would stack a red line on machine-readable output).
+	// Gate on *CLIError, not the flag: pre-wrapper errors (e.g. flag parse)
+	// aren't *CLIError and still need routing.
 	var cliErr *exitcodes.CLIError
 	if errors.As(err, &cliErr) && resolveOutputFormat(executedCmd) == utils.FormatJSON {
 		// Reset the buffer to remove any plain-text output written before
