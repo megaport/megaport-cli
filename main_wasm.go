@@ -119,16 +119,28 @@ func executeMegaportCommandAsync(this js.Value, args []js.Value) interface{} {
 		// Ensure Cobra gets all our commands
 		megaport.EnsureRootCommandOutput(wasm.WasmOutputBuffer)
 
-		megaport.ExecuteWithArgs(originalArgs)
+		execErr := megaport.ExecuteWithArgs(originalArgs)
 
 		// When a live-output handler is registered the narrative has already
 		// streamed to the host; GetCompletionOutput returns only the structured
 		// document (or "") so the host does not double-render it.
 		result := wasm.GetCompletionOutput()
 		once.Do(func() {
-			callback.Invoke(map[string]interface{}{
+			resultObj := map[string]interface{}{
 				"output": result,
-			})
+			}
+			// Route a command failure to result.error so the host can render it
+			// as an error and emit failure telemetry, instead of leaving it
+			// uncolored in result.output. ExecuteWithArgs returns nil when the
+			// error already reached the terminal another way, so this does not
+			// double-render. Sanitize first: a parser error can echo a user-typed
+			// flag or command name verbatim (pflag's "unknown flag: --%s"), and
+			// the host writes result.error straight to xterm, so control bytes
+			// must be neutralized here the way WasmOutputBuffer does for output.
+			if execErr != nil {
+				resultObj["error"] = wasm.SanitizeTerminalOutput(execErr.Error())
+			}
+			callback.Invoke(resultObj)
 		})
 	}()
 

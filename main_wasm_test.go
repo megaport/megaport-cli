@@ -13,6 +13,7 @@ import (
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/wasm"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestMain mirrors main()'s registration (minus the blocking channel wait):
@@ -124,6 +125,41 @@ func invokeAsyncAndWait(t *testing.T, cmd string) js.Value {
 		t.Fatalf("executeMegaportCommandAsync callback never fired for command %q", cmd)
 		return errResult("test helper: callback never fired")
 	}
+}
+
+// TestExecuteMegaportCommandAsync_UnknownCommand_RoutesToError is the ESD-1666
+// bridge-level regression: an unknown command must populate result.error so the
+// Portal renders the red Error: line and emits the failure telemetry event,
+// rather than leaving the failure only in result.output (uncolored, uncounted).
+func TestExecuteMegaportCommandAsync_UnknownCommand_RoutesToError(t *testing.T) {
+	wasm.ResetOutputBuffers()
+
+	result := invokeAsyncAndWait(t, "location list")
+
+	errVal := result.Get("error")
+	require.False(t, errVal.IsUndefined(), "unknown command should populate result.error")
+	assert.Contains(t, errVal.String(), "unknown command")
+
+	if out := result.Get("output"); !out.IsUndefined() {
+		assert.NotContains(t, out.String(), "unknown command", "error text must not also be in result.output")
+	}
+}
+
+// TestExecuteMegaportCommandAsync_ErrorIsSanitized guards the security fix that
+// rides along with ESD-1666: a parser error echoes a user-typed flag name
+// verbatim (pflag's "unknown flag: --%s"), and the host writes result.error
+// straight to xterm. Routing that error to result.error must not bypass the
+// control-byte sanitization WasmOutputBuffer applies to result.output, or a
+// crafted flag name becomes a terminal-injection vector.
+func TestExecuteMegaportCommandAsync_ErrorIsSanitized(t *testing.T) {
+	wasm.ResetOutputBuffers()
+
+	// An unknown flag whose name embeds an ESC-based clear-screen sequence.
+	result := invokeAsyncAndWait(t, "locations list --\x1b[2Jevil")
+
+	errVal := result.Get("error")
+	require.False(t, errVal.IsUndefined(), "an unknown flag should populate result.error")
+	assert.NotContains(t, errVal.String(), "\x1b", "control bytes must be stripped from result.error")
 }
 
 // TestExecuteMegaportCommandAsync_Callback verifies async command with callback
