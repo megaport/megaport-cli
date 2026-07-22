@@ -81,14 +81,17 @@ func printTable[T OutputFields](data []T, noColor bool, opts printOptions) (err 
 	// GetCapturedOutput/GetCompletionOutput and written to xterm without
 	// escaping, and a colorized cell value (colorizeValue) can carry a
 	// resource name or other API field an attacker controls. SGR color codes
-	// are preserved; see wasm.SanitizeTerminalOutput.
-	tableOutput := wasm.SanitizeTerminalOutput(WasmTableWriter.String())
+	// are preserved; see wasm.SanitizeTerminalOutput. Sanitize the new slice
+	// on its own rather than slicing the sanitized whole buffer by a raw-byte
+	// offset: sanitizing drops bytes, so a raw offset no longer lines up with
+	// the sanitized string.
+	raw := WasmTableWriter.String()
 
 	// Write the newly-rendered table to stdout so it can be captured by wasm buffers.
-	fmt.Print(tableOutput[before:])
+	fmt.Print(wasm.SanitizeTerminalOutput(raw[before:]))
 
 	// Also write to a JavaScript-accessible global variable.
-	js.Global().Set("wasmTableOutput", tableOutput)
+	js.Global().Set("wasmTableOutput", wasm.SanitizeTerminalOutput(raw))
 
 	return nil
 }
