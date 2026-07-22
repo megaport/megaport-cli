@@ -127,9 +127,14 @@ func ValidatePrefixFilterListRequest(req *megaport.CreateMCRPrefixFilterListRequ
 // permit or deny, and that any GE/LE bounds fit the family's prefix length
 // (GE/LE are optional; 0 means unset, matching their omitempty JSON encoding).
 func validatePrefixFilterEntries(entries []*megaport.MCRPrefixListEntry, addressFamily string) error {
-	maxPrefixLen := 32
-	if addressFamily == "IPv6" {
+	var maxPrefixLen int
+	switch addressFamily {
+	case "IPv4":
+		maxPrefixLen = 32
+	case "IPv6":
 		maxPrefixLen = 128
+	default:
+		return NewValidationError("address family", addressFamily, "must be IPv4 or IPv6")
 	}
 	for i, entry := range entries {
 		if entry == nil {

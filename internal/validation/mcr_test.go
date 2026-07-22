@@ -8,6 +8,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestValidatePrefixFilterEntriesRejectsUnknownAddressFamily(t *testing.T) {
+	entries := []*megaport.MCRPrefixListEntry{
+		{Action: "permit", Prefix: "10.0.0.0/8"},
+	}
+	err := validatePrefixFilterEntries(entries, "IPv5")
+	assert.IsType(t, &ValidationError{}, err)
+	assert.Equal(t, "Invalid address family: IPv5 - must be IPv4 or IPv6", err.Error())
+}
+
 func TestValidateIPSecTunnelCount(t *testing.T) {
 	tests := []struct {
 		name             string
