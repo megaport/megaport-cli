@@ -11,19 +11,76 @@ workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries unde
 
 ## [Unreleased]
 
-### Added
-- `servicekeys create` and `servicekeys update` now support `--json`/`--json-file` and `--interactive` input modes, matching the input-mode contract used elsewhere in the CLI. The update path's merge behavior (unset fields keep their current value rather than being cleared) is preserved across all three input modes (ESD-1591)
+## [v1.0.0-beta.2] - 2026-07-22
 
-### Changed
-- **Breaking (WASM):** `window.executeMegaportCommand` no longer executes commands. A synchronous call blocked the JS event loop while the CLI waited on the browser's fetch transport, hanging the tab, and bypassed the mutex that guards the shared output buffers. It is kept as a deprecated stub for one release and always returns `{ error: "synchronous execution is not supported; use executeMegaportCommandAsync" }`. Use `window.executeMegaportCommandAsync` instead (ESD-1598)
+### Added
+- ESD-1591-feat(servicekeys): add JSON and interactive input modes (#504)
+- ESD-1595-feat(wasm): stream command output to the host (#489)
+- ESD-1596-feat(wasm): handle portal token expiry with a clear re-auth signal (#490)
+- ESD-1600-feat(wasm): size table columns from the host terminal viewport width (#493)
+- ESD-1614-feat(mcr): add looking-glass ping and traceroute commands (#508)
+- retire the synchronous command entrypoint
+- distinguish portal/WASM CLI traffic with x-app: cli-wasm (#496)
 
 ### Fixed
-- `partners list` filters (`--product-name`, `--connect-type`, `--company-name`, `--diversity-zone`) now match case-insensitive substrings instead of requiring an exact match, matching the documented partial-match behavior (ESD-1590)
-- default JSON-created users to active when `active` is omitted, matching the flags and interactive paths; an explicit `active: false` is still honored (ESD-1592)
-- repair the `js/wasm` build of `./...` (the WASM config manager was missing `GetProfile`, which `auth status` needs) and enforce the full wasm build, vet, test compilation, and wasm-tagged linting in CI so wasm code stops rotting silently (ESD-1578)
-- require Cisco FMC fields only when not managing locally on the `mve buy` and `mve validate` flags and JSON paths, matching the validator (ESD-1571)
-- `mve buy` and `mve validate` now apply `resourceTags` from JSON input, and interactive `mve buy` now prompts for tags, matching MCR. Previously the JSON path silently dropped the documented `resourceTags` field and interactive mode never asked. The JSON path shares the same value and empty-key validation as the flags path, so non-string values and empty keys return a usage error before the order is placed
-- abort the browser fetch when `req.Context()` is cancelled or the WASM transport timeout fires, instead of leaving it running behind a dead command; also drop the forbidden `Accept-Encoding` header the browser silently stripped (ESD-1594)
+- ESD-1552-fix(mcr): wire --marketplace-visibility into mcr buy and validate (#506)
+- ESD-1572-fix(ports,mcr): preserve cost centre on update (#480)
+- ESD-1579-fix(wasm): fail file-input flags fast with a clear browser error (#482)
+- ESD-1580-fix(wasm): keep status messages when table output is present (#483)
+- ESD-1586-fix(cli): send confirmation prompts to stderr (#500)
+- ESD-1587-fix(cli): add missing interactive prompts for ix, nat-gateway, users (#501)
+- ESD-1589-fix(mve): reject malformed vNICs and normalize interactive vendor/size case (#499)
+- ESD-1590-fix(partners): make list filters partial-match as documented (#498)
+- ESD-1592-fix(users): default JSON-created users to active (#497)
+- ESD-1594-fix(wasm): abort browser fetches on context cancellation and timeout (#487)
+- ESD-1599-fix(wasm): surface spinner success messages in captured output (#494)
+- ESD-1633-fix(wasm): stop SplitArgs deleting a literal megaport argument (#520)
+- ESD-1636-fix(wasm): recover around JS callback invocations at the boundary (#523)
+- ESD-1646-fix(wasm): sanitize control sequences in data output (#533)
+- bump Go toolchain to 1.26.5 (#511)
+- handle empty-value tag edits in interactive tag prompt (#539)
+- make --interactive take precedence over stray flags
+- return usage exit code for malformed JSON input (#502)
+- bump golang.org/x/text to v0.39.0 (GO-2026-5970) (#544)
+- preserve unspecified fields on update
+- error on invalid/empty answers to required yes/no prompts (#527)
+- apply resourceTags on JSON and interactive buy paths
+- make Cisco config parser match the validator
+- preserve cost centre on update when not provided (#516)
+- reject non-boolean manageLocally with a clear error
+- enforce LAG validation on the JSON buy path
+- repair provisioning integration suite compile and servicekeys stubs (#540)
+- align contract terms and MCR speeds with the SDK (#503)
+- correct int-width bound in GetIntFromInterface (#538)
+- honor injected version and normalize update-check prefix
+- address Copilot review follow-ups on retirement PR
+- align prompt timeout with the command budget
+- assert no error before reading output in async test helpers
+- check executeMegaportCommandAsync is a function, not just truthy
+- enable consistent ANSI color in browser output
+- harden terminal sanitization and release test callbacks
+- register JS globals in TestMain for main_wasm_test.go
+- release mock js.Func callbacks in tests, drop dead changelog entry
+- show confirmation summaries in interactive mode
+- stop prompt timeout timer on completion, deflake late-submit tests
+- bump goldmark to resolve govulncheck XSS finding (#505)
+
+### Other Changes
+- ESD-1578-ci(wasm): enforce full wasm build, vet, and test compilation (#484)
+- ESD-1601-refactor(wasm): remove the config manager from the browser build (#495)
+- add matrix-aware NAT gateway speed/session validation (#507)
+- Stop trusting the page-writable apiURL global in WASM login (#513)
+- Fix interactive VXC buy dropping the B-End VLAN (#512)
+- emit WASM artifact integrity hashes from the publish workflow (#519)
+- Reject unknown flags in the WASM build (#521)
+- Reject contract term 0 consistently in VXC and port updates (#522)
+- Validate VXC update JSON with checked helpers and a field gate (#526)
+- Read VXC shutdown status from the Shutdown field (#525)
+- Validate environment in config update-profile and import (#529)
+- Validate empty request and position on users update (#528)
+- Share one buffered stdin reader across prompts (#530)
+- Make WithRequiredFlag fail loudly when misordered (#532)
+- Route Cobra command errors to result.error in the WASM CLI (#542)
 
 ## [v1.0.0-beta.1] - 2026-07-01
 
@@ -476,7 +533,8 @@ workflow (scripts/update-changelog.sh). Don't hand-edit them or add entries unde
 - Credential support via environment variables (`MEGAPORT_ACCESS_KEY`, `MEGAPORT_SECRET_KEY`, `MEGAPORT_ENVIRONMENT`)
 - Automated CI with golangci-lint and Go test suite
 
-[Unreleased]: https://github.com/megaport/megaport-cli/compare/v1.0.0-beta.1...HEAD
+[Unreleased]: https://github.com/megaport/megaport-cli/compare/v1.0.0-beta.2...HEAD
+[v1.0.0-beta.2]: https://github.com/megaport/megaport-cli/compare/v1.0.0-beta.1...v1.0.0-beta.2
 [v1.0.0-beta.1]: https://github.com/megaport/megaport-cli/compare/v0.13.0...v1.0.0-beta.1
 [v0.13.0]: https://github.com/megaport/megaport-cli/compare/v0.12.0...v0.13.0
 [v0.12.0]: https://github.com/megaport/megaport-cli/compare/v0.11.0...v0.12.0
