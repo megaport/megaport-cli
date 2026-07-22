@@ -21,7 +21,6 @@ web/megaport.wasm
 *.wasm.br
 *.wasm.gz
 
-
 # Go build artifacts
 /megaport-cli
 megaport-cli
