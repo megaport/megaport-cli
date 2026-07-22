@@ -328,22 +328,11 @@ func exitCodeFromError(err error) int {
 	return exitcodes.General
 }
 
-// isCobraUsageError is a defensive fallback for cobra's own error shapes.
-// Flag-parse failures and missing-required-flag errors are now tagged as a
-// typed usage error at the source (rootCmd.SetFlagErrorFunc and the
-// ValidateRequiredFlags check in PersistentPreRunE), so in practice those
-// reach exitCodeFromError as a *exitcodes.CLIError and never fall through to
-// this substring match. "unknown command" (from cobra.Command.Find) and
-// "arg(s)" (from the per-command Args validator) run before
-// PersistentPreRunE and have no equivalent hook, so they still rely on this
-// match. Matching here on any of these patterns is safe because every RunE
-// built from WithRunFunc is wrapped by utils.Wrap*, which always converts its
-// return value to a typed *exitcodes.CLIError before it reaches cobra. The
-// cmdbuilder-injected `docs` subcommand and the `--generate-skeleton` bypass
-// are the two exceptions: they return plain errors (a missing doc file, a
-// failed stdout write), but neither can produce text that coincidentally
-// matches a cobra usage pattern, so they still fall through safely to
-// exitcodes.General below rather than being misclassified as a usage error.
+// isCobraUsageError is a defensive fallback matching cobra's usage-error text.
+// Flag-parse and missing-required-flag errors are already typed as usage errors
+// at the source (SetFlagErrorFunc and the ValidateRequiredFlags check), so the
+// matches for those are a backstop for any that arrive untyped; "unknown command"
+// and the arg-count validators have no such hook and rely on this match.
 func isCobraUsageError(msg string) bool {
 	cobraPatterns := []string{
 		"unknown command",

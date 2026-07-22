@@ -452,17 +452,15 @@ func filterByFields(headers, jsonNames []string, indices []int, selected []strin
 	return outHeaders, outJSONNames, outIndices, nil
 }
 
-// isXMLNameStartChar reports whether r is legal as the first character of an
-// XML element local name. Colon is deliberately excluded even though XML 1.0
-// allows it in a Name: it is namespace-significant, and treating a field name
-// like "a:b" as a namespace-qualified name would produce an undeclared-prefix
-// error in namespace-aware parsers.
+// isXMLNameStartChar reports whether r is legal as the first character of an XML
+// element local name. Colon is excluded on purpose: it is namespace-significant,
+// so a name like "a:b" would trip an undeclared-prefix error in aware parsers.
 func isXMLNameStartChar(r rune) bool {
 	return r == '_' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
 }
 
 // isXMLNameChar reports whether r is legal as a non-first character of an XML
-// element local name (see isXMLNameStartChar for why colon is excluded).
+// element local name.
 func isXMLNameChar(r rune) bool {
 	return isXMLNameStartChar(r) || r == '.' || r == '-' || (r >= '0' && r <= '9')
 }
