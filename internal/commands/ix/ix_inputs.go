@@ -83,6 +83,9 @@ func buildUpdateIXRequestFromFlags(cmd *cobra.Command) (*megaport.UpdateIXReques
 
 	if cmd.Flags().Changed("name") {
 		name, _ := cmd.Flags().GetString("name")
+		if name == "" {
+			return nil, validation.NewValidationError("name", name, "cannot be empty")
+		}
 		req.Name = &name
 	}
 
@@ -162,6 +165,9 @@ func buildUpdateIXRequestFromJSON(jsonStr, jsonFile string) (*megaport.UpdateIXR
 		return nil, exitcodes.NewUsageError(fmt.Errorf("failed to parse JSON: %w", err))
 	}
 
+	if req.Name != nil && *req.Name == "" {
+		return nil, validation.NewValidationError("name", "", "cannot be empty")
+	}
 	if req.ASN != nil {
 		if err := validation.ValidateASN(*req.ASN); err != nil {
 			return nil, err

@@ -1444,6 +1444,10 @@ func TestBuildVXCRequestFromJSON_PartnerPortResolution(t *testing.T) {
 		_, err := buildVXCRequestFromJSON(payload, "", context.Background(), &MockVXCService{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "productUID was neither provided nor could be looked up")
+
+		var cliErr *exitcodes.CLIError
+		require.True(t, errors.As(err, &cliErr), "expected a *exitcodes.CLIError, got %T: %v", err, err)
+		assert.Equal(t, exitcodes.Usage, cliErr.Code)
 	})
 }
 

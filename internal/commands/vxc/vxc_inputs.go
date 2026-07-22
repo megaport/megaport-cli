@@ -19,7 +19,7 @@ var buildVXCRequestFromFlags = func(cmd *cobra.Command, ctx context.Context, svc
 
 	name, _ := cmd.Flags().GetString("name")
 	if name == "" {
-		return nil, fmt.Errorf("name is required")
+		return nil, exitcodes.NewUsageError(validation.NewValidationError("VXC name", name, "cannot be empty"))
 	}
 
 	rateLimit, _ := cmd.Flags().GetInt("rate-limit")
