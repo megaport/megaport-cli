@@ -147,6 +147,9 @@ var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 
 			// Create Megaport client with the external token (no OAuth flow needed!)
 			clientOpts = append(clientOpts, megaport.WithCustomHeaders(cliHeaders))
+			if uid := resolveManagedAccountUID(); uid != "" {
+				clientOpts = append(clientOpts, megaport.WithCallContext(uid))
+			}
 			megaportClient, err := megaport.New(httpClient, clientOpts...)
 			if err != nil {
 				js.Global().Get("console").Call("error", "Failed to create Megaport client: "+err.Error())
@@ -242,11 +245,15 @@ var loginFunc = func(ctx context.Context) (*megaport.Client, error) {
 
 	// Create Megaport client with credentials
 	js.Global().Get("console").Call("log", "Creating Megaport client...")
-	megaportClient, err := megaport.New(httpClient,
+	clientOpts := []megaport.ClientOpt{
 		megaport.WithCredentials(accessKey, secretKey),
 		envOpt,
 		megaport.WithCustomHeaders(cliHeaders),
-	)
+	}
+	if uid := resolveManagedAccountUID(); uid != "" {
+		clientOpts = append(clientOpts, megaport.WithCallContext(uid))
+	}
+	megaportClient, err := megaport.New(httpClient, clientOpts...)
 	if err != nil {
 		js.Global().Get("console").Call("error", "Failed to create Megaport client: "+err.Error())
 		js.Global().Get("console").Call("groupEnd")

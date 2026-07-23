@@ -203,6 +203,9 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 
 	baseOpts := []megaport.ClientOpt{megaport.WithCredentials(accessKey, secretKey), megaport.WithCustomHeaders(cliHeaders)}
+	if uid := resolveManagedAccountUID(); uid != "" {
+		baseOpts = append(baseOpts, megaport.WithCallContext(uid))
+	}
 	if utils.BaseURL != "" {
 		warnIfInsecureBaseURL(utils.BaseURL)
 		baseOpts = append(baseOpts, megaport.WithBaseURL(utils.BaseURL))

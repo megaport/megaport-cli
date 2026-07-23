@@ -1,9 +1,12 @@
 package config
 
 import (
+	"os"
 	"strings"
 
 	megaport "github.com/megaport/megaportgo"
+
+	"github.com/megaport/megaport-cli/internal/utils"
 )
 
 // ConfigFile represents the configuration file structure
@@ -48,6 +51,16 @@ func normalizeEnvironment(env string) string {
 	default:
 		return "production"
 	}
+}
+
+// resolveManagedAccountUID returns the managed account UID to act on behalf of:
+// the --on-behalf-of flag if set, otherwise the MEGAPORT_MANAGED_ACCOUNT_UID env
+// var. Empty means no X-Call-Context header should be sent.
+func resolveManagedAccountUID() string {
+	if utils.ManagedAccountUID != "" {
+		return utils.ManagedAccountUID
+	}
+	return os.Getenv("MEGAPORT_MANAGED_ACCOUNT_UID")
 }
 
 // environmentOption returns the megaport.ClientOpt for the given environment string.
