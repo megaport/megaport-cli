@@ -55,12 +55,13 @@ func normalizeEnvironment(env string) string {
 
 // resolveManagedAccountUID returns the managed account UID to act on behalf of:
 // the --on-behalf-of flag if set, otherwise the MEGAPORT_MANAGED_ACCOUNT_UID env
-// var. Empty means no X-Call-Context header should be sent.
+// var. Values are trimmed, so a whitespace-only value counts as unset and no
+// X-Call-Context header is sent.
 func resolveManagedAccountUID() string {
-	if utils.ManagedAccountUID != "" {
-		return utils.ManagedAccountUID
+	if uid := strings.TrimSpace(utils.ManagedAccountUID); uid != "" {
+		return uid
 	}
-	return os.Getenv("MEGAPORT_MANAGED_ACCOUNT_UID")
+	return strings.TrimSpace(os.Getenv("MEGAPORT_MANAGED_ACCOUNT_UID"))
 }
 
 // environmentOption returns the megaport.ClientOpt for the given environment string.

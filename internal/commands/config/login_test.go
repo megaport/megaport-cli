@@ -883,6 +883,9 @@ func TestOnBehalfOfCallContextHeader(t *testing.T) {
 		{name: "env var used when no flag", envUID: "env-uid-456", wantHeader: "env-uid-456"},
 		{name: "flag wins over env var", flagUID: "flag-uid-123", envUID: "env-uid-456", wantHeader: "flag-uid-123"},
 		{name: "no flag and no env sends no header", wantHeader: ""},
+		{name: "flag is trimmed", flagUID: "  flag-uid-123\n", wantHeader: "flag-uid-123"},
+		{name: "whitespace-only flag sends no header", flagUID: "   ", wantHeader: ""},
+		{name: "whitespace-only flag falls back to env", flagUID: "   ", envUID: "env-uid-456", wantHeader: "env-uid-456"},
 	}
 
 	for _, tt := range tests {
