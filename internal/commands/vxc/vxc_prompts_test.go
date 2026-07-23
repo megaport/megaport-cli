@@ -273,6 +273,7 @@ func TestPromptBGPConnections(t *testing.T) {
 				"no",       // shutdown
 				"",         // description (optional)
 				"no",       // bfdEnabled
+				"",         // asOverride (optional)
 				"",         // exportPolicy (optional)
 				"",         // peerType (optional)
 				"",         // medIn (optional)
@@ -296,6 +297,7 @@ func TestPromptBGPConnections(t *testing.T) {
 				assert.Equal(t, "10.0.0.2", conns[0].PeerIpAddress)
 				assert.False(t, conns[0].Shutdown)
 				assert.False(t, conns[0].BfdEnabled)
+				assert.Nil(t, conns[0].AsOverride)
 			},
 		},
 	}
@@ -560,6 +562,7 @@ func TestPromptBGPOptionalConfig_WithValues(t *testing.T) {
 		"yes",       // shutdown
 		"my bgp",    // description
 		"yes",       // bfdEnabled
+		"yes",       // asOverride
 		"permit",    // exportPolicy
 		"NON_CLOUD", // peerType
 		"100",       // medIn
@@ -579,6 +582,9 @@ func TestPromptBGPOptionalConfig_WithValues(t *testing.T) {
 	assert.True(t, bgp.Shutdown)
 	assert.Equal(t, "my bgp", bgp.Description)
 	assert.True(t, bgp.BfdEnabled)
+	if assert.NotNil(t, bgp.AsOverride) {
+		assert.True(t, *bgp.AsOverride)
+	}
 	assert.Equal(t, "permit", bgp.ExportPolicy)
 	assert.Equal(t, "NON_CLOUD", bgp.PeerType)
 	assert.Equal(t, 100, bgp.MedIn)
@@ -679,6 +685,7 @@ func TestPromptVRouterConfig(t *testing.T) {
 				"no",            // shutdown
 				"",              // description
 				"no",            // BFD enabled
+				"",              // AS override
 				"",              // export policy
 				"",              // peer type
 				"",              // MED in
