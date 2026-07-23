@@ -360,7 +360,7 @@ func promptBGPOptionalConfig(bgp *megaport.BgpConnectionConfig, noColor bool) er
 	}
 	bgp.BfdEnabled = strings.ToLower(bfdEnabledStr) == "yes"
 
-	asOverrideStr, err := utils.ResourcePrompt("vxc", "Enable AS Override? (yes/no, leave blank for API default): ", noColor)
+	asOverrideStr, err := utils.ResourcePrompt("vxc", "Enable AS Override? (yes/no, optional - press Enter for API default): ", noColor)
 	if err != nil {
 		return err
 	}
