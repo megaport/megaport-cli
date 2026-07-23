@@ -639,6 +639,25 @@ func TestPromptBGPOptionalConfig_AsOverrideInvalid(t *testing.T) {
 	assert.Nil(t, bgp.AsOverride)
 }
 
+func TestPromptBGPOptionalConfig_AsOverridePromptError(t *testing.T) {
+	// Exhaust the prompt queue exactly at the AS Override prompt so ResourcePrompt
+	// errors, exercising the error-propagation branch.
+	cleanup := mockPromptsAndSecrets([]string{
+		"",   // localAsn
+		"no", // shutdown
+		"",   // description
+		"no", // bfdEnabled
+	}, []string{
+		"", // password
+	})
+	defer cleanup()
+
+	bgp := &megaport.BgpConnectionConfig{}
+	err := promptBGPOptionalConfig(bgp, true)
+	assert.Error(t, err)
+	assert.Nil(t, bgp.AsOverride)
+}
+
 func TestPromptBGPExportAddresses_WithValues(t *testing.T) {
 	cleanup := mockPrompts([]string{
 		"yes",         // permit export to
