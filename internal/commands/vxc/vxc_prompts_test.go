@@ -592,6 +592,53 @@ func TestPromptBGPOptionalConfig_WithValues(t *testing.T) {
 	assert.Equal(t, 3, bgp.AsPathPrependCount)
 }
 
+func TestPromptBGPOptionalConfig_AsOverrideNo(t *testing.T) {
+	cleanup := mockPromptsAndSecrets([]string{
+		"",   // localAsn (optional)
+		"no", // shutdown
+		"",   // description
+		"no", // bfdEnabled
+		"no", // asOverride
+		"",   // exportPolicy
+		"",   // peerType
+		"",   // medIn
+		"",   // medOut
+		"",   // asPathPrepend
+	}, []string{
+		"", // password
+	})
+	defer cleanup()
+
+	bgp := &megaport.BgpConnectionConfig{}
+	err := promptBGPOptionalConfig(bgp, true)
+	assert.NoError(t, err)
+	if assert.NotNil(t, bgp.AsOverride) {
+		assert.False(t, *bgp.AsOverride)
+	}
+}
+
+func TestPromptBGPOptionalConfig_AsOverrideInvalid(t *testing.T) {
+	// The prompt returns before reaching later fields, so only the prompts up
+	// to and including asOverride need feeding.
+	cleanup := mockPromptsAndSecrets([]string{
+		"",      // localAsn (optional)
+		"no",    // shutdown
+		"",      // description
+		"no",    // bfdEnabled
+		"maybe", // asOverride (invalid)
+	}, []string{
+		"", // password
+	})
+	defer cleanup()
+
+	bgp := &megaport.BgpConnectionConfig{}
+	err := promptBGPOptionalConfig(bgp, true)
+	if assert.Error(t, err) {
+		assert.Contains(t, err.Error(), "AS Override must be 'yes' or 'no'")
+	}
+	assert.Nil(t, bgp.AsOverride)
+}
+
 func TestPromptBGPExportAddresses_WithValues(t *testing.T) {
 	cleanup := mockPrompts([]string{
 		"yes",         // permit export to
