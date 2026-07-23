@@ -202,9 +202,11 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 
-	baseOpts := []megaport.ClientOpt{megaport.WithCredentials(accessKey, secretKey), megaport.WithCustomHeaders(cliHeaders)}
-	if uid := resolveManagedAccountUID(); uid != "" {
-		baseOpts = append(baseOpts, megaport.WithCallContext(uid))
+	managedAccountUID := resolveManagedAccountUID()
+	baseOpts := []megaport.ClientOpt{
+		megaport.WithCredentials(accessKey, secretKey),
+		megaport.WithCustomHeaders(cliHeaders),
+		megaport.WithCallContext(managedAccountUID),
 	}
 	if utils.BaseURL != "" {
 		warnIfInsecureBaseURL(utils.BaseURL)
@@ -239,6 +241,9 @@ var loginFuncWithOutput = func(ctx context.Context, outputFormat string) (*megap
 			target = strings.ToUpper(env[:1]) + env[1:]
 		}
 		spinner.StopWithSuccess(fmt.Sprintf("Successfully logged in to Megaport %s", target))
+		if managedAccountUID != "" {
+			fmt.Fprintf(os.Stderr, "Acting on behalf of managed account %s\n", managedAccountUID)
+		}
 	}
 
 	return megaportClient, nil
