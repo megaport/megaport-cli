@@ -94,7 +94,7 @@ Docs are auto-generated from command definitions. Regenerate with `./megaport-cl
 
 ### Commit Messages
 
-Every commit subject starts with a Jira key: `ESD-1234: add shorthand aliases for common commands`. See CONTRIBUTING.md.
+Every commit subject starts with a Jira key: `ENG-1234: add shorthand aliases for common commands`. See CONTRIBUTING.md.
 
 ### Command Aliases
 

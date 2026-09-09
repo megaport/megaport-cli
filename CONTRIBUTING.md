@@ -83,14 +83,14 @@ The generated markdown files include:
 
 Every commit subject starts with a Jira key, then a colon and a short summary:
 
-- `ESD-1234: add shorthand aliases for common commands`
-- `ESD-1250: correct port deletion error handling`
+- `ENG-1234: add shorthand aliases for common commands`
+- `ENG-1250: correct port deletion error handling`
 
 GitHub enforces this on every branch and on `main`. If you're contributing from a fork you don't need a key: write a clear subject and a maintainer will squash-merge your pull request under one. Dependabot commits use the standing key `EIP-3148`.
 
 ## Pull Requests
 
-1. Create a feature branch named after the Jira key: `git checkout -b feature/ESD-1234-your-feature` (`fix/`, `hotfix/`, and `release/` prefixes also pass the branch rule)
+1. Create a feature branch named after the Jira key: `git checkout -b feature/ENG-1234-your-feature` (`fix/`, `hotfix/`, and `release/` prefixes also pass the branch rule)
 2. Make your changes
 3. Ensure tests pass: `go test -v ./...`
 4. Ensure linting passes: `golangci-lint run`
