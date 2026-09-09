@@ -90,7 +90,7 @@ GitHub enforces this on every branch and on `main`. If you're contributing from 
 
 ## Pull Requests
 
-1. Create a feature branch named after the Jira key: `git checkout -b feature/ENG-1234-your-feature` (`fix/`, `hotfix/`, and `release/` prefixes also pass the branch rule)
+1. Create a feature branch named after the Jira key: `git checkout -b feature/ENG-1234-your-feature` (`fix/`, `hotfix/`, and `release/` prefixes also pass the branch rule). This only applies to branches in this repository: contributing from a fork, name your branch however you like.
 2. Make your changes
 3. Ensure tests pass: `go test -v ./...`
 4. Ensure linting passes: `golangci-lint run`
