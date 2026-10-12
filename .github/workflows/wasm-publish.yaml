@@ -158,8 +158,8 @@ jobs:
           # instantiation (WebAssembly.instantiateStreaming via fetch) has no
           # `integrity` attribute to check it against; wasm_exec.js is loaded as a
           # <script src>, which does support SRI, hence the sha384-<base64> form.
-          wasm_sha256="$(shasum -a 256 web/vue-demo/megaport.wasm | awk '{print $1}')"
-          wasm_exec_sri="sha384-$(openssl dgst -sha384 -binary web/vue-demo/wasm_exec.js | openssl base64 -A)"
+          wasm_sha256="$(shasum -a 256 web/dist/megaport.wasm | awk '{print $1}')"
+          wasm_exec_sri="sha384-$(openssl dgst -sha384 -binary web/dist/wasm_exec.js | openssl base64 -A)"
           echo "wasm_sha256=$wasm_sha256" >> "$GITHUB_OUTPUT"
           echo "wasm_exec_sri=$wasm_exec_sri" >> "$GITHUB_OUTPUT"
           echo "megaport.wasm SHA-256: $wasm_sha256"
@@ -172,10 +172,10 @@ jobs:
           WASM_EXEC_SRI: ${{ steps.hashes.outputs.wasm_exec_sri }}
         run: |
           set -euo pipefail
-          # Published alongside the site (synced by "Publish to S3" below) so the
+          # Published alongside the wasm (synced by "Publish to S3" below) so the
           # values are re-verifiable from the CDN later without re-hashing or relying
           # on the step summary above, which the Actions UI eventually expires.
-          cat > web/vue-demo/integrity.json <<EOF
+          cat > web/dist/integrity.json <<EOF
           {
             "version": "${VERSION}",
             "megaport.wasm": {"sha256": "${WASM_SHA256}"},
@@ -193,7 +193,7 @@ jobs:
         # mismatch, since it isn't the uncompressed subject that was attested.
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2.4.0
         with:
-          subject-path: web/vue-demo/megaport.wasm
+          subject-path: web/dist/megaport.wasm
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4.3.1
