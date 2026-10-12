@@ -32,7 +32,6 @@ linters:
       - third_party$
       - builtin$
       - examples$
-      - node_modules
 issues:
   max-same-issues: 0
 formatters:
@@ -44,4 +43,3 @@ formatters:
       - third_party$
       - builtin$
       - examples$
-      - node_modules
