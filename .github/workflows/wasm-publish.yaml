@@ -30,8 +30,8 @@ name: Publish WASM to S3
 # WHAT GETS PUBLISHED:
 #   Stable filenames under each prefix: megaport.wasm (brotli, Content-Encoding: br),
 #   wasm_exec.js, and integrity.json (their hashes). The names are kept stable rather
-#   than content-hashed so a consumer such as the portal can reference the wasm and
-#   wasm_exec.js by URL; the version/latest prefix provides the cache-busting instead.
+#   than content-hashed, so a consumer such as the portal can reference the wasm and
+#   wasm_exec.js by URL. The version/latest prefix is the cache-buster instead.
 #
 # PORTAL INTEGRATION:
 #   Point the portal's wasmUrl/wasmExecUrl at the latest/ alias while iterating, then
@@ -280,7 +280,7 @@ jobs:
             echo "### WASM published"
             echo ""
             echo "- Version prefix: \`${PREFIX}/${VERSION}/\`"
-            echo "- Files: \`megaport.wasm\`, \`wasm_exec.js\`"
+            echo "- Files: \`megaport.wasm\`, \`wasm_exec.js\`, \`integrity.json\`"
             [ "$PUBLISH_LATEST" = "true" ] && echo "- Latest alias: \`${PREFIX}/latest/\`"
             echo ""
             echo "#### Integrity reference values (\`${VERSION}\`)"

@@ -119,9 +119,9 @@ always returns `{ error: "synchronous execution is not supported; use executeMeg
 It will be removed in a future release; new integrations should not call it.
 
 The other `window` functions (auth, config file, prompts, output) are registered in
-`internal/wasm/`, and their Go doc comments describe the arguments. There is no reference
-front end in this repo. Front-end integrators (e.g. the Portal) own their own wrapper
-around the `window.executeMegaportCommandAsync` API described above.
+`internal/wasm/`. There is no reference front end in this repo. Front-end integrators
+(e.g. the Portal) own their own wrapper around the `window.executeMegaportCommandAsync`
+API described above.
 
 ## Interactive Mode
 
@@ -168,7 +168,7 @@ Don't rely on the password type alone to mask every secret.
 
 ```js
 registerPromptHandler((request) => {
-  const masked = request.type === 'password';
+  const masked = request.type === 'password'; // misses some secrets, see above
   showPrompt(request.message, { masked }).then((answer) => {
     if (answer === null) {
       cancelPrompt(request.id);        // user dismissed the prompt
@@ -184,7 +184,8 @@ executeMegaportCommandAsync('vxc buy --interactive', (result) => {
 ```
 
 A command times out 10 minutes after it starts, including any time it waits on prompts,
-and its callback then receives an error.
+and its callback then receives an error. The command keeps running after that. Call
+`cancelPrompt` for any prompt that is still open, or a late "y" can still place an order.
 
 ### Live output streaming
 
@@ -288,9 +289,6 @@ GOOS=js GOARCH=wasm go build -tags js,wasm -o web/megaport.wasm .
 cp -f "$(go env GOROOT)/lib/wasm/wasm_exec.js" web/wasm_exec.js
 
 # 3. Upload the WASM binary and the wasm_exec.js loader.
-#    `--content-type application/wasm` is required so the file isn't served as
-#    application/octet-stream: `WebAssembly.instantiateStreaming` rejects anything
-#    else, which would break loading the WASM in the browser.
 aws s3 cp web/megaport.wasm s3://media.megaport.com/portal/megaport-cli/megaport.wasm \
     --content-type application/wasm
 aws s3 cp web/wasm_exec.js  s3://media.megaport.com/portal/megaport-cli/wasm_exec.js

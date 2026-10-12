@@ -37,11 +37,11 @@ CloudFront-fronted S3 bucket. It is manual-only (`workflow_dispatch`): a product
 publish is always a deliberate action, never an automatic tag push.
 
 Each run uploads `megaport.wasm`, `wasm_exec.js`, and `integrity.json` (their SHA-256 and
-SRI hashes) under two prefixes:
+SRI hashes) under these prefixes:
 
 - `<version>/`: immutable, long-lived cache. Treat a version label as write-once, so use
   a fresh tag or `version` input per release.
-- `latest/`: short TTL, refreshed on every run.
+- `latest/`: short TTL, refreshed on every run unless the `publish_latest` input is false.
 
 These filenames are kept stable rather than content-hashed, so a consumer such as the
 portal can load `megaport.wasm` and `wasm_exec.js` by static config URL. The
