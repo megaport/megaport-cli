@@ -36,28 +36,6 @@ shipping `.br`/`.gz`/identity as separate objects selected on `Accept-Encoding`.
 upload itself and the `Accept-Encoding` routing are owned by the infra/CDN tooling, not
 this repo.
 
-## Caching
-
-`cmd/wasmhash` is a content-hashing helper for an index.html-driven publish flow. It is
-not wired into any script or CI job in this repo (the S3 publish workflow below uses
-stable, unhashed filenames instead), but if a consumer wires it up to content-hash the
-wasm into `megaport.<hash>.wasm`, `index.html` would carry that hashed URL via
-`window.__MEGAPORT_WASM_URL__`. That only works if the CDN respects the right cache
-lifetimes, so whatever serves these files (the CDN or origin) must apply them:
-
-- `megaport.<hash>.wasm` (and its `.br`/`.gz` siblings): `Cache-Control: public,
-  max-age=31536000, immutable`. The hash changes when the content does, so it never
-  needs revalidating.
-- `index.html`: `no-cache` (short TTL at most). It must be re-fetched so clients pick
-  up a new hashed wasm URL.
-- `wasm_exec.js`: `no-cache`. It is served from a fixed unhashed path, so it must
-  revalidate to stay paired with the wasm's Go runtime after a toolchain upgrade.
-
-A plain unhashed `megaport.wasm` must NOT be served immutable at a flat, unversioned
-path. (The S3 publish flow below does serve an unhashed `megaport.wasm`, but only under
-a per-version prefix where the path itself is unique, so immutable caching is safe
-there.)
-
 ## Publishing to S3 (CDN)
 
 `.github/workflows/wasm-publish.yaml` builds `web/dist/` and publishes it to a
