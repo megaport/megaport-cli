@@ -43,9 +43,9 @@ SRI hashes) under two prefixes:
   a fresh tag or `version` input per release.
 - `latest/`: short TTL, refreshed on every run.
 
-The portal loads `megaport.wasm` (brotli, served with `Content-Encoding: br`) and
-`wasm_exec.js` by static config URL, so these filenames are kept stable rather than
-content-hashed; the version/latest prefix is the cache-buster instead.
+These filenames are kept stable rather than content-hashed, so a consumer such as the
+portal can load `megaport.wasm` and `wasm_exec.js` by static config URL. The
+version/latest prefix is the cache-buster instead.
 
 Authentication uses GitHub OIDC (no long-lived keys). The workflow fails fast with a
 clear message if its required repo configuration is missing; see the workflow file for
