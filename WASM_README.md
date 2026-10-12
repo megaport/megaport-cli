@@ -148,7 +148,7 @@ and copy the loader into `frontend-integration/` first, then start the server:
 ```bash
 # From the repo root: build the wasm + loader into the dev server's root.
 GOOS=js GOARCH=wasm go build -tags js,wasm -o frontend-integration/megaport.wasm .
-cp -f "$(go env GOROOT)/lib/wasm/wasm_exec.js" frontend-integration/wasm_exec.js
+cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" frontend-integration/wasm_exec.js
 
 cd frontend-integration
 npm install
