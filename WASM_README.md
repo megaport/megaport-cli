@@ -118,18 +118,19 @@ release as a soft landing for hosts still detecting or calling it. It performs n
 always returns `{ error: "synchronous execution is not supported; use executeMegaportCommandAsync" }`.
 It will be removed in a future release; new integrations should not call it.
 
-Full type definitions for the whole JS surface (auth, config file, prompts, telemetry)
-are documented inline in `internal/wasm/`; there is no separate reference front end in
-this repo. Front-end integrators (e.g. the Portal) own their own wrapper around the
-`window.executeMegaportCommandAsync` API described above.
+The other `window` functions (auth, config file, prompts, output) are registered in
+`internal/wasm/`, and their Go doc comments describe the arguments. There is no reference
+front end in this repo. Front-end integrators (e.g. the Portal) own their own wrapper
+around the `window.executeMegaportCommandAsync` API described above.
 
 ## Interactive Mode
 
 Some commands prompt for input (interactive `buy`/`update` flows, confirmations, secrets).
 In the browser there is no stdin, so the WASM asks the host page for each value through a
-small set of JavaScript functions. Wire these up and run the command through
-`executeMegaportCommandAsync` (see [JavaScript API](#javascript-api)), or interactive
-commands will never receive a response.
+small set of JavaScript functions. Register a prompt handler, then run the command through
+`executeMegaportCommandAsync` (see [JavaScript API](#javascript-api)). With no handler, each
+prompt fails at once with a "prompt callback not registered" error, and a confirmation
+counts as declined.
 
 ### Host functions
 
@@ -148,18 +149,20 @@ Your handler receives a single object:
 ```js
 {
   id: "prompt_1_1700000000000000000", // unique id; echo it back in submit/cancel
-  message: "Enter port name:",         // text to show the user
-  type: "text",                        // "text" | "confirm" | "password" | "resource"
-  resourceType: "port"                 // set for resource and secret-resource prompts (port, mcr, vxc, ...), else ""
+  message: "NAT Gateway name: ",       // text to show the user
+  type: "resource",                    // "text" | "confirm" | "password" | "resource"
+  resourceType: "nat-gateway"          // set for resource and secret-resource prompts (port, mcr, vxc, ...), else ""
 }
 ```
 
+A `confirm` prompt treats only `y` or `yes` (any case) as yes. Any other response declines,
+so always submit a string, not a boolean.
+
 Mask the input when `type === "password"`: render an `<input type="password">` or otherwise
 hide the characters. Password prompts and secret-resource prompts (for example VXC/MVE
-passwords and pre-shared keys) set this type. Note that some other secret-bearing inputs
-(such as partner auth/service/shared keys and MVE registration keys) are currently sent as
-`type === "resource"`, so don't rely on the password type alone if you want to mask every
-possible secret.
+passwords and pre-shared keys) set this type. Some other secrets arrive as
+`type === "resource"`, such as partner auth/service/shared keys and MVE registration keys.
+Don't rely on the password type alone to mask every secret.
 
 ### Lifecycle
 
@@ -180,7 +183,8 @@ executeMegaportCommandAsync('vxc buy --interactive', (result) => {
 });
 ```
 
-A prompt left unanswered times out after 10 minutes and the command receives an error.
+A command times out 10 minutes after it starts, including any time it waits on prompts,
+and its callback then receives an error.
 
 ### Live output streaming
 
@@ -211,10 +215,9 @@ make wasm
 make web-static          # or: ./scripts/build-web.sh
 ```
 
-`web-static` needs the Go toolchain on `PATH`. It produces a self-contained
-**`web/dist/`** directory (`megaport.wasm` + `wasm_exec.js`) ready to publish to a CDN.
-See [`web/README.md`](web/README.md) for the wasm pre-compression and cache-header
-details.
+`web-static` needs the Go toolchain on `PATH`. It writes `megaport.wasm` and `wasm_exec.js`
+to **`web/dist/`**. See [`web/README.md`](web/README.md) for how the publish workflow
+compresses and uploads them.
 
 ## Enabling a Module for WASM
 
@@ -261,7 +264,12 @@ Every module follows the same recipe to go from native-only to browser-enabled:
 
 ## Publishing to the Portal
 
-The Portal loads the WASM binary from `s3://media.megaport.com/portal/megaport-cli/`. Publishing is currently manual.
+The Portal loads the WASM binary from `s3://media.megaport.com/portal/megaport-cli/`.
+Publish with the `.github/workflows/wasm-publish.yaml` workflow. It brotli-compresses the
+wasm and pins its `Content-Type`, `Content-Encoding`, and `Cache-Control` headers.
+
+The manual steps below are a fallback for when the workflow is unavailable. They upload
+an uncompressed wasm to a flat, unversioned key with no `Cache-Control`.
 
 ### Prerequisites
 
@@ -287,14 +295,6 @@ aws s3 cp web/megaport.wasm s3://media.megaport.com/portal/megaport-cli/megaport
     --content-type application/wasm
 aws s3 cp web/wasm_exec.js  s3://media.megaport.com/portal/megaport-cli/wasm_exec.js
 ```
-
-For CDN hosting (S3 + CloudFront), publish via the `.github/workflows/wasm-publish.yaml`
-workflow rather than a plain sync. It runs `make web-static`, brotli pre-compresses the
-wasm (`cmd/wasmcompress`), then uploads `megaport.wasm` with `Content-Encoding: br` and
-pins `Content-Type` on both the wasm and `wasm_exec.js`. It syncs only the remaining
-static assets, so a bare `aws s3 sync web/dist/` would instead serve the wasm
-uncompressed and let the CDN mis-infer its MIME type, which breaks
-`WebAssembly.instantiateStreaming`.
 
 ## Troubleshooting
 

@@ -13,7 +13,7 @@ directly from the browser.
 make wasm
 # or ./wasm.sh, which also copies wasm_exec.js from the Go toolchain
 
-# Assemble the WASM binary + wasm_exec.js loader into web/dist/ (no Docker, no Go server)
+# Assemble the WASM binary + wasm_exec.js loader into web/dist/
 ./scripts/build-web.sh
 ```
 
@@ -26,15 +26,9 @@ next to the wasm:
 - `megaport.wasm.br`: brotli, quality 11 (~2.95 MiB; preferred)
 - `megaport.wasm.gz`: gzip -9 (~4.4 MiB; fallback)
 
-This runs in the **build**, not the CDN sync: `make wasm-compress` invokes
-`cmd/wasmcompress` after building the wasm. The raw identity object is kept for clients
-that accept neither encoding.
-
-Whatever uploads these to the CDN origin must serve the compressed objects with
-`Content-Type: application/wasm` and the matching `Content-Encoding` (`br` / `gzip`),
-shipping `.br`/`.gz`/identity as separate objects selected on `Accept-Encoding`. The
-upload itself and the `Accept-Encoding` routing are owned by the infra/CDN tooling, not
-this repo.
+`make wasm-compress` runs `cmd/wasmcompress` after building the wasm. The publish workflow
+uploads only the brotli object, as `megaport.wasm` with `Content-Type: application/wasm`
+and `Content-Encoding: br`. It does not upload the gzip or raw objects.
 
 ## Publishing to S3 (CDN)
 
@@ -42,7 +36,8 @@ this repo.
 CloudFront-fronted S3 bucket. It is manual-only (`workflow_dispatch`): a production
 publish is always a deliberate action, never an automatic tag push.
 
-Each run uploads `megaport.wasm` and `wasm_exec.js` under two prefixes:
+Each run uploads `megaport.wasm`, `wasm_exec.js`, and `integrity.json` (their SHA-256 and
+SRI hashes) under two prefixes:
 
 - `<version>/`: immutable, long-lived cache. Treat a version label as write-once, so use
   a fresh tag or `version` input per release.

@@ -28,9 +28,10 @@ name: Publish WASM to S3
 #   See the "Check required configuration" step, which fails early with a clear message.
 #
 # WHAT GETS PUBLISHED:
-#   Stable filenames under each prefix: megaport.wasm (brotli, Content-Encoding: br) and
-#   wasm_exec.js. The portal references both by URL, so the names are kept stable rather
-#   than content-hashed; the version/latest prefix provides the cache-busting instead.
+#   Stable filenames under each prefix: megaport.wasm (brotli, Content-Encoding: br),
+#   wasm_exec.js, and integrity.json (their hashes). The portal references the wasm and
+#   wasm_exec.js by URL, so the names are kept stable rather than content-hashed; the
+#   version/latest prefix provides the cache-busting instead.
 #
 # PORTAL INTEGRATION:
 #   Point the portal's wasmUrl/wasmExecUrl at the latest/ alias while iterating, then
@@ -215,8 +216,9 @@ jobs:
             local dest="s3://${BUCKET}/${PREFIX}/$1"
             local cache="$2"
             echo "==> Publishing to ${dest}"
-            # The wasm and wasm_exec.js are uploaded separately below so we can pin their
-            # Content-Type/Content-Encoding instead of relying on aws s3 sync's MIME inference.
+            # The sync uploads integrity.json. The wasm and wasm_exec.js are uploaded
+            # separately below so we can pin their Content-Type/Content-Encoding instead of
+            # relying on aws s3 sync's MIME inference.
             aws s3 sync "$src/" "$dest/" --delete \
               --exclude 'megaport.wasm' \
               --exclude 'megaport.wasm.br' \
@@ -224,8 +226,7 @@ jobs:
               --exclude 'wasm_exec.js' \
               --cache-control "$cache"
             # Brotli only: the portal's browser audience always sends Accept-Encoding: br,
-            # so we don't upload a gzip/identity fallback (unlike the general guidance in
-            # web/README.md, which serves .br/.gz/identity as separate objects).
+            # so we don't upload a gzip/identity fallback.
             aws s3 cp "$src/megaport.wasm.br" "$dest/megaport.wasm" \
               --content-type application/wasm \
               --content-encoding br \
