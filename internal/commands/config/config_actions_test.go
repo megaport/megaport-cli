@@ -1348,6 +1348,39 @@ func TestUpdateProfile_PromptSecretsPromptsForBothKeys(t *testing.T) {
 	assert.Equal(t, "new-secret", profiles["update-test"].SecretKey)
 }
 
+func TestUpdateProfileCommand_PromptSecretsFlag(t *testing.T) {
+	setupTestConfigEnv(t)
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+	require.NoError(t, manager.CreateProfile("update-test", "old-access", "old-secret", "production", ""))
+
+	prompts := 0
+	orig := utils.GetSecretResourcePrompt()
+	defer utils.SetSecretResourcePrompt(orig)
+	utils.SetSecretResourcePrompt(func(_, msg string, _ bool) (string, error) {
+		prompts++
+		if strings.Contains(msg, "access key") {
+			return "new-access", nil
+		}
+		return "new-secret", nil
+	})
+
+	root := &cobra.Command{Use: "megaport-cli"}
+	AddCommandsTo(root)
+	root.SetArgs([]string{"config", "update-profile", "update-test", "--prompt-secrets"})
+	_, err = captureBothFromAction(t, root.Execute)
+	require.NoError(t, err)
+	assert.Equal(t, 2, prompts)
+
+	manager, err = NewConfigManager()
+	require.NoError(t, err)
+	profiles, err := manager.ListProfiles()
+	require.NoError(t, err)
+	assert.Equal(t, "new-access", profiles["update-test"].AccessKey)
+	assert.Equal(t, "new-secret", profiles["update-test"].SecretKey)
+}
+
 func TestUpdateProfile_PromptSecretsWithKeyFlagIsUsageError(t *testing.T) {
 	tests := []struct {
 		name string
@@ -1355,6 +1388,7 @@ func TestUpdateProfile_PromptSecretsWithKeyFlagIsUsageError(t *testing.T) {
 	}{
 		{"access key", []string{"--prompt-secrets", "--access-key=x"}},
 		{"secret key", []string{"--prompt-secrets", "--secret-key=x"}},
+		{"empty access key", []string{"--prompt-secrets", "--access-key="}},
 		{"empty secret key", []string{"--prompt-secrets", "--secret-key="}},
 	}
 	for _, tt := range tests {
