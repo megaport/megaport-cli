@@ -527,13 +527,28 @@ func TestProductPricing(t *testing.T) {
 			wantCompany: "company-uid-1",
 		},
 		{
+			name:         "port missing location-id",
+			args:         []string{"port", "--speed", "1000"},
+			wantUsageErr: true,
+		},
+		{
 			name:         "port missing speed",
 			args:         []string{"port", "--location-id", "1"},
 			wantUsageErr: true,
 		},
 		{
+			name:         "vxc missing a-location-id",
+			args:         []string{"vxc", "--b-location-id", "2", "--speed", "100"},
+			wantUsageErr: true,
+		},
+		{
 			name:         "vxc missing b-location-id",
 			args:         []string{"vxc", "--a-location-id", "1", "--speed", "100"},
+			wantUsageErr: true,
+		},
+		{
+			name:         "vxc missing speed",
+			args:         []string{"vxc", "--a-location-id", "1", "--b-location-id", "2"},
 			wantUsageErr: true,
 		},
 		{
@@ -610,6 +625,9 @@ func TestProductPricing(t *testing.T) {
 			if tt.expectedError != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
+				var cliErr *exitcodes.CLIError
+				require.True(t, errors.As(err, &cliErr))
+				assert.Equal(t, exitcodes.API, cliErr.Code)
 				return
 			}
 
@@ -624,6 +642,8 @@ func TestProductPricing(t *testing.T) {
 				assert.Nil(t, mockService.CapturedGetProductPricingForCompanyRequest)
 				assert.Equal(t, tt.wantReq, mockService.CapturedGetProductPricingRequest)
 			}
+			assert.Contains(t, capturedOutput, "MONTHLY RATE")
+			assert.Contains(t, capturedOutput, "MONTHLY RACK RATE")
 			assert.Contains(t, capturedOutput, "USD")
 			assert.Contains(t, capturedOutput, "450.5")
 			assert.Contains(t, capturedOutput, "500")
@@ -651,7 +671,7 @@ func TestProductPricingJSONOutput(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	var got []productPricingOutput
+	var got []map[string]any
 	assert.NoError(t, json.Unmarshal([]byte(stdout), &got))
-	assert.Equal(t, []productPricingOutput{{ProductType: "VXC", Currency: "AUD", MonthlyRate: 120, MonthlyRackRate: 150}}, got)
+	assert.Equal(t, []map[string]any{{"product_type": "VXC", "currency": "AUD", "monthly_rate": 120.0, "monthly_rack_rate": 150.0}}, got)
 }
