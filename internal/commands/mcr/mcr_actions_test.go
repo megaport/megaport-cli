@@ -3505,3 +3505,99 @@ func TestBuyMCR_OrderAndProvisionFailures(t *testing.T) {
 		})
 	}
 }
+
+func TestBuyMCR_LocationStatusWarning(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+	originalBuyMCRFunc := buyMCRFunc
+	defer func() { buyMCRFunc = originalBuyMCRFunc }()
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+
+	tests := []struct {
+		name        string
+		yes         bool
+		validateErr error
+		wantCalls   []string
+	}{
+		{
+			name:        "warns when validate rejects the location",
+			validateErr: errors.New("invalid 'locationId'"),
+			wantCalls:   []string{"lookup"},
+		},
+		{
+			name:      "warns before the prompt",
+			wantCalls: []string{"lookup", "prompt", "buy"},
+		},
+		{
+			name:      "warns and buys with --yes",
+			yes:       true,
+			wantCalls: []string{"lookup", "buy"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var calls []string
+			restore := utils.SetLocationLookup(func(_ context.Context, _ *megaport.Client, id int) (*megaport.LocationV3, error) {
+				assert.Equal(t, 123, id)
+				calls = append(calls, "lookup")
+				return &megaport.LocationV3{ID: id, Name: "Test DC", Status: megaport.LocationStatusRestricted}, nil
+			})
+			defer restore()
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.MCRService = &MockMCRService{ValidateMCROrderErr: tt.validateErr}
+				return client, nil
+			})
+			utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
+				calls = append(calls, "prompt")
+				return true
+			})
+			buyMCRFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyMCRRequest) (*megaport.BuyMCRResponse, error) {
+				calls = append(calls, "buy")
+				return &megaport.BuyMCRResponse{TechnicalServiceUID: "mcr-uid-123"}, nil
+			}
+
+			cmd := &cobra.Command{Use: "buy"}
+			cmd.Flags().BoolP("interactive", "i", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().BoolP("yes", "y", false, "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Int("mcr-asn", 0, "")
+			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().String("cost-centre", "", "")
+			cmd.Flags().String("promo-code", "", "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+
+			testutil.SetFlags(t, cmd, map[string]string{
+				"name":        "Test MCR",
+				"term":        "12",
+				"port-speed":  "10000",
+				"location-id": "123",
+				"mcr-asn":     "65000",
+				"no-wait":     "true",
+			})
+			if tt.yes {
+				require.NoError(t, cmd.Flags().Set("yes", "true"))
+			}
+
+			var err error
+			out := output.CaptureOutput(func() {
+				err = BuyMCR(cmd, nil, true)
+			})
+
+			if tt.validateErr != nil {
+				require.ErrorIs(t, err, tt.validateErr)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tt.wantCalls, calls)
+			assert.Contains(t, out, "Location 123 (Test DC) has status Restricted, not Active.")
+		})
+	}
+}

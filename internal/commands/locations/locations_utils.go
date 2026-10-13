@@ -2,6 +2,7 @@ package locations
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -47,8 +48,35 @@ var searchLocationsFunc = func(ctx context.Context, client *megaport.Client, sea
 	return client.LocationService.GetLocationByNameFuzzyV3(ctx, search)
 }
 
-var listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
-	return client.LocationService.ListLocationsV3(ctx)
+// listLocationsFunc returns every location when statuses is empty.
+var listLocationsFunc = func(ctx context.Context, client *megaport.Client, statuses []string) ([]*megaport.LocationV3, error) {
+	return client.LocationService.ListLocationsV3WithOptions(ctx, &megaport.ListLocationsV3Options{Statuses: statuses})
+}
+
+var knownLocationStatuses = []string{
+	megaport.LocationStatusActive,
+	megaport.LocationStatusDeployment,
+	megaport.LocationStatusRestricted,
+	megaport.LocationStatusExtended,
+	megaport.LocationStatusNew,
+	megaport.LocationStatusExpired,
+}
+
+// normalizeLocationStatuses fixes the case of each known status, since the API
+// rejects "active". It passes an unknown value through for the API to reject.
+func normalizeLocationStatuses(values []string) []string {
+	statuses := make([]string, 0, len(values))
+	for _, v := range values {
+		status := v
+		for _, known := range knownLocationStatuses {
+			if strings.EqualFold(v, known) {
+				status = known
+				break
+			}
+		}
+		statuses = append(statuses, status)
+	}
+	return statuses
 }
 
 var getRoundTripTimesFunc = func(ctx context.Context, client *megaport.Client, srcLocationID, year, month int) ([]*megaport.RoundTripTime, error) {

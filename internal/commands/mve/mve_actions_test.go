@@ -2796,3 +2796,82 @@ func TestBuyMVE_OrderAndProvisionFailures(t *testing.T) {
 		})
 	}
 }
+
+func TestBuyMVE_LocationStatusWarning(t *testing.T) {
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+
+	tests := []struct {
+		name        string
+		validateErr error
+		wantCalls   []string
+	}{
+		{
+			name:      "warns before the prompt",
+			wantCalls: []string{"lookup", "prompt"},
+		},
+		{
+			name:        "warns when validate rejects the location",
+			validateErr: fmt.Errorf("invalid 'locationId'"),
+			wantCalls:   []string{"lookup"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var calls []string
+			restore := utils.SetLocationLookup(func(_ context.Context, _ *megaport.Client, id int) (*megaport.LocationV3, error) {
+				assert.Equal(t, 123, id)
+				calls = append(calls, "lookup")
+				return &megaport.LocationV3{ID: id, Name: "Test DC", Status: megaport.LocationStatusDeployment}, nil
+			})
+			defer restore()
+			utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
+				calls = append(calls, "prompt")
+				return true
+			})
+
+			mockService := &MockMVEService{ValidateMVEOrderErr: tt.validateErr}
+			mockService.BuyMVEResult = &megaport.BuyMVEResponse{TechnicalServiceUID: "mve-uid-123"}
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+				c.MVEService = mockService
+			})
+			defer cleanup()
+
+			cmd := &cobra.Command{Use: "buy"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().String("vendor-config", "", "")
+			cmd.Flags().String("vnics", "", "")
+
+			testutil.SetFlags(t, cmd, map[string]string{
+				"name":          "Test MVE",
+				"term":          "12",
+				"location-id":   "123",
+				"no-wait":       "true",
+				"vendor-config": `{"vendor":"cisco","imageId":1,"productSize":"LARGE","mveLabel":"label-1","manageLocally":true,"adminSshPublicKey":"admin-ssh","sshPublicKey":"ssh-key","cloudInit":"cloud-init","fmcIpAddress":"fmc-ip","fmcRegistrationKey":"fmc-key","fmcNatId":"fmc-nat"}`,
+				"vnics":         `[{"description":"VNIC 1","vlan":100}]`,
+			})
+
+			var err error
+			out := output.CaptureOutput(func() {
+				err = BuyMVE(cmd, nil, true)
+			})
+
+			if tt.validateErr != nil {
+				assert.ErrorIs(t, err, tt.validateErr)
+				assert.Nil(t, mockService.CapturedBuyMVERequest)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, mockService.CapturedBuyMVERequest)
+			}
+			assert.Equal(t, tt.wantCalls, calls)
+			assert.Contains(t, out, "Location 123 (Test DC) has status Deployment, not Active.")
+		})
+	}
+}

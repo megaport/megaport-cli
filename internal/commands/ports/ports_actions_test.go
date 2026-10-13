@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -2913,6 +2914,136 @@ func TestBuyLAGPort_OrderAndProvisionFailures(t *testing.T) {
 
 			if assert.Error(t, err) {
 				assert.Contains(t, err.Error(), tt.errMatch)
+			}
+		})
+	}
+}
+
+func TestBuyPort_LocationStatusWarning(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {})
+	defer cleanup()
+	originalBuyPortFunc := buyPortFunc
+	defer func() { buyPortFunc = originalBuyPortFunc }()
+	originalBuyConfirmPrompt := utils.GetBuyConfirmPrompt()
+	defer func() { utils.SetBuyConfirmPrompt(originalBuyConfirmPrompt) }()
+
+	const warning = "Location 7 (Test DC) has status Restricted, not Active."
+
+	tests := []struct {
+		name        string
+		lag         bool
+		status      string
+		jsonInput   string
+		validateErr error
+		wantWarn    bool
+		wantCalls   []string
+	}{
+		{
+			name:      "restricted location warns before the prompt",
+			status:    megaport.LocationStatusRestricted,
+			wantWarn:  true,
+			wantCalls: []string{"lookup", "prompt", "buy"},
+		},
+		{
+			name:      "restricted location with json input warns and buys",
+			status:    megaport.LocationStatusRestricted,
+			jsonInput: `{"name":"json-port","term":12,"portSpeed":1000,"locationId":7,"marketPlaceVisibility":false}`,
+			wantWarn:  true,
+			wantCalls: []string{"lookup", "buy"},
+		},
+		{
+			name:      "active location does not warn",
+			status:    megaport.LocationStatusActive,
+			wantCalls: []string{"lookup", "prompt", "buy"},
+		},
+		{
+			name:        "restricted location warns when validate rejects it",
+			status:      megaport.LocationStatusRestricted,
+			validateErr: errors.New("invalid 'locationId'"),
+			wantWarn:    true,
+			wantCalls:   []string{"lookup"},
+		},
+		{
+			name:      "restricted location warns on buy-lag",
+			lag:       true,
+			status:    megaport.LocationStatusRestricted,
+			wantWarn:  true,
+			wantCalls: []string{"lookup", "prompt", "buy"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var calls []string
+			restore := utils.SetLocationLookup(func(_ context.Context, _ *megaport.Client, id int) (*megaport.LocationV3, error) {
+				assert.Equal(t, 7, id)
+				calls = append(calls, "lookup")
+				return &megaport.LocationV3{ID: id, Name: "Test DC", Status: tt.status}, nil
+			})
+			defer restore()
+			config.SetLoginFunc(func(ctx context.Context) (*megaport.Client, error) {
+				client := &megaport.Client{}
+				client.PortService = &MockPortService{ValidatePortOrderErr: tt.validateErr}
+				return client, nil
+			})
+			utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {
+				calls = append(calls, "prompt")
+				return true
+			})
+			buyPortFunc = func(ctx context.Context, client *megaport.Client, req *megaport.BuyPortRequest) (*megaport.BuyPortResponse, error) {
+				calls = append(calls, "buy")
+				return &megaport.BuyPortResponse{TechnicalServiceUIDs: []string{"port-uid-123"}}, nil
+			}
+
+			cmd := &cobra.Command{Use: "buy"}
+			cmd.Flags().Bool("interactive", false, "")
+			cmd.Flags().Bool("no-wait", false, "")
+			cmd.Flags().Bool("yes", false, "")
+			cmd.Flags().String("json", "", "")
+			cmd.Flags().String("json-file", "", "")
+			cmd.Flags().String("name", "", "")
+			cmd.Flags().Int("term", 0, "")
+			cmd.Flags().Int("port-speed", 0, "")
+			cmd.Flags().Int("location-id", 0, "")
+			cmd.Flags().Bool("marketplace-visibility", false, "")
+			cmd.Flags().String("diversity-zone", "", "")
+			cmd.Flags().Bool("cost-confirm", true, "")
+			cmd.Flags().Int("lag-count", 0, "")
+			require.NoError(t, cmd.Flags().Set("no-wait", "true"))
+
+			if tt.jsonInput != "" {
+				require.NoError(t, cmd.Flags().Set("json", tt.jsonInput))
+			} else {
+				testutil.SetFlags(t, cmd, map[string]string{
+					"name":        "test-port",
+					"term":        "12",
+					"port-speed":  "10000",
+					"location-id": "7",
+				})
+			}
+			if tt.lag {
+				require.NoError(t, cmd.Flags().Set("lag-count", "2"))
+			}
+
+			var err error
+			out := output.CaptureOutput(func() {
+				if tt.lag {
+					err = BuyLAGPort(cmd, nil, true)
+				} else {
+					err = BuyPort(cmd, nil, true)
+				}
+			})
+
+			if tt.validateErr != nil {
+				require.ErrorIs(t, err, tt.validateErr)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tt.wantCalls, calls)
+			if tt.wantWarn {
+				assert.Contains(t, out, warning)
+			} else {
+				assert.NotContains(t, out, "not Active")
 			}
 		})
 	}

@@ -38,7 +38,7 @@
 | [megaport-cli ix validate](megaport-cli_ix_validate.md) | Validate an IX order without purchasing |
 | [megaport-cli locations](megaport-cli_locations.md) | Manage locations in the Megaport API |
 | [megaport-cli locations get](megaport-cli_locations_get.md) | Get details for a specific location by ID |
-| [megaport-cli locations list](megaport-cli_locations_list.md) | List all locations |
+| [megaport-cli locations list](megaport-cli_locations_list.md) | List locations |
 | [megaport-cli locations list-countries](megaport-cli_locations_list-countries.md) | List all countries with Megaport locations |
 | [megaport-cli locations list-market-codes](megaport-cli_locations_list-market-codes.md) | List all market codes |
 | [megaport-cli locations rtt](megaport-cli_locations_rtt.md) | Query round-trip times between locations |

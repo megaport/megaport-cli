@@ -276,7 +276,7 @@ Two flags refine the output further:
 #### Locations
 
 ```sh
-# List all locations
+# List Active locations (pass --status for others)
 megaport-cli locations list
 
 # List locations filtered by metro area

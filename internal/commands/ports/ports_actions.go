@@ -86,6 +86,8 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
+	utils.WarnIfLocationNotActive(ctx, client, req.LocationId, noColor)
+
 	validateSpinner := output.PrintResourceValidating("Port", noColor)
 	err = client.PortService.ValidatePortOrder(ctx, req)
 	validateSpinner.Stop()
@@ -233,6 +235,8 @@ func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 		output.PrintError("Failed to log in: %v", noColor, err)
 		return err
 	}
+
+	utils.WarnIfLocationNotActive(ctx, client, req.LocationId, noColor)
 
 	validateSpinner := output.PrintResourceValidating("LAG Port", noColor)
 	err = client.PortService.ValidatePortOrder(ctx, req)

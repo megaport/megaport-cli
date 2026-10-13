@@ -24,9 +24,15 @@ func ListLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat
 		return fmt.Errorf("failed to create API client: %w", err)
 	}
 
+	statuses := []string{megaport.LocationStatusActive}
+	if cmd.Flags().Changed("status") {
+		values, _ := cmd.Flags().GetStringArray("status")
+		statuses = normalizeLocationStatuses(values)
+	}
+
 	spinner := output.PrintResourceListing("Location", noColor)
 
-	locations, err := listLocationsFunc(ctx, client)
+	locations, err := listLocationsFunc(ctx, client, statuses)
 
 	spinner.Stop()
 
@@ -34,6 +40,8 @@ func ListLocations(cmd *cobra.Command, args []string, noColor bool, outputFormat
 		output.PrintError("Failed to retrieve locations: %v", noColor, err)
 		return fmt.Errorf("failed to list locations: %w", err)
 	}
+
+	output.PrintInfo("Filtering by status: %s", noColor, strings.Join(statuses, ", "))
 
 	filters := map[string]string{}
 	if cmd.Flags().Changed("metro") {
@@ -312,7 +320,7 @@ func GetLocation(cmd *cobra.Command, args []string, noColor bool, outputFormat s
 
 	spinner := output.PrintResourceGetting("Location", fmt.Sprintf("%d", locationID), noColor)
 
-	locations, err := listLocationsFunc(ctx, client)
+	locations, err := listLocationsFunc(ctx, client, nil)
 
 	if err != nil {
 		spinner.Stop()

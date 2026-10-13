@@ -11,14 +11,15 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli locations list").
 		WithExample("megaport-cli locations get [locationID]").WithRootCmd(rootCmd).Build()
 
-	listLocationsCmd := cmdbuilder.NewCommand("list", "List all locations").
-		WithLongDesc("List all locations available in the Megaport API.\n\nThis command fetches and displays a list of all available locations with details such as location ID, name, country, and metro. You can also filter the locations based on specific criteria.").
+	listLocationsCmd := cmdbuilder.NewCommand("list", "List locations").
+		WithLongDesc("List locations available in the Megaport API.\n\nThis command fetches and displays locations with details such as location ID, name, country, and metro. It shows only Active locations unless you pass --status. You can also filter the locations based on specific criteria.").
 		WithLocationsFilterFlags().
 		WithOutputFormatRunFunc(ListLocations).
 		WithExample("megaport-cli locations list").
 		WithExample("megaport-cli locations list --metro \"San Francisco\"").
 		WithExample("megaport-cli locations list --country \"US\"").
 		WithExample("megaport-cli locations list --name \"Equinix SY1\"").
+		WithExample("megaport-cli locations list --status Restricted --status Deployment").
 		WithIntFlag("limit", 0, "Maximum number of results to display (0 = unlimited)").
 		WithRootCmd(rootCmd).
 		WithAliases([]string{"ls"}).Build()

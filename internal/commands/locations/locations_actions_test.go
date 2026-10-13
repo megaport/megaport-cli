@@ -87,11 +87,11 @@ func TestListLocationsFunc(t *testing.T) {
 		listLocationsFunc = originalListLocationsFunc
 	}()
 
-	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
+	listLocationsFunc = func(ctx context.Context, client *megaport.Client, statuses []string) ([]*megaport.LocationV3, error) {
 		return client.LocationService.ListLocationsV3(ctx)
 	}
 
-	locations, err := listLocationsFunc(context.Background(), testClient)
+	locations, err := listLocationsFunc(context.Background(), testClient, nil)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(locations))
@@ -115,11 +115,11 @@ func TestListLocationsFuncError(t *testing.T) {
 		listLocationsFunc = originalListLocationsFunc
 	}()
 
-	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
+	listLocationsFunc = func(ctx context.Context, client *megaport.Client, statuses []string) ([]*megaport.LocationV3, error) {
 		return client.LocationService.ListLocationsV3(ctx)
 	}
 
-	locations, err := listLocationsFunc(context.Background(), testClient)
+	locations, err := listLocationsFunc(context.Background(), testClient, nil)
 
 	assert.Error(t, err)
 	assert.Equal(t, expectedError, err)
@@ -195,7 +195,7 @@ func TestListLocationsCommand(t *testing.T) {
 		listLocationsFunc = originalListLocationsFunc
 	}()
 
-	listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
+	listLocationsFunc = func(ctx context.Context, client *megaport.Client, statuses []string) ([]*megaport.LocationV3, error) {
 		return client.LocationService.ListLocationsV3(ctx)
 	}
 
@@ -396,7 +396,7 @@ func TestGetLocation(t *testing.T) {
 				return testClient, nil
 			})
 
-			listLocationsFunc = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
+			listLocationsFunc = func(ctx context.Context, client *megaport.Client, statuses []string) ([]*megaport.LocationV3, error) {
 				return client.LocationService.ListLocationsV3(ctx)
 			}
 
@@ -749,4 +749,102 @@ func captureStderr(t *testing.T, fn func()) (result string) {
 	defer func() { _ = w.Close(); <-done; _ = r.Close(); result = buf.String() }()
 	fn()
 	return
+}
+
+func TestListLocationsStatusFilter(t *testing.T) {
+	allLocations := []*megaport.LocationV3{
+		{ID: 1, Name: "Active DC", Status: megaport.LocationStatusActive},
+		{ID: 2, Name: "Restricted DC", Status: megaport.LocationStatusRestricted},
+		{ID: 3, Name: "Deployment DC", Status: megaport.LocationStatusDeployment},
+	}
+
+	originalFunc := config.GetNewUnauthenticatedClientFunc()
+	defer func() { config.SetNewUnauthenticatedClientFunc(originalFunc) }()
+	config.SetNewUnauthenticatedClientFunc(func() (*megaport.Client, error) {
+		return &megaport.Client{}, nil
+	})
+
+	originalListLocationsFunc := listLocationsFunc
+	defer func() { listLocationsFunc = originalListLocationsFunc }()
+
+	// The stub filters the way the API does: no statuses means every location.
+	var sentStatuses []string
+	listLocationsFunc = func(ctx context.Context, client *megaport.Client, statuses []string) ([]*megaport.LocationV3, error) {
+		sentStatuses = statuses
+		if len(statuses) == 0 {
+			return allLocations, nil
+		}
+		var matched []*megaport.LocationV3
+		for _, loc := range allLocations {
+			for _, s := range statuses {
+				if loc.Status == s {
+					matched = append(matched, loc)
+				}
+			}
+		}
+		return matched, nil
+	}
+
+	defer output.SetOutputFormat("table")
+
+	tests := []struct {
+		name         string
+		statusFlags  []string
+		wantStatuses []string
+		wantNames    []string
+	}{
+		{
+			name:         "default is Active",
+			wantStatuses: []string{"Active"},
+			wantNames:    []string{"Active DC"},
+		},
+		{
+			name:         "repeated status flag",
+			statusFlags:  []string{"Restricted", "Deployment"},
+			wantStatuses: []string{"Restricted", "Deployment"},
+			wantNames:    []string{"Restricted DC", "Deployment DC"},
+		},
+		{
+			name:         "lowercase status is normalized",
+			statusFlags:  []string{"restricted"},
+			wantStatuses: []string{"Restricted"},
+			wantNames:    []string{"Restricted DC"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &cobra.Command{Use: "list"}
+			cmd.Flags().StringArray("status", nil, "")
+			cmd.Flags().Int("limit", 0, "")
+			for _, s := range tt.statusFlags {
+				require.NoError(t, cmd.Flags().Set("status", s))
+			}
+
+			var err error
+			out := output.CaptureStdout(func() {
+				err = ListLocations(cmd, nil, true, "json")
+			})
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantStatuses, sentStatuses)
+
+			var parsed []map[string]interface{}
+			require.NoError(t, json.Unmarshal([]byte(out), &parsed))
+			var names []string
+			for _, p := range parsed {
+				names = append(names, fmt.Sprint(p["name"]))
+			}
+			assert.ElementsMatch(t, tt.wantNames, names)
+		})
+	}
+
+	t.Run("get resolves a non-Active location", func(t *testing.T) {
+		var err error
+		out := output.CaptureStdout(func() {
+			err = GetLocation(testutil.NewCommand("get", nil), []string{"2"}, true, "json")
+		})
+		require.NoError(t, err)
+		assert.Nil(t, sentStatuses)
+		assert.Contains(t, out, "Restricted DC")
+	})
 }
