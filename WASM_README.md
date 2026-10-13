@@ -183,9 +183,9 @@ executeMegaportCommandAsync('vxc buy --interactive', (result) => {
 });
 ```
 
-A command times out 10 minutes after it starts, including any time it waits on prompts,
-and its callback then receives an error. The command keeps running after that and can
-still open prompts, including the purchase confirmation.
+A command times out 10 minutes after the `executeMegaportCommandAsync` call, counting any
+time it waits on prompts or on an earlier command. Its callback then receives an error.
+The command runs anyway and can still open prompts, including the purchase confirmation.
 
 ### Live output streaming
 
