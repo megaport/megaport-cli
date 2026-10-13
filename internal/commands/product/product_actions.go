@@ -3,6 +3,7 @@ package product
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
@@ -168,7 +169,13 @@ func getProductPricing(cmd *cobra.Command, noColor bool, outputFormat, productNa
 
 	if err != nil {
 		output.PrintError("Failed to get %s pricing: %v", noColor, productName, err)
-		return fmt.Errorf("failed to get %s pricing: %w", productName, err)
+		err = fmt.Errorf("failed to get %s pricing: %w", productName, err)
+		// The SDK returns these when JSON input omits a required field.
+		if errors.Is(err, megaport.ErrPricingLocationRequired) || errors.Is(err, megaport.ErrPricingSpeedRequired) ||
+			errors.Is(err, megaport.ErrPricingVXCLocationRequired) || errors.Is(err, megaport.ErrPricingVXCSpeedRequired) {
+			return exitcodes.NewUsageError(err)
+		}
+		return err
 	}
 
 	if err := printProductPricing(price, outputFormat, noColor); err != nil {

@@ -16,6 +16,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestListProducts(t *testing.T) {
@@ -541,6 +542,17 @@ func TestProductPricing(t *testing.T) {
 			wantUsageErr: true,
 		},
 		{
+			name:         "missing json-file",
+			args:         []string{"port", "--json-file", filepath.Join(t.TempDir(), "missing.json")},
+			wantUsageErr: true,
+		},
+		{
+			name:         "json missing location",
+			args:         []string{"port", "--json", `{"speed":1000}`},
+			apiErr:       megaport.ErrPricingLocationRequired,
+			wantUsageErr: true,
+		},
+		{
 			name:          "API error",
 			args:          []string{"port", "--location-id", "1", "--speed", "1000"},
 			apiErr:        fmt.Errorf("API error"),
@@ -569,10 +581,12 @@ func TestProductPricing(t *testing.T) {
 
 			if tt.wantUsageErr {
 				var cliErr *exitcodes.CLIError
-				assert.True(t, errors.As(err, &cliErr))
+				require.True(t, errors.As(err, &cliErr))
 				assert.Equal(t, exitcodes.Usage, cliErr.Code)
-				assert.Nil(t, mockService.CapturedGetProductPricingRequest)
-				assert.Nil(t, mockService.CapturedGetProductPricingForCompanyRequest)
+				if tt.apiErr == nil {
+					assert.Nil(t, mockService.CapturedGetProductPricingRequest)
+					assert.Nil(t, mockService.CapturedGetProductPricingForCompanyRequest)
+				}
 				return
 			}
 			if tt.expectedError != "" {

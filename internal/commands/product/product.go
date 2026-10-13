@@ -8,9 +8,10 @@ import (
 // AddCommandsTo builds the product commands and adds them to the root command
 func AddCommandsTo(rootCmd *cobra.Command) {
 	productCmd := cmdbuilder.NewCommand("product", "Manage products in the Megaport API").
-		WithLongDesc("Manage products in the Megaport API.\n\nThis command groups operations related to products. You can use the subcommands to list all products or get the type of a specific product.").
+		WithLongDesc("Manage products in the Megaport API.\n\nThis command groups operations related to products. You can use the subcommands to list all products, get the type of a specific product, or get the monthly price of a Port or VXC.").
 		WithExample("megaport-cli product list").
 		WithExample("megaport-cli product get-type [productUID]").
+		WithExample("megaport-cli product pricing port --location-id 1 --speed 1000").
 		WithRootCmd(rootCmd).
 		Build()
 
