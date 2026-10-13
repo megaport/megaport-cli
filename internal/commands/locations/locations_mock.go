@@ -9,8 +9,9 @@ import (
 
 type MockLocationsService struct {
 	// V3 methods
-	ListLocationsV3Result []*megaport.LocationV3
-	ListLocationsV3Err    error
+	ListLocationsV3Result          []*megaport.LocationV3
+	ListLocationsV3Err             error
+	CapturedListLocationsV3Options *megaport.ListLocationsV3Options
 
 	GetLocationByIDV3Result *megaport.LocationV3
 	GetLocationByIDV3Err    error
@@ -95,6 +96,7 @@ func (m *MockLocationsService) ListLocationsV3(ctx context.Context) ([]*megaport
 }
 
 func (m *MockLocationsService) ListLocationsV3WithOptions(ctx context.Context, opts *megaport.ListLocationsV3Options) ([]*megaport.LocationV3, error) {
+	m.CapturedListLocationsV3Options = opts
 	return m.ListLocationsV3Result, m.ListLocationsV3Err
 }
 

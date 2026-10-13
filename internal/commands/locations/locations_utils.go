@@ -48,18 +48,10 @@ var searchLocationsFunc = func(ctx context.Context, client *megaport.Client, sea
 	return client.LocationService.GetLocationByNameFuzzyV3(ctx, search)
 }
 
-// listLocationsFunc returns every location when statuses is empty.
+// listLocationsFunc returns Active, Deployment, and Restricted locations when
+// statuses is empty. The API applies that default.
 var listLocationsFunc = func(ctx context.Context, client *megaport.Client, statuses []string) ([]*megaport.LocationV3, error) {
 	return client.LocationService.ListLocationsV3WithOptions(ctx, &megaport.ListLocationsV3Options{Statuses: statuses})
-}
-
-var knownLocationStatuses = []string{
-	megaport.LocationStatusActive,
-	megaport.LocationStatusDeployment,
-	megaport.LocationStatusRestricted,
-	megaport.LocationStatusExtended,
-	megaport.LocationStatusNew,
-	megaport.LocationStatusExpired,
 }
 
 // normalizeLocationStatuses fixes the case of each known status, since the API
@@ -68,7 +60,7 @@ func normalizeLocationStatuses(values []string) []string {
 	statuses := make([]string, 0, len(values))
 	for _, v := range values {
 		status := v
-		for _, known := range knownLocationStatuses {
+		for _, known := range utils.LocationStatuses {
 			if strings.EqualFold(v, known) {
 				status = known
 				break

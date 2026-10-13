@@ -12,7 +12,7 @@ func (b *CommandBuilder) WithLocationsFilterFlags() *CommandBuilder {
 	b.WithOptionalFlag("market-code", "Filter locations by market code")
 	b.WithBoolFlag("mcr-available", false, "Filter locations that support MCR")
 	b.WithOptionalFlag("mcr-available", "Filter locations that support MCR")
-	b.WithStringArrayFlag("status", "Filter locations by status: Active, Deployment, or Restricted (repeatable, default Active)")
-	b.WithOptionalFlag("status", "Filter locations by status: Active, Deployment, or Restricted (repeatable, default Active)")
-	return b
+	const statusDesc = "Filter locations by status: Active, Deployment, Restricted, Extended, New, or Expired (repeatable, default Active)"
+	return b.WithStringArrayFlag("status", statusDesc).
+		WithOptionalFlag("status", statusDesc)
 }

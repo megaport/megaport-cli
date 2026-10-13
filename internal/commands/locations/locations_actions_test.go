@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -98,6 +99,28 @@ func TestListLocationsFunc(t *testing.T) {
 	assert.Equal(t, "Sydney Data Center", locations[0].Name)
 	assert.Equal(t, "London Data Center", locations[1].Name)
 	assert.Equal(t, "New York Data Center", locations[2].Name)
+}
+
+func TestListLocationsSendsActiveByDefault(t *testing.T) {
+	mockSvc := &MockLocationsService{}
+	originalFunc := config.GetNewUnauthenticatedClientFunc()
+	defer config.SetNewUnauthenticatedClientFunc(originalFunc)
+	config.SetNewUnauthenticatedClientFunc(func() (*megaport.Client, error) {
+		client := &megaport.Client{}
+		client.LocationService = mockSvc
+		return client, nil
+	})
+	defer output.SetOutputFormat("table")
+
+	cmd := &cobra.Command{Use: "list"}
+	cmd.Flags().StringArray("status", nil, "")
+	cmd.Flags().Int("limit", 0, "")
+	output.CaptureOutput(func() {
+		require.NoError(t, ListLocations(cmd, nil, true, "json"))
+	})
+
+	require.NotNil(t, mockSvc.CapturedListLocationsV3Options)
+	assert.Equal(t, []string{megaport.LocationStatusActive}, mockSvc.CapturedListLocationsV3Options.Statuses)
 }
 
 func TestListLocationsFuncError(t *testing.T) {
@@ -767,7 +790,7 @@ func TestListLocationsStatusFilter(t *testing.T) {
 	originalListLocationsFunc := listLocationsFunc
 	defer func() { listLocationsFunc = originalListLocationsFunc }()
 
-	// The stub filters the way the API does: no statuses means every location.
+	// The stub filters the way the API does: no statuses means its default set.
 	var sentStatuses []string
 	listLocationsFunc = func(ctx context.Context, client *megaport.Client, statuses []string) ([]*megaport.LocationV3, error) {
 		sentStatuses = statuses
@@ -810,6 +833,12 @@ func TestListLocationsStatusFilter(t *testing.T) {
 			wantStatuses: []string{"Restricted"},
 			wantNames:    []string{"Restricted DC"},
 		},
+		{
+			name:         "empty status falls back to Active",
+			statusFlags:  []string{""},
+			wantStatuses: []string{"Active"},
+			wantNames:    []string{"Active DC"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -837,6 +866,21 @@ func TestListLocationsStatusFilter(t *testing.T) {
 			assert.ElementsMatch(t, tt.wantNames, names)
 		})
 	}
+
+	t.Run("status info line prints only when --status is set", func(t *testing.T) {
+		for _, set := range []bool{false, true} {
+			cmd := &cobra.Command{Use: "list"}
+			cmd.Flags().StringArray("status", nil, "")
+			cmd.Flags().Int("limit", 0, "")
+			if set {
+				require.NoError(t, cmd.Flags().Set("status", "Active"))
+			}
+			out := output.CaptureOutput(func() {
+				require.NoError(t, ListLocations(cmd, nil, true, "table"))
+			})
+			assert.Equal(t, set, strings.Contains(out, "Filtering by status"))
+		}
+	})
 
 	t.Run("get resolves a non-Active location", func(t *testing.T) {
 		var err error

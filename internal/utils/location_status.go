@@ -7,8 +7,29 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
+// LocationStatuses lists every status the locations API accepts as a filter.
+var LocationStatuses = []string{
+	megaport.LocationStatusActive,
+	megaport.LocationStatusDeployment,
+	megaport.LocationStatusRestricted,
+	megaport.LocationStatusExtended,
+	megaport.LocationStatusNew,
+	megaport.LocationStatusExpired,
+}
+
+// The lookup asks for every status because the API leaves Extended, New, and
+// Expired out of an unfiltered list.
 var locationLookupFn = func(ctx context.Context, client *megaport.Client, locationID int) (*megaport.LocationV3, error) {
-	return client.LocationService.GetLocationByIDV3(ctx, locationID)
+	locations, err := client.LocationService.ListLocationsV3WithOptions(ctx, &megaport.ListLocationsV3Options{Statuses: LocationStatuses})
+	if err != nil {
+		return nil, err
+	}
+	for _, loc := range locations {
+		if loc != nil && loc.ID == locationID {
+			return loc, nil
+		}
+	}
+	return nil, nil
 }
 
 // SetLocationLookup replaces the location lookup that WarnIfLocationNotActive

@@ -2970,6 +2970,14 @@ func TestBuyPort_LocationStatusWarning(t *testing.T) {
 			wantWarn:  true,
 			wantCalls: []string{"lookup", "prompt", "buy"},
 		},
+		{
+			name:        "restricted location warns on buy-lag when validate rejects it",
+			lag:         true,
+			status:      megaport.LocationStatusRestricted,
+			validateErr: errors.New("invalid 'locationId'"),
+			wantWarn:    true,
+			wantCalls:   []string{"lookup"},
+		},
 	}
 
 	for _, tt := range tests {

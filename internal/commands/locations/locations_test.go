@@ -12,6 +12,7 @@ import (
 	megaport "github.com/megaport/megaportgo"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var noColor = true
@@ -560,6 +561,16 @@ func TestAddCommandsTo(t *testing.T) {
 		}
 	}
 	assert.True(t, locationsFound, "locations command should be registered")
+}
+
+func TestLocationsListHasStatusFlag(t *testing.T) {
+	root := &cobra.Command{Use: "megaport-cli"}
+	AddCommandsTo(root)
+	list, _, err := root.Find([]string{"locations", "list"})
+	require.NoError(t, err)
+	flag := list.Flags().Lookup("status")
+	require.NotNil(t, flag, "list command should have --status flag")
+	assert.Equal(t, "stringArray", flag.Value.Type())
 }
 
 func TestLocationsModule(t *testing.T) {

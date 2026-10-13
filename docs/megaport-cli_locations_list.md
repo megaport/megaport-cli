@@ -14,7 +14,7 @@ This command fetches and displays locations with details such as location ID, na
   - `mcr-available`: Filter locations that support MCR
   - `metro`: Filter locations by metro area
   - `name`: Filter locations by name
-  - `status`: Filter locations by status: Active, Deployment, or Restricted (repeatable, default Active)
+  - `status`: Filter locations by status: Active, Deployment, Restricted, Extended, New, or Expired (repeatable, default Active)
 
 ### Example Usage
 
@@ -50,5 +50,5 @@ megaport-cli locations list [flags]
 | `--mcr-available` |  | `false` | Filter locations that support MCR | false |
 | `--metro` |  |  | Filter locations by metro area | false |
 | `--name` |  |  | Filter locations by name | false |
-| `--status` |  | `[]` | Filter locations by status: Active, Deployment, or Restricted (repeatable, default Active) | false |
+| `--status` |  | `[]` | Filter locations by status: Active, Deployment, Restricted, Extended, New, or Expired (repeatable, default Active) | false |
 
