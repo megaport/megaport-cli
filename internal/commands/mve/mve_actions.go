@@ -152,7 +152,7 @@ func BuyMVE(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("validation failed: %w", err)
 	}
 
-	utils.WarnIfLocationNotActive(ctx, client, req.LocationID, noColor)
+	utils.WarnIfLocationNotActive(ctx, client, noColor, req.LocationID)
 
 	validationSpinner := output.PrintResourceValidating("MVE", noColor)
 

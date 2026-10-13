@@ -2820,10 +2820,9 @@ func TestBuyMVE_LocationStatusWarning(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var calls []string
-			restore := utils.SetLocationLookup(func(_ context.Context, _ *megaport.Client, id int) (*megaport.LocationV3, error) {
-				assert.Equal(t, 123, id)
+			restore := utils.SetLocationLookup(func(context.Context, *megaport.Client) ([]*megaport.LocationV3, error) {
 				calls = append(calls, "lookup")
-				return &megaport.LocationV3{ID: id, Name: "Test DC", Status: megaport.LocationStatusDeployment}, nil
+				return []*megaport.LocationV3{{ID: 123, Name: "Test DC", Status: megaport.LocationStatusDeployment}}, nil
 			})
 			defer restore()
 			utils.SetBuyConfirmPrompt(func(_ string, _ []utils.BuyConfirmDetail, _ bool) bool {

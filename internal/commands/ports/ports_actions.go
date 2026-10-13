@@ -86,7 +86,7 @@ func BuyPort(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	utils.WarnIfLocationNotActive(ctx, client, req.LocationId, noColor)
+	utils.WarnIfLocationNotActive(ctx, client, noColor, req.LocationId)
 
 	validateSpinner := output.PrintResourceValidating("Port", noColor)
 	err = client.PortService.ValidatePortOrder(ctx, req)
@@ -236,7 +236,7 @@ func BuyLAGPort(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	utils.WarnIfLocationNotActive(ctx, client, req.LocationId, noColor)
+	utils.WarnIfLocationNotActive(ctx, client, noColor, req.LocationId)
 
 	validateSpinner := output.PrintResourceValidating("LAG Port", noColor)
 	err = client.PortService.ValidatePortOrder(ctx, req)

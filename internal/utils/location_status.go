@@ -17,35 +17,46 @@ var LocationStatuses = []string{
 	megaport.LocationStatusExpired,
 }
 
-// The lookup asks for every status because the API leaves Extended, New, and
-// Expired out of an unfiltered list.
-var locationLookupFn = func(ctx context.Context, client *megaport.Client, locationID int) (*megaport.LocationV3, error) {
-	locations, err := client.LocationService.ListLocationsV3WithOptions(ctx, &megaport.ListLocationsV3Options{Statuses: LocationStatuses})
-	if err != nil {
-		return nil, err
-	}
-	for _, loc := range locations {
-		if loc != nil && loc.ID == locationID {
-			return loc, nil
-		}
-	}
-	return nil, nil
+// The lookup asks only for the non-Active statuses. A location missing from the
+// list is Active or doesn't exist, and the warning skips both.
+var locationLookupFn = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
+	return client.LocationService.ListLocationsV3WithOptions(ctx, &megaport.ListLocationsV3Options{Statuses: []string{
+		megaport.LocationStatusDeployment,
+		megaport.LocationStatusRestricted,
+		megaport.LocationStatusExtended,
+		megaport.LocationStatusNew,
+		megaport.LocationStatusExpired,
+	}})
 }
 
 // SetLocationLookup replaces the location lookup that WarnIfLocationNotActive
 // uses and returns a function that restores it.
-func SetLocationLookup(fn func(context.Context, *megaport.Client, int) (*megaport.LocationV3, error)) func() {
+func SetLocationLookup(fn func(context.Context, *megaport.Client) ([]*megaport.LocationV3, error)) func() {
 	original := locationLookupFn
 	locationLookupFn = fn
 	return func() { locationLookupFn = original }
 }
 
-// WarnIfLocationNotActive prints a warning when the location isn't Active.
+// WarnIfLocationNotActive prints a warning for each location that isn't Active.
 // It never blocks the order. The API decides whether to accept it.
-func WarnIfLocationNotActive(ctx context.Context, client *megaport.Client, locationID int, noColor bool) {
-	loc, err := locationLookupFn(ctx, client, locationID)
-	if err != nil || loc == nil || loc.IsStatusOrderable() {
+func WarnIfLocationNotActive(ctx context.Context, client *megaport.Client, noColor bool, locationIDs ...int) {
+	if len(locationIDs) == 0 {
 		return
 	}
-	output.PrintWarning("Location %d (%s) has status %s, not Active.", noColor, loc.ID, loc.Name, loc.Status)
+	locations, err := locationLookupFn(ctx, client)
+	if err != nil {
+		return
+	}
+	notActive := make(map[int]*megaport.LocationV3, len(locations))
+	for _, loc := range locations {
+		if loc != nil && !loc.IsStatusOrderable() {
+			notActive[loc.ID] = loc
+		}
+	}
+	for _, id := range locationIDs {
+		if loc, ok := notActive[id]; ok {
+			output.PrintWarning("Location %d (%s) has status %s, not Active.", noColor, loc.ID, loc.Name, loc.Status)
+			delete(notActive, id)
+		}
+	}
 }

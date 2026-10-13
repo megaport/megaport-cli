@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	megaport "github.com/megaport/megaportgo"
@@ -11,45 +12,73 @@ import (
 )
 
 func TestWarnIfLocationNotActive(t *testing.T) {
+	locations := []*megaport.LocationV3{
+		{ID: 42, Name: "Test DC", Status: megaport.LocationStatusRestricted},
+		{ID: 43, Name: "Other DC", Status: megaport.LocationStatusDeployment},
+		{ID: 44, Name: "Active DC", Status: megaport.LocationStatusActive},
+	}
+	restricted := "Location 42 (Test DC) has status Restricted, not Active."
+	deployment := "Location 43 (Other DC) has status Deployment, not Active."
+
 	tests := []struct {
-		name     string
-		location *megaport.LocationV3
-		err      error
-		want     string
+		name      string
+		ids       []int
+		err       error
+		want      []string
+		wantCalls int
 	}{
 		{
-			name:     "restricted location warns",
-			location: &megaport.LocationV3{ID: 42, Name: "Test DC", Status: megaport.LocationStatusRestricted},
-			want:     "Location 42 (Test DC) has status Restricted, not Active.",
+			name:      "restricted location warns",
+			ids:       []int{42},
+			want:      []string{restricted},
+			wantCalls: 1,
 		},
 		{
-			name:     "active location is silent",
-			location: &megaport.LocationV3{ID: 42, Name: "Test DC", Status: megaport.LocationStatusActive},
+			name:      "active location is silent",
+			ids:       []int{44},
+			wantCalls: 1,
 		},
 		{
-			name: "lookup error is silent",
-			err:  errors.New("not found"),
+			name:      "location missing from the list is silent",
+			ids:       []int{99},
+			wantCalls: 1,
 		},
 		{
-			name: "nil location is silent",
+			name:      "lookup error is silent",
+			ids:       []int{42},
+			err:       errors.New("lookup failed"),
+			wantCalls: 1,
+		},
+		{
+			name:      "one lookup warns once for each location",
+			ids:       []int{42, 44, 43, 42},
+			want:      []string{restricted, deployment},
+			wantCalls: 1,
+		},
+		{
+			name: "no location IDs skips the lookup",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			restore := SetLocationLookup(func(context.Context, *megaport.Client, int) (*megaport.LocationV3, error) {
-				return tt.location, tt.err
+			calls := 0
+			restore := SetLocationLookup(func(context.Context, *megaport.Client) ([]*megaport.LocationV3, error) {
+				calls++
+				return locations, tt.err
 			})
 			defer restore()
 
 			stderr := captureStderr(t, func() {
-				WarnIfLocationNotActive(context.Background(), nil, 42, true)
+				WarnIfLocationNotActive(context.Background(), nil, true, tt.ids...)
 			})
 
-			if tt.want == "" {
+			assert.Equal(t, tt.wantCalls, calls)
+			if len(tt.want) == 0 {
 				assert.Empty(t, stderr)
-			} else {
-				assert.Contains(t, stderr, tt.want)
+			}
+			for _, w := range tt.want {
+				assert.Equal(t, 1, strings.Count(stderr, w), w)
 			}
 		})
 	}
@@ -68,16 +97,15 @@ func (f *fakeLocationService) ListLocationsV3WithOptions(_ context.Context, opts
 
 func TestWarnIfLocationNotActive_ExtendedLocation(t *testing.T) {
 	svc := &fakeLocationService{locations: []*megaport.LocationV3{
-		{ID: 1, Name: "Active DC", Status: megaport.LocationStatusActive},
 		{ID: 42, Name: "Extended DC", Status: megaport.LocationStatusExtended},
 	}}
 	client := &megaport.Client{LocationService: svc}
 
 	stderr := captureStderr(t, func() {
-		WarnIfLocationNotActive(context.Background(), client, 42, true)
+		WarnIfLocationNotActive(context.Background(), client, true, 42)
 	})
 
 	assert.Contains(t, stderr, "Location 42 (Extended DC) has status Extended, not Active.")
 	require.NotNil(t, svc.opts)
-	assert.ElementsMatch(t, []string{"Active", "Deployment", "Restricted", "Extended", "New", "Expired"}, svc.opts.Statuses)
+	assert.ElementsMatch(t, []string{"Deployment", "Restricted", "Extended", "New", "Expired"}, svc.opts.Statuses)
 }

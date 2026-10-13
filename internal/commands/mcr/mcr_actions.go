@@ -93,7 +93,7 @@ func BuyMCR(cmd *cobra.Command, args []string, noColor bool) error {
 		return err
 	}
 
-	utils.WarnIfLocationNotActive(ctx, client, req.LocationID, noColor)
+	utils.WarnIfLocationNotActive(ctx, client, noColor, req.LocationID)
 
 	spinner := output.PrintResourceValidating("MCR", noColor)
 	err = client.MCRService.ValidateMCROrder(ctx, req)

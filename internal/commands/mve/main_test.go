@@ -10,10 +10,10 @@ import (
 )
 
 // The buy tests use a mock client with no LocationService, so the location
-// status lookup returns an Active location unless a test replaces it.
+// status lookup returns no non-Active locations unless a test replaces it.
 func TestMain(m *testing.M) {
-	utils.SetLocationLookup(func(context.Context, *megaport.Client, int) (*megaport.LocationV3, error) {
-		return &megaport.LocationV3{Status: megaport.LocationStatusActive}, nil
+	utils.SetLocationLookup(func(context.Context, *megaport.Client) ([]*megaport.LocationV3, error) {
+		return nil, nil
 	})
 	os.Exit(m.Run())
 }
