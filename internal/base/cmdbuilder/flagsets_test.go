@@ -83,8 +83,9 @@ func TestWithImmediateDeleteFlags(t *testing.T) {
 	assertFlagExists(t, cmd, "force", "false")
 	assertFlagType(t, cmd, "force", "bool")
 
-	// No --now for resources that only support immediate deletion.
+	// No --now and no --later for resources that only support immediate deletion.
 	assert.Nil(t, cmd.Flags().Lookup("now"))
+	assert.Nil(t, cmd.Flags().Lookup("later"))
 }
 
 func TestWithBuyConfirmFlags(t *testing.T) {
