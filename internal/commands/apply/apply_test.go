@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -1934,4 +1935,107 @@ mcrs:
 	require.NoError(t, err)
 	assert.Contains(t, captured, "invalid", "the invalid MCR should be flagged")
 	require.NotNil(t, mockMCR.CapturedValidateMCRRequest, "the valid MCR should still reach SDK validation")
+}
+
+func TestApplyConfig_LocationStatusWarning(t *testing.T) {
+	yaml := `
+ports:
+  - name: Port-A
+    location_id: 1
+    speed: 1000
+    term: 12
+  - name: Port-B
+    location_id: 1
+    speed: 1000
+    term: 12
+mcrs:
+  - name: MCR-A
+    location_id: 2
+    speed: 1000
+    term: 12
+    asn: 65000
+mves:
+  - name: MVE-A
+    location_id: 3
+    term: 1
+    vendor_config:
+      vendor: 6wind
+      imageId: 42
+      productSize: SMALL
+      sshPublicKey: "ssh-rsa AAAA"
+`
+	tests := []struct {
+		name      string
+		dryRun    bool
+		status    string
+		wantWarn  bool
+		wantCalls []string
+	}{
+		{
+			name:      "dry-run warns",
+			dryRun:    true,
+			status:    megaport.LocationStatusDeployment,
+			wantWarn:  true,
+			wantCalls: []string{"lookup"},
+		},
+		{
+			name:      "warns before the confirm prompt",
+			status:    megaport.LocationStatusDeployment,
+			wantWarn:  true,
+			wantCalls: []string{"lookup", "prompt"},
+		},
+		{
+			name:      "active locations do not warn",
+			status:    megaport.LocationStatusActive,
+			wantCalls: []string{"lookup", "prompt"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var calls []string
+			restore := utils.SetLocationLookup(func(context.Context, *megaport.Client) ([]*megaport.LocationV3, error) {
+				calls = append(calls, "lookup")
+				return []*megaport.LocationV3{
+					{ID: 1, Name: "Port DC", Status: tt.status},
+					{ID: 2, Name: "MCR DC", Status: tt.status},
+					{ID: 3, Name: "MVE DC", Status: tt.status},
+				}, nil
+			})
+			defer restore()
+			originalPrompt := utils.GetConfirmPrompt()
+			utils.SetConfirmPrompt(func(string, bool) bool {
+				calls = append(calls, "prompt")
+				return false
+			})
+			defer utils.SetConfirmPrompt(originalPrompt)
+			defer setupMockClient(&MockPortService{}, &MockMCRService{}, &MockMVEService{}, &MockVXCService{})()
+
+			f := writeTempFile(t, "config.yaml", yaml)
+			cmd := applyCmd(f, tt.dryRun, false)
+
+			var err error
+			out := output.CaptureOutput(func() {
+				err = ApplyConfig(cmd, nil, true, "table")
+			})
+
+			if tt.dryRun {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+			assert.Equal(t, tt.wantCalls, calls)
+			if tt.wantWarn {
+				for _, w := range []string{
+					"Location 1 (Port DC) has status Deployment, not Active.",
+					"Location 2 (MCR DC) has status Deployment, not Active.",
+					"Location 3 (MVE DC) has status Deployment, not Active.",
+				} {
+					assert.Equal(t, 1, strings.Count(out, w), w)
+				}
+			} else {
+				assert.NotContains(t, out, "not Active")
+			}
+		})
+	}
 }

@@ -95,6 +95,18 @@ func ApplyConfig(cmd *cobra.Command, _ []string, noColor bool, outputFormat stri
 	}
 	spinner.Stop()
 
+	var locationIDs []int
+	for _, p := range cfg.Ports {
+		locationIDs = append(locationIDs, p.LocationID)
+	}
+	for _, m := range cfg.MCRs {
+		locationIDs = append(locationIDs, m.LocationID)
+	}
+	for _, mv := range cfg.MVEs {
+		locationIDs = append(locationIDs, mv.LocationID)
+	}
+	utils.WarnIfLocationNotActive(ctx, client, noColor, locationIDs...)
+
 	if dryRun {
 		return validateAll(ctx, client, cfg, noColor, outputFormat)
 	}
