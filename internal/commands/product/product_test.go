@@ -471,6 +471,8 @@ func TestToProductOutput(t *testing.T) {
 }
 
 func TestProductPricing(t *testing.T) {
+	output.SetTerminalWidthForTesting(200)
+	defer output.SetTerminalWidthForTesting(0)
 	jsonFile := filepath.Join(t.TempDir(), "port.json")
 	err := os.WriteFile(jsonFile, []byte(`{"locationId":1,"speed":1000,"term":12,"currency":"USD","productUid":"port-uid"}`), 0o600)
 	assert.NoError(t, err)
@@ -642,6 +644,8 @@ func TestProductPricing(t *testing.T) {
 				assert.Nil(t, mockService.CapturedGetProductPricingForCompanyRequest)
 				assert.Equal(t, tt.wantReq, mockService.CapturedGetProductPricingRequest)
 			}
+			assert.Contains(t, capturedOutput, "PRODUCT TYPE")
+			assert.Contains(t, capturedOutput, "CURRENCY")
 			assert.Contains(t, capturedOutput, "MONTHLY RATE")
 			assert.Contains(t, capturedOutput, "MONTHLY RACK RATE")
 			assert.Contains(t, capturedOutput, "USD")

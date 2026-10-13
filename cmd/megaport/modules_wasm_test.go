@@ -18,8 +18,8 @@ func TestReadOnlyModulesRegistered(t *testing.T) {
 	cases := []struct {
 		name string
 		args []string
-		// usage is the command path cobra echoes in the "Usage:" block; it
-		// tracks the command structure rather than drift-prone help prose.
+		// usage is matched in the "Usage:" block. The pricing rows include the
+		// heading because an unknown subcommand prints its parent's help.
 		usage string
 	}{
 		{"status", []string{"megaport-cli", "status", "--help"}, "megaport-cli status"},
