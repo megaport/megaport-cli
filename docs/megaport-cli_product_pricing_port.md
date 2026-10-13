@@ -6,7 +6,7 @@ Get the monthly price of a Port
 
 Get the monthly price of a Port.
 
-This command prints the currency, monthly rate, and monthly rack rate for a Port at the given location and speed.
+This command prints the product type, currency, monthly rate, and monthly rack rate for a Port at the given location and speed.
 
 ### Required Fields
   - `location-id`: ID of the location where the Port will be deployed
@@ -16,11 +16,11 @@ This command prints the currency, monthly rate, and monthly rack rate for a Port
   - `company-uid`: UID of the company that will own the Port (defaults to your company)
   - `currency`: ISO 4217 currency code (defaults to the company's preferred currency)
   - `product-uid`: UID of an existing Port to price
-  - `term`: Contract term in months
+  - `term`: Contract term in months (the API uses 1 if unset)
 
 ### Important Notes
   - Required flags can be skipped when using --json or --json-file
-  - --company-uid applies with flag and JSON input
+  - --company-uid also works with --json and --json-file
 
 ### Example Usage
 
@@ -62,5 +62,5 @@ megaport-cli product pricing port [flags]
 | `--location-id` |  | `0` | ID of the location where the Port will be deployed | true |
 | `--product-uid` |  |  | UID of an existing Port to price | false |
 | `--speed` |  | `0` | Port speed in Mbps | true |
-| `--term` |  | `0` | Contract term in months | false |
+| `--term` |  | `0` | Contract term in months (the API uses 1 if unset) | false |
 

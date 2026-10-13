@@ -6,7 +6,7 @@ Get the monthly price of a VXC
 
 Get the monthly price of a VXC.
 
-This command prints the currency, monthly rate, and monthly rack rate for a VXC between two locations at the given speed.
+This command prints the product type, currency, monthly rate, and monthly rack rate for a VXC between two locations at the given speed.
 
 ### Required Fields
   - `a-location-id`: ID of the A-End location
@@ -19,11 +19,11 @@ This command prints the currency, monthly rate, and monthly rack rate for a VXC 
   - `connect-type`: Connect type of the VXC, for example AWS or AZURE
   - `currency`: ISO 4217 currency code (defaults to the company's preferred currency)
   - `product-uid`: UID of an existing VXC to price
-  - `term`: Contract term in months
+  - `term`: Contract term in months (the API uses 1 if unset)
 
 ### Important Notes
   - Required flags can be skipped when using --json or --json-file
-  - --company-uid applies with flag and JSON input
+  - --company-uid also works with --json and --json-file
 
 ### Example Usage
 
@@ -70,5 +70,5 @@ megaport-cli product pricing vxc [flags]
 | `--json-file` |  |  | Path to JSON file containing configuration | false |
 | `--product-uid` |  |  | UID of an existing VXC to price | false |
 | `--speed` |  | `0` | VXC speed in Mbps | true |
-| `--term` |  | `0` | Contract term in months | false |
+| `--term` |  | `0` | Contract term in months (the API uses 1 if unset) | false |
 

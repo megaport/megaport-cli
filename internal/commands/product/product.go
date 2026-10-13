@@ -46,15 +46,15 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithOutputFormatRunFunc(GetPortPricing).
 		WithIntFlag("location-id", 0, "ID of the location where the Port will be deployed").
 		WithIntFlag("speed", 0, "Port speed in Mbps").
-		WithIntFlag("term", 0, "Contract term in months").
+		WithIntFlag("term", 0, "Contract term in months (the API uses 1 if unset)").
 		WithFlag("currency", "", "ISO 4217 currency code (defaults to the company's preferred currency)").
 		WithFlag("product-uid", "", "UID of an existing Port to price").
 		WithFlag("company-uid", "", "UID of the company that will own the Port (defaults to your company)").
 		WithJSONConfigFlags().
-		WithLongDesc("Get the monthly price of a Port.\n\nThis command prints the currency, monthly rate, and monthly rack rate for a Port at the given location and speed.").
+		WithLongDesc("Get the monthly price of a Port.\n\nThis command prints the product type, currency, monthly rate, and monthly rack rate for a Port at the given location and speed.").
 		WithDocumentedRequiredFlag("location-id", "ID of the location where the Port will be deployed").
 		WithDocumentedRequiredFlag("speed", "Port speed in Mbps").
-		WithOptionalFlag("term", "Contract term in months").
+		WithOptionalFlag("term", "Contract term in months (the API uses 1 if unset)").
 		WithOptionalFlag("currency", "ISO 4217 currency code (defaults to the company's preferred currency)").
 		WithOptionalFlag("product-uid", "UID of an existing Port to price").
 		WithOptionalFlag("company-uid", "UID of the company that will own the Port (defaults to your company)").
@@ -68,7 +68,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
   "currency": "USD"
 }`).
 		WithImportantNote("Required flags can be skipped when using --json or --json-file").
-		WithImportantNote("--company-uid applies with flag and JSON input").
+		WithImportantNote("--company-uid also works with --json and --json-file").
 		WithRootCmd(rootCmd).
 		WithConditionalRequirements("location-id", "speed").
 		Build()
@@ -78,18 +78,18 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithIntFlag("a-location-id", 0, "ID of the A-End location").
 		WithIntFlag("b-location-id", 0, "ID of the B-End location").
 		WithIntFlag("speed", 0, "VXC speed in Mbps").
-		WithIntFlag("term", 0, "Contract term in months").
+		WithIntFlag("term", 0, "Contract term in months (the API uses 1 if unset)").
 		WithFlag("a-end-product-type", "", "Product type of the A-End service, for example MEGAPORT or MCR2").
 		WithFlag("connect-type", "", "Connect type of the VXC, for example AWS or AZURE").
 		WithFlag("currency", "", "ISO 4217 currency code (defaults to the company's preferred currency)").
 		WithFlag("product-uid", "", "UID of an existing VXC to price").
 		WithFlag("company-uid", "", "UID of the company that will own the VXC (defaults to your company)").
 		WithJSONConfigFlags().
-		WithLongDesc("Get the monthly price of a VXC.\n\nThis command prints the currency, monthly rate, and monthly rack rate for a VXC between two locations at the given speed.").
+		WithLongDesc("Get the monthly price of a VXC.\n\nThis command prints the product type, currency, monthly rate, and monthly rack rate for a VXC between two locations at the given speed.").
 		WithDocumentedRequiredFlag("a-location-id", "ID of the A-End location").
 		WithDocumentedRequiredFlag("b-location-id", "ID of the B-End location").
 		WithDocumentedRequiredFlag("speed", "VXC speed in Mbps").
-		WithOptionalFlag("term", "Contract term in months").
+		WithOptionalFlag("term", "Contract term in months (the API uses 1 if unset)").
 		WithOptionalFlag("a-end-product-type", "Product type of the A-End service, for example MEGAPORT or MCR2").
 		WithOptionalFlag("connect-type", "Connect type of the VXC, for example AWS or AZURE").
 		WithOptionalFlag("currency", "ISO 4217 currency code (defaults to the company's preferred currency)").
@@ -107,7 +107,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
   "connectType": "AWS"
 }`).
 		WithImportantNote("Required flags can be skipped when using --json or --json-file").
-		WithImportantNote("--company-uid applies with flag and JSON input").
+		WithImportantNote("--company-uid also works with --json and --json-file").
 		WithRootCmd(rootCmd).
 		WithConditionalRequirements("a-location-id", "b-location-id", "speed").
 		Build()

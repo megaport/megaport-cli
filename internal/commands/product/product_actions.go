@@ -170,7 +170,7 @@ func getProductPricing(cmd *cobra.Command, noColor bool, outputFormat, productNa
 	if err != nil {
 		output.PrintError("Failed to get %s pricing: %v", noColor, productName, err)
 		err = fmt.Errorf("failed to get %s pricing: %w", productName, err)
-		// The SDK returns these when JSON input omits a required field.
+		// The SDK returns these when a required field is missing or zero.
 		if errors.Is(err, megaport.ErrPricingLocationRequired) || errors.Is(err, megaport.ErrPricingSpeedRequired) ||
 			errors.Is(err, megaport.ErrPricingVXCLocationRequired) || errors.Is(err, megaport.ErrPricingVXCSpeedRequired) {
 			return exitcodes.NewUsageError(err)
