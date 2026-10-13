@@ -85,10 +85,10 @@ Update an existing profile with:
 
 ```
 megaport-cli config update-profile myprofile --environment staging
-megaport-cli config update-profile myprofile --secret-key ""
+megaport-cli config update-profile myprofile --prompt-secrets
 ```
 
-Pass an empty string for a key flag (e.g. `--secret-key ""`) to be prompted instead of providing the value on the command line. Input is masked on an interactive terminal; on piped/non-TTY stdin it is read without masking.
+Use `--prompt-secrets` to be prompted for both keys instead of providing them on the command line. An empty key flag (e.g. `--secret-key ""`) still prompts for that one key. Input is masked on an interactive terminal; on piped/non-TTY stdin it is read without masking.
 
 Only specified fields will be updated, others remain unchanged.
 

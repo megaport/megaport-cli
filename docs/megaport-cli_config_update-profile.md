@@ -6,17 +6,17 @@ Update an existing profile
 
 Update an existing profile with new credentials or settings.
 
-To avoid recording the secret value in shell history, pass an empty string (e.g. --secret-key "") and you will be prompted instead of providing the value on the command line. On an interactive terminal input is masked; on piped/non-TTY stdin it is read without masking. Alternatively, use env vars MEGAPORT_ACCESS_KEY / MEGAPORT_SECRET_KEY which always take precedence over stored profiles.
+To avoid recording the keys in shell history, use --prompt-secrets and you will be prompted for the access key and then the secret key. An empty key flag (e.g. --secret-key "") still prompts for that one key. On an interactive terminal input is masked; on piped/non-TTY stdin it is read without masking. Alternatively, use env vars MEGAPORT_ACCESS_KEY / MEGAPORT_SECRET_KEY which always take precedence over stored profiles.
 
 ### Important Notes
   - Keep your Megaport API credentials secure; they provide full account access
-  - Passing --access-key or --secret-key on the command line exposes credentials in shell history and process listings. Pass an empty value to be prompted instead (masked on a TTY; read without masking on piped/non-TTY stdin).
+  - Passing --access-key or --secret-key on the command line exposes credentials in shell history and process listings. Use --prompt-secrets to be prompted instead (masked on a TTY; read without masking on piped/non-TTY stdin).
 
 ### Example Usage
 
 ```sh
   megaport-cli config update-profile myprofile --environment staging
-  megaport-cli config update-profile myprofile --secret-key ""
+  megaport-cli config update-profile myprofile --prompt-secrets
 ```
 
 ## Usage
@@ -36,5 +36,6 @@ megaport-cli config update-profile [flags]
 | `--access-key` |  |  | New Megaport API access key (pass empty string to be prompted; masked on TTY only) | false |
 | `--description` |  |  | Profile description (use empty string to clear) | false |
 | `--environment` |  |  | Target API environment: 'production', 'staging', or 'development' | false |
+| `--prompt-secrets` |  | `false` | Prompt for both API keys (masked on TTY only) | false |
 | `--secret-key` |  |  | New Megaport API secret key (pass empty string to be prompted; masked on TTY only) | false |
 

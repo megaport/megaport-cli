@@ -51,18 +51,19 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithArgs(cobra.ExactArgs(1)).
 		WithColorAwareRunFunc(UpdateProfile).
 		WithLongDesc("Update an existing profile with new credentials or settings.\n\n"+
-			"To avoid recording the secret value in shell history, pass an empty string "+
-			"(e.g. --secret-key \"\") and you will be prompted instead of providing the value on the command line. "+
+			"To avoid recording the keys in shell history, use --prompt-secrets and you will be prompted "+
+			"for the access key and then the secret key. An empty key flag (e.g. --secret-key \"\") still prompts for that one key. "+
 			"On an interactive terminal input is masked; on piped/non-TTY stdin it is read without masking. "+
 			"Alternatively, use env vars MEGAPORT_ACCESS_KEY / MEGAPORT_SECRET_KEY which always take precedence over stored profiles.").
 		WithFlag("access-key", "", "New Megaport API access key (pass empty string to be prompted; masked on TTY only)").
 		WithFlag("secret-key", "", "New Megaport API secret key (pass empty string to be prompted; masked on TTY only)").
+		WithBoolFlag("prompt-secrets", false, "Prompt for both API keys (masked on TTY only)").
 		WithFlag("environment", "", "Target API environment: 'production', 'staging', or 'development'").
 		WithFlag("description", "", "Profile description (use empty string to clear)").
 		WithExample("megaport-cli config update-profile myprofile --environment staging").
-		WithExample("megaport-cli config update-profile myprofile --secret-key \"\"").
+		WithExample("megaport-cli config update-profile myprofile --prompt-secrets").
 		WithImportantNote("Keep your Megaport API credentials secure; they provide full account access").
-		WithImportantNote("Passing --access-key or --secret-key on the command line exposes credentials in shell history and process listings. Pass an empty value to be prompted instead (masked on a TTY; read without masking on piped/non-TTY stdin).").
+		WithImportantNote("Passing --access-key or --secret-key on the command line exposes credentials in shell history and process listings. Use --prompt-secrets to be prompted instead (masked on a TTY; read without masking on piped/non-TTY stdin).").
 		WithRootCmd(rootCmd).
 		Build()
 

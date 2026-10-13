@@ -4,12 +4,14 @@ package config
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/utils"
 	"github.com/spf13/cobra"
@@ -1298,4 +1300,138 @@ func TestUpdateProfile_EmptyAccessKeyFlagTriggersPrompt(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "new-access-from-prompt", profiles["update-test"].AccessKey)
 	assert.Equal(t, "old-secret", profiles["update-test"].SecretKey)
+}
+
+func newPromptSecretsTestCmd(t *testing.T, args ...string) *cobra.Command {
+	t.Helper()
+	cmd, _ := setupTestCmd()
+	cmd.Flags().String("access-key", "", "")
+	cmd.Flags().String("secret-key", "", "")
+	cmd.Flags().Bool("prompt-secrets", false, "")
+	cmd.Flags().String("environment", "", "")
+	cmd.Flags().String("description", "", "")
+	require.NoError(t, cmd.ParseFlags(args))
+	return cmd
+}
+
+func TestUpdateProfile_PromptSecretsPromptsForBothKeys(t *testing.T) {
+	setupTestConfigEnv(t)
+
+	manager, err := NewConfigManager()
+	require.NoError(t, err)
+	require.NoError(t, manager.CreateProfile("update-test", "old-access", "old-secret", "production", ""))
+
+	var prompts []string
+	orig := utils.GetSecretResourcePrompt()
+	defer utils.SetSecretResourcePrompt(orig)
+	utils.SetSecretResourcePrompt(func(_, msg string, _ bool) (string, error) {
+		prompts = append(prompts, msg)
+		if strings.Contains(msg, "access key") {
+			return "new-access", nil
+		}
+		return "new-secret", nil
+	})
+
+	cmd := newPromptSecretsTestCmd(t, "--prompt-secrets")
+	outputText, err := captureBothFromAction(t, func() error {
+		return UpdateProfile(cmd, []string{"update-test"}, false)
+	})
+	require.NoError(t, err)
+	assert.Contains(t, outputText, "Profile 'update-test' updated successfully")
+	assert.Equal(t, []string{"Enter new Megaport API access key: ", "Enter new Megaport API secret key: "}, prompts)
+
+	manager, err = NewConfigManager()
+	require.NoError(t, err)
+	profiles, err := manager.ListProfiles()
+	require.NoError(t, err)
+	assert.Equal(t, "new-access", profiles["update-test"].AccessKey)
+	assert.Equal(t, "new-secret", profiles["update-test"].SecretKey)
+}
+
+func TestUpdateProfile_PromptSecretsWithKeyFlagIsUsageError(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"access key", []string{"--prompt-secrets", "--access-key=x"}},
+		{"secret key", []string{"--prompt-secrets", "--secret-key=x"}},
+		{"empty secret key", []string{"--prompt-secrets", "--secret-key="}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupTestConfigEnv(t)
+
+			manager, err := NewConfigManager()
+			require.NoError(t, err)
+			require.NoError(t, manager.CreateProfile("update-test", "old-access", "old-secret", "production", ""))
+
+			prompted := false
+			orig := utils.GetSecretResourcePrompt()
+			defer utils.SetSecretResourcePrompt(orig)
+			utils.SetSecretResourcePrompt(func(_, _ string, _ bool) (string, error) {
+				prompted = true
+				return "unused", nil
+			})
+
+			cmd := newPromptSecretsTestCmd(t, tt.args...)
+			_, err = captureBothFromAction(t, func() error {
+				return UpdateProfile(cmd, []string{"update-test"}, false)
+			})
+			require.Error(t, err)
+			var cliErr *exitcodes.CLIError
+			require.True(t, errors.As(err, &cliErr))
+			assert.Equal(t, exitcodes.Usage, cliErr.Code)
+			assert.False(t, prompted)
+
+			manager, err = NewConfigManager()
+			require.NoError(t, err)
+			profiles, err := manager.ListProfiles()
+			require.NoError(t, err)
+			assert.Equal(t, "old-access", profiles["update-test"].AccessKey)
+			assert.Equal(t, "old-secret", profiles["update-test"].SecretKey)
+		})
+	}
+}
+
+func TestUpdateProfile_PromptSecretsEmptyAnswerLeavesProfileUnchanged(t *testing.T) {
+	tests := []struct {
+		name      string
+		emptyAt   string
+		wantError string
+	}{
+		{"empty access key", "access key", "access key cannot be empty"},
+		{"empty secret key", "secret key", "secret key cannot be empty"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupTestConfigEnv(t)
+
+			manager, err := NewConfigManager()
+			require.NoError(t, err)
+			require.NoError(t, manager.CreateProfile("update-test", "old-access", "old-secret", "production", ""))
+
+			orig := utils.GetSecretResourcePrompt()
+			defer utils.SetSecretResourcePrompt(orig)
+			utils.SetSecretResourcePrompt(func(_, msg string, _ bool) (string, error) {
+				if strings.Contains(msg, tt.emptyAt) {
+					return "  ", nil
+				}
+				return "new-value", nil
+			})
+
+			cmd := newPromptSecretsTestCmd(t, "--prompt-secrets")
+			_, err = captureBothFromAction(t, func() error {
+				return UpdateProfile(cmd, []string{"update-test"}, false)
+			})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantError)
+
+			manager, err = NewConfigManager()
+			require.NoError(t, err)
+			profiles, err := manager.ListProfiles()
+			require.NoError(t, err)
+			assert.Equal(t, "old-access", profiles["update-test"].AccessKey)
+			assert.Equal(t, "old-secret", profiles["update-test"].SecretKey)
+		})
+	}
 }

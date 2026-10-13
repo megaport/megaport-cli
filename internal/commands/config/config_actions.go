@@ -101,6 +101,16 @@ func CreateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 func UpdateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 	profileName := args[0]
 
+	accessKeyChanged := cmd.Flags().Changed("access-key")
+	secretKeyChanged := cmd.Flags().Changed("secret-key")
+	if promptSecrets, _ := cmd.Flags().GetBool("prompt-secrets"); promptSecrets {
+		if accessKeyChanged || secretKeyChanged {
+			return exitcodes.NewUsageError(fmt.Errorf("--prompt-secrets cannot be combined with --access-key or --secret-key"))
+		}
+		// Both keys then take the empty-value prompt path below.
+		accessKeyChanged, secretKeyChanged = true, true
+	}
+
 	manager, err := NewConfigManager()
 	if err != nil {
 		return err
@@ -114,8 +124,6 @@ func UpdateProfile(cmd *cobra.Command, args []string, noColor bool) error {
 		return fmt.Errorf("profile '%s' not found", profileName)
 	}
 
-	accessKeyChanged := cmd.Flags().Changed("access-key")
-	secretKeyChanged := cmd.Flags().Changed("secret-key")
 	environmentChanged := cmd.Flags().Changed("environment")
 	descriptionChanged := cmd.Flags().Changed("description")
 
