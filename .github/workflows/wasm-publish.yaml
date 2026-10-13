@@ -31,7 +31,8 @@ name: Publish WASM to S3
 #   Stable filenames under each prefix: megaport.wasm (brotli, Content-Encoding: br),
 #   wasm_exec.js, and integrity.json (their hashes). The names are kept stable rather
 #   than content-hashed, so a consumer such as the portal can reference the wasm and
-#   wasm_exec.js by URL. The version/latest prefix is the cache-buster instead.
+#   wasm_exec.js by URL. The version prefix is the cache-buster instead. The latest/
+#   prefix reuses the same names and refreshes within its short TTL.
 #
 # PORTAL INTEGRATION:
 #   Point the portal's wasmUrl/wasmExecUrl at the latest/ alias while iterating, then
