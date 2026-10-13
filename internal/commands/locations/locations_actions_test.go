@@ -839,6 +839,12 @@ func TestListLocationsStatusFilter(t *testing.T) {
 			wantStatuses: []string{"Active"},
 			wantNames:    []string{"Active DC"},
 		},
+		{
+			name:         "blank statuses are skipped",
+			statusFlags:  []string{"", " ", "Restricted"},
+			wantStatuses: []string{"Restricted"},
+			wantNames:    []string{"Restricted DC"},
+		},
 	}
 
 	for _, tt := range tests {

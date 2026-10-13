@@ -79,5 +79,5 @@ func TestWarnIfLocationNotActive_ExtendedLocation(t *testing.T) {
 
 	assert.Contains(t, stderr, "Location 42 (Extended DC) has status Extended, not Active.")
 	require.NotNil(t, svc.opts)
-	assert.Equal(t, LocationStatuses, svc.opts.Statuses)
+	assert.ElementsMatch(t, []string{"Active", "Deployment", "Restricted", "Extended", "New", "Expired"}, svc.opts.Statuses)
 }

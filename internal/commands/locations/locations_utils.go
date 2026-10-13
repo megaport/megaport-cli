@@ -55,10 +55,14 @@ var listLocationsFunc = func(ctx context.Context, client *megaport.Client, statu
 }
 
 // normalizeLocationStatuses fixes the case of each known status, since the API
-// rejects "active". It passes an unknown value through for the API to reject.
+// rejects "active". It skips blank values and passes an unknown value through
+// for the API to reject.
 func normalizeLocationStatuses(values []string) []string {
 	statuses := make([]string, 0, len(values))
 	for _, v := range values {
+		if strings.TrimSpace(v) == "" {
+			continue
+		}
 		status := v
 		for _, known := range utils.LocationStatuses {
 			if strings.EqualFold(v, known) {
