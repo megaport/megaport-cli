@@ -9,8 +9,8 @@ import (
 	megaport "github.com/megaport/megaportgo"
 )
 
-// The apply tests use a mock client with no LocationService, so the location
-// status lookup returns no non-Active locations unless a test replaces it.
+// The mock client has no LocationService, so this stub returns an empty list
+// instead of calling it. A test replaces the stub to return locations.
 func TestMain(m *testing.M) {
 	utils.SetLocationLookup(func(context.Context, *megaport.Client) ([]*megaport.LocationV3, error) {
 		return nil, nil

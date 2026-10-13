@@ -1967,6 +1967,8 @@ mves:
 	tests := []struct {
 		name      string
 		dryRun    bool
+		yes       bool
+		format    string
 		status    string
 		wantWarn  bool
 		wantCalls []string
@@ -1974,18 +1976,29 @@ mves:
 		{
 			name:      "dry-run warns",
 			dryRun:    true,
+			format:    "table",
 			status:    megaport.LocationStatusDeployment,
 			wantWarn:  true,
 			wantCalls: []string{"lookup"},
 		},
 		{
 			name:      "warns before the confirm prompt",
+			format:    "table",
 			status:    megaport.LocationStatusDeployment,
 			wantWarn:  true,
 			wantCalls: []string{"lookup", "prompt"},
 		},
 		{
+			name:      "--yes with JSON output warns",
+			yes:       true,
+			format:    "json",
+			status:    megaport.LocationStatusDeployment,
+			wantWarn:  true,
+			wantCalls: []string{"lookup"},
+		},
+		{
 			name:      "active locations do not warn",
+			format:    "table",
 			status:    megaport.LocationStatusActive,
 			wantCalls: []string{"lookup", "prompt"},
 		},
@@ -2012,14 +2025,14 @@ mves:
 			defer setupMockClient(&MockPortService{}, &MockMCRService{}, &MockMVEService{}, &MockVXCService{})()
 
 			f := writeTempFile(t, "config.yaml", yaml)
-			cmd := applyCmd(f, tt.dryRun, false)
+			cmd := applyCmd(f, tt.dryRun, tt.yes)
 
 			var err error
 			out := output.CaptureOutput(func() {
-				err = ApplyConfig(cmd, nil, true, "table")
+				err = ApplyConfig(cmd, nil, true, tt.format)
 			})
 
-			if tt.dryRun {
+			if tt.dryRun || tt.yes {
 				require.NoError(t, err)
 			} else {
 				require.Error(t, err)

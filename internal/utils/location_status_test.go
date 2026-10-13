@@ -16,6 +16,7 @@ func TestWarnIfLocationNotActive(t *testing.T) {
 		{ID: 42, Name: "Test DC", Status: megaport.LocationStatusRestricted},
 		{ID: 43, Name: "Other DC", Status: megaport.LocationStatusDeployment},
 		{ID: 44, Name: "Active DC", Status: megaport.LocationStatusActive},
+		nil,
 	}
 	restricted := "Location 42 (Test DC) has status Restricted, not Active."
 	deployment := "Location 43 (Other DC) has status Deployment, not Active."
@@ -51,8 +52,8 @@ func TestWarnIfLocationNotActive(t *testing.T) {
 		},
 		{
 			name:      "one lookup warns once for each location",
-			ids:       []int{42, 44, 43, 42},
-			want:      []string{restricted, deployment},
+			ids:       []int{43, 44, 42, 43},
+			want:      []string{deployment, restricted},
 			wantCalls: 1,
 		},
 		{
@@ -77,8 +78,11 @@ func TestWarnIfLocationNotActive(t *testing.T) {
 			if len(tt.want) == 0 {
 				assert.Empty(t, stderr)
 			}
+			last := -1
 			for _, w := range tt.want {
 				assert.Equal(t, 1, strings.Count(stderr, w), w)
+				assert.Greater(t, strings.Index(stderr, w), last, "warnings follow the order of the IDs")
+				last = strings.Index(stderr, w)
 			}
 		})
 	}

@@ -18,7 +18,7 @@ var LocationStatuses = []string{
 }
 
 // The lookup asks only for the non-Active statuses. A location missing from the
-// list is Active or doesn't exist, and the warning skips both.
+// list is Active, not public, or doesn't exist, and the warning skips it.
 var locationLookupFn = func(ctx context.Context, client *megaport.Client) ([]*megaport.LocationV3, error) {
 	return client.LocationService.ListLocationsV3WithOptions(ctx, &megaport.ListLocationsV3Options{Statuses: []string{
 		megaport.LocationStatusDeployment,
