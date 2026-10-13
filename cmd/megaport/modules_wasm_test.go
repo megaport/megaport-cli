@@ -18,8 +18,8 @@ func TestReadOnlyModulesRegistered(t *testing.T) {
 	cases := []struct {
 		name string
 		args []string
-		// usage is matched in the "Usage:" block. The pricing rows include the
-		// heading because an unknown subcommand prints its parent's help.
+		// usage must appear in the help output. The pricing rows include the
+		// "Usage:" heading because an unknown subcommand prints its parent's help.
 		usage string
 	}{
 		{"status", []string{"megaport-cli", "status", "--help"}, "megaport-cli status"},
