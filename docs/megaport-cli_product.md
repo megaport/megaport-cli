@@ -30,4 +30,5 @@ megaport-cli product [flags]
 ## Subcommands
 * [get-type](megaport-cli_product_get-type.md)
 * [list](megaport-cli_product_list.md)
+* [pricing](megaport-cli_product_pricing.md)
 

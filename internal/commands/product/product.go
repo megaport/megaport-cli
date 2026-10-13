@@ -34,6 +34,84 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithRootCmd(rootCmd).
 		Build()
 
-	productCmd.AddCommand(list, getType)
+	pricing := cmdbuilder.NewCommand("pricing", "Get the monthly price of a product").
+		WithLongDesc("Get the monthly price of a new or existing product.\n\nUse the subcommands to price a Port or a VXC.").
+		WithExample("megaport-cli product pricing port --location-id 1 --speed 1000 --term 12").
+		WithExample("megaport-cli product pricing vxc --a-location-id 1 --b-location-id 2 --speed 100").
+		WithRootCmd(rootCmd).
+		Build()
+
+	pricingPort := cmdbuilder.NewCommand("port", "Get the monthly price of a Port").
+		WithOutputFormatRunFunc(GetPortPricing).
+		WithIntFlag("location-id", 0, "ID of the location where the Port will be deployed").
+		WithIntFlag("speed", 0, "Port speed in Mbps").
+		WithIntFlag("term", 0, "Contract term in months").
+		WithFlag("currency", "", "ISO 4217 currency code (defaults to the company's preferred currency)").
+		WithFlag("product-uid", "", "UID of an existing Port to price").
+		WithFlag("company-uid", "", "UID of the company that will own the Port (defaults to your company)").
+		WithJSONConfigFlags().
+		WithLongDesc("Get the monthly price of a Port.\n\nThis command prints the currency, monthly rate, and monthly rack rate for a Port at the given location and speed.").
+		WithDocumentedRequiredFlag("location-id", "ID of the location where the Port will be deployed").
+		WithDocumentedRequiredFlag("speed", "Port speed in Mbps").
+		WithOptionalFlag("term", "Contract term in months").
+		WithOptionalFlag("currency", "ISO 4217 currency code (defaults to the company's preferred currency)").
+		WithOptionalFlag("product-uid", "UID of an existing Port to price").
+		WithOptionalFlag("company-uid", "UID of the company that will own the Port (defaults to your company)").
+		WithExample("megaport-cli product pricing port --location-id 1 --speed 1000 --term 12").
+		WithExample("megaport-cli product pricing port --location-id 1 --speed 10000 --currency USD --output json").
+		WithExample(`megaport-cli product pricing port --json '{"locationId":1,"speed":1000,"term":12}'`).
+		WithJSONExample(`{
+  "locationId": 1,
+  "speed": 1000,
+  "term": 12,
+  "currency": "USD"
+}`).
+		WithImportantNote("Required flags can be skipped when using --json or --json-file").
+		WithImportantNote("--company-uid applies with flag and JSON input").
+		WithRootCmd(rootCmd).
+		WithConditionalRequirements("location-id", "speed").
+		Build()
+
+	pricingVXC := cmdbuilder.NewCommand("vxc", "Get the monthly price of a VXC").
+		WithOutputFormatRunFunc(GetVXCPricing).
+		WithIntFlag("a-location-id", 0, "ID of the A-End location").
+		WithIntFlag("b-location-id", 0, "ID of the B-End location").
+		WithIntFlag("speed", 0, "VXC speed in Mbps").
+		WithIntFlag("term", 0, "Contract term in months").
+		WithFlag("a-end-product-type", "", "Product type of the A-End service, for example MEGAPORT or MCR2").
+		WithFlag("connect-type", "", "Connect type of the VXC, for example AWS or AZURE").
+		WithFlag("currency", "", "ISO 4217 currency code (defaults to the company's preferred currency)").
+		WithFlag("product-uid", "", "UID of an existing VXC to price").
+		WithFlag("company-uid", "", "UID of the company that will own the VXC (defaults to your company)").
+		WithJSONConfigFlags().
+		WithLongDesc("Get the monthly price of a VXC.\n\nThis command prints the currency, monthly rate, and monthly rack rate for a VXC between two locations at the given speed.").
+		WithDocumentedRequiredFlag("a-location-id", "ID of the A-End location").
+		WithDocumentedRequiredFlag("b-location-id", "ID of the B-End location").
+		WithDocumentedRequiredFlag("speed", "VXC speed in Mbps").
+		WithOptionalFlag("term", "Contract term in months").
+		WithOptionalFlag("a-end-product-type", "Product type of the A-End service, for example MEGAPORT or MCR2").
+		WithOptionalFlag("connect-type", "Connect type of the VXC, for example AWS or AZURE").
+		WithOptionalFlag("currency", "ISO 4217 currency code (defaults to the company's preferred currency)").
+		WithOptionalFlag("product-uid", "UID of an existing VXC to price").
+		WithOptionalFlag("company-uid", "UID of the company that will own the VXC (defaults to your company)").
+		WithExample("megaport-cli product pricing vxc --a-location-id 1 --b-location-id 2 --speed 100").
+		WithExample("megaport-cli product pricing vxc --a-location-id 1 --b-location-id 2 --speed 500 --term 12 --connect-type AWS").
+		WithExample(`megaport-cli product pricing vxc --json '{"aLocationId":1,"bLocationId":2,"speed":100}'`).
+		WithJSONExample(`{
+  "aLocationId": 1,
+  "bLocationId": 2,
+  "speed": 100,
+  "term": 12,
+  "aEndProductType": "MEGAPORT",
+  "connectType": "AWS"
+}`).
+		WithImportantNote("Required flags can be skipped when using --json or --json-file").
+		WithImportantNote("--company-uid applies with flag and JSON input").
+		WithRootCmd(rootCmd).
+		WithConditionalRequirements("a-location-id", "b-location-id", "speed").
+		Build()
+
+	pricing.AddCommand(pricingPort, pricingVXC)
+	productCmd.AddCommand(list, getType, pricing)
 	rootCmd.AddCommand(productCmd)
 }

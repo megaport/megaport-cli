@@ -35,11 +35,13 @@ type MockProductService struct {
 
 	UpdateProductResourceTagsErr error
 
-	GetProductPricingErr    error
-	GetProductPricingResult *megaport.PriceBookDTO
+	GetProductPricingErr             error
+	GetProductPricingResult          *megaport.PriceBookDTO
+	CapturedGetProductPricingRequest megaport.PriceBookRequest
 
-	GetProductPricingForCompanyErr    error
-	GetProductPricingForCompanyResult *megaport.PriceBookDTO
+	GetProductPricingForCompanyErr             error
+	GetProductPricingForCompanyResult          *megaport.PriceBookDTO
+	CapturedGetProductPricingForCompanyRequest *megaport.GetProductPricingRequest
 }
 
 func (m *MockProductService) ListProducts(ctx context.Context) ([]megaport.Product, error) {
@@ -83,9 +85,11 @@ func (m *MockProductService) UpdateProductResourceTags(ctx context.Context, prod
 }
 
 func (m *MockProductService) GetProductPricing(ctx context.Context, req megaport.PriceBookRequest) (*megaport.PriceBookDTO, error) {
+	m.CapturedGetProductPricingRequest = req
 	return m.GetProductPricingResult, m.GetProductPricingErr
 }
 
 func (m *MockProductService) GetProductPricingForCompany(ctx context.Context, req *megaport.GetProductPricingRequest) (*megaport.PriceBookDTO, error) {
+	m.CapturedGetProductPricingForCompanyRequest = req
 	return m.GetProductPricingForCompanyResult, m.GetProductPricingForCompanyErr
 }
