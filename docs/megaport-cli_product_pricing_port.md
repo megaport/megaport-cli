@@ -16,11 +16,11 @@ This command prints the product type, currency, monthly rate, and monthly rack r
   - `company-uid`: UID of the company that will own the Port (defaults to your company)
   - `currency`: ISO 4217 currency code (defaults to the company's preferred currency)
   - `product-uid`: UID of an existing Port to price
-  - `term`: Contract term in months (the API uses 1 if unset)
+  - `term`: Contract term in months (defaults to 1 for a new product)
 
 ### Important Notes
   - Required flags can be skipped when using --json or --json-file
-  - --company-uid also works with --json and --json-file
+  - --company-uid is a flag, not a JSON field, and works with --json or --json-file
 
 ### Example Usage
 
@@ -62,5 +62,5 @@ megaport-cli product pricing port [flags]
 | `--location-id` |  | `0` | ID of the location where the Port will be deployed | true |
 | `--product-uid` |  |  | UID of an existing Port to price | false |
 | `--speed` |  | `0` | Port speed in Mbps | true |
-| `--term` |  | `0` | Contract term in months (the API uses 1 if unset) | false |
+| `--term` |  | `0` | Contract term in months (defaults to 1 for a new product) | false |
 
