@@ -574,6 +574,17 @@ func TestProductPricing(t *testing.T) {
 			wantUsageErr: true,
 		},
 		{
+			name:         "json with trailing brace",
+			args:         []string{"port", "--json", `{"locationId":1,"speed":1000}}`},
+			wantUsageErr: true,
+		},
+		{
+			name:          "empty json",
+			args:          []string{"port", "--json", " "},
+			wantUsageErr:  true,
+			expectedError: "JSON input is empty",
+		},
+		{
 			name:         "missing json-file",
 			args:         []string{"port", "--json-file", filepath.Join(t.TempDir(), "missing.json")},
 			wantUsageErr: true,
@@ -633,6 +644,9 @@ func TestProductPricing(t *testing.T) {
 				var cliErr *exitcodes.CLIError
 				require.True(t, errors.As(err, &cliErr))
 				assert.Equal(t, exitcodes.Usage, cliErr.Code)
+				if tt.expectedError != "" {
+					assert.Contains(t, err.Error(), tt.expectedError)
+				}
 				if tt.apiErr == nil {
 					assert.Nil(t, mockService.CapturedGetProductPricingRequest)
 					assert.Nil(t, mockService.CapturedGetProductPricingForCompanyRequest)

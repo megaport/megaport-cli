@@ -21,6 +21,7 @@ This command prints the product type, currency, monthly rate, and monthly rack r
 ### Important Notes
   - Required flags can be skipped when using --json or --json-file
   - --company-uid is a flag, not a JSON field, and works with --json or --json-file
+  - The command sets productType, so leave it out of the JSON
 
 ### Example Usage
 

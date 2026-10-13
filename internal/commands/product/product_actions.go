@@ -145,7 +145,10 @@ func getProductPricing(cmd *cobra.Command, noColor bool, outputFormat, productNa
 		}
 		dec := json.NewDecoder(bytes.NewReader(jsonData))
 		dec.DisallowUnknownFields()
-		if err = dec.Decode(req); err == nil {
+		switch err = dec.Decode(req); {
+		case errors.Is(err, io.EOF):
+			err = errors.New("JSON input is empty")
+		case err == nil:
 			// Reject trailing data after the object, as json.Unmarshal does.
 			if _, tokErr := dec.Token(); !errors.Is(tokErr, io.EOF) {
 				err = errors.New("unexpected data after the JSON object")
