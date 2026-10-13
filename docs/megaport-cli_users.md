@@ -27,6 +27,10 @@ megaport-cli users [flags]
 ```
 
 
+
+## Aliases
+
+* user
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

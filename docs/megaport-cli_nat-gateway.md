@@ -29,6 +29,10 @@ megaport-cli nat-gateway [flags]
 ```
 
 
+
+## Aliases
+
+* nat-gateways
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

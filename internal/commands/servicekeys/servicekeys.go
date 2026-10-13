@@ -13,6 +13,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli servicekeys create --product-uid \"product-uid\" --description \"My service key\"").
 		WithExample("megaport-cli servicekeys update [key] --active=false").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"servicekey"}).
 		Build()
 
 	createServiceKeyCmd := cmdbuilder.NewCommand("create", "Create a new service key").

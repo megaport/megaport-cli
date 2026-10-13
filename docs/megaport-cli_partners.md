@@ -23,6 +23,10 @@ megaport-cli partners [flags]
 ```
 
 
+
+## Aliases
+
+* partner
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

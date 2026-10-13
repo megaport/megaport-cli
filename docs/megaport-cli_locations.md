@@ -22,6 +22,10 @@ megaport-cli locations [flags]
 ```
 
 
+
+## Aliases
+
+* location
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

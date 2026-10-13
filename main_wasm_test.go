@@ -143,7 +143,7 @@ func invokeAsyncAndWait(t *testing.T, cmd string) js.Value {
 func TestExecuteMegaportCommandAsync_UnknownCommand_RoutesToError(t *testing.T) {
 	wasm.ResetOutputBuffers()
 
-	result := invokeAsyncAndWait(t, "location list")
+	result := invokeAsyncAndWait(t, "bogus list")
 
 	errVal := result.Get("error")
 	require.False(t, errVal.IsUndefined(), "unknown command should populate result.error")

@@ -22,6 +22,10 @@ megaport-cli billing-market [flags]
 ```
 
 
+
+## Aliases
+
+* billing-markets
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

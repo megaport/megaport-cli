@@ -12,6 +12,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli product list").
 		WithExample("megaport-cli product get-type [productUID]").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"products"}).
 		Build()
 
 	list := cmdbuilder.NewCommand("list", "List all products with optional filters").

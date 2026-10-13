@@ -30,6 +30,10 @@ megaport-cli mve [flags]
 ```
 
 
+
+## Aliases
+
+* mves
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

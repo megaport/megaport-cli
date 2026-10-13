@@ -24,6 +24,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli ports unlock [portUID]").
 		WithExample("megaport-cli ports check-vlan [portUID] [vlan]").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"port"}).
 		Build()
 
 	buy, buyLag, update, validate, validateLag := buildPortBuyCommands(rootCmd)

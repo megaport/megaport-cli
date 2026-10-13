@@ -22,6 +22,10 @@ megaport-cli product [flags]
 ```
 
 
+
+## Aliases
+
+* products
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

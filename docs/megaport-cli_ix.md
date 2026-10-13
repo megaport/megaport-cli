@@ -29,6 +29,10 @@ megaport-cli ix [flags]
 ```
 
 
+
+## Aliases
+
+* ixs
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

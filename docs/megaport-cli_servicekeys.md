@@ -24,6 +24,10 @@ megaport-cli servicekeys [flags]
 ```
 
 
+
+## Aliases
+
+* servicekey
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

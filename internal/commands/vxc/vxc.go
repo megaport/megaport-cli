@@ -19,6 +19,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli vxc update [vxcUID]").
 		WithExample("megaport-cli vxc delete [vxcUID]").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"vxcs"}).
 		Build()
 
 	// Create list VXCs command

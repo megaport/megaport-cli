@@ -17,6 +17,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli users deactivate 12345").
 		WithExample("megaport-cli users activity").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"user"}).
 		Build()
 
 	listCmd := cmdbuilder.NewCommand("list", "List all company users").

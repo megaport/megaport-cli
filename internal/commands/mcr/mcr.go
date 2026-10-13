@@ -23,6 +23,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("Implement hybrid cloud architectures with seamless connectivity").
 		WithImportantNote("Peer with other networks using BGP routing").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"mcrs"}).
 		Build()
 
 	get, buy, update, del, restore, lock, unlock, list, status, validate := buildMCRCommands(rootCmd)

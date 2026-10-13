@@ -19,13 +19,13 @@ import (
 )
 
 // TestExecuteWithArgs_UnknownCommand_RoutesErrorNotOutput is the ESD-1666
-// regression test: a Cobra parser-layer failure (the ticket's `location list`
-// repro) must be returned as an error so the host can route it to result.error,
+// regression test: a Cobra parser-layer failure (an unknown command)
+// must be returned as an error so the host can route it to result.error,
 // not buried in the captured output. Only the usage hint stays in output.
 func TestExecuteWithArgs_UnknownCommand_RoutesErrorNotOutput(t *testing.T) {
 	wasm.ResetOutputBuffers()
 
-	err := ExecuteWithArgs([]string{"megaport-cli", "location", "list"})
+	err := ExecuteWithArgs([]string{"megaport-cli", "bogus", "list"})
 
 	require.Error(t, err, "an unknown command must return an error")
 	assert.Contains(t, err.Error(), "unknown command", "the returned error should name the failure")
@@ -65,8 +65,8 @@ func TestExecuteWithArgs_Success_ReturnsNil(t *testing.T) {
 }
 
 // TestExecuteWithArgs_UnknownCommand_WithHandler_RoutesError is the Portal
-// scenario: a live-output handler is registered, and the ticket's `location list`
-// repro fails at the parser layer. Because cobra's error print is silenced, the
+// scenario: a live-output handler is registered, and an unknown
+// command fails at the parser layer. Because cobra's error print is silenced, the
 // error never streams as a normal chunk, so ExecuteWithArgs returns it for
 // result.error (red Error: line + failure telemetry) while only the usage hint
 // streams to the terminal.
@@ -84,7 +84,7 @@ func TestExecuteWithArgs_UnknownCommand_WithHandler_RoutesError(t *testing.T) {
 	wasm.RegisterOutputCallback(fn.Value)
 	defer wasm.UnregisterOutputCallback()
 
-	err := ExecuteWithArgs([]string{"megaport-cli", "location", "list"})
+	err := ExecuteWithArgs([]string{"megaport-cli", "bogus", "list"})
 
 	require.Error(t, err, "an unknown command must return an error even with a handler")
 	assert.Contains(t, err.Error(), "unknown command", "the returned error should name the failure")

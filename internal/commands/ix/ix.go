@@ -18,6 +18,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("IXs allow you to connect to Internet Exchange points for peering").
 		WithImportantNote("An IX is attached to an existing port via the product-uid flag").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"ixs"}).
 		Build()
 
 	// Create get IX command

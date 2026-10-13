@@ -30,6 +30,10 @@ megaport-cli ports [flags]
 ```
 
 
+
+## Aliases
+
+* port
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

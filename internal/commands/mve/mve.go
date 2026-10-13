@@ -20,6 +20,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("Create secure connections between cloud services").
 		WithImportantNote("Run vendor-specific networking software in Megaport's infrastructure").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"mves"}).
 		Build()
 
 	buyMVECmd := cmdbuilder.NewCommand("buy", "Purchase a new Megaport Virtual Edge (MVE) device").

@@ -17,6 +17,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithImportantNote("Managed accounts are a partner-only feature").
 		WithImportantNote("Each managed account represents a sub-company under the partner's umbrella").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"managed-accounts"}).
 		Build()
 
 	// Create list managed accounts command

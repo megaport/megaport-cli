@@ -31,6 +31,10 @@ megaport-cli mcr [flags]
 ```
 
 
+
+## Aliases
+
+* mcrs
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

@@ -12,6 +12,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli partners list").
 		WithExample("megaport-cli partners list --product-name \"AWS Partner Port\" --company-name \"AWS\" --location-id 1").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"partner"}).
 		Build()
 
 	listPartnersCmd := cmdbuilder.NewCommand("list", "List all partner ports").

@@ -25,6 +25,10 @@ megaport-cli vxc [flags]
 ```
 
 
+
+## Aliases
+
+* vxcs
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |

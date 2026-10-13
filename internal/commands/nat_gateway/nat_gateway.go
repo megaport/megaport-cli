@@ -22,6 +22,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli nat-gateway list-sessions").
 		WithExample("megaport-cli nat-gateway telemetry [uid] --types BITS --days 7").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"nat-gateways"}).
 		Build()
 
 	get, list, create, update, del, validate, buy, listSessions, telemetry := buildNATGatewayCommands(rootCmd)

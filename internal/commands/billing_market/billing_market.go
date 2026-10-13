@@ -11,6 +11,7 @@ func AddCommandsTo(rootCmd *cobra.Command) {
 		WithExample("megaport-cli billing-market get").
 		WithExample("megaport-cli billing-market set --currency USD --country US --first-party-id 1558 ...").
 		WithRootCmd(rootCmd).
+		WithAliases([]string{"billing-markets"}).
 		Build()
 
 	getBillingMarketCmd := cmdbuilder.NewCommand("get", "Get billing market configurations").

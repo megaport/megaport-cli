@@ -115,6 +115,8 @@ We support convenient shorthand aliases for frequently-used commands:
 | delete       | rm    | `megaport-cli mcr rm <id>`   |
 | status       | st    | `megaport-cli st`            |
 
+Each resource command also accepts its other singular or plural form (`megaport-cli port list`, `megaport-cli vxcs list`). Give a new resource command the same alias and add it to `cmd/megaport/resource_aliases_test.go`.
+
 When adding new commands, consider adding aliases if appropriate.
 
 ## Architecture

@@ -28,6 +28,10 @@ megaport-cli managed-account [flags]
 ```
 
 
+
+## Aliases
+
+* managed-accounts
 ## Flags
 
 | Name | Shorthand | Default | Description | Required |
