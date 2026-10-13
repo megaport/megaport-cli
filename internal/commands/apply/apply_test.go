@@ -1950,13 +1950,13 @@ ports:
     term: 12
 mcrs:
   - name: MCR-A
-    location_id: 2
+    location_id: 3
     speed: 1000
     term: 12
     asn: 65000
 mves:
   - name: MVE-A
-    location_id: 3
+    location_id: 2
     term: 1
     vendor_config:
       vendor: 6wind
@@ -1965,14 +1965,15 @@ mves:
       sshPublicKey: "ssh-rsa AAAA"
 `
 	tests := []struct {
-		name      string
-		dryRun    bool
-		yes       bool
-		format    string
-		status    string
-		wantWarn  bool
-		before    string
-		wantCalls []string
+		name        string
+		dryRun      bool
+		yes         bool
+		format      string
+		status      string
+		validateErr error
+		wantWarn    bool
+		before      string
+		wantCalls   []string
 	}{
 		{
 			name:      "dry-run warns",
@@ -2000,6 +2001,16 @@ mves:
 			wantCalls: []string{"lookup"},
 		},
 		{
+			name:        "--yes warns before the validate error",
+			yes:         true,
+			format:      "json",
+			status:      megaport.LocationStatusDeployment,
+			validateErr: fmt.Errorf("invalid location"),
+			wantWarn:    true,
+			before:      "invalid location",
+			wantCalls:   []string{"lookup"},
+		},
+		{
 			name:      "active locations do not warn",
 			format:    "table",
 			status:    megaport.LocationStatusActive,
@@ -2014,8 +2025,8 @@ mves:
 				calls = append(calls, "lookup")
 				return []*megaport.LocationV3{
 					{ID: 1, Name: "Port DC", Status: tt.status},
-					{ID: 2, Name: "MCR DC", Status: tt.status},
-					{ID: 3, Name: "MVE DC", Status: tt.status},
+					{ID: 2, Name: "MVE DC", Status: tt.status},
+					{ID: 3, Name: "MCR DC", Status: tt.status},
 				}, nil
 			})
 			defer restore()
@@ -2025,7 +2036,7 @@ mves:
 				return false
 			})
 			defer utils.SetConfirmPrompt(originalPrompt)
-			defer setupMockClient(&MockPortService{}, &MockMCRService{}, &MockMVEService{}, &MockVXCService{})()
+			defer setupMockClient(&MockPortService{ValidatePortOrderErr: tt.validateErr}, &MockMCRService{}, &MockMVEService{}, &MockVXCService{})()
 
 			f := writeTempFile(t, "config.yaml", yaml)
 			cmd := applyCmd(f, tt.dryRun, tt.yes)
@@ -2035,7 +2046,7 @@ mves:
 				err = ApplyConfig(cmd, nil, true, tt.format)
 			})
 
-			if tt.dryRun || tt.yes {
+			if tt.validateErr == nil && (tt.dryRun || tt.yes) {
 				require.NoError(t, err)
 			} else {
 				require.Error(t, err)
@@ -2045,8 +2056,8 @@ mves:
 				last := -1
 				for _, w := range []string{
 					"Location 1 (Port DC) has status Deployment, not Active.",
-					"Location 2 (MCR DC) has status Deployment, not Active.",
-					"Location 3 (MVE DC) has status Deployment, not Active.",
+					"Location 3 (MCR DC) has status Deployment, not Active.",
+					"Location 2 (MVE DC) has status Deployment, not Active.",
 				} {
 					assert.Equal(t, 1, strings.Count(out, w), w)
 					assert.Greater(t, strings.Index(out, w), last, "warnings follow the order of the config")
