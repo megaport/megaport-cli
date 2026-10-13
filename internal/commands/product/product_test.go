@@ -474,7 +474,7 @@ func TestProductPricing(t *testing.T) {
 	output.SetTerminalWidthForTesting(200)
 	defer output.SetTerminalWidthForTesting(0)
 	jsonFile := filepath.Join(t.TempDir(), "port.json")
-	err := os.WriteFile(jsonFile, []byte(`{"locationId":1,"speed":1000,"term":12,"currency":"USD","productUid":"port-uid"}`), 0o600)
+	err := os.WriteFile(jsonFile, []byte(`{"locationId":1,"speed":1000,"term":12,"currency":"USD","productUid":"port-uid"}`+"\n"), 0o600)
 	assert.NoError(t, err)
 
 	portReq := &megaport.MegaportPriceBookRequest{LocationID: 1, Speed: 1000, Term: 12, Currency: "USD", ProductUID: "port-uid"}
@@ -556,6 +556,21 @@ func TestProductPricing(t *testing.T) {
 		{
 			name:         "invalid json",
 			args:         []string{"port", "--json", `{"locationId":`},
+			wantUsageErr: true,
+		},
+		{
+			name:         "json with unknown key",
+			args:         []string{"port", "--json", `{"locationId":1,"speed":1000,"companyUid":"company-uid-1"}`},
+			wantUsageErr: true,
+		},
+		{
+			name:         "vxc json with unknown key",
+			args:         []string{"vxc", "--json", `{"aLocationId":1,"bLocationId":2,"speed":100,"locationId":1}`},
+			wantUsageErr: true,
+		},
+		{
+			name:         "json with trailing data",
+			args:         []string{"port", "--json", `{"locationId":1,"speed":1000}{}`},
 			wantUsageErr: true,
 		},
 		{

@@ -1,10 +1,12 @@
 package product
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
@@ -141,7 +143,15 @@ func getProductPricing(cmd *cobra.Command, noColor bool, outputFormat, productNa
 			output.PrintError("Failed to process JSON input: %v", noColor, err)
 			return exitcodes.NewUsageError(err)
 		}
-		if err := json.Unmarshal(jsonData, req); err != nil {
+		dec := json.NewDecoder(bytes.NewReader(jsonData))
+		dec.DisallowUnknownFields()
+		if err = dec.Decode(req); err == nil {
+			// Reject trailing data after the object, as json.Unmarshal does.
+			if _, tokErr := dec.Token(); !errors.Is(tokErr, io.EOF) {
+				err = errors.New("unexpected data after the JSON object")
+			}
+		}
+		if err != nil {
 			output.PrintError("Failed to process JSON input: %v", noColor, err)
 			return exitcodes.NewUsageError(fmt.Errorf("failed to parse JSON: %w", err))
 		}
