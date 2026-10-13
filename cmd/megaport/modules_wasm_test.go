@@ -27,6 +27,8 @@ func TestReadOnlyModulesRegistered(t *testing.T) {
 		{"product", []string{"megaport-cli", "product", "--help"}, "megaport-cli product"},
 		{"product list", []string{"megaport-cli", "product", "list", "--help"}, "megaport-cli product list"},
 		{"product get-type", []string{"megaport-cli", "product", "get-type", "--help"}, "megaport-cli product get-type"},
+		{"product pricing port", []string{"megaport-cli", "product", "pricing", "port", "--help"}, "megaport-cli product pricing port"},
+		{"product pricing vxc", []string{"megaport-cli", "product", "pricing", "vxc", "--help"}, "megaport-cli product pricing vxc"},
 	}
 
 	for _, tc := range cases {

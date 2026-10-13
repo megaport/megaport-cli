@@ -553,6 +553,24 @@ func TestProductPricing(t *testing.T) {
 			wantUsageErr: true,
 		},
 		{
+			name:         "json missing speed",
+			args:         []string{"port", "--json", `{"locationId":1}`},
+			apiErr:       megaport.ErrPricingSpeedRequired,
+			wantUsageErr: true,
+		},
+		{
+			name:         "vxc json missing location",
+			args:         []string{"vxc", "--json", `{"aLocationId":1,"speed":100}`},
+			apiErr:       megaport.ErrPricingVXCLocationRequired,
+			wantUsageErr: true,
+		},
+		{
+			name:         "vxc json missing speed",
+			args:         []string{"vxc", "--json", `{"aLocationId":1,"bLocationId":2}`},
+			apiErr:       megaport.ErrPricingVXCSpeedRequired,
+			wantUsageErr: true,
+		},
+		{
 			name:          "API error",
 			args:          []string{"port", "--location-id", "1", "--speed", "1000"},
 			apiErr:        fmt.Errorf("API error"),
