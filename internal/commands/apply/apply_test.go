@@ -1971,6 +1971,7 @@ mves:
 		format    string
 		status    string
 		wantWarn  bool
+		before    string
 		wantCalls []string
 	}{
 		{
@@ -1979,6 +1980,7 @@ mves:
 			format:    "table",
 			status:    megaport.LocationStatusDeployment,
 			wantWarn:  true,
+			before:    "Dry-run: validation results",
 			wantCalls: []string{"lookup"},
 		},
 		{
@@ -1994,6 +1996,7 @@ mves:
 			format:    "json",
 			status:    megaport.LocationStatusDeployment,
 			wantWarn:  true,
+			before:    "Port created",
 			wantCalls: []string{"lookup"},
 		},
 		{
@@ -2039,12 +2042,18 @@ mves:
 			}
 			assert.Equal(t, tt.wantCalls, calls)
 			if tt.wantWarn {
+				last := -1
 				for _, w := range []string{
 					"Location 1 (Port DC) has status Deployment, not Active.",
 					"Location 2 (MCR DC) has status Deployment, not Active.",
 					"Location 3 (MVE DC) has status Deployment, not Active.",
 				} {
 					assert.Equal(t, 1, strings.Count(out, w), w)
+					assert.Greater(t, strings.Index(out, w), last, "warnings follow the order of the config")
+					last = strings.Index(out, w)
+					if tt.before != "" {
+						assert.Less(t, strings.Index(out, w), strings.Index(out, tt.before), w)
+					}
 				}
 			} else {
 				assert.NotContains(t, out, "not Active")

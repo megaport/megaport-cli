@@ -57,6 +57,12 @@ func TestWarnIfLocationNotActive(t *testing.T) {
 			wantCalls: 1,
 		},
 		{
+			name:      "warnings follow the order of the IDs",
+			ids:       []int{42, 43},
+			want:      []string{restricted, deployment},
+			wantCalls: 1,
+		},
+		{
 			name: "no location IDs skips the lookup",
 		},
 	}
