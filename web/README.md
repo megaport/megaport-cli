@@ -11,7 +11,6 @@ against the Megaport API directly from the browser.
 ```bash
 # WASM binary (writes web/megaport.wasm)
 make wasm
-# or ./wasm.sh, which also copies wasm_exec.js from the Go toolchain
 
 # Assemble the static site into web/vue-demo/ (no Docker, no Go server)
 ./scripts/build-web.sh

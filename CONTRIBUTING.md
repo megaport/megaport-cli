@@ -49,7 +49,7 @@ go test -v ./internal/commands/ports -run TestFilterPorts
 
 ### Linting
 
-We use `golangci-lint` for code quality:
+We use `golangci-lint` v2 for code quality:
 
 ```bash
 golangci-lint run

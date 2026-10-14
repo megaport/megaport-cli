@@ -22,7 +22,7 @@ If you prefer to run steps manually:
 ### 1. Build the test binary
 
 ```bash
-GOOS=js GOARCH=wasm go test -c -o wasm.test .
+GOOS=js GOARCH=wasm go test -tags js,wasm,browser -c -o wasm.test .
 ```
 
 ### 2. Copy the WASM loader

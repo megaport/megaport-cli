@@ -9,7 +9,7 @@ echo ""
 # Build the test binary
 echo "📦 Building WASM test binary..."
 cd "$(dirname "$0")"
-GOOS=js GOARCH=wasm go test -c -o wasm.test .
+GOOS=js GOARCH=wasm go test -tags js,wasm,browser -c -o wasm.test .
 
 if [ ! -f "wasm.test" ]; then
     echo "❌ Failed to build test binary"

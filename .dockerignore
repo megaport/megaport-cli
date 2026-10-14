@@ -29,7 +29,6 @@ testdata/
 # Development files
 .env
 .env.local
-wasm.sh
 
 # Node.js (not needed in the image)
 web/node_modules/
