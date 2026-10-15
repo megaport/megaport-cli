@@ -23,9 +23,6 @@ type MockMCRService struct {
 	DeleteMCRErr                          error
 	CapturedDeleteMCRUID                  string
 	CapturedDeleteMCRRequest              *megaport.DeleteMCRRequest
-	RestoreMCRResult                      *megaport.RestoreMCRResponse
-	RestoreMCRErr                         error
-	CapturedRestoreMCRUID                 string
 	CreateMCRPrefixFilterListResult       *megaport.CreateMCRPrefixFilterListResponse
 	CreateMCRPrefixFilterListErr          error
 	CapturedCreatePrefixFilterListRequest *megaport.CreateMCRPrefixFilterListRequest
@@ -118,11 +115,7 @@ func (m *MockMCRService) DeleteMCR(ctx context.Context, req *megaport.DeleteMCRR
 }
 
 func (m *MockMCRService) RestoreMCR(ctx context.Context, mcrUID string) (*megaport.RestoreMCRResponse, error) {
-	m.CapturedRestoreMCRUID = mcrUID
-	if m.RestoreMCRErr != nil {
-		return nil, m.RestoreMCRErr
-	}
-	return m.RestoreMCRResult, nil
+	return nil, fmt.Errorf("mock: RestoreMCR not configured")
 }
 
 func (m *MockMCRService) CreatePrefixFilterList(ctx context.Context, req *megaport.CreateMCRPrefixFilterListRequest) (*megaport.CreateMCRPrefixFilterListResponse, error) {
@@ -320,9 +313,6 @@ func (m *MockMCRService) Reset() {
 	m.DeleteMCRResult = nil
 	m.DeleteMCRErr = nil
 	m.CapturedDeleteMCRUID = ""
-	m.RestoreMCRResult = nil
-	m.RestoreMCRErr = nil
-	m.CapturedRestoreMCRUID = ""
 	m.CreateMCRPrefixFilterListResult = nil
 	m.CreateMCRPrefixFilterListErr = nil
 	m.CapturedCreatePrefixFilterListRequest = nil
