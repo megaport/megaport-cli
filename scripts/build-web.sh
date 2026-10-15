@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Build the browser/WASM CLI into a self-contained static site at web/vue-demo/.
-# No Docker and no Go server — the output is ready to `aws s3 sync` to a CDN.
+# Build the browser/WASM CLI's static assets (wasm + wasm_exec.js) into web/dist/.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -13,5 +12,6 @@ source "$repo_root/scripts/lib/web-assets.sh"
 build_static_assets
 
 echo ""
-echo "Static site ready: web/vue-demo/"
-echo "Publish with: aws s3 sync web/vue-demo/ s3://<bucket>/<prefix>/ --delete"
+echo "Static assets ready: web/dist/"
+echo "Publish with the wasm-publish workflow. A plain 'aws s3 sync' uploads the wasm"
+echo "uncompressed and with no Cache-Control."

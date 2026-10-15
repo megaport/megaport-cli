@@ -1,6 +1,7 @@
 name: Publish WASM to S3
 
-# Builds the browser/WASM CLI static site and publishes it to S3 + CloudFront.
+# Builds the browser/WASM CLI's static assets (megaport.wasm + wasm_exec.js) and
+# publishes them to S3 + CloudFront.
 #
 # CONFIGURATION REQUIRED BEFORE MERGE (ESD-1506):
 #   AWS access is provisioned via the shared github_runners_iam Terraform module in
@@ -28,9 +29,10 @@ name: Publish WASM to S3
 #
 # WHAT GETS PUBLISHED:
 #   Stable filenames under each prefix: megaport.wasm (brotli, Content-Encoding: br),
-#   wasm_exec.js, and the rest of the static site. The portal references megaport.wasm
-#   and wasm_exec.js by URL, so the names are kept stable rather than content-hashed;
-#   the version/latest prefix provides the cache-busting instead.
+#   wasm_exec.js, and integrity.json (their hashes). The names are kept stable rather
+#   than content-hashed, so a consumer such as the portal can reference the wasm and
+#   wasm_exec.js by URL. The version prefix is the cache-buster instead. The latest/
+#   prefix reuses the same names and refreshes within its short TTL.
 #
 # PORTAL INTEGRATION:
 #   Point the portal's wasmUrl/wasmExecUrl at the latest/ alias while iterating, then
@@ -108,12 +110,6 @@ jobs:
           go-version-file: 'go.mod'
           cache: true
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: frontend-integration/package-lock.json
-
       - name: Resolve version label
         id: version
         env:
@@ -142,7 +138,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Publishing version: $version"
 
-      - name: Build static site
+      - name: Build static assets
         run: make web-static
 
       - name: Compress WASM
@@ -151,7 +147,7 @@ jobs:
           # cmd/wasmcompress writes .br (and .gz) next to the source file (ESD-1268).
           # CloudFront auto-compression caps at 10 MB; the raw wasm is well over that,
           # so it must be pre-compressed at origin and served with Content-Encoding: br.
-          GOWORK=off go run ./cmd/wasmcompress web/vue-demo/megaport.wasm
+          GOWORK=off go run ./cmd/wasmcompress web/dist/megaport.wasm
 
       - name: Compute integrity hashes
         id: hashes
@@ -164,8 +160,8 @@ jobs:
           # instantiation (WebAssembly.instantiateStreaming via fetch) has no
           # `integrity` attribute to check it against; wasm_exec.js is loaded as a
           # <script src>, which does support SRI, hence the sha384-<base64> form.
-          wasm_sha256="$(shasum -a 256 web/vue-demo/megaport.wasm | awk '{print $1}')"
-          wasm_exec_sri="sha384-$(openssl dgst -sha384 -binary web/vue-demo/wasm_exec.js | openssl base64 -A)"
+          wasm_sha256="$(shasum -a 256 web/dist/megaport.wasm | awk '{print $1}')"
+          wasm_exec_sri="sha384-$(openssl dgst -sha384 -binary web/dist/wasm_exec.js | openssl base64 -A)"
           echo "wasm_sha256=$wasm_sha256" >> "$GITHUB_OUTPUT"
           echo "wasm_exec_sri=$wasm_exec_sri" >> "$GITHUB_OUTPUT"
           echo "megaport.wasm SHA-256: $wasm_sha256"
@@ -178,10 +174,10 @@ jobs:
           WASM_EXEC_SRI: ${{ steps.hashes.outputs.wasm_exec_sri }}
         run: |
           set -euo pipefail
-          # Published alongside the site (synced by "Publish to S3" below) so the
+          # Published alongside the wasm (synced by "Publish to S3" below) so the
           # values are re-verifiable from the CDN later without re-hashing or relying
           # on the step summary above, which the Actions UI eventually expires.
-          cat > web/vue-demo/integrity.json <<EOF
+          cat > web/dist/integrity.json <<EOF
           {
             "version": "${VERSION}",
             "megaport.wasm": {"sha256": "${WASM_SHA256}"},
@@ -199,7 +195,7 @@ jobs:
         # mismatch, since it isn't the uncompressed subject that was attested.
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2.4.0
         with:
-          subject-path: web/vue-demo/megaport.wasm
+          subject-path: web/dist/megaport.wasm
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4.3.1
@@ -215,15 +211,15 @@ jobs:
           PUBLISH_LATEST: ${{ inputs.publish_latest }}
         run: |
           set -euo pipefail
-          src=web/vue-demo
+          src=web/dist
 
           publish() {
             local dest="s3://${BUCKET}/${PREFIX}/$1"
             local cache="$2"
             echo "==> Publishing to ${dest}"
-            # Sync the static site; the wasm and wasm_exec.js are uploaded separately below
-            # so we can pin their Content-Type/Content-Encoding instead of relying on
-            # aws s3 sync's MIME inference.
+            # The sync uploads integrity.json. The wasm and wasm_exec.js are uploaded
+            # separately below so we can pin their Content-Type/Content-Encoding instead of
+            # relying on aws s3 sync's MIME inference.
             aws s3 sync "$src/" "$dest/" --delete \
               --exclude 'megaport.wasm' \
               --exclude 'megaport.wasm.br' \
@@ -231,8 +227,7 @@ jobs:
               --exclude 'wasm_exec.js' \
               --cache-control "$cache"
             # Brotli only: the portal's browser audience always sends Accept-Encoding: br,
-            # so we don't upload a gzip/identity fallback (unlike the general guidance in
-            # web/README.md, which serves .br/.gz/identity as separate objects).
+            # so we don't upload a gzip/identity fallback.
             aws s3 cp "$src/megaport.wasm.br" "$dest/megaport.wasm" \
               --content-type application/wasm \
               --content-encoding br \
@@ -286,7 +281,7 @@ jobs:
             echo "### WASM published"
             echo ""
             echo "- Version prefix: \`${PREFIX}/${VERSION}/\`"
-            echo "- Files: \`megaport.wasm\`, \`wasm_exec.js\`"
+            echo "- Files: \`megaport.wasm\`, \`wasm_exec.js\`, \`integrity.json\`"
             [ "$PUBLISH_LATEST" = "true" ] && echo "- Latest alias: \`${PREFIX}/latest/\`"
             echo ""
             echo "#### Integrity reference values (\`${VERSION}\`)"
