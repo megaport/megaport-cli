@@ -197,6 +197,10 @@ func (m *MockMCRService) UpdateMCRIPsecAddOn(ctx context.Context, mcrID string, 
 	return m.UpdateMCRIPsecAddOnErr
 }
 
+func (m *MockMCRService) GetMCRIPsec(_ context.Context, _ string) (*megaport.MCRIPsecConfiguration, error) {
+	return nil, fmt.Errorf("mock: GetMCRIPsec not configured")
+}
+
 func (m *MockMCRService) WaitForMCRReady(_ context.Context, mcrID string, timeout time.Duration) error {
 	m.CapturedWaitForMCRReadyMCRID = mcrID
 	m.CapturedWaitForMCRReadyTimeout = timeout
