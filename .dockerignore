@@ -29,7 +29,6 @@ testdata/
 # Development files
 .env
 .env.local
-wasm.sh
 
 # Temporary files
 tmp/

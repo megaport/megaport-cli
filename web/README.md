@@ -11,7 +11,6 @@ directly from the browser.
 ```bash
 # WASM binary (writes web/megaport.wasm)
 make wasm
-# or ./wasm.sh, which also copies wasm_exec.js from the Go toolchain
 
 # Assemble the WASM binary + wasm_exec.js loader into web/dist/
 ./scripts/build-web.sh

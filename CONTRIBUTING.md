@@ -6,7 +6,7 @@ Thank you for your interest in contributing to megaport-cli! This guide will hel
 
 ### Prerequisites
 
-- Go 1.25 or later (matches `go.mod`)
+- Go 1.26 or later (matches `go.mod`)
 - Git
 
 ### Initial Setup
@@ -49,7 +49,7 @@ go test -v ./internal/commands/ports -run TestFilterPorts
 
 ### Linting
 
-We use `golangci-lint` for code quality:
+We use `golangci-lint` v2 for code quality:
 
 ```bash
 golangci-lint run

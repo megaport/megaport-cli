@@ -284,7 +284,7 @@ aws sso login
 aws sts get-caller-identity
 # 2. Build the WASM binary and copy the matching wasm_exec.js loader. The loader is
 #    not checked in: copy it fresh from the toolchain so it stays paired with the Go
-#    version that built the wasm (./wasm.sh does both steps if you prefer).
+#    version that built the wasm.
 GOOS=js GOARCH=wasm go build -tags js,wasm -o web/megaport.wasm .
 cp -f "$(go env GOROOT)/lib/wasm/wasm_exec.js" web/wasm_exec.js
 
@@ -299,7 +299,7 @@ aws s3 cp web/wasm_exec.js  s3://media.megaport.com/portal/megaport-cli/wasm_exe
 ### Can't build WASM
 
 ```bash
-# Make sure you have Go 1.25 or later (matches go.mod)
+# Make sure you have Go 1.26 or later (matches go.mod)
 go version
 
 # Check WASM support
