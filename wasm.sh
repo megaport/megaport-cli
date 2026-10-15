@@ -27,7 +27,7 @@ POSSIBLE_PATHS=(
 FOUND=false
 for path in "${POSSIBLE_PATHS[@]}"; do
   if [ -f "$path" ]; then
-    cp "$path" ./web/
+    cp -f "$path" ./web/
     echo "Copied wasm_exec.js from $path"
     FOUND=true
     break
@@ -40,7 +40,7 @@ if [ "$FOUND" = false ]; then
   FOUND_PATH=$(find "$GO_ROOT" -name "wasm_exec.js" -type f | head -n 1)
   
   if [ -n "$FOUND_PATH" ]; then
-    cp "$FOUND_PATH" ./web/
+    cp -f "$FOUND_PATH" ./web/
     echo "Copied wasm_exec.js from $FOUND_PATH"
     FOUND=true
   fi
@@ -75,7 +75,6 @@ fi
 
 if [ "$FOUND" = true ]; then
   echo "Build complete. Files in ./web/ directory."
-  echo "For a browser preview: cd frontend-integration && npm run dev:demo"
 else
   echo "Build incomplete. Missing wasm_exec.js"
   exit 1
