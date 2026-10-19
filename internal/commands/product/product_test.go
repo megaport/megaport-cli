@@ -2,9 +2,13 @@ package product
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/testutil"
@@ -321,6 +325,11 @@ func TestAddCommandsTo(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, getTypeCmd)
 	assert.Equal(t, "get-type", getTypeCmd.Use)
+
+	availabilityCmd, _, err := rootCmd.Find([]string{"product", "availability"})
+	assert.NoError(t, err)
+	assert.NotNil(t, availabilityCmd)
+	assert.Equal(t, "availability", availabilityCmd.Use)
 }
 
 func TestProductModule(t *testing.T) {
@@ -461,5 +470,204 @@ func TestToProductOutput(t *testing.T) {
 		assert.Equal(t, "Test MCR", o.Name)
 		assert.Equal(t, 5000, o.Speed)
 		assert.Equal(t, 2, o.LocationID)
+	})
+}
+
+func availabilityFixture() []*megaport.CompanyProductAvailability {
+	return []*megaport.CompanyProductAvailability{
+		{
+			Category:    megaport.AvailableProductCategoryProduct,
+			DisplayName: "Port",
+			Variant:     "1G",
+			Markets: []megaport.CompanyProductMarket{
+				{Market: "MEGAPORT_AUSTRALIA", MarketName: "Australia", MarketOwner: "Megaport (Australia) Pty Ltd", CountryCode: "AU", Source: megaport.AvailabilitySourceMarket},
+				{Market: "MEGAPORT_US", MarketName: "United States", MarketOwner: "Megaport (USA) Inc", CountryCode: "US", Source: megaport.AvailabilitySourceOverride},
+			},
+		},
+		nil,
+		{
+			Category:    megaport.AvailableProductCategoryAddon,
+			DisplayName: "IPsec",
+			Variant:     "10G",
+			Markets: []megaport.CompanyProductMarket{
+				{Market: "MEGAPORT_AUSTRALIA", MarketName: "Australia", MarketOwner: "Megaport (Australia) Pty Ltd", CountryCode: "AU", Source: megaport.AvailabilitySourceMarket},
+			},
+		},
+	}
+}
+
+func TestProductAvailability(t *testing.T) {
+	output.SetTerminalWidthForTesting(200)
+	defer output.SetTerminalWidthForTesting(0)
+
+	tests := []struct {
+		name         string
+		companyErr   error
+		listErr      error
+		list         []*megaport.CompanyProductAvailability
+		outputFormat string
+		wantErr      string
+		wantListCall bool
+		check        func(t *testing.T, out string)
+	}{
+		{
+			name:         "one row per product and market, skipping a nil product",
+			list:         availabilityFixture(),
+			outputFormat: "json",
+			wantListCall: true,
+			check: func(t *testing.T, out string) {
+				var rows []map[string]any
+				assert.NoError(t, json.Unmarshal([]byte(out), &rows))
+				assert.Equal(t, []map[string]any{
+					{"category": "PRODUCT", "display_name": "Port", "variant": "1G", "market": "MEGAPORT_AUSTRALIA", "market_name": "Australia", "market_owner": "Megaport (Australia) Pty Ltd", "country_code": "AU", "source": "MARKET"},
+					{"category": "PRODUCT", "display_name": "Port", "variant": "1G", "market": "MEGAPORT_US", "market_name": "United States", "market_owner": "Megaport (USA) Inc", "country_code": "US", "source": "OVERRIDE"},
+					{"category": "ADDON", "display_name": "IPsec", "variant": "10G", "market": "MEGAPORT_AUSTRALIA", "market_name": "Australia", "market_owner": "Megaport (Australia) Pty Ltd", "country_code": "AU", "source": "MARKET"},
+				}, rows)
+			},
+		},
+		{
+			name:         "table headers",
+			list:         availabilityFixture(),
+			outputFormat: "table",
+			wantListCall: true,
+			check: func(t *testing.T, out string) {
+				var header string
+				for _, line := range strings.Split(out, "\n") {
+					if strings.Contains(line, "CATEGORY") {
+						header = strings.Join(strings.Fields(strings.ReplaceAll(line, "│", " ")), " ")
+					}
+				}
+				assert.Equal(t, "CATEGORY PRODUCT VARIANT MARKET MARKET NAME MARKET OWNER COUNTRY SOURCE", header)
+				assert.Contains(t, out, "United States")
+			},
+		},
+		{
+			name:         "no products prints an empty JSON list",
+			list:         []*megaport.CompanyProductAvailability{},
+			outputFormat: "json",
+			wantListCall: true,
+			check: func(t *testing.T, out string) {
+				assert.Equal(t, "[]", strings.TrimSpace(out))
+			},
+		},
+		{
+			name:         "no products prints a message in table format",
+			list:         []*megaport.CompanyProductAvailability{},
+			outputFormat: "table",
+			wantListCall: true,
+			check: func(t *testing.T, out string) {
+				assert.Contains(t, out, "No products available.")
+			},
+		},
+		{
+			name:         "products without markets print the empty message in table format",
+			list:         []*megaport.CompanyProductAvailability{{DisplayName: "Port"}, nil},
+			outputFormat: "table",
+			wantListCall: true,
+			check: func(t *testing.T, out string) {
+				assert.Contains(t, out, "No products available.")
+			},
+		},
+		{
+			name:         "company error stops before the availability call",
+			companyErr:   errors.New("boom"),
+			outputFormat: "table",
+			wantErr:      "failed to get current company",
+		},
+		{
+			name:         "availability error returns no rows",
+			list:         availabilityFixture(),
+			listErr:      errors.New("forbidden"),
+			outputFormat: "table",
+			wantListCall: true,
+			wantErr:      "failed to list product availability",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			companyMock := &MockCompanyService{
+				GetCurrentCompanyResult: &megaport.CurrentCompany{CompanyUID: "company-uid-1"},
+				GetCurrentCompanyErr:    tt.companyErr,
+			}
+			availabilityMock := &MockProductAvailabilityService{
+				ListCompanyProductAvailabilityResult: tt.list,
+				ListCompanyProductAvailabilityErr:    tt.listErr,
+			}
+			cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+				c.CompanyService = companyMock
+				c.ProductAvailabilityService = availabilityMock
+			})
+			defer cleanup()
+
+			cmd := &cobra.Command{Use: "availability"}
+			cmd.Flags().StringP("output", "o", "table", "")
+
+			// Data comes from stdout alone; the table-mode empty message goes to stderr.
+			capture := output.CaptureOutput
+			if tt.outputFormat == "json" || tt.wantErr != "" {
+				capture = output.CaptureStdout
+			}
+			var err error
+			out := capture(func() {
+				err = ProductAvailability(cmd, nil, true, tt.outputFormat)
+			})
+
+			if tt.wantListCall {
+				assert.Equal(t, 1, availabilityMock.ListCompanyProductAvailabilityCalls)
+				assert.Equal(t, "company-uid-1", availabilityMock.ListCompanyProductAvailabilityCompany)
+			} else {
+				assert.Equal(t, 0, availabilityMock.ListCompanyProductAvailabilityCalls)
+			}
+
+			if tt.wantErr != "" {
+				assert.ErrorContains(t, err, tt.wantErr)
+				var cliErr *exitcodes.CLIError
+				if assert.True(t, errors.As(err, &cliErr)) {
+					assert.Equal(t, exitcodes.API, cliErr.Code)
+				}
+				assert.Empty(t, strings.TrimSpace(out), "an error prints no rows")
+				return
+			}
+			assert.NoError(t, err)
+			tt.check(t, out)
+		})
+	}
+}
+
+func TestProductAvailabilityLoginError(t *testing.T) {
+	cleanup := testutil.SetupLoginError(fmt.Errorf("login failed"))
+	defer cleanup()
+
+	cmd := &cobra.Command{Use: "availability"}
+	err := ProductAvailability(cmd, nil, true, "table")
+	assert.ErrorContains(t, err, "failed to log in")
+}
+
+func TestProductAvailabilityRegisteredCommand(t *testing.T) {
+	cleanup := testutil.SetupLogin(func(c *megaport.Client) {
+		c.CompanyService = &MockCompanyService{GetCurrentCompanyResult: &megaport.CurrentCompany{CompanyUID: "company-uid-1"}}
+		c.ProductAvailabilityService = &MockProductAvailabilityService{ListCompanyProductAvailabilityResult: availabilityFixture()}
+	})
+	defer cleanup()
+
+	t.Run("runs with no arguments", func(t *testing.T) {
+		root := &cobra.Command{Use: "test-cli"}
+		root.PersistentFlags().StringP("output", "o", "table", "")
+		AddCommandsTo(root)
+		root.SetArgs([]string{"product", "availability", "-o", "json"})
+
+		var err error
+		out := output.CaptureStdout(func() { err = root.Execute() })
+		assert.NoError(t, err)
+		assert.Contains(t, out, `"display_name": "Port"`)
+	})
+
+	t.Run("rejects an argument", func(t *testing.T) {
+		root := &cobra.Command{Use: "test-cli", SilenceUsage: true, SilenceErrors: true}
+		root.PersistentFlags().StringP("output", "o", "table", "")
+		AddCommandsTo(root)
+		root.SetArgs([]string{"product", "availability", "extra"})
+		assert.Error(t, root.Execute())
 	})
 }

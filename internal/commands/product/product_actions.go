@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/megaport/megaport-cli/internal/base/exitcodes"
 	"github.com/megaport/megaport-cli/internal/base/output"
 	"github.com/megaport/megaport-cli/internal/commands/config"
 	"github.com/megaport/megaport-cli/internal/utils"
@@ -87,4 +88,37 @@ func GetProductType(cmd *cobra.Command, args []string, noColor bool, outputForma
 		return fmt.Errorf("failed to print product type: %w", err)
 	}
 	return nil
+}
+
+func ProductAvailability(cmd *cobra.Command, args []string, noColor bool, outputFormat string) error {
+	output.SetOutputFormat(outputFormat)
+	ctx, cancel := utils.ContextFromCmd(cmd)
+	defer cancel()
+
+	client, err := config.Login(ctx)
+	if err != nil {
+		output.PrintError("Failed to log in: %v", noColor, err)
+		return fmt.Errorf("failed to log in: %w", err)
+	}
+
+	spinner := output.PrintResourceListing("Available Product", noColor)
+
+	company, err := client.CompanyService.GetCurrentCompany(ctx)
+	if err != nil {
+		spinner.Stop()
+		output.PrintError("Failed to get current company: %v", noColor, err)
+		return exitcodes.NewAPIError(fmt.Errorf("failed to get current company: %w", err))
+	}
+
+	availability, err := client.ProductAvailabilityService.ListCompanyProductAvailability(ctx, company.CompanyUID)
+
+	spinner.Stop()
+
+	if err != nil {
+		output.PrintError("Failed to list product availability: %v", noColor, err)
+		return exitcodes.NewAPIError(fmt.Errorf("failed to list product availability: %w", err))
+	}
+
+	return utils.ApplyLimitAndPrint(toProductAvailabilityOutputs(availability), 0, outputFormat, noColor,
+		"No products available.", output.PrintOutput[productAvailabilityOutput])
 }
