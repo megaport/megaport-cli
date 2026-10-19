@@ -12,7 +12,7 @@ Required Fields:
 - `currency`: Billing currency code (e.g., USD, AUD, EUR)
 - `language`: Two-letter language code (e.g., en)
 - `billing-contact-name`: Name of the billing contact
-- `billing-contact-phone`: Phone number of the billing contact in E.164 format: a leading +, digits only, no spaces, dashes or parentheses (e.g. +14155552671)
+- `billing-contact-phone`: Phone number of the billing contact in E.164 format: a leading +, digits only, no spaces, dashes or parentheses, and a real number (e.g., +14155552671)
 - `billing-contact-email`: Email address of the billing contact
 - `address1`: Physical address line 1
 - `city`: City
@@ -54,7 +54,7 @@ megaport-cli billing-market set [flags]
 | `--address2` |  |  | Physical address line 2 | false |
 | `--billing-contact-email` |  |  | Email address of the billing contact | true |
 | `--billing-contact-name` |  |  | Name of the billing contact | true |
-| `--billing-contact-phone` |  |  | Phone number of the billing contact in E.164 format: a leading +, digits only, no spaces, dashes or parentheses (e.g. +14155552671) | true |
+| `--billing-contact-phone` |  |  | Phone number of the billing contact in E.164 format: a leading +, digits only, no spaces, dashes or parentheses, and a real number (e.g., +14155552671) | true |
 | `--city` |  |  | City | true |
 | `--country` |  |  | Country code (e.g., AU, US) | true |
 | `--currency` |  |  | Billing currency (e.g., USD, AUD, EUR) | true |
