@@ -2,7 +2,7 @@ module github.com/megaport/megaport-cli
 
 go 1.26.0
 
-toolchain go1.26.9
+toolchain go1.26.10
 
 require (
 	github.com/andybalholm/brotli v1.2.6
